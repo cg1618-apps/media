@@ -163,7 +163,96 @@ def test_the_status_vocabularies_have_one_source():
 
 
 def test_note_option_categories_come_from_the_registry():
-    assert ns.NOTE_OPTION_CATEGORIES == ("Song Type", "Song Source")
+    # Registry order: the game sections' field-level suggestion categories
+    # come before the music group's section-level ones.
+    assert ns.NOTE_OPTION_CATEGORIES == (
+        "Item Type",
+        "Collectible Type",
+        "Character Group",
+        "Geography Group",
+        "Song Type",
+        "Song Source",
+    )
+
+
+def test_note_suggestion_categories_are_the_field_level_ones():
+    # Exactly the four the owner settled, in registry order. Geography Group is
+    # in it with no seeded value: the constant, not a row, puts it in pickers.
+    assert ns.NOTE_SUGGESTION_CATEGORIES == (
+        "Item Type",
+        "Collectible Type",
+        "Character Group",
+        "Geography Group",
+    )
+    assert set(ns.NOTE_SUGGESTION_CATEGORIES) <= set(ns.NOTE_OPTION_CATEGORIES)
+
+
+def test_each_suggestion_category_sits_on_the_field_it_names():
+    def category(section, field):
+        return ns.field_by_key(ns.section_by_key(section), field).option_category
+
+    assert category("characters_guide", "group") == "Character Group"
+    assert category("collectibles", "type") == "Collectible Type"
+    assert category("items", "type") == "Item Type"
+    assert category("geography", "group") == "Geography Group"
+    # Weapons share the spec and not the category.
+    assert category("weapons_and_gear", "type") is None
+    assert category("guide_resources", "group") is None
+
+
+def test_an_option_category_is_only_ever_on_a_free_text_select():
+    for sec in ns.NOTE_SECTIONS:
+        for f in sec.fields:
+            if f.option_category:
+                assert f.type == ns.FIELD_SELECT and not f.options, (sec.key, f.key)
+
+
+def test_an_option_category_on_a_closed_select_is_refused_at_import():
+    import pytest
+
+    closed = ns.NoteSection(
+        key="x",
+        shape=ns.SHAPE_STRUCTURED,
+        label="X",
+        owners=("game",),
+        scope=ns.SCOPE_CATALOG,
+        fields=(
+            ns.NoteField(
+                key="t",
+                label="T",
+                type=ns.FIELD_SELECT,
+                options=("a",),
+                option_category="Cat",
+            ),
+        ),
+    )
+    with pytest.raises(ValueError, match="option_category"):
+        ns._check_option_categories(closed)
+    text = dataclasses.replace(
+        closed,
+        fields=(ns.NoteField(key="t", label="T", option_category="Cat"),),
+    )
+    with pytest.raises(ValueError, match="option_category"):
+        ns._check_option_categories(text)
+    # The mirror: the same field as a free-text select is accepted.
+    ok = dataclasses.replace(
+        closed,
+        fields=(
+            ns.NoteField(
+                key="t", label="T", type=ns.FIELD_SELECT, option_category="Cat"
+            ),
+        ),
+    )
+    ns._check_option_categories(ok)
+
+
+def test_only_the_four_todo_buckets_quick_move():
+    assert [s.key for s in ns.NOTE_SECTIONS if s.quick_move] == [
+        "todo_now",
+        "todo_next",
+        "todo_later",
+        "todo_maybe",
+    ]
 
 
 def test_easter_eggs_is_text_links_like_the_rest_of_analysis():
@@ -501,7 +590,6 @@ def test_labels_use_ascii_solidus():
 
 
 REVIEW_LISTS = (
-    "reviews_and_comments",
     "advantages",
     "disadvantages",
     "double_edged",
@@ -641,9 +729,6 @@ PERSONAL_KEYS = {
     "episode_comments",
     "questions",
     "personal_reviews",
-    # The gated types' one list of reviews and comments, personal like the
-    # 我的評價 it stands in for.
-    "reviews_and_comments",
     # The 待辦 buckets. Four sections rather than one with a kind, because
     # sort_index orders rows within one (owner, section) pair.
     "todo_now",
@@ -705,6 +790,7 @@ CATALOG_KEYS = {
     "endings",
     "mods_and_tools",
     "guide_resources",
+    "geography",
     # 劇情 Story
     "main_plot",
     "side_plot",
@@ -750,7 +836,7 @@ def test_external_sections_carry_no_scope():
         assert sec.scope is None
 
 
-def test_the_personal_sections_are_exactly_these_fourteen():
+def test_the_personal_sections_are_exactly_these_thirteen():
     assert {s.key for s in ns.NOTE_SECTIONS if s.scope == ns.SCOPE_PERSONAL} == (
         PERSONAL_KEYS
     )
@@ -776,7 +862,6 @@ def test_sections_by_scope_returns_registry_order():
     assert keys == [
         "remark",
         "remark_list",
-        "reviews_and_comments",
         "advantages",
         "disadvantages",
         "double_edged",

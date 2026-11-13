@@ -387,7 +387,13 @@ def _validate_parent(
 
 
 def _next_sort_index(db: Session, payload: schemas.NoteBase) -> float:
-    """Append to the end of its section."""
+    """
+    Append to the end of its section.
+
+    Across every author's rows, not only the caller's: in a personal section
+    that is still past the end of the caller's own, which is all ordering
+    within it reads.
+    """
     last = (
         db.query(models.Note.sort_index)
         .filter(
@@ -644,6 +650,12 @@ def update_note(
             setattr(db_note, column, columns.get(column))
     data.pop("owner_type", None)
     data.pop("owner_id", None)
+
+    # A row moved to another section lands at the end of it - the 待辦 quick
+    # move - unless the caller placed it. Its old sort_index orders it among
+    # rows it is no longer with.
+    if merged.section != db_note.section and data.get("sort_index") is None:
+        data["sort_index"] = _next_sort_index(db, merged)
 
     for key, value in data.items():
         setattr(db_note, key, value)

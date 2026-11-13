@@ -16,26 +16,15 @@ Each item is a short statement and a pointer. The detail lives in the
 design it points at — under `superpowers/specs/` while it is being built —
 and the present-tense pages take over once it ships.
 
-## 1. Notes rework — the catalogue half
-
-New and changed note sections that need nothing from the account work:
-common options as suggestion lists with their own tab, optional grouping
-for 攻略資源 Guide Resources, the `collected` option and the amount total on
-the collected sections, the NG Reset field, the 地理 Geography section,
-quick move in 待辦 Todo, and the restricted types' 評論 Reviews and Comments
-replaced by 大眾評價 Public Reviews and 我的評價 Personal Reviews.
-
-Design: [superpowers/specs/2026-11-12-notes-rework-design.md](superpowers/specs/2026-11-12-notes-rework-design.md).
-
-Its personal half — the amount collected, the NG reset button, 下周目目標 —
-waits for item 2.
-
-## 2. Account and authorization rework
+## 1. Account and authorization rework
 
 Users, roles, access modes, content labels and authentication together,
 including what becomes personal: per-user ratings, expectations,
 highlights, personal fields on catalogue rows, mixed sections, granted
-features, and the personal half of item 1. **The design is complete.**
+features, and the personal half of the notes rework — the amount
+collected, the NG reset button, 下周目目標 — whose design is
+[superpowers/specs/2026-11-12-notes-rework-design.md](superpowers/specs/2026-11-12-notes-rework-design.md).
+**The design is complete.**
 What each viewer sees is [viewers.md](viewers.md).
 
 Design: [superpowers/specs/2026-11-03-account-system-design.md](superpowers/specs/2026-11-03-account-system-design.md).

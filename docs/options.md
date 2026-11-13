@@ -162,9 +162,10 @@ All eleven are wired into `CONSTANTS_FALLBACK` in
 from the endpoint and the literals in that file are only the pre-fetch
 fallback.
 
-`/api/constants` also serves four keys from other modules:
+`/api/constants` also serves six keys from other modules:
 `watch_order_importance` ([below](#watch-order-built-ins-appservicesdomainwatch_orderpy)),
-`person_role` and `option_categories`
+`person_role`, `option_categories`, `tag_categories` and
+`note_suggestion_categories`
 ([below](#credit-roles-and-tag-fields-apputilscredit_rolespy)) and
 `media_type` ([below](#media-type-and-owner-keys-apputilsmedia_resolverpy)).
 
@@ -256,12 +257,12 @@ can only hold URLs and `text_links` has no title, so neither could say
 
 | Key | Label |
 |---|---|
-| `reviews` | 評論 Reviews and Comments |
+| `reviews` | 評論 Reviews and Comments (for an h-comic or a hentai, only 大眾評價 and 我的評價) |
 | `analysis_group` | 解析/解惑/討論 Analysis/Discussion (a game and an h-game read `analysis` in `reviews` instead) |
 | `guides` | 攻略 Guides |
 | `builds` | 養成&流派 Builds & Growth |
 | `gear` | 物品 Items & Gear |
-| `compendium` | 圖鑑與名詞 Compendium & Terms |
+| `compendium` | 圖鑑與名詞 Compendium & Terms (characters, enemies, geography, terms) |
 | `story` | 劇情 Story (for an h-game, the four Story List strands and 結局) |
 | `story_list` | 劇情列表 Story List (game only) |
 | `worldbuilding` | 世界觀 Worldbuilding (game only) |
@@ -283,13 +284,12 @@ out. What the three gated types keep is in
 |---|---|---|---|---|---|
 | `remark` | text | 備註 Remark | All | | singleton |
 | `remark_list` | text_links | 備註列表 Remark List | All | | Personal scope, many rows - 備註 is the singleton block |
-| `reviews_and_comments` | text_links | 評論 Reviews and Comments | h-comic, hentai, h-game | flat; **reviews** for h-game | personal scope; in place of 大眾評價 and 我的評價 |
 | `introduction` | text_links | 介紹 Introduction | All but h-comic, hentai | reviews | First in the 評論 card; shaped and scoped like 解析 |
 | `advantages` | text_links | 優點 Advantages | All but h-comic, hentai | reviews | |
 | `disadvantages` | text_links | 缺點 Disadvantages | All but h-comic, hentai | reviews | |
 | `double_edged` | text_links | 優缺點 | All but h-comic, hentai | reviews | |
-| `public_reviews` | text_links | 大眾評價 Public Reviews | All but H | reviews | |
-| `personal_reviews` | text | 我的評價 Personal Reviews | All but H | reviews | personal scope |
+| `public_reviews` | text_links | 大眾評價 Public Reviews | All | reviews | |
+| `personal_reviews` | text | 我的評價 Personal Reviews | All | reviews | personal scope |
 | `episode_comments` | text_links | 各集評論 Episode Comments (manga: 各話評論 Chapter Comments; game: 各章評論 Part Reviews) | anime, tv-show, cartoon, manga, game | reviews | locator required; manga's placeholder is "Chapter", game's "Chapter / Part" |
 | `highlights` | episode_text | 神回/神片段 Highlights | anime | | kinds `HIGHLIGHT_KINDS` |
 | `highlight_episodes` | episode_text | 神回/神片段 (manga: 神回) | tv-show, cartoon, manga | | kinds `HIGHLIGHT_KINDS` for tv-show and cartoon only |
@@ -314,11 +314,12 @@ out. What the three gated types keep is in
 | `skills` | structured | 技能 Skills | game, h-game | builds | type, name, description, links; groupable by type |
 | `builds_and_styles` | structured | 配裝&流派 Builds & Styles | game, h-game | builds | name, five nested lists, description, links |
 | `team_composition` | structured | 隊伍組成 Team Composition | game, h-game | builds | name, members list (name, 定位, build, notes), description, links |
-| `weapons_and_gear` | structured | 武器&裝備 Weapons & Gear | game, h-game | gear | type, name, variant, description, links, collect status (default `not collected`); groupable by type |
-| `items` | structured | 道具 Items | game, h-game | gear | type, name, variant, description, links, collect status (default `not collected`); groupable by type |
-| `collectibles` | structured | 收集物 Collectibles | game, h-game | gear | type, name, variant, description, links, collect status (default `not collected`); groupable by type |
-| `characters_guide` | structured | 角色 Characters | game, h-game | compendium | group, name, alias, description; groupable by group |
+| `weapons_and_gear` | structured | 武器&裝備 Weapons & Gear | game, h-game | gear | type, name, variant, description, links, collect status (default `not collected`), total, NG reset (`yes` / `no`, default `yes`); groupable by type |
+| `items` | structured | 道具 Items | game, h-game | gear | type (suggested from `Item Type`), name, variant, description, links, collect status (default `not collected`), total, NG reset (`yes` / `no`, default `yes`); groupable by type |
+| `collectibles` | structured | 收集物 Collectibles | game, h-game | gear | type (suggested from `Collectible Type`), name, variant, description, links, collect status (default `not collected`), total, NG reset (`yes` / `no`, default `yes`); groupable by type |
+| `characters_guide` | structured | 角色 Characters | game, h-game | compendium | group (suggested from `Character Group`), name, alias, description; groupable by group |
 | `enemies` | structured | 敵人 Enemies | game, h-game | compendium | tier, region, name, alias, description, beaten status (default `to beat`); groupable by tier |
+| `geography` | structured | 地理 Geography | game, h-game | compendium | group (suggested from `Geography Group`, top-level rows only), name, description, links; nestable; groupable by group |
 | `game_terms` | structured | 遊戲名詞 Game Terms | game, h-game | compendium | name (CN), alt name, description |
 | `player_terms` | structured | 玩家術語 Player Terms | game | compendium | name (CN), alt name, description |
 | `main_plot` | structured | 主線劇情 Main Plot | game | story | chapter (`locator`, optional), description, links |
@@ -338,10 +339,10 @@ out. What the three gated types keep is in
 | `ng_carried_over` | structured | 繼承內容 Carried Over | game, h-game | ng_plus | type, name, description, points (list of text), links; groupable by type |
 | `ng_reset` | structured | 重置內容 Reset | game, h-game | ng_plus | type, name, description, points (list of text), links; groupable by type |
 | `ng_before_starting` | structured | 新周目前需完成 Before Starting | game, h-game | ng_plus | type, name, description, points (list of text), links; groupable by type |
-| `todo_now` | text_links | 現在進行 Doing now | game, h-game | todo | personal scope |
-| `todo_next` | text_links | 接下來 To do next | game, h-game | todo | personal scope |
-| `todo_later` | text_links | 未來 To do in the future | game, h-game | todo | personal scope |
-| `todo_maybe` | text_links | 可能 Might do | game, h-game | todo | personal scope |
+| `todo_now` | text_links | 現在進行 Doing now | game, h-game | todo | personal scope; quick move |
+| `todo_next` | text_links | 接下來 To do next | game, h-game | todo | personal scope; quick move |
+| `todo_later` | text_links | 未來 To do in the future | game, h-game | todo | personal scope; quick move |
+| `todo_maybe` | text_links | 可能 Might do | game, h-game | todo | personal scope; quick move |
 | `saves` | structured | 存檔 Saves | game, h-game | todo | personal scope; number, name, checkpoint (`regular` / `main`, default `regular`), note, based on slot, at node (a block of the game's choice graph, [systems/game-choices.md](systems/game-choices.md)) |
 | `music_status` | music_status | 音樂狀態 Music Status | anime | music (hidden) | kinds `MUSIC_TYPE_KEYS` (`op`, `ed`, `insert_songs`, `ost`), one row each; statuses `MUSIC_TYPE_STATUSES`, default `Not Done` |
 | `op` | music_track | OP | anime | music | Song Type free text from category `Song Type`, default `normal`; statuses `MUSIC_STATUSES`; link text from category `Song Source` |
@@ -352,7 +353,7 @@ out. What the three gated types keep is in
 | `extended_episodes` | episode_text | 加長 | anime, tv-show, cartoon | | |
 | `adaptation` | text_links | 改編 Adaptation | anime, anime-movie, tv-show, cartoon, novel, series, franchise | | description required on anime, anime-movie, novel |
 | `mods_and_tools` | structured | 模組&工具 Mods & Tools | game, h-game | tools | type `Mod`/`Tool`, name, developer, description, status; groupable by type |
-| `guide_resources` | structured | 攻略資源 Guide Resources | game, h-game | tools | name, description, links |
+| `guide_resources` | structured | 攻略資源 Guide Resources | game, h-game | tools | group (free text, no suggestions), name, description, links; groupable by group |
 | `resources` | name_links | Resources | All | standalone | optional free-text Group in `kind` (`kind_is_group`) |
 | `questions` | episode_text | Questions | All but h-comic, hentai | standalone | description required everywhere |
 | `quotes` | external | 名言 Quotes | Entries but H | quotes_memes | |
@@ -375,12 +376,12 @@ Song Type is no longer a constant: it is free text, suggested from the
 site-wide `resources` section (`name_links`, all owners, standalone) holds
 plain bookmarks and games inherit it; `guide_resources` (`structured`, in
 the 資源&工具 card,
-game-only, inside the 攻略 group) holds a pointer to somebody else's
+game and h-game only) holds a pointer to somebody else's
 walkthrough with notes attached. Two keys and two labels, because a second
 card also called "Resources" would be unreadable.
 
-**The 攻略 sections are fifteen sections across five cards rather than one
-section with a `kind`**, because
+**The 攻略 sections are twenty sections (for a game) across five cards
+rather than one section with a `kind`**, because
 each is a list kept separately: which build to run is not the same question as
 where the collectibles are.
 
@@ -388,7 +389,10 @@ where the collectibles are.
 `sort_index` orders rows within one `(owner, section)` pair and
 `PATCH /api/notes/reorder` renumbers the whole section, so a kind-tagged
 single section could not order items *within* a bucket. Moving an item
-between buckets is a PATCH of `section`, which the API already accepts.
+between buckets is a PATCH of `section`, which appends it to the end of the
+bucket it lands in; the four are `quick_move`, so each row carries a
+"Move to…" list of the other three
+([systems/notes.md](systems/notes.md#rules)).
 
 The API rejects a kind the section does not list. The old `特殊變動` values
 `回顧` and `其他` belong to no section and cannot be entered.
@@ -609,23 +613,34 @@ legacy sheet header `source_official` (`LEGACY_SHEET_COLUMN`), while `movie`
 `TAG_CATEGORIES` (served as `/api/constants` `tag_categories`): `Genre Main`,
 `Genre Sub`, `Label` — the subset of the categories below that the
 admin Add / Modify / Delete pages offer under their **Tags** sub-tab instead
-of **Options**. The split is navigation only: both sub-tabs are the same form
+of **Options**. The split is navigation only: every sub-tab is the same form
 over the same `system_option` rows, and nothing in the data or the API marks
 a category as a tag. The list is written out, not derived — these three are the
 vocabularies every mainstream type shares, but what puts a category here
 is that its values read as tags *on* the work, while `Platform` and the
 Comic vocabularies name an outside party. A new category is therefore not automatically a tag.
 
+`NOTE_SUGGESTION_CATEGORIES` (`app/utils/note_sections.py`, served as
+`/api/constants` `note_suggestion_categories`): `Item Type`, `Collectible
+Type`, `Character Group`, `Geography Group` — the categories a note field's
+`option_category` names, which the same three admin pages offer under a third
+sub-tab, **Note Suggestions**, rather than under Options. Navigation only, like
+the Tags split. Derived from the registry, so it holds exactly the four the
+registry names: a fifth is a registry edit, not an admin action. `Song Type`
+and `Song Source` are named by a section rather than by a field, so they stay
+under Options. See [systems/notes.md](systems/notes.md#suggestion-categories).
+
 `FILTER_ONLY_CATEGORIES`: `Franchise for Filter` and `Reference Source` (Tier
 2 categories with no `TagField` behind them — `Reference Source` instead
 backs `media_source` `kind='reference'` rows directly, resolved by
 `option_id` the same way `main`-bucket access rows are, never through
-`media_tag`). `NOTE_OPTION_CATEGORIES` (`app/utils/note_sections.py`): `Song
-Type` and `Song Source`, derived from the note sections that name them
-(`kind_category`, `link_text_category`) rather than listed, so a section that
-names a new category offers it with no second edit. `OPTION_CATEGORIES` = the
-tag-field categories, the two character tag categories
-(`CHARACTER_OPTION_CATEGORIES`) and these four,
+`media_tag`). `NOTE_OPTION_CATEGORIES` (`app/utils/note_sections.py`): `Item
+Type`, `Collectible Type`, `Character Group`, `Geography Group`, `Song Type`
+and `Song Source`, derived from the note sections that name them (a field's
+`option_category`, a section's `kind_category` and `link_text_category`)
+rather than listed, so a section that names a new category offers it with no
+second edit. `OPTION_CATEGORIES` = the tag-field categories, the two character
+tag categories (`CHARACTER_OPTION_CATEGORIES`) and these eight,
 served as `/api/constants` `option_categories` and unioned with the
 categories present in the stored options to build the category picker on the
 Add and Modify pages. Without it a declared category holding no values yet
@@ -706,7 +721,7 @@ described in
 
 **Categories.** The category string is free text on the API
 (`SystemOptionCreate.category: str`), but the ones anything reads are the
-twenty-four in `OPTION_CATEGORIES`:
+twenty-seven in `OPTION_CATEGORIES`:
 
 | Category | Offered in (scopes) | Read by |
 |---|---|---|
@@ -733,6 +748,10 @@ twenty-four in `OPTION_CATEGORIES`:
 | `Franchise for Filter` | movie, tv-show | nothing today; filter-only, no form field |
 | `Song Type` | anime | suggestions for the Song Type (`note.kind`) of an `op` or `ed` row; `normal`, `different version`, `all inclusive version` seeded by `m1s2ongstat3`. Suggestions only - a value not in the list is stored as typed |
 | `Song Source` | anime | suggestions for a song link's label (`text` of a link pair on `op`, `ed`, `insert_songs`, `ost`); `YouTube`, `YouTube Music`, `Spotify`, `Apple Music`, `Bilibili` seeded by `m1s2ongstat3`. Suggestions only, like `Song Type` |
+| `Character Group` | unscoped (read by game and h-game notes) | suggestions for a 角色 Characters row's group (`characters_guide`, `note.kind`); `商人`, `重要NPC`, `主角`, `同伴`, `可攻略`, `反派` seeded by `n1o2tesrwk3`. Suggestions only |
+| `Collectible Type` | unscoped (read by game and h-game notes) | suggestions for a 收集物 Collectibles row's type (`collectibles`, `note.kind`); `重要物品` seeded by `n1o2tesrwk3`. Suggestions only |
+| `Item Type` | unscoped (read by game and h-game notes) | suggestions for a 道具 Items row's type (`items`, `note.kind`); `重要道具`, `任務道具` seeded by `n1o2tesrwk3`. Suggestions only |
+| `Geography Group` | unscoped (read by game and h-game notes) | suggestions for a 地理 Geography row's group (`geography`, `note.kind`); ships empty. Suggestions only |
 
 **h-comic has Platform values of its own**, scoped to `h-comic` alone and
 split by usage (migration `h5c6malsrc7`). The regional storefronts an

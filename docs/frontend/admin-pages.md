@@ -747,13 +747,16 @@ order — role rank, then position (`orderLoadedCast`) — and reloads it in tha
 order after a save, once the cast has been refetched; it does not re-sort
 while the admin is editing.
 
-**Options tab.** Two sub-tabs (`OptionSubTabBar`, shared with Modify and
-Delete): **Options** and **Tags**, both creating system options (category +
-value + scopes). They are the same form posting to the same endpoint; only the
-categories the Category picker offers differ (`TAG_CATEGORIES`, see
-[../options.md](../options.md)). All three pages now show the same two, so the
-Add-only `OPTION_VALUE_SUB_TABS` variant is gone. People and studios are
-**not** here — each has its own Entity tab.
+**Options tab.** Three sub-tabs (`OPTION_SUB_TABS` in `OptionSubTabBar`,
+shared with Modify and Delete): **Options**, **Tags** and **Note
+Suggestions**, all creating system options (category + value + scopes). They
+are the same form posting to the same endpoint; only the categories the
+Category picker offers differ (`categoriesForSubTab` in
+`lib/optionCategoryGroups.js`: Tags takes `TAG_CATEGORIES`, Note Suggestions
+takes `NOTE_SUGGESTION_CATEGORIES`, Options takes what neither claims; see
+[../options.md](../options.md)). All three pages show the same three, and
+there is no Add-only variant. People and studios are **not** here — each has
+its own Entity tab.
 
 On Modify and Delete, a chosen category's values are listed grouped by the
 media type each is scoped to (`forms/OptionValueGroups.jsx` over
@@ -821,8 +824,8 @@ is the form's. The picker
 arranges its categories with `groupTier2Categories` (`lib/optionsPageGroups.js`,
 see [/options](#options-systemoptionsjsx)) into `<optgroup>`s, with unclaimed
 categories under **Other**; a list that yields a single section — the Tags
-sub-tab, whose four categories are one group — renders flat rather than under
-a heading repeating the sub-tab's own name.
+sub-tab and the Note Suggestions sub-tab, whose categories are each one group
+— renders flat rather than under a heading repeating the sub-tab's own name.
 
 **Studio tab (Entity).** `StudioAddTab.jsx`. Four name fields (English,
 Chinese, Japanese, Alternative) with a "Display name" select naming which one
@@ -1313,9 +1316,11 @@ work is this" lists together under Entry Type, files the game lists by the
 question they answer (`game_release_status` under Publication Status,
 `playing_status` under My Progress) and keeps only the game_copy vocabularies
 in a **Game** group. Tier 2 (`TIER2_GROUPS`, keyed by `system_option.category`)
-reads as Tags, Game, Comic, Source & Platform, Music and **Character** (the
-`Character Appearance` and `Character Trait` vocabularies). That last group holds the
-platform and reference vocabularies, the ones that name an outside party.
+reads as Tags, Game, Comic, Source & Platform, Music, **Character** (the
+`Character Appearance` and `Character Trait` vocabularies) and **Note
+Suggestions** (`Character Group`, `Collectible Type`, `Item Type`, `Geography
+Group`, which the game note sections' free-text fields suggest from). Source &
+Platform holds the platform and reference vocabularies, the ones that name an outside party.
 Publishers and distributors are **not** among them — they are entities, edited
 on the Entity → Publisher tab.
 

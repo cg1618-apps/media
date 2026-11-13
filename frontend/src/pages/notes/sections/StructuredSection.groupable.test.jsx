@@ -139,3 +139,152 @@ describe("groupable_by", () => {
     expect(headers()).toEqual([]);
   });
 });
+
+// 地理 Geography: hierarchical AND groupable_by. The roots are grouped by their
+// Group; a child carries no group of its own (the backend refuses one) and is
+// drawn under its root.
+const GEOGRAPHY = {
+  key: "geography",
+  shape: "structured",
+  label: "地理 Geography",
+  require_any: [["name"]],
+  hierarchical: true,
+  group_by: null,
+  groupable_by: "group",
+  owner_where: {},
+  fields: [
+    {
+      key: "group",
+      label: "Group",
+      type: "select",
+      column: "kind",
+      options: [],
+      option_category: "Geography Group",
+    },
+    { key: "name", label: "Name", type: "text", column: "title", options: [] },
+    { key: "description", label: "Description", type: "textarea", column: "content", options: [] },
+    { key: "links", label: "Links", type: "links", column: "links", options: [] },
+  ],
+};
+
+const place = (id, title, kind, parent_id = null) => ({
+  ...note(id, title, kind),
+  section: "geography",
+  parent_id,
+});
+
+// In sort_index order. Stormveil carries a stray group (a hand-edited row):
+// a child's group is never drawn, grouped or not.
+const PLACES = [
+  place("a1", "Limgrave", "Lands Between"),
+  place("a2", "Stormveil", "Stray", "a1"),
+  place("a3", "Caelid", "Lands Between"),
+  place("a4", "Nokron", "Underground"),
+  place("a5", "Loose", null),
+  place("a6", "Gatefront", null, "a1"),
+];
+
+function renderGeography(props = {}) {
+  const handlers = {
+    onCreate: vi.fn(),
+    onUpdate: vi.fn(),
+    onDelete: vi.fn(),
+    onReorder: vi.fn(),
+  };
+  render(
+    <StructuredSection
+      section={GEOGRAPHY}
+      notes={PLACES}
+      isAdmin
+      optionValues={{ "Geography Group": ["Lands Between", "Underground"] }}
+      {...handlers}
+      {...props}
+    />,
+  );
+  return handlers;
+}
+
+const rowOf = (text) => screen.getByText(text).closest("div.flex.gap-2.items-start");
+
+describe("groupable_by on a hierarchical section", () => {
+  it("groups the roots, first appearance first, ungrouped last, children under their root", () => {
+    renderGeography();
+    expect(headers()).toEqual(["Lands Between", "Underground", "No group"]);
+    const lands = screen.getByRole("region", { name: "Lands Between" });
+    expect(within(lands).getByText("Limgrave")).toBeInTheDocument();
+    expect(within(lands).getByText("Caelid")).toBeInTheDocument();
+    // The children follow their root into its group, whatever they carry.
+    expect(within(lands).getByText("Stormveil")).toBeInTheDocument();
+    expect(within(lands).getByText("Gatefront")).toBeInTheDocument();
+    const limgrave = screen.getByText("Limgrave").closest("div.pt-2");
+    expect(within(limgrave).getByText("Stormveil")).toBeInTheDocument();
+    // Neither the header's group nor a child's stray one is repeated as a tag.
+    expect(screen.queryByText("Stray")).toBeNull();
+    expect(within(lands).queryByText("Lands Between", { selector: "span" })).toBeNull();
+    expect(within(screen.getByRole("region", { name: "No group" })).getByText("Loose")).toBeInTheDocument();
+  });
+
+  it("moves a root among its group's roots, sending the whole tree depth-first", () => {
+    const { onReorder } = renderGeography();
+    const lands = screen.getByRole("region", { name: "Lands Between" });
+    // Caelid is the last root of its group: down would leave it.
+    fireEvent.keyDown(within(lands).getByLabelText("Reorder Caelid"), { key: "ArrowDown" });
+    expect(onReorder).not.toHaveBeenCalled();
+    fireEvent.keyDown(within(lands).getByLabelText("Reorder Caelid"), { key: "ArrowUp" });
+    expect(onReorder).toHaveBeenCalledWith("geography", ["a3", "a1", "a2", "a6", "a4", "a5"]);
+  });
+
+  it("moves a child among its siblings only", () => {
+    const { onReorder } = renderGeography();
+    fireEvent.keyDown(screen.getByLabelText("Reorder Gatefront"), { key: "ArrowUp" });
+    expect(onReorder).toHaveBeenCalledWith("geography", ["a1", "a6", "a2", "a3", "a4", "a5"]);
+  });
+
+  it("moves a group with its roots' subtrees", () => {
+    const { onReorder } = renderGeography();
+    fireEvent.keyDown(screen.getByLabelText("Reorder group Underground"), { key: "ArrowUp" });
+    expect(onReorder).toHaveBeenCalledWith("geography", ["a4", "a1", "a2", "a6", "a3", "a5"]);
+  });
+
+  it("toggles to the plain tree, where a root shows its group and a child still does not", async () => {
+    renderGeography();
+    await userEvent.click(screen.getByRole("button", { name: "Group by group" }));
+    expect(headers()).toEqual([]);
+    expect(screen.getAllByText("Lands Between")).toHaveLength(2);
+    expect(screen.getByText("Underground")).toBeInTheDocument();
+    expect(screen.queryByText("Stray")).toBeNull();
+  });
+
+  it("asks for a group on a new root, with the category's suggestions", async () => {
+    renderGeography();
+    await userEvent.click(screen.getByRole("button", { name: /^add$/i }));
+    expect(screen.getByLabelText("Group")).toHaveAttribute("role", "combobox");
+  });
+
+  it("asks no group of a new child, and sends none", async () => {
+    const { onCreate } = renderGeography();
+    await userEvent.click(screen.getByRole("button", { name: "Add entry under Limgrave" }));
+    expect(screen.queryByLabelText("Group")).toBeNull();
+    await userEvent.type(screen.getByLabelText("Name"), "Church of Elleh");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    const payload = onCreate.mock.calls[0][0];
+    expect(payload).toMatchObject({ section: "geography", title: "Church of Elleh", parent_id: "a1" });
+    expect(payload.kind ?? null).toBeNull();
+  });
+
+  it("asks no group when editing a child, and clears a stray one", async () => {
+    const { onUpdate } = renderGeography();
+    await userEvent.click(within(rowOf("Stormveil")).getByRole("button", { name: "Edit" }));
+    expect(screen.queryByLabelText("Group")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(onUpdate).toHaveBeenCalledWith("a2", expect.objectContaining({ title: "Stormveil", kind: null }));
+  });
+
+  it("still asks for the group when editing a root", async () => {
+    const { onUpdate } = renderGeography();
+    await userEvent.click(within(rowOf("Limgrave")).getByRole("button", { name: "Edit" }));
+    expect(screen.getByLabelText("Group")).toHaveValue("Lands Between");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(onUpdate).toHaveBeenCalledWith("a1", expect.objectContaining({ kind: "Lands Between" }));
+  });
+});

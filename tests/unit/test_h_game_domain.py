@@ -131,9 +131,7 @@ def test_credits_and_tags():
 
 # What an h-game does NOT take of game's notes. Everything else reaches it.
 GAME_ONLY_SECTIONS = {
-    # 評論: one list of reviews and comments stands in for these three.
-    "public_reviews",
-    "personal_reviews",
+    # 評論: an h-game is not reviewed part by part.
     "episode_comments",
     # Its highlights are h_game_highlights.
     "highlight_moments",
@@ -163,7 +161,7 @@ def test_h_game_takes_game_notes_less_the_game_only_sections():
     game = {s.key for s in ns.sections_for("game")}
     h = {s.key for s in ns.sections_for("h-game")}
     assert game - h == GAME_ONLY_SECTIONS
-    assert h - game == {"h_game_highlights", "reviews_and_comments"}
+    assert h - game == {"h_game_highlights"}
 
 
 def test_the_per_owner_game_overrides_carry_over():

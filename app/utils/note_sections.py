@@ -123,11 +123,11 @@ def _for_game_owners(value) -> dict:
 _SERIES_AND_UP = ("series", "franchise")
 
 # The gated types. Their notes are pared down rather than inherited whole: an
-# h-comic or a hentai has one list of reviews and comments in place of the
-# 評論 card, 解析, Questions and 名言/梗, and an h-game keeps only the parts of
+# h-comic or a hentai keeps a 評論 card of public and personal reviews and
+# nothing of 解析, Questions and 名言/梗, and an h-game keeps only the parts of
 # game's notes that describe how it plays.
 H_OWNERS: tuple[str, ...] = ("h-comic", "hentai", "h-game")
-# The two of them that keep nothing of 評論 but that one list.
+# The two of them that keep nothing of 評論 but those two lists.
 _H_READ_OWNERS: tuple[str, ...] = ("h-comic", "hentai")
 
 
@@ -208,6 +208,12 @@ class NoteField:
     # field of a guide that changes while playing rather than while writing.
     quick_edit: bool = False
     placeholder: str | None = None
+    # The system_option category suggesting values for a free-text select -
+    # the field-level twin of NoteSection.kind_category. Suggests only: the
+    # value stays free text and is validated as before. Only on a FIELD_SELECT
+    # declaring no `options`, where there is nothing closed to suggest over;
+    # checked at import.
+    option_category: str | None = None
 
 
 @dataclass(frozen=True)
@@ -415,6 +421,12 @@ class NoteSection:
     # in the row whose `kind` is this section's key. The page draws that
     # status above this section's rows.
     type_status_section: str | None = None
+    # A row may be moved straight to another `quick_move` section of the same
+    # resolved group, without opening it for edit - the 待辦 buckets, where
+    # "this is next now" is the commonest edit there is. The API serves the
+    # targets per owner (NoteSectionOut.move_targets); the move itself is a
+    # PATCH of `section`, which appends the row to the end of its new section.
+    quick_move: bool = False
 
 
 OP_ED_KINDS = ("變化OP", "變化ED", "無OP", "無ED", "特殊OP", "特殊ED")
@@ -455,14 +467,17 @@ _SONG_LIST = dict(
 ENEMY_STATUSES = ("to beat", "beaten", "cheesed", "skip")
 
 # How far collecting one kind of thing has got. Ordered as a progression with
-# the opt-out after it, like ENEMY_STATUSES above: "enough" is the state a
-# completionist run leaves behind and a normal run stops at, and it is worth
-# distinguishing from "fully" precisely because most things never reach
-# "fully". "inapplicable" is not an opt-out but the row having nothing to
-# collect at all - a thing worth noting that the game never lets you keep -
-# so "skip" stays a decision and never doubles as "can't".
+# the opt-out after it, like ENEMY_STATUSES above. "collected" is a one-off
+# thing that is simply had, where "enough" and "fully" are about a thing
+# collected in quantity: "enough" is the state a completionist run leaves
+# behind and a normal run stops at, and it is worth distinguishing from
+# "fully" precisely because most things never reach "fully". "inapplicable"
+# is not an opt-out but the row having nothing to collect at all - a thing
+# worth noting that the game never lets you keep - so "skip" stays a decision
+# and never doubles as "can't".
 COLLECT_STATUSES = (
     "not collected",
+    "collected",
     "enough collected",
     "fully collected",
     "skip",
@@ -484,9 +499,23 @@ SAVE_CHECKPOINTS = ("regular", "main")
 # What a 模組&工具 row is. Carried over from the section's old `kinds`.
 MOD_KINDS = ("Mod", "Tool")
 
+# Whether a 物品 row's collect status goes back to "not collected" when a new
+# cycle starts. Closed, like the collect status itself: a fact about the game.
+NG_RESET_OPTIONS = ("yes", "no")
+
+# The system_option categories the game note sections' free-text selects draw
+# suggestions from, one per field (`NoteField.option_category`). All open: a
+# value typed that is not in the list is stored as typed.
+CHARACTER_GROUP_CATEGORY = "Character Group"
+COLLECTIBLE_TYPE_CATEGORY = "Collectible Type"
+ITEM_TYPE_CATEGORY = "Item Type"
+GEOGRAPHY_GROUP_CATEGORY = "Geography Group"
+
 
 def _named_thing_fields(
-    variant: bool = False, collected: bool = False
+    variant: bool = False,
+    collected: bool = False,
+    type_category: str | None = None,
 ) -> tuple["NoteField", ...]:
     """
     The shape four guide sections share: a typed, named thing with a body and
@@ -501,11 +530,25 @@ def _named_thing_fields(
 
     The `type` field is a free-text select on `kind`: every one of these
     vocabularies is the game's rather than ours, so a closed list would be
-    wrong by the second game. `collected` is the opposite - it is a fact about
-    my run, so it reads the same everywhere and is closed.
+    wrong by the second game. `type_category` names the system_option
+    category suggesting it, where the section has one. `collected` is the
+    opposite - it is a fact about my run, so it reads the same everywhere and
+    is closed.
+
+    A collected section also carries how many there are (`amount_total`,
+    text like the stat values - "12", "12 + DLC" - since there is no number
+    field) and whether a new cycle resets it (`ng_reset`). Both describe the
+    game rather than my run. `ng_reset` defaults to yes, the commoner answer,
+    and a row stored without the key reads as yes too.
     """
     return (
-        NoteField(key="type", label="Type", type=FIELD_SELECT, column="kind"),
+        NoteField(
+            key="type",
+            label="Type",
+            type=FIELD_SELECT,
+            column="kind",
+            option_category=type_category,
+        ),
         NoteField(key="name", label="Name", column="title"),
         *((NoteField(key="variant", label="Variant"),) if variant else ()),
         NoteField(
@@ -524,6 +567,14 @@ def _named_thing_fields(
                     column="status",
                     options=COLLECT_STATUSES,
                     default="not collected",
+                ),
+                NoteField(key="amount_total", label="Total"),
+                NoteField(
+                    key="ng_reset",
+                    label="NG Reset",
+                    type=FIELD_SELECT,
+                    options=NG_RESET_OPTIONS,
+                    default="yes",
                 ),
             )
             if collected
@@ -719,35 +770,15 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         # What the work IS, before anything is said about it: the first
         # subsection of 評論 Reviews and Comments, declared first so it reads
         # first. Shaped and scoped like 解析 Analysis - a body with its
-        # sources, shared rather than personal - and held by the same owners,
-        # so it lands wherever 評論 is a card. An h-comic or a hentai has no
-        # such card, only one flat list, so it has no introduction either.
+        # sources, shared rather than personal - and held by the same owners.
+        # An h-comic or a hentai keeps only the two reviews of 評論, so it has
+        # no introduction.
         key="introduction",
         shape=SHAPE_TEXT_LINKS,
         label="介紹 Introduction",
         owners=_all_but(ALL_OWNERS, *_H_READ_OWNERS),
         scope=SCOPE_CATALOG,
         group="reviews",
-    ),
-    NoteSection(
-        # The gated types' reviews: one list of what I thought, one row per
-        # remark, in place of 大眾評價 and 我的評價. For an h-comic or a hentai
-        # it is all they keep of 評論, so it renders flat in the Notes card
-        # beside 備註 rather than as a card holding one section. An h-game
-        # keeps 優點, 缺點, 優缺點 and 解析 too, so for it this opens the 評論
-        # card - see `groups_by_owner`.
-        #
-        # Personal, like 我的評價 it stands in for.
-        #
-        # Every list of 評論 but 我的評價 is a body with any number of links -
-        # a remark is often worth its source - while 我的評價 is the one place
-        # for my own verdict and stays plain text.
-        key="reviews_and_comments",
-        shape=SHAPE_TEXT_LINKS,
-        label="評論 Reviews and Comments",
-        owners=H_OWNERS,
-        scope=SCOPE_PERSONAL,
-        groups_by_owner={"h-game": "reviews"},
     ),
     NoteSection(
         key="advantages",
@@ -774,10 +805,16 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         group="reviews",
     ),
     NoteSection(
+        # Every owner, the gated types included: for an h-comic or a hentai
+        # these two are the whole 評論 card.
+        #
+        # Every list of 評論 but 我的評價 is a body with any number of links -
+        # a remark is often worth its source - while 我的評價 is the one place
+        # for my own verdict and stays plain text.
         key="public_reviews",
         shape=SHAPE_TEXT_LINKS,
         label="大眾評價 Public Reviews",
-        owners=_all_but(ALL_OWNERS, *H_OWNERS),
+        owners=ALL_OWNERS,
         scope=SCOPE_CATALOG,
         group="reviews",
     ),
@@ -785,7 +822,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="personal_reviews",
         shape=SHAPE_TEXT,
         label="我的評價 Personal Reviews",
-        owners=_all_but(ALL_OWNERS, *H_OWNERS),
+        owners=ALL_OWNERS,
         scope=SCOPE_PERSONAL,
         group="reviews",
     ),
@@ -794,7 +831,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         locator_required=True,
         shape=SHAPE_TEXT_LINKS,
         label="各集評論 Episode Comments",
-        # Not h-game: its comments go in 評論 Reviews and Comments.
+        # Not h-game: an h-game is not reviewed part by part.
         owners=("anime", "tv-show", "cartoon", "manga", "game"),
         scope=SCOPE_PERSONAL,
         # A manga is cut into chapters and a game into chapters or parts
@@ -1387,7 +1424,9 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
         group="gear",
-        fields=_named_thing_fields(variant=True, collected=True),
+        fields=_named_thing_fields(
+            variant=True, collected=True, type_category=ITEM_TYPE_CATEGORY
+        ),
         groupable_by="type",
     ),
     NoteSection(
@@ -1397,7 +1436,9 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
         group="gear",
-        fields=_named_thing_fields(variant=True, collected=True),
+        fields=_named_thing_fields(
+            variant=True, collected=True, type_category=COLLECTIBLE_TYPE_CATEGORY
+        ),
         groupable_by="type",
     ),
     # --- 圖鑑與名詞 Compendium & Terms ------------------------------------
@@ -1420,8 +1461,15 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         group="compendium",
         fields=(
             # `group` is what a character belongs TO - a faction, a party, a
-            # house. Free text, so it declares no options.
-            NoteField(key="group", label="Group", type=FIELD_SELECT, column="kind"),
+            # house, or a role in the story. Free text, so it declares no
+            # options; suggested from its own category.
+            NoteField(
+                key="group",
+                label="Group",
+                type=FIELD_SELECT,
+                column="kind",
+                option_category=CHARACTER_GROUP_CATEGORY,
+            ),
             NoteField(key="name", label="Name", column="title"),
             NoteField(key="alias", label="Alias"),
             NoteField(
@@ -1469,6 +1517,42 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         ),
         # Bosses apart from the trash, without a second section for each.
         groupable_by="tier",
+    ),
+    NoteSection(
+        # Where things are: a region holding areas holding rooms, each a row
+        # of its own - the `hierarchical` shape the 劇情列表 lists use. After
+        # 敵人 because "where is it" is the next question after "what is it".
+        #
+        # Groupable like the cast, but only a top-level row carries a group:
+        # the rows under it belong to its group by being under it, so the
+        # grouped view groups the roots and draws each one's subtree beneath
+        # it. A child carrying a group of its own is refused (422).
+        key="geography",
+        shape=SHAPE_STRUCTURED,
+        label="地理 Geography",
+        owners=GAME_OWNERS,
+        scope=SCOPE_CATALOG,
+        group="compendium",
+        hierarchical=True,
+        groupable_by="group",
+        require_any=(("name",),),
+        fields=(
+            NoteField(
+                key="group",
+                label="Group",
+                type=FIELD_SELECT,
+                column="kind",
+                option_category=GEOGRAPHY_GROUP_CATEGORY,
+            ),
+            NoteField(key="name", label="Name", column="title"),
+            NoteField(
+                key="description",
+                label="Description",
+                type=FIELD_TEXTAREA,
+                column="content",
+            ),
+            NoteField(key="links", label="Links", type=FIELD_LINKS, column="links"),
+        ),
     ),
     NoteSection(
         # The game's own vocabulary - mechanics, currencies, jargon - as a
@@ -1686,8 +1770,9 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
     # PER SECTION: sort_index orders rows within one (owner, section) pair and
     # PATCH /api/notes/reorder renumbers the whole section, so a kind-tagged
     # single section could not order items within a bucket. Moving an item
-    # between buckets is therefore a PATCH of `section`, which the API already
-    # accepts - no UI does it, and none does reorder either.
+    # between buckets is therefore a PATCH of `section`, which appends it to
+    # the end of the bucket it lands in; `quick_move` is what offers that move
+    # on each row without opening it.
     #
     # Personal, not catalogue: a backlog is one person's. text_links so an item
     # can carry the guide link that prompted it.
@@ -1698,6 +1783,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         owners=GAME_OWNERS,
         scope=SCOPE_PERSONAL,
         group="todo",
+        quick_move=True,
     ),
     NoteSection(
         key="todo_next",
@@ -1706,6 +1792,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         owners=GAME_OWNERS,
         scope=SCOPE_PERSONAL,
         group="todo",
+        quick_move=True,
     ),
     NoteSection(
         key="todo_later",
@@ -1714,6 +1801,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         owners=GAME_OWNERS,
         scope=SCOPE_PERSONAL,
         group="todo",
+        quick_move=True,
     ),
     NoteSection(
         key="todo_maybe",
@@ -1722,6 +1810,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         owners=GAME_OWNERS,
         scope=SCOPE_PERSONAL,
         group="todo",
+        quick_move=True,
     ),
     # The save slots of my run: what each one is, which are the checkpoints
     # worth going back to, and which slot each was copied from. Last in 待辦,
@@ -1926,7 +2015,12 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
         group="tools",
+        # An optional group - "wikis", "videos", "one person's guides" - the
+        # reader may toggle a grouped view on. Free text, with no category to
+        # suggest from.
+        groupable_by="group",
         fields=(
+            NoteField(key="group", label="Group", type=FIELD_SELECT, column="kind"),
             NoteField(key="name", label="Name", column="title"),
             NoteField(
                 key="description",
@@ -2002,7 +2096,15 @@ def _check_group_by(section: NoteSection) -> None:
 
 
 def _check_groupable_by(section: NoteSection) -> None:
-    """A section's `groupable_by` must name one of its own `select` fields."""
+    """
+    A section's `groupable_by` must name one of its own `select` fields - and,
+    on a hierarchical section, a column-backed one.
+
+    A hierarchical section groups its ROOTS and draws each subtree under its
+    root, and only a root may carry the value - a rule the schema layer
+    enforces by reading the field. A column keeps that value readable from
+    the row alone, the same way for every reader of the tree.
+    """
     if section.groupable_by is None:
         return
     target = next(
@@ -2013,6 +2115,22 @@ def _check_groupable_by(section: NoteSection) -> None:
             f"Section '{section.key}' is groupable by '{section.groupable_by}', "
             "which is not one of its `select` fields."
         )
+    if section.hierarchical and not target.column:
+        raise ValueError(
+            f"Section '{section.key}' nests, so the field it is groupable by "
+            f"('{section.groupable_by}') must be stored in a column."
+        )
+
+
+def _check_option_categories(section: NoteSection) -> None:
+    """A field's `option_category` suggests over free text, so it sits only on
+    a `select` that declares no closed `options`."""
+    for f in section.fields:
+        if f.option_category and (f.type != FIELD_SELECT or f.options):
+            raise ValueError(
+                f"Section '{section.key}' field '{f.key}' declares an "
+                "option_category but is not a free-text select."
+            )
 
 
 def _check_kind_category(section: NoteSection) -> None:
@@ -2046,6 +2164,7 @@ def _check_type_status(section: NoteSection) -> None:
 for _section in NOTE_SECTIONS:
     _check_group_by(_section)
     _check_groupable_by(_section)
+    _check_option_categories(_section)
     _check_kind_category(_section)
     _check_type_status(_section)
 
@@ -2101,14 +2220,34 @@ LINK_PAIR_SECTIONS: frozenset[str] = frozenset(
     s.key for s in NOTE_SECTIONS if uses_link_pairs(s)
 )
 
-# The system_option categories the registry draws suggestions from, in
-# registry order. Unioned into credit_roles.OPTION_CATEGORIES so the Options
-# form offers them before either has a value.
+# The field-level suggestion categories (`NoteField.option_category`), in
+# registry order. Served apart on /api/constants as
+# `note_suggestion_categories`, because the admin pages edit them under a
+# sub-tab of their own. A category with no value yet is still listed: the
+# constant, not a row, is what puts it in a picker.
+NOTE_SUGGESTION_CATEGORIES: tuple[str, ...] = tuple(
+    dict.fromkeys(
+        f.option_category
+        for s in NOTE_SECTIONS
+        for f in s.fields
+        if f.option_category
+    )
+)
+
+# Every system_option category the registry draws suggestions from - the
+# field-level ones above and the section-level kind_category and
+# link_text_category - in registry order. Unioned into
+# credit_roles.OPTION_CATEGORIES so the Options form offers them before any
+# has a value.
 NOTE_OPTION_CATEGORIES: tuple[str, ...] = tuple(
     dict.fromkeys(
         category
         for s in NOTE_SECTIONS
-        for category in (s.kind_category, s.link_text_category)
+        for category in (
+            s.kind_category,
+            s.link_text_category,
+            *(f.option_category for f in s.fields),
+        )
         if category
     )
 )

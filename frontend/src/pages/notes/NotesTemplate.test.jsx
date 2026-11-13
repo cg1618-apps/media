@@ -369,3 +369,41 @@ describe("NotesTemplate hidden sections and list statuses", () => {
     expect(api.fetchOptionValues).toHaveBeenCalledWith("Song Source", "anime");
   });
 });
+
+// A structured section's suggestions come from its FIELDS, not from the
+// section: 角色 Characters' Group names "Character Group".
+describe("NotesTemplate field suggestion categories", () => {
+  const CHARACTERS = {
+    key: "characters",
+    shape: "structured",
+    label: "角色 Characters",
+    kinds: [],
+    require_any: [],
+    hierarchical: false,
+    groupable_by: null,
+    fields: [
+      {
+        key: "group",
+        label: "Group",
+        type: "select",
+        column: "kind",
+        options: [],
+        option_category: "Character Group",
+      },
+      { key: "name", label: "Name", type: "text", column: "title", options: [], option_category: null },
+    ],
+  };
+
+  beforeEach(() => {
+    vi.mocked(api.fetchSections).mockResolvedValue([CHARACTERS]);
+    vi.mocked(api.fetchNotes).mockResolvedValue([]);
+    vi.mocked(api.fetchOptionValues).mockClear();
+    vi.mocked(api.fetchOptionValues).mockResolvedValue(["Heroes"]);
+  });
+
+  it("fetches a field's option category for this owner type", async () => {
+    renderTemplate({ ownerType: "game" });
+    await waitFor(() => expect(api.fetchOptionValues).toHaveBeenCalledTimes(1));
+    expect(api.fetchOptionValues).toHaveBeenCalledWith("Character Group", "game");
+  });
+});
