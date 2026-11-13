@@ -230,7 +230,8 @@ the owner wants to design them.
 - **Revocation — refusals that bite**: a token minted, then a reset spent →
   that token resolves as guest (mirror: an unrelated account's token still
   works); disable → same; a self-change → the old token still works; a
-  token with no `sv` claim still works at version 0 and stops working at 1.
+  token with no `sv` claim still works at version 0 and stops working at 1;
+  an admin set-password on `/users` → the old token resolves as guest.
 - **Codes**: expired, spent, wrong purpose, unknown → one message;
   newer reset voids the older; a register with a bad username leaves the
   code unspent; a rejected account's invite stays spent.
