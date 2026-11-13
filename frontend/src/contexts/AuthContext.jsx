@@ -45,6 +45,9 @@ const ANONYMOUS = {
   // holds none.
   mode: null,
   modes: [],
+  // The granted features (`features` on /me), or null when /me does not
+  // carry them - see hasFeature.
+  features: null,
   loading: false,
 };
 
@@ -67,6 +70,7 @@ export function AuthProvider({ children }) {
           visibleGatedTypes: data.visible_gated_types ?? [],
           mode: data.mode ?? null,
           modes: data.modes ?? [],
+          features: data.features ?? null,
           loading: false,
         });
       } else {
@@ -125,9 +129,23 @@ export function AuthProvider({ children }) {
     [auth.isRoot, held],
   );
 
+  // Whether the viewer holds a granted feature ("music_status", "mod_status",
+  // ...). Read from /me's `features`; the per-account switches supply that
+  // list, and until /me carries it the answer is the server's stand-in - a
+  // holder of self.personal_notes holds every feature (has_feature in
+  // app/services/rbac/features.py).
+  const features = useMemo(
+    () => (auth.features ? new Set(auth.features) : null),
+    [auth.features],
+  );
+  const hasFeature = useCallback(
+    (name) => (features ? features.has(name) : has("self.personal_notes")),
+    [features, has],
+  );
+
   const value = useMemo(
-    () => ({ ...auth, has, refetchAuth: fetchAuth }),
-    [auth, has, fetchAuth],
+    () => ({ ...auth, has, hasFeature, refetchAuth: fetchAuth }),
+    [auth, has, hasFeature, fetchAuth],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

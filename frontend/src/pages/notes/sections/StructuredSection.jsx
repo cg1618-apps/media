@@ -33,6 +33,15 @@
 //     typed in. It stays free text.
 // None of them names a section: any section declaring them gets them.
 //
+// A field marked `personal` (an item's collected, an enemy's beaten, a stat's
+// "Mine", a mod's status) is the VIEWER's own value, not the row's: the row is
+// catalogue, the value lives in the viewer's note mark. So it is never part of
+// the row's form or its catalogue save (`catalogueFields`), and is drawn on
+// the read view as its own inline control instead (`PersonalValue`), written
+// through `onMark` by a viewer who may mark (`canMark`) - whether or not it
+// may write the catalogue section. A section with a value a new cycle resets
+// carries the NG reset button (`NgResetButton`). Both are provisional UI.
+//
 // And one field type points outside the notes: a `choice_node` field (a save's
 // "At node") names a point in the owner game's choice graph. It is edited as a
 // select of that game's points and read as the point's title, both drawn by
@@ -64,6 +73,7 @@ import {
   treeIds,
 } from "./groupedRows";
 
+import { Button } from "../../../components/ui/primitives";
 import {
   EmptyHint,
   ItemActions,
@@ -104,14 +114,18 @@ const ARRAY_TYPES = new Set(["links", "list", "names"]);
 const emptyValue = (field) =>
   ARRAY_TYPES.has(field.type) ? [] : field.default || "";
 
+// The fields a row's form edits and its catalogue save sends: every field but
+// a personal one, which is the viewer's own and written through its mark.
+const catalogueFields = (section) => section.fields.filter((f) => !f.personal);
+
 const emptyDraft = (section) =>
-  Object.fromEntries(section.fields.map((f) => [f.key, emptyValue(f)]));
+  Object.fromEntries(catalogueFields(section).map((f) => [f.key, emptyValue(f)]));
 
 // One saved row as form state. A column-backed field comes from the column,
 // everything else from the `fields` blob.
 const fromNote = (section, note) =>
   Object.fromEntries(
-    section.fields.map((f) => {
+    catalogueFields(section).map((f) => {
       const raw = f.column ? note[f.column] : (note.fields || {})[f.key];
       if (ARRAY_TYPES.has(f.type)) return [f.key, raw || []];
       return [f.key, raw == null ? "" : String(raw)];
@@ -124,7 +138,7 @@ const fromNote = (section, note) =>
 const toPayload = (section, val) => {
   const payload = {};
   const fields = {};
-  for (const f of section.fields) {
+  for (const f of catalogueFields(section)) {
     const raw = val[f.key];
     let out;
     if (f.type === "links") {
@@ -174,15 +188,13 @@ const payloadWithout = (section, val, omitKey) => {
 // returning a 422 - including the rule that a DEFAULTED field cannot be what
 // makes a row worth storing, or an untouched draft would save itself on the
 // strength of a status nobody chose.
+// A personal field never counts: it is not part of the row.
 const invalid = (section, val) => {
-  const carrying = section.fields.filter((f) => !f.default);
-  if (
-    (carrying.length ? carrying : section.fields).every((f) =>
-      isBlank(val[f.key]),
-    )
-  )
+  const own = catalogueFields(section);
+  const carrying = own.filter((f) => !f.default);
+  if ((carrying.length ? carrying : own).every((f) => isBlank(val[f.key])))
     return true;
-  if (section.fields.some((f) => f.required && isBlank(val[f.key])))
+  if (own.some((f) => f.required && isBlank(val[f.key])))
     return true;
   return (section.require_any || []).some((group) =>
     group.every((key) => isBlank(val[key])),
@@ -347,7 +359,7 @@ function ChoiceNodeInput({ field, value, onChange }) {
 function StructuredForm({ section, val, setVal, nameSuggestions }) {
   return (
     <div className="space-y-2">
-      {section.fields.map((field) => {
+      {catalogueFields(section).map((field) => {
         const set = (v) => setVal({ ...val, [field.key]: v });
         if (field.type === "names") {
           return (
@@ -465,8 +477,28 @@ function ListView({ field, rows }) {
 // which changes while playing rather than while writing the guide. Saves on
 // blur, like the remark box on the detail pages.
 function QuickEdit({ field, note, canWrite, onUpdate }) {
-  const value = readValue(field, note);
-  if (!canWrite) {
+  const save = (out) =>
+    onUpdate(
+      note.system_id,
+      field.column
+        ? { [field.column]: out }
+        : { fields: { ...(note.fields || {}), [field.key]: out } },
+    );
+  return (
+    <InlineText
+      field={field}
+      value={readValue(field, note)}
+      editable={canWrite}
+      onSave={save}
+    />
+  );
+}
+
+// A short free-text value edited in place and saved on blur, or read as a
+// labelled tag. `onSave` gets the trimmed value, null for blank, and is not
+// called when nothing changed.
+function InlineText({ field, value, editable, onSave }) {
+  if (!editable) {
     return isBlank(value) ? null : (
       <span className={brandTagCls}>
         {field.label} {value}
@@ -475,13 +507,7 @@ function QuickEdit({ field, note, canWrite, onUpdate }) {
   }
   const save = (next) => {
     if (String(next) === String(value ?? "")) return;
-    const out = next.trim() || null;
-    onUpdate(
-      note.system_id,
-      field.column
-        ? { [field.column]: out }
-        : { fields: { ...(note.fields || {}), [field.key]: out } },
-    );
+    onSave(next.trim() || null);
   };
   return (
     <label className="inline-flex items-center gap-1">
@@ -496,6 +522,83 @@ function QuickEdit({ field, note, canWrite, onUpdate }) {
         className="w-16 border border-border-strong bg-surface text-text px-1.5 py-0.5 text-xs font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-brand"
       />
     </label>
+  );
+}
+
+const markSelectCls =
+  "border border-border-strong bg-surface text-text px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] focus:outline-none focus:ring-2 focus:ring-brand";
+
+// One personal value on a saved row - the viewer's own, read from the row
+// (the server puts the viewer's mark, or the default, where the field lives).
+// A viewer who may mark edits it in place: a closed select changes on pick,
+// free text saves on blur, and each writes only this key through `onMark`.
+// Anyone else reads it: a select's value as a tag, free text with its label.
+// Provisional UI.
+function PersonalValue({ field, note, canMark, onMark }) {
+  const value = readValue(field, note);
+  const mark = (out) => onMark(note.system_id, { [field.key]: out });
+  if (field.type === "select" && field.options.length) {
+    if (!canMark) {
+      return isBlank(value) ? null : <span className={tagCls}>{value}</span>;
+    }
+    return (
+      <select
+        value={value ?? ""}
+        aria-label={field.label}
+        onChange={(e) => mark(e.target.value || null)}
+        className={markSelectCls}
+      >
+        <option value="">{field.label}…</option>
+        {field.options.map((o) => (
+          <option key={o} value={o}>
+            {o}
+          </option>
+        ))}
+      </select>
+    );
+  }
+  return <InlineText field={field} value={value} editable={canMark} onSave={mark} />;
+}
+
+// The personal values a new cycle of a game clears (POST /api/notes/ng-reset).
+// The registry's `ng_resets` is not served, so the keys are named here: a
+// section carrying one of them gets the NG reset button.
+const NG_RESET_KEYS = new Set(["collected", "amount_collected", "beaten"]);
+const resetsOnNewCycle = (section) =>
+  section.fields.some((f) => f.personal && NG_RESET_KEYS.has(f.key));
+
+// "NG reset", confirmed in place rather than in a browser dialog. The reset
+// covers the whole owner - every item section and the enemies - not just this
+// card, and clears only the viewer's own values. Provisional UI.
+function NgResetButton({ onNgReset }) {
+  const [confirming, setConfirming] = useState(false);
+  if (!confirming) {
+    return (
+      <Button type="button" size="sm" onClick={() => setConfirming(true)}>
+        NG reset
+      </Button>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-muted">
+        Clear my collected and beaten for this game?
+      </span>
+      <Button
+        type="button"
+        kind="danger"
+        size="sm"
+        onClick={() => {
+          setConfirming(false);
+          onNgReset();
+        }}
+      >
+        Reset
+      </Button>
+      <Button type="button" size="sm" onClick={() => setConfirming(false)}>
+        Cancel
+      </Button>
+    </span>
   );
 }
 
@@ -528,7 +631,16 @@ function NamesView({ field, note, omit }) {
 
 // `groupedBy` is the key of the field the row is drawn grouped by, if any: its
 // value is the group header, so the row does not repeat it.
-function StructuredRow({ section, note, canWrite, onUpdate, groupName, groupedBy }) {
+function StructuredRow({
+  section,
+  note,
+  canWrite,
+  onUpdate,
+  canMark = false,
+  onMark,
+  groupName,
+  groupedBy,
+}) {
   const heading = rowHeading(section, note);
   const headingKey = heading?.field.key;
   const namesFields = section.fields.filter((f) => f.type === "names");
@@ -540,13 +652,15 @@ function StructuredRow({ section, note, canWrite, onUpdate, groupName, groupedBy
       f.key !== headingKey &&
       f.key !== groupedBy &&
       !f.quick_edit &&
+      !f.personal &&
       (f.type === "text" || f.type === "select") &&
       !isBlank(readValue(f, note)),
   );
   const bodies = section.fields.filter(
     (f) => f.type === "textarea" && !isBlank(readValue(f, note)),
   );
-  const quick = section.fields.filter((f) => f.quick_edit);
+  const quick = section.fields.filter((f) => f.quick_edit && !f.personal);
+  const personal = section.fields.filter((f) => f.personal);
   const choiceNodes = section.fields.filter(
     (f) => f.type === "choice_node" && !isBlank(readValue(f, note)),
   );
@@ -555,7 +669,11 @@ function StructuredRow({ section, note, canWrite, onUpdate, groupName, groupedBy
   return (
     <div className="flex-1 min-w-0 space-y-1">
       {/* Booleans, not lengths: `0 && ...` renders the 0. */}
-      {(heading || tags.length > 0 || quick.length > 0 || choiceNodes.length > 0) && (
+      {(heading ||
+        tags.length > 0 ||
+        quick.length > 0 ||
+        personal.length > 0 ||
+        choiceNodes.length > 0) && (
         <div className="flex flex-wrap items-center gap-1.5">
           {heading && (
             <span className="text-sm text-text font-medium">
@@ -574,6 +692,15 @@ function StructuredRow({ section, note, canWrite, onUpdate, groupName, groupedBy
               note={note}
               canWrite={canWrite}
               onUpdate={onUpdate}
+            />
+          ))}
+          {personal.map((f) => (
+            <PersonalValue
+              key={f.key}
+              field={f}
+              note={note}
+              canMark={canMark}
+              onMark={onMark}
             />
           ))}
           {choiceNodes.map((f) => (
@@ -717,6 +844,8 @@ function GroupedRows({
   busy = false,
   onUpdate,
   onDelete,
+  canMark,
+  onMark,
   nameSuggestions,
 }) {
   const [editKey, setEditKey] = useState(null);
@@ -823,6 +952,8 @@ function GroupedRows({
             note={n}
             canWrite={canWrite}
             onUpdate={onUpdate}
+            canMark={canMark}
+            onMark={onMark}
             groupName={group.name}
             groupedBy={groupBy}
           />
@@ -931,6 +1062,9 @@ function StructuredSectionBody({
   onUpdate,
   onDelete,
   onReorder,
+  canMark = false,
+  onMark,
+  onNgReset,
   nameSuggestions = [],
   groupOrder = null,
   onGroupOrderChange,
@@ -1098,6 +1232,8 @@ function StructuredSectionBody({
                 note={n}
                 canWrite={canWrite}
                 onUpdate={onUpdate}
+                canMark={canMark}
+                onMark={onMark}
                 groupedBy={
                   childOmit && (depth > 0 || groupedTree) ? childOmit : undefined
                 }
@@ -1175,6 +1311,19 @@ function StructuredSectionBody({
       </button>
     );
 
+  // The header's controls: the NG reset button where this section holds a
+  // value a new cycle clears and the viewer may mark, then any view toggle.
+  const ngReset = canMark && onNgReset && resetsOnNewCycle(section) && (
+    <NgResetButton onNgReset={onNgReset} />
+  );
+  const headerActions = (toggle) =>
+    ngReset || toggle ? (
+      <>
+        {ngReset}
+        {toggle}
+      </>
+    ) : undefined;
+
   // A hierarchical `groupable_by` section, grouped: one block per group of
   // roots, each root drawn with its subtree. The cap applies per group, to its
   // roots, as GroupedRows caps each of its groups.
@@ -1233,7 +1382,7 @@ function StructuredSectionBody({
         count={notes.length}
         canWrite={canWrite}
         onAdd={openDraft}
-        actions={groupToggle(treeGroupField)}
+        actions={headerActions(groupToggle(treeGroupField))}
       >
         {groupedTree ? (
           renderGroupedTree()
@@ -1257,7 +1406,7 @@ function StructuredSectionBody({
         count={notes.length}
         canWrite={canWrite}
         onAdd={openDraft}
-        actions={groupToggle(groupableField)}
+        actions={headerActions(groupToggle(groupableField))}
       >
         {on ? (
           <GroupedRows
@@ -1269,6 +1418,8 @@ function StructuredSectionBody({
             busy={reordering}
             onUpdate={onUpdate}
             onDelete={onDelete}
+            canMark={canMark}
+            onMark={onMark}
             nameSuggestions={nameSuggestions}
           />
         ) : (
@@ -1296,7 +1447,9 @@ function StructuredSectionBody({
         count={notes.length}
         canWrite={canWrite}
         onAdd={openDraft}
-        actions={groupToggle(section.fields.find((f) => f.key === section.group_by))}
+        actions={headerActions(
+          groupToggle(section.fields.find((f) => f.key === section.group_by)),
+        )}
       >
         {on ? (
           <GroupedRows
@@ -1307,6 +1460,8 @@ function StructuredSectionBody({
             onGroupOrderChange={onGroupOrderChange}
             onUpdate={onUpdate}
             onDelete={onDelete}
+            canMark={canMark}
+            onMark={onMark}
             nameSuggestions={nameSuggestions}
           />
         ) : (
@@ -1327,6 +1482,7 @@ function StructuredSectionBody({
       count={notes.length}
       canWrite={canWrite}
       onAdd={openDraft}
+      actions={headerActions(null)}
     >
       {renderNodes(tree, 0, cap.visible)}
       <ShowAllToggle {...cap.toggle} />

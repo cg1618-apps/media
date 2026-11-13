@@ -626,6 +626,21 @@ not drawn. The character, person and studio libraries use it for
   rows shown on an entry (`GroupNotes`) are drawn with `canWrite` false.
   `NotesTemplate` and `NotesProvider` take no admin flag, and nor do the
   `*Notes.jsx` wrappers.
+  **Personal values on catalogue rows are marks, gated apart from the
+  section.** A field the registry marks `personal` (an item's collected and
+  collected amount, an enemy's beaten, an ending's completion, a stat's
+  Mine, a mod's status) and a section's `personal_status` (each song's and
+  each song list's status) are the viewer's own. The provider hands each
+  section `canMark` - `has("self.personal_notes")` and, for every value
+  `granted` by a feature, `hasFeature(name)` - and two handlers: `onMark(id,
+  values)` (`PUT /api/notes/{id}/mark` through `api.markNote`, then a
+  reload) and `onNgReset()` (`POST /api/notes/ng-reset` for the owner through
+  `api.ngReset`, then a reload and a success toast with the cleared count).
+  A value the viewer lacks the feature for never reaches the page: the
+  sections listing leaves it out. `hasFeature` lives on `useAuth()`
+  (`contexts/AuthContext.jsx`) and reads `/me`'s `features`; until `/me`
+  carries the list it answers as the server's stand-in does, true for a
+  holder of `self.personal_notes`.
 - **`pages/notes/sections`** — one component per note shape (`TextSection`,
   `TextLinksSection`, `EpisodeTextSection`, `NameLinksSection`,
   `MusicTrackSection`, `QuoteSection`, `MemeSection`,
@@ -635,18 +650,24 @@ not drawn. The character, person and studio libraries use it for
   `MusicTrackSection` serves all four song lists (OP, ED, 插入曲, OST): song
   name; Song Type on OP and ED only, a `SuggestInput` over the section's
   `kind_category` values ("Song Type") starting on `default_kind`; the
-  per-song status as a closed select; the episode; link pairs; and a remark.
-  Save stays inert on a row carrying nothing but its prefilled type, and on a
-  link label with no URL - the server's rules, mirrored. The **list status**
+  the episode; link pairs; and a remark. Save stays inert on a row carrying
+  nothing but its prefilled type, and on a link label with no URL - the
+  server's rules, mirrored. The **per-song status** is not in the form: it is
+  the viewer's own, drawn on the row as a compact select over `statuses`
+  (blank clears it) for a viewer who may mark (`canMark`), and as a tag for
+  anyone else; a change calls `onMark(song id, {status})`. The **list status**
   sits in the card header (`SectionCard`'s `actions`), and a list carrying one
   opens even with no songs (`openWhenEmpty`), as does the 音樂 Music group card
   around it: a compact mono `<select>` over
-  `type_statuses` for a viewer who may write the section (`canWrite`), a
+  `type_statuses` for a viewer who may mark (`canMark`), a
   `brandTagCls` tag for anyone else. Its value
-  is the `music_status` row whose `kind` is the section's key, which the
-  provider hands in as `typeStatusNote`; with no row it reads
-  `type_status_default`, and the first change POSTs the row, every later one
-  PATCHes it. The provider also fetches the values of every category a
+  is the viewer's own status on the `music_status` row whose `kind` is the
+  section's key, which the provider hands in as `typeStatusNote`; a change
+  marks that row (`onMark(row id, {status})`). Every anime is created with
+  its four rows; a list with none reads `type_status_default` as a tag,
+  since there is nothing to mark. A viewer without the `music_status`
+  feature is sent no `type_status_section`, so no list status at all. The
+  provider also fetches the values of every category a
   section names (`kind_category`, `link_text_category`) or one of its
   structured fields names (`option_category`) from
   `GET /api/options/{category}?scope=<owner type>` once per page and passes
@@ -675,7 +696,24 @@ not drawn. The character, person and studio libraries use it for
   singleton today, but the rule stays with the component. It owns its own
   drag-to-reorder, because it orders a tree and groups rather than a flat
   list, and an inline
-  `quick_edit` input that saves on blur without opening the row. For a
+  `quick_edit` input that saves on blur without opening the row. **A
+  `personal` field is not part of the row's form or its catalogue save**
+  (`catalogueFields`): a catalogue edit never sends one, and the not-empty
+  rule never counts one. It is drawn on the read view instead, by
+  `PersonalValue`, as a **provisional UI** pending the owner's design: for a
+  viewer who may mark (`canMark`), a closed select (a blank option clears
+  it) that marks on change, or a short text input (the `quick_edit` one for
+  Mine) that marks on blur, each sending only its own key through `onMark`;
+  for anyone else, a select's value as a tag and free text as a labelled
+  tag. So a `user` sets its own values on rows it cannot edit, and a
+  catalogue writer edits the row through Edit and its own values inline. A
+  section holding `collected`, `amount_collected` or `beaten` (武器&裝備,
+  道具, 收集物, 敵人 - the keys are named in the component, since the
+  registry's `ng_resets` is not served) carries an **NG reset** button in
+  its header for a viewer who may mark, also provisional: it asks in place -
+  "Clear my collected and beaten for this game?" with Reset and Cancel, no
+  browser dialog - and Reset calls `onNgReset`, which resets the whole
+  owner, not one card. For a
   `hierarchical` section it also draws the tree: an Add button per row opening
   a draft that carries that row's id as `parent_id`, children indented behind
   a rule, and a move - among a row's own siblings only - that flattens the

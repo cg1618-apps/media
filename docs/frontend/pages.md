@@ -1314,6 +1314,18 @@ viewer's own rows in it. Write controls are gated **per section**, from its
 the highlight sections, the 待辦 todos, 存檔 Saves and 下周目目標 NG+ Goals
 among them - for a holder of `self.personal_notes`; an admin, whose root flag does not pass `self.*`,
 reads the personal ones without controls (components.md, `pages/notes`).
+The personal values on catalogue rows - an item's collected and collected
+amount, an enemy's beaten, an ending's completion, a stat's Mine, a mod's
+status, each song's and each song list's status - are the viewer's own and
+gated apart from their section: a holder of `self.personal_notes` (and of
+the feature, for the music and mod statuses) edits its own inline on every
+row, through `PUT /api/notes/{id}/mark`, whether or not it may write the
+section, and the row's form never shows them; anyone else reads them. The
+item and enemy cards carry an **NG reset** button for the same holder, which
+asks in place and then clears its collected values and beaten across the
+whole owner (`POST /api/notes/ng-reset`), toasting how many were cleared.
+Both controls are **provisional UI**, plain controls pending the owner's
+design.
 `SHAPES` maps all nine stored shapes to components,
 `structured` → `StructuredSection` among them, so a new registry section needs
 no frontend change as long as it reuses an existing shape — every one of the

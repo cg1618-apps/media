@@ -14,9 +14,12 @@ import * as api from "./api";
 
 vi.mock("./api");
 // A catalogue writer: these sections have catalogue scope, so their write
-// controls follow manage.catalog.
+// controls follow manage.catalog. It also keeps personal values
+// (self.personal_notes), so a song list's own status is a select.
 vi.mock("../../contexts/AuthContext", () => ({
-  useAuth: () => ({ has: (p) => p === "manage.catalog" }),
+  useAuth: () => ({
+    has: (p) => p === "manage.catalog" || p === "self.personal_notes",
+  }),
 }));
 
 const SECTIONS = [
@@ -345,13 +348,13 @@ describe("NotesTemplate hidden sections and list statuses", () => {
   });
 
   it("keeps a music card open with no status rows at all", async () => {
-    // A new anime: no songs and no status row yet - each list reads its
-    // default, which is still worth seeing.
+    // No songs and no status row - each list reads its default, which is
+    // still worth seeing. With no row there is nothing to mark, so it is a tag.
     vi.mocked(api.fetchNotes).mockResolvedValue([]);
     renderTemplate();
     await waitFor(() => expect(screen.getByText("音樂 Music")).toBeInTheDocument());
-    expect(screen.getByLabelText("OP status")).toHaveValue("Not Done");
-    expect(screen.getByLabelText("ED status")).toHaveValue("Not Done");
+    expect(screen.queryByLabelText("OP status")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Not Done")).toHaveLength(2);
   });
 
   it("renders no card for the hidden section and gives each list its own status", async () => {

@@ -22,6 +22,7 @@ import {
 } from "react";
 
 import { useAuth } from "../../contexts/AuthContext";
+import { useToast } from "../../hooks/useToast";
 import { useViewScope } from "../../hooks/useViewScope";
 import { getDisplayName } from "../../lib/naming";
 import * as api from "./api";
@@ -167,6 +168,17 @@ export function NotesProvider({
   const [allSections, setSections] = useState([]);
   const auth = useAuth();
   const canWrite = (section) => Boolean(auth?.has?.(writePermissionFor(section)));
+  // Whether the viewer may set its own personal values (note marks) on a
+  // section's rows: self.personal_notes, plus every feature one of them is
+  // granted by. The listing already leaves out a value the viewer lacks the
+  // feature for; asking here as well keeps a stale listing from drawing a
+  // control the server would refuse.
+  const canMark = (section) =>
+    Boolean(auth?.has?.("self.personal_notes")) &&
+    [section.status_granted, ...(section.fields || []).map((f) => f.granted)]
+      .filter(Boolean)
+      .every((name) => Boolean(auth?.hasFeature?.(name)));
+  const showToast = useToast()?.showToast;
   // Quotes and Memes are extras (view.extras): without the key their
   // external sections are dropped with the hidden ones below, so neither
   // renders nor fetches from /api/quote or /api/meme, which would answer 401.
@@ -373,6 +385,27 @@ export function NotesProvider({
           setError(String(e.message || e));
         }
       },
+      // The viewer's own personal values on one catalogue row, through the
+      // mark endpoint - never the catalogue PATCH, which ignores them.
+      onMark: async (id, values) => {
+        try {
+          await api.markNote(id, values);
+          await reloadNotes();
+        } catch (e) {
+          setError(String(e.message || e));
+        }
+      },
+      // A new cycle of this owner for the viewer: its own collected values on
+      // the rows that reset, and every beaten, are cleared.
+      onNgReset: async () => {
+        try {
+          const { cleared } = await api.ngReset(ownerType, ownerId);
+          await reloadNotes();
+          showToast?.("success", `NG reset: ${cleared} cleared`);
+        } catch (e) {
+          showToast?.("error", String(e.message || e));
+        }
+      },
       onDelete: async (id) => {
         try {
           await api.deleteNote(id);
@@ -409,7 +442,7 @@ export function NotesProvider({
         }
       },
     }),
-    [ownerType, ownerId, reloadNotes],
+    [ownerType, ownerId, reloadNotes, showToast],
   );
 
   const renderSection = (section) => {
@@ -445,6 +478,7 @@ export function NotesProvider({
         optionValues={optionValues}
         typeStatusNote={typeStatusNote}
         canWrite={canWrite(section)}
+        canMark={canMark(section)}
         ownerId={ownerId}
         nameSuggestions={nameSuggestions}
         groupOrder={groupOrder}
