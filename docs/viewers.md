@@ -243,8 +243,7 @@ customisation per viewer — columns, defaults, layout, wording — is
 discussed after the rework is built; see [open-items.md](open-items.md),
 "Per-viewer page detail".
 
-**Still to discuss:** My requests; the request and report inbox; pending
-registrations.
+Every page listed below is settled in its general version.
 
 ### Removed
 
@@ -333,6 +332,17 @@ an account that has them switched on.
 | **shared** | **its own version, catalogue filters only** — type, genre, season, external score | upcoming releases, catalogue only |
 | **guest** | none | upcoming releases, catalogue only |
 | **admin** | none | none |
+
+### My requests, the inbox, and pending registrations
+
+| Page | Who | General version |
+| --- | --- | --- |
+| **My requests** — from the header | shared, user, super | the account's own requests — kind, target, description, remark, status; filing a new one; editing an open one. A shared account's requests are seen by everyone using that login |
+| **Request and report inbox** | admin (under Admin), super (under System) | every request, opening on the open ones, with a filter for done and declined; marking one done or declined with a remark; deleting one by hand, with a confirmation |
+| **Pending registrations** | admin | the accounts waiting for approval; approving sets the role (default `user`) and the ceiling and default mode (`normal`) in one form; declining deletes the account |
+
+Super's dashboard summary counts pending registrations too, though only the
+admin approves them: for super it is a prompt to switch to the admin login.
 
 ### Search
 
