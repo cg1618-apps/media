@@ -1298,8 +1298,8 @@ the column in [data-model.md](data-model.md).
 ## Note scope
 
 Every entry in `NOTE_SECTIONS` (`app/utils/note_sections.py`) declares a
-`scope`, with no default: **`catalog`** (20 sections) holds one shared set of
-rows, **`personal`** (7) holds one set per user, and the two `SHAPE_EXTERNAL`
+`scope`, with no default: **`catalog`** (60 sections) holds one shared set of
+rows, **`personal`** (14) holds one set per user, and the two `SHAPE_EXTERNAL`
 sections - `quotes` and `memes` - declare `None`, because they store no `note`
 row and are universal by design. The distinction lives in the registry rather
 than in the schema, so reclassifying a section stays a registry edit plus a
