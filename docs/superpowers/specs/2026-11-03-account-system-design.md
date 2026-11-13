@@ -73,27 +73,30 @@ from the company development database.
 ### Identity and recovery
 
 - **No email address or phone number on an account.**
-- **Recovery is an admin-issued reset code**, which also recovers a forgotten
-  username:
-  - `/users` offers **Reset code** on an `active` account. The code (e.g.
-    `K7QM-3XWP`) and a link `https://media.cg1618.com/reset?code=…` are shown
-    **once**, with the expiry; only a hash is stored. It is single-use and
-    expires after 24 hours; generating a new one voids any unused earlier one.
+- **Recovery is an admin-issued reset link**, which also recovers a
+  forgotten username — link-only, like an invite:
+  - `/users` offers **Reset link** on an `active` account. Only the link,
+    `https://media.cg1618.com/reset?code=…`, is shown, **once**, with a copy
+    button and the expiry; only a hash of its code is stored. It is
+    single-use and expires after 24 hours; generating a new one voids any
+    unused earlier one.
   - The person contacts the admin outside the app (there is no in-app
-    "forgot" request — a logged-out form identifies nobody, and the code
-    still has to be handed over out of band). The admin passes on the code
-    or link.
-  - Login page link **"Forgot your password or username?"** → `/reset`. The
-    link pre-fills the code. A valid code shows **"Setting a new password for
-    <username>"** without spending it; the new password (typed twice, checked
-    against the password policy) is saved in one transaction that spends the
-    code, sets the password and **ends every existing session**. They then
-    log in, with the username pre-filled.
-  - A wrong, expired or spent code gets one generic message; `/reset` is
-    rate-limited like login.
+    "forgot" request — a logged-out form identifies nobody, and the link
+    still has to be handed over out of band). The admin passes on the link.
+  - **The sign-in page's "Forgot your password or username?"** opens a short
+    note — ask the admin for a reset link — and no form. Nothing else links
+    to `/reset`.
+  - Opening the link shows **"Setting a new password for <username>"**
+    without spending it; the new password (typed twice, checked against the
+    password policy) is saved in one transaction that spends the code, sets
+    the password and **ends every existing session**. They then log in,
+    with the username pre-filled.
+  - Opened without a valid code — wrong, expired or spent — `/reset` shows
+    one generic message and no form; it is rate-limited like login.
   - **Box-side CLI** for the admin's own lockout:
-    `docker compose exec media-app python -m app.cli reset-code <username>`
-    prints a code for the same `/reset` page — one reset path, not two.
+    `docker compose exec media-app python -m app.cli reset-link <username>`
+    prints a reset link for the same `/reset` page — one reset path, not
+    two.
 - **Invite and reset codes share one table**, `account_code`, with a
   `purpose` (`invite` / `reset`) and, for a reset, the target user: one
   generator, one hashing rule, one spend-once transaction.
@@ -443,7 +446,7 @@ discussed per viewer once visibility is settled.
   catalogue and data live on a `super` account (`cg1618`), so nothing is
   lost.
 - **What it does reach:**
-  - accounts — creating `user` / `super`, invites, approvals, reset codes,
+  - accounts — creating `user` / `super`, invites, approvals, reset links,
     disabling, passwords, feature switches, mode ceilings and per-account
     restrictions;
   - roles' and access modes' adjustable settings, and the read-only label

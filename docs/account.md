@@ -95,21 +95,20 @@ shortened. The form says what is wrong.
 
 Today, ask the admin, who can set a new password for you.
 
-*Not available yet — reset codes.* There will be no "email me a link": the
+*Not available yet — reset links.* There will be no "email me a link": the
 site does not know how to reach you.
 
-1. Contact the admin outside the site and ask for a **reset code**.
-2. The admin gives you a code (like `K7QM-3XWP`) or a link. It works once,
-   and only for 24 hours; a newer code stops an older one working.
-3. Open the link, or go to **Log in → Forgot your password or username?**
-   and enter the code.
-4. The page shows **which username** the code is for — that is how you
+1. Contact the admin outside the site and ask for a **reset link**.
+   **Log in → Forgot your password or username?** says the same.
+2. The admin gives you a link. It works once, and only for 24 hours; a
+   newer link stops an older one working.
+3. Open it. The page shows **which username** it is for — that is how you
    recover a forgotten username.
-5. Type a new password twice and save.
-6. **You are signed out everywhere**, on every device. Sign in again with
+4. Type a new password twice and save.
+5. **You are signed out everywhere**, on every device. Sign in again with
    the new password; the username is filled in for you.
 
-A wrong, expired or already-used code gets one message for all three; ask
+A wrong, expired or already-used link gets one message for all three; ask
 the admin for a fresh one. Shared accounts are not reset this way — the
 admin changes their password.
 
@@ -124,7 +123,7 @@ Today, ask the admin.
 3. Save. You stay signed in, here and on your other devices.
 
 If you think someone else knows your password, ask the admin for a reset
-code instead: a reset signs out every device, and a change does not.
+link instead: a reset signs out every device, and a change does not.
 Shared accounts have no password setting.
 
 ## Signing out
@@ -145,9 +144,9 @@ out everywhere".
   registrations wait on `/system`; approving sets the role (`user` by
   default) and the modes (ceiling and default `normal`). Declining removes
   the account.
-- **Someone is locked out** — on `/users`, make a **reset code** for their
+- **Someone is locked out** — on `/users`, make a **reset link** for their
   account and hand it over. It is shown once.
 - **Disable an account** — it cannot sign in and is signed out everywhere;
   its data stays. Enable it again on `/users`.
-- **Locked out yourself** — a reset-code command on the box;
+- **Locked out yourself** — a reset-link command on the box;
   [authentication.md](authentication.md) will have it.
