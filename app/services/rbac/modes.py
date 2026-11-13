@@ -76,8 +76,9 @@ def resolve_mode(
     viewer's next request, even with a live cookie.
 
     The fallback for a revoked mode is the EMPTY SET, never the account's
-    default. "Narrowest" is not well defined once modes are deliberately
-    unordered, and falling back to is_default could WIDEN a session: sitting
+    default. The modes are ordered, but an account's EFFECTIVE sets after its
+    denials are not, so "the next one down" is not well defined; and falling
+    back to is_default could WIDEN a session: sitting
     in `safe` when an admin revokes `safe` would hand the viewer
     `unrestricted` with no password. The empty set is the only fallback that
     cannot widen.
@@ -140,11 +141,11 @@ def switch_requires_password(current: ResolvedMode, target: ResolvedMode) -> boo
     """
     Whether moving from `current` to `target` needs the password again.
 
-    A SET COMPARISON, not an ordering (spec decision 3). Narrowing is free;
-    adding even one label or one field group asks for the password. Modes are
-    deliberately unordered - with per-account denials they are genuinely not a
-    total order - so "is the target narrower" can only mean "is its effective
-    set a subset of mine".
+    A SET COMPARISON, not an ordering. Narrowing is free; adding even one
+    label or one field group asks for the password. The modes themselves are
+    ordered (seed_modes.MODE_ORDER), but per-account denials make the
+    EFFECTIVE sets not a total order, so "is the target narrower" can only
+    mean "is its effective set a subset of mine".
 
     Both sides are EFFECTIVE sets, after denials. An account holding
     `borderline` minus `nsfw` reaches no more than `normal` does, so switching

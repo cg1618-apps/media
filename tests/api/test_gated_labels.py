@@ -1,7 +1,7 @@
 """
-The gated-type label machinery (app/services/domain/gated_labels.py): the
-system label found or created by key, the refusals, and the invariant pass
-Pull and Calculate run.
+The gated-type label machinery (app/services/domain/gated_labels.py): a code
+label's row found or created by key and kept in step with the code, the
+refusals, and the invariant pass Pull and Calculate run.
 
 Every negative assertion here runs with the `h-comic` label present (the
 session seeds it, conftest.py) and with at least one row carrying it, so a
@@ -25,6 +25,7 @@ from app.services.domain.content_labels import (
 )
 from app.services.pipelines import pull
 from app.services.rbac import gated_types
+from app.services.rbac.labels import LABEL_KEYS, label_by_key, modes_showing
 from app.services.rbac.seed_modes import MODE_UNRESTRICTED
 
 LABEL = "h-comic"
@@ -32,15 +33,6 @@ LABEL = "h-comic"
 
 def _label(db, key):
     return db.query(models.ContentLabel).filter_by(key=key).one_or_none()
-
-
-def _granted_modes(db, label):
-    return {
-        mode.key
-        for mode in db.query(models.AccessMode)
-        .join(models.AccessModeLabel, models.AccessModeLabel.mode_id == models.AccessMode.system_id)
-        .filter(models.AccessModeLabel.label_id == label.system_id)
-    }
 
 
 def _unlabel_entry(db, entry_id):
@@ -54,67 +46,84 @@ def _unlabel_franchise(db, franchise_id):
 
 
 @pytest.fixture
-def extra_gated_label(monkeypatch):
-    """A system label no database holds yet, registered for this test only."""
-    key = "zz-gated-test"
-    monkeypatch.setitem(
-        gated_labels.SYSTEM_LABELS, key, ("ZZ Gated", "A test-only gated label.")
+def missing_label(db_session):
+    """A code label whose row has been taken out, so ensure_label has
+    something to create. `erotica` names no gated type, so no entry the
+    session seeded depends on it."""
+    key = "erotica"
+    db_session.query(models.ContentLabel).filter_by(key=key).delete(
+        synchronize_session=False
     )
+    db_session.flush()
+    assert _label(db_session, key) is None
     return key
 
 
 # ---------------------------------------------------------------------------
-# ensure_label, ensure_system_labels
+# ensure_label, ensure_labels
 # ---------------------------------------------------------------------------
 
 
-def test_ensure_label_creates_it_granted_to_unrestricted_alone(db_session, extra_gated_label):
-    assert _label(db_session, extra_gated_label) is None
+def test_ensure_label_creates_a_missing_code_label(db_session, missing_label):
+    label = gated_labels.ensure_label(db_session, missing_label)
 
-    label = gated_labels.ensure_label(db_session, extra_gated_label)
+    definition = label_by_key(missing_label)
+    assert label.key == missing_label
+    assert label.label == definition.name
+    assert label.description == definition.description
+    assert label.sort_order == LABEL_KEYS.index(missing_label)
 
-    assert label.key == extra_gated_label
-    assert label.label == "ZZ Gated"
-    assert _granted_modes(db_session, label) == {MODE_UNRESTRICTED}
 
-
-def test_ensure_label_is_idempotent(db_session, extra_gated_label):
-    first = gated_labels.ensure_label(db_session, extra_gated_label)
-    second = gated_labels.ensure_label(db_session, extra_gated_label)
+def test_ensure_label_is_idempotent(db_session, missing_label):
+    first = gated_labels.ensure_label(db_session, missing_label)
+    second = gated_labels.ensure_label(db_session, missing_label)
 
     assert first.system_id == second.system_id
-    assert db_session.query(models.ContentLabel).filter_by(key=extra_gated_label).count() == 1
-    assert _granted_modes(db_session, second) == {MODE_UNRESTRICTED}
+    assert db_session.query(models.ContentLabel).filter_by(key=missing_label).count() == 1
 
 
-def test_ensure_label_adopts_a_hand_made_row_by_key(db_session, extra_gated_label):
-    hand_made = models.ContentLabel(
-        system_id=uuid.uuid4(), key=extra_gated_label, label="Made by hand", sort_order=5
-    )
-    db_session.add(hand_made)
+def test_ensure_label_adopts_a_row_by_key_and_restores_the_codes_name(db_session):
+    """Found by key, so the row - and every assignment citing its uuid - is
+    kept; what the row says is the code's, whatever a hand-edit or a Pull
+    wrote over it."""
+    row = _label(db_session, LABEL)
+    row_id = row.system_id
+    row.label = "Made by hand"
+    row.sort_order = 50
     db_session.flush()
 
-    adopted = gated_labels.ensure_label(db_session, extra_gated_label)
+    adopted = gated_labels.ensure_label(db_session, LABEL)
 
-    assert adopted.system_id == hand_made.system_id
-    # Adopted as it is: the name is not overwritten, and no grant is added.
-    assert adopted.label == "Made by hand"
-    assert _granted_modes(db_session, adopted) == set()
-    assert db_session.query(models.ContentLabel).filter_by(key=extra_gated_label).count() == 1
-
-
-def test_ensure_system_labels_covers_every_gated_type(db_session, extra_gated_label, monkeypatch):
-    monkeypatch.setitem(gated_types.REQUIRED_LABEL_FOR_TYPE, "zz-type", extra_gated_label)
-    assert _label(db_session, extra_gated_label) is None
-
-    gated_labels.ensure_system_labels(db_session)
-
-    assert _label(db_session, LABEL) is not None
-    assert _label(db_session, extra_gated_label) is not None
+    assert adopted.system_id == row_id
+    assert adopted.label == label_by_key(LABEL).name
+    assert adopted.sort_order == LABEL_KEYS.index(LABEL)
+    assert db_session.query(models.ContentLabel).filter_by(key=LABEL).count() == 1
 
 
-def test_every_required_label_has_a_system_label_row():
-    assert set(gated_types.REQUIRED_LABEL_FOR_TYPE.values()) <= set(gated_labels.SYSTEM_LABELS)
+def test_ensure_label_refuses_a_key_the_code_does_not_name(db_session):
+    with pytest.raises(KeyError):
+        gated_labels.ensure_label(db_session, "zz-not-a-label")
+    assert _label(db_session, "zz-not-a-label") is None
+
+
+def test_ensure_labels_writes_every_required_label(db_session):
+    db_session.query(models.ContentLabel).filter(
+        models.ContentLabel.key.in_(tuple(gated_types.required_label_keys()))
+    ).delete(synchronize_session=False)
+    db_session.flush()
+
+    gated_labels.ensure_labels(db_session)
+
+    for key in gated_types.REQUIRED_LABEL_FOR_TYPE.values():
+        assert _label(db_session, key) is not None, key
+
+
+def test_every_required_label_is_shown_in_unrestricted_alone():
+    """A gated type's label is never shown below `unrestricted`: below it, a
+    gated entry would be public to a mode that is meant to exclude the type."""
+    assert gated_types.REQUIRED_LABEL_FOR_TYPE
+    for key in gated_types.REQUIRED_LABEL_FOR_TYPE.values():
+        assert modes_showing(key) == (MODE_UNRESTRICTED,), key
 
 
 # ---------------------------------------------------------------------------
@@ -237,10 +246,13 @@ def test_pull_runs_the_pass_after_the_gated_entry_tab_and_the_label_tabs():
 
 
 def test_a_new_gated_type_is_covered_by_its_map_entry_alone(
-    db_session, extra_gated_label, monkeypatch, unlabelled_rows
+    db_session, monkeypatch, unlabelled_rows
 ):
-    """What a further gated type relies on: a map entry, and nothing else."""
-    monkeypatch.setitem(gated_types.REQUIRED_LABEL_FOR_TYPE, "comic", extra_gated_label)
+    """What a further gated type relies on: a map entry, and nothing else.
+    The entry names an existing code label, because ensure_label writes only
+    labels the code defines."""
+    new_label = "erotica"
+    monkeypatch.setitem(gated_types.REQUIRED_LABEL_FOR_TYPE, "comic", new_label)
     comic = models.Comic(comic_name_en="Zvornik Newly Gated Comic")
     comic_franchise = _franchise(db_session, "Comic", "Zvornik Comic Franchise")
     db_session.add(comic)
@@ -248,7 +260,7 @@ def test_a_new_gated_type_is_covered_by_its_map_entry_alone(
 
     gated_labels.enforce_gated_label_invariants(db_session)
 
-    assert extra_gated_label in label_keys_for_entry(db_session, comic.system_id)
-    assert extra_gated_label in label_keys_for_franchise(db_session, comic_franchise.system_id)
+    assert new_label in label_keys_for_entry(db_session, comic.system_id)
+    assert new_label in label_keys_for_franchise(db_session, comic_franchise.system_id)
     # The h-comic rows get their own label, not the new one.
     assert label_keys_for_entry(db_session, unlabelled_rows["bare"].system_id) == [LABEL]

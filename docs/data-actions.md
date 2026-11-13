@@ -441,14 +441,21 @@ sharper one: they are the only tables whose absence from the sheet fails
 **open**. A Pull All on a machine that had never been told which entries carry
 `nsfw` restored every one of them unlabelled — visible to every viewer — and
 nothing in the run reported a problem. All three tables mint their `system_id`
-per database (the labels are typed into the admin page on each machine), so all
-three are derived-identity tabs: `Content Label` is identified by its unique `key`,
+per database (each machine's `ensure_labels` inserts its own label rows), so
+all three are derived-identity tabs: `Content Label` is identified by its unique `key`,
 `Media Content Label` by `(media_id, label_id)` and `Franchise Content Label`
 by `(franchise_id, label_id)`, and the `label_id` a sheet carries is translated
 through the `Content Label` tab before it is stored — the same treatment
 `System Option Scope` gets. `Franchise Content Label` fails open the widest:
 one missing row reveals a franchise **and every entry in it**. A labelling whose label
 cannot be resolved is skipped with a warning rather than failing the tab.
+
+**The labels themselves are code** (`app/services/rbac/labels.py`), so the
+`Content Label` tab travels for its uuids, which are what the two assignment
+tabs cite, and not to carry a vocabulary. A row whose `key` the code does not
+name is skipped and named in the run's `unresolved_refs` — never inserted. A
+known key's `label` and `description` are restored to the code's after the
+tab, because `enforce_gated_label_invariants` runs `ensure_labels` first.
 
 Still outside the sheet, deliberately: `role` and `role_permission`
 (`ensure_rbac_seed` recreates guest, user and admin on any machine, but a role
@@ -549,7 +556,8 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
        type's entry tab (`H-Comic`, `H-Game`, `Hentai`), `Franchise`, `Content Label`,
        `Media Content Label` and `Franchise Content Label` -
        `enforce_gated_label_invariants` (`app/services/domain/gated_labels.py`):
-       every gated type's label is re-attached to every entry of the type and
+       first `ensure_labels` rewrites every label row's name, description and
+       display order to the code's, then every gated type's label is re-attached to every entry of the type and
        every franchise of its franchise type (`h-comic` on every h-comic and
        every `H-Comic` franchise, `h-game` on every h-game and every `H-Game`
        franchise, `hentai` on every hentai and every `Hentai` franchise). A

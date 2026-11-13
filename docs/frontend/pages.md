@@ -122,15 +122,16 @@ about styling.
 | `track` | Track | flat `items` | Plan `/plan`, Seasonal `/seasonal` (both `requires: "self.list"` — see below), Future Releases `/future-releases`, Completions `/completions`, Random Picker `/random` (whose `/random/<type>` pages light it too) — the last three `requires: "view.extras"`. A guest holds none of these keys, so the tab is not drawn |
 | `insights` | Insights | flat | Statistics `/statistics` (`requires: "self.list"`), Quotes `/quote`, Memes `/meme`, Resources `/resources` (each `requires: "view.extras"`) ┃ Relations `/relations`, Watch Orders `/watch-orders` — these two carry `requires: "admin"` on the row, inside a tab everyone may open |
 | `entry` | Entry | flat, `requires: "admin"` | Add `/add`, Modify `/modify`, Delete `/delete`, Form Defaults `/defaults`, Picker Defaults `/random-defaults` |
-| `note` | Note | flat, `requires: "manage.catalog"` | System Options `/options`, Alias Conversion `/aliases`, External APIs `/external-apis` — the three read-only inventories of how the data is described — and Business Logic `/business-logic`, what Calculate All changes step by step, which carries `requires: "manage.pipelines"` on the row, so only the super role and admin see it |
+| `note` | Note | flat, `requires: "manage.catalog"` | System Options `/options`, Alias Conversion `/aliases`, External APIs `/external-apis` — the three read-only inventories of how the data is described — Content Labels `/content-labels`, the read-only label reference, which carries `requires: ["admin.authz", "manage.catalog"]` (any of the two, the same either-of its route asks), and Business Logic `/business-logic`, what Calculate All changes step by step, which carries `requires: "manage.pipelines"` on the row, so only the super role and admin see it |
 | `pipelines` | Pipelines | flat, `requires: "manage.pipelines"` | Control Center `/system`, Data History, Review Queue, Clean Orphans, and **Inbox** `/request-inbox`, which carries `requires: "manage.requests"` on the row — the key its route asks |
-| `admin` | Admin | flat, `requires: "admin.authz"` | Users, Roles, Content Labels, Access Modes |
+| `admin` | Admin | flat, `requires: "admin.authz"` | Users, Roles, Access Modes |
 
 Each item has `label`, `icon` (Font Awesome class), `to`, optional `matches`
 (extra path prefixes that light the tab up — `/anime/123` highlights the Anime
 library item; Franchise also owns `/series` and `/watch-order`), `dev` (routes
 to `/under-development`), `divider` (a rule between item groups) and
-`requires` (a per-row permission). Helpers:
+`requires` (a per-row permission, or a list meaning any of them — `meets(has,
+needed)` answers both). Helpers:
 `sectionItems`, `activeItem` / `activeSectionKey` (segment-aware prefix match,
 so `/library/anime` does not claim `/library/anime-movie`),
 `sectionRequirement` / `itemRequirement` (`adminOnly: true` is the legacy
@@ -252,7 +253,7 @@ stamps the same attribute before first paint. See components.md → Theming.
 | Piece | File | Notes |
 |---|---|---|
 | `Layout` | `components/layout/Layout.jsx` | `<Nav/>`, `<Outlet/>`, footer, `<Toast/>`, `ScrollButtons` (to-top after 300 px, to-bottom when >300 px from the end) |
-| `ProtectedRoute` | `components/layout/ProtectedRoute.jsx` | spinner while `auth.loading`; `has(permission)` (default `"admin"`) → `<Outlet/>`, else `<Navigate to="/login?next=<path+search>" replace/>`. A redirect, not a security boundary — the API enforces. |
+| `ProtectedRoute` | `components/layout/ProtectedRoute.jsx` | spinner while `auth.loading`; `has(permission)` (default `"admin"`), or with `anyPermission={[...]}` any one of a list, → `<Outlet/>`, else `<Navigate to="/login?next=<path+search>" replace/>`. A redirect, not a security boundary — the API enforces. |
 | `MediaLoadingState` | `components/layout/MediaLoadingState.jsx` | spinner + `loadingText`, or red error card |
 | Toasts | `hooks/useToast.jsx`, `components/layout/Toast.jsx` | `showToast(type, message)`, auto-dismiss 3.5 s, bottom-left stack |
 | Data hooks | `hooks/useMediaList` (`["media-list", type, params]`), `useMediaItem` (`["media-item", type, id]`), `useApiQuery`, `useStatusToggle`, `useMediaCacheUpdate` | `LIST_OPTIONS = { params: { limit: 2000 } }` — every library-sized list uses it |

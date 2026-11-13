@@ -21,9 +21,10 @@ from app import models, schemas
 from app.dependencies import get_db
 from app.services.domain.requests import default_request_limit, limit_is_fixed
 from app.services.rbac import cache
+from app.services.rbac.labels import labels_shown_in
 from app.services.rbac.permissions import PERM_ADMIN_AUTHZ
 from app.services.rbac.resolver import Viewer, require_admin_authz, role_for_user
-from app.services.rbac.seed_modes import MODE_SAFE
+from app.services.rbac.seed_modes import MODE_SAFE, field_groups_shown_in
 from app.services.security import get_password_hash
 
 logger = logging.getLogger(__name__)
@@ -248,15 +249,7 @@ def replace_access_modes(
     # this is what makes that a guarantee rather than a rendering choice.
     for grant in payload.modes:
         mode = modes[grant.mode_id]
-        carried_labels = {
-            key
-            for (key,) in db.query(models.ContentLabel.key)
-            .join(
-                models.AccessModeLabel,
-                models.AccessModeLabel.label_id == models.ContentLabel.system_id,
-            )
-            .filter(models.AccessModeLabel.mode_id == mode.system_id)
-        }
+        carried_labels = set(labels_shown_in(mode.key))
         stray = set(grant.denied_label_keys) - carried_labels
         if stray:
             raise HTTPException(
@@ -267,12 +260,7 @@ def replace_access_modes(
                     "denial can only subtract what it already holds."
                 ),
             )
-        carried_groups = {
-            key
-            for (key,) in db.query(
-                models.AccessModeFieldGroup.field_group_key
-            ).filter(models.AccessModeFieldGroup.mode_id == mode.system_id)
-        }
+        carried_groups = set(field_groups_shown_in(mode.key))
         stray_groups = set(grant.denied_field_group_keys) - carried_groups
         if stray_groups:
             raise HTTPException(

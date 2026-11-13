@@ -329,11 +329,22 @@ export default function App() {
                   <Route path="/business-logic" element={<BusinessLogic />} />
                 </Route>
 
+                {/* The label reference. Read by the admin, to see what each
+                    mode shows, and by super, who attaches the labels - the
+                    same either-of the server's GET /api/content-labels/ asks,
+                    and the same list navigation.js asks for the row. */}
+                <Route
+                  element={
+                    <ProtectedRoute anyPermission={["admin.authz", "manage.catalog"]} />
+                  }
+                >
+                  <Route path="/content-labels" element={<ContentLabels />} />
+                </Route>
+
                 {/* Changing who may do what. Admin only. */}
                 <Route element={<ProtectedRoute permission="admin.authz" />}>
                   <Route path="/roles" element={<Roles />} />
                   <Route path="/users" element={<Users />} />
-                  <Route path="/content-labels" element={<ContentLabels />} />
                   {/* Same gate as its neighbours, and the same one
                       navigation.js asks for this link - a route gate and its
                       nav entry must ask the same question. */}

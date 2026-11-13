@@ -63,12 +63,8 @@ export const endpoints = {
 
   accessModes: {
     list: () => "/api/access-modes/",
-    catalog: () => "/api/access-modes/catalog",
     detail: (id) => `/api/access-modes/${id}`,
-    create: () => "/api/access-modes/",
     update: (id) => `/api/access-modes/${id}`,
-    grants: (id) => `/api/access-modes/${id}/grants`,
-    remove: (id) => `/api/access-modes/${id}`,
   },
 
   users: {
@@ -87,9 +83,6 @@ export const endpoints = {
 
   contentLabels: {
     list: () => "/api/content-labels/",
-    create: () => "/api/content-labels/",
-    update: (id) => `/api/content-labels/${id}`,
-    remove: (id) => `/api/content-labels/${id}`,
     forEntry: (mediaType, entryId) =>
       `/api/content-labels/entry/${mediaType}/${entryId}`,
     forFranchise: (franchiseId) =>

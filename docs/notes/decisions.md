@@ -3795,3 +3795,36 @@ changes only grants and nothing in the feature itself.
   setting like `disabled`, and a Pull must not reset it. A blank cell means
   no limit, and an older sheet without the column leaves the local value
   alone.
+
+### Labels and modes are code, and what a mode shows is derived (2026-11-13)
+
+The six content labels (`app/services/rbac/labels.py`) and the four access
+modes (`MODE_ORDER` in `app/services/rbac/seed_modes.py`) are defined in
+code. Each label and each field group names the lowest mode that shows it,
+and a mode shows everything at or below it. `cache.mode_sets` derives both
+sets from the mode's key; `access_mode_label` and `access_mode_field_group`
+were dropped by `l1a2belcode3`. Only a mode's name, description and display
+order stay adjustable, and the label rows remain only as the foreign-key
+target of the assignment tables, rewritten from the code on every start.
+
+- **A ceiling needs each mode to contain the one below it.** Stored sets
+  could not guarantee that: any edit could leave `normal` showing something
+  `borderline` hides, and nothing would notice. Deriving every set from one order makes
+  the containment true by construction.
+- **Every database shows the same.** `access_mode_label` did not travel on the
+  sheet, so each database's modes showed whatever had been ticked on that
+  machine, and two databases could silently disagree about who sees an entry.
+  With the rule in code, the answer is the same on every machine and in
+  production.
+- **`unrestricted` shows every label row**, not just the six the code names.
+  A row nobody expected then stays reachable in the widest mode and hidden in
+  every other: fail-closed everywhere but the one mode that means
+  "everything".
+- **Unknown labels and modes are refused, not guessed at.** The migration
+  deletes one nothing cites or holds, and otherwise stops and names it.
+  Deleting a cited label would silently publish its entries; keeping it would
+  leave a label no code knows. A Pull skips a sheet row whose key the code
+  does not name, and reports it.
+- **Rejected: keep the stored sets and validate monotonicity on write.** It
+  would still be per-database and still absent from the sheet, so the
+  databases would keep disagreeing; it would only stop one kind of bad edit.

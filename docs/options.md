@@ -51,9 +51,12 @@ The reason Tier 1 is code: `"Not Yet Aired"` makes Fill skip `mal_rating`,
 completed everywhere `Completed` does. If an admin could rename any of these,
 the logic would break silently and no migration would notice. Tier 2 values
 are only ever read by humans, so renaming one is a content edit and nothing
-more. `content_label` looks like Tier 2 but is deliberately its own table,
-because its values decide **who may see** an entry rather than describe one;
-see [authorization.md](authorization.md).
+more. Content labels are not options at all: they decide **who may see** an
+entry rather than describe one, and the code branches on each — every label
+names the lowest access mode that shows it — so they are defined in code
+(`app/services/rbac/labels.py`), the Tier 1 rule, with `content_label` rows
+kept only as what the assignment tables cite; see
+[authorization.md](authorization.md).
 
 ---
 
@@ -671,7 +674,7 @@ the bare `admin`, which implies everything.
 
 | Key | Label | Gates |
 |---|---|---|
-| `sources_restricted` | Restricted Sources | `media_source` rows with `bucket='restricted'`, every media type. Excluded from the `safe` access mode via `SAFE_WITHHELD_FIELD_GROUPS` (`app/services/rbac/seed_modes.py`) — a fresh install does not serve it to a logged-out visitor |
+| `sources_restricted` | Restricted Sources | `media_source` rows with `bucket='restricted'`, every media type. Its lowest mode is `normal` (`FIELD_GROUP_LOWEST_MODE` in `app/services/rbac/seed_modes.py`), so the `safe` access mode — what a logged-out visitor resolves — does not show it |
 
 It is the only group. The `other` bucket, personal notes and credits are not
 field groups: every viewer gets the other sources and the credits, and a

@@ -1,13 +1,13 @@
 """The four seeded modes.
 
-`safe` is today's guest exactly - GUEST_WITHHELD_FIELD_GROUPS is
-{"sources_restricted"} and nothing else - so the day this lands, a logged-out
-visitor sees precisely what they saw the day before. That property is the
-whole reason Phase B is safe to ship before Phase D gives anyone a way to
-change a mode.
+ensure_access_mode_seed creates any of the four that is missing and nothing
+else: what a mode shows is derived in code (cache.mode_sets), so there are no
+items to seed, and a mode's name and description are the admin's once it
+exists.
 """
 
 from app import models
+from app.services.rbac import cache
 from app.services.rbac.field_groups import FIELD_GROUP_KEYS
 from app.services.rbac.seed_modes import (
     MODE_BORDERLINE,
@@ -18,33 +18,8 @@ from app.services.rbac.seed_modes import (
 )
 
 
-def _reset_modes(db):
-    """Clear the access-mode tables so a seed runs from scratch.
-
-    The modes are seeded once per session in test_engine, committed, so that
-    the lifespan's own copy stays a SELECT and cannot block on an open test
-    transaction. ensure_access_mode_seed is therefore a no-op top-up by the
-    time a test calls it - which is correct, and means a test about what the
-    SEED decides has to clear the slate first.
-    """
-    db.query(models.AccessModeLabel).delete(synchronize_session=False)
-    db.query(models.AccessModeFieldGroup).delete(synchronize_session=False)
-    db.query(models.UserAccessMode).delete(synchronize_session=False)
-    db.query(models.AccessMode).delete(synchronize_session=False)
-    db.flush()
-
-
 def _mode(db, key):
     return db.query(models.AccessMode).filter(models.AccessMode.key == key).one()
-
-
-def _field_groups(db, mode):
-    return {
-        row.field_group_key
-        for row in db.query(models.AccessModeFieldGroup).filter(
-            models.AccessModeFieldGroup.mode_id == mode.system_id
-        )
-    }
 
 
 def test_seeds_four_system_modes(db_session):
@@ -66,149 +41,52 @@ def test_the_seed_stores_no_anonymous_policy(db_session):
     assert MODE_SAFE in keys
 
 
-def test_safe_withholds_restricted_sources_and_nothing_else(db_session):
+def test_safe_withholds_restricted_sources_and_the_wider_modes_show_them(db_session):
     """The one step that changes what a REACHABLE entry shows. The top three
     tiers differ only in which entries exist for you."""
     ensure_access_mode_seed(db_session)
-    assert _field_groups(db_session, _mode(db_session, MODE_SAFE)) == (
-        set(FIELD_GROUP_KEYS) - {"sources_restricted"}
-    )
-    for key in (MODE_NORMAL, MODE_BORDERLINE, MODE_UNRESTRICTED):
-        assert _field_groups(db_session, _mode(db_session, key)) == set(
-            FIELD_GROUP_KEYS
-        )
-
-
-def test_unrestricted_carries_every_label_and_normal_carries_none(db_session):
-    label = models.ContentLabel(key="nsfw-seedtest", label="NSFW")
-    db_session.add(label)
-    db_session.flush()
-    ensure_access_mode_seed(db_session)
-
-    def labels(key):
-        return {
-            row.label_id
-            for row in db_session.query(models.AccessModeLabel).filter(
-                models.AccessModeLabel.mode_id == _mode(db_session, key).system_id
-            )
-        }
-
-    # The system `h-comic` label exists in every database and is granted to
-    # unrestricted by its own seed - so unrestricted already holds a row and
-    # is not topped up; its set is derived instead (cache.mode_sets), which
-    # is what a session in it resolves. Borderline never gets h-comic.
-    from app.services.rbac import cache
-
     cache.bump()
-    unrestricted = cache.mode_sets(db_session, _mode(db_session, MODE_UNRESTRICTED).system_id)
-    assert label.system_id in unrestricted.label_ids
-    assert labels(MODE_BORDERLINE) == {label.system_id}
-    assert labels(MODE_NORMAL) == set()
-    assert labels(MODE_SAFE) == set()
+
+    def groups(key):
+        return set(cache.mode_sets(db_session, _mode(db_session, key).system_id).field_groups)
+
+    assert "sources_restricted" in FIELD_GROUP_KEYS
+    assert groups(MODE_SAFE) == set()
+    for key in (MODE_NORMAL, MODE_BORDERLINE, MODE_UNRESTRICTED):
+        assert groups(key) == set(FIELD_GROUP_KEYS)
 
 
 def test_is_idempotent(db_session):
     """The lifespan runs against a database that may already hold these rows,
-    and it must not duplicate or overwrite them."""
+    and it must not duplicate them."""
     ensure_access_mode_seed(db_session)
     ensure_access_mode_seed(db_session)
     assert db_session.query(models.AccessMode).count() == 4
-    assert (
-        db_session.query(models.AccessModeFieldGroup)
-        .filter(
-            models.AccessModeFieldGroup.mode_id
-            == _mode(db_session, MODE_SAFE).system_id
-        )
-        .count()
-        == len(FIELD_GROUP_KEYS) - 1
-    )
 
 
-def test_does_not_hand_back_an_item_an_admin_removed(db_session):
-    """Same rule ensure_rbac_seed already follows for guest: top up a mode
-    holding NOTHING, never a mode somebody has deliberately narrowed."""
+def test_a_missing_mode_is_recreated(db_session):
     ensure_access_mode_seed(db_session)
-    safe = _mode(db_session, MODE_SAFE)
-    db_session.query(models.AccessModeFieldGroup).filter(
-        models.AccessModeFieldGroup.mode_id == safe.system_id,
-        models.AccessModeFieldGroup.field_group_key == "credits",
+    db_session.query(models.AccessMode).filter(
+        models.AccessMode.key == MODE_SAFE
     ).delete(synchronize_session=False)
+    db_session.flush()
+    assert db_session.query(models.AccessMode).filter_by(key=MODE_SAFE).count() == 0
+
+    ensure_access_mode_seed(db_session)
+
+    assert _mode(db_session, MODE_SAFE).is_system is True
+    assert db_session.query(models.AccessMode).count() == 4
+
+
+def test_an_admins_name_and_description_are_not_overwritten(db_session):
+    ensure_access_mode_seed(db_session)
+    normal = _mode(db_session, MODE_NORMAL)
+    normal.label = "一般"
+    normal.description = "日常"
     db_session.flush()
 
     ensure_access_mode_seed(db_session)
+    db_session.expire_all()
 
-    assert "credits" not in _field_groups(db_session, safe)
-
-
-def test_safe_is_derived_from_the_guest_role_not_from_the_default(db_session):
-    """`safe` means "today's guest exactly", read rather than assumed.
-
-    The default withholds sources_restricted from `safe`; a guest role that
-    holds it says otherwise, and the role wins. The legacy grant naming a
-    group that no longer exists is the second half: it must be dropped, not
-    reseeded onto a mode where nothing would read it.
-    """
-    _reset_modes(db_session)
-    guest = db_session.query(models.Role).filter(models.Role.name == "guest").one()
-    db_session.query(models.RolePermission).filter(
-        models.RolePermission.role_id == guest.system_id,
-        models.RolePermission.permission.like("field_group.%"),
-    ).delete(synchronize_session=False)
-    for key in ("sources_restricted", "personal_notes"):
-        db_session.add(
-            models.RolePermission(
-                role_id=guest.system_id, permission=f"field_group.{key}"
-            )
-        )
-    db_session.flush()
-
-    ensure_access_mode_seed(db_session)
-
-    assert _field_groups(db_session, _mode(db_session, MODE_SAFE)) == {
-        "sources_restricted"
-    }
-
-
-def test_a_guest_holding_only_removed_groups_falls_back_to_the_default(db_session):
-    """Every legacy grant names a group that is gone: that is the same as
-    holding none, so `safe` gets the default - which withholds
-    sources_restricted."""
-    _reset_modes(db_session)
-    guest = db_session.query(models.Role).filter(models.Role.name == "guest").one()
-    db_session.query(models.RolePermission).filter(
-        models.RolePermission.role_id == guest.system_id,
-        models.RolePermission.permission.like("field_group.%"),
-    ).delete(synchronize_session=False)
-    for key in ("credits", "system_info", "sources_other"):
-        db_session.add(
-            models.RolePermission(
-                role_id=guest.system_id, permission=f"field_group.{key}"
-            )
-        )
-    db_session.flush()
-
-    ensure_access_mode_seed(db_session)
-
-    assert _field_groups(db_session, _mode(db_session, MODE_SAFE)) == set()
-    # The wider modes are unaffected: they are policy, not a mirror of guest.
-    assert _field_groups(db_session, _mode(db_session, MODE_NORMAL)) == set(
-        FIELD_GROUP_KEYS
-    )
-
-
-def test_safe_falls_back_to_the_default_when_guest_holds_nothing(db_session):
-    """A guest role with no field groups at all means ensure_rbac_seed has not
-    run, not that an admin withheld everything."""
-    _reset_modes(db_session)
-    guest = db_session.query(models.Role).filter(models.Role.name == "guest").one()
-    db_session.query(models.RolePermission).filter(
-        models.RolePermission.role_id == guest.system_id,
-        models.RolePermission.permission.like("field_group.%"),
-    ).delete(synchronize_session=False)
-    db_session.flush()
-
-    ensure_access_mode_seed(db_session)
-
-    assert _field_groups(db_session, _mode(db_session, MODE_SAFE)) == (
-        set(FIELD_GROUP_KEYS) - {"sources_restricted"}
-    )
+    normal = _mode(db_session, MODE_NORMAL)
+    assert (normal.label, normal.description) == ("一般", "日常")

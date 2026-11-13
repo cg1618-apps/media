@@ -60,11 +60,11 @@ MANAGE_PERMISSION_KEYS: tuple[str, ...] = ("catalog", "pipelines", "requests")
 ADMIN_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
     "authz": (
         "Manage Authorization",
-        "Create and edit roles, accounts and content labels directly - that "
-        "is, change who may do what. Does not itself grant any catalogue "
-        "write. Not the only way to change these, though: manage.pipelines "
-        "can rewrite accounts, content labels and role assignments too, by "
-        "running Pull All over the sheet.",
+        "Create and edit roles and accounts, and the adjustable parts of the "
+        "access modes - that is, change who may do what. Does not itself "
+        "grant any catalogue write. Not the only way to change these, "
+        "though: manage.pipelines can rewrite accounts and role assignments "
+        "too, by running Pull All over the sheet.",
     ),
 }
 

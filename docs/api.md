@@ -1280,8 +1280,9 @@ Every bucket key this session may see is present, empty for the types the
 scope did not ask about. A gated type the session cannot see has **no key at
 all** - not an empty bucket, which would still say the type exists - whatever
 the scope and whether or not `q` is empty. So `h-comic` is present only in a
-mode carrying the `h-comic` label, `h-game` only in one carrying `h-game`,
-and `hentai` only in one carrying `hentai`. The SPA reads every bucket as
+mode showing the `h-comic` label, `h-game` only in one showing `h-game`,
+and `hentai` only in one showing `hentai` — which is `unrestricted` for all
+three. The SPA reads every bucket as
 `results[type] ?? []`. An h-comic row carries its derived `animation_status`,
 as on its own list. Rows carry the same response schema as that type's own list endpoint —
 plan flags, link fields, RBAC visibility, and field gating all included.
@@ -2514,8 +2515,8 @@ it.
 
 **`visible_gated_types`** is the sorted list of gated media types this session
 may see (`gated_types.visible_gated_types`): `["h-comic", "h-game", "hentai"]`
-in `unrestricted`, only the types whose label a mode carries otherwise, `[]`
-for one carrying none. Only the seeable types are named,
+in `unrestricted`, which shows every label, and `[]` in every other mode,
+none of which shows a gated type's label. Only the seeable types are named,
 so a session that cannot see a gated type is not told it exists. The SPA reads
 it to decide whether to offer a gated type's navigation at all.
 
@@ -2581,21 +2582,19 @@ refresh flow and no revocation.
 ### `/api/access-modes` — admin (`admin.authz`)
 
 The object axis. A role answers *what may this account do*; an access mode
-answers *which objects can it reach in this session*. Shaped on `/api/roles`
-route for route.
+answers *which objects can it reach in this session*. The four modes, their
+order and what each shows are fixed in code (`app/services/rbac/seed_modes.py`,
+`app/services/rbac/labels.py`), so this router reads them and edits only a
+mode's name, description and display order. There is no route that creates,
+deletes or regrants a mode.
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/api/access-modes/` | Modes with their items and holder counts. |
-| GET | `/api/access-modes/catalog` | Two labelled groups - Content Labels and Field Groups - each item carrying `mode_count`. **Every** content label is listed, including ones no mode carries: a count of zero means that label's entries are hidden from everybody, the owner included, and there is nowhere else to find that out. |
-| GET | `/api/access-modes/{id}` | |
-| POST | `/api/access-modes/` | 409 on a duplicate key; 422 on an unknown label or field group. Created `is_system=False` - that flag marks the four the seeder maintains and is never settable through the API. |
-| PATCH | `/api/access-modes/{id}` | Label, description and sort order. Not `key` — renaming one would detach the seeder from the row it maintains — and nothing about the anonymous policy: a logged-out visitor always resolves the `safe` mode, by key, and no endpoint can move it. |
-| PUT | `/api/access-modes/{id}/grants` | **Replaces both sets**, the same contract as `PUT /roles/{id}/permissions`. **409 for `unrestricted`**, whose sets are derived rather than stored and so cannot be narrowed. |
-| DELETE | `/api/access-modes/{id}` | 409 for a system mode, and 409 for one an account still holds - the FK would cascade the grants away and silently narrow those accounts, possibly to nothing. |
+| GET | `/api/access-modes/` | Every mode as `AccessModeResponse` (`system_id`, `key`, `label`, `description`, `sort_order`, `is_system`, `label_keys`, `field_group_keys`, `user_count`), ordered by `sort_order`. `label_keys` and `field_group_keys` are **derived** from the mode's key — the same derivation a session in the mode resolves with — and read-only: `unrestricted` lists every label row, the others the labels whose lowest mode is at or below them. |
+| GET | `/api/access-modes/{id}` | One mode, the same shape. 404 if it does not exist. |
+| PATCH | `/api/access-modes/{id}` | `label`, `description`, `sort_order`. Not `key` — the key is what the derivation and the anonymous policy read — and nothing about the anonymous policy: a logged-out visitor always resolves the `safe` mode, by key, and no endpoint can move it. `is_system` is never settable. |
 
-Every write calls `cache.bump()`; `_MODE_CACHE` is keyed on mode id and this
-router is exactly what it caches.
+`PATCH` calls `cache.bump()`.
 
 ### `PUT /api/users/{id}/access-modes` — admin (`admin.authz`)
 
@@ -2607,7 +2606,8 @@ denials - in one payload.
                "denied_label_keys": [], "denied_field_group_keys": [] } ] }
 ```
 
-**A denial naming something the mode does not carry is 422.** A mode is a
+**A denial naming something the mode does not show is 422**, asked of the
+derived sets. A mode is a
 ceiling, so such a denial subtracts nothing and storing it would be a no-op
 that reads like a setting. Two defaults is 422 as well, rather than the 500
 `ix_one_default_mode_per_user` would give. An **empty list is allowed**: an
@@ -2650,20 +2650,19 @@ No self-registration; accounts are created here only.
 
 ### `/api/content-labels`
 
-**Two gates, not one.** The vocabulary is `admin.authz`; assignment is
-`manage.catalog`. Minting or deleting a label changes who may see what across
-the installation; putting an existing one on something is a catalogue edit,
-submitted by the Add and Modify forms along with the rest of the entry. The
-split is what lets the `super` role — locked off `admin.authz` by construction
-— label an entry at all. `GET /` is readable with either, because it is both
-the admin page's table and the Add/Modify picker's checkbox list.
+**Labels are defined in code** (`app/services/rbac/labels.py`), with the
+lowest mode that shows each, so there is no route that creates, renames or
+deletes one. What this router serves is the read-only label reference and the
+assignment of labels to entries and franchises. The reference is readable with
+`admin.authz` **or** `manage.catalog` — the admin reads it to see what a mode
+restriction does, `super` because `super` is the one attaching labels, and the
+Add/Modify picker draws from it. Assignment is `manage.catalog`: putting a
+label on something is a catalogue edit, submitted by the Add and Modify forms
+along with the rest of the entry.
 
 | Method | Path | Gate | Body / notes |
 |---|---|---|---|
-| GET | `/api/content-labels/` | either | Every label as `ContentLabelResponse` (`system_id`, `key`, `label`, `description`, `sort_order`). |
-| POST | `/api/content-labels/` | `admin.authz` | `ContentLabelCreate` (`key`, `label`, `description`, `sort_order`). 201. 409 if the key exists. Grants the new label to the `unrestricted` mode and to no other, so that tagging an entry with it does not hide that entry from every session in the installation. |
-| PATCH | `/api/content-labels/{id}` | `admin.authz` | `ContentLabelUpdate` — `label`, `description`, `sort_order`. `key` is not editable; it is half of a permission name that grants already hold. |
-| DELETE | `/api/content-labels/{id}` | `admin.authz` | **204**. Cascades every assignment, on entries and franchises alike. **409** for `h-comic`, `h-game` and `hentai`, the labels the gated types require. |
+| GET | `/api/content-labels/` | either | The label reference: every label row as `ContentLabelResponse`, ordered by `sort_order` — `system_id`, `key`, `label`, `description`, `sort_order`; `lowest_mode`, the lowest mode that shows it; `modes`, the keys of every mode that shows it, narrowest first; `also_carries`, `["nsfw"]` for every label but `nsfw` and `[]` for `nsfw`; `entry_count` and `franchise_count`, how many entries and franchises carry it. `modes` and `also_carries` are generated from the code, not stored. A row the code does not name has `lowest_mode: null` and `modes: ["unrestricted"]`. 401 for a session holding neither gate. |
 | GET | `/api/content-labels/entry/{media_type}/{entry_id}` | `manage.catalog` | The label keys this entry carries. |
 | PUT | `/api/content-labels/entry/{media_type}/{entry_id}` | `manage.catalog` | `{"label_keys": [...]}` — replaces the set. 400 on an unknown media type, 404 on a missing **or hidden** entry, 422 on an unknown label, 422 on a gated entry whose new set lacks its required label - `h-comic` on an h-comic, `h-game` on an h-game (checked before anything is deleted). |
 | GET | `/api/content-labels/franchise/{franchise_id}` | `manage.catalog` | The label keys this franchise carries. |
@@ -2673,9 +2672,9 @@ Both assignment surfaces bind to the read: a thing the caller's active mode
 cannot see answers 404, so a narrowed editor cannot clear the label that is
 hiding it.
 
-A newly created label reaches the `unrestricted` mode and no other, so applying
-it hides the thing from every session except one sitting in that mode until an
-admin grants it on `/access-modes`. That is the safe direction.
+**`also_carries` is a statement, not a check.** The reference says every label
+but `nsfw` also carries `nsfw`; nothing enforces it yet, and an entry carries
+exactly the labels it was given.
 
 ### What gating touches
 

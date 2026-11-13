@@ -77,27 +77,10 @@ class RoleResponse(RoleBase):
 # Users
 # ---------------------------------------------------------------------------
 
-class AccessModeItems(BaseModel):
-    """What a mode carries. Replaced wholesale, like a role's permissions."""
-
-    label_keys: List[str] = []
-    field_group_keys: List[str] = []
-
-
-class AccessModeCreate(AccessModeItems):
-    key: str
-    label: str
-    description: Optional[str] = None
-    sort_order: int = 0
-
-
 class AccessModeUpdate(BaseModel):
-    """Label, description, order and the guest-default flag.
-
-    `key` is absent deliberately: the seeded modes are read by key in
-    seed_modes.py, and renaming one would silently detach the seeder from the
-    row it maintains.
-    """
+    """The adjustable parts of a mode: its name, description and display
+    order. What it shows is derived from its key's place in
+    seed_modes.MODE_ORDER, so `key` is absent deliberately."""
 
     label: Optional[str] = None
     description: Optional[str] = None
@@ -111,24 +94,11 @@ class AccessModeResponse(BaseModel):
     description: Optional[str] = None
     sort_order: int
     is_system: bool
+    # Derived from the key, never stored: the labels and field groups this mode
+    # shows. Read-only.
     label_keys: List[str]
     field_group_keys: List[str]
     user_count: int
-
-
-class AccessModeCatalogItem(BaseModel):
-    key: str
-    label: str
-    description: Optional[str] = None
-    # How many modes carry this item. Zero on a content label means its
-    # entries are hidden from everybody, which is what the page warns about.
-    mode_count: int
-
-
-class AccessModeCatalogGroup(BaseModel):
-    group: str
-    label: str
-    items: List[AccessModeCatalogItem]
 
 
 class UserAccessModeGrant(BaseModel):
@@ -227,30 +197,24 @@ class AccountSettingsResponse(BaseModel):
 # Content labels
 # ---------------------------------------------------------------------------
 
-class ContentLabelBase(BaseModel):
+class ContentLabelResponse(BaseModel):
+    """One row of the label reference. Labels are defined in
+    app/services/rbac/labels.py; everything here is read-only."""
+
+    system_id: UUID
     key: str
     label: str
     description: Optional[str] = None
     sort_order: int = 0
-
-
-class ContentLabelCreate(ContentLabelBase):
-    pass
-
-
-class ContentLabelUpdate(BaseModel):
-    label: Optional[str] = None
-    description: Optional[str] = None
-    sort_order: Optional[int] = None
-
-
-class ContentLabelResponse(ContentLabelBase):
-    system_id: UUID
-    # No `permission` field. A label stopped being a permission in Phase B -
-    # it is carried by an access mode now, not granted to a role - and
-    # publishing `label.<key>` would have named something that no longer
-    # exists. `key` is the identifier that still means something, and it is on
-    # ContentLabelBase.
+    # The lowest mode that shows the label, and every mode that does, in
+    # seed_modes.MODE_ORDER. Generated from the rule, never written as prose.
+    lowest_mode: Optional[str] = None
+    modes: List[str] = []
+    # The labels this one requires alongside it: ["nsfw"] for every label but
+    # nsfw itself.
+    also_carries: List[str] = []
+    entry_count: int = 0
+    franchise_count: int = 0
 
     model_config = ConfigDict(from_attributes=True)
 

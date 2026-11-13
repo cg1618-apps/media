@@ -31,6 +31,14 @@ catalogue and what is an account's own data is
 > Requests and reports work for `admin`, `super` and `user`. A shared account
 > gets them when the `shared` role exists. Until the header rework, the inbox
 > sits under Pipelines for both admin and super.
+>
+> **Built:** the read-only label reference, for `admin` and `super` — the
+> "Label reference" row of [At a glance](#at-a-glance) and its bullets under
+> [Admin](#admin) and [Super](#super). `/content-labels` lists every label,
+> which modes show it and how many entries and franchises carry it, and sits
+> under the Note section of the nav. Also built: the access modes' adjustable
+> settings are a name and a description, and nothing else, because the modes
+> and what each shows are code. The rest of those two sections is not built.
 
 ## At a glance
 

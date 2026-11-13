@@ -79,6 +79,7 @@ from app.services.pipelines.tabs import (
 )
 from app.services.rbac import cache
 from app.services.rbac.gated_types import REQUIRED_LABEL_FOR_TYPE
+from app.services.rbac.labels import LABEL_KEYS
 from app.services.security import UNUSABLE_PASSWORD_HASH
 from app.utils.constants import MUSIC_STATUSES
 from app.utils.credit_roles import (
@@ -1055,6 +1056,21 @@ def execute_pull_specific(
         # has to run before ANYTHING tries to match the row: the natural-key
         # match itself is on (user_id, media_id), which do not exist in the
         # payload until this resolves them.
+        # Labels are defined in code (app/services/rbac/labels.py). The tab
+        # still travels because its uuids are what Media and Franchise Content
+        # Label cite, and DERIVED_IDENTITY_PARENTS translates them by key. A
+        # row whose key the code does not name is not a label here: skipped
+        # and reported, never minted. A known key's name and description are
+        # the code's, restored by ensure_labels after the tab.
+        if tab_name == "Content Label":
+            label_key = clean_header_dict.get("key")
+            if label_key not in LABEL_KEYS:
+                unresolved_refs.append(
+                    f"Content Label: {label_key!r} is not a content label here"
+                )
+                rows_skipped += 1
+                continue
+
         if tab_name == "User Media List":
             unresolved = resolve_user_media_list_key(db, clean_header_dict)
             if unresolved is not None:

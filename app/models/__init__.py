@@ -6,8 +6,6 @@ model on Base.metadata, so string-based relationships resolve correctly.
 from app.database import Base, get_taipei_now
 from app.models.access_mode import (
     AccessMode,
-    AccessModeFieldGroup,
-    AccessModeLabel,
     UserAccessMode,
     UserAccessModeDenial,
 )
@@ -144,8 +142,6 @@ __all__ = [
     "FranchiseContentLabel",
     "MediaContentLabel",
     "AccessMode",
-    "AccessModeLabel",
-    "AccessModeFieldGroup",
     "UserAccessMode",
     "UserAccessModeDenial",
     "Role",

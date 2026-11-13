@@ -31,7 +31,8 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
 | `/aliases` | `pages/admin/Aliases.jsx` | Read-only view of the external-source names, inverted by source |
 | `/external-apis` | `pages/admin/ExternalApis.jsx` | Read-only view of which field each external API writes, and whether it fills or replaces it |
 | `/business-logic` | `pages/admin/BusinessLogic.jsx` + `pages/admin/businessLogicTopics.js` | Read-only account of what Calculate All changes, step by step; `manage.pipelines` only |
-| `/roles`, `/users`, `/content-labels` | `pages/admin/{Roles,Users,ContentLabels}.jsx` | RBAC administration |
+| `/roles`, `/users`, `/access-modes` | `pages/admin/{Roles,Users,AccessModes}.jsx` | RBAC administration |
+| `/content-labels` | `pages/admin/ContentLabels.jsx` | The read-only label reference; `admin.authz` **or** `manage.catalog` |
 
 ---
 
@@ -1396,7 +1397,7 @@ for an admin - what it changes and why - and the page states the code as it
 is, so it changes in the same commit as `app/services/calculation.py`. The
 prose twin is [../data-actions.md](../data-actions.md#6-calculate-all).
 
-## /roles, /users, /content-labels
+## /roles, /users, /access-modes, /content-labels
 
 - **Roles** — create roles, replace their permission set from the catalog
   (`/api/roles/catalog`). Boxes a role may not change are drawn disabled from
@@ -1415,10 +1416,17 @@ prose twin is [../data-actions.md](../data-actions.md#6-calculate-all).
   follows the role chosen in the same form, and `open_request_limit` is sent
   only when it changed — left out of a save that changes the role, the server
   resets the limit to the new role's default.
-- **Content Labels** — the label vocabulary; deleting a label immediately
-  re-exposes every entry and franchise that carried only that label. This page
-  is `admin.authz`; **assigning** a label on Add/Modify is `manage.catalog`, so
-  a `super` account labels things here without reaching this screen.
+- **Access Modes** — one card per mode, narrowest first: its name and
+  description, editable; how many accounts hold it; and the labels and field
+  groups it shows, read-only, because those are derived in code. Nothing on
+  the page creates, deletes or regrants a mode.
+- **Content Labels** — the read-only label reference: each label's name, key
+  and description, a chip for every mode that shows it, whether it also
+  carries NSFW, and how many entries and franchises carry it. Labels are
+  defined in code, so the page creates, renames and deletes nothing. It is
+  read by `admin` and `super` (`admin.authz` **or** `manage.catalog`) and sits
+  under Note in the nav; **assigning** a label is on Add/Modify, which is
+  `manage.catalog`.
 
-Rules and enforcement are in [../authorization.md](../authorization.md). These
-three pages have one-click deletes with no confirm dialog.
+Rules and enforcement are in [../authorization.md](../authorization.md). Roles
+and Users have one-click deletes with no confirm dialog.

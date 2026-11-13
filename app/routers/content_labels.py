@@ -1,32 +1,20 @@
 """
 routers/content_labels.py
-The content-label vocabulary, and which entries and franchises carry which
-labels.
+The label reference, and which entries and franchises carry which labels.
 
-Creating a label grants it to `unrestricted` and to no other mode, so a new
-label immediately hides everything it is put on from everyone EXCEPT a
-session sitting in the widest mode. That is the safe direction in the only
-place it can be: a label exists to restrict, so it restricts until an admin
-decides who else may see through it - but "everybody, the owner included" is
-not a safe default, it is an entry that has silently vanished.
+Labels are defined in app/services/rbac/labels.py, with the lowest mode that
+shows each; there is no route that creates, renames or deletes one. What this
+router serves:
 
-TWO GATES, NOT ONE, and the split is the whole reason this module does not
-carry a router-level dependency any more.
-
-  vocabulary  `admin.authz`. Minting, renaming or deleting a label changes
-              WHO MAY SEE WHAT across the whole installation, which is the
-              definition of that permission.
-  assignment  `manage.catalog`. Putting an existing label on an entry or a
-              franchise is a catalogue edit: it is submitted by the Add and
-              Modify forms along with the rest of the entry, and it decides
-              nothing about who holds what - only which shelf this one thing
-              sits on.
-
-The split exists because the `super` role is locked OFF admin.authz by
-construction (permissions.locked_permissions) and locked ON everything else,
-so while the whole router was gated on admin.authz a `super` account could
-save an entry and then watch only its labels fail. Widening `super` instead
-would have deleted the distinction between it and root.
+  reference   GET /. Every label, what it marks, which modes show it, which
+              label it also carries, and how many entries and franchises
+              carry it. Read by `admin.authz` or `manage.catalog`: the admin
+              reads it to see what a restriction does, super because super is
+              the one attaching labels, and the Add/Modify picker draws from
+              it.
+  assignment  `manage.catalog`. Putting a label on an entry or a franchise is
+              a catalogue edit, submitted by the Add and Modify forms along
+              with the rest of the entry.
 
 Assignment replaces the whole set, structurally identical to
 credits.py::replace_credits, because that is how the Add/Modify forms submit.
@@ -40,6 +28,7 @@ from typing import List
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app import models, schemas
@@ -52,20 +41,21 @@ from app.services.domain.gated_labels import (
     refuse_label_removal_on_entry,
     refuse_label_removal_on_franchise,
 )
-from app.services.rbac import cache
 from app.services.rbac.enforcement import entry_visible, franchise_visible
-from app.services.rbac.gated_types import required_label_keys
+from app.services.rbac.labels import label_by_key, modes_showing
 from app.services.rbac.permissions import PERM_ADMIN_AUTHZ, PERM_MANAGE_CATALOG
 from app.services.rbac.resolver import (
     Viewer,
     get_viewer,
-    require_admin_authz,
     require_manage_catalog,
 )
 from app.services.rbac.seed_modes import MODE_UNRESTRICTED
 from app.utils.media_resolver import MEDIA_TABLES
 
 logger = logging.getLogger(__name__)
+
+# The label every other label also carries.
+NSFW = "nsfw"
 
 # No router-level dependency: the two halves below are gated differently, and
 # a blanket one here is what shut `super` out of the assignment routes. Each
@@ -74,45 +64,44 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/content-labels", tags=["Content Labels"])
 
 
-def _to_response(row: models.ContentLabel) -> schemas.ContentLabelResponse:
+def _to_response(
+    row: models.ContentLabel, counts: dict[UUID, tuple[int, int]]
+) -> schemas.ContentLabelResponse:
+    """One row of the reference. Which modes show the label, and which label it
+    also carries, are generated from the code rule rather than written as
+    prose anywhere, so they cannot drift from it."""
+    definition = label_by_key(row.key)
+    entries, franchises = counts.get(row.system_id, (0, 0))
     return schemas.ContentLabelResponse(
         system_id=row.system_id,
         key=row.key,
         label=row.label,
         description=row.description,
         sort_order=row.sort_order,
+        lowest_mode=definition.lowest_mode if definition else None,
+        modes=list(modes_showing(row.key)) if definition else [MODE_UNRESTRICTED],
+        also_carries=[] if row.key == NSFW else [NSFW],
+        entry_count=entries,
+        franchise_count=franchises,
     )
 
 
-def _get_or_404(db: Session, label_id: UUID) -> models.ContentLabel:
-    row = db.get(models.ContentLabel, label_id)
-    if row is None:
-        raise HTTPException(status_code=404, detail="Content label not found.")
-    return row
-
-
-def _grant_to_unrestricted(db: Session, label: models.ContentLabel) -> None:
-    """Give a new label to `unrestricted`, and to no other mode.
-
-    Belt to cache.mode_sets's braces. That function DERIVES the unrestricted
-    set, so resolution is already correct without this row; what this keeps
-    correct is the table, which is what /access-modes and anything else
-    reading the rows will see. Every other mode is left alone deliberately:
-    a label exists to restrict, so it restricts everywhere except the mode
-    whose meaning is "no restrictions".
-    """
-    mode = (
-        db.query(models.AccessMode)
-        .filter(models.AccessMode.key == MODE_UNRESTRICTED)
-        .first()
+def _counts(db: Session) -> dict[UUID, tuple[int, int]]:
+    """{label id: (entries carrying it, franchises carrying it)}, two queries."""
+    entries = dict(
+        db.query(models.MediaContentLabel.label_id, func.count())
+        .group_by(models.MediaContentLabel.label_id)
+        .all()
     )
-    if mode is None:
-        # A database seeded before the modes existed, or mid-migration. The
-        # derivation covers it either way.
-        return
-    db.add(
-        models.AccessModeLabel(mode_id=mode.system_id, label_id=label.system_id)
+    franchises = dict(
+        db.query(models.FranchiseContentLabel.label_id, func.count())
+        .group_by(models.FranchiseContentLabel.label_id)
+        .all()
     )
+    return {
+        label_id: (entries.get(label_id, 0), franchises.get(label_id, 0))
+        for label_id in set(entries) | set(franchises)
+    }
 
 
 def require_label_reader(viewer: Viewer = Depends(get_viewer)) -> Viewer:
@@ -200,98 +189,23 @@ def _replace_labels(
 @router.get(
     "/",
     response_model=List[schemas.ContentLabelResponse],
-    summary="List Labels",
+    summary="The Label Reference",
 )
 def list_labels(
     db: Session = Depends(get_db),
     actor=Depends(require_label_reader),
 ):
+    """Every label, what it marks, which modes show it and how many entries and
+    franchises carry it. Read-only: labels are defined in
+    app/services/rbac/labels.py, and there is no route that creates, renames or
+    deletes one."""
     rows = (
         db.query(models.ContentLabel)
         .order_by(models.ContentLabel.sort_order, models.ContentLabel.key)
         .all()
     )
-    return [_to_response(row) for row in rows]
-
-
-@router.post(
-    "/",
-    response_model=schemas.ContentLabelResponse,
-    status_code=201,
-    summary="Create Label",
-)
-def create_label(
-    payload: schemas.ContentLabelCreate,
-    db: Session = Depends(get_db),
-    actor=Depends(require_admin_authz),
-):
-    if (
-        db.query(models.ContentLabel)
-        .filter(models.ContentLabel.key == payload.key)
-        .first()
-    ):
-        raise HTTPException(status_code=409, detail="That label key exists.")
-    row = models.ContentLabel(
-        key=payload.key,
-        label=payload.label,
-        description=payload.description,
-        sort_order=payload.sort_order,
-    )
-    db.add(row)
-    db.flush()
-    _grant_to_unrestricted(db, row)
-    db.commit()
-    db.refresh(row)
-    # The catalog just grew, so any cached "unknown permission" answer is stale.
-    cache.bump()
-    return _to_response(row)
-
-
-@router.patch(
-    "/{label_id}",
-    response_model=schemas.ContentLabelResponse,
-    summary="Update Label",
-)
-def update_label(
-    label_id: UUID,
-    payload: schemas.ContentLabelUpdate,
-    db: Session = Depends(get_db),
-    actor=Depends(require_admin_authz),
-):
-    row = _get_or_404(db, label_id)
-    # `key` is deliberately absent: it is half of a permission name that roles
-    # already hold, so renaming it would silently void every grant.
-    for field in ("label", "description", "sort_order"):
-        value = getattr(payload, field)
-        if value is not None:
-            setattr(row, field, value)
-    db.commit()
-    db.refresh(row)
-    return _to_response(row)
-
-
-@router.delete("/{label_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_label(
-    label_id: UUID,
-    db: Session = Depends(get_db),
-    actor=Depends(require_admin_authz),
-):
-    """Deleting a label reveals every entry that carried it - by design.
-
-    Except a label a gated type REQUIRES: deleting it would publish every
-    entry of that type at once, and the next write would only mint it again.
-    That is a 409 - the label exists and is in use by the system.
-    """
-    row = _get_or_404(db, label_id)
-    if row.key in required_label_keys():
-        raise HTTPException(
-            status_code=409,
-            detail=f"The '{row.key}' label is required by a media type and cannot be deleted.",
-        )
-    db.delete(row)
-    db.commit()
-    cache.bump()
-    return None
+    counts = _counts(db)
+    return [_to_response(row, counts) for row in rows]
 
 
 # ==========================================

@@ -141,25 +141,27 @@ def test_a_denial_narrows_what_that_account_actually_sees(
 # ---------------------------------------------------------------------------
 
 
-def test_a_denial_outside_the_mode_is_422(
-    admin_client, plain_user, mode, nsfw_label
-):
-    """`normal` carries no labels, so denying one subtracts nothing. Storing
-    it would be a no-op that looks like a setting."""
-    response = admin_client.put(
-        _url(plain_user),
-        json={
-            "modes": [
-                {
-                    "mode_id": str(mode(MODE_NORMAL).system_id),
-                    "is_default": True,
-                    "denied_label_keys": [nsfw_label.key],
-                }
-            ]
-        },
-    )
+def test_a_denial_outside_the_mode_is_422(admin_client, plain_user, mode):
+    """`normal` does not show erotica, so denying it subtracts nothing.
+    Storing it would be a no-op that looks like a setting."""
 
-    assert response.status_code == 422
+    def deny_erotica(mode_key):
+        return admin_client.put(
+            _url(plain_user),
+            json={
+                "modes": [
+                    {
+                        "mode_id": str(mode(mode_key).system_id),
+                        "is_default": True,
+                        "denied_label_keys": ["erotica"],
+                    }
+                ]
+            },
+        )
+
+    assert deny_erotica(MODE_NORMAL).status_code == 422
+    # The mirror: `borderline` shows erotica, so the same denial is accepted.
+    assert deny_erotica(MODE_BORDERLINE).status_code == 200
 
 
 def test_a_field_group_denial_outside_the_mode_is_422(

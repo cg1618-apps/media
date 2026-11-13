@@ -19,7 +19,7 @@ from app import models
 from app.database import SQLALCHEMY_DATABASE_URL, Base
 from app.dependencies import get_db
 from app.main import app
-from app.services.domain.gated_labels import ensure_system_labels
+from app.services.domain.gated_labels import ensure_label, ensure_labels
 from app.services.integrations import image_manager, sheets
 from app.services.rbac import cache as rbac_cache
 from app.services.rbac.modes import grant_all_modes_to_existing_accounts
@@ -85,17 +85,15 @@ def test_engine():
     # modes uncommitted, the lifespan's INSERT blocks on access_mode.key
     # forever - the test waits on the client and the client waits on the test.
     # Seeding here, committed and session-wide, keeps the lifespan's copy to a
-    # SELECT. Committed before any content_label row exists, so `unrestricted`
-    # starts with no labels; carry_label_in_wide_modes() tops it up.
+    # SELECT.
     ensure_access_mode_seed(seeding)
     seeding.commit()
-    # The system labels the gated types require (h-comic, hentai). The
-    # lifespan seeds them too, on its own connection; seeding them here first,
-    # committed, keeps the lifespan's copy to a SELECT for the same reason as
-    # the modes above. They exist in every test from here on, as they do on
-    # every real database - so a narrow mode is never vacuously narrow on
-    # this axis.
-    ensure_system_labels(seeding)
+    # The six content labels. The lifespan writes them too, on its own
+    # connection; writing them here first, committed, keeps the lifespan's
+    # copy to a SELECT for the same reason as the modes above. They exist in
+    # every test from here on, as they do on every real database - so a narrow
+    # mode is never vacuously narrow on this axis.
+    ensure_labels(seeding)
     seeding.commit()
     # And grant them to any account that already exists - the lifespan does
     # this too, and doing it here first, committed, keeps its copy to a SELECT
@@ -371,102 +369,64 @@ def seed_modes_and_grant(db, user):
 
 def grant_bespoke_mode(db, user, username, field_groups=None, label_keys=None):
     """
-    A one-off mode carrying exactly `field_groups` and `label_keys`.
+    Put `user` in a fixed mode narrowed to exactly `field_groups` and
+    `label_keys`, and return that mode.
 
-    For tests that used to build a role holding every permission MINUS one
-    field group. That subtraction moved to this axis in Phase B: the role can
-    no longer express it, because permission resolution is a union and a union
-    can only add.
+    There are no bespoke modes: the four are fixed and what each shows is
+    derived. So the narrowing is done the way production does it - the lowest
+    mode whose derived sets contain the request, minus per-account DENIALS for
+    the difference. Any subset of what the ladder can show is reproduced
+    exactly; a request no mode can satisfy fails here, loudly, rather than
+    quietly testing something else.
 
-    Defaults are "everything", so a test that does not care about the object
-    axis gets the unnarrowed answer and only the tests that narrow say so.
+    Defaults are "everything": `unrestricted` with no denial, so a test that
+    does not care about the object axis gets the unnarrowed answer.
     """
+    from app.services.rbac.labels import labels_shown_in
+    from app.services.rbac.seed_modes import MODE_ORDER, field_groups_shown_in
+
+    ensure_access_mode_seed(db)
+    every_label = {row.key: row.system_id for row in db.query(models.ContentLabel)}
     groups = all_field_group_keys() if field_groups is None else set(field_groups)
-    # Two key shapes on purpose. A mode built with an explicit label_keys is
-    # a DELIBERATE object scope and must survive a label created later;
-    # carry_label_in_wide_modes only tops up the "mode-" ones, which mean
-    # "everything, I do not care about this axis".
-    prefix = "mode" if label_keys is None else "modefixed"
-    mode = models.AccessMode(
-        system_id=uuid.uuid4(),
-        key=f"{prefix}-{username}",
-        label=username,
-        is_system=False,
+    wanted = set(every_label) if label_keys is None else set(label_keys)
+
+    def shown_labels(key):
+        # unrestricted shows every row, the others what the code says.
+        return set(every_label) if key == MODE_UNRESTRICTED else set(labels_shown_in(key))
+
+    for mode_key in MODE_ORDER:
+        if wanted <= shown_labels(mode_key) and groups <= set(
+            field_groups_shown_in(mode_key)
+        ):
+            break
+    else:
+        raise AssertionError(
+            f"no access mode shows labels {sorted(wanted)} and field groups "
+            f"{sorted(groups)}; the four modes are fixed"
+        )
+    mode = (
+        db.query(models.AccessMode).filter(models.AccessMode.key == mode_key).one()
     )
-    db.add(mode)
+    grant = models.UserAccessMode(
+        user_id=user.id, mode_id=mode.system_id, is_default=True
+    )
+    db.add(grant)
     db.flush()
-    for key in sorted(groups):
+    for key in sorted(shown_labels(mode_key) - wanted):
         db.add(
-            models.AccessModeFieldGroup(mode_id=mode.system_id, field_group_key=key)
+            models.UserAccessModeDenial(
+                user_access_mode_id=grant.system_id, label_id=every_label[key]
+            )
         )
-    labels = db.query(models.ContentLabel).all()
-    for label in labels:
-        if label_keys is not None and label.key not in label_keys:
-            continue
-        db.add(models.AccessModeLabel(mode_id=mode.system_id, label_id=label.system_id))
-    db.add(
-        models.UserAccessMode(
-            user_id=user.id, mode_id=mode.system_id, is_default=True
+    for key in sorted(set(field_groups_shown_in(mode_key)) - groups):
+        db.add(
+            models.UserAccessModeDenial(
+                user_access_mode_id=grant.system_id, field_group_key=key
+            )
         )
-    )
     db.flush()
     rbac_cache.bump()
     return mode
-
-
-def carry_label_in_wide_modes(db, label):
-    """Give a newly created label to the modes that are meant to carry ALL of
-    them, if those modes already exist.
-
-    A mode's labels are materialised rows, so a label created AFTER the seed
-    reaches no mode and hides its entries from everybody - fail-closed, and in
-    production the admin grants it on /access-modes. In tests that would make
-    fixture ORDER decide what a mode holds: request admin_client before
-    nsfw_label and `unrestricted` is seeded empty, so the admin stops seeing
-    labelled entries for no reason the test expresses.
-    """
-    wide = (
-        db.query(models.AccessMode)
-        .filter(models.AccessMode.key.in_((MODE_UNRESTRICTED, "borderline")))
-        .all()
-    )
-    for mode in wide:
-        exists = (
-            db.query(models.AccessModeLabel)
-            .filter(
-                models.AccessModeLabel.mode_id == mode.system_id,
-                models.AccessModeLabel.label_id == label.system_id,
-            )
-            .first()
-        )
-        if exists is None:
-            db.add(
-                models.AccessModeLabel(
-                    mode_id=mode.system_id, label_id=label.system_id
-                )
-            )
-    # Bespoke modes built by make_viewer default to "every label", and they
-    # are created before a test's own labels just as often.
-    for mode in db.query(models.AccessMode).filter(
-        models.AccessMode.key.like("mode-%")
-    ):
-        exists = (
-            db.query(models.AccessModeLabel)
-            .filter(
-                models.AccessModeLabel.mode_id == mode.system_id,
-                models.AccessModeLabel.label_id == label.system_id,
-            )
-            .first()
-        )
-        if exists is None:
-            db.add(
-                models.AccessModeLabel(
-                    mode_id=mode.system_id, label_id=label.system_id
-                )
-            )
-    db.flush()
-    rbac_cache.bump()
-    return label
 
 
 @pytest.fixture
@@ -717,12 +677,11 @@ def guest_reader(db_session, client):
 
 @pytest.fixture
 def nsfw_label(db_session):
-    label = models.ContentLabel(
-        system_id=uuid.uuid4(), key="nsfw", label="NSFW", sort_order=0
-    )
-    db_session.add(label)
-    db_session.flush()
-    return carry_label_in_wide_modes(db_session, label)
+    """The `nsfw` label. It exists in every test - the code defines it and the
+    session seed writes it - so this finds it rather than creating one.
+    Shown from `normal` up, so a logged-out visitor (`safe`) never sees what
+    carries it."""
+    return ensure_label(db_session, "nsfw")
 
 
 @pytest.fixture
@@ -1229,12 +1188,7 @@ def entity_for(db_session, client):
 def labelled_hidden_anime(db_session, sample_franchise):
     """An anime carrying a content label the default guest role cannot see -
     the public_id-lookup analogue of test_visibility.hidden_anime."""
-    label = models.ContentLabel(
-        system_id=uuid.uuid4(), key="nsfw-public-id", label="NSFW", sort_order=0
-    )
-    db_session.add(label)
-    db_session.flush()
-    carry_label_in_wide_modes(db_session, label)
+    label = ensure_label(db_session, "nsfw")
     entry = models.Anime(
         system_id=uuid.uuid4(),
         franchise_id=sample_franchise.system_id,

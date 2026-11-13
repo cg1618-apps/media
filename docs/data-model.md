@@ -30,7 +30,7 @@ Enum values are **not** repeated here: every closed vocabulary lives in
 - [Planning](#planning): plan_next
 - [Requests and reports](#requests-and-reports): user_request
 - [Vocabulary and configuration](#vocabulary-and-configuration): system_option, system_option_scope, system_option_usage, system_option_alias, system_configs, seasonal
-- [Access control](#access-control): role, role_permission, users, content_label, media_content_label, franchise_content_label, access_mode, access_mode_label, access_mode_field_group, user_access_mode, user_access_mode_denial
+- [Access control](#access-control): role, role_permission, users, content_label, media_content_label, franchise_content_label, access_mode, user_access_mode, user_access_mode_denial
 - [Logs](#logs): data_control_logs, deleted_record
 - [The `media` supertable](#the-media-supertable)
 - [Cross-table references without foreign keys](#cross-table-references-without-foreign-keys)
@@ -2241,9 +2241,9 @@ and is deliberately **not** `is_root`.
 
 ### `content_label`
 
-One admin-managed reason an entry or a franchise might be restricted (e.g.
-`nsfw`). Anything carrying a label the viewer's active **access mode** does not
-carry disappears for that viewer. It is **not** a role permission: object scoping lives on the
+The row for one content label — a reason an entry or a franchise might be
+restricted (e.g. `nsfw`). Anything carrying a label the viewer's active
+**access mode** does not show disappears for that viewer. It is **not** a role permission: object scoping lives on the
 mode axis, because a role cannot express "minus this label" — permission
 resolution is a union. Kept out of
 `system_option` because the Fill pipeline writes that table. Model:
@@ -2258,11 +2258,16 @@ resolution is a union. Kept out of
 | `sort_order` | Integer | no | `0` (server default) | |
 | `created_at` / `updated_at` | DateTime | yes | now | Yes, labels have timestamps. |
 
-Three rows are **system labels**: `h-comic`, `h-game` and `hentai`, the
-labels the gated h-comic, h-game and hentai types require. Each is created by its type's migration and
-by the lifespan seed (`ensure_system_labels` in
-`app/services/domain/gated_labels.py`), granted to `unrestricted` alone, and
-refused deletion (409) by the label API.
+**The labels are defined in code**, not here: `CONTENT_LABELS` in
+`app/services/rbac/labels.py` names six — `nsfw`, `ecchi`, `erotica`,
+`hentai`, `h-game`, `h-comic` — each with a name, a description and the lowest
+access mode that shows it, and `hentai`, `h-game` and `h-comic` with the gated
+type that requires them. The rows exist because `media_content_label`,
+`franchise_content_label` and `user_access_mode_denial` cite labels by id.
+`gated_labels.ensure_labels` keeps them a mirror of the code on every start:
+it inserts a missing label and rewrites `label`, `description` and
+`sort_order` (the label's position in `CONTENT_LABELS`) to the code's. It never
+deletes a row. No route creates, renames or deletes one.
 
 ### `media_content_label`
 
@@ -2328,8 +2333,8 @@ One named ceiling on what a session may reach.
 | `key` | String | no | | UNIQUE, indexed |
 | `label` | String | no | | |
 | `description` | Text | yes | | |
-| `sort_order` | Integer | no | `0` | **UI only.** Enforcement never ranks modes - with per-account denials they are genuinely not a total order |
-| `is_system` | Boolean | no | `false` | Cannot be deleted |
+| `sort_order` | Integer | no | `0` | Orders the API's list and nothing else. What a mode shows follows its key's place in `MODE_ORDER` |
+| `is_system` | Boolean | no | `false` | Marks the four modes the seeder maintains |
 | *(no column)* | — | — | — | What a logged-out visitor resolves to is **not stored**: it is the `safe` mode, looked up by key in `resolve_mode`. Data here could be moved to a wider mode by a restore or a hand-edit, which publishes every labelled entry to the internet while looking like an ordinary edit |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
@@ -2338,28 +2343,19 @@ logged-out visitor resolves `safe` by key
 (`services/rbac/modes.py::resolve_mode`), and a missing `safe` row gives them
 the empty set rather than everything.
 
-Four modes are seeded (`unrestricted`, `borderline`, `normal`, `safe`), all
-`is_system`. `unrestricted`'s rows are written but not
-read: its sets are derived from every `content_label` and every field group at
-resolution time, so a label minted later cannot narrow it. `safe` is seeded
-from whatever the **guest role actually holds**, not from a constant - see
-[authorization.md](authorization.md#what-a-guest-sees) for the defect that
-distinction prevented.
+Four modes exist (`safe`, `normal`, `borderline`, `unrestricted`), all
+`is_system`; `ensure_access_mode_seed` creates a missing one and nothing else
+creates or deletes one. The rows exist because accounts hold modes by id.
 
-#### `access_mode_label` / `access_mode_field_group`
-
-What a mode CARRIES - i.e. does not hide.
-
-Two **typed** link tables rather than one generic
-`access_mode_grant(permission text)`, on purpose: neither has a column in
-which `manage.catalog` could be stored, so "a mode scopes objects, it never
-grants powers" is a property of the schema rather than a rule a reviewer has
-to remember.
-
-| Table | Columns | Constraints |
-|---|---|---|
-| `access_mode_label` | `system_id`, `mode_id`, `label_id`, `created_at` | FKs to `access_mode` and `content_label`, both CASCADE; UNIQUE `(mode_id, label_id)` |
-| `access_mode_field_group` | `system_id`, `mode_id`, `field_group_key`, `created_at` | FK CASCADE; UNIQUE `(mode_id, field_group_key)`. `field_group_key` is a plain string validated against `FIELD_GROUP_KEYS` - **not** an FK, because field groups are code and not rows |
+**What a mode shows is not stored.** `cache.mode_sets` derives its content
+labels and field groups from the mode's key: `MODE_ORDER` in
+`app/services/rbac/seed_modes.py` orders the four, each label and field group
+names the lowest mode that shows it, and a mode shows everything at or below
+it. `unrestricted` shows every `content_label` row. So there is no table in
+which `manage.catalog` could be stored against a mode, and "a mode scopes
+objects, it never grants powers" is a property of the schema rather than a
+rule a reviewer has to remember. See
+[authorization.md](authorization.md#access-modes--which-objects-those-operations-reach).
 
 #### `user_access_mode`
 

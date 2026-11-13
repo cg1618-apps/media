@@ -23,10 +23,15 @@ def test_the_same_entry_is_visible_in_borderline(
     assert c.get(f"/api/anime/{hidden_anime.system_id}").status_code == 200
 
 
-def test_a_hidden_entry_is_absent_from_the_list(nsfw_label, hidden_anime, mode_client):
-    c = mode_client(MODE_NORMAL)
+def test_a_hidden_entry_is_absent_from_the_list(
+    nsfw_label, hidden_anime, mode_client, plain_user
+):
+    c = mode_client(MODE_SAFE)
     body = c.get("/api/anime/").json()
     assert str(hidden_anime.system_id) not in {entry["system_id"] for entry in body}
+    # The mirror: `normal` shows nsfw, and lists the same entry.
+    wider = mode_client(MODE_NORMAL, user=plain_user).get("/api/anime/").json()
+    assert str(hidden_anime.system_id) in {entry["system_id"] for entry in wider}
 
 
 def test_hidden_answers_404_with_the_ordinary_not_found_message(
@@ -34,7 +39,7 @@ def test_hidden_answers_404_with_the_ordinary_not_found_message(
 ):
     """Indistinguishability is the property being protected. A 403 would leak
     the entry's existence as surely as a 200."""
-    c = mode_client(MODE_NORMAL)
+    c = mode_client(MODE_SAFE)
     missing = c.get("/api/anime/00000000-0000-0000-0000-000000000000")
     hidden = c.get(f"/api/anime/{hidden_anime.system_id}")
     assert hidden.status_code == missing.status_code == 404

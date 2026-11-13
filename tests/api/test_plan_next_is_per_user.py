@@ -13,6 +13,7 @@ import uuid
 import pytest
 
 from app import models
+from app.services.domain.gated_labels import ensure_label
 from app.services.rbac import cache as rbac_cache
 from app.services.rbac.seed import ensure_rbac_seed
 from app.services.security import create_access_token, get_password_hash
@@ -100,12 +101,8 @@ def test_an_anonymous_caller_is_still_refused(client, sample_anime):
 
 @pytest.fixture
 def nsfw_label(db):
-    label = models.ContentLabel(
-        system_id=uuid.uuid4(), key="nsfw", label="NSFW", sort_order=0
-    )
-    db.add(label)
-    db.flush()
-    return label
+    """The code's `nsfw` label, which the session seed has already written."""
+    return ensure_label(db, "nsfw")
 
 
 @pytest.fixture

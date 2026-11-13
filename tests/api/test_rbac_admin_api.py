@@ -9,6 +9,7 @@ sequence of edits may leave the site with nobody who can administer it.
 import uuid
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 from app import models
 from app.services.rbac.permissions import (
@@ -84,16 +85,12 @@ def test_a_self_permission_can_be_granted_to_a_role(admin_client):
     assert "self.list" in r.json()["permissions"]
 
 
-def test_a_new_label_never_appears_in_the_role_catalog(admin_client):
-    """It used to, and must not any more.
-
-    A content label scopes which ENTRIES a session reaches, which is the
+def test_no_label_appears_in_the_role_catalog(admin_client, nsfw_label):
+    """A content label scopes which ENTRIES a session reaches, which is the
     access mode's axis. The role editor serving it would be offering a grant
-    that cannot be narrowed.
+    that cannot be narrowed. `nsfw_label` is what makes this non-vacuous:
+    labels exist, and still none reaches the catalog.
     """
-    admin_client.post(
-        LABELS, json={"key": "spoiler", "label": "Spoiler", "sort_order": 0}
-    )
     catalog = admin_client.get("/api/roles/catalog").json()
     assert not any(f["family"] == "label" for f in catalog)
     every_permission = {
@@ -349,20 +346,22 @@ def test_a_super_account_has_no_editable_limit(admin_client):
 # Content labels
 # ---------------------------------------------------------------------------
 
-def test_a_label_key_is_unique(admin_client):
-    body = {"key": "nsfw", "label": "NSFW"}
-    assert admin_client.post(LABELS, json=body).status_code == 201
-    assert admin_client.post(LABELS, json=body).status_code == 409
+def test_a_label_key_is_unique(db_session, nsfw_label):
+    """The key is the identity a Pull and every assignment translate by, so a
+    second row under it is refused by the database itself."""
+    savepoint = db_session.begin_nested()
+    db_session.add(models.ContentLabel(key=nsfw_label.key, label="Again"))
+    with pytest.raises(IntegrityError):
+        db_session.flush()
+    savepoint.rollback()
+    assert db_session.query(models.ContentLabel).filter_by(key=nsfw_label.key).count() == 1
 
 
 def test_labels_are_assigned_to_an_entry_as_a_whole_set(admin_client, sample_anime):
-    admin_client.post(LABELS, json={"key": "nsfw", "label": "NSFW"})
-    admin_client.post(LABELS, json={"key": "spoiler", "label": "Spoiler"})
-
     url = f"/api/content-labels/entry/anime/{sample_anime.system_id}"
-    assert admin_client.put(url, json={"label_keys": ["nsfw", "spoiler"]}).json() == [
+    assert admin_client.put(url, json={"label_keys": ["nsfw", "erotica"]}).json() == [
+        "erotica",
         "nsfw",
-        "spoiler",
     ]
     assert admin_client.put(url, json={"label_keys": ["nsfw"]}).json() == ["nsfw"]
     assert admin_client.get(url).json() == ["nsfw"]
@@ -387,7 +386,6 @@ def test_labelling_an_entry_hides_it_from_a_guest(admin_client, client, sample_a
     """End to end: the admin API and the enforcement path agree."""
     assert str(sample_anime.system_id) in client.get("/api/anime/").text
 
-    admin_client.post(LABELS, json={"key": "nsfw", "label": "NSFW"})
     admin_client.put(
         f"/api/content-labels/entry/anime/{sample_anime.system_id}",
         json={"label_keys": ["nsfw"]},

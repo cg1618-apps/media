@@ -12,7 +12,9 @@
 //   dev      true for placeholders that route to /under-development
 //   divider  true for a rule between item groups (admin menu only)
 //   requires the permission a viewer must hold to see this one row, for the
-//            admin-only pages that sit inside a tab everyone may open
+//            admin-only pages that sit inside a tab everyone may open. A
+//            list means ANY of them, the same as <ProtectedRoute
+//            anyPermission> in App.jsx
 //   gatedType the gated media type this row belongs to. The row is drawn only
 //            for a session that may see that type (canSeeGatedType in
 //            lib/gatedTypes.js), the same question App.jsx's route asks
@@ -300,6 +302,17 @@ export const NAV_SECTIONS = [
         icon: "fas fa-cloud-arrow-down",
         to: "/external-apis",
       },
+      // The label reference: every content label, which modes show it and
+      // how many entries and franchises carry it. Read by super, who attaches
+      // the labels, and by the admin, to see what a mode restriction does -
+      // so it sits here, where both see it, rather than in Admin, which super
+      // never opens. The row asks the same either-of App.jsx's route asks.
+      {
+        label: "Content Labels",
+        icon: "fas fa-tags",
+        to: "/content-labels",
+        requires: ["admin.authz", "manage.catalog"],
+      },
       // What the pipelines change, step by step. It explains the Control
       // Center's actions, so it takes their gate rather than the section's:
       // super holds manage.pipelines by grant, admin by the root flag, and
@@ -340,18 +353,13 @@ export const NAV_SECTIONS = [
   {
     key: "admin",
     label: "Admin",
-    // Users, Roles and Content Labels are the accounts/authz surface —
+    // Users, Roles and Access Modes are the accounts/authz surface —
     // admin.authz, not manage.catalog or manage.pipelines. `adminOnly` is
     // still read as a legacy synonym for requires: "admin.authz".
     requires: "admin.authz",
     items: [
       { label: "Users", icon: "fas fa-users", to: "/users" },
       { label: "Roles", icon: "fas fa-user-shield", to: "/roles" },
-      {
-        label: "Content Labels",
-        icon: "fas fa-tags",
-        to: "/content-labels",
-      },
       // No `requires` of its own: the section already declares admin.authz
       // and the link inherits it. Declaring it again would be a second place
       // to keep in step with App.jsx's route gate.
@@ -403,9 +411,16 @@ export function sectionRequirement(section) {
   return section.requires ?? (section.adminOnly ? "admin.authz" : null);
 }
 
-// The permission a single row needs, or null when anyone may see it.
+// The permission a single row needs, or null when anyone may see it. A list
+// is any-of.
 export function itemRequirement(item) {
   return item.requires ?? (item.adminOnly ? "admin.authz" : null);
+}
+
+// Whether a viewer meets a requirement: one permission, or any of a list.
+export function meets(has, needed) {
+  if (!needed) return true;
+  return Array.isArray(needed) ? needed.some((p) => has(p)) : has(needed);
 }
 
 // Nobody is shown a gated row unless the caller says they may see it.
@@ -416,8 +431,7 @@ const SEES_NO_GATED_TYPE = () => false;
 export function visibleItems(items, has, canSeeType = SEES_NO_GATED_TYPE) {
   return items.filter((item) => {
     if (item.gatedType && !canSeeType(item.gatedType)) return false;
-    const needed = itemRequirement(item);
-    return !needed || has(needed);
+    return meets(has, itemRequirement(item));
   });
 }
 
@@ -444,10 +458,7 @@ function withVisibleItems(section, has, canSeeType) {
 // `canSeeType` is the gated-type question (see visibleItems).
 export function visibleSections(sections, has, canSeeType = SEES_NO_GATED_TYPE) {
   return sections
-    .filter((section) => {
-      const needed = sectionRequirement(section);
-      return !needed || has(needed);
-    })
+    .filter((section) => meets(has, sectionRequirement(section)))
     .map((section) => withVisibleItems(section, has, canSeeType))
     .filter(
       (section) =>

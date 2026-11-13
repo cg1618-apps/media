@@ -1,19 +1,28 @@
-"""The five access-mode tables, checked at the metadata level.
+"""The three access-mode tables, checked at the metadata level.
 
-No database needed: these assertions are about the mapping, and the
-constraints they check are the ones the Phase B migration must reproduce
-literally.
+No database needed: these assertions are about the mapping. What a mode shows
+is derived in code, so there is no table of a mode's labels or field groups.
 """
 
 from app import models
 
 
-def test_five_tables_are_mapped():
+def test_three_tables_are_mapped():
     assert models.AccessMode.__tablename__ == "access_mode"
-    assert models.AccessModeLabel.__tablename__ == "access_mode_label"
-    assert models.AccessModeFieldGroup.__tablename__ == "access_mode_field_group"
     assert models.UserAccessMode.__tablename__ == "user_access_mode"
     assert models.UserAccessModeDenial.__tablename__ == "user_access_mode_denial"
+
+
+def test_no_table_stores_what_a_mode_shows():
+    """A stored set is one an edit or a Pull could make disagree with the
+    derivation; the tables are gone so nothing can."""
+    assert not hasattr(models, "AccessModeLabel")
+    assert not hasattr(models, "AccessModeFieldGroup")
+    tables = {table.name for table in models.AccessMode.metadata.sorted_tables}
+    assert "access_mode_label" not in tables
+    assert "access_mode_field_group" not in tables
+    # The mirror: the metadata is the real one, and holds the mode table.
+    assert "access_mode" in tables
 
 
 def test_the_table_stores_no_anonymous_policy():
@@ -57,10 +66,6 @@ def test_revoking_a_mode_grant_cascades_its_denials_away():
     assert next(iter(column.foreign_keys)).ondelete == "CASCADE"
 
 
-def test_revoking_a_mode_cascades_its_items_and_grants_away():
-    for column in (
-        models.AccessModeLabel.__table__.c.mode_id,
-        models.AccessModeFieldGroup.__table__.c.mode_id,
-        models.UserAccessMode.__table__.c.mode_id,
-    ):
-        assert next(iter(column.foreign_keys)).ondelete == "CASCADE"
+def test_removing_a_mode_cascades_its_grants_away():
+    column = models.UserAccessMode.__table__.c.mode_id
+    assert next(iter(column.foreign_keys)).ondelete == "CASCADE"

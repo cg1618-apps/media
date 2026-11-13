@@ -25,7 +25,6 @@ from app.services.domain.content_labels import (
     label_keys_for_franchise,
 )
 from app.services.rbac import cache as rbac_cache
-from app.services.rbac.seed_modes import ensure_access_mode_seed
 from app.services.security import get_password_hash
 from tests.api.conftest import role_id_for
 
@@ -334,9 +333,11 @@ def test_the_label_endpoint_accepts_a_set_that_keeps_it(
 
 
 def test_the_required_label_cannot_be_deleted(admin_client, db_session):
+    """Labels are code: there is no route that deletes one, so the label an
+    entry of this type requires survives an admin's attempt."""
     label = db_session.query(models.ContentLabel).filter_by(key=LABEL).one()
     response = admin_client.delete(f"/api/content-labels/{label.system_id}")
-    assert response.status_code == 409
+    assert response.status_code in (404, 405)
     assert db_session.query(models.ContentLabel).filter_by(key=LABEL).count() == 1
 
 
@@ -423,15 +424,13 @@ def test_the_unrestricted_mode_gets_the_search_bucket(
 # ---------------------------------------------------------------------------
 
 
-def test_only_unrestricted_carries_the_h_comic_label(db_session):
+def test_only_unrestricted_carries_the_h_comic_label(db_session, access_modes):
     """
-    `borderline` carries "all labels" as of its seed. The seed tops up a mode
-    holding no labels at all - which borderline is, on a database whose
-    labels were minted after the modes - and it must not hand it `h-comic`.
-    Running the seed again here is exactly that boot.
+    A gated type's label is shown in `unrestricted` alone. What each mode
+    shows is derived (cache.mode_sets), so this asks every mode the session
+    would resolve, not a stored grant.
     """
     label = db_session.query(models.ContentLabel).filter_by(key=LABEL).one()
-    ensure_access_mode_seed(db_session)
     rbac_cache.bump()
 
     carrying = {
@@ -441,21 +440,10 @@ def test_only_unrestricted_carries_the_h_comic_label(db_session):
     }
     assert carrying == {"unrestricted"}
 
-    rows = {
-        mode.key
-        for mode, _row in db_session.query(models.AccessMode, models.AccessModeLabel)
-        .join(models.AccessModeLabel, models.AccessModeLabel.mode_id == models.AccessMode.system_id)
-        .filter(models.AccessModeLabel.label_id == label.system_id)
-    }
-    assert rows <= {"unrestricted"}
 
-
-def test_the_seed_still_tops_borderline_up_with_ordinary_labels(db_session, nsfw_label):
+def test_borderline_still_shows_ordinary_labels(db_session, access_modes, nsfw_label):
     """The mirror: the exclusion is for the required label only."""
     borderline = db_session.query(models.AccessMode).filter_by(key="borderline").one()
-    db_session.query(models.AccessModeLabel).filter_by(mode_id=borderline.system_id).delete()
-    db_session.flush()
-    ensure_access_mode_seed(db_session)
     rbac_cache.bump()
     labels = rbac_cache.mode_sets(db_session, borderline.system_id).label_ids
     assert nsfw_label.system_id in labels

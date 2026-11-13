@@ -359,9 +359,11 @@ def test_an_h_comic_label_does_not_stand_in_for_the_h_game_one(admin_client):
 
 
 def test_the_required_label_cannot_be_deleted(admin_client, db_session):
+    """Labels are code: there is no route that deletes one, so the label an
+    entry of this type requires survives an admin's attempt."""
     label = db_session.query(models.ContentLabel).filter_by(key=LABEL).one()
     response = admin_client.delete(f"/api/content-labels/{label.system_id}")
-    assert response.status_code == 409
+    assert response.status_code in (404, 405)
     assert db_session.query(models.ContentLabel).filter_by(key=LABEL).count() == 1
 
 
