@@ -30,6 +30,9 @@ handed out by the admin. You will be able to browse and send requests and
 reports, but not change its password, and anything sent from it will show
 the shared account as its author.
 
+What each kind of visitor will be able to see, page by page, is
+[viewers.md](viewers.md).
+
 There is no email address or phone number on any account. The only way back
 into an account you are locked out of is through the admin.
 
