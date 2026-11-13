@@ -128,6 +128,27 @@ def test_without_the_denial_that_account_sees_it(
     assert user_client.get(f"/api/anime/{hidden_anime.system_id}").status_code == 200
 
 
+def test_a_label_denial_the_ceiling_does_not_show_is_422(
+    admin_client, plain_user, access_modes
+):
+    """`normal` does not show erotica, so denying it subtracts nothing.
+    Storing it would be a no-op that looks like a setting."""
+
+    def deny_erotica(mode_key):
+        return admin_client.put(
+            _url(plain_user),
+            json={
+                "ceiling": mode_key,
+                "default": mode_key,
+                "denied_label_keys": ["erotica"],
+            },
+        )
+
+    assert deny_erotica(MODE_NORMAL).status_code == 422
+    # The mirror: `borderline` shows erotica, so the same denial is accepted.
+    assert deny_erotica(MODE_BORDERLINE).status_code == 200
+
+
 def test_a_field_group_denial_the_ceiling_does_not_show_is_422(
     admin_client, plain_user, access_modes
 ):

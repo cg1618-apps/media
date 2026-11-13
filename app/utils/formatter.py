@@ -1903,6 +1903,30 @@ def parse_franchise_content_label_from_sheet(raw: dict) -> dict:
     }
 
 
+def parse_collection_content_label_from_sheet(raw: dict) -> dict:
+    """The Collection Content Label row; the same shape as
+    parse_franchise_content_label_from_sheet, one tier up."""
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "collection_id": _uuid_or_none(raw.get("collection_id")),
+        "label_id": _uuid_or_none(raw.get("label_id")),
+        "position": parse_from_sheet(raw.get("position"), int),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+    }
+
+
+def parse_series_content_label_from_sheet(raw: dict) -> dict:
+    """The Series Content Label row; the same shape as
+    parse_franchise_content_label_from_sheet, one tier down."""
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "series_id": _uuid_or_none(raw.get("series_id")),
+        "label_id": _uuid_or_none(raw.get("label_id")),
+        "position": parse_from_sheet(raw.get("position"), int),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+    }
+
+
 def parse_system_config_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the System Configs sheet into typed data ready for the Database.

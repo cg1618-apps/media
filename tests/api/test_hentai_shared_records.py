@@ -38,7 +38,7 @@ from tests.api.conftest import role_id_for
 def _hentai(admin_client, db_session, name="Zvornik Shared Hentai"):
     body = admin_client.post("/api/hentai/", json={"hentai_name_cn": name}).json()
     entry_id = uuid.UUID(body["system_id"])
-    assert label_keys_for_entry(db_session, entry_id) == ["hentai"]
+    assert label_keys_for_entry(db_session, entry_id) == ["hentai", "nsfw"]
     return entry_id
 
 

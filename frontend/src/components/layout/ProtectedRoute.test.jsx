@@ -66,6 +66,44 @@ describe("ProtectedRoute requireAuth", () => {
   });
 });
 
+describe("ProtectedRoute anyPermission", () => {
+  function renderLabels(has) {
+    mockAuth.mockReturnValue({ username: "kana", has, loading: false });
+    return render(
+      <MemoryRouter initialEntries={["/content-labels"]}>
+        <Routes>
+          <Route
+            element={
+              <ProtectedRoute anyPermission={["admin.authz", "manage.catalog"]} />
+            }
+          >
+            <Route path="/content-labels" element={<div>the label reference</div>} />
+          </Route>
+          <Route path="/login" element={<div>the login page</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+  }
+
+  it("lets through a viewer holding the first permission only", () => {
+    renderLabels((p) => p === "admin.authz");
+    expect(screen.getByText("the label reference")).toBeInTheDocument();
+  });
+
+  it("lets through a viewer holding the second permission only", () => {
+    renderLabels((p) => p === "manage.catalog");
+    expect(screen.getByText("the label reference")).toBeInTheDocument();
+  });
+
+  it("sends a viewer holding neither to login", () => {
+    // The viewer holds an unrelated permission, so the refusal comes from the
+    // list and not from a `has` that refuses everything.
+    renderLabels((p) => p === "manage.pipelines");
+    expect(screen.getByText("the login page")).toBeInTheDocument();
+    expect(screen.queryByText("the label reference")).not.toBeInTheDocument();
+  });
+});
+
 describe("ProtectedRoute gatedType", () => {
   function renderGated(auth) {
     mockAuth.mockReturnValue({ has: () => false, loading: false, ...auth });
