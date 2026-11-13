@@ -814,6 +814,15 @@ is a second place to keep in step.
 
 ## `lib/` utilities
 
+`lib/labelTags.js` - the three content labels that have a 標籤 Label tag
+(`TAG_FOR_LABEL`, mirroring `app/services/domain/label_tags.py`), the nine
+types with the field (`LABEL_FIELD_TYPES`, `hasLabelField`), and the pure sync
+functions `tagsForLabels`, `labelsForTags`, `applyLabelEdit` and
+`applyTagEdit` (which refuses removing NSFW while 輕微色情 or 擦邊肉番 stays).
+`withNsfw` and `NSFW` live here and are re-exported from
+`ContentLabelPicker`, whose `onEdit` prop receives the admin's ticks while
+`onChange` receives loads.
+
 | File | Purpose |
 |---|---|
 | `naming.js` | `getDisplayName`, `getSortName`, `cleanString`, name-field lists |

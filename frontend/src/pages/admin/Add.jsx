@@ -119,6 +119,7 @@ import { fetchAllSources } from "../../lib/sources";
 import { withMediaType } from "../../lib/suggestionOrder";
 import { characterTagsPayload, firstsPayload } from "../../lib/characterForm";
 import { enrichEntry } from "../../lib/enrich";
+import useLabelTagSync from "../../hooks/useLabelTagSync";
 
 export default function Add() {
   const { showToast } = useToast();
@@ -246,18 +247,57 @@ export default function Add() {
   const upubf = (k, v) => setPublisherForm((p) => ({ ...p, [k]: v }));
   const ucf = (k, v) => setCharacterForm((p) => ({ ...p, [k]: v }));
 
-  const ua = (k, v) => setAf((p) => ({ ...p, [k]: v }));
+  // The 標籤 Label field and the content-label picker, kept in step on every
+  // type with that field (hooks/useLabelTagSync.js). A tab switch or a reset
+  // after a create brings the labels to the open form's tags, so the picker
+  // shows what this tab will save.
+  const { editLabels, syncUpdater } = useLabelTagSync({
+    mediaType: activeTab,
+    forms: {
+      anime: [af, setAf],
+      "anime-movie": [amf, setAmf],
+      movie: [mf, setMf],
+      "tv-show": [tvf, setTvf],
+      cartoon: [cf, setCf],
+      manga: [mgf, setMgf],
+      novel: [nvf, setNvf],
+      comic: [cmf, setCmf],
+      game: [gmf, setGmf],
+    },
+    labels: contentLabels,
+    setLabels: setContentLabels,
+    onRefused: (message) => showToast("warning", message),
+    reconcileOnChange: true,
+  });
+
+  const ua = syncUpdater("anime", (k, v) => setAf((p) => ({ ...p, [k]: v })));
   const ucol = (k, v) => setColf((p) => ({ ...p, [k]: v }));
   const uf = (k, v) => setFf((p) => ({ ...p, [k]: v }));
   const us = (k, v) => setSf((p) => ({ ...p, [k]: v }));
-  const uam = (k, v) => setAmf((p) => ({ ...p, [k]: v }));
-  const umf = (k, v) => setMf((p) => ({ ...p, [k]: v }));
-  const utf = (k, v) => setTvf((p) => ({ ...p, [k]: v }));
-  const uc = (k, v) => setCf((p) => ({ ...p, [k]: v }));
-  const umg = (k, v) => setMgf((p) => ({ ...p, [k]: v }));
-  const unv = (k, v) => setNvf((p) => ({ ...p, [k]: v }));
-  const ucm = (k, v) => setCmf((p) => ({ ...p, [k]: v }));
-  const ugm = (k, v) => setGmf((p) => ({ ...p, [k]: v }));
+  const uam = syncUpdater("anime-movie", (k, v) =>
+    setAmf((p) => ({ ...p, [k]: v })),
+  );
+  const umf = syncUpdater("movie", (k, v) =>
+    setMf((p) => ({ ...p, [k]: v })),
+  );
+  const utf = syncUpdater("tv-show", (k, v) =>
+    setTvf((p) => ({ ...p, [k]: v })),
+  );
+  const uc = syncUpdater("cartoon", (k, v) =>
+    setCf((p) => ({ ...p, [k]: v })),
+  );
+  const umg = syncUpdater("manga", (k, v) =>
+    setMgf((p) => ({ ...p, [k]: v })),
+  );
+  const unv = syncUpdater("novel", (k, v) =>
+    setNvf((p) => ({ ...p, [k]: v })),
+  );
+  const ucm = syncUpdater("comic", (k, v) =>
+    setCmf((p) => ({ ...p, [k]: v })),
+  );
+  const ugm = syncUpdater("game", (k, v) =>
+    setGmf((p) => ({ ...p, [k]: v })),
+  );
   const uhc = (k, v) => setHcf((p) => ({ ...p, [k]: v }));
   const uhg = (k, v) => setHgf((p) => ({ ...p, [k]: v }));
   const uht = (k, v) => setHtf((p) => ({ ...p, [k]: v }));
@@ -3341,6 +3381,7 @@ export default function Add() {
             <ContentLabelPicker
               value={contentLabels}
               onChange={setContentLabels}
+              onEdit={editLabels}
               required={
                 activeTab === "franchise"
                   ? requiredLabelsForFranchiseType(ff.franchise_type)

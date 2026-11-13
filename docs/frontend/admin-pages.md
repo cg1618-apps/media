@@ -958,6 +958,20 @@ only land in its own grid. The swap is a draft until **Save Grid**.
   fail every later step — the cast, the enrichment, the reload. `saveCredits`
   only records the entry (`pendingLabels`), and `handleSave` writes the set
   once the type's own save has run.
+- **The label picker and the 標籤 Label field move together**, on the nine
+  types with that field, because the server keeps a label and its tag in step
+  (NSFW `nsfw`, 輕微色情 `ecchi`, 擦邊肉番 `erotica`). Ticking a label adds its
+  tag at the end of the field and unticking removes it; adding one of the
+  three tags ticks its label, with the `nsfw` rule on both sides - 輕微色情
+  alone brings NSFW. Removing the NSFW chip while 輕微色情 or 擦邊肉番 stays
+  is refused with a toast, as the picker locks NSFW. Other tags keep their
+  place. `hooks/useLabelTagSync.js` does it for both pages: `editLabels` takes
+  a tick, `syncUpdater` wraps the tab's field updater, so TagReplace's edits
+  sync too. On Add, switching tabs or the reset after a create sets the
+  picker from the open tab's tags. On Modify, the form takes its labels from
+  the label PUT's answer and re-reads the credits after it, because that
+  write can rewrite the tags; a tick leaves the field alone if the credits
+  never loaded, so a save cannot wipe tags it did not read.
 - **Adding a label asks first.** When the ticked set holds a label the entry
   (or franchise) did not carry when it was opened — `labelsAdded` against the
   set the picker reported through `onLoaded` — Save asks for confirmation

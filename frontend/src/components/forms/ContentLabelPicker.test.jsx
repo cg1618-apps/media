@@ -212,3 +212,33 @@ it("saveFranchiseLabels still adds a gated franchise type's label", async () => 
     body: { label_keys: ["hentai", "nsfw"] },
   });
 });
+
+it("reports an admin's tick through onEdit and a load through onChange", async () => {
+  stubFetch((url) =>
+    url.includes("/entry/")
+      ? [200, ["nsfw"]]
+      : [
+          200,
+          [
+            { system_id: "1", key: "nsfw", label: "NSFW" },
+            { system_id: "2", key: "ecchi", label: "輕微色情" },
+          ],
+        ],
+  );
+  const onChange = vi.fn();
+  const onEdit = vi.fn();
+
+  render(
+    <ContentLabelPicker
+      owner={{ kind: "entry", mediaType: "anime", id: "e1" }}
+      value={[]}
+      onChange={onChange}
+      onEdit={onEdit}
+    />,
+  );
+
+  await waitFor(() => expect(onChange).toHaveBeenCalledWith(["nsfw"]));
+  fireEvent.click(await screen.findByLabelText("輕微色情"));
+  expect(onEdit).toHaveBeenCalledWith(["ecchi", "nsfw"]);
+  expect(onChange).not.toHaveBeenCalledWith(["ecchi", "nsfw"]);
+});

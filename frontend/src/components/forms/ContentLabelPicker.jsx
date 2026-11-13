@@ -22,17 +22,12 @@ import {
   requiredLabelsForType,
 } from "../../lib/gatedTypes";
 
-// Every other label is stored with nsfw (app/services/domain/label_rules.py):
-// ticking one ticks NSFW, and NSFW cannot be unticked while one is held.
-export const NSFW = "nsfw";
+import { NSFW, withNsfw } from "../../lib/labelTags";
 
-// `keys` plus nsfw when any other label is among them - the server's
-// with_required_labels, so what the form shows is what the save stores.
-export function withNsfw(keys) {
-  const out = new Set(keys || []);
-  if ([...out].some((key) => key !== NSFW)) out.add(NSFW);
-  return [...out].sort();
-}
+// Every other label is stored with nsfw (app/services/domain/label_rules.py):
+// ticking one ticks NSFW, and NSFW cannot be unticked while one is held. The
+// rule lives in lib/labelTags.js, beside the Label tags it also governs.
+export { NSFW, withNsfw };
 
 // The label endpoint of each grouping tier, keyed by the owner's `kind`.
 const GROUP_LABEL_URL = {
@@ -67,6 +62,10 @@ export default function ContentLabelPicker({
   // Called with the set as loaded, before any edit - Modify keeps it to tell
   // which labels a save is ADDING (labelsAdded).
   onLoaded,
+  // Called instead of `onChange` when the ADMIN ticks or unticks, so a page
+  // can tell an edit from a load - Add and Modify carry an edit through to
+  // the 標籤 Label tags (hooks/useLabelTagSync.js), and a load must not.
+  onEdit,
 }) {
   const [labels, setLabels] = useState([]);
   const [failed, setFailed] = useState(false);
@@ -117,11 +116,11 @@ export default function ContentLabelPicker({
       const held = new Set(value);
       if (held.has(key)) held.delete(key);
       else held.add(key);
-      onChange(withNsfw([...held]));
+      (onEdit || onChange)(withNsfw([...held]));
     },
     // `locked` is derived from value and required.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [value, onChange, required],
+    [value, onChange, onEdit, required],
   );
   const nameOf = (key) => labels.find((row) => row.key === key)?.label || key;
 
