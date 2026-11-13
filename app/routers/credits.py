@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.dependencies import get_db
 from app.services.domain import credits as credits_service
+from app.services.domain.label_tags import LABEL_FIELD, apply_tag_write
 from app.services.rbac.enforcement import entry_visible
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.credit_roles import credit_roles_for, tag_fields_for
@@ -128,9 +129,18 @@ def replace_credits(
                 detail=f"{field} takes at most one value, got {len(values)}",
             )
 
+    # The Label tags carry through to the entry's content labels (and the nsfw
+    # rule back), so a tag edit changes who can see it. Resolved before any
+    # write: a refused NSFW removal must leave everything as it was.
+    tags = dict(payload.tags)
+    if LABEL_FIELD in tags:
+        tags[LABEL_FIELD] = apply_tag_write(
+            db, media_type, entry_id, list(tags[LABEL_FIELD])
+        )
+
     for role, names in payload.credits.items():
         credits_service.replace_credits(db, media_type, entry_id, role, names)
-    for field, values in payload.tags.items():
+    for field, values in tags.items():
         credits_service.replace_tags(db, entry_id, field, values)
 
     db.commit()

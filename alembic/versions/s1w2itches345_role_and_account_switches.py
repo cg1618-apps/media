@@ -26,7 +26,7 @@ are not reversed: the earlier code's boot seed reconciles grants to its own
 locks.
 
 Revision ID: s1w2itches345
-Revises: i1n2vitesreg3
+Revises: t1a2gsync345
 Create Date: 2026-11-13 00:00:00.000000
 
 """
@@ -37,7 +37,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "s1w2itches345"
-down_revision: Union[str, Sequence[str], None] = "i1n2vitesreg3"
+down_revision: Union[str, Sequence[str], None] = "t1a2gsync345"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

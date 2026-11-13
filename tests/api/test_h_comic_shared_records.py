@@ -30,7 +30,7 @@ def _h_comic(admin_client, db_session, name="Zvornik Shared H-Comic", region="KR
         "/api/h-comic/", json={"h_comic_name_cn": name, "region": region}
     ).json()
     entry_id = uuid.UUID(body["system_id"])
-    assert label_keys_for_entry(db_session, entry_id) == ["h-comic"]
+    assert label_keys_for_entry(db_session, entry_id) == ["h-comic", "nsfw"]
     return entry_id
 
 

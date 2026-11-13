@@ -134,13 +134,15 @@ def test_the_active_mode_never_requires_a_password(mode_client):
 
 
 def test_a_denial_makes_a_mode_narrower_for_this_account(
-    admin_user, mode_client, grant_mode, nsfw_label
+    admin_user, mode_client, grant_mode
 ):
     """The cost is computed against the EFFECTIVE set, not the mode's own. An
-    account at ceiling `borderline` denied nsfw reaches no more than `normal`, so
-    switching to it must not ask for a password."""
+    account at ceiling `borderline` denied erotica - the one label borderline
+    shows and normal does not - reaches no more than `normal`, so switching to
+    it must not ask for a password. The undenied ceiling asking for one is
+    test_narrowing_is_free_and_widening_needs_the_password."""
     c = mode_client(MODE_NORMAL)
-    grant_mode(admin_user, MODE_BORDERLINE, denials=(nsfw_label.key,))
+    grant_mode(admin_user, MODE_BORDERLINE, denials=("erotica",))
 
     by_key = {m["key"]: m for m in c.get("/api/auth/me").json()["modes"]}
 
@@ -151,27 +153,17 @@ def test_a_guest_holds_no_modes(client, access_modes):
     assert client.get("/api/auth/me").json()["modes"] == []
 
 
-def test_with_no_labels_borderline_and_normal_are_genuinely_equivalent(
+def test_borderline_is_wider_than_normal_on_every_database(
     admin_user, mode_client, grant_mode
 ):
-    """Why the refusal tests above carry `nsfw_label`, asserted rather than
-    assumed.
-
-    `borderline` and `normal` differ ONLY in which content labels they carry.
-    On a database with zero labels that difference has no content, so they are
-    the same mode in every way that matters and switching between them is free.
-
-    The general shape, and it is the sharp edge in every set-computed gate:
-    asserting that a gate ALLOWS is safe on an empty set; asserting that a gate
-    REFUSES is not. A refusal test whose set is empty passes because there was
-    nothing to refuse - green on day one, green through the change that breaks
-    it, and green forever after. So a refusal test must make its set non-empty
-    and say so. Delete `nsfw_label` from the tests above and they keep passing
-    while asserting nothing; this test is what explains that green.
+    """No fixture label here, deliberately. The six labels are code and exist
+    in every database, so `borderline` always shows one label `normal` hides
+    (erotica) and switching up to it is always a widening - there is no empty
+    label set on which the two modes collapse into one.
     """
     c = mode_client(MODE_NORMAL)
     grant_mode(admin_user, MODE_BORDERLINE)
 
     by_key = {m["key"]: m for m in c.get("/api/auth/me").json()["modes"]}
 
-    assert by_key[MODE_BORDERLINE]["requires_password"] is False
+    assert by_key[MODE_BORDERLINE]["requires_password"] is True

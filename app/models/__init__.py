@@ -6,8 +6,6 @@ model on Base.metadata, so string-based relationships resolve correctly.
 from app.database import Base, get_taipei_now
 from app.models.access_mode import (
     AccessMode,
-    AccessModeFieldGroup,
-    AccessModeLabel,
     UserAccessModeDenial,
 )
 from app.models.account_code import AccountCode
@@ -25,9 +23,11 @@ from app.models.character import (
 from app.models.collection import Collection
 from app.models.comic import Comic
 from app.models.content_label import (
+    CollectionContentLabel,
     ContentLabel,
     FranchiseContentLabel,
     MediaContentLabel,
+    SeriesContentLabel,
 )
 from app.models.franchise import Franchise, Series
 from app.models.game import Game
@@ -141,11 +141,11 @@ __all__ = [
     "SystemConfigs",
     "Seasonal",
     "ContentLabel",
+    "CollectionContentLabel",
     "FranchiseContentLabel",
+    "SeriesContentLabel",
     "MediaContentLabel",
     "AccessMode",
-    "AccessModeLabel",
-    "AccessModeFieldGroup",
     "UserAccessModeDenial",
     "Role",
     "RolePermission",

@@ -10,8 +10,8 @@ for a franchise whose type list names a gated type's franchise type
 `hentai`.
 
 Everything here is driven by those two maps, so a further gated type needs
-only its entries in them and its row in SYSTEM_LABELS - no code here names a
-type. Each type's own module (app/services/domain/h_comic.py, hentai.py) keeps
+only its label in app/services/rbac/labels.py (with `gated_type` set) and its
+franchise type - no code here names a type. Each type's own module (app/services/domain/h_comic.py, hentai.py) keeps
 the rules that are not about the label.
 
 The write paths that keep the label on:
@@ -35,27 +35,6 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app import models
-
-# label key -> (display name, description). The system labels, one per gated
-# type. A migration keeps a frozen copy of its own row; the lifespan seeds
-# from here.
-SYSTEM_LABELS: dict[str, tuple[str, str]] = {
-    "h-comic": (
-        "H-Comic",
-        "Adult comics. Carried by every h-comic entry and every H-Comic "
-        "franchise; seen in the unrestricted mode only.",
-    ),
-    "hentai": (
-        "Hentai",
-        "Adult anime. Carried by every hentai entry and every Hentai "
-        "franchise; seen in the unrestricted mode only.",
-    ),
-    "h-game": (
-        "H-Game",
-        "Adult games. Carried by every h-game entry and every H-Game "
-        "franchise; seen in the unrestricted mode only.",
-    ),
-}
 
 
 def _required_label_for_type() -> dict[str, str]:
@@ -97,57 +76,62 @@ def franchise_label_keys(franchise) -> list[str]:
 
 def ensure_label(db: Session, key: str) -> models.ContentLabel:
     """
-    The system label `key`, created if it is missing - found by KEY, so a row
-    an admin created by hand is adopted rather than duplicated.
+    The `content_label` row for code label `key`, created if it is missing and
+    otherwise brought back in line with the code: name, description and
+    display order are the code's, whatever the row says. Found by KEY, so a
+    row that predates the code is adopted rather than duplicated.
 
-    Called from the lifespan as well as named by each type's migration, for
-    the reason seed_modes.py gives: API tests build the schema with
-    create_all and never run Alembic. A label this creates is granted to
-    `unrestricted` and to no other mode - exactly what creating a label
-    through the API does. An adopted row keeps the grants it has.
+    Called from the lifespan as well as by the write paths below, because API
+    tests build the schema with create_all and never run Alembic. Which modes
+    show the label is derived (cache.mode_sets), so nothing is granted here.
     """
+    from app.services.rbac.labels import LABEL_KEYS, label_by_key
+
+    definition = label_by_key(key)
+    if definition is None:
+        raise KeyError(f"{key!r} is not a content label")
     label = (
         db.query(models.ContentLabel)
         .filter(models.ContentLabel.key == key)
         .first()
     )
-    if label is not None:
-        return label
-    name, description = SYSTEM_LABELS[key]
-    label = models.ContentLabel(
-        key=key, label=name, description=description, sort_order=0
+    order = LABEL_KEYS.index(key)
+    if label is None:
+        label = models.ContentLabel(key=key)
+        db.add(label)
+    changed = (label.label, label.description, label.sort_order) != (
+        definition.name,
+        definition.description,
+        order,
     )
-    db.add(label)
-    db.flush()
-
-    from app.services.rbac.seed_modes import MODE_UNRESTRICTED
-
-    unrestricted = (
-        db.query(models.AccessMode)
-        .filter(models.AccessMode.key == MODE_UNRESTRICTED)
-        .first()
-    )
-    if unrestricted is not None:
-        db.add(
-            models.AccessModeLabel(
-                mode_id=unrestricted.system_id, label_id=label.system_id
-            )
-        )
+    if changed:
+        label.label = definition.name
+        label.description = definition.description
+        label.sort_order = order
         db.flush()
-    from app.services.rbac import cache
+        from app.services.rbac import cache
 
-    cache.bump()
+        cache.bump()
     return label
 
 
-def ensure_system_labels(db: Session) -> None:
-    """Every gated type's label. What the lifespan calls."""
-    for key in _required_label_for_type().values():
+def ensure_labels(db: Session) -> None:
+    """Every code label as a row, in step with the code. What the lifespan
+    calls. Never deletes: a row whose key the code does not name is the
+    migration's to handle, and it refuses rather than guesses."""
+    from app.services.rbac.labels import LABEL_KEYS
+
+    for key in LABEL_KEYS:
         ensure_label(db, key)
 
 
 def ensure_entry_label(db: Session, media_id, key: str) -> None:
-    """Attach label `key` to one entry unless it already carries it."""
+    """Attach label `key` to one entry unless it already carries it - and,
+    for any label but nsfw, nsfw with it (label_rules)."""
+    from app.services.domain.label_rules import NSFW
+
+    if key != NSFW:
+        ensure_entry_label(db, media_id, NSFW)
     label = ensure_label(db, key)
     exists = (
         db.query(models.MediaContentLabel.system_id)
@@ -170,7 +154,10 @@ def ensure_franchise_labels(db: Session, franchise) -> None:
     """Attach the label of every gated type the franchise's types name."""
     if franchise is None:
         return
-    for key in franchise_label_keys(franchise):
+    from app.services.domain.label_rules import NSFW
+
+    keys = franchise_label_keys(franchise)
+    for key in ([NSFW] if keys else []) + keys:
         label = ensure_label(db, key)
         exists = (
             db.query(models.FranchiseContentLabel.system_id)
@@ -255,6 +242,13 @@ def enforce_gated_label_invariants(db: Session) -> dict[str, int]:
     the net under it. Returns {media type: entries checked}. Does not commit -
     the caller owns the transaction.
     """
+    # The label rows themselves first: a Pull may have written a sheet's name
+    # or description over the code's.
+    ensure_labels(db)
+    # Then the nsfw rule over every row a Pull or a migration wrote.
+    from app.services.domain.label_rules import add_missing_nsfw
+
+    add_missing_nsfw(db)
     counts: dict[str, int] = {}
     for media_type, key in _required_label_for_type().items():
         ids = [
@@ -271,4 +265,9 @@ def enforce_gated_label_invariants(db: Session) -> dict[str, int]:
         for franchise in franchises_of_type(db, franchise_type):
             ensure_franchise_labels(db, franchise)
     db.flush()
+    # Last, once every label is settled: each entry's 標籤 Label tags follow
+    # its labels, the label winning.
+    from app.services.domain.label_tags import reconcile_label_tags
+
+    reconcile_label_tags(db)
     return counts

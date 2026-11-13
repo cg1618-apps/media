@@ -91,16 +91,22 @@ import {
 } from "../../config/adminEntryLists";
 import { enrichEntry } from "../../lib/enrich";
 import ContentLabelPicker, {
-  FRANCHISE_SCOPE_NOTE,
+  GROUP_HIDES,
+  GROUP_SCOPE_NOTES,
+  LABELLABLE_GROUPS,
   LABELLABLE_TABS,
   entryHiddenFromSession,
   labelsAdded,
   saveEntryLabels,
+  saveCollectionLabels,
   saveFranchiseLabels,
+  saveSeriesLabels,
 } from "../../components/forms/ContentLabelPicker";
 import { useAuth } from "../../contexts/AuthContext";
 import { useCasting, useReplaceCasting } from "../../hooks/useCasting";
 import { castIdentityProblem, orderLoadedCast } from "../../lib/castOrder";
+import useLabelTagSync from "../../hooks/useLabelTagSync";
+import { hasLabelField } from "../../lib/labelTags";
 import { SuggestItem, SuggestList } from "../../components/forms/SuggestList";
 
 // The media types whose editor carries a cast (CASTING_MEDIA_TYPES on the
@@ -391,6 +397,29 @@ export default function Modify() {
   const [chcf, setChcf] = useState({});
   const [chgf, setChgf] = useState({});
   const [chtf, setChtf] = useState({});
+
+  // The 標籤 Label field and the content-label picker, kept in step on every
+  // type with that field (hooks/useLabelTagSync.js). An opened entry's tags
+  // and labels both arrive as stored, so only edits are carried across.
+  const labelForms = {
+    anime: [af, setAf],
+    "anime-movie": [amf, setAmf],
+    movie: [mmf, setMmf],
+    "tv-show": [tvmf, setTvmf],
+    cartoon: [cmf, setCmf],
+    manga: [cmgf, setCmgf],
+    novel: [cnvf, setCnvf],
+    comic: [ccmf, setCcmf],
+    game: [cgmf, setCgmf],
+  };
+  const { editLabels, syncUpdater } = useLabelTagSync({
+    mediaType: editingType,
+    forms: labelForms,
+    labels: contentLabels,
+    setLabels: setContentLabels,
+    onRefused: (message) => showToast("warning", message),
+  });
+
   const [optValue, setOptValue] = useState("");
   const [optScopes, setOptScopes] = useState([]);
   const [optUsages, setOptUsages] = useState([]);
@@ -445,14 +474,16 @@ export default function Modify() {
   }
 
   // The deferred half of saveCredits: write the open entry's labels, then say
-  // so if they hid the entry from the mode this session is in.
+  // so if they hid the entry from the mode this session is in. Returns the
+  // entry written, or null when nothing was or the editor closed.
   async function savePendingLabels() {
     const pending = pendingLabels.current;
     pendingLabels.current = null;
-    if (!pending) return;
+    if (!pending) return null;
     const { mediaType, entryId } = pending;
+    let stored;
     try {
-      await saveEntryLabels(mediaType, entryId, contentLabels);
+      stored = await saveEntryLabels(mediaType, entryId, contentLabels);
     } catch {
       // The entry saved; only its visibility did not. Say so rather than
       // letting the admin believe an entry is restricted when it is not.
@@ -460,9 +491,13 @@ export default function Modify() {
         "error",
         "Entry saved, but its content labels failed to save.",
       );
-      return;
+      return null;
     }
-    loadedLabels.current = contentLabels;
+    // The form shows what the server stored: the labels the PUT answers
+    // with here, and the tags handleSave reads again after this returns.
+    const labels = Array.isArray(stored) ? stored : contentLabels;
+    setContentLabels(labels);
+    loadedLabels.current = labels;
     if (await entryHiddenFromSession(mediaType, entryId)) {
       const mode = auth.modes.find((m) => m.is_active);
       showToast(
@@ -470,7 +505,9 @@ export default function Modify() {
         `Saved. Its content labels hide it in your current mode${mode ? ` (${mode.label})` : ""} - switch mode to see it again.`,
       );
       closeEditor();
+      return null;
     }
+    return pending;
   }
 
   // Saves a form's cast via PUT /api/casting/{media_type}/{entry_id}. Cast is
@@ -521,18 +558,34 @@ export default function Modify() {
     }
   }
 
-  const ua = (k, v) => setAf((p) => ({ ...p, [k]: v }));
+  const ua = syncUpdater("anime", (k, v) => setAf((p) => ({ ...p, [k]: v })));
   const ucol = (k, v) => setColf((p) => ({ ...p, [k]: v }));
   const uf = (k, v) => setFf((p) => ({ ...p, [k]: v }));
   const us = (k, v) => setSf((p) => ({ ...p, [k]: v }));
-  const uam = (k, v) => setAmf((p) => ({ ...p, [k]: v }));
-  const umm = (k, v) => setMmf((p) => ({ ...p, [k]: v }));
-  const utv = (k, v) => setTvmf((p) => ({ ...p, [k]: v }));
-  const uc = (k, v) => setCmf((p) => ({ ...p, [k]: v }));
-  const umg = (k, v) => setCmgf((p) => ({ ...p, [k]: v }));
-  const unv = (k, v) => setCnvf((p) => ({ ...p, [k]: v }));
-  const ucm = (k, v) => setCcmf((p) => ({ ...p, [k]: v }));
-  const ugm = (k, v) => setCgmf((p) => ({ ...p, [k]: v }));
+  const uam = syncUpdater("anime-movie", (k, v) =>
+    setAmf((p) => ({ ...p, [k]: v })),
+  );
+  const umm = syncUpdater("movie", (k, v) =>
+    setMmf((p) => ({ ...p, [k]: v })),
+  );
+  const utv = syncUpdater("tv-show", (k, v) =>
+    setTvmf((p) => ({ ...p, [k]: v })),
+  );
+  const uc = syncUpdater("cartoon", (k, v) =>
+    setCmf((p) => ({ ...p, [k]: v })),
+  );
+  const umg = syncUpdater("manga", (k, v) =>
+    setCmgf((p) => ({ ...p, [k]: v })),
+  );
+  const unv = syncUpdater("novel", (k, v) =>
+    setCnvf((p) => ({ ...p, [k]: v })),
+  );
+  const ucm = syncUpdater("comic", (k, v) =>
+    setCcmf((p) => ({ ...p, [k]: v })),
+  );
+  const ugm = syncUpdater("game", (k, v) =>
+    setCgmf((p) => ({ ...p, [k]: v })),
+  );
   const uhc = (k, v) => setChcf((p) => ({ ...p, [k]: v }));
   const uhg = (k, v) => setChgf((p) => ({ ...p, [k]: v }));
   const uht = (k, v) => setChtf((p) => ({ ...p, [k]: v }));
@@ -1231,7 +1284,7 @@ export default function Modify() {
     if (
       added.length > 0 &&
       !window.confirm(
-        `Adding the content label ${added.join(", ")} hides ${editingType === "franchise" ? "this franchise and every entry in it" : "this entry"} from every access mode that does not carry it - possibly the one you are in now. Save anyway?`,
+        `Adding the content label ${added.join(", ")} hides ${GROUP_HIDES[editingType] || "this entry"} from every access mode that does not carry it - possibly the one you are in now. Save anyway?`,
       )
     ) {
       return;
@@ -1255,7 +1308,16 @@ export default function Modify() {
       else if (editingType === "h-game") await saveHGame();
       else if (editingType === "hentai") await saveHentai();
       else if (editingType === "options") await saveOption();
-      await savePendingLabels();
+      const labelled = await savePendingLabels();
+      // A label write rewrites the 標籤 Label tags, so the tags the save's
+      // own reload read before it are read again (hooks/useLabelTagSync.js).
+      if (labelled && hasLabelField(labelled.mediaType)) {
+        loadCreditsIntoForm(
+          labelled.mediaType,
+          labelled.entryId,
+          labelForms[labelled.mediaType][1],
+        );
+      }
     } catch (e) {
       showToast("error", e?.message || "Request failed");
     } finally {
@@ -1399,6 +1461,17 @@ export default function Modify() {
         prev.map((c) => (c.system_id === updated.system_id ? updated : c)),
       );
       setEditingItem(updated);
+      try {
+        await saveCollectionLabels(updated.system_id, contentLabels);
+      } catch {
+        // The collection saved; only its visibility did not. Say so rather
+        // than letting the admin believe a collection - and everything under
+        // it - is restricted when it is not.
+        showToast(
+          "error",
+          "Collection saved, but its content labels failed to save.",
+        );
+      }
       window.scrollTo(0, 0);
       showToast("success", "Update successful.");
     } else showToast("error", "Update failed");
@@ -1517,6 +1590,17 @@ export default function Modify() {
       );
       setEditingItem(updated);
       setSf(seriesToForm(updated, allFranchises));
+      try {
+        await saveSeriesLabels(updated.system_id, contentLabels);
+      } catch {
+        // The series saved; only its visibility did not. Say so rather than
+        // letting the admin believe a series - and its entries - is
+        // restricted when it is not.
+        showToast(
+          "error",
+          "Series saved, but its content labels failed to save.",
+        );
+      }
       window.scrollTo(0, 0);
       showToast("success", "Update successful.");
     } else showToast("error", "Update failed");
@@ -3855,13 +3939,14 @@ export default function Modify() {
           </div>
 
             {/* Content labels - the picker reads the current set for whatever
-                is being edited, an entry or a franchise. */}
+                is being edited: an entry, or a collection, franchise or
+                series. Only a franchise has required labels. */}
             {LABELLABLE_TABS.includes(editingType) && editingItem?.system_id && (
               <div className="mt-6">
                 <ContentLabelPicker
                   owner={
-                    editingType === "franchise"
-                      ? { kind: "franchise", id: editingItem.system_id }
+                    LABELLABLE_GROUPS.includes(editingType)
+                      ? { kind: editingType, id: editingItem.system_id }
                       : {
                           kind: "entry",
                           mediaType: editingType,
@@ -3870,6 +3955,7 @@ export default function Modify() {
                   }
                   value={contentLabels}
                   onChange={setContentLabels}
+                  onEdit={editLabels}
                   onLoaded={(keys) => {
                     loadedLabels.current = keys;
                   }}
@@ -3878,11 +3964,7 @@ export default function Modify() {
                       ? requiredLabelsForFranchiseType(ff.franchise_type)
                       : requiredLabelsForType(editingType)
                   }
-                  scopeNote={
-                    editingType === "franchise"
-                      ? FRANCHISE_SCOPE_NOTE
-                      : undefined
-                  }
+                  scopeNote={GROUP_SCOPE_NOTES[editingType]}
                 />
               </div>
             )}

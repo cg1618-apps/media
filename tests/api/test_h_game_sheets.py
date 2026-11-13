@@ -106,10 +106,10 @@ def test_pull_stamps_the_label_on_every_row_and_franchise(monkeypatch, db_sessio
     entry = db_session.query(models.HGame).filter_by(h_game_name_cn="Zvornik Pulled").one()
     db_session.refresh(entry)
     assert entry.platform == ["Steam", "Nintendo"]
-    assert label_keys_for_entry(db_session, entry.system_id) == ["h-game"]
+    assert label_keys_for_entry(db_session, entry.system_id) == ["h-game", "nsfw"]
     franchise = db_session.get(models.Franchise, entry.franchise_id)
     assert franchise.franchise_type == "H-Game"
-    assert label_keys_for_franchise(db_session, franchise.system_id) == ["h-game"]
+    assert label_keys_for_franchise(db_session, franchise.system_id) == ["h-game", "nsfw"]
 
 
 def test_pull_restores_credits_and_tags(monkeypatch, db_session):
@@ -141,7 +141,7 @@ def test_a_label_tab_restore_repairs_a_missing_label(monkeypatch, db_session):
         db_session, "Content Label", log_action=False, may_restore_authz=True
     )
     assert result["status"] == "success", result
-    assert label_keys_for_entry(db_session, entry.system_id) == ["h-game"]
+    assert label_keys_for_entry(db_session, entry.system_id) == ["h-game", "nsfw"]
 
 
 def test_a_game_copy_row_restores_onto_an_h_game(monkeypatch, db_session, admin_user):
