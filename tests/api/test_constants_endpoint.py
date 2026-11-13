@@ -202,3 +202,22 @@ def test_offers_the_note_option_categories(client):
     body = client.get("/api/constants").json()
     assert "Song Type" in body["option_categories"]
     assert "Song Source" in body["option_categories"]
+
+
+def test_serves_the_note_suggestion_categories(client):
+    """The field-level categories the game note sections suggest from, served
+    apart so the admin pages can give them a sub-tab of their own - and still
+    inside option_categories, so every picker knows them."""
+    from app.utils.note_sections import NOTE_SUGGESTION_CATEGORIES
+
+    body = client.get("/api/constants").json()
+    assert body["note_suggestion_categories"] == [
+        "Item Type",
+        "Collectible Type",
+        "Character Group",
+        "Geography Group",
+    ]
+    assert body["note_suggestion_categories"] == list(NOTE_SUGGESTION_CATEGORIES)
+    assert set(body["note_suggestion_categories"]) <= set(body["option_categories"])
+    # Song Type and Song Source are section-level, and stay out of it.
+    assert "Song Type" not in body["note_suggestion_categories"]

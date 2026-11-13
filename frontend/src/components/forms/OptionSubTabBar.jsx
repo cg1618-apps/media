@@ -4,15 +4,16 @@
 // It used to live inside OptionsAddTab.jsx, where only the Add page could
 // reach it. Studio and then Person moved out entirely into the Entity tab
 // group - see adminTabs.js - once each became a public entity rather than a
-// system-option-adjacent form, so all three pages now offer the same two
-// sub-tabs and there is no Add-only variant left.
+// system-option-adjacent form, so all three pages offer the same sub-tabs
+// and there is no Add-only variant left.
 //
-// Tags and Options are the same form over the same rows - see
+// Options, Tags and Note Suggestions are the same form over the same rows - see
 // lib/optionCategoryGroups.js for which categories land on which side.
 
 export const OPTION_SUB_TABS = [
   { key: "options", label: "Options", icon: "fa-cog" },
   { key: "tags", label: "Tags", icon: "fa-tags" },
+  { key: "notes", label: "Note Suggestions", icon: "fa-lightbulb" },
 ];
 
 export default function OptionSubTabBar({

@@ -17,19 +17,20 @@ catalogue and what is an account's own data is
 
 > **Not available yet.** Everything on this page below this note is the
 > decided design of the account and authorization rework
-> ([to-do-next.md](to-do-next.md), item 2), not today's behaviour. Today
+> ([to-do-next.md](to-do-next.md), item 1), not today's behaviour. Today
 > there are four viewers — `admin`, `super`, `user` and the signed-out
 > guest — and what each can do is
 > [authorization.md](authorization.md), "What each role can DO". Each part
 > of this page becomes true when the change that builds it lands, and that
 > change rewrites it in the present tense.
 >
-> **Built:** [Requests and reports](#requests-and-reports), and the My
+> **Built:** [Removed](#removed), under "Customised pages";
+> [Requests and reports](#requests-and-reports), and the My
 > requests and inbox rows of
 > [My requests, the inbox, and pending registrations](#my-requests-the-inbox-and-pending-registrations).
-> They work for `admin`, `super` and `user`. A shared account gets them
-> when the `shared` role exists. Until the header rework, the inbox sits
-> under Pipelines for both admin and super.
+> Requests and reports work for `admin`, `super` and `user`. A shared account
+> gets them when the `shared` role exists. Until the header rework, the inbox
+> sits under Pipelines for both admin and super.
 >
 > **Built underneath, not yet as described here:** every account has a mode
 > ceiling and a default, set on the Users page, and switches among the modes
@@ -264,9 +265,11 @@ Every page listed below is settled in its general version.
 
 ### Removed
 
-- **Public profiles** (`/user/<username>`) and **the community card** on
-  entry pages. Everything per user is private, so both could only ever be
-  empty; the feature is removed, not hidden.
+*Built — true today.*
+
+- There are no **public profiles** (`/user/<username>`) and no **community
+  card** on entry pages. Everything per user is private to its account, so
+  both could only ever be empty; neither exists, rather than being hidden.
 
 ### Header and menus
 

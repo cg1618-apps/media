@@ -291,10 +291,17 @@ export function NotesProvider({
   const groupCount = (section) =>
     groupNotesFor(section).reduce((total, group) => total + group.notes.length, 0);
 
+  // Every suggestion category the page's sections name: a section's own
+  // (`kind_category`, `link_text_category`) and a structured field's
+  // (`option_category`). Each is fetched once, for this owner type.
   useEffect(() => {
     const categories = [
       ...new Set(
-        allSections.flatMap((s) => [s.kind_category, s.link_text_category]),
+        allSections.flatMap((s) => [
+          s.kind_category,
+          s.link_text_category,
+          ...(s.fields || []).map((f) => f.option_category),
+        ]),
       ),
     ].filter(Boolean);
     if (!categories.length || !ownerType) return;

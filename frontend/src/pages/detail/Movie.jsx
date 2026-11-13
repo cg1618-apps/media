@@ -8,7 +8,6 @@ import { useAuth } from "../../contexts/AuthContext";
 import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
-import CommunityCard from "../../components/info/CommunityCard";
 import InfoCard from "../../components/info/InfoCard";
 import GenresCard from "../../components/info/GenresCard";
 import { creditValue } from "../../components/info/PersonLinks";
@@ -464,10 +463,6 @@ export default function Movie() {
               </div>
             </div>
           </Slip>
-
-          {/* What every public list says about it, beside what I say.
-              Renders nothing when no public list holds this entry. */}
-          <CommunityCard mediaId={movie.system_id} />
 
           {/* Detail Cards */}
           <div className="space-y-6">

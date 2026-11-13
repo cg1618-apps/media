@@ -33,6 +33,7 @@ from app.utils.credit_roles import (
     TAG_CATEGORIES,
 )
 from app.utils.media_resolver import MEDIA_TYPE_KEYS
+from app.utils.note_sections import NOTE_SUGGESTION_CATEGORIES
 
 router = APIRouter(prefix="/api/constants", tags=["Constants"])
 
@@ -180,6 +181,10 @@ def _constants() -> dict[str, list[str]]:
         # The subset of the above that the admin pages group under "Tags".
         # Navigation only: both sub-tabs write the same system_option rows.
         "tag_categories": list(TAG_CATEGORIES),
+        # The subset the game note sections' free-text fields suggest from,
+        # which the admin pages group under "Note Suggestions". Navigation
+        # only, like tag_categories; none serves a gated type alone.
+        "note_suggestion_categories": list(NOTE_SUGGESTION_CATEGORIES),
         # What a request is about, and where it stands. The request forms and
         # the inbox's status filter read these.
         "request_kind": list(c.REQUEST_KINDS),

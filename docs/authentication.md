@@ -1,6 +1,6 @@
 # Authentication
 
-Last verified: 2026-10-30
+Last verified: 2026-11-13
 
 ## What this is for
 
@@ -147,7 +147,7 @@ The one place the SPA learns who it is. It **never raises**: a missing, expired 
   "username": null,
   "role": "guest",
   "is_root": false,
-  "permissions": ["field_group.sources_other", "media_type.anime", "..."]
+  "permissions": ["field_group.sources_restricted", "media_type.anime", "..."]
 }
 ```
 

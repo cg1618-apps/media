@@ -152,9 +152,9 @@ export default function OptionsAddTab({
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
       <SectionHeader icon="fa-cog" title="System Options" />
       <OptionSubTabBar active={optionsSubTab} onSelect={setOptionsSubTab} />
-      {/* Tags and Options are the same form; only the categories the
-          Category picker offers differ. */}
-      {(optionsSubTab === "options" || optionsSubTab === "tags") && (
+      {/* Options, Tags and Note Suggestions are the same form; only the
+          categories the Category picker offers differ. */}
+      {["options", "tags", "notes"].includes(optionsSubTab) && (
         <OptionsForm
           optCategory={optCategory}
           setOptCategory={setOptCategory}

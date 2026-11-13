@@ -23,6 +23,8 @@ import sys
 import uuid
 
 import sqlalchemy as sa
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy import text
 
 from tests.api.test_migrations_build_the_schema import (  # noqa: F401 - fixture
@@ -31,8 +33,12 @@ from tests.api.test_migrations_build_the_schema import (  # noqa: F401 - fixture
     scratch_databases,
 )
 
-PREVIOUS = "r1e2quests34"
 THIS = "m1c2eiling345"
+# Read from the revision itself, so reparenting it onto a new head (the usual
+# fix for two heads) cannot leave this test upgrading to a stale parent.
+PREVIOUS = ScriptDirectory.from_config(Config(str(ROOT / "alembic.ini"))).get_revision(
+    THIS
+).down_revision
 ORDER = ("safe", "normal", "borderline", "unrestricted")
 
 

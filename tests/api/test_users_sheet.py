@@ -47,14 +47,13 @@ def test_the_tab_carries_the_role_name_instead():
     assert [name for name, _fn in tab.extra_columns] == ["role"]
 
 
-def test_the_backup_row_holds_the_username_role_and_visibility(db):
+def test_the_backup_row_holds_the_username_and_role(db):
     tab = TAB_BY_NAME["Users"]
     role = db.query(models.Role).filter(models.Role.name == "admin").one()
     user = models.User(
         username="kana",
         hashed_password="$2b$12$notarealhashatallnotarealhashatallnotarealha",
         role_id=role.system_id,
-        list_is_public=True,
     )
     db.add(user)
     db.flush()
@@ -74,7 +73,8 @@ def test_the_backup_row_holds_the_username_role_and_visibility(db):
     assert "role_id" not in row
     assert row["username"] == "kana"
     assert row["role"] == "admin"
-    assert row["list_is_public"] == "TRUE"
+    # Everything per user is private: there is no visibility flag to carry.
+    assert "list_is_public" not in row
     assert row["id"] == str(user.id)
 
 
@@ -86,6 +86,8 @@ from app.services.security import (  # noqa: E402
     get_password_hash,
 )
 
+# list_is_public is a retired header: a sheet written before the column was
+# dropped still carries it, and the Pull must accept it silently.
 USER_HEADERS = ["id", "username", "list_is_public", "role"]
 
 
@@ -109,7 +111,6 @@ def test_a_new_user_arrives_with_an_unusable_password(db, sheets):
     assert result["status"] == "success"
     kana = db.query(models.User).filter_by(username="kana").one()
     assert kana.hashed_password == UNUSABLE_PASSWORD_HASH
-    assert kana.list_is_public is True
     assert kana.role_ref.name == "user"
 
 
@@ -125,7 +126,6 @@ def test_a_foreign_uuid_updates_the_local_account_by_username(db, sheets):
         username="cg1618",
         hashed_password=get_password_hash("real-password"),
         role_id=role.system_id,
-        list_is_public=False,
     )
     db.add(local)
     db.flush()
@@ -141,7 +141,6 @@ def test_a_foreign_uuid_updates_the_local_account_by_username(db, sheets):
     rows = db.query(models.User).filter_by(username="cg1618").all()
     assert len(rows) == 1
     assert rows[0].id == local_id
-    assert rows[0].list_is_public is True
 
 
 def test_a_pull_never_overwrites_an_existing_password(db, sheets):
@@ -154,7 +153,6 @@ def test_a_pull_never_overwrites_an_existing_password(db, sheets):
             username="cg1618",
             hashed_password=kept,
             role_id=role.system_id,
-            list_is_public=False,
         )
     )
     db.flush()
@@ -183,7 +181,7 @@ def test_an_unknown_role_name_skips_the_row(db, sheets):
 
 
 def test_the_open_request_limit_travels(db, sheets):
-    """An account setting like list_is_public: named in the projection, or a
+    """An account setting like is_installation_owner: named in the projection, or a
     Pull silently lifts every member's limit."""
     sheets(
         {

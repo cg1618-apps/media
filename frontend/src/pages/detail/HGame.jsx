@@ -18,7 +18,6 @@ import ReportProblemButton from "../../components/requests/ReportProblemButton";
 
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
-import CommunityCard from "../../components/info/CommunityCard";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
 import InfoCard from "../../components/info/InfoCard";
 import TimeToBeatCard from "../../components/info/TimeToBeatCard";
@@ -447,8 +446,6 @@ export default function HGame() {
               idPrefix="h-game"
               onChange={(patch) => performPatch(patch, "Saved")}
             />
-
-            <CommunityCard mediaId={hGame.system_id} />
 
             <Slip title="進度/待辦 Progress and Todo">
               <div className="space-y-4">

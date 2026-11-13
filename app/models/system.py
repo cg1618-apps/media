@@ -292,13 +292,6 @@ class User(Base):
         nullable=False,
         index=True,
     )
-    # Private by default, and only its owner can change it (PATCH
-    # /api/account/settings). An admin may see the flag on the Users page but
-    # does not set it: whose list is visible is the account holder's decision,
-    # not the inviter's.
-    list_is_public = Column(
-        Boolean, nullable=False, default=False, server_default="false"
-    )
     # Whose rows a restore or the Calculate pipeline files under. NOT a
     # permission and not on any request path - see
     # services/domain/user_list.py::installation_owner_id for what it answers

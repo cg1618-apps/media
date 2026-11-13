@@ -72,7 +72,6 @@ def _to_response(
         username=user.username,
         role_id=user.role_id,
         role_name=user.role_ref.name if user.role_ref else None,
-        list_is_public=bool(user.list_is_public),
         mode_ceiling=user.mode_ceiling,
         mode_default=user.mode_default,
         denied_label_keys=denied_labels,

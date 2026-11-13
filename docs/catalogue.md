@@ -1,6 +1,6 @@
 # The catalogue and your data
 
-Last verified: 2026-11-12
+Last verified: 2026-11-13
 
 ## What this is for
 
@@ -26,14 +26,9 @@ card. It carries no technical detail; the tables behind it are
 | The watch orders you follow | a watch order's follow toggle |
 | Your personal notes — the sections marked **yours** in [Notes](#notes-yours-or-shared) | the Notes card on an entry or group |
 
-Nobody else can change any of it. Today, if you make your list public in
-**Settings → List visibility**, other members can read your list and
-personal notes on your profile, and your list counts in an entry's
-community card; otherwise nobody can.
-
-*Being removed:* the List visibility setting. Everything here will be
-private to you — no profile others can open, no notes by author, no
-community card.
+Nobody else can change any of it, and nobody else can see it, the admin
+included. There is no profile others can open and no community figure your
+list counts towards.
 
 ## Shared — the catalogue
 
@@ -86,12 +81,11 @@ that type, or a group (collection, franchise, series).
 | 備註 Remark | every type; every group | **yours** |
 | 備註列表 Remark List | every type; every group | **yours** |
 | 介紹 Introduction | every type but H-Comic, Hentai; every group | shared |
-| 評論 Reviews and Comments | H-Comic, Hentai, H-Game | **yours** |
 | 優點 Advantages | every type but H-Comic, Hentai; every group | **yours** |
 | 缺點 Disadvantages | every type but H-Comic, Hentai; every group | **yours** |
 | 優缺點 | every type but H-Comic, Hentai; every group | **yours** |
-| 大眾評價 Public Reviews | every type but H-Comic, Hentai, H-Game; every group | shared |
-| 我的評價 Personal Reviews | every type but H-Comic, Hentai, H-Game; every group | **yours** |
+| 大眾評價 Public Reviews | every type; every group | shared |
+| 我的評價 Personal Reviews | every type; every group | **yours** |
 | 各集評論 Episode Comments (Manga: 各話評論 Chapter Comments; Game: 各章評論 Part Reviews) | Anime, TV Show, Cartoon, Manga, Game | **yours** |
 | 神回/神片段 Highlights | Anime | shared |
 | 神回/神片段 (Manga: 神回) | TV Show, Cartoon, Manga | shared |
@@ -121,6 +115,7 @@ that type, or a group (collection, franchise, series).
 | 收集物 Collectibles | Game, H-Game | shared |
 | 角色 Characters | Game, H-Game | shared |
 | 敵人 Enemies | Game, H-Game | shared |
+| 地理 Geography | Game, H-Game | shared |
 | 遊戲名詞 Game Terms | Game, H-Game | shared |
 | 玩家術語 Player Terms | Game | shared |
 | 主線劇情 Main Plot | Game | shared |
@@ -159,11 +154,6 @@ that type, or a group (collection, franchise, series).
 | 名言 Quotes | every type but H-Comic, Hentai, H-Game | shared |
 | 梗/迷因 Memes | every type but H-Comic, Hentai, H-Game; every group | shared |
 
-*Changing:* H-Comic, Hentai and H-Game will drop 評論 Reviews and Comments
-and get 大眾評價 Public Reviews and 我的評價 Personal Reviews, like every
-other type. What is written in Reviews and Comments today moves to Public
-Reviews.
-
 The six highlight rows (神回/神片段, 神片段, 神場景, 亮點) are shared today and
 will become **yours**.
 
@@ -175,7 +165,5 @@ your value on 屬性&配點 Stats & Points. The status on OP, ED and 插入曲
 Insert Song, and on 模組&工具 Mods & Tools, will become yours too, but only
 for accounts the admin turns that feature on for.
 
-Today other members can read your **yours** sections on your profile when
-your list is public, if their access mode allows it. *Being removed:* once
-List visibility goes, nobody else sees them. Quotes and memes are not notes
+Nobody else sees your **yours** sections. Quotes and memes are not notes
 underneath, but they appear in the card and are shared.

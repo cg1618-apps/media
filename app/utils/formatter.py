@@ -1801,10 +1801,12 @@ def parse_user_from_sheet(raw: dict) -> dict:
     app/main.py's lifespan on every machine, so the same person holds a
     different uuid on each - see pull.py's DERIVED_IDENTITY_KEYS.
 
-    list_is_public and is_installation_owner are coerced rather than left
-    None: both columns are NOT NULL, and a blank cell means false, not
-    "unknown". A sheet written before either column existed has no header for
-    it at all, which is the same case and the same answer.
+    is_installation_owner is coerced rather than left None: the column is
+    NOT NULL, and a blank cell means false, not "unknown". A sheet written
+    before the column existed has no header for it at all, which is the same
+    case and the same answer. A sheet written while users.list_is_public
+    existed still carries that header; it is not read (pull.py's
+    RETIRED_HEADERS keeps it out of the run's unresolved references).
 
     THIS IS AN EXPLICIT PROJECTION, NOT A COLUMN SWEEP. A column added to the
     User model does not travel until it is named here, and the failure is
@@ -1813,12 +1815,10 @@ def parse_user_from_sheet(raw: dict) -> dict:
     travel, or the two databases disagree about whose collection this is and
     each files restored rows under a different account.
     """
-    is_public = parse_from_sheet(raw.get("list_is_public"), bool)
     is_owner = parse_from_sheet(raw.get("is_installation_owner"), bool)
     return {
         "id": parse_from_sheet(raw.get("id"), UUID),
         "username": parse_from_sheet(raw.get("username"), str),
-        "list_is_public": bool(is_public),
         "is_installation_owner": bool(is_owner),
         # NULL is no limit, so a blank cell is NULL, not 0. A sheet with no
         # header for it leaves the local value alone (pull drops the key).
@@ -2037,6 +2037,20 @@ def _note_fields(raw: dict):
     return fields
 
 
+# Sections that left the registry, and where their rows went. A sheet backed
+# up before the move still names the old key, and Pull files each row where
+# the migration filed the local ones.
+_RETIRED_NOTE_SECTIONS = {
+    # The gated types' one list of reviews became their 大眾評價.
+    "reviews_and_comments": "public_reviews",
+}
+
+
+def _pulled_note_section(value) -> str | None:
+    section = parse_from_sheet(value, str)
+    return _RETIRED_NOTE_SECTIONS.get(section, section)
+
+
 def parse_note_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Note sheet into typed data ready for the
@@ -2060,7 +2074,7 @@ def parse_note_from_sheet(raw: dict) -> dict:
         # Users tab; `None` here means "fall back to the admin", which
         # app/services/pipelines/pull.py applies.
         "author_id": _uuid_or_none(raw.get("author_id")),
-        "section": parse_from_sheet(raw.get("section"), str),
+        "section": _pulled_note_section(raw.get("section")),
         # The tree link for the hierarchical sections. A plain UUID column, so
         # it needs no JSON handling - but it does need to be here, or Pull
         # flattens every nested Story List entry to a root.

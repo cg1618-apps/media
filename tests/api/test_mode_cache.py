@@ -7,7 +7,11 @@ order-dependent - which is the most expensive kind to debug.
 
 from app import models
 from app.services.rbac import cache
-from app.services.rbac.seed_modes import MODE_SAFE, ensure_access_mode_seed
+from app.services.rbac.seed_modes import (
+    MODE_NORMAL,
+    MODE_SAFE,
+    ensure_access_mode_seed,
+)
 
 
 def _safe(db):
@@ -16,11 +20,19 @@ def _safe(db):
 
 
 def test_mode_sets_reads_the_modes_items(db_session):
+    """`safe` withholds the one field group and `normal` carries it, so each
+    side of the read is asserted against a non-empty possibility."""
     safe = _safe(db_session)
-    sets = cache.mode_sets(db_session, safe.system_id)
-    assert "sources_restricted" not in sets.field_groups
-    assert "sources_other" in sets.field_groups
-    assert sets.label_ids == frozenset()
+    normal = (
+        db_session.query(models.AccessMode)
+        .filter(models.AccessMode.key == MODE_NORMAL)
+        .one()
+    )
+    assert cache.mode_sets(db_session, safe.system_id).field_groups == frozenset()
+    assert "sources_restricted" in cache.mode_sets(
+        db_session, normal.system_id
+    ).field_groups
+    assert cache.mode_sets(db_session, safe.system_id).label_ids == frozenset()
 
 
 def test_mode_sets_is_cached(db_session):
