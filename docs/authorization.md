@@ -226,7 +226,7 @@ short-circuit deliberately does not cover.
 | switch their own access mode | — (no account) | yes | yes | yes |
 | keep a list row — status, rating, progress | — | yes | yes | **never** |
 | keep a plan queue | — | yes | yes | **never** |
-| write their own highlights and other personal notes, and their own highlight group order on an h-comic or h-game (`self.personal_notes`) | — | yes | yes | **never** |
+| write their own highlights and other personal notes, their own highlight group order on an h-comic or h-game, and their own values on catalogue note rows - collected, beaten, completion, my value, the NG reset (`self.personal_notes`) | — | yes | yes | **never** |
 | rate a season | — | yes | yes | **never** |
 | rate a collection, franchise, series, character, person, studio or publisher, set a tier's expectation, rate and remark on a novel unit (`self.list`) | — | yes | yes | **never** |
 | read their own account settings — username and role | — (no account) | yes | yes | yes, through the API; the SPA's `/settings` route asks `self.list`, so it is not drawn for `admin` |
@@ -427,8 +427,10 @@ personal-scope note write - the six highlight sections among them - what
 `PUT /api/me/highlight-group-order/{media_id}`, and what
 `app/routers/game_choice.py` requires of a done mark or personal note on a
 block or edge of a game's choice graph
-([systems/game-choices.md](systems/game-choices.md)). See
-[Note scope](#note-scope) below.
+([systems/game-choices.md](systems/game-choices.md)), and what
+`PUT /api/notes/{note_id}/mark` and `POST /api/notes/ng-reset` require of a
+viewer's own values on catalogue note rows. See [Note scope](#note-scope)
+below.
 
 ### Field groups
 
@@ -999,6 +1001,7 @@ type's nav row, routes, tabs and pickers out rather than render them empty.
 | watch-order items, addable candidates | `routers/watch_order.py` (`resolve_items`, `list_candidate_entries`) |
 | search | `routers/search.py` — behind `view.search`; entries, franchises, series and the person/studio/publisher buckets, each bucket carrying the viewer's own ratings as its own list route does ([Ratings and expectations](#ratings-and-expectations-user_rating)) |
 | own-list reads and writes (`/api/me/list/{media_id}`) | `routers/me_list.py`, behind `self.list` **and** `entry_visible` in `_media_or_404`. Both are needed: the capability gate alone lets an account holding `self.list` rate an entry it cannot see, or a media type it does not hold, by knowing the uuid. Writes follow reads: 404 with the not-found message, never 403 |
+| own values on catalogue note rows (`PUT /api/notes/{note_id}/mark`, `POST /api/notes/ng-reset`) | `routers/note.py`, behind `self.personal_notes` **and** `require_visible_owner` on the note's owner: 404 "Note not found." / "Owner not found." for a hidden one. Reads overlay only the viewer's own marks (`note_marks.notes_out`) |
 | own highlight group order (`/api/me/highlight-group-order/{media_id}`) | `routers/me_highlights.py`, behind `self.personal_notes` on the router **and** `entry_visible` on the h-comic or h-game: 404 "Entry not found." for a hidden one, any other type, or none. The order is read back on the h-comic and h-game responses as the viewer's own (`highlight_group_order.attach_group_orders`) |
 | own ratings (`/api/me/ratings/{owner_type}/{owner_id}`, `/api/me/novel-units/{unit_id}`) | `routers/me_ratings.py`, behind `self.list` on the router **and** the owner's own read check (`franchise_visible`, `series_visible`, `view.entities` plus `shared_record_visible` for an entity, `entry_visible` on the unit's novel). Writes follow reads: 404 with the owner's not-found message |
 | account settings (`/api/account/settings`) | `routers/account.py` - a read of the caller's own username and role; no path takes a user id, and there is no write |
@@ -1359,6 +1362,37 @@ row gets, because a 403 confirms a row exists exactly as surely as a 200 does.
 
 `tests/api/test_note_status_codes.py` asserts the absence of 403 directly, so
 a "clearer" 403 fails the suite rather than quietly reintroducing an oracle.
+
+**Personal values on catalogue rows.** Some catalogue sections' rows carry
+values that are each viewer's own - collected and the amount collected,
+beaten, completion, my value, and the music and mod statuses
+([systems/notes.md](systems/notes.md#personal-values-on-catalogue-rows-note-marks)).
+They live in `note_mark`, one row per account per note, and are never on the
+shared row: a catalogue write (`manage.catalog`) drops them, and only the
+viewer's own are ever read back onto a row - another account's never, the
+admin's view included, and a logged-out visitor reads each value's default.
+They are written by `PUT /api/notes/{note_id}/mark` and cleared by
+`POST /api/notes/ng-reset`, both behind `self.personal_notes` and the note
+owner's own read check:
+
+| Situation | Answer |
+|---|---|
+| no `self.personal_notes` - a guest, or the `admin` account, whose root flag never passes `self.*` | **401** |
+| a value granted by a feature the caller does not hold | **401**, naming the feature |
+| a note that does not exist, or whose owner the caller may not see | **404 "Note not found."** (the NG reset: **404 "Owner not found."**) |
+| a key that is not personal on the row's section, or a value outside its vocabulary | **422** |
+
+**Granted features.** The music statuses (`music_status`) and the mod status
+(`mod_status`) are behind a per-account feature: an account without it does
+not see them at all - not on the rows, not in `/api/notes/sections`, not in
+the review queue's music block, which lists only the caller's own statuses.
+Every check goes through `has_feature(db, viewer, name)` in
+`app/services/rbac/features.py`, over `FEATURE_NAMES` (`quotes_memes`,
+`favourites`, `music_status`, `mod_status`); an unknown name raises
+`ValueError`. It answers from a stand-in today - an account holding
+`self.personal_notes` holds every feature, anyone else none, the admin
+included - and the per-account switches replace that module wholesale
+without touching a caller.
 
 **Quotes and memes are untouched by scope.** They carry an `author_id` for
 provenance and every viewer holding `view.extras` reads the same rows.

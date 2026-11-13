@@ -71,6 +71,7 @@ from app.services.domain.legacy_personal import (
     pop_legacy_personal,
     restore_legacy_personal,
 )
+from app.services.domain.note_marks import clean_mark_values
 from app.services.domain.user_list import installation_owner_id
 from app.services.integrations.sheets import (
     SheetsUnavailableError,
@@ -305,6 +306,10 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
     ),  # uq_user_rating_owner
     # The same shape for a reader's unit row; unit_id travels unchanged.
     "User Novel Unit Rating": ("user_id", "unit_id"),  # uq_user_novel_unit
+    # One mark per account per note. Its system_id is minted wherever the
+    # mark was made; user_id is resolved from `username` and note_id is the
+    # Note tab's uuid, translated through that tab when it misses here.
+    "Note Mark": ("user_id", "note_id"),  # uq_note_mark_user_note
 }
 
 # Tabs that cite one of the above by raw uuid. The sheet carries the OTHER
@@ -328,6 +333,10 @@ DERIVED_IDENTITY_PARENTS: dict[str, tuple[tuple[str, str], ...]] = {
         ("studio_id", "Studio"),
         ("publisher_id", "Publisher"),
     ),
+    # A note's uuid travels, but a migration-minted row (music_status, one
+    # per anime per list) carries a different one on every database; the
+    # Note tab's own fold is what tells which local row the sheet's is.
+    "Note Mark": (("note_id", "Note"),),
 }
 
 # Tabs whose PRIMARY KEY is itself minted per database and must be ignored as
@@ -809,6 +818,8 @@ def _foreign_uuid_map(db: Session, parent_tab: str) -> dict[str, object]:
         return mapping
 
     headers, parser = matrix[0], TAB_PARSERS[parent_tab]
+    if parent_tab == "Note":
+        return _note_uuid_map(db, headers, matrix[1:])
     for row in matrix[1:]:
         if not row or not any(row):
             continue
@@ -818,6 +829,51 @@ def _foreign_uuid_map(db: Session, parent_tab: str) -> dict[str, object]:
         if not sheet_uuid:
             continue
         local = _match_by_natural_key(db, parent_tab, payload)
+        if local is not None:
+            mapping[str(sheet_uuid)] = local.system_id
+    return mapping
+
+
+def _note_uuid_map(db: Session, headers: list, data_rows: list) -> dict[str, object]:
+    """
+    {sheet note uuid: local note uuid} for the Note tab's rows whose uuid this
+    database does not hold, matched exactly as restoring the tab matches them:
+    a one_per_kind row (music_status) by owner, section and kind, any other by
+    _match_note_twin. A personal-scope singleton is not matched - a mark sits
+    on catalogue rows only.
+    """
+    parser = TAB_PARSERS["Note"]
+    sheet_ids = _sheet_ids(headers, data_rows)
+    claimed: set = set()
+    mapping: dict[str, object] = {}
+    for row in data_rows:
+        if not row or not any(row):
+            continue
+        raw = parse_row_to_dict(headers, row)
+        payload = {k: v for k, v in parser(raw).items() if k in raw}
+        sheet_uuid = payload.get("system_id")
+        if not sheet_uuid or db.get(Note, sheet_uuid) is not None:
+            continue
+        if _resolve_owner_columns(db, "Note", payload) is not None:
+            continue
+        _fold_one_row_ost(payload)
+        pop_legacy_personal("Note", payload)
+        section = section_by_key(payload.get("section") or "")
+        if section is not None and section.one_per_kind:
+            owner = _note_owner_filters(payload)
+            local = (
+                db.query(Note)
+                .filter(*owner, Note.section == section.key, Note.kind == payload.get("kind"))
+                .first()
+                if owner
+                else None
+            )
+        elif section is not None and section.scope == SCOPE_PERSONAL:
+            local = None
+        else:
+            local = _match_note_twin(db, payload, sheet_ids, claimed)
+            if local is not None:
+                claimed.add(local.system_id)
         if local is not None:
             mapping[str(sheet_uuid)] = local.system_id
     return mapping
@@ -1162,6 +1218,7 @@ def execute_pull_specific(
             "Watch Order Follow",
             "User Rating",
             "User Novel Unit Rating",
+            "Note Mark",
         ):
             username = parse_from_sheet(raw_header_dict.get("username"), str)
             if username:
@@ -1187,6 +1244,16 @@ def execute_pull_specific(
                 rows_skipped += 1
                 continue
             clean_header_dict["user_id"] = owner
+
+        # A mark is stored only while it holds something, as the write path
+        # keeps it (note_marks.write_mark): a cell that is not an object of
+        # values, or holds none, is not a mark.
+        if tab_name == "Note Mark" and "values" in clean_header_dict:
+            values = clean_mark_values(clean_header_dict.get("values"))
+            if values is None:
+                rows_skipped += 1
+                continue
+            clean_header_dict["values"] = values
 
         # Note and Meme alone carry the pre-m5b1notefks (owner_type, owner_id)
         # pair their parsers rename to _legacy_*; Quote never had one.
@@ -1906,6 +1973,15 @@ def execute_pull_specific(
         # status folds onto the local row for that list.
         if tab_name == "Note":
             _fold_one_row_ost(clean_header_dict)
+        # An old sheet's personal values on a Note row, held aside BEFORE the
+        # row is matched to a local one: the matches below compare content,
+        # and the local row no longer carries them. Filed under the
+        # installation owner once the row exists (restore_legacy_personal).
+        legacy_note_values = (
+            pop_legacy_personal(tab_name, clean_header_dict)
+            if tab_name == "Note"
+            else {}
+        )
         singleton = section_by_key(clean_header_dict.get("section") or "")
         if (
             tab_name == "Note"
@@ -2038,7 +2114,9 @@ def execute_pull_specific(
         # An old sheet's rating / expectation / unit remark, held aside: they
         # are not columns any more, and are filed under the installation
         # owner once the row exists (restore_legacy_personal below).
-        legacy_personal = pop_legacy_personal(tab_name, clean_header_dict)
+        legacy_personal = (
+            pop_legacy_personal(tab_name, clean_header_dict) or legacy_note_values
+        )
 
         clean_header_dict = drop_non_columns(Model, clean_header_dict)
 

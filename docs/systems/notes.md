@@ -20,7 +20,7 @@ The table lives in `app/models/note.py` (class `Note`, `__tablename__ = "note"`)
 | `parent_id` | UUID, indexed | FK `note.system_id` ON DELETE CASCADE. The row this one nests under, for a section whose registry entry sets `hierarchical`. Unbounded depth. CASCADE rather than SET NULL: promoting every child to a root on a delete reads as a flat pile rather than as a loss, which is harder to notice. Nothing at the database level keeps a child in its parent's section — a CHECK cannot read another row — so `_validate_parent` in `app/routers/note.py` owns that, along with refusing a cycle at any depth. |
 | `locator` | String | "Where in the work": episode, chapter, scene, timestamp, or source. One free-text column; the section supplies the label and whether it is required. Renamed from `episode` by migration `alembic/versions/l1o2c3a4t5o6_note_episode_to_locator.py`. |
 | `kind` | String | First dropdown, only where the section declares `kinds` (highlight type, OP/ED change type) or a `kind_category` (the free-text Song Type of an OP or ED). On `resources` it is the row's optional free-text Group (`kind_is_group`). On `music_status` it names the song list the row is about. |
-| `status` | String | Second dropdown, only in the music group: Need / Pending / No Full Version / Done on a song, one of `MUSIC_TYPE_STATUSES` on a `music_status` row. Kept separate from `kind` because one row needs both (which cut it is vs. how far my tracking has got). |
+| `status` | String | The column a status-shaped value is read into. On the sections whose status is **personal** — the song lists, `music_status`, and the structured `collected`, `beaten`, `completion` and mods `status` fields — it is never stored: it stays null on the row, and every read fills it with the viewer's own value from `note_mark` (see [Personal values on catalogue rows](#personal-values-on-catalogue-rows-note-marks)). Kept separate from `kind` because one row needs both (which cut it is vs. how far my tracking has got). |
 | `title` | String | The name half of a `name_links` row, or the song name on a `music_track` row. |
 | `content` | Text | The body. |
 | `links` | JSONB | A list of URL strings — or, on the sections `uses_link_pairs` names (the four song lists), of **link pairs** `{"text": str｜null, "url": str}`. Which of the two is a property of the section, never of the row, and the validator refuses the other. Always a list, even for shapes that allow one link, so multi-link support needs no migration. See [Music](#music). |
@@ -80,7 +80,7 @@ A shape names which columns a section uses. Declared as constants at the top of 
 
 Four rules sit on the section rather than on a field: **`require_any`** is groups of keys where at least one must be filled (an entry needs an order number *or* a name, and may have both), and **`hierarchical`** lets rows carry a `parent_id` and render as a tree. A flat section refuses a parent outright. **`group_by`** names one of the section's `names` fields; the read view draws one group per name, and a row naming two appears under both. The card carries a **Group by** toggle for it too (on by default, remembered per section in the reader's browser); turned off, the rows read as one flat list, which is where they are reordered - a row in two groups cannot be moved within one of them without moving in the other. It is display-only, and it is checked when the module is imported: a `group_by` naming anything but a `names` field of the same section fails the import. **`groupable_by`** names one of the section's `select` fields, and every game section with an optional, free-text bucket names it: 玩法系統 Gameplay Systems, 操作 Controls, 職業 Classes, 技能 Skills, the three 物品 sections, the three typed NG 多周目 sections and 模組&工具 Mods & Tools name `type`, 角色 Characters, 地理 Geography and 攻略資源 Guide Resources name `group`, and 敵人 Enemies names `tier`. 存檔 Saves does not: its checkpoint defaults to `regular`, so every row has one and it is a property of the save rather than a bucket. The card then carries a **Group by** toggle named after the field - *Group by type*, *Group by tier* - (on by default, remembered per section in the reader's browser) that draws one group per value, in the order each value first appears, with the rows carrying none in a trailing group. Unlike `group_by`, no group order is stored anywhere: the groups follow the rows' `sort_index`, so moving a group or a row within one saves the whole section's row order through `PATCH /api/notes/reorder`, grouped. It is checked at import the same way, and on a `hierarchical` section the field must also be column-backed (`_check_groupable_by`). A section both `hierarchical` and `groupable_by` — 地理 Geography alone — groups its **top-level rows** and draws each one's subtree beneath it; only a top-level row carries a value, and `_validate_structured` refuses one on a row with a `parent_id` (422 "Only a top-level row carries a group."), checked on the row as it will be, so a PATCH that reparents a grouped row must clear its group in the same request. **`owner_where`** limits a section to some owners of its types, as `{owner column: allowed values}`; the router refuses a row on any other owner (422, `_require_owner_where` in `app/routers/note.py`, after the owner is known to be visible) and the page renders no card for it. Both are published on `NoteSectionOut`.
 
-**Why one JSONB column and not a column per field.** Most of what the structured sections need already has a column — a name is `title`, a description is `content`, a dropdown is `kind` or `status` — so `fields` carries only the leftovers and the nested lists. A column per field would put a dozen mostly-blank columns on a table all twelve owner types share, and those columns are also the Google Sheets Note tab; the nested lists would need JSONB regardless. The cost, stated plainly: the leftover scalars have no database-level type and no column to filter on. The values worth filtering (a beaten status, a completion status) land in the real `status` column, which is why that cost stays theoretical.
+**Why one JSONB column and not a column per field.** Most of what the structured sections need already has a column — a name is `title`, a description is `content`, a dropdown is `kind` or `status` — so `fields` carries only the leftovers and the nested lists. A column per field would put a dozen mostly-blank columns on a table all twelve owner types share, and those columns are also the Google Sheets Note tab; the nested lists would need JSONB regardless. The cost, stated plainly: the leftover scalars have no database-level type and no column to filter on. The values most worth filtering (a beaten status, a completion status) are each viewer's own and live in `note_mark`, not on the row.
 
 **A defaulted field cannot be what makes a row worth storing.** The
 `music_track` shape says the same about `default_kind`: a value that is always
@@ -444,17 +444,17 @@ column a field claims; a field with no arrow lives in `fields`.
 | Section | Fields |
 | --- | --- |
 | `controls` | type → `kind` (free-text select), control → `title`, description → `content`, links → `links`; `groupable_by = "type"` |
-| `stats_and_points` | name → `title`, min_value, rec_value, softmax_value, **my_value** *(quick-edit)*, description → `content` |
+| `stats_and_points` | name → `title`, min_value, rec_value, softmax_value, **my_value** *(quick-edit; personal)*, description → `content` |
 | `classes` | type → `kind` (free-text select), name → `title`, role, unlock, key_stats, description → `content`, links → `links`; `groupable_by = "type"` |
 | `builds_and_styles` | name → `title`, **stats** *(list: name, min_value, rec_value)*, **armor** *(list: body_part, name, special)*, **weapons** *(list: range_type, type, name, special)*, **items** *(list: type, name, amount)*, **skills** *(list: type, name)*, description → `content`, links → `links` |
 | `team_composition` | name → `title`, **members** *(list: name, role 定位, build, description)*, description → `content`, links → `links` |
 | `skills` | type → `kind`, name → `title`, description → `content`, links → `links` |
-| `collectibles` / `items` / `weapons_and_gear` | type → `kind` (free-text select; suggested from `Collectible Type` / `Item Type` / nothing), name → `title`, variant, description → `content`, links → `links`, collected → `status` *(default `not collected`)*, **amount_total** *(label "Total", text)*, **ng_reset** *(label "NG Reset", `yes` / `no`, default `yes`)*; `groupable_by = "type"` |
+| `collectibles` / `items` / `weapons_and_gear` | type → `kind` (free-text select; suggested from `Collectible Type` / `Item Type` / nothing), name → `title`, variant, description → `content`, links → `links`, collected → `status` *(default `not collected`; personal, NG-reset)*, **amount_total** *(label "Total", text)*, **amount_collected** *(label "Collected amount", text; personal, NG-reset)*, **ng_reset** *(label "NG Reset", `yes` / `no`, default `yes`)*; `groupable_by = "type"` |
 | `characters_guide` | group → `kind` (free-text select, suggested from `Character Group`), name → `title`, alias, description → `content`; `groupable_by = "group"` |
-| `enemies` | tier → `kind` (free-text select), region, name → `title`, alias, description → `content`, beaten → `status` *(default `to beat`)*; `groupable_by = "tier"` |
+| `enemies` | tier → `kind` (free-text select), region, name → `title`, alias, description → `content`, beaten → `status` *(default `to beat`; personal, NG-reset)*; `groupable_by = "tier"` |
 | `geography` | group → `kind` (free-text select, suggested from `Geography Group`; top-level rows only), name → `title`, description → `content`, links → `links`; `hierarchical`, `groupable_by = "group"`, `require_any = (("name",),)` |
-| `endings` | name → `title`, completion → `status`, description → `content`, links → `links` |
-| `mods_and_tools` | type → `kind`, name → `title`, developer, description → `content`, status → `status`; `groupable_by = "type"` |
+| `endings` | name → `title`, completion → `status` *(personal)*, description → `content`, links → `links` |
+| `mods_and_tools` | type → `kind`, name → `title`, developer, description → `content`, status → `status` *(personal, granted by `mod_status`)*; `groupable_by = "type"` |
 | `guide_resources` | group → `kind` (free-text select, no suggestions), name → `title`, description → `content`, links → `links`; `groupable_by = "group"` |
 | `ng_flow` | name → `title`, description → `content`, **points** *(list: text)*, links → `links` |
 | `ng_carried_over` / `ng_reset` / `ng_before_starting` | type → `kind` (free-text select), name → `title`, description → `content`, **points** *(list: text)*, links → `links`; `groupable_by = "type"` |
@@ -478,7 +478,7 @@ one are facts about my run rather than about the game, and the exception,
 | Vocabulary | Values |
 | --- | --- |
 | `COLLECT_STATUSES` (the three 物品 sections' `collected`) | not collected, collected, enough collected, fully collected, skip, inapplicable — a progression with the opt-out after it, like the row below. "Collected" is a one-off thing that is simply had; "enough" and "fully" are about a thing collected in quantity, and "enough" is worth distinguishing from "fully" precisely because most things never reach "fully". "Inapplicable" means the row has nothing to collect at all, so "skip" stays a decision rather than doubling as "can't" |
-| `NG_RESET_OPTIONS` (the three 物品 sections' `ng_reset`) | yes, no — whether a new cycle sends the row's collect status back to "not collected". Defaults to yes, the commoner answer, and a row stored without the key (a sheet row from before the field) reads as yes |
+| `NG_RESET_OPTIONS` (the three 物品 sections' `ng_reset`) | yes, no — whether the NG reset clears a viewer's collect status and amount collected on the row. Defaults to yes, the commoner answer, and a row stored without the key (a sheet row from before the field) reads as yes |
 | `ENEMY_STATUSES` (`enemies.beaten`) | to beat, beaten, cheesed, skip — "cheesed" is deliberately not folded into "beaten": it answers "do I still owe this one a fair fight?" |
 | `ENDING_STATUSES` (`endings.completion`) | not yet, reached, skipped — "skipped" is a decision, not an absence, so it is a value rather than a blank |
 | `MOD_STATUSES` (`mods_and_tools.status`) | 常駐, to use, to play, played, won't — 常駐 is the always-on set |
@@ -489,9 +489,11 @@ by `_named_thing_fields(variant=…, collected=…, type_category=…)`: they di
 in those three arguments and nothing else. 技能 Skills takes none — a skill is
 learned rather than collected, so a collect status on it would be a field
 nobody could answer. `collected=True` adds the collect status, the amount
-total and NG Reset together. The amount total is text, like the stat values
-("12", "12 + DLC"), since there is no number field type; it and NG Reset
-describe the game rather than my run.
+total, the amount collected and NG Reset together. The two amounts are text,
+like the stat values ("12", "12 + DLC"), since there is no number field type.
+The amount total and NG Reset describe the game, so they are catalogue; the
+collect status and the amount collected describe a run, so they are each
+viewer's own.
 
 
 Registry helpers (`app/utils/note_sections.py`): `section_by_key`, `sections_for(owner_type)`, `label_for`, `kinds_for`, `locator_for`, `group_by_key`, `sections_by_scope`, plus the two derived key sets `PERSONAL_SECTIONS` and `CATALOG_SECTIONS`.
@@ -547,9 +549,68 @@ Who may write, and whose rows a read returns, follow from it — the router read
 | `catalog` | `manage.catalog` | everyone, unfiltered |
 | `personal` | any signed-in account holding `self.personal_notes`, own rows only (a root role may also edit another's) | `WHERE author_id = viewer`; a logged-out visitor has no id and sees none |
 
+A catalogue row may still carry **personal values** — see the next section.
+
 Personal rows are private to their author. There is no way to read another account's, the admin's included: `GET /api/notes` takes no author parameter, and an `author` in the query string is ignored. The six highlight sections are personal like the rest, so every account reads its own highlights and a logged-out visitor none. The full rules live in [../authorization.md](../authorization.md#note-scope).
 
 **`remark` is per author, like any other personal-scope section.** It is read by `app.services.domain.remark_field.attach_remark`, filtered on `note.author_id`, and `ix_note_one_remark_per_owner` carries `author_id` — so two accounts each hold one on the same entry and each reads back their own. The index and the read path are one mechanism: a class-level `column_property` cannot know who is asking, and pairing one with a per-author index would turn a loud database refusal into an accepted-then-invisible write.
+
+### Personal values on catalogue rows (note marks)
+
+Eleven catalogue sections split: the **row** — the item, enemy, ending, stat,
+song or mod — is catalogue, and some of its **values** are each viewer's own.
+The registry says which (`personal_values(section)` in
+`app/utils/note_sections.py`):
+
+| Section | Personal value (mark key) | Lives on the row as | Unmarked reads | Granted by | NG reset |
+| --- | --- | --- | --- | --- | --- |
+| 武器&裝備 `weapons_and_gear`, 道具 `items`, 收集物 `collectibles` | `collected` | `status` | `not collected` | — | yes, on rows whose `ng_reset` is yes |
+| the same three | `amount_collected` | `fields.amount_collected` | absent | — | as above |
+| 敵人 `enemies` | `beaten` | `status` | `to beat` | — | yes, every row |
+| 結局 `endings` | `completion` | `status` | null | — | no |
+| 屬性&配點 `stats_and_points` | `my_value` | `fields.my_value` | absent | — | no |
+| 模組&工具 `mods_and_tools` | `status` | `status` | null | `mod_status` | no |
+| `op`, `ed`, `insert_songs`, `ost` | `status` | `status` | null | `music_status` | no |
+| `music_status` (hidden) | `status` | `status` | `Not Done` | `music_status` | no |
+
+A personal value is a `NoteField` with `personal=True` (plus `granted` and
+`ng_resets`), or, for the two shapes with no field spec, a section with
+`personal_status=True` (plus `status_granted`), whose `status` is the value
+under the mark key `"status"`. Import-time checks (`_check_personal`) keep a
+personal value a plain text or select field on a catalogue section: never
+required, never nested, never what a row is grouped by, and `granted` /
+`ng_resets` only on a personal one. `note_marks.py` checks at import that
+every `granted` names one of `FEATURE_NAMES`. OP/ED 變動 does not split.
+
+**Storage.** One row per account per note in `note_mark` (`values` JSONB,
+`{key: value}`), `app/models/note_mark.py`. A mark left with no non-empty
+value is deleted.
+
+**Reads.** Every row `GET /api/notes`, `POST` and `PATCH` return is the
+viewer's (`notes_out` / `note_out` in `app/services/domain/note_marks.py`):
+each personal value is put back where it lives — the column, or
+`fields[key]` — from the viewer's mark, else the value's `default`, else
+null (a `fields` key with nothing to show is left out, and a `fields` left
+empty reads null). The response shape is unchanged. What the row itself
+holds in those places is never read. A value granted by a feature the viewer
+lacks is null on the row and missing from `fields`; the sections listing
+leaves the field out (`statuses`, `default_status` and the type-status keys
+emptied for a personal status), so the viewer does not see it at all. A
+logged-out visitor has no account, so no feature and no mark: it reads every
+ungranted value's default.
+
+**Writes.** A catalogue write never stores one: `validate_note_payload`
+drops every personal value from the payload first (`drop_personal_values`),
+so a key sent on `POST` / `PATCH` is ignored rather than refused, and its
+option is not checked. The viewer's own values are written by
+`PUT /api/notes/{note_id}/mark` and cleared by `POST /api/notes/ng-reset` —
+see [API](#api).
+
+**Granted features** are asked through `has_feature(db, viewer, name)` in
+`app/services/rbac/features.py`, `FEATURE_NAMES` = `quotes_memes`,
+`favourites`, `music_status`, `mod_status`. It answers from a stand-in today
+— true for an account holding `self.personal_notes` — and is the one place
+the per-account switches will be read from.
 
 ## Rules
 
@@ -565,14 +626,14 @@ Design rules baked into the registry:
 | **The 待辦 buckets are four sections, not one section with a `kind`.** `sort_index` orders rows within one `(owner, section)` pair and `/api/notes/reorder` renumbers the whole section, so a kind-tagged single section could not order items *within* a bucket. Moving an item between buckets is a PATCH of `section`, which appends it to the end of the bucket it lands in. The four are `quick_move`: `/api/notes/sections` serves each one's `move_targets` (the owner's other `quick_move` sections in the same card, in registry order), and every row carries a "Move to…" list of them beside Edit and Delete, so moving one is a single step rather than an edit. | The 待辦 run in `NOTE_SECTIONS` and its banner comment; `NoteSection.quick_move`, `NoteSectionOut.move_targets`. |
 | **劇情 records what happens; 解析 records what it means.** The two are separate cards, and `story_other` exists so a stray story observation lands there rather than drifting into Analysis. The 劇情 plot sections take an *optional* locator, unlike `episode_comments` and `highlight_moments`, which require one — a beat remembered without its chapter is still a beat. | `main_plot` / `side_plot`, and `NOTE_GROUPS`. |
 | **`episode_comments` was widened, not duplicated.** A manga is cut into chapters and a game into chapters or parts rather than episodes, but a comment on one segment of the work is the same section, so each gets a `labels` override (manga 各話評論 Chapter Comments, game 各章評論 Part Reviews) and a `locator_placeholders` override rather than a section of its own. An h-game does not take it: it is not reviewed part by part. | `NOTE_SECTIONS["episode_comments"]`. |
-| **Music sections stay separate** (`op`, `ed`, `insert_songs`, `ost`, `op_ed_changes`) rather than one section with a dropdown, so "which OPs do I still need?" stays a section, not a filter. Each song list's own status is a `music_status` row keyed by the list's section key, not a fifth list. | Comment above `music_status` in the registry. |
+| **Music sections stay separate** (`op`, `ed`, `insert_songs`, `ost`, `op_ed_changes`) rather than one section with a dropdown, so "which OPs do I still need?" stays a section, not a filter. Each song list's own status hangs on a `music_status` row keyed by the list's section key, not a fifth list. | Comment above `music_status` in the registry. |
 | `group` and `standalone` are mutually exclusive; a test forbids setting both. | `NoteSection` docstring. |
 | `locator_required` is section-wide; `desc_required` is per owner. | `NoteSection` fields. |
 | **`takes_links` is for `episode_text` alone**: it gives that shape's rows any number of URL-string links, as a `text_links` row has. `op_ed_changes` is the one section that sets it — where the changed OP or ED can be watched; the other episode_text sections stay a locator, a kind and a description. Every other link-carrying shape takes links by construction, so a test keeps the flag to episode_text. Validation is the same either way (check 5 below), and a row's links never count toward check 9: an episode_text row still needs content or a locator. | `takes_links` on `NoteSection`; served on `NoteSectionOut`. |
 
 ### Validation (`validate_note_payload`, `app/schemas/note.py`)
 
-Runs on every POST and on the *merged* row of every PATCH. Raises `ValueError`, which the router turns into **422**. In order:
+Runs on every POST and on the *merged* row of every PATCH. Raises `ValueError`, which the router turns into **422**. After check 4 it drops the row's personal values (`drop_personal_values`), so none of the checks below sees, counts or validates one. In order:
 
 | # | Check | Message |
 | --- | --- | --- |
@@ -585,7 +646,9 @@ Runs on every POST and on the *merged* row of every PATCH. Raises `ValueError`, 
 | 6 | If `status` given: section has statuses, and the value is one of them | Section '…' takes no status. / '…' is not a valid status for section '…'. |
 | 7 | `desc_required` for this owner ⇒ stripped `content` non-empty | Section '…' requires content. |
 | 8 | `locator_required` ⇒ stripped `locator` non-empty | Section '…' requires a locator. |
-| 9 | Emptiness, by shape: `name_links` needs content or title or links (a group alone is nothing); `name_entries` needs a title or at least one entry ("Section '…' needs a name or an entry." — a named bookmark with neither a name nor a single entry is nothing); `episode_text` needs content or locator; `music_track` needs any of content/title/status/locator/links (kind alone never counts, since OP and ED default it to `normal`); `music_status` needs a kind and a status ("Section '…' needs a kind: one of …." / "needs a status.") and takes nothing else ("Section '…' takes no '…'."); every other shape needs content or links | Section '…' note is empty. |
+| 9 | Emptiness, by shape: `name_links` needs content or title or links (a group alone is nothing); `name_entries` needs a title or at least one entry ("Section '…' needs a name or an entry." — a named bookmark with neither a name nor a single entry is nothing); `episode_text` needs content or locator; `music_track` needs any of content/title/locator/links (kind alone never counts, since OP and ED default it to `normal`, and the status is personal); `music_status` needs a kind ("Section '…' needs a kind: one of ….") and takes nothing else ("Section '…' takes no '…'."); every other shape needs content or links | Section '…' note is empty. |
+
+**An already-empty row stays editable.** A song, or a structured row, whose only value was a personal one — the migrated song rows that were a status and a type — is empty in the catalogue once that value is somebody's mark. A PATCH of such a row passes `allow_empty` (`catalogue_empty` on the stored row) and skips the emptiness refusal of those two shapes; a PATCH can still never empty a row that says something.
 
 A `structured` section takes none of this path: check 4 is followed by the nesting rule (a flat section refuses a `parent_id`) and then by `_validate_structured`, which returns. Checks 5 to 9 are per-shape, and a structured section's equivalents live in its spec — see [Structured sections](#structured-sections). A non-structured section given a `fields` payload is refused outright ("Section '…' takes no structured fields.").
 
@@ -598,7 +661,8 @@ Singleton and one-per-kind uniqueness are **not** here — they need a query, so
 - If the owner is a media entry and `entry_visible()` (`app/services/rbac/enforcement.py`) says the viewer may not see it, the endpoint answers **404 "Owner not found."** rather than an empty list. A franchise owner carrying a label the viewer's mode lacks, or a series in such a franchise, answers the same 404 (`tier_visible`); every write resolves the tier from the id through `require_visible_owner` and answers it too. A collection carries no labels and skips the check.
 - **Personal sections filter by author.** Rows in a `personal`-scope section are returned only when `author_id` matches the viewer; a logged-out visitor, having no id, gets none of them. Catalogue sections fall through untouched. See [Scope](#scope).
 - No field group names a note section.
-- `GET /api/notes/sections` filters nothing from the registry: every section of the owner type is listed, with its `scope`. A gated owner type the viewer cannot see answers 400 as an unknown one.
+- `GET /api/notes/sections` lists every section of the owner type, with its `scope`. What it leaves out is a personal value granted by a feature the viewer lacks (see [Personal values on catalogue rows](#personal-values-on-catalogue-rows-note-marks)). A gated owner type the viewer cannot see answers 400 as an unknown one.
+- **Personal values are the viewer's.** Every row carries the viewer's own values in place of the personal ones, or their defaults.
 
 ## API
 
@@ -606,12 +670,16 @@ Router: `app/routers/note.py`, prefix `/api/notes`. Thin fetch wrappers on the f
 
 | Method | Path | Auth | Params / body | Response | Errors |
 | --- | --- | --- | --- | --- | --- |
-| GET | `/api/notes/sections` | public | `?owner_type=` | `List[NoteSectionOut]` — registry resolved for that owner, display order | 400 unknown owner_type |
-| GET | `/api/notes` | public (viewer-aware) | `?owner_type=&owner_id=` | `List[NoteResponse]`, sorted by registry position then `sort_index` (`_ordered`) | 400 unknown owner_type; 404 owner not visible |
+| GET | `/api/notes/sections` | public | `?owner_type=` | `List[NoteSectionOut]` — registry resolved for that owner and the viewer's features, display order. Each field carries `personal` and `granted`; each section `personal_status` and `status_granted` | 400 unknown owner_type |
+| GET | `/api/notes` | public (viewer-aware) | `?owner_type=&owner_id=` | `List[NoteResponse]`, sorted by registry position then `sort_index` (`_ordered`), each row carrying the viewer's personal values | 400 unknown owner_type; 404 owner not visible |
 | POST | `/api/notes` | by scope | body `NoteCreate` (`owner_type`, `owner_id`, `section`, `locator`, `kind`, `status`, `title`, `content`, `links`, `sort_index`) | 201 `NoteResponse`; `sort_index` defaults to last-in-section + 1 | 400 unknown section (a key no longer in the registry, such as `reviews_and_comments`, included); 422 validation / second singleton / second `music_status` row for one list |
 | PATCH | `/api/notes/reorder` | by scope | body `NoteReorder` `{owner_type, owner_id, section, ordered_ids}` | `{"status":"success","reordered":n}`; rewrites `sort_index` as 0,1,2… | 400 unknown owner_type / unknown section / `ordered_ids` names a note twice / `ordered_ids` not exactly the section's rows |
 | PATCH | `/api/notes/{note_id}` | by scope | body `NoteUpdate` (partial; `exclude_unset`) | `NoteResponse` | 404; 422 — the merged row (current values + patch, built from `NoteUpdate.model_fields`) is validated **before** mutation so autoflush never writes a bad row. A PATCH may move a note to another owner, or to another section; a PATCH that changes `section` without sending `sort_index` puts the row at the end of its new section, since its old index orders it among rows it is no longer with. |
-| DELETE | `/api/notes/{note_id}` | by scope | — | 204 | 404. Audited via `log_deleted_record(db, note, "Note")` (`app/utils/data_control_utils.py`). |
+| DELETE | `/api/notes/{note_id}` | by scope | — | 204 | 404. Audited via `log_deleted_record(db, note, "Note")` (`app/utils/data_control_utils.py`). Every account's marks on the row go with it (CASCADE). |
+| PUT | `/api/notes/{note_id}/mark` | `self.personal_notes` | body `NoteMarkWrite` `{"values": {key: value｜null}}` — a key is one of the row's personal values; a value sets it, null or blank clears it, an unnamed key is left alone | the `NoteResponse` as the caller now reads it | 401 without the permission (the admin included) or for a value granted by a feature the caller lacks; 404 note missing or its owner not visible; 422 a key that is not personal on the row's section, a value outside its vocabulary |
+| POST | `/api/notes/ng-reset` | `self.personal_notes` | body `{owner_type, owner_id}` | `{"cleared": n}` — how many of the caller's marks changed | 400 unknown owner_type; 401 as above; 404 owner not visible |
+
+The NG reset clears, from the caller's own marks only, every value the registry marks `ng_resets`: `collected` and `amount_collected` on the 物品 rows whose `ng_reset` is yes (a row without the key reads yes), and `beaten` on every enemy. Rows marked no, every other value and other accounts' marks stay.
 
 "By scope" means the section decides: a **catalogue** section needs `manage.catalog`, a **personal** one needs an account holding `self.personal_notes` and reaches only that account's own rows. Somebody else's personal note answers **404**, worded exactly as a missing one — there is no 403 anywhere in this router, because a 403 confirms the row exists as surely as a 200 does. A reorder over a personal section renumbers the caller's rows alone. See [Scope](#scope). `?author=` answers **404** for an unknown user, a private list, or a viewer without `field_group.personal_notes` — the same reply for all three.
 
@@ -642,38 +710,44 @@ form has reset to a blank entry, so its Remark field no longer edits that row.
 
 An anime has four **song lists** — OP, ED, 插入曲 Insert Song and OST — and
 every one is a `music_track` section holding the same row: the song's name
-(`title`), how far tracking that song has got (`status`: Need, Pending,
-No Full Version, Done — `MUSIC_STATUSES`), the episode it plays in (`locator`, optional for every list), where to
+(`title`), the episode it plays in (`locator`, optional for every list), where to
 hear it (`links`, any number of link pairs) and a remark (`content`). OP and
 ED add a **Song Type** (`kind`), free text suggested from the "Song Type"
 option category and starting on `normal`; insert songs and the OST have none.
-A row must say something besides its type: any of name, status, episode, a
-link or a remark.
+A row must say something besides its type: any of name, episode, a link or a
+remark. The rows are catalogue, written under `manage.catalog`.
 
-**Two levels of status.** Each song carries its own, and each *list* carries
-one more — "All Done", "Done", "Need", "Pending", "No Full Version" or "Not Done"
-(`MUSIC_TYPE_STATUSES` in `app/utils/constants.py`) — in a `music_status` row:
-`section = 'music_status'`, `kind` = the list's section key, `status` = the
-value. One row per `(anime, list)`, refused twice by the router (422) and by
-`ix_note_one_music_status_per_kind`. Every anime created through the API gets
-the four rows at once, each "Not Done" and authored by the creating account
+**Two levels of status, both the viewer's own.** How far tracking a song has
+got (Need, Pending, No Full Version, Done — `MUSIC_STATUSES`) and how far a
+whole *list* has got ("All Done", "Done", "Need", "Pending", "No Full Version"
+or "Not Done" — `MUSIC_TYPE_STATUSES` in `app/utils/constants.py`) are
+personal values granted by the `music_status` feature: each account's own,
+in its note mark, read into the row's `status` and written through
+`PUT /api/notes/{id}/mark` (see
+[Personal values on catalogue rows](#personal-values-on-catalogue-rows-note-marks)).
+An account without the feature sees neither. The list status hangs on a
+`music_status` row: `section = 'music_status'`, `kind` = the list's section
+key, no status of its own. One row per `(anime, list)`, refused twice by the
+router (422) and by `ix_note_one_music_status_per_kind`. Every anime created
+through the API gets the four rows at once, authored by the creating account
 (`seed_music_status`, `app/services/domain/music_status.py`, called through
-the anime spec's `create_hook`). The rows are written through the ordinary
-notes API — `PATCH /api/notes/{id}` with a new `status`, or a `POST` for an
-anime that lacks one — under `manage.catalog`.
+the anime spec's `create_hook`); an unmarked viewer reads each as "Not Done".
 
 `music_status` is **hidden**: the page renders no card for it. Each song list
 instead names it in `type_status_section`, and `GET /api/notes/sections`
 resolves that section's vocabulary and default onto the list
 (`type_statuses`, `type_status_default`), so the status bar above a list is
-drawn from the registry alone. An import-time check keeps the two sides in
+drawn from the registry alone — for a viewer holding the feature; for any
+other, `type_status_section` is null and both are empty. An import-time check keeps the two sides in
 step: the `music_status` kinds must be exactly the sections pointing at it.
 
 **Waiting music.** A list or a song on Need, Pending or No Full Version is
 waiting on something, and the review queue's music block lists every anime
-holding one (`GET /api/data-control/check/music`, `find_flagged_music` in
-`app/services/domain/music_review.py`). `Not Done` is not listed: every list
-starts there.
+where the **caller's own** status on one is such
+(`GET /api/data-control/check/music`, `find_flagged_music(db, viewer)` in
+`app/services/domain/music_review.py`). Another account's statuses never
+list an anime, and a caller without the feature is listed nothing. `Not
+Done` is not listed: every list starts there.
 
 **Link pairs.** A song is heard on several services, so a song link is
 `{"text": "YouTube", "url": "https://…"}` rather than a bare URL; `text` is
@@ -800,11 +874,14 @@ The Google Sheets backup has a **"Note" tab** (`SheetTab("Note", models.Note, f.
 | Id-less row matching | Pull (`app/services/pipelines/pull.py`, "Note" branch) matches on `owner_type + owner_id + section + content` — not guarded on content, so a blank-content row matches `IS NULL` instead of duplicating every pull. |
 | Remark rows | A sheet `remark` row whose `system_id` is unknown locally is retargeted at the existing remark row for the same owner **and author** and updated in place, keeping the local id — otherwise the partial unique index would fail the whole tab at commit. |
 | Music status rows | The same retargeting per `(owner, kind)`: a sheet `music_status` row folds onto the local row for the same anime and list, keeping the local id. Its revision minted those rows separately on every database, so the two machines' copies differ in id and nothing else. |
+| Personal values in an old backup | A Note tab written before the personal values moved to marks carries them on the row — the status column, or `fields.my_value`. Pull takes them off the row before matching it (the matches compare content, and the local row no longer carries them) and files them under the installation owner's mark for the row it lands on (`pop_legacy_note_values`, through `app/services/domain/legacy_personal.py`). Exact, not a guess: on those sections that column or key only ever held the personal value, and a current backup carries it null. |
+| Note Mark tab | Each account's marks travel on their own tab, after Note: `note_mark`'s columns with `user_id` dropped for `username`, `values` as JSON text. Pull resolves the name (unknown → the row is skipped and reported; no header → the installation owner), matches an existing mark by `(user, note)`, and translates a `note_id` this database does not hold through the Note tab — a `music_status` row by owner and list, any other by its twin — so a mark follows a row each database minted under its own id. A cell holding no value is not restored. |
 | Old-shape music rows | A sheet `ost` row carrying a type is the one-row OST of a backup taken before the OST became a song list (an OST song never has a type); it becomes the anime's `music_status` row for `ost`, keeping its status if it is one of `MUSIC_STATUSES`. A song list's links that arrive as URL strings are read as link pairs with no text, and link pairs that arrive on any other section - 彩蛋/致敬 Easter Eggs/References, from a backup taken while its links were pairs - are read as their URL strings, the text dropped, a blank URL and a repeat skipped (`_note_links` in `app/utils/formatter.py`). A `fields` blob on a section that is not `structured` is dropped (`_note_fields`), since every other shape refuses one on the row's next edit. |
 | Round-trip | Because owner tables no longer have a `remark` column (and `format_model_for_sheet` walks real columns, so the column_property is not exported), **remark round-trips only via the Note tab**. The `remark` still parsed on Watch Order tabs is those tables' own column, unrelated. |
 
 ## Related
 
+- [../data-actions.md](../data-actions.md) — the Note Mark tab among the others.
 - History: the original spec's `unread` section is gone. `op`, `ed`, `insert_songs`, `ost` (migration `m1u2s3i4c5t6_music_notes.py`, seeded from the old `anime.op/ed/insert_ost` columns) and the four groups (`reviews`, `analysis_group`, `music`, `quotes_memes`) were added; a `music_track`-shaped `insert` section was folded into `insert_songs` by `i1n2s3e4r5t6_drop_insert_music_section.py`. The table itself came from `note_add_table.py`; `episode` → `locator` by `l1o2c3a4t5o6`.
 - `../data-model.md` (Note section) — column-level remarks, partly overlapping this page.
 - `docs/api.md`, `../frontend/pages.md`, `../frontend/components.md` — older, partly stale; this page wins where they differ.

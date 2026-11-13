@@ -411,6 +411,22 @@ def parse_user_novel_unit_rating_from_sheet(raw: dict) -> dict:
     }
 
 
+def parse_note_mark_from_sheet(raw: dict) -> dict:
+    """
+    One account's personal values on one catalogue note row. user_id is not
+    in the sheet - pull.py resolves the row's `username` - and note_id is the
+    note's uuid, which travels on the Note tab; one the other database minted
+    under its own uuid is translated through that tab.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "note_id": _uuid_or_none(raw.get("note_id")),
+        "values": _safe_json(raw.get("values")),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
 def parse_user_highlight_group_order_from_sheet(raw: dict) -> dict:
     """
     One account's highlight group order on one h-comic or h-game, keyed

@@ -14,6 +14,13 @@ Every write is validated against app/utils/note_sections.NOTE_SECTIONS, which
 is the authority on what a section is. That is the point of the table: the
 shape used to live in seven frontend config files, where nothing could enforce
 it.
+
+Some catalogue rows carry PERSONAL values - collected, beaten, my value, the
+music and mod statuses (note_sections.personal_values). Every row this router
+returns carries the asking viewer's own in their place
+(services/domain/note_marks.py), a catalogue write drops them, and they are
+written only through PUT /{id}/mark and POST /ng-reset, under
+self.personal_notes.
 """
 
 import uuid
@@ -26,8 +33,18 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.database import get_taipei_now
 from app.dependencies import get_db
-from app.schemas.note import sections_out, validate_note_payload
+from app.schemas.note import catalogue_empty, sections_out, validate_note_payload
 from app.services.domain.game_choice import node_of_game, parse_node_id
+from app.services.domain.note_marks import (
+    FeatureRequired,
+    MarkRefused,
+    check_mark_values,
+    features_held,
+    ng_reset,
+    note_out,
+    notes_out,
+    write_mark,
+)
 from app.services.rbac.enforcement import (
     entry_visible,
     require_visible_owner,
@@ -38,7 +55,7 @@ from app.services.rbac.permissions import (
     PERM_MANAGE_CATALOG,
     PERM_SELF_PERSONAL_NOTES,
 )
-from app.services.rbac.resolver import Viewer, get_viewer
+from app.services.rbac.resolver import Viewer, get_viewer, require_permission
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.media_resolver import MEDIA_TABLES, OWNER_TABLES, TIER_TABLES
 from app.utils.note_sections import (
@@ -47,6 +64,7 @@ from app.utils.note_sections import (
     PERSONAL_SECTIONS,
     SCOPE_PERSONAL,
     field_by_key,
+    personal_values,
     section_by_key,
 )
 
@@ -239,9 +257,9 @@ def _require_choice_nodes(
             )
 
 
-def _validate_or_422(payload: schemas.NoteBase) -> None:
+def _validate_or_422(payload: schemas.NoteBase, allow_empty: bool = False) -> None:
     try:
-        validate_note_payload(payload)
+        validate_note_payload(payload, allow_empty=allow_empty)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
 
@@ -441,7 +459,7 @@ def get_sections(
         raise HTTPException(
             status_code=400, detail=f"Unknown owner_type '{owner_type}'."
         )
-    return sections_out(owner_type)
+    return sections_out(owner_type, features_held(db, viewer))
 
 
 @router.get("", response_model=List[schemas.NoteResponse])
@@ -480,7 +498,12 @@ def list_notes(
                 models.Note.author_id == author_id,
             )
         )
-    return _ordered(query.all())
+    return notes_out(db, viewer, _ordered(query.all()))
+
+
+def _one_out(db: Session, viewer: Viewer, db_note: models.Note):
+    """One row as the asking viewer reads it, its own values overlaid."""
+    return notes_out(db, viewer, [db_note])[0]
 
 
 # ==========================================
@@ -519,7 +542,7 @@ def create_note(
     db.add(db_note)
     db.commit()
     db.refresh(db_note)
-    return db_note
+    return _one_out(db, viewer, db_note)
 
 
 # Declared before "/{note_id}" on purpose: FastAPI matches in declaration order,
@@ -601,7 +624,23 @@ def update_note(
             for name in schemas.NoteUpdate.model_fields
         }
     )
-    _validate_or_422(merged)
+    # A row that is already empty in the catalogue - a song or a stat whose
+    # only value was its status or "my value", which now sit in somebody's
+    # mark - may still be edited; the PATCH must not refuse it for an
+    # emptiness it did not cause. A row that says something still cannot be
+    # emptied.
+    stored = schemas.NoteUpdate(
+        **{name: getattr(db_note, name) for name in schemas.NoteUpdate.model_fields}
+    )
+    _validate_or_422(merged, allow_empty=catalogue_empty(stored))
+    # The validation dropped the row's personal values from `merged`; drop
+    # them from what is written too. A key the PATCH named is cleared rather
+    # than stored, so no viewer's value is ever kept on the shared row.
+    for value in personal_values(section_by_key(merged.section)):
+        if value.column and value.column in data:
+            data[value.column] = None
+    if "fields" in data:
+        data["fields"] = merged.fields
     # After the merge, so a PATCH cannot move a row into a section the caller
     # may not write.
     _authorize_write(viewer, merged.section)
@@ -649,7 +688,80 @@ def update_note(
     db_note.updated_at = get_taipei_now()
     db.commit()
     db.refresh(db_note)
-    return db_note
+    return _one_out(db, viewer, db_note)
+
+
+# ==========================================
+# PERSONAL VALUES ON CATALOGUE ROWS
+# ==========================================
+# Both routes write the CALLER's own note_mark rows and nothing else, behind
+# self.personal_notes - the permission personal notes are kept under. 401
+# for an account without it, and for the admin, whose root flag never passes
+# a self.* permission: it keeps no personal data.
+
+
+@router.put("/{note_id}/mark", response_model=schemas.NoteResponse)
+def write_note_mark(
+    note_id: uuid.UUID,
+    payload: schemas.NoteMarkWrite,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(require_permission(PERM_SELF_PERSONAL_NOTES)),
+):
+    """
+    Set or clear the caller's own personal values on one catalogue row.
+
+    404 for a note that does not exist or whose owner the caller may not
+    see, in the words a missing note gets. 422 for a key that is not one of
+    the row's personal values, and for a value outside its vocabulary. 401
+    for a value granted by a feature the caller does not hold. Returns the
+    row as the caller now reads it.
+    """
+    if viewer.user_id is None:
+        # A guard: a self.* permission held by no account.
+        raise _capability_refused("You may not mark notes.")
+    db_note = _get_or_404(db, str(note_id))
+    require_visible_owner(db, viewer, db_note.owner_id, NOTE_NOT_FOUND)
+    section = section_by_key(db_note.section or "")
+    held = features_held(db, viewer)
+    try:
+        check_mark_values(section, payload.values, held)
+    except FeatureRequired as exc:
+        raise _capability_refused(
+            f"This value needs the {exc.feature} feature, which this account "
+            "has not been granted."
+        )
+    except MarkRefused as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    values = write_mark(db, viewer.user_id, db_note.system_id, payload.values)
+    db.commit()
+    return note_out(db_note, values, held)
+
+
+@router.post("/ng-reset", response_model=schemas.NgResetResult)
+def reset_for_new_game(
+    payload: schemas.NgResetRequest,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(require_permission(PERM_SELF_PERSONAL_NOTES)),
+):
+    """
+    Start a new cycle of one owner for the caller: clear the caller's own
+    collected status and amount collected on every 物品 row whose NG Reset is
+    yes (a row without one reads yes), and every beaten on 敵人. Other
+    accounts' marks, rows marked no and every other value stay. Returns how
+    many of the caller's marks changed.
+    """
+    if viewer.user_id is None:
+        raise _capability_refused("You may not mark notes.")
+    _validate_owner_type(payload.owner_type)
+    require_visible_owner(db, viewer, payload.owner_id, "Owner not found.")
+    notes = (
+        db.query(models.Note)
+        .filter(*_owner_filters(payload.owner_type, payload.owner_id))
+        .all()
+    )
+    cleared = ng_reset(db, viewer.user_id, notes)
+    db.commit()
+    return {"cleared": cleared}
 
 
 @router.delete("/{note_id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -1,7 +1,11 @@
 """
-API integration tests for the music group: the per-list status rows
+API integration tests for the music group: the per-list rows
 (`music_status`), the one song-row shape every list shares, and 彩蛋's URL
 links.
+
+The rows are catalogue; every status on them - a song's, a list's - is each
+viewer's own note mark (test_note_marks.py), so a catalogue write carrying
+one stores none.
 
 Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
@@ -35,8 +39,10 @@ def _rows(db_session, anime, section):
 # --- /sections --------------------------------------------------------------
 
 
-def test_sections_describe_the_status_bar_and_the_song_rows(client):
-    r = client.get("/api/notes/sections", params={"owner_type": "anime"})
+def test_sections_describe_the_status_bar_and_the_song_rows(user_client):
+    # A member holds the music status feature (the stub: an account with
+    # self.personal_notes), so the statuses are listed.
+    r = user_client.get("/api/notes/sections", params={"owner_type": "anime"})
     assert r.status_code == 200
     by_key = {s["key"]: s for s in r.json()}
 
@@ -60,6 +66,8 @@ def test_sections_describe_the_status_bar_and_the_song_rows(client):
         assert song["singleton"] is False
     assert by_key["op"]["kind_category"] == "Song Type"
     assert by_key["ost"]["kind_category"] is None
+    assert by_key["op"]["personal_status"] is True
+    assert by_key["op"]["status_granted"] == "music_status"
 
     egg = by_key["easter_eggs"]
     assert egg["group"] == "analysis_group"
@@ -68,10 +76,26 @@ def test_sections_describe_the_status_bar_and_the_song_rows(client):
     assert egg["fields"] == []
 
 
+def test_a_visitor_is_listed_no_music_status(client):
+    """The mirror: without the feature the statuses are absent, the rows are
+    not."""
+    by_key = {
+        s["key"]: s
+        for s in client.get("/api/notes/sections", params={"owner_type": "anime"}).json()
+    }
+    assert by_key["music_status"]["default_status"] is None
+    for key in SONG_SECTIONS:
+        assert by_key[key]["statuses"] == []
+        assert by_key[key]["type_status_section"] is None
+        assert by_key[key]["link_pairs"] is True
+
+
 # --- music_status -----------------------------------------------------------
 
 
-def test_admin_writes_and_changes_a_list_status(admin_client, sample_anime, admin_user):
+def test_admin_writes_a_list_row_and_its_status_is_not_stored(
+    admin_client, db_session, sample_anime, admin_user
+):
     r = admin_client.post("/api/notes", json=_status_row(sample_anime))
     assert r.status_code == 201, r.text
     assert r.json()["author_id"] == str(admin_user.id)
@@ -80,7 +104,9 @@ def test_admin_writes_and_changes_a_list_status(admin_client, sample_anime, admi
         f"/api/notes/{r.json()['system_id']}", json={"status": "All Done"}
     )
     assert r.status_code == 200, r.text
-    assert r.json()["status"] == "All Done"
+    db_session.expire_all()
+    (row,) = _rows(db_session, sample_anime, "music_status")
+    assert row.status is None
 
 
 def test_a_second_status_for_the_same_list_is_refused(admin_client, sample_anime):
@@ -117,27 +143,37 @@ def test_moving_a_status_onto_a_taken_list_is_refused(admin_client, sample_anime
     assert r.status_code == 200, r.text
 
 
-def test_a_song_and_a_list_can_have_no_full_version(admin_client, sample_anime):
+def test_a_song_and_a_list_can_have_no_full_version(user_client, db_session,
+                                                    sample_anime, admin_user):
     # An OP whose full-length version was never released: the song cannot
-    # reach Done, and neither can its list.
-    song = admin_client.post(
-        "/api/notes",
-        json={**_owner(sample_anime), "section": "op", "title": "TV Size",
-              "status": "No Full Version"},
-    )
-    assert song.status_code == 201, song.text
-    assert song.json()["status"] == "No Full Version"
-    listed = admin_client.post(
-        "/api/notes", json=_status_row(sample_anime, status="No Full Version")
-    )
-    assert listed.status_code == 201, listed.text
+    # reach Done, and neither can its list. Both are the viewer's marks.
+    song = models.Note(author_id=admin_user.id, media_id=sample_anime.system_id,
+                       section="op", title="TV Size")
+    listed = models.Note(author_id=admin_user.id, media_id=sample_anime.system_id,
+                         section="music_status", kind="op")
+    db_session.add_all([song, listed])
+    db_session.flush()
+    for note in (song, listed):
+        r = user_client.put(f"/api/notes/{note.system_id}/mark",
+                            json={"values": {"status": "No Full Version"}})
+        assert r.status_code == 200, r.text
+        assert r.json()["status"] == "No Full Version"
 
 
-def test_a_list_status_outside_the_vocabulary_is_refused(admin_client, sample_anime):
-    r = admin_client.post(
-        "/api/notes", json=_status_row(sample_anime, status="Someday")
-    )
+def test_a_list_status_outside_the_vocabulary_is_refused(
+    user_client, db_session, sample_anime, admin_user
+):
+    listed = models.Note(author_id=admin_user.id, media_id=sample_anime.system_id,
+                         section="music_status", kind="op")
+    db_session.add(listed)
+    db_session.flush()
+    r = user_client.put(f"/api/notes/{listed.system_id}/mark",
+                        json={"values": {"status": "Someday"}})
     assert r.status_code == 422
+    # The mirror: a status in the list-level vocabulary lands.
+    r = user_client.put(f"/api/notes/{listed.system_id}/mark",
+                        json={"values": {"status": "All Done"}})
+    assert r.status_code == 200, r.text
 
 
 def test_a_logged_out_visitor_cannot_write_a_list_status(client, sample_anime):
@@ -168,7 +204,7 @@ def test_the_database_refuses_a_second_status_for_one_list(
 # --- seeded on create ---------------------------------------------------------
 
 
-def test_creating_an_anime_seeds_a_status_per_list(admin_client, db_session, admin_user):
+def test_creating_an_anime_seeds_a_row_per_list(admin_client, db_session, admin_user):
     r = admin_client.post("/api/anime/", json={"anime_name_en": "Frieren"})
     assert r.status_code == 201, r.text
     anime_id = uuid.UUID(r.json()["system_id"])
@@ -179,8 +215,10 @@ def test_creating_an_anime_seeds_a_status_per_list(admin_client, db_session, adm
         .order_by(models.Note.sort_index)
         .all()
     )
+    # One row per list and no status: how far a list has got is each
+    # viewer's own, and an unmarked viewer reads the default, "Not Done".
     assert [(n.kind, n.status) for n in rows] == [
-        (kind, "Not Done") for kind in SONG_SECTIONS
+        (kind, None) for kind in SONG_SECTIONS
     ]
     assert {n.author_id for n in rows} == {admin_user.id}
 

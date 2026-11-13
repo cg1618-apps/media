@@ -1097,7 +1097,22 @@ tier on a write is resolved from the id, never from the payload's
 | `POST`   | `""`           | By scope | Create (201). Body: `NoteCreate`. 422 on a payload the registry rejects, on a second row in a singleton section, or on a second `music_status` row for the same anime and `kind`. `sort_index` defaults to the end.     |
 | `PATCH`  | `/reorder`     | By scope | Rewrite `sort_index` for one section of one owner. Body: `NoteReorder`. 400 unless `ordered_ids` names exactly that section's notes, each once - in a personal section, exactly the caller's own.                |
 | `PATCH`  | `/{note_id}`   | By scope | Partial update. Body: `NoteUpdate`, validated as the row *will* be, so a partial update cannot land on an invalid combination. A PATCH that changes `section` without sending `sort_index` puts the row at the end of its new section. |
-| `DELETE` | `/{note_id}`   | By scope | Delete, **204 No Content**. Logs to `deleted_record` as type "Note", standing a truncated `content` in for the name a note does not have.        |
+| `DELETE` | `/{note_id}`   | By scope | Delete, **204 No Content**. Logs to `deleted_record` as type "Note", standing a truncated `content` in for the name a note does not have. Every account's note marks on the row go with it.        |
+| `PUT`    | `/{note_id}/mark` | `self.personal_notes` | Set or clear the caller's own personal values on one catalogue row. Body `{"values": {key: value \| null}}`: each key is one of the row's personal values (a personal field's key, or `status` for a section-level personal status); a value sets it, `null` or blank clears it, a key not named is left alone. Returns the `NoteResponse` as the caller now reads it. **401** without the permission - the `admin` account included, it keeps no personal data - and for a value granted by a feature the caller lacks; **404** for a missing note or an owner the caller may not see; **422** for a key that is not personal on the row's section, or a value outside its vocabulary. |
+| `POST`   | `/ng-reset`    | `self.personal_notes` | Start a new cycle of one owner for the caller. Body `{"owner_type", "owner_id"}`. Clears, from the caller's own marks only, `collected` and `amount_collected` on every 物品 row whose `ng_reset` is `yes` (a row without one reads `yes`) and `beaten` on every 敵人 row. Returns `{"cleared": n}`, the number of the caller's marks changed. 400 unknown `owner_type`, 401 as above, 404 owner not visible. |
+
+**Personal values on catalogue rows.** Some catalogue rows carry values that
+are each viewer's own: `collected` and `amount_collected` on 武器&裝備 / 道具
+/ 收集物, `beaten` on 敵人, `completion` on 結局, `my_value` on 屬性&配點, and
+`status` on the four song lists, `music_status` and 模組&工具 (the last two
+granted by the `music_status` and `mod_status` features). Every
+`NoteResponse` - from the list, a create, a PATCH or a mark - carries the
+**viewer's own** value in the place the field lives (`status`, or
+`fields[key]`), or the field's default (`not collected`, `to beat`, `Not
+Done`) when the viewer has none, else `null` / the key absent. A granted
+value the viewer lacks the feature for is `null` / absent. A catalogue
+`POST` / `PATCH` ignores a personal value it is sent: it is neither stored
+nor checked. The detail is in [systems/notes.md](systems/notes.md).
 
 **By scope** is the section's `scope`: a `catalog` section is written under
 `manage.catalog`, a `personal` one under `self.personal_notes` (which the
@@ -1134,7 +1149,15 @@ per - Resources),
 `default_status`, `one_per_kind` (one row per owner and `kind`), `hidden` (no
 card of its own), and `type_status_section` / `type_statuses` /
 `type_status_default` (the section holding this list's status row, keyed by
-this section's key as `kind`, with that status's vocabulary and default)).
+this section's key as `kind`, with that status's vocabulary and default);
+and the personal-value keys: each field's `personal` (the value is the
+viewer's own, written through `PUT /{note_id}/mark`) and `granted` (the
+feature it is behind, or `null`), and each section's `personal_status` (its
+row's `status` is the viewer's own, mark key `status`) and `status_granted`.
+A value granted by a feature the viewer lacks is not listed: its field is
+left out, and a personal status's `statuses` and `default_status` are empty,
+as are a song list's `type_status_section` / `type_statuses` /
+`type_status_default`).
 
 `links` on `NoteCreate` / `NoteUpdate` / `NoteResponse` is a list of URL
 strings, or - on a section reporting `link_pairs: true` (the four song
@@ -2363,7 +2386,7 @@ see [authorization.md](authorization.md) for why that is accepted.
 | `GET`    | `/check/duplicates`                  | Find and report all duplicate entries across all tables. Returns grouped clusters.          |
 | `GET`    | `/check/alone-groups`                | Every franchise and series holding exactly one media entry (any of the twelve types), less those whose lone entry was marked reviewed: `{franchise: [...], series: [...]}`, each `{system_id, public_id, display_name, entry: {system_id, media_type, public_id, display_name}}`. |
 | `POST`   | `/check/alone-groups/{kind}/{system_id}/reviewed` | `kind` is `franchise` or `series` (422 otherwise). Records the group's current lone entry in `alone_reviewed_media_id`, so the group is listed again once that entry is replaced. Returns `{system_id, alone_reviewed_media_id}`; 404 for an unknown group, 409 when it no longer holds exactly one entry. |
-| `GET`    | `/check/music`                       | Every anime whose music is waiting: a song list or a song on Need, Pending or No Full Version. One row per anime with `system_id`, `public_id`, `anime_name_cn`, `anime_name_en`, `display_name`, the flagged `lists` (`[{kind, status}]`) and the flagged `songs` (`[{section, title, status, locator}]`). Not per caller: the music sections are catalogue notes. |
+| `GET`    | `/check/music`                       | Every anime whose music is waiting: a song list or a song on Need, Pending or No Full Version. One row per anime with `system_id`, `public_id`, `anime_name_cn`, `anime_name_en`, `display_name`, the flagged `lists` (`[{kind, status}]`) and the flagged `songs` (`[{section, title, status, locator}]`). **Per caller**: the songs and lists are catalogue rows, but each status is the caller's own note mark, so only the caller's own statuses list an anime, and a caller without the `music_status` feature is listed nothing. |
 | `GET`    | `/check/remarks`                     | The **caller's own** non-empty remarks (`section = 'remark'` only), one key per media type — all twelve. A remark belongs to its author, so the response carries one per entry. Each row carries `system_id`, `public_id`, its type's name columns and disambiguating columns, the caller's status (`watching_status` / `reading_status` / `playing_status`, read from `user_media_list`) and `remark`; a movie row carries `release_date` (USA, else TW). |
 
 **SSE response format** (streaming endpoints): `text/event-stream` — each event is a JSON string with `{status, current_entry, processed, total}`.

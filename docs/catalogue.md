@@ -141,13 +141,21 @@ that type, or a group (collection, franchise, series).
 | 名言 Quotes | every type but H-Comic, Hentai, H-Game | shared |
 | 梗/迷因 Memes | every type but H-Comic, Hentai, H-Game; every group | shared |
 
-*Changing:* some shared sections will gain a part that is **yours**. The
-row stays shared — the item, enemy, ending or song — and your progress on
-it becomes yours: collected on 武器&裝備 Weapons & Gear, 道具 Items and
-收集物 Collectibles, beaten on 敵人 Enemies, completion on 結局 Endings, and
-your value on 屬性&配點 Stats & Points. The status on OP, ED and 插入曲
-Insert Song, and on 模組&工具 Mods & Tools, will become yours too, but only
-for accounts the admin turns that feature on for.
+**Shared rows with a part that is yours.** Some shared sections hold a
+shared row — the item, enemy, ending, stat, song or mod — with your own
+progress on it, which nobody else sees and which every account keeps
+separately: collected and the amount collected on 武器&裝備 Weapons & Gear,
+道具 Items and 收集物 Collectibles, beaten on 敵人 Enemies, completion on 結局
+Endings, and your value on 屬性&配點 Stats & Points. Until you set one it
+reads as its starting value — not collected, to beat — or blank. The status
+of each song and each song list on OP, ED, 插入曲 Insert Song and OST, and
+the status on 模組&工具 Mods & Tools, are yours too, but only for accounts
+the music status or mod status feature is turned on for; an account without
+it does not see those statuses at all. OP/ED 變動 has no such part.
+
+**NG reset.** Starting a game over clears your own collected status and
+amount collected on every 物品 row whose NG Reset says yes, and your beaten
+on every enemy. Nobody else's progress, and none of the rows, change.
 
 Nobody else sees your **yours** sections. Quotes and memes are not notes
 underneath, but they appear in the card and are shared.

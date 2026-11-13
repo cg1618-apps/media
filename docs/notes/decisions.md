@@ -4081,3 +4081,73 @@ is one person's, like the 待辦 buckets it sits before.
   reconciliation, which derive from that tuple; the revision deletes the
   stored grants, and its downgrade does not restore them because which roles
   held it is recorded nowhere.
+
+### Some values on a catalogue note row are each account's own: note marks (2026-11-13)
+
+The account spec splits eleven catalogue sections: the row - the item, the
+enemy, the ending, the stat, the song, the mod - stays catalogue, and
+`collected` (with the new amount collected), `beaten`, `completion`,
+`my_value`, and the music and mod `status` become each reader's own. The
+registry marks them (`NoteField.personal`, and `NoteSection.personal_status`
+for the two shapes with no field spec); revision `n1o2temarks3` moves today's
+values into the installation owner's marks and clears them from `note`.
+
+- **One JSONB mark per account per row, the `game_choice_mark` shape.**
+  `note_mark (user_id, note_id, values)`, unique per pair, cascading with
+  either end. One row per value would give the same answer with a row per
+  key and a key column the registry already names; a typed column per value
+  would be a migration for every personal field added, which the registry
+  exists to avoid (adding a section, or a field, is "one entry and no
+  migration"). The values are a handful of short strings per row, never
+  queried across rows except the review queue's one `values->>'status'`
+  filter, so JSONB costs nothing here. Its keys are the registry's field
+  keys, `"status"` for a section-level status, checked on write.
+- **Overlay in place, not a parallel structure.** Every `NoteResponse` puts
+  the viewer's value where the field lives - the `status` column, or
+  `fields[key]` - so the response shape is the one the page, its quick edit
+  and its status bars already read, and the sections listing says what is
+  personal (`personal`, `granted`, `personal_status`, `status_granted`)
+  rather than moving it. A separate `marks` object on each row would have
+  made every reader of a row learn two places for one value. The cost is
+  that a row's own `status` / `fields` now never mean the stored value for
+  those keys; the overlay overwrites them always, so a stale value left on a
+  row cannot leak, and a catalogue write drops them, so none is stored.
+- **An unmarked value reads its default, else null.** The spec says a user
+  with no mark sees "the field's empty value". The registry already declares
+  what a field reads before anyone sets it (`collected` → not collected,
+  `beaten` → to beat, the list status → Not Done), and the page drafts new
+  rows from it, so that default IS the empty value; a field declaring none
+  (`completion`, `my_value`, a song's status) reads null. Storing a default
+  would make every unmarked account look like it had answered.
+- **A catalogue write ignores a personal key rather than refusing it.** The
+  page sends a row back whole, drawn with the viewer's values; refusing
+  those keys would fail every edit. They are dropped before validation, so a
+  row whose only content was a personal value is empty in the catalogue - and
+  a PATCH of a row that was already empty (the migrated status-only songs)
+  is allowed to stay so, while a PATCH still cannot empty a row that says
+  something.
+- **Granted features through one stand-in.** The music and mod statuses are
+  behind per-account switches that another branch builds. Every check asks
+  `has_feature(db, viewer, name)` in `app/services/rbac/features.py`, which
+  today answers true for an account holding `self.personal_notes`. That
+  branch's own `features.py` replaces the module wholesale - reading
+  `users.feature_<name>` - and no caller changes. The stub's answer means
+  that until then every member sees the statuses and the admin none, which
+  matches "today only the owner uses them" on an installation whose only
+  member is the owner.
+- **The review queue reads the caller's own music statuses** (decided with
+  the owner). The rows are shared, but "waiting on something" is a fact
+  about one person's tracking, so the queue is per caller, like the remarks
+  block beside it.
+- **The NG reset is registry-driven.** `NoteField.ng_resets` marks what a new
+  cycle clears; a section with an `ng_reset` field reaches only its rows
+  marked yes (missing reads as the default, yes), and 敵人, having none,
+  reaches every row. It clears the caller's own marks and nothing else.
+- **Sheets: a Note Mark tab by `username` and the note's uuid**, like the
+  other per-user tabs, with the note translated through the Note tab when
+  this database holds the row under its own uuid - a `music_status` row is
+  minted per database, and the music status is the mark most worth keeping.
+  An old backup's Note tab still carrying the values is read exactly: on
+  these sections the status column (or `fields.my_value`) only ever held the
+  personal value, so Pull takes it off the row before matching and files it
+  under the installation owner.

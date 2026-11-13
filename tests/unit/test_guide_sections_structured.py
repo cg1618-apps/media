@@ -184,7 +184,7 @@ def test_the_four_named_thing_sections_share_one_spec():
     """
     They differ in two flags and nothing else: whether a row can carry a
     variant, and whether collecting it is tracked (with its total and NG
-    reset). 技能 Skills takes neither. The type's suggestion category is the
+    reset, and the personal amount collected). 技能 Skills takes neither. The type's suggestion category is the
     third parameter, and differs per section.
     """
     assert _keys("skills") == ["type", "name", "description", "links"]
@@ -197,6 +197,7 @@ def test_the_four_named_thing_sections_share_one_spec():
             "links",
             "collected",
             "amount_total",
+            "amount_collected",
             "ng_reset",
         ], key
 
@@ -358,6 +359,7 @@ def test_the_three_gear_sections_track_collecting():
             "links",
             "collected",
             "amount_total",
+            "amount_collected",
             "ng_reset",
         ], key
         field = _field(key, "collected")

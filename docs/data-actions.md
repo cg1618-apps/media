@@ -31,7 +31,7 @@ All routes need **one** gate, declared on the router: `Depends(require_manage_pi
 
 **One Backup at a time.** Every Backup first takes a PostgreSQL session-level advisory lock (`BACKUP_LOCK_KEY`) on a connection of its own, so the web app and the separate `sheets.sh` process exclude each other. A second Backup raises `BackupAlreadyRunning` before it reads or writes anything and logs no row; the route answers it with **409**, and a Fill All / Replace All that reaches its Auto Backup while another runs ends `Failed` with that message. Two writers on one sheet would each trim what the other wrote and share one per-minute Sheets quota. PostgreSQL drops the lock with its connection, so a process that dies cannot leave it held.
 
-**The manual route streams, and the Backup outlives it.** Production sits behind a Cloudflare Tunnel, which answers 524 to a request that sends nothing for about 100 seconds, and a full Backup (56 tabs at a few seconds each, longer through a Sheets 429 pause) takes longer than that. So `POST /backup` claims the lock, starts the Backup on a thread with its own session, and relays its progress as SSE: one `processing` event per tab (`current_entry` = tab name, `processed` / `total`), then `success` or `error`, with a `: keepalive` comment every 15 seconds (`BACKUP_KEEPALIVE_SECONDS`) while a tab is slow. The thread never waits on its listener: a reloaded page or a dropped connection stops the events, not the Backup, which finishes and writes its log row anyway — a sheet with some tabs new and some old is a worse restore point than either. The thread carries the request's context, so its log lines keep the starting request's `request_id`.
+**The manual route streams, and the Backup outlives it.** Production sits behind a Cloudflare Tunnel, which answers 524 to a request that sends nothing for about 100 seconds, and a full Backup (57 tabs at a few seconds each, longer through a Sheets 429 pause) takes longer than that. So `POST /backup` claims the lock, starts the Backup on a thread with its own session, and relays its progress as SSE: one `processing` event per tab (`current_entry` = tab name, `processed` / `total`), then `success` or `error`, with a `: keepalive` comment every 15 seconds (`BACKUP_KEEPALIVE_SECONDS`) while a tab is slow. The thread never waits on its listener: a reloaded page or a dropped connection stops the events, not the Backup, which finishes and writes its log row anyway — a sheet with some tabs new and some old is a worse restore point than either. The thread carries the request's context, so its log lines keep the starting request's `request_id`.
 
 Steps, for each tab in `SHEET_TABS` order (section 2 lists it):
 
@@ -100,10 +100,11 @@ Character -> Character Identity -> Character Casting
 Users, Collection / Franchise / Series, Character / Person / Studio / Publisher -> User Rating
 Users, Novel Unit -> User Novel Unit Rating
 Users, Media, H-Comic, H-Game -> User Highlight Group Order
+Users, Note      -> Note Mark
 ```
 
 `Users` is first because nothing in the sheet points at it, and `Plan Next`,
-`Seasonal`, `Watch Order Follow`, `User Rating`, `User Novel Unit Rating`, `User Highlight Group Order`, `Game Copy` and `Game Choice Mark` all carry a NOT NULL `user_id`. The enforcement is
+`Seasonal`, `Watch Order Follow`, `User Rating`, `User Novel Unit Rating`, `User Highlight Group Order`, `Game Copy`, `Game Choice Mark` and `Note Mark` all carry a NOT NULL `user_id`. The enforcement is
 `tests/api/test_sheet_restore_order.py`; move the tab rather than weaken the
 test.
 
@@ -162,11 +163,12 @@ test.
 | 49 | `Character Casting Voice` | `CharacterCastingVoice` |  |
 | 50 | `Meme` | `Meme` |  |
 | 51 | `Note` | `Note` |  |
-| 52 | `Resources` | `ResourceNode` |  |
-| 53 | `Media Source` | `MediaSource` |  |
-| 54 | `Media Content Label` | `MediaContentLabel` |  |
-| 55 | `Franchise Content Label` | `FranchiseContentLabel` |  |
-| 56 | `Seasonal` | `Seasonal` |  |
+| 52 | `Note Mark` | `NoteMark` |  |
+| 53 | `Resources` | `ResourceNode` |  |
+| 54 | `Media Source` | `MediaSource` |  |
+| 55 | `Media Content Label` | `MediaContentLabel` |  |
+| 56 | `Franchise Content Label` | `FranchiseContentLabel` |  |
+| 57 | `Seasonal` | `Seasonal` |  |
 
 `Media` sits immediately before the twelve entry tabs: every entry table has a
 composite FK `(system_id, media_type)` up to `media`, and although that FK is
@@ -260,6 +262,29 @@ List` is: Backup drops `system_id`, `user_id` and `media_id` and writes
 normalised as the write path does; a row naming an entry of another type, an
 unknown entry or an unknown user, or an order that is not a list of names, is
 skipped and named in `unresolved_refs`, and an empty order is skipped.
+
+**`Note Mark`** carries every account's personal values on catalogue note
+rows (collected, the amount collected, beaten, completion, my value, the
+music and mod statuses - see [systems/notes.md](systems/notes.md)). Backup
+drops `user_id` for `username`; `note_id` is the note's uuid and `values`
+travels as JSON text. Pull resolves the name (an unknown one skips the row
+and names it in `unresolved_refs`), matches on `(user_id, note_id)` =
+`uq_note_mark_user_note`, and translates a `note_id` this database does not
+hold through the Note tab (`DERIVED_IDENTITY_PARENTS`): a `music_status` row
+by owner and list, any other row by its content twin, exactly as the Note tab
+itself folds them - so a mark follows a row each database minted under its
+own uuid. A cell with no non-blank value is not restored.
+
+**A backup taken before `n1o2temarks3` still Pulls its personal note
+values.** Its Note tab carries them on the rows - the `status` column on the
+sections whose status is personal, `fields.my_value` on 屬性&配點 - and has no
+Note Mark tab. They are told apart from catalogue values by the row's section,
+which is exact: on those sections that column or key only ever held the
+personal value, and a current backup carries it null. Pull takes them off the
+row before matching it to a local one, through `legacy_personal.py`
+(`pop_legacy_note_values` in `app/services/domain/note_marks.py`), and files
+them in the installation owner's mark for the row it lands on, merged with
+whatever that mark already holds.
 
 **A backup taken before `h1i2ghlights3` still Pulls its group orders.** Its
 H-Comic and H-Game tabs carry `highlight_group_order`, and no `User Highlight
@@ -1007,7 +1032,7 @@ the garbage into the sheet and destroy the evidence.
 |---|---|---|
 | `GET /check/duplicates` | `find_all_duplicates(db)` (`app/services/domain/duplicates.py`) | one key per check: `franchise`, `series`, `anime`, `anime_movie`, `cartoon`, `movie`, `tv_show`, `manga`, `novel`, `comic`, `game`, `h_comic`, `h_game`, `hentai`, `system_options`, `entities` — each a list of duplicate groups (h-comic's key: same franchise, series, `region` and `series_number` plus a shared name; h-game's: same franchise, series, `game_type` and `series_number` plus a shared name; hentai's: same franchise, series and `series_number` plus a shared name) (lists of dicts). Matching rules are in [business-rules.md](business-rules.md). |
 | `GET /check/remarks` | `find_all_remarks(db, viewer.user_id)` (`app/services/domain/remarks.py`) | the caller's own non-empty `remark` notes, one key per media type (`anime`, `anime_movie`, `movie`, `tv_show`, `cartoon`, `manga`, `novel`, `comic`, `game`, `h_comic`, `hentai`, `h_game`), newest `updated_at` first, each with `system_id`, `public_id`, its name columns, the caller's status (`attach_list_fields`, so an unlisted entry reads its type's default) and `remark`. |
-| `GET /check/music` | `find_flagged_music(db)` (`app/services/domain/music_review.py`) | a list, one row per anime with a song list (`music_status` row) or a song (`op` / `ed` / `insert_songs` / `ost` row) on `Need`, `Pending` or `No Full Version` (`FLAGGED_MUSIC_STATUSES`), by display name: `system_id`, `public_id`, `anime_name_cn`, `anime_name_en`, `display_name`, `lists` (`[{kind, status}]`, flagged lists only, in song-list order) and `songs` (`[{section, title, status, locator}]`, flagged songs only, in song-list order then notes-page order). `Not Done` flags nothing: every list starts there. Not filtered by author - the music sections are catalogue notes (`MusicReviewRow`, `app/schemas/review.py`). |
+| `GET /check/music` | `find_flagged_music(db, viewer)` (`app/services/domain/music_review.py`) | a list, one row per anime with a song list (`music_status` row) or a song (`op` / `ed` / `insert_songs` / `ost` row) that the **caller's own** note mark has on `Need`, `Pending` or `No Full Version` (`FLAGGED_MUSIC_STATUSES`), by display name: `system_id`, `public_id`, `anime_name_cn`, `anime_name_en`, `display_name`, `lists` (`[{kind, status}]`, flagged lists only, in song-list order) and `songs` (`[{section, title, status, locator}]`, flagged songs only, in song-list order then notes-page order). `Not Done` flags nothing: every list starts there. Per caller: the rows are catalogue, the statuses each account's own, so another account's statuses list nothing, and a caller without the `music_status` feature is listed nothing (`MusicReviewRow`, `app/schemas/review.py`). |
 
 | `GET /check/alone-groups` | `find_alone_groups(db)` (`app/services/domain/alone_groups.py`) | `{franchise: [...], series: [...]}`: every franchise and series with exactly one `media` row pointing at it (`media.franchise_id`, `media.series_id`, all twelve types), less those whose `alone_reviewed_media_id` is that row's id, by display name. Each: `system_id`, `public_id`, `display_name`, `entry: {system_id, media_type, public_id, display_name}` (`AloneGroupsReport`, `app/schemas/review.py`). |
 | `POST /check/alone-groups/{kind}/{system_id}/reviewed` | `mark_alone_group_reviewed(db, kind, system_id)` | sets `alone_reviewed_media_id` to the group's current lone entry. 409 when the group does not hold exactly one entry. |

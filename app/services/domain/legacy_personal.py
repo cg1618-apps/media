@@ -14,6 +14,16 @@ H-Game tabs, `highlight_group_order` - the order of the highlight groups,
 which that revision moved to the installation owner's
 user_highlight_group_order row. Pull files it there too.
 
+A backup taken before revision n1o2temarks3 carries, on the Note tab, the
+personal values of catalogue rows - collected, beaten, completion, my value
+and the music and mod statuses - in the row's status column or a key of its
+`fields`. That revision moved them to the installation owner's note_mark rows;
+Pull files them there too. They are recognised by the row's section, which is
+exact: on those sections that column or key only ever held the personal value
+(note_marks.pop_legacy_note_values). They are taken off the row BEFORE Pull
+matches it to a local one, because the match compares content and the local
+row no longer carries them.
+
 The header names live here rather than in pull.py because they are personal
 column names, and no pipeline module may name one
 (tests/services/test_pipelines_write_no_personal_columns.py): Pull asks this
@@ -26,6 +36,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.services.domain.highlight_group_order import write_group_order
+from app.services.domain.note_marks import pop_legacy_note_values, write_mark
 from app.services.domain.novel_unit_writer import write_unit_rating
 from app.services.domain.user_list import installation_owner_id
 from app.services.domain.user_rating import write_rating
@@ -54,6 +65,10 @@ LEGACY_PERSONAL_COLUMNS: dict[str, tuple[str, dict[str, str]]] = {
 }
 
 
+# The tab whose legacy values are found by section rather than by header.
+NOTE_TAB = "Note"
+
+
 def legacy_personal_headers(tab_name: str) -> frozenset[str]:
     """The headers an old sheet's tab may carry for a personal value."""
     legacy = LEGACY_PERSONAL_COLUMNS.get(tab_name)
@@ -69,6 +84,8 @@ def pop_legacy_personal(tab_name: str, payload: dict) -> dict:
     the sheet never had leaves the owner's value alone. Empty for every other
     tab and for a current sheet.
     """
+    if tab_name == NOTE_TAB:
+        return pop_legacy_note_values(payload)
     legacy = LEGACY_PERSONAL_COLUMNS.get(tab_name)
     if legacy is None:
         return {}
@@ -93,9 +110,14 @@ def restore_legacy_personal(
     owner = installation_owner_id(db)
     if owner is None:
         return (
-            f"{tab_name}: a rating, expectation, remark or group order could "
-            "not be restored - no account exists to own it"
+            f"{tab_name}: a rating, expectation, remark, group order or note "
+            "mark could not be restored - no account exists to own it"
         )
+    if tab_name == NOTE_TAB:
+        # Merged into the owner's mark: a value the sheet does not carry
+        # leaves the owner's own alone.
+        write_mark(db, owner, owner_id, values)
+        return None
     owner_type, _fields = LEGACY_PERSONAL_COLUMNS[tab_name]
     if owner_type == "novel_unit":
         write_unit_rating(db, owner, owner_id, values)

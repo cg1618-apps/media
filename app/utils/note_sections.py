@@ -214,6 +214,40 @@ class NoteField:
     # declaring no `options`, where there is nothing closed to suggest over;
     # checked at import.
     option_category: str | None = None
+    # A PERSONAL field on a catalogue row: the row is shared, this value is
+    # each viewer's own. It is never stored on the row - a catalogue write
+    # drops it - but in the viewer's `note_mark` for the row, and every read
+    # puts the viewer's value back where the field lives (its column, or
+    # `fields[key]`), so a row reads the same shape as before. A viewer with
+    # no mark reads `default`, else null. See app/services/domain/note_marks.py.
+    personal: bool = False
+    # The granted feature (app/services/rbac/features.FEATURE_NAMES) a
+    # personal field is behind. A viewer without it does not see the field at
+    # all: it is left out of the sections listing and off every row.
+    granted: str | None = None
+    # Cleared by the NG reset (POST /api/notes/ng-reset), which starts a new
+    # cycle of a game: on a section that has an `ng_reset` field, only on the
+    # rows whose ng_reset is yes; elsewhere on every row.
+    ng_resets: bool = False
+
+
+@dataclass(frozen=True)
+class PersonalValue:
+    """
+    One personal value a row of a section carries, wherever the registry
+    declares it: a personal NoteField of a structured section, or the
+    section-level `status` of a section with `personal_status`.
+
+    `key` is what a mark stores it under and what PUT /api/notes/{id}/mark
+    names; `column` is where it sits on a row (None means `fields[key]`).
+    """
+
+    key: str
+    column: str | None
+    options: tuple[str, ...]
+    default: str | None
+    granted: str | None
+    ng_resets: bool
 
 
 @dataclass(frozen=True)
@@ -428,6 +462,15 @@ class NoteSection:
     # targets per owner (NoteSectionOut.move_targets); the move itself is a
     # PATCH of `section`, which appends the row to the end of its new section.
     quick_move: bool = False
+    # The row's `status` is PERSONAL: each viewer's own, kept in its
+    # note_mark under the key "status" and put back on the row on every read
+    # - NoteField.personal for the shapes that have no field spec (the song
+    # lists and music_status). Its vocabulary stays `statuses` and an
+    # unmarked viewer reads `default_status`, else null.
+    personal_status: bool = False
+    # The granted feature that personal status is behind, as
+    # NoteField.granted.
+    status_granted: str | None = None
 
 
 OP_ED_KINDS = ("變化OP", "變化ED", "無OP", "無ED", "特殊OP", "特殊ED")
@@ -458,6 +501,10 @@ _SONG_LIST = dict(
     locator_placeholder="Episode(s), e.g. ep 3",
     link_text_category=SONG_SOURCE_CATEGORY,
     type_status_section=MUSIC_STATUS_SECTION,
+    # The song is catalogue; how far MY tracking of it has got is mine, and
+    # only for an account granted the music status feature.
+    personal_status=True,
+    status_granted="music_status",
 )
 
 # How far a boss or an enemy has got. Closed, unlike the tier beside it: a
@@ -568,8 +615,19 @@ def _named_thing_fields(
                     column="status",
                     options=COLLECT_STATUSES,
                     default="not collected",
+                    personal=True,
+                    ng_resets=True,
                 ),
                 NoteField(key="amount_total", label="Total"),
+                # How many of them I have, beside how many there are. Free
+                # text like the total, and personal like `collected`: never
+                # stored on the row, only in a mark, so it has no column.
+                NoteField(
+                    key="amount_collected",
+                    label="Collected amount",
+                    personal=True,
+                    ng_resets=True,
+                ),
                 NoteField(
                     key="ng_reset",
                     label="NG Reset",
@@ -1248,7 +1306,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
             NoteField(key="min_value", label="Min"),
             NoteField(key="rec_value", label="Rec"),
             NoteField(key="softmax_value", label="Soft cap"),
-            NoteField(key="my_value", label="Mine", quick_edit=True),
+            NoteField(key="my_value", label="Mine", quick_edit=True, personal=True),
             NoteField(
                 key="description",
                 label="Description",
@@ -1512,8 +1570,11 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
                 column="status",
                 options=ENEMY_STATUSES,
                 # Every enemy worth a row is one I have not beaten yet when I
-                # write it down, so that is where a new row starts.
+                # write it down, so that is where a viewer with no mark reads.
                 default="to beat",
+                personal=True,
+                # Every enemy resets: 敵人 has no ng_reset field to say no.
+                ng_resets=True,
             ),
         ),
         # Bosses apart from the trash, without a second section for each.
@@ -1661,6 +1722,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
                 type=FIELD_SELECT,
                 column="status",
                 options=ENDING_STATUSES,
+                personal=True,
             ),
             NoteField(
                 key="description",
@@ -1896,6 +1958,10 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         default_status=MUSIC_TYPE_STATUS_DEFAULT,
         one_per_kind=True,
         hidden=True,
+        # The row - which list - is catalogue, one per anime per list; how
+        # far MY tracking of the list has got is mine (see _SONG_LIST).
+        personal_status=True,
+        status_granted="music_status",
     ),
     NoteSection(
         key="op",
@@ -2003,6 +2069,8 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
                 type=FIELD_SELECT,
                 column="status",
                 options=MOD_STATUSES,
+                personal=True,
+                granted="mod_status",
             ),
         ),
         groupable_by="type",
@@ -2173,12 +2241,85 @@ def _check_type_status(section: NoteSection) -> None:
         )
 
 
+PERSONAL_STATUS_KEY = "status"
+
+
+def personal_values(section: NoteSection) -> tuple[PersonalValue, ...]:
+    """
+    Every personal value a row of `section` carries, in field order and the
+    section-level status last. Empty for a section that is catalogue through
+    and through - which is every section but the eleven the account spec
+    splits, and every personal-scope section (its rows are already one
+    account's).
+    """
+    found = [
+        PersonalValue(
+            key=f.key,
+            column=f.column,
+            options=f.options,
+            default=f.default,
+            granted=f.granted,
+            ng_resets=f.ng_resets,
+        )
+        for f in section.fields
+        if f.personal
+    ]
+    if section.personal_status:
+        found.append(
+            PersonalValue(
+                key=PERSONAL_STATUS_KEY,
+                column="status",
+                options=section.statuses,
+                default=section.default_status,
+                granted=section.status_granted,
+                ng_resets=False,
+            )
+        )
+    return tuple(found)
+
+
+def _check_personal(section: NoteSection) -> None:
+    """
+    A personal value is only ever a plain value on a catalogue row: never
+    required (a catalogue write cannot carry it), never what the row is
+    grouped or keyed by, never inside a nested list, and a section-level
+    personal status needs a status vocabulary and no field spec claiming the
+    same column. `granted` and `ng_resets` mean nothing off a personal field.
+    """
+    def refuse(what: str):
+        raise ValueError(f"Section '{section.key}': {what}.")
+
+    for f in section.fields:
+        if (f.granted or f.ng_resets) and not f.personal:
+            refuse(f"field '{f.key}' is granted or NG-reset but not personal")
+        for item in f.item_fields:
+            if item.personal or item.granted or item.ng_resets:
+                refuse(f"a nested field of '{f.key}' cannot be personal")
+        if not f.personal:
+            continue
+        if f.required:
+            refuse(f"personal field '{f.key}' cannot be required")
+        if f.type not in (FIELD_TEXT, FIELD_SELECT):
+            refuse(f"personal field '{f.key}' must be text or a select")
+        if f.key in (section.group_by, section.groupable_by) or any(
+            f.key in group for group in section.require_any
+        ):
+            refuse(f"personal field '{f.key}' cannot group or carry a row")
+    if section.status_granted and not section.personal_status:
+        refuse("status_granted without personal_status")
+    if section.personal_status and (not section.statuses or section.fields):
+        refuse("a personal status needs `statuses` and no field spec")
+    if personal_values(section) and section.scope != SCOPE_CATALOG:
+        refuse("personal values sit on catalogue rows only")
+
+
 for _section in NOTE_SECTIONS:
     _check_group_by(_section)
     _check_groupable_by(_section)
     _check_option_categories(_section)
     _check_kind_category(_section)
     _check_type_status(_section)
+    _check_personal(_section)
 
 # The music_status kinds and the lists pointing at it must be the same set:
 # a list with no status row would show no bar, a status with no list a stray.

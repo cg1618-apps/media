@@ -23,7 +23,7 @@ Enum values are **not** repeated here: every closed vocabulary lives in
 - [Personal data](#personal-data): user_media_list, user_novel_unit_rating, user_rating
 - [People, studios and links](#people-studios-and-links): person, person_role, person_membership, studio, publisher, publisher_scope, character, character_tag, character_casting, character_casting_voice, media_credit, media_tag
 - [Where an entry can be watched or read](#media_source): media_source
-- [Notes, quotes and memes](#notes-quotes-and-memes): note, quote, meme
+- [Notes, quotes and memes](#notes-quotes-and-memes): note, note_mark, quote, meme
 - [Resources page](#resources-page): resource_node
 - [Image library](#image-library): image, image_attachment
 - [Relations and watch orders](#relations-and-watch-orders): media_relation, watch_order_list, watch_order_section, watch_order_item, watch_order_follow
@@ -1685,7 +1685,7 @@ its section's *shape* in `app/utils/note_sections.py`
 | `parent_id` | UUID | yes | | FK `note.system_id` ON DELETE CASCADE, indexed. The row this one nests under, for a section the registry marks `hierarchical`; unbounded depth. A child is kept in its parent's owner and section by the router, not by the database - a CHECK cannot read another row. |
 | `locator` | String | yes | | Where in the work: episode, chapter, scene, timestamp, or a question's source. The section supplies the label and whether it is required. |
 | `kind` | String | yes | | Only where the section declares `kinds`, a `kind_category` (free text - an OP or ED's Song Type) or `kind_is_group` (free text - a Resources row's group). On a `music_status` row, the song list it is about (`op`, `ed`, `insert_songs`, `ost`) |
-| `status` | String | yes | | Music tracking status: one of `MUSIC_STATUSES` (Need/Pending/No Full Version/Done) on a `music_track` song, one of `MUSIC_TYPE_STATUSES` on a `music_status` row; music sections only |
+| `status` | String | yes | | The second dropdown's column. On every section whose status is a viewer's own - the song lists, `music_status`, and the structured `collected` / `beaten` / `completion` / mods `status` - it is never stored and stays null: the value lives in [`note_mark`](#note_mark) and each read fills the column with the viewer's own |
 | `title` | String | yes | | Name half of `name_links` / song name of a `music_track` row |
 | `content` | Text | yes | | Body |
 | `links` | JSONB | yes | | List of URL strings; on the four song lists (`note_sections.uses_link_pairs`), a list of `{"text": str or null, "url": str}` pairs instead. Which shape is decided by the section, never per row |
@@ -1712,8 +1712,9 @@ notes page's only read path; **`ix_note_one_remark_per_owner`** - partial
 UNIQUE over the four owner columns **plus `author_id`**, **NULLS NOT
 DISTINCT**, `WHERE section = 'remark'`; **`ix_note_one_music_status_per_kind`**
 - partial UNIQUE over `(media_id, kind)`, `WHERE section = 'music_status'`,
-because each song list of an anime has one status row (and `music_status` is
-anime-only, so `media_id` is the whole owner).
+because each song list of an anime has one row for its status to hang on
+(and `music_status` is anime-only, so `media_id` is the whole owner). The
+status itself is each viewer's own note mark.
 
 The second is keyed per owner **per author**, because `remark` is a
 personal-scope section: two accounts may each hold one on the same entry and
@@ -1726,6 +1727,31 @@ NULLS NOT DISTINCT is required because three of the four owner columns are
 always NULL - and `author_id` is NULL on rows written before accounts existed
 - so without it Postgres treats every such row as unique and the index
 enforces nothing.
+
+### `note_mark`
+
+One account's personal values on one catalogue note row: collected and the
+amount collected on the three 物品 sections, beaten on 敵人, completion on 結局,
+my value on 屬性&配點, and the status of the song lists, `music_status` and
+模組&工具. The row is catalogue; these values on it are each reader's own, and
+the registry names them (`personal_values` in `app/utils/note_sections.py`,
+see [systems/notes.md](systems/notes.md#personal-values-on-catalogue-rows-note-marks)).
+Model: `NoteMark` (`app/models/note_mark.py`). Keyed by `(user_id, note_id)` -
+`uq_note_mark_user_note`.
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `user_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE, indexed |
+| `note_id` | UUID | **no** | | FK `note.system_id` ON DELETE CASCADE, indexed |
+| `values` | JSONB | **no** | | `{key: value}`, each a non-blank string, keyed by the registry's personal-value key (`collected`, `amount_collected`, `beaten`, `completion`, `my_value`, or `status`) |
+| `created_at` / `updated_at` | DateTime | yes | now | |
+
+A mark with no value left is **not stored**: `write_mark`
+(`app/services/domain/note_marks.py`, used by `PUT /api/notes/{id}/mark`, the
+NG reset and the old-sheet carry in `legacy_personal.py`) merges a write into
+the row and deletes it once it is empty. `notes_out` puts the viewer's values
+back onto each `NoteResponse` where the field lives, one query per page.
 
 ### `quote`
 

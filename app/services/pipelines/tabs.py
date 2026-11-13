@@ -26,6 +26,7 @@ The chains that must hold, all pinned by tests/api/test_sheet_restore_order.py:
                      -> User Rating
     Users, Novel Unit -> User Novel Unit Rating
     Users, H-Comic, H-Game -> User Highlight Group Order
+    Users, Note      -> Note Mark
 
 Users is first because nothing points at it and Plan Next, Seasonal and Game
 Copy all carry a NOT NULL user_id.
@@ -407,6 +408,18 @@ SHEET_TABS: tuple[SheetTab, ...] = (
     # Memes name quotes, so after them.
     SheetTab("Meme", models.Meme, f.parse_meme_from_sheet, **AUTHOR_BY_USERNAME),
     SheetTab("Note", models.Note, f.parse_note_from_sheet, **AUTHOR_BY_USERNAME),
+    # One account's personal values on one catalogue note row. After Users
+    # and Note: user_id is dropped for `username`, the way every per-user tab
+    # drops it, and note_id names the Note tab's row by its uuid - translated
+    # through that tab when this database holds the row under its own (a
+    # music_status row, minted per database).
+    SheetTab(
+        "Note Mark",
+        models.NoteMark,
+        f.parse_note_mark_from_sheet,
+        drop_columns=("user_id",),
+        extra_columns=(("username", _row_username),),
+    ),
     # The Resources page. Cites nothing outside itself; its only reference is
     # its own parent_id, which is DEFERRABLE, so a child row may precede its
     # parent on the tab and still restore.
