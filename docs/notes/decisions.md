@@ -3999,8 +3999,10 @@ highlight note sections. That retires the "null, not absent" and
 - **The migration's owner query is frozen, and never reads `role.is_root`
   nor picks `guest` or `shared`.** The existing values were one person's, so
   they move to the installation owner: the flag holder, else the first
-  account by username whose role is none of `admin`, `guest` and `shared`;
-  with values to move and no such account it raises rather than guesses. The
+  active account by username whose role is none of `admin`, `guest` and
+  `shared` - a pending registrant or a disabled account never receives them,
+  and `'active'` is a literal for the same reason the role names are; with
+  values to move and no such account it raises rather than guesses. The
   query is a literal in the revision, not an import of
   `installation_owner_id`, because a migration must keep meaning what it
   meant when it ran, and that function's fallback reads `role.is_root`,

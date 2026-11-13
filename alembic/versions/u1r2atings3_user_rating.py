@@ -21,9 +21,10 @@ What this revision does:
           row for the installation owner, and every non-null novel_unit.remark
           lands on the owner's unit-rating row for that unit, an existing row
           kept and a missing one inserted. The owner is OWNER below - a
-          frozen rule, not an import: the flag holder, else the first account
-          by username whose role is none of admin, guest and shared. It reads
-          role.name and never role.is_root. When there is something to move
+          frozen rule, not an import: the flag holder, else the first ACTIVE
+          account by username whose role is none of admin, guest and shared.
+          It reads role.name and never role.is_root, and a pending or
+          disabled account never receives the owner's data. When there is something to move
           and no such account, the revision raises rather than guess.
   drops   my_rating from the seven tables, collection_expectation,
           franchise_expectation, series_expectation, and novel_unit.remark.
@@ -70,15 +71,17 @@ RATED_TABLES = (
 OWNER_COLUMNS = tuple(column for _table, column, _exp in RATED_TABLES)
 
 # Whose rows the moved values become. The flag holder wins outright; failing
-# that, the first account by username that is not administrative, a guest or
-# a shared account. role.name, not role.is_root: a later revision drops that
-# column, and this must still run after it.
+# that, the first account by username that is active and is not
+# administrative, a guest or a shared account. role.name, not role.is_root: a
+# later revision drops that column, and this must still run after it. 'active'
+# is a literal for the same reason: a frozen copy of users.status's vocabulary,
+# so a pending registrant or a disabled account is never handed the data.
 OWNER = """
 SELECT u.id
   FROM users u
   JOIN role r ON r.system_id = u.role_id
  WHERE u.is_installation_owner
-    OR r.name NOT IN ('admin', 'guest', 'shared')
+    OR (r.name NOT IN ('admin', 'guest', 'shared') AND u.status = 'active')
  ORDER BY u.is_installation_owner DESC, u.username
  LIMIT 1
 """
@@ -121,8 +124,9 @@ def copy_to_owner(conn) -> None:
         raise RuntimeError(
             "u1r2atings3: ratings, expectations or novel unit remarks exist "
             "but no account can own them - none holds is_installation_owner "
-            "and every account is on the admin, guest or shared role. Create "
-            "the owner's account (or set the flag on one) and run it again."
+            "and every other account is on the admin, guest or shared role "
+            "or is not active. Create the owner's account (or set the flag on "
+            "one) and run it again."
         )
     for table, column, expectation in RATED_TABLES:
         exp_value = f"t.{expectation}" if expectation else "NULL"

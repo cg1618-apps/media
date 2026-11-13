@@ -52,13 +52,14 @@ def old_schema(db_session, revision):
     return conn
 
 
-def _account(db, username, role, owner=False):
+def _account(db, username, role, owner=False, status="active"):
     user = models.User(
         id=uuid.uuid4(),
         username=username,
         hashed_password="!",
         role_id=role_id_for(db, role),
         is_installation_owner=owner,
+        status=status,
     )
     db.add(user)
     db.flush()
@@ -141,6 +142,43 @@ def test_the_flag_holder_wins(db_session, rated, revision):
     revision.copy_to_owner(db_session.connection())
 
     assert {r.user_id for r in db_session.query(models.UserRating)} == {flagged.id}
+
+
+@pytest.mark.parametrize("status", ["disabled", "pending"])
+def test_an_inactive_account_never_owns_the_data(db_session, rated, revision, status):
+    """
+    The flag is unset and an otherwise eligible account sorts FIRST, but it is
+    not active - which is what makes this refusal bite. The data must land on
+    the active account after it.
+    """
+    inactive = _account(db_session, "aaa-user", "user", status=status)
+    owner = _account(db_session, "cg1618", "super")
+
+    revision.copy_to_owner(db_session.connection())
+
+    held = {r.user_id for r in db_session.query(models.UserRating)}
+    assert held == {owner.id}
+    assert inactive.id not in held
+
+
+def test_the_same_account_active_does_own_the_data(db_session, rated, revision):
+    """The mirror: the same two accounts, both active. The first by username
+    wins, so the refusal above was the status and nothing incidental."""
+    first = _account(db_session, "aaa-user", "user")
+    _account(db_session, "cg1618", "super")
+
+    revision.copy_to_owner(db_session.connection())
+
+    assert {r.user_id for r in db_session.query(models.UserRating)} == {first.id}
+
+
+def test_only_inactive_accounts_with_data_raises(db_session, rated, revision):
+    """Nobody active to own it is the same as nobody: raise, never guess."""
+    _account(db_session, "aaa-user", "user", status="disabled")
+    _account(db_session, "cg1618", "super", status="pending")
+
+    with pytest.raises(RuntimeError, match="no account can own them"):
+        revision.copy_to_owner(db_session.connection())
 
 
 def test_only_admin_and_guest_with_data_raises(db_session, rated, revision):
