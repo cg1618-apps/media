@@ -4057,7 +4057,8 @@ a thing the owner can set at every tier, rather than only at the franchise.
 ### Account lifecycle, first half: status, revocation, reset links (2026-11-13)
 
 Accounts can be disabled, have their sessions ended, and be recovered by a
-link the admin hands over. Invite links and approval are the second half.
+link the admin hands over. Invite links and approval are the second half,
+below.
 
 - **Revocation is a counter, not a session table.** Each login token carries
   `sv`, the account's `users.session_version` when it was minted. A token
@@ -4103,9 +4104,48 @@ link the admin hands over. Invite links and approval are the second half.
 - **`disabled` travels on the Sheets Users tab, `session_version` never
   does.** A Pull must not re-activate a disabled account on the other machine.
   The counter, though, is a count of this machine's logins.
+- **A shared account may be disabled** (the owner's decision). Disabling is
+  reversible, unlike the deletion the spec forbids, and it is the fastest way
+  to stop a leaked shared login while its new password is handed out.
 - **Usernames are unique ignoring case**, by a `lower(username)` index. The
   `[a-z0-9_-]{3,32}` and no-`admin`/`guest` rules apply to new names only,
   so the `admin` account keeps its name.
+
+### Account lifecycle, second half: invite links and registration (2026-11-13)
+
+Strangers reach an account only through a link the admin hands over, and
+only after the admin approves what arrived.
+
+- **No invite, no registration.** There is no open sign-up and no register
+  link on the sign-in page. The spec makes accounts invite-only, so the
+  register routes refuse every request that does not carry an unspent,
+  unexpired invite code, with the same 404 a reset link's refusals give.
+- **A registration arrives `pending`, on `user`, with no mode.** Nothing the
+  registrant typed decides what it can see: the admin chooses the role,
+  ceiling and default at approval. With no mode, a pending account would
+  resolve the empty object set even if a route forgot to check its status.
+- **The approval form never hands out `unrestricted`.** The spec: a
+  registered user can hold it, but only by the admin granting it later on
+  `/users`, per person. The form's own refusal sits before
+  `set_mode_ceiling`, which accepts `unrestricted` for the callers that may.
+- **Invites get their own column, `created_user_id`, `ON DELETE SET NULL`.**
+  `user_id` is a reset link's target and is `CASCADE`, so a code for a
+  deleted account disappears. An invite needs the opposite: declining a
+  registration deletes the account, and the invite must survive it as spent,
+  or the declined person could register again with the same link. One
+  foreign key cannot carry both rules.
+- **Open invites do not void each other**, unlike reset links. A newer reset
+  link replaces an older one because both are for the same account. Each
+  invite is for a different person.
+- **A refused or taken name rolls the spend back**, as a refused password
+  does on reset, so a typo does not burn the link. A taken name is a 409
+  like `/users` create's, which says that the name exists. That is
+  acceptable on a route that already requires a valid invite.
+- **A pending account does not travel and is never the installation
+  owner.** Backup writes no `Users` row for it, because a registration is
+  approved on the machine it arrived on. The owner fallbacks consider only
+  `active` accounts, so a registrant whose name sorts first cannot have the
+  owner's collection filed under it.
 
 ### Exactly five fixed roles, and the shared accounts (spec: 2026-11-03 account-system-design)
 

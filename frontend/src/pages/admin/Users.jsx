@@ -1,16 +1,18 @@
 // Frontend: accounts and the role each one holds.
 //
-// There is no self-registration: accounts are created here. The server refuses
-// to let you delete yourself or demote the last account that can still
-// administer the site, and those refusals surface as toasts rather than being
-// pre-empted here - one rule, enforced in one place.
+// Accounts are created here, or arrive through an invite link issued here and
+// wait as `pending` for approval on /system (its Pending registrations panel),
+// so this table does not list them. The server refuses to let you delete
+// yourself or demote the last account that can still administer the site,
+// and those refusals surface as toasts rather than being pre-empted here -
+// one rule, enforced in one place.
 //
 // The lifecycle controls are offered only where the server would take them,
 // because a button that can only ever earn a 409 is noise: Disable on an
-// active account other than your own, Enable on a disabled one, neither on a
-// pending one (that is approved or declined, not edited), and a reset link on
-// an active account whose role is not `shared` (the admin sets a shared
-// account's password here instead). The server still refuses each of them.
+// active account other than your own, Enable on a disabled one, and a reset
+// link on an active account whose role is not `shared` (the admin sets a
+// shared account's password here instead). The server still refuses each of
+// them.
 //
 // The same reasoning shapes the role and mode controls. An account is created
 // in, or moved to, only `user` or `super`; an admin or shared account keeps
@@ -76,6 +78,8 @@ export default function Users() {
   // {user, link, expires_at} for the reset link just minted - held only
   // while its modal is open, since the server never shows it again.
   const [resetLink, setResetLink] = useState(null);
+  // {link, expires_at} for the invite link just minted, on the same terms.
+  const [invite, setInvite] = useState(null);
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -205,6 +209,15 @@ export default function Users() {
     }
   }
 
+  async function makeInvite() {
+    try {
+      const data = await fetchJson(endpoints.users.invites(), { method: "POST" });
+      setInvite({ link: data.link, expires_at: data.expires_at });
+    } catch (err) {
+      showToast("error", err.message);
+    }
+  }
+
   async function remove(user) {
     try {
       await fetchJson(endpoints.users.remove(user.id), { method: "DELETE" });
@@ -225,13 +238,23 @@ export default function Users() {
 
   return (
     <div className="max-w-4xl mx-auto p-6">
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold text-text">
-          <i className="fas fa-users mr-2 text-brand"></i>Users
-        </h1>
-        <p className="text-sm text-text-faint mt-1">
-          Accounts you create by hand. Anyone without one browses as Guest.
-        </p>
+      <header className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-text">
+            <i className="fas fa-users mr-2 text-brand"></i>Users
+          </h1>
+          <p className="text-sm text-text-faint mt-1">
+            Accounts you create by hand or invite someone to register. Anyone
+            without one browses as Guest.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={makeInvite}
+          className="border border-brand text-brand rounded px-4 py-2 text-sm font-semibold whitespace-nowrap"
+        >
+          Invite link
+        </button>
       </header>
 
       <form
@@ -290,7 +313,9 @@ export default function Users() {
           </tr>
         </thead>
         <tbody>
-          {users.map((user) => {
+          {users
+            .filter((user) => user.status !== "pending")
+            .map((user) => {
             const roleName = roleNameOf(user, roles);
             const isShared = roleName === "shared";
             return (
@@ -511,6 +536,22 @@ export default function Users() {
             once, shows them their username, and lets them set a new password;
             using it signs the account out everywhere. Making a new link stops
             this one working.
+          </p>
+        </OnceLinkModal>
+      )}
+
+      {invite && (
+        <OnceLinkModal
+          title="Invite link"
+          link={invite.link}
+          expiresAt={invite.expires_at}
+          onClose={() => setInvite(null)}
+        >
+          <p>
+            Give this to the person you are inviting, outside the site. It
+            works once and lets them register one account, which waits for
+            your approval under Pending registrations on the System page.
+            Making another link does not stop this one working.
           </p>
         </OnceLinkModal>
       )}

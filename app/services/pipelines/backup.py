@@ -159,7 +159,7 @@ def _write_backup(db: Session, action_type: str, on_progress: Optional[Progress]
         for index, tab in enumerate(SHEET_TABS, start=1):
             if on_progress:
                 on_progress(tab.name, index, total)
-            rows = db.query(tab.model).all()
+            rows = tab.rows(db)
             # ONE filtered column-name list drives both the header row and
             # every value row (format_model_for_sheet's `columns` argument),
             # so a column dropped here (Media Source's option_id) can never

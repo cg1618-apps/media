@@ -50,18 +50,17 @@ and what comes next, so read that before anything else.
 | --- | --- | --- | --- |
 | `feat/role-and-account-switches` | P3g: per-role and per-account switches | [plans/2026-11-13-role-and-account-switches.md](superpowers/plans/2026-11-13-role-and-account-switches.md) | P3f, for the `shared` role |
 | `feat/admin-not-root` | P3h: admin stops being root | [plans/2026-11-13-admin-not-root.md](superpowers/plans/2026-11-13-admin-not-root.md) | P3g, because every permission and switch it relies on has to exist |
-| `feat/invites-and-registration` | P4b: invite links and registration | [plans/2026-11-13-account-lifecycle.md](superpowers/plans/2026-11-13-account-lifecycle.md), "P4b" | P3f, which creates the shared accounts P4b would otherwise create too |
 | `feat/personal-data` (#354) | P5: the personal data, Parts A → C → D → E → B | the PR body, and `docs/superpowers/plans/2026-11-13-personal-data.md` on the branch | Part B only: P3g's switch columns |
-| not cut yet (`feat/per-viewer-pages`) | The rest of `view.extras` and the per-viewer pages (P7) | [plans/2026-11-13-view-extras-and-per-viewer-pages.md](superpowers/plans/2026-11-13-view-extras-and-per-viewer-pages.md) | P3g to cut it; merges last, after P3h, P4b and #354, merging `feat/personal-data` in sideways first |
+| not cut yet (`feat/per-viewer-pages`) | The rest of `view.extras` and the per-viewer pages (P7) | [plans/2026-11-13-view-extras-and-per-viewer-pages.md](superpowers/plans/2026-11-13-view-extras-and-per-viewer-pages.md) | P3g to cut it; merges last, after P3h and #354, merging `feat/personal-data` in sideways first |
 
 P3a (#350), P3b1–P3d, the labels track (#353), P3e (#351), P3f (#357),
-P4a (#352) and P6, requests and reports (#349), are on `dev`.
+P4a (#352), P4b (#359) and P6, requests and reports (#349), are on `dev`.
 
 **Waiting does not have to mean idle. A branch can merge another branch,
 not only `dev`.** When a branch needs code from one that is not on `dev`
-yet, it merges that branch in and carries on: P4b can merge
-`feat/five-fixed-roles` once its shared accounts are committed, and P5 can
-merge `feat/role-and-account-switches` to build Part B. Three rules keep
+yet, it merges that branch in and carries on: P5 can merge
+`feat/role-and-account-switches` to build Part B, and P7 merges
+`feat/personal-data` before the parts that touch P5's files. Three rules keep
 this from mixing features:
 
 - **The pull request's base stays `dev`.** Never retarget it at the other
@@ -111,10 +110,8 @@ and reparents its first revision onto the new head: `down_revision` and
 - **Builder 2:** `feat/personal-data` until it is merged.
 - **Builder 3:** P3f → P3g → P3h, one branch at a time. Cut each one off
   `dev` once the previous one has merged.
-- **Builder 4:** P4b, starting once P3f has merged, or once its shared
-  accounts are committed, by merging `feat/five-fixed-roles` in. After
-  P4b, it writes the plan for the remaining `view.extras` and the
-  per-viewer pages, and builds it once P3g is on `dev`.
+- **Builder 4:** the remaining `view.extras` and the per-viewer pages
+  (P7), cut once P3g is on `dev`.
 
 More than four builders mostly queue: every tree on the machine shares one
 PostgreSQL and the machine-wide pytest lock. Each builder runs only the
