@@ -90,9 +90,9 @@ password.
   name.
 - It cannot contain the words `admin` or `guest` anywhere.
 
-**Choosing a password** *(when registering opens)* — it has to meet a
-minimum length, and a very long password is refused rather than quietly
-shortened. The form says what is wrong.
+**Choosing a password** *(when registering opens)* — anything you like, as
+long as it is not empty; an extremely long one (over 72 bytes) is refused
+rather than quietly shortened. The form says what is wrong.
 
 ## Forgot your password or username?
 
