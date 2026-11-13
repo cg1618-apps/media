@@ -76,14 +76,19 @@ def test_catalog_serves_the_self_family(admin_client):
 
 
 def test_a_self_permission_can_be_granted_to_a_role(admin_client):
-    role_id = admin_client.post(
-        ROLES,
-        json={"name": "listers", "label": "Listers", "permissions": []},
-    ).json()["system_id"]
+    user = next(r for r in admin_client.get(ROLES).json() if r["name"] == "user")
+    without = sorted(set(user["permissions"]) - {"self.list"})
 
     r = admin_client.put(
-        f"/api/roles/{role_id}/permissions",
-        json={"permissions": ["self.list"]},
+        f"/api/roles/{user['system_id']}/permissions",
+        json={"permissions": without},
+    )
+    assert r.status_code == 200
+    assert "self.list" not in r.json()["permissions"]
+
+    r = admin_client.put(
+        f"/api/roles/{user['system_id']}/permissions",
+        json={"permissions": without + ["self.list"]},
     )
     assert r.status_code == 200
     assert "self.list" in r.json()["permissions"]
@@ -111,38 +116,23 @@ def test_a_new_label_never_appears_in_the_role_catalog(admin_client):
 # Roles
 # ---------------------------------------------------------------------------
 
-def test_creating_a_role_stores_its_grants(admin_client):
-    response = admin_client.post(
-        ROLES,
-        json={
-            "name": "friend",
-            "label": "Friend",
-            "permissions": [media_type_perm("anime")],
-        },
-    )
-    assert response.status_code == 201
-    assert response.json()["permissions"] == [media_type_perm("anime")]
-
-
 def test_an_unknown_permission_is_rejected(admin_client):
     """A grant naming nothing would be stored and silently do nothing."""
-    response = admin_client.post(
-        ROLES,
-        json={"name": "bogus", "label": "Bogus", "permissions": ["media_type.hologram"]},
+    guest = _role_id(admin_client, "guest")
+    response = admin_client.put(
+        f"/api/roles/{guest}/permissions",
+        json={"permissions": ["media_type.hologram"]},
     )
     assert response.status_code == 422
     assert "hologram" in response.text
 
 
 def test_permissions_are_replaced_not_appended(admin_client):
-    role_id = admin_client.post(
-        ROLES,
-        json={
-            "name": "replaceme",
-            "label": "Replace",
-            "permissions": [media_type_perm("anime"), media_type_perm("manga")],
-        },
-    ).json()["system_id"]
+    role_id = _role_id(admin_client, "guest")
+    admin_client.put(
+        f"/api/roles/{role_id}/permissions",
+        json={"permissions": [media_type_perm("anime"), media_type_perm("manga")]},
+    )
 
     response = admin_client.put(
         f"/api/roles/{role_id}/permissions",
@@ -150,30 +140,6 @@ def test_permissions_are_replaced_not_appended(admin_client):
     )
     assert response.status_code == 200
     assert response.json()["permissions"] == [media_type_perm("manga")]
-
-
-def test_a_system_role_cannot_be_deleted(admin_client):
-    guest = _role_id(admin_client, "guest")
-    response = admin_client.delete(f"/api/roles/{guest}")
-    assert response.status_code == 409
-
-
-def test_a_role_users_still_hold_cannot_be_deleted(admin_client):
-    role_id = admin_client.post(
-        ROLES, json={"name": "held", "label": "Held", "permissions": []}
-    ).json()["system_id"]
-    admin_client.post(
-        USERS, json={"username": "holder", "password": "x", "role_id": role_id}
-    )
-    response = admin_client.delete(f"/api/roles/{role_id}")
-    assert response.status_code == 409
-
-
-def test_an_unheld_role_can_be_deleted(admin_client):
-    role_id = admin_client.post(
-        ROLES, json={"name": "spare", "label": "Spare", "permissions": []}
-    ).json()["system_id"]
-    assert admin_client.delete(f"/api/roles/{role_id}").status_code == 204
 
 
 # ---------------------------------------------------------------------------
@@ -189,23 +155,20 @@ def test_revoking_a_permission_is_felt_without_re_login(
     """
     from app.services.security import create_access_token
 
-    role_id = admin_client.post(
-        ROLES,
-        json={
-            "name": "watcher",
-            "label": "Watcher",
-            "permissions": [media_type_perm("anime")],
-        },
-    ).json()["system_id"]
+    role_id = _role_id(admin_client, "user")
     admin_client.post(
         USERS, json={"username": "watcher1", "password": "x", "role_id": role_id}
     )
 
-    token = create_access_token({"sub": "watcher1", "role": "watcher"})
+    token = create_access_token({"sub": "watcher1", "role": "user"})
     client.cookies.set("access_token", f"Bearer {token}")
     assert str(sample_anime.system_id) in client.get("/api/anime/").text
 
-    admin_client.put(f"/api/roles/{role_id}/permissions", json={"permissions": []})
+    # Down to what the role must hold, which is no media type.
+    admin_client.put(
+        f"/api/roles/{role_id}/permissions",
+        json={"permissions": ["self.password", "self.requests"]},
+    )
 
     # Same cookie, no re-login.
     assert client.get("/api/anime/").json() == []
@@ -216,17 +179,17 @@ def test_revoking_a_permission_is_felt_without_re_login(
 # ---------------------------------------------------------------------------
 
 def test_creating_a_user_assigns_the_role(admin_client):
-    guest = _role_id(admin_client, "guest")
+    user = _role_id(admin_client, "user")
     response = admin_client.post(
-        USERS, json={"username": "newbie", "password": "pw", "role_id": guest}
+        USERS, json={"username": "newbie", "password": "pw", "role_id": user}
     )
     assert response.status_code == 201
-    assert response.json()["role_name"] == "guest"
+    assert response.json()["role_name"] == "user"
 
 
 def test_a_duplicate_username_is_rejected(admin_client):
-    guest = _role_id(admin_client, "guest")
-    body = {"username": "twice", "password": "pw", "role_id": guest}
+    user = _role_id(admin_client, "user")
+    body = {"username": "twice", "password": "pw", "role_id": user}
     assert admin_client.post(USERS, json=body).status_code == 201
     assert admin_client.post(USERS, json=body).status_code == 409
 
@@ -245,38 +208,6 @@ def test_you_cannot_delete_yourself(admin_client, db_session):
     ).first()
     response = admin_client.delete(f"/api/users/{me.id}")
     assert response.status_code == 409
-
-
-def test_the_last_administrator_cannot_be_demoted(admin_client, db_session):
-    """Otherwise one PATCH locks everyone out of their own site."""
-    guest = _role_id(admin_client, "guest")
-    me = db_session.query(models.User).filter(
-        models.User.username == "aaa_testadmin"
-    ).first()
-
-    # The lifespan seeds a real "admin" account into the test database, so
-    # demote every other administrator first to actually reach the last one.
-    for user in db_session.query(models.User).all():
-        if user.id != me.id:
-            admin_client.patch(f"/api/users/{user.id}", json={"role_id": guest})
-
-    response = admin_client.patch(f"/api/users/{me.id}", json={"role_id": guest})
-    assert response.status_code == 409
-    assert "last account" in response.text
-
-
-def test_demotion_is_allowed_while_another_admin_remains(admin_client, db_session):
-    admin_role = _role_id(admin_client, "admin")
-    guest = _role_id(admin_client, "guest")
-    admin_client.post(
-        USERS, json={"username": "second", "password": "pw", "role_id": admin_role}
-    )
-
-    me = db_session.query(models.User).filter(
-        models.User.username == "aaa_testadmin"
-    ).first()
-    response = admin_client.patch(f"/api/users/{me.id}", json={"role_id": guest})
-    assert response.status_code == 200
 
 
 # ---------------------------------------------------------------------------
@@ -334,7 +265,7 @@ def test_a_role_change_resets_the_limit_to_the_new_roles_default(admin_client):
 
 
 def test_a_role_change_keeps_a_limit_set_in_the_same_save(admin_client):
-    user = _create(admin_client, "both", "guest")
+    user = _create(admin_client, "both", "super")
     response = admin_client.patch(
         f"{USERS}{user['id']}",
         json={"role_id": _role_id(admin_client, "user"), "open_request_limit": 7},

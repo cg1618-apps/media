@@ -86,7 +86,7 @@ router = APIRouter(
     # There used to be a second gate requiring an unscoped mode (Decision 14),
     # on the grounds that a narrowed session would write a PARTIAL sheet over
     # the complete one. No pipeline is viewer-aware, so it never could:
-    # execute_backup reads db.query(tab.model).all(), runner.py reads
+    # execute_backup reads every row of each tab (SheetTab.rows), runner.py reads
     # db.query(spec.model).all(), and calculation.py says outright that
     # Calculate "is a pipeline with no viewer". entry_visible and
     # hidden_label_ids are called only from the entry routers. The gate

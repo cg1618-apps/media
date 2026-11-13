@@ -16,6 +16,8 @@ import Admin from "./Admin";
 
 const showToast = vi.fn();
 vi.mock("../../hooks/useToast", () => ({ useToast: () => ({ showToast }) }));
+// The pending-registrations panel has its own test and needs a query client.
+vi.mock("./PendingRegistrations", () => ({ default: () => null }));
 vi.mock("../../contexts/AuthContext", () => ({
   useAuth: () => ({ has: () => true, visibleGatedTypes: [] }),
 }));

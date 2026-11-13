@@ -41,10 +41,6 @@ class RoleBase(BaseModel):
     sort_order: int = 0
 
 
-class RoleCreate(RoleBase):
-    permissions: List[str] = []
-
-
 class RoleUpdate(BaseModel):
     label: Optional[str] = None
     description: Optional[str] = None
@@ -59,7 +55,6 @@ class RolePermissions(BaseModel):
 
 class RoleResponse(RoleBase):
     system_id: UUID
-    is_system: bool
     is_root: bool
     permissions: List[str] = []
     user_count: int = 0
@@ -181,6 +176,17 @@ class ManagedUserUpdate(BaseModel):
     # same save changes the role, which resets it to the new role's default.
     # Not settable on a super account, which never has one.
     open_request_limit: Optional[int] = Field(default=None, ge=0)
+
+
+class RegistrationApproval(BaseModel):
+    """Body of POST /api/users/{id}/approve. Every field has the approval
+    form's default: role `user`, ceiling and default `normal`. The role is
+    `user` or `super`, and neither mode may be `unrestricted` - that is
+    granted later on /users, per person, never from this form."""
+
+    role_id: Optional[UUID] = None
+    ceiling_mode: str = "normal"
+    default_mode: str = "normal"
 
 
 class ManagedUserResponse(BaseModel):
