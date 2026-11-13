@@ -501,3 +501,24 @@ class DeletedRecordResponse(BaseModel):
     timestamp: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class SeasonCount(BaseModel):
+    """One season in the catalogue and how many visible anime aired in it."""
+
+    season: str
+    entry_count: int
+
+
+class GenreCount(BaseModel):
+    genre: str
+    entry_count: int
+
+
+class CatalogueStatistics(BaseModel):
+    """GET /api/statistics/catalogue. Every count is over what the viewer may
+    see; a media type with no visible entry is absent from `by_type`."""
+
+    by_type: Dict[str, int]
+    by_season: List[SeasonCount]
+    by_genre: List[GenreCount]

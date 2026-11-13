@@ -65,6 +65,7 @@ from app.routers import (
     search,
     seasonal,
     series,
+    statistics,
     studio,
     system,
     tv_show,
@@ -302,7 +303,11 @@ app.include_router(plan_next.router)
 app.include_router(quote.router)
 app.include_router(meme.router)
 app.include_router(resources.router)
+# catalogue_router first: its /catalogue must not fall to router's
+# /{seasonal_id}, which is behind self.list.
+app.include_router(seasonal.catalogue_router)
 app.include_router(seasonal.router)
+app.include_router(statistics.router)
 app.include_router(search.router)
 
 app.include_router(announcements.router)

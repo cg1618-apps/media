@@ -60,6 +60,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [Images — `/api/images`](#images--apiimages)
 - [Note — `/api/notes`](#note--apinotes)
 - [Seasonal — `/api/seasonal`](#seasonal--apiseasonal)
+- [Statistics — `/api/statistics`](#statistics--apistatistics)
 - [Add-tab picker searches](#add-tab-picker-searches)
 - [Search — `/api/search`](#search--apisearch)
 - [FX Rates — `/api/fx-rates`](#fx-rates--apifx-rates)
@@ -1161,18 +1162,29 @@ leaves `sort_index` ascending in the order the page draws.
 
 | Method  | Path              | Auth   | Description                                                                                         |
 | ------- | ----------------- | ------ | --------------------------------------------------------------------------------------------------- |
-| `GET`   | `/current-season` | `self.list` | Returns `{current_season}` from `system_configs`. Used by frontend to highlight the current season. |
+| `GET`   | `/current-season` | Public | Returns `{current_season}` from `system_configs` (null when unset). The calendar, not anybody's data, so it answers every viewer. |
+| `GET`   | `/catalogue`      | Public | `SeasonCount[]` — `{season, entry_count}` for every season the viewer's visible anime aired in, newest first. A season is `release_season` plus the year of `release_date`, the pair `?airing_season=` filters on. Narrowed to the viewer's media types and mode. |
 | `GET`   | `/`               | `self.list` | List the CALLER'S OWN seasonal records, ordered by `seasonal` descending.                           |
 | `GET`   | `/{seasonal_id}`  | `self.list` | Get the caller's own record for one season (e.g. `"WIN 2026"`). `404` when they have none.          |
 | `PATCH` | `/{seasonal_id}`  | `self.list` | Update `my_rating` on the caller's own row. Any real account, not just an admin - the rating is theirs. Body: `SeasonalUpdate`. |
 
 **Response model:** `SeasonalResponse` (unchanged).
 
-**Per user, and behind `self.list`.** A seasonal row is keyed
-`(user_id, seasonal)`, its four counters are aggregates over that user's
-`user_media_list` rows, and `my_rating` is their own - so a logged-out visitor
-gets `401` from every route here rather than somebody else's numbers. The admin
-mirror of the season value, `/api/system/config/current_season`, is untouched.
+**Per user, and behind `self.list`, except the two catalogue reads.** A
+seasonal row is keyed `(user_id, seasonal)`, its four counters are aggregates
+over that user's `user_media_list` rows, and `my_rating` is their own - so a
+logged-out visitor gets `401` from `/`, `/{seasonal_id}` and the `PATCH` rather
+than somebody else's numbers. `/current-season` and `/catalogue` are about the
+catalogue, not an account, and sit on a separate router
+(`seasonal.catalogue_router`, included first so `/catalogue` is not taken for a
+`{seasonal_id}`). The Control Center writes the season value through
+`/api/system/config/current_season`, which stays `manage.pipelines`.
+
+## Statistics — `/api/statistics`
+
+| Method | Path | Auth | Description |
+| ------ | ---- | ---- | ----------- |
+| `GET`  | `/catalogue` | Public | `CatalogueStatistics` — `by_type` (`{media_type: count}`, a type with no visible entry absent), `by_season` (as `/api/seasonal/catalogue`) and `by_genre` (`{genre, entry_count}[]`, most first, over Genre Main and Game Genre). Counts of the catalogue for a viewer without a list, narrowed to the media types its role holds and the labels its mode shows (`services/domain/catalogue_stats.py`). |
 `/api/search` stays public, but its `seasonal` bucket holds the caller's own
 rows and is empty for an anonymous searcher.
 
