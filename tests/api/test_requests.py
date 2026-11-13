@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 
 from app import models
 from app.main import app
-from app.services.rbac.seed_modes import MODE_NORMAL
+from app.services.rbac.seed_modes import MODE_SAFE
 from app.services.security import create_access_token, get_password_hash
 from tests.api.conftest import role_id_for, seed_modes_and_grant
 
@@ -355,8 +355,9 @@ def test_an_entity_can_be_a_target(user_client, person):
 
 def test_a_target_the_filers_mode_hides_is_accepted(mode_client, plain_user, hidden_anime):
     """Requesting something your mode hides is allowed. The GET proves the
-    entry IS hidden from this session, so the 201 is not vacuous."""
-    c = mode_client(MODE_NORMAL, user=plain_user)
+    entry IS hidden from this session, so the 201 is not vacuous. `safe`,
+    because hidden_anime carries nsfw and nsfw is shown from `normal` up."""
+    c = mode_client(MODE_SAFE, user=plain_user)
     assert c.get(f"/api/anime/{hidden_anime.system_id}").status_code == 404
     response = c.post(
         REQUESTS,

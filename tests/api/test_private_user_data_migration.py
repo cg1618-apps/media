@@ -34,7 +34,26 @@ def revision():
 
 
 @pytest.fixture
-def legacy_rows(db_session, admin_user):
+def historical_schema(db_session):
+    """`access_mode_field_group` as it stood at this revision. A later one
+    (l1a2belcode3) drops it, so it is recreated inside the test's transaction
+    and rolled back with it - the shipped SQL runs against the schema it was
+    written for."""
+    db_session.execute(
+        text(
+            "CREATE TABLE access_mode_field_group ("
+            "system_id uuid PRIMARY KEY, "
+            "mode_id uuid NOT NULL REFERENCES access_mode(system_id) ON DELETE CASCADE, "
+            "field_group_key varchar NOT NULL, "
+            "created_at timestamp, "
+            "CONSTRAINT uq_access_mode_field_group UNIQUE (mode_id, field_group_key))"
+        )
+    )
+    db_session.flush()
+
+
+@pytest.fixture
+def legacy_rows(db_session, admin_user, historical_schema):
     """One row of every kind for each removed group, and the same kinds for
     sources_restricted, which must survive."""
     ensure_access_mode_seed(db_session)
