@@ -234,15 +234,35 @@ A guest that can view more, with no data of its own.
 
 ## Customised pages
 
-Beyond being shown or hidden, many pages and features differ by viewer —
-the admin, guests and shared accounts may get their own dashboard and
-layout. **Still to design**; each page gets a section here as it is
-decided. Still open:
+Beyond being shown or hidden, many pages differ by viewer. Each page gets a
+section here as it is decided; the designs — how a page looks — come from
+the owner, so these sections say what differs, not where it sits.
 
-- **Seasonal** and **Statistics** — need a version for an account without
-  personal data (guest, shared).
-- **Random Picker** — shared accounts get a version that differs from
-  today's.
+**Still to discuss:** the header and menus; the libraries; entry detail
+pages; collection, franchise and series pages; watch order pages; Seasonal
+and Statistics (both need a version for an account without data); the
+Random Picker (personal filters only with data, and the shared version);
+Future Releases; My requests; the request and report inbox; pending
+registrations.
+
+### Removed
+
+- **Public profiles** (`/user/<username>`) and **the community card** on
+  entry pages. Everything per user is private, so both could only ever be
+  empty; the feature is removed, not hidden.
+
+### Search
+
+**Results follow every switch that can be off.** A result group appears
+only where the viewer may open what it links to: an entity kind whose
+switch is off, a media type its role does not hold, quotes and memes
+without the per-account switch, anything its mode hides — none of these
+return results, so search never leads to a page the viewer cannot see.
+
+### Settings
+
+- **user, super:** changing their own password.
+- **shared, guest, admin:** no Settings page.
 
 ### Dashboard (`/`)
 
