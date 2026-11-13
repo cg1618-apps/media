@@ -31,7 +31,6 @@ def test_the_super_role_exists_after_seeding(db):
     ensure_rbac_seed(db)
     db.flush()
     role = db.query(models.Role).filter(models.Role.name == SUPER_ROLE).one()
-    assert role.is_system is True
     assert role.is_root is False
 
 

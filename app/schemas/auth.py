@@ -52,3 +52,32 @@ class ResetLinkResponse(BaseModel):
 
     link: str
     expires_at: datetime
+
+
+class InviteLinkResponse(BaseModel):
+    """A new invite link. As with a reset link, the code inside it is not
+    stored, so this is the only time it can be shown."""
+
+    link: str
+    expires_at: datetime
+
+
+class InviteCodeInfo(BaseModel):
+    """GET /api/auth/register: the invite can be used. An unusable one is the
+    generic 404, so there is nothing else to say."""
+
+    valid: bool
+
+
+class Registration(BaseModel):
+    """Body of POST /api/auth/register."""
+
+    code: str
+    username: str
+    password: str
+
+
+class RegisteredAccount(BaseModel):
+    """The account a registration created, now waiting for approval."""
+
+    username: str

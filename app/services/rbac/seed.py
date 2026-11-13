@@ -1,5 +1,8 @@
 """
-The four roles the app reads by name.
+The five roles, and the two shared accounts.
+
+The set of roles is fixed: these five exist, nothing creates or deletes one,
+and an admin edits only their free grants (permissions.locked_permissions).
 
 Called from the lifespan AND from migration A, because tests/api/conftest.py
 resets the schema with Base.metadata.create_all and never runs Alembic - a seed
@@ -18,10 +21,15 @@ role's own field-group grants at migration time precisely so that nothing a
 visitor sees changed on the day it landed.
 """
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app import models
+from app.models.system import USER_STATUS_ACTIVE
+from app.services.domain.requests import default_request_limit
+from app.services.rbac.modes import set_mode_ceiling
 from app.services.rbac.permissions import (
+    ADMIN_ROLE_NAME,
     GUEST_ROLE_NAME,
     PERM_MANAGE_CATALOG,
     PERM_MANAGE_PIPELINES,
@@ -30,6 +38,7 @@ from app.services.rbac.permissions import (
     PERM_SELF_PASSWORD,
     PERM_SELF_PERSONAL_NOTES,
     PERM_SELF_REQUESTS,
+    SHARED_ROLE_NAME,
     SUPER_ROLE_NAME,
     USER_ROLE_NAME,
     VIEW_PERMISSION_KEYS,
@@ -37,11 +46,13 @@ from app.services.rbac.permissions import (
     media_type_perm,
     view_perm,
 )
+from app.services.rbac.seed_modes import MODE_BORDERLINE, MODE_NORMAL
+from app.services.security import UNUSABLE_PASSWORD_HASH
 from app.utils.media_resolver import MEDIA_TYPE_KEYS
 
 # These names are owned by permissions.py, which keys the lock table on them.
 GUEST_ROLE = GUEST_ROLE_NAME
-ADMIN_ROLE = "admin"
+ADMIN_ROLE = ADMIN_ROLE_NAME
 # A signed-in member. Not an administrator and not a second kind of admin:
 # guest reads, the view.* reads a guest lacks, and the three self.* writes.
 USER_ROLE = USER_ROLE_NAME
@@ -49,6 +60,17 @@ USER_ROLE = USER_ROLE_NAME
 # the point of the role is that its grant set is finite and inspectable, so a
 # permission minted in code reaches it only when someone grants it.
 SUPER_ROLE = SUPER_ROLE_NAME
+# An account several people sign in to. Reads what a guest reads and files
+# requests; its mode is fixed per account (SHARED_ACCOUNTS below).
+SHARED_ROLE = SHARED_ROLE_NAME
+
+# The shared accounts, each fixed at its own mode: the username and the mode
+# it is held at. Created on boot with an unusable password - the admin sets
+# one on /users when handing the account out.
+SHARED_ACCOUNTS: tuple[tuple[str, str], ...] = (
+    ("shared-normal", MODE_NORMAL),
+    ("shared-borderline", MODE_BORDERLINE),
+)
 
 def default_guest_permissions() -> set[str]:
     """Every media type. That is the whole of the guest role now.
@@ -84,6 +106,17 @@ def default_user_permissions() -> set[str]:
     )
 
 
+def default_shared_permissions() -> set[str]:
+    """
+    A shared account's grants: what a guest reads, plus filing requests.
+
+    Derived from default_guest_permissions() so a media type added later
+    reaches it too. Gated types are among them, as for guest: the account's
+    fixed mode is what hides their entries, through their label.
+    """
+    return default_guest_permissions() | {PERM_SELF_REQUESTS}
+
+
 def default_super_permissions() -> set[str]:
     """
     A super account: everything a signed-in member has, plus the three
@@ -110,13 +143,12 @@ def _ensure_role(db: Session, name: str, **fields) -> models.Role:
 
 
 def ensure_rbac_seed(db: Session) -> None:
-    """Create the guest, admin, user and super roles and top up their grants."""
+    """Create the five roles and top up their grants."""
     guest = _ensure_role(
         db,
         GUEST_ROLE,
         label="Guest",
         description="Anyone who is not logged in.",
-        is_system=True,
         is_root=False,
         sort_order=0,
     )
@@ -125,7 +157,6 @@ def ensure_rbac_seed(db: Session) -> None:
         ADMIN_ROLE,
         label="Admin",
         description="Full access. Holds every permission implicitly.",
-        is_system=True,
         is_root=True,
         sort_order=100,
     )
@@ -137,9 +168,20 @@ def ensure_rbac_seed(db: Session) -> None:
             "A signed-in member. Reads the whole site, and writes their "
             "own list and their own personal notes."
         ),
-        is_system=True,
         is_root=False,
         sort_order=50,
+    )
+    shared = _ensure_role(
+        db,
+        SHARED_ROLE,
+        label="Shared",
+        description=(
+            "An account several people sign in to. Reads what a guest reads "
+            "and files requests; its mode and its role are fixed, and only "
+            "the admin sets its password."
+        ),
+        is_root=False,
+        sort_order=25,
     )
     super_role = _ensure_role(
         db,
@@ -152,57 +194,72 @@ def ensure_rbac_seed(db: Session) -> None:
             "since it restores the Users and Content Label tabs and role "
             "assignments along with everything else."
         ),
-        is_system=True,
         is_root=False,
         sort_order=75,
     )
 
-    # Only add what is missing. An admin who deliberately removed a grant from
-    # guest must not have it handed back on the next restart, so this tops up
-    # the roles it just created and leaves an existing guest role alone.
-    held = {
-        row.permission
-        for row in db.query(models.RolePermission).filter(
-            models.RolePermission.role_id == guest.system_id
-        )
-    }
-    if not held:
-        for permission in sorted(default_guest_permissions()):
-            db.add(
-                models.RolePermission(role_id=guest.system_id, permission=permission)
-            )
-
-    # Same rule as guest above: top up only a role holding nothing at all, so
-    # a grant an admin deliberately removed is not handed back on restart.
-    user_held = {
-        row.permission
-        for row in db.query(models.RolePermission).filter(
-            models.RolePermission.role_id == user.system_id
-        )
-    }
-    if not user_held:
-        for permission in sorted(default_user_permissions()):
-            db.add(
-                models.RolePermission(role_id=user.system_id, permission=permission)
-            )
-
-    # Same rule again: top up only a role holding nothing at all.
-    super_held = {
-        row.permission
-        for row in db.query(models.RolePermission).filter(
-            models.RolePermission.role_id == super_role.system_id
-        )
-    }
-    if not super_held:
-        for permission in sorted(default_super_permissions()):
-            db.add(
-                models.RolePermission(
-                    role_id=super_role.system_id, permission=permission
-                )
-            )
+    # Only add what is missing. An admin who deliberately removed a grant
+    # must not have it handed back on the next restart, so each role is
+    # topped up only while it holds nothing at all.
+    _top_up(db, guest, default_guest_permissions())
+    _top_up(db, user, default_user_permissions())
+    _top_up(db, super_role, default_super_permissions())
+    _top_up(db, shared, default_shared_permissions())
 
     db.flush()
     _enforce_locks(db)
+
+
+def _top_up(db: Session, role: models.Role, permissions: set[str]) -> None:
+    """Grant `permissions` to a role holding nothing at all, and leave a role
+    holding anything alone - a grant an admin removed is not handed back."""
+    held = (
+        db.query(models.RolePermission)
+        .filter(models.RolePermission.role_id == role.system_id)
+        .first()
+    )
+    if held is None:
+        for permission in sorted(permissions):
+            db.add(
+                models.RolePermission(role_id=role.system_id, permission=permission)
+            )
+
+
+def ensure_shared_accounts(db: Session) -> None:
+    """
+    Create the shared accounts if missing, and re-assert what is fixed.
+
+    Runs on every boot after ensure_rbac_seed and the access-mode seed, so the
+    role and the modes it names exist. A new account gets an unusable
+    password (nothing verifies against UNUSABLE_PASSWORD_HASH), its role's
+    request limit and status `active`; the admin sets the password on /users.
+
+    On every run, whatever a Pull or a hand edit left: the role is `shared`
+    and the ceiling and default are the account's own mode. The password,
+    status and request limit are the admin's and are left alone.
+    """
+    role = db.query(models.Role).filter(models.Role.name == SHARED_ROLE).one()
+    for username, mode in SHARED_ACCOUNTS:
+        user = (
+            db.query(models.User)
+            .filter(func.lower(models.User.username) == username.lower())
+            .first()
+        )
+        if user is None:
+            user = models.User(
+                username=username,
+                hashed_password=UNUSABLE_PASSWORD_HASH,
+                role_id=role.system_id,
+                status=USER_STATUS_ACTIVE,
+                open_request_limit=default_request_limit(SHARED_ROLE),
+            )
+            db.add(user)
+            db.flush()
+        if user.role_id != role.system_id:
+            user.role_id = role.system_id
+        if user.mode_ceiling != mode or user.mode_default != mode:
+            set_mode_ceiling(db, user, mode, mode)
+    db.flush()
 
 
 def _enforce_locks(db: Session) -> None:

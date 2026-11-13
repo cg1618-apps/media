@@ -2,12 +2,20 @@
 routers/users.py
 User accounts, created and managed by the admin.
 
-There is no self-registration by design: accounts exist so one person can hand
-out a level of access, not so strangers can ask for one.
+Accounts are created here by the admin, or arrive through an invite link: the
+admin issues the invite, whoever holds it registers (routers/auth.py), and the
+account waits `pending` until the admin approves or declines it here. Nobody
+registers without an invite.
 
 Three guards exist because each mistake locks the admin out of their own site:
 you cannot delete or disable yourself, and you cannot remove the last active
 account that can still administer anything.
+
+The roles are fixed, and so is who holds two of them. An account is given
+`user` or `super` and nothing else (422 otherwise). The `admin` account's role
+and a shared account's role never change, and a shared account is never
+deleted and its mode never edited - each a 409 of its own, not left to the
+last-admin guard.
 
 Every NEW username and password passes the checks in services/security.py
 (validate_new_username, validate_new_password), and a refusal is a 422 whose
@@ -15,11 +23,10 @@ detail is the sentence to show. Names already stored are left alone.
 """
 
 import logging
-from typing import List
+from typing import List, Literal, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlalchemy import func
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app import models, schemas
@@ -29,7 +36,11 @@ from app.models.system import (
     USER_STATUS_DISABLED,
     USER_STATUS_PENDING,
 )
-from app.services.domain.account_codes import issue_reset_link, reset_refusal
+from app.services.domain.account_codes import (
+    issue_invite,
+    issue_reset_link,
+    reset_refusal,
+)
 from app.services.domain.accounts import (
     ADMIN_SET_PASSWORD_REVOKES_SESSIONS,
     KEEP_OWN_SESSION_ON_ADMIN_SET_PASSWORD,
@@ -37,10 +48,21 @@ from app.services.domain.accounts import (
     revoke_sessions,
     set_login_cookie,
 )
+from app.services.domain.registration import (
+    NotPending,
+    approve_registration,
+    decline_registration,
+    username_taken,
+)
 from app.services.domain.requests import default_request_limit, limit_is_fixed
 from app.services.rbac import cache
 from app.services.rbac.modes import ModeSets, check_mode_pair, set_mode_ceiling
-from app.services.rbac.permissions import PERM_ADMIN_AUTHZ
+from app.services.rbac.permissions import (
+    ADMIN_ROLE_NAME,
+    ASSIGNABLE_ROLE_NAMES,
+    PERM_ADMIN_AUTHZ,
+    SHARED_ROLE_NAME,
+)
 from app.services.rbac.resolver import Viewer, require_admin_authz, role_for_user
 from app.services.security import (
     get_password_hash,
@@ -118,21 +140,35 @@ def _checked(check, value):
         raise HTTPException(status_code=422, detail=str(exc))
 
 
-def _name_taken(db: Session, username: str, excluding: UUID = None) -> bool:
-    """Case-insensitive, as uq_users_username_lower is."""
-    query = db.query(models.User).filter(
-        func.lower(models.User.username) == username.lower()
-    )
-    if excluding is not None:
-        query = query.filter(models.User.id != excluding)
-    return query.first() is not None
-
-
 def _role_or_422(db: Session, role_id: UUID) -> models.Role:
     role = db.get(models.Role, role_id)
     if role is None:
         raise HTTPException(status_code=422, detail="Unknown role.")
     return role
+
+
+def _assignable_role_or_422(db: Session, role_id: UUID) -> models.Role:
+    """A role an admin may give an account: `user` or `super`."""
+    role = _role_or_422(db, role_id)
+    if role.name not in ASSIGNABLE_ROLE_NAMES:
+        raise HTTPException(
+            status_code=422,
+            detail="An account's role is either user or super.",
+        )
+    return role
+
+
+# The roles whose holders keep them: the one admin account, and the shared
+# accounts the seed maintains. Each answer names which.
+_FIXED_ROLE_REFUSALS: dict[str, str] = {
+    ADMIN_ROLE_NAME: "The admin account's role is fixed.",
+    SHARED_ROLE_NAME: "A shared account's role is fixed.",
+}
+
+
+def _is_shared(db: Session, user: models.User) -> bool:
+    role = role_for_user(db, user)
+    return role is not None and role.name == SHARED_ROLE_NAME
 
 
 def _can_administer(db: Session, role: models.Role) -> bool:
@@ -173,9 +209,104 @@ def _admin_count(db: Session, excluding: UUID = None) -> int:
 
 
 @router.get("/", response_model=List[schemas.ManagedUserResponse], summary="List Users")
-def list_users(db: Session = Depends(get_db)):
-    users = db.query(models.User).order_by(models.User.username).all()
+def list_users(
+    status_filter: Optional[Literal["pending", "active", "disabled"]] = Query(
+        None, alias="status"
+    ),
+    db: Session = Depends(get_db),
+):
+    """Every account, or only those with `status` - `?status=pending` is the
+    pending-registrations panel's list."""
+    query = db.query(models.User)
+    if status_filter is not None:
+        query = query.filter(models.User.status == status_filter)
+    users = query.order_by(models.User.username).all()
     return [_to_response(user, db) for user in users]
+
+
+@router.post(
+    "/invites",
+    response_model=schemas.InviteLinkResponse,
+    summary="Issue an invite link",
+)
+def create_invite(
+    db: Session = Depends(get_db),
+    admin: Viewer = Depends(require_admin_authz),
+):
+    """
+    A one-time link that lets whoever holds it register one account, valid
+    24 hours. The account arrives `pending` and waits for approval.
+
+    Returned once: only a hash of the code is stored. Unlike a reset link, a
+    new invite does not void the open ones - each is for a different person.
+    """
+    link, expires_at = issue_invite(db, created_by_id=admin.user_id)
+    db.commit()
+    logger.info("%s issued an invite link", admin.username)
+    return {"link": link, "expires_at": expires_at}
+
+
+def _pending_or_409(fn):
+    try:
+        return fn()
+    except NotPending:
+        raise HTTPException(
+            status_code=409, detail="This account is not a pending registration."
+        ) from None
+
+
+@router.post(
+    "/{user_id}/approve",
+    response_model=schemas.ManagedUserResponse,
+    summary="Approve a pending registration",
+)
+def approve_user(
+    user_id: UUID,
+    payload: schemas.RegistrationApproval,
+    db: Session = Depends(get_db),
+    admin: Viewer = Depends(require_admin_authz),
+):
+    """
+    Make a pending account active: its role (`user` or `super`, default
+    `user`), ceiling and default (default `normal` / `normal`, never
+    `unrestricted`) and the role's request limit, in one transaction. 409 for
+    an account that is not pending, 422 for a refused role or mode.
+    """
+    user = _get_or_404(db, user_id)
+    role = _role_or_422(db, payload.role_id) if payload.role_id else None
+    try:
+        _pending_or_409(
+            lambda: approve_registration(
+                db, user, role, payload.ceiling_mode, payload.default_mode
+            )
+        )
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+    db.commit()
+    db.refresh(user)
+    logger.info("%s approved the registration of %s", admin.username, user.username)
+    return _to_response(user, db)
+
+
+@router.post(
+    "/{user_id}/reject",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Decline a pending registration",
+)
+def reject_user(
+    user_id: UUID,
+    db: Session = Depends(get_db),
+    admin: Viewer = Depends(require_admin_authz),
+):
+    """Delete a pending account (409 for any other). The invite that created
+    it stays spent."""
+    user = _get_or_404(db, user_id)
+    username = user.username
+    _pending_or_409(lambda: decline_registration(db, user))
+    db.commit()
+    logger.info("%s declined the registration of %s", admin.username, username)
+    return None
 
 
 @router.post(
@@ -187,9 +318,9 @@ def list_users(db: Session = Depends(get_db)):
 def create_user(payload: schemas.ManagedUserCreate, db: Session = Depends(get_db)):
     _checked(validate_new_username, payload.username)
     _checked(validate_new_password, payload.password)
-    if _name_taken(db, payload.username):
+    if username_taken(db, payload.username):
         raise HTTPException(status_code=409, detail="That username is taken.")
-    role = _role_or_422(db, payload.role_id)
+    role = _assignable_role_or_422(db, payload.role_id)
 
     user = models.User(
         username=payload.username,
@@ -228,6 +359,10 @@ def replace_access_modes(
     checked before anything is written.
     """
     user = _get_or_404(db, user_id)
+    if _is_shared(db, user):
+        raise HTTPException(
+            status_code=409, detail="A shared account's mode is fixed."
+        )
 
     try:
         check_mode_pair(payload.ceiling, payload.default)
@@ -323,7 +458,11 @@ def update_user(
     user = _get_or_404(db, user_id)
     new_role = None
     if payload.role_id and payload.role_id != user.role_id:
-        new_role = _role_or_422(db, payload.role_id)
+        current = role_for_user(db, user)
+        refusal = _FIXED_ROLE_REFUSALS.get(current.name if current else "")
+        if refusal:
+            raise HTTPException(status_code=409, detail=refusal)
+        new_role = _assignable_role_or_422(db, payload.role_id)
     limit_set = "open_request_limit" in payload.model_fields_set
     resulting_role = new_role or role_for_user(db, user)
     if (
@@ -349,7 +488,7 @@ def update_user(
 
     if payload.username is not None and payload.username != user.username:
         _checked(validate_new_username, payload.username)
-        if _name_taken(db, payload.username, excluding=user.id):
+        if username_taken(db, payload.username, excluding=user.id):
             raise HTTPException(status_code=409, detail="That username is taken.")
         user.username = payload.username
 
@@ -432,6 +571,11 @@ def delete_user(
 
     if admin.username == user.username:
         raise HTTPException(status_code=409, detail="You cannot delete yourself.")
+    if _is_shared(db, user):
+        raise HTTPException(
+            status_code=409,
+            detail="A shared account cannot be deleted. Disable it instead.",
+        )
     if _can_administer(db, role_for_user(db, user)) and _admin_count(
         db, excluding=user.id
     ) == 0:

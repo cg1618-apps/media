@@ -34,7 +34,11 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.database import get_taipei_now
-from app.services.rbac.permissions import SUPER_ROLE_NAME, USER_ROLE_NAME
+from app.services.rbac.permissions import (
+    SHARED_ROLE_NAME,
+    SUPER_ROLE_NAME,
+    USER_ROLE_NAME,
+)
 from app.services.rbac.resolver import Viewer
 from app.utils.constants import REQUEST_STATUS_OPEN
 from app.utils.media_resolver import (
@@ -47,7 +51,7 @@ logger = logging.getLogger(__name__)
 
 # Each role's starting open-request limit. A role not named here starts with
 # none. Applied when an account is created and when its role changes.
-DEFAULT_REQUEST_LIMITS: dict[str, int] = {USER_ROLE_NAME: 15}
+DEFAULT_REQUEST_LIMITS: dict[str, int] = {USER_ROLE_NAME: 15, SHARED_ROLE_NAME: 10}
 
 # The roles whose limit is fixed at none: never stored, never enforced.
 UNLIMITED_ROLES: frozenset[str] = frozenset({SUPER_ROLE_NAME})

@@ -1408,7 +1408,8 @@ prose twin is [../data-actions.md](../data-actions.md#6-calculate-all).
 
 ## /roles, /users, /content-labels
 
-- **Roles** — create roles, replace their permission set from the catalog
+- **Roles** — the five fixed roles, with no way to add or remove one;
+  replace a role's permission set from the catalog
   (`/api/roles/catalog`). Boxes a role may not change are drawn disabled from
   the `locked_on` / `locked_off` the role itself carries, and a role with
   nothing left to decide (`super`, `admin`) gets no Save button. The same
@@ -1418,7 +1419,11 @@ prose twin is [../data-actions.md](../data-actions.md#6-calculate-all).
   the Viewing family (`view.*` - entities, search, extras, personal, the
   member-only reading surfaces) is drawn with `fa-eye`.
 - **Users** — create users with a role, change role, set a password,
-  delete; the last administrator and your own account are protected. The
+  delete; the last administrator and your own account are protected. Both
+  role selects — on create and in a row's edit mode — offer only **User** and
+  **Super**; an `admin` or `shared` row shows its role as text instead of a
+  select. A `shared` row has no **Delete** and no access panel: its mode
+  column reads `Mode: <label> (fixed)`. The
   password field in a row's edit mode says that setting one signs the
   account out everywhere. The edit form also holds an **Open request limit**
   number field (blank is no limit) for any account whose role has one: not

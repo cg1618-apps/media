@@ -37,6 +37,7 @@ from typing import Any, Callable, Optional
 from sqlalchemy.orm import Session
 
 from app import models
+from app.models.system import USER_STATUS_PENDING
 from app.utils import formatter as f
 
 
@@ -71,6 +72,17 @@ class SheetTab:
     # headed by the field key, after the plain and extra columns. The entry
     # tabs' credit/tag columns are the same idea, keyed by media_type instead.
     character_tags: bool = False
+    # Narrows which rows Backup writes, given the model's query. None is
+    # every row. Used by Users: a pending registration is not an account yet
+    # and belongs to this machine's approval queue, not to the other machine.
+    row_filter: Optional[Callable[[Any], Any]] = None
+
+    def rows(self, db: Session) -> list:
+        """The rows Backup writes for this tab."""
+        query = db.query(self.model)
+        if self.row_filter is not None:
+            query = self.row_filter(query)
+        return query.all()
 
 
 def _resolved_option(row: Any, db: Session) -> Optional["models.SystemOption"]:
@@ -212,6 +224,9 @@ SHEET_TABS: tuple[SheetTab, ...] = (
         drop_columns=("hashed_password", "role_id", "session_version"),
         extra_columns=(("role", _user_role_name),),
         requires_authz=True,
+        row_filter=lambda query: query.filter(
+            models.User.status != USER_STATUS_PENDING
+        ),
     ),
     # Vocabulary next; scopes point at options via option_id.
     SheetTab("System Options", models.SystemOption, f.parse_system_option_from_sheet),
