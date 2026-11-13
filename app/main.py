@@ -35,6 +35,7 @@ from app.routers import (
     content_labels,
     covers,
     credits,
+    dashboard,
     data_control,
     form_defaults,
     franchise,
@@ -308,6 +309,7 @@ app.include_router(resources.router)
 app.include_router(seasonal.catalogue_router)
 app.include_router(seasonal.router)
 app.include_router(statistics.router)
+app.include_router(dashboard.router)
 app.include_router(search.router)
 
 app.include_router(announcements.router)

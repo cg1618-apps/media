@@ -96,6 +96,7 @@ for the catch-all, which is last).
 | `meme` | `/api/meme` | |
 | `seasonal` | `/api/seasonal` | two routers: `router` (an account's own rows, `self.list`) and `catalogue_router` (the current season and the catalogue's seasons, ungated) |
 | `statistics` | `/api/statistics` | counts of the catalogue |
+| `dashboard` | `/api/dashboard` | the handler's summary; recently added |
 | `search` | `/api/search` | server-side search endpoint |
 | `announcements` | `/api/announcements` | |
 | `form_defaults` | `/api/form-defaults` | |

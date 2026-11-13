@@ -522,3 +522,25 @@ class CatalogueStatistics(BaseModel):
     by_type: Dict[str, int]
     by_season: List[SeasonCount]
     by_genre: List[GenreCount]
+
+
+class DashboardSummary(BaseModel):
+    """GET /api/dashboard/summary: what waits for whoever handles it."""
+
+    pending_registrations: int
+    open_requests: int
+
+
+class RecentEntry(BaseModel):
+    """One recently added entry, as much as a dashboard card needs: what it
+    is, where it lives (`/<media_type>/<public_id>`) and its cover."""
+
+    system_id: UUID
+    media_type: str
+    public_id: int
+    display_name: str
+    cover_image_file: Optional[str] = None
+    cover_image_focus: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)

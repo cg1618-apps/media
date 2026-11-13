@@ -61,6 +61,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [Note — `/api/notes`](#note--apinotes)
 - [Seasonal — `/api/seasonal`](#seasonal--apiseasonal)
 - [Statistics — `/api/statistics`](#statistics--apistatistics)
+- [Dashboard — `/api/dashboard`](#dashboard--apidashboard)
 - [Add-tab picker searches](#add-tab-picker-searches)
 - [Search — `/api/search`](#search--apisearch)
 - [FX Rates — `/api/fx-rates`](#fx-rates--apifx-rates)
@@ -1190,6 +1191,15 @@ rows and is empty for an anonymous searcher.
 
 ---
 
+
+## Dashboard — `/api/dashboard`
+
+What the dashboard needs beyond the routes it links to (`app/routers/dashboard.py`).
+
+| Method | Path | Auth | Description |
+| ------ | ---- | ---- | ----------- |
+| `GET`  | `/summary` | `manage.requests` | `DashboardSummary` — `{pending_registrations, open_requests}`: how many accounts wait for approval and how many requests and reports are open. Counts only. Any other viewer gets **401**. |
+| `GET`  | `/recent` | Public | `RecentEntry[]` — `{system_id, media_type, public_id, display_name, cover_image_file, cover_image_focus, created_at}`, newest first across every media type the viewer may see. `limit` 1–50, default 12. A type the role lacks and an entry its mode hides are left out. |
 ## Add-tab picker searches
 
 Each Add tab can identify a new entry against the outside database Fill reads
