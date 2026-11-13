@@ -10,10 +10,11 @@
 // character in that entry, since (unlike a person's own credits) knowing who
 // played the part is the point of looking a character up.
 //
-// Like Person.jsx it reads the API with plain fetch. An admin can set my
-// rating and the remark in place, and jump to the full editor; both go
-// through PATCH (components/info/EntityProfileControls.jsx) and the page
-// takes the response as its new state.
+// Like Person.jsx it reads the API with plain fetch. An admin can write the
+// remark in place and jump to the full editor; the remark goes through PATCH
+// (components/info/EntityProfileControls.jsx) and the page takes the response
+// as its new state. My rating is the viewer's own: a holder of self.list sets
+// it through PUT /api/me/ratings (api/mutations/useMyRatingMutations.js).
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
@@ -39,6 +40,8 @@ import { Eyebrow, RatingStamp } from "../../components/ui/primitives";
 import LazyImage from "../../components/ui/LazyImage";
 import { useAuth } from "../../contexts/AuthContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
+import { useViewScope } from "../../hooks/useViewScope";
+import { useMyRatingSaver } from "../../api/mutations/useMyRatingMutations";
 
 export default function Character() {
   const { publicId } = useParams();
@@ -48,6 +51,9 @@ export default function Character() {
   const [error, setError] = useState(null);
   const { isAdmin } = useAuth();
   const patch = useEntityPatch("character", character?.system_id, setCharacter);
+  // My rating is the viewer's own (self.list), saved through /api/me/ratings.
+  const { ownData: canRate } = useViewScope();
+  const saveMyRating = useMyRatingSaver("character", character?.system_id, setCharacter);
 
   useCanonicalPath("character", character);
 
@@ -168,10 +174,10 @@ export default function Character() {
             </div>
           </div>
 
-          {isAdmin && (
+          {canRate && (
             <RatingSelect
               rating={character.my_rating}
-              onChange={(v) => patch({ my_rating: v }, "Rating saved")}
+              onChange={(v) => saveMyRating({ my_rating: v }, "Rating saved")}
             />
           )}
 

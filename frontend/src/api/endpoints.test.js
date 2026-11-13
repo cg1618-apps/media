@@ -196,6 +196,12 @@ describe("named endpoint groups", () => {
     expect(endpoints.gameChoice.markEdge("X")).toBe("/api/game-choice/edges/X/mark");
   });
 
+  it("me: the caller's own ratings and novel-unit opinions", () => {
+    expect(endpoints.me.rating("franchise", "F1")).toBe("/api/me/ratings/franchise/F1");
+    expect(endpoints.me.rating("studio", "S1")).toBe("/api/me/ratings/studio/S1");
+    expect(endpoints.me.novelUnit("U1")).toBe("/api/me/novel-units/U1");
+  });
+
   it("studio and publisher take a partial PATCH, like person and character", () => {
     expect(endpoints.studio.patch("X")).toBe("/api/studio/X");
     expect(endpoints.publisher.patch("X")).toBe("/api/publisher/X");

@@ -48,8 +48,6 @@ class TestCreateSeries:
             "series_name_roman": "Shin Series",
             "series_name_jp": "新シリーズ",
             "series_name_alt": "NS",
-            "my_rating": "A",
-            "series_expectation": "High",
             "remark": "a remark",
         }
         response = admin_client.post("/api/series/", json=payload)
@@ -57,17 +55,23 @@ class TestCreateSeries:
         data = response.json()
         assert data["series_name_roman"] == "Shin Series"
         assert data["series_name_jp"] == "新シリーズ"
-        assert data["my_rating"] == "A"
-        assert data["series_expectation"] == "High"
         assert data["remark"] == "a remark"
 
-    def test_expectation_defaults_to_low(self, admin_client, sample_franchise):
+    def test_a_rating_and_expectation_in_the_payload_are_ignored(
+        self, admin_client, sample_franchise
+    ):
+        """They are the writer's own (user_rating), written through
+        PUT /api/me/ratings - a catalogue create does not carry them."""
         payload = {
             "franchise_id": str(sample_franchise.system_id),
             "series_name_en": "Defaulted",
+            "my_rating": "A",
+            "series_expectation": "High",
         }
         response = admin_client.post("/api/series/", json=payload)
-        assert response.json()["series_expectation"] == "Low"
+        assert response.status_code == 201
+        assert response.json()["my_rating"] is None
+        assert response.json()["series_expectation"] is None
 
     def test_cover_entry_id_round_trips(self, admin_client, sample_franchise, sample_anime):
         payload = {
@@ -90,14 +94,14 @@ class TestCreateSeries:
 class TestPatchSeries:
     def test_admin_can_patch_single_field(self, admin_client, sample_series):
         response = admin_client.patch(
-            f"/api/series/{sample_series.system_id}", json={"my_rating": "S"}
+            f"/api/series/{sample_series.system_id}", json={"series_name_jp": "S"}
         )
         assert response.status_code == 200
-        assert response.json()["my_rating"] == "S"
+        assert response.json()["series_name_jp"] == "S"
 
     def test_patch_leaves_other_fields_intact(self, admin_client, sample_series):
         admin_client.patch(
-            f"/api/series/{sample_series.system_id}", json={"my_rating": "S"}
+            f"/api/series/{sample_series.system_id}", json={"series_name_jp": "S"}
         )
         data = admin_client.get(f"/api/series/{sample_series.system_id}").json()
         assert data["series_name_en"] == "Test Series"

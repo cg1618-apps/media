@@ -36,7 +36,6 @@ def test_studio_carries_the_profile_columns(db_session):
         name_cn="京都動畫",
         name_alt="KyoAni",
         display_name_field="alt",
-        my_rating="S",
         logo_file="k.png",
         founded_date="1985-11",
         country="Japan",

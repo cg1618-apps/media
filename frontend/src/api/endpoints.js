@@ -85,6 +85,15 @@ export const endpoints = {
     settings: () => "/api/account/settings",
   },
 
+  // The caller's own opinion of a catalogue row (self.list): its rating of a
+  // collection, franchise, series, character, person, studio or publisher and
+  // its expectation of a tier; and its rating and remark of one novel unit.
+  // Both are PUTs with a partial body - only the keys sent change, null clears.
+  me: {
+    rating: (ownerType, ownerId) => `/api/me/ratings/${ownerType}/${ownerId}`,
+    novelUnit: (unitId) => `/api/me/novel-units/${unitId}`,
+  },
+
   contentLabels: {
     list: () => "/api/content-labels/",
     create: () => "/api/content-labels/",

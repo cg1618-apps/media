@@ -17,7 +17,6 @@ import {
 import PublisherScopePills from "../../components/forms/PublisherScopePills";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import ImagePicker from "../../components/forms/ImagePicker";
-import { MY_RATINGS } from "../../config/fieldOptions";
 // Publisher is the third consumer of this list, after Studio and Person: all
 // three carry the same four name columns and the same display_name_field
 // choice, so the field list is shared rather than copied.
@@ -75,20 +74,6 @@ export function PublisherFields({ publisherForm, upf, ownerId }) {
         setScopes={(next) => upf("scopes", next)}
       />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="My Rating">
-          <select
-            className={selectCls}
-            value={publisherForm.my_rating ?? ""}
-            onChange={(e) => upf("my_rating", e.target.value)}
-          >
-            <option value="">—</option>
-            {MY_RATINGS.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
         <Field label="Logo">
           <ImagePicker
             ownerType="publisher"

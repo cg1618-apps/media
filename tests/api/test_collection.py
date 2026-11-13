@@ -71,8 +71,6 @@ class TestCreateCollection:
             "collection_name_roman": "Zen",
             "collection_name_jp": "全",
             "collection_name_alt": "Alt",
-            "my_rating": "S",
-            "collection_expectation": "High",
             "cover_franchise_id": str(sample_franchise.system_id),
             "remark": "a remark",
         }
@@ -84,10 +82,11 @@ class TestCreateCollection:
 class TestUpdateCollection:
     def test_admin_can_patch(self, admin_client, sample_collection):
         response = admin_client.patch(
-            f"/api/collection/{sample_collection.system_id}", json={"my_rating": "A"}
+            f"/api/collection/{sample_collection.system_id}",
+            json={"collection_name_jp": "A"},
         )
         assert response.status_code == 200
-        assert response.json()["my_rating"] == "A"
+        assert response.json()["collection_name_jp"] == "A"
 
     def test_guest_cannot_patch(self, client, sample_collection):
         response = client.patch(

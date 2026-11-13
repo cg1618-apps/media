@@ -198,30 +198,29 @@ of `manage.catalog` write catalogue rows only, others personal rows only
 after the catalogue rows within each group. Never promoted. **How a
 personal row looks waits for a design.**
 
-## Questions for the manager (and the owner where marked)
+## Settled with the manager and the owner
 
-- **Q1.** *(Settled: one branch, parts A, C, D, E, B in that order.)*
-- **Q2. `view.personal`** gates nothing once Parts A and C land. Remove the
-  permission (seeds, grants, `useViewScope.personal`) in Part C, the part that
-  empties it? Recommendation: yes.
-- **Q3. The admin** keeps no personal data: after Part A its responses carry
-  null ratings and it cannot write one. Today the admin edits ratings inline
-  on group pages. Confirm that is intended now, rather than waiting for the
-  P-slice that removes the admin's entry pages. Recommendation: yes — the
-  spec settles it, and a write the admin makes now would be filed under an
-  account that keeps no data.
-- **Q4 (owner). Highlight group order** becomes per user with the rows:
-  a per-user order table (the shared column moves to the installation
-  owner and is dropped), or keep the shared order as everyone's default?
-  Recommendation: per user.
-- **Q5 (owner). The review queue's waiting music** reads every account's
-  statuses today. After Part D: the viewer's own marks. Recommendation: the
-  viewer's own.
-- **Q6 (owner). Designs needed**, in the order the parts reach them:
-  per-user highlight group order if Q4 is per user (C), editing a personal
-  field in a row and the NG reset button (D), a personal row in a mixed
-  section (E). Each part ships its backend complete and the rest of its UI
-  on existing controls. With one branch for all of P5, a design that has not
-  arrived when the rest is done is the one thing this branch cannot finish:
-  either the branch waits for it, or that UI follows after the four merges.
-  The owner's call.
+- **Q1.** One branch; parts A, C, D, E, B in that order.
+- **Q2.** `view.personal` is removed in Part C, which empties it. This
+  branch owns the removal.
+- **Q3.** The admin keeps no personal data: null ratings, no rating writes,
+  and the inline rating editors disappear for it.
+- **Q4.** Highlight group order is per user. Today's value moves to the
+  owner's account (`cg1618`), through the installation-owner rule the other
+  migrations use, which resolves to the flag holder.
+- **Q5.** The review queue's waiting music reads the viewer's own statuses.
+- **Q6.** Build plain now, refine later: the three UI pieces — per-user
+  highlight group order, editing a personal field plus the NG reset button,
+  personal rows in mixed sections — are built with existing controls and the
+  design system, and marked **provisional UI** in the PR body. The owner
+  reviews on the preview and sends designs afterwards.
+- The per-section write gating of Part C is called out in the PR body as a
+  behaviour change.
+- `dev` is merged in as soon as #352 (P4a) lands, not at the end.
+- **Whose account a migration moves data to** — every P5 migration uses one
+  frozen query, never an import, and never `role.is_root` (P3h drops it):
+  `WHERE u.is_installation_owner OR r.name NOT IN ('admin','guest','shared')
+  ORDER BY u.is_installation_owner DESC, u.username LIMIT 1`; no candidate
+  and data to move raises. Production may lack the flag, and `guest` must
+  never receive the owner's data. Each migration's test covers flag unset
+  with an eligible-looking guest, flag set, and admin-and-guest only.

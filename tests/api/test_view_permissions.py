@@ -2,8 +2,8 @@
 The view.* family: what a logged-out visitor does not see.
 
 Four keys, held by `user` and `super` and not by `guest`. Each refusal below is
-asserted with the gated thing PRESENT - a row to read, a rating to strip, a
-highlight to withhold - and is mirrored by a viewer holding the key reading the
+asserted with the gated thing PRESENT - a row to read, a highlight to
+withhold - and is mirrored by a viewer holding the key reading the
 same thing through the same fixture, so a green proves the gate refused and not
 that there was nothing to return.
 """
@@ -268,26 +268,34 @@ def test_the_section_listing_omits_highlights_for_a_guest(client, user_client):
 
 
 # ---------------------------------------------------------------------------
-# Stripping personal fields
+# Ratings, expectations and unit remarks are the viewer's own
 # ---------------------------------------------------------------------------
+# No longer a view.personal question: they live per account (user_rating,
+# user_novel_unit_rating), so a viewer reads its own and nobody else's. Each
+# null below is asserted with a row PRESENT - the member's own - so it proves
+# the read is per account rather than that nothing was rated.
 
 
 @pytest.fixture
-def rated_groups(db, sample_collected_franchise, sample_collection):
-    """Groups carrying the owner's opinion - the values a guest must not get."""
+def rated_groups(db, plain_user, sample_collected_franchise, sample_collection):
+    """Groups the member (plain_user, user_client) has rated and expected."""
     franchise = sample_collected_franchise
-    franchise.my_rating = "S"
-    franchise.franchise_expectation = "High"
     series = models.Series(
         system_id=uuid.uuid4(),
         franchise_id=franchise.system_id,
         series_name_en="Rated Series",
-        my_rating="A",
-        series_expectation="High",
     )
-    sample_collection.my_rating = "A+"
-    sample_collection.collection_expectation = "High"
     db.add(series)
+    db.flush()
+    db.add_all([
+        models.UserRating(user_id=plain_user.id, franchise_id=franchise.system_id,
+                          my_rating="S", expectation="High"),
+        models.UserRating(user_id=plain_user.id, series_id=series.system_id,
+                          my_rating="A", expectation="High"),
+        models.UserRating(user_id=plain_user.id,
+                          collection_id=sample_collection.system_id,
+                          my_rating="A+", expectation="High"),
+    ])
     db.flush()
     return {"franchise": franchise, "series": series, "collection": sample_collection}
 
@@ -319,7 +327,7 @@ def test_a_guest_gets_group_ratings_and_expectations_as_null(client, rated_group
             assert body[field] is None, (kind, field)
 
 
-def test_a_member_gets_them(user_client, rated_groups):
+def test_the_member_gets_its_own(user_client, rated_groups):
     bodies = _group_reads(user_client, rated_groups)
     kinds = [k for k in rated_groups for _ in (0, 1)]
     for kind, body in zip(kinds, bodies):
@@ -327,21 +335,10 @@ def test_a_member_gets_them(user_client, rated_groups):
             assert body[field] is not None, (kind, field)
 
 
-def test_stripping_does_not_write_the_null_back(db, client, rated_groups):
-    client.get(f"/api/franchise/{rated_groups['franchise'].system_id}")
-    db.flush()
-    db.refresh(rated_groups["franchise"])
-    assert rated_groups["franchise"].my_rating == "S"
-    assert rated_groups["franchise"].franchise_expectation == "High"
-
-
-def test_a_catalogue_manager_without_view_personal_still_gets_them(
-    db, client, rated_groups
-):
-    """
-    The edit forms load a group with a GET and send it back whole, so a
-    manager handed a null would write it over the stored value.
-    """
+def test_a_catalogue_manager_gets_its_own_not_the_members(db, client, rated_groups):
+    """manage.catalog used to be exempt from the strip, because the edit
+    forms sent the rating back whole. They no longer carry it, so a manager
+    reads its own - none - and never the member's."""
     make_viewer(
         db,
         client,
@@ -349,10 +346,10 @@ def test_a_catalogue_manager_without_view_personal_still_gets_them(
         default_guest_permissions() | {PERM_MANAGE_CATALOG},
     )
     body = client.get(f"/api/franchise/{rated_groups['franchise'].system_id}").json()
-    assert body["my_rating"] == "S"
+    assert body["my_rating"] is None
 
 
-def test_search_strips_for_a_searcher_without_view_personal(db, client, rated_groups):
+def test_search_gives_another_searcher_null(db, client, rated_groups):
     make_viewer(
         db,
         client,
@@ -369,7 +366,7 @@ def test_search_strips_for_a_searcher_without_view_personal(db, client, rated_gr
     assert franchise["franchise_expectation"] is None
 
 
-def test_search_keeps_them_for_a_member(user_client, rated_groups):
+def test_search_gives_the_member_its_own(user_client, rated_groups):
     body = user_client.get("/api/search/", params={"q": "Collected Franchise"}).json()
     franchise = next(
         f
@@ -380,14 +377,19 @@ def test_search_keeps_them_for_a_member(user_client, rated_groups):
 
 
 @pytest.fixture
-def rated_entities(db, person, character):
-    studio = models.Studio(system_id=uuid.uuid4(), name_en="Rated Studio", my_rating="S")
-    publisher = models.Publisher(
-        system_id=uuid.uuid4(), name_en="Rated Publisher", my_rating="S"
-    )
-    person.my_rating = "S"
-    character.my_rating = "S"
+def rated_entities(db, plain_user, person, character):
+    studio = models.Studio(system_id=uuid.uuid4(), name_en="Rated Studio")
+    publisher = models.Publisher(system_id=uuid.uuid4(), name_en="Rated Publisher")
     db.add_all([studio, publisher])
+    db.flush()
+    db.add_all([
+        models.UserRating(user_id=plain_user.id, studio_id=studio.system_id, my_rating="S"),
+        models.UserRating(user_id=plain_user.id, publisher_id=publisher.system_id,
+                          my_rating="S"),
+        models.UserRating(user_id=plain_user.id, person_id=person.system_id, my_rating="S"),
+        models.UserRating(user_id=plain_user.id, character_id=character.system_id,
+                          my_rating="S"),
+    ])
     db.flush()
     return {
         "studio": studio,
@@ -397,7 +399,7 @@ def rated_entities(db, person, character):
     }
 
 
-def test_entities_strip_my_rating_without_view_personal(db, client, rated_entities):
+def test_entities_give_another_viewer_null(db, client, rated_entities):
     make_viewer(
         db,
         client,
@@ -413,14 +415,14 @@ def test_entities_strip_my_rating_without_view_personal(db, client, rated_entiti
         ] is None, kind
 
 
-def test_entities_keep_my_rating_for_a_member(user_client, rated_entities):
+def test_entities_give_the_member_its_own(user_client, rated_entities):
     for kind, row in rated_entities.items():
         body = user_client.get(f"/api/{kind}/{row.system_id}").json()
         assert body["my_rating"] == "S", kind
 
 
 @pytest.fixture
-def novel_with_remark(db, sample_franchise):
+def novel_with_remark(db, plain_user, sample_franchise):
     novel = models.Novel(
         system_id=uuid.uuid4(),
         franchise_id=sample_franchise.system_id,
@@ -429,14 +431,18 @@ def novel_with_remark(db, sample_franchise):
     )
     db.add(novel)
     db.flush()
+    unit = models.NovelUnit(
+        system_id=uuid.uuid4(),
+        novel_id=novel.system_id,
+        unit_kind="arc",
+        position=1,
+        ch_count=10,
+    )
+    db.add(unit)
+    db.flush()
     db.add(
-        models.NovelUnit(
-            system_id=uuid.uuid4(),
-            novel_id=novel.system_id,
-            unit_kind="arc",
-            position=1,
-            ch_count=10,
-            remark="這卷最好看",
+        models.UserNovelUnitRating(
+            user_id=plain_user.id, unit_id=unit.system_id, remark="這卷最好看"
         )
     )
     db.flush()
@@ -451,15 +457,13 @@ def _units(c, novel):
     return detail["units"] + row["units"]
 
 
-def test_a_guest_gets_novel_unit_remarks_as_null(db, client, novel_with_remark):
+def test_a_guest_gets_novel_unit_remarks_as_null(client, novel_with_remark):
     units = _units(client, novel_with_remark)
     assert units, "the novel must carry a unit for this to bite"
     assert all(u["remark"] is None for u in units)
-    unit = db.query(models.NovelUnit).filter_by(novel_id=novel_with_remark.system_id).one()
-    assert unit.remark == "這卷最好看"
 
 
-def test_a_member_gets_novel_unit_remarks(user_client, novel_with_remark):
+def test_the_member_gets_its_own_unit_remarks(user_client, novel_with_remark):
     units = _units(user_client, novel_with_remark)
     assert units
     assert all(u["remark"] == "這卷最好看" for u in units)

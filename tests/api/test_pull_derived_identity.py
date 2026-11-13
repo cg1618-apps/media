@@ -130,7 +130,10 @@ def test_studio_with_a_foreign_uuid_updates_the_local_row(db_session, sheets):
     rows = db_session.query(models.Studio).filter_by(name_en="シャフト").all()
     assert len(rows) == 1
     assert rows[0].system_id == local_id
-    assert rows[0].my_rating == "A"
+    # my_rating is not a column any more: an old sheet's value becomes the
+    # installation owner's rating of the LOCAL studio (u1r2atings3).
+    rating = db_session.query(models.UserRating).filter_by(studio_id=local_id).one()
+    assert rating.my_rating == "A"
 
 
 def test_a_different_name_cn_is_a_different_studio(db_session, sheets):

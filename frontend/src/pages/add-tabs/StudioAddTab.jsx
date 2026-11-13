@@ -11,7 +11,6 @@
 import { Field, SectionHeader, inputCls, selectCls } from "../../components/forms/FormField";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import ImagePicker from "../../components/forms/ImagePicker";
-import { MY_RATINGS } from "../../config/fieldOptions";
 import { STUDIO_NAME_FIELDS } from "../../lib/naming";
 
 export { defaultStudio } from "../../config/formFactories";
@@ -61,20 +60,6 @@ export function StudioFields({ studioForm, usf, ownerId }) {
         </select>
       </Field>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="My Rating">
-          <select
-            className={selectCls}
-            value={studioForm.my_rating ?? ""}
-            onChange={(e) => usf("my_rating", e.target.value)}
-          >
-            <option value="">—</option>
-            {MY_RATINGS.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
         <Field label="Logo">
           <ImagePicker
             ownerType="studio"

@@ -2,7 +2,7 @@
 // instead of the retired novel_name_each_cn/_en parallel lists, using each
 // unit's server-computed display_key.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -38,7 +38,7 @@ const BASE_NOVEL = {
   units: [],
 };
 
-const MEMBER_VIEW = ["view.entities", "view.search", "view.extras", "view.personal"];
+const MEMBER_VIEW = ["view.entities", "view.search", "view.extras", "view.personal", "self.list"];
 // What /api/auth/me grants the non-admin viewer; a guest case sets [].
 let viewPermissions = MEMBER_VIEW;
 
@@ -50,8 +50,8 @@ function respond(url, isAdmin) {
       username: isAdmin ? "admin" : "reader",
       role: isAdmin ? "admin" : "user",
       is_root: isAdmin,
-      // A member's view.* keys by default: entity names link (view.entities)
-      // and a unit's remark is shown (view.personal). The guest view of the
+      // A member's keys by default: entity names link (view.entities) and a
+      // unit's remark, the viewer's own, is shown (self.list). The guest view of the
       // links is pinned in CastSection.test and StudioLinks.test, and of the
       // remark below.
       permissions: viewPermissions,
@@ -159,11 +159,11 @@ describe("Novel detail page — units", () => {
     expect(screen.getByText("Limited edition")).toBeInTheDocument();
   });
 
-  it("leaves a unit's remark out for a viewer without view.personal", async () => {
-    // The same unit, remark and all, that the case above draws for a member:
-    // the server strips the remark for such a viewer, and the row must not
-    // draw it even if one arrives.
-    viewPermissions = [];
+  it("leaves a unit's remark out for a viewer without self.list", async () => {
+    // The same unit, remark and all, that the case above draws for a member,
+    // and every view.* key: only self.list is missing. Such a viewer has no
+    // remark of its own, and the row must not draw one even if it arrives.
+    viewPermissions = MEMBER_VIEW.filter((p) => p !== "self.list");
     mockFetch({
       ...BASE_NOVEL,
       type: "Light Novel",
@@ -183,6 +183,11 @@ describe("Novel detail page — units", () => {
     });
     mount();
     expect(await screen.findByText("第一卷 / Volume One")).toBeInTheDocument();
+    // Let /api/auth/me land, so the absence is the permission's doing.
+    await waitFor(() =>
+      expect(fetch.mock.calls.some(([u]) => String(u).startsWith("/api/auth/me"))).toBe(true),
+    );
+    await act(async () => {});
     expect(screen.queryByText("Limited edition")).toBeNull();
   });
 

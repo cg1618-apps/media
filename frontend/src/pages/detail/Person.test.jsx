@@ -3,6 +3,7 @@
 // everyone else - and the Naming card.
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Person from "./Person";
@@ -31,6 +32,20 @@ const PERSON = {
 
 function mockFetch(person = PERSON, groups = []) {
   global.fetch = vi.fn((url, init = {}) => {
+    if (init.method === "PUT") {
+      const body = JSON.parse(init.body);
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            owner_type: "person",
+            owner_id: "p1",
+            my_rating: body.my_rating ?? null,
+            expectation: null,
+          }),
+      });
+    }
     if (init.method === "PATCH") {
       return Promise.resolve({
         ok: true,
@@ -52,6 +67,7 @@ function WhereAmI() {
 
 function renderPage() {
   return render(
+    <QueryClientProvider client={new QueryClient()}>
     <ToastProvider>
       <MemoryRouter initialEntries={["/person/7"]}>
         <Routes>
@@ -59,7 +75,8 @@ function renderPage() {
           <Route path="/modify" element={<WhereAmI />} />
         </Routes>
       </MemoryRouter>
-    </ToastProvider>,
+    </ToastProvider>
+    </QueryClientProvider>,
   );
 }
 
@@ -67,8 +84,12 @@ function patchCalls() {
   return fetch.mock.calls.filter(([, init]) => init?.method === "PATCH");
 }
 
+function putCalls() {
+  return fetch.mock.calls.filter(([, init]) => init?.method === "PUT");
+}
+
 beforeEach(() => {
-  auth = { isAdmin: false };
+  auth = { isAdmin: false, has: () => false };
   mockFetch();
 });
 
@@ -240,9 +261,47 @@ describe("Person detail page", () => {
     });
   });
 
-  describe("as an admin", () => {
+  describe("as a member holding self.list", () => {
+    // The guest test renders the same person; only the permission differs, so
+    // the select's presence here is self.list's doing.
     beforeEach(() => {
-      auth = { isAdmin: true };
+      auth = { isAdmin: false, has: (p) => p === "self.list" };
+    });
+
+    it("edits its own rating, with no admin controls", async () => {
+      const user = userEvent.setup();
+      renderPage();
+      await user.selectOptions(await screen.findByLabelText("My rating"), "C");
+      await waitFor(() => expect(putCalls()).toHaveLength(1));
+      expect(putCalls()[0][0]).toBe("/api/me/ratings/person/p1");
+      expect(screen.queryByRole("button", { name: "Quick edit" })).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("Remark")).not.toBeInTheDocument();
+    });
+
+    it("saves my rating as its own, through /api/me/ratings", async () => {
+      const user = userEvent.setup();
+      renderPage();
+      await user.selectOptions(await screen.findByLabelText("My rating"), "C");
+      await waitFor(() => expect(putCalls()).toHaveLength(1));
+      const [url, init] = putCalls()[0];
+      expect(url).toBe("/api/me/ratings/person/p1");
+      expect(JSON.parse(init.body)).toEqual({ my_rating: "C" });
+      expect(patchCalls()).toHaveLength(0);
+      expect(await screen.findByLabelText("Rating C")).toBeInTheDocument();
+    });
+  });
+
+  describe("as an admin", () => {
+    // Root holds every key but the self.* family, as AuthContext's has() does:
+    // an admin keeps no personal data, so it has no rating of its own.
+    beforeEach(() => {
+      auth = { isAdmin: true, has: (p) => !p.startsWith("self.") };
+    });
+
+    it("draws no rating editor", async () => {
+      renderPage();
+      await screen.findByRole("button", { name: "Quick edit" });
+      expect(screen.queryByLabelText("My rating")).not.toBeInTheDocument();
     });
 
     it("links Quick edit to this person's Modify editor", async () => {
@@ -252,16 +311,6 @@ describe("Person detail page", () => {
       expect(await screen.findByText("at /modify?id=p1&type=person")).toBeInTheDocument();
     });
 
-    it("PATCHes my rating on change", async () => {
-      const user = userEvent.setup();
-      renderPage();
-      await user.selectOptions(await screen.findByLabelText("My rating"), "C");
-      await waitFor(() => expect(patchCalls()).toHaveLength(1));
-      const [url, init] = patchCalls()[0];
-      expect(url).toBe("/api/person/p1");
-      expect(JSON.parse(init.body)).toEqual({ my_rating: "C" });
-      expect(await screen.findByLabelText("Rating C")).toBeInTheDocument();
-    });
 
     it("saves the remark on blur", async () => {
       const user = userEvent.setup();

@@ -73,6 +73,7 @@ from app.models.system import (
 from app.models.tv_show import TVShows
 from app.models.user_media_list import UserMediaList
 from app.models.user_novel_unit_rating import UserNovelUnitRating
+from app.models.user_rating import UserRating
 from app.models.user_request import UserRequest
 from app.models.watch_order import (
     WatchOrderFollow,
@@ -91,6 +92,7 @@ __all__ = [
     "Media",
     "UserMediaList",
     "UserNovelUnitRating",
+    "UserRating",
     "Anime",
     "AnimeMovies",
     "Movies",
@@ -207,6 +209,29 @@ for _model in (
     Collection,
 ):
     _model.remark = None
+
+
+# ---------------------------------------------------------------------------
+# `my_rating` and `*_expectation`, read side
+# ---------------------------------------------------------------------------
+# The same arrangement as `remark` above, for the same reason. A rating of a
+# group or an entity, and a tier's expectation, are the VIEWER'S own: they
+# live in `user_rating`, one row per account, and
+#     app.services.domain.user_rating.attach_ratings(db, owner_type, entries,
+#                                                    user_id)
+# puts the viewer's values back on the instances before they are serialised,
+# one query per page. A novel unit's `remark` is likewise the reader's own,
+# on user_novel_unit_rating beside its rating, attached by
+# user_list.attach_unit_ratings.
+#
+# Plain class attributes defaulted to None, so a path that forgot to attach
+# serialises null - never raises, never shows somebody else's value.
+for _model in (Collection, Franchise, Series, Character, Person, Studio, Publisher):
+    _model.my_rating = None
+Collection.collection_expectation = None
+Franchise.franchise_expectation = None
+Series.series_expectation = None
+NovelUnit.remark = None
 
 
 # ---------------------------------------------------------------------------

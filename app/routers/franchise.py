@@ -24,11 +24,11 @@ from app.services.domain.hierarchy import (
     check_franchise_entries_family,
     check_franchise_type_family,
 )
+from app.services.domain.user_rating import attach_ratings
 from app.services.rbac.enforcement import (
     apply_franchise_visibility,
     franchise_visible,
 )
-from app.services.rbac.personal_gate import strip_personal
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.entity_ref import find_entity
@@ -105,7 +105,8 @@ def get_all_franchises(
     )
     attach_franchise_content_labels(db, rows)
     attach_entry_counts(db, rows, models.Media.franchise_id, viewer)
-    return strip_personal(viewer, "franchise", rows, schemas.FranchiseResponse)
+    attach_ratings(db, "franchise", rows, viewer.user_id)
+    return rows
 
 
 @router.get(
@@ -127,10 +128,9 @@ def get_franchise_by_id(
     if not franchise_visible(db, viewer, db_franchise.system_id):
         raise HTTPException(status_code=404, detail="Franchise not found.")
     attach_remark(db, "franchise", db_franchise, viewer.user_id)
+    attach_ratings(db, "franchise", db_franchise, viewer.user_id)
     attach_franchise_content_labels(db, db_franchise)
-    return strip_personal(
-        viewer, "franchise", db_franchise, schemas.FranchiseResponse
-    )
+    return db_franchise
 
 
 # ==========================================
@@ -179,6 +179,8 @@ def create_franchise(
 
         attach_remark(db, "franchise", new_franchise, viewer.user_id)
 
+        attach_ratings(db, "franchise", new_franchise, viewer.user_id)
+
         return new_franchise
     except Exception as e:
         logger.error("CRITICAL ERROR creating franchise: %s", str(e), exc_info=True)
@@ -224,6 +226,8 @@ def update_franchise(
 
     attach_remark(db, "franchise", db_franchise, viewer.user_id)
 
+    attach_ratings(db, "franchise", db_franchise, viewer.user_id)
+
     return db_franchise
 
 
@@ -237,7 +241,7 @@ def patch_franchise(
     admin: Viewer = Depends(require_manage_catalog),
     viewer: Viewer = Depends(get_viewer),
 ):
-    """Partially updates a Franchise (useful for quick inline rating edits)."""
+    """Partially updates a Franchise (used for quick inline hub edits)."""
     db_franchise = (
         db.query(models.Franchise)
         .filter(models.Franchise.system_id == system_id)
@@ -261,6 +265,8 @@ def patch_franchise(
     db.refresh(db_franchise)
 
     attach_remark(db, "franchise", db_franchise, viewer.user_id)
+
+    attach_ratings(db, "franchise", db_franchise, viewer.user_id)
 
     return db_franchise
 

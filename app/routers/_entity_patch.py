@@ -3,8 +3,8 @@ Write-side checks the character, person, studio and publisher routers share.
 
 PATCH takes a free-form dict (see _patching.py), so the rules the Create and
 Update schemas enforce for these entities are applied here by hand before
-apply_column_patch runs: the gender and my_rating vocabularies (and
-character.role, passed in as an extra check), the known
+apply_column_patch runs: the gender vocabulary (and character.role, passed
+in as an extra check), the known
 display_name_field values, the at-least-one-name rule, a well-formed
 photo_fallback_entry_id, and the image focus format (photo_focus,
 logo_focus). PUT and PATCH then both ask the same question of the
@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 from app.schemas.image_focus import coerce_image_focus
 from app.services.domain.entity_photos import linked_entry_pairs
 from app.services.rbac.enforcement import filter_visible_pairs
-from app.utils.entity_vocab import check_gender, check_my_rating
+from app.utils.entity_vocab import check_gender
 
 NAME_COLUMNS = ("name_en", "name_cn", "name_jp", "name_alt")
 DISPLAY_NAME_FIELDS = (None, "en", "cn", "jp", "alt")
@@ -60,8 +60,6 @@ def prepare_patch(
     try:
         if "gender" in out:
             out["gender"] = check_gender(out["gender"])
-        if "my_rating" in out:
-            out["my_rating"] = check_my_rating(out["my_rating"])
         for column, check in (extra_checks or {}).items():
             if column in out:
                 out[column] = check(out[column])

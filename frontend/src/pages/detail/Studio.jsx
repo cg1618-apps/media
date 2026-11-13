@@ -6,10 +6,11 @@
 // studio is credited on, grouped by media type exactly as
 // GET /api/studio/{id}/entries returns them.
 //
-// Like Person.jsx it reads the API with plain fetch. An admin can set my
-// rating and the remark in place and jump to the full editor, the controls
-// Person.jsx and Character.jsx have (components/info/EntityProfileControls.jsx):
-// PATCH, then the response becomes the page's state.
+// Like Person.jsx it reads the API with plain fetch. An admin can write the
+// remark in place and jump to the full editor, the controls Person.jsx and
+// Character.jsx have (components/info/EntityProfileControls.jsx): PATCH, then
+// the response becomes the page's state. My rating is the viewer's own, set
+// by a holder of self.list through PUT /api/me/ratings.
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
@@ -30,6 +31,8 @@ import { Eyebrow, RatingStamp } from "../../components/ui/primitives";
 import LazyImage from "../../components/ui/LazyImage";
 import { useAuth } from "../../contexts/AuthContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
+import { useViewScope } from "../../hooks/useViewScope";
+import { useMyRatingSaver } from "../../api/mutations/useMyRatingMutations";
 
 // "founded – defunct", or "Since founded" while the studio is still working.
 // Both empty means the row is dropped entirely rather than shown as a dash.
@@ -49,6 +52,9 @@ export default function Studio() {
   const [error, setError] = useState(null);
   const { isAdmin } = useAuth();
   const patch = useEntityPatch("studio", studio?.system_id, setStudio);
+  // My rating is the viewer's own (self.list), saved through /api/me/ratings.
+  const { ownData: canRate } = useViewScope();
+  const saveMyRating = useMyRatingSaver("studio", studio?.system_id, setStudio);
 
   useCanonicalPath("studio", studio);
 
@@ -165,10 +171,10 @@ export default function Studio() {
             </div>
           </div>
 
-          {isAdmin && (
+          {canRate && (
             <RatingSelect
               rating={studio.my_rating}
-              onChange={(v) => patch({ my_rating: v }, "Rating saved")}
+              onChange={(v) => saveMyRating({ my_rating: v }, "Rating saved")}
             />
           )}
 

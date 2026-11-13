@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Character from "./Character";
@@ -55,6 +56,20 @@ const ENTRIES = {
 
 function mockFetch({ character = CHARACTER, entries = ENTRIES, characterOk = true } = {}) {
   global.fetch = vi.fn((url, init = {}) => {
+    if (init.method === "PUT") {
+      const body = JSON.parse(init.body);
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            owner_type: "character",
+            owner_id: "c1",
+            my_rating: body.my_rating ?? null,
+            expectation: null,
+          }),
+      });
+    }
     if (init.method === "PATCH") {
       return Promise.resolve({
         ok: true,
@@ -80,6 +95,7 @@ function WhereAmI() {
 
 function renderPage(path = "/character/c1") {
   return render(
+    <QueryClientProvider client={new QueryClient()}>
     <ToastProvider>
       <MemoryRouter initialEntries={[path]}>
         <Routes>
@@ -87,7 +103,8 @@ function renderPage(path = "/character/c1") {
           <Route path="/modify" element={<WhereAmI />} />
         </Routes>
       </MemoryRouter>
-    </ToastProvider>,
+    </ToastProvider>
+    </QueryClientProvider>,
   );
 }
 
@@ -95,8 +112,12 @@ function patchCalls() {
   return fetch.mock.calls.filter(([, init]) => init?.method === "PATCH");
 }
 
+function putCalls() {
+  return fetch.mock.calls.filter(([, init]) => init?.method === "PUT");
+}
+
 beforeEach(() => {
-  auth = { isAdmin: false };
+  auth = { isAdmin: false, has: () => false };
   mockFetch();
 });
 
@@ -347,9 +368,57 @@ describe("Character detail page", () => {
     });
   });
 
-  describe("as an admin", () => {
+  describe("as a member holding self.list", () => {
+    // The guest test renders the same character; only the permission differs, so
+    // the select's presence here is self.list's doing.
     beforeEach(() => {
-      auth = { isAdmin: true };
+      auth = { isAdmin: false, has: (p) => p === "self.list" };
+    });
+
+    it("edits its own rating, with no admin controls", async () => {
+      const user = userEvent.setup();
+      mockFetch({ character: { ...CHARACTER, my_rating: "A", remark: "Quiet." } });
+      renderPage();
+      await user.selectOptions(await screen.findByLabelText("My rating"), "B");
+      await waitFor(() => expect(putCalls()).toHaveLength(1));
+      expect(putCalls()[0][0]).toBe("/api/me/ratings/character/c1");
+      expect(screen.queryByRole("button", { name: "Quick edit" })).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("Remark")).not.toBeInTheDocument();
+    });
+
+    it("saves my rating as its own, through /api/me/ratings, and shows it", async () => {
+      const user = userEvent.setup();
+      renderPage();
+      await user.selectOptions(await screen.findByLabelText("My rating"), "A+");
+      await waitFor(() => expect(putCalls()).toHaveLength(1));
+      const [url, init] = putCalls()[0];
+      expect(url).toBe("/api/me/ratings/character/c1");
+      expect(JSON.parse(init.body)).toEqual({ my_rating: "A+" });
+      expect(patchCalls()).toHaveLength(0);
+      expect(await screen.findByLabelText("Rating A+")).toBeInTheDocument();
+    });
+
+    it("saves Unrated as null", async () => {
+      const user = userEvent.setup();
+      mockFetch({ character: { ...CHARACTER, my_rating: "B" } });
+      renderPage();
+      await user.selectOptions(await screen.findByLabelText("My rating"), "");
+      await waitFor(() => expect(putCalls()).toHaveLength(1));
+      expect(JSON.parse(putCalls()[0][1].body)).toEqual({ my_rating: null });
+    });
+  });
+
+  describe("as an admin", () => {
+    // Root holds every key but the self.* family, as AuthContext's has() does:
+    // an admin keeps no personal data, so it has no rating of its own.
+    beforeEach(() => {
+      auth = { isAdmin: true, has: (p) => !p.startsWith("self.") };
+    });
+
+    it("draws no rating editor", async () => {
+      renderPage();
+      await screen.findByRole("button", { name: "Quick edit" });
+      expect(screen.queryByLabelText("My rating")).not.toBeInTheDocument();
     });
 
     it("links Quick edit to this character's Modify editor", async () => {
@@ -361,25 +430,7 @@ describe("Character detail page", () => {
       ).toBeInTheDocument();
     });
 
-    it("PATCHes my rating on change and shows the saved value", async () => {
-      const user = userEvent.setup();
-      renderPage();
-      await user.selectOptions(await screen.findByLabelText("My rating"), "A+");
-      await waitFor(() => expect(patchCalls()).toHaveLength(1));
-      const [url, init] = patchCalls()[0];
-      expect(url).toBe("/api/character/c1");
-      expect(JSON.parse(init.body)).toEqual({ my_rating: "A+" });
-      expect(await screen.findByLabelText("Rating A+")).toBeInTheDocument();
-    });
 
-    it("PATCHes Unrated as null", async () => {
-      const user = userEvent.setup();
-      mockFetch({ character: { ...CHARACTER, my_rating: "B" } });
-      renderPage();
-      await user.selectOptions(await screen.findByLabelText("My rating"), "");
-      await waitFor(() => expect(patchCalls()).toHaveLength(1));
-      expect(JSON.parse(patchCalls()[0][1].body)).toEqual({ my_rating: null });
-    });
 
     it("saves the remark on blur, and an emptied remark as null", async () => {
       const user = userEvent.setup();

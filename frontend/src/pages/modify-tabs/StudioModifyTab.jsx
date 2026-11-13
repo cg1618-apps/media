@@ -34,7 +34,6 @@ function studioToForm(s) {
     name_jp: s.name_jp || "",
     name_alt: s.name_alt || "",
     display_name_field: s.display_name_field || "",
-    my_rating: s.my_rating || "",
     logo_file: s.logo_file || "",
     logo_focus: s.logo_focus || null,
     // No seed: an unset country is a value the admin can choose, and a seed
@@ -130,7 +129,6 @@ export default function StudioModifyTab({ initialId = null } = {}) {
           name_jp: studioForm.name_jp.trim() || null,
           name_alt: studioForm.name_alt.trim() || null,
           display_name_field: studioForm.display_name_field || null,
-          my_rating: studioForm.my_rating || null,
           logo_file: studioForm.logo_file || null,
           logo_focus: studioForm.logo_focus || null,
           country: studioForm.country || null,

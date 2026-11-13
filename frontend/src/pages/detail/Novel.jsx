@@ -57,9 +57,9 @@ const lineageLinkCls =
 // its replacement: same read-only/editor split, but backed by `units` and
 // each row's server-computed `display_key` instead of a bare `{key, name}`.
 function NovelUnitsCard({ novel, isAdmin, onSave }) {
-  // A unit's remark is personal content (view.personal); the server strips
-  // it for a viewer without the key, and the row does not leave room for it.
-  const { personal: showRemark } = useViewScope();
+  // A unit's remark is the viewer's own (self.list); a viewer without the key
+  // has none, and the row does not leave room for it.
+  const { ownData: showRemark } = useViewScope();
   const [items, setItems] = useState(novel.units || []);
   const [dirty, setDirty] = useState(false);
 

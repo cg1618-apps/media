@@ -28,13 +28,14 @@ from app.services.domain.credits import (
     find_publisher,
 )
 from app.services.domain.merge_fill import finish_merge
+from app.services.domain.user_rating import ratings_by_owner
 from app.services.integrations.image_manager import delete_cover_image
 from app.services.rbac.enforcement import filter_visible_pairs
-from app.services.rbac.personal_gate import strip_personal
 from app.services.rbac.resolver import (
     Viewer,
     require_manage_catalog,
     require_view_entities,
+    viewer_user_id,
 )
 from app.services.rbac.shared_visibility import (
     apply_shared_visibility,
@@ -60,6 +61,7 @@ def _to_response(
     viewer=None,
     summary: Optional[CreditSummary] = None,
     hidden: Optional[frozenset[str]] = None,
+    ratings: Optional[dict] = None,
 ) -> schemas.PublisherResponse:
     # Count only credits on entries the viewer may see. A number is a smaller
     # leak than a title, but "published 3 things, you can see 2" is still one.
@@ -75,7 +77,15 @@ def _to_response(
     # connection; a visible publisher omits it rather than naming the type.
     if hidden is None:
         hidden = hidden_scopes(db, viewer)
-    response = schemas.PublisherResponse(
+    # `ratings` is the viewer's own user_rating rows, {id: row}: passed in by
+    # the list route for the whole page in one query, looked up here
+    # otherwise. A guest has none, and reads null.
+    if ratings is None:
+        ratings = ratings_by_owner(
+            db, "publisher", [publisher.system_id], viewer_user_id(viewer)
+        )
+    own = ratings.get(publisher.system_id)
+    return schemas.PublisherResponse(
         system_id=publisher.system_id,
         public_id=publisher.public_id,
         name_en=publisher.name_en,
@@ -84,7 +94,7 @@ def _to_response(
         name_alt=publisher.name_alt,
         display_name_field=publisher.display_name_field,
         display_name=publisher.display_name,
-        my_rating=publisher.my_rating,
+        my_rating=own.my_rating if own is not None else None,
         logo_file=publisher.logo_file,
         logo_focus=publisher.logo_focus,
         remark=publisher.remark,
@@ -99,7 +109,6 @@ def _to_response(
         media_types=summary.media_types,
         restricted=summary.restricted,
     )
-    return strip_personal(viewer, "publisher", response)
 
 
 # ==========================================
@@ -148,8 +157,16 @@ def get_all_publishers(
         [publisher.system_id for publisher in publishers],
         models.MediaCredit.publisher_id,
     )
+    ratings = ratings_by_owner(
+        db,
+        "publisher",
+        [publisher.system_id for publisher in publishers],
+        viewer_user_id(viewer),
+    )
     return [
-        _to_response(db, publisher, viewer, summaries[publisher.system_id], hidden)
+        _to_response(
+            db, publisher, viewer, summaries[publisher.system_id], hidden, ratings
+        )
         for publisher in publishers
     ]
 
@@ -345,11 +362,12 @@ def patch_publisher(
 ):
     """
     Partially updates a publisher's own columns - the detail page's inline
-    rating and remark edits. Only the keys sent change; scopes are not a
-    column and are edited through PUT.
+    remark edit. Only the keys sent change; scopes are not a column and are
+    edited through PUT. The viewer's rating is written through
+    PUT /api/me/ratings/publisher/{id}.
 
-    The same rules as PUT, checked before anything is written: my_rating is
-    its vocabulary ("" is NULL), display_name_field is en / cn / jp / alt, and
+    The same rules as PUT, checked before anything is written:
+    display_name_field is en / cn / jp / alt, and
     at least one name survives the patch. Server columns (system_id,
     public_id, timestamps) are a 422; keys that are not columns are ignored
     (_patching.apply_column_patch).

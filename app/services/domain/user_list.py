@@ -290,12 +290,13 @@ def attach_list_fields(db: Session, media_type: str, entries, user_id) -> None:
 
 
 def attach_unit_ratings(db: Session, media_type: str, entries, user_id) -> None:
-    """Put the reader's per-unit rating back on each of a novel's units.
+    """Put the reader's per-unit rating and remark back on a novel's units.
 
-    Task 20 moved novel_unit.my_rating to user_novel_unit_rating, but
-    NovelUnitResponse still declares my_rating and reads it off the ORM object
-    - so without this every unit serialises as None. The same trick
-    attach_list_fields uses, one level down.
+    Both live on user_novel_unit_rating, one row per reader, but
+    NovelUnitResponse still declares my_rating and remark and reads them off
+    the ORM object - so without this every unit serialises them as None. The
+    same trick attach_list_fields uses, one level down. A guest (user_id
+    None) reads None for both.
 
     Novel-only, and one query for every unit of every entry passed, not one
     per unit.
@@ -313,7 +314,7 @@ def attach_unit_ratings(db: Session, media_type: str, entries, user_id) -> None:
     rows = {}
     if user_id is not None:
         rows = {
-            r.unit_id: r.my_rating
+            r.unit_id: r
             for r in db.query(models.UserNovelUnitRating)
             .filter(
                 models.UserNovelUnitRating.user_id == user_id,
@@ -322,7 +323,9 @@ def attach_unit_ratings(db: Session, media_type: str, entries, user_id) -> None:
             .all()
         }
     for unit in units:
-        unit.my_rating = rows.get(unit.system_id)
+        row = rows.get(unit.system_id)
+        unit.my_rating = row.my_rating if row is not None else None
+        unit.remark = row.remark if row is not None else None
 
 
 def split_list_payload(media_type: str, payload: dict) -> tuple[dict, dict]:

@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.dependencies import get_current_user_id, get_db
 from app.services.domain.plan_next import target_visible, validate_plan_target
+from app.services.domain.user_rating import own_expectations
 from app.services.rbac.enforcement import drop_hidden_rows
 from app.services.rbac.permissions import PERM_SELF_LIST
 from app.services.rbac.resolver import Viewer, get_viewer, require_permission
@@ -60,8 +61,24 @@ router = APIRouter(
 # ==========================================
 
 
-def _resolve(db: Session, row: models.PlanNext) -> schemas.PlanNextRead:
-    """Attach display data for the planned target, flagging a dangling row."""
+def _expectations(db: Session, rows, user_id) -> dict:
+    """
+    {target id: the caller's own expectation} for every group-scope row, one
+    query per tier. An expectation is personal (user_rating), so it is the
+    caller's - the same account the queue belongs to - and an entry has none.
+    """
+    out: dict = {}
+    for scope in ("franchise", "series"):
+        ids = [row.target_id for row in rows if row.scope == scope]
+        out.update(own_expectations(db, scope, ids, user_id))
+    return out
+
+
+def _resolve(
+    db: Session, row: models.PlanNext, expectations: dict
+) -> schemas.PlanNextRead:
+    """Attach display data for the planned target, flagging a dangling row.
+    `expectations` is _expectations() over the page."""
     out = schemas.PlanNextRead.model_validate(row)
     key = row.media_type if row.scope == "entry" else row.scope
     ref = OWNER_TABLES.get(key)
@@ -77,13 +94,7 @@ def _resolve(db: Session, row: models.PlanNext) -> schemas.PlanNextRead:
     out.display_name = getattr(target, "display_name", None)
     out.cover_image_file = getattr(target, "cover_image_file", None)
     out.cover_image_focus = getattr(target, "cover_image_focus", None)
-    # Named per tier: franchise_expectation, series_expectation, or the entry's
-    # own expectation column.
-    for field in ("franchise_expectation", "series_expectation", "expectation"):
-        value = getattr(target, field, None)
-        if value:
-            out.expectation = value
-            break
+    out.expectation = expectations.get(row.target_id)
     return out
 
 
@@ -141,11 +152,11 @@ def list_plan_next(
     rows = [row for row in query.all() if row.scope == "entry"]
     visible = drop_hidden_rows(db, viewer, rows, "media_type", "target_id")
     keep = {row.system_id for row in visible}
-    return [
-        _resolve(db, row)
-        for row in query.all()
-        if row.scope != "entry" or row.system_id in keep
+    shown = [
+        row for row in query.all() if row.scope != "entry" or row.system_id in keep
     ]
+    expectations = _expectations(db, shown, user_id)
+    return [_resolve(db, row, expectations) for row in shown]
 
 
 # ==========================================
@@ -201,7 +212,7 @@ def create_plan_next(
     db.add(row)
     db.commit()
     db.refresh(row)
-    return _resolve(db, row)
+    return _resolve(db, row, _expectations(db, [row], user_id))
 
 
 @router.delete("/target")

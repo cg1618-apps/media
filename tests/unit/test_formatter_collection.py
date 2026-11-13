@@ -129,7 +129,10 @@ class TestParseCollectionFromSheet:
         # public_id only round-trips when the cell holds a usable integer -
         # an empty string is not a public_id, so it can't probe this column.
         raw["public_id"] = "47"
-        assert set(parse_collection_from_sheet(raw)) == columns
+        # my_rating and collection_expectation are read for an OLD backup
+        # only (pull.LEGACY_PERSONAL_COLUMNS) - not columns any more.
+        legacy = {"my_rating", "collection_expectation"}
+        assert set(parse_collection_from_sheet(raw)) - legacy == columns
 
     def test_absent_no_built_in_orders_column_omits_the_key(self):
         """

@@ -53,13 +53,15 @@ import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import WatchOrderSection from "../../components/tracker/WatchOrderSection";
 import CollectionNotes from "./CollectionNotes";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
+import { useViewScope } from "../../hooks/useViewScope";
+import { useMyRatingSaver } from "../../api/mutations/useMyRatingMutations";
 
 export default function CollectionPage() {
   const { publicId } = useParams();
   const { isAdmin, has } = useAuth();
-  // The collection's own rating and expectation are personal content, drawn
-  // only for a viewer holding view.personal.
-  const showPersonal = has("view.personal");
+  // The rating and expectation are the viewer's own, drawn and edited by a
+  // holder of self.list; anyone else has none.
+  const { ownData } = useViewScope();
   const { showToast } = useToast();
 
   const [collection, setCollection] = useState(null);
@@ -75,6 +77,7 @@ export default function CollectionPage() {
   // Everything past the lookup still speaks UUIDs; only the URL segment
   // changed. Resolved from the fetched row so the two can never disagree.
   const system_id = collection?.system_id;
+  const saveMyRating = useMyRatingSaver("collection", system_id, setCollection);
   const remarkRef = useRef(null);
 
   useCanonicalPath("collection", collection);
@@ -272,7 +275,7 @@ export default function CollectionPage() {
             cover={cover}
             spine="Collection"
             id={collection.system_id}
-            rating={showPersonal ? collection.my_rating : null}
+            rating={ownData ? collection.my_rating : null}
           />
         </div>
 
@@ -307,20 +310,25 @@ export default function CollectionPage() {
 
             {/* Same chip vocabulary as the Franchise hub, so an expectation
                 reads the same wherever it turns up. */}
-            {showPersonal && collection.collection_expectation && (
+            {ownData && collection.collection_expectation && (
               <div className="flex flex-wrap gap-2 mt-4">
                 <Chip>Expectation · {collection.collection_expectation}</Chip>
               </div>
             )}
           </header>
 
-          {isAdmin && (
+          {ownData && (
             <Slip title="Curation">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="Overall rating">
                   <select
                     value={collection.my_rating || ""}
-                    onChange={(e) => saveField("my_rating", e.target.value)}
+                    onChange={(e) =>
+                      saveMyRating(
+                        { my_rating: e.target.value || null },
+                        "Rating saved",
+                      )
+                    }
                     className={`${SELECT_CLS} w-full`}
                   >
                     <option value="">Not rated</option>
@@ -335,7 +343,10 @@ export default function CollectionPage() {
                   <select
                     value={collection.collection_expectation || ""}
                     onChange={(e) =>
-                      saveField("collection_expectation", e.target.value)
+                      saveMyRating(
+                        { expectation: e.target.value || null },
+                        "Expectation saved",
+                      )
                     }
                     className={`${SELECT_CLS} w-full`}
                   >

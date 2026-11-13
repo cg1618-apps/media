@@ -147,9 +147,9 @@ VIEW_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
     ),
     "personal": (
         "View Personal Content",
-        "See what members write about the catalogue: public profiles, the "
-        "community aggregate, notes by author, highlights, personal ratings "
-        "and expectations on groups and entities, and novel unit remarks.",
+        "See the Highlights and Highlight Episodes sections of an entry's "
+        "notes. Ratings, expectations and novel unit remarks are each "
+        "account's own and are not covered by this.",
     ),
 }
 

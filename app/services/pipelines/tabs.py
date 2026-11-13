@@ -22,6 +22,9 @@ The chains that must hold, all pinned by tests/api/test_sheet_restore_order.py:
     Watch Order List -> Section -> Item
     Person / Studio / Publisher / Character / Content Label -> the media tabs
     Character -> Character Identity -> Character Casting
+    Users, the three tiers, Character / Person / Studio / Publisher
+                     -> User Rating
+    Users, Novel Unit -> User Novel Unit Rating
 
 Users is first because nothing points at it and Plan Next, Seasonal and Game
 Copy all carry a NOT NULL user_id.
@@ -261,6 +264,18 @@ SHEET_TABS: tuple[SheetTab, ...] = (
     SheetTab("Collection", models.Collection, f.parse_collection_from_sheet),
     SheetTab("Franchise", models.Franchise, f.parse_franchise_from_sheet),
     SheetTab("Series", models.Series, f.parse_series_from_sheet),
+    # Per-user, like Watch Order Follow: user_id is dropped for `username`.
+    # After the three tiers and the four entities its owner columns name -
+    # person_id, studio_id and publisher_id are translated through their own
+    # tabs (DERIVED_IDENTITY_PARENTS in pull.py), since those uuids are
+    # minted per database; the tiers' and characters' travel.
+    SheetTab(
+        "User Rating",
+        models.UserRating,
+        f.parse_user_rating_from_sheet,
+        drop_columns=("user_id",),
+        extra_columns=(("username", _row_username),),
+    ),
     # Before every media tab: each entry table FKs (system_id, media_type) up
     # to `media`. The constraint is deferred, but Pull commits tab by tab, so
     # an entry tab restored before Media would fail at its own commit. This tab
@@ -277,6 +292,15 @@ SHEET_TABS: tuple[SheetTab, ...] = (
     SheetTab("Novel", models.Novel, f.parse_novel_from_sheet, "novel", drop_columns=MEDIA_TYPE_ONLY, extra_columns=DISPLAY_NAME_EXTRA),
     # After Novel: novel_id is a real FK, so the parent rows must exist first.
     SheetTab("Novel Unit", models.NovelUnit, f.parse_novel_unit_from_sheet),
+    # A reader's rating of and remark on a unit, per user. After Novel Unit,
+    # whose uuid unit_id names and which travels unchanged.
+    SheetTab(
+        "User Novel Unit Rating",
+        models.UserNovelUnitRating,
+        f.parse_user_novel_unit_rating_from_sheet,
+        drop_columns=("user_id",),
+        extra_columns=(("username", _row_username),),
+    ),
     SheetTab("Comic", models.Comic, f.parse_comic_from_sheet, "comic", drop_columns=MEDIA_TYPE_ONLY, extra_columns=DISPLAY_NAME_EXTRA),
     SheetTab("Game", models.Game, f.parse_game_from_sheet, "game", drop_columns=MEDIA_TYPE_ONLY, extra_columns=DISPLAY_NAME_EXTRA),
     # After Game. game_id is a real FK onto `media` - a copy may belong to a

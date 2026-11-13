@@ -26,8 +26,10 @@ class NovelUnitWrite(BaseModel):
     unit_key: Optional[str] = None
     name_cn: Optional[str] = None
     name_en: Optional[str] = None
-    remark: Optional[str] = None
     ch_count: Optional[float] = None
+    # The writer's OWN rating of and remark on the unit, stored on their
+    # user_novel_unit_rating row rather than on the unit (novel_unit_writer).
+    remark: Optional[str] = None
     my_rating: Optional[str] = None
 
 
@@ -38,8 +40,9 @@ class NovelUnitResponse(BaseModel):
     unit_key: Optional[str] = None
     name_cn: Optional[str] = None
     name_en: Optional[str] = None
-    remark: Optional[str] = None
     ch_count: Optional[float] = None
+    # The viewer's own (user_list.attach_unit_ratings); null for a guest.
+    remark: Optional[str] = None
     my_rating: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)

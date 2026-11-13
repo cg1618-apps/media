@@ -17,7 +17,7 @@ from app.database import get_taipei_now
 from app.dependencies import get_db
 from app.routers._patching import apply_column_patch
 from app.services.domain import attach_remark, pop_remark, upsert_remark
-from app.services.rbac.personal_gate import strip_personal
+from app.services.domain.user_rating import attach_ratings
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.entity_ref import find_entity
@@ -67,7 +67,8 @@ def get_all_collections(
         .offset(offset)
         .all()
     )
-    return strip_personal(viewer, "collection", rows, schemas.CollectionResponse)
+    attach_ratings(db, "collection", rows, viewer.user_id)
+    return rows
 
 
 @router.get(
@@ -85,9 +86,8 @@ def get_collection_by_id(
     if not db_collection:
         raise HTTPException(status_code=404, detail="Collection not found.")
     attach_remark(db, "collection", db_collection, viewer.user_id)
-    return strip_personal(
-        viewer, "collection", db_collection, schemas.CollectionResponse
-    )
+    attach_ratings(db, "collection", db_collection, viewer.user_id)
+    return db_collection
 
 
 # ==========================================
@@ -128,6 +128,8 @@ def create_collection(
             db.refresh(new_collection)
 
         attach_remark(db, "collection", new_collection, viewer.user_id)
+
+        attach_ratings(db, "collection", new_collection, viewer.user_id)
 
         return new_collection
     except Exception as e:
@@ -173,6 +175,8 @@ def update_collection(
 
     attach_remark(db, "collection", db_collection, viewer.user_id)
 
+    attach_ratings(db, "collection", db_collection, viewer.user_id)
+
     return db_collection
 
 
@@ -209,6 +213,8 @@ def patch_collection(
     db.refresh(db_collection)
 
     attach_remark(db, "collection", db_collection, viewer.user_id)
+
+    attach_ratings(db, "collection", db_collection, viewer.user_id)
 
     return db_collection
 

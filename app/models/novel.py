@@ -174,7 +174,6 @@ class NovelUnit(Base):
     unit_key = Column(String, nullable=True)
     name_cn = Column(String, nullable=True)
     name_en = Column(String, nullable=True)
-    remark = Column(String, nullable=True)
     ch_count = Column(Float, nullable=True)
 
     created_at = Column(DateTime, default=get_taipei_now)

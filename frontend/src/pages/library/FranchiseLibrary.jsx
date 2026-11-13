@@ -130,8 +130,8 @@ const TABLE_COLUMNS = [
     render: (f, { entriesByFranchise }) =>
       entriesByFranchise[f.system_id]?.length ?? 0,
   },
-  // Expectation and My are the catalogue's own judgements, personal content
-  // a viewer without view.personal is not shown (`personal: true`).
+  // Expectation and My are the viewer's own judgements, not shown to a viewer
+  // without self.list (`personal: true`), who has none.
   {
     key: "expectation",
     personal: true,
@@ -223,7 +223,7 @@ async function fetchList(path) {
 
 export default function FranchiseLibrary() {
   const auth = useAuth();
-  const { personal: showPersonal } = useViewScope();
+  const { ownData: showPersonal } = useViewScope();
   const authLoading = Boolean(auth?.loading);
   const canSeeHComic = canSeeGatedType(auth, "h-comic");
   const canSeeHGame = canSeeGatedType(auth, "h-game");

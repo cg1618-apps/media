@@ -62,7 +62,9 @@ from app.services.domain.credits import (
 from app.services.domain.gated_labels import enforce_gated_label_invariants
 from app.services.domain.h_comic import enforce_h_comic_invariants
 from app.services.domain.hierarchy import find_by_names
+from app.services.domain.novel_unit_writer import write_unit_rating
 from app.services.domain.user_list import installation_owner_id
+from app.services.domain.user_rating import write_rating
 from app.services.integrations.sheets import (
     SheetsUnavailableError,
     get_all_raw_rows,
@@ -269,6 +271,23 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
     "Game Choice Mark": (
         "user_id", "node_id", "edge_id",
     ),  # uq_game_choice_mark_node / uq_game_choice_mark_edge
+    # One row per account per owner. The system_id is minted wherever the
+    # rating was made, so the same person's rating carries a different one on
+    # each machine; user_id is resolved from `username`, and the owner
+    # columns are real uuids (a person's, studio's or publisher's translated
+    # through its own tab below) - exactly one set, the rest IS NULL.
+    "User Rating": (
+        "user_id",
+        "collection_id",
+        "franchise_id",
+        "series_id",
+        "character_id",
+        "person_id",
+        "studio_id",
+        "publisher_id",
+    ),  # uq_user_rating_owner
+    # The same shape for a reader's unit row; unit_id travels unchanged.
+    "User Novel Unit Rating": ("user_id", "unit_id"),  # uq_user_novel_unit
 }
 
 # Tabs that cite one of the above by raw uuid. The sheet carries the OTHER
@@ -287,6 +306,11 @@ DERIVED_IDENTITY_PARENTS: dict[str, tuple[tuple[str, str], ...]] = {
     "Publisher Scope": (("publisher_id", "Publisher"),),
     "Media Content Label": (("label_id", "Content Label"),),
     "Franchise Content Label": (("label_id", "Content Label"),),
+    "User Rating": (
+        ("person_id", "Person"),
+        ("studio_id", "Studio"),
+        ("publisher_id", "Publisher"),
+    ),
 }
 
 # Tabs whose PRIMARY KEY is itself minted per database and must be ignored as
@@ -409,6 +433,77 @@ RETIRED_HEADERS: dict[str, frozenset[str]] = {
 }
 
 
+# Headers a backup taken before revision u1r2atings3 carries: the rating and
+# expectation that were columns on the shared row, and a novel unit's remark
+# (and its rating, from before user_novel_unit_rating). They are opinions, and
+# that revision moved them to the installation owner's user_rating /
+# user_novel_unit_rating rows - so Pull of such a sheet does the same rather
+# than drop them: tab -> (owner type, {sheet header: personal field}).
+LEGACY_PERSONAL_COLUMNS: dict[str, tuple[str, dict[str, str]]] = {
+    "Collection": (
+        "collection",
+        {"my_rating": "my_rating", "collection_expectation": "expectation"},
+    ),
+    "Franchise": (
+        "franchise",
+        {"my_rating": "my_rating", "franchise_expectation": "expectation"},
+    ),
+    "Series": (
+        "series",
+        {"my_rating": "my_rating", "series_expectation": "expectation"},
+    ),
+    "Character": ("character", {"my_rating": "my_rating"}),
+    "Person": ("person", {"my_rating": "my_rating"}),
+    "Studio": ("studio", {"my_rating": "my_rating"}),
+    "Publisher": ("publisher", {"my_rating": "my_rating"}),
+    "Novel Unit": ("novel_unit", {"my_rating": "my_rating", "remark": "remark"}),
+}
+
+
+def pop_legacy_personal(tab_name: str, payload: dict) -> dict:
+    """
+    Take an old sheet's personal values out of a row's payload, in place.
+
+    Returns {personal field: value} for the legacy headers the row carried -
+    only those present, so a blank cell still means "clear it" and a header
+    the sheet never had leaves the owner's value alone. Empty for every other
+    tab and for a current sheet.
+    """
+    legacy = LEGACY_PERSONAL_COLUMNS.get(tab_name)
+    if legacy is None:
+        return {}
+    _owner_type, fields = legacy
+    return {
+        field: payload.pop(header)
+        for header, field in fields.items()
+        if header in payload
+    }
+
+
+def restore_legacy_personal(
+    db: Session, tab_name: str, owner_id, values: dict
+) -> Optional[str]:
+    """
+    File an old sheet's personal values under the installation owner, on the
+    row just restored. Returns a reason when nobody can own them, for the
+    run's unresolved_refs - the values are then lost, and the log says so.
+    """
+    if not values:
+        return None
+    owner = _restore_owner_id(db)
+    if owner is None:
+        return (
+            f"{tab_name}: a rating, expectation or remark could not be "
+            "restored - no account exists to own it"
+        )
+    owner_type, _fields = LEGACY_PERSONAL_COLUMNS[tab_name]
+    if owner_type == "novel_unit":
+        write_unit_rating(db, owner, owner_id, values)
+    else:
+        write_rating(db, owner, owner_type, owner_id, values)
+    return None
+
+
 def unexpected_headers(tab_name: str, headers: list) -> list[str]:
     """
     The sheet headers this tab can neither store nor explain, in sheet order.
@@ -435,6 +530,8 @@ def unexpected_headers(tab_name: str, headers: list) -> list[str]:
     known |= {name for name, _fn in TAB_BY_NAME[tab_name].extra_columns}
     known |= RENAMED_HEADERS.get(tab_name, frozenset())
     known |= RETIRED_HEADERS.get(tab_name, frozenset())
+    if tab_name in LEGACY_PERSONAL_COLUMNS:
+        known |= set(LEGACY_PERSONAL_COLUMNS[tab_name][1])
     media_type = _MEDIA_TYPE_FOR_TAB.get(tab_name)
     if media_type:
         for role in credit_roles_for(media_type):
@@ -1074,9 +1171,17 @@ def execute_pull_specific(
         # that row's owner is unknown, so it is skipped and reported rather
         # than quietly filed under the admin.
         #
-        # Watch Order Follow has carried `username` from its first day, so it
-        # never reaches the fallback; it shares the block for the resolution.
-        if tab_name in ("Plan Next", "Seasonal", "Watch Order Follow"):
+        # Watch Order Follow, User Rating and User Novel Unit Rating have
+        # carried `username` from their first day, so they reach the fallback
+        # only for a hand-built sheet; they share the block for the
+        # resolution.
+        if tab_name in (
+            "Plan Next",
+            "Seasonal",
+            "Watch Order Follow",
+            "User Rating",
+            "User Novel Unit Rating",
+        ):
             username = parse_from_sheet(raw_header_dict.get("username"), str)
             if username:
                 owner_row = (
@@ -1912,6 +2017,11 @@ def execute_pull_specific(
         # ep_fin, ...) off the nine detail models is the second wave. Which
         # of those headers are UNEXPECTED is decided once per tab, above -
         # see unexpected_headers.
+        # An old sheet's rating / expectation / unit remark, held aside: they
+        # are not columns any more, and are filed under the installation
+        # owner once the row exists (restore_legacy_personal below).
+        legacy_personal = pop_legacy_personal(tab_name, clean_header_dict)
+
         clean_header_dict = drop_non_columns(Model, clean_header_dict)
 
         # UPSERT LOGIC
@@ -1977,6 +2087,15 @@ def execute_pull_specific(
                 except AmbiguousNameError as e:
                     credit_conflicts.append(f"{tab_name} [{field_key}]: {e}")
                     logger.warning("Ambiguous %s on '%s' row: %s", field_key, tab_name, e)
+
+        if legacy_personal:
+            if entry.system_id is None:
+                db.flush()
+            unresolved = restore_legacy_personal(
+                db, tab_name, entry.system_id, legacy_personal
+            )
+            if unresolved is not None:
+                unresolved_refs.append(unresolved)
 
         if pending_character_tags:
             if entry.system_id is None:
