@@ -59,6 +59,7 @@ true, including for permissions that do not exist yet.
 | `self.list` | **locked off** | yes | **locked on** | **never implicit** | — |
 | `self.personal_notes` | **locked off** | yes | **locked on** | **never implicit** | — |
 | `self.requests` | **locked off** | **locked on** | **locked on** | **never implicit** | — |
+| `self.password` | **locked off** | **locked on** | **locked on** | **never implicit** | — |
 | `manage.catalog` | **locked off** | — | **locked on** | implicit | — |
 | `manage.pipelines` | **locked off** | **locked off** | **locked on** | implicit | **locked off** |
 | `manage.requests` | **locked off** | **locked off** | **locked on** | implicit | — |
@@ -106,7 +107,7 @@ never hold. A permission in neither set is a free choice.
 | `admin` (any root role) | everything except `self.*` | `self.*` | nothing |
 | `super` | everything except `admin.authz` | `admin.authz` | nothing |
 | `guest` | — | `admin.*`, `manage.*`, `self.*` | `media_type.*`, `view.*` |
-| `user` | `self.requests` | `admin.authz`, `manage.pipelines`, `manage.requests` | `manage.catalog`, `self.list`, `self.personal_notes`, `media_type.*`, `view.*` |
+| `user` | `self.requests`, `self.password` | `admin.authz`, `manage.pipelines`, `manage.requests` | `manage.catalog`, `self.list`, `self.personal_notes`, `media_type.*`, `view.*` |
 | every custom role | — | `admin.authz`, `manage.pipelines` | `manage.catalog`, `manage.requests`, `self.*`, `media_type.*`, `view.*` |
 
 - **`admin.authz` is grantable to nothing.** The root short-circuit is
@@ -125,8 +126,12 @@ never hold. A permission in neither set is a free choice.
   nothing on that role to tick or untick at all.
 - **A member always files requests and never handles them.** Filing is fixed
   for `user`; the inbox reads every account's requests, so it is not a
-  member's. Both locks are keyed on the role's name, so a custom role decides
-  both freely.
+  member's.
+- **`user` always holds `self.password`.** A member who could not change their
+  own password would have to ask the admin every time.
+
+  These `user` locks are keyed on the role's name, so a custom role decides
+  `self.requests`, `manage.requests` and `self.password` freely.
 - **One table, three readers.** `RoleResponse` serves `locked_on` /
   `locked_off`, so the editor draws those boxes disabled; `PUT
   /api/roles/{id}/permissions` and `POST /api/roles/` refuse a payload that
@@ -211,6 +216,7 @@ short-circuit deliberately does not cover.
 | keep a plan queue | — | yes | yes | **never** |
 | rate a season | — | yes | yes | **never** |
 | read their own account settings — username and role | — (no account) | yes | yes | yes, through the API; the SPA's `/settings` route asks `self.list`, so it is not drawn for `admin` |
+| change their own password (`self.password`) — the admin sets its own on `/users` | — | **always** | **always** | **never** |
 | write a personal note — a review or a remark | — | yes | yes | **never** |
 | file a request or report, and read and edit their own (`self.requests`) | — | **always** | **always** | **never** |
 | handle requests — the inbox: mark done or declined, reopen, delete (`manage.requests`) | **409 if granted** | **409 if granted** | **always** | implicit |
@@ -218,7 +224,7 @@ short-circuit deliberately does not cover.
 | run a pipeline — Backup, Pull, Fill, Replace, Calculate | **409 if granted** | **409 if granted** | **always** | implicit |
 | restore accounts, content labels and label assignments on a Pull | — | — | **no** — those four tabs are skipped | implicit |
 | create roles and change what they hold | **409 if granted** | — | — | implicit |
-| create accounts, set a role, assign modes | **409 if granted** | — | — | implicit |
+| create accounts, set a role, assign modes, disable or enable an account, issue a reset link | **409 if granted** | — | — | implicit |
 | label an entry or a franchise | **409 if granted** | grantable | **always** | implicit |
 | create, rename or delete a content label | **409 if granted** | — | — | implicit |
 | create and edit access modes | **409 if granted** | — | — | implicit |
@@ -319,7 +325,7 @@ handed the catalogue, or vice versa:
 | `media_type.<key>` | may see any entry of that type; keys are hyphenated (`media_type.tv-show`) | `MEDIA_TYPE_KEYS` in `app/utils/media_resolver.py` |
 | `field_group.<key>` | may see the fields in one `FIELD_GROUPS` entry | `app/services/rbac/field_groups.py` |
 | `label.<key>` | may see entries and franchises carrying that content label | `content_label.key`, read at request time |
-| `self.<key>` | may **write** your own rows of that kind — `self.list`, `self.personal_notes`, `self.requests` | `SELF_PERMISSION_KEYS` in `app/services/rbac/permissions.py` |
+| `self.<key>` | may **write** your own rows of that kind — `self.list`, `self.personal_notes`, `self.requests` — or change your own password, `self.password` (`PUT /api/account/password`) | `SELF_PERMISSION_KEYS` in `app/services/rbac/permissions.py` |
 | `view.<key>` | may **read** one part of the site beyond the libraries and their detail pages — see the table below | `VIEW_PERMISSION_KEYS` in `app/services/rbac/permissions.py` |
 
 The `view` family, as the role editor labels it (`VIEW_PERMISSION_LABELS`):
@@ -369,7 +375,7 @@ request limit on `user` and `super` (`app/services/domain/requests.py`):
 | Name | `sort_order` | System | Root | Holds |
 |---|---|---|---|---|
 | `guest` | 0 | yes | no | `default_guest_permissions()` — every media type, and nothing else. Field groups are the mode axis, not this one |
-| `user` | 50 | yes | no | `default_user_permissions()` — guest's set plus the four `view.*` and `self.list`, `self.personal_notes` and `self.requests` |
+| `user` | 50 | yes | no | `default_user_permissions()` — guest's set plus the four `view.*` and `self.list`, `self.personal_notes`, `self.requests` and `self.password` |
 | `super` | 75 | yes | no | `default_user_permissions()` plus `manage.catalog`, `manage.pipelines` and `manage.requests` — every catalogue capability, deliberately **not** `admin.authz` |
 | `admin` | 100 | yes | **yes** | nothing explicitly; a root role holds every permission implicitly **except `self.*`**, which is ownership rather than privilege and so has no implicit holder |
 
@@ -576,9 +582,12 @@ database"; only the cover route's viewer
 per-user read and write keys on, and it is why a guest sees no list at all —
 see [What a guest sees](#what-a-guest-sees).
 
-- Reads the `access_token` cookie, decodes the JWT (which carries `sub` and a
-  decorative `role` and `mode`), loads the user, takes `user.role_ref` or the
-  guest role, then resolves the access mode.
+- Reads the `access_token` cookie, decodes the JWT (which carries `sub`,
+  `sv` and a decorative `role` and `mode`), loads the user, and **drops it -
+  resolving as the guest - unless the account is `active` and the token's
+  `sv` equals `users.session_version`** (`session_is_current`; see
+  [authentication.md](authentication.md#sessions-and-their-revocation)). Then
+  it takes `user.role_ref` or the guest role, and resolves the access mode.
 - **Which mode**: the `access_mode` cookie's mode if that cookie holds a live
   override minted for this account, otherwise the account's `is_default` mode,
   read from the database. The login token's `mode` claim is not read. An
@@ -1255,8 +1264,9 @@ it — no list rows, no plan queue, no season ratings, no game copies, no
 personal notes, no marks on a game's choice graph.
 
 **The rule is one condition in `Viewer.has()`: the root short-circuit
-does not cover the `self` family.** `self.list` and `self.personal_notes` are
-not privileges — they are OWNERSHIP, the right to keep rows of your own. "May
+does not cover the `self` family.** `self.list`, `self.personal_notes` and
+`self.password` are not privileges — they are OWNERSHIP, the right to keep rows
+of your own and to keep your own credential. "May
 do anything to the system" and "has a personal library" are different claims,
 and conflating them is what fills an admin account with somebody's collection.
 Everything else short-circuits, so a content label or a media type added
@@ -1348,7 +1358,8 @@ turns a loud refusal into an accepted-then-invisible write.
 | `PATCH /api/roles/{id}` | label/description/sort_order only; `guest`/`admin` cannot be renamed |
 | `PUT /api/roles/{id}/permissions` | replaces the set; 422 unknown, 409 root role, 409 if the payload holds a locked-off grant or drops a locked-on one |
 | `DELETE /api/roles/{id}` | 204; 409 for system roles or roles still held |
-| `GET/POST/PATCH/DELETE /api/users/…` | `role_id` must exist (422); username 409 |
+| `GET/POST/PATCH/DELETE /api/users/…` | `role_id` must exist (422); a new username or password that fails the checks in `security.py` 422; a username taken ignoring case 409; `PATCH` takes `status` `active` / `disabled` |
+| `POST /api/users/{id}/reset-link` | a one-time reset link, returned once; 409 for an account that is not active or is shared. See [authentication.md](authentication.md#reset-links) |
 | `GET /api/content-labels/`, `POST`, `PATCH`, `DELETE` | 409 duplicate key; delete cascades assignments (entries become visible again); 204. `DELETE` of a label a gated type requires (`h-comic`, `h-game`, `hentai`) is **409** |
 | `GET/PUT /api/content-labels/entry/{media_type}/{entry_id}` | list / replace an entry's label keys; 400 unknown type, 404 entry, 422 unknown label, 422 a set without the required label on a gated entry (`h-comic` on an h-comic, `h-game` on an h-game, `hentai` on a hentai) |
 | `GET/PUT /api/content-labels/franchise/{franchise_id}` | the same for a franchise; 422 a set without the required label on a franchise whose type includes `H-Comic` / `H-Game` / `Hentai` |
@@ -1466,8 +1477,8 @@ none and is read as timed, which every one of them was.
 
 **The login cookie is not reissued by a switch.** Minting a fresh month-long
 login on each switch would make toggling between two modes an unlimited
-session-extension oracle, and the lifetime here is flat with no refresh flow
-and no revocation. `create_access_token` takes an explicit `expires_at` so the
+session-extension oracle, and the lifetime here is flat with no refresh flow;
+revocation ends a session early and never extends one. `create_access_token` takes an explicit `expires_at` so the
 override can be capped at the login's.
 
 A mode the account does not hold answers **404**, identically to one that does
@@ -1545,10 +1556,17 @@ object axis, where indistinguishability is the property being protected.
 
 ### Guards on users (`app/routers/users.py`)
 
-- **Last admin:** changing the role of, or deleting, the last account whose
-  role can administer (root role or holds `admin.authz`) → **409** "last
-  account that can administer the site".
+- **Last admin:** changing the role of, or deleting, the last **active**
+  account whose role can administer (root role or holds `admin.authz`) →
+  **409** "last account that can administer the site".
 - **Self-delete:** deleting your own account → **409**.
+- **Self-disable:** disabling your own account → **409** `You cannot disable
+  yourself.`
+- **A disabled account does not count as an administrator** for the last-admin
+  guard, so disabling the other root account and then demoting yourself is
+  refused.
+- **A pending registration is not edited here** → **409**; it is approved or
+  declined.
 
 ## Admin UI
 
@@ -1711,6 +1729,3 @@ of a session.
 
 - **Seasonal counts include hidden entries.** In [Accepted
   residuals](#accepted-residuals) with its blast radius.
-- **Sessions are flat 30 days** with no refresh or revocation, and there is
-  no password reset — an admin sets one at `/users`. See
-  [authentication.md](authentication.md).

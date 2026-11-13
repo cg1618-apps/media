@@ -1,6 +1,6 @@
 """Role, user-management and content-label schemas."""
 
-from typing import List, Optional
+from typing import List, Literal, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -179,6 +179,9 @@ class ManagedUserUpdate(BaseModel):
     username: Optional[str] = None
     password: Optional[str] = None
     role_id: Optional[UUID] = None
+    # `pending` is not settable here: a registration is approved or declined,
+    # not edited. Anything else is a 422.
+    status: Optional[Literal["active", "disabled"]] = None
     # Null is no limit. Left out of the payload it is untouched - unless the
     # same save changes the role, which resets it to the new role's default.
     # Not settable on a super account, which never has one.
@@ -201,6 +204,8 @@ class ManagedUserResponse(BaseModel):
     username: str
     role_id: Optional[UUID] = None
     role_name: Optional[str] = None
+    # active / disabled / pending. Changed through PATCH /api/users/{id}.
+    status: str = "active"
     # The OBJECT axis for this account. Carried on the user response rather
     # than behind a second endpoint because the panel that edits it lives on
     # the users page, and PUT .../access-modes returns this same shape - so
@@ -221,6 +226,14 @@ class AccountSettingsResponse(BaseModel):
 
     username: str
     role_name: str
+
+
+class OwnPasswordChange(BaseModel):
+    """Body of PUT /api/account/password. No user id, as everywhere on this
+    router: the account is the session's."""
+
+    current_password: str
+    new_password: str
 
 
 # ---------------------------------------------------------------------------
