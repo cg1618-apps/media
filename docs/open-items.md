@@ -125,10 +125,12 @@ for its entries), so the filter agrees with what the mode hides; no filter
 in `safe`, where every labelled entry is hidden. Undecided: every library,
 or the group libraries only.
 
-**The `guest` role has no `media_type.game`**, so a logged-out visitor sees an
-empty Games library. The `role_permission` rows were seeded before games
-existed; the other eight types are granted. Guests are to see games: grant
-`media_type.game` to `guest` on `/roles`, on each database.
+**The `guest` role may lack `media_type.game`**, which shows a logged-out
+visitor an empty Games library. `role_permission` rows seeded before games
+existed miss it, and a role is topped up only when it holds nothing; the
+company development database has the grant, so it is a per-database fact.
+Guests are to see games: on `/roles`, check the `guest` role on each
+database and grant `media_type.game` where it is missing.
 
 **Two community-adjacent measurements are unanswered.** Does any endpoint return
 an entry's `system_id` for a type the viewer lacks? And the same for a
