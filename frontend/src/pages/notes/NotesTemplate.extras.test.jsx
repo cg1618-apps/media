@@ -1,10 +1,11 @@
-// Frontend: the Quotes and Memes note sections are extras (view.extras).
+// Frontend: the Quotes and Memes note sections follow the account's
+// quotes_memes feature switch.
 //
-// They are backed by /api/quote and /api/meme, which answer 401 to a viewer
-// without the key, so for such a viewer they are dropped before they render -
-// and before their components could fetch. The registry below lists both, and
-// the member case draws both from it, so their absence for a guest is the
-// key's doing.
+// They are backed by /api/quote and /api/meme, which answer 401 to an account
+// without the switch, so for such a viewer they are dropped before they
+// render - and before their components could fetch. The registry below lists
+// both, and the switched-on case draws both from it, so their absence is the
+// switch's doing. view.extras is held throughout: it no longer decides.
 import { render, screen, waitFor } from "@testing-library/react";
 
 import NotesTemplate from "./NotesTemplate";
@@ -17,10 +18,13 @@ vi.mock("./sections/QuoteSection", () => ({
 vi.mock("./sections/MemeSection", () => ({
   default: ({ label }) => <div data-testid="meme-section">{label}</div>,
 }));
-const { scope } = vi.hoisted(() => ({
-  scope: { entities: true, search: true, extras: true, personal: true },
+const { auth } = vi.hoisted(() => ({ auth: { features: [] } }));
+vi.mock("../../contexts/AuthContext", () => ({
+  useAuth: () => ({
+    has: () => true,
+    hasFeature: (feature) => auth.features.includes(feature),
+  }),
 }));
-vi.mock("../../hooks/useViewScope", () => ({ useViewScope: () => scope }));
 
 const SECTIONS = [
   { key: "overview", shape: "text", label: "Overview", kinds: [] },
@@ -29,7 +33,7 @@ const SECTIONS = [
 ];
 
 beforeEach(() => {
-  scope.extras = true;
+  auth.features = ["quotes_memes"];
   vi.mocked(api.fetchSections).mockResolvedValue(SECTIONS);
   vi.mocked(api.fetchNotes).mockResolvedValue([
     { system_id: "n1", section: "overview", content: "an overview", sort_index: 0 },
@@ -40,8 +44,8 @@ const renderTemplate = () =>
   render(<NotesTemplate ownerType="anime" ownerId="abc" isAdmin={false} />);
 
 describe("NotesTemplate quotes and memes", () => {
-  it("leaves both out for a viewer without view.extras", async () => {
-    scope.extras = false;
+  it("leaves both out for an account without the switch", async () => {
+    auth.features = [];
     renderTemplate();
     // The page has loaded once the overview row shows.
     await waitFor(() => expect(screen.getByText("an overview")).toBeInTheDocument());
@@ -49,7 +53,7 @@ describe("NotesTemplate quotes and memes", () => {
     expect(screen.queryByTestId("meme-section")).toBeNull();
   });
 
-  it("draws both for a member", async () => {
+  it("draws both for an account with the switch", async () => {
     renderTemplate();
     expect(await screen.findByTestId("quote-section")).toBeInTheDocument();
     expect(screen.getByTestId("meme-section")).toBeInTheDocument();

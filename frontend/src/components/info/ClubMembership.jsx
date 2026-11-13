@@ -18,7 +18,7 @@ import { fetchJson, jsonBody } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
-import { entityPath } from "../../lib/entityPath";
+import { useEntityHref } from "../../lib/entityPath";
 import { canSeeGatedType } from "../../lib/gatedTypes";
 import ComboBox from "../forms/ComboBox";
 import { Button, Slip } from "../ui/primitives";
@@ -28,7 +28,8 @@ const linkCls =
   "text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition";
 
 function PersonLink({ person }) {
-  const path = entityPath("person", person);
+  const entityHref = useEntityHref();
+  const path = entityHref("person", person);
   return path ? (
     <Link to={path} className={linkCls}>
       {person.display_name}

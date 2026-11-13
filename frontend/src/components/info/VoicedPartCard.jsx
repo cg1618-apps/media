@@ -12,7 +12,7 @@
 import { Link } from "react-router-dom";
 
 import { getCoverUrl, FALLBACK_SVG, focusStyle, thumbUrl } from "../../lib/covers";
-import { entityPath } from "../../lib/entityPath";
+import { useEntityHref } from "../../lib/entityPath";
 import { releaseYear } from "../../lib/releaseDate";
 import { Chip } from "../ui/primitives";
 import LazyImage from "../ui/LazyImage";
@@ -20,17 +20,20 @@ import LazyImage from "../ui/LazyImage";
 export default function VoicedPartCard({ entry, navPath }) {
   const asIdentity = Boolean(entry.identity_id);
   const ownName = entry.identity_name || entry.character_name || "Unknown";
+  // Both paths are "" for a viewer without view.character, and each link
+  // below then renders its name as plain text.
+  const entityHref = useEntityHref();
   const partPath =
     entry.identity_public_id != null
-      ? entityPath("identity", {
+      ? entityHref("identity", {
           public_id: entry.identity_public_id,
           display_name: entry.identity_name,
         })
-      : entityPath("character", {
+      : entityHref("character", {
           public_id: entry.character_public_id,
           display_name: entry.character_name,
         });
-  const characterPath = entityPath("character", {
+  const characterPath = entityHref("character", {
     public_id: entry.character_public_id,
     display_name: entry.character_name,
   });
@@ -118,9 +121,13 @@ export default function VoicedPartCard({ entry, navPath }) {
         {asIdentity && entry.character_name && (
           <span className="text-xs text-text-faint truncate">
             identity of{" "}
-            <Link to={characterPath} className="hover:text-brand transition-colors">
-              {entry.character_name}
-            </Link>
+            {characterPath ? (
+              <Link to={characterPath} className="hover:text-brand transition-colors">
+                {entry.character_name}
+              </Link>
+            ) : (
+              entry.character_name
+            )}
           </span>
         )}
         {entry.voice_remark && (

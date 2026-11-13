@@ -4070,3 +4070,75 @@ only after the admin approves what arrived.
   last-admin guard is unchanged, and goes when the admin stops being root.
 - **The shared request limit is 10** (`DEFAULT_REQUEST_LIMITS`), adjustable
   per account like `user`'s 15.
+
+### Per-role and per-account switches (spec: 2026-11-03 account-system-design, "Fixed and adjustable settings")
+
+`view.entities` became four role permissions - `view.studio`,
+`view.publisher`, `view.person` and `view.character` - the three gated media
+types became locked grants, and four per-account feature switches arrived as
+columns on `users`. Migration `s1w2itches345` carries all of it.
+
+- **Four entity keys, one per kind.** The owner wants each kind of entity
+  page opened or closed on its own. `person` covers the seiyuu library too,
+  because a seiyuu opens a person page, and `character` covers identities,
+  which are pages of a character; a fifth and sixth key for those would be
+  switches whose only sensible setting is "same as the other one".
+- **The migration carries `view.entities` onto all four, rather than starting
+  them off** (owner, settled in review). Every role that held the old key gets
+  the four new ones, and the old rows are deleted, so the release changes
+  nothing anybody sees. "Off by default" is the seed's rule for a database
+  built from now on: a fresh database (the company machine's, say) seeds
+  `user`, `guest` and `shared` with entity pages off until an admin ticks
+  them on. Switching every member's entity pages off on deploy would have
+  been a behaviour change smuggled into a refactor of the permission's shape.
+- **The gated types are locked, not free.** A gated type is the one place a
+  role grant and a content label say the same thing, and the label is what
+  actually hides it: a guest or shared session in `safe`, `normal` or
+  `borderline` never sees one whatever its role holds. Leaving the grant free
+  made the role editor offer a box whose ticking did nothing visible on a
+  guest - until somebody widened a mode. Locking it on for `user` and `super`
+  and off for `guest` and `shared` makes the grant state what is meant: a
+  member may see the type in a mode that carries its label, an anonymous
+  visitor or a shared login never. The nine ordinary types stay free.
+- **The migration grants any missing ordinary type once** to `guest`, `user`,
+  `shared` and `super`. The owner: the nine usual types are for everyone but
+  the admin. A role missing one is a seed accident, not a decision - the guest
+  role on production was seeded before `game` existed, and the seed tops up
+  only a role holding nothing, so its Games library was empty for a guest.
+  Never the gated types, which the locks decide. Idempotent.
+- **Columns, not a feature table.** A feature is a setting on one account,
+  like the mode ceiling and the open-request limit, and those travel on the
+  Sheets Users tab; a separate table would need a tab of its own keyed by
+  username, and a Pull that skipped or reset it would silently switch every
+  feature off on the arriving machine. As columns they ride the Users tab
+  with the rest, and a sheet that predates them leaves the local values alone
+  rather than resetting them. Four booleans is a small enough set that a
+  table's generality buys nothing.
+- **The role is asked as well as the column.** `PATCH /api/users/{id}` refuses
+  switching a feature on for anything but a `user` or `super` account, but a
+  Pull restores whatever the sheet says, so a hand-edited Users tab could
+  store one on a shared account. `held_features` therefore counts a column
+  only on a `user` or `super` account: a shared account never gets quotes or
+  memes, not even by a stored switch.
+- **The root admin keeps `quotes_memes` without the switch.** The quote and
+  meme reads were `view.extras`, which the root short-circuit gave the admin,
+  and the admin account can never be switched on - so without the exception
+  it would write quotes and memes it could not read. Only that feature: the
+  other three name personal data, which the root role does not hold.
+- **Only `quotes_memes` gates anything yet.** Favourites, music status and mod
+  status are storage and a switch on `/users` until the personal-data work
+  gives them teeth; adding the columns now means that work changes no schema
+  for them.
+- **`cg1618` gets all four on; every other account starts off.** That removes
+  quotes and memes from every other member until the admin switches them on,
+  which is the spec's intent: they are granted per account, not per role.
+- **`view.extras` narrows to resources, the random picker, future releases and
+  completions, and stays locked off for `shared`.** Splitting it further, so
+  a shared account gets its own Random Picker and Future Releases, is its own
+  change with the per-viewer pages (owner, settled in review).
+- **A shared account cannot switch modes at all.** Its ceiling and default are
+  both its own mode, but the switch rule let any account move to a mode at or
+  below its ceiling, so `shared-normal` could drop to `safe` and the switcher
+  appeared for it - one person narrowing the login for everyone signed in.
+  `POST /api/auth/access-mode` now answers 409 for it, and `held_modes` offers
+  it its own mode alone, so the switcher, which needs two, does not render.

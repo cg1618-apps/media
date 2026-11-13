@@ -83,6 +83,22 @@ re-grep every line reference at execution.
   other account starts off. **This removes quotes and memes from every
   other `user` account**, which reads them today through `view.extras`.
 
+### 5. A shared account's mode is fixed for switching too
+
+Added at execution (the manager's routing of a gap P3f left): P3f fixes a
+shared account's ceiling = default = its own mode, but the switch rule still
+lets any account move to a mode at or below its ceiling, so `shared-normal`
+can drop to `safe` and the mode switcher appears for it. `viewers.md`'s
+design says the switcher never shows for a shared account.
+
+- `POST /api/auth/access-mode` refuses a `shared` account with **409**,
+  "A shared account's mode is fixed."; **mirror**: a `user` switching
+  within its ceiling still works.
+- `/me` (or whatever the switcher reads) offers a shared account no other
+  mode, so `ModeSwitcher.jsx` does not render for it; a test asserts it.
+- `viewers.md`'s caveat about the switcher appearing for shared accounts
+  goes.
+
 ### Migration (`s1w2itches345`, parented on the head at execution)
 
 1. Users: the four feature columns; `cg1618` set on.

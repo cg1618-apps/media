@@ -31,9 +31,12 @@ from app.services.rbac.permissions import (
     PERM_MANAGE_PIPELINES,
     PERM_MANAGE_REQUESTS,
     PERM_SELF_REQUESTS,
-    PERM_VIEW_ENTITIES,
+    PERM_VIEW_CHARACTER,
     PERM_VIEW_EXTRAS,
+    PERM_VIEW_PERSON,
+    PERM_VIEW_PUBLISHER,
     PERM_VIEW_SEARCH,
+    PERM_VIEW_STUDIO,
     split_perm,
 )
 
@@ -313,7 +316,12 @@ require_manage_pipelines = require_permission(PERM_MANAGE_PIPELINES)
 # The view gates: reads a guest does not get. Bound per read route rather than
 # on the router, so that a write on the same router answers to manage.catalog
 # alone and a role holding that is not also required to hold the read.
-require_view_entities = require_permission(PERM_VIEW_ENTITIES)
+# One gate per entity kind. The person gate covers the seiyuu library
+# (/api/person?role=seiyuu) and the character gate covers identities.
+require_view_studio = require_permission(PERM_VIEW_STUDIO)
+require_view_publisher = require_permission(PERM_VIEW_PUBLISHER)
+require_view_person = require_permission(PERM_VIEW_PERSON)
+require_view_character = require_permission(PERM_VIEW_CHARACTER)
 require_view_search = require_permission(PERM_VIEW_SEARCH)
 require_view_extras = require_permission(PERM_VIEW_EXTRAS)
 

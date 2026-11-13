@@ -1,6 +1,6 @@
 # Resources
 
-Last verified: 2026-10-30
+Last verified: 2026-11-13
 
 ## What this is for
 
@@ -76,7 +76,7 @@ Router: `app/routers/resources.py`, prefix `/api/resources`. Full table in
 
 | Method | Path | Gate |
 |---|---|---|
-| GET | `/api/resources` | `view.extras` (`require_view_extras`, as the Quote list) - not a guest |
+| GET | `/api/resources` | `view.extras` (`require_view_extras`) - not a guest |
 | POST | `/api/resources` | `manage.catalog` |
 | PATCH | `/api/resources/reorder` | `manage.catalog` |
 | PATCH | `/api/resources/{system_id}` | `manage.catalog` |
@@ -89,8 +89,9 @@ Every node in a response has the same shape: `system_id`, `parent_id`,
 
 ## Who may read and write
 
-Reading follows the Quote page: guests, members and admins all get the whole
-tree. There is nothing for a content label to hide - a node names no entry,
+Reading needs `view.extras`: every viewer holding it - `user` and `super` as
+seeded, `admin` through the root flag - gets the whole tree; a guest and a
+shared account get **401**. There is nothing for a content label to hide - a node names no entry,
 franchise or series - so no visibility filter applies.
 
 Writing is catalogue work, `require_manage_catalog`: the `super` role by

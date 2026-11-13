@@ -24,6 +24,7 @@ from app.services.domain.gated_labels import ensure_system_labels
 from app.services.integrations import image_manager, sheets
 from app.services.rbac import cache as rbac_cache
 from app.services.rbac.permissions import (
+    ENTITY_VIEW_PERMISSIONS,
     PERM_MANAGE_CATALOG,
     VIEW_PERMISSION_KEYS,
     view_perm,
@@ -667,11 +668,19 @@ def make_viewer(
 ALL_VIEW_PERMISSIONS = frozenset(view_perm(key) for key in VIEW_PERMISSION_KEYS)
 
 
-def make_guest_reader(db_session, client, username="guestreader", extra=ALL_VIEW_PERMISSIONS):
+def make_guest_reader(
+    db_session,
+    client,
+    username="guestreader",
+    extra=ALL_VIEW_PERMISSIONS,
+    quotes_memes=False,
+):
     """
     Log `client` in as an account that sees exactly what a guest sees - this
     database's guest-role grants and the `safe` mode, which is what a
-    logged-out visitor resolves - plus the role permissions in `extra`.
+    logged-out visitor resolves - plus the role permissions in `extra`, and
+    the account's quotes-and-memes switch when `quotes_memes` is true (the
+    quote and meme reads ask the switch, not a permission).
 
     For tests written against the anonymous `client` that read a surface now
     behind a view.* key. Moving them to `user_client` would change the object
@@ -703,6 +712,7 @@ def make_guest_reader(db_session, client, username="guestreader", extra=ALL_VIEW
         username=username,
         hashed_password=get_password_hash("x"),
         role_id=role.system_id,
+        feature_quotes_memes=quotes_memes,
     )
     user.mode_ceiling = MODE_SAFE
     user.mode_default = MODE_SAFE
@@ -723,8 +733,10 @@ def make_guest_reader(db_session, client, username="guestreader", extra=ALL_VIEW
 
 @pytest.fixture
 def guest_reader(db_session, client):
-    """`client`, logged in as make_guest_reader: a guest plus every view.* key."""
-    return make_guest_reader(db_session, client)
+    """`client`, logged in as make_guest_reader: a guest plus every view.* key
+    and the quotes-and-memes switch - every gated read, on the guest's
+    object axis."""
+    return make_guest_reader(db_session, client, quotes_memes=True)
 
 
 @pytest.fixture
@@ -781,7 +793,12 @@ def catalog_writer(db_session, client):
             db_session,
             client,
             username,
-            default_user_permissions() | {PERM_MANAGE_CATALOG} | set(extra),
+            # The entity-page keys too: an editor of studios, people and
+            # characters reads their pages, and the seeded member does not.
+            default_user_permissions()
+            | ENTITY_VIEW_PERMISSIONS
+            | {PERM_MANAGE_CATALOG}
+            | set(extra),
             label_keys=label_keys,
         )
 

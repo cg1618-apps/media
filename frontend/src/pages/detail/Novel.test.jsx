@@ -38,7 +38,7 @@ const BASE_NOVEL = {
   units: [],
 };
 
-const MEMBER_VIEW = ["view.entities", "view.search", "view.extras", "view.personal"];
+const MEMBER_VIEW = ["view.studio", "view.publisher", "view.person", "view.character", "view.search", "view.extras", "view.personal"];
 // What /api/auth/me grants the non-admin viewer; a guest case sets [].
 let viewPermissions = MEMBER_VIEW;
 
@@ -50,7 +50,7 @@ function respond(url, isAdmin) {
       username: isAdmin ? "admin" : "reader",
       role: isAdmin ? "admin" : "user",
       is_root: isAdmin,
-      // A member's view.* keys by default: entity names link (view.entities)
+      // A member's view.* keys by default: entity names link (the four entity keys)
       // and a unit's remark is shown (view.personal). The guest view of the
       // links is pinned in CastSection.test and StudioLinks.test, and of the
       // remark below.

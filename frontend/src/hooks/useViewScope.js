@@ -1,11 +1,12 @@
 // Frontend: which of the member-only reading surfaces this viewer may see.
 //
-// The four view.* keys open what a guest is not shown: the credited entities,
-// search, the extras (Future Releases, Completions, the Random Picker, Quotes,
-// Memes, Resources) and personal content (the catalogue's own ratings and
-// expectations, a novel unit's remark, the highlight note sections). user
-// and super hold all four; guest holds none; admin passes through the root
-// flag.
+// The view.* keys open what a guest is not shown: the credited entities, one
+// key per kind (studio, publisher, person - which covers seiyuu - and
+// character, which covers identities), search, the extras (Future Releases,
+// Completions, the Random Picker, Resources) and personal content (the catalogue's own ratings and
+// expectations, a novel unit's remark, the highlight note sections). super
+// holds them all; user holds what its role grants; guest holds none; admin
+// passes through the root flag.
 //
 // The server already refuses or strips what a viewer may not read. This hook
 // is the UI's half: it hides the chip, column, sort option or section rather
@@ -20,7 +21,10 @@ export function useViewScope() {
   const auth = useAuth();
   const has = (permission) => Boolean(auth?.has?.(permission));
   return {
-    entities: has("view.entities"),
+    studio: has("view.studio"),
+    publisher: has("view.publisher"),
+    person: has("view.person"),
+    character: has("view.character"),
     search: has("view.search"),
     extras: has("view.extras"),
     personal: has("view.personal"),

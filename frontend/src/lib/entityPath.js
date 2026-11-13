@@ -71,27 +71,36 @@ export function entityPath(type, entity) {
   return slug ? `/${type}/${entity.public_id}/${slug}` : `/${type}/${entity.public_id}`;
 }
 
-// The credited entities, whose pages are a member's (view.entities). Every
-// other type - a media entry, a group, a watch order - is open to a guest.
-export const ENTITY_TYPES = new Set([
-  "studio",
-  "publisher",
-  "person",
-  "character",
-  "identity",
-]);
+// The credited entities, each behind its own kind's key: the useViewScope
+// flag a link to that type asks. An identity is a page of a character, so it
+// asks view.character. Every other type - a media entry, a group, a watch
+// order - is open to a guest.
+export const ENTITY_SCOPE = {
+  studio: "studio",
+  publisher: "publisher",
+  person: "person",
+  character: "character",
+  identity: "character",
+};
 
-// entityPath for the current viewer: "" for an entity type when the viewer
-// lacks view.entities, the same key App.jsx's entity routes ask. Every link
+export const ENTITY_TYPES = new Set(Object.keys(ENTITY_SCOPE));
+
+// entityPath for the current viewer: "" for an entity type whose kind's key
+// (view.studio, view.publisher, view.person, view.character) the viewer
+// lacks - the same key App.jsx's route for that page asks. Every link
 // component already reads "" as "no page to go to" and renders the name as
-// plain text, so a guest reads who made an entry without being sent to a
+// plain text, so a viewer reads who made an entry without being sent to a
 // page that would only bounce them to the login screen. Outside an
-// AuthProvider nobody is known to hold the key, so no entity link is drawn.
+// AuthProvider nobody is known to hold any key, so no entity link is drawn.
 export function useEntityHref() {
-  const { entities: linked } = useViewScope();
+  const { studio, publisher, person, character } = useViewScope();
   return useCallback(
-    (type, entity) =>
-      ENTITY_TYPES.has(type) && !linked ? "" : entityPath(type, entity),
-    [linked],
+    (type, entity) => {
+      const flag = ENTITY_SCOPE[type];
+      const held = { studio, publisher, person, character };
+      if (flag && !held[flag]) return "";
+      return entityPath(type, entity);
+    },
+    [studio, publisher, person, character],
   );
 }
