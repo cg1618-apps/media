@@ -119,13 +119,6 @@ blank every tab and be invisible from home — or a manual clear in the browser.
 That machine can no longer produce the first of those: it holds the working
 guard, and its database is populated rather than fresh.
 
-**`Note`, `Meme` and `Quote` carry `author_id` as a raw uuid, so authorship does
-not round-trip.** Each installation mints its own `admin`, and the `Users` tab's
-username match keeps the local id, so the other machine's admin rows restore
-under this one's. The durable fix is a `username` column on the three tabs, the
-way `Plan Next` has one. Invisible with one account; needed before a second
-person writes a note. `app/services/pipelines/tabs.py:259/268/269`.
-
 ## Authorization and accounts
 
 The account and authorization rework is decided work, queued in
