@@ -24,6 +24,7 @@ Start at **`docs/README.md`** — it indexes every doc. Docs are written for hum
 - Pipelines (Backup/Pull/Fill/Replace/Calculate) → `docs/data-actions.md`, `docs/external-apis.md`.
 - Rules and derivations → `docs/business-rules.md`; per-subsystem detail → `docs/systems/*.md`.
 - Endpoints → `docs/api.md`. UI → `docs/frontend/*.md`; any visual change → `docs/frontend/design-system.md` first. Tests → `docs/testing.md`. Production: what runs → `docs/deployment-selfhost.md`, deploying and rolling back → `deploy/README.md`, building a box from scratch → `docs/setup-selfhost.md`; `docs/deployment-gcp.md` is history.
+- Decided work not built yet, in build order → **`docs/to-do-next.md`**.
 - Known defects and unmade decisions → **`docs/open-items.md`**. Machine state — which database is at which revision, where the recovery dumps are → `docs/switching-environments.md`.
 
 When you change behaviour, update the matching doc in the same change and bump its `Last verified` line.

@@ -1,6 +1,6 @@
 # Authentication
 
-Last verified: 2026-09-26
+Last verified: 2026-10-30
 
 ## What this is for
 
@@ -252,4 +252,3 @@ then decides where the new identity may actually stand.
 - **No password policy.** Any non-empty string is accepted on `/api/users` create/update, and only the first 72 bytes count.
 - **No session revocation short of a role change.** A cookie stays valid until its 30-day `exp`; changing the user's password does not invalidate existing tokens. The month-long lifetime is deliberate for a single-owner catalogue, and it is also what makes this the sharpest of the items here: a leaked cookie is usable for a month and there is nothing that ends it early. Deleting the user or removing `admin` from their role does take effect on the next request, because the role is re-read per request.
 - **`JWT_SECRET_KEY` rotation logs everyone out**, since there is no key id or grace list.
-- **The cookie is never `Secure`.** Fine for local HTTP, which is the only runtime today, but it has to be made conditional on the request scheme before the app is served over HTTPS to anyone.
