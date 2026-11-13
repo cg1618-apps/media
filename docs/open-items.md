@@ -1,6 +1,6 @@
 # Open items
 
-Last verified: 2026-11-12
+Last verified: 2026-11-13
 
 Known defects, unmade decisions and blocked work. **Everything here is open by
 definition** — there is no status column, no claiming, and no lifecycle. An item
@@ -13,6 +13,22 @@ This is not a work log and not a plan. Whose turn something is, and what a
 session is currently doing, live in the branch and the pull request. Machine
 state — which database is at which revision, where the dumps are — is
 [switching-environments.md](switching-environments.md).
+
+## Per-viewer page detail — first, once the rework is built
+
+**Each page's detailed customisation per viewer is undecided, and it is the
+first thing to take up** once everything in [to-do-next.md](to-do-next.md)
+has been built — the notes rework and the account and authorization rework
+— and the remaining page-level discussions have been had.
+
+What is settled now is each page's **general** version per viewer, in
+[viewers.md](viewers.md), "Customised pages": for a library, for instance,
+super and user get essentially the same page, and guests and shared
+accounts get its catalogue parts only. What is not is the detail beyond
+that — which columns, defaults, layout and wording each viewer gets — and
+the designs for it, which come from the owner. The same holds for every
+customised page: its general version is settled in that discussion, and its
+detail waits for this.
 
 ## Deployment
 

@@ -238,7 +238,12 @@ Beyond being shown or hidden, many pages differ by viewer. Each page gets a
 section here as it is decided; the designs — how a page looks — come from
 the owner, so these sections say what differs, not where it sits.
 
-**Still to discuss:** the libraries; entry detail
+**Each page is settled here in its general version only.** The detailed
+customisation per viewer — columns, defaults, layout, wording — is
+discussed after the rework is built; see [open-items.md](open-items.md),
+"Per-viewer page detail".
+
+**Still to discuss:** entry detail
 pages; collection, franchise and series pages; watch order pages; Seasonal
 and Statistics (both need a version for an account without data); the
 Random Picker (personal filters only with data, and the shared version);
@@ -279,6 +284,19 @@ registrations.
 - **The mode switcher** appears only for an account holding more than one
   mode, so never for a shared account.
 - Sign in and sign out stay as they are.
+
+### Libraries
+
+- **super, user:** essentially the same page — every filter, sort and
+  column, the personal ones holding the viewer's own status, progress,
+  rating, usefulness and ownership. The status button and the plan-flag
+  checkboxes work for both, since they write the viewer's own list; today
+  they are gated on being the admin.
+- **guest, shared:** **the catalogue parts only.** No personal filter, sort
+  or column at all — not empty ones. Cards show the external score.
+- **admin:** no libraries.
+- The gated types' libraries follow the same split, for super and user in
+  `unrestricted`.
 
 ### Search
 
