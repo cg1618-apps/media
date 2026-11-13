@@ -22,7 +22,12 @@ from app.dependencies import get_db
 from app.services.rbac import cache
 from app.services.rbac.labels import labels_shown_in
 from app.services.rbac.resolver import require_admin_authz
-from app.services.rbac.seed_modes import MODE_UNRESTRICTED, field_groups_shown_in
+from app.services.rbac.seed_modes import (
+    MODE_ORDER,
+    MODE_UNRESTRICTED,
+    field_groups_shown_in,
+    mode_rank,
+)
 
 router = APIRouter(
     prefix="/api/access-modes",
@@ -65,9 +70,21 @@ def _to_response(db: Session, mode: models.AccessMode) -> schemas.AccessModeResp
         is_system=mode.is_system,
         label_keys=_label_keys(db, mode),
         field_group_keys=list(field_groups_shown_in(mode.key)),
-        user_count=db.query(models.UserAccessMode)
-        .filter(models.UserAccessMode.mode_id == mode.system_id)
-        .count(),
+        user_count=_accounts_reaching(db, mode),
+        rank=mode_rank(mode.key),
+    )
+
+
+def _accounts_reaching(db: Session, mode: models.AccessMode) -> int:
+    """How many accounts may use this mode: those whose ceiling ranks at or
+    above it. Zero for a key with no rank, which no ceiling reaches."""
+    rank = mode_rank(mode.key)
+    if rank is None:
+        return 0
+    return (
+        db.query(models.User)
+        .filter(models.User.mode_ceiling.in_(MODE_ORDER[rank:]))
+        .count()
     )
 
 

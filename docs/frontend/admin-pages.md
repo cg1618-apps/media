@@ -1413,18 +1413,30 @@ prose twin is [../data-actions.md](../data-actions.md#6-calculate-all).
   label and an icon from `FAMILY_ICONS` (`fa-key` for a family with none);
   the Viewing family (`view.*` - entities, search, extras, personal, the
   member-only reading surfaces) is drawn with `fa-eye`.
-- **Users** — create users with a role, change role, delete; the last
-  administrator and your own account are protected. The edit form also holds
-  an **Open request limit** number field (blank is no limit) for any account
-  whose role has one: not for `super`, which is never limited (the server
-  answers 422), and not for a root role, which files nothing. The field
-  follows the role chosen in the same form, and `open_request_limit` is sent
-  only when it changed — left out of a save that changes the role, the server
-  resets the limit to the new role's default.
+- **Users** — create users with a role, change role, set a password,
+  delete; the last administrator and your own account are protected. The
+  password field in a row's edit mode says that setting one signs the
+  account out everywhere. The edit form also holds an **Open request limit**
+  number field (blank is no limit) for any account whose role has one: not
+  for `super`, which is never limited (the server answers 422), and not for a
+  root role, which files nothing. The field follows the role chosen in the
+  same form, and `open_request_limit` is sent only when it changed — left out
+  of a save that changes the role, the server resets the limit to the new
+  role's default. A **Status** column shows each account's `status` as a chip
+  (`active`, `disabled` in danger, `pending`). Each row offers only what the
+  server would accept:
+  - **Disable** on an active account other than your own, behind a
+    `ConfirmModal` saying it signs the account out everywhere and nothing in
+    it is lost; **Enable** on a disabled one, straight away. Both are
+    `PATCH /api/users/{id}` with `status`. A pending account gets neither.
+  - **Reset link** on an active account whose role is not `shared`:
+    `POST /api/users/{id}/reset-link`, then `OnceLinkModal` with the link, a
+    **Copy link** button and the expiry, saying the link is shown only once -
+    the server keeps only a hash, and making another stops this one working.
 - **Access Modes** — one card per mode, narrowest first: its name and
-  description, editable; how many accounts hold it; and the labels and field
-  groups it shows, read-only, because those are derived in code. Nothing on
-  the page creates, deletes or regrants a mode.
+  description, editable; how many accounts' ceilings reach it; and the labels
+  and field groups it shows, read-only, because those are derived in code.
+  Nothing on the page creates, deletes or regrants a mode.
 - **Content Labels** — the read-only label reference: each label's name, key
   and description, a chip for every mode that shows it, whether it also
   carries NSFW, and how many entries and franchises carry it. Labels are

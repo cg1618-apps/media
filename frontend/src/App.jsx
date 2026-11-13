@@ -62,6 +62,7 @@ const Quotes = lazy(() => import("./pages/public/Quotes"));
 const Memes = lazy(() => import("./pages/public/Memes"));
 const Resources = lazy(() => import("./pages/public/Resources"));
 const Settings = lazy(() => import("./pages/public/Settings"));
+const ResetPassword = lazy(() => import("./pages/public/ResetPassword"));
 const MyRequests = lazy(() => import("./pages/public/MyRequests"));
 const Admin = lazy(() => import("./pages/admin/Admin"));
 const Add = lazy(() => import("./pages/admin/Add"));
@@ -113,6 +114,9 @@ export default function App() {
                     media and group libraries and their detail pages. */}
                 <Route path="/" element={<Index />} />
                 <Route path="/login" element={<Login />} />
+                {/* In no menu: reached only by a reset link the admin
+                    hands out, which carries its own ?code=. */}
+                <Route path="/reset" element={<ResetPassword />} />
                 <Route
                   path="/library/collection"
                   element={<CollectionLibrary />}

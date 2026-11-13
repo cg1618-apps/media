@@ -74,9 +74,8 @@ from app.routers import (
 from app.schema_guard import ensure_schema
 from app.services.domain.gated_labels import ensure_labels
 from app.services.integrations.image_manager import COVER_DIR, COVER_OWNERS
-from app.services.rbac.modes import grant_all_modes_to_existing_accounts
 from app.services.rbac.seed import ADMIN_ROLE, ensure_rbac_seed
-from app.services.rbac.seed_modes import ensure_access_mode_seed
+from app.services.rbac.seed_modes import MODE_UNRESTRICTED, ensure_access_mode_seed
 from app.services.security import get_password_hash
 
 # Before anything in this module can log. `ensure_schema` below, and every
@@ -136,14 +135,6 @@ async def lifespan(app: FastAPI):
         # a missing one created, a renamed one renamed back. Which modes show
         # each is derived, so nothing is granted.
         ensure_labels(db)
-        # And make sure every existing account HOLDS a mode. A signed-in
-        # caller with no mode resolves the empty object set - fail-closed,
-        # and correct - so on a database built by create_all rather than by
-        # Alembic (schema_guard's fresh-install path) the seeded admin would
-        # otherwise log in and see nothing. Idempotent and all-or-nothing per
-        # account: anyone already holding a mode is left alone, so this does
-        # not fight the future rule that a NEW account gets `safe` only.
-        grant_all_modes_to_existing_accounts(db)
         db.commit()
         admin_role = (
             db.query(models.Role).filter(models.Role.name == ADMIN_ROLE).first()
@@ -163,10 +154,15 @@ async def lifespan(app: FastAPI):
             logger.info("[System] No admin detected. Seeding master account...")
 
             hashed_pwd = get_password_hash(admin_pass)
+            # Ceiling and default `unrestricted`: the faithful mapping of the
+            # root role, which sees everything. Not the column's `normal`
+            # default, which is what an invited account starts with.
             new_admin = models.User(
                 username="admin",
                 hashed_password=hashed_pwd,
                 role_id=admin_role.system_id,
+                mode_ceiling=MODE_UNRESTRICTED,
+                mode_default=MODE_UNRESTRICTED,
             )
             db.add(new_admin)
             db.commit()

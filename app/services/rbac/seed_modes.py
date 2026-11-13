@@ -7,9 +7,11 @@ MODE_ORDER and never stored, so every database shows the same thing and no
 edit can make a mode show something the mode above it hides. What stays
 adjustable on a mode is its name and description.
 
-The modes are rows (`access_mode`) because accounts hold them by id and a
-per-account denial hangs off that grant. ensure_access_mode_seed creates a
-missing one; nothing creates or deletes one otherwise.
+The modes are rows (`access_mode`) because their name, description and
+sort order are adjustable and a session's mode override names one by id;
+accounts name a mode by key (users.mode_ceiling, users.mode_default).
+ensure_access_mode_seed creates a missing one; nothing creates or deletes one
+otherwise.
 
 Called from the lifespan and mirrored by the migrations, which carry their own
 frozen copies rather than importing this module - a migration that imports app

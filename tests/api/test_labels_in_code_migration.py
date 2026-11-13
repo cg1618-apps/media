@@ -1,7 +1,8 @@
 """
-Revision l1a2belcode3's data steps: a label or mode the code does not name is
-deleted when nothing cites it, and stops the upgrade - naming itself - when
-something does.
+Revision l1a2belcode3's data steps: a label the code does not name is deleted
+when nothing cites it, and stops the upgrade - naming itself - when something
+does. A mode the code does not name is deleted outright, because no account
+can be using one.
 
 Runs the shipped revision's own functions against the test session; the suite
 has no Alembic harness. Dropping the two tables is the schema half, proved
@@ -15,6 +16,7 @@ import uuid
 from pathlib import Path
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 from app import models
 
@@ -87,17 +89,16 @@ def test_an_unknown_mode_nobody_holds_is_deleted(db_session, revision, access_mo
     assert {"safe", "normal", "borderline", "unrestricted"} <= keys
 
 
-def test_an_unknown_mode_an_account_holds_stops_the_upgrade(
-    db_session, revision, access_modes, admin_user
-):
-    mode = models.AccessMode(key="curated", label="Curated", sort_order=5)
-    db_session.add(mode)
-    db_session.flush()
-    db_session.add(models.UserAccessMode(user_id=admin_user.id, mode_id=mode.system_id))
+def test_no_account_can_use_an_unknown_mode(db_session, access_modes, admin_user):
+    """Why step 3 deletes without checking for holders: the database refuses
+    an account whose ceiling names a mode outside the four."""
+    db_session.add(models.AccessMode(key="curated", label="Curated", sort_order=5))
     db_session.flush()
 
-    with pytest.raises(RuntimeError, match="curated"):
-        revision.remove_unknown_modes(db_session.connection())
+    admin_user.mode_ceiling = "curated"
+    admin_user.mode_default = "curated"
+    with pytest.raises(IntegrityError, match="ck_users_mode_keys"):
+        db_session.flush()
 
 
 def test_write_labels_inserts_a_missing_one_and_rewrites_the_rest(db_session, revision):

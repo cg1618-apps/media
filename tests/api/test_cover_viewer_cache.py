@@ -227,21 +227,12 @@ def test_a_new_denial_hides_a_cover_on_the_next_request(
     assert session.get(url).status_code == 200
 
     user = _user_named(db_session, "catwriter")
-    grant = (
-        db_session.query(models.UserAccessMode)
-        .filter(models.UserAccessMode.user_id == user.id)
-        .one()
-    )
     replaced = admin_client.put(
         f"/api/users/{user.id}/access-modes",
         json={
-            "modes": [
-                {
-                    "mode_id": str(grant.mode_id),
-                    "is_default": True,
-                    "denied_label_keys": ["nsfw"],
-                }
-            ]
+            "ceiling": user.mode_ceiling,
+            "default": user.mode_default,
+            "denied_label_keys": ["nsfw"],
         },
     )
     assert replaced.status_code == 200
@@ -268,7 +259,7 @@ def test_an_entry_expires_on_its_ttl_when_nothing_bumps(
     db_session, catalog_writer, hidden_anime, cover_on_disk, clock
 ):
     """
-    A change no bump reaches - here a grant deleted straight from the table,
+    A change no bump reaches - here a ceiling cleared straight in the table,
     as psql or another worker process would - is served stale until the TTL
     and not a moment after.
     """
@@ -277,9 +268,8 @@ def test_an_entry_expires_on_its_ttl_when_nothing_bumps(
     assert session.get(url).status_code == 200
 
     user = _user_named(db_session, "catwriter")
-    db_session.query(models.UserAccessMode).filter(
-        models.UserAccessMode.user_id == user.id
-    ).delete()
+    user.mode_ceiling = None
+    user.mode_default = None
     db_session.flush()
 
     clock[0] += cover_viewer.COVER_VIEWER_TTL_SECONDS - 0.5

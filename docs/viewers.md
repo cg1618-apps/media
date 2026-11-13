@@ -39,6 +39,12 @@ catalogue and what is an account's own data is
 > under the Note section of the nav. Also built: the access modes' adjustable
 > settings are a name and a description, and nothing else, because the modes
 > and what each shows are code. The rest of those two sections is not built.
+>
+> **Built underneath, not yet as described here:** every account has a mode
+> ceiling and a default, set on the Users page, and switches among the modes
+> up to its ceiling ([authorization.md](authorization.md), "Access modes").
+> The "Content (modes)" row is not yet true as a whole: `admin` still sits in
+> `unrestricted` rather than in no mode, and there is no shared account.
 
 ## At a glance
 
@@ -298,8 +304,8 @@ Every page listed below is settled in its general version.
 - **The Pipelines tab is renamed System.**
 - **The admin's header** carries only its own tabs — no Library, no search
   box.
-- **The mode switcher** appears only for an account holding more than one
-  mode, so never for a shared account.
+- **The mode switcher** appears only for an account that can use more than
+  one mode - a ceiling above `safe` - so never for a shared account.
 - Sign in and sign out stay as they are.
 
 ### Libraries

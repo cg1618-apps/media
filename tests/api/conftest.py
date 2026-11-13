@@ -19,10 +19,10 @@ from app import models
 from app.database import SQLALCHEMY_DATABASE_URL, Base
 from app.dependencies import get_db
 from app.main import app
+from app.services import rate_limit
 from app.services.domain.gated_labels import ensure_label, ensure_labels
 from app.services.integrations import image_manager, sheets
 from app.services.rbac import cache as rbac_cache
-from app.services.rbac.modes import grant_all_modes_to_existing_accounts
 from app.services.rbac.permissions import (
     PERM_MANAGE_CATALOG,
     VIEW_PERMISSION_KEYS,
@@ -34,6 +34,7 @@ from app.services.rbac.seed_modes import (
     MODE_SAFE,
     MODE_UNRESTRICTED,
     ensure_access_mode_seed,
+    mode_rank,
 )
 from app.services.security import create_access_token, get_password_hash
 
@@ -94,11 +95,6 @@ def test_engine():
     # every test from here on, as they do on every real database - so a narrow
     # mode is never vacuously narrow on this axis.
     ensure_labels(seeding)
-    seeding.commit()
-    # And grant them to any account that already exists - the lifespan does
-    # this too, and doing it here first, committed, keeps its copy to a SELECT
-    # so it can never block on a test's open transaction.
-    grant_all_modes_to_existing_accounts(seeding)
     seeding.commit()
     seeding.close()
 
@@ -180,6 +176,21 @@ def _clear_permission_cache():
     rbac_cache.bump()
     yield
     rbac_cache.bump()
+
+
+@pytest.fixture(autouse=True)
+def _clear_rate_limits():
+    """
+    Empty the login and reset rate limiter around every test.
+
+    It is a process-global dict (app/services/rate_limit.py) and every test
+    client calls from the same address, so without this the sixth test to get
+    a password wrong would be refused with a 429 for reasons that have nothing
+    to do with it.
+    """
+    rate_limit.clear()
+    yield
+    rate_limit.clear()
 
 
 @pytest.fixture(scope="function")
@@ -319,9 +330,9 @@ def user_client(db_session, plain_user):
 # ---------------------------------------------------------------------------
 # The object axis. A signed-in caller with no `mode` claim resolves the EMPTY
 # object set - fail-closed, and correct in production - so every authenticated
-# fixture client has to carry a mode, exactly as a real account does after the
-# Phase B migration granted every existing account all four.
-
+# fixture client has to carry a mode, and the mode has to be within the
+# account's ceiling (users.mode_ceiling). A fixture account starts at the
+# columns' default, `normal` / `normal`, like an invited one.
 
 def all_field_group_keys() -> set:
     """Every field group, as a set. Imported lazily: field_groups sits in an
@@ -332,37 +343,17 @@ def all_field_group_keys() -> set:
 
 
 def seed_modes_and_grant(db, user):
-    """Give THIS user all four seeded modes, defaulting to `unrestricted`.
+    """Put THIS user at ceiling and default `unrestricted`.
 
-    What the migration does for every account that already existed, so a
-    fixture client behaves like a real one on the day Phase B lands.
-    Returns the default mode's id.
-
-    Deliberately NOT grant_all_modes_to_existing_accounts(), which walks every
-    user. That would insert rows for the COMMITTED admin account the lifespan
-    also grants, uncommitted - and the lifespan runs on its own connection
-    inside `with TestClient(app)`, so it would block on uq_user_access_mode
-    with the test waiting on the client and the client waiting on the test.
-    The session-scoped setup in test_engine grants that account once,
-    committed, so the lifespan's own copy stays a SELECT.
+    What a fixture client needs to behave like the owner's account: every
+    label and every field group. Returns the default mode's id, for the
+    login token's decorative `mode` claim.
     """
     from app.services.rbac.modes import default_mode_id
 
-    held = (
-        db.query(models.UserAccessMode)
-        .filter(models.UserAccessMode.user_id == user.id)
-        .first()
-    )
-    if held is None:
-        for m in db.query(models.AccessMode).all():
-            db.add(
-                models.UserAccessMode(
-                    user_id=user.id,
-                    mode_id=m.system_id,
-                    is_default=(m.key == MODE_UNRESTRICTED),
-                )
-            )
-        db.flush()
+    user.mode_ceiling = MODE_UNRESTRICTED
+    user.mode_default = MODE_UNRESTRICTED
+    db.flush()
     rbac_cache.bump()
     return default_mode_id(db, user)
 
@@ -374,10 +365,10 @@ def grant_bespoke_mode(db, user, username, field_groups=None, label_keys=None):
 
     There are no bespoke modes: the four are fixed and what each shows is
     derived. So the narrowing is done the way production does it - the lowest
-    mode whose derived sets contain the request, minus per-account DENIALS for
-    the difference. Any subset of what the ladder can show is reproduced
-    exactly; a request no mode can satisfy fails here, loudly, rather than
-    quietly testing something else.
+    mode whose derived sets contain the request becomes the account's ceiling
+    and default, and per-account DENIALS take away the difference. Any subset
+    of what the ladder can show is reproduced exactly; a request no mode can
+    satisfy fails here, loudly, rather than quietly testing something else.
 
     Defaults are "everything": `unrestricted` with no denial, so a test that
     does not care about the object axis gets the unnarrowed answer.
@@ -404,29 +395,19 @@ def grant_bespoke_mode(db, user, username, field_groups=None, label_keys=None):
             f"no access mode shows labels {sorted(wanted)} and field groups "
             f"{sorted(groups)}; the four modes are fixed"
         )
-    mode = (
+    target = (
         db.query(models.AccessMode).filter(models.AccessMode.key == mode_key).one()
     )
-    grant = models.UserAccessMode(
-        user_id=user.id, mode_id=mode.system_id, is_default=True
-    )
-    db.add(grant)
+    user.mode_ceiling = mode_key
+    user.mode_default = mode_key
     db.flush()
     for key in sorted(shown_labels(mode_key) - wanted):
-        db.add(
-            models.UserAccessModeDenial(
-                user_access_mode_id=grant.system_id, label_id=every_label[key]
-            )
-        )
+        db.add(models.UserAccessModeDenial(user_id=user.id, label_id=every_label[key]))
     for key in sorted(set(field_groups_shown_in(mode_key)) - groups):
-        db.add(
-            models.UserAccessModeDenial(
-                user_access_mode_id=grant.system_id, field_group_key=key
-            )
-        )
+        db.add(models.UserAccessModeDenial(user_id=user.id, field_group_key=key))
     db.flush()
     rbac_cache.bump()
-    return mode
+    return target
 
 
 @pytest.fixture
@@ -450,17 +431,22 @@ def mode(db_session, access_modes):
 
 @pytest.fixture
 def grant_mode(db_session, mode):
-    """Give `user` a seeded mode, optionally minus some of its labels.
+    """Let `user` use a seeded mode, optionally denying some labels.
 
-    Denials name label KEYS rather than ids, because that is what a test can
-    read back.
+    Raises the account's ceiling to the mode if it sits below it, and never
+    lowers it. `is_default=True` also makes it the login default. Denials
+    name label KEYS rather than ids, because that is what a test can read
+    back, and like every denial they apply in every mode the account uses.
+    Returns the mode.
     """
 
     def _grant(user, mode_key, denials=(), is_default=False):
-        row = models.UserAccessMode(
-            user_id=user.id, mode_id=mode(mode_key).system_id, is_default=is_default
-        )
-        db_session.add(row)
+        if user.mode_ceiling is None or mode_rank(user.mode_ceiling) < mode_rank(
+            mode_key
+        ):
+            user.mode_ceiling = mode_key
+        if is_default or user.mode_default is None:
+            user.mode_default = mode_key
         db_session.flush()
         for key in denials:
             label = (
@@ -469,13 +455,11 @@ def grant_mode(db_session, mode):
                 .one()
             )
             db_session.add(
-                models.UserAccessModeDenial(
-                    user_access_mode_id=row.system_id, label_id=label.system_id
-                )
+                models.UserAccessModeDenial(user_id=user.id, label_id=label.system_id)
             )
         db_session.flush()
         rbac_cache.bump()
-        return row
+        return mode(mode_key)
 
     return _grant
 
@@ -486,13 +470,13 @@ def mode_client(db_session, admin_user, grant_mode):
 
     The mode travels in the access_mode override cookie exactly as it does
     after a switch in production, so these tests exercise the real resolution
-    path rather than a Viewer built by hand. The grant is not the account's
-    default, so without that cookie the session would resolve nothing.
+    path rather than a Viewer built by hand. The account's ceiling is raised
+    to the mode if it sits below it.
     """
 
     def _client(mode_key, user=None, denials=()):
         user = user or admin_user
-        grant = grant_mode(user, mode_key, denials=denials)
+        target = grant_mode(user, mode_key, denials=denials)
 
         def override_get_db():
             yield db_session
@@ -500,7 +484,7 @@ def mode_client(db_session, admin_user, grant_mode):
         app.dependency_overrides[get_db] = override_get_db
         token = create_access_token({"sub": user.username, "role": user.role})
         override = create_access_token(
-            {"sub": user.username, "mode": str(grant.mode_id)},
+            {"sub": user.username, "mode": str(target.system_id)},
             expires_delta=timedelta(minutes=60),
         )
         c = TestClient(app)
@@ -565,7 +549,7 @@ def make_viewer(
 
     `permissions` is the ROLE axis - what this account may DO. The two keyword
     arguments are the OBJECT axis, which left the role axis in Phase B: they
-    build a bespoke mode carrying exactly those field groups and labels.
+    narrow the account to exactly those field groups and labels, by denial.
     Both default to everything, so a test that only cares about capabilities
     need not mention them, and a test that narrows says so explicitly.
     """
@@ -650,6 +634,8 @@ def make_guest_reader(db_session, client, username="guestreader", extra=ALL_VIEW
         hashed_password=get_password_hash("x"),
         role_id=role.system_id,
     )
+    user.mode_ceiling = MODE_SAFE
+    user.mode_default = MODE_SAFE
     db_session.add(user)
     db_session.flush()
     safe = (
@@ -657,10 +643,6 @@ def make_guest_reader(db_session, client, username="guestreader", extra=ALL_VIEW
         .filter(models.AccessMode.key == MODE_SAFE)
         .one()
     )
-    db_session.add(
-        models.UserAccessMode(user_id=user.id, mode_id=safe.system_id, is_default=True)
-    )
-    db_session.flush()
     rbac_cache.bump()
     token = create_access_token(
         {"sub": username, "role": role.name, "mode": str(safe.system_id)}

@@ -5,27 +5,48 @@ User accounts, created and managed by the admin.
 There is no self-registration by design: accounts exist so one person can hand
 out a level of access, not so strangers can ask for one.
 
-Two guards exist because both mistakes lock the admin out of their own site:
-you cannot delete yourself, and you cannot remove the last account that can
-still administer anything.
+Three guards exist because each mistake locks the admin out of their own site:
+you cannot delete or disable yourself, and you cannot remove the last active
+account that can still administer anything.
+
+Every NEW username and password passes the checks in services/security.py
+(validate_new_username, validate_new_password), and a refusal is a 422 whose
+detail is the sentence to show. Names already stored are left alone.
 """
 
 import logging
 from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.dependencies import get_db
+from app.models.system import (
+    USER_STATUS_ACTIVE,
+    USER_STATUS_DISABLED,
+    USER_STATUS_PENDING,
+)
+from app.services.domain.account_codes import issue_reset_link, reset_refusal
+from app.services.domain.accounts import (
+    ADMIN_SET_PASSWORD_REVOKES_SESSIONS,
+    KEEP_OWN_SESSION_ON_ADMIN_SET_PASSWORD,
+    login_deadline,
+    revoke_sessions,
+    set_login_cookie,
+)
 from app.services.domain.requests import default_request_limit, limit_is_fixed
 from app.services.rbac import cache
-from app.services.rbac.labels import labels_shown_in
+from app.services.rbac.modes import ModeSets, check_mode_pair, set_mode_ceiling
 from app.services.rbac.permissions import PERM_ADMIN_AUTHZ
 from app.services.rbac.resolver import Viewer, require_admin_authz, role_for_user
-from app.services.rbac.seed_modes import MODE_SAFE, field_groups_shown_in
-from app.services.security import get_password_hash
+from app.services.security import (
+    get_password_hash,
+    validate_new_password,
+    validate_new_username,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -36,10 +57,10 @@ router = APIRouter(
 )
 
 
-def _held_access_modes(db: Session, user: models.User) -> list:
-    """This account's modes, with the items it is denied from each.
+def _denied_keys(db: Session, user: models.User) -> tuple[list, list]:
+    """This account's denials, as (label keys, field group keys), sorted.
 
-    Rendered by the per-account panel as the MODE's own list with
+    Rendered by the per-account panel as the CEILING's own list with
     tick-to-deny, which is what makes decision 8 visible: denials only
     subtract, so a control that shows the ceiling and lets you remove from it
     cannot express something outside it.
@@ -50,51 +71,34 @@ def _held_access_modes(db: Session, user: models.User) -> list:
             models.ContentLabel.system_id, models.ContentLabel.key
         )
     }
-    out = []
-    rows = (
-        db.query(models.UserAccessMode, models.AccessMode)
-        .join(
-            models.AccessMode,
-            models.AccessMode.system_id == models.UserAccessMode.mode_id,
-        )
-        .filter(models.UserAccessMode.user_id == user.id)
-        .order_by(models.AccessMode.sort_order, models.AccessMode.key)
-        .all()
-    )
-    for grant, mode in rows:
-        denied_labels, denied_groups = [], []
-        for label_id, group_key in db.query(
-            models.UserAccessModeDenial.label_id,
-            models.UserAccessModeDenial.field_group_key,
-        ).filter(
-            models.UserAccessModeDenial.user_access_mode_id == grant.system_id
-        ):
-            if label_id is not None and label_id in label_names:
-                denied_labels.append(label_names[label_id])
-            if group_key is not None:
-                denied_groups.append(group_key)
-        out.append(
-            schemas.HeldAccessMode(
-                mode_id=mode.system_id,
-                key=mode.key,
-                label=mode.label,
-                is_default=bool(grant.is_default),
-                denied_label_keys=sorted(denied_labels),
-                denied_field_group_keys=sorted(denied_groups),
-            )
-        )
-    return out
+    labels, groups = [], []
+    for label_id, group_key in db.query(
+        models.UserAccessModeDenial.label_id,
+        models.UserAccessModeDenial.field_group_key,
+    ).filter(models.UserAccessModeDenial.user_id == user.id):
+        if label_id is not None and label_id in label_names:
+            labels.append(label_names[label_id])
+        if group_key is not None:
+            groups.append(group_key)
+    return sorted(labels), sorted(groups)
 
 
 def _to_response(
     user: models.User, db: Session = None
 ) -> schemas.ManagedUserResponse:
+    denied_labels, denied_groups = (
+        _denied_keys(db, user) if db is not None else ([], [])
+    )
     return schemas.ManagedUserResponse(
         id=user.id,
         username=user.username,
         role_id=user.role_id,
         role_name=user.role_ref.name if user.role_ref else None,
-        access_modes=_held_access_modes(db, user) if db is not None else [],
+        mode_ceiling=user.mode_ceiling,
+        mode_default=user.mode_default,
+        denied_label_keys=denied_labels,
+        denied_field_group_keys=denied_groups,
+        status=user.status,
         open_request_limit=user.open_request_limit,
     )
 
@@ -104,6 +108,24 @@ def _get_or_404(db: Session, user_id: UUID) -> models.User:
     if user is None:
         raise HTTPException(status_code=404, detail="User not found.")
     return user
+
+
+def _checked(check, value):
+    """Run one of the security.py checks, answering a refusal as a 422."""
+    try:
+        return check(value)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+
+def _name_taken(db: Session, username: str, excluding: UUID = None) -> bool:
+    """Case-insensitive, as uq_users_username_lower is."""
+    query = db.query(models.User).filter(
+        func.lower(models.User.username) == username.lower()
+    )
+    if excluding is not None:
+        query = query.filter(models.User.id != excluding)
+    return query.first() is not None
 
 
 def _role_or_422(db: Session, role_id: UUID) -> models.Role:
@@ -136,9 +158,14 @@ def _can_administer(db: Session, role: models.Role) -> bool:
 
 
 def _admin_count(db: Session, excluding: UUID = None) -> int:
+    """Accounts that can administer the site right now. A disabled one cannot
+    sign in, so it does not count - otherwise disabling the other admin and
+    then demoting yourself would leave nobody."""
     count = 0
     for user in db.query(models.User).all():
         if excluding is not None and user.id == excluding:
+            continue
+        if user.status != USER_STATUS_ACTIVE:
             continue
         if _can_administer(db, role_for_user(db, user)):
             count += 1
@@ -158,7 +185,9 @@ def list_users(db: Session = Depends(get_db)):
     summary="Create User",
 )
 def create_user(payload: schemas.ManagedUserCreate, db: Session = Depends(get_db)):
-    if db.query(models.User).filter(models.User.username == payload.username).first():
+    _checked(validate_new_username, payload.username)
+    _checked(validate_new_password, payload.password)
+    if _name_taken(db, payload.username):
         raise HTTPException(status_code=409, detail="That username is taken.")
     role = _role_or_422(db, payload.role_id)
 
@@ -169,42 +198,15 @@ def create_user(payload: schemas.ManagedUserCreate, db: Session = Depends(get_db
         open_request_limit=default_request_limit(role.name),
     )
     db.add(user)
-    db.flush()
-    _grant_starting_mode(db, user)
+    # No mode is assigned here: the columns' default puts a new account at
+    # ceiling and default `normal` - narrow enough to hold no labelled entry,
+    # wide enough that the invitee does not land on an empty site.
     db.commit()
     db.refresh(user)
     # A login cookie naming this username resolved as a guest until now, and
     # the cover route may still hold that answer (cover_viewer.py).
     cache.bump()
     return _to_response(user, db)
-
-
-def _grant_starting_mode(db: Session, user: models.User) -> None:
-    """A new account holds `safe` and nothing else (decision 4).
-
-    An invitee starts narrow and is widened deliberately, rather than starting
-    wide and being narrowed if somebody remembers. Granting it here rather
-    than leaving the account mode-less is not politeness: an account holding
-    NO mode resolves the empty object set, which is fail-closed and correct
-    but looks exactly like a broken site to the person who just got an
-    invitation.
-
-    Silently does nothing if `safe` is absent - a database that has not been
-    seeded is not this handler's problem to solve, and refusing the account
-    creation over it would be worse.
-    """
-    safe = (
-        db.query(models.AccessMode)
-        .filter(models.AccessMode.key == MODE_SAFE)
-        .first()
-    )
-    if safe is None:
-        return
-    db.add(
-        models.UserAccessMode(
-            user_id=user.id, mode_id=safe.system_id, is_default=True
-        )
-    )
 
 
 @router.put(
@@ -218,94 +220,78 @@ def replace_access_modes(
     db: Session = Depends(get_db),
 ):
     """
-    Replace an account's whole set - grants, login default and denials.
+    Replace an account's ceiling, default and denials in one write.
 
     One payload, one write, one bump(), no partial states: the same contract
     PUT /roles/{id}/permissions has, and for the same reason - a half-applied
-    authorization change is worse than a refused one.
+    authorization change is worse than a refused one. So everything is
+    checked before anything is written.
     """
     user = _get_or_404(db, user_id)
 
-    defaults = [grant for grant in payload.modes if grant.is_default]
-    if len(defaults) > 1:
-        # ix_one_default_mode_per_user would raise and surface as a 500. It is
-        # a payload error, so it answers as one.
-        raise HTTPException(
-            status_code=422, detail="An account can have only one default access mode."
+    try:
+        check_mode_pair(payload.ceiling, payload.default)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+
+    # DECISION 8: the ceiling is an upper bound. A denial naming something the
+    # ceiling does not show subtracts nothing in any mode the account can
+    # use, so storing it would be a no-op that reads like a setting. The panel
+    # is built so it cannot ask for one; this makes that a guarantee rather
+    # than a rendering choice. "Shows" is cache.mode_sets, so `unrestricted`
+    # is its derived everything rather than whatever rows it holds.
+    shown = ModeSets()
+    if payload.ceiling is not None:
+        ceiling = (
+            db.query(models.AccessMode)
+            .filter(models.AccessMode.key == payload.ceiling)
+            .first()
         )
-
-    modes = {}
-    for grant in payload.modes:
-        mode = db.get(models.AccessMode, grant.mode_id)
-        if mode is None:
-            raise HTTPException(
-                status_code=422, detail=f"Unknown access mode: {grant.mode_id}."
-            )
-        modes[grant.mode_id] = mode
-
-    # DECISION 8: a mode is a CEILING. A denial naming something the mode does
-    # not carry subtracts nothing, so storing it would be a no-op that reads
-    # like a setting. The per-account panel is built so it cannot ask for one;
-    # this is what makes that a guarantee rather than a rendering choice.
-    for grant in payload.modes:
-        mode = modes[grant.mode_id]
-        carried_labels = set(labels_shown_in(mode.key))
-        stray = set(grant.denied_label_keys) - carried_labels
-        if stray:
-            raise HTTPException(
-                status_code=422,
-                detail=(
-                    f"{mode.key} does not carry content label(s): "
-                    f"{', '.join(sorted(stray))}. A mode is a ceiling - a "
-                    "denial can only subtract what it already holds."
-                ),
-            )
-        carried_groups = set(field_groups_shown_in(mode.key))
-        stray_groups = set(grant.denied_field_group_keys) - carried_groups
-        if stray_groups:
-            raise HTTPException(
-                status_code=422,
-                detail=(
-                    f"{mode.key} does not carry field group(s): "
-                    f"{', '.join(sorted(stray_groups))}. A mode is a ceiling - "
-                    "a denial can only subtract what it already holds."
-                ),
-            )
-
-    # Replace wholesale. The denial rows hang off the grant rows, so deleting
-    # those takes the adjustments with them through the FK cascade.
-    db.query(models.UserAccessMode).filter(
-        models.UserAccessMode.user_id == user.id
-    ).delete(synchronize_session=False)
-    db.flush()
-
+        if ceiling is not None:
+            shown = cache.mode_sets(db, ceiling.system_id)
     label_ids = {
         key: system_id
         for system_id, key in db.query(
             models.ContentLabel.system_id, models.ContentLabel.key
         )
     }
-    for grant in payload.modes:
-        row = models.UserAccessMode(
-            user_id=user.id, mode_id=grant.mode_id, is_default=grant.is_default
+    stray = {
+        key
+        for key in payload.denied_label_keys
+        if label_ids.get(key) not in shown.label_ids
+    }
+    if stray:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"A ceiling of {payload.ceiling} does not show content "
+                f"label(s): {', '.join(sorted(stray))}. A denial can only "
+                "subtract what the ceiling shows."
+            ),
         )
-        db.add(row)
-        db.flush()
-        for key in sorted(set(grant.denied_label_keys)):
-            db.add(
-                models.UserAccessModeDenial(
-                    user_access_mode_id=row.system_id, label_id=label_ids[key]
-                )
-            )
-        for key in sorted(set(grant.denied_field_group_keys)):
-            db.add(
-                models.UserAccessModeDenial(
-                    user_access_mode_id=row.system_id, field_group_key=key
-                )
-            )
+    stray_groups = set(payload.denied_field_group_keys) - shown.field_groups
+    if stray_groups:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"A ceiling of {payload.ceiling} does not show field "
+                f"group(s): {', '.join(sorted(stray_groups))}. A denial can "
+                "only subtract what the ceiling shows."
+            ),
+        )
+
+    set_mode_ceiling(db, user, payload.ceiling, payload.default)
+    db.query(models.UserAccessModeDenial).filter(
+        models.UserAccessModeDenial.user_id == user.id
+    ).delete(synchronize_session=False)
+    for key in sorted(set(payload.denied_label_keys)):
+        db.add(models.UserAccessModeDenial(user_id=user.id, label_id=label_ids[key]))
+    for key in sorted(set(payload.denied_field_group_keys)):
+        db.add(models.UserAccessModeDenial(user_id=user.id, field_group_key=key))
 
     db.commit()
-    # _DENIAL_CACHE is keyed on the grant row's id, and those ids just changed.
+    # set_mode_ceiling bumped before the commit; this one clears whatever a
+    # concurrent request cached from the old rows in between.
     cache.bump()
     db.refresh(user)
     return _to_response(user, db)
@@ -317,9 +303,23 @@ def replace_access_modes(
 def update_user(
     user_id: UUID,
     payload: schemas.ManagedUserUpdate,
+    response: Response,
     db: Session = Depends(get_db),
     admin: Viewer = Depends(require_admin_authz),
 ):
+    """
+    Rename, set a password, change role, or disable / enable.
+
+    Setting a password ends the account's sessions
+    (ADMIN_SET_PASSWORD_REVOKES_SESSIONS) and so does disabling it; enabling
+    does not, because the sessions already ended when it was disabled. A
+    pending registration is approved or declined, not edited here (409).
+
+    When the account is the caller's own, the caller's browser is given a
+    fresh cookie at the new counter and the old deadline
+    (KEEP_OWN_SESSION_ON_ADMIN_SET_PASSWORD), so it alone stays signed in.
+    """
+    own_sessions_revoked = False
     user = _get_or_404(db, user_id)
     new_role = None
     if payload.role_id and payload.role_id != user.role_id:
@@ -336,18 +336,36 @@ def update_user(
             detail="A super account has no open-request limit.",
         )
 
-    if payload.username and payload.username != user.username:
-        clash = (
-            db.query(models.User)
-            .filter(models.User.username == payload.username)
-            .first()
+    if user.status == USER_STATUS_PENDING:
+        raise HTTPException(
+            status_code=409,
+            detail="A pending registration is approved or declined, not edited.",
         )
-        if clash:
+    if (
+        payload.status == USER_STATUS_DISABLED
+        and admin.username == user.username
+    ):
+        raise HTTPException(status_code=409, detail="You cannot disable yourself.")
+
+    if payload.username is not None and payload.username != user.username:
+        _checked(validate_new_username, payload.username)
+        if _name_taken(db, payload.username, excluding=user.id):
             raise HTTPException(status_code=409, detail="That username is taken.")
         user.username = payload.username
 
-    if payload.password:
+    # None is "leave it"; anything else, the empty string included, is a new
+    # password and passes the checks.
+    if payload.password is not None:
+        _checked(validate_new_password, payload.password)
         user.hashed_password = get_password_hash(payload.password)
+        if ADMIN_SET_PASSWORD_REVOKES_SESSIONS:
+            revoke_sessions(user)
+            own_sessions_revoked = admin.user_id == user.id
+
+    if payload.status is not None and payload.status != user.status:
+        if payload.status == USER_STATUS_DISABLED:
+            revoke_sessions(user)
+        user.status = payload.status
 
     if new_role is not None:
         would_lose_admin = _can_administer(
@@ -370,7 +388,38 @@ def update_user(
     db.commit()
     db.refresh(user)
     cache.bump()
+    if own_sessions_revoked and KEEP_OWN_SESSION_ON_ADMIN_SET_PASSWORD:
+        set_login_cookie(
+            response, db, user, expires_at=login_deadline(admin.token_payload)
+        )
     return _to_response(user, db)
+
+
+@router.post(
+    "/{user_id}/reset-link",
+    response_model=schemas.ResetLinkResponse,
+    summary="Issue a password reset link",
+)
+def create_reset_link(
+    user_id: UUID,
+    db: Session = Depends(get_db),
+    admin: Viewer = Depends(require_admin_authz),
+):
+    """
+    A one-time link that lets the account set a new password, valid 24 hours.
+
+    Returned once: only a hash of the code is stored, so the link cannot be
+    shown again - issuing another replaces it, and the older link stops
+    working. Active, non-shared accounts only (409 otherwise).
+    """
+    user = _get_or_404(db, user_id)
+    refusal = reset_refusal(user)
+    if refusal:
+        raise HTTPException(status_code=409, detail=refusal)
+    link, expires_at = issue_reset_link(db, user, created_by_id=admin.user_id)
+    db.commit()
+    logger.info("%s issued a reset link for %s", admin.username, user.username)
+    return {"link": link, "expires_at": expires_at}
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)

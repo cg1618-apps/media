@@ -180,6 +180,126 @@ def test_an_unknown_role_name_skips_the_row(db, sheets):
     assert any("wizard" in ref for ref in result["unresolved_refs"])
 
 
+# ---------------------------------------------------------------------------
+# Account status travels; the session counter does not
+# ---------------------------------------------------------------------------
+
+
+def _backup_row(db, user):
+    tab = TAB_BY_NAME["Users"]
+    kept = [
+        c.name for c in models.User.__table__.columns if c.name not in tab.drop_columns
+    ]
+    headers = kept + [name for name, _fn in tab.extra_columns]
+    values = format_model_for_sheet(user, columns=kept) + [
+        fn(user, db) for _name, fn in tab.extra_columns
+    ]
+    return dict(zip(headers, values))
+
+
+def test_the_backup_row_carries_status_and_not_the_session_version(db):
+    """session_version is this machine's revocation counter. Carried to the
+    other machine it would either sign people out there for nothing or, worse,
+    roll a counter back and revive a token revoked here."""
+    role = db.query(models.Role).filter(models.Role.name == "user").one()
+    user = models.User(
+        username="kana",
+        hashed_password=get_password_hash("x"),
+        role_id=role.system_id,
+        status="disabled",
+        session_version=3,
+    )
+    db.add(user)
+    db.flush()
+
+    row = _backup_row(db, user)
+    assert row["status"] == "disabled"
+    assert "session_version" not in row
+
+
+STATUS_HEADERS = ["id", "username", "list_is_public", "role", "status"]
+
+
+def test_a_pull_carries_disabled_to_the_other_machine(db, sheets):
+    role = db.query(models.Role).filter(models.Role.name == "user").one()
+    db.add(
+        models.User(
+            username="kana",
+            hashed_password=get_password_hash("x"),
+            role_id=role.system_id,
+            session_version=2,
+        )
+    )
+    db.flush()
+    sheets(
+        {
+            "Users": [
+                STATUS_HEADERS + ["session_version"],
+                [str(uuid.uuid4()), "kana", "FALSE", "user", "disabled", "0"],
+                [str(uuid.uuid4()), "mio", "FALSE", "user", "disabled", "9"],
+            ]
+        }
+    )
+    pull.execute_pull_specific(db, "Users", log_action=False, may_restore_authz=True)
+
+    kana = db.query(models.User).filter_by(username="kana").one()
+    assert kana.status == "disabled"
+    # The local counter is kept even when a sheet carries the column.
+    assert kana.session_version == 2
+    mio = db.query(models.User).filter_by(username="mio").one()
+    assert mio.status == "disabled"
+    assert mio.session_version == 0
+
+
+def test_a_sheet_without_status_leaves_the_local_status_alone(db, sheets):
+    """A sheet written before the column existed must not re-activate a
+    disabled account on Pull."""
+    role = db.query(models.Role).filter(models.Role.name == "user").one()
+    db.add(
+        models.User(
+            username="kana",
+            hashed_password=get_password_hash("x"),
+            role_id=role.system_id,
+            status="disabled",
+        )
+    )
+    db.flush()
+    sheets(
+        {
+            "Users": [
+                USER_HEADERS,
+                [str(uuid.uuid4()), "kana", "FALSE", "user"],
+                [str(uuid.uuid4()), "mio", "FALSE", "user"],
+            ]
+        }
+    )
+    pull.execute_pull_specific(db, "Users", log_action=False, may_restore_authz=True)
+
+    assert db.query(models.User).filter_by(username="kana").one().status == "disabled"
+    # A new account from such a sheet starts active, the column default.
+    assert db.query(models.User).filter_by(username="mio").one().status == "active"
+
+
+def test_a_pending_status_in_the_sheet_is_not_restored(db, sheets):
+    """Only active and disabled travel. A pending account belongs to the
+    approval flow on the machine it registered on."""
+    sheets(
+        {
+            "Users": [
+                STATUS_HEADERS,
+                [str(uuid.uuid4()), "kana", "FALSE", "user", "pending"],
+            ]
+        }
+    )
+    pull.execute_pull_specific(db, "Users", log_action=False, may_restore_authz=True)
+    assert db.query(models.User).filter_by(username="kana").one().status == "active"
+
+
+# ---------------------------------------------------------------------------
+# The open-request limit travels
+# ---------------------------------------------------------------------------
+
+
 def test_the_open_request_limit_travels(db, sheets):
     """An account setting like is_installation_owner: named in the projection, or a
     Pull silently lifts every member's limit."""
@@ -219,3 +339,116 @@ def test_a_sheet_without_the_limit_leaves_a_local_one_alone(db, sheets):
 
     db.refresh(local)
     assert local.open_request_limit == 4
+
+
+def test_the_mode_pair_travels(db, sheets):
+    """Account settings, like the request limit: a Pull must not reset who
+    may reach what. Keys, so they mean the same thing on both machines."""
+    sheets(
+        {
+            "Users": [
+                USER_HEADERS + ["mode_ceiling", "mode_default"],
+                [str(uuid.uuid4()), "wide", "FALSE", "user", "borderline", "safe"],
+                [str(uuid.uuid4()), "parked", "FALSE", "user", "", ""],
+            ]
+        }
+    )
+
+    pull.execute_pull_specific(db, "Users", log_action=False, may_restore_authz=True)
+
+    wide = db.query(models.User).filter_by(username="wide").one()
+    assert (wide.mode_ceiling, wide.mode_default) == ("borderline", "safe")
+    parked = db.query(models.User).filter_by(username="parked").one()
+    assert (parked.mode_ceiling, parked.mode_default) == (None, None)
+
+
+def test_a_sheet_without_the_mode_pair_leaves_a_local_one_alone(db, sheets):
+    """A sheet backed up before the columns existed has no header for them.
+    An UPDATE from it must not reset the account to the column default."""
+    local = models.User(
+        id=uuid.uuid4(),
+        username="kept",
+        hashed_password=get_password_hash("pw"),
+        role_id=db.query(models.Role).filter_by(name="user").one().system_id,
+        mode_ceiling="unrestricted",
+        mode_default="borderline",
+    )
+    db.add(local)
+    db.flush()
+    sheets({"Users": [USER_HEADERS, [str(local.id), "kept", "TRUE", "super"]]})
+
+    pull.execute_pull_specific(db, "Users", log_action=False, may_restore_authz=True)
+
+    db.refresh(local)
+    assert local.role_ref.name == "super"  # the row did update
+    assert (local.mode_ceiling, local.mode_default) == ("unrestricted", "borderline")
+
+
+def test_an_insert_from_a_sheet_without_the_mode_pair_gets_normal(db, sheets):
+    sheets({"Users": [USER_HEADERS, [str(uuid.uuid4()), "fresh", "FALSE", "user"]]})
+
+    pull.execute_pull_specific(db, "Users", log_action=False, may_restore_authz=True)
+
+    fresh = db.query(models.User).filter_by(username="fresh").one()
+    assert (fresh.mode_ceiling, fresh.mode_default) == ("normal", "normal")
+
+
+def test_an_invalid_mode_pair_is_reported_and_the_rest_of_the_tab_lands(db, sheets):
+    """ck_users_mode_* would raise at the tab's commit and roll back every
+    account. One bad pair must cost only itself: the account keeps its local
+    pair and the other row lands."""
+    local = models.User(
+        id=uuid.uuid4(),
+        username="kept",
+        hashed_password=get_password_hash("pw"),
+        role_id=db.query(models.Role).filter_by(name="user").one().system_id,
+        mode_ceiling="borderline",
+        mode_default="normal",
+    )
+    db.add(local)
+    db.flush()
+    sheets(
+        {
+            "Users": [
+                USER_HEADERS + ["mode_ceiling", "mode_default"],
+                [str(local.id), "kept", "TRUE", "super", "safe", "unrestricted"],
+                [str(uuid.uuid4()), "other", "FALSE", "user", "normal", "safe"],
+            ]
+        }
+    )
+
+    result = pull.execute_pull_specific(
+        db, "Users", log_action=False, may_restore_authz=True
+    )
+
+    assert result["status"] == "success"
+    db.refresh(local)
+    assert local.role_ref.name == "super"  # the row did update
+    assert (local.mode_ceiling, local.mode_default) == ("borderline", "normal")
+    assert any("mode pair" in ref for ref in result["unresolved_refs"])
+    other = db.query(models.User).filter_by(username="other").one()
+    assert (other.mode_ceiling, other.mode_default) == ("normal", "safe")
+
+
+def test_the_backup_row_carries_the_mode_pair(db):
+    tab = TAB_BY_NAME["Users"]
+    role = db.query(models.Role).filter(models.Role.name == "user").one()
+    user = models.User(
+        username="ranked",
+        hashed_password="x",
+        role_id=role.system_id,
+        mode_ceiling="borderline",
+        mode_default="safe",
+    )
+    db.add(user)
+    db.flush()
+
+    kept = [
+        c.name
+        for c in models.User.__table__.columns
+        if c.name not in tab.drop_columns
+    ]
+    row = dict(zip(kept, format_model_for_sheet(user, columns=kept)))
+
+    assert row["mode_ceiling"] == "borderline"
+    assert row["mode_default"] == "safe"

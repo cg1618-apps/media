@@ -20,32 +20,86 @@ const USERS = [
     id: 1,
     username: "alice",
     role_id: "admin",
-    access_modes: [
-      {
-        mode_id: "wide",
-        is_default: true,
-        denied_label_keys: [],
-        denied_field_group_keys: [],
-      },
-    ],
+    mode_ceiling: "borderline",
+    mode_default: "normal",
+    denied_label_keys: ["nsfw"],
+    denied_field_group_keys: [],
   },
 ];
 
 const ROLES = [{ system_id: "admin", label: "Admin" }];
 
+// Served out of rank order on purpose: the panel must order by `rank`.
 const MODES = [
   {
-    system_id: "wide",
-    label: "Wide",
+    system_id: "u",
+    key: "unrestricted",
+    label: "Unrestricted",
+    rank: 3,
+    label_keys: ["nsfw", "h-comic"],
+    field_group_keys: ["sources_restricted"],
+  },
+  {
+    system_id: "b",
+    key: "borderline",
+    label: "Borderline",
+    rank: 2,
     label_keys: ["nsfw"],
+    field_group_keys: ["sources_restricted"],
+  },
+  {
+    system_id: "n",
+    key: "normal",
+    label: "Normal",
+    rank: 1,
+    label_keys: [],
+    field_group_keys: ["sources_restricted"],
+  },
+  {
+    system_id: "s",
+    key: "safe",
+    label: "Safe",
+    rank: 0,
+    label_keys: [],
     field_group_keys: [],
   },
-  { system_id: "narrow", label: "Narrow", label_keys: [], field_group_keys: [] },
+  {
+    system_id: "c",
+    key: "custom",
+    label: "Custom",
+    rank: null,
+    label_keys: [],
+    field_group_keys: [],
+  },
 ];
+
+async function openPanel() {
+  render(<Users />);
+  await screen.findByText("alice");
+  await userEvent.click(screen.getByRole("button", { name: "Change" }));
+  await screen.findByText("Access for alice");
+}
+
+const ceilingSelect = () => screen.getByLabelText("Widest mode (ceiling)");
+const defaultSelect = () => screen.getByLabelText("Lands here at login (default)");
+const optionsOf = (select) =>
+  within(select)
+    .getAllByRole("option")
+    .map((o) => o.textContent);
+
+function lastPut() {
+  const puts = fetchJson.mock.calls.filter(([, opts]) => opts?.method === "PUT");
+  return JSON.parse(puts[puts.length - 1][1].body);
+}
 
 const showToast = vi.fn();
 vi.mock("../../hooks/useToast", () => ({
   useToast: () => ({ showToast }),
+}));
+
+// The signed-in admin is alice, so her row is "your own row".
+vi.mock("../../contexts/AuthContext", () => ({
+  useAuth: () => ({ username: "alice" }),
 }));
 
 const fetchJson = vi.fn();
@@ -77,23 +131,46 @@ describe("the access-mode panel", () => {
     expect(await screen.findByText("Access for alice")).toBeTruthy();
   });
 
-  it("offers every mode, not only the ones the account holds", async () => {
-    // The panel's whole job is granting a mode the account does not have yet,
-    // so a panel listing only held modes would open and still be useless.
+  it("shows the ceiling and default in the list", async () => {
     render(<Users />);
-    await screen.findByText("alice");
-    await userEvent.click(screen.getByRole("button", { name: "Change" }));
-
-    await screen.findByText("Access for alice");
-    expect(screen.getByText("Wide")).toBeTruthy();
-    expect(screen.getByText("Narrow")).toBeTruthy();
+    expect(await screen.findByText(/borderline \/ normal \(narrowed\)/)).toBeTruthy();
   });
 
-  it("saves the held modes to the account's access-modes endpoint", async () => {
-    render(<Users />);
-    await screen.findByText("alice");
-    await userEvent.click(screen.getByRole("button", { name: "Change" }));
-    await screen.findByText("Access for alice");
+  it("offers every ranked mode as a ceiling, narrowest first", async () => {
+    await openPanel();
+    expect(optionsOf(ceilingSelect())).toEqual([
+      "No mode",
+      "Safe",
+      "Normal",
+      "Borderline",
+      "Unrestricted",
+    ]);
+  });
+
+  it("offers only modes up to the ceiling as the default", async () => {
+    await openPanel();
+    expect(optionsOf(defaultSelect())).toEqual(["Safe", "Normal", "Borderline"]);
+
+    await userEvent.selectOptions(ceilingSelect(), "normal");
+
+    expect(optionsOf(defaultSelect())).toEqual(["Safe", "Normal"]);
+  });
+
+  it("lists the denials the ceiling shows, and follows it", async () => {
+    await openPanel();
+    expect(screen.getByLabelText("nsfw")).not.toBeChecked();
+    expect(screen.queryByLabelText("h-comic")).toBeNull();
+
+    await userEvent.selectOptions(ceilingSelect(), "unrestricted");
+    expect(screen.getByLabelText("h-comic")).toBeChecked();
+
+    await userEvent.selectOptions(ceilingSelect(), "normal");
+    expect(screen.queryByLabelText("nsfw")).toBeNull();
+    expect(screen.getByLabelText("sources_restricted")).toBeChecked();
+  });
+
+  it("saves ceiling, default and denials to the account's endpoint", async () => {
+    await openPanel();
 
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
@@ -105,6 +182,38 @@ describe("the access-mode panel", () => {
         ),
       ).toBe(true),
     );
+    expect(lastPut()).toEqual({
+      ceiling: "borderline",
+      default: "normal",
+      denied_label_keys: ["nsfw"],
+      denied_field_group_keys: [],
+    });
+  });
+
+  it("lowering the ceiling below the default moves the default down and drops denials", async () => {
+    await openPanel();
+
+    await userEvent.selectOptions(ceilingSelect(), "safe");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(lastPut().ceiling).toBe("safe"));
+    expect(lastPut()).toEqual({
+      ceiling: "safe",
+      default: "safe",
+      denied_label_keys: [],
+      denied_field_group_keys: [],
+    });
+  });
+
+  it("parks the account with no mode", async () => {
+    await openPanel();
+
+    await userEvent.selectOptions(ceilingSelect(), "");
+
+    expect(screen.getByText(/has no access mode/)).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(lastPut().ceiling).toBeNull());
+    expect(lastPut().default).toBeNull();
   });
 
   it("closes without saving when Close is clicked", async () => {
@@ -124,6 +233,143 @@ describe("the access-mode panel", () => {
   });
 });
 
+/**
+ * The lifecycle controls. Each "not offered" case is paired with a row where
+ * the same control IS offered, so a green proves the row's status, role or
+ * ownership did the hiding rather than the control being missing everywhere.
+ */
+const LIFECYCLE_USERS = [
+  { id: 1, username: "alice", role_name: "admin", status: "active", access_modes: [] },
+  { id: 2, username: "bob", role_name: "user", status: "active", access_modes: [] },
+  { id: 3, username: "shared-normal", role_name: "shared", status: "active", access_modes: [] },
+  { id: 4, username: "dave", role_name: "user", status: "disabled", access_modes: [] },
+  { id: 5, username: "erin", role_name: "user", status: "pending", access_modes: [] },
+];
+
+function rowOf(username) {
+  return screen.getByText(username).closest("tr");
+}
+
+describe("account lifecycle on /users", () => {
+  beforeEach(() => {
+    fetchJson.mockImplementation((url, opts) => {
+      if (url.includes("/reset-link")) {
+        return Promise.resolve({
+          link: "https://media.example/reset?code=abc123",
+          expires_at: "2026-11-14T12:00:00Z",
+        });
+      }
+      if (opts?.method === "PATCH") return Promise.resolve({});
+      if (url.includes("/roles")) return Promise.resolve(ROLES);
+      if (url.includes("/access-modes")) return Promise.resolve(MODES);
+      return Promise.resolve(LIFECYCLE_USERS);
+    });
+  });
+
+  it("shows each account's status", async () => {
+    render(<Users />);
+    await screen.findByText("bob");
+    expect(within(rowOf("bob")).getByText("active")).toBeTruthy();
+    expect(within(rowOf("dave")).getByText("disabled")).toBeTruthy();
+    expect(within(rowOf("erin")).getByText("pending")).toBeTruthy();
+  });
+
+  it("offers Disable on another active account, not on your own", async () => {
+    render(<Users />);
+    await screen.findByText("bob");
+    expect(within(rowOf("bob")).queryByRole("button", { name: "Disable" })).toBeTruthy();
+    expect(within(rowOf("alice")).queryByRole("button", { name: "Disable" })).toBeNull();
+  });
+
+  it("offers Enable on a disabled account and neither on a pending one", async () => {
+    render(<Users />);
+    await screen.findByText("dave");
+    expect(within(rowOf("dave")).queryByRole("button", { name: "Enable" })).toBeTruthy();
+    expect(within(rowOf("dave")).queryByRole("button", { name: "Disable" })).toBeNull();
+    expect(within(rowOf("erin")).queryByRole("button", { name: "Enable" })).toBeNull();
+    expect(within(rowOf("erin")).queryByRole("button", { name: "Disable" })).toBeNull();
+  });
+
+  it("asks before disabling, says it signs out everywhere, then PATCHes", async () => {
+    render(<Users />);
+    await screen.findByText("bob");
+    await userEvent.click(within(rowOf("bob")).getByRole("button", { name: "Disable" }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/signs bob out everywhere/)).toBeTruthy();
+    // Nothing is sent until the confirm.
+    expect(fetchJson.mock.calls.some(([, o]) => o?.method === "PATCH")).toBe(false);
+
+    await userEvent.click(within(dialog).getByRole("button", { name: "Disable" }));
+    await waitFor(() => {
+      const patch = fetchJson.mock.calls.find(([, o]) => o?.method === "PATCH");
+      expect(patch?.[0]).toBe("/api/users/2");
+      expect(JSON.parse(patch[1].body)).toEqual({ status: "disabled" });
+    });
+  });
+
+  it("enables a disabled account", async () => {
+    render(<Users />);
+    await screen.findByText("dave");
+    await userEvent.click(within(rowOf("dave")).getByRole("button", { name: "Enable" }));
+    await waitFor(() => {
+      const patch = fetchJson.mock.calls.find(([, o]) => o?.method === "PATCH");
+      expect(patch?.[0]).toBe("/api/users/4");
+      expect(JSON.parse(patch[1].body)).toEqual({ status: "active" });
+    });
+  });
+
+  it("offers a reset link on an active member, not on a shared or inactive one", async () => {
+    render(<Users />);
+    await screen.findByText("bob");
+    expect(within(rowOf("bob")).queryByRole("button", { name: "Reset link" })).toBeTruthy();
+    expect(
+      within(rowOf("shared-normal")).queryByRole("button", { name: "Reset link" }),
+    ).toBeNull();
+    expect(within(rowOf("dave")).queryByRole("button", { name: "Reset link" })).toBeNull();
+    expect(within(rowOf("erin")).queryByRole("button", { name: "Reset link" })).toBeNull();
+  });
+
+  it("shows the minted link once, with its expiry and a copy button", async () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+
+    render(<Users />);
+    await screen.findByText("bob");
+    await userEvent.click(within(rowOf("bob")).getByRole("button", { name: "Reset link" }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      fetchJson.mock.calls.some(
+        ([url, o]) => url === "/api/users/2/reset-link" && o?.method === "POST",
+      ),
+    ).toBe(true);
+    expect(within(dialog).getByRole("textbox", { name: "Link" })).toHaveValue(
+      "https://media.example/reset?code=abc123",
+    );
+    expect(within(dialog).getByText(/shown only once/)).toBeTruthy();
+    expect(within(dialog).getByText(/Expires/)).toBeTruthy();
+
+    await userEvent.click(within(dialog).getByRole("button", { name: "Copy link" }));
+    expect(writeText).toHaveBeenCalledWith("https://media.example/reset?code=abc123");
+
+    await userEvent.click(within(dialog).getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("says on the password field that setting one signs the account out", async () => {
+    render(<Users />);
+    await screen.findByText("bob");
+    await userEvent.click(within(rowOf("bob")).getByRole("button", { name: "Edit" }));
+    expect(
+      screen.getByPlaceholderText("New password (optional)"),
+    ).toHaveAccessibleDescription(/signs this account out everywhere/);
+  });
+});
+
 describe("the open request limit", () => {
   // One account per role the field cares about: a user (limited), a super
   // (never limited) and the root admin (files nothing). The super and admin
@@ -138,7 +384,10 @@ describe("the open request limit", () => {
     id,
     username,
     role_id: roleId,
-    access_modes: [],
+    mode_ceiling: "normal",
+    mode_default: "normal",
+    denied_label_keys: [],
+    denied_field_group_keys: [],
     open_request_limit: limit,
   });
   const LIMIT_USERS = [

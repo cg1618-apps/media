@@ -19,9 +19,14 @@ what that role may see. Permissions are declared in code; only their
   else. The four modes, and what each shows, are fixed in code.
 
 Effective access = (the role's permissions) applied to (the active mode's
-object set). The two are disjoint **by construction**: what a mode shows is
-derived in code from its place in the mode order and stored nowhere, so there
-is nowhere `manage.catalog` could be put on a mode, and no
+object set, minus the account's denials). An account has one role and a
+**mode ceiling and default** (`users.mode_ceiling`, `users.mode_default`): the
+four modes are ordered `safe < normal < borderline < unrestricted`
+(`seed_modes.MODE_ORDER`), the account may switch to any mode at or below its
+ceiling, and a login lands in its default. The two axes are disjoint **by
+construction**: what a mode shows is derived in code from its place in the
+mode order and stored nowhere, so there is nowhere `manage.catalog` could be
+put on a mode, and no
 helper exists that would let code ask the role axis an object question. That
 is what lets the owner's own admin account sit in a narrow mode and actually
 be narrowed.
@@ -65,6 +70,7 @@ true, including for permissions that do not exist yet.
 | `self.list` | **locked off** | yes | **locked on** | **never implicit** | — |
 | `self.personal_notes` | **locked off** | yes | **locked on** | **never implicit** | — |
 | `self.requests` | **locked off** | **locked on** | **locked on** | **never implicit** | — |
+| `self.password` | **locked off** | **locked on** | **locked on** | **never implicit** | — |
 | `manage.catalog` | **locked off** | — | **locked on** | implicit | — |
 | `manage.pipelines` | **locked off** | **locked off** | **locked on** | implicit | **locked off** |
 | `manage.requests` | **locked off** | **locked off** | **locked on** | implicit | — |
@@ -112,7 +118,7 @@ never hold. A permission in neither set is a free choice.
 | `admin` (any root role) | everything except `self.*` | `self.*` | nothing |
 | `super` | everything except `admin.authz` | `admin.authz` | nothing |
 | `guest` | — | `admin.*`, `manage.*`, `self.*` | `media_type.*`, `view.*` |
-| `user` | `self.requests` | `admin.authz`, `manage.pipelines`, `manage.requests` | `manage.catalog`, `self.list`, `self.personal_notes`, `media_type.*`, `view.*` |
+| `user` | `self.requests`, `self.password` | `admin.authz`, `manage.pipelines`, `manage.requests` | `manage.catalog`, `self.list`, `self.personal_notes`, `media_type.*`, `view.*` |
 | every custom role | — | `admin.authz`, `manage.pipelines` | `manage.catalog`, `manage.requests`, `self.*`, `media_type.*`, `view.*` |
 
 - **`admin.authz` is grantable to nothing.** The root short-circuit is
@@ -131,8 +137,12 @@ never hold. A permission in neither set is a free choice.
   nothing on that role to tick or untick at all.
 - **A member always files requests and never handles them.** Filing is fixed
   for `user`; the inbox reads every account's requests, so it is not a
-  member's. Both locks are keyed on the role's name, so a custom role decides
-  both freely.
+  member's.
+- **`user` always holds `self.password`.** A member who could not change their
+  own password would have to ask the admin every time.
+
+  These `user` locks are keyed on the role's name, so a custom role decides
+  `self.requests`, `manage.requests` and `self.password` freely.
 - **One table, three readers.** `RoleResponse` serves `locked_on` /
   `locked_off`, so the editor draws those boxes disabled; `PUT
   /api/roles/{id}/permissions` and `POST /api/roles/` refuse a payload that
@@ -155,6 +165,8 @@ content labels and field groups and nothing else, so there is nowhere
 
 | Item | `safe` | `normal` | `borderline` | `unrestricted` |
 |---|---|---|---|---|
+| rank in `MODE_ORDER` | 0 | 1 | 2 | 3 |
+| `sort_order` (UI only) | 30 | 20 | 10 | 0 |
 | what a logged-out visitor gets | **always** | — | — | — |
 | `nsfw`, `ecchi` | — | yes | yes | yes |
 | `erotica` | — | — | yes | yes |
@@ -173,20 +185,23 @@ content labels and field groups and nothing else, so there is nowhere
   difference is that a row nobody expected stays reachable in the widest mode
   and hidden in every other — fail-closed everywhere but the mode that means
   "everything". A key that is not one of the four modes shows nothing.
-- **The four mode rows exist because accounts hold them by id**, and a
-  per-account denial hangs off that grant. `ensure_access_mode_seed` creates a
-  missing one and never overwrites a name or description; nothing else
-  creates or deletes one. They are created with `sort_order` 0
-  (`unrestricted`) to 30 (`safe`), which orders the API's list and nothing
-  else.
+- **The four mode rows exist to carry what is adjustable** — the name,
+  description and `sort_order` — and because a session's mode claim names a
+  row by id. An account names modes by **key** (`mode_ceiling`,
+  `mode_default`), and `ck_users_mode_keys` keeps those columns to the four.
+  `ensure_access_mode_seed` creates a missing row and never overwrites a name
+  or description; nothing else creates or deletes one. They are created with
+  `sort_order` 0 (`unrestricted`) to 30 (`safe`), which orders the API's list
+  and nothing else.
 - **The six labels are code.** `content_label` rows still exist, as the
-  foreign-key target of `media_content_label` and `franchise_content_label`,
-  and `gated_labels.ensure_labels` keeps them a mirror of the code on every
-  start: a missing label is inserted, and a row's name, description and
-  `sort_order` are rewritten to the code's. It never deletes a row. A row the
-  code does not name is the migration's to handle (`l1a2belcode3`), which
-  deletes it when nothing cites it and otherwise stops, naming it; an unknown
-  mode is handled the same way, deleted when no account holds it.
+  foreign-key target of `media_content_label`, `franchise_content_label` and
+  the label denials, and `gated_labels.ensure_labels` keeps them a mirror of
+  the code on every start: a missing label is inserted, and a row's name,
+  description and `sort_order` are rewritten to the code's. It never deletes a
+  row. A row the code does not name is the migration's to handle
+  (`l1a2belcode3`), which deletes it when nothing cites it and otherwise
+  stops, naming it. An `access_mode` row whose key is not one of the four is
+  deleted outright: `ck_users_mode_keys` means no account can be using one.
 - **Every label but `nsfw` is stored together with `nsfw`** — not implied:
   `app/services/domain/label_rules.py` is the one place the rule lives, and
   every write path goes through it. The label PUT adds `nsfw` beside a first
@@ -198,9 +213,13 @@ content labels and field groups and nothing else, so there is nowhere
   It never hides anything new: `nsfw` is shown from `normal`, and every other
   label is hidden at or below it. The reference says so per label
   (`also_carries`).
-- **A mode is a ceiling.** What an account actually reaches is the mode's sets
-  minus that account's `user_access_mode_denial` rows; there is no grant
-  counterpart, so the effective set is always a subset of the column above.
+- **An account has a ceiling.** It may use every mode ranked at or below
+  `users.mode_ceiling`, and what it reaches in the active one is that mode's
+  sets minus the account's `user_access_mode_denial` rows. A denial hangs off
+  the account, so it applies in **every** mode the account uses, and it may
+  only name something the ceiling shows; there is no grant counterpart, so
+  the effective set is always a subset of the column above. Both columns NULL
+  is **no mode**: the account resolves the empty set.
 
 **Effective access is the two read together.** `super` in `safe` can write the
 catalogue but cannot see a labelled entry to write it; `admin` in `safe` is
@@ -224,6 +243,7 @@ short-circuit deliberately does not cover.
 | keep a plan queue | — | yes | yes | **never** |
 | rate a season | — | yes | yes | **never** |
 | read their own account settings — username and role | — (no account) | yes | yes | yes, through the API; the SPA's `/settings` route asks `self.list`, so it is not drawn for `admin` |
+| change their own password (`self.password`) — the admin sets its own on `/users` | — | **always** | **always** | **never** |
 | write a personal note — a review or a remark | — | yes | yes | **never** |
 | file a request or report, and read and edit their own (`self.requests`) | — | **always** | **always** | **never** |
 | handle requests — the inbox: mark done or declined, reopen, delete (`manage.requests`) | **409 if granted** | **409 if granted** | **always** | implicit |
@@ -231,7 +251,7 @@ short-circuit deliberately does not cover.
 | run a pipeline — Backup, Pull, Fill, Replace, Calculate | **409 if granted** | **409 if granted** | **always** | implicit |
 | restore accounts, content labels and label assignments on a Pull | — | — | **no** — those four tabs are skipped | implicit |
 | create roles and change what they hold | **409 if granted** | — | — | implicit |
-| create accounts, set a role, assign modes | **409 if granted** | — | — | implicit |
+| create accounts, set a role, assign modes, disable or enable an account, issue a reset link | **409 if granted** | — | — | implicit |
 | label an entry or a franchise | **409 if granted** | grantable | **always** | implicit |
 | read the label reference, `/content-labels` (`manage.catalog` **or** `admin.authz`) | **409 if granted** | grantable | **always** | implicit |
 | rename an access mode or edit its description | **409 if granted** | — | — | implicit |
@@ -270,9 +290,9 @@ restated here, or the two copies drift.
   code, so what a mode shows does not depend on the machine it is asked on.
 - **Withheld fields are absent, not blanked**, in the API and the UI both: no
   `—` placeholder, because a placeholder announces what it conceals.
-- **A mode is a ceiling, and an account can sit below it.** What it actually
-  reaches is the column above minus that account's denials; there is no grant
-  counterpart.
+- **An account's ceiling is an upper bound, and its denials sit under it.**
+  What a session reaches is the active mode's column above minus that
+  account's denials, in every mode it uses; there is no grant counterpart.
 
 ## Tables
 
@@ -283,15 +303,15 @@ restated here, or the two copies drift.
 | `content_label` | the row for one code-defined label (`app/services/rbac/labels.py`), kept as the foreign-key target of the two tables below | `key` unique, `label`, `description`, `sort_order` — all four written from code by `gated_labels.ensure_labels` on every start |
 | `media_content_label` | one label on one entry | `media_id` FK → `media.system_id` (`CASCADE`), `label_id` FK → content_label (`CASCADE`), `position`; unique `(media_id, label_id)`. A label on a deleted entry is cleaned up by the database |
 | `franchise_content_label` | one label on one franchise | `franchise_id` FK → `franchise.system_id` (`CASCADE`), `label_id` FK → content_label (`CASCADE`), `position`; unique `(franchise_id, label_id)`. A second table rather than a nullable owner pair on the one above: a pair could name both owners or neither, and nothing in the database would say which was meant |
-| `access_mode` | one named ceiling on what a session may reach | `key` unique, `label`, `description`, `sort_order` (orders the API's list only — what a mode shows follows `MODE_ORDER` in code), `is_system`. There is **no** column for the anonymous policy: a logged-out visitor resolves `safe` by key |
-| `user_access_mode` | one mode an account holds | `user_id` → users (`CASCADE`), `mode_id` (`CASCADE`), `is_default` with a partial unique index `ix_one_default_mode_per_user`. `is_default` lives here rather than on `users` so an account's landing mode is necessarily one it holds |
-| `user_access_mode_denial` | one item this account does NOT get from that mode | `user_access_mode_id` (`CASCADE`), and exactly one of `label_id` / `field_group_key`, enforced by `ck_denial_names_one_thing`. **Subtraction only** — there is no grant counterpart and there must not be one: a mode is a ceiling, so an account's reach is always a subset of its mode's |
+| `access_mode` | one named ceiling on what a session may reach | `key` unique, `label`, `description`, `sort_order` (orders the API's list only — what a mode shows and the order enforcement uses follow `seed_modes.MODE_ORDER` in code), `is_system`. There is **no** column for the anonymous policy: a logged-out visitor resolves `safe` by key |
+| `users.mode_ceiling`, `users.mode_default` | the widest mode the account may use, and where a login lands | mode **keys**, nullable, default `normal` / `normal`. `ck_users_mode_keys` (each NULL or one of the four), `ck_users_mode_pair` (both NULL or both set), `ck_users_mode_default_within_ceiling` (the default ranks at or below the ceiling, by `array_position` over the order). Keys rather than `access_mode` ids: the order is defined on keys, and a key survives a Pull where a per-database uuid does not |
+| `user_access_mode_denial` | one item this account does NOT get, in any mode it uses | `user_id` → users (`CASCADE`), and exactly one of `label_id` / `field_group_key`, enforced by `ck_denial_names_one_thing`; unique `(user_id, label_id)` and `(user_id, field_group_key)`. **Subtraction only** — there is no grant counterpart and there must not be one: the ceiling is an upper bound, so an account's reach is always a subset of its active mode's |
 | `users.role_id` | the user's role | FK → role (`RESTRICT`), NOT NULL. `users.role` is not a column: it is a read-only `column_property` over `role.name` (bottom of `app/models/__init__.py`), because `auth.py` returns the name on login and mints it as a JWT claim |
 
 Models: `app/models/system.py` (`Role`, `RolePermission`, `User`),
 `app/models/content_label.py` (`ContentLabel`, `MediaContentLabel`,
 `FranchiseContentLabel`),
-`app/models/access_mode.py` (the three access-mode tables).
+`app/models/access_mode.py` (`AccessMode`, `UserAccessModeDenial`).
 
 **No table records what a mode shows.** It is derived from the mode's key and
 the code, so there is no column in which `manage.catalog` or `admin.authz`
@@ -325,12 +345,12 @@ handed the catalogue, or vice versa:
 
 | Name | Meaning | Source of keys |
 |---|---|---|
-| `admin.authz` | may **change who may do what** — roles, accounts, which modes an account holds, and the access modes' names and descriptions | `ADMIN_PERMISSION_KEYS` in `app/services/rbac/permissions.py` |
+| `admin.authz` | may **change who may do what** — roles, accounts, each account's mode ceiling, default and denials, and the access modes' names and descriptions | `ADMIN_PERMISSION_KEYS` in `app/services/rbac/permissions.py` |
 | `manage.catalog` | may **write the catalogue** — entries, groups, people, credits, options, relations, watch orders, a game's choice graph, catalogue notes, the Resources page, and **which labels an entry or franchise carries** | `MANAGE_PERMISSION_KEYS` in the same module |
 | `manage.pipelines` | may **run a pipeline** — Backup, Pull, Fill, Replace, Calculate | `MANAGE_PERMISSION_KEYS` in the same module |
 | `manage.requests` | may **handle requests** — the request inbox: read every account's requests, set their status, delete them | `MANAGE_PERMISSION_KEYS` in the same module |
 | `media_type.<key>` | may see any entry of that type; keys are hyphenated (`media_type.tv-show`) | `MEDIA_TYPE_KEYS` in `app/utils/media_resolver.py` |
-| `self.<key>` | may **write** your own rows of that kind — `self.list`, `self.personal_notes`, `self.requests` | `SELF_PERMISSION_KEYS` in `app/services/rbac/permissions.py` |
+| `self.<key>` | may **write** your own rows of that kind — `self.list`, `self.personal_notes`, `self.requests` — or change your own password, `self.password` (`PUT /api/account/password`) | `SELF_PERMISSION_KEYS` in `app/services/rbac/permissions.py` |
 | `view.<key>` | may **read** one part of the site beyond the libraries and their detail pages — see the table below | `VIEW_PERMISSION_KEYS` in `app/services/rbac/permissions.py` |
 
 Content labels and field groups are not in this catalog: they are the object
@@ -386,7 +406,7 @@ request limit on `user` and `super` (`app/services/domain/requests.py`):
 | Name | `sort_order` | System | Root | Holds |
 |---|---|---|---|---|
 | `guest` | 0 | yes | no | `default_guest_permissions()` — every media type, and nothing else. Field groups are the mode axis, not this one |
-| `user` | 50 | yes | no | `default_user_permissions()` — guest's set plus the four `view.*` and `self.list`, `self.personal_notes` and `self.requests` |
+| `user` | 50 | yes | no | `default_user_permissions()` — guest's set plus the four `view.*` and `self.list`, `self.personal_notes`, `self.requests` and `self.password` |
 | `super` | 75 | yes | no | `default_user_permissions()` plus `manage.catalog`, `manage.pipelines` and `manage.requests` — every catalogue capability, deliberately **not** `admin.authz` |
 | `admin` | 100 | yes | **yes** | nothing explicitly; a root role holds every permission implicitly **except `self.*`**, which is ownership rather than privilege and so has no implicit holder |
 
@@ -585,42 +605,44 @@ database"; only the cover route's viewer
 per-user read and write keys on, and it is why a guest sees no list at all —
 see [What a guest sees](#what-a-guest-sees).
 
-- Reads the `access_token` cookie, decodes the JWT (which carries `sub` and a
-  decorative `role` and `mode`), loads the user, takes `user.role_ref` or the
-  guest role, then resolves the access mode.
+- Reads the `access_token` cookie, decodes the JWT (which carries `sub`,
+  `sv` and a decorative `role` and `mode`), loads the user, and **drops it -
+  resolving as the guest - unless the account is `active` and the token's
+  `sv` equals `users.session_version`** (`session_is_current`; see
+  [authentication.md](authentication.md#sessions-and-their-revocation)). Then
+  it takes `user.role_ref` or the guest role, and resolves the access mode.
 - **Which mode**: the `access_mode` cookie's mode if that cookie holds a live
-  override minted for this account, otherwise the account's `is_default` mode,
-  read from the database. The login token's `mode` claim is not read. An
+  override minted for this account, otherwise the mode keyed by the account's
+  `mode_default`, read from the database. The login token's `mode` claim is not read. An
   override that is expired, badly signed or minted for another account counts
   as no override. See [Switching mid-session](#switching-mid-session-post-apiauthaccess-mode).
 
 **Mode resolution, fail-closed** (`app/services/rbac/modes.py::resolve_mode`):
 
 ```
-mode        ->  still granted to this user?
-                  yes -> effective = mode's sets - this pair's denials
+mode        ->  ranked at or below this account's ceiling?
+                  yes -> effective = mode's sets - the account's denials
                   no  -> effective = EMPTY SET
 no token    ->  the `safe` mode by key, or EMPTY SET if it is missing
 ```
 
 An override **names a choice, not a grant**: whether the account may still use
 that mode is re-resolved from the database on every request, exactly as the
-role already is, so revoking a mode or ticking a denial takes effect on the
+role already is, so lowering a ceiling or ticking a denial takes effect on the
 viewer's next request even with a live cookie. It carries the mode's **uuid**
 rather than its key, so renaming a mode does not invalidate live sessions.
 
 Three fallbacks that all go to the **empty set**, and each for a reason worth
 keeping:
 
-- A revoked mode does **not** fall back to the account's default: an override
-  naming it resolves to nothing until it expires or is switched away from.
-  "Narrowest"
-  is not well defined once per-account denials apply — two effective sets
-  need not nest — and falling back
-  to `is_default` could *widen* a session — sitting in `safe` when an admin
-  revokes `safe` would hand the viewer `unrestricted` with no password.
-- A signed-in account with no override and no default mode does **not**
-  inherit the guest default. That mode is the anonymous policy, not this
+- A mode above the ceiling does **not** fall back to the account's default or
+  to the new ceiling: an override naming it resolves to nothing until it
+  expires or is switched away from. A session sitting in a mode the account
+  can no longer use has no claim to anything, and the empty set is the one
+  answer that cannot widen it. A key outside `MODE_ORDER` has no rank and is
+  never within a ceiling, so it resolves the same way.
+- A signed-in account with no override and no mode (ceiling and default NULL)
+  does **not** inherit the guest default. That mode is the anonymous policy, not this
   account's.
 - A missing `safe` mode gives a guest nothing, rather than everything. A
   misconfiguration must hide, not publish.
@@ -672,13 +694,15 @@ and one `bump()` that clears all of them:**
 | Cache | Key | Holds |
 |---|---|---|
 | `_CACHE` | `role_id` | that role's permissions |
-| `_MODE_CACHE` | `mode_id` | that mode's labels and field groups — shared by everyone holding it, so this is the hot one |
-| `_DENIAL_CACHE` | `user_access_mode_id` | that (account, mode) pair's denials, usually empty |
+| `_MODE_CACHE` | `mode_id` | that mode's labels and field groups — shared by everyone in it, so this is the hot one |
+| `_DENIAL_CACHE` | `user_id` | that account's denials, usually empty, applied in every mode it uses |
 
-They are keyed on the thing that is SHARED, never on the account: adding the
-user to a key would make the cache unbounded in accounts and destroy the
-sharing that makes it worth having. `cache.bump()` clears all three — a
-`bump()` that cleared only the first would leave a revoked mode live until
+The role and mode caches are keyed on the thing that is SHARED, never on the
+account: adding the user to a key would make them unbounded in accounts and
+destroy the sharing that makes them worth having. Denials belong to the
+account, so that cache is keyed by user id and bounded by the accounts that
+have signed in. `cache.bump()` clears all three — a
+`bump()` that cleared only the first would leave an edited mode or a pruned denial live until
 restart, and would leak mode state between tests in a way whose failures are
 random and order-dependent — and advances `cache.generation()`, which the
 cover route's cache below keys its validity on.
@@ -716,7 +740,7 @@ hides anything, the one probe.
 |---|---|
 | **Key** | the raw `access_token` and `access_mode` cookie values — the only things `resolve_viewer` reads off the request. A different login, a mode switch, a logout or a re-login is a different key. |
 | **Lifetime** | 5 s, and never past either token's `exp` or the override's `mode_expires_at`, so a login or an override that expires mid-TTL stops applying on time. Monotonic, so a wall clock stepped backwards cannot stretch it. |
-| **Database inputs** | `users`, `role`, `role_permission`, `user_access_mode`, `access_mode`, `user_access_mode_denial`, `content_label` — not in the key, so covered by invalidation: an entry resolved under an older `cache.generation()` is discarded, and every write path to those tables bumps (above). |
+| **Database inputs** | `users` (with its mode ceiling and default), `role`, `role_permission`, `access_mode`, `user_access_mode_denial`, `content_label` — not in the key, so covered by invalidation: an entry resolved under an older `cache.generation()` is discarded, and every write path to those tables bumps (above). |
 | **Not cached** | which labels an entry or franchise carries, and every shared-record connection. That is the per-image probe, run on every request, so labelling an entry hides its cover on the next fetch. |
 | **Bound** | 512 entries, expired and superseded ones pruned on each store, then oldest first — the key is caller-supplied, so junk cookies cannot grow it. |
 
@@ -1260,8 +1284,9 @@ it — no list rows, no plan queue, no season ratings, no game copies, no
 personal notes, no marks on a game's choice graph.
 
 **The rule is one condition in `Viewer.has()`: the root short-circuit
-does not cover the `self` family.** `self.list` and `self.personal_notes` are
-not privileges — they are OWNERSHIP, the right to keep rows of your own. "May
+does not cover the `self` family.** `self.list`, `self.personal_notes` and
+`self.password` are not privileges — they are OWNERSHIP, the right to keep rows
+of your own and to keep your own credential. "May
 do anything to the system" and "has a personal library" are different claims,
 and conflating them is what fills an admin account with somebody's collection.
 Everything else short-circuits, so a content label or a media type added
@@ -1353,7 +1378,8 @@ turns a loud refusal into an accepted-then-invisible write.
 | `PATCH /api/roles/{id}` | label/description/sort_order only; `guest`/`admin` cannot be renamed |
 | `PUT /api/roles/{id}/permissions` | replaces the set; 422 unknown, 409 root role, 409 if the payload holds a locked-off grant or drops a locked-on one |
 | `DELETE /api/roles/{id}` | 204; 409 for system roles or roles still held |
-| `GET/POST/PATCH/DELETE /api/users/…` | `role_id` must exist (422); username 409 |
+| `GET/POST/PATCH/DELETE /api/users/…` | `role_id` must exist (422); a new username or password that fails the checks in `security.py` 422; a username taken ignoring case 409; `PATCH` takes `status` `active` / `disabled` |
+| `POST /api/users/{id}/reset-link` | a one-time reset link, returned once; 409 for an account that is not active or is shared. See [authentication.md](authentication.md#reset-links) |
 | `GET /api/content-labels/` | the label reference, read with `admin.authz` **or** `manage.catalog` — see [api.md](api.md#apicontent-labels). No route creates, renames or deletes a label |
 | `GET/PUT /api/content-labels/entry/{media_type}/{entry_id}` | list / replace an entry's label keys; `nsfw` is added beside any other label. 400 unknown type, 404 entry, 422 unknown label, 422 a set dropping `nsfw` while another label stays, 422 a set without the required label on a gated entry (`h-comic` on an h-comic, `h-game` on an h-game, `hentai` on a hentai) |
 | `GET/PUT /api/content-labels/franchise/{franchise_id}` | the same for a franchise, `nsfw` rule included; 422 a set without the required label on a franchise whose type includes `H-Comic` / `H-Game` / `Hentai` |
@@ -1369,7 +1395,7 @@ calls `cache.bump()`; the label routes are gated as their rows say.
 
 | Method & path | Notes |
 |---|---|
-| `GET /api/access-modes/`, `GET /{id}` | each mode with its derived `label_keys` and `field_group_keys`, and `user_count` |
+| `GET /api/access-modes/`, `GET /{id}` | each mode with its derived `label_keys` and `field_group_keys`, its `rank` in `MODE_ORDER` (null for a key outside it), and `user_count` — the accounts whose ceiling reaches the mode |
 | `PATCH /{id}` | `label`, `description`, `sort_order` |
 
 All under `admin.authz`; `PATCH` calls `cache.bump()`. There is no route that
@@ -1387,40 +1413,57 @@ creates, deletes or regrants a mode.
 
 ### Assigning modes: `PUT /api/users/{id}/access-modes`
 
-Replaces an account's whole set - grants, login default and denials - in one
-payload, matching `PUT /roles/{id}/permissions`.
+Replaces an account's whole object axis - ceiling, login default and denials -
+in one payload (`{ceiling, default, denied_label_keys,
+denied_field_group_keys}`, mode keys), matching `PUT /roles/{id}/permissions`.
+Everything is checked before anything is written. The one writer of the two
+columns is `modes.set_mode_ceiling(db, user, ceiling_key, default_key)`, which
+the route calls; it raises `ValueError` - the route's 422 - on an unknown key,
+on one of the pair being null, and on a default above the ceiling. It accepts
+`unrestricted`. It also deletes the account's denials that the new ceiling
+does not show, flushes and bumps, and never commits.
 
-**The system-mode rule is enforced twice, and neither half would be enough alone.** The
-server refuses a denial naming something the mode does not show (422), asking
-the derived sets (`labels_shown_in`, `field_groups_shown_in`): a mode
-is a ceiling, so such a denial subtracts nothing and storing it would be a
-no-op that reads like a setting. The panel renders a held mode's items as
-**the mode's own list with tick-to-deny**, which makes the control
-structurally incapable of asking for one. A UI that cannot express the invalid
-thing paired with a server that would accept it is one refactor away from a
-silent no-op; a server rule with no matching affordance is an error people hit
-and work around.
+**The denial rule is enforced twice, and neither half would be enough alone.** The
+server refuses a denial naming something the ceiling does not show (422,
+naming the strays): the ceiling is an upper bound, so such a denial subtracts
+nothing in any mode the account can use, and storing it would be a no-op that
+reads like a setting. "Shows" is `cache.mode_sets` of the ceiling's mode —
+the derived sets (`labels_shown_in`, `field_groups_shown_in`), with
+`unrestricted` showing every label row and every field group. The panel
+renders **the ceiling's own list with tick-to-deny**, which makes the control
+structurally incapable of asking for one. A UI that cannot express the
+invalid thing paired with a server that would accept it is one refactor away
+from a silent no-op; a server rule with no matching affordance is an error
+people hit and work around.
 
-Two defaults answers 422 rather than the 500 `ix_one_default_mode_per_user`
-would give. An empty list is allowed - an account holding no mode resolves the
-empty object set, fail-closed, and a legitimate way to park somebody. The
-users table calls that state out in red, because it is correct and looks
+Both null is allowed - an account with no mode resolves the empty object set,
+fail-closed, and a legitimate way to park somebody; its denials go with it.
+The users table calls that state out in red, because it is correct and looks
 exactly like a broken site.
 
-**A new account holds `safe` and only `safe`** (in `users.py`'s
-create handler). An invitee starts narrow and is widened deliberately rather
-than starting wide and being narrowed if somebody remembers. It is granted at
-creation rather than left empty because a mode-less account reaches nothing,
-which is correct and indistinguishable from a broken invitation.
+**A new account starts at ceiling `normal`, default `normal`** - the columns'
+default, so an account created on `/users` and one restored by a Pull from a
+sheet that predates the columns both get it. `normal` holds no labelled entry
+and every field of a visible one: narrow enough that an invitee is widened
+deliberately, wide enough that the invitation does not look broken.
+
+**The fresh `admin` account starts at `unrestricted` / `unrestricted`**, set
+by the lifespan when it seeds the account - the faithful mapping of the root
+role, which sees everything.
 
 ### Switching mid-session: `POST /api/auth/access-mode`
 
 Narrowing is instant; widening asks for the password again, so nobody widens
-a session they merely find logged in. The test is a set
-comparison - the modes are ordered, but per-account denials mean two
-effective sets need not nest, so "narrower" can only mean
-"its effective set is a subset of mine" - and it runs against **effective**
-sets, after denials.
+a session they merely find logged in. The test is a set comparison - "is the
+target's effective set a subset of mine" - and it runs against **effective**
+sets, after denials. With denials uniform across an account's modes it agrees
+with the rank everywhere except from the empty set, where the subset test is
+the right answer (moving from nothing to `safe` is upward by rank, yet adds
+nothing: `safe` shows no label and no field group), so the subset test stays
+the test.
+
+**Which modes are available** is a rank comparison: a mode at or below the
+account's ceiling. `/api/auth/me` lists exactly those, narrowest first.
 
 `/api/auth/me` advertises the cost per mode as `requires_password`, and the
 endpoint enforces it with the **same function**, because the endpoint that
@@ -1458,12 +1501,12 @@ none and is read as timed, which every one of them was.
 
 **The login cookie is not reissued by a switch.** Minting a fresh month-long
 login on each switch would make toggling between two modes an unlimited
-session-extension oracle, and the lifetime here is flat with no refresh flow
-and no revocation. `create_access_token` takes an explicit `expires_at` so the
+session-extension oracle, and the lifetime here is flat with no refresh flow;
+revocation ends a session early and never extends one. `create_access_token` takes an explicit `expires_at` so the
 override can be capped at the login's.
 
-A mode the account does not hold answers **404**, identically to one that does
-not exist, and deliberately **not** flagged `requires_password`: it is not a
+A mode above the account's ceiling answers **404**, identically to one that
+does not exist, and deliberately **not** flagged `requires_password`: it is not a
 password problem, and saying so would invite a prompt that cannot help.
 
 **The control** is `frontend/src/components/layout/ModeSwitcher.jsx`, mounted
@@ -1472,10 +1515,11 @@ each is easy to get wrong from the browser and none is visible from the
 component alone:
 
 - **It reads no permission**, and it is the one control in the SPA for which
-  that is right. Every signed-in account holds at least one mode, so gating it
-  would hide it from the `user` role - the account that most needs to narrow
-  itself.
-- **It renders only above ONE held mode.** A control with one option is noise.
+  that is right. A signed-in account with a ceiling above `safe` can always
+  narrow, so gating it would hide it from the `user` role - the account that
+  most needs to narrow itself.
+- **It renders only above ONE available mode.** A control with one option is
+  noise.
 - **`requires_password` comes from the server**, per mode, on
   `/api/auth/me`. Never recompute the subset test in the browser: two
   implementations of one rule drift, and the browser's is the one nobody
@@ -1523,21 +1567,28 @@ answers the same in `safe` as in `unrestricted`.
 
 ### Guards on users (`app/routers/users.py`)
 
-- **Last admin:** changing the role of, or deleting, the last account whose
-  role can administer (root role or holds `admin.authz`) → **409** "last
-  account that can administer the site".
+- **Last admin:** changing the role of, or deleting, the last **active**
+  account whose role can administer (root role or holds `admin.authz`) →
+  **409** "last account that can administer the site".
 - **Self-delete:** deleting your own account → **409**.
+- **Self-disable:** disabling your own account → **409** `You cannot disable
+  yourself.`
+- **A disabled account does not count as an administrator** for the last-admin
+  guard, so disabling the other root account and then demoting yourself is
+  refused.
+- **A pending registration is not edited here** → **409**; it is approved or
+  declined.
 
 ## Admin UI
 
 | Page | File | What it does |
 |---|---|---|
 | Roles | `frontend/src/pages/admin/Roles.jsx` | role list, create/delete, checkbox grid per family from `/api/roles/catalog`; root role roles show a notice instead of a grid |
-| Users | `frontend/src/pages/admin/Users.jsx` | create users, assign roles, reset passwords, delete |
+| Users | `frontend/src/pages/admin/Users.jsx` | create users, assign roles, reset passwords, delete; the access panel sets an account's ceiling, its default (offered only up to the ceiling) and its denials (the ceiling's own items) |
 | Content Labels | `frontend/src/pages/admin/ContentLabels.jsx` | the read-only label reference: name, key, description, a chip per mode that shows the label, "also carries NSFW", entry and franchise counts. Reached by `admin` and `super` (`<ProtectedRoute anyPermission>`), from the Note section of the nav |
 | Access Modes | `frontend/src/pages/admin/AccessModes.jsx` | one card per mode, narrowest first: editable name and description, `user_count`, and the derived labels and field groups read-only |
 | Label picker | `frontend/src/components/forms/ContentLabelPicker.jsx` | rendered **once** on Add and once on Modify (not in the per-type tabs); on Add the parent holds the selection and `PUT`s after create, mirroring the credits control |
-| Field groups | — | **No page exists.** `/roles` grants them; their contents are `FIELD_GROUPS` in code. See [Changing which columns a group hides](#changing-which-columns-a-group-hides--code-only). |
+| Field groups | — | **No page exists.** Their contents are `FIELD_GROUPS` in code, and the lowest mode that shows each is `FIELD_GROUP_LOWEST_MODE`; `/access-modes` shows which modes show them, read-only. See [Changing which columns a group hides](#changing-which-columns-a-group-hides--code-only). |
 
 What an admin can change from the browser, and what needs a commit:
 
@@ -1570,8 +1621,10 @@ matters is enforced server-side.
 | `tests/unit/test_field_groups.py` | every declared column/link field exists |
 | `tests/api/test_rbac_core.py` | seed idempotence, `/me` never raises, deleted-user / de-admined tokens rejected |
 | `tests/api/test_rbac_admin_api.py` | roles/users/labels routes, 409/422 guards |
+| `tests/api/test_mode_ceiling.py` | `set_mode_ceiling`'s refusals and acceptances, denial pruning on a lowered ceiling, a switch above the ceiling 404 with the mirror at and below it, a live override above a just-lowered ceiling resolving nothing, `/me` listing exactly the modes up to the ceiling, a denial applying in every mode that shows it, a denial the ceiling does not show 422 with the mirror, a new account at `normal` / `normal`, and the three `ck_users_mode_*` constraints |
+| `tests/api/test_mode_ceiling_migration.py` | the real `alembic upgrade` into `m1c2eiling345` on a scratch database seeded with held sets - widest held, the flagged default, `cg1618`'s owner pair, a modeless account, a logged gap, the denial union - and the downgrade restoring one grant per mode up to the ceiling |
 | `tests/api/test_labels_in_code.py` | the six labels and their lowest modes, each mode showing everything the mode below shows, a session in each mode seeing exactly its labels (refusals paired with the mode above), restricted sources withheld in `safe`, the removed create/delete/regrant routes absent, a mode's name still adjustable, the reference read by admin and super and refused to a member, `ensure_labels` restoring a missing label and a rewritten name |
-| `tests/api/test_labels_in_code_migration.py` | revision `l1a2belcode3`: its frozen copy matches the code, an unknown label or mode nothing holds is deleted, one still cited or held stops the upgrade, and the six labels' rows are written |
+| `tests/api/test_labels_in_code_migration.py` | revision `l1a2belcode3`: its frozen copy matches the code, an unknown label nothing cites is deleted and one still on an entry stops the upgrade, an unknown mode is deleted outright because `ck_users_mode_keys` means no account can use one, and the six labels' rows are written |
 | `tests/api/test_role_locks.py` | the locked-grant table and both halves that read it: what the role list serves, what the write path refuses, and what the seed reconciles |
 | `tests/api/test_admin_compat.py` | characterization test: every route enumerated from the app itself must stay gated by one of the three capabilities, so a route that loses its guard in a refactor fails here |
 | `tests/api/test_capability_dependencies.py` | `require_admin_authz` / `require_manage_catalog` / `require_manage_pipelines` each answer 401, never 403 |
@@ -1694,6 +1747,3 @@ of a session.
 
 - **Seasonal counts include hidden entries.** In [Accepted
   residuals](#accepted-residuals) with its blast radius.
-- **Sessions are flat 30 days** with no refresh or revocation, and there is
-  no password reset — an admin sets one at `/users`. See
-  [authentication.md](authentication.md).

@@ -1,4 +1,5 @@
-"""The three access-mode tables, checked at the metadata level.
+"""The two access-mode tables and the users' mode columns, checked at the
+metadata level.
 
 No database needed: these assertions are about the mapping. What a mode shows
 is derived in code, so there is no table of a mode's labels or field groups.
@@ -7,9 +8,8 @@ is derived in code, so there is no table of a mode's labels or field groups.
 from app import models
 
 
-def test_three_tables_are_mapped():
+def test_two_tables_are_mapped():
     assert models.AccessMode.__tablename__ == "access_mode"
-    assert models.UserAccessMode.__tablename__ == "user_access_mode"
     assert models.UserAccessModeDenial.__tablename__ == "user_access_mode_denial"
 
 
@@ -23,6 +23,35 @@ def test_no_table_stores_what_a_mode_shows():
     assert "access_mode_field_group" not in tables
     # The mirror: the metadata is the real one, and holds the mode table.
     assert "access_mode" in tables
+
+
+def test_an_account_holds_no_mode_rows():
+    """The held set is gone: an account has a ceiling and a default."""
+    assert not hasattr(models, "UserAccessMode")
+    columns = models.User.__table__.columns
+    assert columns["mode_ceiling"].nullable is True
+    assert columns["mode_default"].nullable is True
+
+
+def test_the_users_constraints_spell_mode_order():
+    """The database cannot call mode_rank, so the constraint carries its own
+    copy of the order. This is what keeps the two from drifting."""
+    from app.models.system import MODE_ARRAY_SQL, MODE_KEYS_SQL
+    from app.services.rbac.seed_modes import MODE_ORDER
+
+    quoted = ", ".join(f"'{key}'" for key in MODE_ORDER)
+    assert MODE_KEYS_SQL == f"({quoted})"
+    assert MODE_ARRAY_SQL == f"ARRAY[{quoted}]::varchar[]"
+    names = {
+        c.name
+        for c in models.User.__table__.constraints
+        if c.__class__.__name__ == "CheckConstraint"
+    }
+    assert {
+        "ck_users_mode_keys",
+        "ck_users_mode_pair",
+        "ck_users_mode_default_within_ceiling",
+    } <= names
 
 
 def test_the_table_stores_no_anonymous_policy():
@@ -40,16 +69,6 @@ def test_the_table_stores_no_anonymous_policy():
     )
 
 
-def test_only_one_held_mode_may_be_the_login_default():
-    index = next(
-        ix
-        for ix in models.UserAccessMode.__table__.indexes
-        if ix.name == "ix_one_default_mode_per_user"
-    )
-    assert index.unique is True
-    assert index.dialect_options["postgresql"]["where"] is not None
-
-
 def test_a_denial_names_exactly_one_thing():
     """label_id XOR field_group_key - the same shape note's four owner
     columns already use. A row naming both, or neither, is meaningless."""
@@ -61,11 +80,11 @@ def test_a_denial_names_exactly_one_thing():
     assert "ck_denial_names_one_thing" in names
 
 
-def test_revoking_a_mode_grant_cascades_its_denials_away():
-    column = models.UserAccessModeDenial.__table__.c.user_access_mode_id
-    assert next(iter(column.foreign_keys)).ondelete == "CASCADE"
+def test_a_denial_belongs_to_the_account_and_goes_with_it():
+    column = models.UserAccessModeDenial.__table__.c.user_id
+    fk = next(iter(column.foreign_keys))
+    assert fk.column.table.name == "users"
+    assert fk.ondelete == "CASCADE"
+    assert "user_access_mode_id" not in models.UserAccessModeDenial.__table__.c
 
 
-def test_removing_a_mode_cascades_its_grants_away():
-    column = models.UserAccessMode.__table__.c.mode_id
-    assert next(iter(column.foreign_keys)).ondelete == "CASCADE"

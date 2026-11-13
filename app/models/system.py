@@ -13,6 +13,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    func,
     text,
 )
 from sqlalchemy.dialects.postgresql import UUID
@@ -270,6 +271,25 @@ class RolePermission(Base):
     role = relationship("Role", back_populates="permissions")
 
 
+# seed_modes.MODE_ORDER as SQL, for users' mode constraints below.
+MODE_KEYS_SQL = "('safe', 'normal', 'borderline', 'unrestricted')"
+MODE_ARRAY_SQL = "ARRAY['safe', 'normal', 'borderline', 'unrestricted']::varchar[]"
+
+
+# An account's lifecycle. `pending` is a registration awaiting the admin's
+# approval; `disabled` is an account the admin has switched off, reversibly.
+# Only `active` can sign in or hold a session - resolve_viewer reads anything
+# else as the guest, and login answers 403 after a correct password.
+USER_STATUS_PENDING = "pending"
+USER_STATUS_ACTIVE = "active"
+USER_STATUS_DISABLED = "disabled"
+USER_STATUSES: tuple[str, ...] = (
+    USER_STATUS_PENDING,
+    USER_STATUS_ACTIVE,
+    USER_STATUS_DISABLED,
+)
+
+
 class User(Base):
     """Administrative user accounts for access control."""
 
@@ -298,17 +318,66 @@ class User(Base):
     is_installation_owner = Column(
         Boolean, nullable=False, default=False, server_default="false"
     )
+    # USER_STATUSES above. Travels on the Sheets Users tab for active and
+    # disabled, so a Pull does not re-activate an account disabled elsewhere.
+    status = Column(
+        String,
+        nullable=False,
+        default=USER_STATUS_ACTIVE,
+        server_default=USER_STATUS_ACTIVE,
+    )
+    # The revocation counter. A login token carries it as the `sv` claim, and
+    # a token whose `sv` differs resolves as the guest - so incrementing it
+    # (app/services/domain/accounts.py::revoke_sessions) ends every session
+    # the account holds. Never travels on Sheets: it is this machine's count.
+    session_version = Column(Integer, nullable=False, default=0, server_default="0")
     # How many OPEN requests this account may hold at once; NULL is no limit.
     # Set to the role's default when the account is created or changes role
     # (services/domain/requests.py::default_request_limit), and adjustable on
     # the Users page. Never enforced for the super role, whatever is stored.
     open_request_limit = Column(Integer, nullable=True)
+    # The widest access mode this account may use, and the one a login lands
+    # in - both mode KEYS, ranked by seed_modes.MODE_ORDER. Keys rather than
+    # access_mode ids: the order is defined on keys in code, the four keys are
+    # fixed, and a key survives a Pull where a per-database uuid does not.
+    # Both NULL is no mode at all: the account resolves the empty object set.
+    # Written through services/rbac/modes.py::set_mode_ceiling; the three
+    # constraints below are what keep a hand edit or a Pull honest.
+    mode_ceiling = Column(
+        String, nullable=True, default="normal", server_default="normal"
+    )
+    mode_default = Column(
+        String, nullable=True, default="normal", server_default="normal"
+    )
 
     __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending', 'active', 'disabled')", name="ck_users_status"
+        ),
         CheckConstraint(
             "open_request_limit IS NULL OR open_request_limit >= 0",
             name="ck_users_open_request_limit_non_negative",
         ),
+        # The SQL spelling of MODE_ORDER. The database cannot call mode_rank,
+        # so the order is written out here; test_access_mode_models.py fails
+        # if the two disagree.
+        CheckConstraint(
+            f"(mode_ceiling IS NULL OR mode_ceiling IN {MODE_KEYS_SQL}) AND "
+            f"(mode_default IS NULL OR mode_default IN {MODE_KEYS_SQL})",
+            name="ck_users_mode_keys",
+        ),
+        CheckConstraint(
+            "(mode_ceiling IS NULL) = (mode_default IS NULL)",
+            name="ck_users_mode_pair",
+        ),
+        CheckConstraint(
+            f"array_position({MODE_ARRAY_SQL}, mode_default) <= "
+            f"array_position({MODE_ARRAY_SQL}, mode_ceiling)",
+            name="ck_users_mode_default_within_ceiling",
+        ),
+        # Usernames are unique WITHOUT regard to case, so `Kai` and `kai`
+        # cannot both exist and the lowercased name login looks up is one row.
+        Index("uq_users_username_lower", func.lower(username), unique=True),
         Index(
             "ix_one_installation_owner",
             # The indexed expression is a constant, not the column: this is a

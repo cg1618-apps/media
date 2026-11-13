@@ -12,8 +12,9 @@ database into line with that:
    leave a label no code knows. That is a decision for a person.
 2. The six labels' rows are written from the code's values: `ecchi` inserted,
    the others' name, description and display order rewritten.
-3. An `access_mode` row whose key is not one of the four is deleted when no
-   account holds it, and raises, naming it, when one does.
+3. An `access_mode` row whose key is not one of the four is deleted. No
+   account can be using one: ck_users_mode_keys (m1c2eiling345) already
+   confines every account's ceiling and default to the four keys.
 4. `access_mode_label` and `access_mode_field_group` are dropped. Nothing
    reads them; a table nothing reads is one somebody edits expecting an effect.
 
@@ -25,7 +26,7 @@ leaves an installation showing exactly what this revision made it show. The
 rows step 1 and 3 deleted, and the names step 2 rewrote, are not restored.
 
 Revision ID: l1a2belcode3
-Revises: n1o2tesrwk3
+Revises: m1c2eiling345
 Create Date: 2026-11-13 00:00:00.000000
 
 """
@@ -36,7 +37,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "l1a2belcode3"
-down_revision: Union[str, Sequence[str], None] = "n1o2tesrwk3"
+down_revision: Union[str, Sequence[str], None] = "m1c2eiling345"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -111,27 +112,14 @@ def write_labels(conn) -> None:
 
 
 def remove_unknown_modes(conn) -> None:
-    """Step 3. Raises, naming the mode, when an unknown one is held."""
-    unknown = conn.execute(
-        sa.text(
-            "SELECT system_id, key FROM access_mode WHERE key NOT IN :known"
-        ).bindparams(_keys("known")),
+    """Step 3. Nothing can cite an unknown mode: ck_users_mode_keys keeps
+    every ceiling and default to the four keys."""
+    conn.execute(
+        sa.text("DELETE FROM access_mode WHERE key NOT IN :known").bindparams(
+            _keys("known")
+        ),
         {"known": list(MODE_ORDER)},
-    ).all()
-    for mode_id, key in unknown:
-        held = conn.execute(
-            sa.text("SELECT count(*) FROM user_access_mode WHERE mode_id = :id"),
-            {"id": mode_id},
-        ).scalar_one()
-        if held:
-            raise RuntimeError(
-                f"access mode {key!r} is not one of the four modes defined in code "
-                f"and {held} account(s) hold it. Move them to one of "
-                f"{', '.join(MODE_ORDER)} before upgrading."
-            )
-        conn.execute(
-            sa.text("DELETE FROM access_mode WHERE system_id = :id"), {"id": mode_id}
-        )
+    )
 
 
 def upgrade() -> None:

@@ -27,6 +27,7 @@ from app.services.rbac.permissions import (
     PERM_MANAGE_PIPELINES,
     PERM_MANAGE_REQUESTS,
     PERM_SELF_LIST,
+    PERM_SELF_PASSWORD,
     PERM_SELF_PERSONAL_NOTES,
     PERM_SELF_REQUESTS,
     SUPER_ROLE_NAME,
@@ -64,9 +65,9 @@ def default_guest_permissions() -> set[str]:
 def default_user_permissions() -> set[str]:
     """
     A signed-in member's grants: everything a guest may read, the whole view
-    family (the parts of the site a guest does not see), and the three
-    permissions over their own rows - their list, their personal notes and
-    their requests.
+    family (the parts of the site a guest does not see), and the four
+    permissions over their own account - their list, their personal notes,
+    their requests and their password.
 
     Derived from default_guest_permissions() rather than restated, so a media
     type added later reaches both roles at once.
@@ -74,7 +75,12 @@ def default_user_permissions() -> set[str]:
     return (
         default_guest_permissions()
         | {view_perm(key) for key in VIEW_PERMISSION_KEYS}
-        | {PERM_SELF_LIST, PERM_SELF_PERSONAL_NOTES, PERM_SELF_REQUESTS}
+        | {
+            PERM_SELF_LIST,
+            PERM_SELF_PERSONAL_NOTES,
+            PERM_SELF_REQUESTS,
+            PERM_SELF_PASSWORD,
+        }
     )
 
 

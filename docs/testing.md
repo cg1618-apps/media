@@ -80,7 +80,7 @@ PostgreSQL database. `tests/api/conftest.py` does the following:
    by object and column by column. The RBAC roles that
    migration A would normally seed are created once here via
    `ensure_rbac_seed`, followed by `ensure_access_mode_seed` and
-   `grant_all_modes_to_existing_accounts`. `drop_all` runs at session end.
+   `ensure_system_labels`. `drop_all` runs at session end.
 
    **Anything the lifespan seeds must be seeded here too, committed.** This
    has caused a hang twice. `with TestClient(app)` runs the lifespan on its
@@ -135,12 +135,13 @@ the two-stage cursor stepper.
 | `test_engine` | session | Engine on `media_test` with a fresh schema and seeded roles |
 | `db_session` | function | SQLAlchemy session inside a rolled-back transaction (savepoint mode) |
 | `_clear_permission_cache` | function, autouse | RBAC cache bumped before and after the test |
+| `_clear_rate_limits` | function, autouse | The login and reset rate limiter (`app/services/rate_limit.py`) emptied before and after the test. It is a process-global dict and every test client calls from the same address, so without it the sixth wrong password in a run would be refused with a 429 |
 | `client` | function | Unauthenticated `TestClient` with `get_db` overridden to `db_session` |
-| `admin_client` | function | `TestClient` with a `testadmin` user (role `admin`) inserted, all four access modes granted with `unrestricted` as the default, and a valid `access_token` cookie |
+| `admin_client` | function | `TestClient` with a `testadmin` user (role `admin`) inserted, its mode ceiling and default set to `unrestricted`, and a valid `access_token` cookie |
 | `user_client` / `plain_user` | function | The same for an account on the `user` role |
 | `super_client` / `super_user` | function | The same for the `super` role - both `manage.*`, no `admin.authz`. **This is the account shape that keeps a library**, so it is what a test of a personal endpoint should use: an admin holds no `self.*` grant. Use the fixture rather than building one inline |
-| `mode_client(key, user=None, denials=())` | function | A client sitting in one named access mode. The mode is granted as a non-default and travels in the `access_mode` override cookie exactly as after a switch in production, so these exercise the real resolution path rather than a `Viewer` built by hand |
-| `mode(key)` / `grant_mode(user, key, denials=(), is_default=False)` | function | The seeded modes, and granting one (optionally minus some labels, named by key) |
+| `mode_client(key, user=None, denials=())` | function | A client sitting in one named access mode. The account's ceiling is raised to the mode if it sits below it, and the mode travels in the `access_mode` override cookie exactly as after a switch in production, so these exercise the real resolution path rather than a `Viewer` built by hand |
+| `mode(key)` / `grant_mode(user, key, denials=(), is_default=False)` | function | The seeded modes, and making one available: raises the account's ceiling to it (never lowers it), optionally makes it the default, and adds label denials named by key - which, like every denial, apply in every mode the account uses |
 | `nsfw_label` / `hidden_anime` | function | The `nsfw` label and an entry carrying it. Every code label exists in every test - the session seed runs `ensure_labels` - so `nsfw_label` finds the row rather than creating one. It is shown from `normal` up, so a logged-out visitor (`safe`) never sees what carries it |
 | `catalog_writer(username=…, extra=…, label_keys=())` | function | An account holding `manage.catalog` whose effective set shows NO labels - i.e. a writer who cannot see the labelled entry. `make_viewer` builds it from a fixed mode and denials, as below. `tests/api/test_franchise_content_labels.py` builds its `narrow` fixture from this, and pairs every refusal with the same call from `admin_client`: a mode-scoped 404 and an empty database are indistinguishable without the mirror |
 | `sample_collection` | function | `Collection` "Test Collection" / "測試合集" |
@@ -150,10 +151,10 @@ the two-stage cursor stepper.
 | `sample_anime` | function | TV `Anime` under `sample_franchise`, 12/12 episodes, Completed |
 | `sample_comic` | function | `Comic` under `sample_franchise`, 6/6 issues, Completed |
 | `role_id_for(db, name)` | helper, not a fixture | Looks up a seeded role's `system_id`; needed because `users.role` is a read-only mapping and fixtures must set `role_id` |
-| `make_viewer(db, client, username, permissions, field_groups=None, label_keys=None)` | helper | Logs `client` in as a new account. `permissions` is the ROLE axis; the two keyword arguments are the OBJECT axis. The four modes are fixed, so `grant_bespoke_mode` narrows the way production does: it grants the lowest mode whose derived sets contain the request and denies the difference per account. A request no mode can satisfy fails the test loudly rather than testing something else. Both default to "everything" (`unrestricted`, no denial), so a test that only cares about capabilities need not mention them |
+| `make_viewer(db, client, username, permissions, field_groups=None, label_keys=None)` | helper | Logs `client` in as a new account. `permissions` is the ROLE axis; the two keyword arguments are the OBJECT axis. The four modes are fixed, so `grant_bespoke_mode` narrows the way production does: it puts the account at the lowest mode whose derived sets contain the request, as both ceiling and default, and denies the difference per account. A request no mode can satisfy fails the test loudly rather than testing something else. Both default to "everything" (`unrestricted`, no denial), so a test that only cares about capabilities need not mention them |
 
-**A signed-in test client whose account holds no default mode, and has no
-`access_mode` override, resolves the EMPTY object set**
+**A signed-in test client whose account has no mode, or whose token names a
+mode above its ceiling, resolves the EMPTY object set**
 and every gated field vanishes from every response. Never mint a token by
 hand; use the fixtures above. This has cost two debugging cycles, each time
 presenting as "my route 401s / my field is missing" with nothing wrong in the

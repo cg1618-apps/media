@@ -63,9 +63,6 @@ def legacy_rows(db_session, admin_user, historical_schema):
         .one()
     )
     guest = db_session.query(models.Role).filter(models.Role.name == "guest").one()
-    grant = models.UserAccessMode(user_id=admin_user.id, mode_id=normal.system_id)
-    db_session.add(grant)
-    db_session.flush()
     for key in ("sources_other", "personal_notes", "sources_restricted"):
         db_session.execute(
             text(
@@ -78,10 +75,10 @@ def legacy_rows(db_session, admin_user, historical_schema):
         db_session.execute(
             text(
                 "INSERT INTO user_access_mode_denial "
-                "(system_id, user_access_mode_id, field_group_key) "
-                "VALUES (gen_random_uuid(), :g, :k)"
+                "(system_id, user_id, field_group_key) "
+                "VALUES (gen_random_uuid(), :u, :k)"
             ),
-            {"g": grant.system_id, "k": key},
+            {"u": admin_user.id, "k": key},
         )
         db_session.execute(
             text(
@@ -91,7 +88,7 @@ def legacy_rows(db_session, admin_user, historical_schema):
             {"r": guest.system_id, "p": f"field_group.{key}"},
         )
     db_session.flush()
-    return normal, grant, guest
+    return normal, admin_user, guest
 
 
 def _keys(db, sql, **params):
@@ -99,7 +96,7 @@ def _keys(db, sql, **params):
 
 
 def test_every_row_naming_a_removed_group_goes(db_session, legacy_rows, revision):
-    normal, grant, guest = legacy_rows
+    normal, account, guest = legacy_rows
 
     revision.remove_field_group_rows(db_session.connection())
 
@@ -111,8 +108,8 @@ def test_every_row_naming_a_removed_group_goes(db_session, legacy_rows, revision
     assert _keys(
         db_session,
         "SELECT field_group_key FROM user_access_mode_denial "
-        "WHERE user_access_mode_id = :g",
-        g=grant.system_id,
+        "WHERE user_id = :u",
+        u=account.id,
     ) == {"sources_restricted"}
     assert _keys(
         db_session,

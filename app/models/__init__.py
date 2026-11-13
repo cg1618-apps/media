@@ -6,9 +6,9 @@ model on Base.metadata, so string-based relationships resolve correctly.
 from app.database import Base, get_taipei_now
 from app.models.access_mode import (
     AccessMode,
-    UserAccessMode,
     UserAccessModeDenial,
 )
+from app.models.account_code import AccountCode
 from app.models.anime import Anime
 from app.models.anime_movie import AnimeMovies
 from app.models.base import NameFallbackMixin
@@ -142,11 +142,11 @@ __all__ = [
     "FranchiseContentLabel",
     "MediaContentLabel",
     "AccessMode",
-    "UserAccessMode",
     "UserAccessModeDenial",
     "Role",
     "RolePermission",
     "User",
+    "AccountCode",
     "UserRequest",
     "DataControlLog",
     "DeletedRecord",

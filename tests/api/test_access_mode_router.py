@@ -126,6 +126,35 @@ def test_nothing_an_admin_can_patch_changes_what_a_visitor_sees(
 # ---------------------------------------------------------------------------
 
 
+def test_user_count_is_the_accounts_whose_ceiling_reaches_the_mode(
+    admin_client, plain_user, db_session, mode
+):
+    """`normal` is reached by a `normal` ceiling and by every wider one; a
+    `safe` ceiling does not reach it."""
+
+    def count(mode_id):
+        return admin_client.get(f"{MODES}{mode_id}").json()["user_count"]
+
+    normal_id = mode(MODE_NORMAL).system_id
+    before = count(normal_id)
+    plain_user.mode_ceiling = MODE_SAFE
+    plain_user.mode_default = MODE_SAFE
+    db_session.flush()
+    assert count(normal_id) == before - 1
+    assert count(mode(MODE_SAFE).system_id) >= 1
+
+
+def test_each_mode_carries_its_rank(admin_client):
+    """The SPA orders the ceiling and default selects by this, so it never
+    keeps a copy of MODE_ORDER."""
+    by_key = {m["key"]: m["rank"] for m in admin_client.get(MODES).json()}
+
+    assert [by_key[k] for k in (MODE_SAFE, MODE_NORMAL, "borderline", MODE_UNRESTRICTED)] == [
+        0,
+        1,
+        2,
+        3,
+    ]
 def test_an_unknown_mode_is_404(admin_client):
     assert admin_client.get(f"{MODES}{uuid.uuid4()}").status_code == 404
     assert (

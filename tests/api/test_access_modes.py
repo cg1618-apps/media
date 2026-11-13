@@ -49,46 +49,46 @@ def test_hidden_answers_404_with_the_ordinary_not_found_message(
 def test_a_denial_subtracts_one_label_from_a_wide_mode(
     nsfw_label, hidden_anime, mode_client
 ):
-    """An account holding `borderline` MINUS nsfw sees what `normal` sees,
+    """An account at ceiling `borderline` denied nsfw sees what `normal` sees,
     without anyone having created a mode for it."""
     c = mode_client(MODE_BORDERLINE, denials=(nsfw_label.key,))
     assert c.get(f"/api/anime/{hidden_anime.system_id}").status_code == 404
 
 
-def test_revoking_the_grant_cascades_the_denial_away(
-    db_session, admin_user, nsfw_label, grant_mode
+def test_deleting_the_account_cascades_its_denials_away(
+    db_session, plain_user, nsfw_label, grant_mode
 ):
-    grant = grant_mode(admin_user, MODE_BORDERLINE, denials=(nsfw_label.key,))
-    assert (
-        db_session.query(models.UserAccessModeDenial)
-        .filter(models.UserAccessModeDenial.user_access_mode_id == grant.system_id)
-        .count()
-        == 1
-    )
-    db_session.delete(grant)
+    grant_mode(plain_user, MODE_BORDERLINE, denials=(nsfw_label.key,))
+
+    def held():
+        return (
+            db_session.query(models.UserAccessModeDenial)
+            .filter(models.UserAccessModeDenial.user_id == plain_user.id)
+            .count()
+        )
+
+    assert held() == 1
+    db_session.delete(plain_user)
     db_session.flush()
-    assert (
-        db_session.query(models.UserAccessModeDenial)
-        .filter(models.UserAccessModeDenial.user_access_mode_id == grant.system_id)
-        .count()
-        == 0
-    )
+    assert held() == 0
 
 
-def test_revoking_a_live_sessions_mode_resolves_to_nothing_not_to_the_default(
-    db_session, nsfw_label, hidden_anime, mode_client
+def test_lowering_a_live_sessions_ceiling_resolves_to_nothing_not_to_the_default(
+    db_session, admin_user, nsfw_label, hidden_anime, mode_client
 ):
-    """Delete the grant while the cookie is live: the next request must see
-    NOTHING, not fall back to the account's default mode. Falling back to
-    is_default could WIDEN the session."""
+    """Lower the ceiling below the mode the cookie names: the next request
+    must see NOTHING, not fall back to the account's default or its new
+    ceiling."""
     c = mode_client(MODE_BORDERLINE)
     assert c.get(f"/api/anime/{hidden_anime.system_id}").status_code == 200
 
-    db_session.query(models.UserAccessMode).delete()
+    admin_user.mode_ceiling = MODE_NORMAL
+    admin_user.mode_default = MODE_NORMAL
     db_session.flush()
     cache.bump()
 
     assert c.get(f"/api/anime/{hidden_anime.system_id}").status_code == 404
+    assert c.get("/api/auth/me").json()["mode"]["key"] is None
 
 
 def test_a_guest_sees_nothing_labelled_when_the_safe_mode_is_missing(
