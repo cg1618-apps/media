@@ -243,8 +243,7 @@ customisation per viewer — columns, defaults, layout, wording — is
 discussed after the rework is built; see [open-items.md](open-items.md),
 "Per-viewer page detail".
 
-**Still to discuss:** entry detail
-pages; collection, franchise and series pages; watch order pages; Seasonal
+**Still to discuss:** collection, franchise and series pages; watch order pages; Seasonal
 and Statistics (both need a version for an account without data); the
 Random Picker (personal filters only with data, and the shared version);
 Future Releases; My requests; the request and report inbox; pending
@@ -297,6 +296,19 @@ registrations.
 - **admin:** no libraries.
 - The gated types' libraries follow the same split, for super and user in
   `unrestricted`.
+
+### Entry detail pages
+
+| Viewer | Entry page |
+| --- | --- |
+| **super** | catalogue information, its own My tracker card, personal notes, personal fields (collected, beaten, …), catalogue rows in mixed sections, edit controls, Report a problem |
+| **user** | the same without edit controls, and **personal** rows in mixed sections |
+| **guest** | catalogue only — no tracker, personal notes, personal fields or personal rows, no Report a problem; entity names as plain text where their switch is off |
+| **shared** | the guest's page, plus **Report a problem** |
+| **admin** | no entry pages |
+
+Granted features — the music and mod statuses, favourites — appear only for
+an account that has them switched on.
 
 ### Search
 
