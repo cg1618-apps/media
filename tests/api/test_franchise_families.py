@@ -100,6 +100,7 @@ def test_a_franchise_holding_both_gated_types_carries_both_labels(
     assert label_keys_for_franchise(db_session, uuid.UUID(created["system_id"])) == [
         "h-comic",
         "hentai",
+        "nsfw",
     ]
 
 
@@ -111,22 +112,29 @@ def test_a_franchise_of_all_three_restricted_types_carries_all_three_labels(
         "h-comic",
         "h-game",
         "hentai",
+        "nsfw",
     ]
 
 
 def test_a_franchise_gaining_hentai_gains_its_label(admin_client, db_session):
     created = _create(admin_client, "H-Comic").json()
     franchise_id = uuid.UUID(created["system_id"])
-    assert label_keys_for_franchise(db_session, franchise_id) == ["h-comic"]
+    assert label_keys_for_franchise(db_session, franchise_id) == ["h-comic", "nsfw"]
 
     response = admin_client.patch(
         f"{ROUTE}/{franchise_id}", json={"franchise_type": "H-Comic, Hentai"}
     )
     assert response.status_code == 200, response.text
-    assert set(label_keys_for_franchise(db_session, franchise_id)) == {"h-comic", "hentai"}
+    assert set(label_keys_for_franchise(db_session, franchise_id)) == {
+        "h-comic",
+        "hentai",
+        "nsfw",
+    }
 
 
-@pytest.mark.parametrize("keep", [["h-comic"], ["hentai"], []])
+# Each set that keeps a label keeps nsfw too, so the only rule it can break is
+# the gated types'.
+@pytest.mark.parametrize("keep", [["h-comic", "nsfw"], ["hentai", "nsfw"], []])
 def test_neither_label_can_be_removed_from_a_franchise_holding_both(
     admin_client, db_session, keep
 ):
@@ -136,9 +144,11 @@ def test_neither_label_can_be_removed_from_a_franchise_holding_both(
         f"/api/content-labels/franchise/{franchise_id}", json={"label_keys": keep}
     )
     assert response.status_code == 422
+    assert "franchise carries the" in response.json()["detail"]
     assert set(label_keys_for_franchise(db_session, uuid.UUID(franchise_id))) == {
         "h-comic",
         "hentai",
+        "nsfw",
     }
 
 

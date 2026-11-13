@@ -126,7 +126,12 @@ def ensure_labels(db: Session) -> None:
 
 
 def ensure_entry_label(db: Session, media_id, key: str) -> None:
-    """Attach label `key` to one entry unless it already carries it."""
+    """Attach label `key` to one entry unless it already carries it - and,
+    for any label but nsfw, nsfw with it (label_rules)."""
+    from app.services.domain.label_rules import NSFW
+
+    if key != NSFW:
+        ensure_entry_label(db, media_id, NSFW)
     label = ensure_label(db, key)
     exists = (
         db.query(models.MediaContentLabel.system_id)
@@ -149,7 +154,10 @@ def ensure_franchise_labels(db: Session, franchise) -> None:
     """Attach the label of every gated type the franchise's types name."""
     if franchise is None:
         return
-    for key in franchise_label_keys(franchise):
+    from app.services.domain.label_rules import NSFW
+
+    keys = franchise_label_keys(franchise)
+    for key in ([NSFW] if keys else []) + keys:
         label = ensure_label(db, key)
         exists = (
             db.query(models.FranchiseContentLabel.system_id)
@@ -237,6 +245,10 @@ def enforce_gated_label_invariants(db: Session) -> dict[str, int]:
     # The label rows themselves first: a Pull may have written a sheet's name
     # or description over the code's.
     ensure_labels(db)
+    # Then the nsfw rule over every row a Pull or a migration wrote.
+    from app.services.domain.label_rules import add_missing_nsfw
+
+    add_missing_nsfw(db)
     counts: dict[str, int] = {}
     for media_type, key in _required_label_for_type().items():
         ids = [

@@ -2681,9 +2681,11 @@ Both assignment surfaces bind to the read: a thing the caller's active mode
 cannot see answers 404, so a narrowed editor cannot clear the label that is
 hiding it.
 
-**`also_carries` is a statement, not a check.** The reference says every label
-but `nsfw` also carries `nsfw`; nothing enforces it yet, and an entry carries
-exactly the labels it was given.
+**Every label but `nsfw` is stored with `nsfw`.** A PUT of an entry's or a
+franchise's labels adds `nsfw` beside any other label, and answers **422**
+when it would drop `nsfw` while another label stays; dropping every label at
+once is allowed. `also_carries` on the reference states the same rule per
+label.
 
 ### What gating touches
 

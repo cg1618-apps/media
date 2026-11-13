@@ -2210,7 +2210,7 @@ against the computed catalog on write (`permissions.catalog(db)`).
 |---|---|:-:|---|---|
 | `id` | Integer | no | autoincrement | PK |
 | `role_id` | UUID | no | | FK `role` ON DELETE CASCADE, indexed |
-| `permission` | String | no | | `admin`, `media_type.<key>`, `field_group.<key>`, `label.<key>` |
+| `permission` | String | no | | `<family>.<key>` for a family in `PERMISSION_FAMILIES` — `admin.authz`, `manage.<key>`, `media_type.<key>`, `self.<key>`, `view.<key>`. Content labels and field groups are not permissions |
 | `created_at` | DateTime | yes | now | |
 
 Constraint: `uq_role_permission` UNIQUE (`role_id`, `permission`).
@@ -2284,6 +2284,12 @@ One content label on one media entry. Deliberately **not** stored in
 
 Constraints: `uq_media_content_label_row` UNIQUE (`media_id`, `label_id`);
 index `ix_media_content_label_entry` (`media_id`).
+
+**An entry carrying any label but `nsfw` also has an `nsfw` row.** No
+constraint states it; every write path does, through
+`app/services/domain/label_rules.py` — see
+[authorization.md](authorization.md). The same holds for
+`franchise_content_label`.
 
 ### `franchise_content_label`
 

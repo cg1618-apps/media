@@ -177,4 +177,4 @@ def test_the_write_hook_fetches_from_the_link_and_keeps_the_label(
     assert body["serialization_status"] == "完結"
     assert body["ch_total"] == 88
     entry_id = uuid.UUID(body["system_id"])
-    assert label_keys_for_entry(db_session, entry_id) == ["h-comic"]
+    assert label_keys_for_entry(db_session, entry_id) == ["h-comic", "nsfw"]

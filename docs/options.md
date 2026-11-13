@@ -680,10 +680,8 @@ the bare `admin`, which implies everything.
 
 | Constant | Value |
 |---|---|
-| `PERMISSION_FAMILIES` | `admin`, `manage`, `media_type`, `self`, `view` — the role axis. `field_group` and `label` are the access-mode axis and are not in it |
+| `PERMISSION_FAMILIES` | `admin`, `manage`, `media_type`, `self`, `view` — the role axis. Field groups and content labels are the access-mode axis, decided in code by the mode order, and are not permissions |
 | `media_type.<key>` | one per hyphenated media type key, e.g. `media_type.tv-show` |
-| `field_group.<key>` | one per `FIELD_GROUP_KEYS` entry |
-| `label.<key>` | one per `content_label.key` row; the only family computed from the database at request time |
 
 `app/services/rbac/field_groups.py` (`FIELD_GROUPS`):
 

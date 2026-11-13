@@ -29,6 +29,7 @@ from app.services.rbac.labels import LABEL_KEYS, label_by_key, modes_showing
 from app.services.rbac.seed_modes import MODE_UNRESTRICTED
 
 LABEL = "h-comic"
+NSFW = "nsfw"
 
 
 def _label(db, key):
@@ -202,7 +203,7 @@ def unlabelled_rows(db_session, sample_franchise):
     gated_labels.ensure_entry_label(db_session, labelled.system_id, LABEL)
 
     assert label_keys_for_entry(db_session, bare.system_id) == []
-    assert label_keys_for_entry(db_session, labelled.system_id) == [LABEL]
+    assert label_keys_for_entry(db_session, labelled.system_id) == [LABEL, NSFW]
     assert label_keys_for_franchise(db_session, gated_franchise.system_id) == []
     return {
         "bare": bare,
@@ -220,11 +221,16 @@ def test_the_pass_stamps_the_label_where_it_is_missing_and_nowhere_else(
 
     rows = unlabelled_rows
     assert counts["h-comic"] >= 2
-    assert label_keys_for_entry(db_session, rows["bare"].system_id) == [LABEL]
-    assert label_keys_for_franchise(db_session, rows["gated_franchise"].system_id) == [LABEL]
-    # Idempotent: the entry that carried it still carries it once.
-    assert label_keys_for_entry(db_session, rows["labelled"].system_id) == [LABEL]
-    # And the rows of no gated type are left alone.
+    # The gated label and the nsfw it brings, and nothing else.
+    assert label_keys_for_entry(db_session, rows["bare"].system_id) == [LABEL, NSFW]
+    assert label_keys_for_franchise(db_session, rows["gated_franchise"].system_id) == [
+        LABEL,
+        NSFW,
+    ]
+    # Idempotent: the entry that carried them still carries each once.
+    assert label_keys_for_entry(db_session, rows["labelled"].system_id) == [LABEL, NSFW]
+    # And the rows of no gated type are left alone - nsfw included, since
+    # nothing on them requires it.
     assert label_keys_for_entry(db_session, rows["anime"].system_id) == []
     assert label_keys_for_franchise(db_session, rows["plain_franchise"].system_id) == []
 
@@ -232,10 +238,13 @@ def test_the_pass_stamps_the_label_where_it_is_missing_and_nowhere_else(
 def test_calculate_runs_the_pass(db_session, unlabelled_rows):
     run_sync(db_session)
 
-    assert label_keys_for_entry(db_session, unlabelled_rows["bare"].system_id) == [LABEL]
+    assert label_keys_for_entry(db_session, unlabelled_rows["bare"].system_id) == [
+        LABEL,
+        NSFW,
+    ]
     assert label_keys_for_franchise(
         db_session, unlabelled_rows["gated_franchise"].system_id
-    ) == [LABEL]
+    ) == [LABEL, NSFW]
 
 
 def test_pull_runs_the_pass_after_the_gated_entry_tab_and_the_label_tabs():
@@ -262,5 +271,8 @@ def test_a_new_gated_type_is_covered_by_its_map_entry_alone(
 
     assert new_label in label_keys_for_entry(db_session, comic.system_id)
     assert new_label in label_keys_for_franchise(db_session, comic_franchise.system_id)
-    # The h-comic rows get their own label, not the new one.
-    assert label_keys_for_entry(db_session, unlabelled_rows["bare"].system_id) == [LABEL]
+    # The h-comic rows get their own label (and nsfw), not the new one.
+    assert label_keys_for_entry(db_session, unlabelled_rows["bare"].system_id) == [
+        LABEL,
+        NSFW,
+    ]

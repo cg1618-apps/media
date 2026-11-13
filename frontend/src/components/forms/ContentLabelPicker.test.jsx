@@ -3,12 +3,13 @@
 // entry a label save has hidden from the admin's own mode is told apart from
 // one that is merely unreachable. A 404 after a label save means hidden - a
 // hidden entry answers as a missing one - while any other failure says nothing.
-import { render, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
 import ContentLabelPicker, {
   entryHiddenFromSession,
   labelsAdded,
+  withNsfw,
 } from "./ContentLabelPicker";
 
 afterEach(() => {
@@ -74,4 +75,49 @@ it("entryHiddenFromSession does not claim hidden on any other failure", async ()
 
   vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new Error("offline"))));
   expect(await entryHiddenFromSession("anime", "e1")).toBe(false);
+});
+
+
+// --- The nsfw rule ----------------------------------------------------------
+
+const VOCABULARY = [
+  { system_id: "1", key: "nsfw", label: "NSFW", description: "不適合公開場合觀看" },
+  { system_id: "2", key: "erotica", label: "擦邊肉番", description: "" },
+];
+
+it("withNsfw adds nsfw beside any other label, and only then", () => {
+  expect(withNsfw(["erotica"])).toEqual(["erotica", "nsfw"]);
+  expect(withNsfw(["nsfw"])).toEqual(["nsfw"]);
+  expect(withNsfw([])).toEqual([]);
+});
+
+it("ticking a label ticks NSFW with it", async () => {
+  stubFetch(() => [200, VOCABULARY]);
+  const onChange = vi.fn();
+  render(<ContentLabelPicker value={[]} onChange={onChange} />);
+
+  fireEvent.click(await screen.findByLabelText("擦邊肉番"));
+
+  expect(onChange).toHaveBeenCalledWith(["erotica", "nsfw"]);
+});
+
+it("NSFW is locked while another label is held, with the reason", async () => {
+  stubFetch(() => [200, VOCABULARY]);
+  render(<ContentLabelPicker value={["erotica", "nsfw"]} onChange={() => {}} />);
+
+  const nsfw = await screen.findByLabelText("NSFW");
+  expect(nsfw).toBeDisabled();
+  expect(nsfw).toBeChecked();
+  expect(nsfw.closest("label")).toHaveAttribute("title", "Carried with 擦邊肉番");
+});
+
+it("NSFW alone can be unticked", async () => {
+  stubFetch(() => [200, VOCABULARY]);
+  const onChange = vi.fn();
+  render(<ContentLabelPicker value={["nsfw"]} onChange={onChange} />);
+
+  const nsfw = await screen.findByLabelText("NSFW");
+  expect(nsfw).not.toBeDisabled();
+  fireEvent.click(nsfw);
+  expect(onChange).toHaveBeenCalledWith([]);
 });

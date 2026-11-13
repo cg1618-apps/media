@@ -255,8 +255,8 @@ def test_delete_removes_the_entry(admin_client, db_session):
 
 def test_create_stamps_the_label(admin_client, db_session):
     body = _create(admin_client)
-    assert label_keys_for_entry(db_session, uuid.UUID(body["system_id"])) == [LABEL]
-    assert [label["key"] for label in body["content_labels"]] == [LABEL]
+    assert label_keys_for_entry(db_session, uuid.UUID(body["system_id"])) == [LABEL, "nsfw"]
+    assert [label["key"] for label in body["content_labels"]] == [LABEL, "nsfw"]
 
 
 def test_update_and_patch_restore_a_label_removed_behind_the_api(
@@ -270,7 +270,7 @@ def test_update_and_patch_restore_a_label_removed_behind_the_api(
         assert label_keys_for_entry(db_session, entry_id) == []
         response = getattr(admin_client, method)(f"{ROUTE}/{entry_id}", json=payload)
         assert response.status_code == 200, response.text
-        assert label_keys_for_entry(db_session, entry_id) == [LABEL], method
+        assert label_keys_for_entry(db_session, entry_id) == [LABEL, "nsfw"], method
 
 
 def test_the_label_endpoint_refuses_to_remove_it(admin_client, db_session):
@@ -280,7 +280,7 @@ def test_the_label_endpoint_refuses_to_remove_it(admin_client, db_session):
         json={"label_keys": []},
     )
     assert response.status_code == 422
-    assert label_keys_for_entry(db_session, uuid.UUID(body["system_id"])) == [LABEL]
+    assert label_keys_for_entry(db_session, uuid.UUID(body["system_id"])) == [LABEL, "nsfw"]
 
 
 def test_the_label_endpoint_accepts_a_set_that_keeps_it(
@@ -316,7 +316,7 @@ def test_the_required_label_cannot_be_deleted(admin_client, db_session):
 def labelled_hentai(admin_client, db_session):
     body = _create(admin_client)
     # The set the gate computes over is not empty: the entry carries the label.
-    assert label_keys_for_entry(db_session, uuid.UUID(body["system_id"])) == [LABEL]
+    assert label_keys_for_entry(db_session, uuid.UUID(body["system_id"])) == [LABEL, "nsfw"]
     return body
 
 
@@ -411,7 +411,7 @@ def test_an_auto_created_franchise_is_typed_and_labelled(admin_client, db_sessio
     body = _create(admin_client)
     franchise = db_session.get(models.Franchise, uuid.UUID(body["franchise_id"]))
     assert franchise.franchise_type == "Hentai"
-    assert label_keys_for_franchise(db_session, franchise.system_id) == [LABEL]
+    assert label_keys_for_franchise(db_session, franchise.system_id) == [LABEL, "nsfw"]
 
 
 def test_a_hentai_attaches_to_the_h_comic_franchise_of_its_name(admin_client, db_session):
@@ -468,13 +468,13 @@ def test_the_franchise_label_cannot_be_removed(admin_client, db_session):
         f"/api/content-labels/franchise/{body['franchise_id']}", json={"label_keys": []}
     )
     assert response.status_code == 422
-    assert label_keys_for_franchise(db_session, uuid.UUID(body["franchise_id"])) == [LABEL]
+    assert label_keys_for_franchise(db_session, uuid.UUID(body["franchise_id"])) == [LABEL, "nsfw"]
 
 
 def test_a_hentai_franchise_hides_from_a_guest(client, admin_client, db_session):
     body = _create(admin_client)
     franchise_id = body["franchise_id"]
-    assert label_keys_for_franchise(db_session, uuid.UUID(franchise_id)) == [LABEL]
+    assert label_keys_for_franchise(db_session, uuid.UUID(franchise_id)) == [LABEL, "nsfw"]
     assert client.get(f"/api/franchise/{franchise_id}").status_code == 404
     assert admin_client.get(f"/api/franchise/{franchise_id}").status_code == 200
 

@@ -3894,3 +3894,24 @@ target of the assignment tables, rewritten from the code on every start.
 - **Rejected: keep the stored sets and validate monotonicity on write.** It
   would still be per-database and still absent from the sheet, so the
   databases would keep disagreeing; it would only stop one kind of bad edit.
+
+### Every other label is stored with `nsfw`, not implied (2026-11-13)
+
+`app/services/domain/label_rules.py` attaches `nsfw` beside any other label
+on every write path, and refuses (422) a write that drops it while another
+label stays. Revision `n1s2fwrule34` backfilled the rows written before the
+rule: on the company database, 249 entries and 233 franchises, almost all of
+them gated types that carried only their own label.
+
+- **Stored, so a reader never needs the rule.** Implying `nsfw` would mean
+  every query asking "is this nsfw" also knowing which labels imply it — the
+  label filter, the reference counts, the sheet a human reads. A stored row
+  answers by itself.
+- **Refused, not silently re-added, when `nsfw` is dropped.** A PUT that keeps
+  `erotica` and drops `nsfw` is a contradiction, and quietly putting `nsfw`
+  back would make the form lie about what was saved. A first label, by
+  contrast, brings `nsfw` with it, since that write states no contradiction.
+- **No constraint enforces it.** A CHECK cannot see across rows; a trigger
+  could, but every write path already goes through one function, and the
+  invariant pass after a Pull and in Calculate catches anything written
+  straight to the tables.

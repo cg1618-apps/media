@@ -160,7 +160,7 @@ def hentai_label_exists(admin_client, db_session):
     """An entry carrying the hentai label, so the gate has a label to hide."""
     res = admin_client.post("/api/hentai/", json={"hentai_name_cn": "Picker Gate"})
     assert res.status_code == 201, res.text
-    assert label_keys_for_entry(db_session, uuid.UUID(res.json()["system_id"])) == ["hentai"]
+    assert label_keys_for_entry(db_session, uuid.UUID(res.json()["system_id"])) == ["hentai", "nsfw"]
 
 
 def test_a_safe_mode_reader_is_not_told_a_gated_mode_exists(guest_reader, hentai_label_exists):

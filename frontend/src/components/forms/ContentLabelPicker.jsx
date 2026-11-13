@@ -21,6 +21,18 @@ import {
   requiredLabelsForType,
 } from "../../lib/gatedTypes";
 
+// Every other label is stored with nsfw (app/services/domain/label_rules.py):
+// ticking one ticks NSFW, and NSFW cannot be unticked while one is held.
+export const NSFW = "nsfw";
+
+// `keys` plus nsfw when any other label is among them - the server's
+// with_required_labels, so what the form shows is what the save stores.
+export function withNsfw(keys) {
+  const out = new Set(keys || []);
+  if ([...out].some((key) => key !== NSFW)) out.add(NSFW);
+  return [...out].sort();
+}
+
 // { kind: "entry", mediaType, id } | { kind: "franchise", id } -> URL.
 // Returns null when the owner has no id yet (the Add page), which is the
 // signal not to read or write anything.
@@ -87,17 +99,35 @@ export default function ContentLabelPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url]);
 
+  // What requires NSFW right now: every held label but NSFW itself.
+  const requiringNsfw = [...new Set([...value, ...required])].filter(
+    (key) => key !== NSFW,
+  );
   const locked = new Set(required);
+  if (requiringNsfw.length) locked.add(NSFW);
   const toggle = useCallback(
     (key) => {
-      if (required.includes(key)) return;
+      if (locked.has(key)) return;
       const held = new Set(value);
       if (held.has(key)) held.delete(key);
       else held.add(key);
-      onChange([...held].sort());
+      onChange(withNsfw([...held]));
     },
+    // `locked` is derived from value and required.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [value, onChange, required],
   );
+  const nameOf = (key) => labels.find((row) => row.key === key)?.label || key;
+
+  function titleFor(row) {
+    if (required.includes(row.key)) {
+      return "Required: every entry of this type carries it";
+    }
+    if (row.key === NSFW && locked.has(NSFW)) {
+      return `Carried with ${requiringNsfw.map(nameOf).join(", ")}`;
+    }
+    return row.description || "";
+  }
 
   // Nothing defined means nothing to restrict - draw no empty box.
   if (failed || labels.length === 0) return null;
@@ -112,11 +142,7 @@ export default function ContentLabelPicker({
           <label
             key={row.system_id}
             className="flex items-center gap-1.5 text-sm cursor-pointer"
-            title={
-              locked.has(row.key)
-                ? "Required: every entry of this type carries it"
-                : row.description || ""
-            }
+            title={titleFor(row)}
           >
             <input
               type="checkbox"
@@ -205,7 +231,7 @@ export async function entryHiddenFromSession(mediaType, entryId) {
 }
 
 function withRequired(labelKeys, required) {
-  return [...new Set([...(labelKeys || []), ...required])].sort();
+  return withNsfw([...(labelKeys || []), ...required]);
 }
 
 function saveLabels(url, labelKeys) {

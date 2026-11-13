@@ -187,9 +187,17 @@ content labels and field groups and nothing else, so there is nowhere
   code does not name is the migration's to handle (`l1a2belcode3`), which
   deletes it when nothing cites it and otherwise stops, naming it; an unknown
   mode is handled the same way, deleted when no account holds it.
-- **The label reference states that every label but `nsfw` also carries
-  `nsfw`** (`also_carries` on `GET /api/content-labels/`). Nothing enforces
-  that yet: an entry carries exactly the labels it was given.
+- **Every label but `nsfw` is stored together with `nsfw`** — not implied:
+  `app/services/domain/label_rules.py` is the one place the rule lives, and
+  every write path goes through it. The label PUT adds `nsfw` beside a first
+  other label and answers **422** to a set that drops `nsfw` while another
+  label stays (dropping every label at once is fine); the gated auto-label
+  attaches `nsfw` beside the type's label; and the invariant pass after a
+  Pull and in Calculate (`enforce_gated_label_invariants`) adds it wherever a
+  row arrived without it. Revision `n1s2fwrule34` ran the same backfill once.
+  It never hides anything new: `nsfw` is shown from `normal`, and every other
+  label is hidden at or below it. The reference says so per label
+  (`also_carries`).
 - **A mode is a ceiling.** What an account actually reaches is the mode's sets
   minus that account's `user_access_mode_denial` rows; there is no grant
   counterpart, so the effective set is always a subset of the column above.
@@ -272,7 +280,7 @@ restated here, or the two copies drift.
 |---|---|---|
 | `role` | one named bundle of permissions | `name` unique (`guest`, `admin` read by name), `label`, `description`, `is_system` (cannot be deleted or renamed), `is_root` (holds every permission implicitly **except the `self` family** — see [The admin account holds no user data](#the-admin-account-holds-no-user-data)), `sort_order` |
 | `role_permission` | one grant | `role_id` FK → role (`CASCADE`), `permission` string; unique `(role_id, permission)` |
-| `content_label` | the row for one code-defined label (`app/services/rbac/labels.py`), kept as the foreign-key target of the two tables below | `key` unique (becomes permission `label.<key>`), `label`, `description`, `sort_order` — all four written from code by `gated_labels.ensure_labels` on every start |
+| `content_label` | the row for one code-defined label (`app/services/rbac/labels.py`), kept as the foreign-key target of the two tables below | `key` unique, `label`, `description`, `sort_order` — all four written from code by `gated_labels.ensure_labels` on every start |
 | `media_content_label` | one label on one entry | `media_id` FK → `media.system_id` (`CASCADE`), `label_id` FK → content_label (`CASCADE`), `position`; unique `(media_id, label_id)`. A label on a deleted entry is cleaned up by the database |
 | `franchise_content_label` | one label on one franchise | `franchise_id` FK → `franchise.system_id` (`CASCADE`), `label_id` FK → content_label (`CASCADE`), `position`; unique `(franchise_id, label_id)`. A second table rather than a nullable owner pair on the one above: a pair could name both owners or neither, and nothing in the database would say which was meant |
 | `access_mode` | one named ceiling on what a session may reach | `key` unique, `label`, `description`, `sort_order` (orders the API's list only — what a mode shows follows `MODE_ORDER` in code), `is_system`. There is **no** column for the anonymous policy: a logged-out visitor resolves `safe` by key |
@@ -322,10 +330,14 @@ handed the catalogue, or vice versa:
 | `manage.pipelines` | may **run a pipeline** — Backup, Pull, Fill, Replace, Calculate | `MANAGE_PERMISSION_KEYS` in the same module |
 | `manage.requests` | may **handle requests** — the request inbox: read every account's requests, set their status, delete them | `MANAGE_PERMISSION_KEYS` in the same module |
 | `media_type.<key>` | may see any entry of that type; keys are hyphenated (`media_type.tv-show`) | `MEDIA_TYPE_KEYS` in `app/utils/media_resolver.py` |
-| `field_group.<key>` | may see the fields in one `FIELD_GROUPS` entry | `app/services/rbac/field_groups.py` |
-| `label.<key>` | may see entries and franchises carrying that content label | `content_label.key`, read at request time |
 | `self.<key>` | may **write** your own rows of that kind — `self.list`, `self.personal_notes`, `self.requests` | `SELF_PERMISSION_KEYS` in `app/services/rbac/permissions.py` |
 | `view.<key>` | may **read** one part of the site beyond the libraries and their detail pages — see the table below | `VIEW_PERMISSION_KEYS` in `app/services/rbac/permissions.py` |
+
+Content labels and field groups are not in this catalog: they are the object
+axis, decided by the session's access mode, and no role holds one.
+`/api/auth/me` still lists the session's field groups in `permissions` as
+`field_group.<key>` strings beside the role's permissions, so the SPA asks one
+`has()` for either; labels are not published at all.
 
 The `view` family, as the role editor labels it (`VIEW_PERMISSION_LABELS`):
 
@@ -1343,12 +1355,12 @@ turns a loud refusal into an accepted-then-invisible write.
 | `DELETE /api/roles/{id}` | 204; 409 for system roles or roles still held |
 | `GET/POST/PATCH/DELETE /api/users/…` | `role_id` must exist (422); username 409 |
 | `GET /api/content-labels/` | the label reference, read with `admin.authz` **or** `manage.catalog` — see [api.md](api.md#apicontent-labels). No route creates, renames or deletes a label |
-| `GET/PUT /api/content-labels/entry/{media_type}/{entry_id}` | list / replace an entry's label keys; 400 unknown type, 404 entry, 422 unknown label, 422 a set without the required label on a gated entry (`h-comic` on an h-comic, `h-game` on an h-game, `hentai` on a hentai) |
-| `GET/PUT /api/content-labels/franchise/{franchise_id}` | the same for a franchise; 422 a set without the required label on a franchise whose type includes `H-Comic` / `H-Game` / `Hentai` |
+| `GET/PUT /api/content-labels/entry/{media_type}/{entry_id}` | list / replace an entry's label keys; `nsfw` is added beside any other label. 400 unknown type, 404 entry, 422 unknown label, 422 a set dropping `nsfw` while another label stays, 422 a set without the required label on a gated entry (`h-comic` on an h-comic, `h-game` on an h-game, `hentai` on a hentai) |
+| `GET/PUT /api/content-labels/franchise/{franchise_id}` | the same for a franchise, `nsfw` rule included; 422 a set without the required label on a franchise whose type includes `H-Comic` / `H-Game` / `Hentai` |
 
-`ContentLabelResponse` carries no `permission` field. A label is not a
-permission — publishing `label.<key>` would name something that does not
-exist. The reference shows the label's `key`.
+`ContentLabelResponse` carries no `permission` field: a label is not a
+permission. It decides which objects a mode shows, on the object axis; no role
+holds one. The reference shows the label's `key`.
 
 The role and user routes are behind `require_admin_authz`, and every write
 calls `cache.bump()`; the label routes are gated as their rows say.
@@ -1508,15 +1520,6 @@ negotiable; the mode still only decides which objects an operation reaches, and
 it is the *operation* that refuses to run against a subset, because a partial
 Backup is not a smaller version of the job. `viewer.has(manage.pipelines)`
 answers the same in `safe` as in `unrestricted`.
-
-It also closes an oracle for free: `POST /api/data-control/replace/{key}/
-{entry_id}` answered 404 for a missing entry and 200 `"Successfully updated
-<display_name>."` for a hidden one — a write, an existence oracle and a title
-leak in one answer. A caller who can reach the route has no hidden entries.
-
-401 rather than 404 here because the route's existence is not a secret and the
-caller is being told to widen, which is something they can act on. 404 is the
-object axis, where indistinguishability is the property being protected.
 
 ### Guards on users (`app/routers/users.py`)
 

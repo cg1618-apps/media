@@ -41,6 +41,10 @@ from app.services.domain.gated_labels import (
     refuse_label_removal_on_entry,
     refuse_label_removal_on_franchise,
 )
+from app.services.domain.label_rules import (
+    refuse_nsfw_removal,
+    with_required_labels,
+)
 from app.services.rbac.enforcement import entry_visible, franchise_visible
 from app.services.rbac.labels import label_by_key, modes_showing
 from app.services.rbac.permissions import PERM_ADMIN_AUTHZ, PERM_MANAGE_CATALOG
@@ -153,11 +157,21 @@ def _replace_labels(
     Replace one owner's whole label set, whichever join table holds it.
 
     Whole-set replace rather than add/remove, because that is how the forms
-    submit - the same shape as credits.py::replace_credits. An unknown key is
-    a 422 BEFORE anything is deleted, so a typo cannot clear a set and then
+    submit - the same shape as credits.py::replace_credits. An unknown key,
+    and a write dropping `nsfw` while another label stays, are each a 422
+    BEFORE anything is deleted, so a bad request cannot clear a set and then
     fail to refill it.
     """
-    wanted = sorted(set(payload.label_keys))
+    current = {
+        key
+        for (key,) in db.query(models.ContentLabel.key)
+        .join(join_model, join_model.label_id == models.ContentLabel.system_id)
+        .filter(owner_column == owner_id)
+    }
+    # Every other label is stored with nsfw: dropping it while one stays is
+    # refused, and a first label brings it. See services/domain/label_rules.
+    refuse_nsfw_removal(current, payload.label_keys)
+    wanted = sorted(with_required_labels(payload.label_keys))
     rows = (
         db.query(models.ContentLabel)
         .filter(models.ContentLabel.key.in_(wanted))
