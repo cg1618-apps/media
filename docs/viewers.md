@@ -401,9 +401,19 @@ admin approves them: for super it is a prompt to switch to the admin login.
 
 **Results follow every switch that can be off.** A result group appears
 only where the viewer may open what it links to: an entity kind whose
-switch is off, a media type its role does not hold, quotes and memes
-without the per-account switch, anything its mode hides — none of these
-return results, so search never leads to a page the viewer cannot see.
+switch is off, a media type its role does not hold, anything its mode
+hides — none of these return results, so search never leads to a page the
+viewer cannot see.
+
+The server leaves such a type's bucket out of the response altogether
+rather than send it empty, because an empty list would still say the type
+exists. People, studios, publishers and characters need `view.person`,
+`view.studio`, `view.publisher` and `view.character`; each media type needs
+the role's `media_type.<type>` grant, and a gated type also a mode that
+shows it. Collections, franchises, series and seasons are always searched.
+So `/search` draws no tab and no section for a type the viewer cannot see,
+the nav search offers no scope for it, and an entity card or row whose
+kind's key the viewer lacks is plain text rather than a link.
 
 ### Settings
 

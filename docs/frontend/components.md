@@ -934,7 +934,8 @@ another:
 | `App.jsx` routes `/library/h-comic`, `/h-comic/:publicId/:slug?`, `/random/h-comic`, `/library/h-game`, `/h-game/:publicId/:slug?`, `/random/h-game`, `/library/hentai`, `/hentai/:publicId/:slug?` and `/random/hentai` | `<ProtectedRoute gatedType="h-comic">` / `gatedType="h-game"` / `gatedType="hentai"`, declared before `/library/:type` and `/random/:type` - a signed-in narrow session is sent home, a signed-out visitor to login |
 | Nav rows (Restricted → H-Comic, H-Game, Hentai) | `gatedType` on each item in `config/navigation.js`; `visibleSections(sections, has, canSeeType)` drops it, and drops the Restricted tab once no gated row is left in it. Both permission surfaces ask the same helper, and `navigation.test.js` pins the pair |
 | Add / Modify / Delete / Form Defaults tab | `AdminTabBar` filters every tab list through `visibleByType` |
-| Nav search scope, Plan tabs, Completions tabs, Random Picker mode strip and media-type chips, Quotes filter, image owner-type filter, watch-order type filter, Control Center Fill (and, for h-game and hentai, Replace) button, `PersonSubTabBar` Club tab, Franchise Library filter chip | `visibleByType` / `canSeeGatedType` at the list |
+| Nav search scope | `canSearchScope` in `NavSearch.jsx`: `canSeeGatedType` and the role's `media_type.<type>` key, the rule the server picks its search buckets by |
+| Plan tabs, Completions tabs, Random Picker mode strip and media-type chips, Quotes filter, image owner-type filter, watch-order type filter, Control Center Fill (and, for h-game and hentai, Replace) button, `PersonSubTabBar` Club tab, Franchise Library filter chip | `visibleByType` / `canSeeGatedType` at the list |
 | Favourite grids (the h-game franchise and entry grids) | `gatedType` on the grid in `config/favoriteGrids.js`; `visibleFavoriteGrids(auth)` filters them for the statistics page and the admin 3x3 editor, and the statistics sidebar drops their links the same way |
 | Options scope picker (`ScopePicker`, both Options tabs) | `visibleMediaTypes` over the list it is handed, so the `MEDIA_TYPES` fallback drawn before `/api/constants` answers does not name a hidden gated type either |
 | Lists fetched only when visible | `usePlanData`, `Completions`, `RandomPicker`, `useStatisticsData` (the h-comic, h-game and hentai rating cards and the h-game favourite grids), `SeriesPage` (h-games and hentai only under a parent franchise of the restricted family) and `FranchiseLibrary` (which waits for `/api/auth/me`) |
@@ -942,7 +943,8 @@ another:
 
 What a gated type's surface does **not** filter is what the server already
 answers empty for a narrow session: the `h-comic`, `h-game` and `hentai` search buckets
-(left out altogether, and read as `results[type] ?? []`), the profile groups,
+(left out altogether, as every bucket the viewer cannot see is, and read as
+`results[type] ?? []`), the profile groups,
 a franchise hub (only a franchise of the restricted family, `H-Comic`,
 `Hentai` or `H-Game`, asks for h-comics, hentai and h-games; each is hidden
 with its label). Hiding in the SPA is

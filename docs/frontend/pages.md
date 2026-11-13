@@ -224,8 +224,13 @@ debounces 250 ms, discards stale responses by request id, and calls
 `MAX_RESULTS`, the most rows the dropdown shows, so no bucket sends more than
 can be used. Scopes: all, collection, franchise,
 series, anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, game,
-h-comic, h-game and hentai (each offered only to a session that can see the type), seasonal, person,
-studio, publisher. `mergeBuckets` builds the at most `MAX_RESULTS = 8` rows
+h-comic, h-game, hentai, seasonal, person, studio, publisher. A scope is
+offered only when the server would send its bucket (`canSearchScope`, on the
+rule in [api.md](../api.md#search--apisearch)): a media type needs
+`media_type.<type>`, and a gated one also the mode (`canSeeGatedType`);
+person, studio and publisher need `view.person`, `view.studio` and
+`view.publisher`; all, the three groups and seasonal are always offered.
+`mergeBuckets` builds the at most `MAX_RESULTS = 8` rows
 in three passes. First, every bucket's exact matches (a name column equal to
 the query after `cleanString`), so a whole-title hit is never cut by the cap
 and always sits at the top. Then, with scope `all`, `TYPE_QUOTAS` give one
@@ -235,8 +240,9 @@ h-game, hentai, seasonal — so a broad query shows as many types as fit before
 any type shows a second; person, studio and publisher have no floor. Last,
 the slots left over are filled round-robin from the buckets that still have
 rows, so a query matching only movies gets eight movies. A scoped search has
-one bucket, and it may fill all eight. The server leaves a gated type's bucket out altogether
-for a session that cannot see the type, and a missing bucket reads as empty. Person, studio and publisher come last, with no floor, on
+one bucket, and it may fill all eight. The server leaves out altogether the
+bucket of every type the viewer cannot see, and a missing bucket reads as
+empty. Person, studio and publisher come last, with no floor, on
 purpose: a query is usually about a title, so a name match on a credited
 person, studio or publisher is the weaker answer and takes the slots the media
 buckets left behind. Each row's type badge is a `Chip` coloured by its type
@@ -245,7 +251,10 @@ lets colour name a type, see
 [design-system.md](design-system.md#rules). Enter navigates to
 `/search?q=…[&scope=…]`; a
 result click routes to the entry's page (`/seasonal/<encoded id>` for seasons,
-`/person/:id`, `/studio/:id` and `/publisher/:id` for entities). Comic display
+`/person/:id`, `/studio/:id` and `/publisher/:id` for entities). An entity
+row's path comes from `useEntityHref` (`lib/entityPath.js`), so without its
+kind's `view.*` key the row is the name as plain text — an
+`aria-disabled` option that goes nowhere — as every entity link is. Comic display
 names are EN-first; a person, studio or publisher row shows the
 server-resolved `display_name` and its credit count as the secondary line. The
 dropdown has no characters: it does not send `characters=true`, so its
@@ -408,9 +417,17 @@ File `pages/public/Search.jsx`. Reads `?q`, `?scope` (default `all`) and
 → effective key `["api","search",{q,scope,characters}]`. The response is
 `results.{collection, seasonal, franchise, series, anime, "anime-movie", movie, "tv-show", cartoon, manga, novel, comic, game, "h-comic", "h-game", hentai, person, studio, publisher, character}`
 plus `related_franchises` (the franchises of the matched anime — used as
-filter pills, not name matches); the three gated buckets are left out for a
-session that cannot see the type and read as `[]`. `characters: true` is what
-adds the `character` bucket; this page is the only caller that sends it.
+filter pills, not name matches). Only `collection`, `franchise`, `series` and
+`seasonal` are always present: the server leaves out the bucket of every type
+the viewer cannot see (a media type the role does not hold, a gated type the
+mode hides, an entity kind without its `view.*` key — see
+[api.md](../api.md#search--apisearch)), and the page reads every bucket as
+`results[type] ?? []`, so an absent bucket draws no section, no count and no
+tab. The scope chip above the results names a scope only when
+`canSearchScope` (NavSearch's rule) lets the viewer search it, so a
+hand-typed `?scope=` for a type the viewer cannot see names nothing.
+`characters: true` is what adds the `character` bucket, for a viewer
+holding `view.character`; this page is the only caller that sends it.
 Results are copied into local state so a card's `onUpdated` can replace a row
 without a refetch.
 
@@ -435,6 +452,10 @@ tabs, with one group labelled "Results" and a count on each tab:
 - **Characters** — a `CharacterCard` grid (`components/cards/CharacterCard.jsx`,
   the character library's card) linking to `/character/:id`. One card per
   character: identities are not separate results.
+
+Every link on the page comes from `useEntityHref` (`lib/entityPath.js`): an
+entity card without its kind's `view.*` key renders as plain text, and the
+tier cards, which no key gates, always open their page.
 
 A tab with no results is not drawn, as on the hub pages, and nothing is
 drawn when every tab is empty. The active tab is `?tab=` (`media`, `people`,
