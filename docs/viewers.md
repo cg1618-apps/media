@@ -238,7 +238,7 @@ Beyond being shown or hidden, many pages differ by viewer. Each page gets a
 section here as it is decided; the designs — how a page looks — come from
 the owner, so these sections say what differs, not where it sits.
 
-**Still to discuss:** the header and menus; the libraries; entry detail
+**Still to discuss:** the libraries; entry detail
 pages; collection, franchise and series pages; watch order pages; Seasonal
 and Statistics (both need a version for an account without data); the
 Random Picker (personal filters only with data, and the shared version);
@@ -250,6 +250,30 @@ registrations.
 - **Public profiles** (`/user/<username>`) and **the community card** on
   entry pages. Everything per user is private, so both could only ever be
   empty; the feature is removed, not hidden.
+
+### Header and menus
+
+| Tab | Holds | admin | super | user | guest | shared |
+| --- | --- | --- | --- | --- | --- | --- |
+| Library | collection, franchise, the nine types, the entity libraries whose switches are on | — | ✓ | ✓ | ✓ | ✓ |
+| Restricted | H-Comic, H-Game, Hentai | — | in `unrestricted` | in `unrestricted` | — | — |
+| Track | Plan, Seasonal, Future Releases, Completions, Random Picker, **Statistics** | — | ✓ | ✓ | Seasonal, Future Releases, Statistics | + Random Picker |
+| Insights | Quotes, Memes, Resources | Resources | ✓ | quotes and memes by switch | — | — |
+| Entry, Note | catalogue editing, options | Note | ✓ | — | — | — |
+| Pipelines | Control Center, history, review queue, … | ✓ | ✓ | — | — | — |
+| Admin | users, roles, labels, modes | ✓ | — | — | — | — |
+
+- **Statistics moves into Track**, for every viewer.
+- **A tab with nothing left in it is not drawn.**
+- **Requests** is a menu item for shared, user and super, opening My
+  requests. The inbox sits under Pipelines for super and Admin for the
+  admin.
+- **The admin's header** carries only its own tabs — no Library, no search
+  box.
+- **The mode switcher** appears only for an account holding more than one
+  mode, so never for a shared account.
+- Sign in and sign out stay as they are.
+- **Track and Insights may be renamed** — still to choose.
 
 ### Search
 
