@@ -243,7 +243,7 @@ customisation per viewer — columns, defaults, layout, wording — is
 discussed after the rework is built; see [open-items.md](open-items.md),
 "Per-viewer page detail".
 
-**Still to discuss:** collection, franchise and series pages; watch order pages; Seasonal
+**Still to discuss:** Seasonal
 and Statistics (both need a version for an account without data); the
 Random Picker (personal filters only with data, and the shared version);
 Future Releases; My requests; the request and report inbox; pending
@@ -309,6 +309,16 @@ registrations.
 
 Granted features — the music and mod statuses, favourites — appear only for
 an account that has them switched on.
+
+### Collection, franchise and series pages, and watch order pages
+
+| Viewer | Collection / franchise / series page | Watch order page |
+| --- | --- | --- |
+| **super** | catalogue information; its own rating and expectation of the group; the entries' list status as its own; personal and catalogue notes; edit controls; Report a problem | the watch order, the follow toggle, edit controls |
+| **user** | the same without edit controls | the watch order, the follow toggle |
+| **guest** | catalogue only — no rating, expectation or list status | the watch order only |
+| **shared** | the guest's page, plus Report a problem | the watch order only |
+| **admin** | none | none |
 
 ### Search
 
