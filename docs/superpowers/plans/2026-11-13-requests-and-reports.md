@@ -205,6 +205,23 @@ Collision points with media-fd, both mechanical: `permissions.py` /
 `seed.py` (lock table and defaults) and `users.py` / `Users.jsx` (one field).
 Whoever lands second rebases.
 
+## Defaults being built (approved by media-00; owner's answers pending)
+
+Each is kept in ONE easily-changed place:
+
+1. Requests do not travel on Sheets — no tab, nothing in Backup or Pull.
+2. A role change on `/users` resets the limit to the new role's default,
+   unless the same save sets `open_request_limit` — in `update_user`.
+3. Super's no-limit is fixed: `default_request_limit` returns None for
+   super, and the limit is never enforced for super.
+4. Handler's `response` optional for done and declined.
+5. "Report a problem": small text button at the end of the existing header
+   action row — provisional, pending the owner's design; say so in the PR.
+6. A handler can reopen; reopening re-enables the filer's editing.
+7. The filer sees the handler's `response` as well as the status — one
+   switch (`SHOW_RESPONSE_TO_FILER`) in `MyRequests.jsx`; the API returns
+   it either way.
+
 ## Questions for the owner (via media-00)
 
 1. **Do requests travel on the Sheets backup?** The spec is silent. I
