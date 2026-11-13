@@ -510,15 +510,33 @@ Super without the catalogue work.
   closes studios, publishers, people, seiyuu, characters and identities
   together; it splits into one setting per kind. Where a kind is hidden,
   its names render as plain text, as entity names do for a guest today.
-- **Four switches**: **studio**; **publisher**; **person**, covering the
-  people library, the seiyuu library and person pages, since a seiyuu opens
-  a person page; **character**, covering characters and identities, since
-  an identity groups character pages.
-- **They are per role and apply to guest, shared and user**, set by the
-  admin. `super` always has them on; the admin always has them off.
-- **To settle:** whether the catalogue pages in Track and Insights get
-  switches the same way — proposed: search, future releases and the random
-  picker, for seven switches in all — and whether Completions is personal.
+- **Four kinds, one setting each:** studio; publisher; person — the people
+  library and the seiyuu library, since a seiyuu opens a person page; and
+  character — characters and identities.
+- **They apply to guest, shared and user**, adjustable per role. Super is
+  always on; the admin is always off.
+
+### Track and Insights pages
+
+| Page | guest | shared | user | super |
+| --- | --- | --- | --- | --- |
+| Search | ✓ | ✓ | ✓ | ✓ |
+| Future Releases | ✓ | ✓ | ✓ | ✓ |
+| Seasonal | ✓ | ✓ | ✓ | ✓ |
+| Statistics | ✓ | ✓ | ✓ | ✓ |
+| Random Picker | — | — | ✓ | ✓ |
+| Plan | — | — | ✓ | ✓ |
+| Completions | — | — | ✓ | ✓ |
+
+The admin has none of them: it reads no catalogue.
+
+**Seasonal and Statistics need a version without personal data.** Both are
+built from the viewer's own list today — Seasonal sorts a season's anime
+into Completed / Watching / Planned / Might Watch / Dropped by the viewer's
+status, and Statistics counts the viewer's ratings and favourites. A guest
+or shared account has no list, so as built both pages would be empty for
+them. What those two pages show an account without data is part of the
+per-viewer layout discussion.
 
 ### Requests and reports
 
