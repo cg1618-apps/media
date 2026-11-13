@@ -200,6 +200,32 @@ every machine. That is one tree fewer than it was: the company machine's
 unmigrated `anime_site` tree was deleted on 2026-09-24. So it lands when
 nothing else is in flight, and not before.
 
+**Some vitest tests fail under local load.** Three tests have each failed once
+in a full `npm run test:run` on a development machine that was also running
+other sessions' builds and tests. Each passes alone, and none has failed on CI:
+
+- `src/pages/admin/Add.anime.test.jsx`, "attaches the pending image once the
+  entry is saved";
+- `src/pages/notes/sections/MusicTrackSection.test.jsx`, "sends every field of
+  a song, links as pairs";
+- `src/pages/detail/Anime.test.jsx`, "renders the cast with links to the
+  character and the seiyuu".
+
+Each fails with `Unable to find ...` from a `findBy*` query. Those wait only
+testing-library's default `asyncUtilTimeout` of 1 second, and a heavy page
+rendered by a saturated machine can take longer. This is a class of test, not
+one test's bug, so the remedy is a decision rather than a patch. The options
+are:
+
+- raise the timeout on the slow queries one at a time;
+- set `configure({ asyncUtilTimeout })` once in `src/test-setup.js`, which
+  also lets a genuinely missing element take longer to report;
+- run fewer vitest workers (`poolOptions` / `maxWorkers` in
+  `vitest.config.js`), which makes the whole suite slower but takes load off
+  each test.
+
+It is left until a run on CI goes red on one of them.
+
 ## Frontend
 
 | Item | Where |
