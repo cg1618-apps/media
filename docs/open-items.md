@@ -118,9 +118,8 @@ design.
 
 **The `guest` role has no `media_type.game`**, so a logged-out visitor sees an
 empty Games library. The `role_permission` rows were seeded before games
-existed; the other eight types are granted. This is a permissions decision
-rather than a bug to fix blind — grant it on `/roles` if guests should see
-games.
+existed; the other eight types are granted. Guests are to see games: grant
+`media_type.game` to `guest` on `/roles`, on each database.
 
 **Two community-adjacent measurements are unanswered.** Does any endpoint return
 an entry's `system_id` for a type the viewer lacks? And the same for a

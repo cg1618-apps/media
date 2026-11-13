@@ -542,6 +542,23 @@ or shared account has no list, so as built both pages would be empty for
 them. What those two pages show an account without data is part of the
 per-viewer layout discussion.
 
+### Guest
+
+The logged-out visitor.
+
+- **Reads** the libraries, entry and group pages, watch orders, the
+  dashboard's announcements and broadcast schedule, Search, Future
+  Releases, Seasonal and Statistics (in a version without personal data),
+  and the entity kinds its role's switches open.
+- **Every media type, games included**, in `safe`. The empty Games library
+  is an accident of the seed — the guest role was seeded before games
+  existed — not a decision.
+- **Not:** Random Picker, Plan, Completions, quotes, memes, `/resources`,
+  personal data, requests.
+- **The sign-in page links "Register with an invite code"** beside "Log
+  in"; without a code it leads nowhere.
+- Its mode is `safe`, always, fixed.
+
 ### Requests and reports
 
 - **Who files:** shared accounts, users and super. Not guests, not the
