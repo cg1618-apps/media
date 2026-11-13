@@ -569,6 +569,26 @@ export function mangaFieldsPayload(f, { defaultStatus } = {}) {
 }
 
 /**
+ * One unit as NovelUnitWrite takes it: the unit's own columns, renumbered by
+ * its place in the list. A read row also carries the viewer's own `my_rating`
+ * and `remark` and the server's `display_key`; none of them is the unit's, so
+ * none is sent - a reader's rating and remark go through
+ * PUT /api/me/novel-units/{unit_id}.
+ */
+export function novelUnitPayload(u, i) {
+  const payload = {
+    unit_kind: u.unit_kind,
+    position: i + 1,
+    unit_key: u.unit_key ?? null,
+    name_cn: u.name_cn ?? null,
+    name_en: u.name_en ?? null,
+    ch_count: u.ch_count === "" || u.ch_count == null ? null : Number(u.ch_count),
+  };
+  if (u.system_id) payload.system_id = u.system_id;
+  return payload;
+}
+
+/**
  * Novel counts are floats throughout - a half volume is a real position.
  * `units` follows NovelUnitWrite's nested-collection contract: rows the
  * payload omits are deleted, so a row with nothing in it is dropped here.
@@ -609,14 +629,9 @@ export function novelFieldsPayload(f, { defaultStatus } = {}) {
           (u.unit_key && u.unit_key.trim()) ||
           (u.name_cn && u.name_cn.trim()) ||
           (u.name_en && u.name_en.trim()) ||
-          (u.remark && u.remark.trim()) ||
           u.ch_count !== "",
       )
-      .map((u, i) => ({
-        ...u,
-        position: i + 1,
-        ch_count: u.ch_count === "" ? null : Number(u.ch_count),
-      })),
+      .map((u, i) => novelUnitPayload(u, i)),
     mal_id: int(f.mal_id),
     mal_link: f.mal_link || null,
     openlibrary_link: f.openlibrary_link || null,

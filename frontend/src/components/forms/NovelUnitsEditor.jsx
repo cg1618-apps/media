@@ -1,6 +1,9 @@
 // Frontend: form component for a novel's units (volumes, arcs, stories).
+//
+// The catalogue half only. A unit's rating and remark are each reader's own,
+// written through PUT /api/me/novel-units/{unit_id} from the novel's detail
+// page, so this editor has no control for either and its rows carry neither.
 import { kindsForType, unitDisplayKey } from "../../lib/novelUnits";
-import { MY_RATINGS } from "../../config/fieldOptions";
 import { DragHandle, SortableItem, SortableList, arrayMove } from "../ui/Sortable";
 
 const baseCls =
@@ -9,7 +12,6 @@ const keyInputCls = baseCls + " w-24 shrink-0";
 const nameInputCls = baseCls + " flex-1 min-w-0";
 const numInputCls = baseCls + " w-24 shrink-0";
 const kindSelectCls = baseCls + " w-28 shrink-0";
-const ratingSelectCls = baseCls + " w-20 shrink-0";
 
 export default function NovelUnitsEditor({ items, novelType, onChange }) {
   const kinds = kindsForType(novelType);
@@ -24,7 +26,6 @@ export default function NovelUnitsEditor({ items, novelType, onChange }) {
         unit_key: "",
         name_cn: "",
         name_en: "",
-        remark: "",
         ch_count: "",
       },
     ]);
@@ -112,35 +113,6 @@ export default function NovelUnitsEditor({ items, novelType, onChange }) {
               value={entry.name_en || ""}
               onChange={(e) => updateEntry(i, "name_en", e.target.value)}
             />
-            <input
-              className={nameInputCls}
-              placeholder="Remark"
-              value={entry.remark || ""}
-              onChange={(e) => updateEntry(i, "remark", e.target.value)}
-            />
-            {/* Each unit is rated on its own, on the same S..F scale as the
-                novel's my_rating. Every kind gets one - a volume is the usual
-                case, but an arc is just as ratable. Nothing derives from it. */}
-            <select
-              className={ratingSelectCls}
-              value={entry.my_rating || ""}
-              onChange={(e) =>
-                updateEntry(i, "my_rating", e.target.value || undefined)
-              }
-              aria-label={`Rating for ${unitDisplayKey(
-                entry.unit_kind,
-                entry.position,
-                entry.unit_key,
-              )}`}
-            >
-              <option value="">—</option>
-              {MY_RATINGS.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-
             {entry.unit_kind === "arc" ? (
               <input
                 className={numInputCls}

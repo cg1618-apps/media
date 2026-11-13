@@ -12,7 +12,6 @@ from typing import Optional
 
 from app.database import get_taipei_now
 from app.models import NovelUnit, UserNovelUnitRating
-from app.services.domain.user_list import acting_user_id
 
 
 def write_novel_units(db, entry, units, viewer=None) -> None:
@@ -22,6 +21,13 @@ def write_novel_units(db, entry, units, viewer=None) -> None:
     Rows carrying a system_id are updated, rows without one are inserted, and
     rows the payload omits are deleted. Passing None means "not supplied" and
     leaves the existing rows alone; passing [] clears them.
+
+    Only the unit's own columns are written. A reader's rating of and remark
+    on a unit are theirs, not the catalogue's, and are written only through
+    PUT /api/me/novel-units/{unit_id} (write_unit_rating below); a units item
+    naming either key has it ignored here, so a catalogue save neither files
+    the editor's opinion nor clears anybody's. `viewer` is unused: it is the
+    signature every MediaTypeSpec.nested_collections writer shares.
     """
     if units is None:
         return
@@ -31,9 +37,6 @@ def write_novel_units(db, entry, units, viewer=None) -> None:
         for u in db.query(NovelUnit).filter(NovelUnit.novel_id == entry.system_id).all()
     }
     seen = set()
-    # (personal values, row) pairs, filled as each unit is built. The row is
-    # only known after the loop body, so the values are parked first.
-    pending_ratings: list = []
 
     for item in units:
         data = item if isinstance(item, dict) else item.model_dump()
@@ -59,12 +62,6 @@ def write_novel_units(db, entry, units, viewer=None) -> None:
             # the constraint.
             "ch_count": data.get("ch_count") if data.get("unit_kind") == "arc" else None,
         }
-        # my_rating and remark are the reader's, not the unit's: held aside
-        # here and written to their own row once the unit has an id to point
-        # at.
-        pending_ratings.append(
-            ({"my_rating": data.get("my_rating"), "remark": data.get("remark")}, None)
-        )
 
         row = existing.get(unit_id) if unit_id else None
         if row is None:
@@ -74,7 +71,6 @@ def write_novel_units(db, entry, units, viewer=None) -> None:
             for key, value in fields.items():
                 setattr(row, key, value)
         seen.add(row.system_id)
-        pending_ratings[-1] = (pending_ratings[-1][0], row)
 
     for unit_id, row in existing.items():
         if unit_id not in seen:
@@ -83,21 +79,7 @@ def write_novel_units(db, entry, units, viewer=None) -> None:
             db.delete(row)
 
     db.flush()
-    _write_unit_ratings(db, pending_ratings, viewer)
-    db.flush()
     db.refresh(entry)
-
-
-def _write_unit_ratings(db, pending, viewer) -> None:
-    """Upsert the acting user's rating and remark for each unit the payload
-    carried. Nobody acting (no account) writes nothing."""
-    user_id = acting_user_id(db, viewer)
-    if user_id is None:
-        return
-    for values, unit in pending:
-        if unit is None:
-            continue
-        write_unit_rating(db, user_id, unit.system_id, values)
 
 
 def _blank_to_none(value) -> Optional[str]:

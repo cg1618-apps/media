@@ -23,7 +23,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 | Post-write enrichment hooks | media entries (`POST` / `PUT`) | The per-type write hook (e.g. `execute_replace_single_movie`) runs after the row is committed. If it fails the error is logged and the row is still returned — it must **never** surface as a 500, or the SPA retries and creates duplicates. |
 | Personal fields are the viewer's | all twelve media types: `GET` list and detail, `POST`, `PUT`, `PATCH`, `POST /{id}/complete` | The status, rating and progress fields keep **exactly the names they always had** - `watching_status` / `reading_status` / `playing_status`, `my_rating`, `ep_fin`, `vol_fin`, `ch_fin`, `issue_fin`, `my_watch_day`, `completed_at` and the rest - but they are stored on `user_media_list` and resolved for the **acting user**, not read off the entry. `time_fin` (Paused at, on the six watching types) is personal the same way. A write splits into a catalogue half and a personal half (`split_list_payload`) and creates the acting user's list row if it does not exist. An entry with **no list row** reads back as the type's default status (`Might Watch` / `Might Read` / `Might Play`), `null` for the rest, and `0` for the counters that were `NOT NULL DEFAULT 0` before the move - which is also how a row holding `null` for one of them reads back. Those counters accept `null` on every write (`vol_fin`, `vol_fin_page`, `ch_fin`, `arc_fin`, `issue_fin`, `page_fin` are `Optional[...] = 0` in the manga, novel, comic and h-comic schemas, as `ep_fin` is on the watching types), and the admin forms send a blank one as `null`. A logged-out visitor has **no list**: `acting_user_id` returns None, no personal field is attached, and the status reads back `null` rather than the default, which would be a claim about a person (see [authorization.md](authorization.md), "Which LIST"). A `?watching_status=` filter goes through an OUTER join rather than a column comparison, so it still matches entries that have no list row. |
 | Ratings and expectations are the viewer's | collection, franchise, series, person, studio, publisher, character (list, detail, the write responses and their search buckets) | `my_rating` and the tier's `*_expectation` on a collection, franchise or series, and `my_rating` on a person, studio, publisher or character, keep their names but are read from the **viewer's own** `user_rating` row (`app/services/domain/user_rating.py`, `attach_ratings`). A logged-out visitor, and an account with no row, reads **`null`** - the key kept. The catalogue `POST` / `PUT` / `PATCH` bodies do not carry them; they are written through [`PUT /api/me/ratings/{owner_type}/{owner_id}`](#my-ratings--apime). No list endpoint filters or sorts on them. |
-| A novel unit's `my_rating` and `remark` are the reader's | `/api/novel` | Same idea one level down: served on each unit for the viewer, and accepted on each item of `units`, stored in the acting account's `user_novel_unit_rating` row (written also through [`PUT /api/me/novel-units/{unit_id}`](#my-ratings--apime)). A row left holding neither stores nothing. |
+| A novel unit's `my_rating` and `remark` are the reader's | `/api/novel` | Same idea one level down: served on each unit for the viewer from their own `user_novel_unit_rating` row, `null` for anyone with none. The `units` items of the catalogue `POST` / `PUT` / `PATCH` do not carry them - a client still sending either has the key ignored - and they are written only through [`PUT /api/me/novel-units/{unit_id}`](#my-ratings--apime). A row left holding neither stores nothing. |
 | Delete returning `204` | notes, content labels, users, roles | No body. Every other delete returns a JSON `{status, message}` or the deleted row. |
 | Hidden = missing | every public read | An entry the viewer may not see answers **404** with the router's normal not-found message. |
 | Detail GET takes a `public_id` **or** a UUID | the single-entry GET on all twenty entity endpoints: the twelve media types plus collection, franchise, series, person, studio, publisher, character and `/api/watch-order/lists/{ref}` | One resolver, `find_entity` in `app/utils/entity_ref.py`, decides which form the segment is: a positive decimal integer with no sign or separators is a `public_id`, anything else is parsed as a UUID. **Everything else still takes the UUID** - every write, and the nested `/entries`, credits, relations, sources and cover routes. A reference that parses as neither, or that resolves to no row, is a **404** with the router's normal not-found message - never a 422, because a hand-mangled detail URL is a missing page rather than a bad request. |
@@ -322,10 +322,10 @@ join is read-time through `series.franchise_id`, the same cascade entries get.
 
 **`units` — the `novel_unit` child rows.** `POST`/`PUT` bodies accept an
 optional `units: NovelUnitWrite[]` array (`NovelCreate`/`NovelUpdate`, via
-`NovelBase.units`). A missing `units` key leaves the existing rows
-untouched; an empty array `[]` deletes them all. `PATCH` cannot write
-`units` at all — its body is a raw column dict and `units` is not a real
-column, so it is silently ignored. Each item:
+`NovelBase.units`), and so does `PATCH`: the router lifts `units` out of
+every write body before the row is touched (`MediaTypeSpec.nested_collections`)
+and hands it to `write_novel_units`. A missing `units` key leaves the
+existing rows untouched; an empty array `[]` deletes them all. Each item:
 
 - `system_id` (optional) — present on an item to update that existing row,
   absent to insert a new one. Separately: any **existing** row whose
@@ -334,14 +334,16 @@ column, so it is silently ignored. Each item:
 - `unit_kind` — one of `volume`, `arc`, `story`, `chapter`.
 - `position` (float, required) — order within the novel; not unique.
 - `unit_key`, `name_cn`, `name_en` (all optional strings).
-- `my_rating`, `remark` (optional) — the **writer's own** rating of and remark
-  on the unit, written to their `user_novel_unit_rating` row, not to the
-  unit. With no account acting nothing is written; a unit left with neither
-  value keeps no row.
 - `ch_count` (optional float) — only meaningful on `unit_kind = "arc"`; the
   router (`write_novel_units`) forces it to `null` on any other kind before
   the row is written, regardless of what the client sent, so a re-kinded row
   cannot trip `ck_novel_unit_ch_count_arc_only`.
+
+An item carries **no** `my_rating` or `remark`: a unit's rating and remark
+are each reader's own, written through
+[`PUT /api/me/novel-units/{unit_id}`](#my-ratings--apime). An item that still
+names either has the key ignored, as every catalogue write ignores a personal
+field, so a units save neither files the writer's opinion nor clears anybody's.
 
 The response's `units` array (`NovelUnitResponse[]`) mirrors the same fields
 plus `system_id` and a computed field, **`display_key`**: an explicit
@@ -350,8 +352,7 @@ plus `system_id` and a computed field, **`display_key`**: an explicit
 [options.md](options.md#novel-unit-kinds-apputilsconstantspy)). `display_key`
 is display-time only; it is never stored.
 
-Every write (create, update, and patch — patch bypasses `units` itself since
-`PATCH` takes a raw column dict, but still re-derives) recomputes
+Every write (create, update and patch, whether or not it carries `units`) recomputes
 `arc_total`, `ch_total`, `ch_fin` from the novel's arc rows and normalises
 `arc_fin`/`ch_fin_in_arc` — see the rollover rule in
 [business-rules.md](business-rules.md).

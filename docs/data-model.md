@@ -504,12 +504,11 @@ languages. CHECKs: `ck_novel_unit_kind` (`unit_kind` in
 | `ch_count` | Float | yes | | Chapters in this arc. Meaningful only on `unit_kind = 'arc'` rows (guarded by the CHECK); the sole source of `novel.ch_total` and `novel.ch_fin` |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
-Written through `POST`/`PUT /api/novel` via the `units` payload key (popped
-out before the row is built, see `MediaTypeSpec.nested_collections`);
+Written through `POST`/`PUT`/`PATCH /api/novel` via the `units` payload key
+(popped out before the row is touched, see `MediaTypeSpec.nested_collections`);
 reconciled by `write_novel_units` (rows with a `system_id` are updated, rows
-without are inserted, rows the payload omits are deleted). `PATCH` cannot
-touch `units` - it is not a real column, so `apply_column_patch` silently
-ignores it. Every create/update/patch write runs `derive_novel_progress`,
+without are inserted, rows the payload omits are deleted). Every
+create/update/patch write runs `derive_novel_progress`,
 which recomputes `arc_total`/`ch_total`/`ch_fin` from the arc rows and
 normalises `arc_fin`/`ch_fin_in_arc` - see business-rules.md.
 
@@ -527,7 +526,8 @@ else in the schema records what those values were.
 A unit's `my_rating` and `remark` are NOT columns here: they are one
 reader's grade of and note on one volume or arc and live in
 [`user_novel_unit_rating`](#user_novel_unit_rating). They are still served
-and accepted as `my_rating` and `remark` on each unit of a novel's response.
+as `my_rating` and `remark` on each unit of a novel's response, filled with
+the viewer's own; the `units` write does not carry them.
 
 ### `comic`
 
@@ -1018,7 +1018,8 @@ One reader's grade of, and remark on, one novel unit. Model: `UserNovelUnitRatin
 
 A row holding neither a rating nor a remark is **not stored**:
 `write_unit_rating` (`app/services/domain/novel_unit_writer.py`, used by
-`write_novel_units` and `PUT /api/me/novel-units/{unit_id}`) deletes an
+`PUT /api/me/novel-units/{unit_id}` and the old-sheet carry in
+`legacy_personal.py`) deletes an
 existing one rather than keeping it holding None, so "never graded" and
 "graded, then cleared" do not become two different states.
 `attach_unit_ratings` puts both values back on each unit for the reader, one

@@ -262,10 +262,11 @@ reversible, since nothing else records what `ch_total` was.
 Every unit also carries the reader's own `my_rating`, on the same S..F
 scale as the novel's - a per-volume or per-arc grade - and the reader's own
 `remark`, both kept per account in `user_novel_unit_rating` rather than on
-the unit. The rating shows as a chip beside the unit on the detail page and
-the remark beside it for a holder of `self.list`; both are set in
-`NovelUnitsEditor`. The rating is independent: nothing derives from it, and
-the novel's own rating stays hand-set.
+the unit. A holder of `self.list` sets both on the detail page, from a rating
+select and a remark field beside each unit, through
+`PUT /api/me/novel-units/{unit_id}`; the catalogue editor (`NovelUnitsEditor`)
+and the novel's `units` write carry neither. The rating is independent:
+nothing derives from it, and the novel's own rating stays hand-set.
 
 Only `arc` rows are authoritative for derivation; every other kind is
 enrichment shown on the detail page via `display_key` (`unit_display_key` /

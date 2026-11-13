@@ -1182,14 +1182,14 @@ another.
   `PUT /api/me/novel-units/{unit_id}` (`routers/me_ratings.py`). The
   catalogue create and update schemas for the tiers and entities do not
   carry these fields, so a `manage.catalog` write cannot make one account's
-  opinion everybody's. The one other write path is a novel's `units`
-  payload (`POST` / `PUT /api/novel`, `manage.catalog`): each item's
-  `my_rating` and `remark` are written to the **acting** account's own
-  `user_novel_unit_rating` row (`novel_unit_writer._write_unit_ratings`),
-  never to the unit, and that path does not ask `self.list`.
+  opinion everybody's. A novel's `units` payload (`POST` / `PUT` / `PATCH
+  /api/novel`, `manage.catalog`) carries no personal values either:
+  `NovelUnitWrite` has no `my_rating` or `remark`, an item naming one has it
+  ignored, and `write_novel_units` writes only the unit's own columns - so a
+  units save neither files the writer's opinion nor clears anybody's.
 - **The admin keeps none.** The root short-circuit does not cover the `self`
   family, so `admin` gets 401 on both `/api/me` writes and the SPA draws no
-  group or entity rating or expectation editor for it.
+  group, entity or novel unit rating, expectation or remark editor for it.
 - **Writes follow reads.** An owner the caller's GET would answer 404 for is
   a 404 on the write too, in the same words, so a hidden row cannot be
   confirmed by rating it.

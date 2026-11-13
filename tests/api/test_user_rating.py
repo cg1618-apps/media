@@ -532,12 +532,11 @@ def test_a_unit_write_needs_self_list_and_a_known_rating(
                            json={"my_rating": "A"}).status_code == 404
 
 
-def test_the_novel_write_files_unit_rating_and_remark_under_the_writer(
-    db_session, admin_client, admin_user, novel_unit
+def test_the_novel_write_carries_no_unit_rating_or_remark(
+    db_session, admin_client, novel_unit
 ):
-    """The catalogue write's units payload still carries the writer's own
-    rating and remark (novel_unit_writer) - they land on the writer's row,
-    never on the unit."""
+    """The catalogue write's units payload ignores a rating and a remark -
+    they belong to a reader and are written only through /api/me."""
     novel, unit = novel_unit
     r = admin_client.patch(
         f"/api/novel/{novel.system_id}",
@@ -546,8 +545,7 @@ def test_the_novel_write_files_unit_rating_and_remark_under_the_writer(
     )
     assert r.status_code == 200, r.text
     assert (r.json()["units"][0]["my_rating"], r.json()["units"][0]["remark"]) == (
-        "S", "admin note"
+        None, None
     )
-    row = _unit_row(db_session, admin_user, unit)
-    assert (row.my_rating, row.remark) == ("S", "admin note")
+    assert db_session.query(models.UserNovelUnitRating).count() == 0
     assert "remark" not in models.NovelUnit.__table__.c
