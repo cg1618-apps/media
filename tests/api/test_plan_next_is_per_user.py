@@ -100,13 +100,14 @@ def test_an_anonymous_caller_is_still_refused(client, sample_anime):
 
 
 @pytest.fixture
-def nsfw_label(db):
-    """The code's `nsfw` label, which the session seed has already written."""
-    return ensure_label(db, "nsfw")
+def erotica_label(db):
+    """The code's `erotica` label. A member lands in `normal`, which shows
+    `nsfw` but not `erotica`, so this is the label that hides from it."""
+    return ensure_label(db, "erotica")
 
 
 @pytest.fixture
-def hidden_anime(db, sample_franchise, nsfw_label):
+def hidden_anime(db, sample_franchise, erotica_label):
     entry = models.Anime(
         system_id=uuid.uuid4(),
         franchise_id=sample_franchise.system_id,
@@ -120,7 +121,7 @@ def hidden_anime(db, sample_franchise, nsfw_label):
         models.MediaContentLabel(
             system_id=uuid.uuid4(),
             media_id=entry.system_id,
-            label_id=nsfw_label.system_id,
+            label_id=erotica_label.system_id,
         )
     )
     db.flush()
@@ -148,6 +149,30 @@ def test_a_member_can_still_plan_a_visible_entry(member_client, sample_anime):
             "kind": "next",
             "media_type": "anime",
             "target_id": str(sample_anime.system_id),
+            "scope": "entry",
+        },
+    )
+    assert response.status_code in (200, 201), response.text
+
+
+def test_the_same_entry_plans_once_the_mode_shows_its_label(
+    member_client, db, hidden_anime
+):
+    """The mirror, with the same fixture: the member at `borderline`, which
+    shows `erotica`, plans the very entry the refusal above hides - so that
+    404 came from the label, not from anything else about the entry."""
+    member = db.query(models.User).filter(models.User.username == "planner").one()
+    member.mode_ceiling = "borderline"
+    member.mode_default = "borderline"
+    db.flush()
+    rbac_cache.bump()
+
+    response = member_client.post(
+        "/api/plan-next/",
+        json={
+            "kind": "next",
+            "media_type": "anime",
+            "target_id": str(hidden_anime.system_id),
             "scope": "entry",
         },
     )
