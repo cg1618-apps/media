@@ -246,3 +246,42 @@ def test_a_stored_switch_on_a_shared_account_opens_nothing(
 
     assert _client_for(db_session, shared).get("/api/quote/").status_code == 401
     assert user_client.get("/api/quote/").status_code == 200
+
+
+def _viewer(user=None):
+    from app.services.rbac.resolver import Viewer
+
+    return Viewer(
+        username=user.username if user else None,
+        role_id=user.role_id if user else None,
+        role_name=user.role if user else "guest",
+        is_root=False,
+        permissions=frozenset(),
+        user_id=user.id if user else None,
+    )
+
+
+def test_has_feature_answers_for_a_viewer(db_session, plain_user):
+    """The one server-side question every later gate asks. Mirror pair on
+    the same account: off, then on."""
+    from app.services.rbac.features import FEATURE_QUOTES_MEMES, has_feature
+
+    _switch(db_session, plain_user, False)
+    assert has_feature(db_session, _viewer(plain_user), FEATURE_QUOTES_MEMES) is False
+    _switch(db_session, plain_user, True)
+    assert has_feature(db_session, _viewer(plain_user), FEATURE_QUOTES_MEMES) is True
+
+
+def test_has_feature_gives_a_guest_nothing(db_session):
+    from app.services.rbac.features import FEATURE_NAMES, has_feature
+
+    assert not any(has_feature(db_session, _viewer(), name) for name in FEATURE_NAMES)
+
+
+def test_has_feature_refuses_an_unknown_name(db_session):
+    """`favorites` is the spelling a second module once proposed; there is one
+    spelling, and a typo must fail loudly rather than answer False."""
+    from app.services.rbac.features import has_feature
+
+    with pytest.raises(ValueError):
+        has_feature(db_session, _viewer(), "favorites")

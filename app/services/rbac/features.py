@@ -76,6 +76,19 @@ def _user_of(db: Session, viewer: Viewer) -> Optional[models.User]:
     return db.get(models.User, viewer.user_id)
 
 
+def has_feature(db: Session, viewer: Viewer, name: str) -> bool:
+    """Whether this viewer holds one feature. The one server-side question.
+
+    Every gate that turns on a feature asks this - the read routes through
+    require_feature below, and any later code that branches on a switch - so
+    there is one answer. Raises ValueError on a name outside FEATURE_NAMES,
+    so a misspelt feature fails loudly rather than reading as switched off.
+    """
+    if name not in FEATURE_NAMES:
+        raise ValueError(f"Unknown feature {name!r}")
+    return name in held_features(_user_of(db, viewer), viewer.is_root)
+
+
 def require_feature(name: str):
     """
     Dependency factory gating a route on one feature of the caller's account.
@@ -89,7 +102,7 @@ def require_feature(name: str):
     def _dependency(
         viewer: Viewer = Depends(get_viewer), db: Session = Depends(get_db)
     ) -> Viewer:
-        if name not in held_features(_user_of(db, viewer), viewer.is_root):
+        if not has_feature(db, viewer, name):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Could not validate credentials or insufficient permissions",
