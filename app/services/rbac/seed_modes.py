@@ -23,6 +23,22 @@ MODE_BORDERLINE = "borderline"
 MODE_NORMAL = "normal"
 MODE_SAFE = "safe"
 
+MODE_ORDER: tuple[str, ...] = (
+    MODE_SAFE,
+    MODE_NORMAL,
+    MODE_BORDERLINE,
+    MODE_UNRESTRICTED,
+)
+
+
+def mode_rank(key: str) -> int:
+    """Where a mode key sits in MODE_ORDER, narrowest first. ValueError on
+    a key that is not one of the four."""
+    try:
+        return MODE_ORDER.index(key)
+    except ValueError:
+        raise ValueError(f"unknown access mode: {key!r}") from None
+
 # Field groups the `safe` mode does NOT carry on a FRESH install. A group
 # lands here when its whole purpose is to withhold something from ordinary
 # viewers, so granting it by default would defeat it. Moved from seed.py,

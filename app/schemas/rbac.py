@@ -1,6 +1,6 @@
 """Role, user-management and content-label schemas."""
 
-from typing import List, Optional
+from typing import List, Literal, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -114,6 +114,10 @@ class AccessModeResponse(BaseModel):
     label_keys: List[str]
     field_group_keys: List[str]
     user_count: int
+    # Where the mode sits in seed_modes.MODE_ORDER, narrowest first; null for
+    # a mode outside it, which no account's ceiling reaches. Served so the
+    # SPA orders the ceiling and default selects without a copy of the order.
+    rank: Optional[int] = None
 
 
 class AccessModeCatalogItem(BaseModel):
@@ -131,30 +135,21 @@ class AccessModeCatalogGroup(BaseModel):
     items: List[AccessModeCatalogItem]
 
 
-class UserAccessModeGrant(BaseModel):
-    """One mode an account holds, with the items it does NOT get from it.
+class UserAccessModes(BaseModel):
+    """An account's whole object axis - ceiling, default and denials.
 
-    Denials only SUBTRACT (decision 8). There is no "extra" counterpart and
-    there must not be one: a mode is a ceiling, so an account's reach is
-    always a subset of its mode's, which is what makes a mode name on the user
-    list a trustworthy upper bound.
+    `ceiling` and `default` are mode KEYS. Both null parks the account with no
+    mode: it resolves the empty object set, which is fail-closed and a
+    reasonable way to park somebody. Denials only SUBTRACT, and only from what
+    the ceiling shows; they apply in every mode the account uses.
+
+    One payload and one write, matching PUT /roles/{id}/permissions.
     """
 
-    mode_id: UUID
-    is_default: bool = False
+    ceiling: Optional[str] = None
+    default: Optional[str] = None
     denied_label_keys: List[str] = []
     denied_field_group_keys: List[str] = []
-
-
-class UserAccessModes(BaseModel):
-    """Replaces an account's whole set - grants, default and denials.
-
-    One payload and one write, matching PUT /roles/{id}/permissions. An empty
-    list is legitimate: an account holding no mode resolves the empty object
-    set, which is fail-closed and a reasonable way to park somebody.
-    """
-
-    modes: List[UserAccessModeGrant] = []
 
 
 class AccessModeSwitch(BaseModel):
@@ -179,21 +174,13 @@ class ManagedUserUpdate(BaseModel):
     username: Optional[str] = None
     password: Optional[str] = None
     role_id: Optional[UUID] = None
+    # `pending` is not settable here: a registration is approved or declined,
+    # not edited. Anything else is a 422.
+    status: Optional[Literal["active", "disabled"]] = None
     # Null is no limit. Left out of the payload it is untouched - unless the
     # same save changes the role, which resets it to the new role's default.
     # Not settable on a super account, which never has one.
     open_request_limit: Optional[int] = Field(default=None, ge=0)
-
-
-class HeldAccessMode(BaseModel):
-    """One mode an account holds, as the per-account panel needs to render it."""
-
-    mode_id: UUID
-    key: str
-    label: str
-    is_default: bool
-    denied_label_keys: List[str] = []
-    denied_field_group_keys: List[str] = []
 
 
 class ManagedUserResponse(BaseModel):
@@ -201,11 +188,17 @@ class ManagedUserResponse(BaseModel):
     username: str
     role_id: Optional[UUID] = None
     role_name: Optional[str] = None
+    # active / disabled / pending. Changed through PATCH /api/users/{id}.
+    status: str = "active"
     # The OBJECT axis for this account. Carried on the user response rather
     # than behind a second endpoint because the panel that edits it lives on
     # the users page, and PUT .../access-modes returns this same shape - so
-    # the page never has to reconcile two sources.
-    access_modes: List[HeldAccessMode] = []
+    # the page never has to reconcile two sources. Ceiling and default are
+    # mode keys; both null is no mode.
+    mode_ceiling: Optional[str] = None
+    mode_default: Optional[str] = None
+    denied_label_keys: List[str] = []
+    denied_field_group_keys: List[str] = []
     # How many open requests the account may hold at once; null is no limit.
     open_request_limit: Optional[int] = None
 
@@ -221,6 +214,14 @@ class AccountSettingsResponse(BaseModel):
 
     username: str
     role_name: str
+
+
+class OwnPasswordChange(BaseModel):
+    """Body of PUT /api/account/password. No user id, as everywhere on this
+    router: the account is the session's."""
+
+    current_password: str
+    new_password: str
 
 
 # ---------------------------------------------------------------------------

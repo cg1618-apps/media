@@ -205,7 +205,10 @@ SHEET_TABS: tuple[SheetTab, ...] = (
         "Users",
         models.User,
         f.parse_user_from_sheet,
-        drop_columns=("hashed_password", "role_id"),
+        # session_version is this machine's revocation counter: carried to
+        # the other machine it would sign people out there for nothing, or
+        # roll a counter back and revive a token revoked here.
+        drop_columns=("hashed_password", "role_id", "session_version"),
         extra_columns=(("role", _user_role_name),),
         requires_authz=True,
     ),

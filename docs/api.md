@@ -12,7 +12,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - **Capability-gated endpoints** — require a valid JWT in the `access_token` HTTP-Only cookie plus the capability the route names: `require_manage_catalog`, `require_manage_pipelines` or `require_admin_authz` (`app/services/rbac/resolver.py`). There is no single "is an admin" dependency.
 - **View-gated reads** — an Auth cell naming a `view.*` permission (`view.entities`, `view.search`, `view.extras`, `view.personal`) is a read the `guest` role does not hold, so a logged-out visitor gets **401**; a signed-in `user` holds all four. See [authorization.md](authorization.md#permission-catalog-code).
 - Login flow: `POST /api/auth/login` → sets cookie → all subsequent admin requests carry it automatically.
-- A missing or invalid cookie on an admin endpoint is **401**, never 403. Public read endpoints additionally resolve a *viewer* and hide what the viewer's role may not see (as 404) — see [Authorization](#authorization) at the end of this file and `docs/authorization.md`.
+- A missing or invalid cookie on an admin endpoint is **401**, never 403. The one 403 in the app is the login route's, for a pending or disabled account that gave the right password. Public read endpoints additionally resolve a *viewer* and hide what the viewer's role may not see (as 404) — see [Authorization](#authorization) at the end of this file and `docs/authorization.md`.
 
 ## Conventions shared by many routers
 
@@ -91,8 +91,27 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 | `POST` | `/login`  | Public | Authenticate with username + password (form data). Sets HTTP-Only JWT cookie. Returns `{message, role}`. |
 | `GET`  | `/me`     | Public | The viewer's auth state, from the current cookie. Used by `AuthContext` on app boot. Full shape under [Authorization](#get-apiauthme-extended). |
 | `POST` | `/logout` | Public | Clears the `access_token` cookie.                                                                        |
+| `GET`  | `/reset?code=` | Public | Whose account a reset link is for, without spending it. `{username}`, or **404** for any unusable code. |
+| `POST` | `/reset`  | Public | `{code, password}`: spend a reset link and set the password. `{username}`; clears the login cookie. |
 
-**Login request:** `OAuth2PasswordRequestForm` — `username` and `password` fields.
+**Login request:** `OAuth2PasswordRequestForm` — `username` and `password` fields. The username is lowercased before the lookup.
+
+| Login answer | When |
+| --- | --- |
+| **200** `{message, role}` + cookie | Right password, `active` account. The token carries `sv` (see [authentication.md](authentication.md#sessions-and-their-revocation)) |
+| **401** `Incorrect username or password` | No such account, or a wrong password - whatever the account's status |
+| **403** `Your account is waiting for the admin's approval.` | Right password, `pending` account. No cookie |
+| **403** `This account is disabled.` | Right password, `disabled` account. No cookie |
+| **429** `Too many attempts. Try again in N minutes.` + `Retry-After` | 5 failed attempts for this username, or 20 from this address, in 15 minutes. A success clears the username's count |
+
+**Reset.** The link is issued by `POST /api/users/{id}/reset-link` or on the box (`python -m app.cli reset-link <username>`); see [authentication.md](authentication.md#reset-links).
+
+| Reset answer | When |
+| --- | --- |
+| **200** `{username}` | `GET`: the code is usable. `POST`: spent - password set, every session of the account ended, this browser's login and mode cookies cleared |
+| **404** `This link is not valid. Ask the admin for a new one.` | The code is unknown, spent, expired, minted for another purpose, or its account is no longer active or is shared. One message for all of them |
+| **422** | `POST` only: the password is empty, or longer than 72 UTF-8 bytes. The code stays unspent |
+| **429** + `Retry-After` | 10 requests (`GET` and `POST` together) from this address in 15 minutes |
 
 ---
 
@@ -2441,6 +2460,7 @@ it at another account.
 | Method | Path | Auth | Notes |
 |---|---|---|---|
 | GET | `/api/account/settings` | session | `{username, role_name}`. **401** for an anonymous caller. |
+| PUT | `/api/account/password` | `self.password` | `OwnPasswordChange` — `{current_password, new_password}`. **200** `{"message": "Password changed."}`. **400** `Your current password is not right.` (not 401, which the SPA reads as a lost session). **422** for an empty new password or one past 72 UTF-8 bytes. **401** without `self.password` - a guest, and the root admin, which sets its own on `/users`. Does not end the account's other sessions. |
 
 There is no public profile and no community aggregate: everything per user —
 the list, personal notes, marks — is private to its account, the admin's
@@ -2543,19 +2563,22 @@ anywhere else.
 the browser never needs them, and listing them would tell a narrowed session
 exactly what it is being kept from.
 
-`mode` is the active access mode. `modes` lists every mode this account
-**holds**, each with `{id, key, label, is_active, requires_password}`.
+`mode` is the active access mode. `modes` lists every mode this account may
+switch to - each one ranked at or below its ceiling, narrowest first - each
+with `{id, key, label, is_active, requires_password}`.
 
 `requires_password` is the subset test computed **server-side**: narrowing is
 free, adding even one content label or field group asks for the password
 again. It is computed here rather than in the browser because two
 implementations of one rule drift, and the one in the SPA would be the one
 nobody tested - the switch endpoint enforces the rule with the *same*
-function that fills this field. A guest holds no modes and gets `[]`.
+function that fills this field. A guest, and an account with no mode, get
+`[]`.
 
-Both sides are **effective** sets, after per-account denials: an account
-holding `borderline` minus `nsfw` reaches no more than `normal` does, so
-switching between them is free even though the mode is nominally wider.
+Both sides are **effective** sets, after per-account denials: an account at
+ceiling `borderline` denied `nsfw` reaches no more in `borderline` than in
+`normal`, so switching between them is free even though the mode is
+nominally wider.
 
 ### `POST /api/auth/access-mode`
 
@@ -2570,7 +2593,7 @@ Change the active access mode without logging out.
 | **200** + the `access_mode` cookie set or cleared | narrowing, or widening with the right password |
 | **401** `{detail, requires_password: true}` | widening with no password, so the SPA prompts rather than guessing |
 | **401** | widening with the wrong password |
-| **404** | a mode this account does not hold, *and* a mode that does not exist - identical answers, because which modes exist is not the caller's business. Deliberately **not** flagged `requires_password`: it is not a password problem, and saying so would invite a prompt that cannot help |
+| **404** | a mode above this account's ceiling, *and* a mode that does not exist - identical answers, because which modes exist is not the caller's business. Deliberately **not** flagged `requires_password`: it is not a password problem, and saying so would invite a prompt that cannot help |
 | **401** | a guest: no account, nothing to switch between |
 
 **A switched-to mode is temporary.** Switching to any mode other than the
@@ -2585,7 +2608,7 @@ in the default mode.
 **The login cookie is not reissued.** A switch cannot extend the session:
 minting a fresh month-long login on each switch would make toggling between two
 modes an unlimited session-extension oracle, and the lifetime is flat with no
-refresh flow and no revocation.
+refresh flow - revocation can end a session early, never extend one.
 
 ### `/api/access-modes` — admin (`admin.authz`)
 
@@ -2595,40 +2618,42 @@ route for route.
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/api/access-modes/` | Modes with their items and holder counts. |
+| GET | `/api/access-modes/` | Modes with their items, `rank` (the mode's place in `MODE_ORDER`, `safe` 0 to `unrestricted` 3; null for a mode outside it, which no ceiling reaches) and `user_count` (accounts whose ceiling reaches the mode). |
 | GET | `/api/access-modes/catalog` | Two labelled groups - Content Labels and Field Groups - each item carrying `mode_count`. **Every** content label is listed, including ones no mode carries: a count of zero means that label's entries are hidden from everybody, the owner included, and there is nowhere else to find that out. |
 | GET | `/api/access-modes/{id}` | |
 | POST | `/api/access-modes/` | 409 on a duplicate key; 422 on an unknown label or field group. Created `is_system=False` - that flag marks the four the seeder maintains and is never settable through the API. |
 | PATCH | `/api/access-modes/{id}` | Label, description and sort order. Not `key` — renaming one would detach the seeder from the row it maintains — and nothing about the anonymous policy: a logged-out visitor always resolves the `safe` mode, by key, and no endpoint can move it. |
 | PUT | `/api/access-modes/{id}/grants` | **Replaces both sets**, the same contract as `PUT /roles/{id}/permissions`. **409 for `unrestricted`**, whose sets are derived rather than stored and so cannot be narrowed. |
-| DELETE | `/api/access-modes/{id}` | 409 for a system mode, and 409 for one an account still holds - the FK would cascade the grants away and silently narrow those accounts, possibly to nothing. |
+| DELETE | `/api/access-modes/{id}` | 409 for a system mode, and 409 for one an account's ceiling reaches - deleting it would silently narrow those accounts. Only the four ranked modes can be reached, and they are system modes. |
 
 Every write calls `cache.bump()`; `_MODE_CACHE` is keyed on mode id and this
 router is exactly what it caches.
 
 ### `PUT /api/users/{id}/access-modes` — admin (`admin.authz`)
 
-Replaces an account's whole set - grants, login default and per-account
-denials - in one payload.
+Replaces an account's whole object axis - ceiling, login default and denials -
+in one payload. `ceiling` and `default` are mode keys.
 
 ```json
-{ "modes": [ { "mode_id": "...", "is_default": true,
-               "denied_label_keys": [], "denied_field_group_keys": [] } ] }
+{ "ceiling": "borderline", "default": "normal",
+  "denied_label_keys": [], "denied_field_group_keys": [] }
 ```
 
-**A denial naming something the mode does not carry is 422.** A mode is a
-ceiling, so such a denial subtracts nothing and storing it would be a no-op
-that reads like a setting. Two defaults is 422 as well, rather than the 500
-`ix_one_default_mode_per_user` would give. An **empty list is allowed**: an
-account holding no mode resolves the empty object set, which is fail-closed
-and a legitimate way to park somebody.
+**422** for an unknown key, for exactly one of `ceiling` / `default` null, and
+for a default ranked above the ceiling. **A denial naming something the
+ceiling does not show is 422**, naming the strays: the ceiling is an upper
+bound, so such a denial subtracts nothing in any mode the account can use and
+storing it would be a no-op that reads like a setting. A denial applies in
+every mode the account uses. **Both null is allowed**: an account with no
+mode resolves the empty object set, which is fail-closed and a legitimate way
+to park somebody. Nothing is written unless the whole payload is accepted.
 
-`ManagedUserResponse` carries `access_modes`, so the admin page reads one
+`ManagedUserResponse` carries `mode_ceiling`, `mode_default`,
+`denied_label_keys` and `denied_field_group_keys`, so the admin page reads one
 source and this endpoint returns the same shape.
 
-**A new account holds `safe` and only `safe`** (`POST /api/users/`). An
-invitee starts narrow and is widened deliberately, rather than starting wide
-and being narrowed if somebody remembers.
+**A new account starts at ceiling `normal`, default `normal`**
+(`POST /api/users/`, from the columns' default).
 
 ### `/api/roles` — admin
 
@@ -2650,11 +2675,18 @@ resolve to guest, so that would make every visitor an administrator).
 
 No self-registration; accounts are created here only.
 
+A **new** username passes `validate_new_username` - 3 to 32 of lowercase
+letters, digits, `-` and `_`, and never `admin` or `guest` inside it - and a
+**new** password passes `validate_new_password` - not empty, at most 72 UTF-8
+bytes. A refusal is **422** whose `detail` is the sentence to show. Names
+already stored are not re-checked. Uniqueness ignores case.
+
 | Method | Path | Body / notes |
 |---|---|---|
-| GET | `/api/users/` | Every account as `ManagedUserResponse` (`id`, `username`, `role_id`, `role_name`, `access_modes`, `open_request_limit`). `open_request_limit` is how many open requests the account may hold, null for no limit. Passwords never leave the server. |
-| POST | `/api/users/` | `ManagedUserCreate` (`username`, `password`, `role_id`). 201. The account's `open_request_limit` is its role's default — 15 for `user`, none for every other role. 409 on a taken username, 422 on an unknown role. |
-| PATCH | `/api/users/{id}` | `ManagedUserUpdate` — any of `username`, `password`, `role_id`, `open_request_limit` (an integer ≥ 0, or null for no limit; negative is 422). A `role_id` change resets the limit to the new role's default unless the same body sets `open_request_limit`. A non-null limit on a `super` account — or on an account this save moves to `super` — is **422**: super's limit is fixed at none. 409 if the new username is taken, or if the change would demote the last account that can still administer the site. |
+| GET | `/api/users/` | Every account as `ManagedUserResponse` (`id`, `username`, `role_id`, `role_name`, `status`, `mode_ceiling`, `mode_default`, `denied_label_keys`, `denied_field_group_keys`, `open_request_limit`). `open_request_limit` is how many open requests the account may hold, null for no limit. Passwords never leave the server. |
+| POST | `/api/users/` | `ManagedUserCreate` (`username`, `password`, `role_id`). 201, `status` `active`. The account's `open_request_limit` is its role's default — 15 for `user`, none for every other role. 409 on a username taken ignoring case, 422 on an unknown role or a username or password the checks refuse. |
+| PATCH | `/api/users/{id}` | `ManagedUserUpdate` — any of `username`, `password`, `role_id`, `status` (`active` / `disabled`; anything else 422), `open_request_limit` (an integer ≥ 0, or null for no limit; negative is 422). Setting a password **ends the account's sessions**, and so does disabling it; enabling does not revive them. A `role_id` change resets the limit to the new role's default unless the same body sets `open_request_limit`. A non-null limit on a `super` account — or on an account this save moves to `super` — is **422**: super's limit is fixed at none. 409 if the new username is taken, if the change would demote the last **active** account that can still administer the site, if you disable yourself (`You cannot disable yourself.`), or if the account is `pending` (approved or declined, not edited). |
+| POST | `/api/users/{id}/reset-link` | No body. **200** `{link, expires_at}` - a one-time password reset link, valid 24 hours, returned **once** (only a hash is stored). Issuing one deletes the account's unspent reset links. **409** for an account that is not `active` or whose role is `shared`; 404 for an unknown id. |
 | DELETE | `/api/users/{id}` | **204**. 409 if you are deleting yourself, or the last administering account. |
 
 ### `/api/content-labels`

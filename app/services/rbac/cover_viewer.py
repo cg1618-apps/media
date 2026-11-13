@@ -27,8 +27,8 @@ enforcement.hidden_label_ids for the full derivation; its inputs are:
   from the clock     each token's `exp`. An entry never outlives either
                      token it was resolved from, so a login or an override
                      that expires mid-TTL stops applying on time.
-  from the database  users (by username), role, role_permission,
-                     user_access_mode (the default grant and the active one),
+  from the database  users (by username, with its mode ceiling and
+                     default), role, role_permission,
                      access_mode, access_mode_label, access_mode_field_group,
                      user_access_mode_denial, content_label.
 

@@ -31,6 +31,12 @@ catalogue and what is an account's own data is
 > Requests and reports work for `admin`, `super` and `user`. A shared account
 > gets them when the `shared` role exists. Until the header rework, the inbox
 > sits under Pipelines for both admin and super.
+>
+> **Built underneath, not yet as described here:** every account has a mode
+> ceiling and a default, set on the Users page, and switches among the modes
+> up to its ceiling ([authorization.md](authorization.md), "Access modes").
+> The "Content (modes)" row is not yet true as a whole: `admin` still sits in
+> `unrestricted` rather than in no mode, and there is no shared account.
 
 ## At a glance
 

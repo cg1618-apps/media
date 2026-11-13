@@ -106,7 +106,12 @@ PERM_MANAGE_REQUESTS = manage_perm("requests")
 # Declared here rather than derived from a table: like every other permission
 # these name code (a router dependency), so a row with no code behind it would
 # be inert.
-SELF_PERMISSION_KEYS: tuple[str, ...] = ("list", "personal_notes", "requests")
+SELF_PERMISSION_KEYS: tuple[str, ...] = (
+    "list",
+    "personal_notes",
+    "requests",
+    "password",
+)
 
 SELF_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
     "list": (
@@ -123,6 +128,11 @@ SELF_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
         "Own Requests",
         "File requests and reports - a missing entry, wrong or incomplete "
         "data, a bug - and read and edit your own while they are open.",
+    ),
+    "password": (
+        "Own Password",
+        "Change your own password from Settings, given the current one. An "
+        "account without it asks the admin, who sets it on Users.",
     ),
 }
 
@@ -167,6 +177,7 @@ def self_perm(key: str) -> str:
 PERM_SELF_LIST = self_perm("list")
 PERM_SELF_PERSONAL_NOTES = self_perm("personal_notes")
 PERM_SELF_REQUESTS = self_perm("requests")
+PERM_SELF_PASSWORD = self_perm("password")
 
 
 def view_perm(key: str) -> str:
@@ -244,6 +255,10 @@ def is_valid(db: "Session", permission: str) -> bool:
 SUPER_ROLE_NAME = "super"
 GUEST_ROLE_NAME = "guest"
 USER_ROLE_NAME = "user"
+# The role of an account several people sign in to. It does not exist until
+# the shared accounts land; the reset-link refusal (routers/users.py, the CLI)
+# keys on this name now so that it holds from the day the role is created.
+SHARED_ROLE_NAME = "shared"
 
 
 def _self_family() -> frozenset[str]:
@@ -283,9 +298,11 @@ def locked_permissions(
     # All overwrites every table including the accounts and role assignments.
     refused = {PERM_ADMIN_AUTHZ, PERM_MANAGE_PIPELINES}
     if role_name == USER_ROLE_NAME:
-        # Filing requests is fixed for a member, and handling them is not a
-        # member's: the inbox reads every account's requests.
-        return frozenset({PERM_SELF_REQUESTS}), frozenset(
+        # Filing requests and changing your own password are fixed for a
+        # member: without the second every change goes through the admin.
+        # Handling requests is not a member's: the inbox reads every
+        # account's requests.
+        return frozenset({PERM_SELF_REQUESTS, PERM_SELF_PASSWORD}), frozenset(
             refused | {PERM_MANAGE_REQUESTS}
         )
     # Every custom role. manage.catalog, manage.requests and the self family

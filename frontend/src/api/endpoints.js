@@ -33,6 +33,8 @@ export const endpoints = {
     logout: () => "/api/auth/logout",
     me: () => "/api/auth/me",
     accessMode: () => "/api/auth/access-mode",
+    // GET ?code= says whose account a reset link is for; POST spends it.
+    reset: () => "/api/auth/reset",
   },
 
   // Tier 1 closed enums. Read-only by design - they live in Python.
@@ -77,12 +79,14 @@ export const endpoints = {
     update: (id) => `/api/users/${id}`,
     remove: (id) => `/api/users/${id}`,
     accessModes: (id) => `/api/users/${id}/access-modes`,
+    resetLink: (id) => `/api/users/${id}/reset-link`,
   },
 
   // The caller's own account. No id in any path: these act on whoever the
   // session says you are.
   account: {
     settings: () => "/api/account/settings",
+    password: () => "/api/account/password",
   },
 
   // The caller's own opinion of a catalogue row (self.list): its rating of a

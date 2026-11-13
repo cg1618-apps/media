@@ -5,7 +5,7 @@ import logging
 import uuid
 from typing import Optional
 
-from sqlalchemy import Sequence, or_, text
+from sqlalchemy import Sequence, null, or_, text
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.ext.associationproxy import AssociationProxyExtensionType
 from sqlalchemy.orm import Session
@@ -81,6 +81,7 @@ from app.services.pipelines.tabs import (
 )
 from app.services.rbac import cache
 from app.services.rbac.gated_types import REQUIRED_LABEL_FOR_TYPE
+from app.services.rbac.modes import check_mode_pair
 from app.services.security import UNUSABLE_PASSWORD_HASH
 from app.utils.constants import MUSIC_STATUSES
 from app.utils.credit_roles import (
@@ -1610,6 +1611,43 @@ def execute_pull_specific(
                 rows_skipped += 1
                 continue
             clean_header_dict["role_id"] = role.system_id
+
+            # The mode pair travels together and must satisfy the three
+            # ck_users_mode_* constraints, or the tab's commit raises and
+            # rolls back every account. A bad pair - one half missing, an
+            # unknown key, a default above the ceiling - is dropped and
+            # reported, and the account keeps its local pair (or, if new, the
+            # columns' default).
+            if "mode_ceiling" in clean_header_dict or "mode_default" in clean_header_dict:
+                ceiling = clean_header_dict.pop("mode_ceiling", None)
+                default = clean_header_dict.pop("mode_default", None)
+                try:
+                    check_mode_pair(ceiling, default)
+                    if not {"mode_ceiling", "mode_default"} <= raw_header_dict.keys():
+                        raise ValueError("the tab carries only one of the two columns")
+                except ValueError as exc:
+                    logger.warning(
+                        "Users: ignoring mode pair (%r, %r) for user %r: %s",
+                        ceiling,
+                        default,
+                        clean_header_dict.get("username"),
+                        exc,
+                    )
+                    unresolved_refs.append(
+                        f"Users: mode pair ({ceiling!r}, {default!r}) for user "
+                        f"{clean_header_dict.get('username')!r} is invalid ({exc}); "
+                        "kept the local one"
+                    )
+                else:
+                    # null(), not None: an INSERT omits a None attribute and
+                    # the columns' `normal` default fires, so a parked account
+                    # would arrive with a mode.
+                    clean_header_dict["mode_ceiling"] = (
+                        null() if ceiling is None else ceiling
+                    )
+                    clean_header_dict["mode_default"] = (
+                        null() if default is None else default
+                    )
 
             # ix_one_installation_owner is a PARTIAL UNIQUE index over the
             # whole table, so restoring the sheet's owner while a different

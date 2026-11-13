@@ -1,0 +1,344 @@
+# Plan — the account lifecycle (P4)
+
+Branch `feat/account-lifecycle`, off `dev`. Design: the account-system
+spec, "Settled" → "Identity and recovery", "Sessions", "Account status",
+"Self-registration by invite link"; the user-facing side `docs/account.md`;
+the pending-registrations row of `docs/viewers.md`. Working scaffolding —
+deleted when this lands.
+
+**Implemented after media-fd's P3 role and status pieces land**, and
+written from today's code (`dev` at `a38b27d`): every name below was read,
+not recalled. Where P3 owns a piece, the plan says so and builds on it.
+
+## Proposed split: two pull requests
+
+The spec says the hardening ships *with* registration, not after it. That
+binds the order, not the PR count, so:
+
+- **P4a — accounts that can be recovered and protected.** Status
+  (`disabled`), the session counter, the password and username policies,
+  `account_code`, reset links and the box CLI, changing your own password,
+  rate limiting on login and reset. Needs from P3 only the `shared` role
+  (to refuse reset links on shared accounts); everything else stands on
+  today's code.
+- **P4b — invite links and registration.** Invites, `/register`, `pending`,
+  the approval form and reject, rate limiting on register, and seeding the
+  two shared accounts if P3 has not. Needs P3's mode **ceiling** — the
+  approval form sets one — so it cannot start before P3 lands.
+
+P4a merges first; the registration endpoint therefore never exists
+without the policy, the counter and the limiter. **If you would rather one
+PR, the plan is unchanged** — it becomes two commits on one branch.
+
+## What already holds and needs only a test and a doc
+
+- **Logins are 30 days flat.** `access_token_expire_minutes = 43200`
+  (`app/config.py`), the cookie's `max_age` matches, and nothing reissues
+  the login token — `create_access_token`'s docstring already forbids a
+  reissue minting a fresh month. A test pins the 30 days and "no refresh".
+
+## Data
+
+### `users` (P4a)
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `status` | string, not null, default `active` | `pending` / `active` / `disabled`, CHECK-constrained. P4 owns it, and P3 does not add it |
+| `session_version` | integer, not null, default 0 | the revocation counter; never travels on Sheets |
+
+Index **`uq_users_username_lower`** — `UNIQUE (lower(username))`. Checked
+against the company database: 2 accounts, 2 distinct lowercased names,
+none outside `[a-z0-9_-]{3,32}`. The migration still asserts it and aborts
+with the offending names rather than failing on the index.
+
+### `account_code` (P4a; invites used in P4b)
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `system_id` | uuid pk | |
+| `purpose` | string | `invite` / `reset`, CHECK |
+| `code_hash` | string, unique | **SHA-256** hex of the code. The code is 32 random bytes (`secrets.token_urlsafe(32)`) — high-entropy, so a fast hash is the standard choice and lets the row be found by hash; bcrypt is for low-entropy passwords |
+| `user_id` | uuid → `users.id`, `CASCADE`, nullable | reset: the target. invite: null until spent, then the account it created, `SET NULL` on that account's deletion so a rejected invite stays spent |
+| `created_by_id` | uuid → `users.id`, `SET NULL`, nullable | null from the CLI |
+| `created_at`, `expires_at`, `spent_at` | datetime | `expires_at = created_at + 24 h` |
+
+CHECK: a reset row has a `user_id`. A new reset link **deletes** the
+target's unspent reset rows in the same transaction ("a newer link stops
+an older one working"). Spent and expired rows are kept — a spent invite
+must stay spent — and are tiny.
+
+**Spending** is one function, `spend_code(db, code, purpose)`, in
+`app/services/domain/account_codes.py`: `SELECT … FOR UPDATE` on the row by
+hash, refuse when missing, wrong purpose, expired or spent, set
+`spent_at`. The caller's work happens in the same transaction, so a failed
+password or username rolls the spend back. One generic error for every
+refusal: `"This link is not valid. Ask the admin for a new one."`
+
+## Rules
+
+### Username policy — `validate_new_username(name)`
+
+`app/services/security.py` beside the password helpers:
+`^[a-z0-9_-]{3,32}$`; refuse if `"admin"` or `"guest"` is a substring of
+the lowercased name; uniqueness via the lower-index. Applied to every
+**new** name: `/users` create, `/users` rename, register. **Not** to
+existing rows, so the `admin` account keeps its name. Login lowercases the
+submitted username before the lookup — every stored name is lowercase.
+
+### Password policy — `validate_new_password(password)`
+
+**No policy, by the owner's decision: no minimum length, no composition
+rules.** Only two checks remain, and both are technical, not policy:
+
+- **refuse an empty password**, which is no credential at all;
+- **refuse past 72 UTF-8 bytes**, with a 422 that says so. bcrypt reads
+  only the first 72 bytes, so truncating quietly would accept a password
+  that differs from the one stored after byte 72. The spec says "reject
+  rather than truncate".
+
+Both apply to
+register, reset, self-change, `/users` create and `/users` set-password.
+`get_password_hash` stops truncating (it is now only ever handed a valid
+password); **`verify_password` keeps the `[:72]` slice**, because bcrypt
+5 raises on longer input and an existing account may have been set with a
+longer password before the policy.
+
+### Status and the session counter
+
+- The login token carries **`sv`** = `users.session_version` at minting.
+  `resolve_viewer` resolves to the guest unless the user is `active` **and**
+  the token's `sv` equals the column — a token with no `sv` (every one
+  minted before this) reads as 0, which is every account's starting value,
+  so nobody is signed out by the deploy.
+- **Increments**: a reset spent, disabling, and **the admin setting a
+  password on `/users`** — the spec's "revoking sessions on an admin
+  reset", which matters most for a leaked shared login. Not a self-change,
+  not logout. Every increment goes through one function,
+  `revoke_sessions(user)`, and the admin-set case is one constant,
+  `ADMIN_SET_PASSWORD_REVOKES_SESSIONS = True`, beside it — the owner's
+  decision.
+- **Login**: a wrong password is the ordinary generic 401 whatever the
+  status. After a correct one: `pending` → 403 `"Your account is waiting
+  for the admin's approval."`; `disabled` → 403 `"This account is
+  disabled."` No token in either case.
+- **`/users`**: `PATCH` takes `status` `active` / `disabled` (shared
+  accounts included), and increments the
+  counter on disable. A pending account is not edited here; it goes through approval.
+  The admin cannot disable itself (409), as it cannot delete itself.
+
+### Reset links (P4a)
+
+- `POST /api/users/{id}/reset-link` (`admin.authz`) — `active`, non-shared
+  accounts only (409 otherwise). Returns `{link, expires_at}` once; the
+  code is not stored.
+- `GET /api/auth/reset?code=` — `{username}` without spending, or the
+  generic 404.
+- `POST /api/auth/reset` `{code, password}` — spends, sets the password,
+  increments `session_version`, in one transaction; clears the caller's
+  login cookie. Returns `{username}` so the SPA can pre-fill sign-in.
+- **CLI** — `app/cli.py`, `python -m app.cli reset-link <username>`
+  (argparse, one subcommand). Same service call, `created_by_id` null;
+  prints the link and expiry. Exit 1 with a message for an unknown or
+  non-active account. Documented in `docs/authentication.md` with the
+  spec's exact `docker compose exec media-app …` line.
+- **The link's base URL**: new setting `public_base_url`
+  (`PUBLIC_BASE_URL`), default `https://media.cg1618.com`, so production
+  needs no new variable; `.env.example` documents it and the dev machines
+  set `http://localhost:5173`. Used by both the route and the CLI, which
+  has no request to read a host from.
+
+### Changing your own password (P4a)
+
+- `PUT /api/account/password` `{current_password, new_password}` on the
+  existing `app/routers/account.py`. Wrong current → **400**
+  `"Your current password is not right."`, not 401, which the SPA reads
+  as a lost session. Does not touch `session_version`.
+- Gate: a new permission **`self.password`**, held by `user` and `super`.
+  `self.*` again excludes root admin and guest by construction; P3's
+  `shared` role does not get it — the same seam as `self.requests`.
+
+### Rate limiting (P4a login and reset, P4b register)
+
+- **`app/services/rate_limit.py`** — an in-process fixed-window counter
+  keyed by string, behind `check(key, limit, window)` / `hit(key)` /
+  `reset(key)`. In-process is enough: the box runs one uvicorn process
+  (`entrypoint.sh` has no `--workers`), and uvicorn runs with
+  `--proxy-headers`, so `request.client.host` is the visitor, not the
+  tunnel. No library: slowapi keys per route, and login needs a
+  per-username key as well; the counter is ~40 lines. The docstring says
+  that a second worker process would need a shared store.
+- **Limits** (the owner's), 429 with `Retry-After`:
+  - login: 5 **failed** attempts per username per 15 min, and 20 failed per
+    IP per 15 min; a success clears the username's count;
+  - reset and register, GET and POST: 10 per IP per 15 min.
+- Tests reset the limiter in an autouse fixture.
+
+### Invites, registration and approval (P4b)
+
+- `POST /api/users/invites` (`admin.authz`) → `{link, expires_at}` once.
+- `GET /api/auth/register?code=` → `{valid: true}` or the generic 404.
+- `POST /api/auth/register` `{code, username, password}` — spends, creates
+  the account `pending` with no role grant beyond `user` and **no modes**,
+  in one transaction. Username and password refusals are 422 and roll the
+  spend back, so a typo does not burn the link.
+- `GET /api/users?status=pending` on the existing list route.
+- `POST /api/users/{id}/approve` `{role_id, ceiling_mode, default_mode}` —
+  `role` is `user` or `super` (default `user`); ceiling and default from
+  `safe` / `normal` / `borderline` (default `normal` / `normal`), never
+  `unrestricted`; sets `active`, the role's request limit (P6's
+  `default_request_limit`) — by calling P3e's setter, not reimplementing it.
+  As media-ad gave it:
+  `set_mode_ceiling(db, user, ceiling_key: str | None, default_key: str | None) -> None`
+  in `app/services/rbac/modes.py`.
+  - Keys are mode keys; both None means no mode.
+  - Raises `ValueError` on an unknown key, on exactly one None, or when
+    the default ranks above the ceiling. Approve turns that into a 422.
+  - It flushes and bumps the rbac cache but **never commits**, so approve
+    commits it in one transaction with the status change.
+  - **The setter accepts `unrestricted`; the form must not.** Approve
+    refuses `unrestricted` itself (422) before calling the setter.
+  - Registration leaves a pending account with no modes, both None.
+  - `default_mode_id(db, user)` keeps its name and signature, so
+    `set_login_cookie` needs no change.
+
+  Check the signature against `modes.py` when P4b is built. It is pending
+  media-00's review of P3e.
+- `POST /api/users/{id}/reject` — deletes a `pending` account only (409
+  otherwise), logs one line with the username; the invite row stays spent.
+- **Sheets**: Backup skips `pending` accounts; `account_code` has no tab.
+  `status` travels for `active` / `disabled`, so a Pull does not re-activate a disabled
+  account on the other machine.
+- **Seeding** `shared-normal` and `shared-borderline` — **if P3 has not
+  already**: role `shared`, their fixed mode, request limit 10, the
+  unusable password hash (`UNUSABLE_PASSWORD_HASH`), so no credential is in
+  code and the admin sets their passwords on `/users`. In
+  `app/services/rbac/seed.py`, idempotent like the rest.
+
+## Frontend
+
+P4a:
+- **Login** — "Forgot your password or username?" toggles a short note
+  (ask the admin for a reset link); no form, no link to `/reset`. The two
+  403 messages shown as they come. `?username=` pre-fills.
+- **`/reset`** — `pages/public/ResetPassword.jsx`, in no menu. Generic
+  message without a valid code; otherwise "Setting a new password for
+  <username>", the password twice, save → `/login?username=`.
+- **Settings → Password** card, when `has("self.password")`: current, new,
+  new again.
+- **`/users`** — per row, **Reset link** (active, non-shared) opening a
+  modal with the link, a copy button and the expiry, shown once; **Disable /
+  Enable**; a status column.
+
+P4b:
+- **`/register`** — `pages/public/Register.jsx`, in no menu: generic
+  message without a valid code, else username and password twice, with the
+  rules stated; on success, "waiting for the admin's approval".
+- **`/users`** — **Invite link** button, same once-shown modal.
+- **Pending registrations** panel on `/system` (`admin.authz`): each
+  pending account with the approval form (role, ceiling, default) and
+  Decline with `ConfirmModal`.
+
+All from existing components: the modals and the `/users` and `/system`
+card layouts; copying uses `navigator.clipboard` unless an existing helper
+turns up when this is built. The once-shown
+link modal and the approval form are the nearest to new layout — say if
+the owner wants to design them.
+
+## Tests (failing first)
+
+- **Policies**: each username rule both ways, including the spec's
+  examples (`admin1`, `qadminqe` refused; `adamin`, `adm1in` allowed;
+  `gUesT` refused); `Kai` vs `kai` clash; empty password refused, a one-character one accepted; 73-byte password
+  refused with a multi-byte example; an existing 80-byte-password account
+  still logs in.
+- **Revocation — refusals that bite**: a token minted, then a reset spent →
+  that token resolves as guest (mirror: an unrelated account's token still
+  works); disable → same; a self-change → the old token still works; a
+  token with no `sv` claim still works at version 0 and stops working at 1;
+  an admin set-password on `/users` → the old token resolves as guest.
+- **Codes**: expired, spent, wrong purpose, unknown → one message;
+  newer reset voids the older; a register with a bad username leaves the
+  code unspent; a rejected account's invite stays spent.
+- **Login**: pending / disabled with the right password → 403 and no
+  cookie; with a wrong one → the generic 401 (so status leaks only after the
+  password).
+- **Rate limits**: the sixth failed login for one username is 429 while a
+  different username from another IP is not; a success resets.
+- **CLI**: `reset-link` prints a link whose code spends on `/reset`.
+- **Approval**: `unrestricted` refused on the form; role other than
+  user/super refused; defaults applied.
+- 30-day flat login pinned.
+
+Vitest: Login (forgot note, 403 messages, pre-fill), ResetPassword,
+Register, Settings password card, Users row actions, the pending panel.
+
+## Migrations
+
+P4a: `a1c2codes345` — `users.status`, `users.session_version`, the
+lower-unique index (with the pre-check), `account_code`, the
+`self.password` grant to `user` / `super`. P4b adds none unless P3 has not
+given `status` a `pending` value. **Parents taken from `alembic heads` at
+the moment each is written**; media-db, media-fd and P6 all add revisions,
+so reparent, never renumber.
+
+## Docs, in the same commit as the behaviour
+
+- `docs/account.md` loses each "not available yet" as its piece lands.
+- `docs/authentication.md` — the technical side: token claims including
+  `sv`, status, codes and their hashing, the limiter and its single-process
+  assumption, the CLI.
+- `docs/viewers.md` — the pending-registrations row (P4b).
+- `docs/api.md`, `docs/data-model.md`, `docs/authorization.md`
+  (`self.password`), `.env.example`, `docs/setup-local.md` for
+  `PUBLIC_BASE_URL`.
+- `docs/to-do-next.md` item 2's sentence "sessions are a flat 30 days with
+  no revocation and there is no password reset" goes when P4a lands.
+
+## Decided (media-00, 2026-11-13)
+
+- **Two PRs**, P4a first; P4b waits for P3's ceiling. P4a starts once
+  P6's backend is in review, in parallel with P3 — media-fd is told which
+  functions P4a changes before it starts; whoever lands second rebases.
+- **P4 owns `users.status`** — it is lifecycle; P3 does not add it.
+- Modals and the approval form from existing components.
+
+## Decided by the owner (2026-11-13)
+
+When this plan is deleted, these go to `docs/notes/decisions.md` with
+their reasons.
+
+- **An admin setting a password on `/users` revokes that account's
+  sessions**, as a reset does. This matters most for a leaked shared login.
+- **No password policy.** No minimum length and no composition rules. The
+  only checks are the two technical ones above, for an empty password and
+  past 72 bytes. media-00 is correcting the spec's "minimum length" wording
+  separately.
+- **A shared account may be disabled.** Disabling is reversible, unlike the
+  deletion the spec forbids.
+- **Rate limits**: 5 failed logins per username and 20 per IP per 15 min;
+  10 per IP per 15 min on register and reset.
+- **`disabled` travels on the Sheets Users tab.**
+
+## Settled after P4a's backend
+
+- **Invites get their own column** (media-00). P4b's migration adds
+  `account_code.created_user_id`, `ON DELETE SET NULL`, recording the
+  account an invite created. `user_id` stays the reset target, with
+  `CASCADE`. One foreign key cannot serve both rules, and with `user_id`
+  alone a rejected account would take its invite row with it. With the
+  new column the invite stays recorded as spent, as the spec says.
+- **The per-username login limit is checked before the password**
+  (accepted, documented in `docs/authentication.md`). Five wrong guesses
+  lock that username for 15 minutes, even for its real owner. That is
+  the standard price of brute-force protection. Letting a correct password
+  through the lock would undo the protection.
+- **Decided by the owner:** when the admin sets **its own** password on
+  `/users`, every session is revoked, then the caller's cookie is
+  re-issued at the new counter with the original deadline. The browser
+  that made the change stays signed in and every other device is signed
+  out, as Django's `update_session_auth_hash` does
+  (`KEEP_OWN_SESSION_ON_ADMIN_SET_PASSWORD`). `/users` is the admin's only
+  way to change its own password. The original deadline means a password
+  change never extends a login.
+
+No other questions remain open.

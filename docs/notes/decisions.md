@@ -3796,6 +3796,59 @@ changes only grants and nothing in the feature itself.
   no limit, and an older sheet without the column leaves the local value
   alone.
 
+### An account has a mode ceiling and a default, not a held mode set (2026-11-13)
+
+- **An account has a ceiling and a default, not a set of modes.** The four
+  modes are ordered `safe < normal < borderline < unrestricted`
+  (`seed_modes.MODE_ORDER`, compared with `mode_rank`). An account may use
+  every mode at or below `users.mode_ceiling` and lands in
+  `users.mode_default`. A held set could express a gap (`safe` and
+  `borderline` without `normal`) that nobody had a use for, and it needed a
+  partial unique index to keep the default inside it; the ceiling needs one
+  CHECK constraint.
+- **Keys, not `access_mode` ids.** The order is defined on keys in code, the
+  four keys are fixed, and a key means the same on both machines, so the
+  pair travels on the Sheets `Users` tab without being resolved. An id is
+  minted per database and would need the same name-resolution step the role
+  needs.
+- **Denials hang off the account and apply in every mode.** Re-keying the
+  denial from the grant row to the account was the only shape left once
+  there is no grant row. The migration takes the union of an account's
+  denials across its grants, which is a narrowing, never a widening.
+  `set_mode_ceiling` deletes the denials a lowered ceiling no longer shows,
+  so a denial always names something the account could otherwise reach.
+- **The switch's password test stays the subset test on effective sets.**
+  With uniform denials it agrees with a rank comparison everywhere except
+  from the empty set, where a rank says "widening" and the subset test
+  correctly says moving to `safe` with its labels denied adds nothing.
+  Which modes are *available* is the rank comparison; what a switch *costs*
+  is the subset test.
+- **A mode above the ceiling resolves the empty set**, exactly as a revoked
+  grant did. Falling back to the default or to the ceiling would let a
+  lowered ceiling leave a session somewhere it was never put.
+- **A new account starts at `normal` / `normal`** (the spec's settled
+  default for the approval form and for `/users`), from the columns'
+  default rather than from handler code, so a Pull from a sheet that
+  predates the columns lands there too.
+- **The fresh `admin` account is seeded at `unrestricted` / `unrestricted`**,
+  the faithful mapping of the root role, which sees everything. The
+  account-system design gives `admin` no mode at all; that lands with the
+  change that removes its user data, not here.
+- **The migration's owner case.** `cg1618` is set to `unrestricted` /
+  `borderline` whatever it held, as the owner settled. Every other account
+  gets the widest mode it held as its ceiling, filling any gap below it; the
+  migration logs each account whose held set had one, so a gap filled on the
+  box shows in the deploy log. The downgrade recreates one grant per mode up
+  to the ceiling with the default flagged, and copies each denial onto every
+  grant; the only thing it cannot restore is a gap the upgrade filled.
+- **A pair the constraints would refuse is skipped on Pull, not allowed to
+  roll the tab back.** `ck_users_mode_*` would raise at the tab's commit and
+  take every account with it, the failure shape the Users tab already guards
+  against for roles. The row lands; its pair stays local and is reported.
+- **`GET /api/access-modes` serves each mode's `rank`**, so the Users page
+  orders its ceiling and default selects without keeping a second copy of
+  the order. A mode an admin creates has no rank and no ceiling reaches it.
+
 ### Notes rework, catalogue half (spec: 2026-11-12 notes-rework-design)
 
 The half of the notes rework that needs nothing from the account work, in one
@@ -3861,3 +3914,56 @@ reset button, 下周目目標 - waits for the account rework and stays in the sp
   resource's group is cleared. 地理 rows are left in place, untouched by the
   older code, and the option seeds stay. Not marked `irreversible`: every row
   the upgrade rewrote comes back with the same content.
+
+### Account lifecycle, first half: status, revocation, reset links (2026-11-13)
+
+Accounts can be disabled, have their sessions ended, and be recovered by a
+link the admin hands over. Invite links and approval are the second half.
+
+- **Revocation is a counter, not a session table.** Each login token carries
+  `sv`, the account's `users.session_version` when it was minted. A token
+  whose `sv` differs resolves as the guest. One increment ends every session
+  at once, with no token list to keep. A token without `sv` reads as 0, so the
+  deploy that added the claim signed nobody out. Every increment goes through
+  `revoke_sessions()`, so grepping that name answers "what signs an account
+  out".
+- **What ends sessions, as the owner decided:**
+  - **A spent reset link and disabling.**
+  - **The admin setting a password on `/users`**, as the spec's hardening says
+    and the owner confirmed. A new password is worthless against a leaked
+    shared login if the old sessions carry on.
+  - **Not changing your own password**, since you are the one holding the
+    session.
+- **When the admin sets its own password**, every session still ends, and the
+  browser that made the change is given a fresh cookie at the new counter
+  (the owner's decision). Without it, the admin would sign itself out
+  whenever it used `/users`, its only way to change its password (the root
+  role does not hold `self.password`). Django's `update_session_auth_hash`
+  does the same. **The fresh cookie keeps the original deadline**: logins
+  are a flat 30 days with no refresh, so a reissue minting a new month would
+  let any password change extend a session without end.
+- **No password policy**, by the owner's decision. There is no minimum length
+  and no composition rule. Two technical checks remain:
+  - **An empty password is refused**, since it is no credential at all.
+  - **Past 72 UTF-8 bytes is refused rather than truncated.** bcrypt reads only
+    72, so truncating would accept a different password that matches up to
+    byte 72. `verify_password` still slices to 72, so an account set before
+    the check still signs in.
+- **Codes are hashed with SHA-256, not bcrypt.** They are 32 random bytes,
+  and that much entropy needs no slow hash. A fast one lets the row be found
+  by its hash. Spending locks the row (`FOR UPDATE`), so two requests racing
+  with one link cannot both use it. A failed password check rolls the spend
+  back, so a typo does not burn the link.
+- **Rate limiting is an in-process counter, not slowapi.** The box runs one
+  uvicorn process, and login needs a per-username key, which slowapi's
+  per-route keys do not give. A second worker process would need a shared
+  store. **The per-username limit is checked before the password**, so five
+  wrong guesses lock that name for 15 minutes even for its real owner. That
+  is the standard price of brute-force protection, accepted. Letting a
+  correct password through the lock would undo the protection.
+- **`disabled` travels on the Sheets Users tab, `session_version` never
+  does.** A Pull must not re-activate a disabled account on the other machine.
+  The counter, though, is a count of this machine's logins.
+- **Usernames are unique ignoring case**, by a `lower(username)` index. The
+  `[a-z0-9_-]{3,32}` and no-`admin`/`guest` rules apply to new names only,
+  so the `admin` account keeps its name.

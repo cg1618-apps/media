@@ -4,13 +4,27 @@
 // to let you delete yourself or demote the last account that can still
 // administer the site, and those refusals surface as toasts rather than being
 // pre-empted here - one rule, enforced in one place.
+//
+// The lifecycle controls are offered only where the server would take them,
+// because a button that can only ever earn a 409 is noise: Disable on an
+// active account other than your own, Enable on a disabled one, neither on a
+// pending one (that is approved or declined, not edited), and a reset link on
+// an active account whose role is not `shared` (the admin sets a shared
+// account's password here instead). The server still refuses each of them.
 import { useCallback, useEffect, useState } from "react";
 
 import { fetchJson, jsonBody } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
+import ConfirmModal from "../../components/modals/ConfirmModal";
+import OnceLinkModal from "../../components/modals/OnceLinkModal";
+import { Chip } from "../../components/ui/primitives";
+import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 
 const BLANK = { username: "", password: "", role_id: "" };
+
+// Disabled is the one state that is a refusal, so it alone takes danger.
+const STATUS_TONE = { active: "ink", disabled: "danger", pending: "muted" };
 
 // Roles whose open-request limit is fixed at "none" (UNLIMITED_ROLES in
 // app/services/domain/requests.py): the server answers 422 to a limit on one.
@@ -29,6 +43,12 @@ function limitValue(text) {
 
 export default function Users() {
   const { showToast } = useToast();
+  const { username: myUsername } = useAuth();
+  const [disabling, setDisabling] = useState(null);
+  const [busy, setBusy] = useState(false);
+  // {user, link, expires_at} for the reset link just minted - held only
+  // while its modal is open, since the server never shows it again.
+  const [resetLink, setResetLink] = useState(null);
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -46,7 +66,7 @@ export default function Users() {
     try {
       await fetchJson(endpoints.users.accessModes(user.id), {
         method: "PUT",
-        ...jsonBody({ modes: next }),
+        ...jsonBody(next),
       });
       showToast("success", `Updated ${user.username}'s access.`);
       setModesFor(null);
@@ -118,6 +138,37 @@ export default function Users() {
       showToast("success", `Updated ${user.username}.`);
       setEditingId(null);
       await load();
+    } catch (err) {
+      showToast("error", err.message);
+    }
+  }
+
+  async function setStatus(user, status) {
+    setBusy(true);
+    try {
+      await fetchJson(endpoints.users.update(user.id), {
+        method: "PATCH",
+        ...jsonBody({ status }),
+      });
+      showToast(
+        "success",
+        status === "disabled" ? `Disabled ${user.username}.` : `Enabled ${user.username}.`,
+      );
+      setDisabling(null);
+      await load();
+    } catch (err) {
+      showToast("error", err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function makeResetLink(user) {
+    try {
+      const data = await fetchJson(endpoints.users.resetLink(user.id), {
+        method: "POST",
+      });
+      setResetLink({ user, link: data.link, expires_at: data.expires_at });
     } catch (err) {
       showToast("error", err.message);
     }
@@ -202,6 +253,7 @@ export default function Users() {
           <tr>
             <th className="text-left px-4 py-2">Username</th>
             <th className="text-left px-4 py-2">Role</th>
+            <th className="text-left px-4 py-2">Status</th>
             <th className="text-left px-4 py-2">Access</th>
             <th className="text-right px-4 py-2">Actions</th>
           </tr>
@@ -229,12 +281,19 @@ export default function Users() {
                     <input
                       type="password"
                       placeholder="New password (optional)"
+                      aria-describedby={`password-help-${user.id}`}
                       value={editDraft.password}
                       onChange={(e) =>
                         setEditDraft({ ...editDraft, password: e.target.value })
                       }
                       className="border rounded px-2 py-1 text-xs"
                     />
+                    <span
+                      id={`password-help-${user.id}`}
+                      className="text-[11px] text-text-faint"
+                    >
+                      Setting a password signs this account out everywhere.
+                    </span>
                     {hasRequestLimit(
                       roles.find((r) => r.system_id === editDraft.role_id),
                     ) && (
@@ -261,22 +320,19 @@ export default function Users() {
                   <span className="text-text-muted">{user.role_name}</span>
                 )}
               </td>
+              <td className="px-4 py-2">
+                <Chip tone={STATUS_TONE[user.status] ?? "ink"}>{user.status}</Chip>
+              </td>
               <td className="px-4 py-2 text-xs text-text-faint">
-                {user.access_modes.length === 0 ? (
+                {user.mode_ceiling == null ? (
                   <span className="text-danger">no mode — sees nothing</span>
                 ) : (
-                  user.access_modes
-                    .map(
-                      (m) =>
-                        m.label +
-                        (m.is_default ? " (default)" : "") +
-                        (m.denied_label_keys.length +
-                          m.denied_field_group_keys.length >
-                        0
-                          ? " (narrowed)"
-                          : ""),
-                    )
-                    .join(", ")
+                  `${user.mode_ceiling} / ${user.mode_default}` +
+                  (user.denied_label_keys.length +
+                    user.denied_field_group_keys.length >
+                  0
+                    ? " (narrowed)"
+                    : "")
                 )}
                 <button
                   onClick={() => setModesFor(user.id)}
@@ -319,6 +375,31 @@ export default function Users() {
                     >
                       Edit
                     </button>
+                    {user.status === "active" && user.role_name !== "shared" && (
+                      <button
+                        onClick={() => makeResetLink(user)}
+                        className="text-brand text-xs mr-3"
+                      >
+                        Reset link
+                      </button>
+                    )}
+                    {user.status === "active" && user.username !== myUsername && (
+                      <button
+                        onClick={() => setDisabling(user)}
+                        className="text-danger text-xs mr-3"
+                      >
+                        Disable
+                      </button>
+                    )}
+                    {user.status === "disabled" && (
+                      <button
+                        onClick={() => setStatus(user, "active")}
+                        disabled={busy}
+                        className="text-brand text-xs mr-3"
+                      >
+                        Enable
+                      </button>
+                    )}
                     <button
                       onClick={() => remove(user)}
                       className="text-danger text-xs"
@@ -335,9 +416,9 @@ export default function Users() {
 
       {/*
         Keyed by the account so switching straight from one user's panel to
-        another remounts it: `held` is seeded in a useState initializer, which
-        runs once per mount and would otherwise keep the first account's
-        grants under the second account's name.
+        another remounts it: the panel's state is seeded in useState
+        initializers, which run once per mount and would otherwise keep the
+        first account's ceiling and denials under the second account's name.
       */}
       {modesFor !== null && (
         <AccessModePanel
@@ -348,71 +429,104 @@ export default function Users() {
           onSave={saveAccessModes}
         />
       )}
+
+      {disabling && (
+        <ConfirmModal
+          title={`Disable ${disabling.username}?`}
+          confirmLabel="Disable"
+          danger
+          busy={busy}
+          onConfirm={() => setStatus(disabling, "disabled")}
+          onCancel={() => setDisabling(null)}
+        >
+          This signs {disabling.username} out everywhere, on every device, and
+          the account cannot sign in until you enable it again. Nothing in it
+          is lost.
+        </ConfirmModal>
+      )}
+
+      {resetLink && (
+        <OnceLinkModal
+          title={`Reset link for ${resetLink.user.username}`}
+          link={resetLink.link}
+          expiresAt={resetLink.expires_at}
+          onClose={() => setResetLink(null)}
+        >
+          <p>
+            Give this to {resetLink.user.username} outside the site. It works
+            once, shows them their username, and lets them set a new password;
+            using it signs the account out everywhere. Making a new link stops
+            this one working.
+          </p>
+        </OnceLinkModal>
+      )}
     </div>
   );
 }
 
 /**
- * Which access modes one account holds, and what it is denied from each.
+ * One account's ceiling, login default, and what it is denied.
  *
- * The items under a held mode are rendered as THE MODE'S OWN LIST with
- * tick-to-deny, and that is the whole point rather than a layout choice.
- * Denials only subtract: an account's reach is always a subset of its mode's,
- * so showing the ceiling and letting you remove from it makes the control
- * structurally incapable of expressing something outside it. The server
- * refuses a stray denial with 422; this is why nobody ever sees that error.
+ * The ceiling is the widest mode the account may switch to; the default is
+ * where a login lands, and can only be at or below the ceiling, so the
+ * default select offers nothing above it. The order is each mode's `rank`
+ * from GET /api/access-modes - the SPA keeps no copy of it.
+ *
+ * The denial toggles are THE CEILING'S OWN LIST with tick-to-deny, and that
+ * is the whole point rather than a layout choice. Denials only subtract, and
+ * apply in every mode the account uses, so showing what the ceiling shows
+ * and letting you remove from it makes the control structurally incapable of
+ * expressing something outside it. The server refuses a stray denial with
+ * 422; this is why nobody ever sees that error.
  */
 function AccessModePanel({ user, modes, onClose, onSave }) {
-  const [held, setHeld] = useState(() =>
-    (user?.access_modes ?? []).map((m) => ({
-      mode_id: m.mode_id,
-      is_default: m.is_default,
-      denied_label_keys: [...m.denied_label_keys],
-      denied_field_group_keys: [...m.denied_field_group_keys],
-    })),
+  const ranked = modes
+    .filter((m) => m.rank != null)
+    .sort((a, b) => a.rank - b.rank);
+  const byKey = Object.fromEntries(ranked.map((m) => [m.key, m]));
+
+  const [ceiling, setCeiling] = useState(user?.mode_ceiling ?? null);
+  const [defaultKey, setDefaultKey] = useState(user?.mode_default ?? null);
+  const [deniedLabels, setDeniedLabels] = useState(
+    () => user?.denied_label_keys ?? [],
+  );
+  const [deniedGroups, setDeniedGroups] = useState(
+    () => user?.denied_field_group_keys ?? [],
   );
 
   if (!user) return null;
 
-  const heldIds = new Set(held.map((h) => h.mode_id));
+  const ceilingMode = ceiling ? byKey[ceiling] : null;
+  const shownLabels = ceilingMode?.label_keys ?? [];
+  const shownGroups = ceilingMode?.field_group_keys ?? [];
+  const defaultOptions = ceilingMode
+    ? ranked.filter((m) => m.rank <= ceilingMode.rank)
+    : [];
 
-  function toggleMode(mode) {
-    setHeld((current) =>
-      heldIds.has(mode.system_id)
-        ? current.filter((h) => h.mode_id !== mode.system_id)
-        : [
-            ...current,
-            {
-              mode_id: mode.system_id,
-              is_default: current.length === 0,
-              denied_label_keys: [],
-              denied_field_group_keys: [],
-            },
-          ],
-    );
+  function changeCeiling(key) {
+    const next = key === "" ? null : byKey[key];
+    setCeiling(next ? next.key : null);
+    if (!next) {
+      setDefaultKey(null);
+    } else if (!defaultKey || byKey[defaultKey]?.rank > next.rank) {
+      setDefaultKey(next.key);
+    }
+    // A denial of something the new ceiling does not show subtracts nothing.
+    setDeniedLabels((d) => d.filter((k) => next?.label_keys.includes(k)));
+    setDeniedGroups((d) => d.filter((k) => next?.field_group_keys.includes(k)));
   }
 
-  function setDefault(modeId) {
-    setHeld((current) =>
-      current.map((h) => ({ ...h, is_default: h.mode_id === modeId })),
-    );
+  function toggle(setter, key) {
+    setter((d) => (d.includes(key) ? d.filter((k) => k !== key) : [...d, key]));
   }
 
-  function toggleDenial(modeId, kind, key) {
-    const field =
-      kind === "label" ? "denied_label_keys" : "denied_field_group_keys";
-    setHeld((current) =>
-      current.map((h) =>
-        h.mode_id === modeId
-          ? {
-              ...h,
-              [field]: h[field].includes(key)
-                ? h[field].filter((k) => k !== key)
-                : [...h[field], key],
-            }
-          : h,
-      ),
-    );
+  function save() {
+    onSave(user, {
+      ceiling,
+      default: ceiling ? defaultKey : null,
+      denied_label_keys: deniedLabels,
+      denied_field_group_keys: deniedGroups,
+    });
   }
 
   return (
@@ -422,10 +536,7 @@ function AccessModePanel({ user, modes, onClose, onSave }) {
           Access for {user.username}
         </h2>
         <div className="flex gap-3">
-          <button
-            onClick={() => onSave(user, held)}
-            className="text-brand text-xs font-semibold"
-          >
+          <button onClick={save} className="text-brand text-xs font-semibold">
             Save
           </button>
           <button onClick={onClose} className="text-text-faint text-xs">
@@ -434,94 +545,83 @@ function AccessModePanel({ user, modes, onClose, onSave }) {
         </div>
       </div>
 
-      {held.length === 0 && (
-        <p className="text-xs text-danger mb-3">
-          This account holds no access mode, so it can reach nothing. That is
+      <div className="flex flex-wrap gap-4 text-xs text-text-muted mb-3">
+        <label className="flex flex-col gap-1">
+          Widest mode (ceiling)
+          <select
+            value={ceiling ?? ""}
+            onChange={(e) => changeCeiling(e.target.value)}
+            className="border rounded px-2 py-1 text-xs"
+          >
+            <option value="">No mode</option>
+            {ranked.map((mode) => (
+              <option key={mode.key} value={mode.key}>
+                {mode.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        {ceilingMode && (
+          <label className="flex flex-col gap-1">
+            Lands here at login (default)
+            <select
+              value={defaultKey ?? ""}
+              onChange={(e) => setDefaultKey(e.target.value)}
+              className="border rounded px-2 py-1 text-xs"
+            >
+              {defaultOptions.map((mode) => (
+                <option key={mode.key} value={mode.key}>
+                  {mode.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
+
+      {!ceilingMode ? (
+        <p className="text-xs text-danger">
+          This account has no access mode, so it can reach nothing. That is
           fail-closed rather than broken, but it is almost certainly not what
           you meant.
         </p>
+      ) : shownLabels.length + shownGroups.length === 0 ? (
+        <p className="text-[11px] text-text-faint">
+          This ceiling shows nothing to narrow.
+        </p>
+      ) : (
+        <div className="text-[11px] text-text-faint">
+          <span>Untick to withhold from this account, in every mode:</span>
+          <div className="flex flex-wrap gap-3 mt-1">
+            {shownLabels.map((key) => (
+              <label
+                key={`l-${key}`}
+                className="flex items-center gap-1 cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={!deniedLabels.includes(key)}
+                  onChange={() => toggle(setDeniedLabels, key)}
+                />
+                {key}
+              </label>
+            ))}
+            {shownGroups.map((key) => (
+              <label
+                key={`f-${key}`}
+                className="flex items-center gap-1 cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={!deniedGroups.includes(key)}
+                  onChange={() => toggle(setDeniedGroups, key)}
+                />
+                {key}
+              </label>
+            ))}
+          </div>
+        </div>
       )}
-
-      <div className="space-y-3">
-        {modes.map((mode) => {
-          const grant = held.find((h) => h.mode_id === mode.system_id);
-          return (
-            <div
-              key={mode.system_id}
-              className="border border-border rounded-lg p-3"
-            >
-              <div className="flex items-center gap-3 text-sm">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(grant)}
-                    onChange={() => toggleMode(mode)}
-                  />
-                  <span className="font-medium text-text">{mode.label}</span>
-                </label>
-                {grant && (
-                  <label className="flex items-center gap-2 text-[11px] text-text-faint cursor-pointer">
-                    <input
-                      type="radio"
-                      name={`default-${user.id}`}
-                      checked={grant.is_default}
-                      onChange={() => setDefault(mode.system_id)}
-                    />
-                    lands here at login
-                  </label>
-                )}
-              </div>
-
-              {grant && (
-                <div className="mt-2 pl-6 text-[11px] text-text-faint">
-                  {mode.label_keys.length + mode.field_group_keys.length ===
-                  0 ? (
-                    <span>This mode carries nothing to narrow.</span>
-                  ) : (
-                    <>
-                      <span>Untick to withhold from this account:</span>
-                      <div className="flex flex-wrap gap-3 mt-1">
-                        {mode.label_keys.map((key) => (
-                          <label
-                            key={`l-${key}`}
-                            className="flex items-center gap-1 cursor-pointer"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={!grant.denied_label_keys.includes(key)}
-                              onChange={() =>
-                                toggleDenial(mode.system_id, "label", key)
-                              }
-                            />
-                            {key}
-                          </label>
-                        ))}
-                        {mode.field_group_keys.map((key) => (
-                          <label
-                            key={`f-${key}`}
-                            className="flex items-center gap-1 cursor-pointer"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={
-                                !grant.denied_field_group_keys.includes(key)
-                              }
-                              onChange={() =>
-                                toggleDenial(mode.system_id, "field_group", key)
-                              }
-                            />
-                            {key}
-                          </label>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }
