@@ -95,8 +95,8 @@ type it serves is seeable.
 | `FranchiseType` (Enum) | `Movie`, `TV`, `Cartoon`, `Comic`, `ACG`, `Novel`, `Game`, `H-Comic`, `H-Game`, `Hentai` | backend-internal only | not served |
 | `FRANCHISE_TYPES` | `ACG`, `Anime Movie`, `TV`, `Movie`, `Cartoon`, `Comic`, `Novel`, `Game`, `H-Comic`, `H-Game`, `Hentai` | `franchise.franchise_type` dropdown. `H-Comic`, `H-Game` and `Hentai` are the types code branches on: a franchise carrying one carries that gated type's label and only entries of its family resolve into it ([entry-types.md](entry-types.md#franchise_type-values)) | `franchise_type` |
 | `FRANCHISE_FAMILY_FOR_TYPE` | `H-Comic`, `Hentai` and `H-Game` -> `restricted` (`RESTRICTED_FAMILY`); any other type is `mainstream` (`MAINSTREAM_FAMILY`) | which franchise types may share a franchise, and which franchises an entry may sit in. A franchise type list spanning two families is refused (422) | not served |
-| `FRANCHISE_EXPECTATIONS` | `Highest`, `High`, `Medium`, `Low` | `franchise.franchise_expectation` | `franchise_expectation` |
-| `MY_RATINGS` | `S`, `A+`, `A`, `B`, `C`, `D`, `E`, `F` | `my_rating` on entries, franchise, seasonal, person, character, studio. **Enforced** on `person` and `character`: a write naming anything else is a 422 and `""` is NULL (`app/utils/entity_vocab.py`) | `my_rating` |
+| `FRANCHISE_EXPECTATIONS` | `Highest`, `High`, `Medium`, `Low` | `user_rating.expectation`, the viewer's own expectation of a collection, franchise or series (served as `collection_expectation` / `franchise_expectation` / `series_expectation`). **Enforced** by `PUT /api/me/ratings`: anything else is a 422 | `franchise_expectation` |
+| `MY_RATINGS` | `S`, `A+`, `A`, `B`, `C`, `D`, `E`, `F` | `my_rating` on `user_media_list` (entries), `seasonal`, `user_novel_unit_rating` and `user_rating` (collection, franchise, series, person, character, studio, publisher). **Enforced** on every `user_rating` and unit write through `PUT /api/me/ratings` and `PUT /api/me/novel-units`: a write naming anything else is a 422 and `""` is NULL (`check_my_rating`, `app/utils/entity_vocab.py`) | `my_rating` |
 | `GENDERS` | `男`, `女`, `中性/無性`, `雙性混和`, `其他` | `gender` on `person` and `character`. NULL means not set and is not a sixth value. **Enforced**: a write naming anything else is a 422 and `""` is NULL. A Sheets Pull folds an old free-text cell instead of refusing it - `male` -> `男`, `female` -> `女` (trimmed, any case), anything else unreadable -> NULL - and folds `my_rating` by trimming and upper-casing, the same rules the revision that closed both vocabularies applied to the stored rows | `gender` |
 | `IS_MAIN` | `本傳`, `外傳`, `前傳`, `後傳`, `總集篇` | `is_main` on anime, movies, tv_shows, cartoons, manga, novel (formerly the `Main / Spinoff` system-option category; comic has no `is_main`; games read `GAME_IS_MAIN`) | `is_main` |
 | `MOVIE_TYPES` | `Reality`, `Animation` | movie type | `movie_type` |
@@ -967,9 +967,9 @@ comment asks that the two be kept in step. Seven rows: five person roles plus
 | `Manga Author` · `Novel Author` · `Comic Writer` | `person`, role `author` | one role, three labels: 原作 on a manga, Author on a novel, Writer on a comic |
 | `Manga Author` · `Novel Illustrator` · `Comic Artist` | `person`, role `illustrator` | 作畫 on a manga, Illustrator on a novel, Artist on a comic. `Manga Author` covered this half too, before the split |
 
-`person.my_rating`, `studio.my_rating` and `publisher.my_rating` reuse
-`MY_RATINGS`, and so does `character.my_rating`; on `person` and `character`
-it is enforced, together with `gender` against `GENDERS`
+A rating of a person, studio, publisher or character is the viewer's own
+`user_rating` row, on `MY_RATINGS` and enforced on every write; `gender` is
+enforced against `GENDERS` on `person` and `character`
 ([above](#apputilsconstantspy)). A `character` / `character_voice` shape was once
 designed but not built (see the old "Deferred" note this replaced in
 [systems/credits-and-tags.md](systems/credits-and-tags.md)); the feature that

@@ -31,6 +31,12 @@ catalogue and what is an account's own data is
 > Requests and reports work for `admin`, `super` and `user`. A shared account
 > gets them when the `shared` role exists. Until the header rework, the inbox
 > sits under Pipelines for both admin and super.
+> Ratings and expectations: each account keeps its own rating of every
+> collection, franchise, series, character, person, studio and publisher,
+> its own expectation of every collection, franchise and series, and its own
+> rating of and remark on every novel unit; a guest has none and the admin
+> keeps none ([authorization.md](authorization.md), "Ratings and
+> expectations"). That is the rating and expectation part of the rows below.
 >
 > **Built underneath, not yet as described here:** every account has a mode
 > ceiling and a default, set on the Users page, and switches among the modes

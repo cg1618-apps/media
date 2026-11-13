@@ -223,11 +223,12 @@ short-circuit deliberately does not cover.
 | open studio, publisher, person, character and identity pages, and follow the links to them (`view.entities`) | — | yes | yes | implicit |
 | search (`view.search`) | — | yes | yes | implicit |
 | read quotes, memes, resources, the random picker, future releases, completions (`view.extras`) | — | yes | yes | implicit |
-| read the highlights and the owner's opinions — group and entity ratings and expectations, novel unit remarks (`view.personal`) | — | yes | yes | implicit |
+| read the highlights note sections (`view.personal`) | — | yes | yes | implicit |
 | switch their own access mode | — (no account) | yes | yes | yes |
 | keep a list row — status, rating, progress | — | yes | yes | **never** |
 | keep a plan queue | — | yes | yes | **never** |
 | rate a season | — | yes | yes | **never** |
+| rate a collection, franchise, series, character, person, studio or publisher, set a tier's expectation, rate and remark on a novel unit (`self.list`) | — | yes | yes | **never** |
 | read their own account settings — username and role | — (no account) | yes | yes | yes, through the API; the SPA's `/settings` route asks `self.list`, so it is not drawn for `admin` |
 | change their own password (`self.password`) — the admin sets its own on `/users` | — | **always** | **always** | **never** |
 | write a personal note — a review or a remark | — | yes | yes | **never** |
@@ -348,13 +349,13 @@ The `view` family, as the role editor labels it (`VIEW_PERMISSION_LABELS`):
 | `view.entities` | View Entities | every read on `/api/studio`, `/api/publisher`, `/api/person`, `/api/character` and `/api/character-identity`. In the SPA: the entity libraries and pages, entity names on detail pages rendered as links rather than plain text, the characters hub on franchise and series pages |
 | `view.search` | Search | `GET /api/search/`. In the SPA: the nav search and `/search` |
 | `view.extras` | View Extras | every read on `/api/quote`, `/api/meme`, `/api/resources`, and `GET /api/random-picker-defaults/{mode}`. In the SPA: those pages, the random picker, future releases, completions, and the Quotes and Memes sections on detail pages |
-| `view.personal` | View Personal Content | no route. The `highlights` and `highlight_episodes` note sections, and the personal fields nulled by `personal_gate` - see [Personal fields](#personal-fields-personal_gatepy) |
+| `view.personal` | View Personal Content | no route. The `highlights` and `highlight_episodes` note sections - see [Note scope](#note-scope). Ratings, expectations and novel unit remarks are each account's own and are not behind it - see [Ratings and expectations](#ratings-and-expectations-user_rating) |
 
 Each read route depends on `require_view_entities`, `require_view_search` or
 `require_view_extras` (`resolver.py`) **per route, not on the router**, so a write on the same router answers to
 `manage.catalog` alone and a role holding that is not also required to hold
-the read. `view.personal` has no route gate: it is read inside `note.py` and
-`personal_gate`. The four keys are independent:
+the read. `view.personal` has no route gate: it is read inside `note.py`.
+The four keys are independent:
 a role may hold any subset.
 
 `manage.pipelines` is separate from `manage.catalog` because the two carry
@@ -977,9 +978,9 @@ type's nav row, routes, tabs and pickers out rather than render them empty.
 |---|---|
 | media lists, detail (every type, incl. gating) | `app/routers/_factory.py` (`apply_entry_visibility`, `entry_visible`, `gate`) |
 | credits for an entry | `routers/credits.py` → 404; hidden entries' credits not counted on person/studio |
-| people, characters, character identities, studios, publishers (list, detail, `/entries`, `role-counts`, `role-scopes`, writes) | `routers/person.py`, `character.py`, `character_identity.py`, `studio.py`, `publisher.py` — every read behind `view.entities`, then [Shared records](#shared-records); `my_rating` nulled by [Personal fields](#personal-fields-personal_gatepy) |
+| people, characters, character identities, studios, publishers (list, detail, `/entries`, `role-counts`, `role-scopes`, writes) | `routers/person.py`, `character.py`, `character_identity.py`, `studio.py`, `publisher.py` — every read behind `view.entities`, then [Shared records](#shared-records); `my_rating` is the viewer's own - see [Ratings and expectations](#ratings-and-expectations-user_rating) |
 | option lists (`/api/options/`, `/api/options/{category}`) and option writes | `routers/options.py` (`_visible_options`) — [Shared records](#shared-records) |
-| series (list, detail, writes) | `routers/series.py` (`apply_series_visibility`, `series_visible`) — hidden with a label-hidden franchise; rating and expectation nulled by [Personal fields](#personal-fields-personal_gatepy), as on franchises and collections |
+| series (list, detail, writes) | `routers/series.py` (`apply_series_visibility`, `series_visible`) — hidden with a label-hidden franchise; rating and expectation are the viewer's own, as on franchises and collections - see [Ratings and expectations](#ratings-and-expectations-user_rating) |
 | notes for an owner | `routers/note.py` → 404 for a hidden entry, franchise or series owner (`tier_visible`, `require_visible_owner`), personal sections return only the viewer's own rows (none for a logged-out viewer), and `VIEW_PERSONAL_SECTIONS` (`highlights`, `highlight_episodes`) are withheld from the rows and the section listing without it |
 | quotes (list, grouped, by id) | `routers/quote.py` — every read behind `view.extras`, then `drop_hidden_rows` |
 | memes (list, grouped, by id) | `routers/meme.py` — every read behind `view.extras`; a meme on a hidden entry, franchise or series is dropped; writes use `require_visible_owner` |
@@ -991,8 +992,9 @@ type's nav row, routes, tabs and pickers out rather than render them empty.
 | attaching an image to a media entry or an entity | `routers/images.py` → 404 "Entry not found." An entity owner is asked through `shared_record_visible`; quote/meme owners carry no label and are not checked |
 | serving a cover image (`/api/covers/{owner_type}/{id}.jpg`) | `routers/covers.py` → 404, with its viewer from `cover_viewer.get_cover_viewer` ([cached for 5 s](#the-cover-routes-viewer-cache-cover_viewerpy)). The media type is resolved from the `media` row, never read out of the path: both halves of the pair are caller-supplied there, so trusting the folder would gate an entry under another type's permission. An id naming no `media` row is an entity owner (staff, character, publisher, studio), a shared record asked through `shared_record_visible` (a `character-identity` owner is asked through its character, `identity_visible`); its folder is read from the path, which is safe because the folder names the file |
 | watch-order items, addable candidates | `routers/watch_order.py` (`resolve_items`, `list_candidate_entries`) |
-| search | `routers/search.py` — behind `view.search`; entries, franchises, series and the person/studio/publisher buckets, each bucket passed through [Personal fields](#personal-fields-personal_gatepy) as its own list route is |
+| search | `routers/search.py` — behind `view.search`; entries, franchises, series and the person/studio/publisher buckets, each bucket carrying the viewer's own ratings as its own list route does ([Ratings and expectations](#ratings-and-expectations-user_rating)) |
 | own-list reads and writes (`/api/me/list/{media_id}`) | `routers/me_list.py`, behind `self.list` **and** `entry_visible` in `_media_or_404`. Both are needed: the capability gate alone lets an account holding `self.list` rate an entry it cannot see, or a media type it does not hold, by knowing the uuid. Writes follow reads: 404 with the not-found message, never 403 |
+| own ratings (`/api/me/ratings/{owner_type}/{owner_id}`, `/api/me/novel-units/{unit_id}`) | `routers/me_ratings.py`, behind `self.list` on the router **and** the owner's own read check (`franchise_visible`, `series_visible`, `view.entities` plus `shared_record_visible` for an entity, `entry_visible` on the unit's novel). Writes follow reads: 404 with the owner's not-found message |
 | account settings (`/api/account/settings`) | `routers/account.py` - a read of the caller's own username and role; no path takes a user id, and there is no write |
 | requests and reports (`/api/requests`) | `routers/requests.py` — filing and the caller's own behind `self.requests`, the inbox behind `manage.requests`. **No object check**: a target must exist, not be visible - see [Accepted residuals](#accepted-residuals) |
 | `data_control` / `system` GETs | behind `require_manage_pipelines` |
@@ -1159,41 +1161,45 @@ request".
   refuse a second account's remark outright. See
   [business-rules.md](business-rules.md).
 
-## Personal fields (`personal_gate.py`)
+## Ratings and expectations (`user_rating`)
 
-`strip_personal(viewer, kind, payload, schema)` nulls the fields that record
-the owner's opinion on a catalogue row, for a viewer without `view.personal`.
-A different axis from [Field gating](#field-gating-field_gatepy): that one is
-the access MODE's field groups and ignores `is_root`; this one is a ROLE
-permission asked through `Viewer.has()`, so the root short-circuit reaches it.
+The rating of a collection, franchise, series, character, person, studio or
+publisher, the expectation of the three tiers, and a novel unit's rating and
+remark are **each account's own**, not catalogue columns. They live on
+`user_rating` and `user_novel_unit_rating` (see
+[data-model.md](data-model.md)), and no permission reveals one account's to
+another.
 
-| Kind | Fields nulled |
-|---|---|
-| `collection` | `my_rating`, `collection_expectation` |
-| `franchise` | `my_rating`, `franchise_expectation` |
-| `series` | `my_rating`, `series_expectation` |
-| `person`, `studio`, `publisher`, `character` | `my_rating` |
-| `novel` | `remark` on every item of `units` |
-
-- **Null, not absent.** The key stays in the response, so every viewer gets
-  one shape. That is the opposite of a withheld field group, and deliberate:
-  these fields are on every row, so their presence announces nothing.
-- **A viewer holding `manage.catalog` is exempt.** The catalogue forms load a
-  row with a GET and send it back whole, so a manager handed a null would
-  write the null over the stored value.
-- **Copied, never set.** These are real columns, so an ORM row is copied
-  through the route's response schema before a field is nulled, exactly as
-  `field_gate` does.
-- **Applied where the rows leave:** the list and detail reads of
+- **Read as the viewer's own.** The responses keep the field names
+  (`my_rating`, `collection_expectation`, `franchise_expectation`,
+  `series_expectation`, a unit's `my_rating` and `remark`), filled per
+  request by `app.services.domain.user_rating.attach_ratings` (and
+  `user_list.attach_unit_ratings` for units) from the caller's own rows. A
+  logged-out visitor, and any account with no row, reads **null** - the key
+  is always present, so every viewer gets one shape.
+- **Written under `self.list`**, through
+  `PUT /api/me/ratings/{owner_type}/{owner_id}` and
+  `PUT /api/me/novel-units/{unit_id}` (`routers/me_ratings.py`). The
+  catalogue create and update schemas for the tiers and entities do not
+  carry these fields, so a `manage.catalog` write cannot make one account's
+  opinion everybody's. The one other write path is a novel's `units`
+  payload (`POST` / `PUT /api/novel`, `manage.catalog`): each item's
+  `my_rating` and `remark` are written to the **acting** account's own
+  `user_novel_unit_rating` row (`novel_unit_writer._write_unit_ratings`),
+  never to the unit, and that path does not ask `self.list`.
+- **The admin keeps none.** The root short-circuit does not cover the `self`
+  family, so `admin` gets 401 on both `/api/me` writes and the SPA draws no
+  group or entity rating or expectation editor for it.
+- **Writes follow reads.** An owner the caller's GET would answer 404 for is
+  a 404 on the write too, in the same words, so a hidden row cannot be
+  confirmed by rating it.
+- **Attached where the rows leave:** the list and detail reads of
   `routers/collection.py`, `franchise.py` and `series.py`; the response
-  builders of the four entity routers (`character_responses.py` for
-  characters); the media factory's list and detail reads, after `gate()`;
-  and every search bucket plus `related_franchises`. No list route filters or
-  sorts on these columns, so there is no query parameter to leak them
-  through; the SPA's sorts and the random picker's filters run on the
-  response.
-- **A unit's `my_rating` is not here.** It is the viewer's own rating
-  (`user_novel_unit_rating`), attached per viewer, and a guest has none.
+  builders of the four entity routers; the media factory's novel reads (unit
+  ratings); every search bucket plus `related_franchises`; and Plan Next's
+  expectation (`own_expectations`). No list route filters or sorts on these
+  fields; the SPA's sorts, filters and statistics run on the response, so
+  they work on the viewer's own values.
 
 ## What a guest sees
 
@@ -1209,11 +1215,12 @@ staff, character, identity, seiyuu - render as plain text. The casting rows an
 entry page draws (`/api/casting/{type}/{id}`) and the credits embedded in an
 entry response stay open, because the page needs the names.
 
-**Which OPINIONS:** none. Without `view.personal` a visitor gets the owner's
-rating and expectation of every collection, franchise and series, the rating
-of every person, studio, publisher and character, and every novel unit's
-remark as **null** (see [Personal fields](#personal-fields-personal_gatepy)),
-and no `highlights` or `highlight_episodes` note section at all.
+**Which OPINIONS:** none. A visitor has no account, so every rating and
+expectation of a collection, franchise, series, person, studio, publisher or
+character, and every novel unit's rating and remark, reads **null** (see
+[Ratings and expectations](#ratings-and-expectations-user_rating)); and
+without `view.personal` there is no `highlights` or `highlight_episodes` note
+section at all.
 
 **Which OBJECTS:** a logged-out visitor resolves to the `safe` mode, always.
 It is looked up **by key**, and there is no column anywhere that says
@@ -1275,8 +1282,9 @@ Two rules that are **not** this one:
 ## The admin account holds no user data
 
 An administrative account administers the site. It does not keep a library on
-it — no list rows, no plan queue, no season ratings, no game copies, no
-personal notes, no marks on a game's choice graph.
+it — no list rows, no plan queue, no season ratings, no ratings or
+expectations of groups and entities, no game copies, no personal notes, no
+marks on a game's choice graph.
 
 **The rule is one condition in `Viewer.has()`: the root short-circuit
 does not cover the `self` family.** `self.list`, `self.personal_notes` and
@@ -1667,6 +1675,7 @@ matters is enforced server-side.
 | `tests/api/test_visibility_aggregates.py` | quotes, memes, credits, notes, plan, relations, watch orders, person counts |
 | `tests/api/test_visibility_graph.py` | `/graph` filtering |
 | `tests/api/test_resources.py` | the Resources page: a guest is refused the read (401) and a `user` reads it, against a populated tree; both are refused every write (401), and the same writes succeed for `super` (by grant) and `admin` (root) |
+| `tests/api/test_user_rating.py`, `test_user_rating_migration.py`, `test_user_rating_sheets.py` | two accounts rating one row each read their own, a guest reads null, every write without `self.list` (the admin's included) is 401 against an existing row and changes nothing, the vocabularies on all seven owners, writes following reads, merges moving rows; `u1r2atings3`'s own data steps, run against the test session, filing values under the owner (flag unset with an eligible-looking guest, flag set, admin and guest only) and its downgrade restoring only the owner's; the two Sheets tabs round-tripping and an old sheet's columns landing on the owner |
 | `tests/api/test_guest_has_no_list.py` | a guest reads no status, rating or progress; the personal-column filter matches nothing rather than cross-joining; `installation_owner_id` still answers |
 | `tests/api/test_viewer_user_id.py` | `Viewer.user_id`, and that `acting_user_id` does **not** fall back |
 | `tests/api/test_view_permissions.py` | the `view` family: the four keys in the catalog with labels, offered by the role editor, held by `user` and `super` (by lock) and not by `guest`; every gated read refused to a guest and read by a member against populated rows, and each key opening exactly its own reads; entity writes still need `manage.catalog` and do not need the read; highlights absent from the rows and the section listing; group, entity and novel-unit personal fields null for a guest and present for a member, through list, detail and search, never written back, and present for a catalogue manager without the key |

@@ -20,7 +20,9 @@ card. It carries no technical detail; the tables behind it are
 | Your list: status, rating, progress, completed date, watch day, usefulness | the "My tracker" card on an entry, the libraries' status column |
 | Your plan queue: watch next, read next, rewatch | Plan |
 | Your season ratings | Seasonal |
-| Your rating of each novel volume | a novel's volumes |
+| Your rating and expectation of a collection, franchise or series | the collection, franchise and series pages and their cards |
+| Your rating of a character, person, studio or publisher | their pages and cards |
+| Your rating of, and remark on, each novel volume | a novel's volumes |
 | Your game copies: where you bought it, the format, what you paid | a game's copies |
 | Your progress through a game's choices: what you have done, and a note | a game's Choices card |
 | The watch orders you follow | a watch order's follow toggle |
@@ -44,22 +46,12 @@ sees the same version.
 
 ## Shared today, but one person's opinion
 
-A few things are stored with the catalogue while being the owner's opinion,
-so they are the owner's for everyone, and members cannot set their own:
+One thing is stored with the catalogue while being the owner's opinion, so
+it is the owner's for everyone, and members cannot set their own: whether a
+quote or meme is a favourite.
 
-- the rating and expectation of a collection, franchise or series;
-- the rating of a character, person, studio or publisher;
-- the remark on a novel volume;
-- whether a quote or meme is a favourite.
-
-Members see them; visitors who are not signed in do not.
-
-*Changing:* every rating and every expectation above will become
-**yours** — each account rates and sets expectations for itself, privately.
-The only ratings that stay shared are the scores other sites publish.
-The remark on a novel volume will become yours too, and so will marking a
-quote or meme as a favourite — but only for accounts the admin turns that
-feature on for.
+*Changing:* marking a quote or meme as a favourite will become **yours** —
+but only for accounts the admin turns that feature on for.
 
 *Changing:* highlights will become **yours** — each account keeps its
 own, privately, like the other personal sections. Today they are shared

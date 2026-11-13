@@ -95,7 +95,15 @@ through the root flag, and `guest` does not hold:
 | `view.entities` | the five entity libraries and the studio, publisher, person, character and identity pages | entity names render as plain text (`useEntityHref`, components.md); the franchise and series hubs have no Characters tab |
 | `view.search` | `/search` | `NavSearch` is not drawn — not the inline slot, the phone button or its sheet |
 | `view.extras` | Future Releases, Completions, every `/random` route, `/quote`, `/meme`, `/resources` | the Quotes and Memes note sections are dropped |
-| `view.personal` | none — there is no public profile | no catalogue rating or expectation (cards, the franchise table's Expectation and My columns, the rating and expectation sorts, the hubs' hero stamp and chip, the random picker's franchise filters), no novel unit remark |
+| `view.personal` | none — there is no public profile | the `highlights` and `highlight_episodes` note sections are not drawn |
+
+The viewer's **own** ratings and expectations are not behind a `view.*` key:
+they are drawn for a holder of `self.list` (`useViewScope().ownData`), since
+anyone else has none and the server sends null — the cards' rating stamps and
+expectation chips, the franchise table's Expectation and My columns, the
+rating and expectation sorts and filters, the hubs' hero stamp, chip and
+rating editors, the entity pages' **My rating** select, the random picker's
+franchise filters and a novel unit's remark.
 
 Each route block asks one key, and `navigation.js` asks the same key for the
 rows that link there — the SPA's two permission surfaces have to agree, and
@@ -528,11 +536,11 @@ File `pages/library/CollectionLibrary.jsx`. Raw `fetch` in one `Promise.all`:
 `?limit=2000`, purely to resolve a cover per collection. **Games are not among
 them**, so a game can never supply a collection cover. Search over the five
 collection names; sort `title | my_rating (default) | collection_expectation`
-for a viewer holding `view.personal`. Without it the server sends neither
-value, so only `title` is offered and the list sorts by title whatever was
-chosen. No filter panel, no table view, no admin controls. Renders
-`CollectionCard` with member count; the card's rating stamp and expectation
-chip are drawn only with `view.personal`.
+for a viewer holding `self.list`, the viewer's own values. Without it the
+viewer has neither, so only `title` is offered and the list sorts by title
+whatever was chosen. No filter panel, no table view, no admin controls.
+Renders `CollectionCard` with member count; the card's rating stamp and
+expectation chip are drawn only with `self.list`.
 
 ### FranchiseLibrary — `/library/franchise`
 
@@ -553,15 +561,15 @@ Comic, H-Comic, H-Game, Hentai (each drawn only for a session that can see the t
 such entries) — **there is no Game category**, so a Game-only franchise files
 under "Other". Sort
 `title (default) | my_rating | franchise_expectation`, shared by both views;
-the last two are offered only to a viewer holding `view.personal`, and
-without it the list sorts by title.
+the last two are the viewer's own, offered only to a holder of `self.list`,
+and without it the list sorts by title.
 
 Grid renders `FranchiseCard`. Table view renders the file's `TABLE_COLUMNS`,
 whose markup and class names mirror the table in `LibraryLayout.jsx` so the
 two read as one component: Franchise (a `Link` built by `entityPath`, plain
 text when the row carries no `public_id`), Collection (`md`), Type (`lg`),
 Entries, Expectation (`lg`), My. Expectation and My carry `personal: true`
-and are dropped for a viewer without `view.personal`, as are the card's
+and are dropped for a viewer without `self.list`, as are the card's
 rating stamp and expectation chip. The breakpoint in brackets is where that
 column collapses, so Franchise, Entries and My are what survives at phone
 width; the wrapper is `overflow-auto`, so a wider table scrolls inside itself
@@ -580,7 +588,9 @@ Raw `fetch` of `/api/studio/` alone — the response already carries
 every filter runs client-side. Search runs over **all four** name fields
 (`STUDIO_NAME_FIELDS`), not just the displayed one, so typing "Kyoto
 Animation" finds a studio displayed as "KyoAni". Sort
-`name (default) | credit_count | my_rating`. No table view.
+`name (default) | credit_count | my_rating`, the last — the viewer's own
+rating — offered only to a holder of `self.list` (without it the list sorts by
+name). No table view.
 
 The **Filters** button (`FilterToggleButton`, with the active-chip count)
 toggles a `FilterPanel` over `studioFilterDefs(auth)` from
@@ -590,7 +600,9 @@ toggles a `FilterPanel` over `studioFilterDefs(auth)` from
   **Restricted** parent chip over hentai and h-game, matched against
   `media_types` (the types of the visible entries the studio is credited
   on). No entries matches a studio credited on nothing the viewer can see.
-- **My Rating** — `MY_RATINGS` plus Unrated (null).
+- **My Rating** — `MY_RATINGS` plus Unrated (null), the viewer's own
+  rating; only for a holder of `self.list` (`studioFilterDefs(auth,
+  { ownData })`).
 - **Country** — the countries the loaded studios carry, sorted, plus Not set
   when one has none.
 
@@ -621,7 +633,8 @@ route lives in one place. The response already carries `display_name`,
 `STUDIO_NAME_FIELDS` (`lib/naming.js`, shared by studio, person and
 publisher) and runs over **all four** name fields, so a publisher displayed
 as 木棉花 is still found by typing "Muse Communication". Sort
-`name (default) | credit_count | my_rating`. No table view.
+`name (default) | credit_count | my_rating`, the last as on the studio
+library. No table view.
 
 The filter panel is the studio library's, over `publisherFilterDefs(auth)`,
 open on the same default, with the same Clear all and Reset. **Entry type**
@@ -648,7 +661,8 @@ and the `roles` each person holds, which is what lets every filter run
 client-side — one request serves every filter, where a per-filter request
 would refetch on each click. Search runs over all four name columns
 (`PERSON_NAME_FIELDS`), not just the displayed one. Sort
-`name (default) | credit_count | my_rating`.
+`name (default) | credit_count | my_rating`, the last as on the studio
+library.
 
 The **Filters** button opens a `FilterPanel` over `personFilterDefs(auth)`
 from `lib/entityFilters.js`, open when the page loads and on the studio
@@ -663,7 +677,8 @@ AND across groups:
   `media_types` (the types of the entries the viewer can see the person
   credited or cast on). A gated child the session cannot see is left out,
   and the parent with it once none is left.
-- **My Rating** — `MY_RATINGS` plus Unrated (null).
+- **My Rating** — `MY_RATINGS` plus Unrated (null); only for a holder of
+  `self.list`, as on the studio library.
 - **Gender** — `GENDERS` plus Not set (null).
 
 Each `PersonCard` (`components/cards/StaffCard.jsx`, shared with `/search`)
@@ -692,7 +707,7 @@ sits outside `LIBRARY_CONFIGS` with its route declared before `/library/:type`.
 Raw `fetch` of `/api/character/` alone (server-side `?name=` search is what
 the cast editor's combobox uses instead; this page searches client-side over
 all four name columns). Sort `name (default) | casting_count` ("Appearances")
-`| my_rating`.
+`| my_rating`, the last as on the studio library.
 
 **Cards.** The list is flattened by `characterCards` (`lib/characterCards.js`)
 into one card per character and one per identity in the response's nested
@@ -743,7 +758,7 @@ failing is not.
 Layout: breadcrumb → (admin) the dashed **Admin** strip with **Quick edit**,
 linking to `/modify?id=<system_id>&type=person` → left column with the photo
 (`display_photo_file`: the photo, else the server-resolved fallback cover,
-else `FALLBACK_SVG`) and rating stamp, (admin) a **My rating** select, and a
+else `FALLBACK_SVG`) and rating stamp, (holder of `self.list`) a **My rating** select, and a
 **Naming** card (`NamingCard`, each of the four names that is set) → right column with the
 display name, credited-entry count and, for a person with a `mal_link`, a
 **MyAnimeList** button beside it (`MalButton`, as on the character page; none
@@ -754,9 +769,12 @@ non-admin the remark), (admin) a **Remarks** textarea, then one section per
 group.
 
 The admin controls are `components/info/EntityProfileControls.jsx`, shared
-with the character, studio and publisher pages. The rating select PATCHes
-`{my_rating}` on change (Unrated sends null); the remark PATCHes `{remark}`
-on blur, an emptied one as null and an untouched one not at all. Both go to
+with the character, studio and publisher pages. The rating select is the
+viewer's own and drawn for a holder of `self.list`, not by `isAdmin`: it
+sends `PUT /api/me/ratings/person/{system_id}` `{my_rating}` on change
+(Unrated sends null) and folds the answer into the page's state
+(`useMyRatingSaver`). The remark (admin) PATCHes `{remark}` on blur, an
+emptied one as null and an untouched one not at all, to
 `PATCH /api/person/{system_id}`, and the response becomes the page's state.
 
 The one difference from the studio page: a person may hold several roles, so
@@ -800,8 +818,9 @@ then **Appearance** and **Trait**, each list as a row of `Chip`s in its stored
 order (`tagChips`) ("—" when empty, like every unset row), and a **MAL** row: the `mal_link` as an external link reading
 `Character #<mal_id>` (`MyAnimeList` when no id was derived), "—" without a
 link. The layout and the admin controls — Quick edit
-to `/modify?id=<system_id>&type=character`, the My rating select, the
-Remarks textarea, all PATCHing `/api/character/{system_id}` — are the person
+to `/modify?id=<system_id>&type=character` and the Remarks textarea,
+PATCHing `/api/character/{system_id}`, and the viewer's own My rating select
+(`self.list`, `PUT /api/me/ratings/character/{system_id}`) — are the person
 page's, as is the Naming card in place of a list of other names. The photo
 is `display_photo_file`: the photo, else a casting photo (the chosen entry's,
 then the newest visible), else an entry cover (the same order), else
@@ -888,8 +907,9 @@ fetches (`GET /api/publisher/{id}`, then `.../entries` by the `system_id` it
 returns), the profile call failing being the page's 404 while the entries
 call failing is not, a breadcrumb back to `/library/publisher`, the admin
 strip with Quick edit to `/modify?id=<system_id>&type=publisher`, the
-logo-plus-rating left column with the admin My rating select and the Naming
-card, the Remarks textarea for an admin (the remark row for anyone else), all
+logo-plus-rating left column with the viewer's own My rating select
+(`self.list`, `PUT /api/me/ratings/publisher/{system_id}`) and the Naming
+card, the Remarks textarea for an admin (the remark row for anyone else),
 PATCHing `/api/publisher/{system_id}`, and one section per group the entries
 endpoint returned rendered as the same local `CreditCard`.
 
@@ -933,9 +953,10 @@ Layout:
    group the entries endpoint returned, each entry linking to
    `{nav_path}/{system_id}`.
 
-The admin controls are `EntityProfileControls`, the person page's: the
-rating select PATCHes `{my_rating}` on change and the remark `{remark}` on
-blur, to `PATCH /api/studio/{system_id}`.
+The controls are `EntityProfileControls`, the person page's: the
+viewer's own rating select (`self.list`) sends
+`PUT /api/me/ratings/studio/{system_id}` on change, and the admin's remark
+PATCHes `{remark}` on blur to `PATCH /api/studio/{system_id}`.
 
 Empty `groups` renders "No credited entries" as an ordinary empty state, not
 an error: that is exactly what a viewer whose permissions hide every one of
@@ -966,10 +987,10 @@ so the first available tab is re-picked (Collection keeps "Franchises").
 | | FranchisePage | SeriesPage | CollectionPage |
 |---|---|---|---|
 | Loads | `/api/franchise/{id}`; series, anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, **game** lists `?franchise_id=`, **h-comic**, **hentai** and **h-game** only when `franchise_type` names a type of the restricted family (`H-Comic`, `Hentai` or `H-Game`, `inFranchiseFamily`); `/api/plan-next/?scope=franchise`; parent collection lazily | `/api/series/{id}`; anime, movie, tv-show, cartoon, manga, novel, comic `?series_id=`, **game** included (no anime-movie — they have no series), **h-comic** in its own effect, only for a session that can see the type, **h-game** and **hentai** likewise, and only once the parent franchise has loaded and its `franchise_type` names a type of the restricted family; `/api/plan-next/?scope=series&kind=rewatch`; parent franchise | `/api/collection/{id}`; `/api/franchise/?collection_id=`; eight entry lists, covers only — game is not among them |
-| Hero badges | `TierBadge` with `franchise_type`, names, my_rating, "{x} Expectation" (these two, here and on the other two hubs, only for a viewer holding `view.personal`), parent collection link, "Plan Next: {type} ({bucket})", "To Rewatch/Reread: {type}", total entries, completion bar | same shape with `series_expectation`, rewatch chips, parent franchise link | names, my_rating, `collection_expectation`, "{n} Franchise(s)" |
-| Admin controls | Overall Rating select, Expectation select, **Plan Next** `SizeGroupControls` (per-type checkbox + derived/manual size-group select → PATCH `size_group_manual`), rewatch `PlanKindToggles` | Overall Rating, Expectation, rewatch `PlanKindToggles scope="series"` (no size groups at series level) | Overall Rating, Expectation |
+| Hero badges | `TierBadge` with `franchise_type`, names, my_rating, "{x} Expectation" (these two, here and on the other two hubs, the viewer's own and drawn only for a holder of `self.list`), parent collection link, "Plan Next: {type} ({bucket})", "To Rewatch/Reread: {type}", total entries, completion bar | same shape with `series_expectation`, rewatch chips, parent franchise link | names, my_rating, `collection_expectation`, "{n} Franchise(s)" |
+| Curation controls | Overall Rating and Expectation selects for a holder of `self.list` (`PUT /api/me/ratings/franchise/{id}`); for an admin, **Plan Next** `SizeGroupControls` (per-type checkbox + derived/manual size-group select → PATCH `size_group_manual`) and rewatch `PlanKindToggles` | Overall Rating and Expectation (`self.list`, `PUT /api/me/ratings/series/{id}`); rewatch `PlanKindToggles scope="series"` for an admin (no size groups at series level) | Overall Rating and Expectation (`self.list`, `PUT /api/me/ratings/collection/{id}`) |
 | Remark | textarea (admin editable, guest disabled, shown when admin or non-empty), "Show all" opens `RemarkModal`; saved on blur / modal close via PATCH `{ remark }` | same | same |
-| Tabs | "Media" (counted): Anime, Anime Movies, Manga, Novel, Comic, **Game** ("Base games, DLC & expansions", sorted by `release_date` ascending), **H-Comic**, **H-Game** and **Hentai** (each by `series_number`, then release date; the H-Comic, H-Game and Hentai tabs each allowed by any type of the restricted family), Movies, TV Shows, Cartoons — shown when `franchise_type` allows *and* the list is non-empty; "Extras": Characters (only with `view.entities`), Watch Order, Relations, Notes. Every media tab's "Sort: my rating" option is offered only with `view.personal` | Media tabs by non-empty list only; same extras. Its **Game** tab carries its own sort (release_date default, then title / my_rating / hours_played) and a Game Type filter the other tabs have no equivalent of — a series usually mixes a base game with its DLC | "Members" → Franchises (`FranchiseCard`s); extras Watch Order, Relations, Notes |
+| Tabs | "Media" (counted): Anime, Anime Movies, Manga, Novel, Comic, **Game** ("Base games, DLC & expansions", sorted by `release_date` ascending), **H-Comic**, **H-Game** and **Hentai** (each by `series_number`, then release date; the H-Comic, H-Game and Hentai tabs each allowed by any type of the restricted family), Movies, TV Shows, Cartoons — shown when `franchise_type` allows *and* the list is non-empty; "Extras": Characters (only with `view.entities`), Watch Order, Relations, Notes. Every media tab's "Sort: my rating" option is offered only with `self.list` | Media tabs by non-empty list only; same extras. Its **Game** tab carries its own sort (release_date default, then title / my_rating / hours_played) and a Game Type filter the other tabs have no equivalent of — a series usually mixes a base game with its DLC | "Members" → Franchises (`FranchiseCard`s); extras Watch Order, Relations, Notes |
 
 Plan toggles call `POST /api/plan-next/` `{ media_type, scope, kind, target_id }`
 (409 tolerated) and `DELETE /api/plan-next/target?scope=&media_type=&kind=&target_id=`
@@ -1166,7 +1187,7 @@ Manga uses a local `MangaTrackerBlock` (`ch_fin`, `vol_fin`, `vol_fin_page`,
 | TV | 本傳/外傳, Season, Total Ep, Official Source, Airing Status, Release Date | — | **Genres** card (`GenresCard`); IMDb block with this season's rating, and the whole show's beside it when there is one |
 | Cartoon | + Airing Type, Length Per Ep (min) | — | **Genres** card (`GenresCard`); IMDb block as TV's |
 | Manga | Region, 本傳/外傳, Serialization Status/Platform, Release/End Date, Volume/Chapter Total | 作者 or 原作/作畫, 台灣出版商 (linked), Anime Studio (card shown only when any value) | **Genres** card (`GenresCard`), between Information and Production |
-| Novel | Region, Type, Version, 本傳/外傳, Serialization Status, Release/End Date, Vol Total (JP/KR)/TW, Arc Total, Chapter Total | Author, Illustrator, 台灣出版商 (linked, conditional) | **Genres** card (`GenresCard`), between Information and Production; **Units** card (`NovelUnitsEditor` over the `units` relationship — volume/arc/story/chapter rows with a key, CN/EN name and remark; admins get the editor with drag-to-reorder/add/remove and a Save → PATCH, read-only viewers get a plain list keyed by each row's server-computed `display_key`, whose remark is shown only to a viewer holding `view.personal`; hidden entirely for a viewer when the novel has no units) |
+| Novel | Region, Type, Version, 本傳/外傳, Serialization Status, Release/End Date, Vol Total (JP/KR)/TW, Arc Total, Chapter Total | Author, Illustrator, 台灣出版商 (linked, conditional) | **Genres** card (`GenresCard`), between Information and Production; **Units** card (`NovelUnitsEditor` over the `units` relationship — volume/arc/story/chapter rows with a key, CN/EN name and remark; admins get the editor with drag-to-reorder/add/remove and a Save → PATCH, read-only viewers get a plain list keyed by each row's server-computed `display_key`, each row carrying the viewer's own rating chip and, for a holder of `self.list`, the viewer's own remark; hidden entirely for a viewer when the novel has no units) |
 | Comic | Type, Volume Label, Continuity, Era, Serialization/Reading Status, Release Year, Issue Total, Genre main/sub, 標籤 Label | Writer, Artist, 出版商 (linked, conditional), Imprint | **Events** card (red pills); no Autofill, no `RelationsSection`, no `ScoreBlock` |
 | Game | Type, Main / Remake (`is_main`), Base Game (a link to `/game/{base_game_id}`), Platform, Mode, Combat Mode — only what the game *is*; the rest sits in cards of its own, below | **Production & Release**: Developer (`studioValue`), 發行商 (`publisherValue`, labelled by `publisherLabel` rather than a bare literal), Director, Composer, Release Status, Release Date, Current Patch — always shown, with a dash for an empty field | **Genres** card (Genre, Theme, 標籤 Label — the same `Label` vocabulary anime shows); **Reception** card (Metacritic / Metacritic User, each carrying its own denominator — `96 / 100`, `8.6 / 10` — via the exported `outOf` helper, a missing score showing the card's dash rather than a zero; the public verdict, not mine, which is the stamp on the cover); **Time to Beat** card (`TimeToBeatCard`, after Reception: Main, Main + Extra and Completionist from `hltb_main`, `hltb_main_extra` and `hltb_completionist`, IGDB's time-to-beat in hours, formatted by `hours` in `lib/gameHours.js` - only the recorded figures get a field, and with none recorded the card is left out); **Library** card (Ownership, server-derived; Copies, a count; Steam Progress Sync — whether Steam may write this entry's progress, a fact about the source rather than an answer about a playthrough, so it sits with the copies while playing status and the four completion axes stay editable in the tracker and Completion blocks); **Progress** slip (`GameProgress`: playtime against `hltb_main`, achievements gated on `achievements_total` — nothing renders when neither figure exists, since "0 h / ? h" reads as "played none of it" rather than "never measured"); the **分歧 Choices** card (`ChoiceGraphCard`: a still preview of the game's choice graph and **View all**, see below); **Prices** card (MSRP in USD / JPY / TWD); **Copies** slip (`GameCopiesSection`: one row per `game_copy` — storefront and ownership as chips, then format, acquisition, price with the copy's own currency via `copyPrice`, acquired date and remark — sorted by `position`, and rendered only when the game has copies, so the Library card's count is not their only trace on the page; editing still happens in the Add/Modify tab); a cover-side `ProgressRule` on `hours_played / hltb_main`; a Remarks slip that appears only when a remark already exists; `SourcesCard` with `igdbLink` (under "Where to Look Up") and `steamLink` (under "Where to Play", since a Steam store page is a storefront rather than a reference database); no `RelationsSection`, no `ScoreBlock`, no Cast |
 
@@ -1514,9 +1535,10 @@ mode starts over from that mode's defaults, with no pick.
   what it holds. It filters on franchise type (each type of a multi-type
   franchise counts), the media types it holds an entry of, the status groups
   of the entries it holds (the All mode's groups; a franchise matches when any
-  entry does), expectation, and my rating — the last two only for a viewer
-  holding `view.personal` (`franchiseFilterDefs(types, { personal })`), since
-  without it the server sends neither. It always draws evenly - the
+  entry does), expectation, and my rating — the last two the viewer's own,
+  only for a holder of `self.list` (`franchiseFilterDefs(types, { personal })`,
+  with `personal` from `useViewScope().ownData`), since without it the
+  viewer has neither. It always draws evenly - the
   weights are an entry's own status, rating, plan marks and release, which a
   franchise does not have - so it shows no **Weighted** checkbox. The pick is
   a `FranchiseCard`.

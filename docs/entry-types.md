@@ -259,11 +259,13 @@ unrecognised type is *not* volume-only: it keeps its chapter pair, on both
 sides. Migration `v1o2l3o4n5l6` cleared the historical values once — it is not
 reversible, since nothing else records what `ch_total` was.
 
-Every unit also carries its own `my_rating`, on the same S..F scale as the
-novel's - a per-volume or per-arc grade, shown as a chip beside the unit on
-the detail page and set from a select in `NovelUnitsEditor`. It is
-independent: nothing derives from it, and the novel's own rating stays
-hand-set.
+Every unit also carries the reader's own `my_rating`, on the same S..F
+scale as the novel's - a per-volume or per-arc grade - and the reader's own
+`remark`, both kept per account in `user_novel_unit_rating` rather than on
+the unit. The rating shows as a chip beside the unit on the detail page and
+the remark beside it for a holder of `self.list`; both are set in
+`NovelUnitsEditor`. The rating is independent: nothing derives from it, and
+the novel's own rating stays hand-set.
 
 Only `arc` rows are authoritative for derivation; every other kind is
 enrichment shown on the detail page via `display_key` (`unit_display_key` /

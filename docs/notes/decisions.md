@@ -3967,3 +3967,68 @@ link the admin hands over. Invite links and approval are the second half.
 - **Usernames are unique ignoring case**, by a `lower(username)` index. The
   `[a-z0-9_-]{3,32}` and no-`admin`/`guest` rules apply to new names only,
   so the `admin` account keeps its name.
+
+### Ratings, expectations and the unit remark are each account's own (2026-11-13)
+
+The rating of a collection, franchise, series, character, person, studio or
+publisher, the expectation of the three tiers, and a novel unit's remark were
+columns on the shared rows: one person's opinion, shown to everybody, nulled
+for a viewer without `view.personal` by a `personal_gate` module. They moved
+to per-account rows (revision `u1r2atings3`), so `personal_gate` had nothing
+left to gate and was deleted, and `view.personal` now gates only the
+highlight note sections. That retires the "null, not absent" and
+`manage.catalog` exemption bullets of the `view` family entry above.
+
+- **One `user_rating` table, not seven.** The seven ratings and three
+  expectations are one concept, read one way (`attach_ratings`, one query
+  per page) and written one way (`PUT /api/me/ratings/{owner_type}/{owner_id}`).
+  Seven tables would be seven models, seven Sheets tabs and seven copies of
+  the same delete-when-empty rule. The owner is one FK column per owning
+  table with a `num_nonnulls(...) = 1` CHECK - the shape `note` and
+  `watch_order_follow` already use - rather than an `(owner_type, owner_id)`
+  pair, because a real foreign key cascades: deleting the franchise or the
+  account takes the rating with it, where an FK-less pair leaves orphans for
+  somebody to sweep. The expectation is one `expectation` column with a CHECK
+  that it sits only on a tier; the responses keep their old per-tier field
+  names, so the frontend's sorts, filters and statistics did not change.
+- **The unit remark sits beside the unit rating**, on
+  `user_novel_unit_rating`. It is the same kind of thing one level down - a
+  reader's note on one volume - and that table already existed per reader,
+  so a second unit table would have been a second row to join for one
+  reader's view of one unit.
+- **The migration's owner query is frozen, and never reads `role.is_root`
+  nor picks `guest` or `shared`.** The existing values were one person's, so
+  they move to the installation owner: the flag holder, else the first
+  account by username whose role is none of `admin`, `guest` and `shared`;
+  with values to move and no such account it raises rather than guesses. The
+  query is a literal in the revision, not an import of
+  `installation_owner_id`, because a migration must keep meaning what it
+  meant when it ran, and that function's fallback reads `role.is_root`,
+  which the account rework is to drop, so a revision reading it would stop
+  running once that lands. Production may lack the flag, and the runtime
+  fallback ("first non-root") would happily name a `guest` or `shared`
+  account - handing the owner's ratings to a login anyone may use. Downgrade
+  restores only the owner's values, since the old columns hold one person's;
+  every other account's rows are lost, said in the docstring, and the
+  revision is not marked `irreversible` because the owner's data, all the
+  old shape could hold, comes back whole.
+- **Old-sheet headers are handled in `legacy_personal.py`, not `pull.py`.**
+  A backup taken before the revision carries `my_rating`, the
+  `*_expectation` columns and the unit `remark` on its catalogue tabs, and
+  Pull files them under the installation owner rather than dropping them.
+  `tests/services/test_pipelines_write_no_personal_columns.py` forbids every
+  pipeline module from naming a personal column, `my_rating` among them, so
+  `pull.py` cannot spell those headers. Adding `my_rating` to the guard's
+  `ALLOWED` would have exempted it in every pipeline file, including the
+  ones that must never write a list row's rating. A domain module that owns
+  the header names, pops the values and writes them keeps the guard whole:
+  Pull asks it which headers are legacy and never writes a personal row
+  itself.
+- **Writes sit under `self.list`**, the permission every other piece of an
+  account's own data is written under, so the admin - which the root
+  short-circuit does not give the `self` family - keeps no ratings. The
+  catalogue create and update schemas dropped the fields, so a
+  `manage.catalog` write cannot make one account's opinion everybody's.
+- **A merge moves ratings to the survivor** where that account has none
+  there, and drops the loser's otherwise - the survivor's own rating wins,
+  as its columns do in `merge_fill`.
