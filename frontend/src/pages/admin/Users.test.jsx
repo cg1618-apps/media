@@ -97,6 +97,11 @@ vi.mock("../../hooks/useToast", () => ({
   useToast: () => ({ showToast }),
 }));
 
+// The signed-in admin is alice, so her row is "your own row".
+vi.mock("../../contexts/AuthContext", () => ({
+  useAuth: () => ({ username: "alice" }),
+}));
+
 const fetchJson = vi.fn();
 vi.mock("../../api/client", () => ({
   fetchJson: (...args) => fetchJson(...args),
@@ -225,6 +230,143 @@ describe("the access-mode panel", () => {
     expect(
       fetchJson.mock.calls.some(([, opts]) => opts?.method === "PUT"),
     ).toBe(false);
+  });
+});
+
+/**
+ * The lifecycle controls. Each "not offered" case is paired with a row where
+ * the same control IS offered, so a green proves the row's status, role or
+ * ownership did the hiding rather than the control being missing everywhere.
+ */
+const LIFECYCLE_USERS = [
+  { id: 1, username: "alice", role_name: "admin", status: "active", access_modes: [] },
+  { id: 2, username: "bob", role_name: "user", status: "active", access_modes: [] },
+  { id: 3, username: "shared-normal", role_name: "shared", status: "active", access_modes: [] },
+  { id: 4, username: "dave", role_name: "user", status: "disabled", access_modes: [] },
+  { id: 5, username: "erin", role_name: "user", status: "pending", access_modes: [] },
+];
+
+function rowOf(username) {
+  return screen.getByText(username).closest("tr");
+}
+
+describe("account lifecycle on /users", () => {
+  beforeEach(() => {
+    fetchJson.mockImplementation((url, opts) => {
+      if (url.includes("/reset-link")) {
+        return Promise.resolve({
+          link: "https://media.example/reset?code=abc123",
+          expires_at: "2026-11-14T12:00:00Z",
+        });
+      }
+      if (opts?.method === "PATCH") return Promise.resolve({});
+      if (url.includes("/roles")) return Promise.resolve(ROLES);
+      if (url.includes("/access-modes")) return Promise.resolve(MODES);
+      return Promise.resolve(LIFECYCLE_USERS);
+    });
+  });
+
+  it("shows each account's status", async () => {
+    render(<Users />);
+    await screen.findByText("bob");
+    expect(within(rowOf("bob")).getByText("active")).toBeTruthy();
+    expect(within(rowOf("dave")).getByText("disabled")).toBeTruthy();
+    expect(within(rowOf("erin")).getByText("pending")).toBeTruthy();
+  });
+
+  it("offers Disable on another active account, not on your own", async () => {
+    render(<Users />);
+    await screen.findByText("bob");
+    expect(within(rowOf("bob")).queryByRole("button", { name: "Disable" })).toBeTruthy();
+    expect(within(rowOf("alice")).queryByRole("button", { name: "Disable" })).toBeNull();
+  });
+
+  it("offers Enable on a disabled account and neither on a pending one", async () => {
+    render(<Users />);
+    await screen.findByText("dave");
+    expect(within(rowOf("dave")).queryByRole("button", { name: "Enable" })).toBeTruthy();
+    expect(within(rowOf("dave")).queryByRole("button", { name: "Disable" })).toBeNull();
+    expect(within(rowOf("erin")).queryByRole("button", { name: "Enable" })).toBeNull();
+    expect(within(rowOf("erin")).queryByRole("button", { name: "Disable" })).toBeNull();
+  });
+
+  it("asks before disabling, says it signs out everywhere, then PATCHes", async () => {
+    render(<Users />);
+    await screen.findByText("bob");
+    await userEvent.click(within(rowOf("bob")).getByRole("button", { name: "Disable" }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/signs bob out everywhere/)).toBeTruthy();
+    // Nothing is sent until the confirm.
+    expect(fetchJson.mock.calls.some(([, o]) => o?.method === "PATCH")).toBe(false);
+
+    await userEvent.click(within(dialog).getByRole("button", { name: "Disable" }));
+    await waitFor(() => {
+      const patch = fetchJson.mock.calls.find(([, o]) => o?.method === "PATCH");
+      expect(patch?.[0]).toBe("/api/users/2");
+      expect(JSON.parse(patch[1].body)).toEqual({ status: "disabled" });
+    });
+  });
+
+  it("enables a disabled account", async () => {
+    render(<Users />);
+    await screen.findByText("dave");
+    await userEvent.click(within(rowOf("dave")).getByRole("button", { name: "Enable" }));
+    await waitFor(() => {
+      const patch = fetchJson.mock.calls.find(([, o]) => o?.method === "PATCH");
+      expect(patch?.[0]).toBe("/api/users/4");
+      expect(JSON.parse(patch[1].body)).toEqual({ status: "active" });
+    });
+  });
+
+  it("offers a reset link on an active member, not on a shared or inactive one", async () => {
+    render(<Users />);
+    await screen.findByText("bob");
+    expect(within(rowOf("bob")).queryByRole("button", { name: "Reset link" })).toBeTruthy();
+    expect(
+      within(rowOf("shared-normal")).queryByRole("button", { name: "Reset link" }),
+    ).toBeNull();
+    expect(within(rowOf("dave")).queryByRole("button", { name: "Reset link" })).toBeNull();
+    expect(within(rowOf("erin")).queryByRole("button", { name: "Reset link" })).toBeNull();
+  });
+
+  it("shows the minted link once, with its expiry and a copy button", async () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+
+    render(<Users />);
+    await screen.findByText("bob");
+    await userEvent.click(within(rowOf("bob")).getByRole("button", { name: "Reset link" }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      fetchJson.mock.calls.some(
+        ([url, o]) => url === "/api/users/2/reset-link" && o?.method === "POST",
+      ),
+    ).toBe(true);
+    expect(within(dialog).getByRole("textbox", { name: "Link" })).toHaveValue(
+      "https://media.example/reset?code=abc123",
+    );
+    expect(within(dialog).getByText(/shown only once/)).toBeTruthy();
+    expect(within(dialog).getByText(/Expires/)).toBeTruthy();
+
+    await userEvent.click(within(dialog).getByRole("button", { name: "Copy link" }));
+    expect(writeText).toHaveBeenCalledWith("https://media.example/reset?code=abc123");
+
+    await userEvent.click(within(dialog).getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("says on the password field that setting one signs the account out", async () => {
+    render(<Users />);
+    await screen.findByText("bob");
+    await userEvent.click(within(rowOf("bob")).getByRole("button", { name: "Edit" }));
+    expect(
+      screen.getByPlaceholderText("New password (optional)"),
+    ).toHaveAccessibleDescription(/signs this account out everywhere/);
   });
 });
 

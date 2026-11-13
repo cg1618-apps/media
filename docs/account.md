@@ -68,8 +68,16 @@ your requests except the admin and the owner's account, which handle them.
 1. Choose **Log in** and enter your username and password.
 2. A wrong username and a wrong password get the same message, on purpose.
 
-You stay signed in on that browser until the login expires; then sign in
-again.
+You stay signed in on that browser for **30 days**, whether or not you use
+the site in between; then sign in again.
+
+**Too many wrong attempts.** After several failed sign-ins in a short time,
+you have to wait before trying again. The message says how long. A
+correct password does not skip the wait.
+
+**A disabled account** cannot sign in until the admin turns it back on.
+Nothing in it is lost. You only learn it is disabled after typing the
+right password; a wrong one just says the sign-in failed.
 
 **Saved usernames.** The sign-in page remembers up to three usernames used on
 this browser, so you can pick one instead of typing it. It never remembers a
@@ -79,16 +87,9 @@ password. Remove one with its **×**.
 much of the collection you see, among the modes up to your account's
 ceiling.
 
-*Not available yet:*
-
-- you will stay signed in for 30 days, whether or not you use the site in
-  between;
-- after several failed attempts in a short time you will have to wait
-  before trying again;
-- an account waiting for approval will be told so after the right password;
-  a wrong password will still just say the sign-in failed;
-- a disabled account will not be able to sign in until the admin turns it
-  back on; nothing in it is lost.
+*Not available yet:* an account waiting for approval will be told so after
+the right password; a wrong password will still just say the sign-in
+failed.
 
 ## Getting an account
 
@@ -105,23 +106,23 @@ password.
 4. Once approved, sign in as usual. If the admin declines it, the account is
    removed and the link cannot be used again — ask for a new one.
 
-**Choosing a username** *(when registering opens)*
+**Choosing a username.** These rules apply to every new username, whoever
+sets it:
 
 - 3 to 32 characters: lowercase letters, digits, `_` and `-`.
 - Capital letters count as the same username, so `Kai` and `kai` are one
   name.
 - It cannot contain the words `admin` or `guest` anywhere.
 
-**Choosing a password** *(when registering opens)* — anything you like, as
-long as it is not empty; an extremely long one (over 72 bytes) is refused
-rather than quietly shortened. The form says what is wrong.
+**Choosing a password.** Anything you like, as long as it is not empty. An
+extremely long one (over 72 bytes) is refused rather than quietly
+shortened. The form says what is wrong. The same applies wherever a
+password is set.
 
 ## Forgot your password or username?
 
-Today, ask the admin, who can set a new password for you.
-
-*Not available yet — reset links.* There will be no "email me a link": the
-site does not know how to reach you.
+Ask the admin for a **reset link**. There is no "email me a link": the site
+does not know how to reach you.
 
 1. Contact the admin outside the site and ask for a **reset link**.
    **Log in → Forgot your password or username?** says the same.
@@ -139,10 +140,6 @@ admin changes their password.
 
 ## Changing your password
 
-Today, ask the admin.
-
-*Not available yet — changing it yourself:*
-
 1. Open **Settings → Password**.
 2. Enter your current password, then the new one twice.
 3. Save. You stay signed in, here and on your other devices.
@@ -153,25 +150,28 @@ Shared accounts have no password setting.
 
 ## Signing out
 
-**Log out** ends the session on this browser only. *Not available yet:* a
-password reset will sign out every device; there will be no separate "sign
-out everywhere".
+**Log out** ends the session on this browser only. A password reset signs
+out every device, and so does the admin setting your password or
+disabling your account. There is no separate "sign out everywhere".
 
 ## For the admin
 
 - **Create an account** — on `/users`, with a username, password, role and
   access modes. It works at once.
-- **Set a password** — `/users` sets any account's password.
-
-*Not available yet:*
-
-- **Invite someone** — make an invite link and hand it over. Pending
-  registrations wait on `/system`; approving sets the role (`user` by
-  default) and the modes (ceiling and default `normal`). Declining removes
-  the account.
+- **Set a password** — `/users` sets any account's password, and signs
+  that account out everywhere. Setting your **own** password there keeps
+  this browser signed in and signs out your other devices.
 - **Someone is locked out** — on `/users`, make a **reset link** for their
-  account and hand it over. It is shown once.
+  account and hand it over. It is shown once. A shared account gets no
+  reset link; set its password instead.
 - **Disable an account** — it cannot sign in and is signed out everywhere;
-  its data stays. Enable it again on `/users`.
-- **Locked out yourself** — a reset-link command on the box;
-  [authentication.md](authentication.md) will have it.
+  its data stays. Enable it again on `/users`. You cannot disable your own
+  account.
+- **Locked out yourself** — run the reset-link command on the box, as
+  given in [authentication.md](authentication.md), and open the link it
+  prints.
+
+*Not available yet:* **invite someone** — make an invite link and hand it
+over. Pending registrations wait on `/system`; approving sets the role
+(`user` by default) and the modes (ceiling and default `normal`).
+Declining removes the account.

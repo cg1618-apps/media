@@ -67,14 +67,14 @@ def test_replacing_replaces_the_denials_wholesale(
         json={
             "ceiling": MODE_BORDERLINE,
             "default": MODE_BORDERLINE,
-            "denied_field_group_keys": ["sources_other"],
+            "denied_field_group_keys": ["sources_restricted"],
         },
     )
 
     rows = db_session.query(models.UserAccessModeDenial).filter(
         models.UserAccessModeDenial.user_id == plain_user.id
     )
-    assert [(r.label_id, r.field_group_key) for r in rows] == [(None, "sources_other")]
+    assert [(r.label_id, r.field_group_key) for r in rows] == [(None, "sources_restricted")]
 
 
 def test_parking_an_account_clears_its_denials(

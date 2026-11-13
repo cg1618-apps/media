@@ -2224,10 +2224,12 @@ over `role.name` so login can still return it and mint it as a JWT claim.
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `id` | UUID | no | uuid4 | PK (named `id`, not `system_id`) |
-| `username` | String | no | | UNIQUE, indexed |
-| `hashed_password` | String | no | | |
+| `username` | String | no | | UNIQUE, indexed. Also unique **ignoring case**: `uq_users_username_lower` is a unique index over `lower(username)`, so `Kai` and `kai` cannot both exist, and it is the index login's lowercased lookup uses. A new name passes `validate_new_username` (lowercase `[a-z0-9_-]{3,32}`, no `admin` or `guest` inside it); stored names are not re-checked |
+| `hashed_password` | String | no | | bcrypt. Never travels on Sheets |
 | `role_id` | UUID | **no** | | FK `role.system_id` ON DELETE **RESTRICT**, indexed |
 | `is_installation_owner` | Boolean | **no** | `false` (server default) | Whose rows a Sheets restore and the Calculate pipeline file under when nobody is logged in - `installation_owner_id()`. **Not a permission** and not on any request path. Partial unique index `ix_one_installation_owner` over a constant, so at most one account in the table holds it and any number hold false. It is data rather than a name in code so that moving the collection to another account is a row edit, and so the answer travels between the two machines on the Sheets `Users` tab - `parse_user_from_sheet` names it explicitly, because that parser is a projection and not a column sweep. |
+| `status` | String | **no** | `active` (server default) | `pending` / `active` / `disabled`, CHECK `ck_users_status`. Only `active` can sign in or hold a session: login answers 403 for the other two after a correct password, and `resolve_viewer` reads their tokens as the guest. `pending` is a registration awaiting approval; `disabled` is set and cleared on `/users`. Travels on the Sheets `Users` tab for `active` and `disabled` |
+| `session_version` | Integer | **no** | `0` (server default) | The revocation counter. A login token carries it as `sv`, and a token whose `sv` differs resolves as the guest - so incrementing it, always through `revoke_sessions()`, ends every session the account holds. A reset spent, disabling, and the admin setting the password increment it. **Never travels** on Sheets: it is this machine's count |
 | `open_request_limit` | Integer | yes | | How many **open** requests the account may hold at once; NULL is no limit. CHECK `ck_users_open_request_limit_non_negative` (≥ 0). Set to the role's default when the account is created or changes role (15 for `user`, NULL otherwise) and adjustable on the Users page; never enforced, and never settable, for `super`. Travels on the Sheets `Users` tab (`parse_user_from_sheet` names it); a sheet with no header for it leaves the local value alone. |
 | `mode_ceiling` | String | yes | `normal` (server default) | The widest access mode the account may use: a mode **key**, ranked by `seed_modes.MODE_ORDER` (`safe < normal < borderline < unrestricted`). NULL together with `mode_default` is no mode - the account resolves the empty object set. Written by `services/rbac/modes.py::set_mode_ceiling`. A key rather than an `access_mode` id: the order is defined on keys, and a key survives a Pull where a per-database uuid does not. |
 | `mode_default` | String | yes | `normal` (server default) | The mode a login lands in; at or below the ceiling. |
@@ -2248,8 +2250,30 @@ is no visibility flag: everything per user is private to its account.
 **Four** roles are seeded and read by name - `guest`, `user`, `super`,
 `admin`; see [authorization.md](authorization.md#roles). An account on the
 `user` role holds guest's reads, the `view.*` family, and `self.list`,
-`self.personal_notes` and `self.requests`; `super` adds the three `manage.*`
-and is deliberately **not** `is_root`.
+`self.personal_notes`, `self.requests` and `self.password`; `super` adds the
+three `manage.*` and is deliberately **not** `is_root`.
+
+### `account_code`
+
+The one-time codes behind password reset links (and invite links, which use the
+same table). Model: `AccountCode` (`app/models/account_code.py`); minted and
+spent only through `app/services/domain/account_codes.py`. See
+[authentication.md](authentication.md#reset-links).
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `purpose` | String | no | | `invite` / `reset`, CHECK `ck_account_code_purpose` |
+| `code_hash` | String | no | | UNIQUE. **SHA-256** hex of the code, which is 32 random bytes (`secrets.token_urlsafe(32)`) and is never stored. A fast hash, because the code is high-entropy; it is the column a code is looked up by |
+| `user_id` | UUID | yes | | FK `users.id` ON DELETE **CASCADE** (`fk_account_code_user`), indexed. The account a reset link resets - CHECK `ck_account_code_reset_has_user` requires it on a `reset` row |
+| `created_by_id` | UUID | yes | | FK `users.id` ON DELETE **SET NULL** (`fk_account_code_created_by`). Who issued it; null from the CLI |
+| `created_at` | DateTime (tz) | no | | |
+| `expires_at` | DateTime (tz) | no | | `created_at` + 24 hours |
+| `spent_at` | DateTime (tz) | yes | | Null until spent |
+
+Issuing a reset link deletes the account's **unspent** reset rows in the same
+transaction, so a newer link stops an older one working. Spent and expired
+rows are kept. No Sheets tab: a code means nothing on the other machine.
 
 ### `content_label`
 

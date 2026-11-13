@@ -28,6 +28,3 @@ collected, the NG reset button, 下周目目標 — whose design is
 What each viewer sees is [viewers.md](viewers.md).
 
 Design: [superpowers/specs/2026-11-03-account-system-design.md](superpowers/specs/2026-11-03-account-system-design.md).
-
-Until it lands, sessions are a flat 30 days with no revocation and there is
-no password reset — an admin sets one at `/users`.

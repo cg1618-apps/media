@@ -19,6 +19,7 @@ from app import models
 from app.database import SQLALCHEMY_DATABASE_URL, Base
 from app.dependencies import get_db
 from app.main import app
+from app.services import rate_limit
 from app.services.domain.gated_labels import ensure_system_labels
 from app.services.integrations import image_manager, sheets
 from app.services.rbac import cache as rbac_cache
@@ -179,6 +180,21 @@ def _clear_permission_cache():
     yield
     rbac_cache.bump()
     _FIXED_LABEL_SCOPES.clear()
+
+
+@pytest.fixture(autouse=True)
+def _clear_rate_limits():
+    """
+    Empty the login and reset rate limiter around every test.
+
+    It is a process-global dict (app/services/rate_limit.py) and every test
+    client calls from the same address, so without this the sixth test to get
+    a password wrong would be refused with a 429 for reasons that have nothing
+    to do with it.
+    """
+    rate_limit.clear()
+    yield
+    rate_limit.clear()
 
 
 @pytest.fixture(scope="function")

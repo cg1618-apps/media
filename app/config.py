@@ -66,11 +66,11 @@ class Settings(BaseSettings):
     # --- Auth / JWT ---
     jwt_secret_key: str = "fallback_dev_secret_key_change_me_in_prod"
     algorithm: str = "HS256"
-    # 30 days. A login is expected to last until someone deliberately logs
-    # out; this is a single-owner catalogue, not a shared terminal. Note
-    # there is no revocation: nothing short of deleting the user or
-    # changing their role ends a session early, and a password change does
-    # not - see docs/authentication.md.
+    # 30 days, flat: nothing reissues the login token, so a session never
+    # outlives the month it was minted for. What ends one early is the `sv`
+    # claim against users.session_version - a reset spent, the account
+    # disabled, or the admin setting its password. Changing your own password
+    # does not. See docs/authentication.md.
     access_token_expire_minutes: int = 43200
     # How long a switched-to access mode WIDER than the account's default lasts
     # before the session falls back to the default; a narrower one lasts as
@@ -79,6 +79,11 @@ class Settings(BaseSettings):
     # that restores its session, and the one that is never closed.
     access_mode_override_minutes: int = 60
     admin_password: str = "admin123"
+    # Where the site is reached, with no trailing slash. Reset links are built
+    # on it - by the /users route and by the CLI on the box, which has no
+    # request to read a host from. The default is production's, so the box
+    # needs no variable; a development machine sets http://localhost:5173.
+    public_base_url: str = "https://media.cg1618.com"
 
     # --- Image uploads ---
     # A cap on what one upload may weigh, checked twice: against the declared

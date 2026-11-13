@@ -163,12 +163,15 @@ its own commit. Each of the twelve entry tabs drops its constant `media_type`
 column and appends a derived, read-only `display_name` for the human reader;
 Pull drops any header that is not a column of the model (`drop_non_columns`).
 
-**`Users`** carries `id`, `username`, `is_installation_owner`, `open_request_limit` and `role`.
+**`Users`** carries `id`, `username`, `is_installation_owner`, `status`, `open_request_limit` and `role`.
 An older sheet whose Users tab still has a `list_is_public` header Pulls
 cleanly: `RETIRED_HEADERS` in `pull.py` names it, so `unexpected_headers` does
 not report it among the run's `unresolved_refs` the way it reports a stale
 header, and the value is not read.
-`hashed_password` and `role_id` are dropped. `role_id` because
+`hashed_password`, `role_id` and `session_version` are dropped.
+`session_version` because it is this machine's revocation counter: carried
+across, it would sign people out on the other machine for nothing, or roll a
+counter back and revive a token revoked here. `role_id` because
 `role.system_id` is minted per database by `ensure_rbac_seed`, so the role
 **name** travels instead and Pull resolves it locally - the same arrangement
 `Media Source` has with `option_id`; a role name this database does not know
@@ -180,6 +183,12 @@ boundary; Pull stamps `UNUSABLE_PASSWORD_HASH` on an account it creates and
 **never** touches an existing account's hash. The identity is `username`
 (UNIQUE), not `id`: the lifespan mints the `admin` account on every machine,
 so the same person holds a different uuid here and there.
+
+The tab carries **`status`** for `active` and `disabled`, so a Pull does not
+re-activate an account disabled on the other machine. Any other value, and a
+sheet with no `status` column, sets nothing: an existing account keeps its own
+status and a new one starts `active`, the column default. `pending` does not
+travel - a registration is approved on the machine it arrived on.
 
 The tab also carries **`is_installation_owner`**, so the two machines agree
 about whose collection this is. A restored `true` clears the flag from

@@ -135,6 +135,7 @@ the two-stage cursor stepper.
 | `test_engine` | session | Engine on `media_test` with a fresh schema and seeded roles |
 | `db_session` | function | SQLAlchemy session inside a rolled-back transaction (savepoint mode) |
 | `_clear_permission_cache` | function, autouse | RBAC cache bumped before and after the test |
+| `_clear_rate_limits` | function, autouse | The login and reset rate limiter (`app/services/rate_limit.py`) emptied before and after the test. It is a process-global dict and every test client calls from the same address, so without it the sixth wrong password in a run would be refused with a 429 |
 | `client` | function | Unauthenticated `TestClient` with `get_db` overridden to `db_session` |
 | `admin_client` | function | `TestClient` with a `testadmin` user (role `admin`) inserted, its mode ceiling and default set to `unrestricted`, and a valid `access_token` cookie |
 | `user_client` / `plain_user` | function | The same for an account on the `user` role |

@@ -5,26 +5,48 @@ User accounts, created and managed by the admin.
 There is no self-registration by design: accounts exist so one person can hand
 out a level of access, not so strangers can ask for one.
 
-Two guards exist because both mistakes lock the admin out of their own site:
-you cannot delete yourself, and you cannot remove the last account that can
-still administer anything.
+Three guards exist because each mistake locks the admin out of their own site:
+you cannot delete or disable yourself, and you cannot remove the last active
+account that can still administer anything.
+
+Every NEW username and password passes the checks in services/security.py
+(validate_new_username, validate_new_password), and a refusal is a 422 whose
+detail is the sentence to show. Names already stored are left alone.
 """
 
 import logging
 from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.dependencies import get_db
+from app.models.system import (
+    USER_STATUS_ACTIVE,
+    USER_STATUS_DISABLED,
+    USER_STATUS_PENDING,
+)
+from app.services.domain.account_codes import issue_reset_link, reset_refusal
+from app.services.domain.accounts import (
+    ADMIN_SET_PASSWORD_REVOKES_SESSIONS,
+    KEEP_OWN_SESSION_ON_ADMIN_SET_PASSWORD,
+    login_deadline,
+    revoke_sessions,
+    set_login_cookie,
+)
 from app.services.domain.requests import default_request_limit, limit_is_fixed
 from app.services.rbac import cache
 from app.services.rbac.modes import ModeSets, check_mode_pair, set_mode_ceiling
 from app.services.rbac.permissions import PERM_ADMIN_AUTHZ
 from app.services.rbac.resolver import Viewer, require_admin_authz, role_for_user
-from app.services.security import get_password_hash
+from app.services.security import (
+    get_password_hash,
+    validate_new_password,
+    validate_new_username,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +98,7 @@ def _to_response(
         mode_default=user.mode_default,
         denied_label_keys=denied_labels,
         denied_field_group_keys=denied_groups,
+        status=user.status,
         open_request_limit=user.open_request_limit,
     )
 
@@ -85,6 +108,24 @@ def _get_or_404(db: Session, user_id: UUID) -> models.User:
     if user is None:
         raise HTTPException(status_code=404, detail="User not found.")
     return user
+
+
+def _checked(check, value):
+    """Run one of the security.py checks, answering a refusal as a 422."""
+    try:
+        return check(value)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+
+def _name_taken(db: Session, username: str, excluding: UUID = None) -> bool:
+    """Case-insensitive, as uq_users_username_lower is."""
+    query = db.query(models.User).filter(
+        func.lower(models.User.username) == username.lower()
+    )
+    if excluding is not None:
+        query = query.filter(models.User.id != excluding)
+    return query.first() is not None
 
 
 def _role_or_422(db: Session, role_id: UUID) -> models.Role:
@@ -117,9 +158,14 @@ def _can_administer(db: Session, role: models.Role) -> bool:
 
 
 def _admin_count(db: Session, excluding: UUID = None) -> int:
+    """Accounts that can administer the site right now. A disabled one cannot
+    sign in, so it does not count - otherwise disabling the other admin and
+    then demoting yourself would leave nobody."""
     count = 0
     for user in db.query(models.User).all():
         if excluding is not None and user.id == excluding:
+            continue
+        if user.status != USER_STATUS_ACTIVE:
             continue
         if _can_administer(db, role_for_user(db, user)):
             count += 1
@@ -139,7 +185,9 @@ def list_users(db: Session = Depends(get_db)):
     summary="Create User",
 )
 def create_user(payload: schemas.ManagedUserCreate, db: Session = Depends(get_db)):
-    if db.query(models.User).filter(models.User.username == payload.username).first():
+    _checked(validate_new_username, payload.username)
+    _checked(validate_new_password, payload.password)
+    if _name_taken(db, payload.username):
         raise HTTPException(status_code=409, detail="That username is taken.")
     role = _role_or_422(db, payload.role_id)
 
@@ -255,9 +303,23 @@ def replace_access_modes(
 def update_user(
     user_id: UUID,
     payload: schemas.ManagedUserUpdate,
+    response: Response,
     db: Session = Depends(get_db),
     admin: Viewer = Depends(require_admin_authz),
 ):
+    """
+    Rename, set a password, change role, or disable / enable.
+
+    Setting a password ends the account's sessions
+    (ADMIN_SET_PASSWORD_REVOKES_SESSIONS) and so does disabling it; enabling
+    does not, because the sessions already ended when it was disabled. A
+    pending registration is approved or declined, not edited here (409).
+
+    When the account is the caller's own, the caller's browser is given a
+    fresh cookie at the new counter and the old deadline
+    (KEEP_OWN_SESSION_ON_ADMIN_SET_PASSWORD), so it alone stays signed in.
+    """
+    own_sessions_revoked = False
     user = _get_or_404(db, user_id)
     new_role = None
     if payload.role_id and payload.role_id != user.role_id:
@@ -274,18 +336,36 @@ def update_user(
             detail="A super account has no open-request limit.",
         )
 
-    if payload.username and payload.username != user.username:
-        clash = (
-            db.query(models.User)
-            .filter(models.User.username == payload.username)
-            .first()
+    if user.status == USER_STATUS_PENDING:
+        raise HTTPException(
+            status_code=409,
+            detail="A pending registration is approved or declined, not edited.",
         )
-        if clash:
+    if (
+        payload.status == USER_STATUS_DISABLED
+        and admin.username == user.username
+    ):
+        raise HTTPException(status_code=409, detail="You cannot disable yourself.")
+
+    if payload.username is not None and payload.username != user.username:
+        _checked(validate_new_username, payload.username)
+        if _name_taken(db, payload.username, excluding=user.id):
             raise HTTPException(status_code=409, detail="That username is taken.")
         user.username = payload.username
 
-    if payload.password:
+    # None is "leave it"; anything else, the empty string included, is a new
+    # password and passes the checks.
+    if payload.password is not None:
+        _checked(validate_new_password, payload.password)
         user.hashed_password = get_password_hash(payload.password)
+        if ADMIN_SET_PASSWORD_REVOKES_SESSIONS:
+            revoke_sessions(user)
+            own_sessions_revoked = admin.user_id == user.id
+
+    if payload.status is not None and payload.status != user.status:
+        if payload.status == USER_STATUS_DISABLED:
+            revoke_sessions(user)
+        user.status = payload.status
 
     if new_role is not None:
         would_lose_admin = _can_administer(
@@ -308,7 +388,38 @@ def update_user(
     db.commit()
     db.refresh(user)
     cache.bump()
+    if own_sessions_revoked and KEEP_OWN_SESSION_ON_ADMIN_SET_PASSWORD:
+        set_login_cookie(
+            response, db, user, expires_at=login_deadline(admin.token_payload)
+        )
     return _to_response(user, db)
+
+
+@router.post(
+    "/{user_id}/reset-link",
+    response_model=schemas.ResetLinkResponse,
+    summary="Issue a password reset link",
+)
+def create_reset_link(
+    user_id: UUID,
+    db: Session = Depends(get_db),
+    admin: Viewer = Depends(require_admin_authz),
+):
+    """
+    A one-time link that lets the account set a new password, valid 24 hours.
+
+    Returned once: only a hash of the code is stored, so the link cannot be
+    shown again - issuing another replaces it, and the older link stops
+    working. Active, non-shared accounts only (409 otherwise).
+    """
+    user = _get_or_404(db, user_id)
+    refusal = reset_refusal(user)
+    if refusal:
+        raise HTTPException(status_code=409, detail=refusal)
+    link, expires_at = issue_reset_link(db, user, created_by_id=admin.user_id)
+    db.commit()
+    logger.info("%s issued a reset link for %s", admin.username, user.username)
+    return {"link": link, "expires_at": expires_at}
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)

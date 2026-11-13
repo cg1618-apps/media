@@ -138,24 +138,25 @@ def test_both_none_is_no_mode(db_session, member):
 def test_lowering_the_ceiling_prunes_denials_it_no_longer_shows(
     db_session, member, nsfw_label
 ):
-    """`borderline` shows nsfw and every field group; `safe` shows neither
-    nsfw nor sources_restricted. Lowering to safe drops both denials and
-    keeps the one on a group safe still shows."""
+    """`borderline` shows nsfw and sources_restricted; `normal` still shows
+    sources_restricted, and `safe` shows neither. Lowering to normal keeps the
+    group denial; lowering to safe drops every denial."""
     set_mode_ceiling(db_session, member, MODE_BORDERLINE, MODE_BORDERLINE)
     for row in (
         models.UserAccessModeDenial(user_id=member.id, label_id=nsfw_label.system_id),
         models.UserAccessModeDenial(
             user_id=member.id, field_group_key="sources_restricted"
         ),
-        models.UserAccessModeDenial(user_id=member.id, field_group_key="sources_other"),
     ):
         db_session.add(row)
     db_session.flush()
-    assert len(_denials(db_session, member)) == 3
+    assert len(_denials(db_session, member)) == 2
+
+    set_mode_ceiling(db_session, member, MODE_NORMAL, MODE_NORMAL)
+    assert (None, "sources_restricted") in _denials(db_session, member)
 
     set_mode_ceiling(db_session, member, MODE_SAFE, MODE_SAFE)
-
-    assert _denials(db_session, member) == {(None, "sources_other")}
+    assert _denials(db_session, member) == set()
 
 
 # ---------------------------------------------------------------------------
@@ -302,7 +303,7 @@ def test_a_denial_the_ceiling_shows_is_accepted(
             "ceiling": MODE_BORDERLINE,
             "default": MODE_NORMAL,
             "denied_label_keys": [nsfw_label.key],
-            "denied_field_group_keys": ["sources_other"],
+            "denied_field_group_keys": ["sources_restricted"],
         },
     )
 
@@ -311,10 +312,10 @@ def test_a_denial_the_ceiling_shows_is_accepted(
     assert body["mode_ceiling"] == MODE_BORDERLINE
     assert body["mode_default"] == MODE_NORMAL
     assert body["denied_label_keys"] == [nsfw_label.key]
-    assert body["denied_field_group_keys"] == ["sources_other"]
+    assert body["denied_field_group_keys"] == ["sources_restricted"]
     assert _denials(db_session, member) == {
         (nsfw_label.system_id, None),
-        (None, "sources_other"),
+        (None, "sources_restricted"),
     }
 
 

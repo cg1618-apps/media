@@ -29,7 +29,7 @@ rows. Lossless for every state this revision's code can produce; what it
 cannot restore is a gap the upgrade filled.
 
 Revision ID: m1c2eiling345
-Revises: n1o2tesrwk3
+Revises: a1c2codes345
 Create Date: 2026-11-13 00:00:00.000000
 
 """
@@ -42,7 +42,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "m1c2eiling345"
-down_revision: Union[str, Sequence[str], None] = "n1o2tesrwk3"
+down_revision: Union[str, Sequence[str], None] = "a1c2codes345"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
