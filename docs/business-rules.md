@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-10-28
+Last verified: 2026-11-13
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -908,39 +908,6 @@ Two consequences worth knowing:
 
 ---
 
-## 10b. Rating grades as points (`app/services/domain/rating_points.py`)
-
-`my_rating` is one of `MY_RATINGS` - `S`, `A+`, `A`, `B`, `C`, `D`, `E`, `F` -
-stored as a **String** on every table that has it. Two things need it as a
-number: ordering a profile's list best-first, and averaging the public lists'
-opinion of one work. Neither can touch the column directly: `ORDER BY
-my_rating DESC` sorts alphabetically, putting `A+` above `A` and `S` last, and
-`my_rating::numeric` raises `invalid input syntax for type numeric: "A+"` on
-the first row.
-
-One module owns the mapping, so the list page and the statistics page cannot
-disagree:
-
-| Helper | Does |
-|---|---|
-| `RATING_POINTS` | `{"S": 8, "A+": 7, ... "F": 1}` - the index of `MY_RATINGS` reversed, so **`S` outranks `A+`** |
-| `rating_points(letter)` | points for one grade; `None` for missing, blank or unknown |
-| `points_to_letter(points)` | the declared letter nearest to a number |
-| `rating_rank_case(column)` | a SQL `CASE` for `ORDER BY` and `AVG`; unknown and NULL become NULL, so `NULLS LAST` sinks unrated rows and `AVG` skips them |
-
-**The scale is ordinal, not interval** - the gap between S and A+ is not
-claimed to equal the gap between E and F. That is why an average is rendered as
-the nearest letter rather than as a bare figure, and always alongside its
-sample size: a community aggregate showing "B" is honest about the vocabulary,
-where "3.7" would invent a precision the data does not have. `/api/constants` serves
-`my_rating` from `MY_RATINGS`, but the browser does **not** read it for this:
-`RATING_ORDER` is still hard-coded in `components/info/RatingDistributionBlock.jsx`
-and `pages/statistics/StatsFranchiseSummary.jsx`. Two more copies of one order,
-and a ranking that disagrees between pages is the kind of bug nobody reports
-and everybody sees - keep them in step, or move them onto the endpoint.
-
----
-
 ## 10c. A season's IMDb rating (`app/utils/omdb_utils.py`)
 
 A TV show or `TV` cartoon entry is one season, and IMDb rates only the whole
@@ -1302,11 +1269,12 @@ reads them back, only writes them (`autofill.py`) or displays them
 (`SourcesCard`).
 
 On the RBAC side, gating a `media_source` bucket does much heavier lifting on
-the reading types than on the watching ones: a viewer holding neither
-`sources_other` nor `sources_restricted` sees a manga's Sources card with
-reference links only and **no reading sources at all** (manga, comic and game have
-no `main`-bucket access platforms — see [entry-types.md](entry-types.md)),
-where the same role still sees 動畫瘋 and Netflix on an anime. That
+the reading types than on the watching ones: a viewer without
+`sources_restricted` sees a manga's Sources card with reference links and the
+`other` bucket only, and **none of its restricted reading sources** (manga,
+comic and game have no `main`-bucket access platforms — see
+[entry-types.md](entry-types.md)), where the same viewer still sees 動畫瘋 and
+Netflix on an anime. That
 asymmetry is the intent of the restricted tier, not an oversight.
 
 The entry cards draw every available `main` access row as its icon
@@ -1319,6 +1287,47 @@ The icon itself is looked up by the vocabulary value's name in
 drops its icon until the map is updated — a missing icon, not lost data. The
 one name code *branches* on is 動畫瘋's (above), and `getBahaRow` prefers the
 row's `option_id` where a caller has it.
+
+---
+
+## 18a. Requests and reports (`app/services/domain/requests.py`)
+
+What a member files and how the inbox treats it. The whole subsystem is in
+[systems/requests.md](systems/requests.md); these are the rules the backend
+applies on its own.
+
+### Only open requests count against the limit
+
+`users.open_request_limit` caps how many **open** requests an account may hold
+at once; NULL is no limit. Filing counts the author's `open` rows, and at or
+over the limit answers **409** naming it. A request marked done or declined
+frees its slot, so the limit throttles what is waiting, not what was ever
+asked.
+
+The super role is never limited: `effective_request_limit` answers none for it
+whatever is stored, and `/users` refuses to store one (**422**).
+
+### The limit follows the role
+
+`default_request_limit(role)` is each role's starting limit - 15 for `user`,
+none for every other role (`DEFAULT_REQUEST_LIMITS`). An account takes it when
+`/users` creates it, and again whenever `/users` changes its role, unless the
+same save sets `open_request_limit` explicitly.
+
+### An open request is editable; a handled one is not
+
+The author edits `description` and `remark` only, and only while the request
+is `open` - a done or declined one answers **409**. A handler setting it back
+to `open` clears who handled it and when, and makes it editable again.
+Another account's request answers **404**, exactly as a missing one does.
+
+### A target must exist, and its name is kept
+
+A request may name one target: an entry, a grouping tier or an entity
+(`REQUEST_TARGET_TABLES`). It must exist (**422** otherwise), but the filer's
+access mode is not consulted. Its name is copied into `target_label` at
+filing, so after the target is deleted the request still says what it was
+about; the live name is shown while it exists.
 
 ---
 

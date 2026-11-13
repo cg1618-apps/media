@@ -1801,10 +1801,12 @@ def parse_user_from_sheet(raw: dict) -> dict:
     app/main.py's lifespan on every machine, so the same person holds a
     different uuid on each - see pull.py's DERIVED_IDENTITY_KEYS.
 
-    list_is_public and is_installation_owner are coerced rather than left
-    None: both columns are NOT NULL, and a blank cell means false, not
-    "unknown". A sheet written before either column existed has no header for
-    it at all, which is the same case and the same answer.
+    is_installation_owner is coerced rather than left None: the column is
+    NOT NULL, and a blank cell means false, not "unknown". A sheet written
+    before the column existed has no header for it at all, which is the same
+    case and the same answer. A sheet written while users.list_is_public
+    existed still carries that header; it is not read (pull.py's
+    RETIRED_HEADERS keeps it out of the run's unresolved references).
 
     THIS IS AN EXPLICIT PROJECTION, NOT A COLUMN SWEEP. A column added to the
     User model does not travel until it is named here, and the failure is
@@ -1813,13 +1815,14 @@ def parse_user_from_sheet(raw: dict) -> dict:
     travel, or the two databases disagree about whose collection this is and
     each files restored rows under a different account.
     """
-    is_public = parse_from_sheet(raw.get("list_is_public"), bool)
     is_owner = parse_from_sheet(raw.get("is_installation_owner"), bool)
     return {
         "id": parse_from_sheet(raw.get("id"), UUID),
         "username": parse_from_sheet(raw.get("username"), str),
-        "list_is_public": bool(is_public),
         "is_installation_owner": bool(is_owner),
+        # NULL is no limit, so a blank cell is NULL, not 0. A sheet with no
+        # header for it leaves the local value alone (pull drops the key).
+        "open_request_limit": parse_from_sheet(raw.get("open_request_limit"), int),
     }
 
 

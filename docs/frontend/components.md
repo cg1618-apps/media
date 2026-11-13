@@ -22,7 +22,7 @@ src/
   config/             registries and vocab tables (see "Config catalog")
   lib/                pure helpers (naming, dates, layout, payloads…)
   utils/              media.js barrel, planNext.js, statsUtils.js
-  components/         cards, hub, layout, forms, modals, plan, relations, game-choices, tracker, info, charts
+  components/         cards, hub, layout, forms, modals, plan, relations, game-choices, tracker, info, charts, requests
   pages/              public, detail, library (+configs), admin, add-tabs, modify-tabs,
                       defaults-tabs, notes (+sections), plan, statistics
   theme-tokens.test.js  guard against hard-coded greys
@@ -35,6 +35,7 @@ src/
 | `api/client.js` `fetchJson(url, init)` | `fetch` with `credentials: "include"`; parses JSON; **throws** on `!res.ok` with the server `detail`. There is no automatic redirect on 401 — a stale session surfaces as a thrown error. |
 | `api/endpoints.js` | The only place URLs are spelled. `resource(type)` gives `list/detail/create/update/patch/remove/complete` for every `MEDIA_CONFIG` key; named groups for auth, options, roles, users, contentLabels, seasonal, announcements, watchOrder, mediaRelation, gameChoice, formDefaults, person, studio, credits, system, quotes, memes, resources (the Resources tree - plural, because `resource` is the media builder), dataControl. |
 | `api/mutations/useResourceMutations.js` | `useCreateResource`, `usePatchResource`, `useDeleteResource`, `useReorderResources`: `useMutation` wrappers for `/api/resources` that invalidate `RESOURCES_QUERY_KEY` (`["resources"]`) when they settle. The reorder one also applies the move to the cache first (`applyReorder`) and restores the previous tree on failure. |
+| `api/mutations/useRequestMutations.js` | Requests and reports. `useMyRequests(status?)` reads `GET /api/requests/mine` under `["requests", "mine", status ?? "all"]`; `useRequestInbox(status = "open")` reads `GET /api/requests?status=` under `["requests", "inbox", status]`. `useFileRequest` (POST), `useEditRequest` (`{id, data}`, PATCH), `useSetRequestStatus` (`{id, status, response?}`, PUT `/status`) and `useDeleteRequest` (`id`) each invalidate the whole `["requests"]` prefix when they settle, so both pages and every status filter refetch. |
 | `api/mutations/useGameChoiceMutations.js` | One game's choice graph. `useChoiceGraph(gameId)` reads `GET /api/game-choice/graph?game_id=` (idle without a game id) under `choiceGraphQueryKey(gameId)` = `["game-choice-graph", gameId]`; `useCreateChoiceNode`, `usePatchChoiceNode`, `useDeleteChoiceNode`, `useCreateChoiceEdge`, `usePatchChoiceEdge`, `useDeleteChoiceEdge`, `useCreateNextPart` (`POST /edges/{id}/next`: a branch's new next block, answering `{node, edge}`) and `useSetChoiceMark` (`{target: "node" \| "edge", id, done, note}`, a PUT) each invalidate that key when they settle. No optimistic update: the graph is small and its layout a pure function of the rows. |
 | `hooks/useApiQuery(key, url, {params})` | `useQuery` wrapper; key becomes `[...key, params]` when params exist. |
 | `hooks/useMediaList(type, {params})` | List query keyed `["media-list", type, params]`; `LIST_OPTIONS = { params: { limit: 2000 } }` is the full-table convention. |
@@ -193,7 +194,8 @@ not drawn. The character, person and studio libraries use it for
   `imdbSeriesRatingSort`, `usefulnessSort`),
   `GroupedEntryPage`, `CollapsibleCardGrid`, `CollapsiblePillRow`,
   `AdminTabBar`, `FittedName`, `TierBadge`.
-- **`components/hub`** — `HubChrome` (`HubShell`, `GRID_CLS`, `Crumbs`,
+- **`components/hub`** — `HubChrome` (`HubShell`, `GRID_CLS`, `Crumbs` (an
+  optional `action` sits at the row's right-hand end),
   `AdminStrip`, `HeroCover`, `Field`, `HubTabs`, `Section`, `SELECT_CLS`,
   `pillCls`) and `HubStates`: the franchise/series/collection hub chrome in
   the archive look. `HeroCover` takes `cover`, the `{ url, focus }` a group
@@ -523,7 +525,33 @@ not drawn. The character, person and studio libraries use it for
   see `pages.md`, Detail pages), `CreateNewEntityModal`, `FranchiseCreateModal`,
   `ConfirmModal` (a yes/no question in the same chrome - `title`, body as
   children, `confirmLabel`, `danger` for a destructive confirm, Escape
-  cancels; the Resources page's delete prompt).
+  cancels; the Resources page's delete prompt, and the request inbox's delete
+  and its Done / Decline response prompt, which puts a textarea in the body),
+  `RequestModal` (files or edits a request - see [Requests](#requests)).
+- **`components/requests`** <a id="requests"></a> — requests and reports
+  ([systems/requests.md](../systems/requests.md)).
+  - `RequestModal` (in `components/modals`) is the one form for a request,
+    in `ConfirmModal`'s chrome. Filing from a page it takes `target`
+    (`{type, id, label}`, shown read-only) and `pagePath` (sent, not shown);
+    the general form has no target and offers a page-address field when the
+    kind is a bug. With `request` it edits: kind and target are read-only, and
+    it PATCHes `description` and `remark` only (an emptied remark is sent as
+    null). Kinds come from `useConstants().request_kind`, labelled by
+    `lib/requests.js`. A refusal (409 at the open-request limit, 422) is shown
+    inline in the server's words and keeps the draft.
+  - `ReportProblemButton` (`targetType`, `targetId`, `targetLabel`) — the
+    small mono "Report a problem" text button. Drawn only when
+    `has("self.requests")`; opens `RequestModal` on that target with
+    `page_path` = the current pathname and the data-error kind. It sits at the
+    right-hand end of the breadcrumb row on the twelve media detail pages and
+    the five entity pages, and in `Crumbs`' `action` slot on the three hubs -
+    the one header row every viewer sees, since the dashed admin strip is
+    `manage.catalog` only. The placement is provisional, pending the owner's
+    design; moving it means moving those call sites, not the component.
+  - `RequestTarget` — one table cell's "what it is about": a link through the
+    target's `nav_path`, plain text when there is none (a series), the stored
+    name plus "(deleted)" once the target is gone, the page address when there
+    is no target.
 - **`components/plan`** — `PlanKindToggles`, `SizeGroupControls`.
 - **`components/resources`** — `ResourceTree` (the `/resources` tree: nested
   collapsible groups, items, and for a manage.catalog holder every add, edit,
@@ -778,6 +806,7 @@ is a second place to keep in step.
 | File | Purpose |
 |---|---|
 | `naming.js` | `getDisplayName`, `getSortName`, `cleanString`, name-field lists |
+| `requests.js` | The words the request pages print: `requestKindLabel` / `requestStatusLabel` (a code with no label prints as itself), `DELETED_ACCOUNT` ("deleted account", for a null username) and `formatRequestDate` |
 | `releaseDate.js` | `releaseYear`, `releaseScore` for truncated-ISO dates |
 | `gameHours.js` | `hours(value)` (`"32.5 h"`, null for a missing or unreadable figure) and `timeToBeatFields(entry)`: the recorded IGDB time-to-beat figures (`hltb_main`, `hltb_main_extra`, `hltb_completionist`) as `InfoCard` fields Main, Main + Extra, Completionist, `[]` when none is recorded. Shared by the game and h-game pages |
 | `mediaTabs.js` | `buildMediaTabs(rows)`: the franchise and series hubs' "Media" tab row from `{ label, type, entries, offered }` rows → `{ tabs, countOf, total, completed }`. A tab shows when offered and its list is non-empty; its count and the hero's totals are read from the same rows, so no tab is shown without being counted. `isCompleted(type, entry)`: whether the entry's own status field (`MEDIA_CONFIG[type].statusField`) holds one of `COMPLETED_STATUSES` |

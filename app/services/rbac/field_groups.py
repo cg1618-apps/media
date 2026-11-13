@@ -3,23 +3,28 @@ The vocabulary of gateable field groups.
 
 Deliberately shaped like app/utils/credit_roles.py and note_sections.py: a
 frozen dataclass per entry, a dict keyed by the value stored in
-role_permission.permission, and a tuple of keys for validation.
+access_mode_field_group.field_group_key, and a tuple of keys for validation.
 
-A group is the unit an admin toggles on a role, so it is named for what a
-reader would recognise ("Other Sources"), not for the storage behind it. That
-storage comes in five flavours and they are gated in different places:
+A group is the unit withheld as one, and it is named for what a reader would
+recognise ("Restricted Sources"), not for the storage behind it. Which groups
+exist is code; which modes carry them is data (access_mode_field_group), and
+an account may be denied one below its mode.
+
+There is ONE group: `sources_restricted`. Everything per user is private to
+its account, so a group deciding whether a mode may read another user's
+personal notes had nothing left to withhold; and every viewer gets the other
+sources. The storage a group may point at comes in three flavours, gated in
+different places:
 
   columns       real columns on a media table. Stripped from a COPY of the
                 response - nulling one on the live ORM instance would be
-                flushed to disk. See field_gate.py.
+                flushed to disk. See field_gate.py. No group uses it today.
   link_fields   credit/tag values derived at read time by
-                services.domain.credits.attach_link_fields. Plain Python
-                attrs since the 26 comma-joined columns were dropped, so they
-                are simply not attached.
-  note_sections rows in `note`, filtered in routers/note.py.
+                services.domain.credits.attach_link_fields, simply not
+                attached. No group uses it today.
   source_buckets  rows in `media_source`, filtered by
                   services.domain.sources.attach_sources before the response
-                  is built.
+                  is built. sources_restricted uses it.
 
 There is deliberately no `ui_block` field. One used to name the SPA component
 a group hides - "info.SourcesCard.other" - and read as a wiring mechanism in
@@ -40,19 +45,17 @@ ALL = "*"
 
 @dataclass(frozen=True)
 class FieldGroup:
-    """One set of fields an admin can grant or withhold as a unit."""
+    """One set of fields a mode carries or withholds as a unit."""
 
-    # Value stored in role_permission.permission, after the "field_group." prefix.
+    # Value stored in access_mode_field_group.field_group_key.
     key: str
-    # Human label for the role editor.
+    # Human label for the access-mode editor.
     label: str
     description: str
     # media_type key (hyphenated) or ALL -> real column names.
     columns: dict[str, tuple[str, ...]] = field(default_factory=dict)
     # media_type key (hyphenated) or ALL -> derived link-field attributes.
     link_fields: dict[str, tuple[str, ...]] = field(default_factory=dict)
-    # Keys in note_sections.NOTE_SECTIONS.
-    note_sections: tuple[str, ...] = ()
     # Values in media_source.bucket to filter out of the composed source list.
     # Filtered at attach time rather than in field_gate.gate(): the gating is
     # partial - a viewer may hold `other` and not `restricted` - so the
@@ -75,23 +78,11 @@ def link_fields_for(group: FieldGroup, media_type: str) -> tuple[str, ...]:
 
 
 FIELD_GROUPS: dict[str, FieldGroup] = {
-    "sources_other": FieldGroup(
-        key="sources_other",
-        label="Other Sources",
-        description="The free-form source list on every media entry.",
-        source_buckets=("other",),
-    ),
     "sources_restricted": FieldGroup(
         key="sources_restricted",
         label="Restricted Sources",
         description="The restricted free-form source list on every media entry.",
         source_buckets=("restricted",),
-    ),
-    "personal_notes": FieldGroup(
-        key="personal_notes",
-        label="Personal Reviews",
-        description="My own written assessment of an entry.",
-        note_sections=("personal_reviews",),
     ),
 }
 

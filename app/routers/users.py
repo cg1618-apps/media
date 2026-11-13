@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.dependencies import get_db
+from app.services.domain.requests import default_request_limit, limit_is_fixed
 from app.services.rbac import cache
 from app.services.rbac.permissions import PERM_ADMIN_AUTHZ
 from app.services.rbac.resolver import Viewer, require_admin_authz, role_for_user
@@ -92,8 +93,8 @@ def _to_response(
         username=user.username,
         role_id=user.role_id,
         role_name=user.role_ref.name if user.role_ref else None,
-        list_is_public=bool(user.list_is_public),
         access_modes=_held_access_modes(db, user) if db is not None else [],
+        open_request_limit=user.open_request_limit,
     )
 
 
@@ -164,6 +165,7 @@ def create_user(payload: schemas.ManagedUserCreate, db: Session = Depends(get_db
         username=payload.username,
         hashed_password=get_password_hash(payload.password),
         role_id=role.system_id,
+        open_request_limit=default_request_limit(role.name),
     )
     db.add(user)
     db.flush()
@@ -331,6 +333,20 @@ def update_user(
     admin: Viewer = Depends(require_admin_authz),
 ):
     user = _get_or_404(db, user_id)
+    new_role = None
+    if payload.role_id and payload.role_id != user.role_id:
+        new_role = _role_or_422(db, payload.role_id)
+    limit_set = "open_request_limit" in payload.model_fields_set
+    resulting_role = new_role or role_for_user(db, user)
+    if (
+        limit_set
+        and payload.open_request_limit is not None
+        and limit_is_fixed(resulting_role.name if resulting_role else None)
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail="A super account has no open-request limit.",
+        )
 
     if payload.username and payload.username != user.username:
         clash = (
@@ -345,17 +361,23 @@ def update_user(
     if payload.password:
         user.hashed_password = get_password_hash(payload.password)
 
-    if payload.role_id and payload.role_id != user.role_id:
-        role = _role_or_422(db, payload.role_id)
+    if new_role is not None:
         would_lose_admin = _can_administer(
             db, role_for_user(db, user)
-        ) and not _can_administer(db, role)
+        ) and not _can_administer(db, new_role)
         if would_lose_admin and _admin_count(db, excluding=user.id) == 0:
             raise HTTPException(
                 status_code=409,
                 detail="This is the last account that can administer the site.",
             )
-        user.role_id = role.system_id
+        user.role_id = new_role.system_id
+
+    # The limit follows the role: a role change resets it to the new role's
+    # default, unless this same save sets it.
+    if limit_set:
+        user.open_request_limit = payload.open_request_limit
+    elif new_role is not None:
+        user.open_request_limit = default_request_limit(new_role.name)
 
     db.commit()
     db.refresh(user)

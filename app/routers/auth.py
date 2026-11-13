@@ -157,9 +157,9 @@ def get_me(request: Request, db: Session = Depends(get_db)):
         # this account DO"; the field_group.* half answers "which fields of a
         # reachable entry may this SESSION see" and comes from the active
         # access mode minus its denials. They are merged here, and ONLY here,
-        # because the SPA has hundreds of has("field_group.<key>") calls that
-        # predate the split - preserving this shape is what makes Phase B cost
-        # the frontend nothing. The server never merges the two anywhere else.
+        # so the SPA asks one has() for either; the server never merges the
+        # two anywhere else. The SPA reads no field_group.* key today - the
+        # one group left, sources_restricted, is filtered server-side.
         #
         # The literal prefix is deliberate too: field_group_perm() was deleted
         # in Phase B precisely so a stale call site becomes an ImportError,

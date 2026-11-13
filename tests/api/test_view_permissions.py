@@ -137,17 +137,6 @@ def gated_reads(db, admin_client, person, character, anime_with_studio, sample_a
         "/api/resources", json={"kind": "group", "title": "Links"}
     )
     assert resource.status_code in (200, 201), resource.text
-    owner = models.User(
-        id=uuid.uuid4(),
-        username="public_owner",
-        hashed_password="x",
-        role_id=db.query(models.Role.system_id)
-        .filter(models.Role.name == "user")
-        .scalar(),
-        list_is_public=True,
-    )
-    db.add(owner)
-    db.flush()
     return {
         PERM_VIEW_ENTITIES: [
             "/api/studio/",
@@ -174,10 +163,10 @@ def gated_reads(db, admin_client, person, character, anime_with_studio, sample_a
             "/api/resources",
             "/api/random-picker-defaults/all",
         ],
-        PERM_VIEW_PERSONAL: [
-            "/api/profile/public_owner",
-            f"/api/community/{sample_anime.system_id}",
-        ],
+        # view.personal gates no route of its own: what it opens are
+        # sections and fields inside pages every viewer reads, tested below.
+        # Holding it still opens none of the reads above, which the
+        # parametrised test asserts.
     }
 
 
@@ -227,7 +216,7 @@ def test_an_entity_write_does_not_also_need_the_read(db, client):
 
 
 # ---------------------------------------------------------------------------
-# Notes: ?author= and the highlight sections
+# Notes: the highlight sections
 # ---------------------------------------------------------------------------
 
 
@@ -276,55 +265,6 @@ def test_the_section_listing_omits_highlights_for_a_guest(client, user_client):
     assert "highlight_episodes" not in keys(client, "tv-show")
     # Only those two: a guest still gets every other section.
     assert keys(user_client, "anime") - keys(client, "anime") == {"highlights"}
-
-
-@pytest.fixture
-def public_author(db, sample_anime):
-    """A user whose list is public and who has a personal note on the anime."""
-    author = models.User(
-        id=uuid.uuid4(),
-        username="open_author",
-        hashed_password="x",
-        role_id=db.query(models.Role.system_id)
-        .filter(models.Role.name == "user")
-        .scalar(),
-        list_is_public=True,
-    )
-    db.add(author)
-    db.flush()
-    db.add(
-        models.Note(
-            system_id=uuid.uuid4(),
-            media_id=sample_anime.system_id,
-            section="advantages",
-            content="作者的優點",
-            author_id=author.id,
-        )
-    )
-    db.flush()
-    return author
-
-
-def test_author_needs_view_personal(db, client, sample_anime, public_author):
-    assert _notes(client, sample_anime, author="open_author").status_code == 401
-    # A signed-in viewer holding everything else but the key is refused too,
-    # and with the same answer for a username nobody has.
-    make_viewer(
-        db,
-        client,
-        "no-personal",
-        default_user_permissions() - {PERM_VIEW_PERSONAL},
-    )
-    assert _notes(client, sample_anime, author="open_author").status_code == 401
-    assert _notes(client, sample_anime, author="nobody_here").status_code == 401
-
-
-def test_author_is_honoured_with_view_personal(user_client, sample_anime, public_author):
-    r = _notes(user_client, sample_anime, author="open_author")
-    assert r.status_code == 200
-    assert [n["content"] for n in r.json() if n["section"] == "advantages"] == [
-        "作者的優點"
-    ]
 
 
 # ---------------------------------------------------------------------------

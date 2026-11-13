@@ -36,7 +36,7 @@ Not marked irreversible: every row the upgrade rewrote comes back with the
 same content.
 
 Revision ID: n1o2tesrwk3
-Revises: v1i2ewperms34
+Revises: p1r2ivatedat3
 Create Date: 2026-11-13 00:00:00.000000
 
 """
@@ -47,7 +47,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "n1o2tesrwk3"
-down_revision: Union[str, Sequence[str], None] = "v1i2ewperms34"
+down_revision: Union[str, Sequence[str], None] = "p1r2ivatedat3"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

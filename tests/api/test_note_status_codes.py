@@ -117,36 +117,28 @@ def test_editing_a_catalogue_note_without_manage_catalog_is_401(
     assert response.status_code == 401
 
 
-def _notes_of(client, entry, author):
-    """The list route reads somebody else's personal notes via `author`."""
-    return client.get(
-        "/api/notes",
-        params={
-            "owner_type": "anime",
-            "owner_id": str(entry.system_id),
-            "author": author,
-        },
-    )
-
-
-def test_reading_a_private_accounts_notes_is_404(
+def test_naming_an_author_reveals_nothing_about_accounts(
     user_client, admin_user, sample_anime
 ):
-    """The account exists and its list is private. 403 confirmed both."""
-    response = _notes_of(user_client, sample_anime, admin_user.username)
-    assert response.status_code == 404
+    """There is no way to read another account's notes, so `author` is not a
+    parameter: an existing username and a made-up one get the same answer as
+    no name at all, and none of them is an oracle."""
+    def notes(**extra):
+        return user_client.get(
+            "/api/notes",
+            params={
+                "owner_type": "anime",
+                "owner_id": str(sample_anime.system_id),
+                **extra,
+            },
+        )
 
+    plain = notes()
+    existing = notes(author=admin_user.username)
+    absent = notes(author="nobody-by-this-name")
 
-def test_a_private_account_answers_exactly_like_one_that_does_not_exist(
-    user_client, admin_user, sample_anime
-):
-    """The whole reason it is 404: a reader must not be able to tell a private
-    account from an account that was never created."""
-    private = _notes_of(user_client, sample_anime, admin_user.username)
-    absent = _notes_of(user_client, sample_anime, "nobody-by-this-name")
-
-    assert private.status_code == absent.status_code == 404
-    assert private.json()["detail"] == absent.json()["detail"]
+    assert plain.status_code == existing.status_code == absent.status_code == 200
+    assert plain.json() == existing.json() == absent.json()
 
 
 def test_no_403_is_reachable_from_this_router():

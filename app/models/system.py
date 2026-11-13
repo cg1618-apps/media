@@ -4,6 +4,7 @@ import uuid
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     ForeignKey,
@@ -286,13 +287,6 @@ class User(Base):
         nullable=False,
         index=True,
     )
-    # Private by default, and only its owner can change it (PATCH
-    # /api/account/settings). An admin may see the flag on the Users page but
-    # does not set it: whose list is visible is the account holder's decision,
-    # not the inviter's.
-    list_is_public = Column(
-        Boolean, nullable=False, default=False, server_default="false"
-    )
     # Whose rows a restore or the Calculate pipeline files under. NOT a
     # permission and not on any request path - see
     # services/domain/user_list.py::installation_owner_id for what it answers
@@ -304,8 +298,17 @@ class User(Base):
     is_installation_owner = Column(
         Boolean, nullable=False, default=False, server_default="false"
     )
+    # How many OPEN requests this account may hold at once; NULL is no limit.
+    # Set to the role's default when the account is created or changes role
+    # (services/domain/requests.py::default_request_limit), and adjustable on
+    # the Users page. Never enforced for the super role, whatever is stored.
+    open_request_limit = Column(Integer, nullable=True)
 
     __table_args__ = (
+        CheckConstraint(
+            "open_request_limit IS NULL OR open_request_limit >= 0",
+            name="ck_users_open_request_limit_non_negative",
+        ),
         Index(
             "ix_one_installation_owner",
             # The indexed expression is a constant, not the column: this is a

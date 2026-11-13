@@ -31,7 +31,3 @@ Design: [superpowers/specs/2026-11-03-account-system-design.md](superpowers/spec
 
 Until it lands, sessions are a flat 30 days with no revocation and there is
 no password reset — an admin sets one at `/users`.
-
-**Prerequisite inside it:** `Note`, `Meme` and `Quote` must carry their
-author by username on the Sheets tabs before a second person writes a note
-— see [open-items.md](open-items.md), "authorship does not round-trip".

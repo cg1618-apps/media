@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { releaseYear } from "../../lib/releaseDate";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
 import { useAuth } from "../../contexts/AuthContext";
@@ -13,7 +14,6 @@ import {
   getDisplayName,
   parseTypes,
 } from "../../utils/media";
-import CommunityCard from "../../components/info/CommunityCard";
 import InfoCard from "../../components/info/InfoCard";
 import { creditLabel, creditValue } from "../../components/info/PersonLinks";
 import {
@@ -191,29 +191,36 @@ export default function Comic() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
       {/* Breadcrumb: a catalogue path, set in mono */}
-      <nav
-        className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint mb-8 flex items-center gap-3"
-        aria-label="Breadcrumb"
-      >
-        <Link to="/library/comic" className="hover:text-brand transition">
-          Comic
-        </Link>
-        {franchise && (
-          <>
-            <span aria-hidden="true">/</span>
-            <Link
-              to={entityPath("franchise", franchise)}
-              className="hover:text-brand transition truncate max-w-xs normal-case tracking-normal"
-            >
-              {franchiseName}
-            </Link>
-          </>
-        )}
-        <span aria-hidden="true">/</span>
-        <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
-          {titleMain}
-        </span>
-      </nav>
+      <div className="mb-8 flex items-center justify-between gap-3">
+        <nav
+          className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint min-w-0 flex items-center gap-3"
+          aria-label="Breadcrumb"
+        >
+          <Link to="/library/comic" className="hover:text-brand transition">
+            Comic
+          </Link>
+          {franchise && (
+            <>
+              <span aria-hidden="true">/</span>
+              <Link
+                to={entityPath("franchise", franchise)}
+                className="hover:text-brand transition truncate max-w-xs normal-case tracking-normal"
+              >
+                {franchiseName}
+              </Link>
+            </>
+          )}
+          <span aria-hidden="true">/</span>
+          <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
+            {titleMain}
+          </span>
+        </nav>
+        <ReportProblemButton
+          targetType="comic"
+          targetId={system_id}
+          targetLabel={titleMain}
+        />
+      </div>
 
       {/* Admin toolbar — no Autofill: comics are manual-entry, with no
           external metadata source to pull from. */}
@@ -400,10 +407,6 @@ export default function Comic() {
             ratingOptions={MY_RATINGS}
             statusLabel="Reading Status"
           />
-
-          {/* What every public list says about it, beside what I say.
-              Renders nothing when no public list holds this entry. */}
-          <CommunityCard mediaId={comic.system_id} />
 
           {/* Detail Cards */}
           <div className="space-y-6">

@@ -62,7 +62,7 @@ const Quotes = lazy(() => import("./pages/public/Quotes"));
 const Memes = lazy(() => import("./pages/public/Memes"));
 const Resources = lazy(() => import("./pages/public/Resources"));
 const Settings = lazy(() => import("./pages/public/Settings"));
-const Profile = lazy(() => import("./pages/public/Profile"));
+const MyRequests = lazy(() => import("./pages/public/MyRequests"));
 const Admin = lazy(() => import("./pages/admin/Admin"));
 const Add = lazy(() => import("./pages/admin/Add"));
 const Modify = lazy(() => import("./pages/admin/Modify"));
@@ -71,6 +71,7 @@ const FormDefaults = lazy(() => import("./pages/admin/FormDefaults"));
 const PickerDefaults = lazy(() => import("./pages/admin/PickerDefaults"));
 const DataHistory = lazy(() => import("./pages/admin/DataHistory"));
 const ReviewQueue = lazy(() => import("./pages/admin/ReviewQueue"));
+const RequestInbox = lazy(() => import("./pages/admin/RequestInbox"));
 const CleanOrphans = lazy(() => import("./pages/admin/CleanOrphans"));
 const WatchOrders = lazy(() => import("./pages/admin/WatchOrders"));
 const Relations = lazy(() => import("./pages/admin/Relations"));
@@ -252,11 +253,6 @@ export default function App() {
                   <Route path="/resources" element={<Resources />} />
                 </Route>
 
-                {/* Public profiles are personal content. The server also
-                    answers 404 for a list the caller may not read. */}
-                <Route element={<ProtectedRoute permission="view.personal" />}>
-                  <Route path="/user/:username" element={<Profile />} />
-                </Route>
                 {/* Per-user pages: a plan queue and a season's counters belong
                     to one account, and their APIs 401 a stranger.
 
@@ -281,10 +277,26 @@ export default function App() {
 
                 {/* Any signed-in member, not an admin: ProtectedRoute's
                     default permission ("admin") no longer exists, so this
-                    block asks for self.list explicitly - an admin still
-                    passes because is_root short-circuits every check. */}
+                    block asks for self.list explicitly. The admin does not
+                    pass - the root short-circuit never covers the self.*
+                    family (AuthContext.has), and an admin keeps no library
+                    of its own. */}
                 <Route element={<ProtectedRoute permission="self.list" />}>
                   <Route path="/settings" element={<Settings />} />
+                </Route>
+
+                {/* The filer's own requests. self.requests, the key the
+                    header's Requests link asks: user and super, never the
+                    admin account (self.* is not short-circuited by root). */}
+                <Route element={<ProtectedRoute permission="self.requests" />}>
+                  <Route path="/requests" element={<MyRequests />} />
+                </Route>
+
+                {/* The handler's inbox: its own permission, not the
+                    pipelines', though navigation.js lists it under the
+                    Pipelines tab. */}
+                <Route element={<ProtectedRoute permission="manage.requests" />}>
+                  <Route path="/request-inbox" element={<RequestInbox />} />
                 </Route>
 
                 {/* Catalogue work. manage.catalog is what the SPA's isAdmin

@@ -3753,6 +3753,49 @@ and not by `guest`, rather than as checks for "is anybody logged in".
 
 ## 2026-11
 
+### Requests and reports: two permissions, and the owner's seven answers (2026-11-13)
+
+Requests and reports were built before the `shared` role and before the admin
+stopped being root. They sit behind two permission names, so the role rework
+changes only grants and nothing in the feature itself.
+
+- **Filing is `self.requests`.** It is ownership of your own rows, so it
+  belongs in the `self.*` family. `Viewer.has()` does not short-circuit that
+  family for the root role, and the guest lock table locks it off, so "not
+  guests, not the admin" holds by construction rather than by a check in
+  every route. **Handling is `manage.requests`**, a capability like
+  `manage.catalog`. When the role rework lands, `shared` is granted
+  `self.requests`, and the admin's fixed set has to include
+  `manage.requests`. `test_admin_handles_requests` fails if it does not.
+- **The table is `user_request`, not `request`**, because `fastapi.Request`
+  is imported across the routers.
+- **The target is an FK-less `(type, id)` pair**, the convention `quote` and
+  `meme` use, with the name stored at filing time. A deleted entry still
+  reads as what it was. The author is `ON DELETE SET NULL`, because nothing
+  is removed automatically.
+- **The owner's answers**, each kept in one place:
+  1. Requests do not travel on Sheets. They are messages to the production
+     site; the box's dump holds them, and a Pull would otherwise overwrite
+     the box's inbox with a development machine's.
+  2. A role change on `/users` resets the limit to the new role's default,
+     unless the same save sets the limit.
+  3. Super's "no limit" is fixed. It is never stored and never enforced.
+  4. The handler's response is optional when marking a request done or
+     declined.
+  5. "Report a problem" sits at the right-hand end of the breadcrumb row.
+     That is provisional, pending the owner's design. The end of the header
+     action row was asked for, but that row is drawn only for
+     `manage.catalog`, so a `user` would never have seen the button.
+  6. A handler can reopen a closed request, which lets the filer edit it
+     again: a request closed by mistake should not be stuck.
+  7. The filer sees the handler's response, not only the status, because
+     a decline with no reason reads as a brush-off. This is one switch,
+     `SHOW_RESPONSE_TO_FILER` in `MyRequests.jsx`.
+- **The open-request limit does travel on the Users tab.** It is an account
+  setting like `disabled`, and a Pull must not reset it. A blank cell means
+  no limit, and an older sheet without the column leaves the local value
+  alone.
+
 ### Notes rework, catalogue half (spec: 2026-11-12 notes-rework-design)
 
 The half of the notes rework that needs nothing from the account work, in one

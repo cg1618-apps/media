@@ -254,7 +254,7 @@ def test_a_new_account_can_actually_see_something(db_session, admin_client, mode
     """The reason this is not left to an admin to remember. An account holding
     NO mode resolves the empty object set - correct, fail-closed, and a
     terrible first impression that looks like a broken site."""
-    from app.services.rbac.modes import resolve_mode
+    from app.services.rbac.modes import EMPTY_MODE, resolve_mode
 
     role_id = str(
         db_session.query(models.Role).filter(models.Role.name == "user").one().system_id
@@ -269,7 +269,13 @@ def test_a_new_account_can_actually_see_something(db_session, admin_client, mode
         .one()
     )
 
-    resolved = resolve_mode(db_session, created, mode(MODE_SAFE).system_id)
+    safe = mode(MODE_SAFE)
+    resolved = resolve_mode(db_session, created, safe.system_id)
 
+    # The granted mode, not the empty fallback an account holding no mode
+    # gets. `safe` itself carries no field group and no label - what it shows
+    # is the unlabelled catalogue - so "something" is the grant resolving,
+    # not a non-empty item set.
+    assert resolved != EMPTY_MODE
     assert resolved.mode_key == MODE_SAFE
-    assert resolved.field_groups
+    assert resolved.mode_id == safe.system_id

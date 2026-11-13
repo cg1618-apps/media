@@ -58,16 +58,22 @@ def guest_field_groups(db: Session) -> frozenset[str] | None:
     database means ensure_rbac_seed has not run yet rather than that an admin
     withheld everything. The caller falls back to the seeded default.
     """
+    # At call time, for the import cycle seeded_modes() below explains.
+    from app.services.rbac.field_groups import FIELD_GROUP_KEYS
+
     guest = db.query(models.Role).filter(models.Role.name == "guest").first()
     if guest is None:
         return None
+    # Intersected with the groups that still exist: a legacy grant naming a
+    # removed group (personal_notes, sources_other) must not reseed it onto a
+    # mode, where access_mode_field_group would hold a key nothing reads.
     held = frozenset(
         row.permission[len(FIELD_GROUP_PREFIX) :]
         for row in db.query(models.RolePermission.permission).filter(
             models.RolePermission.role_id == guest.system_id,
             models.RolePermission.permission.like(f"{FIELD_GROUP_PREFIX}%"),
         )
-    )
+    ) & frozenset(FIELD_GROUP_KEYS)
     return held or None
 
 def seeded_modes() -> tuple[dict, ...]:

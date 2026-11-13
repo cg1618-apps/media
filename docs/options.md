@@ -42,7 +42,7 @@ code.
 
 | Tier | Lives in | Who changes it | Read by the frontend via | Examples |
 |---|---|---|---|---|
-| 1 | Python constants and registries under `app/utils/`, `app/services/domain/`, `app/services/rbac/` | a code change | `GET /api/constants`, `GET /api/media-relation/kinds`, `GET /api/plan-next/kinds`, `/api/auth/me` (permissions) | `"Not Yet Aired"`, `"完結"`, `sequel`, `12ep`, `field_group.sources_other` |
+| 1 | Python constants and registries under `app/utils/`, `app/services/domain/`, `app/services/rbac/` | a code change | `GET /api/constants`, `GET /api/media-relation/kinds`, `GET /api/plan-next/kinds`, `/api/auth/me` (permissions) | `"Not Yet Aired"`, `"完結"`, `sequel`, `12ep`, `field_group.sources_restricted` |
 | 2 | `system_option` + `system_option_scope` tables | an admin, through the Options tab of Add / Modify | `GET /api/options[/{category}]?scope=` | `Genre Main` = `Action`, `Platform` = `Disney+` |
 | 3 | `person`, `person_role`, `studio`, linked through `media_credit` | an admin, through `/api/person` and `/api/studio` | the credits endpoints | a director with JP/EN names and a rating |
 
@@ -120,6 +120,8 @@ type it serves is seeable.
 | `WEEKDAYS` | `Monday`, `Tuesday`, `Wednesday`, `Thursday`, `Friday`, `Saturday`, `Sunday` | `anime.broadcast_day`, `anime.my_watch_day` (plain strings, no validator) | `day_of_week` |
 | `MUSIC_STATUSES` | `Need`, `Pending`, `No Full Version`, `Done` | `note.status` on a song of the `op`, `ed`, `insert_songs`, `ost` sections. `No Full Version` is a song whose full-length cut is not released yet. The note registry imports this tuple; it is not restated there | `music_status` |
 | `MUSIC_TYPE_STATUSES` | `All Done`, `Done`, `Need`, `Pending`, `No Full Version`, `Not Done` | `note.status` on a `music_status` row: how far one whole song list of an anime has got. Every anime starts each list on `Not Done` (`MUSIC_TYPE_STATUS_DEFAULT`) | `music_type_status` |
+| `REQUEST_KINDS` | `new_entry`, `data_error`, `incomplete_data`, `bug`, `other` | `user_request.kind`, CHECK-constrained (`ck_user_request_kind`), so a new kind needs a migration too ([systems/requests.md](systems/requests.md)) | `request_kind` |
+| `REQUEST_STATUSES` | `open`, `done`, `declined` | `user_request.status`, CHECK-constrained (`ck_user_request_status`); only `open` counts against the open-request limit and only `open` is editable by the author | `request_status` |
 | `CHARACTER_ROLES` (`app/utils/character_roles.py`) | `Main`, `Core`, `Important Supporting`, `Supporting`, `Other` | Two independent columns: `character_casting.role` (what the character is in one entry) and `character.role` (what the character is overall). A NULL `character.role` is filled from the highest-ranked casting role (this order) on each cast save and by Calculate All; a set one is never overwritten, and nothing flows from it to a casting. Both are optional - blank or `""` is NULL - and a write naming anything else is a 422; a Sheets Pull restores a value outside the list as blank | `character_role` |
 | `H_COMIC_REGIONS` | `JP`, `KR` | `h_comic.region`, required on every write; decides which columns the entry keeps ([entry-types.md](entry-types.md#h-comic-regions-region_clears-appservicesdomainh_comicpy)) | `h_comic_region` |
 | `H_COMIC_ORIGINALITY` | `原創`, `同人` | `h_comic.originality` (JP only), `hentai.originality` | `h_comic_originality` |
@@ -284,7 +286,7 @@ out. What the three gated types keep is in
 | `disadvantages` | text_links | 缺點 Disadvantages | All but h-comic, hentai | reviews | |
 | `double_edged` | text_links | 優缺點 | All but h-comic, hentai | reviews | |
 | `public_reviews` | text_links | 大眾評價 Public Reviews | All | reviews | |
-| `personal_reviews` | text | 我的評價 Personal Reviews | All | reviews | personal scope; gated by field group `personal_notes` |
+| `personal_reviews` | text | 我的評價 Personal Reviews | All | reviews | personal scope |
 | `episode_comments` | text_links | 各集評論 Episode Comments (manga: 各話評論 Chapter Comments; game: 各章評論 Part Reviews) | anime, tv-show, cartoon, manga, game | reviews | locator required; manga's placeholder is "Chapter", game's "Chapter / Part" |
 | `highlights` | episode_text | 神回/神片段 Highlights | anime | | kinds `HIGHLIGHT_KINDS` |
 | `highlight_episodes` | episode_text | 神回/神片段 (manga: 神回) | tv-show, cartoon, manga | | kinds `HIGHLIGHT_KINDS` for tv-show and cartoon only |
@@ -675,7 +677,7 @@ the bare `admin`, which implies everything.
 
 | Constant | Value |
 |---|---|
-| `PERMISSION_FAMILIES` | `media_type`, `field_group`, `label` |
+| `PERMISSION_FAMILIES` | `admin`, `manage`, `media_type`, `self`, `view` — the role axis. `field_group` and `label` are the access-mode axis and are not in it |
 | `media_type.<key>` | one per hyphenated media type key, e.g. `media_type.tv-show` |
 | `field_group.<key>` | one per `FIELD_GROUP_KEYS` entry |
 | `label.<key>` | one per `content_label.key` row; the only family computed from the database at request time |
@@ -684,11 +686,11 @@ the bare `admin`, which implies everything.
 
 | Key | Label | Gates |
 |---|---|---|
-| `sources_other` | Other Sources | `media_source` rows with `bucket='other'`, every media type; UI block `info.SourcesCard.other` |
-| `sources_restricted` | Restricted Sources | `media_source` rows with `bucket='restricted'`, every media type; UI block `info.SourcesCard.restricted`. Excluded from the `safe` access mode via `SAFE_WITHHELD_FIELD_GROUPS` (`app/services/rbac/seed_modes.py`) — a fresh install does not serve it to a logged-out visitor |
-| `personal_notes` | Personal Reviews | note section `personal_reviews`; UI block `notes.reviews.personal` |
-| `system_info` | System Info | UI block `detail.SystemInfo` only (frontend-only, no column) |
-| `credits` | Credits | every credit-kind link field per media type, derived from `CREDIT_ROLES`; also `studio_refs` (types with a `studio` role) and `publisher_refs` (types with a `publisher` role); UI block `info.CreditsCard` |
+| `sources_restricted` | Restricted Sources | `media_source` rows with `bucket='restricted'`, every media type. Excluded from the `safe` access mode via `SAFE_WITHHELD_FIELD_GROUPS` (`app/services/rbac/seed_modes.py`) — a fresh install does not serve it to a logged-out visitor |
+
+It is the only group. The `other` bucket, personal notes and credits are not
+field groups: every viewer gets the other sources and the credits, and a
+personal note is read only by its author.
 
 See [authorization.md](authorization.md) for roles, enforcement and content
 labels.
@@ -700,6 +702,9 @@ labels.
 `/api/constants` `media_type`): `anime`, `anime-movie`, `movie`, `tv-show`,
 `cartoon`, `manga`, `novel`, `comic`, `game`, `h-comic`, `h-game`, `hentai`. `OWNER_TYPE_KEYS` adds the grouping
 tiers `series`, `franchise`, `collection` for note and meme owners.
+`REQUEST_TARGET_TABLES` adds the five entities `studio`, `publisher`,
+`person`, `character`, `identity` (`ENTITY_TABLES`) to those, for
+`user_request.target_type` only.
 
 ---
 

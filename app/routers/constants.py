@@ -185,6 +185,10 @@ def _constants() -> dict[str, list[str]]:
         # which the admin pages group under "Note Suggestions". Navigation
         # only, like tag_categories; none serves a gated type alone.
         "note_suggestion_categories": list(NOTE_SUGGESTION_CATEGORIES),
+        # What a request is about, and where it stands. The request forms and
+        # the inbox's status filter read these.
+        "request_kind": list(c.REQUEST_KINDS),
+        "request_status": list(c.REQUEST_STATUSES),
     }
 
 

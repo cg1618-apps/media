@@ -3,7 +3,7 @@
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 # ---------------------------------------------------------------------------
 # Permission catalog
@@ -179,6 +179,10 @@ class ManagedUserUpdate(BaseModel):
     username: Optional[str] = None
     password: Optional[str] = None
     role_id: Optional[UUID] = None
+    # Null is no limit. Left out of the payload it is untouched - unless the
+    # same save changes the role, which resets it to the new role's default.
+    # Not settable on a super account, which never has one.
+    open_request_limit: Optional[int] = Field(default=None, ge=0)
 
 
 class HeldAccessMode(BaseModel):
@@ -197,14 +201,13 @@ class ManagedUserResponse(BaseModel):
     username: str
     role_id: Optional[UUID] = None
     role_name: Optional[str] = None
-    # Read-only here. Written only by the account's owner, through
-    # PATCH /api/account/settings.
-    list_is_public: bool = False
     # The OBJECT axis for this account. Carried on the user response rather
     # than behind a second endpoint because the panel that edits it lives on
     # the users page, and PUT .../access-modes returns this same shape - so
     # the page never has to reconcile two sources.
     access_modes: List[HeldAccessMode] = []
+    # How many open requests the account may hold at once; null is no limit.
+    open_request_limit: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -214,89 +217,10 @@ class ManagedUserResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 class AccountSettingsResponse(BaseModel):
-    """What the caller may see and change about their own account."""
+    """What the caller may see about their own account."""
 
     username: str
     role_name: str
-    list_is_public: bool
-
-
-class AccountSettingsUpdate(BaseModel):
-    """
-    One field, deliberately. There is no username or user id here: the caller
-    is taken from the session, so this payload cannot name somebody else.
-    Pydantic ignores unknown keys by default, so a stray "username" in the body
-    is dropped rather than honoured.
-    """
-
-    list_is_public: bool
-
-
-# ---------------------------------------------------------------------------
-# Public profiles
-# ---------------------------------------------------------------------------
-
-class ProfileEntry(BaseModel):
-    """One row of somebody's list, joined to the catalogue."""
-
-    media_id: UUID
-    media_type: str
-    public_id: int
-    display_name: str
-    cover_image_file: Optional[str] = None
-    cover_image_focus: Optional[str] = None
-    status: str
-    my_rating: Optional[str] = None
-
-
-class ProfileStatusCount(BaseModel):
-    status: str
-    count: int
-
-
-class ProfileResponse(BaseModel):
-    """
-    One user's list. Carries no personal notes and no email or password: a
-    profile says what somebody has watched and what they thought of it, and
-    nothing else about them.
-    """
-
-    username: str
-    list_is_public: bool
-    # True when the caller is looking at their own profile, so the SPA can
-    # offer the visibility toggle rather than guessing from the username.
-    is_self: bool
-    counts: List[ProfileStatusCount] = []
-    entries: List[ProfileEntry] = []
-
-
-# ---------------------------------------------------------------------------
-# Community aggregates
-# ---------------------------------------------------------------------------
-
-class CommunityStatusCount(BaseModel):
-    status: str
-    count: int
-
-
-class CommunityAggregate(BaseModel):
-    """
-    What the public lists say about one entry.
-
-    sample_size is separate from list_count on purpose: a work can be on forty
-    lists and rated by six, and a "6" beside an average is the difference
-    between a figure and a rumour.
-    """
-
-    media_id: UUID
-    # How many public lists hold this entry at all.
-    list_count: int
-    statuses: List[CommunityStatusCount] = []
-    # How many of those carried a rating.
-    sample_size: int
-    # The mean on the 1-8 letter scale, and that mean as the nearest letter.
-    average_points: Optional[float] = None
-    average_rating: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------

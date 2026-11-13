@@ -26,14 +26,9 @@ card. It carries no technical detail; the tables behind it are
 | The watch orders you follow | a watch order's follow toggle |
 | Your personal notes — the sections marked **yours** in [Notes](#notes-yours-or-shared) | the Notes card on an entry or group |
 
-Nobody else can change any of it. Today, if you make your list public in
-**Settings → List visibility**, other members can read your list and
-personal notes on your profile, and your list counts in an entry's
-community card; otherwise nobody can.
-
-*Being removed:* the List visibility setting. Everything here will be
-private to you — no profile others can open, no notes by author, no
-community card.
+Nobody else can change any of it, and nobody else can see it, the admin
+included. There is no profile others can open and no community figure your
+list counts towards.
 
 ## Shared — the catalogue
 
@@ -170,7 +165,5 @@ your value on 屬性&配點 Stats & Points. The status on OP, ED and 插入曲
 Insert Song, and on 模組&工具 Mods & Tools, will become yours too, but only
 for accounts the admin turns that feature on for.
 
-Today other members can read your **yours** sections on your profile when
-your list is public, if their access mode allows it. *Being removed:* once
-List visibility goes, nobody else sees them. Quotes and memes are not notes
+Nobody else sees your **yours** sections. Quotes and memes are not notes
 underneath, but they appear in the card and are shared.

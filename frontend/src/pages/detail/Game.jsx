@@ -7,13 +7,13 @@
 import { useState, useEffect, useMemo } from "react";
 import { releaseYear } from "../../lib/releaseDate";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
 import { useAuth } from "../../contexts/AuthContext";
 import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG, getDisplayName } from "../../utils/media";
-import CommunityCard from "../../components/info/CommunityCard";
 import InfoCard from "../../components/info/InfoCard";
 import TimeToBeatCard from "../../components/info/TimeToBeatCard";
 import { hours } from "../../lib/gameHours";
@@ -296,29 +296,36 @@ export default function Game() {
       franchise={franchise}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-        <nav
-          className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint mb-8 flex items-center gap-3"
-          aria-label="Breadcrumb"
-        >
-          <Link to="/library/game" className="hover:text-brand transition">
-            Game
-          </Link>
-          {franchise && (
-            <>
-              <span aria-hidden="true">/</span>
-              <Link
-                to={entityPath("franchise", franchise)}
-                className="hover:text-brand transition truncate max-w-xs normal-case tracking-normal"
-              >
-                {franchiseName}
-              </Link>
-            </>
-          )}
-          <span aria-hidden="true">/</span>
-          <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
-            {titleMain}
-          </span>
-        </nav>
+        <div className="mb-8 flex items-center justify-between gap-3">
+          <nav
+            className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint min-w-0 flex items-center gap-3"
+            aria-label="Breadcrumb"
+          >
+            <Link to="/library/game" className="hover:text-brand transition">
+              Game
+            </Link>
+            {franchise && (
+              <>
+                <span aria-hidden="true">/</span>
+                <Link
+                  to={entityPath("franchise", franchise)}
+                  className="hover:text-brand transition truncate max-w-xs normal-case tracking-normal"
+                >
+                  {franchiseName}
+                </Link>
+              </>
+            )}
+            <span aria-hidden="true">/</span>
+            <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
+              {titleMain}
+            </span>
+          </nav>
+          <ReportProblemButton
+            targetType="game"
+            targetId={system_id}
+            targetLabel={titleMain}
+          />
+        </div>
 
         {isAdmin && (
           <div className="border border-border-strong border-dashed px-3 py-2 flex flex-wrap gap-3 items-center justify-between mb-8">
@@ -488,10 +495,6 @@ export default function Game() {
               isAdmin={isAdmin}
               onChange={(patch) => performPatch(patch, "Completion updated")}
             />
-
-            {/* What every public list says about it, beside what I say.
-              Renders nothing when no public list holds this entry. */}
-            <CommunityCard mediaId={game.system_id} />
 
             {/* Progress and 待辦 Todo in one card. How far in I am and what I
               still mean to do are the same question asked twice, and they

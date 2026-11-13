@@ -12,6 +12,7 @@
 // PATCH, then the response becomes the page's state.
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import { endpoints } from "../../api/endpoints";
 import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
 import { releaseYear } from "../../lib/releaseDate";
@@ -109,18 +110,25 @@ export default function Studio() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
       {/* Breadcrumb: a catalogue path, set in mono */}
-      <nav
-        className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint mb-8 flex items-center gap-3"
-        aria-label="Breadcrumb"
-      >
-        <Link to="/library/studio" className="hover:text-brand transition">
-          Studios
-        </Link>
-        <span aria-hidden="true">/</span>
-        <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
-          {name}
-        </span>
-      </nav>
+      <div className="mb-8 flex items-center justify-between gap-3">
+        <nav
+          className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint min-w-0 flex items-center gap-3"
+          aria-label="Breadcrumb"
+        >
+          <Link to="/library/studio" className="hover:text-brand transition">
+            Studios
+          </Link>
+          <span aria-hidden="true">/</span>
+          <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
+            {name}
+          </span>
+        </nav>
+        <ReportProblemButton
+          targetType="studio"
+          targetId={studio.system_id}
+          targetLabel={name}
+        />
+      </div>
 
       {isAdmin && <AdminToolbar ownerType="studio" systemId={studio.system_id} />}
 

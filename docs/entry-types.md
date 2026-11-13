@@ -315,8 +315,8 @@ never suggested as an anime distributor. Anime Movie carries a
 `distributor_tw` of its own.
 
 Every type also gets `other` and `restricted` free-form access/reference
-buckets on `media_source`, gated by the `sources_other` / `sources_restricted`
-field groups. Table and column detail: [data-model.md](data-model.md#media_source);
+buckets on `media_source`. Every viewer gets `other`; `restricted` is gated
+by the `sources_restricted` field group. Table and column detail: [data-model.md](data-model.md#media_source);
 authorization: [authorization.md](authorization.md); the rule that decides
 column vs. `media_source` row: [business-rules.md](business-rules.md).
 
