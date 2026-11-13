@@ -12,6 +12,12 @@ section of "Customised pages". Origin: the role-and-account-switches plan,
 reference at execution, because P3f, P3g, P3h, P4b and P5 all land in
 between.
 
+**Labels in fixtures.** After #353, `normal` shows the `nsfw` label, so a
+refusal test that hides an entry from a `normal` viewer labels it `erotica`.
+The credits PUT refuses (422) dropping NSFW from `tags.label` while
+輕微色情/擦邊肉番 stays, and the Label option 肉番 is called 擦邊肉番. A
+fixture or test that writes labels follows both.
+
 **What this branch does not do**, because another branch owns it:
 quotes and memes (P3g's `feature_quotes_memes`), `/resources` and the
 admin's fixed permission set (P3h's `manage.resources`), the entity
@@ -185,6 +191,16 @@ viewers.md:
   select and episode stepper. `SeasonBulkActions` writes the catalogue
   (anime PATCH, data-control replace), so it stays on `manage.catalog`.
 - `RandomPicker.jsx` asks `/api/plan-next/` only with `has("self.list")`.
+- **Remarks on every detail page.** Each detail page's own Remark textarea
+  (for example `Novel.jsx` near :628, saved through `performPatch({remark})`,
+  so the catalogue PATCH) is gated on `isAdmin`, and while a remark exists it
+  hides the notes page's remark section. So a plain `user` with a remark on an
+  entry sees only a disabled textarea. Every detail page's remark moves to a
+  `/api/me/...` write under `self.list` in the `me_ratings.py` shape (or the
+  list route, if the remark is already one of `/api/me/list`'s fields; check
+  at execution), gated on `ownData`. Grep every `performPatch` and `remark`
+  use across `pages/detail/` and list them in the PR; Novel is only the
+  example.
 
 ## Part B — the header
 
@@ -232,6 +248,15 @@ viewers.md:
   it. Report a problem asks `self.requests` (P6, already). Personal notes,
   fields and rows are P5's; entity names as plain text are P3g's. Check
   each detail page's tracker gate at execution and list them in the PR.
+- **Watch orders and relations whose group is hidden.** #353 records an open
+  item: `routers/watch_order.py` filters the entries inside an order but
+  never asks whether its owning collection, franchise or series is visible,
+  and `media_relation`'s `/graph` and scope listing behave the same. Nothing
+  in P7 may widen that. A surface this branch adds or opens to a new viewer
+  that lists watch orders or relations (the guest's and shared account's
+  watch-order pages, the dashboard's followed orders) gates each owner on
+  `tier_visible` and answers a hidden one as missing. If that means fixing
+  the routes themselves, the open item is deleted in the same commit.
 
 ## Part D — Seasonal, Statistics, Random Picker, Future Releases, Completions
 
@@ -347,6 +372,13 @@ Every refusal test makes its set non-empty and asserts the mirror.
   present; **mirror**: super reads the count. `/api/media/recent` omits an
   entry the mode hides, with one present; **mirror**: a wider mode returns
   it.
+- **Remarks**: a `user` saves its own remark on an entry that already has
+  one, and a second account's remark is untouched; **mirror**: a guest is
+  401. In the SPA, the remark textarea is enabled for `ownData`, and is not
+  drawn without it.
+- **Hidden owners**: a watch order whose franchise the viewer's mode hides is
+  absent from every surface this branch adds or opens (a gated group present,
+  so the refusal bites); **mirror**: a wider mode lists it.
 - **SPA**: nav per viewer: guest (no Track, no Extras, Explore without
   Random Picker), shared (Explore with it, no Track), user, super, and
   admin after P3h (only its own tabs, no search box). A library config
