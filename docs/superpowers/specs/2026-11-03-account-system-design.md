@@ -179,7 +179,7 @@ from the company development database.
   | --- | --- | --- | --- | --- |
   | `nsfw` | NSFW | `normal` | 不適合公開場合觀看 | NSFW |
   | `ecchi` | 輕微色情 | `normal` | *(to write)* | 輕微色情 (new) |
-  | `erotica` | 擦邊肉番 | `borderline` | *(to write)* | 肉番, renamed 擦邊肉番 |
+  | `erotica` | 擦邊肉番 | `borderline` | *(to write)* | 肉番, renamed 擦邊肉番 (confirmed) |
   | `hentai` | Hentai | `unrestricted` | 成人動畫 | — |
   | `h-game` | H-Game | `unrestricted` | 成人遊戲 | — |
   | `h-comic` | H-Comic | `unrestricted` | 成人漫畫 | — |
