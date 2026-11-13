@@ -25,8 +25,7 @@ catalogue and what is an account's own data is
 > builds it lands, and that change rewrites it in the present tense.
 >
 > **Built:** [Removed](#removed), under "Customised pages";
-> [Requests and reports](#requests-and-reports), and the My
-> requests and inbox rows of
+> [Requests and reports](#requests-and-reports), and every row of
 > [My requests, the inbox, and pending registrations](#my-requests-the-inbox-and-pending-registrations);
 > [Entity pages, shown per kind](#entity-pages-shown-per-kind); and, in
 > "At a glance", the rows for the nine ordinary media types, H-Comic, H-Game
@@ -37,7 +36,8 @@ catalogue and what is an account's own data is
 > "Per-account feature switches"); favourites, music status and mod status
 > are switches there too, which gate nothing until the personal-data work
 > lands. Until the header rework, the inbox sits under Pipelines for both
-> admin and super. A `user` never writes the catalogue (`manage.catalog` is
+> admin and super, and pending registrations are a panel on `/system`, shown
+> only to the admin. Invite links are issued on `/users`. A `user` never writes the catalogue (`manage.catalog` is
 > locked off for the role). The shared accounts, `shared-normal` and
 > `shared-borderline`, each fixed at its own mode, keep no data of their own,
 > and only the admin sets their password

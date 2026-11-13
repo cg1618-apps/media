@@ -2270,10 +2270,10 @@ seeds (`shared-normal`, `shared-borderline`) hold it.
 
 ### `account_code`
 
-The one-time codes behind password reset links (and invite links, which use the
-same table). Model: `AccountCode` (`app/models/account_code.py`); minted and
+The one-time codes behind password reset links and invite links. Model: `AccountCode` (`app/models/account_code.py`); minted and
 spent only through `app/services/domain/account_codes.py`. See
-[authentication.md](authentication.md#reset-links).
+[authentication.md](authentication.md#reset-links) and
+[authentication.md](authentication.md#invite-links-and-registration).
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
@@ -2282,6 +2282,7 @@ spent only through `app/services/domain/account_codes.py`. See
 | `code_hash` | String | no | | UNIQUE. **SHA-256** hex of the code, which is 32 random bytes (`secrets.token_urlsafe(32)`) and is never stored. A fast hash, because the code is high-entropy; it is the column a code is looked up by |
 | `user_id` | UUID | yes | | FK `users.id` ON DELETE **CASCADE** (`fk_account_code_user`), indexed. The account a reset link resets - CHECK `ck_account_code_reset_has_user` requires it on a `reset` row |
 | `created_by_id` | UUID | yes | | FK `users.id` ON DELETE **SET NULL** (`fk_account_code_created_by`). Who issued it; null from the CLI |
+| `created_user_id` | UUID | yes | | FK `users.id` ON DELETE **SET NULL** (`fk_account_code_created_user`). The account a spent invite created. Its own column because it needs the opposite rule to `user_id`: declining a registration deletes the account, and the invite must survive it still spent |
 | `created_at` | DateTime (tz) | no | | |
 | `expires_at` | DateTime (tz) | no | | `created_at` + 24 hours |
 | `spent_at` | DateTime (tz) | yes | | Null until spent |

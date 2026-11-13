@@ -1,5 +1,5 @@
 """
-One-time codes behind the account links: reset links now, invite links later.
+One-time codes behind the account links: reset links and invite links.
 
 The code itself is never stored. It is 32 random bytes
 (`secrets.token_urlsafe(32)`), handed out once inside a link, and only its
@@ -51,6 +51,18 @@ class AccountCode(Base):
         UUID(as_uuid=True),
         ForeignKey(
             "users.id", ondelete="SET NULL", name="fk_account_code_created_by"
+        ),
+        nullable=True,
+    )
+    # The account an invite created, once it is spent. Its own column rather
+    # than user_id because the two need opposite deletion rules: a reset code
+    # goes with its account (CASCADE), while a declined registration must
+    # leave its invite recorded as spent (SET NULL), so the link cannot be
+    # used again.
+    created_user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "users.id", ondelete="SET NULL", name="fk_account_code_created_user"
         ),
         nullable=True,
     )

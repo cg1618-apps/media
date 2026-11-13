@@ -63,6 +63,7 @@ const Memes = lazy(() => import("./pages/public/Memes"));
 const Resources = lazy(() => import("./pages/public/Resources"));
 const Settings = lazy(() => import("./pages/public/Settings"));
 const ResetPassword = lazy(() => import("./pages/public/ResetPassword"));
+const Register = lazy(() => import("./pages/public/Register"));
 const MyRequests = lazy(() => import("./pages/public/MyRequests"));
 const Admin = lazy(() => import("./pages/admin/Admin"));
 const Add = lazy(() => import("./pages/admin/Add"));
@@ -117,6 +118,9 @@ export default function App() {
                 {/* In no menu: reached only by a reset link the admin
                     hands out, which carries its own ?code=. */}
                 <Route path="/reset" element={<ResetPassword />} />
+                {/* In no menu either: reached only by an invite link the
+                    admin hands out, which carries its own ?code=. */}
+                <Route path="/register" element={<Register />} />
                 <Route
                   path="/library/collection"
                   element={<CollectionLibrary />}

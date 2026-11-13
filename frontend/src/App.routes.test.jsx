@@ -24,6 +24,7 @@ function stub(name) {
 }
 vi.mock("./pages/public/Index", () => stub("dashboard"));
 vi.mock("./pages/public/Login", () => stub("login"));
+vi.mock("./pages/public/Register", () => stub("register"));
 vi.mock("./pages/public/Search", () => stub("search"));
 vi.mock("./pages/library/Library", () => stub("media library"));
 vi.mock("./pages/library/FranchiseLibrary", () => stub("franchise library"));
@@ -152,6 +153,8 @@ describe("a guest's open routes", () => {
     "/library/collection": "collection library",
     "/franchise/1": "franchise",
     "/anime/1": "anime",
+    // In no menu, but open: an invite link is used before any account exists.
+    "/register?code=abc": "register",
   };
   for (const [path, page] of Object.entries(OPEN)) {
     it(`lets a guest into ${path}`, async () => {

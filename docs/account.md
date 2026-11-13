@@ -12,9 +12,6 @@ technical detail — how sign-in works underneath is
 [authentication.md](authentication.md), and who may see what is
 [authorization.md](authorization.md).
 
-Some of what is described here is **not available yet**, and says so where
-it appears. Everything else works today.
-
 ## Kinds of visitor
 
 - **Not signed in** — you can browse the libraries and the pages they lead
@@ -88,16 +85,13 @@ password. Remove one with its **×**.
 much of the collection you see, among the modes up to your account's
 ceiling. A shared account's mode is fixed, so it has no switcher.
 
-*Not available yet:* an account waiting for approval will be told so after
-the right password; a wrong password will still just say the sign-in
-failed.
+An account waiting for approval is told so after the right password; a
+wrong password just says the sign-in failed.
 
 ## Getting an account
 
-Today the admin creates your account and gives you the username and
-password.
-
-*Not available yet — registering with an invite link:*
+Either the admin creates your account and gives you the username and
+password, or you register with an invite link:
 
 1. Ask the admin for an **invite link**. It works once, and only for
    24 hours.
@@ -176,7 +170,11 @@ disabling your account. There is no separate "sign out everywhere".
   given in [authentication.md](authentication.md), and open the link it
   prints.
 
-*Not available yet:* **invite someone** — make an invite link and hand it
-over. Pending registrations wait on `/system`; approving sets the role
-(`user` by default) and the modes (ceiling and default `normal`).
-Declining removes the account.
+- **Invite someone** — **Invite link** on `/users` makes a link that
+  works once, for 24 hours; hand it over. It is shown once. Several can be
+  open at once.
+- **Pending registrations** wait on `/system`. Approving sets the role
+  (`user` or `super`, `user` by default) and the modes (ceiling and
+  default from `safe`, `normal` and `borderline`, `normal` by default;
+  `unrestricted` is given later on `/users`). Declining removes the
+  account, and its invite link stays used.

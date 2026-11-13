@@ -10,15 +10,16 @@ Authentication answers one question: *who is making this request?* The app has a
 
 | Concern | File |
 | --- | --- |
-| Login / me / logout / reset routes | `app/routers/auth.py` |
+| Login / me / logout / reset / register routes | `app/routers/auth.py` |
 | Password hashing, the username and password checks, JWT minting | `app/services/security.py` |
 | Cookie -> viewer resolution, the session guard | `app/services/rbac/resolver.py` |
 | the capability gates | `app/services/rbac/resolver.py` |
 | Ending an account's sessions (`revoke_sessions`) | `app/services/domain/accounts.py` |
-| One-time codes (reset links) | `app/services/domain/account_codes.py`, `app/models/account_code.py` |
+| One-time codes (reset and invite links) | `app/services/domain/account_codes.py`, `app/models/account_code.py` |
+| Registration, approval and decline; whether a name is free | `app/services/domain/registration.py` |
 | Rate limiter | `app/services/rate_limit.py` |
 | Changing your own password | `app/routers/account.py` |
-| Disable / enable, reset links from `/users` | `app/routers/users.py` |
+| Disable / enable, reset and invite links, approving and declining registrations | `app/routers/users.py` |
 | Box CLI | `app/cli.py` |
 | Admin seeding at boot | `app/main.py` (`lifespan`) |
 | Settings (`JWT_SECRET_KEY`, expiry, `PUBLIC_BASE_URL`) | `app/config.py` |
@@ -26,7 +27,7 @@ Authentication answers one question: *who is making this request?* The app has a
 | Route guard | `frontend/src/components/layout/ProtectedRoute.jsx` |
 | Login page | `frontend/src/pages/public/Login.jsx` |
 | HTTP wrapper | `frontend/src/api/client.js` |
-| Tests | `tests/api/test_auth.py`, `tests/api/test_account_lifecycle.py`, `tests/api/test_reset_links.py`, `tests/api/test_account_password.py`, `tests/api/test_users_lifecycle.py`, `tests/unit/test_security.py`, `tests/unit/test_account_policy.py`, `tests/unit/test_rate_limit.py` |
+| Tests | `tests/api/test_auth.py`, `tests/api/test_account_lifecycle.py`, `tests/api/test_reset_links.py`, `tests/api/test_invites_and_registration.py`, `tests/api/test_account_password.py`, `tests/api/test_users_lifecycle.py`, `tests/unit/test_security.py`, `tests/unit/test_account_policy.py`, `tests/unit/test_rate_limit.py` |
 
 ## Login flow
 
@@ -41,7 +42,7 @@ Authentication answers one question: *who is making this request?* The app has a
 
 `POST /api/auth/logout` deletes the cookie (same path/flags) and returns `{"message": "Successfully logged out"}`. It does not need a valid session to succeed. It ends only this browser's session; see [Sessions and their revocation](#sessions-and-their-revocation) for what ends all of them.
 
-There is no self-registration. Accounts are created by an admin through `/api/users` (see [authorization.md](authorization.md)). A forgotten password is recovered by a [reset link](#reset-links), which only the admin (or the box) can issue.
+An account is created by the admin through `/api/users` (see [authorization.md](authorization.md)), or registered by whoever holds an [invite link](#invite-links-and-registration) the admin issued, and approved before it can sign in. Nobody registers without an invite. A forgotten password is recovered by a [reset link](#reset-links), which only the admin (or the box) can issue.
 
 > ### Before inviting anybody
 >
@@ -232,6 +233,27 @@ docker compose exec media-app python -m app.cli reset-link <username>
 
 `app/cli.py` (argparse, one subcommand) finds the account ignoring case and calls the same `issue_reset_link`, with no issuer recorded (`created_by_id` is null). It prints the link and its expiry and exits 0; an unknown account, or one that may not have a link, prints why on stderr and exits 1. The link's host comes from `PUBLIC_BASE_URL` - there is no request to read one from - whose default is production's address, so the box needs no variable for it.
 
+## Invite links and registration
+
+An invite lets one person register one account. Only the admin issues one, from `/users`, and hands it over however they like.
+
+| Step | Route | What happens |
+| --- | --- | --- |
+| Issue | `POST /api/users/invites` (`admin.authz`) | `{link, expires_at}`, **once**. The link is `PUBLIC_BASE_URL` + `/register?code=<code>`, valid 24 hours. Several may be open at once: unlike a reset link, a new invite does not void the others, since each is for a different person |
+| Check | `GET /api/auth/register?code=` | `{valid: true}` without spending the code, so the page can show the form |
+| Register | `POST /api/auth/register` `{code, username, password}` | **201** `{username}`. Spends the invite and creates the account **`pending`**, on the `user` role and with no mode (ceiling and default null), in one transaction, and records the account on the invite (`created_user_id`). No cookie is set |
+| List | `GET /api/users/?status=pending` (`admin.authz`) | the accounts waiting |
+| Approve | `POST /api/users/{id}/approve` `{role_id?, ceiling_mode, default_mode}` (`admin.authz`) | Makes the account `active`, on `user` or `super` (default `user`), at the chosen ceiling and default (default `normal` / `normal`), with the role's request limit, in one transaction |
+| Decline | `POST /api/users/{id}/reject` (`admin.authz`) | **204**. Deletes the account and logs its username. The invite keeps `spent_at`, so the link stays used |
+
+**Codes** are the reset links' ([Reset links](#reset-links)): the same table, the same hashing, and the same single **404** for every unusable code. A reset code is refused on `/register` and an invite on `/reset`, because each is checked against its purpose.
+
+**Refusals on register.** The username and password pass `validate_new_username` and `validate_new_password`; a refusal is **422** with the sentence to show, and a name already taken, ignoring case, is **409** `That username is taken.` Every one rolls the spend back, so a typo does not burn the link.
+
+**Refusals on approve.** **409** for an account that is not `pending`, and the same on decline. **422** for a role other than `user` or `super`, for `unrestricted` as either mode, and for any pair `set_mode_ceiling` refuses (a default above the ceiling, an unknown key). The approval form never hands out `unrestricted`; the admin grants it later on `/users`, per person. The account stays `pending` after any refusal.
+
+**A pending account** cannot sign in (403 after the right password, see [Login flow](#login-flow)), resolves as the guest, is not edited through `PATCH /api/users/{id}` (409), never becomes the installation owner, and is not written to the Sheets `Users` tab by Backup.
+
 ## Changing your own password
 
 `PUT /api/account/password` `{current_password, new_password}` on `app/routers/account.py`, gated on **`self.password`** ([authorization.md](authorization.md)). A wrong current password is **400** `Your current password is not right.`, not 401, which the SPA reads as a lost session. The new password passes `validate_new_password` (422 otherwise). It returns `{"message": "Password changed."}` and does **not** touch `session_version`.
@@ -247,6 +269,7 @@ The root admin does not hold `self.password` - the self family is outside the ro
 | `POST /api/auth/login` | the lowercased username | 5 **failed** attempts. A correct password clears the count |
 | `POST /api/auth/login` | the address | 20 failed attempts, over any usernames |
 | `GET` and `POST /api/auth/reset` | the address | 10 requests, counted whether or not they succeed - the GET alone answers "is this code real" |
+| `GET` and `POST /api/auth/register` | the address | 10 requests, counted the same way, separately from reset |
 
 A locked username stays locked whatever is typed, the right password included, until its window ends.
 

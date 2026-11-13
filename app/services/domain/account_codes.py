@@ -1,6 +1,5 @@
 """
-Minting and spending the one-time codes behind reset links (and, later, invite
-links). The table and why only a SHA-256 of each code is stored:
+Minting and spending the one-time codes behind reset links and invite links. The table and why only a SHA-256 of each code is stored:
 app/models/account_code.py.
 
 A code is refused when it is unknown, minted for another purpose, expired or
@@ -49,6 +48,43 @@ def reset_link(code: str) -> str:
     return f"{settings.public_base_url.rstrip('/')}/reset?code={code}"
 
 
+def invite_link(code: str) -> str:
+    return f"{settings.public_base_url.rstrip('/')}/register?code={code}"
+
+
+def _mint(
+    db: Session, purpose: str, user_id=None, created_by_id=None
+) -> tuple[str, datetime]:
+    """Store a new code's hash and return the code and its expiry. Flushes."""
+    code = secrets.token_urlsafe(32)
+    now = _now()
+    expires_at = now + CODE_LIFETIME
+    db.add(
+        models.AccountCode(
+            purpose=purpose,
+            code_hash=hash_code(code),
+            user_id=user_id,
+            created_by_id=created_by_id,
+            created_at=now,
+            expires_at=expires_at,
+        )
+    )
+    db.flush()
+    return code, expires_at
+
+
+def issue_invite(db: Session, created_by_id=None) -> tuple[str, datetime]:
+    """
+    A new invite link, and when it expires. Flushes; the caller commits.
+
+    Names nobody: whoever holds the link registers the account, and the row
+    records which one once it is spent (created_user_id). Several invites may
+    be open at once - unlike a reset link, a new one does not void the others.
+    """
+    code, expires_at = _mint(db, PURPOSE_INVITE, created_by_id=created_by_id)
+    return invite_link(code), expires_at
+
+
 def reset_refusal(user: models.User) -> Optional[str]:
     """Why `user` may not be given a reset link, or None when they may.
 
@@ -89,20 +125,9 @@ def issue_reset_link(
         models.AccountCode.spent_at.is_(None),
     ).delete(synchronize_session=False)
 
-    code = secrets.token_urlsafe(32)
-    now = _now()
-    expires_at = now + CODE_LIFETIME
-    db.add(
-        models.AccountCode(
-            purpose=PURPOSE_RESET,
-            code_hash=hash_code(code),
-            user_id=user.id,
-            created_by_id=created_by_id,
-            created_at=now,
-            expires_at=expires_at,
-        )
+    code, expires_at = _mint(
+        db, PURPOSE_RESET, user_id=user.id, created_by_id=created_by_id
     )
-    db.flush()
     return reset_link(code), expires_at
 
 
