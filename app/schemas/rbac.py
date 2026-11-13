@@ -41,10 +41,6 @@ class RoleBase(BaseModel):
     sort_order: int = 0
 
 
-class RoleCreate(RoleBase):
-    permissions: List[str] = []
-
-
 class RoleUpdate(BaseModel):
     label: Optional[str] = None
     description: Optional[str] = None
@@ -59,7 +55,6 @@ class RolePermissions(BaseModel):
 
 class RoleResponse(RoleBase):
     system_id: UUID
-    is_system: bool
     is_root: bool
     permissions: List[str] = []
     user_count: int = 0

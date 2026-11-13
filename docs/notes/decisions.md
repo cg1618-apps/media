@@ -4106,3 +4106,66 @@ link the admin hands over. Invite links and approval are the second half.
 - **Usernames are unique ignoring case**, by a `lower(username)` index. The
   `[a-z0-9_-]{3,32}` and no-`admin`/`guest` rules apply to new names only,
   so the `admin` account keeps its name.
+
+### Exactly five fixed roles, and the shared accounts (spec: 2026-11-03 account-system-design)
+
+- **Custom roles are abandoned.** The roles are `admin`, `super`, `user`,
+  `guest` and `shared` (`permissions.ROLE_NAMES`), and `POST` and `DELETE` on
+  `/api/roles`, `RoleCreate`, the create form and delete button on `/roles`,
+  and the "every custom role" branch of `locked_permissions` are gone. The
+  spec's reason: with five fixed roles plus per-role and per-account
+  switches, a custom role adds nothing but something more to secure. Every
+  rule that had to say "and a custom role decides this freely" was a hole in
+  a lock table, and the lock table was the thing being secured.
+- **A name outside the five gets everything locked off**, not the old custom
+  row's free choices. No such role can exist after the migration, but a lock
+  table must not hand a stranger anything.
+- **`role.is_system` is dropped.** Every role is a system role, so the column
+  said nothing. `is_root` stays, on `admin`, until the admin stops being a
+  root role.
+- **The migration refuses rather than reassigns.** `f1i2veroles45` deletes
+  every role outside the five that holds no account (its grants cascade). A
+  role outside the five that **holds** an account makes the upgrade raise,
+  naming the role and how many accounts hold it, and nothing changes. Which
+  role those accounts should move to is a decision about people — `user` and
+  `super` differ in whether they write the catalogue — and a deploy has no
+  business guessing it.
+- **So the deploy refuses if production has a custom role holding accounts.**
+  The fix is to move those accounts to another role at `/users` first, then
+  deploy again. **Production holds only `admin`, `super` and `guest`,
+  checked by the owner**, so the refusal does not fire on this release; a
+  user-less custom role, if any, is simply deleted. The refusal stays in the
+  code for any other database. The downgrade re-adds `is_system` (true for
+  every remaining role) and does not restore deleted roles, which held
+  nothing.
+- **The `shared` role and accounts come from the lifespan seed, not the
+  migration**, as the other roles do, because the API tests build their
+  schema with `create_all` and never run Alembic.
+- **The shared accounts are re-asserted on every boot.** `ensure_shared_accounts`
+  creates `shared-normal` and `shared-borderline` if missing, and on every run
+  sets the role back to `shared` and the ceiling and default back to the
+  account's own mode. "Fixed" has to survive what the API cannot stop: a Pull
+  restores the Users tab as the sheet says, and a hand edit in the database
+  goes round `/users` entirely. The password, status and request limit are
+  the admin's, so the seed leaves them alone.
+- **No shared password in `.env` or the code** (owner decision). A new shared
+  account gets `UNUSABLE_PASSWORD_HASH`, which nothing verifies against, and
+  the admin sets the password on `/users` when handing the account out.
+- **`view.extras` is locked off for `shared` now**, because it is what opens
+  quotes and memes, and a shared account never gets them, not even by
+  switch. The same permission gates the random picker, future releases and
+  completions, so until the switches split it a shared account reads what a
+  guest reads, plus requests — its customised Random Picker and Future
+  Releases wait for that split. Locking it now rather than later keeps
+  "never quotes or memes" true from the day the role exists.
+- **`user` loses `manage.catalog`**, locked off with the boot reconciliation
+  dropping a stored grant. The owner: a user will never be given catalogue
+  writing — writing the catalogue is what makes an account `super`.
+- **`/users` refuses each fixed thing explicitly**, rather than leaving it to
+  the last-admin guard: an account is created in or moved to `user` or
+  `super` only (422); the admin account's role and a shared account's role
+  are 409 with a sentence naming which; a shared account cannot be deleted
+  (disabling is allowed) and its access modes cannot be edited (409). The
+  last-admin guard is unchanged, and goes when the admin stops being root.
+- **The shared request limit is 10** (`DEFAULT_REQUEST_LIMITS`), adjustable
+  per account like `user`'s 15.

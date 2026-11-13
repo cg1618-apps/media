@@ -57,10 +57,8 @@ export const endpoints = {
     list: () => "/api/roles/",
     catalog: () => "/api/roles/catalog",
     detail: (id) => `/api/roles/${id}`,
-    create: () => "/api/roles/",
     update: (id) => `/api/roles/${id}`,
     permissions: (id) => `/api/roles/${id}/permissions`,
-    remove: (id) => `/api/roles/${id}`,
   },
 
   accessModes: {

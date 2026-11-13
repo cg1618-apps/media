@@ -26,7 +26,7 @@ leaves an installation showing exactly what this revision made it show. The
 rows step 1 and 3 deleted, and the names step 2 rewrote, are not restored.
 
 Revision ID: l1a2belcode3
-Revises: m1c2eiling345
+Revises: f1i2veroles45
 Create Date: 2026-11-13 00:00:00.000000
 
 """
@@ -37,7 +37,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "l1a2belcode3"
-down_revision: Union[str, Sequence[str], None] = "m1c2eiling345"
+down_revision: Union[str, Sequence[str], None] = "f1i2veroles45"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

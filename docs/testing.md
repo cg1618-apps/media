@@ -79,8 +79,9 @@ PostgreSQL database. `tests/api/conftest.py` does the following:
    scratch database from empty and compares the result to the models, object
    by object and column by column. The RBAC roles that
    migration A would normally seed are created once here via
-   `ensure_rbac_seed`, followed by `ensure_access_mode_seed` and
-   `ensure_system_labels`. `drop_all` runs at session end.
+   `ensure_rbac_seed`, followed by `ensure_access_mode_seed`,
+   `ensure_system_labels` and `ensure_shared_accounts`. `drop_all` runs at
+   session end.
 
    **Anything the lifespan seeds must be seeded here too, committed.** This
    has caused a hang twice. `with TestClient(app)` runs the lifespan on its

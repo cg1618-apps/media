@@ -226,9 +226,8 @@ class Role(Base):
     name = Column(String, nullable=False, unique=True, index=True)
     label = Column(String, nullable=False)
     description = Column(Text, nullable=True)
-    # guest and admin: the app reads them by name, so they cannot be renamed
-    # or deleted through the API.
-    is_system = Column(Boolean, nullable=False, default=False, server_default="false")
+    # The five roles are fixed (permissions.ROLE_NAMES) and read by name, so
+    # none can be created, renamed or deleted through the API.
     is_root = Column(
         Boolean, nullable=False, default=False, server_default="false"
     )

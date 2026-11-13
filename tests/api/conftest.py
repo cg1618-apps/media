@@ -29,7 +29,11 @@ from app.services.rbac.permissions import (
     view_perm,
 )
 from app.services.rbac.resolver import MODE_OVERRIDE_COOKIE
-from app.services.rbac.seed import default_user_permissions, ensure_rbac_seed
+from app.services.rbac.seed import (
+    default_user_permissions,
+    ensure_rbac_seed,
+    ensure_shared_accounts,
+)
 from app.services.rbac.seed_modes import (
     MODE_SAFE,
     MODE_UNRESTRICTED,
@@ -95,6 +99,11 @@ def test_engine():
     # every test from here on, as they do on every real database - so a narrow
     # mode is never vacuously narrow on this axis.
     ensure_labels(seeding)
+    seeding.commit()
+    # The two shared accounts, for the same reason again: the lifespan
+    # creates them on its own connection, and seeding them here first keeps
+    # its copy to a SELECT.
+    ensure_shared_accounts(seeding)
     seeding.commit()
     seeding.close()
 
@@ -557,7 +566,6 @@ def make_viewer(
         system_id=uuid.uuid4(),
         name=f"role-{username}",
         label=username,
-        is_system=False,
         is_root=False,
     )
     db_session.add(role)
@@ -619,7 +627,6 @@ def make_guest_reader(db_session, client, username="guestreader", extra=ALL_VIEW
         system_id=uuid.uuid4(),
         name=f"role-{username}",
         label=username,
-        is_system=False,
         is_root=False,
     )
     db_session.add(role)
