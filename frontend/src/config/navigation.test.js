@@ -172,6 +172,7 @@ describe("NAV_SECTIONS", () => {
       "/data-history",
       "/review-queue",
       "/clean-orphans",
+      "/request-inbox",
     ]);
     expect(sectionRequirement(pipelines)).toBe("manage.pipelines");
 
@@ -189,6 +190,25 @@ describe("NAV_SECTIONS", () => {
     expect(
       sectionItems(admin).every((i) => i.requires === undefined),
     ).toBe(true);
+  });
+
+  it("lists the request inbox under Pipelines, gated on manage.requests", () => {
+    // Its own key, not the section's: App.jsx's /request-inbox route asks
+    // manage.requests. A viewer holding the pipelines but not the inbox is
+    // what makes the row's own gate bite - and the mirror proves the section
+    // was drawn with the row in it.
+    const holdsPipelines = (p) => p === "manage.pipelines";
+    const without = visibleSections(NAV_SECTIONS, holdsPipelines).find(
+      (s) => s.key === "pipelines",
+    );
+    expect(sectionItems(without).map((i) => i.to)).toContain("/system");
+    expect(sectionItems(without).map((i) => i.to)).not.toContain("/request-inbox");
+
+    const holdsBoth = (p) => p === "manage.pipelines" || p === "manage.requests";
+    const withInbox = visibleSections(NAV_SECTIONS, holdsBoth).find(
+      (s) => s.key === "pipelines",
+    );
+    expect(sectionItems(withInbox).map((i) => i.to)).toContain("/request-inbox");
   });
 
   it("gates Entry and Note on manage.catalog", () => {
@@ -431,6 +451,7 @@ describe("the two permission surfaces agree", () => {
     "/quote": "view.extras",
     "/meme": "view.extras",
     "/resources": "view.extras",
+    "/request-inbox": "manage.requests",
   };
 
   it("asks the same permission the route gate asks", () => {

@@ -45,6 +45,7 @@ import {
 } from "../../components/ui/primitives";
 import MediaCard from "../../components/cards/MediaCard";
 import RemarkModal from "../../components/modals/RemarkModal";
+import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import WatchOrderSection from "../../components/tracker/WatchOrderSection";
 import HubCharacters from "../../components/hub/HubCharacters";
 import FranchiseNotes from "./FranchiseNotes";
@@ -1325,7 +1326,17 @@ export default function FranchisePage() {
 
   return (
     <HubShell>
-      <Crumbs trail={trail} current={mainTitle} />
+      <Crumbs
+        trail={trail}
+        current={mainTitle}
+        action={
+          <ReportProblemButton
+            targetType="franchise"
+            targetId={system_id}
+            targetLabel={mainTitle}
+          />
+        }
+      />
 
       {isAdmin && <AdminStrip editId={system_id} />}
 
