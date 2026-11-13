@@ -84,7 +84,8 @@ this browser, so you can pick one instead of typing it. It never remembers a
 password. Remove one with its **×**.
 
 **Access mode.** Once signed in, the mode switcher in the header changes how
-much of the collection you see, among the modes your account holds.
+much of the collection you see, among the modes up to your account's
+ceiling.
 
 *Not available yet:* an account waiting for approval will be told so after
 the right password; a wrong password will still just say the sign-in

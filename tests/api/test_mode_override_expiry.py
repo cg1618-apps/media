@@ -36,7 +36,7 @@ DOMAIN = "testserver.local"
 
 @pytest.fixture
 def signed_in(db_session, admin_user, grant_mode, nsfw_label):
-    """admin_user holding `borderline` (default), `unrestricted` and `safe`.
+    """admin_user at ceiling `unrestricted`, default `borderline`.
 
     `nsfw_label` is load-bearing: it is what makes `borderline` and
     `unrestricted` different from `safe`, so "landed back in the default" is
@@ -106,20 +106,10 @@ def test_a_changed_default_applies_on_the_next_request(
     signed_in, db_session, admin_user, mode
 ):
     """The default is read from the database, not frozen into the login."""
-    from app import models
     from app.services.rbac import cache
 
     c = signed_in()
-    rows = (
-        db_session.query(models.UserAccessMode)
-        .filter(models.UserAccessMode.user_id == admin_user.id)
-        .all()
-    )
-    for row in rows:
-        row.is_default = False
-    db_session.flush()
-    for row in rows:
-        row.is_default = row.mode_id == mode(MODE_SAFE).system_id
+    admin_user.mode_default = MODE_SAFE
     db_session.flush()
     cache.bump()
 
@@ -218,20 +208,17 @@ def test_another_accounts_override_is_ignored(signed_in, mode):
     assert _active(c)["key"] == MODE_BORDERLINE
 
 
-def test_an_override_naming_a_revoked_mode_resolves_to_nothing(
+def test_an_override_above_a_lowered_ceiling_resolves_to_nothing(
     signed_in, mode, db_session, admin_user
 ):
-    """Revocation stays fail-closed: the EMPTY set, not the default. The
-    default can be wider than what was revoked."""
-    from app import models
+    """Lowering the ceiling stays fail-closed: the EMPTY set, not the default
+    and not the new ceiling."""
     from app.services.rbac import cache
 
     c = signed_in()
-    _switch(c, mode(MODE_SAFE))
-    db_session.query(models.UserAccessMode).filter(
-        models.UserAccessMode.user_id == admin_user.id,
-        models.UserAccessMode.mode_id == mode(MODE_SAFE).system_id,
-    ).delete(synchronize_session=False)
+    _switch(c, mode(MODE_UNRESTRICTED))
+    assert _active(c)["key"] == MODE_UNRESTRICTED
+    admin_user.mode_ceiling = MODE_BORDERLINE
     db_session.flush()
     cache.bump()
 

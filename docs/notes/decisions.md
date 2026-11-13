@@ -3796,6 +3796,59 @@ changes only grants and nothing in the feature itself.
   no limit, and an older sheet without the column leaves the local value
   alone.
 
+### An account has a mode ceiling and a default, not a held mode set (2026-11-13)
+
+- **An account has a ceiling and a default, not a set of modes.** The four
+  modes are ordered `safe < normal < borderline < unrestricted`
+  (`seed_modes.MODE_ORDER`, compared with `mode_rank`). An account may use
+  every mode at or below `users.mode_ceiling` and lands in
+  `users.mode_default`. A held set could express a gap (`safe` and
+  `borderline` without `normal`) that nobody had a use for, and it needed a
+  partial unique index to keep the default inside it; the ceiling needs one
+  CHECK constraint.
+- **Keys, not `access_mode` ids.** The order is defined on keys in code, the
+  four keys are fixed, and a key means the same on both machines, so the
+  pair travels on the Sheets `Users` tab without being resolved. An id is
+  minted per database and would need the same name-resolution step the role
+  needs.
+- **Denials hang off the account and apply in every mode.** Re-keying the
+  denial from the grant row to the account was the only shape left once
+  there is no grant row. The migration takes the union of an account's
+  denials across its grants, which is a narrowing, never a widening.
+  `set_mode_ceiling` deletes the denials a lowered ceiling no longer shows,
+  so a denial always names something the account could otherwise reach.
+- **The switch's password test stays the subset test on effective sets.**
+  With uniform denials it agrees with a rank comparison everywhere except
+  from the empty set, where a rank says "widening" and the subset test
+  correctly says moving to `safe` with its labels denied adds nothing.
+  Which modes are *available* is the rank comparison; what a switch *costs*
+  is the subset test.
+- **A mode above the ceiling resolves the empty set**, exactly as a revoked
+  grant did. Falling back to the default or to the ceiling would let a
+  lowered ceiling leave a session somewhere it was never put.
+- **A new account starts at `normal` / `normal`** (the spec's settled
+  default for the approval form and for `/users`), from the columns'
+  default rather than from handler code, so a Pull from a sheet that
+  predates the columns lands there too.
+- **The fresh `admin` account is seeded at `unrestricted` / `unrestricted`**,
+  the faithful mapping of the root role, which sees everything. The
+  account-system design gives `admin` no mode at all; that lands with the
+  change that removes its user data, not here.
+- **The migration's owner case.** `cg1618` is set to `unrestricted` /
+  `borderline` whatever it held, as the owner settled. Every other account
+  gets the widest mode it held as its ceiling, filling any gap below it; the
+  migration logs each account whose held set had one, so a gap filled on the
+  box shows in the deploy log. The downgrade recreates one grant per mode up
+  to the ceiling with the default flagged, and copies each denial onto every
+  grant; the only thing it cannot restore is a gap the upgrade filled.
+- **A pair the constraints would refuse is skipped on Pull, not allowed to
+  roll the tab back.** `ck_users_mode_*` would raise at the tab's commit and
+  take every account with it, the failure shape the Users tab already guards
+  against for roles. The row lands; its pair stays local and is reported.
+- **`GET /api/access-modes` serves each mode's `rank`**, so the Users page
+  orders its ceiling and default selects without keeping a second copy of
+  the order. A mode an admin creates has no rank and no ceiling reaches it.
+
 ### Notes rework, catalogue half (spec: 2026-11-12 notes-rework-design)
 
 The half of the notes rework that needs nothing from the account work, in one

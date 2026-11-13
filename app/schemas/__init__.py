@@ -197,7 +197,6 @@ from app.schemas.rbac import (
     ContentLabelResponse,
     ContentLabelUpdate,
     EntryLabels,
-    HeldAccessMode,
     ManagedUserCreate,
     ManagedUserResponse,
     ManagedUserUpdate,
@@ -209,7 +208,6 @@ from app.schemas.rbac import (
     RolePermissions,
     RoleResponse,
     RoleUpdate,
-    UserAccessModeGrant,
     UserAccessModes,
 )
 from app.schemas.resource import (
@@ -311,8 +309,6 @@ __all__ = [
     "AccessModeCatalogItem",
     "AccessModeCatalogGroup",
     "AccessModeSwitch",
-    "HeldAccessMode",
-    "UserAccessModeGrant",
     "UserAccessModes",
     "ManagedUserCreate",
     "ManagedUserUpdate",

@@ -135,9 +135,8 @@ def test_a_grant_change_is_felt_on_the_next_request(
     reaching into the cache. Without it the change would not be felt until the
     process restarted.
 
-    The reader is `plain_user`, not the admin: `admin_client` already grants
-    the admin account all four modes, and mode_client would grant one of them
-    a second time - uq_user_access_mode, correctly, refuses that.
+    The reader is `plain_user`, not the admin, so the reader's session is
+    the only one sitting in `normal`.
     """
     c = mode_client(MODE_NORMAL, user=plain_user)
     assert c.get(f"/api/anime/{hidden_anime.system_id}").status_code == 404
@@ -206,22 +205,45 @@ def test_a_system_mode_cannot_be_deleted(admin_client, mode):
     assert response.status_code == 409
 
 
-def test_a_mode_an_account_still_holds_cannot_be_deleted(
-    admin_client, admin_user, grant_mode, db_session
+def test_user_count_is_the_accounts_whose_ceiling_reaches_the_mode(
+    admin_client, plain_user, db_session, mode
 ):
-    """Deleting it would cascade the grant away and silently narrow that
-    account - the same reason roles.py refuses a held role."""
-    custom = models.AccessMode(key="temp", label="Temp")
+    """`normal` is reached by a `normal` ceiling and by every wider one; a
+    `safe` ceiling does not reach it, and a hand-made mode is reached by no
+    ceiling at all."""
+    custom = models.AccessMode(key="counted", label="Counted")
     db_session.add(custom)
     db_session.flush()
-    db_session.add(
-        models.UserAccessMode(user_id=admin_user.id, mode_id=custom.system_id)
-    )
+
+    def count(mode_id):
+        return admin_client.get(f"{MODES}{mode_id}").json()["user_count"]
+
+    normal_id = mode(MODE_NORMAL).system_id
+    before = count(normal_id)
+    plain_user.mode_ceiling = MODE_SAFE
+    plain_user.mode_default = MODE_SAFE
+    db_session.flush()
+    assert count(normal_id) == before - 1
+    assert count(mode(MODE_SAFE).system_id) >= 1
+    assert count(custom.system_id) == 0
+
+
+def test_each_mode_carries_its_rank(admin_client, db_session):
+    """The SPA orders the ceiling and default selects by this, so it never
+    keeps a copy of MODE_ORDER. A hand-made mode has none."""
+    custom = models.AccessMode(key="unranked", label="Unranked")
+    db_session.add(custom)
     db_session.flush()
 
-    response = admin_client.delete(f"{MODES}{custom.system_id}")
+    by_key = {m["key"]: m["rank"] for m in admin_client.get(MODES).json()}
 
-    assert response.status_code == 409
+    assert [by_key[k] for k in (MODE_SAFE, MODE_NORMAL, "borderline", MODE_UNRESTRICTED)] == [
+        0,
+        1,
+        2,
+        3,
+    ]
+    assert by_key["unranked"] is None
 
 
 def test_an_unheld_custom_mode_deletes(admin_client, db_session):

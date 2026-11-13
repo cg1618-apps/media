@@ -97,7 +97,7 @@ def test_a_guest_gets_the_guest_default_modes_groups(client, access_modes):
 # is how they drift.
 
 
-def test_me_lists_the_modes_this_account_holds(admin_user, mode_client, grant_mode):
+def test_me_lists_the_modes_up_to_the_ceiling(admin_user, mode_client, grant_mode):
     c = mode_client(MODE_NORMAL)
     grant_mode(admin_user, MODE_SAFE)
 
@@ -137,7 +137,7 @@ def test_a_denial_makes_a_mode_narrower_for_this_account(
     admin_user, mode_client, grant_mode, nsfw_label
 ):
     """The cost is computed against the EFFECTIVE set, not the mode's own. An
-    account holding `borderline` minus nsfw reaches no more than `normal`, so
+    account at ceiling `borderline` denied nsfw reaches no more than `normal`, so
     switching to it must not ask for a password."""
     c = mode_client(MODE_NORMAL)
     grant_mode(admin_user, MODE_BORDERLINE, denials=(nsfw_label.key,))
