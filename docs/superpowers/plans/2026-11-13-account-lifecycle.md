@@ -319,11 +319,13 @@ their reasons.
   lock that username for 15 minutes, even for its real owner. That is
   the standard price of brute-force protection. Letting a correct password
   through the lock would undo the protection.
-- **Provisional, the owner's call:** when the admin sets **its own**
-  password on `/users`, every session is revoked, then the caller's
-  cookie is re-issued at the new counter. The browser that made the
-  change stays signed in and every other device is signed out, as
-  Django's `update_session_auth_hash` does. Built behind one function.
-  The alternative is to accept the sign-out.
+- **Decided by the owner:** when the admin sets **its own** password on
+  `/users`, every session is revoked, then the caller's cookie is
+  re-issued at the new counter with the original deadline. The browser
+  that made the change stays signed in and every other device is signed
+  out, as Django's `update_session_auth_hash` does
+  (`KEEP_OWN_SESSION_ON_ADMIN_SET_PASSWORD`). `/users` is the admin's only
+  way to change its own password. The original deadline means a password
+  change never extends a login.
 
 No other questions remain open.

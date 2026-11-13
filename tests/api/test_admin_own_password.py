@@ -4,7 +4,7 @@ The admin setting ITS OWN password on /users.
 Setting a password there ends every session the account holds
 (ADMIN_SET_PASSWORD_REVOKES_SESSIONS). When the account is the caller's own,
 the caller's browser is then given a fresh login cookie at the new counter
-(KEEP_OWN_SESSION_ON_ADMIN_SET_PASSWORD, provisional pending the owner), so
+(KEEP_OWN_SESSION_ON_ADMIN_SET_PASSWORD, the owner's decision), so
 the one browser that made the change stays signed in and every other device
 is signed out. The fresh cookie keeps the ORIGINAL deadline: a reissue that
 minted a new month would let any password change extend a session forever.

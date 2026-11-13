@@ -39,7 +39,7 @@ from app.services.security import ACCESS_TOKEN_EXPIRE_MINUTES, create_access_tok
 # sessions carry on.
 ADMIN_SET_PASSWORD_REVOKES_SESSIONS = True
 
-# PROVISIONAL, pending the owner: when that account is the caller's own, the
+# The owner's decision: when that account is the caller's own, the
 # caller's browser is given a fresh cookie at the new counter, so the browser
 # that made the change stays signed in and every other device is signed out
 # (Django's update_session_auth_hash does the same). /users is the admin's
