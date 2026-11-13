@@ -755,3 +755,107 @@ def test_only_resources_carry_the_group_flag():
     from app.utils.note_sections import NOTE_SECTIONS
 
     assert [s.key for s in NOTE_SECTIONS if s.kind_is_group] == ["resources"]
+
+
+# --- the notes rework: suggestions, quick move, reviews, geography ----------
+
+
+def test_field_out_serves_the_option_category():
+    out = section_out(section_by_key("characters_guide"), "game")
+    group = next(f for f in out.fields if f.key == "group")
+    assert group.option_category == "Character Group"
+    # A field with none serves None rather than leaving the key out.
+    name = next(f for f in out.fields if f.key == "name")
+    assert name.option_category is None
+
+
+@pytest.mark.parametrize("owner", ["game", "h-game"])
+def test_a_todo_bucket_offers_the_other_three_as_move_targets(owner):
+    out = section_out(section_by_key("todo_next"), owner)
+    assert [t.model_dump() for t in out.move_targets] == [
+        {"key": "todo_now", "label": "現在進行 Doing now"},
+        {"key": "todo_later", "label": "未來 To do in the future"},
+        {"key": "todo_maybe", "label": "可能 Might do"},
+    ]
+
+
+def test_saves_and_every_other_section_offer_no_move_targets():
+    # Saves shares the 待辦 card and is not a bucket, so it is not a target
+    # either: the non-empty mirror above proves the resolver finds targets.
+    assert section_out(section_by_key("saves"), "game").move_targets == []
+    assert section_out(section_by_key("remark_list"), "game").move_targets == []
+    targets = section_out(section_by_key("todo_now"), "game").move_targets
+    assert "saves" not in {t.key for t in targets}
+
+
+@pytest.mark.parametrize("owner", ["h-comic", "hentai", "h-game"])
+def test_the_gated_types_take_public_and_personal_reviews(owner):
+    validate_note_payload(
+        _payload(owner_type=owner, section="public_reviews", content="worth it")
+    )
+    validate_note_payload(
+        _payload(owner_type=owner, section="personal_reviews", content="worth it")
+    )
+    for key in ("public_reviews", "personal_reviews"):
+        assert section_out(section_by_key(key), owner).group == "reviews"
+
+
+def test_reviews_and_comments_is_no_longer_a_section():
+    assert section_by_key("reviews_and_comments") is None
+    with pytest.raises(ValueError, match="Unknown note section"):
+        validate_note_payload(
+            _payload(owner_type="h-comic", section="reviews_and_comments")
+        )
+
+
+def _geo(**kw):
+    base = dict(owner_type="game", owner_id=uuid.uuid4(), section="geography")
+    base.update(kw)
+    return NoteCreate(**base)
+
+
+def test_a_geography_root_may_carry_a_group():
+    validate_note_payload(_geo(title="Limgrave", kind="地區"))
+
+
+def test_a_geography_child_may_not_carry_a_group():
+    # The refusal and its mirror on one payload: the child with no group
+    # passes, so the refusal is the group's and not the row's.
+    parent = uuid.uuid4()
+    validate_note_payload(_geo(title="Stormveil", parent_id=parent))
+    with pytest.raises(ValueError, match="Only a top-level row carries a group."):
+        validate_note_payload(_geo(title="Stormveil", parent_id=parent, kind="城"))
+    # A blank group is no group.
+    validate_note_payload(_geo(title="Stormveil", parent_id=parent, kind="  "))
+
+
+def test_a_story_list_child_is_not_bound_by_the_group_rule():
+    # Hierarchical but not groupable: nothing to refuse.
+    validate_note_payload(
+        _geo(section="story_list_main", title="Scene", parent_id=uuid.uuid4())
+    )
+
+
+def test_a_geography_row_needs_a_name():
+    with pytest.raises(ValueError, match="at least one of: Name"):
+        validate_note_payload(_geo(kind="地區", content="somewhere"))
+
+
+def test_a_gear_row_without_ng_reset_is_still_accepted():
+    # An old sheet row predates the key; readers treat absence as yes.
+    validate_note_payload(
+        _geo(section="items", title="Flask", status="collected")
+    )
+    validate_note_payload(
+        _geo(section="items", title="Flask", fields={"ng_reset": "no",
+                                                    "amount_total": "12"})
+    )
+    with pytest.raises(ValueError, match="not a valid ng reset"):
+        validate_note_payload(
+            _geo(section="items", title="Flask", fields={"ng_reset": "maybe"})
+        )
+
+
+def test_an_ng_reset_alone_does_not_make_a_gear_row():
+    with pytest.raises(ValueError, match="empty"):
+        validate_note_payload(_geo(section="items", fields={"ng_reset": "yes"}))

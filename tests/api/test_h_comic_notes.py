@@ -115,26 +115,43 @@ def test_the_section_is_offered_to_h_comic_with_its_grouping(admin_client):
     [
         (
             "h-comic",
-            ["remark", "remark_list", "reviews_and_comments", SECTION, "resources"],
+            [
+                "remark",
+                "remark_list",
+                "public_reviews",
+                "personal_reviews",
+                SECTION,
+                "resources",
+            ],
         ),
-        ("hentai", ["remark", "remark_list", "reviews_and_comments", "resources"]),
+        (
+            "hentai",
+            ["remark", "remark_list", "public_reviews", "personal_reviews", "resources"],
+        ),
     ],
 )
-def test_h_comic_and_hentai_keep_one_list_of_reviews(admin_client, owner_type, expected):
-    """No 評論 card, 解析, Questions or 名言/梗 - one list of reviews instead."""
+def test_h_comic_and_hentai_keep_a_reviews_card_of_two(admin_client, owner_type, expected):
+    """No 解析, Questions or 名言/梗 - a 評論 card of public and personal reviews."""
     sections = admin_client.get("/api/notes/sections", params={"owner_type": owner_type}).json()
     assert [s["key"] for s in sections] == expected
-    reviews = next(s for s in sections if s["key"] == "reviews_and_comments")
-    assert reviews["shape"] == "text_links"
-    assert reviews["scope"] == "personal"
+    by_key = {s["key"]: s for s in sections}
+    assert by_key["public_reviews"]["shape"] == "text_links"
+    assert by_key["public_reviews"]["scope"] == "catalog"
+    assert by_key["personal_reviews"]["shape"] == "text"
+    assert by_key["personal_reviews"]["scope"] == "personal"
+    assert {by_key[k]["group"] for k in ("public_reviews", "personal_reviews")} == {
+        "reviews"
+    }
 
 
-def test_reviews_and_comments_takes_a_row_where_personal_reviews_does_not(
+def test_personal_reviews_takes_a_row_where_advantages_does_not(
     admin_client, mode_client, plain_user
 ):
     """
     Personal sections, so a member in the unrestricted mode writes them - an
-    admin holds no personal notes, and no other mode sees a hentai.
+    admin holds no personal notes, and no other mode sees a hentai. The
+    refused advantages is the mirror: the 201 is the section's, not the
+    member's.
     """
     hentai = admin_client.post("/api/hentai/", json={"hentai_name_cn": "Zvornik Hentai"}).json()
     member = mode_client(MODE_UNRESTRICTED, user=plain_user)
@@ -150,9 +167,20 @@ def test_reviews_and_comments_takes_a_row_where_personal_reviews_does_not(
             },
         )
 
-    assert post("personal_reviews").status_code == 422
     assert post("advantages").status_code == 422
-    assert post("reviews_and_comments").status_code == 201
+    # Retired: an unknown section, which the router answers 400.
+    assert post("reviews_and_comments").status_code == 400
+    assert post("personal_reviews").status_code == 201
+    public = admin_client.post(
+        "/api/notes",
+        json={
+            "owner_type": "hentai",
+            "owner_id": hentai["system_id"],
+            "section": "public_reviews",
+            "content": "well liked",
+        },
+    )
+    assert public.status_code == 201, public.text
 
 
 def test_the_section_is_not_offered_to_manga(client):

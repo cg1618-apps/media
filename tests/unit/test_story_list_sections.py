@@ -76,10 +76,12 @@ def test_the_order_number_is_free_text_on_the_locator_column():
     assert field.column == "locator"
 
 
-def test_story_list_sections_are_the_only_hierarchical_ones():
+def test_story_list_and_geography_are_the_only_hierarchical_ones():
+    # 地理 Geography nests too - a region holding areas holding rooms - and is
+    # declared with the compendium, before the story lists.
     assert [
         s.key for s in ns.NOTE_SECTIONS if s.hierarchical
-    ] == STORY_LIST_KEYS
+    ] == ["geography", *STORY_LIST_KEYS]
 
 
 # --- require_any, which is what makes an entry an entry -------------------
