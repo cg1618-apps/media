@@ -55,7 +55,15 @@ PERMISSION_FAMILIES: tuple[str, ...] = (
 )
 
 ADMIN_PERMISSION_KEYS: tuple[str, ...] = ("authz",)
-MANAGE_PERMISSION_KEYS: tuple[str, ...] = ("catalog", "pipelines", "requests")
+MANAGE_PERMISSION_KEYS: tuple[str, ...] = (
+    "catalog",
+    "pipelines",
+    "requests",
+    "announcements",
+    "options",
+    "images",
+    "resources",
+)
 
 ADMIN_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
     "authz": (
@@ -85,6 +93,22 @@ MANAGE_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
         "The request inbox: read every member's requests and reports, mark "
         "them done or declined with a response, reopen them, and delete them.",
     ),
+    "announcements": (
+        "Manage Announcements",
+        "Write, edit and remove the site announcements.",
+    ),
+    "options": (
+        "Manage Options",
+        "The Note pages: System Options, Alias Conversion and External APIs.",
+    ),
+    "images": (
+        "Manage Images",
+        "The image library: upload, crop, attach and remove images.",
+    ),
+    "resources": (
+        "Manage Resources",
+        "Read and edit the site-wide Resources page.",
+    ),
 }
 
 
@@ -102,6 +126,20 @@ PERM_ADMIN_AUTHZ = admin_perm("authz")
 PERM_MANAGE_CATALOG = manage_perm("catalog")
 PERM_MANAGE_PIPELINES = manage_perm("pipelines")
 PERM_MANAGE_REQUESTS = manage_perm("requests")
+# The admin's own pages beyond accounts and pipelines. Separate from
+# manage.catalog so that holding them writes no catalogue row.
+PERM_MANAGE_ANNOUNCEMENTS = manage_perm("announcements")
+PERM_MANAGE_OPTIONS = manage_perm("options")
+PERM_MANAGE_IMAGES = manage_perm("images")
+PERM_MANAGE_RESOURCES = manage_perm("resources")
+ADMIN_PAGE_PERMISSIONS: frozenset[str] = frozenset(
+    {
+        PERM_MANAGE_ANNOUNCEMENTS,
+        PERM_MANAGE_OPTIONS,
+        PERM_MANAGE_IMAGES,
+        PERM_MANAGE_RESOURCES,
+    }
+)
 
 # Declared here rather than derived from a table: like every other permission
 # these name code (a router dependency), so a row with no code behind it would
@@ -367,8 +405,11 @@ def locked_permissions(
         # Handling requests is not a member's: the inbox reads every
         # account's requests. Writing the catalogue is what makes an account
         # `super`, so a member never holds it.
+        # The admin's own pages are not a member's either.
         return frozenset({PERM_SELF_REQUESTS, PERM_SELF_PASSWORD} | gated), frozenset(
-            refused | {PERM_MANAGE_CATALOG, PERM_MANAGE_REQUESTS}
+            refused
+            | {PERM_MANAGE_CATALOG, PERM_MANAGE_REQUESTS}
+            | ADMIN_PAGE_PERMISSIONS
         )
     if role_name == SHARED_ROLE_NAME:
         # Several people sign in to one shared account. It files requests and
