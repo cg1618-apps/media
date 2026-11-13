@@ -22,7 +22,8 @@ catalogue and what is an account's own data is
 > guest — and what each can do is
 > [authorization.md](authorization.md), "What each role can DO". Each part
 > of this page becomes true when the change that builds it lands, and that
-> change rewrites it in the present tense.
+> change rewrites it in the present tense. One part is already true:
+> [Removed](#removed), under "Customised pages".
 
 ## At a glance
 
@@ -247,9 +248,11 @@ Every page listed below is settled in its general version.
 
 ### Removed
 
-- **Public profiles** (`/user/<username>`) and **the community card** on
-  entry pages. Everything per user is private, so both could only ever be
-  empty; the feature is removed, not hidden.
+*Built — true today.*
+
+- There are no **public profiles** (`/user/<username>`) and no **community
+  card** on entry pages. Everything per user is private to its account, so
+  both could only ever be empty; neither exists, rather than being hidden.
 
 ### Header and menus
 

@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-10-30
+Last verified: 2026-11-13
 
 **What this is for.** This is the map of every page outside the admin
 tabs — what a guest can open, what a member adds (see "The guest scope"
@@ -66,7 +66,7 @@ are a large share of the bundle and never needed on first paint.
 | `/quote` | `public/Quotes.jsx` | lazy, **`view.extras`** |
 | `/meme` | `public/Memes.jsx` | lazy, **`view.extras`** |
 | `/resources` | `public/Resources.jsx` | lazy, **`view.extras`** |
-| `/user/:username` | `public/Profile.jsx` | lazy, **`view.personal`** |
+| `/settings` | `public/Settings.jsx` — read-only: the account's username and role, and a line saying the list, ratings and personal notes are visible to that account only | lazy, **`self.list`** |
 | `/under-development` | `public/UnderDevelopment.jsx` | eager |
 
 **Gated routes.** The two h-comic routes sit inside
@@ -93,7 +93,7 @@ through the root flag, and `guest` does not hold:
 | `view.entities` | the five entity libraries and the studio, publisher, person, character and identity pages | entity names render as plain text (`useEntityHref`, components.md); the franchise and series hubs have no Characters tab |
 | `view.search` | `/search` | `NavSearch` is not drawn — not the inline slot, the phone button or its sheet |
 | `view.extras` | Future Releases, Completions, every `/random` route, `/quote`, `/meme`, `/resources` | the Quotes and Memes note sections are dropped |
-| `view.personal` | `/user/:username` | no catalogue rating or expectation (cards, the franchise table's Expectation and My columns, the rating and expectation sorts, the hubs' hero stamp and chip, the random picker's franchise filters), no `CommunityCard`, no novel unit remark |
+| `view.personal` | none — there is no public profile | no catalogue rating or expectation (cards, the franchise table's Expectation and My columns, the rating and expectation sorts, the hubs' hero stamp and chip, the random picker's franchise filters), no novel unit remark |
 
 Each route block asks one key, and `navigation.js` asks the same key for the
 rows that link there — the SPA's two permission surfaces have to agree, and
@@ -1236,9 +1236,7 @@ the same way. It is tracked like Cartoon: a local `HentaiTrackerBlock`
 carries `MyTrackerCard`'s `EpisodeStepper` in its actions slot - `ep_fin` of
 `ep_total`, `PATCH { ep_fin }`, and `progressToast`'s "Marked as Completed!"
 when a step reaches the total and the server finishes the entry - then
-`CommunityCard` (on every entry page, and only for a viewer holding
-`view.personal`: without it the card neither draws nor asks
-`/api/community/`), `NamingCard`, and three cards - **Information** (Source
+`NamingCard`, and three cards - **Information** (Source
 Material, Originality, Airing Status, Release Date, Episodes), **Credits** (Studio via `studioValue` and Director on one row, Author below, each person linked through `creditValue`) and
 **Genres** (Genre Plot / Appearance / Relation), with a **Cast** slip between
 Credits and Genres - the shared `CastSection`, characters with "voiced by"

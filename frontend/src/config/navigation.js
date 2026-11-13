@@ -193,9 +193,10 @@ export const NAV_SECTIONS = [
       // Plan and Seasonal are per-user pages: their APIs answer 401 to a
       // stranger and their routes redirect to login (App.jsx, ProtectedRoute
       // requireAuth), so showing the rows logged out would only bounce people.
-      // self.list is the nav's spelling of "a signed-in member" - the guest
-      // role does not hold it and both user and admin do, which is why the
-      // Settings row below is gated the same way.
+      // self.list is the nav's spelling of "a signed-in member with a library
+      // of their own" - user and super hold it, guest does not, and neither
+      // does admin: the root short-circuit never covers the self.* family
+      // (AuthContext.has). The Settings row below is gated the same way.
       { label: "Plan", icon: "fas fa-clipboard-list", to: "/plan", requires: "self.list" },
       { label: "Seasonal", icon: "fas fa-leaf", to: "/seasonal", requires: "self.list" },
       // Future Releases, Completions and the Random Picker are the extras a

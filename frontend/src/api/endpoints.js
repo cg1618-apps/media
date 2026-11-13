@@ -85,14 +85,6 @@ export const endpoints = {
     settings: () => "/api/account/settings",
   },
 
-  profile: {
-    detail: (username) => `/api/profile/${encodeURIComponent(username)}`,
-  },
-
-  community: {
-    forEntry: (mediaId) => `/api/community/${mediaId}`,
-  },
-
   contentLabels: {
     list: () => "/api/content-labels/",
     create: () => "/api/content-labels/",

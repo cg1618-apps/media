@@ -1,6 +1,6 @@
 # Notes
 
-Last verified: 2026-10-30
+Last verified: 2026-11-13
 
 ## What this is for
 
@@ -487,7 +487,7 @@ Who may write, and whose rows a read returns, follow from it — the router read
 | `catalog` | admin only | everyone, unfiltered |
 | `personal` | any signed-in account holding `self.personal_notes`, own rows only (a root role may also edit another's) | `WHERE author_id = viewer`; a logged-out visitor has no id and sees none |
 
-A profile owner's personal rows can be read through `GET /api/notes?author=<username>`. A viewer without `view.personal` (a guest included) gets **401** before the username is looked up. Past that, only when their `list_is_public` **and** the viewer's mode carries `field_group.personal_notes`; an unknown user, a private list and a viewer without the group all answer the same **404**, so the reply cannot be read as "this account exists". The `highlights` and `highlight_episodes` sections are withheld from a viewer without `view.personal` - their rows and their entries in `/api/notes/sections` alike. The full rules live in [../authorization.md](../authorization.md#note-scope).
+Personal rows are private to their author. There is no way to read another account's, the admin's included: `GET /api/notes` takes no author parameter, and an `author` in the query string is ignored. The `highlights` and `highlight_episodes` sections are withheld from a viewer without `view.personal` - their rows and their entries in `/api/notes/sections` alike. The full rules live in [../authorization.md](../authorization.md#note-scope).
 
 **`remark` is per author, like any other personal-scope section.** It is read by `app.services.domain.remark_field.attach_remark`, filtered on `note.author_id`, and `ix_note_one_remark_per_owner` carries `author_id` — so two accounts each hold one on the same entry and each reads back their own. The index and the read path are one mechanism: a class-level `column_property` cannot know who is asking, and pairing one with a per-author index would turn a loud database refusal into an accepted-then-invisible write.
 
@@ -536,9 +536,9 @@ Singleton and one-per-kind uniqueness are **not** here — they need a query, so
 `GET /api/notes` applies the RBAC layer:
 
 - If the owner is a media entry and `entry_visible()` (`app/services/rbac/enforcement.py`) says the viewer may not see it, the endpoint answers **404 "Owner not found."** rather than an empty list. A franchise owner carrying a label the viewer's mode lacks, or a series in such a franchise, answers the same 404 (`tier_visible`); every write resolves the tier from the id through `require_visible_owner` and answers it too. A collection carries no labels and skips the check.
-- **Personal sections filter by author.** Rows in a `personal`-scope section are returned only when `author_id` matches the viewer (or the profile owner named by `?author=`); a logged-out visitor, having no id, gets none of them. Catalogue sections fall through untouched. See [Scope](#scope).
-- `gated_note_sections(viewer)` (`app/services/rbac/field_gate.py`) returns section keys the viewer is not entitled to; those rows are simply **absent** from the response (an empty card would advertise that there is something to not-see). The only field group naming a note section is `personal_notes` → `personal_reviews` (`app/services/rbac/field_groups.py`), and it withholds **only rows the viewer did not write** — hiding someone's own notes from them is not a permission, it is a bug.
-- `GET /api/notes/sections` is *not* filtered: withheld sections still appear in the registry, they just never have rows.
+- **Personal sections filter by author.** Rows in a `personal`-scope section are returned only when `author_id` matches the viewer; a logged-out visitor, having no id, gets none of them. Catalogue sections fall through untouched. See [Scope](#scope).
+- Without `view.personal`, the `highlights` and `highlight_episodes` rows (`VIEW_PERSONAL_SECTIONS`) are simply **absent** from the response (an empty card would advertise that there is something to not-see). No field group names a note section.
+- `GET /api/notes/sections` drops the same two sections for a viewer without `view.personal`, so the page does not draw them at all; a gated owner type the viewer cannot see answers 400 as an unknown one. Nothing else is filtered from the registry.
 
 ## API
 
@@ -547,7 +547,7 @@ Router: `app/routers/note.py`, prefix `/api/notes`. Thin fetch wrappers on the f
 | Method | Path | Auth | Params / body | Response | Errors |
 | --- | --- | --- | --- | --- | --- |
 | GET | `/api/notes/sections` | public | `?owner_type=` | `List[NoteSectionOut]` — registry resolved for that owner, display order | 400 unknown owner_type |
-| GET | `/api/notes` | public (viewer-aware) | `?owner_type=&owner_id=`, optional `?author=<username>` | `List[NoteResponse]`, sorted by registry position then `sort_index` (`_ordered`) | 400 unknown owner_type; 404 owner not visible |
+| GET | `/api/notes` | public (viewer-aware) | `?owner_type=&owner_id=` | `List[NoteResponse]`, sorted by registry position then `sort_index` (`_ordered`) | 400 unknown owner_type; 404 owner not visible |
 | POST | `/api/notes` | by scope | body `NoteCreate` (`owner_type`, `owner_id`, `section`, `locator`, `kind`, `status`, `title`, `content`, `links`, `sort_index`) | 201 `NoteResponse`; `sort_index` defaults to last-in-section + 1 | 422 validation / second singleton / second `music_status` row for one list |
 | PATCH | `/api/notes/reorder` | by scope | body `NoteReorder` `{owner_type, owner_id, section, ordered_ids}` | `{"status":"success","reordered":n}`; rewrites `sort_index` as 0,1,2… | 400 unknown owner_type / unknown section / `ordered_ids` names a note twice / `ordered_ids` not exactly the section's rows |
 | PATCH | `/api/notes/{note_id}` | by scope | body `NoteUpdate` (partial; `exclude_unset`) | `NoteResponse` | 404; 422 — the merged row (current values + patch, built from `NoteUpdate.model_fields`) is validated **before** mutation so autoflush never writes a bad row. A PATCH may move a note to another owner. |

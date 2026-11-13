@@ -13,7 +13,6 @@ import {
   getDisplayName,
   parseTypes,
 } from "../../utils/media";
-import CommunityCard from "../../components/info/CommunityCard";
 import InfoCard from "../../components/info/InfoCard";
 import { creditLabel, creditValue } from "../../components/info/PersonLinks";
 import {
@@ -400,10 +399,6 @@ export default function Comic() {
             ratingOptions={MY_RATINGS}
             statusLabel="Reading Status"
           />
-
-          {/* What every public list says about it, beside what I say.
-              Renders nothing when no public list holds this entry. */}
-          <CommunityCard mediaId={comic.system_id} />
 
           {/* Detail Cards */}
           <div className="space-y-6">

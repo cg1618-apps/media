@@ -33,7 +33,6 @@ from app.services.rbac.enforcement import (
     require_visible_owner,
     tier_visible,
 )
-from app.services.rbac.field_gate import gated_note_sections
 from app.services.rbac.gated_types import unseeable_gated_types
 from app.services.rbac.permissions import (
     PERM_MANAGE_CATALOG,
@@ -450,10 +449,6 @@ def get_sections(
 def list_notes(
     owner_type: str = Query(...),
     owner_id: uuid.UUID = Query(...),
-    # Whose personal notes to show instead of the viewer's own. Needs
-    # view.personal, then honoured only for a user whose list is public and a
-    # viewer whose access mode holds the personal_notes field group.
-    author: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     viewer: Viewer = Depends(get_viewer),
 ):
@@ -469,39 +464,13 @@ def list_notes(
         raise HTTPException(status_code=404, detail="Owner not found.")
     query = db.query(models.Note).filter(*_owner_filters(owner_type, owner_id))
 
-    # Personal sections hold one set of rows per user. A viewer sees their own
-    # and nobody else's; a logged-out viewer, having no id, sees none. This is
-    # the read half of the scope declared in app/utils/note_sections.py -
-    # catalogue sections fall through untouched, which is what "one shared set
-    # of rows, read by everyone" means.
-    # Whose personal rows this read is for. `author` names somebody else, and
-    # is honoured only where both halves agree: their list is public AND the
-    # viewer holds field_group.personal_notes. A user who is unknown, private,
-    # or asked about by a viewer without the group all answer the same 403, so
-    # the reply cannot be read as "this account exists".
+    # Personal sections hold one set of rows per user, private to it. A viewer
+    # sees their own and nobody else's - there is no way to ask for another
+    # account's, the admin included - and a logged-out viewer, having no id,
+    # sees none. This is the read half of the scope declared in
+    # app/utils/note_sections.py; catalogue sections fall through untouched,
+    # which is what "one shared set of rows, read by everyone" means.
     author_id = viewer.user_id
-    if author is not None:
-        # Before the user lookup, so a viewer without the key learns nothing
-        # about which usernames exist.
-        if not viewer.has(PERM_VIEW_PERSONAL):
-            raise _capability_refused(
-                "Could not validate credentials or insufficient permissions"
-            )
-        owner = db.query(models.User).filter(models.User.username == author).first()
-        if (
-            owner is None
-            or not owner.list_is_public
-            # The object axis now, not a role permission: field groups moved
-            # to the access mode in Phase B and field_group_perm is gone.
-            or "personal_notes" not in viewer.field_groups
-        ):
-            # 404, and deliberately the SAME answer a username that does not
-            # exist gets - `owner is None` falls into this branch too. "That
-            # user's notes are not public" confirmed both that the account
-            # exists and that its list is private.
-            raise HTTPException(status_code=404, detail=NOTE_NOT_FOUND)
-        author_id = owner.id
-
     personal = list(PERSONAL_SECTIONS)
     if author_id is None:
         query = query.filter(models.Note.section.notin_(personal))
@@ -514,22 +483,10 @@ def list_notes(
         )
 
     # A withheld section is absent rather than blanked: an empty card would
-    # advertise that there is something here to not-see. Applied only to rows
-    # the viewer did not write - field_group.personal_notes governs seeing
-    # SOMEBODY ELSE's personal notes, and hiding a viewer's own from them is
-    # not a permission, it is a bug.
-    # Highlights are catalogue rows, so they are withheld whoever wrote them.
+    # advertise that there is something here to not-see. Highlights are
+    # catalogue rows, so they are withheld whoever wrote them.
     if not viewer.has(PERM_VIEW_PERSONAL):
         query = query.filter(models.Note.section.notin_(list(VIEW_PERSONAL_SECTIONS)))
-
-    withheld = gated_note_sections(viewer)
-    if withheld:
-        query = query.filter(
-            or_(
-                models.Note.section.notin_(withheld),
-                models.Note.author_id == author_id,
-            )
-        )
     return _ordered(query.all())
 
 

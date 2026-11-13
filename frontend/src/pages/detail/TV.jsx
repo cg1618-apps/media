@@ -7,7 +7,6 @@ import { useAuth } from "../../contexts/AuthContext";
 import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
-import CommunityCard from "../../components/info/CommunityCard";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import InfoCard from "../../components/info/InfoCard";
 import GenresCard from "../../components/info/GenresCard";
@@ -421,10 +420,6 @@ export default function TV() {
             statusOptions={WATCHING_STATUSES}
             ratingOptions={MY_RATINGS}
           />
-
-          {/* What every public list says about it, beside what I say.
-              Renders nothing when no public list holds this entry. */}
-          <CommunityCard mediaId={show.system_id} />
 
           {/* Detail Cards */}
           <div className="space-y-6">

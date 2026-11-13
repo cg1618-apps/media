@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-10-28
+Last verified: 2026-11-13
 
 ## What this is for
 
@@ -163,7 +163,11 @@ its own commit. Each of the twelve entry tabs drops its constant `media_type`
 column and appends a derived, read-only `display_name` for the human reader;
 Pull drops any header that is not a column of the model (`drop_non_columns`).
 
-**`Users`** carries `id`, `username`, `list_is_public`, `is_installation_owner` and `role`.
+**`Users`** carries `id`, `username`, `is_installation_owner` and `role`.
+An older sheet whose Users tab still has a `list_is_public` header Pulls
+cleanly: `RETIRED_HEADERS` in `pull.py` names it, so `unexpected_headers` does
+not report it among the run's `unresolved_refs` the way it reports a stale
+header, and the value is not read.
 `hashed_password` and `role_id` are dropped. `role_id` because
 `role.system_id` is minted per database by `ensure_rbac_seed`, so the role
 **name** travels instead and Pull resolves it locally - the same arrangement

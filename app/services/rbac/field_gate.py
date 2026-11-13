@@ -123,19 +123,3 @@ def gate(
         schema.model_validate(entry).model_copy(update=blanked) for entry in entries
     ]
     return out if is_list else out[0]
-
-
-def gated_note_sections(viewer: Optional[Viewer]) -> tuple[str, ...]:
-    """
-    note.section values to withhold. Not per media type: a section's owners are
-    declared on the section itself, in note_sections.NOTE_SECTIONS.
-
-    Callers apply this to rows the viewer did NOT author. Personal-scope
-    sections are already filtered by author_id, so this group's remaining job
-    is seeing somebody else's personal notes - on a profile whose list is
-    public - not seeing one's own.
-    """
-    out: list[str] = []
-    for group in _withheld(viewer):
-        out.extend(group.note_sections)
-    return tuple(dict.fromkeys(out))
