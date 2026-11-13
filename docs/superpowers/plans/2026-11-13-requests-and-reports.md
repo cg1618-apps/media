@@ -225,6 +225,13 @@ behaviour goes to `docs/systems/requests.md`. Only the placement of
    switch (`SHOW_RESPONSE_TO_FILER`) in `MyRequests.jsx`; the API returns
    it either way.
 
+8. **`users.open_request_limit` travels on the Sheets Users tab**, but the
+   requests themselves do not. The limit is an account setting, like
+   `disabled`, and a Pull must not reset it: without the column, every
+   Pull would lift every member's limit. A blank cell means no limit. An
+   older sheet without the column leaves the local value alone.
+   (Confirmed by media-00.)
+
 ## Questions for the owner (via media-00)
 
 1. **Do requests travel on the Sheets backup?** The spec is silent. I
