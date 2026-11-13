@@ -5,6 +5,7 @@ import {
   activeItem,
   activeSectionKey,
   itemRequirement,
+  meets,
   sectionItems,
   sectionRequirement,
   visibleSections,
@@ -108,12 +109,14 @@ describe("NAV_SECTIONS", () => {
 
   it("gathers the read-only inventories under a Note tab", () => {
     // System Options, its alias translations, and which columns each external
-    // API writes: three read-only views over how the data is described.
+    // API writes: three read-only views over how the data is described. The
+    // label reference is the fourth, over what restricts it.
     const note = NAV_SECTIONS.find((s) => s.key === "note");
     expect(sectionItems(note).map((i) => i.to)).toEqual([
       "/options",
       "/aliases",
       "/external-apis",
+      "/content-labels",
       "/business-logic",
     ]);
     expect(activeSectionKey("/external-apis")).toBe("note");
@@ -153,7 +156,7 @@ describe("NAV_SECTIONS", () => {
   it("splits the pipeline pages from the accounts/authz pages", () => {
     // Control Center, Data History, Review Queue and Clean Orphans call only
     // /api/system/* and /api/data-control/*  (manage.pipelines); Users,
-    // Roles and Content Labels are the accounts/authz surface
+    // Roles and Access Modes are the accounts/authz surface
     // (admin.authz) — not the same capability, so not the same tab.
     //
     // Clean Orphans sits here rather than under admin because it is gated by
@@ -180,7 +183,6 @@ describe("NAV_SECTIONS", () => {
     expect(sectionItems(admin).map((i) => i.to)).toEqual([
       "/users",
       "/roles",
-      "/content-labels",
       "/access-modes",
     ]);
     expect(sectionRequirement(admin)).toBe("admin.authz");
@@ -216,6 +218,48 @@ describe("NAV_SECTIONS", () => {
     const note = NAV_SECTIONS.find((s) => s.key === "note");
     expect(sectionRequirement(entry)).toBe("manage.catalog");
     expect(sectionRequirement(note)).toBe("manage.catalog");
+  });
+
+  it("lists the label reference once, under Note, for admin and super alike", () => {
+    // Super holds manage.catalog and never opens Admin; the admin holds
+    // everything (root). One row in a section both see, so neither is sent
+    // to look for it and the admin is not shown it twice.
+    expect(ownersOf("/content-labels")).toEqual(["note"]);
+    const note = NAV_SECTIONS.find((s) => s.key === "note");
+    const item = sectionItems(note).find((i) => i.to === "/content-labels");
+    expect(itemRequirement(item)).toEqual([
+      "admin.authz",
+      "manage.catalog",
+    ]);
+
+    const routesFor = (has) =>
+      visibleSections(NAV_SECTIONS, has).flatMap((s) =>
+        sectionItems(s).map((i) => i.to),
+      );
+    const holdsCatalog = (p) => p === "manage.catalog";
+    const holdsPipelines = (p) => p === "manage.pipelines";
+    expect(routesFor(holdsCatalog)).toContain("/content-labels");
+    expect(routesFor(() => true)).toContain("/content-labels");
+    // The mirror: a viewer holding an unrelated permission does not see it.
+    expect(routesFor(holdsPipelines)).not.toContain("/content-labels");
+  });
+});
+
+describe("meets", () => {
+  const holdsCatalog = (p) => p === "manage.catalog";
+
+  it("passes when there is no requirement", () => {
+    expect(meets(() => false, null)).toBe(true);
+  });
+
+  it("asks one permission when given a string", () => {
+    expect(meets(holdsCatalog, "manage.catalog")).toBe(true);
+    expect(meets(holdsCatalog, "admin.authz")).toBe(false);
+  });
+
+  it("passes a list when any one of it is held, and refuses when none is", () => {
+    expect(meets(holdsCatalog, ["admin.authz", "manage.catalog"])).toBe(true);
+    expect(meets(holdsCatalog, ["admin.authz", "manage.pipelines"])).toBe(false);
   });
 });
 
@@ -492,7 +536,7 @@ describe("the two permission surfaces agree", () => {
     "/settings": "self.list",
     "/users": "admin.authz",
     "/roles": "admin.authz",
-    "/content-labels": "admin.authz",
+    "/content-labels": ["admin.authz", "manage.catalog"],
     "/access-modes": "admin.authz",
     "/system": "manage.pipelines",
     "/clean-orphans": "manage.pipelines",
@@ -517,7 +561,7 @@ describe("the two permission surfaces agree", () => {
       expect(section, `no nav section owns ${to}`).toBeDefined();
       const item = sectionItems(section).find((i) => i.to === to);
       const asked = itemRequirement(item) ?? sectionRequirement(section);
-      expect(asked, `${to} disagrees with its route gate`).toBe(expected);
+      expect(asked, `${to} disagrees with its route gate`).toEqual(expected);
     }
   });
 });

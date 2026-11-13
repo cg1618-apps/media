@@ -30,7 +30,7 @@ Enum values are **not** repeated here: every closed vocabulary lives in
 - [Planning](#planning): plan_next
 - [Requests and reports](#requests-and-reports): user_request
 - [Vocabulary and configuration](#vocabulary-and-configuration): system_option, system_option_scope, system_option_usage, system_option_alias, system_configs, seasonal
-- [Access control](#access-control): role, role_permission, users, content_label, media_content_label, franchise_content_label, access_mode, access_mode_label, access_mode_field_group, user_access_mode_denial
+- [Access control](#access-control): role, role_permission, users, content_label, media_content_label, franchise_content_label, collection_content_label, series_content_label, access_mode, user_access_mode_denial
 - [Logs](#logs): data_control_logs, deleted_record
 - [The `media` supertable](#the-media-supertable)
 - [Cross-table references without foreign keys](#cross-table-references-without-foreign-keys)
@@ -173,7 +173,8 @@ stats. Model: `Collection` (`app/models/collection.py`).
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 Relationships: `franchises` (Franchise.collection_id), `cover_franchise`.
-Virtual: `remark`, `display_name`.
+Virtual: `remark`, `display_name`, `content_labels` (its own rows in
+[`collection_content_label`](#collection_content_label)).
 
 ### `franchise`
 
@@ -197,7 +198,8 @@ missing). Model: `Franchise` (`app/models/franchise.py`).
 | `alone_reviewed_media_id` | UUID | yes | | The `media.system_id` of the lone entry that was reviewed and kept on the review queue's single-entry check. The franchise is listed again whenever its one entry is any other id. No FK, like `cover_entry_id`: a stale id matches nothing (see [notes/decisions.md](notes/decisions.md)). |
 
 Relationships: `series`, `collection`, `animes`. Virtual: `remark`,
-`display_name`.
+`display_name`, `content_labels` (its own rows in
+[`franchise_content_label`](#franchise_content_label)).
 
 ### `series`
 
@@ -220,7 +222,8 @@ deliberate grouping). Model: `Series` (`app/models/franchise.py`).
 | `alone_reviewed_media_id` | UUID | yes | | As on franchise: the reviewed lone entry of a single-entry series. No FK. |
 
 Relationships: `franchise`, `animes`. Virtual: `remark`, `display_name`,
-`names_dict`.
+`names_dict`, `content_labels` (its own rows in
+[`series_content_label`](#series_content_label)).
 
 ---
 
@@ -1508,7 +1511,7 @@ is set.
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
-| `media_id` | UUID | no | | FK `media.system_id` ON DELETE CASCADE - see [The six tables that moved to `media_id`](#the-six-tables-that-moved-to-media_id) |
+| `media_id` | UUID | no | | FK `media.system_id` ON DELETE CASCADE - see [Tables that hang off an entry or a group](#tables-that-hang-off-an-entry-or-a-group) |
 | `role` | String | no | | One of CREDIT_ROLE_KEYS, indexed |
 | `person_id` | UUID | yes | | FK `person.system_id` ON DELETE CASCADE |
 | `studio_id` | UUID | yes | | FK `studio.system_id` ON DELETE CASCADE |
@@ -1535,7 +1538,7 @@ rather than category because one category can back several fields.
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
-| `media_id` | UUID | no | | FK `media.system_id` ON DELETE CASCADE - see [The six tables that moved to `media_id`](#the-six-tables-that-moved-to-media_id) |
+| `media_id` | UUID | no | | FK `media.system_id` ON DELETE CASCADE - see [Tables that hang off an entry or a group](#tables-that-hang-off-an-entry-or-a-group) |
 | `field` | String | no | | One of TAG_FIELD_KEYS, indexed |
 | `option_id` | UUID | no | | FK `system_option.system_id` ON DELETE CASCADE, indexed |
 | `position` | Integer | no | `0` | |
@@ -1549,13 +1552,13 @@ index `ix_media_tag_entry` (`media_id`).
 Where one entry can be watched, read, or looked up. Shaped like
 `media_credit`: one row per named thing attached to an entry, through a real
 `media_id` foreign key (see
-[The six tables that moved to `media_id`](#the-six-tables-that-moved-to-media_id)).
+[Tables that hang off an entry or a group](#tables-that-hang-off-an-entry-or-a-group)).
 Model: `MediaSource` (`app/models/media_source.py`).
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK, indexed |
-| `media_id` | UUID | no | | FK `media.system_id` ON DELETE CASCADE - see [The six tables that moved to `media_id`](#the-six-tables-that-moved-to-media_id) |
+| `media_id` | UUID | no | | FK `media.system_id` ON DELETE CASCADE - see [Tables that hang off an entry or a group](#tables-that-hang-off-an-entry-or-a-group) |
 | `kind` | String | no | | `access` (somewhere to watch/read) or `reference` (somewhere to read *about* it — a wiki, a database), indexed |
 | `bucket` | String | no | | `main` (vocabulary platform, via `option_id`), `other` (free-form, shown to every viewer), or `restricted` (free-form, gated by field group `sources_restricted`), indexed |
 | `option_id` | UUID | yes | | FK `system_option.system_id` ON DELETE CASCADE, indexed. Set on `main` rows only |
@@ -1679,7 +1682,7 @@ a specific work). Model: `Quote`.
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
-| `media_id` | UUID | yes | | FK `media.system_id` ON DELETE SET NULL - see [The six tables that moved to `media_id`](#the-six-tables-that-moved-to-media_id) |
+| `media_id` | UUID | yes | | FK `media.system_id` ON DELETE SET NULL - see [Tables that hang off an entry or a group](#tables-that-hang-off-an-entry-or-a-group) |
 | `author_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE, indexed - see [`note`, `quote` and `meme`: who wrote it](#note-quote-and-meme-who-wrote-it) |
 | `text` | Text | yes | | |
 | `translation` | Text | yes | | |
@@ -1935,7 +1938,7 @@ that is how a split run (A ep 1-10 → B → A ep 11-12) is expressed.
 | `system_id` | UUID | no | uuid4 | PK |
 | `list_id` | UUID | no | | FK `watch_order_list` ON DELETE CASCADE, indexed |
 | `position` | Float | yes | | Float so a step can be slotted between two others |
-| `media_id` | UUID | yes | | FK `media.system_id` ON DELETE CASCADE, indexed - see [The six tables that moved to `media_id`](#the-six-tables-that-moved-to-media_id). `media_type` and `entry_id` are still served by the API, derived from this |
+| `media_id` | UUID | yes | | FK `media.system_id` ON DELETE CASCADE, indexed - see [Tables that hang off an entry or a group](#tables-that-hang-off-an-entry-or-a-group). `media_type` and `entry_id` are still served by the API, derived from this |
 | `section_id` | UUID | yes | | FK `watch_order_section` ON DELETE **SET NULL** - deleting a part leaves its steps unsectioned |
 | `ep_start` / `ep_end` | Integer | yes | | Both NULL = the whole entry. Unit depends on type (Ep / Ch / issue #) - see [entry-types.md](entry-types.md) |
 | `importance` | String | yes | `"Normal"` | ITEM_IMPORTANCE: Essential / Recommended / Normal / Optional |
@@ -2209,7 +2212,7 @@ against the computed catalog on write (`permissions.catalog(db)`).
 |---|---|:-:|---|---|
 | `id` | Integer | no | autoincrement | PK |
 | `role_id` | UUID | no | | FK `role` ON DELETE CASCADE, indexed |
-| `permission` | String | no | | `admin`, `media_type.<key>`, `field_group.<key>`, `label.<key>` |
+| `permission` | String | no | | `<family>.<key>` for a family in `PERMISSION_FAMILIES` — `admin.authz`, `manage.<key>`, `media_type.<key>`, `self.<key>`, `view.<key>`. Content labels and field groups are not permissions |
 | `created_at` | DateTime | yes | now | |
 
 Constraint: `uq_role_permission` UNIQUE (`role_id`, `permission`).
@@ -2293,9 +2296,9 @@ rows are kept. No Sheets tab: a code means nothing on the other machine.
 
 ### `content_label`
 
-One admin-managed reason an entry or a franchise might be restricted (e.g.
-`nsfw`). Anything carrying a label the viewer's active **access mode** does not
-carry disappears for that viewer. It is **not** a role permission: object scoping lives on the
+The row for one content label — a reason an entry, a collection, a
+franchise or a series might be restricted (e.g. `nsfw`). Anything carrying a label the viewer's active
+**access mode** does not show disappears for that viewer. It is **not** a role permission: object scoping lives on the
 mode axis, because a role cannot express "minus this label" — permission
 resolution is a union. Kept out of
 `system_option` because the Fill pipeline writes that table. Model:
@@ -2310,11 +2313,18 @@ resolution is a union. Kept out of
 | `sort_order` | Integer | no | `0` (server default) | |
 | `created_at` / `updated_at` | DateTime | yes | now | Yes, labels have timestamps. |
 
-Three rows are **system labels**: `h-comic`, `h-game` and `hentai`, the
-labels the gated h-comic, h-game and hentai types require. Each is created by its type's migration and
-by the lifespan seed (`ensure_system_labels` in
-`app/services/domain/gated_labels.py`), granted to `unrestricted` alone, and
-refused deletion (409) by the label API.
+**The labels are defined in code**, not here: `CONTENT_LABELS` in
+`app/services/rbac/labels.py` names six — `nsfw`, `ecchi`, `erotica`,
+`hentai`, `h-game`, `h-comic` — each with a name, a description and the lowest
+access mode that shows it, and `hentai`, `h-game` and `h-comic` with the gated
+type that requires them. The rows exist because `media_content_label`, the
+three group join tables (`collection_content_label`,
+`franchise_content_label`, `series_content_label`) and
+`user_access_mode_denial` cite labels by id.
+`gated_labels.ensure_labels` keeps them a mirror of the code on every start:
+it inserts a missing label and rewrites `label`, `description` and
+`sort_order` (the label's position in `CONTENT_LABELS`) to the code's. It never
+deletes a row. No route creates, renames or deletes one.
 
 ### `media_content_label`
 
@@ -2324,7 +2334,7 @@ One content label on one media entry. Deliberately **not** stored in
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
-| `media_id` | UUID | no | | FK `media.system_id` ON DELETE CASCADE - see [The six tables that moved to `media_id`](#the-six-tables-that-moved-to-media_id) |
+| `media_id` | UUID | no | | FK `media.system_id` ON DELETE CASCADE - see [Tables that hang off an entry or a group](#tables-that-hang-off-an-entry-or-a-group) |
 | `label_id` | UUID | no | | FK `content_label` ON DELETE CASCADE, indexed |
 | `position` | Integer | no | `0` (server default) | |
 | `created_at` | DateTime | yes | now | |
@@ -2332,14 +2342,22 @@ One content label on one media entry. Deliberately **not** stored in
 Constraints: `uq_media_content_label_row` UNIQUE (`media_id`, `label_id`);
 index `ix_media_content_label_entry` (`media_id`).
 
+**An entry carrying any label but `nsfw` also has an `nsfw` row.** No
+constraint states it; every write path does, through
+`app/services/domain/label_rules.py` — see
+[authorization.md](authorization.md). The same holds for each of the three
+group join tables below.
+
 ### `franchise_content_label`
 
 One content label on one franchise. The label **cascades down**: a franchise
-carrying a label the viewer's mode lacks hides the franchise and every entry
-whose `media.franchise_id` points at it. Nothing is copied onto those entries —
-the cascade is a read-time join in
+carrying a label the viewer's mode lacks hides the franchise, every series
+whose `series.franchise_id` points at it, and every entry whose
+`media.franchise_id` points at it or whose series is one of those. It does not
+hide the franchise's collection. Nothing is copied onto anything below — the
+cascade is a read-time join in
 [`enforcement.py`](authorization.md#visibility-enforcement-enforcementpy) — so
-moving an entry out of the franchise reveals it at once.
+moving an entry or a series out of the franchise reveals it at once.
 
 A second table rather than a nullable owner pair on `media_content_label`,
 whose `media_id` is a real FK up to the `media` supertable that a franchise has
@@ -2356,6 +2374,53 @@ and no constraint in the database would say which was meant.
 
 Constraints: `uq_franchise_content_label_row` UNIQUE (`franchise_id`,
 `label_id`); index `ix_franchise_content_label_franchise` (`franchise_id`).
+
+### `collection_content_label`
+
+One content label on one collection, with `franchise_content_label`'s shape
+one tier up, in a table of its own for the same reason. Model:
+`CollectionContentLabel`. The label cascades through the whole tree below: a
+collection carrying a label the viewer's mode lacks hides the collection,
+every franchise whose `franchise.collection_id` points at it, those
+franchises' series, and every entry under them. Read-time, nothing copied, so
+moving a franchise out of the collection reveals it and everything under it.
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `collection_id` | UUID | no | | FK `collection.system_id` ON DELETE CASCADE |
+| `label_id` | UUID | no | | FK `content_label` ON DELETE CASCADE, indexed |
+| `position` | Integer | no | `0` (server default) | |
+| `created_at` | DateTime | yes | now | |
+
+Constraints: `uq_collection_content_label_row` UNIQUE (`collection_id`,
+`label_id`); index `ix_collection_content_label_collection`
+(`collection_id`).
+
+### `series_content_label`
+
+One content label on one series, the same shape again. Model:
+`SeriesContentLabel`. A series carrying a label the viewer's mode lacks hides
+the series and every entry whose `media.series_id` points at it — not its
+franchise and not its sibling series. A series is also hidden by its
+franchise's labels and that franchise's collection's, but those are not
+stored here either.
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `series_id` | UUID | no | | FK `series.system_id` ON DELETE CASCADE |
+| `label_id` | UUID | no | | FK `content_label` ON DELETE CASCADE, indexed |
+| `position` | Integer | no | `0` (server default) | |
+| `created_at` | DateTime | yes | now | |
+
+Constraints: `uq_series_content_label_row` UNIQUE (`series_id`, `label_id`);
+index `ix_series_content_label_series` (`series_id`).
+
+A collection or a series has **no required label**: the gated-type rule
+(a type's label kept on every entry of it and on a franchise whose type list
+names it) has no type to read on either. No group has a 標籤 `Label` tag
+field either — that vocabulary is on the entry tables only.
 
 ---
 
@@ -2380,8 +2445,8 @@ One named ceiling on what a session may reach.
 | `key` | String | no | | UNIQUE, indexed |
 | `label` | String | no | | |
 | `description` | Text | yes | | |
-| `sort_order` | Integer | no | `0` | **UI only.** The order a ceiling ranks modes by is `seed_modes.MODE_ORDER`, defined on the four keys in code; this column is editable and is not it |
-| `is_system` | Boolean | no | `false` | Cannot be deleted |
+| `sort_order` | Integer | no | `0` | **UI only** — orders the API's list and nothing else. What a mode shows, and the order a ceiling ranks modes by, follow its key's place in `seed_modes.MODE_ORDER`, defined on the four keys in code |
+| `is_system` | Boolean | no | `false` | Marks the four modes the seeder maintains |
 | *(no column)* | — | — | — | What a logged-out visitor resolves to is **not stored**: it is the `safe` mode, looked up by key in `resolve_mode`. Data here could be moved to a wider mode by a restore or a hand-edit, which publishes every labelled entry to the internet while looking like an ordinary edit |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
@@ -2390,28 +2455,19 @@ logged-out visitor resolves `safe` by key
 (`services/rbac/modes.py::resolve_mode`), and a missing `safe` row gives them
 the empty set rather than everything.
 
-Four modes are seeded (`unrestricted`, `borderline`, `normal`, `safe`), all
-`is_system`. `unrestricted`'s rows are written but not
-read: its sets are derived from every `content_label` and every field group at
-resolution time, so a label minted later cannot narrow it. `safe` is seeded
-from whatever the **guest role actually holds**, not from a constant - see
-[authorization.md](authorization.md#what-a-guest-sees) for the defect that
-distinction prevented.
+Four modes exist (`safe`, `normal`, `borderline`, `unrestricted`), all
+`is_system`; `ensure_access_mode_seed` creates a missing one and nothing else
+creates or deletes one. The rows exist because accounts hold modes by id.
 
-#### `access_mode_label` / `access_mode_field_group`
-
-What a mode CARRIES - i.e. does not hide.
-
-Two **typed** link tables rather than one generic
-`access_mode_grant(permission text)`, on purpose: neither has a column in
-which `manage.catalog` could be stored, so "a mode scopes objects, it never
-grants powers" is a property of the schema rather than a rule a reviewer has
-to remember.
-
-| Table | Columns | Constraints |
-|---|---|---|
-| `access_mode_label` | `system_id`, `mode_id`, `label_id`, `created_at` | FKs to `access_mode` and `content_label`, both CASCADE; UNIQUE `(mode_id, label_id)` |
-| `access_mode_field_group` | `system_id`, `mode_id`, `field_group_key`, `created_at` | FK CASCADE; UNIQUE `(mode_id, field_group_key)`. `field_group_key` is a plain string validated against `FIELD_GROUP_KEYS` - **not** an FK, because field groups are code and not rows |
+**What a mode shows is not stored.** `cache.mode_sets` derives its content
+labels and field groups from the mode's key: `MODE_ORDER` in
+`app/services/rbac/seed_modes.py` orders the four, each label and field group
+names the lowest mode that shows it, and a mode shows everything at or below
+it. `unrestricted` shows every `content_label` row. So there is no table in
+which `manage.catalog` could be stored against a mode, and "a mode scopes
+objects, it never grants powers" is a property of the schema rather than a
+rule a reviewer has to remember. See
+[authorization.md](authorization.md#access-modes--which-objects-those-operations-reach).
 
 #### `user_access_mode_denial`
 
@@ -2589,9 +2645,10 @@ is *filtered* for, not whether somebody wrote it; quotes and memes are
 universal and nothing filters on their author at all. See
 [authorization.md](authorization.md) for the read and write rules.
 
-### The six tables keyed on `media_id`
+### Tables that hang off an entry or a group
 
-Each has a real FK to `media.system_id`, so the database cleans up after a
+Each has a real FK to its owner (`media.system_id`, or a group's
+`system_id` for the group label tables), so the database cleans up after a
 delete and no service call is involved. The rules differ on purpose:
 
 | Table | On delete | Why |
@@ -2601,6 +2658,8 @@ delete and no service call is involved. The rules differ on purpose:
 | `media_tag` | CASCADE | Same |
 | `media_content_label` | CASCADE | A label on a deleted entry means nothing |
 | `franchise_content_label` | CASCADE | A label on a deleted franchise means nothing |
+| `collection_content_label` | CASCADE | Same, for a deleted collection |
+| `series_content_label` | CASCADE | Same, for a deleted series |
 | `quote` | **SET NULL** | A quote carries its own text, translation, speaker and episode. Deleting an entry must never destroy hand-written content, so the quote survives, unattached. Not confused with a deliberately general quote - that is its own flag, `is_general` |
 | `watch_order_item` | CASCADE | A step is almost pure pointer: `ep_start`, `ep_end`, `position` and `section_id` only mean something relative to an entry |
 

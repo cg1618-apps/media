@@ -15,8 +15,8 @@ what that role may see. Permissions are declared in code; only their
   read, edit the catalogue, run a pipeline, change authorization. It holds
   `admin.*`, `manage.*`, `media_type.*` and `self.*`.
 - The **access mode** answers *which objects can those operations reach in
-  this session*. It carries content labels and field groups, and nothing
-  else.
+  this session*. It shows content labels and field groups, and nothing
+  else. The four modes, and what each shows, are fixed in code.
 
 Effective access = (the role's permissions) applied to (the active mode's
 object set, minus the account's denials). An account has one role and a
@@ -24,19 +24,27 @@ object set, minus the account's denials). An account has one role and a
 four modes are ordered `safe < normal < borderline < unrestricted`
 (`seed_modes.MODE_ORDER`), the account may switch to any mode at or below its
 ceiling, and a login lands in its default. The two axes are disjoint **by
-construction**: there is no column on the access-mode tables in which
-`manage.catalog` could be stored, and no
+construction**: what a mode shows is derived in code from its place in the
+mode order and stored nowhere, so there is nowhere `manage.catalog` could be
+put on a mode, and no
 helper exists that would let code ask the role axis an object question. That
 is what lets the owner's own admin account sit in a narrow mode and actually
 be narrowed.
 
-Entries and franchises are hidden with **content labels** (`nsfw`,
-`spoiler`, …) that never name a role: a *mode* carries `label`, and a session
-whose mode does not carry it never learns the thing exists. A label on a
-**franchise** hides that franchise and, by a read-time join through
-`media.franchise_id`, every entry in it. The seeds are deliberately permissive — the
-guest role holds every ordinary media type and the `safe` mode carries what
-the guest role holds — so an admin narrows either axis by *removing* grants.
+Entries and the three grouping tiers — collections, franchises and series —
+are hidden with **content labels** (`nsfw`, `ecchi`,
+`erotica` and the three gated types' labels) that never name a role: a *mode*
+shows a label or does not, and a session whose mode does not show it never
+learns the thing exists. The labels are code too
+(`app/services/rbac/labels.py`); the admin attaches them, and nobody creates,
+renames or deletes one in the app. A label on a group cascades **down** the
+tree by a read-time join: on a **collection** it hides the collection, its
+franchises, their series and every entry under them; on a **franchise**, the
+franchise, its series and its entries; on a **series**, the series and its
+entries. Nothing cascades up or sideways. The role seed is deliberately
+permissive — the guest role holds every ordinary media type — so an admin
+narrows the role axis by *removing* grants. The mode axis is fixed, and an account is
+narrowed below its mode with per-account denials.
 
 Related: [authentication.md](authentication.md) (login, cookie),
 [data-model.md](data-model.md) (tables), [api.md](api.md) (routes),
@@ -44,12 +52,13 @@ Related: [authentication.md](authentication.md) (login, cookie),
 
 ## What each role and mode holds
 
-The two matrices below are the seeds — what `ensure_rbac_seed` and
-`ensure_access_mode_seed` create on a fresh database. Both are editable
-afterwards (`/roles`, `/access-modes`), and both seeders **top up only a row
-holding nothing at all**, so a grant an admin removed is never handed back on
-restart. An established installation can therefore differ from either table;
-read the rows, do not assume them.
+The role matrix below is the seed — what `ensure_rbac_seed` creates on a
+fresh database. It is editable afterwards (`/roles`), and the seeder **tops up
+only a role holding nothing at all**, so a grant an admin removed is never
+handed back on restart. An established installation can therefore differ from
+it; read the rows, do not assume them.
+
+The mode matrix is not a seed. It is code, and every database shows the same.
 
 ### Roles — what an account may DO
 
@@ -179,64 +188,89 @@ never hold. A permission in neither set is a free choice.
 
 ### Access modes — which OBJECTS those operations reach
 
-Columns are the four seeded modes. A mode carries content labels and field
-groups and nothing else; there is no column on `access_mode_label` or
-`access_mode_field_group` in which `manage.catalog` could be stored.
+The four modes are `MODE_ORDER` in `app/services/rbac/seed_modes.py`,
+narrowest first. Each content label (`CONTENT_LABELS` in
+`app/services/rbac/labels.py`) and each field group
+(`FIELD_GROUP_LOWEST_MODE`) names the **lowest mode that shows it**, and a mode
+shows everything whose lowest mode is at or below it. Nothing about it is
+stored: `cache.mode_sets()` derives both sets from the mode's key. A mode shows
+content labels and field groups and nothing else, so there is nowhere
+`manage.catalog` could be put on one.
 
-| Item | `unrestricted` | `borderline` | `normal` | `safe` |
+| Item | `safe` | `normal` | `borderline` | `unrestricted` |
 |---|---|---|---|---|
-| rank in `MODE_ORDER` | 3 | 2 | 1 | 0 |
-| `sort_order` (UI only) | 0 | 10 | 20 | 30 |
-| what a logged-out visitor gets | — | — | — | **always** |
-| every content label that exists | **always, derived** | at seed time, **except a gated type's required label** | — | — |
-| `field_group.sources_restricted` | yes | yes | yes | **—** |
+| rank in `MODE_ORDER` | 0 | 1 | 2 | 3 |
+| `sort_order` (UI only) | 30 | 20 | 10 | 0 |
+| what a logged-out visitor gets | **always** | — | — | — |
+| `nsfw`, `ecchi` | — | yes | yes | yes |
+| `erotica` | — | — | yes | yes |
+| `hentai`, `h-game`, `h-comic` | — | — | — | yes |
+| a `content_label` row the code does not name | — | — | — | yes |
+| `field_group.sources_restricted` | — | yes | yes | yes |
 
-- **`unrestricted` is DERIVED; every other mode is a row set.** Its sets are
-  not read from `access_mode_label` and `access_mode_field_group` at all —
-  `cache.mode_sets()` returns every `content_label` row and every
-  `FIELD_GROUP_KEYS` entry for it, whatever the tables hold. That is the only
-  shape in which "the widest mode" survives a label being minted tomorrow.
-  `PUT /access-modes/{id}/grants` answers **409** for it and the SPA draws its
-  boxes disabled with no Save; the rows are still written (by the seed, and by
-  label creation) so the page and anything else reading the tables sees the
-  same thing, but nothing depends on them being complete.
-- **`borderline` is seeded identically to `unrestricted` and then diverges.**
-  At seed time it carries every label and every field group; only the label,
-  description and `sort_order` differ. The distinction their descriptions draw
-  is one an admin makes by editing `borderline`'s label set: the order ranks
-  `borderline` below `unrestricted` as a ceiling, but what a session in either
-  one sees is read from its sets, not inferred from its rank. A label minted
-  later reaches `borderline` only if
-  an admin grants it there. The seed's "every label" never includes a label a
-  gated type requires (`required_label_keys()`, see
-  [Gated types](#gated-types)): `h-comic`, `h-game` and `hentai` belong to
-  `unrestricted` alone,
-  including on the boot where `borderline`, still holding no labels, would
-  otherwise be topped up with every label that exists.
-- **`safe`'s field groups are derived from guest**, as the rule, not the
-  fallback: `safe` means "today's
-  guest exactly", so `ensure_access_mode_seed` reads the field groups the guest
-  *role* actually holds (`guest_field_groups()`) and seeds those. Only when
-  that role holds none — a database where `ensure_rbac_seed` has not run — does
-  it fall back to every group minus `SAFE_WITHHELD_FIELD_GROUPS`, currently
-  `{"sources_restricted"}`. The guest role's groups are intersected with the
-  groups that exist first, so a legacy grant naming a group that is not in
-  `FIELD_GROUP_KEYS` is never seeded onto a mode.
-- **Content labels are admin-created, with the gated types' system labels.**
-  On a fresh database the label row is empty for every mode except for
-  `h-comic`, `h-game` and `hentai`, which the lifespan seeds and grants to
-  `unrestricted` only — and a label minted
-  *after* the seed reaches no mode, hiding its entries from everyone until an
-  admin grants it on `/access-modes`. Fail-closed, deliberately.
+- **Each mode contains the one below it, by construction.** A ceiling only
+  means something if moving up the order never loses anything, and deriving
+  every set from one order is what guarantees it. That is why no route edits
+  what a mode shows: a mode's name, description and `sort_order` are
+  adjustable on `/access-modes`; its key, its place in the order and its sets
+  are not.
+- **`unrestricted` shows every label ROW**, not only the six the code names.
+  The two are the same once the migration and `ensure_labels` have run; the
+  difference is that a row nobody expected stays reachable in the widest mode
+  and hidden in every other — fail-closed everywhere but the mode that means
+  "everything". A key that is not one of the four modes shows nothing.
+- **The four mode rows exist to carry what is adjustable** — the name,
+  description and `sort_order` — and because a session's mode claim names a
+  row by id. An account names modes by **key** (`mode_ceiling`,
+  `mode_default`), and `ck_users_mode_keys` keeps those columns to the four.
+  `ensure_access_mode_seed` creates a missing row and never overwrites a name
+  or description; nothing else creates or deletes one. They are created with
+  `sort_order` 0 (`unrestricted`) to 30 (`safe`), which orders the API's list
+  and nothing else.
+- **The six labels are code.** `content_label` rows still exist, as the
+  foreign-key target of `media_content_label`, the three group join tables
+  (`collection_content_label`, `franchise_content_label`,
+  `series_content_label`) and the label denials, and `gated_labels.ensure_labels` keeps them a mirror of
+  the code on every start: a missing label is inserted, and a row's name,
+  description and `sort_order` are rewritten to the code's. It never deletes a
+  row. A row the code does not name is the migration's to handle
+  (`l1a2belcode3`), which deletes it when nothing cites it and otherwise
+  stops, naming it. An `access_mode` row whose key is not one of the four is
+  deleted outright: `ck_users_mode_keys` means no account can be using one.
+- **Every label but `nsfw` is stored together with `nsfw`** — not implied:
+  `app/services/domain/label_rules.py` is the one place the rule lives, and
+  every write path goes through it. The label PUT adds `nsfw` beside a first
+  other label and answers **422** to a set that drops `nsfw` while another
+  label stays (dropping every label at once is fine); the gated auto-label
+  attaches `nsfw` beside the type's label; and the invariant pass after a
+  Pull and in Calculate (`enforce_gated_label_invariants`) adds it wherever a
+  row arrived without it. Revision `n1s2fwrule34` ran the same backfill once.
+  It never hides anything new: `nsfw` is shown from `normal`, and every other
+  label is hidden at or below it. The reference says so per label
+  (`also_carries`).
+- **A label and its 標籤 Label tag are kept in step on an entry, both
+  ways** (`app/services/domain/label_tags.py`). `nsfw`, `ecchi` and
+  `erotica` each have a tag (`tag` in `labels.py`): NSFW, 輕微色情, 擦邊肉番.
+  On the nine types with the Label field, the entry label PUT rewrites the
+  entry's label tags to match, and a `PUT /api/credits/...` naming
+  `tags.label` rewrites its labels to match, so **a tag edit changes who can
+  see the entry** - both are `manage.catalog` writes, gated on the entry.
+  The `nsfw` rule runs through it: 輕微色情 alone attaches `ecchi` and `nsfw`
+  and stores the NSFW tag, and dropping NSFW while 輕微色情 or 擦邊肉番 stays
+  is a 422 that writes nothing. Only the entry's own labels have tags; the
+  groups and the gated types have no Label field. After a Pull of a
+  Label-field entry tab or `Media Content Label`, and in the invariant pass,
+  `reconcile_label_tags` brings the tags back in step **with the label
+  winning**, since the label decides visibility and a sheet's tag column is
+  a copy. Revision `t1a2gsync345` brought existing rows into step once, as
+  the union of the two sides.
 - **An account has a ceiling.** It may use every mode ranked at or below
   `users.mode_ceiling`, and what it reaches in the active one is that mode's
   sets minus the account's `user_access_mode_denial` rows. A denial hangs off
-  the account, so it applies in **every** mode the account uses; there is no
-  grant counterpart, so the effective set is always a subset of the column
-  above. Both columns NULL is **no mode**: the account resolves the empty set.
-- **Only the four ranked modes are reachable.** A mode an admin makes on
-  `/access-modes` has no rank, so no ceiling reaches it; it can be edited and
-  deleted, and no account can sit in it.
+  the account, so it applies in **every** mode the account uses, and it may
+  only name something the ceiling shows; there is no grant counterpart, so
+  the effective set is always a subset of the column above. Both columns NULL
+  is **no mode**: the account resolves the empty set.
 
 **Effective access is the two read together.** `super` in `safe` can write the
 catalogue but cannot see a labelled entry to write it; `admin` in `safe` is
@@ -267,13 +301,16 @@ short-circuit deliberately does not cover.
 | handle requests — the inbox: mark done or declined, reopen, delete (`manage.requests`) | **409 if granted** | **409 if granted** | **409 if granted** | **always** | implicit |
 | write the catalogue — entries, groups, people, credits, options, relations, watch orders, quotes, memes, catalogue notes, the Resources page | **409 if granted** | **409 if granted** | **409 if granted** | **always** | implicit |
 | run a pipeline — Backup, Pull, Fill, Replace, Calculate | **409 if granted** | **409 if granted** | **409 if granted** | **always** | implicit |
-| restore accounts, content labels and label assignments on a Pull | — | — | — | **no** — those four tabs are skipped | implicit |
+| restore accounts, content labels and label assignments on a Pull | — | — | — | **no** — those six tabs are skipped | implicit |
 | change what a role holds | **409 if granted** | **409 if granted** | — | — | implicit |
 | create accounts, set a role, assign modes, disable or enable an account, issue a reset link | **409 if granted** | **409 if granted** | — | — | implicit |
-| label an entry or a franchise | **409 if granted** | **409 if granted** | **409 if granted** | **always** | implicit |
-| create, rename or delete a content label | **409 if granted** | **409 if granted** | — | — | implicit |
-| create and edit access modes | **409 if granted** | **409 if granted** | — | — | implicit |
+| label an entry, a collection, a franchise or a series | **409 if granted** | **409 if granted** | **409 if granted** | **always** | implicit |
+| read the label reference, `/content-labels` (`manage.catalog` **or** `admin.authz`) | **409 if granted** | **409 if granted** | **409 if granted** | **always** | implicit |
+| rename an access mode or edit its description | **409 if granted** | **409 if granted** | — | — | implicit |
 
+- **Nobody creates, renames or deletes a content label, or creates, deletes
+  or regrants an access mode.** Both are code; see
+  [Access modes](#access-modes--which-objects-those-operations-reach).
 - **`super` is the row to read down.** Everything catalogue-shaped is yes and
   everything authorization-shaped is `—`; that gap is why the bare `admin`
   permission became three named ones. None of it is editable —
@@ -293,23 +330,19 @@ short-circuit deliberately does not cover.
 
 ### What each mode lets a session SEE
 
-Same reading for the object axis: the matrix above is what a mode carries,
-this is what carrying it means.
+Same reading for the object axis: the matrix above is what a mode shows,
+this is what showing it means.
 
-| Item | Without it, a session… | `unrestricted` | `borderline` | `normal` | `safe` |
+| Item | Without it, a session… | `safe` | `normal` | `borderline` | `unrestricted` |
 |---|---|---|---|---|---|
-| `label.<key>` | never learns an entry carrying that label exists — absent from lists, search, relations, watch orders, quotes and memes, 404 on its detail page | **always, derived** | at seed time, never `h-comic` or `h-game` | — | — |
-| `field_group.sources_restricted` | gets a source list with the `restricted` bucket missing | yes | yes | yes | **—** |
+| a content label | never learns an entry carrying that label exists — absent from lists, search, relations, watch orders, quotes and memes, 404 on its detail page | none | `nsfw`, `ecchi` | adds `erotica` | every label row |
+| `field_group.sources_restricted` | gets a source list with the `restricted` bucket missing | **—** | yes | yes | yes |
 
 Which fields each group covers is [Field groups](#field-groups); it is not
 restated here, or the two copies drift.
 
-- **A fresh database carries three labels, `h-comic`, `h-game` and
-  `hentai`.** Every other content
-  label is admin-created, so the first row is empty for every mode but
-  `unrestricted`, which derives its set rather than reading rows. A label minted later reaches
-  no other mode until an admin grants it there, hiding its entries from
-  everyone else. Fail-closed, deliberately.
+- **Every database shows the same.** The labels and their lowest modes are
+  code, so what a mode shows does not depend on the machine it is asked on.
 - **Withheld fields are absent, not blanked**, in the API and the UI both: no
   `—` placeholder, because a placeholder announces what it conceals.
 - **An account's ceiling is an upper bound, and its denials sit under it.**
@@ -322,36 +355,40 @@ restated here, or the two copies drift.
 |---|---|---|
 | `role` | one named bundle of permissions | `name` unique — exactly the five in `ROLE_NAMES`, each read by name, none renamed, created or deleted through the API — `label`, `description`, `is_root` (holds every permission implicitly **except the `self` family** — see [The admin account holds no user data](#the-admin-account-holds-no-user-data)), `sort_order` |
 | `role_permission` | one grant | `role_id` FK → role (`CASCADE`), `permission` string; unique `(role_id, permission)` |
-| `content_label` | one admin-managed reason an entry or franchise may be restricted | `key` unique (becomes permission `label.<key>`), `label`, `description`, `sort_order` |
+| `content_label` | the row for one code-defined label (`app/services/rbac/labels.py`), kept as the foreign-key target of the four tables below | `key` unique, `label`, `description`, `sort_order` — all four written from code by `gated_labels.ensure_labels` on every start |
 | `media_content_label` | one label on one entry | `media_id` FK → `media.system_id` (`CASCADE`), `label_id` FK → content_label (`CASCADE`), `position`; unique `(media_id, label_id)`. A label on a deleted entry is cleaned up by the database |
 | `franchise_content_label` | one label on one franchise | `franchise_id` FK → `franchise.system_id` (`CASCADE`), `label_id` FK → content_label (`CASCADE`), `position`; unique `(franchise_id, label_id)`. A second table rather than a nullable owner pair on the one above: a pair could name both owners or neither, and nothing in the database would say which was meant |
-| `access_mode` | one named set of what a session may reach | `key` unique, `label`, `description`, `sort_order` (UI only — the order enforcement uses is `seed_modes.MODE_ORDER`, on the four keys in code), `is_system`. There is **no** column for the anonymous policy: a logged-out visitor resolves `safe` by key |
-| `access_mode_label` | one content label a mode CARRIES (i.e. does not hide) | `mode_id` → access_mode (`CASCADE`), `label_id` → content_label (`CASCADE`); unique `(mode_id, label_id)` |
-| `access_mode_field_group` | one field group a mode carries | `mode_id` (`CASCADE`), `field_group_key` — a plain string validated against `FIELD_GROUP_KEYS`, not an FK, because field groups are code and not rows; unique `(mode_id, field_group_key)` |
+| `collection_content_label` | one label on one collection | the same shape: `collection_id` FK → `collection.system_id` (`CASCADE`), `label_id` FK → content_label (`CASCADE`), `position`; unique `(collection_id, label_id)` |
+| `series_content_label` | one label on one series | the same shape: `series_id` FK → `series.system_id` (`CASCADE`), `label_id` FK → content_label (`CASCADE`), `position`; unique `(series_id, label_id)` |
+| `access_mode` | one named ceiling on what a session may reach | `key` unique, `label`, `description`, `sort_order` (orders the API's list only — what a mode shows and the order enforcement uses follow `seed_modes.MODE_ORDER` in code), `is_system`. There is **no** column for the anonymous policy: a logged-out visitor resolves `safe` by key |
 | `users.mode_ceiling`, `users.mode_default` | the widest mode the account may use, and where a login lands | mode **keys**, nullable, default `normal` / `normal`. `ck_users_mode_keys` (each NULL or one of the four), `ck_users_mode_pair` (both NULL or both set), `ck_users_mode_default_within_ceiling` (the default ranks at or below the ceiling, by `array_position` over the order). Keys rather than `access_mode` ids: the order is defined on keys, and a key survives a Pull where a per-database uuid does not |
 | `user_access_mode_denial` | one item this account does NOT get, in any mode it uses | `user_id` → users (`CASCADE`), and exactly one of `label_id` / `field_group_key`, enforced by `ck_denial_names_one_thing`; unique `(user_id, label_id)` and `(user_id, field_group_key)`. **Subtraction only** — there is no grant counterpart and there must not be one: the ceiling is an upper bound, so an account's reach is always a subset of its active mode's |
 | `users.role_id` | the user's role | FK → role (`RESTRICT`), NOT NULL. `users.role` is not a column: it is a read-only `column_property` over `role.name` (bottom of `app/models/__init__.py`), because `auth.py` returns the name on login and mints it as a JWT claim |
 
 Models: `app/models/system.py` (`Role`, `RolePermission`, `User`),
 `app/models/content_label.py` (`ContentLabel`, `MediaContentLabel`,
-`FranchiseContentLabel`),
-`app/models/access_mode.py` (the four access-mode tables).
+`CollectionContentLabel`, `FranchiseContentLabel`, `SeriesContentLabel`),
+`app/models/access_mode.py` (`AccessMode`, `UserAccessModeDenial`).
 
-**Why two typed link tables instead of one generic
-`access_mode_grant(permission text)`:** neither has a column in which
-`manage.catalog` or `admin.authz` could be stored, so "a mode scopes objects,
-it never grants powers" is a property of the schema rather than a rule a
-reviewer has to remember.
+**No table records what a mode shows.** It is derived from the mode's key and
+the code, so there is no column in which `manage.catalog` or `admin.authz`
+could be stored against a mode, and "a mode scopes objects, it never grants
+powers" is a property of the schema rather than a rule a reviewer has to
+remember.
 
 Labels are deliberately **not** rows in `media_tag`: that table is keyed to
 `system_option` and written by the Fill/backfill pipelines, so a pipeline run
 could silently change who sees an entry.
 
-All three tables travel between machines on the `Content Label`, `Media
-Content Label` and `Franchise Content Label` sheet tabs. They are the only
-tables whose absence from the sheet fails **open** — a Pull All would restore
-every entry and franchise unlabelled, i.e. visible — so treat a Backup as part
-of labelling work, not an afterthought. `role` and
+All five tables travel between machines on the `Content Label`, `Media
+Content Label`, `Franchise Content Label`, `Collection Content Label` and
+`Series Content Label` sheet tabs. They are the only tables whose absence from
+the sheet fails **open** — a Pull All would restore every entry and group
+unlabelled, i.e. visible — so treat a Backup as part of labelling work, not an
+afterthought. The `Content Label` tab travels because its uuids are what the
+four assignment tabs cite; a row whose key the code does
+not name is skipped and reported, and a known label's name and description are
+the code's whatever the sheet says. `role` and
 `role_permission` have no tab: `ensure_rbac_seed` recreates the five roles
 anywhere, but a grant removed by hand is per-machine. See
 [data-actions.md](data-actions.md#2-sheet-tab-registry-tabspy).
@@ -366,15 +403,19 @@ handed the catalogue, or vice versa:
 
 | Name | Meaning | Source of keys |
 |---|---|---|
-| `admin.authz` | may **change who may do what** — roles, accounts, and the content-label **vocabulary** (minting, renaming, deleting a label) | `ADMIN_PERMISSION_KEYS` in `app/services/rbac/permissions.py` |
-| `manage.catalog` | may **write the catalogue** — entries, groups, people, credits, options, relations, watch orders, a game's choice graph, catalogue notes, the Resources page, and **which labels an entry or franchise carries** | `MANAGE_PERMISSION_KEYS` in the same module |
+| `admin.authz` | may **change who may do what** — roles, accounts, each account's mode ceiling, default and denials, and the access modes' names and descriptions | `ADMIN_PERMISSION_KEYS` in `app/services/rbac/permissions.py` |
+| `manage.catalog` | may **write the catalogue** — entries, groups, people, credits, options, relations, watch orders, a game's choice graph, catalogue notes, the Resources page, and **which labels an entry or a group carries** | `MANAGE_PERMISSION_KEYS` in the same module |
 | `manage.pipelines` | may **run a pipeline** — Backup, Pull, Fill, Replace, Calculate | `MANAGE_PERMISSION_KEYS` in the same module |
 | `manage.requests` | may **handle requests** — the request inbox: read every account's requests, set their status, delete them | `MANAGE_PERMISSION_KEYS` in the same module |
 | `media_type.<key>` | may see any entry of that type; keys are hyphenated (`media_type.tv-show`) | `MEDIA_TYPE_KEYS` in `app/utils/media_resolver.py` |
-| `field_group.<key>` | may see the fields in one `FIELD_GROUPS` entry | `app/services/rbac/field_groups.py` |
-| `label.<key>` | may see entries and franchises carrying that content label | `content_label.key`, read at request time |
 | `self.<key>` | may **write** your own rows of that kind — `self.list`, `self.personal_notes`, `self.requests` — or change your own password, `self.password` (`PUT /api/account/password`) | `SELF_PERMISSION_KEYS` in `app/services/rbac/permissions.py` |
 | `view.<key>` | may **read** one part of the site beyond the libraries and their detail pages — see the table below | `VIEW_PERMISSION_KEYS` in `app/services/rbac/permissions.py` |
+
+Content labels and field groups are not in this catalog: they are the object
+axis, decided by the session's access mode, and no role holds one.
+`/api/auth/me` still lists the session's field groups in `permissions` as
+`field_group.<key>` strings beside the role's permissions, so the SPA asks one
+`has()` for either; labels are not published at all.
 
 The `view` family, as the role editor labels it (`VIEW_PERMISSION_LABELS`):
 
@@ -571,18 +612,12 @@ field group:
   [The entry id on the poster spine](#the-entry-id-on-the-poster-spine) for
   the one visible id.
 
-**`sources_restricted` is deliberately excluded from a fresh `safe` mode.**
-`app/services/rbac/seed_modes.py`'s `SAFE_WITHHELD_FIELD_GROUPS` (currently
-just `{"sources_restricted"}`) is subtracted from the group set seeded onto
-`safe`, the mode a logged-out visitor resolves — a field group whose whole
-point is to withhold something from ordinary viewers must not be granted by
-default, or it withholds nothing until an admin remembers to revoke it. Any
-other field group is granted to every seeded mode. That subtraction is only
-the fallback: on a database whose guest role already holds field groups,
-`safe` is seeded from those instead, so it means "today's guest exactly".
-Either way it applies to a *fresh* seed only — `ensure_access_mode_seed` tops
-up only a mode holding nothing, so an item an admin removed is not handed back
-on restart.
+**`sources_restricted` is withheld in `safe`.**
+`FIELD_GROUP_LOWEST_MODE` in `app/services/rbac/seed_modes.py` names `normal`
+as its lowest mode, so `safe`, the mode a logged-out visitor resolves, does not
+show it, and every wider mode does. The same map is the only place a field
+group's modes are decided: `field_groups_shown_in` reads nothing else, so a
+group with no entry there is shown by no mode, `unrestricted` included.
 
 **Gating a `media_source` bucket is not the "real columns" copy-and-strip
 path described below** — it happens earlier, inside
@@ -671,13 +706,11 @@ the vocabulary is code, only the grants are rows. Restart to pick it up.
 column or link field that does not exist, so a typo surfaces in CI rather than
 as a silent no-op.
 
-**The two edits default opposite ways.** Adding a column to an *existing* group
-changes nothing until someone unticks it, because guest already holds that
-permission. Creating a *new* group hides it from guests immediately: the seed
-only tops up a guest role holding no grants at all (`seed.py`, `if not held`),
-so an established guest role never receives the new permission and an admin
-grants it deliberately. Same safe direction as content labels — new
-restrictions start restrictive.
+**Both edits take effect on deploy, in every database alike.** Adding a column
+to an existing group hides it at once in every mode below the group's lowest
+mode. Creating a new group needs its entry in `FIELD_GROUP_LOWEST_MODE`;
+without one the group is hidden in every mode, which is the safe direction
+but a group nobody can see.
 
 ## Role guards
 
@@ -754,8 +787,8 @@ keeping:
   to the new ceiling: an override naming it resolves to nothing until it
   expires or is switched away from. A session sitting in a mode the account
   can no longer use has no claim to anything, and the empty set is the one
-  answer that cannot widen it. A mode outside `MODE_ORDER` is never within a
-  ceiling, so it resolves the same way.
+  answer that cannot widen it. A key outside `MODE_ORDER` has no rank and is
+  never within a ceiling, so it resolves the same way.
 - A signed-in account with no override and no mode (ceiling and default NULL)
   does **not** inherit the guest default. That mode is the anonymous policy, not this
   account's.
@@ -795,8 +828,8 @@ keeping:
   `permissions` (sorted); `AuthContext.jsx` builds a `Set` and exposes `has()`.
   It also returns `visible_gated_types`, the sorted gated media types this
   session may see (`gated_types.visible_gated_types`) - `["h-comic", "h-game",
-  "hentai"]` in `unrestricted`, which carries every label, only the types
-  whose label a mode carries otherwise, `[]` in a mode carrying none. It names
+  "hentai"]` in `unrestricted`, which shows every label, and `[]` in every
+  other mode, none of which shows a gated type's label. It names
   only the seeable
   ones, so a session that cannot see a gated type is not told it exists.
   And it returns `features`, the account's feature switches by name
@@ -826,12 +859,10 @@ random and order-dependent — and advances `cache.generation()`, which the
 cover route's cache below keys its validity on.
 
 **Who calls `bump()`:** every write in `roles.py`, `access_modes.py`, and
-`users.py` (create, update, delete, and `PUT /{id}/access-modes`); label
-create and delete in `content_labels.py` (a label's PATCH changes only its
-display fields, which nothing here caches);
-`gated_labels.ensure_system_labels`; and Pull, after every tab it commits,
+`users.py` (create, update, delete, and `PUT /{id}/access-modes`);
+`gated_labels.ensure_label` when it inserts or rewrites a label row; and Pull, after every tab it commits,
 because a restore writes `users` and `content_label` straight to the tables
-where no router runs. Assigning labels to an entry or a franchise does not
+where no router runs. Assigning labels to an entry or a group does not
 bump and needs not to: no cache holds which labels an object carries.
 **Single-instance caveat:** the cache is process-local, so it is only
 correct while the app runs as one process - which it does today, local
@@ -860,8 +891,8 @@ hides anything, the one probe.
 |---|---|
 | **Key** | the raw `access_token` and `access_mode` cookie values — the only things `resolve_viewer` reads off the request. A different login, a mode switch, a logout or a re-login is a different key. |
 | **Lifetime** | 5 s, and never past either token's `exp` or the override's `mode_expires_at`, so a login or an override that expires mid-TTL stops applying on time. Monotonic, so a wall clock stepped backwards cannot stretch it. |
-| **Database inputs** | `users` (with its mode ceiling and default), `role`, `role_permission`, `access_mode`, `access_mode_label`, `access_mode_field_group`, `user_access_mode_denial`, `content_label` — not in the key, so covered by invalidation: an entry resolved under an older `cache.generation()` is discarded, and every write path to those tables bumps (above). |
-| **Not cached** | which labels an entry or franchise carries, and every shared-record connection. That is the per-image probe, run on every request, so labelling an entry hides its cover on the next fetch. |
+| **Database inputs** | `users` (with its mode ceiling and default), `role`, `role_permission`, `access_mode`, `user_access_mode_denial`, `content_label` — not in the key, so covered by invalidation: an entry resolved under an older `cache.generation()` is discarded, and every write path to those tables bumps (above). |
+| **Not cached** | which labels an entry or a group above it carries, and every shared-record connection. That is the per-image probe, run on every request, so labelling an entry hides its cover on the next fetch. |
 | **Bound** | 512 entries, expired and superseded ones pruned on each store, then oldest first — the key is caller-supplied, so junk cookies cannot grow it. |
 
 The generation is read **before** resolving and checked again before storing,
@@ -879,29 +910,42 @@ need one there; this cache's TTL bounds only this cache.
 
 Two gates, always applied together, reading **different axes**: the viewer's
 ROLE holds `media_type.<key>` or the whole type disappears; the viewer's
-active MODE carries every label the entry carries **and every label its
-franchise carries**, or the entry disappears. Both run in SQL — filtering in
+active MODE shows every label the entry carries **and every label on every
+group above it**, or the entry disappears. Both run in SQL — filtering in
 Python after `limit/offset` would shrink pages and shift the next page's start.
 
-**The franchise half is a read-time cascade, not a stored copy.** No label row
-is written onto an entry when its franchise is labelled, so moving an entry
-between franchises changes what hides it at once, and clearing a franchise's
-labels reveals everything it covered. `_hidden_by_label(entry_id, hidden)` is
-the one place the two halves are spelled out, and every gate below calls it —
-a second spelling is how one of them would end up asking only half the
-question.
+**The group half is a read-time cascade, not a stored copy.** No label row is
+written onto anything below a labelled group, so moving an entry, a series or
+a franchise changes what hides it at once, and clearing a group's labels
+reveals everything it covered. Each tier's condition is built from the one
+above it, so the question is spelled once:
+
+| Condition | True when |
+|---|---|
+| `_collection_hidden(collection_id, hidden)` | the collection carries a hidden label |
+| `_franchise_hidden(franchise_id, hidden)` | the franchise carries one, **or** `_collection_hidden` of its `collection_id` |
+| `_series_hidden(series_id, hidden)` | the series carries one, **or** `_franchise_hidden` of its `franchise_id`. A series with no franchise answers on its own labels |
+| `_hidden_by_label(entry_id, hidden)` | the entry carries one, **or** `_franchise_hidden` of `media.franchise_id`, **or** `_series_hidden` of `media.series_id` |
+
+An entry is asked through its series *in full* — the series' franchise chain
+included — as well as through its own franchise. The two normally name the
+same franchise; where `media.franchise_id` and `series.franchise_id` disagree,
+hiding on either is the direction that cannot leak. Every gate below calls
+these conditions — a second spelling is how one of them would end up asking
+only part of the question.
 
 | Helper | Use | Behaviour |
 |---|---|---|
 | `hidden_label_ids(db, viewer)` | building block | ids of labels the viewer's ACTIVE MODE does not carry; `[]` is the common case and every caller short-circuits on it. **No `is_root` short-circuit** — labels are an object question, and holding every capability does not answer one |
-| `apply_entry_visibility(query, model, media_type, db, viewer)` | list routes | `filter(false)` if the type is not held; otherwise `NOT EXISTS` anti-join on `media_content_label` **and** on `franchise_content_label` reached through `media.franchise_id` |
-| `apply_franchise_visibility(query, db, viewer)` | franchise list, franchise search bucket | `NOT EXISTS` anti-join on `franchise_content_label`. No media-type half: a franchise has no type of its own and may hold entries of several |
+| `apply_entry_visibility(query, model, media_type, db, viewer)` | list routes | `filter(false)` if the type is not held; otherwise `NOT EXISTS` on `_hidden_by_label`: the entry's own labels and every group above it, reached through `media.franchise_id` and `media.series_id` |
+| `apply_collection_visibility(query, db, viewer)` / `collection_visible(db, viewer, collection_id)` | collection list and search bucket; collection detail and its writes; the collection assignment routes | `NOT EXISTS` on `_collection_hidden`. A collection has no tier above it, so its own labels are the whole of it; bool callers **404 with their normal not-found message** |
+| `apply_franchise_visibility(query, db, viewer)` | franchise list, franchise search bucket | `NOT EXISTS` on `_franchise_hidden` — its own labels and its collection's. No media-type half: a franchise has no type of its own and may hold entries of several |
 | `franchise_visible(db, viewer, franchise_id)` | franchise detail and its writes | bool; callers **404 with their normal not-found message** |
-| `apply_series_visibility(query, db, viewer)` / `series_visible(db, viewer, series_id)` | series list, search bucket, detail and writes; series-scope plan targets | A series carries no labels; it is hidden when its franchise is, through the same `franchise_content_label` anti-join reached read-time via `series.franchise_id`. A series with no franchise is never hidden |
-| `tier_visible(db, viewer, tier_id)` / `require_visible_owner(db, viewer, owner_id, detail)` | note and meme owners | `tier_visible` resolves a franchise or series **from the id**, never from a caller-supplied tier type, and answers True for anything else. `require_visible_owner` is `require_visible_media` plus that tier half, raising the caller's own 404 |
-| `apply_media_visibility(query, db, viewer)` | anything spanning every type at once | The same two gates over the `media` supertable rather than one detail table: the media-type check becomes an `IN` over the types the viewer holds, and the label anti-join goes through `media_content_label.media_id` and `media.franchise_id`. `group_counts.py` uses it to count across all twelve types in one query. The query must already select from or join `Media` |
+| `apply_series_visibility(query, db, viewer)` / `series_visible(db, viewer, series_id)` | series list, search bucket, detail and writes; series-scope plan targets | `NOT EXISTS` on `_series_hidden` — its own labels, its franchise's and that franchise's collection's, reached read-time via `series.franchise_id` |
+| `tier_visible(db, viewer, tier_id)` / `require_visible_owner(db, viewer, owner_id, detail)` | note and meme owners | `tier_visible` resolves a collection, franchise or series **from the id**, never from a caller-supplied tier type, and answers True for anything else. `require_visible_owner` is `require_visible_media` plus that tier half, raising the caller's own 404 |
+| `apply_media_visibility(query, db, viewer)` | anything spanning every type at once | The same two gates over the `media` supertable rather than one detail table: the media-type check becomes an `IN` over the types the viewer holds, and the label anti-join is `_hidden_by_label` over `media.system_id`, so the groups above each entry count. `group_counts.py` uses it to count across all twelve types in one query. The query must already select from or join `Media` |
 | `entry_visible(db, viewer, media_type, entry_id)` | detail and per-entry sub-routes | bool; callers **404 with their normal not-found message** |
-| `filter_visible_pairs(db, viewer, pairs)` | cross-type batches | one query for many `(media_type, id)` pairs. A pair naming a grouping tier passes the media-type half (a tier holds no such permission) and meets the label half as a tier: a `franchise` pair by its own labels, a `series` pair by its franchise's, a `collection` pair never |
+| `filter_visible_pairs(db, viewer, pairs)` | cross-type batches | one query for many `(media_type, id)` pairs. A pair naming a grouping tier passes the media-type half (a tier holds no such permission) and meets the label half as a tier, through that tier's condition above: a `collection`, `franchise` or `series` pair is hidden by its own labels and by every group above it |
 | `label_hidden_entry_ids(db, viewer, ids)` | shared-record sub-routes | the ids hidden by a **label** alone, without the media-type half. A person's or character's `/entries` drops these rows whole, group and all, because a label-hidden appearance is a hidden connection; a row withheld only by a type gap is not (see [Shared records](#shared-records)) |
 | `drop_hidden_rows(db, viewer, rows, type_attr, id_attr)` | quotes, memes, plan-next | rows are **dropped**, not degraded to `missing=True` (the text itself is the leak; `missing` means "dangling reference, fix it"); rows with no reference are kept |
 
@@ -939,7 +983,7 @@ carries a content label. They are hidden by what they are connected to, in
 A connection is one of three kinds:
 
 - **An appearance** — a row placing the record on an entry. Hidden when the
-  entry is **label-hidden**, by its own label or its franchise's. A media-type
+  entry is **label-hidden**, by its own label or a group's above it. A media-type
   permission gap does **not** hide an appearance: a viewer lacking
   `media_type.game` still sees a person credited only on games, exactly as
   before the rule existed.
@@ -1019,29 +1063,28 @@ convention holds here too.
 
 A **gated type** is a media type every entry of which carries one content
 label. `REQUIRED_LABEL_FOR_TYPE` (`app/services/rbac/gated_types.py`) names
-them; today it is `{"h-comic": "h-comic", "h-game": "h-game", "hentai": "hentai"}`. A session can see a gated type
-when its mode carries the required label, which in practice means
-`unrestricted`: the label is granted to no other mode, and the seed keeps it
-off `borderline` (see [Access modes](#access-modes--which-objects-those-operations-reach)).
+them, derived from the labels in `app/services/rbac/labels.py` that set
+`gated_type`; today it is `{"h-comic": "h-comic", "h-game": "h-game", "hentai": "hentai"}`. A session can see a gated type
+when its mode shows the required label, which means `unrestricted`: each of
+the three labels has `unrestricted` as its lowest mode (see
+[Access modes](#access-modes--which-objects-those-operations-reach)).
 The role axis agrees: the type's `media_type.*` permission is locked on for
 `user` and `super` and locked off for `guest` and `shared`
 ([Locked grants](#locked-grants)), so a guest or shared session never sees a
-gated type whatever its mode, and a member sees one only in a mode carrying
+gated type whatever its mode, and a member sees one only in a mode showing
 its label.
 
-Each label is a **system label**, and nothing about it is left to an admin,
-because a missing label means a public entry. The mechanics are shared by
-every gated type (`app/services/domain/gated_labels.py`):
+Nothing about a gated type's label is left to an admin, because a missing
+label means a public entry. The mechanics are shared by every gated type
+(`app/services/domain/gated_labels.py`):
 
-- **Created** by its type's migration (`h1c2o3m4i5c6` for h-comic,
-  `h2g3a4m5e6t7` for h-game, `h2e3n4t5a6i7` for hentai) and by the lifespan
-  seed (`ensure_system_labels` in `app/services/domain/gated_labels.py`, which
-  finds the label by key and so adopts a row an admin made by hand - a
-  `hentai` label made by hand is adopted, not duplicated), granted to
-  `unrestricted` only. `DELETE /api/content-labels/{id}` refuses it (409).
+- **Defined in `labels.py`**, and its row created by its type's migration
+  (`h1c2o3m4i5c6` for h-comic, `h2g3a4m5e6t7` for h-game, `h2e3n4t5a6i7` for
+  hentai) and by `ensure_labels` on every start, which finds the row by key
+  and so adopts one made by hand rather than duplicating it. No route deletes
+  a label.
 - **The `hentai` label means the type.** Its migration removed it from every
-  entry that is not a hentai, and removed any grant to a mode other than
-  `unrestricted`; neither is restored by the downgrade. Nothing refuses a
+  entry that is not a hentai, which the downgrade does not restore. Nothing refuses a
   gated label on another type's entry afterwards.
 - **Stamped on every entry of the type on every write path**: the registry's
   `progress_hook` on create, update and the tracker PATCH; and
@@ -1069,8 +1112,8 @@ every gated type (`app/services/domain/gated_labels.py`):
 
 The label handling lives in `app/services/domain/gated_labels.py` and is driven by
 `REQUIRED_LABEL_FOR_TYPE` and `FRANCHISE_TYPE_FOR` alone: a further gated
-type adds its map entry and its row in `gated_labels.SYSTEM_LABELS`, and every
-bullet above applies to it.
+type adds a label with `gated_type` set in `labels.py` and its
+`FRANCHISE_TYPE_FOR` entry, and every bullet above applies to it.
 
 With the label on every entry, the ordinary gates hide the type everywhere
 `enforcement.py` reaches, and the shared-record rule above hides everything
@@ -1112,10 +1155,11 @@ type's nav row, routes, tabs and pickers out rather than render them empty.
 | credits for an entry | `routers/credits.py` → 404; hidden entries' credits not counted on person/studio |
 | people, characters, character identities, studios, publishers (list, detail, `/entries`, `role-counts`, `role-scopes`, writes) | `routers/person.py`, `character.py`, `character_identity.py`, `studio.py`, `publisher.py` — every read behind its kind's key (`view.person`, the seiyuu list included; `view.character` for characters and identities; `view.studio`; `view.publisher`), then [Shared records](#shared-records); `my_rating` nulled by [Personal fields](#personal-fields-personal_gatepy) |
 | option lists (`/api/options/`, `/api/options/{category}`) and option writes | `routers/options.py` (`_visible_options`) — [Shared records](#shared-records) |
-| series (list, detail, writes) | `routers/series.py` (`apply_series_visibility`, `series_visible`) — hidden with a label-hidden franchise; rating and expectation nulled by [Personal fields](#personal-fields-personal_gatepy), as on franchises and collections |
-| notes for an owner | `routers/note.py` → 404 for a hidden entry, franchise or series owner (`tier_visible`, `require_visible_owner`), personal sections return only the viewer's own rows (none for a logged-out viewer), and `VIEW_PERSONAL_SECTIONS` (`highlights`, `highlight_episodes`) are withheld from the rows and the section listing without it |
+| collections (list, detail, writes) | `routers/collection.py` (`apply_collection_visibility`, `collection_visible`) — hidden by its own labels; 404 "Collection not found." on detail, `PUT` and `PATCH`, "Collection not found" on `DELETE` |
+| series (list, detail, writes) | `routers/series.py` (`apply_series_visibility`, `series_visible`) — hidden by its own labels or a hidden franchise above it; rating and expectation nulled by [Personal fields](#personal-fields-personal_gatepy), as on franchises and collections |
+| notes for an owner | `routers/note.py` → 404 for a hidden entry, collection, franchise or series owner (`tier_visible`, `require_visible_owner`), personal sections return only the viewer's own rows (none for a logged-out viewer), and `VIEW_PERSONAL_SECTIONS` (`highlights`, `highlight_episodes`) are withheld from the rows and the section listing without it |
 | quotes (list, grouped, by id) | `routers/quote.py` — every read behind the `quotes_memes` feature (`require_feature_quotes_memes`), then `drop_hidden_rows` |
-| memes (list, grouped, by id) | `routers/meme.py` — every read behind the `quotes_memes` feature; a meme on a hidden entry, franchise or series is dropped; writes use `require_visible_owner` |
+| memes (list, grouped, by id) | `routers/meme.py` — every read behind the `quotes_memes` feature; a meme on a hidden entry, collection, franchise or series is dropped; writes use `require_visible_owner` |
 | plan-next rows | `routers/plan_next.py` |
 | the Resources page | `routers/resources.py` — the read is behind `view.extras`; past that there is nothing to filter: a node names no entry, franchise or label, so every viewer holding the key reads the whole tree, and every write is `require_manage_catalog` |
 | random picker defaults (`/api/random-picker-defaults/{mode}`) | `routers/random_picker_defaults.py` — the read is behind `view.extras`, writes `require_manage_catalog` |
@@ -1124,12 +1168,12 @@ type's nav row, routes, tabs and pickers out rather than render them empty.
 | attaching an image to a media entry or an entity | `routers/images.py` → 404 "Entry not found." An entity owner is asked through `shared_record_visible`; quote/meme owners carry no label and are not checked |
 | serving a cover image (`/api/covers/{owner_type}/{id}.jpg`) | `routers/covers.py` → 404, with its viewer from `cover_viewer.get_cover_viewer` ([cached for 5 s](#the-cover-routes-viewer-cache-cover_viewerpy)). The media type is resolved from the `media` row, never read out of the path: both halves of the pair are caller-supplied there, so trusting the folder would gate an entry under another type's permission. An id naming no `media` row is an entity owner (staff, character, publisher, studio), a shared record asked through `shared_record_visible` (a `character-identity` owner is asked through its character, `identity_visible`); its folder is read from the path, which is safe because the folder names the file |
 | watch-order items, addable candidates | `routers/watch_order.py` (`resolve_items`, `list_candidate_entries`) |
-| search | `routers/search.py` — behind `view.search`; entries, franchises, series and the person/studio/publisher buckets, each bucket passed through [Personal fields](#personal-fields-personal_gatepy) as its own list route is |
+| search | `routers/search.py` — behind `view.search`; entries, collections, franchises, series and the person/studio/publisher buckets, each bucket passed through [Personal fields](#personal-fields-personal_gatepy) as its own list route is |
 | own-list reads and writes (`/api/me/list/{media_id}`) | `routers/me_list.py`, behind `self.list` **and** `entry_visible` in `_media_or_404`. Both are needed: the capability gate alone lets an account holding `self.list` rate an entry it cannot see, or a media type it does not hold, by knowing the uuid. Writes follow reads: 404 with the not-found message, never 403 |
 | account settings (`/api/account/settings`) | `routers/account.py` - a read of the caller's own username and role; no path takes a user id, and there is no write |
 | requests and reports (`/api/requests`) | `routers/requests.py` — filing and the caller's own behind `self.requests`, the inbox behind `manage.requests`. **No object check**: a target must exist, not be visible - see [Accepted residuals](#accepted-residuals) |
 | `data_control` / `system` GETs | behind `require_manage_pipelines` |
-| Pull's four authorization tabs (`Users`, `Content Label`, `Media Content Label`, `Franchise Content Label`) | `routers/data_control.py` passes `may_restore_authz=viewer.has(PERM_ADMIN_AUTHZ)` into `pull.py`. Without it each returns `status: "skipped"` and is named in `unresolved_refs`, so the rest of the restore still lands and the gap is visible. Stops a `manage.pipelines` holder promoting themselves by typing `admin` into the sheet's Users tab. **Backup is not gated** - it writes local -> sheet and cannot change this database |
+| Pull's six authorization tabs (`Users`, `Content Label`, `Media Content Label`, `Franchise Content Label`, `Collection Content Label`, `Series Content Label`) | `routers/data_control.py` passes `may_restore_authz=viewer.has(PERM_ADMIN_AUTHZ)` into `pull.py`. Without it each returns `status: "skipped"` and is named in `unresolved_refs`, so the rest of the restore still lands and the gap is visible. Stops a `manage.pipelines` holder promoting themselves by typing `admin` into the sheet's Users tab. **Backup is not gated** - it writes local -> sheet and cannot change this database |
 
 ### Write binding
 
@@ -1181,8 +1225,9 @@ silent bypass of the type axis alone. All three share
 resolves the type from the media row and raises the caller's own 404. The
 helper exists because the shortest form has to be the safe one.
 
-`content_labels.py`'s four assignment routes bind the same way, through
-`_resolve_entry` / `_resolve_franchise`: assignment is `manage.catalog`, which
+`content_labels.py`'s eight assignment routes (a GET and a PUT per entry,
+collection, franchise and series) bind the same way, through `_resolve_entry`
+/ `_resolve_group`: assignment is `manage.catalog`, which
 says nothing about which objects a session reaches, so a narrowed editor who
 knew the id could otherwise clear the very label hiding the thing from them.
 Both answer 404 in the words the router already uses for missing. A replace
@@ -1207,8 +1252,8 @@ is a **422**, checked before anything is deleted - see
   `manage.pipelines` holder can already rewrite labels and role assignments
   through Pull All).
 - `note.py`'s owner guard waves through an `owner_id` naming neither a
-  `media` row nor a hidden franchise or series, because a collection is a
-  legitimate owner and is neither. A *nonexistent* id therefore reaches the
+  `media` row nor a hidden collection, franchise or series, because a visible
+  group is a legitimate owner. A *nonexistent* id therefore reaches the
   insert and fails on a foreign key, surfacing as a 500, while a hidden id
   answers 404 — so on that one path hidden and missing are still
   distinguishable, by the status code rather than by the body.
@@ -1242,9 +1287,10 @@ is a **422**, checked before anything is deleted - see
   sees the name of a hidden entry somebody reported. Both readers already hold
   the id or the inbox, and the link still 404s for a session that may not see
   it.
-- A newly created content label reaches **`unrestricted` and no other mode**,
-  so it hides its entries from every narrower session until somebody carries
-  it at `/access-modes`. Fail-closed everywhere it can be: "hidden from
+- A `content_label` row the code does not name reaches **`unrestricted` and
+  no other mode**, so it hides its entries from every narrower session. Only a
+  hand edit could leave one: the migration refuses to keep a cited one and
+  Pull skips one. Fail-closed everywhere it can be: "hidden from
   everyone, the owner included" is not a safe default, because a hidden entry
   404s and therefore looks deleted rather than restricted.
 
@@ -1368,13 +1414,10 @@ one. `held_modes()` returns `[]` without an account and the switcher renders
 `null` below two modes, so the control is absent from the chrome and the
 existence of other modes is never advertised.
 
-`safe` is seeded from whatever the **guest role actually holds**, not from
-the default set. The two differ: `ensure_rbac_seed` tops up only a role
-holding *nothing*, deliberately, so an admin's removal survives a restart —
-which means a field group added to `FIELD_GROUPS` after the roles were first
-seeded never reaches an established guest role. Seeding `safe` from the
-defaults would publish the other-sources list and other people's personal
-reviews to every logged-out visitor.
+What `safe` shows is fixed in code: no content label, and no field group, so
+a logged-out visitor never gets the restricted source list. A field group
+reaches `safe` only if `FIELD_GROUP_LOWEST_MODE` names `safe` as its lowest
+mode.
 
 **Which LIST:** a logged-out visitor has **no list**, and is shown none. `acting_user_id`
 returns None for an unresolved viewer, `attach_list_fields` sets nothing, and
@@ -1516,53 +1559,38 @@ turns a loud refusal into an accepted-then-invisible write.
 | `PUT /api/roles/{id}/permissions` | replaces the set; 422 unknown, 409 root role, 409 if the payload holds a locked-off grant or drops a locked-on one |
 | `GET/POST/PATCH/DELETE /api/users/…` | `role_id` must exist (422), and on create or a role change must be `user` or `super` (422); a new username or password that fails the checks in `security.py` 422; a username taken ignoring case 409; `PATCH` takes `status` `active` / `disabled` and the four `feature_*` switches, 409 for switching one on for an account that is not `user` or `super` |
 | `POST /api/users/{id}/reset-link` | a one-time reset link, returned once; 409 for an account that is not active or is shared. See [authentication.md](authentication.md#reset-links) |
-| `GET /api/content-labels/`, `POST`, `PATCH`, `DELETE` | 409 duplicate key; delete cascades assignments (entries become visible again); 204. `DELETE` of a label a gated type requires (`h-comic`, `h-game`, `hentai`) is **409** |
-| `GET/PUT /api/content-labels/entry/{media_type}/{entry_id}` | list / replace an entry's label keys; 400 unknown type, 404 entry, 422 unknown label, 422 a set without the required label on a gated entry (`h-comic` on an h-comic, `h-game` on an h-game, `hentai` on a hentai) |
-| `GET/PUT /api/content-labels/franchise/{franchise_id}` | the same for a franchise; 422 a set without the required label on a franchise whose type includes `H-Comic` / `H-Game` / `Hentai` |
+| `GET /api/content-labels/` | the label reference, read with `admin.authz` **or** `manage.catalog` — see [api.md](api.md#apicontent-labels). No route creates, renames or deletes a label |
+| `GET/PUT /api/content-labels/entry/{media_type}/{entry_id}` | list / replace an entry's label keys; `nsfw` is added beside any other label. 400 unknown type, 404 entry, 422 unknown label, 422 a set dropping `nsfw` while another label stays, 422 a set without the required label on a gated entry (`h-comic` on an h-comic, `h-game` on an h-game, `hentai` on a hentai) |
+| `GET/PUT /api/content-labels/collection/{collection_id}` | the same for a collection, `nsfw` rule included; 404 a missing or hidden collection. No gated-type rule: a collection has no type |
+| `GET/PUT /api/content-labels/franchise/{franchise_id}` | the same for a franchise, `nsfw` rule included; 422 a set without the required label on a franchise whose type includes `H-Comic` / `H-Game` / `Hentai` |
+| `GET/PUT /api/content-labels/series/{series_id}` | the same for a series, `nsfw` rule included; 404 a missing or hidden series. No gated-type rule |
 
-`ContentLabelResponse` carries no `permission` field. A label is not a
-permission — publishing `label.<key>` would name something that does not
-exist. The admin table shows the label's `key`.
+`ContentLabelResponse` carries no `permission` field: a label is not a
+permission. It decides which objects a mode shows, on the object axis; no role
+holds one. The reference shows the label's `key`.
 
-All are behind `require_admin_authz`; every write calls `cache.bump()`.
+The role and user routes are behind `require_admin_authz`, and every write
+calls `cache.bump()`; the label routes are gated as their rows say.
 
 ### Editing modes: `/api/access-modes`
 
 | Method & path | Notes |
 |---|---|
-| `GET /api/access-modes/`, `GET /{id}` | modes with their items, their `rank` in `MODE_ORDER` (null for a mode outside it), and `user_count` — the accounts whose ceiling reaches the mode |
-| `GET /api/access-modes/catalog` | two labelled groups, Content Labels and Field Groups, each item carrying `mode_count` |
-| `POST /`, `PATCH /{id}`, `PUT /{id}/grants`, `DELETE /{id}` | 409 duplicate key; 422 unknown item; `PUT` replaces both sets wholesale |
+| `GET /api/access-modes/`, `GET /{id}` | each mode with its derived `label_keys` and `field_group_keys`, its `rank` in `MODE_ORDER` (null for a key outside it), and `user_count` — the accounts whose ceiling reaches the mode |
+| `PATCH /{id}` | `label`, `description`, `sort_order` |
 
-All under `admin.authz`; every write calls `cache.bump()`.
+All under `admin.authz`; `PATCH` calls `cache.bump()`. There is no route that
+creates, deletes or regrants a mode.
 
-**Three rules the router enforces that the page alone could not:**
-
+- **What a mode shows is the code's.** `label_keys` and `field_group_keys` are
+  the same derivation `cache.mode_sets` resolves with, so the page cannot show
+  an admin a set that differs from what a session in the mode gets.
 - **Nothing here touches the anonymous policy.** `PATCH` changes a mode's
-  label, description and sort order and that is all; which mode a logged-out
-  visitor gets is `safe`, by key, and no endpoint can move it.
-- **A mode an account's ceiling reaches cannot be deleted** (409), for the
-  same reason `users.role_id` is `RESTRICT`: no account is left pointing at
-  nothing. Only the four ranked modes can
-  be reached, and those are system modes, refused anyway; the check stays so
-  the rule does not depend on that.
+  label, description and sort order and that is all — not its `key`; which
+  mode a logged-out visitor gets is `safe`, by key, and no endpoint can move
+  it.
 - **`is_system` is never settable through the API.** It marks the four modes
   the seeder maintains.
-
-**The label carried by no mode.** `/catalog` lists **every** content label
-with a `mode_count`, and a count of zero is the case the page exists to
-surface - such a label hides its entries from everyone, the owner included,
-and there is nowhere else to learn that. The page shows it in red, computed
-from the DRAFT so the warning appears the moment you untick the last mode
-carrying it, while it can still be reconsidered. With `unrestricted` derived
-the warning should never fire; it stays as the last check on that invariant,
-since a set comparison is cheap and nothing else on the page would show the
-invariant breaking.
-
-`unrestricted` is listed like any other mode and is the one row whose boxes
-are drawn **disabled, with no Save**. `PUT /grants` refuses it with a 409 —
-both halves, because a UI-only lock is a suggestion. An admin who wants a
-narrower ceiling narrows `borderline`, or makes a mode of their own.
 
 ### Assigning modes: `PUT /api/users/{id}/access-modes`
 
@@ -1576,17 +1604,18 @@ on one of the pair being null, and on a default above the ceiling. It accepts
 `unrestricted`. It also deletes the account's denials that the new ceiling
 does not show, flushes and bumps, and never commits.
 
-**The system-mode rule is enforced twice, and neither half would be enough alone.** The
+**The denial rule is enforced twice, and neither half would be enough alone.** The
 server refuses a denial naming something the ceiling does not show (422,
 naming the strays): the ceiling is an upper bound, so such a denial subtracts
 nothing in any mode the account can use, and storing it would be a no-op that
-reads like a setting. "Shows" is `cache.mode_sets` of the ceiling's mode, so
-`unrestricted` shows every label and field group whatever rows it holds. The
-panel renders **the ceiling's own list with tick-to-deny**, which makes the
-control structurally incapable of asking for one. A UI that cannot express
-the invalid thing paired with a server that would accept it is one refactor
-away from a silent no-op; a server rule with no matching affordance is an
-error people hit and work around.
+reads like a setting. "Shows" is `cache.mode_sets` of the ceiling's mode —
+the derived sets (`labels_shown_in`, `field_groups_shown_in`), with
+`unrestricted` showing every label row and every field group. The panel
+renders **the ceiling's own list with tick-to-deny**, which makes the control
+structurally incapable of asking for one. A UI that cannot express the
+invalid thing paired with a server that would accept it is one refactor away
+from a silent no-op; a server rule with no matching affordance is an error
+people hit and work around.
 
 Both null is allowed - an account with no mode resolves the empty object set,
 fail-closed, and a legitimate way to park somebody; its denials go with it.
@@ -1610,8 +1639,9 @@ a session they merely find logged in. The test is a set comparison - "is the
 target's effective set a subset of mine" - and it runs against **effective**
 sets, after denials. With denials uniform across an account's modes it agrees
 with the rank everywhere except from the empty set, where the subset test is
-the right answer (moving from nothing to `safe` with its labels denied adds
-nothing a password protects), so the subset test stays the test.
+the right answer (moving from nothing to `safe` is upward by rank, yet adds
+nothing: `safe` shows no label and no field group), so the subset test stays
+the test.
 
 **Which modes are available** is a rank comparison: a mode at or below the
 account's ceiling. `/api/auth/me` lists exactly those, narrowest first.
@@ -1723,20 +1753,6 @@ it is the *operation* that refuses to run against a subset, because a partial
 Backup is not a smaller version of the job. `viewer.has(manage.pipelines)`
 answers the same in `safe` as in `unrestricted`.
 
-The test is **computed** — both full sets — never a comparison against the key
-`unrestricted`. Editing that mode must not silently widen who qualifies, and an
-admin's own equivalent custom mode must qualify. A label minted today narrows
-every mode that does not carry it, which is the fail-closed direction.
-
-It also closes an oracle for free: `POST /api/data-control/replace/{key}/
-{entry_id}` answered 404 for a missing entry and 200 `"Successfully updated
-<display_name>."` for a hidden one — a write, an existence oracle and a title
-leak in one answer. A caller who can reach the route has no hidden entries.
-
-401 rather than 404 here because the route's existence is not a secret and the
-caller is being told to widen, which is something they can act on. 404 is the
-object axis, where indistinguishability is the property being protected.
-
 ### Guards on users (`app/routers/users.py`)
 
 - **Last admin:** changing the role of, or deleting, the last **active**
@@ -1774,16 +1790,19 @@ object axis, where indistinguishability is the property being protected.
 |---|---|---|
 | Roles | `frontend/src/pages/admin/Roles.jsx` | the five roles, no create or delete; checkbox grid per family from `/api/roles/catalog`, locked cells drawn disabled; root role roles show a notice instead of a grid |
 | Users | `frontend/src/pages/admin/Users.jsx` | create users, assign roles (the selects offer only User and Super; an admin or shared row shows its role as text), reset passwords, delete (not a shared row); the access panel sets an account's ceiling, its default (offered only up to the ceiling) and its denials (the ceiling's own items) — a shared row has no panel and shows `Mode: <label> (fixed)`; a `user` or `super` row carries the four feature toggles (Quotes & memes, Favourites, Music status, Mod status), each saved as it is ticked, and an admin or shared row none |
-| Content Labels | `frontend/src/pages/admin/ContentLabels.jsx` | key/label/description; shows the `label.<key>` permission each becomes |
+| Content Labels | `frontend/src/pages/admin/ContentLabels.jsx` | the read-only label reference: name, key, description, a chip per mode that shows the label, "also carries NSFW", and entry, collection, franchise and series counts. Reached by `admin` and `super` (`<ProtectedRoute anyPermission>`), from the Note section of the nav |
+| Access Modes | `frontend/src/pages/admin/AccessModes.jsx` | one card per mode, narrowest first: editable name and description, `user_count`, and the derived labels and field groups read-only |
 | Label picker | `frontend/src/components/forms/ContentLabelPicker.jsx` | rendered **once** on Add and once on Modify (not in the per-type tabs); on Add the parent holds the selection and `PUT`s after create, mirroring the credits control |
-| Field groups | — | **No page exists.** `/roles` grants them; their contents are `FIELD_GROUPS` in code. See [Changing which columns a group hides](#changing-which-columns-a-group-hides--code-only). |
+| Field groups | — | **No page exists.** Their contents are `FIELD_GROUPS` in code, and the lowest mode that shows each is `FIELD_GROUP_LOWEST_MODE`; `/access-modes` shows which modes show them, read-only. See [Changing which columns a group hides](#changing-which-columns-a-group-hides--code-only). |
 
 What an admin can change from the browser, and what needs a commit:
 
 | | Browser | Code |
 |---|---|---|
 | who holds a permission | `/roles` | |
-| which content labels exist | `/content-labels` | |
+| a mode's name and description | `/access-modes` | |
+| which content labels exist, and the lowest mode that shows each | | `labels.py` |
+| which modes exist, and their order | | `seed_modes.py` |
 | which entries carry a label | Add / Modify | |
 | which columns a field group hides | | `field_groups.py` |
 | which field groups exist | | `field_groups.py` |
@@ -1807,8 +1826,11 @@ matters is enforced server-side.
 | `tests/unit/test_field_groups.py` | every declared column/link field exists |
 | `tests/api/test_rbac_core.py` | seed idempotence, `/me` never raises, deleted-user / de-admined tokens rejected |
 | `tests/api/test_rbac_admin_api.py` | roles/users/labels routes, 409/422 guards |
+| `tests/api/test_group_content_labels.py` | labels on collections and series and the cascade: an unlabelled tree hides nothing; a collection's label hides the whole tree, a franchise's its series and entries but not its collection, a series' itself and its entries only (not its franchise or a sibling); moving a franchise out of a labelled collection reveals it; a labelled collection and series absent from lists and search; `tier_visible` and `filter_visible_pairs` on collection and series ids; per tier, assignment adding `nsfw`, refusing to drop it, 422 on an unknown key, 404 to a narrow editor and refused to a plain user; group responses carrying their own labels; the reference counting each tier; `add_missing_nsfw` on a group. Every refusal pairs with `admin_client`, and `nsfw_label` makes refusal possible |
 | `tests/api/test_mode_ceiling.py` | `set_mode_ceiling`'s refusals and acceptances, denial pruning on a lowered ceiling, a switch above the ceiling 404 with the mirror at and below it, a live override above a just-lowered ceiling resolving nothing, `/me` listing exactly the modes up to the ceiling, a denial applying in every mode that shows it, a denial the ceiling does not show 422 with the mirror, a new account at `normal` / `normal`, and the three `ck_users_mode_*` constraints |
 | `tests/api/test_mode_ceiling_migration.py` | the real `alembic upgrade` into `m1c2eiling345` on a scratch database seeded with held sets - widest held, the flagged default, `cg1618`'s owner pair, a modeless account, a logged gap, the denial union - and the downgrade restoring one grant per mode up to the ceiling |
+| `tests/api/test_labels_in_code.py` | the six labels and their lowest modes, each mode showing everything the mode below shows, a session in each mode seeing exactly its labels (refusals paired with the mode above), restricted sources withheld in `safe`, the removed create/delete/regrant routes absent, a mode's name still adjustable, the reference read by admin and super and refused to a member, `ensure_labels` restoring a missing label and a rewritten name |
+| `tests/api/test_labels_in_code_migration.py` | revision `l1a2belcode3`: its frozen copy matches the code, an unknown label nothing cites is deleted and one still on an entry stops the upgrade, an unknown mode is deleted outright because `ck_users_mode_keys` means no account can use one, and the six labels' rows are written |
 | `tests/api/test_role_locks.py` | the locked-grant table and both halves that read it: what the role list serves, what the write path refuses, and what the seed reconciles |
 | `tests/api/test_fixed_roles.py` | no route creates or deletes a role; the seed creates exactly the five; an unknown name is locked out of everything; `shared`'s and `user`'s locks refused on save with the free-cell mirror; boot drops a stored `manage.catalog` from `user`; a gated type refused on `guest` and `shared` and required on `user`, each ordinary type free for all three, and boot reconciling the gated types both ways |
 | `tests/api/test_fixed_roles_migration.py` | revision `f1i2veroles45` on a scratch database: an empty role outside the five is deleted, one holding an account makes the upgrade fail naming it and leaves everything in place |
@@ -1820,17 +1842,17 @@ matters is enforced server-side.
 | `tests/api/test_no_bare_admin_permission.py` | the bare `admin` permission is absent from `static_catalog()`, and no module imports a single all-powerful admin dependency |
 | `tests/api/test_media_type_gating.py` | whole type disappears, 404 on detail |
 | `tests/api/test_field_gating.py` | link and source stripping; the narrowest viewer there is still gets credits, both timestamps and `system_id`; and a probe group stands the columns flavour up so the copy-not-setattr rule stays tested with no real column group left |
-| `tests/api/test_cover_viewer_cache.py` | a warm cover request runs no viewer query (anonymous, narrowed and admin, by statement count); a session warming the cache lends nothing to another; a new label, a new denial and a deleted account each reach the next cover request through `bump()`; an unbumped change expires on the TTL (clock moved by hand); an entry never outlives its token; an answer resolved across a bump is not kept, mirrored by the same call without one being a hit. `hidden_anime` keeps every refusal from being vacuous |
+| `tests/api/test_cover_viewer_cache.py` | a warm cover request runs no viewer query (anonymous, narrowed and admin, by statement count); a session warming the cache lends nothing to another; labelling an entry reaches the next cover request because no cache holds what an entry carries, and a new denial and a deleted account each reach it through `bump()`; an unbumped change expires on the TTL (clock moved by hand); an entry never outlives its token; an answer resolved across a bump is not kept, mirrored by the same call without one being a hit. `hidden_anime` keeps every refusal from being vacuous |
 | `tests/api/test_cover_images_are_gated.py` | a hidden entry's cover 404s and the same file 200s for an admin, the lying-folder case, and that `/static/covers/` no longer answers. The written file and `nsfw_label` are load-bearing: a missing file 404s too, and an empty label set makes every refusal vacuous |
 | `tests/api/test_shared_record_visibility.py` | the shared-record rule: a person, seiyuu, character, studio, publisher or vocabulary value connected only to label-hidden entries is hidden, one visible connection keeps it visible with the hidden one omitted, no connections stays visible, a type gap hides nothing; series under a hidden franchise; entity photos; notes on a hidden series; and scope connections through a gated type registered for the test (`manga` pointed at `nsfw`), independent of h-comic. Every refusal pairs with `admin_client` seeing the same record |
-| `tests/api/test_h_comic_entries.py` | h-comic: the label stamped on every router write path and refused removal (422) and deletion (409), guest / `normal` / `borderline` 404 and absent from list and search while `unrestricted` sees it, only `unrestricted` carries the label after a re-seed, `visible_gated_types`, no `h-comic` search bucket for a narrow session, `PUT /api/me/list` running the list hook, H-Comic franchises labelled and segregated from mainstream ones |
-| `tests/api/test_hentai_entries.py` | hentai: the same set as h-comic's - label stamped, refused removal and deletion, narrow modes 404 while `unrestricted` sees it, only `unrestricted` carries the label - plus its franchise family |
+| `tests/api/test_h_comic_entries.py` | h-comic: the label stamped on every router write path and refused removal (422) and deletion (no route), guest / `normal` / `borderline` 404 and absent from list and search while `unrestricted` sees it, only `unrestricted` shows the label, `visible_gated_types`, no `h-comic` search bucket for a narrow session, `PUT /api/me/list` running the list hook, H-Comic franchises labelled and segregated from mainstream ones |
+| `tests/api/test_hentai_entries.py` | hentai: the same set as h-comic's - label stamped, refused removal and deletion, narrow modes 404 while `unrestricted` sees it, only `unrestricted` shows the label - plus its franchise family |
 | `tests/api/test_hentai_shared_records.py` | a studio, director or author credited only on hentai is hidden (the author from guest and from an h-comic-only session alike), one also on an anime is not, and an author also on the h-comic the hentai adapts is seen through the h-comic alone by an h-comic-only session and through both by `unrestricted`; an H Genre value used only by hentai is hidden; `/api/constants` for a session seeing neither gated type and for one seeing h-comic only (`unrestricted` with `hentai` denied, both labels present) |
-| `tests/api/test_hentai_label_migration.py` | the hentai revision's own `settle_label`: the label leaves an anime and stays on a hentai, adopted not duplicated, granted to `unrestricted` alone |
+| `tests/api/test_hentai_label_migration.py` | the hentai revision's own `settle_label`: the label leaves an anime and stays on a hentai, adopted not duplicated |
 | `tests/api/test_franchise_family.py` | franchise families: a `franchise_id` of another family refused on create, `PUT` and `PATCH`, in both directions, a franchise type spanning two families refused, a franchise holding mainstream entries not retyped into the gated family - each with its accepted mirror |
 | `tests/api/test_franchise_families.py` | the restricted family: `"ACG, Hentai"` and `"ACG, H-Game"` refused on every write path and `"H-Comic, Hentai"` and `"H-Comic, Hentai, H-Game"` accepted, a franchise holding a hentai not retyped mainstream, both gated labels on an `H-Comic, Hentai` franchise and neither removable, all three on an `H-Comic, Hentai, H-Game` one, an h-comic and its hentai resolving to one franchise, a mainstream entry matching no restricted franchise |
 | `tests/unit/test_search_gated_buckets.py` | every gated type's `SearchBuckets` field defaults to absent, so a new gated type cannot put its key back |
-| `tests/api/test_h_game_entries.py` | h-game: CRUD and the vocabularies (422 on create, update and the tracker PATCH), the DLC chain, purchase records on h-game and still on game, the `h-game` label stamped on every write path and refused removal (422) and deletion (409), guest / `normal` / `borderline` 404 while `unrestricted` sees it, the restricted family: an h-game refused from a `Game` or `ACG` franchise both ways, by name and by id, and `"ACG, H-Game"` refused, each mirrored by an h-game accepted into an `H-Game`, `H-Comic` or `Hentai` franchise, by name and by id, and by `"H-Comic, Hentai, H-Game"` accepted with all three labels |
+| `tests/api/test_h_game_entries.py` | h-game: CRUD and the vocabularies (422 on create, update and the tracker PATCH), the DLC chain, purchase records on h-game and still on game, the `h-game` label stamped on every write path and refused removal (422) and deletion (no route), guest / `normal` / `borderline` 404 while `unrestricted` sees it, the restricted family: an h-game refused from a `Game` or `ACG` franchise both ways, by name and by id, and `"ACG, H-Game"` refused, each mirrored by an h-game accepted into an `H-Game`, `H-Comic` or `Hentai` franchise, by name and by id, and by `"H-Comic, Hentai, H-Game"` accepted with all three labels |
 | `tests/api/test_h_game_shared_records.py` | a studio, a game genre and an H Genre value connected only to h-game are hidden; an unused game genre stays visible; the notes registry, `/api/constants` and the external-API catalogue leave h-game out for a narrow session, with the `unrestricted` mirror |
 | `tests/api/test_h_comic_shared_records.py` | people in every h-comic role, a club with no credit, characters and vocabulary values connected only to h-comic are hidden; club membership filters hidden members and reveals nobody |
 | `tests/api/test_visibility.py` | label hiding on lists/detail — asserts on `response.text` so an id cannot leak through any field |
@@ -1897,8 +1919,8 @@ of a session.
   name, and look for an existing one that already means it.
 - **Fail closed.** `resolve_viewer` never raises; anything unresolvable is the
   guest role holding nothing.
-- **`cache.bump()` on every grant write**, and on every write to an account or
-  to the label set. Permissions resolve per request so revocation is
+- **`cache.bump()` on every grant write**, and on every write to an account,
+  a mode or a label row. Permissions resolve per request so revocation is
   immediate; the caches are process-local, and the cover route's viewer cache
   also expires on its own after 5 seconds.
 - **The SPA mirrors no vocabulary.** `/api/roles/catalog` is served, which is

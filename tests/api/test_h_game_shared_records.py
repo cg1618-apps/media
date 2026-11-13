@@ -23,7 +23,7 @@ def h_game_id(admin_client, db_session):
     body = admin_client.post("/api/h-game/", json={"h_game_name_cn": "Zvornik Shared H-Game"}).json()
     entry_id = uuid.UUID(body["system_id"])
     # The hidden set is not empty: the entry carries the label.
-    assert label_keys_for_entry(db_session, entry_id) == ["h-game"]
+    assert label_keys_for_entry(db_session, entry_id) == ["h-game", "nsfw"]
     return entry_id
 
 

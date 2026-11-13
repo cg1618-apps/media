@@ -12,6 +12,12 @@
 // mirroring the server's get_current_user_id. The per-user pages (Plan,
 // Seasonal, Statistics) need an account, not a role.
 //
+// `anyPermission` takes a list and passes a viewer holding ANY one of them -
+// for a page two capabilities read for different reasons, as the label
+// reference is read by admin.authz (to see what a mode shows) and by
+// manage.catalog (the one attaching labels). It mirrors a server dependency
+// that spells the same disjunction out, rather than picking the wider key.
+//
 // `gatedType` asks the third question - "may this session see this gated
 // media type?" - through canSeeGatedType, the same helper navigation.js asks
 // for the nav row, so the route and its link cannot disagree. A session that
@@ -34,6 +40,7 @@ import { canSeeGatedType } from "../../lib/gatedTypes";
 
 export default function ProtectedRoute({
   permission,
+  anyPermission,
   requireAuth = false,
   gatedType,
   feature,
@@ -73,9 +80,11 @@ export default function ProtectedRoute({
     ? Boolean(username)
     : permission
       ? has(permission)
-      : gatedType
-        ? true
-        : has("admin");
+      : anyPermission
+        ? anyPermission.some((p) => has(p))
+        : gatedType
+          ? true
+          : has("admin");
 
   // Without it, send them to login and preserve the page they wanted.
   return allowed ? (

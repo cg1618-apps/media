@@ -22,6 +22,7 @@ from app.services.domain import (
     resolve_series_parent_hierarchy,
     upsert_remark,
 )
+from app.services.domain.content_labels import attach_group_content_labels
 from app.services.domain.group_counts import attach_entry_counts
 from app.services.rbac.enforcement import apply_series_visibility, series_visible
 from app.services.rbac.personal_gate import strip_personal
@@ -54,8 +55,8 @@ def get_all_series(
     - If 'search_query' is provided, searches across EN, CN, and Alt names.
     Used by the frontend to populate autocomplete search and form dropdowns.
 
-    A series in a franchise carrying a label this session's mode lacks is
-    absent, as the franchise itself is.
+    A series carrying a label this session's mode lacks is absent, and so is
+    one under a franchise or collection that does.
     """
     query = apply_series_visibility(db.query(models.Series), db, viewer)
 
@@ -76,6 +77,7 @@ def get_all_series(
         query.order_by(models.Series.series_name_en).limit(limit).offset(offset).all()
     )
     attach_entry_counts(db, rows, models.Media.series_id, viewer)
+    attach_group_content_labels(db, "series", rows)
     return strip_personal(viewer, "series", rows, schemas.SeriesResponse)
 
 
@@ -91,11 +93,12 @@ def get_series_by_id(
 ):
     """Retrieves a single series by its public_id or its UUID."""
     db_series = find_entity(db, models.Series, system_id)
-    # Same message either way: a series under a hidden franchise must be
-    # indistinguishable from one that was never there.
+    # Same message either way: a hidden series must be indistinguishable
+    # from one that was never there.
     if not db_series or not series_visible(db, viewer, db_series.system_id):
         raise HTTPException(status_code=404, detail="Series not found.")
     attach_remark(db, "series", db_series, viewer.user_id)
+    attach_group_content_labels(db, "series", db_series)
     return strip_personal(viewer, "series", db_series, schemas.SeriesResponse)
 
 
@@ -172,6 +175,7 @@ def update_series(
     db.refresh(db_series)
 
     attach_remark(db, "series", db_series, viewer.user_id)
+    attach_group_content_labels(db, "series", db_series)
 
     return db_series
 
@@ -208,6 +212,7 @@ def patch_series(
     db.refresh(db_series)
 
     attach_remark(db, "series", db_series, viewer.user_id)
+    attach_group_content_labels(db, "series", db_series)
 
     return db_series
 

@@ -49,6 +49,7 @@ import RemarkModal from "../../components/modals/RemarkModal";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import WatchOrderSection from "../../components/tracker/WatchOrderSection";
 import HubCharacters from "../../components/hub/HubCharacters";
+import ContentLabelChips from "../../components/info/ContentLabelChips";
 import SeriesNotes from "./SeriesNotes";
 import RelationGraph from "../../components/relations/RelationGraph";
 import PlanKindToggles, {
@@ -1129,6 +1130,15 @@ export default function SeriesPage() {
                 )}
               </div>
             </div>
+
+            {/* A series' labels hide the series AND every entry in it, so
+                they are said in their own row, as the Franchise hub says its
+                own. */}
+            <ContentLabelChips
+              labels={series.content_labels}
+              note="Hides this series and every entry in it."
+              className="mt-4"
+            />
 
             {((showPersonal && series.series_expectation) ||
               rewatchMarked.size > 0) && (

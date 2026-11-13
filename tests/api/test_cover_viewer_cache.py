@@ -186,30 +186,28 @@ def test_a_session_warming_the_cache_lends_nothing_to_another(
     assert admin_client.get(url).status_code == 200
 
 
-def test_a_new_label_hides_a_cover_on_the_next_request(
+def test_labelling_an_entry_hides_its_cover_on_the_next_request(
     admin_client, catalog_writer, sample_anime, cover_on_disk
 ):
     """
-    The narrowed session's cached hidden set predates the label. Without the
-    bump create_label already sends, it would keep the old set, the probe
-    would ask about the wrong labels, and the cover would still be served.
+    The narrowed session's viewer is cached and was resolved while the entry
+    carried no label. The cache holds who the viewer is, never what an entry
+    carries, so the first request after the label goes on must be refused.
+    Labels are code, so the narrowing here is an assignment, not a new label.
     """
     url = cover_on_disk("anime", sample_anime.system_id)
     narrowed = catalog_writer()
     assert narrowed.get(url).status_code == 200
+    assert narrowed.get(url).status_code == 200
 
-    created = admin_client.post(
-        "/api/content-labels/", json={"key": "spoiler", "label": "Spoiler"}
-    )
-    assert created.status_code == 201
     assigned = admin_client.put(
         f"/api/content-labels/entry/anime/{sample_anime.system_id}",
-        json={"label_keys": ["spoiler"]},
+        json={"label_keys": ["nsfw"]},
     )
     assert assigned.status_code == 200
 
     assert narrowed.get(url).status_code == 404
-    # The mirror: unrestricted carries every label, so admin still sees it.
+    # The mirror: unrestricted shows every label, so admin still sees it.
     assert admin_client.get(url).status_code == 200
 
 

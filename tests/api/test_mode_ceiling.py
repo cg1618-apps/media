@@ -278,12 +278,14 @@ def _url(user):
 def test_a_denial_the_ceiling_does_not_show_is_422(
     db_session, admin_client, member, nsfw_label
 ):
-    """`normal` carries no labels, so denying nsfw subtracts nothing."""
+    """`safe` shows no label, so denying nsfw subtracts nothing. The mirror,
+    a label the ceiling shows being accepted, is
+    test_user_access_modes.py::test_a_label_denial_the_ceiling_does_not_show_is_422."""
     response = admin_client.put(
         _url(member),
         json={
-            "ceiling": MODE_NORMAL,
-            "default": MODE_NORMAL,
+            "ceiling": MODE_SAFE,
+            "default": MODE_SAFE,
             "denied_label_keys": [nsfw_label.key],
         },
     )

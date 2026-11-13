@@ -51,9 +51,12 @@ The reason Tier 1 is code: `"Not Yet Aired"` makes Fill skip `mal_rating`,
 completed everywhere `Completed` does. If an admin could rename any of these,
 the logic would break silently and no migration would notice. Tier 2 values
 are only ever read by humans, so renaming one is a content edit and nothing
-more. `content_label` looks like Tier 2 but is deliberately its own table,
-because its values decide **who may see** an entry rather than describe one;
-see [authorization.md](authorization.md).
+more. Content labels are not options at all: they decide **who may see** an
+entry rather than describe one, and the code branches on each — every label
+names the lowest access mode that shows it — so they are defined in code
+(`app/services/rbac/labels.py`), the Tier 1 rule, with `content_label` rows
+kept only as what the assignment tables cite; see
+[authorization.md](authorization.md).
 
 ---
 
@@ -558,6 +561,12 @@ Tier 2 category:
 | `h_genre_appearance` | Genre Appearance | `H Genre Appearance` | h-comic, h-game, hentai |
 | `h_genre_relation` | Genre Relation | `H Genre Relation` | h-comic, h-game, hentai |
 
+Three `Label` values are the tags of content labels - NSFW (`nsfw`),
+輕微色情 (`ecchi`) and 擦邊肉番 (`erotica`) - and are kept in step with the
+label on each entry, so editing one changes who can see the entry. They are
+scoped to all nine `label` types. See
+[systems/credits-and-tags.md](systems/credits-and-tags.md).
+
 The three H genre fields are shared by the gated types - one vocabulary per
 axis, not one per type - and serve gated types alone, so their **category
 itself is a connection**: every value in `H Genre Plot`, `H Genre Appearance`
@@ -677,16 +686,14 @@ the bare `admin`, which implies everything.
 
 | Constant | Value |
 |---|---|
-| `PERMISSION_FAMILIES` | `admin`, `manage`, `media_type`, `self`, `view` — the role axis. `field_group` and `label` are the access-mode axis and are not in it |
+| `PERMISSION_FAMILIES` | `admin`, `manage`, `media_type`, `self`, `view` — the role axis. Field groups and content labels are the access-mode axis, decided in code by the mode order, and are not permissions |
 | `media_type.<key>` | one per hyphenated media type key, e.g. `media_type.tv-show` |
-| `field_group.<key>` | one per `FIELD_GROUP_KEYS` entry |
-| `label.<key>` | one per `content_label.key` row; the only family computed from the database at request time |
 
 `app/services/rbac/field_groups.py` (`FIELD_GROUPS`):
 
 | Key | Label | Gates |
 |---|---|---|
-| `sources_restricted` | Restricted Sources | `media_source` rows with `bucket='restricted'`, every media type. Excluded from the `safe` access mode via `SAFE_WITHHELD_FIELD_GROUPS` (`app/services/rbac/seed_modes.py`) — a fresh install does not serve it to a logged-out visitor |
+| `sources_restricted` | Restricted Sources | `media_source` rows with `bucket='restricted'`, every media type. Its lowest mode is `normal` (`FIELD_GROUP_LOWEST_MODE` in `app/services/rbac/seed_modes.py`), so the `safe` access mode — what a logged-out visitor resolves — does not show it |
 
 It is the only group. The `other` bucket, personal notes and credits are not
 field groups: every viewer gets the other sources and the credits, and a
