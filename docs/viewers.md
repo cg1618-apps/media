@@ -33,7 +33,7 @@ it; "per account" is a per-account feature switch, off by default.
 | | admin | super | user | guest | shared |
 | --- | --- | --- | --- | --- | --- |
 | Media and group libraries, detail pages, watch orders | — | ✓ | ✓ | ✓ | ✓ |
-| Studio, publisher, person, character pages | — | ✓ | switch, on | switch, off | switch, off |
+| Studio, publisher, person, character pages | — | ✓ | switch, off | switch, off | switch, off |
 | Search, Future Releases | — | ✓ | ✓ | ✓ | ✓ |
 | Seasonal, Statistics | — | ✓ | ✓ | ✓ ² | ✓ ² |
 | Random Picker | — | ✓ | ✓ | — | ✓ ¹ |
@@ -140,8 +140,9 @@ Super without the catalogue work.
 - **Four kinds, one setting each:** studio; publisher; person — the people
   library and the seiyuu library, since a seiyuu opens a person page; and
   character — characters and identities.
-- **They apply to guest, shared and user**, adjustable per role. Super is
-  always on; the admin is always off.
+- **They apply to guest, shared and user**, adjustable per role, and are
+  **off by default for all three**. Super is always on; the admin is
+  always off.
 
 ## Track and Insights pages
 
