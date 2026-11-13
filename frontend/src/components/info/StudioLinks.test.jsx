@@ -8,11 +8,11 @@ import { publisherLabel, publisherValue, studioValue } from "./StudioLinks";
 // The viewer's view.* scope. A member (every flag on) unless a test says
 // otherwise; `scope.<flag> = false` makes the guest case.
 const { scope } = vi.hoisted(() => ({
-  scope: { entities: true, search: true, extras: true, personal: true },
+  scope: { studio: true, publisher: true, person: true, character: true, search: true, extras: true, personal: true },
 }));
 vi.mock("../../hooks/useViewScope", () => ({ useViewScope: () => scope }));
 beforeEach(() => {
-  Object.assign(scope, { entities: true, search: true, extras: true, personal: true });
+  Object.assign(scope, { studio: true, publisher: true, person: true, character: true, search: true, extras: true, personal: true });
 });
 
 function renderValue(item) {
@@ -90,7 +90,7 @@ describe("a ref with no public_id", () => {
   });
 });
 
-describe("for a viewer without view.entities", () => {
+describe("for a viewer without the entity keys", () => {
   // Entity pages are a member's, so a guest reads who made an entry without a
   // link to a page that would only send them to log in. Each case renders the
   // refs a member gets links from, and the mirror proves the links are there.
@@ -112,7 +112,7 @@ describe("for a viewer without view.entities", () => {
   }
 
   it("names the studio, the publisher and the person as plain text", () => {
-    scope.entities = false;
+    Object.assign(scope, { studio: false, publisher: false, person: false, character: false });
     renderAll();
     for (const name of ["KyoAni", "Muse", "Yamada Naoko"]) {
       expect(screen.getByText(name)).toBeInTheDocument();

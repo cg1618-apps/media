@@ -2,13 +2,23 @@
 // type), People & companies (people, studios, publishers) and Characters,
 // each counted, each hidden while empty, the active one held in `?tab=`.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthProvider } from "../../contexts/AuthContext";
 import { ToastProvider } from "../../hooks/useToast";
 import Search, { SCOPE_LABELS } from "./Search";
+
+// Every bucket a viewer holding every key gets back. The server leaves a
+// bucket out - no key at all - for a type the viewer cannot see, so only the
+// four in ALWAYS_PRESENT are guaranteed to be in a payload.
+const ALWAYS_PRESENT = {
+  collection: [],
+  franchise: [],
+  series: [],
+  seasonal: [],
+};
 
 const EMPTY_BUCKETS = {
   collection: [],
@@ -93,8 +103,22 @@ const RESULTS = {
   },
 };
 
-// What the stubbed /api/search/ answers; a test may swap it before rendering.
+// Every view.* key a member can hold. /search is behind view.search, and
+// each entity card links only through its kind's key.
+const EVERY_KEY = [
+  "view.studio",
+  "view.publisher",
+  "view.person",
+  "view.character",
+  "view.search",
+  "view.extras",
+  "view.personal",
+];
+
+// What the stubbed /api/search/ answers, and the keys the stubbed
+// /api/auth/me grants; a test may swap either before rendering.
 let searchPayload = RESULTS;
+let mePermissions = EVERY_KEY;
 let searchUrls = [];
 
 class FakeResizeObserver {
@@ -105,6 +129,7 @@ class FakeResizeObserver {
 
 beforeEach(() => {
   searchPayload = RESULTS;
+  mePermissions = EVERY_KEY;
   searchUrls = [];
   vi.stubGlobal("ResizeObserver", FakeResizeObserver);
   vi.stubGlobal(
@@ -119,14 +144,12 @@ beforeEach(() => {
           Promise.resolve(
             isSearch
               ? searchPayload
-              : // A member: /search is behind view.search, and its
-                // character cards link through view.entities.
-                {
+              : {
                   is_admin: false,
                   username: "reader",
                   role: "user",
                   is_root: false,
-                  permissions: ["view.entities", "view.search", "view.extras", "view.personal"],
+                  permissions: mePermissions,
                 },
           ),
       });
@@ -267,6 +290,92 @@ describe("Search page — tabs", () => {
     expect(document.body.textContent).toContain("1 people");
     expect(document.body.textContent).toContain("1 studios");
     expect(document.body.textContent).toContain("1 characters");
+  });
+});
+
+// The server leaves out the bucket of every type the viewer cannot see, so a
+// payload may carry as few as the four ALWAYS_PRESENT keys. The viewer here
+// holds every key: the page draws nothing for a bucket because the payload
+// lacks it, not because the page decided.
+describe("Search page — absent buckets", () => {
+  const anime = RESULTS.results.anime;
+  const person = RESULTS.results.person;
+
+  it("draws no tab for a bucket absent from the payload", async () => {
+    searchPayload = { ...RESULTS, results: { ...ALWAYS_PRESENT, anime } };
+    renderPage("/search?q=ghibli&tab=people");
+    expect(await screen.findByText("Ghibli Anime")).toBeInTheDocument();
+    expect(tabButton("Media")).toHaveTextContent("Media1");
+    expect(tabButton("People & companies")).toBeUndefined();
+    expect(tabButton("Characters")).toBeUndefined();
+    expect(h2s()).toEqual(["Anime"]);
+  });
+
+  it("draws the tab of a present bucket with rows", async () => {
+    searchPayload = { ...RESULTS, results: { ...ALWAYS_PRESENT, anime, person } };
+    renderPage("/search?q=ghibli&tab=people");
+    expect(await screen.findByText("宮崎駿")).toBeInTheDocument();
+    expect(tabButton("Media")).toHaveTextContent("Media1");
+    expect(tabButton("People & companies")).toHaveTextContent("People & companies1");
+  });
+
+  it("renders a scoped search whose bucket is absent as no results", async () => {
+    searchPayload = { ...RESULTS, scope: "manga", results: { ...ALWAYS_PRESENT } };
+    renderPage("/search?q=ghibli&scope=manga");
+    expect(await screen.findByText(/Nothing matches/)).toBeInTheDocument();
+    expect(tabButton("Media")).toBeUndefined();
+  });
+});
+
+// Each entity card links through its own kind's key. The payload carries a
+// person and a studio either way; only the viewer's keys change.
+describe("Search page — entity links", () => {
+  it("renders a person as plain text without view.person, a studio still linked", async () => {
+    mePermissions = EVERY_KEY.filter((key) => key !== "view.person");
+    renderPage("/search?q=ghibli&tab=people");
+    // The studio's link appearing is /api/auth/me having answered, so the
+    // person's plain text is the keyless render and not the first paint.
+    await screen.findByRole("link", { name: /Studio Ghibli/ });
+    expect(screen.getByText("Studio Ghibli").closest("a")).toHaveAttribute("href", "/studio/s1/studio-ghibli");
+    expect(screen.getByText("宮崎駿").closest("a")).toBeNull();
+  });
+
+  it("links the same person with view.person", async () => {
+    renderPage("/search?q=ghibli&tab=people");
+    await screen.findByRole("link", { name: /宮崎駿/ });
+    expect(screen.getByText("宮崎駿").closest("a")).toHaveAttribute("href", "/person/p1");
+  });
+});
+
+// The scope chip names the type, so it follows the same rule as the nav
+// menu's scopes (canSearchScope): a hand-typed scope the viewer cannot
+// search shows no chip naming it.
+describe("Search page — the scope chip", () => {
+  const chip = () =>
+    screen.queryAllByText("Manga").filter((node) => !node.closest("button, a"));
+
+  // Settles once the stubbed /api/auth/me has been requested and answered,
+  // so an absent chip is the keyless render and not the first paint.
+  async function meAnswered() {
+    await waitFor(() =>
+      expect(
+        globalThis.fetch.mock.calls.some(([url]) => String(url).includes("/api/auth/me")),
+      ).toBe(true),
+    );
+    await act(async () => {});
+  }
+
+  it("names no scope the viewer cannot search", async () => {
+    mePermissions = [...EVERY_KEY, "media_type.anime"];
+    renderPage("/search?q=ghibli&scope=manga");
+    await meAnswered();
+    expect(chip()).toHaveLength(0);
+  });
+
+  it("names a scope the viewer can search", async () => {
+    mePermissions = [...EVERY_KEY, "media_type.manga"];
+    renderPage("/search?q=ghibli&scope=manga");
+    await waitFor(() => expect(chip().length).toBeGreaterThan(0));
   });
 });
 

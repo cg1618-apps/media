@@ -34,7 +34,7 @@ from app.services.rbac.personal_gate import strip_personal
 from app.services.rbac.resolver import (
     Viewer,
     require_manage_catalog,
-    require_view_entities,
+    require_view_publisher,
 )
 from app.services.rbac.shared_visibility import (
     apply_shared_visibility,
@@ -113,7 +113,7 @@ def _to_response(
 def get_all_publishers(
     scope: Optional[str] = Query(default=None),
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(require_view_entities),
+    viewer: Viewer = Depends(require_view_publisher),
 ):
     """
     Retrieves every publisher, sorted by display name.
@@ -162,7 +162,7 @@ def get_all_publishers(
 def get_publisher_by_id(
     system_id: str,
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(require_view_entities),
+    viewer: Viewer = Depends(require_view_publisher),
 ):
     """Retrieves a single publisher by its public_id or its UUID."""
     publisher = find_entity(db, models.Publisher, system_id)
@@ -178,7 +178,7 @@ def get_publisher_by_id(
 def get_publisher_entries(
     system_id: UUID,
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(require_view_entities),
+    viewer: Viewer = Depends(require_view_publisher),
 ):
     """
     The entries this publisher is credited on, grouped by media type.

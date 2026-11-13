@@ -137,14 +137,37 @@ SELF_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
 }
 
 
-VIEW_PERMISSION_KEYS: tuple[str, ...] = ("entities", "search", "extras", "personal")
+# The four entity kinds are four keys rather than one, so an admin can open
+# the people pages and keep the character pages closed, say. `person` covers
+# the seiyuu library too - a seiyuu opens a person page - and `character`
+# covers character identities, which are pages of a character.
+ENTITY_VIEW_KEYS: tuple[str, ...] = ("studio", "publisher", "person", "character")
+
+VIEW_PERMISSION_KEYS: tuple[str, ...] = ENTITY_VIEW_KEYS + ("search", "extras", "personal")
 
 VIEW_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
-    "entities": (
-        "View Entities",
-        "Open the studio, publisher, person, character and character-identity "
-        "pages, and follow the links to them from an entry, franchise or "
-        "series page. Without it those names show as plain text.",
+    "studio": (
+        "View Studios",
+        "Open the studio library and studio pages, and follow the links to "
+        "them from an entry, franchise or series page. Without it studio "
+        "names show as plain text.",
+    ),
+    "publisher": (
+        "View Publishers",
+        "Open the publisher library and publisher pages, and follow the links "
+        "to them. Without it publisher names show as plain text.",
+    ),
+    "person": (
+        "View People",
+        "Open the person and seiyuu libraries and person pages, and follow "
+        "the links to them - staff, authors and the voice cast. Without it "
+        "their names show as plain text.",
+    ),
+    "character": (
+        "View Characters",
+        "Open the character library, character and character-identity pages, "
+        "the Characters tab on franchise and series pages, and follow the "
+        "links to them. Without it character names show as plain text.",
     ),
     "search": (
         "Search",
@@ -152,8 +175,8 @@ VIEW_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
     ),
     "extras": (
         "View Extras",
-        "Quotes, memes, resources, the random picker, future releases and "
-        "completions, and the Quotes and Memes sections on detail pages.",
+        "Resources, the random picker, future releases and completions. "
+        "Quotes and memes are a per-account switch on Users instead.",
     ),
     "personal": (
         "View Personal Content",
@@ -185,7 +208,14 @@ def view_perm(key: str) -> str:
     return f"{FAMILY_VIEW}.{key}"
 
 
-PERM_VIEW_ENTITIES = view_perm("entities")
+PERM_VIEW_STUDIO = view_perm("studio")
+PERM_VIEW_PUBLISHER = view_perm("publisher")
+PERM_VIEW_PERSON = view_perm("person")
+PERM_VIEW_CHARACTER = view_perm("character")
+# The four entity-page keys together.
+ENTITY_VIEW_PERMISSIONS: frozenset[str] = frozenset(
+    view_perm(key) for key in ENTITY_VIEW_KEYS
+)
 PERM_VIEW_SEARCH = view_perm("search")
 PERM_VIEW_EXTRAS = view_perm("extras")
 PERM_VIEW_PERSONAL = view_perm("personal")
@@ -280,6 +310,18 @@ def _self_family() -> frozenset[str]:
     return frozenset(self_perm(key) for key in SELF_PERMISSION_KEYS)
 
 
+def gated_type_permissions() -> frozenset[str]:
+    """
+    media_type.<key> for every gated type (gated_types.REQUIRED_LABEL_FOR_TYPE).
+
+    Imported lazily: gated_types reaches this module back through
+    enforcement.py, so a top-level import would be a cycle.
+    """
+    from app.services.rbac.gated_types import gated_types
+
+    return frozenset(media_type_perm(media_type) for media_type in gated_types())
+
+
 def locked_permissions(
     role_name: str, is_root: bool
 ) -> tuple[frozenset[str], frozenset[str]]:
@@ -296,6 +338,12 @@ def locked_permissions(
     """
     every = static_catalog()
     own = _self_family()
+    # The gated types are not a free choice for any role. A member holds them
+    # and a guest or shared account never does; what a member actually SEES
+    # of them is still the access mode's decision, through each type's
+    # required label, so holding the permission shows nothing outside
+    # `unrestricted`. The nine ordinary types stay free for all three.
+    gated = gated_type_permissions()
 
     if is_root:
         return frozenset(every - own), own
@@ -306,6 +354,7 @@ def locked_permissions(
             {admin_perm(key) for key in ADMIN_PERMISSION_KEYS}
             | {manage_perm(key) for key in MANAGE_PERMISSION_KEYS}
             | own
+            | gated
         )
     if role_name == SUPER_ROLE_NAME:
         return frozenset(every - {PERM_ADMIN_AUTHZ}), frozenset({PERM_ADMIN_AUTHZ})
@@ -318,21 +367,24 @@ def locked_permissions(
         # Handling requests is not a member's: the inbox reads every
         # account's requests. Writing the catalogue is what makes an account
         # `super`, so a member never holds it.
-        return frozenset({PERM_SELF_REQUESTS, PERM_SELF_PASSWORD}), frozenset(
+        return frozenset({PERM_SELF_REQUESTS, PERM_SELF_PASSWORD} | gated), frozenset(
             refused | {PERM_MANAGE_CATALOG, PERM_MANAGE_REQUESTS}
         )
     if role_name == SHARED_ROLE_NAME:
         # Several people sign in to one shared account. It files requests and
         # reads; it keeps no list or personal notes of its own, because they
         # would be everyone's. Its password is the admin's to set - one person
-        # changing it would lock out everyone else using the login - and
-        # view.extras stays off because it opens quotes and memes, which a
-        # shared account never gets.
+        # changing it would lock out everyone else using the login. view.extras
+        # stays off: a shared account's own Random Picker and Future Releases
+        # are a separate change, and until it lands the account reads what a
+        # guest reads. Quotes and memes are a per-account switch, which a
+        # shared account can never hold (features.FEATURE_ROLE_NAMES).
         return frozenset({PERM_SELF_REQUESTS}), frozenset(
             {admin_perm(key) for key in ADMIN_PERMISSION_KEYS}
             | {manage_perm(key) for key in MANAGE_PERMISSION_KEYS}
             | {PERM_SELF_LIST, PERM_SELF_PERSONAL_NOTES, PERM_SELF_PASSWORD}
             | {PERM_VIEW_EXTRAS}
+            | gated
         )
     # A name outside ROLE_NAMES cannot exist after migration f1i2veroles45.
     # Should one appear anyway, it is given nothing: a lock table must not

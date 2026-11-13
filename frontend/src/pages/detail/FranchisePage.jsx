@@ -112,10 +112,10 @@ export default function FranchisePage() {
   const { showToast } = useToast();
   // A guest's view of a hub (the view.* keys, held by members): without
   // view.personal the franchise's own rating and expectation and the "my rating"
-  // sorts are not drawn; without view.entities there is no Characters tab,
+  // sorts are not drawn; without view.character there is no Characters tab,
   // and HubCharacters never asks /api/character/ for one.
   const showPersonal = has("view.personal");
-  const showCharacters = has("view.entities");
+  const showCharacters = has("view.character");
 
   // ── data ──────────────────────────────────────────────────────────────────
   const [franchise, setFranchise] = useState(null);

@@ -10,6 +10,10 @@ import { ToastProvider } from "../../hooks/useToast";
 
 let auth;
 vi.mock("../../contexts/AuthContext", () => ({ useAuth: () => auth }));
+// The page is behind its kind's view key, so its viewer holds the entity
+// keys and the cards on it link (useEntityHref).
+const ENTITY_KEYS = ["view.studio", "view.publisher", "view.person", "view.character"];
+const holdsEntityKeys = (p) => ENTITY_KEYS.includes(p);
 
 const PERSON = {
   system_id: "p1",
@@ -68,7 +72,7 @@ function patchCalls() {
 }
 
 beforeEach(() => {
-  auth = { isAdmin: false };
+  auth = { isAdmin: false, has: holdsEntityKeys };
   mockFetch();
 });
 
@@ -242,7 +246,7 @@ describe("Person detail page", () => {
 
   describe("as an admin", () => {
     beforeEach(() => {
-      auth = { isAdmin: true };
+      auth = { isAdmin: true, has: holdsEntityKeys };
     });
 
     it("links Quick edit to this person's Modify editor", async () => {

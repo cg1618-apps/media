@@ -33,11 +33,11 @@ are a large share of the bundle and never needed on first paint.
 | `/search` | `Search` — `public/Search.jsx` | eager, **`view.search`** |
 | `/library/collection` | `CollectionLibrary` — `library/CollectionLibrary.jsx` | eager |
 | `/library/franchise` | `FranchiseLibrary` — `library/FranchiseLibrary.jsx` | eager |
-| `/library/studio` | `StudioLibrary` — `library/StudioLibrary.jsx` (matched before `/library/:type`) | lazy, **`view.entities`** |
-| `/library/publisher` | `PublisherLibrary` — `library/PublisherLibrary.jsx` (matched before `/library/:type`) | lazy, **`view.entities`** |
-| `/library/person` | `PersonLibrary` — `library/PersonLibrary.jsx` (matched before `/library/:type`) | lazy, **`view.entities`** |
-| `/library/seiyuu` | `PersonLibrary role="seiyuu"` — same file, filtered server-side via `?role=seiyuu` (matched before `/library/:type`) | lazy, **`view.entities`** |
-| `/library/character` | `CharacterLibrary` — `library/CharacterLibrary.jsx` (matched before `/library/:type`) | lazy, **`view.entities`** |
+| `/library/studio` | `StudioLibrary` — `library/StudioLibrary.jsx` (matched before `/library/:type`) | lazy, **`view.studio`** |
+| `/library/publisher` | `PublisherLibrary` — `library/PublisherLibrary.jsx` (matched before `/library/:type`) | lazy, **`view.publisher`** |
+| `/library/person` | `PersonLibrary` — `library/PersonLibrary.jsx` (matched before `/library/:type`) | lazy, **`view.person`** |
+| `/library/seiyuu` | `PersonLibrary role="seiyuu"` — same file, filtered server-side via `?role=seiyuu` (matched before `/library/:type`) | lazy, **`view.person`** — a seiyuu is a person |
+| `/library/character` | `CharacterLibrary` — `library/CharacterLibrary.jsx` (matched before `/library/:type`) | lazy, **`view.character`** |
 | `/library/h-comic` | `Library type="h-comic"` — same file, declared on its own inside `<ProtectedRoute gatedType="h-comic">` (matched before `/library/:type`) | eager, **gated** |
 | `/library/h-game` | `Library type="h-game"` — the same, inside `<ProtectedRoute gatedType="h-game">` | eager, **gated** |
 | `/library/hentai` | `Library type="hentai"` — the same, inside `<ProtectedRoute gatedType="hentai">` | eager, **gated** |
@@ -49,11 +49,11 @@ are a large share of the bundle and never needed on first paint.
 | `/collection/:system_id` | `detail/Collection.jsx` → `CollectionPage.jsx` | eager |
 | `/franchise/:system_id` | `detail/Franchise.jsx` → `FranchisePage.jsx` | eager |
 | `/series/:system_id` | `detail/Series.jsx` → `SeriesPage.jsx` | eager |
-| `/studio/:system_id` | `detail/Studio.jsx` | lazy, **`view.entities`** |
-| `/publisher/:system_id` | `detail/Publisher.jsx` | lazy, **`view.entities`** |
-| `/person/:system_id` | `detail/Person.jsx` | lazy, **`view.entities`** |
-| `/character/:system_id` | `detail/Character.jsx` | lazy, **`view.entities`** |
-| `/identity/:public_id` | `detail/Identity.jsx` | lazy, **`view.entities`** |
+| `/studio/:system_id` | `detail/Studio.jsx` | lazy, **`view.studio`** |
+| `/publisher/:system_id` | `detail/Publisher.jsx` | lazy, **`view.publisher`** |
+| `/person/:system_id` | `detail/Person.jsx` | lazy, **`view.person`** |
+| `/character/:system_id` | `detail/Character.jsx` | lazy, **`view.character`** |
+| `/identity/:public_id` | `detail/Identity.jsx` | lazy, **`view.character`** — an identity is a page of a character |
 | `/watch-order/:system_id` | `detail/WatchOrder.jsx` → `WatchOrderPage.jsx` | lazy |
 | `/seasonal` | `public/SeasonalOverall.jsx` | lazy, **login required** |
 | `/seasonal/:seasonal_id` | `public/SeasonalDetail.jsx` | lazy, **login required** |
@@ -64,8 +64,8 @@ are a large share of the bundle and never needed on first paint.
 | `/random/h-comic`, `/random/h-game`, `/random/hentai` | `RandomPicker type="…"` — the same file, each inside its type's `<ProtectedRoute gatedType>` and, within it, `<ProtectedRoute permission="view.extras">` (matched before `/random/:type`) | lazy, **gated**, **`view.extras`** |
 | `/random/:type` | `RandomPicker` — one type's mode, or `/random/franchise`, the franchise mode; an unknown type redirects to `/random` | lazy, **`view.extras`** |
 | `/plan` | `public/Plan.jsx` | lazy, **login required** |
-| `/quote` | `public/Quotes.jsx` | lazy, **`view.extras`** |
-| `/meme` | `public/Memes.jsx` | lazy, **`view.extras`** |
+| `/quote` | `public/Quotes.jsx` | lazy, **feature `quotes_memes`** (`<ProtectedRoute feature>`) |
+| `/meme` | `public/Memes.jsx` | lazy, **feature `quotes_memes`** |
 | `/resources` | `public/Resources.jsx` | lazy, **`view.extras`** |
 | `/settings` | `public/Settings.jsx` — the account's username and role, a line saying the list, ratings and personal notes are visible to that account only, and the Password card for an account holding `self.password` | lazy, **`self.list`** |
 | `/requests` | `public/MyRequests.jsx` | lazy, **`self.requests`** |
@@ -86,15 +86,21 @@ A guest — a logged-out visitor, or any account on the `guest` role — browses
 the media and the groups and nothing else: the dashboard's Announcements and
 Broadcast schedule, the `/library/:type` lists, `/library/collection`,
 `/library/franchise`, and the entry, collection, franchise, series and
-watch-order pages they lead to. Everything else a member reads is behind one
-of four `view.*` permissions, which `user` and `super` hold, `admin` passes
-through the root flag, and `guest` does not hold:
+watch-order pages they lead to. Everything else a member reads is behind a
+`view.*` permission, which `super` holds, `admin` passes through the root
+flag, and `guest` does not hold as seeded. `user` holds `view.search`,
+`view.extras` and `view.personal` as seeded; the four entity keys are each a
+switch on the role, seeded off, so a fresh database shows a `user` entity
+names as plain text until an admin ticks a kind on:
 
 | Key | Route gate (`<ProtectedRoute permission>`) | Inside the open pages |
 |---|---|---|
-| `view.entities` | the five entity libraries and the studio, publisher, person, character and identity pages | entity names render as plain text (`useEntityHref`, components.md); the franchise and series hubs have no Characters tab |
+| `view.studio` | the studio library and studio pages | studio and developer names render as plain text (`useEntityHref`, components.md) |
+| `view.publisher` | the publisher library and publisher pages | publisher names render as plain text |
+| `view.person` | the person and seiyuu libraries and person pages | staff, author, club-member and seiyuu names render as plain text |
+| `view.character` | the character library, character and identity pages | character and identity names render as plain text; the franchise and series hubs have no Characters tab |
 | `view.search` | `/search` | `NavSearch` is not drawn — not the inline slot, the phone button or its sheet |
-| `view.extras` | Future Releases, Completions, every `/random` route, `/quote`, `/meme`, `/resources` | the Quotes and Memes note sections are dropped |
+| `view.extras` | Future Releases, Completions, every `/random` route, `/resources` | — |
 | `view.personal` | none — there is no public profile | no catalogue rating or expectation (cards, the franchise table's Expectation and My columns, the rating and expectation sorts, the hubs' hero stamp and chip, the random picker's franchise filters), no novel unit remark |
 
 Each route block asks one key, and `navigation.js` asks the same key for the
@@ -103,8 +109,17 @@ rows that link there — the SPA's two permission surfaces have to agree, and
 answers 401 on the gated endpoints and strips the personal fields, so the UI's
 half is to draw nothing rather than an empty slot, and not to ask for what it
 would be refused: `useViewScope()` (`hooks/useViewScope.js`) is where a
-component reads the four flags. A guest is sent to
+component reads the flags. A guest is sent to
 `/login?next=<path>` from any member route.
+
+**Quotes and memes are not a `view.*` key** but the account's
+`quotes_memes` feature switch, which only a `user` or `super` account can
+have on (the root admin holds it without one). `/quote` and `/meme` sit
+inside `<ProtectedRoute feature="quotes_memes">`, their nav rows carry
+`feature: "quotes_memes"`, and without it `NotesContext.jsx` drops the
+Quotes and Memes note sections, so neither renders nor fetches. Each surface
+asks `hasFeature("quotes_memes")` (`AuthContext`), which reads `/me`'s
+`features`.
 
 `App.jsx` also calls `useConstants()` once: it fetches `/api/constants` and
 overwrites the bundled `config/fieldOptions.js` arrays in place so every
@@ -118,10 +133,10 @@ about styling.
 
 | Section key | Label | Shape | Contents |
 |---|---|---|---|
-| `library` | Library | mega-panel (`columns`) | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities** (every row `requires: "view.entities"`, so a guest's panel has no Entities column): Studio `/library/studio` (also matches `/studio`), Publisher `/library/publisher` (also matches `/publisher`), Person `/library/person` (also matches `/person`), Character `/library/character` (also matches `/character` and `/identity`), Seiyuu `/library/seiyuu` · **ACG**: Anime, Anime Movie, Manga, Novel, Game `/library/game` (also matches `/game`) · **Reality**: TV Show, Movie, Cartoon, Comic |
+| `library` | Library | mega-panel (`columns`) | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities** (each row `requires` its own kind's key, so a row whose kind is off is dropped and a viewer holding none has no Entities column): Studio `/library/studio` (also matches `/studio`; `view.studio`), Publisher `/library/publisher` (also matches `/publisher`; `view.publisher`), Person `/library/person` (also matches `/person`; `view.person`), Character `/library/character` (also matches `/character` and `/identity`; `view.character`), Seiyuu `/library/seiyuu` (`view.person`) · **ACG**: Anime, Anime Movie, Manga, Novel, Game `/library/game` (also matches `/game`) · **Reality**: TV Show, Movie, Cartoon, Comic |
 | `restricted` | Restricted | flat `items`, every row gated | H-Comic `/library/h-comic` (also matches `/h-comic`; `gatedType: "h-comic"`), H-Game `/library/h-game` (also matches `/h-game`; `gatedType: "h-game"`), Hentai `/library/hentai` (also matches `/hentai`; `gatedType: "hentai"`). Each is drawn only for a session that can see its type; a session that can see no gated type has every row dropped, so the tab itself is not drawn |
 | `track` | Track | flat `items` | Plan `/plan`, Seasonal `/seasonal` (both `requires: "self.list"` — see below), Future Releases `/future-releases`, Completions `/completions`, Random Picker `/random` (whose `/random/<type>` pages light it too) — the last three `requires: "view.extras"`. A guest holds none of these keys, so the tab is not drawn |
-| `insights` | Insights | flat | Statistics `/statistics` (`requires: "self.list"`), Quotes `/quote`, Memes `/meme`, Resources `/resources` (each `requires: "view.extras"`) ┃ Relations `/relations`, Watch Orders `/watch-orders` — these two carry `requires: "admin"` on the row, inside a tab everyone may open |
+| `insights` | Insights | flat | Statistics `/statistics` (`requires: "self.list"`), Quotes `/quote` and Memes `/meme` (each `feature: "quotes_memes"`), Resources `/resources` (`requires: "view.extras"`) ┃ Relations `/relations`, Watch Orders `/watch-orders` — these two carry `requires: "admin"` on the row, inside a tab everyone may open |
 | `entry` | Entry | flat, `requires: "admin"` | Add `/add`, Modify `/modify`, Delete `/delete`, Form Defaults `/defaults`, Picker Defaults `/random-defaults` |
 | `note` | Note | flat, `requires: "manage.catalog"` | System Options `/options`, Alias Conversion `/aliases`, External APIs `/external-apis` — the three read-only inventories of how the data is described — Content Labels `/content-labels`, the read-only label reference, which carries `requires: ["admin.authz", "manage.catalog"]` (any of the two, the same either-of its route asks), and Business Logic `/business-logic`, what Calculate All changes step by step, which carries `requires: "manage.pipelines"` on the row, so only the super role and admin see it |
 | `pipelines` | Pipelines | flat, `requires: "manage.pipelines"` | Control Center `/system`, Data History, Review Queue, Clean Orphans, and **Inbox** `/request-inbox`, which carries `requires: "manage.requests"` on the row — the key its route asks |
@@ -132,14 +147,17 @@ Each item has `label`, `icon` (Font Awesome class), `to`, optional `matches`
 library item; Franchise also owns `/series` and `/watch-order`), `dev` (routes
 to `/under-development`), `divider` (a rule between item groups) and
 `requires` (a per-row permission, or a list meaning any of them — `meets(has,
-needed)` answers both). Helpers:
+needed)` answers both) or `feature` (a per-row account feature switch, asked
+through `hasFeature` in place of `requires`). Helpers:
 `sectionItems`, `activeItem` / `activeSectionKey` (segment-aware prefix match,
 so `/library/anime` does not claim `/library/anime-movie`),
 `sectionRequirement` / `itemRequirement` (`adminOnly: true` is the legacy
 spelling of `requires: "admin"`) and `visibleSections(sections, has,
-canSeeType)` — which drops both the sections and the individual rows the
-viewer lacks the permission for, and a row carrying `gatedType` unless
-`canSeeType` answers yes (Nav passes `canSeeGatedType`), then drops any section
+canSeeType, hasFeature)` — which drops both the sections and the individual
+rows the viewer lacks the permission for, a row carrying `gatedType` unless
+`canSeeType` answers yes (Nav passes `canSeeGatedType`), and a row carrying
+`feature` unless `hasFeature` answers yes (left out, every such row is
+hidden), then drops any section
 left holding nothing but dividers. It
 hands back the original item objects, since Nav marks the current row by
 identity. The Entry, Note and Admin tabs are gated by `has("admin")` from
@@ -206,8 +224,13 @@ debounces 250 ms, discards stale responses by request id, and calls
 `MAX_RESULTS`, the most rows the dropdown shows, so no bucket sends more than
 can be used. Scopes: all, collection, franchise,
 series, anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, game,
-h-comic, h-game and hentai (each offered only to a session that can see the type), seasonal, person,
-studio, publisher. `mergeBuckets` builds the at most `MAX_RESULTS = 8` rows
+h-comic, h-game, hentai, seasonal, person, studio, publisher. A scope is
+offered only when the server would send its bucket (`canSearchScope`, on the
+rule in [api.md](../api.md#search--apisearch)): a media type needs
+`media_type.<type>`, and a gated one also the mode (`canSeeGatedType`);
+person, studio and publisher need `view.person`, `view.studio` and
+`view.publisher`; all, the three groups and seasonal are always offered.
+`mergeBuckets` builds the at most `MAX_RESULTS = 8` rows
 in three passes. First, every bucket's exact matches (a name column equal to
 the query after `cleanString`), so a whole-title hit is never cut by the cap
 and always sits at the top. Then, with scope `all`, `TYPE_QUOTAS` give one
@@ -217,8 +240,9 @@ h-game, hentai, seasonal — so a broad query shows as many types as fit before
 any type shows a second; person, studio and publisher have no floor. Last,
 the slots left over are filled round-robin from the buckets that still have
 rows, so a query matching only movies gets eight movies. A scoped search has
-one bucket, and it may fill all eight. The server leaves a gated type's bucket out altogether
-for a session that cannot see the type, and a missing bucket reads as empty. Person, studio and publisher come last, with no floor, on
+one bucket, and it may fill all eight. The server leaves out altogether the
+bucket of every type the viewer cannot see, and a missing bucket reads as
+empty. Person, studio and publisher come last, with no floor, on
 purpose: a query is usually about a title, so a name match on a credited
 person, studio or publisher is the weaker answer and takes the slots the media
 buckets left behind. Each row's type badge is a `Chip` coloured by its type
@@ -227,7 +251,10 @@ lets colour name a type, see
 [design-system.md](design-system.md#rules). Enter navigates to
 `/search?q=…[&scope=…]`; a
 result click routes to the entry's page (`/seasonal/<encoded id>` for seasons,
-`/person/:id`, `/studio/:id` and `/publisher/:id` for entities). Comic display
+`/person/:id`, `/studio/:id` and `/publisher/:id` for entities). An entity
+row's path comes from `useEntityHref` (`lib/entityPath.js`), so without its
+kind's `view.*` key the row is the name as plain text — an
+`aria-disabled` option that goes nowhere — as every entity link is. Comic display
 names are EN-first; a person, studio or publisher row shows the
 server-resolved `display_name` and its credit count as the secondary line. The
 dropdown has no characters: it does not send `characters=true`, so its
@@ -254,7 +281,7 @@ stamps the same attribute before first paint. See components.md → Theming.
 | Piece | File | Notes |
 |---|---|---|
 | `Layout` | `components/layout/Layout.jsx` | `<Nav/>`, `<Outlet/>`, footer, `<Toast/>`, `ScrollButtons` (to-top after 300 px, to-bottom when >300 px from the end) |
-| `ProtectedRoute` | `components/layout/ProtectedRoute.jsx` | spinner while `auth.loading`; `has(permission)` (default `"admin"`), or with `anyPermission={[...]}` any one of a list, → `<Outlet/>`, else `<Navigate to="/login?next=<path+search>" replace/>`. A redirect, not a security boundary — the API enforces. |
+| `ProtectedRoute` | `components/layout/ProtectedRoute.jsx` | spinner while `auth.loading`; `has(permission)` (default `"admin"`), or with `anyPermission={[...]}` any one of a list, or `hasFeature(feature)` when a `feature` prop is passed, in place of the permission → `<Outlet/>`, else `<Navigate to="/login?next=<path+search>" replace/>`. A redirect, not a security boundary — the API enforces. |
 | `MediaLoadingState` | `components/layout/MediaLoadingState.jsx` | spinner + `loadingText`, or red error card |
 | Toasts | `hooks/useToast.jsx`, `components/layout/Toast.jsx` | `showToast(type, message)`, auto-dismiss 3.5 s, bottom-left stack |
 | Data hooks | `hooks/useMediaList` (`["media-list", type, params]`), `useMediaItem` (`["media-item", type, id]`), `useApiQuery`, `useStatusToggle`, `useMediaCacheUpdate` | `LIST_OPTIONS = { params: { limit: 2000 } }` — every library-sized list uses it |
@@ -390,9 +417,17 @@ File `pages/public/Search.jsx`. Reads `?q`, `?scope` (default `all`) and
 → effective key `["api","search",{q,scope,characters}]`. The response is
 `results.{collection, seasonal, franchise, series, anime, "anime-movie", movie, "tv-show", cartoon, manga, novel, comic, game, "h-comic", "h-game", hentai, person, studio, publisher, character}`
 plus `related_franchises` (the franchises of the matched anime — used as
-filter pills, not name matches); the three gated buckets are left out for a
-session that cannot see the type and read as `[]`. `characters: true` is what
-adds the `character` bucket; this page is the only caller that sends it.
+filter pills, not name matches). Only `collection`, `franchise`, `series` and
+`seasonal` are always present: the server leaves out the bucket of every type
+the viewer cannot see (a media type the role does not hold, a gated type the
+mode hides, an entity kind without its `view.*` key — see
+[api.md](../api.md#search--apisearch)), and the page reads every bucket as
+`results[type] ?? []`, so an absent bucket draws no section, no count and no
+tab. The scope chip above the results names a scope only when
+`canSearchScope` (NavSearch's rule) lets the viewer search it, so a
+hand-typed `?scope=` for a type the viewer cannot see names nothing.
+`characters: true` is what adds the `character` bucket, for a viewer
+holding `view.character`; this page is the only caller that sends it.
 Results are copied into local state so a card's `onUpdated` can replace a row
 without a refetch.
 
@@ -417,6 +452,10 @@ tabs, with one group labelled "Results" and a count on each tab:
 - **Characters** — a `CharacterCard` grid (`components/cards/CharacterCard.jsx`,
   the character library's card) linking to `/character/:id`. One card per
   character: identities are not separate results.
+
+Every link on the page comes from `useEntityHref` (`lib/entityPath.js`): an
+entity card without its kind's `view.*` key renders as plain text, and the
+tier cards, which no key gates, always open their page.
 
 A tab with no results is not drawn, as on the hub pages, and nothing is
 drawn when every tab is empty. The active tab is `?tab=` (`media`, `people`,
@@ -971,7 +1010,7 @@ so the first available tab is re-picked (Collection keeps "Franchises").
 | Content labels | the franchise's OWN labels as `ContentLabelChips`, with a note that they hide its series and entries; no row when it carries none | the series' own, noting they hide its entries | the collection's own, noting they hide every franchise, series and entry in it |
 | Admin controls | Overall Rating select, Expectation select, **Plan Next** `SizeGroupControls` (per-type checkbox + derived/manual size-group select → PATCH `size_group_manual`), rewatch `PlanKindToggles` | Overall Rating, Expectation, rewatch `PlanKindToggles scope="series"` (no size groups at series level) | Overall Rating, Expectation |
 | Remark | textarea (admin editable, guest disabled, shown when admin or non-empty), "Show all" opens `RemarkModal`; saved on blur / modal close via PATCH `{ remark }` | same | same |
-| Tabs | "Media" (counted): Anime, Anime Movies, Manga, Novel, Comic, **Game** ("Base games, DLC & expansions", sorted by `release_date` ascending), **H-Comic**, **H-Game** and **Hentai** (each by `series_number`, then release date; the H-Comic, H-Game and Hentai tabs each allowed by any type of the restricted family), Movies, TV Shows, Cartoons — shown when `franchise_type` allows *and* the list is non-empty; "Extras": Characters (only with `view.entities`), Watch Order, Relations, Notes. Every media tab's "Sort: my rating" option is offered only with `view.personal` | Media tabs by non-empty list only; same extras. Its **Game** tab carries its own sort (release_date default, then title / my_rating / hours_played) and a Game Type filter the other tabs have no equivalent of — a series usually mixes a base game with its DLC | "Members" → Franchises (`FranchiseCard`s); extras Watch Order, Relations, Notes |
+| Tabs | "Media" (counted): Anime, Anime Movies, Manga, Novel, Comic, **Game** ("Base games, DLC & expansions", sorted by `release_date` ascending), **H-Comic**, **H-Game** and **Hentai** (each by `series_number`, then release date; the H-Comic, H-Game and Hentai tabs each allowed by any type of the restricted family), Movies, TV Shows, Cartoons — shown when `franchise_type` allows *and* the list is non-empty; "Extras": Characters (only with `view.character`), Watch Order, Relations, Notes. Every media tab's "Sort: my rating" option is offered only with `view.personal` | Media tabs by non-empty list only; same extras. Its **Game** tab carries its own sort (release_date default, then title / my_rating / hours_played) and a Game Type filter the other tabs have no equivalent of — a series usually mixes a base game with its DLC | "Members" → Franchises (`FranchiseCard`s); extras Watch Order, Relations, Notes |
 
 Plan toggles call `POST /api/plan-next/` `{ media_type, scope, kind, target_id }`
 (409 tolerated) and `DELETE /api/plan-next/target?scope=&media_type=&kind=&target_id=`
@@ -996,7 +1035,7 @@ plus one dashed card for each of its identities cast on those entries. It asks
 castings on entries the viewer may see, and draws `CharacterCard`s grouped by
 `characterCardsByRole` (`lib/characterCards.js`): Main, Core, Important Supporting, Supporting,
 Other, then No role, each group by name with an identity right after its
-character. Offered to every viewer holding `view.entities`, like the other
+character. Offered to every viewer holding `view.character`, like the other
 extras; an empty tier says so. Without the key the tab is not in the row and
 `HubCharacters` never mounts, so `/api/character/` — which would answer 401 —
 is not asked.
@@ -1091,8 +1130,8 @@ Top to bottom:
    "Production"` — whose Studio row on Anime and AnimeMovie is built by
    `studioValue()` (`components/info/StudioLinks.jsx`): one link to
    `/studio/{system_id}` per entry in `studio_refs` (plain text, not a link,
-   for a viewer without `view.entities` — every entity name on an open page
-   follows that rule, through `useEntityHref`), falling back to the plain
+   for a viewer without `view.studio` — every entity name on an open page
+   follows that rule for its own kind's key, through `useEntityHref`), falling back to the plain
    comma-joined `studio` string when there are none, which is what a viewer
    without the Credits permission and an entry whose studio never resolved to
    a row both get — and beside it, on **all six** types that credit a publisher
@@ -1108,8 +1147,8 @@ Top to bottom:
    Core, Important Supporting, Supporting, Other, then no role (`castRoleRank`) — then by
    `position` (`sortCast`, `lib/castOrder.js`), and each shows a small
    cover-or-portrait thumbnail, a role chip, a link to the character (the
-   name as plain text for a viewer without `view.entities`, as are the
-   identity and seiyuu names below), and — on Anime/AnimeMovie, the voiced types
+   name as plain text for a viewer without `view.character`, as is the
+   identity name, and the seiyuu names below without `view.person`), and — on Anime/AnimeMovie, the voiced types
    — "voiced by" and every seiyuu of the casting as a link to their person
    page, separated by "·", each followed by its voice remark in brackets
    ("voiced by A · B (child)"). The slip starts collapsed to the Main
@@ -1275,7 +1314,8 @@ novel | series | tv-show`
 `/api/notes?owner_type=&owner_id=` (cancellable) and owns the mutations;
 `NotesBlocks` renders a "Notes" card for ungrouped sections plus one card per
 registry group, and hands `quotes`/`memes` sections to `QuoteSection` /
-`MemeSection` — for a viewer holding `view.extras`. Without it both sections
+`MemeSection` — for an account holding the `quotes_memes` feature
+(`hasFeature`). Without it both sections
 are dropped from the registry the page draws, before either component can
 fetch `/api/quote` or `/api/meme`. The highlight sections (`highlights`,
 `highlight_episodes`) need no such rule: the server leaves them out of
@@ -1601,8 +1641,8 @@ and delete, followed by `invalidateQueries` on the grouped key.
 Files `pages/public/Resources.jsx`, `components/resources/ResourceTree.jsx`,
 `components/resources/ResourceMarkdown.jsx`, helpers `lib/resourceTree.js`,
 writes `api/mutations/useResourceMutations.js`. One site-wide page of notes,
-read by everyone who can open Quotes: the route and the nav row ask
-`view.extras`, as Quotes does. `useApiQuery(["resources"], "/api/resources")` returns the
+read by every viewer holding `view.extras`: the route and the nav row both
+ask it. `useApiQuery(["resources"], "/api/resources")` returns the
 top-level nodes with `children` nested to any depth, every level already in
 `sort_index` order with groups and items interleaved; the page draws them in
 that order and sorts nothing.

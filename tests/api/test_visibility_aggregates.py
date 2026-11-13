@@ -97,28 +97,28 @@ def hidden_plan(db_session, super_user, hidden_anime):
 # Quotes - the text is itself the leak
 # ---------------------------------------------------------------------------
 
-def test_a_quote_on_a_hidden_entry_is_not_listed(guest_reader, hidden_quote):
-    response = guest_reader.get("/api/quote/")
+def test_a_quote_on_a_hidden_entry_is_not_listed(quote_reader, hidden_quote):
+    response = quote_reader.get("/api/quote/")
     assert response.status_code == 200
     assert QUOTE_TEXT not in response.text
     assert HIDDEN_NAME not in response.text
 
 
-def test_a_quote_on_a_hidden_entry_is_not_grouped(guest_reader, hidden_quote):
-    response = guest_reader.get("/api/quote/grouped")
+def test_a_quote_on_a_hidden_entry_is_not_grouped(quote_reader, hidden_quote):
+    response = quote_reader.get("/api/quote/grouped")
     assert response.status_code == 200
     assert QUOTE_TEXT not in response.text
 
 
-def test_a_quote_on_a_hidden_entry_is_not_found_by_id(guest_reader, hidden_quote):
-    response = guest_reader.get(f"/api/quote/{hidden_quote.system_id}")
+def test_a_quote_on_a_hidden_entry_is_not_found_by_id(quote_reader, hidden_quote):
+    response = quote_reader.get(f"/api/quote/{hidden_quote.system_id}")
     assert response.status_code == 404
     assert QUOTE_TEXT not in response.text
 
 
-def test_a_general_quote_survives(guest_reader, general_quote):
+def test_a_general_quote_survives(quote_reader, general_quote):
     """A quote with no entry behind it is nobody's secret."""
-    assert general_quote.text in guest_reader.get("/api/quote/").text
+    assert general_quote.text in quote_reader.get("/api/quote/").text
 
 
 def test_admin_still_sees_the_quote(admin_client, hidden_quote):
@@ -129,14 +129,14 @@ def test_admin_still_sees_the_quote(admin_client, hidden_quote):
 # Memes
 # ---------------------------------------------------------------------------
 
-def test_a_meme_on_a_hidden_entry_is_not_listed(guest_reader, hidden_meme):
-    response = guest_reader.get("/api/meme/")
+def test_a_meme_on_a_hidden_entry_is_not_listed(quote_reader, hidden_meme):
+    response = quote_reader.get("/api/meme/")
     assert response.status_code == 200
     assert MEME_TEXT not in response.text
 
 
-def test_a_meme_on_a_hidden_entry_is_not_found_by_id(guest_reader, hidden_meme):
-    assert guest_reader.get(f"/api/meme/{hidden_meme.system_id}").status_code == 404
+def test_a_meme_on_a_hidden_entry_is_not_found_by_id(quote_reader, hidden_meme):
+    assert quote_reader.get(f"/api/meme/{hidden_meme.system_id}").status_code == 404
 
 
 # ---------------------------------------------------------------------------
@@ -259,8 +259,8 @@ def test_a_relation_edge_to_a_hidden_entry_is_dropped(
 # Memes, grouped
 # ---------------------------------------------------------------------------
 
-def test_a_meme_on_a_hidden_entry_is_not_grouped(guest_reader, hidden_meme):
-    response = guest_reader.get("/api/meme/grouped")
+def test_a_meme_on_a_hidden_entry_is_not_grouped(quote_reader, hidden_meme):
+    response = quote_reader.get("/api/meme/grouped")
     assert response.status_code == 200
     assert MEME_TEXT not in response.text
     assert HIDDEN_NAME not in response.text

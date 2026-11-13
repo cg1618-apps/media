@@ -7,7 +7,7 @@
 // resolved to a row, and for a viewer without the Credits permission, for
 // whom studio_refs is gated away.
 //
-// A studio or publisher page is a member's (view.entities): without the key
+// A studio or publisher page is behind view.studio or view.publisher: without the key
 // the names render as plain text, through useEntityHref.
 import { Link } from "react-router-dom";
 

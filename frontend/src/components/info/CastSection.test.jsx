@@ -9,11 +9,11 @@ import CastSection from "./CastSection";
 // The viewer's view.* scope. A member (every flag on) unless a test says
 // otherwise; `scope.<flag> = false` makes the guest case.
 const { scope } = vi.hoisted(() => ({
-  scope: { entities: true, search: true, extras: true, personal: true },
+  scope: { studio: true, publisher: true, person: true, character: true, search: true, extras: true, personal: true },
 }));
 vi.mock("../../hooks/useViewScope", () => ({ useViewScope: () => scope }));
 beforeEach(() => {
-  Object.assign(scope, { entities: true, search: true, extras: true, personal: true });
+  Object.assign(scope, { studio: true, publisher: true, person: true, character: true, search: true, extras: true, personal: true });
 });
 
 function casting(name, role, position, voices = []) {
@@ -347,7 +347,7 @@ describe("a credited name", () => {
   });
 });
 
-describe("for a viewer without view.entities", () => {
+describe("for a viewer without the entity keys", () => {
   // The same cast a member reads as links: a character, an identity row and
   // a seiyuu. The mirror case asserts the links exist with the same rows, so
   // the plain text below is the key's doing.
@@ -364,7 +364,7 @@ describe("for a viewer without view.entities", () => {
   ];
 
   it("names the cast and the seiyuu as plain text, with no link", () => {
-    scope.entities = false;
+    Object.assign(scope, { studio: false, publisher: false, person: false, character: false });
     mount(cast());
     expect(screen.getByText("Conan")).toBeInTheDocument();
     expect(screen.getByText("Takayama Minami")).toBeInTheDocument();

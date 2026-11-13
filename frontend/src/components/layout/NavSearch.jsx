@@ -8,9 +8,10 @@ import { useNavigate } from "react-router-dom";
 import { cleanString, getDisplayName } from "../../utils/media";
 import { Chip } from "../ui/primitives";
 import { typeHue } from "../../config/scopeColors";
-import { entityPath } from "../../lib/entityPath";
+import { ENTITY_SCOPE, useEntityHref } from "../../lib/entityPath";
 import { useAuth } from "../../contexts/AuthContext";
-import { visibleByType } from "../../lib/gatedTypes";
+import { canSeeGatedType } from "../../lib/gatedTypes";
+import { MEDIA_TYPES } from "../../config/fieldOptions";
 
 const SCOPES = [
   { key: "all", label: "All" },
@@ -26,9 +27,6 @@ const SCOPES = [
   { key: "novel", label: "Novel" },
   { key: "comic", label: "Comic" },
   { key: "game", label: "Game" },
-  // Gated: offered only through visibleByType. The server leaves a gated
-  // type's bucket out for a session that cannot see it, and a missing bucket
-  // reads as empty below.
   { key: "h-comic", label: "H-Comic" },
   { key: "h-game", label: "H-Game" },
   { key: "hentai", label: "Hentai" },
@@ -37,6 +35,27 @@ const SCOPES = [
   { key: "studio", label: "Studio" },
   { key: "publisher", label: "Publisher" },
 ];
+
+const MEDIA_TYPE_KEYS = new Set(MEDIA_TYPES);
+
+/**
+ * May this viewer search scope `key`? The same rule the server applies when
+ * it decides which buckets a response carries (_viewer_may_search in
+ * app/services/domain/search.py): a media type needs the role's
+ * media_type.<type> key, and a gated one also needs the mode to show it; an
+ * entity kind needs its view.<kind> key (ENTITY_SCOPE names the kind); the
+ * groups and seasonal are open to every viewer who can search at all. A
+ * scope the server would answer with no bucket is not offered.
+ */
+export function canSearchScope(auth, key) {
+  const has = (permission) => Boolean(auth?.has?.(permission));
+  if (MEDIA_TYPE_KEYS.has(key)) {
+    return has(`media_type.${key}`) && canSeeGatedType(auth, key);
+  }
+  const kind = ENTITY_SCOPE[key];
+  if (kind) return has(`view.${kind}`);
+  return true;
+}
 
 // Short mono labels for the result rows. The text names the type; the badge's
 // hue (typeHue, config/scopeColors.js) is an index on top of it, so a reader
@@ -208,7 +227,9 @@ export function mergeBuckets(buckets, quotas, isExact) {
 export default function NavSearch({ variant = "inline", onDone }) {
   const sheet = variant === "sheet";
   const navigate = useNavigate();
-  const scopes = visibleByType(useAuth(), SCOPES);
+  const auth = useAuth();
+  const scopes = SCOPES.filter((s) => canSearchScope(auth, s.key));
+  const entityHref = useEntityHref();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchScope, setSearchScope] = useState("all");
   const [showScopeMenu, setShowScopeMenu] = useState(false);
@@ -265,12 +286,14 @@ export default function NavSearch({ variant = "inline", onDone }) {
       // the reader searched or picked a row and the search was cancelled.
       if (reqId !== searchReqIdRef.current) return;
 
-      // A scoped search has one bucket, and it may fill every row.
+      // A scoped search has one bucket, and it may fill every row. A bucket
+      // the viewer cannot see is absent from the response, not empty, and
+      // reads here as no rows.
       const active = TYPE_QUOTAS.filter(
         ([type]) => scope === "all" || scope === type,
       );
       const buckets = active.map(([type]) =>
-        (payload.results[type] || []).map((r) => ({ ...r, type })),
+        (payload.results?.[type] ?? []).map((r) => ({ ...r, type })),
       );
       const quotas = active.map(([, quota]) =>
         scope === "all" ? quota : MAX_RESULTS,
@@ -330,20 +353,23 @@ export default function NavSearch({ variant = "inline", onDone }) {
     }
   }
 
-  function handleResultClick(item) {
+  // Where a row goes: "" when it has no page this viewer may open. Seasonal
+  // is not an entity and routes by the season string itself. Every other
+  // bucket key is already the route segment (anything unexpected has always
+  // fallen back to anime), and an entity row asks its kind's view key through
+  // useEntityHref, as every entity link does.
+  function resultHref(item) {
+    if (item.type === "seasonal") {
+      return `/seasonal/${encodeURIComponent(item.seasonal)}`;
+    }
+    const type = DETAIL_TYPES.has(item.type) ? item.type : "anime";
+    return entityHref(type, item);
+  }
+
+  function handleResultClick(path) {
     cancelPendingSearch();
     setSearchQuery("");
-    // Seasonal is not an entity: it routes by the season string itself.
-    if (item.type === "seasonal") {
-      navigate(`/seasonal/${encodeURIComponent(item.seasonal)}`);
-      onDone?.();
-      return;
-    }
-    // Every other bucket key is already the route segment; anything unexpected
-    // has always fallen back to anime.
-    const type = DETAIL_TYPES.has(item.type) ? item.type : "anime";
-    const path = entityPath(type, item);
-    if (path) navigate(path);
+    navigate(path);
     onDone?.();
   }
 
@@ -434,15 +460,9 @@ export default function NavSearch({ variant = "inline", onDone }) {
                         (item.credit_count ?? 0) === 1 ? "" : "s"
                       }`
                     : null;
-            return (
-              <button
-                key={i}
-                role="option"
-                aria-selected={false}
-                type="button"
-                onClick={() => handleResultClick(item)}
-                className="w-full text-left flex items-center px-3 py-2.5 hover:bg-surface-2 transition border-b border-border last:border-0"
-              >
+            const path = resultHref(item);
+            const content = (
+              <>
                 <Chip hue={typeHue(item.type)} className="mr-2">
                   {TYPE_LABEL[item.type]}
                 </Chip>
@@ -456,6 +476,35 @@ export default function NavSearch({ variant = "inline", onDone }) {
                     </div>
                   )}
                 </div>
+              </>
+            );
+            const rowCls =
+              "w-full text-left flex items-center px-3 py-2.5 border-b border-border last:border-0";
+            // A row with no page to open is the name as plain text, the way
+            // an entity link renders without its kind's key.
+            if (!path) {
+              return (
+                <div
+                  key={i}
+                  role="option"
+                  aria-selected={false}
+                  aria-disabled="true"
+                  className={rowCls}
+                >
+                  {content}
+                </div>
+              );
+            }
+            return (
+              <button
+                key={i}
+                role="option"
+                aria-selected={false}
+                type="button"
+                onClick={() => handleResultClick(path)}
+                className={`${rowCls} hover:bg-surface-2 transition`}
+              >
+                {content}
               </button>
             );
           })}

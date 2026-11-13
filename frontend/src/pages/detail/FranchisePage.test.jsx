@@ -166,7 +166,7 @@ describe("FranchisePage for a guest", () => {
     username: "reader",
     role: "user",
     is_root: false,
-    permissions: ["view.entities", "view.search", "view.extras", "view.personal"],
+    permissions: ["view.studio", "view.publisher", "view.person", "view.character", "view.search", "view.extras", "view.personal"],
   };
   const rated = { ...FRANCHISE, my_rating: "S", franchise_expectation: "High" };
   const characterFetched = () =>
