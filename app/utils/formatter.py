@@ -586,8 +586,8 @@ def parse_franchise_from_sheet(raw: dict) -> dict:
         "franchise_name_jp": parse_from_sheet(raw.get("franchise_name_jp"), str),
         "franchise_name_alt": parse_from_sheet(raw.get("franchise_name_alt"), str),
         # Not a column any more: a backup taken before revision u1r2atings3
-        # carries it, and pull.py files it under the installation owner
-        # (LEGACY_PERSONAL_COLUMNS).
+        # carries it, and Pull files it under the installation owner
+        # (legacy_personal.LEGACY_PERSONAL_COLUMNS).
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "franchise_expectation": parse_from_sheet(
             raw.get("franchise_expectation"), str
@@ -632,8 +632,8 @@ def parse_collection_from_sheet(raw: dict) -> dict:
         "collection_name_jp": parse_from_sheet(raw.get("collection_name_jp"), str),
         "collection_name_alt": parse_from_sheet(raw.get("collection_name_alt"), str),
         # Not a column any more: a backup taken before revision u1r2atings3
-        # carries it, and pull.py files it under the installation owner
-        # (LEGACY_PERSONAL_COLUMNS).
+        # carries it, and Pull files it under the installation owner
+        # (legacy_personal.LEGACY_PERSONAL_COLUMNS).
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "collection_expectation": parse_from_sheet(
             raw.get("collection_expectation"), str
@@ -673,8 +673,8 @@ def parse_series_from_sheet(raw: dict) -> dict:
         "series_name_jp": parse_from_sheet(raw.get("series_name_jp"), str),
         "series_name_alt": parse_from_sheet(raw.get("series_name_alt"), str),
         # Not a column any more: a backup taken before revision u1r2atings3
-        # carries it, and pull.py files it under the installation owner
-        # (LEGACY_PERSONAL_COLUMNS).
+        # carries it, and Pull files it under the installation owner
+        # (legacy_personal.LEGACY_PERSONAL_COLUMNS).
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "series_expectation": parse_from_sheet(raw.get("series_expectation"), str),
         # Must be a real UUID: unlike franchise_id there is no name-resolution
@@ -1018,8 +1018,8 @@ def parse_novel_unit_from_sheet(raw: dict) -> dict:
         "name_cn": parse_from_sheet(raw.get("name_cn"), str),
         "name_en": parse_from_sheet(raw.get("name_en"), str),
         # Not a column any more: a backup taken before revision u1r2atings3
-        # carries it, and pull.py files it under the installation owner
-        # (LEGACY_PERSONAL_COLUMNS).
+        # carries it, and Pull files it under the installation owner
+        # (legacy_personal.LEGACY_PERSONAL_COLUMNS).
         "remark": parse_from_sheet(raw.get("remark"), str),
         "ch_count": parse_from_sheet(raw.get("ch_count"), float),
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
@@ -1522,8 +1522,8 @@ def parse_person_from_sheet(raw: dict) -> dict:
         # cannot bring "Male" or "a+" back - see app/utils/entity_vocab.py.
         "gender": normalize_gender(parse_from_sheet(raw.get("gender"), str)),
         # Not a column any more: a backup taken before revision u1r2atings3
-        # carries it, and pull.py files it under the installation owner
-        # (LEGACY_PERSONAL_COLUMNS).
+        # carries it, and Pull files it under the installation owner
+        # (legacy_personal.LEGACY_PERSONAL_COLUMNS).
         "my_rating": normalize_my_rating(parse_from_sheet(raw.get("my_rating"), str)),
         "photo_file": parse_from_sheet(raw.get("photo_file"), str),
         "photo_focus": _focus_from_sheet(raw.get("photo_focus")),
@@ -1570,8 +1570,8 @@ def parse_character_from_sheet(raw: dict) -> dict:
         # cannot bring "Male" or "a+" back - see app/utils/entity_vocab.py.
         "gender": normalize_gender(parse_from_sheet(raw.get("gender"), str)),
         # Not a column any more: a backup taken before revision u1r2atings3
-        # carries it, and pull.py files it under the installation owner
-        # (LEGACY_PERSONAL_COLUMNS).
+        # carries it, and Pull files it under the installation owner
+        # (legacy_personal.LEGACY_PERSONAL_COLUMNS).
         "my_rating": normalize_my_rating(parse_from_sheet(raw.get("my_rating"), str)),
         "photo_file": parse_from_sheet(raw.get("photo_file"), str),
         "photo_focus": _focus_from_sheet(raw.get("photo_focus")),
@@ -1688,8 +1688,8 @@ def parse_studio_from_sheet(raw: dict) -> dict:
         "name_alt": parse_from_sheet(raw.get("name_alt"), str),
         "display_name_field": parse_from_sheet(raw.get("display_name_field"), str),
         # Not a column any more: a backup taken before revision u1r2atings3
-        # carries it, and pull.py files it under the installation owner
-        # (LEGACY_PERSONAL_COLUMNS).
+        # carries it, and Pull files it under the installation owner
+        # (legacy_personal.LEGACY_PERSONAL_COLUMNS).
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "logo_file": parse_from_sheet(raw.get("logo_file"), str),
         "logo_focus": _focus_from_sheet(raw.get("logo_focus")),
@@ -1724,8 +1724,8 @@ def parse_publisher_from_sheet(raw: dict) -> dict:
         "name_alt": parse_from_sheet(raw.get("name_alt"), str),
         "display_name_field": parse_from_sheet(raw.get("display_name_field"), str),
         # Not a column any more: a backup taken before revision u1r2atings3
-        # carries it, and pull.py files it under the installation owner
-        # (LEGACY_PERSONAL_COLUMNS).
+        # carries it, and Pull files it under the installation owner
+        # (legacy_personal.LEGACY_PERSONAL_COLUMNS).
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "logo_file": parse_from_sheet(raw.get("logo_file"), str),
         "logo_focus": _focus_from_sheet(raw.get("logo_focus")),

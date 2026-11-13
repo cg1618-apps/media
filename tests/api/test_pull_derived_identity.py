@@ -23,6 +23,7 @@ import pytest
 
 from app import models
 from app.services.pipelines import pull
+from tests.api.conftest import role_id_for
 
 OPTION_HEADERS = ["system_id", "category", "value", "sort_order", "remark"]
 PERSON_HEADERS = [
@@ -110,8 +111,18 @@ def test_person_with_a_foreign_uuid_updates_the_local_row(db_session, sheets):
 
 
 def test_studio_with_a_foreign_uuid_updates_the_local_row(db_session, sheets):
+    # The sheet's my_rating is filed under the installation owner, so one has
+    # to exist: without it the rating is reported unresolved and the
+    # assertion below would depend on some earlier test having left an
+    # account committed.
+    owner = models.User(
+        username="sheet-owner",
+        hashed_password="!",
+        role_id=role_id_for(db_session, "super"),
+        is_installation_owner=True,
+    )
     local = models.Studio(system_id=uuid.uuid4(), name_en="シャフト")
-    db_session.add(local)
+    db_session.add_all([owner, local])
     db_session.flush()
     local_id = local.system_id
 
@@ -134,6 +145,7 @@ def test_studio_with_a_foreign_uuid_updates_the_local_row(db_session, sheets):
     # installation owner's rating of the LOCAL studio (u1r2atings3).
     rating = db_session.query(models.UserRating).filter_by(studio_id=local_id).one()
     assert rating.my_rating == "A"
+    assert rating.user_id == owner.id
 
 
 def test_a_different_name_cn_is_a_different_studio(db_session, sheets):
