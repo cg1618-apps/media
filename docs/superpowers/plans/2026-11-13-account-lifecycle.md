@@ -102,8 +102,13 @@ longer password before the policy.
   the token's `sv` equals the column — a token with no `sv` (every one
   minted before this) reads as 0, which is every account's starting value,
   so nobody is signed out by the deploy.
-- **Increments**: a reset spent, and disabling. Nothing else — not the
-  admin setting a password, not a self-change, not logout.
+- **Increments**: a reset spent, disabling, and **the admin setting a
+  password on `/users`** — the spec's "revoking sessions on an admin
+  reset", which matters most for a leaked shared login. Not a self-change,
+  not logout. Every increment goes through one function,
+  `revoke_sessions(user)`, and the admin-set case is one constant,
+  `ADMIN_SET_PASSWORD_REVOKES_SESSIONS = True`, beside it — the owner has
+  not answered yet, so the PR says this is provisional.
 - **Login**: a wrong password is the ordinary generic 401 whatever the
   status. After a correct one: `pending` → 403 `"Your account is waiting
   for the admin's approval."`; `disabled` → 403 `"This account is
@@ -264,7 +269,19 @@ so reparent, never renumber.
 - `docs/to-do-next.md` item 2's sentence "sessions are a flat 30 days with
   no revocation and there is no password reset" goes when P4a lands.
 
-## Questions
+## Decided (media-00, 2026-11-13)
+
+- **Two PRs**, P4a first; P4b waits for P3's ceiling. P4a starts once
+  P6's backend is in review, in parallel with P3 — media-fd is told which
+  functions P4a changes before it starts; whoever lands second rebases.
+- **P4 owns `users.status`** — it is lifecycle; P3 does not add it.
+- Built to these defaults, owner's answers pending: minimum password
+  length 8, no composition rules; shared accounts may be disabled; the
+  rate limits above; `disabled` travels on the Users tab; an admin
+  set-password revokes sessions (above). Modals and the approval form from
+  existing components.
+
+## Questions as asked
 
 1. **For media-fd:** does P3 add `users.status`, or is it P4's? "after
    media-fd's role/status pieces land" reads as P3's. I build on whichever
