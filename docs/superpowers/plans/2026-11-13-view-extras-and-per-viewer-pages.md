@@ -1,7 +1,9 @@
 # P7 — the rest of `view.extras`, and the per-viewer pages
 
-Its own branch, `feat/per-viewer-pages`, cut off dev **after P3g merges**
-(see `docs/to-do-next.md`). Spec:
+Its own branch, `feat/per-viewer-pages`, cut off dev **after P3g merges**,
+and **merged into dev last**: after P3g, P3h, P4b and P5 (#354). The
+order is #353 → P3f → P3g → P3h → P4b → #354 → P7 (see
+`docs/to-do-next.md`). Spec:
 `docs/superpowers/specs/2026-11-03-account-system-design.md`, "Fixed and
 adjustable settings"; `docs/viewers.md`, which is the authority —
 "At a glance", "Track and Insights pages", "Guest", "Shared" and every
@@ -88,6 +90,15 @@ design system and called **provisional UI** in the PR body — see question 1.
 - **Settings** is `self.list`; its password card asks `self.password`.
 
 ## Parts, in build order, on one branch
+
+**P5 edits the same files first.** `MediaCard.jsx`, `useStatusToggle`,
+the library configs and the franchise and collection libraries' personal
+stripping all change on `feat/personal-data` before Parts A and C touch
+them. So before building A or C, **merge `feat/personal-data` in
+sideways** rather than building on those files from dev and conflicting
+later. The PR's base stays `dev`, and it stays a draft until #354 lands;
+then merge `dev` in again so the diff shows only P7. If P5 changes after
+it was merged in, merge it again before relying on it.
 
 One branch and one draft PR, opened early so CI runs on every push. Each
 part is its own commit(s) with its own docs, and leaves the app working.
@@ -255,15 +266,15 @@ One page, choosing its sections by permission, not by role name:
 
 - **Summary**: `GET /api/dashboard/summary` → `{pending_registrations,
   open_requests}`, gated `manage.requests` (super and admin both hold it).
-  The pending count needs P4b's `pending` status; it counts zero if P4b
-  has not landed, and the PR says which.
+  The pending count is accounts with P4b's `pending` status, which is on
+  dev before P7 merges.
 - **Recently added**: `GET /api/media/recent?limit=` over the `media`
   table, `created_at desc`, visibility-filtered through the viewer's object
   set, returning card data. Check at execution that `media` carries
   `created_at`; if it does not, merge the per-type lists client-side
   instead and say so.
-- **The admin's page** needs P3h: before it, the admin is root and passes
-  every test above. Recent pipeline runs come from the Data History
+- **The admin's page** stands on P3h, which is on dev before P7 merges:
+  a root admin would pass every test above. Recent pipeline runs come from the Data History
   endpoint (`manage.pipelines`); announcement editing uses the existing
   announcement components, asking P3h's `manage.announcements`.
 
@@ -345,7 +356,8 @@ Every refusal test makes its set non-empty and asserts the mirror.
 
 ## Questions for review
 
-1. **Owner: build the new surfaces plain now, refine later?** That covers
+1. **Open, with the owner: build the new surfaces plain now, refine
+   later?** That covers
    the catalogue versions of Seasonal, Statistics and the Random Picker,
    the Future Releases markers, the dashboard summary, library links and
    recently added, the admin's dashboard, and Settings' place in the
@@ -353,12 +365,11 @@ Every refusal test makes its set non-empty and asserts the mirror.
    assumes the same for P7, so each would be built from existing
    components, marked provisional UI, and redesigned afterwards. If the
    owner wants to design any of them first, that part waits.
-2. **Manager: merge order.** The admin's dashboard (Part E) is only
-   testable once P3h has made the admin non-root, and the pending count
-   once P4b has `pending`. This plan proposes that P7 merges after P3h and
-   P4b. If it has to land straight after P3g, the admin's page moves to a
-   follow-up and the summary counts zero pending until P4b.
-3. **Manager: shared files with P5.** Part A edits `MediaCard.jsx`,
-   `useStatusToggle` and the library configs, and Part C edits the
-   franchise and collection libraries' personal stripping, which P5 Part A
-   also touches. Whoever lands second rebases; the manager relays.
+2. **Settled (manager): merge order.** P7 merges after P3g, P3h, P4b and
+   #354, so the admin's page (Part E) is built against a non-root admin
+   and the summary's pending count against P4b's `pending`.
+3. **Settled (manager): shared files with P5.** P5 goes first, and P7
+   merges `feat/personal-data` in sideways before Parts A and C (see
+   "Parts"). Whether P5 already moves any status or progress write to
+   `/api/me` is being checked with P5's builder, and Part A is matched to
+   the answer before this plan merges.

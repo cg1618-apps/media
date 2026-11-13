@@ -54,7 +54,7 @@ and what comes next, so read that before anything else.
 | `feat/admin-not-root` | P3h: admin stops being root | [plans/2026-11-13-admin-not-root.md](superpowers/plans/2026-11-13-admin-not-root.md) | P3g, because every permission and switch it relies on has to exist |
 | `feat/invites-and-registration` | P4b: invite links and registration | [plans/2026-11-13-account-lifecycle.md](superpowers/plans/2026-11-13-account-lifecycle.md), "P4b" | P3f, which creates the shared accounts P4b would otherwise create too |
 | `feat/personal-data` (#354) | P5: the personal data, Parts A → C → D → E → B | the PR body, and `docs/superpowers/plans/2026-11-13-personal-data.md` on the branch | Part B only: P3g's switch columns |
-| not cut yet (`feat/per-viewer-pages`) | The rest of `view.extras` and the per-viewer pages (P7) | [plans/2026-11-13-view-extras-and-per-viewer-pages.md](superpowers/plans/2026-11-13-view-extras-and-per-viewer-pages.md) | P3g; its "Questions for review" 2 proposes P3h and P4b too |
+| not cut yet (`feat/per-viewer-pages`) | The rest of `view.extras` and the per-viewer pages (P7) | [plans/2026-11-13-view-extras-and-per-viewer-pages.md](superpowers/plans/2026-11-13-view-extras-and-per-viewer-pages.md) | P3g to cut it; merges last, after P3h, P4b and #354, merging `feat/personal-data` in sideways first |
 
 P3a (#350), P3e (#351), P4a (#352) and P6, requests and reports (#349),
 are on `dev`.
