@@ -178,6 +178,7 @@ from the company development database.
   | key | lowest mode | description |
   | --- | --- | --- |
   | `nsfw` | `normal` | 不適合公開場合觀看 |
+  | `ecchi` | `normal` | 輕微擦邊 |
   | `erotica` | `borderline` | 擦邊肉番 |
   | `hentai` | `unrestricted` | 成人動畫 |
   | `h-game` | `unrestricted` | 成人遊戲 |
