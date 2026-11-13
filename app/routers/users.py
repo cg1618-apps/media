@@ -18,7 +18,7 @@ import logging
 from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -32,7 +32,10 @@ from app.models.system import (
 from app.services.domain.account_codes import issue_reset_link, reset_refusal
 from app.services.domain.accounts import (
     ADMIN_SET_PASSWORD_REVOKES_SESSIONS,
+    KEEP_OWN_SESSION_ON_ADMIN_SET_PASSWORD,
+    login_deadline,
     revoke_sessions,
+    set_login_cookie,
 )
 from app.services.rbac import cache
 from app.services.rbac.permissions import PERM_ADMIN_AUTHZ
@@ -372,6 +375,7 @@ def replace_access_modes(
 def update_user(
     user_id: UUID,
     payload: schemas.ManagedUserUpdate,
+    response: Response,
     db: Session = Depends(get_db),
     admin: Viewer = Depends(require_admin_authz),
 ):
@@ -382,7 +386,12 @@ def update_user(
     (ADMIN_SET_PASSWORD_REVOKES_SESSIONS) and so does disabling it; enabling
     does not, because the sessions already ended when it was disabled. A
     pending registration is approved or declined, not edited here (409).
+
+    When the account is the caller's own, the caller's browser is given a
+    fresh cookie at the new counter and the old deadline
+    (KEEP_OWN_SESSION_ON_ADMIN_SET_PASSWORD), so it alone stays signed in.
     """
+    own_sessions_revoked = False
     user = _get_or_404(db, user_id)
 
     if user.status == USER_STATUS_PENDING:
@@ -409,6 +418,7 @@ def update_user(
         user.hashed_password = get_password_hash(payload.password)
         if ADMIN_SET_PASSWORD_REVOKES_SESSIONS:
             revoke_sessions(user)
+            own_sessions_revoked = admin.user_id == user.id
 
     if payload.status is not None and payload.status != user.status:
         if payload.status == USER_STATUS_DISABLED:
@@ -430,6 +440,10 @@ def update_user(
     db.commit()
     db.refresh(user)
     cache.bump()
+    if own_sessions_revoked and KEEP_OWN_SESSION_ON_ADMIN_SET_PASSWORD:
+        set_login_cookie(
+            response, db, user, expires_at=login_deadline(admin.token_payload)
+        )
     return _to_response(user, db)
 
 

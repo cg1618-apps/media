@@ -26,7 +26,7 @@ from app.services.domain.account_codes import (
     reset_target,
     spend_code,
 )
-from app.services.domain.accounts import revoke_sessions
+from app.services.domain.accounts import revoke_sessions, set_login_cookie
 from app.services.rbac import cache
 from app.services.rbac.gated_types import visible_gated_types
 from app.services.rbac.modes import (
@@ -43,7 +43,6 @@ from app.services.rbac.resolver import (
     resolve_viewer,
 )
 from app.services.security import (
-    ACCESS_TOKEN_EXPIRE_MINUTES,
     create_access_token,
     get_password_hash,
     validate_new_password,
@@ -142,40 +141,9 @@ def login_for_access_token(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=refusal)
     rate_limit.reset(user_key)
 
-    # 3. Create the JWT token payload
-    #
-    # `mode` is decorative, like `role`: resolve_viewer does not read it. A
-    # session is in the account's default mode, read from the database on
-    # every request, unless the access_mode cookie holds a live override.
-    #
-    # `sv` is NOT decorative: resolve_viewer refuses the token once it stops
-    # matching users.session_version (resolver.session_is_current).
-    token_data = {
-        "sub": user.username,
-        "role": user.role,
-        "mode": str(default_mode_id(db, user) or ""),
-        "sv": user.session_version or 0,
-    }
-    access_token = create_access_token(data=token_data)
-
-    # 4. Set the cookie
-    # httponly=True prevents JavaScript (document.cookie) from reading the token
-    # max_age is in seconds (ACCESS_TOKEN_EXPIRE_MINUTES * 60 seconds = X hours)
-    response.set_cookie(
-        key="access_token",
-        value=f"Bearer {access_token}",
-        httponly=True,
-        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        samesite="lax",
-        # Follows APP_ENV, not the request scheme. Behind a tunnel the scheme
-        # is only trustworthy if proxy headers are configured correctly, and a
-        # missing header would silently produce an insecure cookie over HTTPS -
-        # the failure this flag exists to prevent. Django's
-        # SESSION_COOKIE_SECURE and Rails' config.force_ssl are per-environment
-        # settings for the same reason. Read per request, not at import, so a
-        # test can move the setting.
-        secure=not settings.is_development,
-    )
+    # 3. Mint the token and set the cookie - claims and flags live in
+    # set_login_cookie, shared with update_user's reissue.
+    set_login_cookie(response, db, user)
     # A new login starts in the default mode, whoever was signed in before.
     _clear_mode_override(response)
 

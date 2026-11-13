@@ -124,7 +124,7 @@ at `/users`.
 | Algorithm | `HS256` (`settings.algorithm`) |
 | Secret | `JWT_SECRET_KEY` (`settings.jwt_secret_key`) |
 | Claims | `sub` = username, `role` = role name, `mode` = the default mode at login, `sv` = `users.session_version` at login, `exp` = now + expiry |
-| Expiry | `ACCESS_TOKEN_EXPIRE_MINUTES` = 43200 (**30 days**, flat), also used as the cookie `max_age`. A machine's `.env` overrides the default, so the effective value is per-machine. Nothing reissues the login token, so a session never outlives the month it was minted for; `create_access_token`'s docstring requires any future reissue to pass the original deadline |
+| Expiry | `ACCESS_TOKEN_EXPIRE_MINUTES` = 43200 (**30 days**, flat), also used as the cookie `max_age`. A machine's `.env` overrides the default, so the effective value is per-machine. There is no refresh. The one reissue, after the admin sets its own password on `/users` (see [Sessions and their revocation](#sessions-and-their-revocation)), keeps the original deadline, so a session never outlives the month it was first minted for |
 
 `sv` is the one claim besides `sub` that the server reads - see [Sessions and their revocation](#sessions-and-their-revocation).
 
@@ -140,7 +140,9 @@ The `role` claim is **vestigial**. Nothing reads it for authorization: the serve
 | `HttpOnly` | true | `document.cookie` cannot read it; XSS cannot exfiltrate the token |
 | `SameSite` | `Lax` | Sent on same-site navigation and fetches; not on cross-site POSTs |
 | `Secure` | `not settings.is_development` | Follows `APP_ENV`, not the request scheme: behind a tunnel the scheme is only trustworthy when proxy headers are configured correctly, and a missing header would produce an insecure cookie over HTTPS silently - the failure the flag exists to prevent. Django's `SESSION_COOKIE_SECURE` and Rails' `config.force_ssl` are per-environment settings for the same reason. Read per request rather than at import, so a test can move it. |
-| `max_age` | `ACCESS_TOKEN_EXPIRE_MINUTES` × 60 | Matches the JWT expiry |
+| `max_age` | `ACCESS_TOKEN_EXPIRE_MINUTES` × 60, or on a reissue the seconds left until the original deadline | Matches the JWT expiry |
+
+Every login cookie is minted by `set_login_cookie()` in `app/services/domain/accounts.py`, so the claims and the flags above are written in one place: by login, and by `update_user`'s reissue.
 
 The browser sends it automatically; the SPA always fetches with `credentials: "include"`.
 
@@ -192,7 +194,7 @@ Incrementing `session_version` ends every session the account holds, at once, wi
 | --- | --- |
 | A reset link spent | yes |
 | The admin disabling the account on `/users` | yes |
-| The admin setting the account's password on `/users` | yes - `ADMIN_SET_PASSWORD_REVOKES_SESSIONS = True`, the owner's decision; it matters most for a leaked shared login. That includes the admin setting its **own** password there, which signs the admin out too |
+| The admin setting the account's password on `/users` | yes - `ADMIN_SET_PASSWORD_REVOKES_SESSIONS = True`, the owner's decision; it matters most for a leaked shared login. When the account is the admin's **own**, every session still ends, but the browser that made the change gets a fresh login cookie at the new counter, so it stays signed in and every other device is signed out (`KEEP_OWN_SESSION_ON_ADMIN_SET_PASSWORD`, **provisional pending the owner**; `False` restores the plain sign-out). `/users` is the admin's only way to change its own password, because the root role does not hold `self.password`. The fresh cookie keeps the **original deadline**, so a password change never extends a login |
 | Enabling a disabled account | no - its sessions ended when it was disabled, and enabling does not revive them |
 | Changing your own password (`PUT /api/account/password`) | no - the person changing it is the one holding the session |
 | Logging out | no - it clears one browser's cookie |
