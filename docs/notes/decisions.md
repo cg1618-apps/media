@@ -4359,6 +4359,16 @@ groups. The registry marks them (`NoteSection.mixed`); revision
   from a catalogue row and would show it to everyone; dropping it is the only
   safe reading. The catalogue survives, so the revision is not marked
   irreversible.
+- **Deleting a catalogue row re-homes members' rows under it** (decided by
+  the owner). In 地理 Geography a member may nest its own rows under a
+  catalogue region, and the `parent_id` CASCADE would delete them with the
+  region: a catalogue edit destroying data that is not the catalogue's. So the
+  delete route moves every member's row under the deleted subtree to the
+  section's top level first - with its own subtree, after that member's
+  top-level rows, keeping their relative order - and the CASCADE then takes
+  only catalogue rows. It lives in the route, not the foreign key, because an
+  ON DELETE rule cannot tell a personal child from a catalogue one; catalogue
+  children still go with their parent, as everywhere else.
 
 ### Account lifecycle, second half: invite links and registration (2026-11-13)
 

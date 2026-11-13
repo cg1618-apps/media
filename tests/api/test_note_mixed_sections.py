@@ -344,3 +344,78 @@ def test_marks_and_the_ng_reset_reach_a_personal_row(db, accounts, game):
     by_id = {n["system_id"]: n for n in _listed(a.as_("alice"), game)}
     assert by_id[item["system_id"]]["status"] == "not collected"
     assert by_id[enemy["system_id"]]["status"] == "to beat"
+
+
+# ---------------------------------------------------------------------------
+# Deleting a catalogue parent re-homes members' rows under it
+# ---------------------------------------------------------------------------
+
+
+def _by_title(rows):
+    return {n["title"]: n for n in rows}
+
+
+def test_deleting_a_catalogue_parent_moves_members_rows_under_it_to_the_top(
+    db, accounts, admin_user, game
+):
+    """
+    A member's rows nested anywhere under a deleted catalogue row survive at
+    the section's top level, after the member's own top-level rows and in the
+    order they were listed in; a member's row nested under its OWN row keeps
+    that parent. The members' rows are what make this bite: without them the
+    delete would pass by deleting nothing personal.
+    """
+    a = accounts
+    region = _catalogue(db, admin_user, game, "geography", title="Limgrave", sort_index=0)
+    sub = _catalogue(
+        db, admin_user, game, "geography", title="Weeping", sort_index=0,
+        parent_id=region.system_id,
+    )
+    alice = a.as_("alice")
+    r = _post(alice, game, "geography", title="Top")
+    assert r.status_code == 201, r.text
+    r = _post(alice, game, "geography", title="My cave", parent_id=str(region.system_id))
+    assert r.status_code == 201, r.text
+    cave = r.json()["system_id"]
+    r = _post(alice, game, "geography", title="Cave room", parent_id=cave)
+    assert r.status_code == 201, r.text
+    r = _post(alice, game, "geography", title="Deep cave", parent_id=str(sub.system_id))
+    assert r.status_code == 201, r.text
+    r = _post(a.as_("bob"), game, "geography", title="Bob's cave", parent_id=str(region.system_id))
+    assert r.status_code == 201, r.text
+
+    assert a.as_("carol").delete(f"/api/notes/{region.system_id}").status_code == 204
+
+    # as_ logs the one test client in as that account, so log back in.
+    alice = a.as_("alice")
+    rows = _by_title(_listed(alice, game, "geography"))
+    assert "Limgrave" not in rows and "Weeping" not in rows
+    tops = [n["title"] for n in _listed(alice, game, "geography") if n["parent_id"] is None]
+    assert tops == ["Top", "My cave", "Deep cave"]
+    assert rows["Cave room"]["parent_id"] == cave
+    bob_rows = _by_title(_listed(a.as_("bob"), game, "geography"))
+    assert bob_rows["Bob's cave"]["parent_id"] is None
+
+
+def test_deleting_a_catalogue_parent_still_deletes_its_catalogue_children(
+    db, accounts, admin_user, game
+):
+    """The mirror: catalogue rows under a deleted catalogue row go with it, as
+    before - only members' rows are re-homed."""
+    a = accounts
+    region = _catalogue(db, admin_user, game, "geography", title="Limgrave", sort_index=0)
+    _catalogue(
+        db, admin_user, game, "geography", title="Weeping", sort_index=0,
+        parent_id=region.system_id,
+    )
+    other = _catalogue(db, admin_user, game, "geography", title="Caelid", sort_index=1)
+
+    assert a.as_("carol").delete(f"/api/notes/{region.system_id}").status_code == 204
+
+    db.expire_all()
+    left = {
+        n.title
+        for n in db.query(models.Note).filter(models.Note.section == "geography").all()
+    }
+    assert left == {"Caelid"}
+    assert db.get(models.Note, other.system_id) is not None

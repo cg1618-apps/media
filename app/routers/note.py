@@ -858,6 +858,80 @@ def reset_for_new_game(
     return {"cleared": cleared}
 
 
+def _rehome_personal_descendants(db: Session, db_note: models.Note) -> None:
+    """
+    Move every member's row nested under a catalogue row being deleted to the
+    section's top level, so the parent_id CASCADE takes only catalogue rows.
+
+    The deleted row's catalogue subtree is walked in listing order (catalogue
+    children first, then by sort_index). A personal row met under it is
+    re-homed with its own subtree intact - a member's row nested under its own
+    row keeps that parent - and is not descended into. Each author's re-homed
+    rows land after that author's existing top-level rows in the section, in
+    the order they were met, so they keep their order relative to each other.
+
+    The database cannot do this: an ON DELETE rule cannot tell a personal
+    child from a catalogue one. A personal row being deleted takes its own
+    subtree, which is all that author's, so nothing is re-homed then.
+    """
+    if db_note.personal:
+        return
+    section = section_by_key(db_note.section or "")
+    if section is None or not section.mixed:
+        return
+
+    def children(parent_id):
+        return (
+            db.query(models.Note)
+            .filter(models.Note.parent_id == parent_id)
+            .order_by(
+                models.Note.personal,
+                models.Note.sort_index.is_(None),
+                models.Note.sort_index,
+                models.Note.created_at,
+            )
+            .all()
+        )
+
+    rehomed: list[models.Note] = []
+    stack = [db_note.system_id]
+    while stack:
+        parent_id = stack.pop(0)
+        catalogue_children = []
+        for child in children(parent_id):
+            if child.personal:
+                rehomed.append(child)
+            else:
+                catalogue_children.append(child.system_id)
+        # Depth-first, in listing order: the catalogue children's subtrees are
+        # visited before this level's siblings further along.
+        stack[0:0] = catalogue_children
+    if not rehomed:
+        return
+
+    next_index: dict = {}
+    for row in rehomed:
+        if row.author_id not in next_index:
+            top = (
+                db.query(models.Note.sort_index)
+                .filter(
+                    *_owner_filters(db_note.owner_type, db_note.owner_id),
+                    models.Note.section == db_note.section,
+                    models.Note.parent_id.is_(None),
+                    models.Note.personal.is_(True),
+                    models.Note.author_id == row.author_id,
+                )
+                .all()
+            )
+            next_index[row.author_id] = (
+                max((s for (s,) in top if s is not None), default=-1) + 1
+            )
+        row.parent_id = None
+        row.sort_index = next_index[row.author_id]
+        next_index[row.author_id] += 1
+    db.flush()
+
+
 @router.delete("/{note_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_note(
     note_id: str,
@@ -867,6 +941,11 @@ def delete_note(
     db_note = _get_or_404(db, note_id)
     _authorize_edit(viewer, db_note)
     _require_visible_owner(db, viewer, db_note.owner_id)
+
+    # Members' rows nested under a catalogue row outlive it: they move to the
+    # section's top level before the parent_id CASCADE takes the catalogue
+    # subtree.
+    _rehome_personal_descendants(db, db_note)
 
     # Stage the deleted record log before actually deleting
     log_deleted_record(db, db_note, "Note")

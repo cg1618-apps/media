@@ -17,7 +17,7 @@ The table lives in `app/models/note.py` (class `Note`, `__tablename__ = "note"`)
 | `collection_id` / `franchise_id` / `series_id` | UUID, indexed | FK to the matching tier table, ON DELETE CASCADE. Set when the owner is a grouping tier. |
 | `author_id` | UUID, indexed, **NOT NULL** | FK `users.id` ON DELETE CASCADE. Who wrote the row — always set, whatever the section's scope, because a catalogue note has an author too and that is the only provenance the catalogue has. Never read from the payload (`NoteBase` has no such field): the router stamps whoever is asking. |
 | `section` | String, indexed | Key of an entry in `NOTE_SECTIONS` (`app/utils/note_sections.py`). |
-| `parent_id` | UUID, indexed | FK `note.system_id` ON DELETE CASCADE. The row this one nests under, for a section whose registry entry sets `hierarchical`. Unbounded depth. CASCADE rather than SET NULL: promoting every child to a root on a delete reads as a flat pile rather than as a loss, which is harder to notice. Nothing at the database level keeps a child in its parent's section — a CHECK cannot read another row — so `_validate_parent` in `app/routers/note.py` owns that, along with refusing a cycle at any depth. |
+| `parent_id` | UUID, indexed | FK `note.system_id` ON DELETE CASCADE. The row this one nests under, for a section whose registry entry sets `hierarchical`. Unbounded depth. CASCADE rather than SET NULL: promoting every child to a root on a delete reads as a flat pile rather than as a loss, which is harder to notice. In a [mixed section](#mixed-sections) the delete route re-homes members' rows before the CASCADE runs, so it takes only catalogue rows. Nothing at the database level keeps a child in its parent's section — a CHECK cannot read another row — so `_validate_parent` in `app/routers/note.py` owns that, along with refusing a cycle at any depth. |
 | `locator` | String | "Where in the work": episode, chapter, scene, timestamp, or source. One free-text column; the section supplies the label and whether it is required. Renamed from `episode` by migration `alembic/versions/l1o2c3a4t5o6_note_episode_to_locator.py`. |
 | `kind` | String | First dropdown, only where the section declares `kinds` (highlight type, OP/ED change type) or a `kind_category` (the free-text Song Type of an OP or ED). On `resources` it is the row's optional free-text Group (`kind_is_group`). On `music_status` it names the song list the row is about. |
 | `status` | String | The column a status-shaped value is read into. On the sections whose status is **personal** — the song lists, `music_status`, and the structured `collected`, `beaten`, `completion` and mods `status` fields — it is never stored: it stays null on the row, and every read fills it with the viewer's own value from `note_mark` (see [Personal values on catalogue rows](#personal-values-on-catalogue-rows-note-marks)). Kept separate from `kind` because one row needs both (which cut it is vs. how far my tracking has got). |
@@ -249,8 +249,13 @@ under a catalogue row or under the member's own, and comes after the catalogue
 children of the same parent; a catalogue row may not sit under a personal one
 (422 "A catalogue note cannot nest under a personal note."), and another
 account's personal row is a parent that is not there (422 "Parent note not
-found."). Deleting a catalogue row takes its whole subtree, members' personal
-rows under it included (the `parent_id` CASCADE).
+found."). Deleting a catalogue row takes its catalogue subtree (the
+`parent_id` CASCADE), but a member's personal row anywhere under it survives:
+`_rehome_personal_descendants` in `app/routers/note.py` moves it to the
+section's top level first, with its own subtree, after that member's existing
+top-level rows and in the order the rows were listed. A member's row under its
+own row keeps that parent. Deleting a personal row takes its own subtree, which
+is all the author's.
 
 ### Section registry
 
