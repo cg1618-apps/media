@@ -70,15 +70,15 @@ much of the collection you see, among the modes your account holds.
 Today the admin creates your account and gives you the username and
 password.
 
-*Not available yet — registering with an invite code:*
+*Not available yet — registering with an invite link:*
 
-1. Ask the admin for an **invite code**. It works once, and only for
+1. Ask the admin for an **invite link**. It works once, and only for
    24 hours.
-2. Open **Register**, enter the code, choose a username and a password.
+2. Open the link, then choose a username and a password.
 3. Your account then **waits for the admin's approval**; you cannot sign in
    yet.
 4. Once approved, sign in as usual. If the admin declines it, the account is
-   removed and the code cannot be used again — ask for a new one.
+   removed and the link cannot be used again — ask for a new one.
 
 **Choosing a username** *(when registering opens)*
 
@@ -141,7 +141,7 @@ out everywhere".
 
 *Not available yet:*
 
-- **Invite someone** — make an invite code and hand it over. Pending
+- **Invite someone** — make an invite link and hand it over. Pending
   registrations wait on `/system`; approving sets the role (`user` by
   default) and the modes (ceiling and default `normal`). Declining removes
   the account.

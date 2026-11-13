@@ -116,10 +116,18 @@ from the company development database.
   in, its sessions end, its data is kept, and `/users` reverses it.
 - Accounts created on `/users` are `active` at once.
 
-### Self-registration by invite code
+### Self-registration by invite link
 
-- The admin generates a single-use invite code (24 h) and hands it over; the
-  invitee submits code, username and password to a public register endpoint;
+- **The invite is a link, not a code to type.** The admin generates a
+  single-use invite (24 h) and is shown **only a link**,
+  `https://media.cg1618.com/register?code=…`, once, with a copy button and
+  the expiry. The code inside it is what is stored hashed and spent.
+- **There is no public way to the register page.** Nothing links to it —
+  not the sign-in page, not the menu — so nobody reaches it only to find
+  they cannot register. Opened without a valid code, it shows one generic
+  message and no form.
+- The invitee opens the link and submits username and password, with the
+  code carried from the link, to a public register endpoint;
   the account is created `pending` and cannot log in. An approval panel on
   `/system` lists pending requests.
 - Consuming the code and creating the account happen in one transaction.
@@ -555,8 +563,7 @@ The logged-out visitor.
   existed — not a decision.
 - **Not:** Random Picker, Plan, Completions, quotes, memes, `/resources`,
   personal data, requests.
-- **The sign-in page links "Register with an invite code"** beside "Log
-  in"; without a code it leads nowhere.
+- **No register link** on the sign-in page: an invite arrives as a link.
 - Its mode is `safe`, always, fixed.
 
 ### Requests and reports
