@@ -56,8 +56,16 @@ def pre_revision(db_session, client):
     return db_session
 
 
+# Granted by this revision and retired by a later one (h1i2ghlights3), which
+# deletes its grants. The revision's list is frozen, so it keeps naming it.
+RETIRED_LATER = {"view.personal"}
+
+
 def test_the_names_match_the_code(revision):
-    assert set(revision.VIEW_PERMISSIONS) == VIEW_ALL
+    """Every view.* key the code has was granted here; the only extra name
+    is the one a later revision retired."""
+    assert set(revision.VIEW_PERMISSIONS) == VIEW_ALL | RETIRED_LATER
+    assert not RETIRED_LATER & VIEW_ALL
 
 
 def test_upgrade_grants_user_and_not_guest(revision, pre_revision):
