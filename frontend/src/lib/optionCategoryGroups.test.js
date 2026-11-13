@@ -1,22 +1,37 @@
 import { describe, it, expect, afterEach } from "vitest";
 
-import { TAG_CATEGORIES, applyConstants } from "../config/fieldOptions";
-import { categoriesForSubTab, isTagCategory } from "./optionCategoryGroups";
+import {
+  NOTE_SUGGESTION_CATEGORIES,
+  TAG_CATEGORIES,
+  applyConstants,
+} from "../config/fieldOptions";
+import {
+  categoriesForSubTab,
+  isNoteSuggestionCategory,
+  isTagCategory,
+} from "./optionCategoryGroups";
 import { OPTION_SUB_TABS } from "../components/forms/OptionSubTabBar";
 
-// applyConstants mutates TAG_CATEGORIES in place, so restore its real
-// contents after any test that overwrites them.
+// applyConstants mutates TAG_CATEGORIES and NOTE_SUGGESTION_CATEGORIES in
+// place, so restore their real contents after any test that overwrites them.
 const ORIGINAL_TAG_CATEGORIES = [...TAG_CATEGORIES];
+const ORIGINAL_NOTE_SUGGESTION_CATEGORIES = [...NOTE_SUGGESTION_CATEGORIES];
 afterEach(() => {
-  applyConstants({ tag_categories: ORIGINAL_TAG_CATEGORIES });
+  applyConstants({
+    tag_categories: ORIGINAL_TAG_CATEGORIES,
+    note_suggestion_categories: ORIGINAL_NOTE_SUGGESTION_CATEGORIES,
+  });
 });
 
 const ALL = [
+  "Character Group",
   "Comic Era",
   "Genre Main",
   "Genre Sub",
+  "Geography Group",
   "Label",
   "Official Source",
+  "Song Type",
 ];
 
 describe("isTagCategory", () => {
@@ -37,13 +52,31 @@ describe("isTagCategory", () => {
   });
 });
 
+describe("isNoteSuggestionCategory", () => {
+  it("recognises the note sections' field suggestions, before /api/constants answers", () => {
+    for (const c of ["Character Group", "Collectible Type", "Item Type", "Geography Group"]) {
+      expect(isNoteSuggestionCategory(c)).toBe(true);
+    }
+    // A section-level note suggestion stays under Options.
+    expect(isNoteSuggestionCategory("Song Type")).toBe(false);
+  });
+
+  it("follows /api/constants rather than a copy of the list", () => {
+    applyConstants({ note_suggestion_categories: ["Song Type"] });
+    expect(isNoteSuggestionCategory("Song Type")).toBe(true);
+    expect(isNoteSuggestionCategory("Character Group")).toBe(false);
+  });
+});
+
 describe("categoriesForSubTab", () => {
-  it("splits the categories across the two pickers with nothing lost", () => {
+  it("splits the categories across the three pickers with nothing lost", () => {
     const tags = categoriesForSubTab(ALL, "tags");
     const options = categoriesForSubTab(ALL, "options");
+    const notes = categoriesForSubTab(ALL, "notes");
     expect(tags).toEqual(["Genre Main", "Genre Sub", "Label"]);
-    expect(options).toEqual(["Comic Era", "Official Source"]);
-    expect([...tags, ...options].sort()).toEqual([...ALL].sort());
+    expect(options).toEqual(["Comic Era", "Official Source", "Song Type"]);
+    expect(notes).toEqual(["Character Group", "Geography Group"]);
+    expect([...tags, ...options, ...notes].sort()).toEqual([...ALL].sort());
   });
 
   it("offers no categories on a sub-tab that has no category picker", () => {
@@ -53,6 +86,14 @@ describe("categoriesForSubTab", () => {
 });
 
 describe("OPTION_SUB_TABS", () => {
+  it("offers Options, Tags and Note Suggestions", () => {
+    expect(OPTION_SUB_TABS.map((t) => [t.key, t.label])).toEqual([
+      ["options", "Options"],
+      ["tags", "Tags"],
+      ["notes", "Note Suggestions"],
+    ]);
+  });
+
   it("no longer offers Studios under System Option", () => {
     expect(OPTION_SUB_TABS.map((t) => t.key)).not.toContain("studios");
   });
