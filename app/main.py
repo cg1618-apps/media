@@ -31,7 +31,6 @@ from app.routers import (
     character_identity,
     collection,
     comic,
-    community,
     constants,
     content_labels,
     covers,
@@ -57,10 +56,10 @@ from app.routers import (
     options,
     person,
     plan_next,
-    profile,
     publisher,
     quote,
     random_picker_defaults,
+    requests,
     resources,
     roles,
     search,
@@ -322,10 +321,9 @@ app.include_router(roles.router)
 app.include_router(access_modes.router)
 app.include_router(users.router)
 app.include_router(account.router)
-app.include_router(profile.router)
-app.include_router(community.router)
 app.include_router(me_list.router)
 app.include_router(content_labels.router)
+app.include_router(requests.router)
 
 
 # ==========================================

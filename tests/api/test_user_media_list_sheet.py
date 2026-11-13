@@ -49,7 +49,6 @@ def test_the_backup_row_names_its_user_and_its_entry(db):
         username="kana",
         hashed_password="!",
         role_id=role.system_id,
-        list_is_public=False,
     )
     anime = models.Anime(anime_name_cn="葬送的芙莉蓮")
     db.add_all([user, anime])
@@ -107,9 +106,9 @@ UML_HEADERS = [
 def two_users(db):
     role = db.query(models.Role).filter(models.Role.name == "admin").one()
     a = models.User(username="cg1618", hashed_password="!",
-                    role_id=role.system_id, list_is_public=False)
+                    role_id=role.system_id)
     b = models.User(username="kana", hashed_password="!",
-                    role_id=role.system_id, list_is_public=True)
+                    role_id=role.system_id)
     db.add_all([a, b])
     db.flush()
     return a, b

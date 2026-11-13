@@ -6,9 +6,6 @@ Separate from routers/users.py, which is admin-only at the router level and
 acts on other people. Everything here acts on the caller and only the caller:
 no path takes a user id, and the update payload carries no identity, so there
 is no shape of request that could point one of these at another account.
-
-List visibility lives here rather than on the admin Users page because it is
-the account holder's decision. An admin can see the flag; they do not set it.
 """
 
 import logging
@@ -61,7 +58,6 @@ def _to_response(user: models.User) -> schemas.AccountSettingsResponse:
     return schemas.AccountSettingsResponse(
         username=user.username,
         role_name=user.role_ref.name if user.role_ref else "guest",
-        list_is_public=bool(user.list_is_public),
     )
 
 
@@ -74,31 +70,6 @@ def get_settings(
     db: Session = Depends(get_db), viewer: Viewer = Depends(get_viewer)
 ):
     return _to_response(_current_user(db, viewer))
-
-
-@router.patch(
-    "/settings",
-    response_model=schemas.AccountSettingsResponse,
-    summary="Update My Account Settings",
-)
-def update_settings(
-    payload: schemas.AccountSettingsUpdate,
-    db: Session = Depends(get_db),
-    viewer: Viewer = Depends(get_viewer),
-):
-    """
-    Making a list public exposes every row on it at /user/<username>, subject
-    to the *reader's* own media-type and content-label permissions. It does not
-    expose personal notes: those stay behind the personal_notes field group.
-    """
-    user = _current_user(db, viewer)
-    user.list_is_public = payload.list_is_public
-    db.commit()
-    db.refresh(user)
-    logger.info(
-        "%s set list_is_public=%s", user.username, user.list_is_public
-    )
-    return _to_response(user)
 
 
 @router.put("/password", summary="Change My Password")

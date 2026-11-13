@@ -265,3 +265,86 @@ describe("account lifecycle on /users", () => {
     ).toHaveAccessibleDescription(/signs this account out everywhere/);
   });
 });
+
+describe("the open request limit", () => {
+  // One account per role the field cares about: a user (limited), a super
+  // (never limited) and the root admin (files nothing). The super and admin
+  // cases are the refusals; the user case is the mirror that proves the field
+  // exists at all, so its absence elsewhere is the role's doing.
+  const LIMIT_ROLES = [
+    { system_id: "r-user", name: "user", label: "User", is_root: false },
+    { system_id: "r-super", name: "super", label: "Super", is_root: false },
+    { system_id: "r-admin", name: "admin", label: "Admin", is_root: true },
+  ];
+  const account = (id, username, roleId, limit) => ({
+    id,
+    username,
+    role_id: roleId,
+    access_modes: [],
+    open_request_limit: limit,
+  });
+  const LIMIT_USERS = [
+    account(1, "ursula", "r-user", 15),
+    account(2, "sam", "r-super", null),
+    account(3, "root", "r-admin", null),
+  ];
+
+  beforeEach(() => {
+    fetchJson.mockImplementation((url, opts) => {
+      if (opts?.method === "PATCH") return Promise.resolve({});
+      if (url.includes("/roles")) return Promise.resolve(LIMIT_ROLES);
+      if (url.includes("/access-modes")) return Promise.resolve([]);
+      return Promise.resolve(LIMIT_USERS);
+    });
+  });
+
+  async function editRow(username) {
+    render(<Users />);
+    const cell = await screen.findByText(username);
+    const row = cell.closest("tr");
+    await userEvent.click(within(row).getByRole("button", { name: "Edit" }));
+    return row;
+  }
+
+  const patches = () =>
+    fetchJson.mock.calls.filter(([, opts]) => opts?.method === "PATCH");
+
+  it("is offered for a user account, holding its current limit", async () => {
+    await editRow("ursula");
+    expect(screen.getByLabelText("Open request limit")).toHaveValue(15);
+  });
+
+  it("is not offered for a super account", async () => {
+    await editRow("sam");
+    expect(screen.queryByLabelText("Open request limit")).toBeNull();
+  });
+
+  it("is not offered for the root account", async () => {
+    await editRow("root");
+    expect(screen.queryByLabelText("Open request limit")).toBeNull();
+  });
+
+  it("sends the limit only when it changed, and blank as no limit", async () => {
+    const row = await editRow("ursula");
+    const field = screen.getByLabelText("Open request limit");
+    await userEvent.clear(field);
+    await userEvent.click(within(row).getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(patches()).toHaveLength(1));
+    const [url, opts] = patches()[0];
+    expect(url).toBe("/api/users/1");
+    expect(JSON.parse(opts.body)).toEqual({ open_request_limit: null });
+  });
+
+  it("leaves the limit out of a save that did not touch it", async () => {
+    const row = await editRow("ursula");
+    await userEvent.type(
+      within(row).getByPlaceholderText("New password (optional)"),
+      "pw",
+    );
+    await userEvent.click(within(row).getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(patches()).toHaveLength(1));
+    expect(JSON.parse(patches()[0][1].body)).toEqual({ password: "pw" });
+  });
+});

@@ -163,7 +163,11 @@ its own commit. Each of the twelve entry tabs drops its constant `media_type`
 column and appends a derived, read-only `display_name` for the human reader;
 Pull drops any header that is not a column of the model (`drop_non_columns`).
 
-**`Users`** carries `id`, `username`, `list_is_public`, `is_installation_owner`, `status` and `role`.
+**`Users`** carries `id`, `username`, `is_installation_owner`, `status`, `open_request_limit` and `role`.
+An older sheet whose Users tab still has a `list_is_public` header Pulls
+cleanly: `RETIRED_HEADERS` in `pull.py` names it, so `unexpected_headers` does
+not report it among the run's `unresolved_refs` the way it reports a stale
+header, and the value is not read.
 `hashed_password`, `role_id` and `session_version` are dropped.
 `session_version` because it is this machine's revocation counter: carried
 across, it would sign people out on the other machine for nothing, or roll a
@@ -192,7 +196,12 @@ whatever local account held it first: `ix_one_installation_owner` is unique
 across the whole table, and without the clearing step the tab would raise at
 its commit and roll back **every** account. `parse_user_from_sheet` is an
 explicit projection, so a column added to the User model does not travel until
-it is named there.
+it is named there. `open_request_limit` is named there; a blank cell is NULL
+(no limit), and a sheet with no header for it leaves the local value alone.
+
+**Requests are not on the sheet.** `user_request` has no tab, so Backup and
+Pull never touch it: the inbox lives on the box and in its own dumps, and a
+Pull would otherwise overwrite it with a development machine's.
 
 **`User Media List`** carries every user's list rows. `user_id`, `media_id`
 and `system_id` are dropped for `username`, `media_type` and `public_id` -
@@ -510,7 +519,7 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
      | everything else (incl. `Novel`, `Comic`, `Watch Order Item`) | no natural key — an id-less row always inserts |
 
      If matched, the local PK is used; otherwise the PK key is dropped so the database mints one.
-   - **Singleton notes** (`remark`): a `Note` row in a singleton section is retargeted at the owner's existing row in that section (`ix_note_one_remark_per_owner` allows only one), keeping the local `system_id`.
+   - **Singleton notes** (`remark`): a `Note` row in a singleton section is retargeted at the existing row in that section for the same owner **and the same author** (`ix_note_one_remark_per_owner` allows one per owner per author, `remark` being personal-scope), keeping the local `system_id`. Two accounts' remarks on one entry therefore come back as two rows.
    - **Music status notes** (`music_status`): the same, per owner **and list** - a row is retargeted at the anime's existing `music_status` row with the same `kind` (`ix_note_one_music_status_per_kind` allows one per list), keeping the local `system_id`. Revision `m1s2ongstat3` minted those rows separately on every database, so this is what folds the two machines' copies together instead of failing the tab at commit. `ost` rows are songs and are never folded.
    - **Old-shape music rows**: an `ost` row carrying a type comes from a backup taken while the OST was one row per anime (an OST song has no type); it is read as that anime's `music_status` row for `ost`, its status kept when it is one of `MUSIC_STATUSES` (Need, Pending, No Full Version, Done) and `Not Done` otherwise, and folded as above. Song-list links that arrive as URL strings are read as text-URL pairs with no text; text-URL pairs that arrive on any other section (彩蛋/致敬 Easter Eggs/References, from a backup taken while its links were pairs) are read as their URLs, the text dropped, and a `fields` blob on a section that is not `structured` is dropped.
    - **Note twins under another uuid**: a `Note` row whose `system_id` is unknown locally is retargeted at a local row with the same owner, section and content (`parent_id`, `locator`, `kind`, `status`, `title`, `content`, `links`, `entries`, `fields`), keeping the local `system_id` (`_match_note_twin` in `pull.py`). It exists because the OP and ED rows were minted by a migration once per database, so the same row has a different uuid on every machine and would otherwise arrive as a second copy. Two guards keep genuinely separate identical rows apart: a local row whose own id is in the sheet is never a candidate, and each local row is claimed by at most one sheet row.
@@ -525,24 +534,18 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
        into the right column against `media` and the three tier tables. A row
        whose owner resolves to nothing is **skipped and reported** in
        `unresolved_refs` rather than written, because the CHECK would reject it.
-     - **`author_id` travels as a raw uuid, and for `admin` that uuid is not
-       portable.** An account the sheet *inserts* here keeps the uuid it
-       carries (`Users` is deliberately absent from `DERIVED_IDENTITY_MINTED_PK`),
-       so most authors resolve. `admin` is the exception: `app/main.py`'s
-       lifespan mints one on every machine, so the two are never the same row,
-       and the `username` match keeps the local id and discards the sheet's —
-       permanently, since it re-matches the same way on every Pull. Every row
-       the other machine's admin wrote therefore names a user this database
-       does not have. That, a blank cell, or any other unknown id falls back to
-       the **installation owner** — the column is `NOT NULL`, and a line whose
-       author is uncertain is still the line. The fallback covers `Note`, `Meme` **and
-       `Quote`** — all three, and it has to: without it the `Quote` tab's
-       commit fails with a `ForeignKeyViolation` that rolls back every quote in
-       it. So authorship does not round-trip for the admin's own rows: a
-       cross-machine restore re-files them under the local installation owner.
-       Harmless
-       while one person writes them; these three tabs need a `username`
-       column, the way `Plan Next` has one, before a second author matters.
+     - **The author travels as `username`, not as `author_id`.** Backup
+       drops the uuid and writes the author's name, the way `Plan Next`,
+       `Seasonal` and `Watch Order Follow` drop `user_id`: `users.id` is minted
+       per database — `admin` above all, which `app/main.py`'s lifespan mints
+       on every machine — so the uuid would name nobody on the other one. Pull
+       resolves the name back to the local account. A name nobody here holds,
+       a blank cell, or a sheet written before the column existed (which
+       carries `author_id` and no `username` header, and is tried by uuid)
+       files the row under the **installation owner** rather than skipping it:
+       the column is `NOT NULL`, a line whose author is uncertain is still the
+       line, and without the fallback the tab's commit fails with a
+       `ForeignKeyViolation` that rolls back every row in it.
 
    - **After the tab commits**, two passes, each over the whole table and each
      committed. A restore writes rows straight to the tables, so neither the

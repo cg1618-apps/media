@@ -30,8 +30,13 @@ const auth = {
   // The chip names the ROLE. isAdmin is has(manage.catalog), which `super`
   // holds too, so a chip driven by isAdmin alone cannot tell them apart.
   role: "guest",
+  // self.requests is held only when a test says so, so the Requests link's
+  // refusal case still holds every other member key.
+  filesRequests: false,
   has: (permission) =>
-    auth.isAdmin || (auth.member && MEMBER_KEYS.has(permission)),
+    permission === "self.requests"
+      ? auth.filesRequests
+      : auth.isAdmin || (auth.member && MEMBER_KEYS.has(permission)),
   refetchAuth: vi.fn(),
 };
 vi.mock("../../contexts/AuthContext", () => ({ useAuth: () => auth }));
@@ -46,6 +51,7 @@ beforeEach(() => {
   auth.member = true;
   auth.username = null;
   auth.role = "guest";
+  auth.filesRequests = false;
   delete auth.visibleGatedTypes;
   hardNavigate.mockClear();
   vi.stubGlobal(
@@ -364,6 +370,39 @@ describe("Nav - who the strip says you are", () => {
     expect(screen.getByText("cg1618")).toBeTruthy();
     expect(screen.getAllByTitle("Your role")[0]).toHaveTextContent(/^super$/i);
     expect(screen.getByRole("button", { name: /log out/i })).toBeTruthy();
+  });
+});
+
+describe("Nav - the Requests link", () => {
+  // The refusal case is a signed-in member holding every other key, and an
+  // admin-like session at that: only self.requests is missing, so a link that
+  // disappears proves the link asked for it.
+  it("is not offered without self.requests, whatever else is held", () => {
+    auth.username = "bob";
+    auth.isAdmin = true;
+    renderNav("/");
+    expect(screen.queryByRole("link", { name: /^requests$/i })).toBeNull();
+  });
+
+  it("is offered beside log out to a holder of self.requests", () => {
+    auth.username = "bob";
+    auth.filesRequests = true;
+    renderNav("/");
+    expect(screen.getByRole("link", { name: /^requests$/i })).toHaveAttribute(
+      "href",
+      "/requests",
+    );
+  });
+
+  it("is in the phone drawer too", async () => {
+    auth.username = "bob";
+    auth.filesRequests = true;
+    const user = userEvent.setup();
+    renderNav("/");
+    await user.click(screen.getByRole("button", { name: /toggle navigation/i }));
+    expect(
+      within(drawer()).getByRole("link", { name: /^requests$/i }),
+    ).toHaveAttribute("href", "/requests");
   });
 });
 

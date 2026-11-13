@@ -439,3 +439,29 @@ H_GAME_ART_STYLES: tuple[str, ...] = (
 # Where it is sold. Multi-choice, hand-set, never filled from IGDB - not
 # Game's game_platform tag field, which names hardware.
 H_GAME_PLATFORMS: tuple[str, ...] = ("Steam", "DLsite", "Nintendo", "Other")
+
+
+# Requests and reports (app/services/domain/requests.py). What a member files:
+# a missing entry, wrong data, incomplete data, a bug in the site, anything
+# else. CHECK-constrained on user_request.kind, so a value added here needs a
+# migration too.
+REQUEST_KINDS: tuple[str, ...] = (
+    "new_entry",
+    "data_error",
+    "incomplete_data",
+    "bug",
+    "other",
+)
+
+# A request is open until a handler marks it done or declined; a handler may
+# set it back to open. Only open requests count against a member's limit, and
+# only an open request may be edited by its author. CHECK-constrained on
+# user_request.status.
+REQUEST_STATUS_OPEN = "open"
+REQUEST_STATUS_DONE = "done"
+REQUEST_STATUS_DECLINED = "declined"
+REQUEST_STATUSES: tuple[str, ...] = (
+    REQUEST_STATUS_OPEN,
+    REQUEST_STATUS_DONE,
+    REQUEST_STATUS_DECLINED,
+)

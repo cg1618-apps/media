@@ -74,6 +74,7 @@ from app.models.system import (
 from app.models.tv_show import TVShows
 from app.models.user_media_list import UserMediaList
 from app.models.user_novel_unit_rating import UserNovelUnitRating
+from app.models.user_request import UserRequest
 from app.models.watch_order import (
     WatchOrderFollow,
     WatchOrderItem,
@@ -152,6 +153,7 @@ __all__ = [
     "RolePermission",
     "User",
     "AccountCode",
+    "UserRequest",
     "DataControlLog",
     "DeletedRecord",
 ]

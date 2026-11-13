@@ -1,6 +1,6 @@
 """
-The field-group registry names real columns, real link fields and real note
-sections. Nothing checks that at runtime: a gated column that no longer exists
+The field-group registry names real columns, real link fields and real
+source buckets. Nothing checks that at runtime: a gated column that no longer exists
 strips nothing and fails silently, exactly the class of bug that dropping the
 26 comma-joined columns produced across 17 files.
 
@@ -18,9 +18,6 @@ from app.services.rbac.field_groups import (
     link_fields_for,
 )
 from app.utils.media_resolver import MEDIA_TABLES, MEDIA_TYPE_KEYS
-from app.utils.note_sections import NOTE_SECTIONS
-
-NOTE_SECTION_KEYS = {section.key for section in NOTE_SECTIONS}
 
 
 def test_keys_tuple_matches_the_registry():
@@ -40,7 +37,6 @@ def test_group_covers_at_least_one_surface(key):
     covers = (
         any(columns_for(group, mt) for mt in MEDIA_TYPE_KEYS)
         or any(link_fields_for(group, mt) for mt in MEDIA_TYPE_KEYS)
-        or group.note_sections
         or group.source_buckets
     )
     assert covers, f"{key} gates nothing"
@@ -73,20 +69,18 @@ def test_every_gated_link_field_exists_on_the_mixin(key, media_type):
         assert attr in fields, f"{key} gates {media_type}.{attr}, not a link field"
 
 
-@pytest.mark.parametrize("key", sorted(FIELD_GROUPS))
-def test_every_gated_note_section_exists(key):
-    for section in FIELD_GROUPS[key].note_sections:
-        assert section in NOTE_SECTION_KEYS, f"{key} gates unknown note section {section!r}"
+def test_sources_restricted_is_the_only_group_and_gates_its_bucket():
+    """Everything per user is private and every viewer gets the other
+    sources, so the restricted bucket is all a mode can withhold."""
+    assert FIELD_GROUP_KEYS == ("sources_restricted",)
+    assert FIELD_GROUPS["sources_restricted"].source_buckets == ("restricted",)
 
 
-def test_source_other_is_gated_on_every_media_type():
-    """
-    The motivating case: sources_other now gates the `other` media_source
-    bucket rather than a real column, but it still applies uniformly across
-    every media type since a bucket means the same thing on all eight.
-    """
-    group = FIELD_GROUPS["sources_other"]
-    assert group.source_buckets == ("other",)
+def test_a_group_cannot_name_note_sections():
+    """Personal-scope sections are filtered by author in routers/note.py, so
+    there is no field-group mechanism over note sections to declare."""
+    for key, group in FIELD_GROUPS.items():
+        assert not hasattr(group, "note_sections"), key
 
 
 def test_no_group_gates_credits_or_system_info():
@@ -127,28 +121,3 @@ def test_every_gated_bucket_is_a_real_bucket():
     for key, group in FIELD_GROUPS.items():
         for bucket in group.source_buckets:
             assert bucket in SOURCE_BUCKETS, f"{key} gates unknown bucket {bucket}"
-
-
-def test_the_two_source_groups_gate_different_buckets():
-    other = FIELD_GROUPS["sources_other"].source_buckets
-    restricted = FIELD_GROUPS["sources_restricted"].source_buckets
-    assert not set(other) & set(restricted)
-
-
-def test_sources_other_still_gates_the_surviving_column():
-    """
-    The `other` bucket carries the links now, but `source_other` still exists
-    on all eight media tables and still holds the pre-migration copy the
-    backfill made, and every *Base schema still declares it. Until the drop
-    migration runs, withholding only the bucket would hand a gated viewer the
-    same links back through the column.
-    """
-    from app.models.anime import Anime
-    from app.utils.media_resolver import MEDIA_TYPE_KEYS
-
-    if "source_other" not in Anime.__table__.columns:
-        pytest.skip("source_other has been dropped; the column entry can go")
-    for media_type in MEDIA_TYPE_KEYS:
-        assert columns_for(FIELD_GROUPS["sources_other"], media_type) == (
-            "source_other",
-        )

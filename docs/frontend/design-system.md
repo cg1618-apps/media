@@ -1,6 +1,6 @@
 # Design system — "the archive"
 
-Last verified: 2026-10-28
+Last verified: 2026-11-13
 
 The UI is styled as a physical media archive: paper, ink, index slips,
 spine labels and a rating stamp. It replaced the generic dashboard look
@@ -226,7 +226,7 @@ the same `Reorder <name>` label and the same keys.
 Detail page (`pages/detail/*.jsx`):
 
 ```
-ANIME  /  <title>                                  ← Eyebrow breadcrumb
+ANIME  /  <title>                REPORT A PROBLEM  ← Eyebrow breadcrumb; the report link for self.requests (provisional)
 [ ADMIN .... Quick edit  Mark completed  Mark airing  Autofill ]   ← dashed strip, admin only
 ┌spine┬─────────┐  ANIME · TV · FINISHED AIRING · SPR 2021    ← Eyebrow line
 │ANIME│  cover  │  <Title in display face>

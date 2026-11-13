@@ -18,6 +18,7 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
 | `/system` | `pages/admin/Admin.jsx` | Control Center: pipelines, announcements, review modals |
 | `/data-history` | `pages/admin/DataHistory.jsx` | Data-control logs and deleted-record audit |
 | `/review-queue` | `pages/admin/ReviewQueue.jsx` | Checks that list something to look at: remarks, duplicates, music, single-entry groups |
+| `/request-inbox` | `pages/admin/RequestInbox.jsx` | Every account's requests and reports: mark done or declined, reopen, delete; `manage.requests` only |
 | `/add` | `pages/admin/Add.jsx` + `pages/add-tabs/*` | Create entries, groups, options, quotes, memes |
 | `/images` | `pages/admin/Images.jsx` | Image library: upload, filter, detach, delete |
 | `/modify` | `pages/admin/Modify.jsx` + `pages/modify-tabs/*` | Edit an existing row (deep link `?id=`) |
@@ -159,6 +160,33 @@ mode (the data-control router is gated on `manage.pipelines` alone).
   group comes back by itself once its lone entry is replaced. A 409 (the group
   changed since the list loaded) is shown above the table. A row whose entry
   is of a gated type the session cannot see is not drawn.
+
+## /request-inbox (`RequestInbox.jsx`)
+
+The handler's side of requests and reports
+([../systems/requests.md](../systems/requests.md)). The route asks
+`manage.requests` — super, and the admin through root — and so does its
+**Inbox** row, which sits in the Pipelines tab with its own `requires`.
+Data: `useRequestInbox(status)` from `api/mutations/useRequestMutations.js`
+(`GET /api/requests?status=`, key `["requests", "inbox", status]`).
+
+- **Status filter**: Open, Done, Declined, All, as `aria-pressed` buttons
+  around a `Chip` (brand when chosen, ink otherwise — the `/images` filter
+  pattern). The page opens on Open.
+- **Table**: kind, who filed it ("deleted account" when `author_username` is
+  null), what it is about (`RequestTarget`, as on My requests), description,
+  remark, status, response, who handled it and when, and the filing date.
+- **Done** and **Decline** on an open row open `ConfirmModal` holding an
+  optional response textarea, then `PUT /api/requests/{id}/status` with
+  `{status, response}` (an empty response is sent as null). **Reopen** on a
+  done or declined row sends `{status: "open"}` straight away, which lets the
+  author edit the request again.
+- **Delete** asks in `ConfirmModal` (danger) before `DELETE
+  /api/requests/{id}`; the server keeps no other record of it.
+- Every write invalidates the `["requests"]` prefix, so the inbox and My
+  requests refetch together. Outcomes are toasts.
+
+`GET /api/requests/summary` has no page yet; it is there for the dashboard.
 
 ## /add (`Add.jsx`)
 
@@ -1382,9 +1410,15 @@ prose twin is [../data-actions.md](../data-actions.md#6-calculate-all).
 - **Users** — create users with a role, change role, set a password,
   delete; the last administrator and your own account are protected. The
   password field in a row's edit mode says that setting one signs the
-  account out everywhere. A **Status** column shows each account's `status`
-  as a chip (`active`, `disabled` in danger, `pending`). Each row offers only
-  what the server would accept:
+  account out everywhere. The edit form also holds an **Open request limit**
+  number field (blank is no limit) for any account whose role has one: not
+  for `super`, which is never limited (the server answers 422), and not for a
+  root role, which files nothing. The field follows the role chosen in the
+  same form, and `open_request_limit` is sent only when it changed — left out
+  of a save that changes the role, the server resets the limit to the new
+  role's default. A **Status** column shows each account's `status` as a chip
+  (`active`, `disabled` in danger, `pending`). Each row offers only what the
+  server would accept:
   - **Disable** on an active account other than your own, behind a
     `ConfirmModal` saying it signs the account out everywhere and nothing in
     it is lost; **Enable** on a disabled one, straight away. Both are

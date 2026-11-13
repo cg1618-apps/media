@@ -89,14 +89,6 @@ export const endpoints = {
     password: () => "/api/account/password",
   },
 
-  profile: {
-    detail: (username) => `/api/profile/${encodeURIComponent(username)}`,
-  },
-
-  community: {
-    forEntry: (mediaId) => `/api/community/${mediaId}`,
-  },
-
   contentLabels: {
     list: () => "/api/content-labels/",
     create: () => "/api/content-labels/",
@@ -359,6 +351,19 @@ export const endpoints = {
     patch: (id) => `/api/resources/${id}`,
     remove: (id) => `/api/resources/${id}`,
     reorder: () => "/api/resources/reorder",
+  },
+
+  // Requests and reports. `mine`, `create` and `update` are the filer's
+  // (self.requests); `inbox`, `summary`, `status` and `remove` the handler's
+  // (manage.requests).
+  requests: {
+    mine: () => "/api/requests/mine",
+    create: () => "/api/requests",
+    update: (id) => `/api/requests/${id}`,
+    inbox: () => "/api/requests",
+    summary: () => "/api/requests/summary",
+    status: (id) => `/api/requests/${id}/status`,
+    remove: (id) => `/api/requests/${id}`,
   },
 
   // The Add tabs' external pickers. CRUD for each type comes from
