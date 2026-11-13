@@ -1,6 +1,6 @@
 # P3f — exactly five fixed roles, and the shared accounts
 
-Built on one branch with the other two plans (`feat/fixed-roles-and-switches`, per media-00), in order P3f → P3g → P3h. Originally planned as its own branch, `feat/five-fixed-roles`, cut off dev **after P3e merges** (it needs
+Its own branch, `feat/five-fixed-roles`, first of P3f → P3g → P3h (each its own branch, merged in that order — see `docs/to-do-next.md`), cut off dev **after P3e merges** (it needs
 `users.mode_ceiling`/`mode_default` and `set_mode_ceiling`) and after P4a
 (it builds on P4a's `SHARED_ROLE_NAME`, `self.password` and status). Spec:
 `docs/superpowers/specs/2026-11-03-account-system-design.md`, "Roles",
