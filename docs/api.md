@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-10-30
+Last verified: 2026-11-13
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -1070,7 +1070,7 @@ tier on a write is resolved from the id, never from the payload's
 | `GET`    | `""`           | Public | Every note for one owner, ordered the way the page renders them. Required params: `owner_type`, `owner_id`. Optional `author` (a username) reads that user's personal notes instead of the viewer's own: **401** without `view.personal`, then 404 unless their list is public and the viewer's mode carries `personal_notes`. Without `view.personal`, rows in `highlights` and `highlight_episodes` are omitted. |
 | `POST`   | `""`           | Admin  | Create (201). Body: `NoteCreate`. 422 on a payload the registry rejects, on a second row in a singleton section, or on a second `music_status` row for the same anime and `kind`. `sort_index` defaults to the end.     |
 | `PATCH`  | `/reorder`     | Admin  | Rewrite `sort_index` for one section of one owner. Body: `NoteReorder`. 400 unless `ordered_ids` names exactly that section's notes, each once.                |
-| `PATCH`  | `/{note_id}`   | Admin  | Partial update. Body: `NoteUpdate`, validated as the row *will* be, so a partial update cannot land on an invalid combination.                      |
+| `PATCH`  | `/{note_id}`   | Admin  | Partial update. Body: `NoteUpdate`, validated as the row *will* be, so a partial update cannot land on an invalid combination. A PATCH that changes `section` without sending `sort_index` puts the row at the end of its new section. |
 | `DELETE` | `/{note_id}`   | Admin  | Delete, **204 No Content**. Logs to `deleted_record` as type "Note", standing a truncated `content` in for the name a note does not have.        |
 
 **Response models:** `NoteResponse`, `NoteSectionOut` (one resolved registry
@@ -1080,9 +1080,16 @@ carry URL-string links - `op_ed_changes`), `singleton`, `desc_required`, and for
 `fields` - each field's `type` may be `names`, a list of strings stored under
 `fields[key]`, or `choice_node`, the uuid of a node of the owner game's choice
 graph - a block, never a branch - also under `fields[key]` (a value naming
-another game's block, or none, is a 422 on POST and PATCH) - `require_any`, `hierarchical`, `group_by` (the `names` field
+another game's block, or none, is a 422 on POST and PATCH); a free-text
+`select` may carry `option_category`, the option category suggesting its
+values (suggestions only - the value stays free text) - `require_any`, `hierarchical`, `group_by` (the `names` field
 the read view groups by, or `null`), `groupable_by` (the `select` field the
-reader may toggle a one-group-per-value view on, or `null`), `owner_where` (`{owner column:
+reader may toggle a one-group-per-value view on, or `null`; on a
+`hierarchical` section only a top-level row may carry it, and a child
+carrying one is a 422 "Only a top-level row carries a group."),
+`move_targets` (`[{key, label}]`, the sections a row can be moved straight to
+by a PATCH of `section` - the owner's other `quick_move` sections in the same
+card, `[]` elsewhere), `owner_where` (`{owner column:
 [allowed values]}`, `{}` for none), and the music-group fields: `link_pairs`
 (the section's `links` are `{"text", "url"}` pairs rather than URL strings),
 `link_text_category` (the option category suggesting a pair's `text`),
@@ -1383,7 +1390,8 @@ Keys served: `watching_status`, `reading_status`, `airing_status`,
 `hentai_source_material`, `h_game_playstyle`, `h_game_language_availability`,
 `h_game_audio_availability`, `h_game_h_presentation`, `h_game_art_style`,
 `h_game_h_art_style`, `h_game_platform`,
-`person_role`, `media_type`, `option_categories`, `tag_categories`. The
+`person_role`, `media_type`, `option_categories`, `tag_categories`,
+`note_suggestion_categories`. The
 payload is viewer-scoped on the gated types: a key that serves gated types
 only (`TYPE_ONLY_VOCABULARIES`) is served while at least one of its types is
 seeable - `h_comic_originality` serves h-comic and hentai,
@@ -1394,7 +1402,7 @@ hentai alone, the five `h_game_*` keys h-game alone, the other two
 `hentai` only for a session that can see that type; for anyone else the
 type's person roles (`club`) and the categories serving gated types only (the
 H Genre categories, once no type they serve is seeable) are left out too
-([authorization.md](authorization.md#what-a-narrow-session-is-not-told)). The last four are for
+([authorization.md](authorization.md#what-a-narrow-session-is-not-told)). The last five are for
 the admin forms:
 `person_role` is derived from `CREDIT_ROLES` in `app/utils/credit_roles.py`
 (it replaced a hand-written copy in `OptionsAddTab.jsx`), `media_type` is the
@@ -1408,8 +1416,10 @@ Options form needs the declared names because it otherwise derives its
 category list from the options already stored, and so could not offer a
 category with no values yet — the state every new tag field starts in.
 `tag_categories` is the subset of those categories the Add / Modify / Delete
-pages group under their Tags sub-tab, which is navigation only — both
-sub-tabs write the same rows. `franchise_type`
+pages group under their Tags sub-tab, and `note_suggestion_categories`
+(`NOTE_SUGGESTION_CATEGORIES`) the subset a note field's `option_category`
+names, grouped under their Note Suggestions sub-tab. Both are navigation
+only — every sub-tab writes the same rows. `franchise_type`
 and `anime_airing_type` are served from the `FRANCHISE_TYPES` /
 `ANIME_AIRING_TYPES` tuples rather than the `FranchiseType` / `AnimeAiringType`
 Python `Enum` classes, because the frontend dropdown has diverged from those
