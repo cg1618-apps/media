@@ -116,6 +116,15 @@ The account and authorization rework is decided work, queued in
 [to-do-next.md](to-do-next.md); what is still undecided about it is in its
 design.
 
+**Libraries cannot filter by content label.** The franchise library already
+receives each franchise's labels and only draws them as chips. A label
+filter is wanted — "only `ecchi`", "without `nsfw`" — and is not designed.
+The shape proposed so far: include and exclude; offer only the labels the
+viewer's mode can see; match inherited labels (a franchise's label counts
+for its entries), so the filter agrees with what the mode hides; no filter
+in `safe`, where every labelled entry is hidden. Undecided: every library,
+or the group libraries only.
+
 **The `guest` role has no `media_type.game`**, so a logged-out visitor sees an
 empty Games library. The `role_permission` rows were seeded before games
 existed; the other eight types are granted. Guests are to see games: grant
