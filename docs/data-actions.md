@@ -223,7 +223,8 @@ runs on a restore.
 **`Plan Next`, `Seasonal` and `Watch Order Follow`** drop `user_id` for `username` too, for the same
 reason (the follow tab has carried `username` from its first day, so it never meets the fallback below). Pull falls back to `_restore_owner_id` — the **installation owner**:
 `users.is_installation_owner`, else the alphabetically-first non-root
-account, else the first account, never a `shared` or `guest` one — **only** when the header is absent
+account, else the first account, never a `shared` or `guest` one and never
+one whose status is not `active` — **only** when the header is absent
 altogether, which means a sheet written before the column existed and in which
 everything did belong to one person. A `username` that is present and names
 nobody skips the row and lands in `unresolved_refs` rather than being quietly
