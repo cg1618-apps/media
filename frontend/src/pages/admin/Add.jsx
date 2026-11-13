@@ -60,10 +60,12 @@ import { endpoints } from "../../api/endpoints";
 import { useEntryLists, GROUP_LIST_TYPES } from "../../hooks/useEntryLists";
 import { ADD_TAB_LISTS, listsForTab } from "../../config/adminEntryLists";
 import ContentLabelPicker, {
-  FRANCHISE_SCOPE_NOTE,
+  GROUP_SCOPE_NOTES,
   LABELLABLE_TABS,
+  saveCollectionLabels,
   saveEntryLabels,
   saveFranchiseLabels,
+  saveSeriesLabels,
 } from "../../components/forms/ContentLabelPicker";
 import { fetchJson, jsonBody } from "../../api/client";
 import { ensureSourceValues as ensureSourceValuesLib } from "../../lib/ensureSourceValues";
@@ -784,6 +786,17 @@ export default function Add() {
           created.collection_name_en ||
           "New Collection",
       );
+      try {
+        await saveCollectionLabels(created.system_id, contentLabels);
+      } catch {
+        // The collection saved; only its visibility did not. Say so rather
+        // than letting the admin believe a collection is restricted when it
+        // and everything under it is not.
+        showToast(
+          "error",
+          "Collection saved, but its content labels failed to save.",
+        );
+      }
       setColf(freshForm("collection"));
       setContentLabels([]);
       setAllCollections((prev) => [...prev, created]);
@@ -891,6 +904,17 @@ export default function Add() {
       setLastAdded(
         created.series_name_cn || created.series_name_en || "New Series",
       );
+      try {
+        await saveSeriesLabels(created.system_id, contentLabels);
+      } catch {
+        // The series saved; only its visibility did not. Say so rather than
+        // letting the admin believe a series is restricted when it and its
+        // entries are not.
+        showToast(
+          "error",
+          "Series saved, but its content labels failed to save.",
+        );
+      }
       setSf(freshForm("series"));
       setContentLabels([]);
       setAllSeries((prev) => [...prev, created]);
@@ -3306,7 +3330,9 @@ export default function Add() {
         {activeTab === "identity" && <IdentityAddTab />}
 
         {/* Content labels - one control for every media tab, and for the
-            franchise tab, whose labels cascade to the entries under it.
+            collection, franchise and series tabs, whose labels cascade to
+            everything under them. Only a franchise has required labels (its
+            gated franchise type's); a collection or series has none.
             "game" belongs here: submitGame writes labels like every other
             type, and leaving the tab out of this list meant a game could
             never be labelled on the way in. */}
@@ -3320,9 +3346,7 @@ export default function Add() {
                   ? requiredLabelsForFranchiseType(ff.franchise_type)
                   : requiredLabelsForType(activeTab)
               }
-              scopeNote={
-                activeTab === "franchise" ? FRANCHISE_SCOPE_NOTE : undefined
-              }
+              scopeNote={GROUP_SCOPE_NOTES[activeTab]}
             />
           </div>
         )}

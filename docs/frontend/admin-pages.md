@@ -946,8 +946,12 @@ only land in its own grid. The swap is a draft until **Save Grid**.
   one → for **anime, anime movie, cartoon and manga**, enrichment via
   `lib/enrich.js`, after which the page shows the *enriched* row (not the
   pre-enrichment one) and warns if enrichment failed → **content labels,
-  last**. Other types save without enrichment. A franchise saves its own
-  label set through `saveFranchiseLabels`.
+  last**. Other types save without enrichment. A collection, franchise or
+  series saves its own label set after its update, through
+  `saveCollectionLabels`, `saveFranchiseLabels` or `saveSeriesLabels`; a save
+  that adds a label confirms first, naming what that tier hides ("this
+  collection and every franchise, series and entry in it"). On Add the group's
+  set is `PUT` after the create call, and a failure there is its own toast.
 - **Labels go last because a label can hide the entry from the session that
   saves it.** An admin is narrowed by their active access mode like anyone
   else, and a hidden entry answers 404, so a label written mid-save would
@@ -1439,7 +1443,8 @@ prose twin is [../data-actions.md](../data-actions.md#6-calculate-all).
   Nothing on the page creates, deletes or regrants a mode.
 - **Content Labels** — the read-only label reference: each label's name, key
   and description, a chip for every mode that shows it, whether it also
-  carries NSFW, and how many entries and franchises carry it. Labels are
+  carries NSFW, and how many entries, collections, franchises and series carry
+  it directly. Labels are
   defined in code, so the page creates, renames and deletes nothing. It is
   read by `admin` and `super` (`admin.authz` **or** `manage.catalog`) and sits
   under Note in the nav; **assigning** a label is on Add/Modify, which is

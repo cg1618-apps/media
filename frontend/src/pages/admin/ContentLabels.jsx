@@ -58,8 +58,9 @@ export default function ContentLabels() {
         </h1>
         <p className="text-sm text-text-faint mt-1">
           Labels are defined in code. They are only attached to or detached
-          from entries and franchises, on the Add and Modify pages; a labelled
-          entry is shown only in the modes listed beside its label.
+          from entries, collections, franchises and series, on the Add and
+          Modify pages; a labelled entry is shown only in the modes listed
+          beside its label, and a labelled group hides everything under it.
         </p>
       </header>
 
@@ -73,7 +74,9 @@ export default function ContentLabels() {
               <th className="text-left px-4 py-2">Description</th>
               <th className="text-left px-4 py-2">Shown in</th>
               <th className="text-right px-4 py-2">Entries</th>
+              <th className="text-right px-4 py-2">Collections</th>
               <th className="text-right px-4 py-2">Franchises</th>
+              <th className="text-right px-4 py-2">Series</th>
             </tr>
           </thead>
           <tbody>
@@ -105,7 +108,13 @@ export default function ContentLabels() {
                   {row.entry_count}
                 </td>
                 <td className="px-4 py-2 text-right tabular-nums">
+                  {row.collection_count}
+                </td>
+                <td className="px-4 py-2 text-right tabular-nums">
                   {row.franchise_count}
+                </td>
+                <td className="px-4 py-2 text-right tabular-nums">
+                  {row.series_count}
                 </td>
               </tr>
             ))}

@@ -214,8 +214,11 @@ class ContentLabelResponse(BaseModel):
     # The labels this one requires alongside it: ["nsfw"] for every label but
     # nsfw itself.
     also_carries: List[str] = []
+    # How many of each carry it directly - not through a group above.
     entry_count: int = 0
+    collection_count: int = 0
     franchise_count: int = 0
+    series_count: int = 0
 
     model_config = ConfigDict(from_attributes=True)
 

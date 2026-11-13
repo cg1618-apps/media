@@ -203,3 +203,30 @@ describe("SeriesPage restricted family", () => {
     expect(hGameFetched()).toBe(false);
   });
 });
+
+// A series carries content labels of its own, which hide the series and every
+// entry in it. The hub shows them in their own row, as the franchise hub does.
+describe("SeriesPage content labels", () => {
+  it("shows the series' own labels", async () => {
+    global.fetch.mockImplementation((url) => {
+      if (String(url).startsWith("/api/series/"))
+        return jsonRes({
+          ...SERIES,
+          content_labels: [{ key: "nsfw", label: "NSFW", description: "" }],
+        });
+      return jsonRes([]);
+    });
+    renderPage();
+    const chip = await screen.findByText("NSFW");
+    expect(chip).toHaveAttribute(
+      "title",
+      "Hides this series and every entry in it.",
+    );
+  });
+
+  it("draws no label row for an unlabelled series", async () => {
+    renderPage();
+    await screen.findAllByText("艾爾登法環系列");
+    expect(screen.queryByText("Content")).toBeNull();
+  });
+});

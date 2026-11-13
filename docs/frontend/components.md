@@ -377,14 +377,18 @@ not drawn. The character, person and studio libraries use it for
   `ReleaseDateInput`, `ScopePicker`, `OptionSubTabBar`,
   `OptionCategorySelect`,
   `ContentLabelPicker` (one owner-agnostic control for both Add and Modify —
-  it takes `owner={{kind, mediaType?, id}}` and reads and writes an entry's or
-  a **franchise's** label set through the one URL builder, so the two pages
-  cannot drift; `LABELLABLE_TABS` exported beside it is the one list of tabs
+  it takes `owner={{kind, mediaType?, id}}`, `kind` being `entry`,
+  `collection`, `franchise` or `series`, and reads and writes that owner's
+  label set through the one URL builder, so the two pages cannot drift;
+  `GROUP_SCOPE_NOTES` holds each group tier's footnote and `GROUP_HIDES` the
+  wording of Modify's confirm; `LABELLABLE_TABS` exported beside it is the one list of tabs
   that carry labels, which is what closed the gap where `game` was missing
   from Add's list while Add's submit wrote labels anyway. Its `required` prop
   draws a gated type's required label checked and locked, and
   `saveEntryLabels` / `saveFranchiseLabels(id, keys, franchiseType)` add it
-  back to the set they send. `onLoaded` reports the set as loaded, before any
+  back to the set they send; `saveCollectionLabels(id, keys)` and
+  `saveSeriesLabels(id, keys)` add only `nsfw`, since no group but a franchise
+  has a required label. `onLoaded` reports the set as loaded, before any
   edit; `labelsAdded(loaded, chosen)` and
   `entryHiddenFromSession(type, id)` are what Modify's Save uses to confirm an
   added label and to report one that hid the entry — see `admin-pages.md`),

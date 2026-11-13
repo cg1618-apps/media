@@ -91,12 +91,16 @@ import {
 } from "../../config/adminEntryLists";
 import { enrichEntry } from "../../lib/enrich";
 import ContentLabelPicker, {
-  FRANCHISE_SCOPE_NOTE,
+  GROUP_HIDES,
+  GROUP_SCOPE_NOTES,
+  LABELLABLE_GROUPS,
   LABELLABLE_TABS,
   entryHiddenFromSession,
   labelsAdded,
   saveEntryLabels,
+  saveCollectionLabels,
   saveFranchiseLabels,
+  saveSeriesLabels,
 } from "../../components/forms/ContentLabelPicker";
 import { useAuth } from "../../contexts/AuthContext";
 import { useCasting, useReplaceCasting } from "../../hooks/useCasting";
@@ -1231,7 +1235,7 @@ export default function Modify() {
     if (
       added.length > 0 &&
       !window.confirm(
-        `Adding the content label ${added.join(", ")} hides ${editingType === "franchise" ? "this franchise and every entry in it" : "this entry"} from every access mode that does not carry it - possibly the one you are in now. Save anyway?`,
+        `Adding the content label ${added.join(", ")} hides ${GROUP_HIDES[editingType] || "this entry"} from every access mode that does not carry it - possibly the one you are in now. Save anyway?`,
       )
     ) {
       return;
@@ -1399,6 +1403,17 @@ export default function Modify() {
         prev.map((c) => (c.system_id === updated.system_id ? updated : c)),
       );
       setEditingItem(updated);
+      try {
+        await saveCollectionLabels(updated.system_id, contentLabels);
+      } catch {
+        // The collection saved; only its visibility did not. Say so rather
+        // than letting the admin believe a collection - and everything under
+        // it - is restricted when it is not.
+        showToast(
+          "error",
+          "Collection saved, but its content labels failed to save.",
+        );
+      }
       window.scrollTo(0, 0);
       showToast("success", "Update successful.");
     } else showToast("error", "Update failed");
@@ -1517,6 +1532,17 @@ export default function Modify() {
       );
       setEditingItem(updated);
       setSf(seriesToForm(updated, allFranchises));
+      try {
+        await saveSeriesLabels(updated.system_id, contentLabels);
+      } catch {
+        // The series saved; only its visibility did not. Say so rather than
+        // letting the admin believe a series - and its entries - is
+        // restricted when it is not.
+        showToast(
+          "error",
+          "Series saved, but its content labels failed to save.",
+        );
+      }
       window.scrollTo(0, 0);
       showToast("success", "Update successful.");
     } else showToast("error", "Update failed");
@@ -3855,13 +3881,14 @@ export default function Modify() {
           </div>
 
             {/* Content labels - the picker reads the current set for whatever
-                is being edited, an entry or a franchise. */}
+                is being edited: an entry, or a collection, franchise or
+                series. Only a franchise has required labels. */}
             {LABELLABLE_TABS.includes(editingType) && editingItem?.system_id && (
               <div className="mt-6">
                 <ContentLabelPicker
                   owner={
-                    editingType === "franchise"
-                      ? { kind: "franchise", id: editingItem.system_id }
+                    LABELLABLE_GROUPS.includes(editingType)
+                      ? { kind: editingType, id: editingItem.system_id }
                       : {
                           kind: "entry",
                           mediaType: editingType,
@@ -3878,11 +3905,7 @@ export default function Modify() {
                       ? requiredLabelsForFranchiseType(ff.franchise_type)
                       : requiredLabelsForType(editingType)
                   }
-                  scopeNote={
-                    editingType === "franchise"
-                      ? FRANCHISE_SCOPE_NOTE
-                      : undefined
-                  }
+                  scopeNote={GROUP_SCOPE_NOTES[editingType]}
                 />
               </div>
             )}

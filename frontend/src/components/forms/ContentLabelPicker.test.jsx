@@ -9,6 +9,9 @@ import { afterEach, expect, it, vi } from "vitest";
 import ContentLabelPicker, {
   entryHiddenFromSession,
   labelsAdded,
+  saveCollectionLabels,
+  saveFranchiseLabels,
+  saveSeriesLabels,
   withNsfw,
 } from "./ContentLabelPicker";
 
@@ -120,4 +123,92 @@ it("NSFW alone can be unticked", async () => {
   expect(nsfw).not.toBeDisabled();
   fireEvent.click(nsfw);
   expect(onChange).toHaveBeenCalledWith([]);
+});
+
+
+// --- Group owners -----------------------------------------------------------
+
+// Every grouping tier reads its own set from its own endpoint.
+it.each([
+  ["collection", "/api/content-labels/collection/c1"],
+  ["franchise", "/api/content-labels/franchise/c1"],
+  ["series", "/api/content-labels/series/c1"],
+])("a %s owner reads its set from its own endpoint", async (kind, url) => {
+  const fetchMock = stubFetch((u) =>
+    u === url ? [200, ["erotica", "nsfw"]] : [200, VOCABULARY],
+  );
+  const onLoaded = vi.fn();
+  render(
+    <ContentLabelPicker
+      owner={{ kind, id: "c1" }}
+      value={[]}
+      onChange={() => {}}
+      onLoaded={onLoaded}
+    />,
+  );
+
+  await waitFor(() =>
+    expect(onLoaded).toHaveBeenCalledWith(["erotica", "nsfw"]),
+  );
+  expect(fetchMock.mock.calls.map((call) => call[0])).toContain(url);
+});
+
+it("a group owner with no id yet reads nothing", async () => {
+  const fetchMock = stubFetch(() => [200, VOCABULARY]);
+  render(
+    <ContentLabelPicker
+      owner={{ kind: "series", id: null }}
+      value={[]}
+      onChange={() => {}}
+    />,
+  );
+  await screen.findByLabelText("NSFW");
+  expect(fetchMock.mock.calls.map((call) => call[0])).toEqual([
+    "/api/content-labels/",
+  ]);
+});
+
+function lastPut(fetchMock) {
+  const [url, init] = fetchMock.mock.calls.at(-1);
+  return { url, method: init.method, body: JSON.parse(init.body) };
+}
+
+it("saveCollectionLabels PUTs the set, with nsfw, to the collection", async () => {
+  const fetchMock = stubFetch(() => [200, ["erotica", "nsfw"]]);
+  await saveCollectionLabels("c1", ["erotica"]);
+  expect(lastPut(fetchMock)).toEqual({
+    url: "/api/content-labels/collection/c1",
+    method: "PUT",
+    body: { label_keys: ["erotica", "nsfw"] },
+  });
+});
+
+it("saveSeriesLabels PUTs the set, with nsfw, to the series", async () => {
+  const fetchMock = stubFetch(() => [200, ["erotica", "nsfw"]]);
+  await saveSeriesLabels("s1", ["erotica"]);
+  expect(lastPut(fetchMock)).toEqual({
+    url: "/api/content-labels/series/s1",
+    method: "PUT",
+    body: { label_keys: ["erotica", "nsfw"] },
+  });
+});
+
+it("an empty collection or series set is sent empty - nothing is required", async () => {
+  const fetchMock = stubFetch(() => [200, []]);
+  await saveCollectionLabels("c1", []);
+  expect(lastPut(fetchMock).body).toEqual({ label_keys: [] });
+  await saveSeriesLabels("s1", []);
+  expect(lastPut(fetchMock).body).toEqual({ label_keys: [] });
+});
+
+it("saveFranchiseLabels still adds a gated franchise type's label", async () => {
+  // The mirror of the case above: a franchise IS required to carry one, so
+  // the empty-set result there is the tier's rule and not the saver's.
+  const fetchMock = stubFetch(() => [200, []]);
+  await saveFranchiseLabels("f1", [], "Hentai");
+  expect(lastPut(fetchMock)).toEqual({
+    url: "/api/content-labels/franchise/f1",
+    method: "PUT",
+    body: { label_keys: ["hentai", "nsfw"] },
+  });
 });

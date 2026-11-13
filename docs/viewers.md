@@ -35,7 +35,8 @@ catalogue and what is an account's own data is
 > **Built:** the read-only label reference, for `admin` and `super` — the
 > "Label reference" row of [At a glance](#at-a-glance) and its bullets under
 > [Admin](#admin) and [Super](#super). `/content-labels` lists every label,
-> which modes show it and how many entries and franchises carry it, and sits
+> which modes show it and how many entries, collections, franchises and series
+> carry it, and sits
 > under the Note section of the nav. Also built: the access modes' adjustable
 > settings are a name and a description, and nothing else, because the modes
 > and what each shows are code. The rest of those two sections is not built.

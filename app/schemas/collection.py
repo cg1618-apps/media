@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
+from app.schemas.rbac import ContentLabelRef
+
 
 class CollectionBase(BaseModel):
     collection_name_en: Optional[str] = None
@@ -30,6 +32,9 @@ class CollectionUpdate(CollectionBase):
 
 class CollectionResponse(CollectionBase):
     system_id: UUID
+    # Set by attach_group_content_labels; read-only, as on FranchiseResponse.
+    # The only writer is PUT /api/content-labels/collection/{collection_id}.
+    content_labels: list[ContentLabelRef] = []
     # The id the SPA puts in the URL. Never gated: a viewer allowed to see the
     # entry must be able to link to it.
     public_id: int

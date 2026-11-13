@@ -138,6 +138,8 @@ GATED_LABEL_INVARIANT_TABS: frozenset[str] = frozenset(
         "Content Label",
         "Media Content Label",
         "Franchise Content Label",
+        "Collection Content Label",
+        "Series Content Label",
     }
 )
 
@@ -250,6 +252,14 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
         "franchise_id",
         "label_id",
     ),  # uq_franchise_content_label_row
+    "Collection Content Label": (
+        "collection_id",
+        "label_id",
+    ),  # uq_collection_content_label_row
+    "Series Content Label": (
+        "series_id",
+        "label_id",
+    ),  # uq_series_content_label_row
     # Its system_id is minted per database and the sheet carries a natural key
     # instead; resolve_user_media_list_key turns that into these two ids before
     # the match runs.
@@ -289,6 +299,8 @@ DERIVED_IDENTITY_PARENTS: dict[str, tuple[tuple[str, str], ...]] = {
     "Publisher Scope": (("publisher_id", "Publisher"),),
     "Media Content Label": (("label_id", "Content Label"),),
     "Franchise Content Label": (("label_id", "Content Label"),),
+    "Collection Content Label": (("label_id", "Content Label"),),
+    "Series Content Label": (("label_id", "Content Label"),),
 }
 
 # Tabs whose PRIMARY KEY is itself minted per database and must be ignored as

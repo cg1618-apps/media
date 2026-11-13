@@ -1,26 +1,27 @@
 """
 routers/content_labels.py
-The label reference, and which entries and franchises carry which labels.
+The label reference, and which entries and groups carry which labels.
 
 Labels are defined in app/services/rbac/labels.py, with the lowest mode that
 shows each; there is no route that creates, renames or deletes one. What this
 router serves:
 
   reference   GET /. Every label, what it marks, which modes show it, which
-              label it also carries, and how many entries and franchises
-              carry it. Read by `admin.authz` or `manage.catalog`: the admin
+              label it also carries, and how many entries, collections,
+              franchises and series carry it. Read by `admin.authz` or `manage.catalog`: the admin
               reads it to see what a restriction does, super because super is
               the one attaching labels, and the Add/Modify picker draws from
               it.
-  assignment  `manage.catalog`. Putting a label on an entry or a franchise is
-              a catalogue edit, submitted by the Add and Modify forms along
-              with the rest of the entry.
+  assignment  `manage.catalog`. Putting a label on an entry or a group
+              (collection, franchise, series) is a catalogue edit, submitted
+              by the Add and Modify forms along with the rest of the record.
 
 Assignment replaces the whole set, structurally identical to
 credits.py::replace_credits, because that is how the Add/Modify forms submit.
-A franchise's set is the same call against a different join table - and it
-CASCADES to that franchise's entries at read time, see
-services/rbac/enforcement.py.
+A group's set is the same call against a different join table - and it
+CASCADES down the tree at read time (a collection to its franchises, their
+series and entries; a franchise to its series and entries; a series to its
+entries), see services/rbac/enforcement.py.
 """
 
 import logging
@@ -34,8 +35,9 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.dependencies import get_db
 from app.services.domain.content_labels import (
+    GROUP_LABEL_TABLES,
     label_keys_for_entry,
-    label_keys_for_franchise,
+    label_keys_for_group,
 )
 from app.services.domain.gated_labels import (
     refuse_label_removal_on_entry,
@@ -45,7 +47,12 @@ from app.services.domain.label_rules import (
     refuse_nsfw_removal,
     with_required_labels,
 )
-from app.services.rbac.enforcement import entry_visible, franchise_visible
+from app.services.rbac.enforcement import (
+    collection_visible,
+    entry_visible,
+    franchise_visible,
+    series_visible,
+)
 from app.services.rbac.labels import label_by_key, modes_showing
 from app.services.rbac.permissions import PERM_ADMIN_AUTHZ, PERM_MANAGE_CATALOG
 from app.services.rbac.resolver import (
@@ -69,13 +76,12 @@ router = APIRouter(prefix="/api/content-labels", tags=["Content Labels"])
 
 
 def _to_response(
-    row: models.ContentLabel, counts: dict[UUID, tuple[int, int]]
+    row: models.ContentLabel, counts: dict[str, dict[UUID, int]]
 ) -> schemas.ContentLabelResponse:
     """One row of the reference. Which modes show the label, and which label it
     also carries, are generated from the code rule rather than written as
     prose anywhere, so they cannot drift from it."""
     definition = label_by_key(row.key)
-    entries, franchises = counts.get(row.system_id, (0, 0))
     return schemas.ContentLabelResponse(
         system_id=row.system_id,
         key=row.key,
@@ -85,26 +91,26 @@ def _to_response(
         lowest_mode=definition.lowest_mode if definition else None,
         modes=list(modes_showing(row.key)) if definition else [MODE_UNRESTRICTED],
         also_carries=[] if row.key == NSFW else [NSFW],
-        entry_count=entries,
-        franchise_count=franchises,
+        entry_count=counts["entry"].get(row.system_id, 0),
+        collection_count=counts["collection"].get(row.system_id, 0),
+        franchise_count=counts["franchise"].get(row.system_id, 0),
+        series_count=counts["series"].get(row.system_id, 0),
     )
 
 
-def _counts(db: Session) -> dict[UUID, tuple[int, int]]:
-    """{label id: (entries carrying it, franchises carrying it)}, two queries."""
-    entries = dict(
-        db.query(models.MediaContentLabel.label_id, func.count())
-        .group_by(models.MediaContentLabel.label_id)
-        .all()
-    )
-    franchises = dict(
-        db.query(models.FranchiseContentLabel.label_id, func.count())
-        .group_by(models.FranchiseContentLabel.label_id)
-        .all()
-    )
+def _counts(db: Session) -> dict[str, dict[UUID, int]]:
+    """{owner kind: {label id: how many of that kind carry it}}, one query
+    per join table."""
+    tables = {"entry": models.MediaContentLabel} | {
+        tier: join_model for tier, (join_model, _owner) in GROUP_LABEL_TABLES.items()
+    }
     return {
-        label_id: (entries.get(label_id, 0), franchises.get(label_id, 0))
-        for label_id in set(entries) | set(franchises)
+        kind: dict(
+            db.query(join_model.label_id, func.count())
+            .group_by(join_model.label_id)
+            .all()
+        )
+        for kind, join_model in tables.items()
     }
 
 
@@ -209,8 +215,8 @@ def list_labels(
     db: Session = Depends(get_db),
     actor=Depends(require_label_reader),
 ):
-    """Every label, what it marks, which modes show it and how many entries and
-    franchises carry it. Read-only: labels are defined in
+    """Every label, what it marks, which modes show it and how many entries
+    and groups carry it. Read-only: labels are defined in
     app/services/rbac/labels.py, and there is no route that creates, renames or
     deletes one."""
     rows = (
@@ -268,16 +274,73 @@ def replace_entry_labels(
 
 
 # ==========================================
-# FRANCHISE ASSIGNMENT
+# GROUP ASSIGNMENT
 # ==========================================
 
+# Per tier: the 404 word, and the visibility gate a read of it applies.
+_GROUPS = {
+    "collection": ("Collection", models.Collection, collection_visible),
+    "franchise": ("Franchise", models.Franchise, franchise_visible),
+    "series": ("Series", models.Series, series_visible),
+}
 
-def _resolve_franchise(db: Session, franchise_id: UUID, viewer) -> models.Franchise:
-    """The franchise half of _resolve_entry, gated the same way."""
-    row = db.get(models.Franchise, franchise_id)
-    if row is None or not franchise_visible(db, viewer, franchise_id):
-        raise HTTPException(status_code=404, detail="Franchise not found.")
+
+def _resolve_group(db: Session, tier: str, group_id: UUID, viewer):
+    """The group half of _resolve_entry, gated the same way: a group this
+    session cannot see answers as a missing one."""
+    word, model, visible = _GROUPS[tier]
+    row = db.get(model, group_id)
+    if row is None or not visible(db, viewer, group_id):
+        raise HTTPException(status_code=404, detail=f"{word} not found.")
     return row
+
+
+def _replace_group_labels(
+    db: Session, tier: str, group_id: UUID, payload: schemas.EntryLabels
+) -> List[str]:
+    join_model, owner_column = GROUP_LABEL_TABLES[tier]
+    return _replace_labels(
+        db,
+        join_model,
+        owner_column,
+        {owner_column.key: group_id},
+        group_id,
+        payload,
+    )
+
+
+@router.get(
+    "/collection/{collection_id}",
+    response_model=List[str],
+    summary="Get a Collection's Labels",
+)
+def get_collection_labels(
+    collection_id: UUID,
+    db: Session = Depends(get_db),
+    actor: Viewer = Depends(require_manage_catalog),
+):
+    _resolve_group(db, "collection", collection_id, actor)
+    return label_keys_for_group(db, "collection", collection_id)
+
+
+@router.put(
+    "/collection/{collection_id}",
+    response_model=List[str],
+    summary="Replace a Collection's Labels",
+)
+def replace_collection_labels(
+    collection_id: UUID,
+    payload: schemas.EntryLabels,
+    db: Session = Depends(get_db),
+    actor: Viewer = Depends(require_manage_catalog),
+):
+    """
+    A collection's labels hide the collection, every franchise in it, their
+    series and every entry under them. Nothing is written onto any of those:
+    the cascade is read-time, so clearing the set reveals what it covered.
+    """
+    _resolve_group(db, "collection", collection_id, actor)
+    return _replace_group_labels(db, "collection", collection_id, payload)
 
 
 @router.get(
@@ -290,8 +353,8 @@ def get_franchise_labels(
     db: Session = Depends(get_db),
     actor: Viewer = Depends(require_manage_catalog),
 ):
-    _resolve_franchise(db, franchise_id, actor)
-    return label_keys_for_franchise(db, franchise_id)
+    _resolve_group(db, "franchise", franchise_id, actor)
+    return label_keys_for_group(db, "franchise", franchise_id)
 
 
 @router.put(
@@ -306,22 +369,47 @@ def replace_franchise_labels(
     actor: Viewer = Depends(require_manage_catalog),
 ):
     """
-    A franchise's labels hide the franchise AND every entry under it.
+    A franchise's labels hide the franchise, its series and every entry under
+    it.
 
     Nothing is written onto those entries: the cascade is a read-time join
     through media.franchise_id (services/rbac/enforcement.py), so an entry
     moved out of the franchise stops being hidden by it at once, and clearing
     the set here reveals everything it covered.
     """
-    _resolve_franchise(db, franchise_id, actor)
+    _resolve_group(db, "franchise", franchise_id, actor)
     # A franchise of a gated type keeps that type's label, for the same
     # reason (H-Comic keeps h-comic, Hentai keeps hentai).
     refuse_label_removal_on_franchise(db, franchise_id, payload.label_keys)
-    return _replace_labels(
-        db,
-        models.FranchiseContentLabel,
-        models.FranchiseContentLabel.franchise_id,
-        {"franchise_id": franchise_id},
-        franchise_id,
-        payload,
-    )
+    return _replace_group_labels(db, "franchise", franchise_id, payload)
+
+
+@router.get(
+    "/series/{series_id}",
+    response_model=List[str],
+    summary="Get a Series' Labels",
+)
+def get_series_labels(
+    series_id: UUID,
+    db: Session = Depends(get_db),
+    actor: Viewer = Depends(require_manage_catalog),
+):
+    _resolve_group(db, "series", series_id, actor)
+    return label_keys_for_group(db, "series", series_id)
+
+
+@router.put(
+    "/series/{series_id}",
+    response_model=List[str],
+    summary="Replace a Series' Labels",
+)
+def replace_series_labels(
+    series_id: UUID,
+    payload: schemas.EntryLabels,
+    db: Session = Depends(get_db),
+    actor: Viewer = Depends(require_manage_catalog),
+):
+    """A series' labels hide the series and every entry in it, read-time
+    through media.series_id."""
+    _resolve_group(db, "series", series_id, actor)
+    return _replace_group_labels(db, "series", series_id, payload)

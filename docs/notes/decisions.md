@@ -3976,6 +3976,54 @@ them gated types that carried only their own label.
   invariant pass after a Pull and in Calculate catches anything written
   straight to the tables.
 
+### Content labels on collections and series (2026-11-13)
+
+Collections and series carry content labels of their own, as entries and
+franchises already did, and a group's labels cascade down the tree: a
+collection hides itself, its franchises, their series and every entry under
+them; a franchise hides itself, its series and its entries; a series hides
+itself and its entries. Revision `g1r2plabels3` creates both tables empty, so
+nothing became hidden on upgrade. This reverses the earlier choice, recorded
+above under the franchise cascade, to leave series out: a group's label is now
+a thing the owner can set at every tier, rather than only at the franchise.
+
+- **One join table per tier, not a polymorphic owner.**
+  `collection_content_label` and `series_content_label` copy
+  `franchise_content_label`'s shape exactly. A single table with an
+  `(owner_type, owner_id)` pair could not carry a real foreign key, so a
+  deleted group would leave its label rows behind and nothing in the database
+  would say which table an id meant; a nullable column per tier could name two
+  owners or none. Three small tables keep a real `ON DELETE CASCADE` each, and
+  the code that treats them alike is one map, `GROUP_LABEL_TABLES`.
+- **Read-time cascade, nothing copied.** As with the franchise cascade, no
+  label row is written onto anything below a labelled group. Each tier's
+  condition in `enforcement.py` is built from the one above it
+  (`_collection_hidden` → `_franchise_hidden` → `_series_hidden` →
+  `_hidden_by_label`), so moving a franchise out of a labelled collection, or
+  clearing the collection's labels, reveals everything under it at once.
+- **An entry is hidden by its series in full as well as by its own
+  franchise.** An entry records both `media.franchise_id` and
+  `media.series_id`, and its series records `series.franchise_id`. They
+  normally name the same franchise, but nothing forces it. Asking only the
+  entry's franchise would let a hidden series' franchise chain miss the entry;
+  asking only the series would miss an entry with no series. Hiding on either
+  is the direction that cannot leak, so `_hidden_by_label` asks both.
+- **Nothing cascades up or sideways.** A series' label does not hide its
+  franchise or its sibling series, and a franchise's does not hide its
+  collection: a label marks what is inside the thing labelled, not the
+  umbrella around it.
+- **Groups have no 標籤 Label tag and no gated-type required label.** The
+  Label tag is a vocabulary field on the entry tables only, and the gated-type
+  rule needs a type, which a collection and a series do not have; the
+  franchise keeps its own rule because its type list names gated types. The
+  `nsfw` rule does apply to every tier: `add_missing_nsfw` covers all four
+  join tables.
+- **Labels travel on two more `admin.authz` tabs.** `Collection Content Label`
+  and `Series Content Label` are derived-identity tabs like `Franchise Content
+  Label`, so Pull's authorization tabs became six. Each fails open, as the
+  others do: a Pull without the tab restores every collection or series
+  unlabelled.
+
 ### Account lifecycle, first half: status, revocation, reset links (2026-11-13)
 
 Accounts can be disabled, have their sessions ended, and be recovered by a

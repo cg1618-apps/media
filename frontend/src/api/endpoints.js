@@ -89,8 +89,11 @@ export const endpoints = {
     list: () => "/api/content-labels/",
     forEntry: (mediaType, entryId) =>
       `/api/content-labels/entry/${mediaType}/${entryId}`,
+    forCollection: (collectionId) =>
+      `/api/content-labels/collection/${collectionId}`,
     forFranchise: (franchiseId) =>
       `/api/content-labels/franchise/${franchiseId}`,
+    forSeries: (seriesId) => `/api/content-labels/series/${seriesId}`,
   },
 
   seasonal: {

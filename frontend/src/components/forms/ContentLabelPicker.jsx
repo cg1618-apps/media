@@ -4,10 +4,11 @@
 // per-type tabs, because labels are the same keys for every media type and
 // duplicating the control is that many places to forget.
 //
-// The control is OWNER-AGNOSTIC. A media entry and a franchise are the same
-// checkbox list against the same vocabulary, differing only in which URL the
-// set is read from and written to, so one `owner` prop carries both rather
-// than a second near-identical component drifting away from this one.
+// The control is OWNER-AGNOSTIC. A media entry and each grouping tier - a
+// collection, a franchise, a series - are the same checkbox list against the
+// same vocabulary, differing only in which URL the set is read from and
+// written to, so one `owner` prop carries all four rather than a second
+// near-identical component drifting away from this one.
 //
 // On Add the thing has no id until the create call returns, so the parent
 // holds the selection in state and PUTs it afterwards - the same
@@ -33,14 +34,19 @@ export function withNsfw(keys) {
   return [...out].sort();
 }
 
-// { kind: "entry", mediaType, id } | { kind: "franchise", id } -> URL.
-// Returns null when the owner has no id yet (the Add page), which is the
-// signal not to read or write anything.
+// The label endpoint of each grouping tier, keyed by the owner's `kind`.
+const GROUP_LABEL_URL = {
+  collection: endpoints.contentLabels.forCollection,
+  franchise: endpoints.contentLabels.forFranchise,
+  series: endpoints.contentLabels.forSeries,
+};
+
+// { kind: "entry", mediaType, id } | { kind: "collection" | "franchise" |
+// "series", id } -> URL. Returns null when the owner has no id yet (the Add
+// page), which is the signal not to read or write anything.
 function ownerUrl(owner) {
   if (!owner?.id) return null;
-  if (owner.kind === "franchise") {
-    return endpoints.contentLabels.forFranchise(owner.id);
-  }
+  if (GROUP_LABEL_URL[owner.kind]) return GROUP_LABEL_URL[owner.kind](owner.id);
   if (!owner.mediaType) return null;
   return endpoints.contentLabels.forEntry(owner.mediaType, owner.id);
 }
@@ -50,9 +56,9 @@ export default function ContentLabelPicker({
   onChange,
   disabled,
   owner,
-  // What the footnote says is hidden. A franchise's labels cascade to its
-  // entries, so saying "this entry" there would understate it by a whole
-  // franchise.
+  // What the footnote says is hidden. A group's labels cascade to everything
+  // under it, so saying "this entry" there would understate it by a whole
+  // group (GROUP_SCOPE_NOTES).
   scopeNote = "A labelled entry is hidden from anyone whose active mode does not carry that label.",
   // Labels the thing must carry whatever the admin picks - a gated type's
   // required label (lib/gatedTypes.js). Drawn checked and locked; the savers
@@ -176,13 +182,35 @@ export const LABELLABLE_TABS = [
   "h-comic",
   "h-game",
   "hentai",
+  "collection",
   "franchise",
+  "series",
 ];
 
-// What the picker says under a franchise's checkboxes. Kept beside the
-// default so the two readings of "what does this hide" sit together.
-export const FRANCHISE_SCOPE_NOTE =
-  "A labelled franchise is hidden from anyone whose active mode does not carry that label - and so is every entry in it.";
+// The grouping tiers that carry labels of their own - the picker's group
+// owner kinds, and the Add/Modify tabs whose labels cascade.
+export const LABELLABLE_GROUPS = Object.freeze(Object.keys(GROUP_LABEL_URL));
+
+// What the picker says under each grouping tier's checkboxes, keyed by tab.
+// Kept beside the default so every reading of "what does this hide" sits
+// together. Each states the tier's cascade: a collection's label reaches
+// every franchise, series and entry in it; a series' reaches its entries.
+export const GROUP_SCOPE_NOTES = Object.freeze({
+  collection:
+    "A labelled collection is hidden from anyone whose active mode does not carry that label - and so is every franchise, series and entry in it.",
+  franchise:
+    "A labelled franchise is hidden from anyone whose active mode does not carry that label - and so is every series and entry in it.",
+  series:
+    "A labelled series is hidden from anyone whose active mode does not carry that label - and so is every entry in it.",
+});
+
+// What a Modify confirm says an added label hides, keyed by tab; an entry
+// tab is not listed and reads "this entry".
+export const GROUP_HIDES = Object.freeze({
+  collection: "this collection and every franchise, series and entry in it",
+  franchise: "this franchise and every series and entry in it",
+  series: "this series and every entry in it",
+});
 
 // Save an entry's labels. Call after a create returns its system_id, or after
 // a modify submit. Failure is reported to the caller rather than swallowed:
@@ -204,6 +232,23 @@ export async function saveFranchiseLabels(franchiseId, labelKeys, franchiseType)
   return saveLabels(
     endpoints.contentLabels.forFranchise(franchiseId),
     withRequired(labelKeys, requiredLabelsForFranchiseType(franchiseType)),
+  );
+}
+
+// The same for a collection. No gated type stamps a collection, so nothing
+// is required beyond the nsfw rule.
+export async function saveCollectionLabels(collectionId, labelKeys) {
+  return saveLabels(
+    endpoints.contentLabels.forCollection(collectionId),
+    withNsfw(labelKeys),
+  );
+}
+
+// The same for a series, which likewise has no required label.
+export async function saveSeriesLabels(seriesId, labelKeys) {
+  return saveLabels(
+    endpoints.contentLabels.forSeries(seriesId),
+    withNsfw(labelKeys),
   );
 }
 

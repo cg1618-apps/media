@@ -7,7 +7,7 @@ a gated type marks is unfit for a public place too - and it is STORED rather
 than implied, so a reader asking "does this carry nsfw" never has to know the
 rule. Every write path goes through here:
 
-  the label PUT, entry and franchise  routers/content_labels._replace_labels:
+  the label PUT, entry and groups    routers/content_labels._replace_labels:
                                       with_required_labels + refuse_nsfw_removal
   the gated auto-label                gated_labels.ensure_entry_label /
                                       ensure_franchise_labels
@@ -68,27 +68,30 @@ _ADD_MISSING = {
           )
         GROUP BY owner.media_id, nsfw.system_id
     """,
-    "franchise": """
-        INSERT INTO franchise_content_label
-            (system_id, franchise_id, label_id, position)
-        SELECT gen_random_uuid(), owner.franchise_id, nsfw.system_id,
-               COALESCE(MAX(owner.position), 0) + 1
-        FROM franchise_content_label owner
-        JOIN content_label other ON other.system_id = owner.label_id
-        CROSS JOIN content_label nsfw
-        WHERE other.key <> 'nsfw' AND nsfw.key = 'nsfw'
-          AND NOT EXISTS (
-              SELECT 1 FROM franchise_content_label has
-              WHERE has.franchise_id = owner.franchise_id
-                AND has.label_id = nsfw.system_id
-          )
-        GROUP BY owner.franchise_id, nsfw.system_id
-    """,
 }
+
+_ADD_MISSING_TO_GROUP = """
+    INSERT INTO {tier}_content_label
+        (system_id, {tier}_id, label_id, position)
+    SELECT gen_random_uuid(), owner.{tier}_id, nsfw.system_id,
+           COALESCE(MAX(owner.position), 0) + 1
+    FROM {tier}_content_label owner
+    JOIN content_label other ON other.system_id = owner.label_id
+    CROSS JOIN content_label nsfw
+    WHERE other.key <> 'nsfw' AND nsfw.key = 'nsfw'
+      AND NOT EXISTS (
+          SELECT 1 FROM {tier}_content_label has
+          WHERE has.{tier}_id = owner.{tier}_id
+            AND has.label_id = nsfw.system_id
+      )
+    GROUP BY owner.{tier}_id, nsfw.system_id
+"""
+for _tier in ("collection", "franchise", "series"):
+    _ADD_MISSING[_tier] = _ADD_MISSING_TO_GROUP.format(tier=_tier)
 
 
 def add_missing_nsfw(db: Session) -> dict[str, int]:
-    """Attach `nsfw` to every entry and franchise carrying another label
+    """Attach `nsfw` to every entry and group carrying another label
     without it. Idempotent; returns how many of each it added. Does not
     commit - the caller owns the transaction."""
     added = {

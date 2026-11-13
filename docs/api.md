@@ -128,7 +128,15 @@ The optional umbrella tier above Franchise (e.g. Marvel, Type-Moon).
 | `PATCH`  | `/{system_id}` | Admin  | Partial update (used by inline hub edits). Body: raw JSON dict.                                                                                |
 | `DELETE` | `/{system_id}` | Admin  | Delete a collection. **Member franchises are NOT deleted** — their `collection_id` is set to `NULL` via the DB constraint. Logs to `deleted_record`. |
 
-**Response model:** `CollectionResponse` (`created_at`/`updated_at` are optional, since a Pull can produce rows without them)
+**Response model:** `CollectionResponse` (`created_at`/`updated_at` are optional, since a Pull can produce rows without them). Every response carries `content_labels`, the labels on the collection itself, read-only here: the only writer is `PUT /api/content-labels/collection/{collection_id}` (see [`/api/content-labels`](#apicontent-labels)).
+
+**A labelled collection is hidden.** A collection carrying a label the
+viewer's mode lacks is absent from the list, the search and the `collection`
+search bucket, and its detail, `PUT`, `PATCH` and `DELETE` answer **404
+"Collection not found."** (`DELETE` without the full stop), exactly as for a
+collection that does not exist. Its franchises, their series and every entry
+under them are hidden with it, read-time — see
+[authorization.md](authorization.md#content-labels).
 
 To list a collection's members, use `GET /api/franchise/?collection_id=<uuid>`.
 
@@ -158,6 +166,12 @@ gains that type's content label on every write.
 
 **Response model:** `FranchiseResponse`
 
+**A franchise is hidden by its own labels and by its collection's.** One
+carrying a label the viewer's mode lacks, or sitting in a collection that
+does, is absent from the list and search, and its detail and writes answer
+404 as for a franchise that does not exist. Its series and entries are hidden
+with it; its collection is not.
+
 **`entry_count`.** The list (`GET /`) sets `entry_count` on every row: how many
 entries in that franchise the viewer may see, counted over `media` through
 `apply_media_visibility` in one grouped query (`app/services/domain/group_counts.py`).
@@ -174,11 +188,13 @@ it `null`. The series list sets the same field per series.
 | `GET`    | `/`            | Public | List all series. Optional params: `franchise_id` (UUID), `search_query`. Each row carries a viewer-filtered `entry_count`, as the franchise list does. |
 | `GET`    | `/{system_id}` | Public | Get a single series by UUID.                                                       |
 
-**A series is hidden with its franchise.** A series carries no labels of its
-own; one whose franchise carries a label the viewer's mode lacks is absent from
-the list and from search, and its detail, `PUT`, `PATCH` and `DELETE` answer
-**404 "Series not found."**, exactly as for a series that does not exist. The
-join is read-time through `series.franchise_id`, the same cascade entries get.
+**A series is hidden by its own labels and by every group above it.** A
+series carrying a label the viewer's mode lacks, or whose franchise is hidden
+(by the franchise's labels or its collection's), is absent from the list and
+from search, and its detail, `PUT`, `PATCH` and `DELETE` answer **404 "Series
+not found."**, exactly as for a series that does not exist. The join is
+read-time through `series.franchise_id`. A series' labels hide its entries,
+not its franchise or its sibling series.
 | `POST`   | `/`            | Admin  | Create a series. Resolves or auto-creates parent franchise. Body: `SeriesCreate`.  |
 | `PUT`    | `/{system_id}` | Admin  | Full update. Resolves hierarchy changes. Body: `SeriesUpdate`.                     |
 | `PATCH`  | `/{system_id}` | Admin  | Partial update (e.g. inline rating edit). Body: raw JSON dict.                     |
@@ -186,7 +202,7 @@ join is read-time through `series.franchise_id`, the same cascade entries get.
 
 **`SeriesCreate` / `SeriesUpdate` body (= `SeriesBase`):** `franchise_id`, `series_name_en`, `series_name_cn`, `series_name_roman`, `series_name_jp`, `series_name_alt`, `my_rating`, `series_expectation` (default `"Low"`), `cover_entry_id`, `remark`. No `to_rewatch` field — `series` has no rewatch column or virtual field at all; a series' rewatch marks are read and written through `POST` / `DELETE /api/plan-next/target` with `scope=series` directly (see Plan Next below).
 
-**Response model:** `SeriesResponse` — `SeriesCreate`/`SeriesUpdate` fields above plus `system_id`, `created_at`, `updated_at`.
+**Response model:** `SeriesResponse` — `SeriesCreate`/`SeriesUpdate` fields above plus `system_id`, `created_at`, `updated_at`, `entry_count` (list only), and `content_labels`, the series' own labels, read-only here: the only writer is `PUT /api/content-labels/series/{series_id}`.
 
 ---
 
@@ -720,7 +736,7 @@ endpoint gets it and `item_count` for every row in one grouped query.
 
 **Item resolution.** `watch_order_item` stores only a `media_id` foreign key
 — `media_type` and `entry_id` are derived from it (see
-[data-model.md](data-model.md#the-six-tables-that-moved-to-media_id)) — so the
+[data-model.md](data-model.md#tables-that-hang-off-an-entry-or-a-group)) — so the
 detail endpoint enriches each item
 with `display_name`, `cover_image_file`, `cover_image_focus`, `franchise_id`, `status`,
 `total_episodes` and `ep_special` via `app/services/domain/watch_order.py`. That runs one query
@@ -924,7 +940,8 @@ the frontend hides the quote-link control in that case.
 
 **Hidden owners.** A meme whose owner is hidden from the viewer is dropped from
 every read, and its `/{meme_id}` and writes answer 404: a label-hidden entry,
-a label-hidden franchise, or a series in one. A collection carries no labels.
+or a collection, franchise or series hidden by its own labels or by a group
+above it.
 
 ---
 
@@ -1078,9 +1095,9 @@ Like Meme, a note's owner may be a media entry **or** one of the three
 grouping tiers — the same twelve hyphenated `owner_type` values.
 
 A hidden owner answers **404 "Owner not found."** on the read and on every
-write: a label-hidden entry, a label-hidden franchise, or a series in one. The
-tier on a write is resolved from the id, never from the payload's
-`owner_type`. A collection carries no labels and is never refused.
+write: a label-hidden entry, or a collection, franchise or series hidden by
+its own labels or by a group above it. The tier on a write is resolved from
+the id, never from the payload's `owner_type`.
 
 | Method   | Path           | Auth   | Description                                                                                                                                       |
 | -------- | -------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1324,8 +1341,10 @@ the same one-pass resolver its own list uses (`entity_photos.person_media` for
 people, `credits.credit_summaries` for studios and publishers). The rows go through
 the same shared-record rule as their lists
 ([authorization.md](authorization.md#shared-records)), so a person, studio or
-publisher whose every connection is hidden is absent from its bucket, and a
-series in a label-hidden franchise is absent from the `series` bucket.
+publisher whose every connection is hidden is absent from its bucket. The
+`collection`, `franchise` and `series` buckets go through the tier's own
+visibility gate, so a group hidden by its own labels or by a group above it is
+absent, and each row carries its `content_labels`.
 
 **Characters.** With `characters=true` the response carries a `character`
 bucket; without it there is no such key, so the nav dropdown never sees one.
@@ -2694,27 +2713,32 @@ already stored are not re-checked. Uniqueness ignores case.
 **Labels are defined in code** (`app/services/rbac/labels.py`), with the
 lowest mode that shows each, so there is no route that creates, renames or
 deletes one. What this router serves is the read-only label reference and the
-assignment of labels to entries and franchises. The reference is readable with
+assignment of labels to entries and to the three grouping tiers —
+collections, franchises and series. The reference is readable with
 `admin.authz` **or** `manage.catalog` — the admin reads it to see what a mode
 restriction does, `super` because `super` is the one attaching labels, and the
 Add/Modify picker draws from it. Assignment is `manage.catalog`: putting a
 label on something is a catalogue edit, submitted by the Add and Modify forms
-along with the rest of the entry.
+along with the rest of the record.
 
 | Method | Path | Gate | Body / notes |
 |---|---|---|---|
-| GET | `/api/content-labels/` | either | The label reference: every label row as `ContentLabelResponse`, ordered by `sort_order` — `system_id`, `key`, `label`, `description`, `sort_order`; `lowest_mode`, the lowest mode that shows it; `modes`, the keys of every mode that shows it, narrowest first; `also_carries`, `["nsfw"]` for every label but `nsfw` and `[]` for `nsfw`; `entry_count` and `franchise_count`, how many entries and franchises carry it. `modes` and `also_carries` are generated from the code, not stored. A row the code does not name has `lowest_mode: null` and `modes: ["unrestricted"]`. 401 for a session holding neither gate. |
+| GET | `/api/content-labels/` | either | The label reference: every label row as `ContentLabelResponse`, ordered by `sort_order` — `system_id`, `key`, `label`, `description`, `sort_order`; `lowest_mode`, the lowest mode that shows it; `modes`, the keys of every mode that shows it, narrowest first; `also_carries`, `["nsfw"]` for every label but `nsfw` and `[]` for `nsfw`; `entry_count`, `collection_count`, `franchise_count` and `series_count`, how many entries, collections, franchises and series carry it directly (a group's label is not counted again on what it cascades to). `modes` and `also_carries` are generated from the code, not stored. A row the code does not name has `lowest_mode: null` and `modes: ["unrestricted"]`. 401 for a session holding neither gate. |
 | GET | `/api/content-labels/entry/{media_type}/{entry_id}` | `manage.catalog` | The label keys this entry carries. |
 | PUT | `/api/content-labels/entry/{media_type}/{entry_id}` | `manage.catalog` | `{"label_keys": [...]}` — replaces the set. 400 on an unknown media type, 404 on a missing **or hidden** entry, 422 on an unknown label, 422 on a gated entry whose new set lacks its required label - `h-comic` on an h-comic, `h-game` on an h-game (checked before anything is deleted). |
+| GET | `/api/content-labels/collection/{collection_id}` | `manage.catalog` | The label keys this collection carries — its own, sorted. 404 "Collection not found." on a missing or hidden collection. |
+| PUT | `/api/content-labels/collection/{collection_id}` | `manage.catalog` | Same body and same answers as the entry PUT, less the media type and the gated-type rule. A collection's labels hide the collection, **every franchise in it, their series and every entry under them**. |
 | GET | `/api/content-labels/franchise/{franchise_id}` | `manage.catalog` | The label keys this franchise carries. |
-| PUT | `/api/content-labels/franchise/{franchise_id}` | `manage.catalog` | Same body and same answers, one tier up. A franchise's labels hide the franchise **and every entry in it**. 422 on a franchise whose type includes `H-Comic` / `H-Game` when the new set lacks `h-comic` / `h-game`. |
+| PUT | `/api/content-labels/franchise/{franchise_id}` | `manage.catalog` | Same body and same answers, one tier up. A franchise's labels hide the franchise, **its series and every entry in it** — not its collection. 422 on a franchise whose type includes a gated type (`H-Comic`, `Hentai`, `H-Game`) when the new set lacks that type's label. |
+| GET | `/api/content-labels/series/{series_id}` | `manage.catalog` | The label keys this series carries. 404 "Series not found." on a missing or hidden series. |
+| PUT | `/api/content-labels/series/{series_id}` | `manage.catalog` | Same body and same answers as the collection PUT. A series' labels hide the series **and every entry in it** — not its franchise or its sibling series. |
 
-Both assignment surfaces bind to the read: a thing the caller's active mode
+Every assignment surface binds to the read: a thing the caller's active mode
 cannot see answers 404, so a narrowed editor cannot clear the label that is
 hiding it.
 
 **Every label but `nsfw` is stored with `nsfw`.** A PUT of an entry's or a
-franchise's labels adds `nsfw` beside any other label, and answers **422**
+group's labels adds `nsfw` beside any other label, and answers **422**
 when it would drop `nsfw` while another label stays; dropping every label at
 once is allowed. `also_carries` on the reference states the same rule per
 label.

@@ -88,6 +88,9 @@ class SeriesUpdate(SeriesBase):
 
 class SeriesResponse(SeriesBase):
     system_id: UUID
+    # Set by attach_group_content_labels; read-only, as on FranchiseResponse.
+    # The only writer is PUT /api/content-labels/series/{series_id}.
+    content_labels: list[ContentLabelRef] = []
     # As FranchiseResponse.entry_count, for this series.
     entry_count: Optional[int] = None
     # The id the SPA puts in the URL. Never gated: a viewer allowed to see the

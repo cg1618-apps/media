@@ -173,7 +173,7 @@ def test_the_pass_is_idempotent(db_session, erotica_without_nsfw):
     add_missing_nsfw(db_session)
     again = add_missing_nsfw(db_session)
 
-    assert again == {"media": 0, "franchise": 0}
+    assert again == {"media": 0, "collection": 0, "franchise": 0, "series": 0}
     assert _entry_keys(db_session, erotica_without_nsfw.system_id) == {"erotica", NSFW}
 
 
@@ -182,7 +182,8 @@ def test_the_pass_is_idempotent(db_session, erotica_without_nsfw):
 
 def test_the_revision_backfills_like_the_rule(db_session, erotica_without_nsfw):
     """Runs the shipped revision's own SQL, which is a frozen copy of
-    add_missing_nsfw; the two must agree."""
+    add_missing_nsfw for the two tables that existed then; the two must
+    agree, whitespace aside."""
     import importlib.util
     from pathlib import Path
 
@@ -198,7 +199,12 @@ def test_the_revision_backfills_like_the_rule(db_session, erotica_without_nsfw):
 
     from app.services.domain import label_rules
 
-    assert revision.ADD_MISSING == label_rules._ADD_MISSING
+    def words(sql):
+        return " ".join(sql.split())
+
+    assert set(revision.ADD_MISSING) == {"media", "franchise"}
+    for owner, sql in revision.ADD_MISSING.items():
+        assert words(sql) == words(label_rules._ADD_MISSING[owner])
     added = revision.backfill(db_session.connection())
     db_session.expire_all()
 

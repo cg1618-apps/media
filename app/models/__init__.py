@@ -23,9 +23,11 @@ from app.models.character import (
 from app.models.collection import Collection
 from app.models.comic import Comic
 from app.models.content_label import (
+    CollectionContentLabel,
     ContentLabel,
     FranchiseContentLabel,
     MediaContentLabel,
+    SeriesContentLabel,
 )
 from app.models.franchise import Franchise, Series
 from app.models.game import Game
@@ -139,7 +141,9 @@ __all__ = [
     "SystemConfigs",
     "Seasonal",
     "ContentLabel",
+    "CollectionContentLabel",
     "FranchiseContentLabel",
+    "SeriesContentLabel",
     "MediaContentLabel",
     "AccessMode",
     "UserAccessModeDenial",

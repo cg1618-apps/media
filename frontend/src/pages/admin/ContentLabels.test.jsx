@@ -2,7 +2,7 @@
 //
 // Labels are defined in code, so the page is a read-only table of what the
 // server says about each: which modes show it, what it also carries, and how
-// many entries and franchises carry it.
+// many entries, collections, franchises and series carry it.
 import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -17,7 +17,9 @@ const LABELS = [
     modes: ["borderline", "unrestricted"],
     also_carries: [],
     entry_count: 12,
+    collection_count: 3,
     franchise_count: 2,
+    series_count: 5,
   },
   {
     system_id: "l2",
@@ -29,7 +31,9 @@ const LABELS = [
     modes: ["unrestricted"],
     also_carries: ["nsfw"],
     entry_count: 4,
+    collection_count: 0,
     franchise_count: 1,
+    series_count: 0,
   },
 ];
 
@@ -68,6 +72,24 @@ describe("the label reference", () => {
     expect(within(row).getByText("Not safe for work.")).toBeInTheDocument();
     expect(within(row).getByText("12")).toBeInTheDocument();
     expect(within(row).getByText("2")).toBeInTheDocument();
+  });
+
+  it("shows the counts in entry, collection, franchise, series order", async () => {
+    const row = await rowFor("NSFW");
+    const headers = screen
+      .getAllByRole("columnheader")
+      .map((el) => el.textContent);
+    expect(headers.slice(-4)).toEqual([
+      "Entries",
+      "Collections",
+      "Franchises",
+      "Series",
+    ]);
+    const cells = within(row)
+      .getAllByRole("cell")
+      .slice(-4)
+      .map((el) => el.textContent);
+    expect(cells).toEqual(["12", "3", "2", "5"]);
   });
 
   it("lists the modes that show a label, in order", async () => {
