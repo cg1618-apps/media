@@ -769,8 +769,8 @@ shape is a guarantee rather than a style choice.
 | Control | Shape | Why it cannot be a checkbox / free field |
 |---|---|---|
 | Guest default (`AccessModes.jsx`) | **no control at all** | A logged-out visitor always resolves the `safe` mode, which is what that mode means rather than something an administrator picks. There is no column to store a choice, so the page offers none; `safe`'s own description carries the fact. |
-| Per-account denials (`Users.jsx`) | **the mode's own list, tick-to-deny** | Denials only subtract - an account's reach is always a subset of its mode's - so showing the ceiling and letting you remove from it is structurally incapable of naming something outside it. |
-| Login default (`Users.jsx`) | a radio among the modes that account **holds** | It cannot drift out of the granted set, which is the same guarantee the partial unique index gives in the database. |
+| Per-account denials (`Users.jsx`) | **the ceiling's own list, tick-to-deny** | Denials only subtract - an account's reach is always a subset of its active mode's - so showing what the ceiling shows and letting you remove from it is structurally incapable of naming something outside it. Changing the ceiling drops the denials the new one does not show. |
+| Ceiling and login default (`Users.jsx`) | two selects ordered by each mode's served `rank`; the default offers only modes **at or below the ceiling** | The default cannot be set above the ceiling, which is the same guarantee `ck_users_mode_default_within_ceiling` gives in the database. Lowering the ceiling below the default moves the default down with it. |
 
 **`homelessLabelKeys` is exported for its tests**, and is the one piece of
 logic on either page that can be wrong in a way nobody would notice. A content

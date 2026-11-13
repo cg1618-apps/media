@@ -46,7 +46,7 @@ export default function Users() {
     try {
       await fetchJson(endpoints.users.accessModes(user.id), {
         method: "PUT",
-        ...jsonBody({ modes: next }),
+        ...jsonBody(next),
       });
       showToast("success", `Updated ${user.username}'s access.`);
       setModesFor(null);
@@ -262,21 +262,15 @@ export default function Users() {
                 )}
               </td>
               <td className="px-4 py-2 text-xs text-text-faint">
-                {user.access_modes.length === 0 ? (
+                {user.mode_ceiling == null ? (
                   <span className="text-danger">no mode — sees nothing</span>
                 ) : (
-                  user.access_modes
-                    .map(
-                      (m) =>
-                        m.label +
-                        (m.is_default ? " (default)" : "") +
-                        (m.denied_label_keys.length +
-                          m.denied_field_group_keys.length >
-                        0
-                          ? " (narrowed)"
-                          : ""),
-                    )
-                    .join(", ")
+                  `${user.mode_ceiling} / ${user.mode_default}` +
+                  (user.denied_label_keys.length +
+                    user.denied_field_group_keys.length >
+                  0
+                    ? " (narrowed)"
+                    : "")
                 )}
                 <button
                   onClick={() => setModesFor(user.id)}
@@ -335,9 +329,9 @@ export default function Users() {
 
       {/*
         Keyed by the account so switching straight from one user's panel to
-        another remounts it: `held` is seeded in a useState initializer, which
-        runs once per mount and would otherwise keep the first account's
-        grants under the second account's name.
+        another remounts it: the panel's state is seeded in useState
+        initializers, which run once per mount and would otherwise keep the
+        first account's ceiling and denials under the second account's name.
       */}
       {modesFor !== null && (
         <AccessModePanel
@@ -353,66 +347,68 @@ export default function Users() {
 }
 
 /**
- * Which access modes one account holds, and what it is denied from each.
+ * One account's ceiling, login default, and what it is denied.
  *
- * The items under a held mode are rendered as THE MODE'S OWN LIST with
- * tick-to-deny, and that is the whole point rather than a layout choice.
- * Denials only subtract: an account's reach is always a subset of its mode's,
- * so showing the ceiling and letting you remove from it makes the control
- * structurally incapable of expressing something outside it. The server
- * refuses a stray denial with 422; this is why nobody ever sees that error.
+ * The ceiling is the widest mode the account may switch to; the default is
+ * where a login lands, and can only be at or below the ceiling, so the
+ * default select offers nothing above it. The order is each mode's `rank`
+ * from GET /api/access-modes - the SPA keeps no copy of it.
+ *
+ * The denial toggles are THE CEILING'S OWN LIST with tick-to-deny, and that
+ * is the whole point rather than a layout choice. Denials only subtract, and
+ * apply in every mode the account uses, so showing what the ceiling shows
+ * and letting you remove from it makes the control structurally incapable of
+ * expressing something outside it. The server refuses a stray denial with
+ * 422; this is why nobody ever sees that error.
  */
 function AccessModePanel({ user, modes, onClose, onSave }) {
-  const [held, setHeld] = useState(() =>
-    (user?.access_modes ?? []).map((m) => ({
-      mode_id: m.mode_id,
-      is_default: m.is_default,
-      denied_label_keys: [...m.denied_label_keys],
-      denied_field_group_keys: [...m.denied_field_group_keys],
-    })),
+  const ranked = modes
+    .filter((m) => m.rank != null)
+    .sort((a, b) => a.rank - b.rank);
+  const byKey = Object.fromEntries(ranked.map((m) => [m.key, m]));
+
+  const [ceiling, setCeiling] = useState(user?.mode_ceiling ?? null);
+  const [defaultKey, setDefaultKey] = useState(user?.mode_default ?? null);
+  const [deniedLabels, setDeniedLabels] = useState(
+    () => user?.denied_label_keys ?? [],
+  );
+  const [deniedGroups, setDeniedGroups] = useState(
+    () => user?.denied_field_group_keys ?? [],
   );
 
   if (!user) return null;
 
-  const heldIds = new Set(held.map((h) => h.mode_id));
+  const ceilingMode = ceiling ? byKey[ceiling] : null;
+  const shownLabels = ceilingMode?.label_keys ?? [];
+  const shownGroups = ceilingMode?.field_group_keys ?? [];
+  const defaultOptions = ceilingMode
+    ? ranked.filter((m) => m.rank <= ceilingMode.rank)
+    : [];
 
-  function toggleMode(mode) {
-    setHeld((current) =>
-      heldIds.has(mode.system_id)
-        ? current.filter((h) => h.mode_id !== mode.system_id)
-        : [
-            ...current,
-            {
-              mode_id: mode.system_id,
-              is_default: current.length === 0,
-              denied_label_keys: [],
-              denied_field_group_keys: [],
-            },
-          ],
-    );
+  function changeCeiling(key) {
+    const next = key === "" ? null : byKey[key];
+    setCeiling(next ? next.key : null);
+    if (!next) {
+      setDefaultKey(null);
+    } else if (!defaultKey || byKey[defaultKey]?.rank > next.rank) {
+      setDefaultKey(next.key);
+    }
+    // A denial of something the new ceiling does not show subtracts nothing.
+    setDeniedLabels((d) => d.filter((k) => next?.label_keys.includes(k)));
+    setDeniedGroups((d) => d.filter((k) => next?.field_group_keys.includes(k)));
   }
 
-  function setDefault(modeId) {
-    setHeld((current) =>
-      current.map((h) => ({ ...h, is_default: h.mode_id === modeId })),
-    );
+  function toggle(setter, key) {
+    setter((d) => (d.includes(key) ? d.filter((k) => k !== key) : [...d, key]));
   }
 
-  function toggleDenial(modeId, kind, key) {
-    const field =
-      kind === "label" ? "denied_label_keys" : "denied_field_group_keys";
-    setHeld((current) =>
-      current.map((h) =>
-        h.mode_id === modeId
-          ? {
-              ...h,
-              [field]: h[field].includes(key)
-                ? h[field].filter((k) => k !== key)
-                : [...h[field], key],
-            }
-          : h,
-      ),
-    );
+  function save() {
+    onSave(user, {
+      ceiling,
+      default: ceiling ? defaultKey : null,
+      denied_label_keys: deniedLabels,
+      denied_field_group_keys: deniedGroups,
+    });
   }
 
   return (
@@ -422,10 +418,7 @@ function AccessModePanel({ user, modes, onClose, onSave }) {
           Access for {user.username}
         </h2>
         <div className="flex gap-3">
-          <button
-            onClick={() => onSave(user, held)}
-            className="text-brand text-xs font-semibold"
-          >
+          <button onClick={save} className="text-brand text-xs font-semibold">
             Save
           </button>
           <button onClick={onClose} className="text-text-faint text-xs">
@@ -434,94 +427,83 @@ function AccessModePanel({ user, modes, onClose, onSave }) {
         </div>
       </div>
 
-      {held.length === 0 && (
-        <p className="text-xs text-danger mb-3">
-          This account holds no access mode, so it can reach nothing. That is
+      <div className="flex flex-wrap gap-4 text-xs text-text-muted mb-3">
+        <label className="flex flex-col gap-1">
+          Widest mode (ceiling)
+          <select
+            value={ceiling ?? ""}
+            onChange={(e) => changeCeiling(e.target.value)}
+            className="border rounded px-2 py-1 text-xs"
+          >
+            <option value="">No mode</option>
+            {ranked.map((mode) => (
+              <option key={mode.key} value={mode.key}>
+                {mode.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        {ceilingMode && (
+          <label className="flex flex-col gap-1">
+            Lands here at login (default)
+            <select
+              value={defaultKey ?? ""}
+              onChange={(e) => setDefaultKey(e.target.value)}
+              className="border rounded px-2 py-1 text-xs"
+            >
+              {defaultOptions.map((mode) => (
+                <option key={mode.key} value={mode.key}>
+                  {mode.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
+
+      {!ceilingMode ? (
+        <p className="text-xs text-danger">
+          This account has no access mode, so it can reach nothing. That is
           fail-closed rather than broken, but it is almost certainly not what
           you meant.
         </p>
+      ) : shownLabels.length + shownGroups.length === 0 ? (
+        <p className="text-[11px] text-text-faint">
+          This ceiling shows nothing to narrow.
+        </p>
+      ) : (
+        <div className="text-[11px] text-text-faint">
+          <span>Untick to withhold from this account, in every mode:</span>
+          <div className="flex flex-wrap gap-3 mt-1">
+            {shownLabels.map((key) => (
+              <label
+                key={`l-${key}`}
+                className="flex items-center gap-1 cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={!deniedLabels.includes(key)}
+                  onChange={() => toggle(setDeniedLabels, key)}
+                />
+                {key}
+              </label>
+            ))}
+            {shownGroups.map((key) => (
+              <label
+                key={`f-${key}`}
+                className="flex items-center gap-1 cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={!deniedGroups.includes(key)}
+                  onChange={() => toggle(setDeniedGroups, key)}
+                />
+                {key}
+              </label>
+            ))}
+          </div>
+        </div>
       )}
-
-      <div className="space-y-3">
-        {modes.map((mode) => {
-          const grant = held.find((h) => h.mode_id === mode.system_id);
-          return (
-            <div
-              key={mode.system_id}
-              className="border border-border rounded-lg p-3"
-            >
-              <div className="flex items-center gap-3 text-sm">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(grant)}
-                    onChange={() => toggleMode(mode)}
-                  />
-                  <span className="font-medium text-text">{mode.label}</span>
-                </label>
-                {grant && (
-                  <label className="flex items-center gap-2 text-[11px] text-text-faint cursor-pointer">
-                    <input
-                      type="radio"
-                      name={`default-${user.id}`}
-                      checked={grant.is_default}
-                      onChange={() => setDefault(mode.system_id)}
-                    />
-                    lands here at login
-                  </label>
-                )}
-              </div>
-
-              {grant && (
-                <div className="mt-2 pl-6 text-[11px] text-text-faint">
-                  {mode.label_keys.length + mode.field_group_keys.length ===
-                  0 ? (
-                    <span>This mode carries nothing to narrow.</span>
-                  ) : (
-                    <>
-                      <span>Untick to withhold from this account:</span>
-                      <div className="flex flex-wrap gap-3 mt-1">
-                        {mode.label_keys.map((key) => (
-                          <label
-                            key={`l-${key}`}
-                            className="flex items-center gap-1 cursor-pointer"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={!grant.denied_label_keys.includes(key)}
-                              onChange={() =>
-                                toggleDenial(mode.system_id, "label", key)
-                              }
-                            />
-                            {key}
-                          </label>
-                        ))}
-                        {mode.field_group_keys.map((key) => (
-                          <label
-                            key={`f-${key}`}
-                            className="flex items-center gap-1 cursor-pointer"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={
-                                !grant.denied_field_group_keys.includes(key)
-                              }
-                              onChange={() =>
-                                toggleDenial(mode.system_id, "field_group", key)
-                              }
-                            />
-                            {key}
-                          </label>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }

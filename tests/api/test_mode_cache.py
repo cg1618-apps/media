@@ -39,38 +39,27 @@ def test_bump_clears_the_mode_cache_too(db_session):
     assert cache.mode_sets(db_session, safe.system_id) is not first
 
 
-def test_denials_for_an_untouched_grant_is_empty(db_session, admin_user):
-    safe = _safe(db_session)
-    grant = models.UserAccessMode(user_id=admin_user.id, mode_id=safe.system_id)
-    db_session.add(grant)
-    db_session.flush()
-
-    denials = cache.denials_for(db_session, grant.system_id)
+def test_denials_for_an_untouched_account_is_empty(db_session, admin_user):
+    denials = cache.denials_for(db_session, admin_user.id)
     assert denials.label_ids == frozenset()
     assert denials.field_groups == frozenset()
 
 
 def test_denials_for_reads_both_kinds(db_session, admin_user):
-    safe = _safe(db_session)
     label = models.ContentLabel(key="cache-denial-label", label="L")
     db_session.add(label)
     db_session.flush()
-    grant = models.UserAccessMode(user_id=admin_user.id, mode_id=safe.system_id)
-    db_session.add(grant)
-    db_session.flush()
     db_session.add(
-        models.UserAccessModeDenial(
-            user_access_mode_id=grant.system_id, label_id=label.system_id
-        )
+        models.UserAccessModeDenial(user_id=admin_user.id, label_id=label.system_id)
     )
     db_session.add(
         models.UserAccessModeDenial(
-            user_access_mode_id=grant.system_id, field_group_key="sources_other"
+            user_id=admin_user.id, field_group_key="sources_other"
         )
     )
     db_session.flush()
     cache.bump()
 
-    denials = cache.denials_for(db_session, grant.system_id)
+    denials = cache.denials_for(db_session, admin_user.id)
     assert denials.label_ids == frozenset({label.system_id})
     assert denials.field_groups == frozenset({"sources_other"})

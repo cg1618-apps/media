@@ -22,6 +22,7 @@ from app.services.rbac.modes import (
     held_modes,
     resolve_mode,
     switch_requires_password,
+    within_ceiling,
 )
 from app.services.rbac.permissions import PERM_MANAGE_CATALOG
 from app.services.rbac.resolver import (
@@ -173,10 +174,6 @@ def get_me(request: Request, db: Session = Depends(get_db)):
         # server-side, the browser never needs them, and listing them would
         # tell a narrowed session exactly what it is being kept from.
         #
-        # The list of modes this account HOLDS, each flagged with whether
-        # switching to it needs the password, belongs to the switcher - which
-        # is Phase D. There is no switcher yet, so there is nothing here to
-        # feed it.
         # The gated media types this session may see (gated_types.py), so
         # the SPA can offer their navigation. Only the seeable ones are named:
         # a session that cannot see a gated type is not told it exists, so an
@@ -194,8 +191,8 @@ def get_me(request: Request, db: Session = Depends(get_db)):
                 else None
             ),
         },
-        # What the switcher needs: which modes are available, and what each
-        # would COST. `requires_password` is the subset test from decision 3,
+        # What the switcher needs: which modes are available - every one up
+        # to the account's ceiling - and what each would COST. `requires_password` is the subset test from decision 3,
         # computed server-side precisely so the SPA never has to model it.
         # A guest gets an empty list - no account, nothing to switch between.
         "modes": held_modes(
@@ -244,19 +241,13 @@ def switch_access_mode(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    grant = (
-        db.query(models.UserAccessMode)
-        .filter(
-            models.UserAccessMode.user_id == user.id,
-            models.UserAccessMode.mode_id == payload.mode_id,
-        )
-        .first()
-    )
-    # 404, and deliberately the same answer a mode that does not exist gets:
-    # which modes exist is not this caller's business, and it is NOT a
-    # password problem - answering `requires_password` here would invite the
-    # SPA to prompt for something that cannot help.
-    if grant is None:
+    # Available means ranked at or below the account's ceiling. 404 for a
+    # mode above it, and deliberately the same answer a mode that does not
+    # exist gets: which modes exist is not this caller's business, and it is
+    # NOT a password problem - answering `requires_password` here would
+    # invite the SPA to prompt for something that cannot help.
+    mode = db.get(models.AccessMode, payload.mode_id)
+    if mode is None or not within_ceiling(user, mode.key):
         raise HTTPException(status_code=404, detail="Access mode not found.")
 
     target = resolve_mode(db, user, payload.mode_id)

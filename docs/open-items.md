@@ -87,10 +87,11 @@ restores every tab on the company machine. Arrival procedure is
 unverified.** That database is now at head, it has the
 `users.is_installation_owner` column, and `cg1618` holds the flag while `admin`
 does not — so the earlier claim that it had "neither the migration nor the
-move" is no longer true of it. What is not established is the *move*: its
-`user_access_mode` rows still split 4 and 4 between `admin` and `cg1618`, and
-nothing here says whether that is the correct end state (both accounts
-legitimately holding four modes) or residue. Compare against home before
+move" is no longer true of it. What is not established is the *move*:
+before the mode-ceiling migration both `admin` and `cg1618` held all four
+modes, and nothing here says whether that was the correct end state or
+residue. That migration now sets `cg1618` to `unrestricted` / `borderline`
+explicitly; `admin` keeps the widest it held. Compare against home before
 concluding either.
 
 The ordering still matters for any future arrival: `git pull`, then

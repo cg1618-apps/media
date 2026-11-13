@@ -30,7 +30,7 @@ Enum values are **not** repeated here: every closed vocabulary lives in
 - [Planning](#planning): plan_next
 - [Requests and reports](#requests-and-reports): user_request
 - [Vocabulary and configuration](#vocabulary-and-configuration): system_option, system_option_scope, system_option_usage, system_option_alias, system_configs, seasonal
-- [Access control](#access-control): role, role_permission, users, content_label, media_content_label, franchise_content_label, access_mode, access_mode_label, access_mode_field_group, user_access_mode, user_access_mode_denial
+- [Access control](#access-control): role, role_permission, users, content_label, media_content_label, franchise_content_label, access_mode, access_mode_label, access_mode_field_group, user_access_mode_denial
 - [Logs](#logs): data_control_logs, deleted_record
 - [The `media` supertable](#the-media-supertable)
 - [Cross-table references without foreign keys](#cross-table-references-without-foreign-keys)
@@ -2230,6 +2230,18 @@ over `role.name` so login can still return it and mint it as a JWT claim.
 | `list_is_public` | Boolean | **no** | `false` (server default) | Whether anyone may read this account's list at `/user/<username>`. **Private by default**, and written only by its owner through `PATCH /api/account/settings` - an admin sees the flag on the Users page but does not set it, because whose list is visible is the account holder's decision and not the inviter's. NOT NULL so that no reader has to decide what a NULL would mean. |
 | `is_installation_owner` | Boolean | **no** | `false` (server default) | Whose rows a Sheets restore and the Calculate pipeline file under when nobody is logged in - `installation_owner_id()`. **Not a permission** and not on any request path. Partial unique index `ix_one_installation_owner` over a constant, so at most one account in the table holds it and any number hold false. It is data rather than a name in code so that moving the collection to another account is a row edit, and so the answer travels between the two machines on the Sheets `Users` tab - `parse_user_from_sheet` names it explicitly, because that parser is a projection and not a column sweep. |
 | `open_request_limit` | Integer | yes | | How many **open** requests the account may hold at once; NULL is no limit. CHECK `ck_users_open_request_limit_non_negative` (≥ 0). Set to the role's default when the account is created or changes role (15 for `user`, NULL otherwise) and adjustable on the Users page; never enforced, and never settable, for `super`. Travels on the Sheets `Users` tab (`parse_user_from_sheet` names it); a sheet with no header for it leaves the local value alone. |
+| `mode_ceiling` | String | yes | `normal` (server default) | The widest access mode the account may use: a mode **key**, ranked by `seed_modes.MODE_ORDER` (`safe < normal < borderline < unrestricted`). NULL together with `mode_default` is no mode - the account resolves the empty object set. Written by `services/rbac/modes.py::set_mode_ceiling`. A key rather than an `access_mode` id: the order is defined on keys, and a key survives a Pull where a per-database uuid does not. |
+| `mode_default` | String | yes | `normal` (server default) | The mode a login lands in; at or below the ceiling. |
+
+The mode pair is held by three CHECK constraints, so a hand edit or a Pull
+cannot break it: `ck_users_mode_keys` (each NULL or one of the four keys),
+`ck_users_mode_pair` (both NULL or both set) and
+`ck_users_mode_default_within_ceiling` (the default's `array_position` in the
+order is at most the ceiling's). Both travel on the Sheets `Users` tab
+(`parse_user_from_sheet` names them): a sheet with neither header leaves the
+local pair alone on an update and gives an inserted account `normal` /
+`normal`, and a pair the constraints would refuse is skipped and reported
+rather than rolling back the tab.
 
 No timestamps. Relationship `role_ref` (joined load). Virtual `role`.
 
@@ -2328,7 +2340,7 @@ One named ceiling on what a session may reach.
 | `key` | String | no | | UNIQUE, indexed |
 | `label` | String | no | | |
 | `description` | Text | yes | | |
-| `sort_order` | Integer | no | `0` | **UI only.** Enforcement never ranks modes - with per-account denials they are genuinely not a total order |
+| `sort_order` | Integer | no | `0` | **UI only.** The order a ceiling ranks modes by is `seed_modes.MODE_ORDER`, defined on the four keys in code; this column is editable and is not it |
 | `is_system` | Boolean | no | `false` | Cannot be deleted |
 | *(no column)* | — | — | — | What a logged-out visitor resolves to is **not stored**: it is the `safe` mode, looked up by key in `resolve_mode`. Data here could be moved to a wider mode by a restore or a hand-edit, which publishes every labelled entry to the internet while looking like an ordinary edit |
 | `created_at` / `updated_at` | DateTime | yes | now | |
@@ -2361,44 +2373,27 @@ to remember.
 | `access_mode_label` | `system_id`, `mode_id`, `label_id`, `created_at` | FKs to `access_mode` and `content_label`, both CASCADE; UNIQUE `(mode_id, label_id)` |
 | `access_mode_field_group` | `system_id`, `mode_id`, `field_group_key`, `created_at` | FK CASCADE; UNIQUE `(mode_id, field_group_key)`. `field_group_key` is a plain string validated against `FIELD_GROUP_KEYS` - **not** an FK, because field groups are code and not rows |
 
-#### `user_access_mode`
-
-One mode an account holds.
-
-| Column | Type | Null | Default | Description |
-|---|---|:-:|---|---|
-| `system_id` | UUID | no | uuid4 | PK |
-| `user_id` | UUID | no | | FK `users.id` CASCADE |
-| `mode_id` | UUID | no | | FK `access_mode.system_id` CASCADE |
-| `is_default` | Boolean | no | `false` | The mode a session is in unless it has switched (a switch lasts at most an hour) |
-| `created_at` | DateTime | yes | now | |
-
-UNIQUE `(user_id, mode_id)`, plus `ix_one_default_mode_per_user` — partial
-UNIQUE on `user_id` WHERE `is_default`. `is_default` lives here rather than on
-`users` so an account's landing mode is necessarily one it holds; it cannot
-drift out of the granted set.
-
 #### `user_access_mode_denial`
 
-One item this account does NOT get from that mode.
+One item this account does NOT get, in any mode it uses.
 
 | Column | Type | Null | Description |
 |---|---|:-:|---|
 | `system_id` | UUID | no | PK |
-| `user_access_mode_id` | UUID | no | FK `user_access_mode.system_id` CASCADE |
+| `user_id` | UUID | no | FK `users.id` CASCADE |
 | `label_id` | UUID | yes | FK `content_label.system_id` CASCADE |
 | `field_group_key` | String | yes | |
 
 `ck_denial_names_one_thing` — exactly one of `label_id` / `field_group_key` is
 set, mirroring the constraint already on `note`'s four owner columns. Plus
-UNIQUE `(user_access_mode_id, label_id)` and
-`(user_access_mode_id, field_group_key)`.
+UNIQUE `(user_id, label_id)` and `(user_id, field_group_key)`.
 
 **Subtraction only.** There is no grant counterpart and there must not be one:
-a mode is a ceiling, so an account's reach is always a subset of its mode's,
-which is what makes a mode name on the user list a trustworthy upper bound.
-Denials hang off the GRANT row rather than the user, so revoking a mode takes
-that account's adjustments to it away with it.
+the ceiling is an upper bound, so an account's reach is always a subset of its
+active mode's, which is what makes the ceiling on the user list a trustworthy
+upper bound. A denial hangs off the account, so it applies in every mode the
+account switches to, and only something the ceiling shows can be denied:
+`set_mode_ceiling` deletes the denials a lowered ceiling no longer shows.
 
 
 ### `data_control_logs`

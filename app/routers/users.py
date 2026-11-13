@@ -21,9 +21,9 @@ from app import models, schemas
 from app.dependencies import get_db
 from app.services.domain.requests import default_request_limit, limit_is_fixed
 from app.services.rbac import cache
+from app.services.rbac.modes import ModeSets, check_mode_pair, set_mode_ceiling
 from app.services.rbac.permissions import PERM_ADMIN_AUTHZ
 from app.services.rbac.resolver import Viewer, require_admin_authz, role_for_user
-from app.services.rbac.seed_modes import MODE_SAFE
 from app.services.security import get_password_hash
 
 logger = logging.getLogger(__name__)
@@ -35,10 +35,10 @@ router = APIRouter(
 )
 
 
-def _held_access_modes(db: Session, user: models.User) -> list:
-    """This account's modes, with the items it is denied from each.
+def _denied_keys(db: Session, user: models.User) -> tuple[list, list]:
+    """This account's denials, as (label keys, field group keys), sorted.
 
-    Rendered by the per-account panel as the MODE's own list with
+    Rendered by the per-account panel as the CEILING's own list with
     tick-to-deny, which is what makes decision 8 visible: denials only
     subtract, so a control that shows the ceiling and lets you remove from it
     cannot express something outside it.
@@ -49,52 +49,34 @@ def _held_access_modes(db: Session, user: models.User) -> list:
             models.ContentLabel.system_id, models.ContentLabel.key
         )
     }
-    out = []
-    rows = (
-        db.query(models.UserAccessMode, models.AccessMode)
-        .join(
-            models.AccessMode,
-            models.AccessMode.system_id == models.UserAccessMode.mode_id,
-        )
-        .filter(models.UserAccessMode.user_id == user.id)
-        .order_by(models.AccessMode.sort_order, models.AccessMode.key)
-        .all()
-    )
-    for grant, mode in rows:
-        denied_labels, denied_groups = [], []
-        for label_id, group_key in db.query(
-            models.UserAccessModeDenial.label_id,
-            models.UserAccessModeDenial.field_group_key,
-        ).filter(
-            models.UserAccessModeDenial.user_access_mode_id == grant.system_id
-        ):
-            if label_id is not None and label_id in label_names:
-                denied_labels.append(label_names[label_id])
-            if group_key is not None:
-                denied_groups.append(group_key)
-        out.append(
-            schemas.HeldAccessMode(
-                mode_id=mode.system_id,
-                key=mode.key,
-                label=mode.label,
-                is_default=bool(grant.is_default),
-                denied_label_keys=sorted(denied_labels),
-                denied_field_group_keys=sorted(denied_groups),
-            )
-        )
-    return out
+    labels, groups = [], []
+    for label_id, group_key in db.query(
+        models.UserAccessModeDenial.label_id,
+        models.UserAccessModeDenial.field_group_key,
+    ).filter(models.UserAccessModeDenial.user_id == user.id):
+        if label_id is not None and label_id in label_names:
+            labels.append(label_names[label_id])
+        if group_key is not None:
+            groups.append(group_key)
+    return sorted(labels), sorted(groups)
 
 
 def _to_response(
     user: models.User, db: Session = None
 ) -> schemas.ManagedUserResponse:
+    denied_labels, denied_groups = (
+        _denied_keys(db, user) if db is not None else ([], [])
+    )
     return schemas.ManagedUserResponse(
         id=user.id,
         username=user.username,
         role_id=user.role_id,
         role_name=user.role_ref.name if user.role_ref else None,
         list_is_public=bool(user.list_is_public),
-        access_modes=_held_access_modes(db, user) if db is not None else [],
+        mode_ceiling=user.mode_ceiling,
+        mode_default=user.mode_default,
+        denied_label_keys=denied_labels,
+        denied_field_group_keys=denied_groups,
         open_request_limit=user.open_request_limit,
     )
 
@@ -169,42 +151,15 @@ def create_user(payload: schemas.ManagedUserCreate, db: Session = Depends(get_db
         open_request_limit=default_request_limit(role.name),
     )
     db.add(user)
-    db.flush()
-    _grant_starting_mode(db, user)
+    # No mode is assigned here: the columns' default puts a new account at
+    # ceiling and default `normal` - narrow enough to hold no labelled entry,
+    # wide enough that the invitee does not land on an empty site.
     db.commit()
     db.refresh(user)
     # A login cookie naming this username resolved as a guest until now, and
     # the cover route may still hold that answer (cover_viewer.py).
     cache.bump()
     return _to_response(user, db)
-
-
-def _grant_starting_mode(db: Session, user: models.User) -> None:
-    """A new account holds `safe` and nothing else (decision 4).
-
-    An invitee starts narrow and is widened deliberately, rather than starting
-    wide and being narrowed if somebody remembers. Granting it here rather
-    than leaving the account mode-less is not politeness: an account holding
-    NO mode resolves the empty object set, which is fail-closed and correct
-    but looks exactly like a broken site to the person who just got an
-    invitation.
-
-    Silently does nothing if `safe` is absent - a database that has not been
-    seeded is not this handler's problem to solve, and refusing the account
-    creation over it would be worse.
-    """
-    safe = (
-        db.query(models.AccessMode)
-        .filter(models.AccessMode.key == MODE_SAFE)
-        .first()
-    )
-    if safe is None:
-        return
-    db.add(
-        models.UserAccessMode(
-            user_id=user.id, mode_id=safe.system_id, is_default=True
-        )
-    )
 
 
 @router.put(
@@ -218,107 +173,78 @@ def replace_access_modes(
     db: Session = Depends(get_db),
 ):
     """
-    Replace an account's whole set - grants, login default and denials.
+    Replace an account's ceiling, default and denials in one write.
 
     One payload, one write, one bump(), no partial states: the same contract
     PUT /roles/{id}/permissions has, and for the same reason - a half-applied
-    authorization change is worse than a refused one.
+    authorization change is worse than a refused one. So everything is
+    checked before anything is written.
     """
     user = _get_or_404(db, user_id)
 
-    defaults = [grant for grant in payload.modes if grant.is_default]
-    if len(defaults) > 1:
-        # ix_one_default_mode_per_user would raise and surface as a 500. It is
-        # a payload error, so it answers as one.
-        raise HTTPException(
-            status_code=422, detail="An account can have only one default access mode."
+    try:
+        check_mode_pair(payload.ceiling, payload.default)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+
+    # DECISION 8: the ceiling is an upper bound. A denial naming something the
+    # ceiling does not show subtracts nothing in any mode the account can
+    # use, so storing it would be a no-op that reads like a setting. The panel
+    # is built so it cannot ask for one; this makes that a guarantee rather
+    # than a rendering choice. "Shows" is cache.mode_sets, so `unrestricted`
+    # is its derived everything rather than whatever rows it holds.
+    shown = ModeSets()
+    if payload.ceiling is not None:
+        ceiling = (
+            db.query(models.AccessMode)
+            .filter(models.AccessMode.key == payload.ceiling)
+            .first()
         )
-
-    modes = {}
-    for grant in payload.modes:
-        mode = db.get(models.AccessMode, grant.mode_id)
-        if mode is None:
-            raise HTTPException(
-                status_code=422, detail=f"Unknown access mode: {grant.mode_id}."
-            )
-        modes[grant.mode_id] = mode
-
-    # DECISION 8: a mode is a CEILING. A denial naming something the mode does
-    # not carry subtracts nothing, so storing it would be a no-op that reads
-    # like a setting. The per-account panel is built so it cannot ask for one;
-    # this is what makes that a guarantee rather than a rendering choice.
-    for grant in payload.modes:
-        mode = modes[grant.mode_id]
-        carried_labels = {
-            key
-            for (key,) in db.query(models.ContentLabel.key)
-            .join(
-                models.AccessModeLabel,
-                models.AccessModeLabel.label_id == models.ContentLabel.system_id,
-            )
-            .filter(models.AccessModeLabel.mode_id == mode.system_id)
-        }
-        stray = set(grant.denied_label_keys) - carried_labels
-        if stray:
-            raise HTTPException(
-                status_code=422,
-                detail=(
-                    f"{mode.key} does not carry content label(s): "
-                    f"{', '.join(sorted(stray))}. A mode is a ceiling - a "
-                    "denial can only subtract what it already holds."
-                ),
-            )
-        carried_groups = {
-            key
-            for (key,) in db.query(
-                models.AccessModeFieldGroup.field_group_key
-            ).filter(models.AccessModeFieldGroup.mode_id == mode.system_id)
-        }
-        stray_groups = set(grant.denied_field_group_keys) - carried_groups
-        if stray_groups:
-            raise HTTPException(
-                status_code=422,
-                detail=(
-                    f"{mode.key} does not carry field group(s): "
-                    f"{', '.join(sorted(stray_groups))}. A mode is a ceiling - "
-                    "a denial can only subtract what it already holds."
-                ),
-            )
-
-    # Replace wholesale. The denial rows hang off the grant rows, so deleting
-    # those takes the adjustments with them through the FK cascade.
-    db.query(models.UserAccessMode).filter(
-        models.UserAccessMode.user_id == user.id
-    ).delete(synchronize_session=False)
-    db.flush()
-
+        if ceiling is not None:
+            shown = cache.mode_sets(db, ceiling.system_id)
     label_ids = {
         key: system_id
         for system_id, key in db.query(
             models.ContentLabel.system_id, models.ContentLabel.key
         )
     }
-    for grant in payload.modes:
-        row = models.UserAccessMode(
-            user_id=user.id, mode_id=grant.mode_id, is_default=grant.is_default
+    stray = {
+        key
+        for key in payload.denied_label_keys
+        if label_ids.get(key) not in shown.label_ids
+    }
+    if stray:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"A ceiling of {payload.ceiling} does not show content "
+                f"label(s): {', '.join(sorted(stray))}. A denial can only "
+                "subtract what the ceiling shows."
+            ),
         )
-        db.add(row)
-        db.flush()
-        for key in sorted(set(grant.denied_label_keys)):
-            db.add(
-                models.UserAccessModeDenial(
-                    user_access_mode_id=row.system_id, label_id=label_ids[key]
-                )
-            )
-        for key in sorted(set(grant.denied_field_group_keys)):
-            db.add(
-                models.UserAccessModeDenial(
-                    user_access_mode_id=row.system_id, field_group_key=key
-                )
-            )
+    stray_groups = set(payload.denied_field_group_keys) - shown.field_groups
+    if stray_groups:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"A ceiling of {payload.ceiling} does not show field "
+                f"group(s): {', '.join(sorted(stray_groups))}. A denial can "
+                "only subtract what the ceiling shows."
+            ),
+        )
+
+    set_mode_ceiling(db, user, payload.ceiling, payload.default)
+    db.query(models.UserAccessModeDenial).filter(
+        models.UserAccessModeDenial.user_id == user.id
+    ).delete(synchronize_session=False)
+    for key in sorted(set(payload.denied_label_keys)):
+        db.add(models.UserAccessModeDenial(user_id=user.id, label_id=label_ids[key]))
+    for key in sorted(set(payload.denied_field_group_keys)):
+        db.add(models.UserAccessModeDenial(user_id=user.id, field_group_key=key))
 
     db.commit()
-    # _DENIAL_CACHE is keyed on the grant row's id, and those ids just changed.
+    # set_mode_ceiling bumped before the commit; this one clears whatever a
+    # concurrent request cached from the old rows in between.
     cache.bump()
     db.refresh(user)
     return _to_response(user, db)

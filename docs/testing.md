@@ -1,6 +1,6 @@
 # Testing
 
-Last verified: 2026-10-18
+Last verified: 2026-11-13
 
 ## What this is for
 
@@ -80,7 +80,7 @@ PostgreSQL database. `tests/api/conftest.py` does the following:
    by object and column by column. The RBAC roles that
    migration A would normally seed are created once here via
    `ensure_rbac_seed`, followed by `ensure_access_mode_seed` and
-   `grant_all_modes_to_existing_accounts`. `drop_all` runs at session end.
+   `ensure_system_labels`. `drop_all` runs at session end.
 
    **Anything the lifespan seeds must be seeded here too, committed.** This
    has caused a hang twice. `with TestClient(app)` runs the lifespan on its
@@ -136,11 +136,11 @@ the two-stage cursor stepper.
 | `db_session` | function | SQLAlchemy session inside a rolled-back transaction (savepoint mode) |
 | `_clear_permission_cache` | function, autouse | RBAC cache bumped before and after the test |
 | `client` | function | Unauthenticated `TestClient` with `get_db` overridden to `db_session` |
-| `admin_client` | function | `TestClient` with a `testadmin` user (role `admin`) inserted, all four access modes granted with `unrestricted` as the default, and a valid `access_token` cookie |
+| `admin_client` | function | `TestClient` with a `testadmin` user (role `admin`) inserted, its mode ceiling and default set to `unrestricted`, and a valid `access_token` cookie |
 | `user_client` / `plain_user` | function | The same for an account on the `user` role |
 | `super_client` / `super_user` | function | The same for the `super` role - both `manage.*`, no `admin.authz`. **This is the account shape that keeps a library**, so it is what a test of a personal endpoint should use: an admin holds no `self.*` grant. Use the fixture rather than building one inline |
-| `mode_client(key, user=None, denials=())` | function | A client sitting in one named access mode. The mode is granted as a non-default and travels in the `access_mode` override cookie exactly as after a switch in production, so these exercise the real resolution path rather than a `Viewer` built by hand |
-| `mode(key)` / `grant_mode(user, key, denials=(), is_default=False)` | function | The seeded modes, and granting one (optionally minus some labels, named by key) |
+| `mode_client(key, user=None, denials=())` | function | A client sitting in one named access mode. The account's ceiling is raised to the mode if it sits below it, and the mode travels in the `access_mode` override cookie exactly as after a switch in production, so these exercise the real resolution path rather than a `Viewer` built by hand |
+| `mode(key)` / `grant_mode(user, key, denials=(), is_default=False)` | function | The seeded modes, and making one available: raises the account's ceiling to it (never lowers it), optionally makes it the default, and adds label denials named by key - which, like every denial, apply in every mode the account uses |
 | `nsfw_label` / `hidden_anime` | function | A content label and an entry carrying it. Label fixtures call `carry_label_in_wide_modes`, because a mode's labels are materialised rows and a label created after the seed would otherwise reach no mode - which would make fixture ORDER decide what a mode holds |
 | `catalog_writer(username=…, extra=…, label_keys=())` | function | An account holding `manage.catalog` in a mode carrying NO labels - i.e. a writer who cannot see the labelled entry. `tests/api/test_franchise_content_labels.py` builds its `narrow` fixture from this, and pairs every refusal with the same call from `admin_client`: a mode-scoped 404 and an empty database are indistinguishable without the mirror |
 | `sample_collection` | function | `Collection` "Test Collection" / "測試合集" |
@@ -150,10 +150,10 @@ the two-stage cursor stepper.
 | `sample_anime` | function | TV `Anime` under `sample_franchise`, 12/12 episodes, Completed |
 | `sample_comic` | function | `Comic` under `sample_franchise`, 6/6 issues, Completed |
 | `role_id_for(db, name)` | helper, not a fixture | Looks up a seeded role's `system_id`; needed because `users.role` is a read-only mapping and fixtures must set `role_id` |
-| `make_viewer(db, client, username, permissions, field_groups=None, label_keys=None)` | helper | Logs `client` in as a new account. `permissions` is the ROLE axis; the two keyword arguments are the OBJECT axis and build a bespoke mode. Both default to "everything", so a test that only cares about capabilities need not mention them |
+| `make_viewer(db, client, username, permissions, field_groups=None, label_keys=None)` | helper | Logs `client` in as a new account. `permissions` is the ROLE axis; the two keyword arguments are the OBJECT axis: the account sits at a wide ceiling and is denied every field group and label outside them. With no `label_keys` the ceiling is `unrestricted`; with them it is `borderline` when that mode already carries every listed label - its labels are rows, so a label minted later through the API stays out of reach - and `unrestricted` otherwise, and one created through `carry_label_in_wide_modes` is denied unless listed. Both default to "everything", so a test that only cares about capabilities need not mention them |
 
-**A signed-in test client whose account holds no default mode, and has no
-`access_mode` override, resolves the EMPTY object set**
+**A signed-in test client whose account has no mode, or whose token names a
+mode above its ceiling, resolves the EMPTY object set**
 and every gated field vanishes from every response. Never mint a token by
 hand; use the fixtures above. This has cost two debugging cycles, each time
 presenting as "my route 401s / my field is missing" with nothing wrong in the

@@ -16,16 +16,20 @@ would need a short TTL instead.
 THREE caches now, and ONE bump() that clears all of them. The mode caches are
 keyed the way the role cache is - on the thing that is shared, not on the
 account - because adding the user to a key would make the cache unbounded in
-accounts and destroy the sharing that makes it worth having:
+accounts and destroy the sharing that makes it worth having. The denial cache
+is the exception: denials belong to the account, so it is keyed by user id,
+and it is bounded by the number of accounts that have signed in:
 
   _CACHE          role_id             -> the role's permissions
   _MODE_CACHE     mode_id             -> the mode's labels and field groups,
                                          shared by everyone holding it, hot
-  _DENIAL_CACHE   user_access_mode_id -> that pair's denials, usually empty
+  _DENIAL_CACHE   user_id             -> that account's denials, usually
+                                         empty; one set per account, applied
+                                         in every mode it uses
 
-A bump() that cleared only the first would leave a revoked mode live until
-restart, and would leak mode state between tests in a way whose failures are
-random and order-dependent.
+A bump() that cleared only the first would leave a mode's edited items, or
+an account's pruned denials, live until restart, and would leak mode state
+between tests in a way whose failures are random and order-dependent.
 
 bump() also advances a GENERATION. The cover route's short-lived viewer cache
 (cover_viewer.py) is keyed per session rather than on a shared object, so it
@@ -173,13 +177,13 @@ def mode_sets(db: Session, mode_id: UUID) -> "ModeSets":
     return sets
 
 
-def denials_for(db: Session, user_access_mode_id: UUID) -> "ModeSets":
+def denials_for(db: Session, user_id: UUID) -> "ModeSets":
     """
-    What one (account, mode) pair subtracts from its mode. Usually empty.
+    What one account subtracts from whichever mode it is in. Usually empty.
 
     Same shape as mode_sets because resolution is a set difference.
     """
-    cached = _DENIAL_CACHE.get(user_access_mode_id)
+    cached = _DENIAL_CACHE.get(user_id)
     if cached is not None:
         return cached
 
@@ -188,7 +192,7 @@ def denials_for(db: Session, user_access_mode_id: UUID) -> "ModeSets":
     rows = db.query(
         models.UserAccessModeDenial.label_id,
         models.UserAccessModeDenial.field_group_key,
-    ).filter(models.UserAccessModeDenial.user_access_mode_id == user_access_mode_id)
+    ).filter(models.UserAccessModeDenial.user_id == user_id)
     labels, groups = set(), set()
     for label_id, field_group_key in rows:
         if label_id is not None:
@@ -196,5 +200,5 @@ def denials_for(db: Session, user_access_mode_id: UUID) -> "ModeSets":
         if field_group_key is not None:
             groups.add(field_group_key)
     sets = ModeSets(label_ids=frozenset(labels), field_groups=frozenset(groups))
-    _DENIAL_CACHE[user_access_mode_id] = sets
+    _DENIAL_CACHE[user_id] = sets
     return sets

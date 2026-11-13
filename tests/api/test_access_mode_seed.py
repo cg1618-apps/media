@@ -29,7 +29,6 @@ def _reset_modes(db):
     """
     db.query(models.AccessModeLabel).delete(synchronize_session=False)
     db.query(models.AccessModeFieldGroup).delete(synchronize_session=False)
-    db.query(models.UserAccessMode).delete(synchronize_session=False)
     db.query(models.AccessMode).delete(synchronize_session=False)
     db.flush()
 

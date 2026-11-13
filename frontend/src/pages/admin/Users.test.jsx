@@ -20,28 +20,77 @@ const USERS = [
     id: 1,
     username: "alice",
     role_id: "admin",
-    access_modes: [
-      {
-        mode_id: "wide",
-        is_default: true,
-        denied_label_keys: [],
-        denied_field_group_keys: [],
-      },
-    ],
+    mode_ceiling: "borderline",
+    mode_default: "normal",
+    denied_label_keys: ["nsfw"],
+    denied_field_group_keys: [],
   },
 ];
 
 const ROLES = [{ system_id: "admin", label: "Admin" }];
 
+// Served out of rank order on purpose: the panel must order by `rank`.
 const MODES = [
   {
-    system_id: "wide",
-    label: "Wide",
+    system_id: "u",
+    key: "unrestricted",
+    label: "Unrestricted",
+    rank: 3,
+    label_keys: ["nsfw", "h-comic"],
+    field_group_keys: ["sources_restricted"],
+  },
+  {
+    system_id: "b",
+    key: "borderline",
+    label: "Borderline",
+    rank: 2,
     label_keys: ["nsfw"],
+    field_group_keys: ["sources_restricted"],
+  },
+  {
+    system_id: "n",
+    key: "normal",
+    label: "Normal",
+    rank: 1,
+    label_keys: [],
+    field_group_keys: ["sources_restricted"],
+  },
+  {
+    system_id: "s",
+    key: "safe",
+    label: "Safe",
+    rank: 0,
+    label_keys: [],
     field_group_keys: [],
   },
-  { system_id: "narrow", label: "Narrow", label_keys: [], field_group_keys: [] },
+  {
+    system_id: "c",
+    key: "custom",
+    label: "Custom",
+    rank: null,
+    label_keys: [],
+    field_group_keys: [],
+  },
 ];
+
+async function openPanel() {
+  render(<Users />);
+  await screen.findByText("alice");
+  await userEvent.click(screen.getByRole("button", { name: "Change" }));
+  await screen.findByText("Access for alice");
+}
+
+const ceilingSelect = () => screen.getByLabelText("Widest mode (ceiling)");
+const defaultSelect = () => screen.getByLabelText("Lands here at login (default)");
+const optionsOf = (select) =>
+  within(select)
+    .getAllByRole("option")
+    .map((o) => o.textContent);
+
+function lastPut() {
+  const puts = fetchJson.mock.calls.filter(([, opts]) => opts?.method === "PUT");
+  return JSON.parse(puts[puts.length - 1][1].body);
+}
 
 const showToast = vi.fn();
 vi.mock("../../hooks/useToast", () => ({
@@ -77,23 +126,46 @@ describe("the access-mode panel", () => {
     expect(await screen.findByText("Access for alice")).toBeTruthy();
   });
 
-  it("offers every mode, not only the ones the account holds", async () => {
-    // The panel's whole job is granting a mode the account does not have yet,
-    // so a panel listing only held modes would open and still be useless.
+  it("shows the ceiling and default in the list", async () => {
     render(<Users />);
-    await screen.findByText("alice");
-    await userEvent.click(screen.getByRole("button", { name: "Change" }));
-
-    await screen.findByText("Access for alice");
-    expect(screen.getByText("Wide")).toBeTruthy();
-    expect(screen.getByText("Narrow")).toBeTruthy();
+    expect(await screen.findByText(/borderline \/ normal \(narrowed\)/)).toBeTruthy();
   });
 
-  it("saves the held modes to the account's access-modes endpoint", async () => {
-    render(<Users />);
-    await screen.findByText("alice");
-    await userEvent.click(screen.getByRole("button", { name: "Change" }));
-    await screen.findByText("Access for alice");
+  it("offers every ranked mode as a ceiling, narrowest first", async () => {
+    await openPanel();
+    expect(optionsOf(ceilingSelect())).toEqual([
+      "No mode",
+      "Safe",
+      "Normal",
+      "Borderline",
+      "Unrestricted",
+    ]);
+  });
+
+  it("offers only modes up to the ceiling as the default", async () => {
+    await openPanel();
+    expect(optionsOf(defaultSelect())).toEqual(["Safe", "Normal", "Borderline"]);
+
+    await userEvent.selectOptions(ceilingSelect(), "normal");
+
+    expect(optionsOf(defaultSelect())).toEqual(["Safe", "Normal"]);
+  });
+
+  it("lists the denials the ceiling shows, and follows it", async () => {
+    await openPanel();
+    expect(screen.getByLabelText("nsfw")).not.toBeChecked();
+    expect(screen.queryByLabelText("h-comic")).toBeNull();
+
+    await userEvent.selectOptions(ceilingSelect(), "unrestricted");
+    expect(screen.getByLabelText("h-comic")).toBeChecked();
+
+    await userEvent.selectOptions(ceilingSelect(), "normal");
+    expect(screen.queryByLabelText("nsfw")).toBeNull();
+    expect(screen.getByLabelText("sources_restricted")).toBeChecked();
+  });
+
+  it("saves ceiling, default and denials to the account's endpoint", async () => {
+    await openPanel();
 
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
@@ -105,6 +177,38 @@ describe("the access-mode panel", () => {
         ),
       ).toBe(true),
     );
+    expect(lastPut()).toEqual({
+      ceiling: "borderline",
+      default: "normal",
+      denied_label_keys: ["nsfw"],
+      denied_field_group_keys: [],
+    });
+  });
+
+  it("lowering the ceiling below the default moves the default down and drops denials", async () => {
+    await openPanel();
+
+    await userEvent.selectOptions(ceilingSelect(), "safe");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(lastPut().ceiling).toBe("safe"));
+    expect(lastPut()).toEqual({
+      ceiling: "safe",
+      default: "safe",
+      denied_label_keys: [],
+      denied_field_group_keys: [],
+    });
+  });
+
+  it("parks the account with no mode", async () => {
+    await openPanel();
+
+    await userEvent.selectOptions(ceilingSelect(), "");
+
+    expect(screen.getByText(/has no access mode/)).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(lastPut().ceiling).toBeNull());
+    expect(lastPut().default).toBeNull();
   });
 
   it("closes without saving when Close is clicked", async () => {
@@ -138,7 +242,10 @@ describe("the open request limit", () => {
     id,
     username,
     role_id: roleId,
-    access_modes: [],
+    mode_ceiling: "normal",
+    mode_default: "normal",
+    denied_label_keys: [],
+    denied_field_group_keys: [],
     open_request_limit: limit,
   });
   const LIMIT_USERS = [

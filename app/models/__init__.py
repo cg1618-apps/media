@@ -8,7 +8,6 @@ from app.models.access_mode import (
     AccessMode,
     AccessModeFieldGroup,
     AccessModeLabel,
-    UserAccessMode,
     UserAccessModeDenial,
 )
 from app.models.anime import Anime
@@ -146,7 +145,6 @@ __all__ = [
     "AccessMode",
     "AccessModeLabel",
     "AccessModeFieldGroup",
-    "UserAccessMode",
     "UserAccessModeDenial",
     "Role",
     "RolePermission",

@@ -1823,6 +1823,12 @@ def parse_user_from_sheet(raw: dict) -> dict:
         # NULL is no limit, so a blank cell is NULL, not 0. A sheet with no
         # header for it leaves the local value alone (pull drops the key).
         "open_request_limit": parse_from_sheet(raw.get("open_request_limit"), int),
+        # Mode keys, not ids, so they mean the same thing on both machines.
+        # Blank is NULL, which as a pair is "no mode". A sheet with neither
+        # header leaves the local pair alone on an update, and an insert gets
+        # the columns' `normal` default.
+        "mode_ceiling": parse_from_sheet(raw.get("mode_ceiling"), str),
+        "mode_default": parse_from_sheet(raw.get("mode_default"), str),
     }
 
 

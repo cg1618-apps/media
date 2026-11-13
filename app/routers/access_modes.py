@@ -31,7 +31,7 @@ from app.dependencies import get_db
 from app.services.rbac import cache
 from app.services.rbac.field_groups import FIELD_GROUP_KEYS, FIELD_GROUPS
 from app.services.rbac.resolver import require_admin_authz
-from app.services.rbac.seed_modes import MODE_UNRESTRICTED
+from app.services.rbac.seed_modes import MODE_ORDER, MODE_UNRESTRICTED, mode_rank
 
 router = APIRouter(
     prefix="/api/access-modes",
@@ -92,9 +92,20 @@ def _to_response(db: Session, mode: models.AccessMode) -> schemas.AccessModeResp
         is_system=mode.is_system,
         label_keys=label_keys,
         field_group_keys=field_group_keys,
-        user_count=db.query(models.UserAccessMode)
-        .filter(models.UserAccessMode.mode_id == mode.system_id)
-        .count(),
+        user_count=_accounts_reaching(db, mode),
+        rank=mode_rank(mode.key) if mode.key in MODE_ORDER else None,
+    )
+
+
+def _accounts_reaching(db: Session, mode: models.AccessMode) -> int:
+    """How many accounts may use this mode: those whose ceiling ranks at or
+    above it. Zero for a mode outside MODE_ORDER, which no ceiling reaches."""
+    if mode.key not in MODE_ORDER:
+        return 0
+    return (
+        db.query(models.User)
+        .filter(models.User.mode_ceiling.in_(MODE_ORDER[mode_rank(mode.key) :]))
+        .count()
     )
 
 
@@ -300,16 +311,13 @@ def delete_mode(mode_id: UUID, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=409, detail="A system access mode cannot be deleted."
         )
-    holders = (
-        db.query(models.UserAccessMode)
-        .filter(models.UserAccessMode.mode_id == mode.system_id)
-        .count()
-    )
+    holders = _accounts_reaching(db, mode)
     if holders:
-        # The FK would cascade the grants away and silently narrow those
-        # accounts - possibly to nothing, if this was their only mode. Refuse
-        # and make the reassignment deliberate, as roles.py does for a held
-        # role.
+        # Deleting a mode an account's ceiling reaches would silently narrow
+        # that account. Refuse and make the reassignment deliberate, as
+        # roles.py does for a held role. A mode outside MODE_ORDER is reached
+        # by no ceiling, so in practice only the system modes - which are
+        # refused above - could ever trip this.
         raise HTTPException(
             status_code=409,
             detail=f"{holders} account(s) still hold this access mode.",
