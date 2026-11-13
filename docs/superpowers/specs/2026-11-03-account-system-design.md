@@ -188,20 +188,27 @@ from the company development database.
   types keep their type names; they carry no Label tag. The descriptions
   are drafts for the owner to correct, and `ecchi`'s and `erotica`'s are
   still to write, since their old drafts became their names.
-- **A content label is copied into the entry's 標籤 Label tags.** Attaching
-  `nsfw`, `ecchi` or `erotica` to an entry adds the matching tag in the same
-  write; detaching it removes the tag. Proposed, not yet confirmed:
-  - one way only — the label drives the tag. The three copied tag values
-    are not offered for picking by hand, so a tag cannot contradict a label;
-  - the Fill and backfill pipelines leave copied tags alone, since
-    `media_tag` is what they write and a pipeline must not change what an
-    entry is labelled;
-  - only the types that have the Label field — Anime, Anime Movie, Movie,
-    TV Show, Cartoon, Manga, Novel, Comic, Game. The gated types and the
-    groups have no Label tag;
-  - the entry's own labels only, not ones inherited from its franchise,
-    series or collection;
-  - the three tag values become scoped to every one of those types; today
+- **A content label and its 標籤 Label tag are kept in step, both ways.**
+  Attaching `nsfw`, `ecchi` or `erotica` to an entry adds the matching tag
+  in the same write, and adding the tag attaches the label; detaching
+  either removes the other. So **a tag edit changes who can see the
+  entry**, exactly as a label edit does, and both are `manage.catalog`
+  writes.
+  - The `nsfw` rule runs through it: adding the 輕微色情 tag attaches
+    `ecchi`, which attaches `nsfw`, which adds the NSFW tag; removing the
+    NSFW tag while `ecchi` or `erotica` is attached is refused, as
+    detaching `nsfw` is.
+  - **Pipelines:** no Fill or backfill writes the Label field today, so
+    nothing else writes these tags. Any that ever does goes through the
+    same rule. Pull restores labels and tags from their own tabs; the rule
+    reconciles them, the label winning where the two disagree, since it is
+    the one that decides visibility.
+  - **Only the types that have the Label field** — Anime, Anime Movie,
+    Movie, TV Show, Cartoon, Manga, Novel, Comic, Game. The gated types and
+    the groups have no Label tag.
+  - **The entry's own labels only**, not ones inherited from its franchise,
+    series or collection.
+  - **The three tag values are scoped to every one of those types**; today
     the Label options are scoped to Anime and Anime Movie only.
   - 很多福利 stays an ordinary Label tag; it is not `ecchi`.
 - **Descriptions are in Chinese and say only what the label marks.** Who
