@@ -160,3 +160,33 @@ def test_a_shared_account_cannot_change_its_own_password(
         json={"current_password": "testpass", "new_password": "y"},
     )
     assert r.status_code == 200, r.text
+
+
+# ---------------------------------------------------------------------------
+# Never the installation owner
+# ---------------------------------------------------------------------------
+
+
+def test_a_flagless_restore_never_files_the_owners_data_under_a_shared_account(
+    db_session,
+):
+    """On a database where nobody holds is_installation_owner - a fresh
+    install - the seeded admin and the two shared accounts are the only
+    accounts. A shared account is non-root and sorts before most names, which
+    is exactly the account the owner fallback must skip."""
+    from app.services.domain.user_list import installation_owner_id
+
+    assert (
+        db_session.query(models.User).filter(models.User.is_installation_owner).count()
+        == 0
+    )
+    owner = db_session.get(models.User, installation_owner_id(db_session))
+    assert owner.role != SHARED_ROLE_NAME
+    assert owner.role == "admin"
+
+
+def test_a_flagless_restore_picks_a_member_over_the_admin(db_session, plain_user):
+    """Mirror: the shared accounts are skipped, not every non-root account."""
+    from app.services.domain.user_list import installation_owner_id
+
+    assert installation_owner_id(db_session) == plain_user.id

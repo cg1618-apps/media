@@ -1322,7 +1322,10 @@ Two rules that are **not** this one:
   data](#the-admin-account-holds-no-user-data) below — with two fallbacks for
   a database where nobody holds the flag: the alphabetically-first
   non-root account, then the first account of any kind, so a restore onto
-  a fresh machine still lands.
+  a fresh machine still lands. Neither fallback ever names a `shared` or
+  `guest` account: the seed creates the two shared accounts on every boot,
+  so on a fresh machine a shared login would otherwise be the first
+  fallback's answer and receive the owner's whole collection.
 - **`viewer_user_id`** — the non-raising companion for the two public paths
   that must show nothing per-user. It has no fallback either.
 

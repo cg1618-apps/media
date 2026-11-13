@@ -21,7 +21,12 @@ from sqlalchemy.orm import Session
 
 from app import models
 from app.database import get_taipei_now
+from app.services.rbac.permissions import GUEST_ROLE_NAME, SHARED_ROLE_NAME
 from app.utils.constants import COMPLETED_WATCH_STATUSES
+
+# Roles whose accounts never own the installation's personal data: a shared
+# login is several people's, and a guest-role account is nobody's.
+NEVER_OWNER_ROLE_NAMES: frozenset[str] = frozenset({SHARED_ROLE_NAME, GUEST_ROLE_NAME})
 
 # Which payload key carries the status, per hyphenated media type.
 STATUS_FIELD: dict[str, str] = {
@@ -167,11 +172,16 @@ def installation_owner_id(db: Session) -> Optional[UUID]:
     The two fallbacks are for a database where nobody holds the flag - a fresh
     install, or a restore from a sheet backed up before the column existed:
     the alphabetically-first NON-root account, then the
-    alphabetically-first account of any kind. Never None while any account
-    exists, because `user_media_list.user_id` is NOT NULL and a restore has to
-    file its rows somewhere. The second fallback can therefore still name an
-    admin, on a database that has no other account - which is right: a sheet
-    must restore onto a fresh machine before a second account exists on it.
+    alphabetically-first account of any kind. Neither ever names an account
+    whose role is `shared` or `guest`: a shared account is non-root and the
+    seed creates two on every boot, so on a fresh install it would otherwise
+    be the first fallback's answer, and the owner's whole collection would be
+    filed under a login several people use. Never None while the admin
+    account exists, because `user_media_list.user_id` is NOT NULL and a
+    restore has to file its rows somewhere. The second fallback can therefore
+    still name an admin, on a database that has no other account - which is
+    right: a sheet must restore onto a fresh machine before a second account
+    exists on it.
 
     Nothing on a request path may call this. If a route needs to know who is
     asking, the answer is acting_user_id() and it is allowed to be None.
@@ -181,16 +191,16 @@ def installation_owner_id(db: Session) -> Optional[UUID]:
         .filter(models.User.is_installation_owner)
         .first()
     )
-    if owner is None:
-        owner = (
-            db.query(models.User)
-            .join(models.Role, models.User.role_id == models.Role.system_id)
-            .filter(~models.Role.is_root)
-            .order_by(models.User.username)
-            .first()
-        )
-    if owner is None:
-        owner = db.query(models.User).order_by(models.User.username).first()
+    if owner is not None:
+        return owner.id
+
+    candidates = (
+        db.query(models.User)
+        .join(models.Role, models.User.role_id == models.Role.system_id)
+        .filter(models.Role.name.notin_(NEVER_OWNER_ROLE_NAMES))
+        .order_by(models.User.username)
+    )
+    owner = candidates.filter(~models.Role.is_root).first() or candidates.first()
     return owner.id if owner is not None else None
 
 
