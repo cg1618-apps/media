@@ -8,6 +8,10 @@
 // reordered - in that grouped order, so dragging a row above another group's
 // first row moves its whole group up. With no row grouped the list is the
 // plain one.
+//
+// Resources is a mixed section: `canEditRow` and `canMoveRow` (NotesContext's
+// rowAccessFor) decide each row's Edit, Delete and handle, and a personal row
+// carries the "Mine" chip. Provisional UI.
 import { Fragment, useId, useState } from "react";
 
 import {
@@ -15,6 +19,7 @@ import {
   ItemActions,
   LinkPill,
   LinksEditor,
+  MineChip,
   ReorderHandle,
   ReorderList,
   ReorderRow,
@@ -82,6 +87,8 @@ export default function NameLinksSection({
   section,
   notes,
   canWrite,
+  canEditRow = () => canWrite,
+  canMoveRow,
   onCreate,
   onUpdate,
   onDelete,
@@ -112,6 +119,7 @@ export default function NameLinksSection({
     section,
     notes: rows,
     canWrite,
+    canMoveRow,
     onReorder,
     reordering,
     cap,
@@ -177,6 +185,7 @@ export default function NameLinksSection({
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 flex-wrap">
+                      {n.personal && <MineChip />}
                       {n.title && (
                         <span
                           data-testid="resource-title"
@@ -193,7 +202,7 @@ export default function NameLinksSection({
                 </div>
                 {editId !== n.system_id && (
                   <ItemActions
-                    canWrite={canWrite}
+                    canWrite={canEditRow(n)}
                     onEdit={() => {
                       setEditId(n.system_id);
                       setEditVal(fromNote(n));

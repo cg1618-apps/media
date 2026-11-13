@@ -42,6 +42,16 @@
 // may write the catalogue section. A section with a value a new cycle resets
 // carries the NG reset button (`NgResetButton`). Both are provisional UI.
 //
+// A `mixed` section holds catalogue rows and the viewer's own personal rows
+// (`note.personal`). Who may edit, move or add under each row is the
+// provider's (NotesContext's rowAccessFor), handed in as `canEditRow`,
+// `canMoveRow` and `canAddUnder`; each defaults to `canWrite`, which is what
+// every other section means by them. A move sends the ids of the rows the
+// viewer may move and no others, and steps over the rest (movedAmong); a
+// group moves only when every row of the section is the viewer's to move,
+// since a group move renumbers them all. A personal row carries a "Mine"
+// chip. Provisional UI.
+//
 // And one field type points outside the notes: a `choice_node` field (a save's
 // "At node") names a point in the owner game's choice graph. It is edited as a
 // select of that game's points and read as the point's title, both drawn by
@@ -79,6 +89,7 @@ import {
   ItemActions,
   LinkPill,
   LinksEditor,
+  MineChip,
   SaveCancel,
   SectionCard,
   ShowAllToggle,
@@ -630,7 +641,8 @@ function NamesView({ field, note, omit }) {
 }
 
 // `groupedBy` is the key of the field the row is drawn grouped by, if any: its
-// value is the group header, so the row does not repeat it.
+// value is the group header, so the row does not repeat it. `canWrite` is
+// whether the viewer may write THIS row, which is all a quick edit asks.
 function StructuredRow({
   section,
   note,
@@ -670,6 +682,7 @@ function StructuredRow({
     <div className="flex-1 min-w-0 space-y-1">
       {/* Booleans, not lengths: `0 && ...` renders the 0. */}
       {(heading ||
+        note.personal ||
         tags.length > 0 ||
         quick.length > 0 ||
         personal.length > 0 ||
@@ -680,6 +693,7 @@ function StructuredRow({
               {heading.value}
             </span>
           )}
+          {note.personal && <MineChip />}
           {tags.map((f) => (
             <span key={f.key} className={tagCls}>
               {readValue(f, note)}
@@ -833,10 +847,17 @@ function GroupBlock({ name, noName, count, movable, children }) {
 // get handles too, a row moves only within its own group, and a group move
 // and a row move both save the section's whole row order in grouped order -
 // which is what the groups' order is. `busy` is that save being in flight.
+//
+// `canEditRow` and `canMoveRow` are the section's per-row rules (see the top
+// of this file): a row takes a handle only when the viewer may move it, the
+// rows a move steps over keep their places, and a group moves only when
+// every row is movable.
 function GroupedRows({
   section,
   notes,
   canWrite,
+  canEditRow = () => canWrite,
+  canMoveRow = () => canWrite,
   groupBy = section.group_by,
   groupOrder,
   onGroupOrderChange,
@@ -869,7 +890,8 @@ function GroupedRows({
   const named = groups.filter((g) => g.name !== null);
   const unnamed = groups.filter((g) => g.name === null);
   const saveOrder = onRowsReorder || onGroupOrderChange;
-  const canMove = canWrite && Boolean(saveOrder) && named.length > 1;
+  const canMove =
+    canWrite && Boolean(saveOrder) && named.length > 1 && notes.every(canMoveRow);
   const locked = busy || savingOrder;
   const noName = `No ${(groupField?.label || "name").toLowerCase()}`;
 
@@ -900,7 +922,7 @@ function GroupedRows({
   const moveRow = (gi, from, to) => {
     // A row moved past its group's cap would fold out of sight.
     if (to >= VISIBLE_ENTRIES) unfold(groups[gi].name ?? "");
-    onRowsReorder(groupedIds(movedRow(groups, gi, from, to)));
+    onRowsReorder(groupedIds(movedRow(groups, gi, from, to, canMoveRow)));
   };
 
   const renderGroup = (group, gi) => {
@@ -918,12 +940,14 @@ function GroupedRows({
         if (!next.delete(foldKey)) next.add(foldKey);
         return next;
       });
-    const rowsMove = canWrite && Boolean(onRowsReorder) && group.notes.length > 1;
+    const movableIds = group.notes.filter(canMoveRow).map((n) => n.system_id);
+    const rowsMove = Boolean(onRowsReorder) && movableIds.length > 1;
 
     const renderRow = (n) => {
       const key = `${group.name}|${n.system_id}`;
-      const Row = rowsMove ? SortableItem : "div";
-      const rowProps = rowsMove ? { id: n.system_id } : {};
+      const sortable = rowsMove && canMoveRow(n);
+      const Row = sortable ? SortableItem : "div";
+      const rowProps = sortable ? { id: n.system_id } : {};
       if (editKey === key) {
         return (
           <Row key={key} {...rowProps}>
@@ -946,11 +970,11 @@ function GroupedRows({
       }
       return (
         <Row key={key} {...rowProps} className="flex gap-2 items-start">
-          {rowsMove && <DragHandle label={rowLabel(section, n)} className="pt-1" />}
+          {sortable && <DragHandle label={rowLabel(section, n)} className="pt-1" />}
           <StructuredRow
             section={section}
             note={n}
-            canWrite={canWrite}
+            canWrite={canEditRow(n)}
             onUpdate={onUpdate}
             canMark={canMark}
             onMark={onMark}
@@ -958,7 +982,7 @@ function GroupedRows({
             groupedBy={groupBy}
           />
           <ItemActions
-            canWrite={canWrite}
+            canWrite={canEditRow(n)}
             onEdit={() => {
               setEditKey(key);
               setEditVal(fromNote(section, n));
@@ -982,7 +1006,7 @@ function GroupedRows({
           // row's place is its place in the whole group and the last row
           // shown can still be moved down past the fold.
           <SortableList
-            ids={group.notes.map((n) => n.system_id)}
+            ids={movableIds}
             onMove={(from, to) => moveRow(gi, from, to)}
             disabled={locked}
           >
@@ -1058,6 +1082,9 @@ function StructuredSectionBody({
   section,
   notes,
   canWrite,
+  canEditRow = () => canWrite,
+  canMoveRow = () => canWrite,
+  canAddUnder = () => canWrite,
   onCreate,
   onUpdate,
   onDelete,
@@ -1152,6 +1179,12 @@ function StructuredSectionBody({
   // flattening (movedTreeIds), which is safe because these arrays are stable
   // for the render. Grouped, the flattening runs group after group, so the
   // groups' order - which is their first appearance - is kept.
+  //
+  // In a mixed section only the rows the viewer may move are sent (the server
+  // renumbers that kind alone), and `from` and `to` index those among the
+  // siblings.
+  const movable = new Set(notes.filter(canMoveRow).map((n) => n.system_id));
+  const sendOrder = (ids) => onReorder(section.key, ids.filter((id) => movable.has(id)));
   const unfold = (foldKey) => setUnfolded((prev) => new Set(prev).add(foldKey));
   const move = (siblings, from, to) => {
     if (from === to || !onReorder) return;
@@ -1161,7 +1194,7 @@ function StructuredSectionBody({
       const group = groupedTree && rootGroups.find((g) => g.nodes === siblings);
       if (group) unfold(group.name ?? "");
     }
-    onReorder(section.key, movedTreeIds(rootGroups, siblings, from, to));
+    sendOrder(movedTreeIds(rootGroups, siblings, from, to, canMoveRow));
   };
 
   // A group of roots moved: every row, depth-first, in the new group order,
@@ -1171,10 +1204,7 @@ function StructuredSectionBody({
     const byName = new Map(rootGroups.map((g) => [g.name, g]));
     const unnamed = rootGroups.filter((g) => g.name === null);
     const next = movedGroupOrder(rootGroups, from, to).map((n) => byName.get(n));
-    onReorder(
-      section.key,
-      [...next, ...unnamed].flatMap((g) => treeIds(g.nodes)),
-    );
+    sendOrder([...next, ...unnamed].flatMap((g) => treeIds(g.nodes)));
   };
 
   const renderDraft = () => (
@@ -1198,12 +1228,14 @@ function StructuredSectionBody({
   // `shown` is which of `siblings` to draw: the top level passes its folded
   // rows, and every level below draws all of its children.
   const renderNodes = (siblings, depth, shown = siblings) => {
-    const sortable = canWrite && Boolean(onReorder) && siblings.length > 1;
+    const movableSiblings = siblings.filter((node) => canMoveRow(node.note));
+    const sortable = Boolean(onReorder) && movableSiblings.length > 1;
     const rows = shown.map((node) => {
       const n = node.note;
       const editing = editId === n.system_id;
-      const Row = sortable ? SortableItem : "div";
-      const rowProps = sortable ? { id: n.system_id } : {};
+      const handled = sortable && canMoveRow(n);
+      const Row = handled ? SortableItem : "div";
+      const rowProps = handled ? { id: n.system_id } : {};
       return (
         <Row
           key={n.system_id}
@@ -1222,7 +1254,7 @@ function StructuredSectionBody({
             </div>
           ) : (
             <div className="flex gap-2 items-start">
-              {sortable && (
+              {handled && (
                 <DragHandle label={rowLabel(section, n)} className="pt-0.5" />
               )}
               {/* A child never shows a group, and a grouped root's group
@@ -1230,7 +1262,7 @@ function StructuredSectionBody({
               <StructuredRow
                 section={section}
                 note={n}
-                canWrite={canWrite}
+                canWrite={canEditRow(n)}
                 onUpdate={onUpdate}
                 canMark={canMark}
                 onMark={onMark}
@@ -1238,7 +1270,7 @@ function StructuredSectionBody({
                   childOmit && (depth > 0 || groupedTree) ? childOmit : undefined
                 }
               />
-              {canWrite && section.hierarchical && (
+              {canWrite && section.hierarchical && canAddUnder(n) && (
                 <button
                   type="button"
                   onClick={() => {
@@ -1253,7 +1285,7 @@ function StructuredSectionBody({
                 </button>
               )}
               <ItemActions
-                canWrite={canWrite}
+                canWrite={canEditRow(n)}
                 onEdit={() => {
                   setEditId(n.system_id);
                   setEditVal(fromNote(section, n));
@@ -1277,7 +1309,7 @@ function StructuredSectionBody({
     if (!sortable) return rows;
     return (
       <SortableList
-        ids={siblings.map((node) => node.note.system_id)}
+        ids={movableSiblings.map((node) => node.note.system_id)}
         onMove={(from, to) => move(siblings, from, to)}
         disabled={reordering}
       >
@@ -1330,7 +1362,8 @@ function StructuredSectionBody({
   const renderGroupedTree = () => {
     const named = rootGroups.filter((g) => g.name !== null);
     const unnamed = rootGroups.filter((g) => g.name === null);
-    const canMove = canWrite && Boolean(onReorder) && named.length > 1;
+    const canMove =
+      canWrite && Boolean(onReorder) && named.length > 1 && notes.every(canMoveRow);
     const noName = `No ${(treeGroupField.label || "group").toLowerCase()}`;
     const keep = (node) =>
       (editId !== null && holds(node, editId)) ||
@@ -1413,8 +1446,10 @@ function StructuredSectionBody({
             section={section}
             notes={notes}
             canWrite={canWrite}
+            canEditRow={canEditRow}
+            canMoveRow={canMoveRow}
             groupBy={section.groupable_by}
-            onRowsReorder={onReorder ? (ids) => onReorder(section.key, ids) : undefined}
+            onRowsReorder={onReorder ? sendOrder : undefined}
             busy={reordering}
             onUpdate={onUpdate}
             onDelete={onDelete}
@@ -1456,6 +1491,8 @@ function StructuredSectionBody({
             section={section}
             notes={notes}
             canWrite={canWrite}
+            canEditRow={canEditRow}
+            canMoveRow={canMoveRow}
             groupOrder={groupOrder}
             onGroupOrderChange={onGroupOrderChange}
             onUpdate={onUpdate}

@@ -1328,6 +1328,15 @@ asks in place and then clears its collected values and beaten across the
 whole owner (`POST /api/notes/ng-reset`), toasting how many were cleared.
 Both controls are **provisional UI**, plain controls pending the owner's
 design.
+A **mixed** section - 武器&裝備, 道具, 收集物, 敵人, 角色, 地理, 配裝&流派,
+隊伍組成, 攻略資源 and Resources - holds catalogue rows and the viewer's own
+personal rows together, the catalogue rows first within each group. A holder
+of `manage.catalog` adds catalogue rows and edits, deletes and reorders those
+only; anyone else holding `self.personal_notes` adds personal rows and edits,
+deletes and reorders its own only, and sees the catalogue rows read-only. In
+地理 Geography a catalogue writer is offered no personal row to nest under. A
+personal row carries a **Mine** chip, **provisional UI** pending the owner's
+design (components.md, `pages/notes`).
 `SHAPES` maps all nine stored shapes to components,
 `structured` → `StructuredSection` among them, so a new registry section needs
 no frontend change as long as it reuses an existing shape — every one of the

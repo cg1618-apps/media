@@ -4,6 +4,7 @@ import {
   groupNotes,
   groupRoots,
   groupedIds,
+  movedAmong,
   movedGroupOrder,
   movedRow,
   movedTreeIds,
@@ -189,5 +190,42 @@ describe("movedTreeIds", () => {
   it("leaves the order alone on an out-of-range move", () => {
     const groups = groupRoots([node("r1", "East"), node("r2", "East")], "kind");
     expect(movedTreeIds(groups, groups[0].nodes, 0, 5)).toEqual(["r1", "r2"]);
+  });
+});
+
+// A mixed section's viewer moves the rows of its own kind only: the indexes
+// count those rows, and every other row keeps its place.
+describe("movedAmong", () => {
+  const items = ["c1", "c2", "p1", "p2", "p3"];
+  const personal = (id) => id.startsWith("p");
+
+  it("moves among the movable items and leaves the others where they are", () => {
+    expect(movedAmong(items, 2, 0, personal)).toEqual(["c1", "c2", "p3", "p1", "p2"]);
+  });
+
+  it("is a plain move when every item is movable", () => {
+    expect(movedAmong(items, 0, 2)).toEqual(["c2", "p1", "c1", "p2", "p3"]);
+  });
+
+  it("returns the items unchanged on a move out of the movable range", () => {
+    expect(movedAmong(items, 0, 3, personal)).toBe(items);
+  });
+});
+
+describe("a mixed section's moves", () => {
+  it("moves a personal child among the personal children only", () => {
+    const groups = groupRoots(
+      [node("r1", "East", [node("c1", null), node("p1", null), node("p2", null)])],
+      "kind",
+    );
+    const siblings = groups[0].nodes[0].children;
+    const personal = (n) => n.system_id.startsWith("p");
+    expect(movedTreeIds(groups, siblings, 1, 0, personal)).toEqual(["r1", "c1", "p2", "p1"]);
+  });
+
+  it("moves a row within its group among the rows of the viewer's kind", () => {
+    const groups = [{ name: "A", notes: [{ system_id: "c1" }, { system_id: "p1" }, { system_id: "p2" }] }];
+    const personal = (n) => n.system_id.startsWith("p");
+    expect(shape(movedRow(groups, 0, 0, 1, personal))).toEqual([["A", ["c1", "p2", "p1"]]]);
   });
 });

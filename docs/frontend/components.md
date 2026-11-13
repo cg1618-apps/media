@@ -623,13 +623,37 @@ not drawn. The character, person and studio libraries use it for
   `manage.catalog` for a catalogue section and for the external Quotes and
   Memes, `self.personal_notes` for a personal one. The provider asks the
   viewer's `has()` and hands each section component `canWrite`, which gates
-  its Add, Edit, Delete, reorder grips, inline selects and group-order grips.
+  its Add, Edit, Delete, reorder grips, inline selects and group-order grips
+  (per row in a mixed section, below).
   `has()` does not pass the `self.*` family to the root flag, so an admin
   reads a personal section without its controls, and a `user` writes its own
   personal sections and reads the catalogue ones. The series' and franchise's
   rows shown on an entry (`GroupNotes`) are drawn with `canWrite` false.
   `NotesTemplate` and `NotesProvider` take no admin flag, and nor do the
   `*Notes.jsx` wrappers.
+  **A `mixed` section gates each row by its kind** (`rowAccessFor`). The
+  sections listing marks ten catalogue sections `mixed` - 武器&裝備, 道具,
+  收集物, 敵人, 角色 (`characters_guide`), 地理, 配裝&流派, 隊伍組成, 攻略資源
+  and Resources - and each row carries `personal`. Which kind a viewer
+  writes is fixed by `manage.catalog`: its holder writes catalogue rows,
+  anyone else holding `self.personal_notes` its own personal rows, never
+  both. So the provider hands such a section `canWrite` (Add) for either,
+  and three per-row rules the components read where they used `canWrite`
+  per row: `canEditRow(note)` (Edit, Delete, a quick edit) - a personal
+  row for `self.personal_notes`, a catalogue row for `manage.catalog`;
+  `canMoveRow(note)` (the reorder grip) - the rows of the kind the viewer
+  writes; and `canAddUnder(note)` (a hierarchical row's Add under) - any
+  row for a personal writer, a catalogue row only for a catalogue writer,
+  since the server refuses a catalogue row under a personal parent. Outside
+  a mixed section all three are `canWrite`. A mixed section's rows are
+  handed over catalogue rows first and the viewer's own after, each kind in
+  the order it arrived (`catalogueFirst`), so every group drawn from them
+  holds its catalogue rows first. A reorder sends only the ids of the rows
+  the viewer may move - `PATCH /api/notes/reorder` renumbers that kind
+  alone - and `withSectionOrder` puts the named rows back into the places
+  they held, so the other kind never moves on screen. A personal row
+  carries a **Mine** chip (`MineChip` in `ui.jsx`, the ink `Chip`). The
+  look is **provisional UI**, pending the owner's design.
   **Personal values on catalogue rows are marks, gated apart from the
   section.** A field the registry marks `personal` (an item's collected and
   collected amount, an enemy's beaten, an ending's completion, a stat's
@@ -717,7 +741,14 @@ not drawn. The character, person and studio libraries use it for
   its header for a viewer who may mark, also provisional: it asks in place -
   "Clear my collected and beaten for this game?" with Reset and Cancel, no
   browser dialog - and Reset calls `onNgReset`, which resets the whole
-  owner, not one card. For a
+  owner, not one card. Personal values and the NG reset work on a mixed
+  section's personal rows as on its catalogue rows. In a mixed section a row
+  takes a grip only when `canMoveRow` passes it, a move's indexes count
+  those rows alone and the rows it steps over keep their places
+  (`movedAmong` in `groupedRows.js`), and a group's grip shows only when
+  every row of the section is the viewer's to move, since a group move
+  renumbers them all; `useRowReorder` in `ui.jsx` applies the same rule to
+  a flat shape (Resources). For a
   `hierarchical` section it also draws the tree: an Add button per row opening
   a draft that carries that row's id as `parent_id`, children indented behind
   a rule, and a move - among a row's own siblings only - that flattens the
@@ -764,7 +795,8 @@ not drawn. The character, person and studio libraries use it for
   caps top-level rows, or each group of a grouped section. Every list section
   is also reorderable by a viewer who may write it (`canWrite`), the same way: a `DragHandle` per row (none
   on the row being edited, none while there is only one row), each move sent
-  to `onReorder` as the section's whole order for `PATCH /api/notes/reorder`,
+  to `onReorder` as the section's whole order for `PATCH /api/notes/reorder`
+  (in a mixed section, the whole order of the viewer's kind of row),
   applied on screen at once through the provider's pure `withSectionOrder`,
   and the section's grips disabled until the save settles. The flat shapes
   share `useRowReorder`, `ReorderList`, `ReorderRow` and `ReorderHandle` in
