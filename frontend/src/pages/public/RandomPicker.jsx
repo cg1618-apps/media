@@ -6,12 +6,15 @@
 // file holds the pick and renders. A Weights tab (?tab=weights) lists every
 // weight the draw uses.
 //
-// The page has two versions, by whether the viewer keeps a list (self.list,
-// useViewScope's ownData). With one it is all of the above. Without one - a
-// shared account - it offers only the catalogue filters (the defs not flagged
-// `personal`), draws unweighted, and has no Weights tab, Weighted toggle or
-// plan-mark request: a plan is self.list's, and so is most of what the
-// weights read.
+// The page has two versions. With a list (self.list, useViewScope's ownData)
+// it is all of the above. A shared account - view.random_picker without
+// self.list - gets only the "all media entries" picker: no mode strip, no
+// per-type or franchise mode (their URLs land on /random), and two filters,
+// media type and release decade (lib/randomPicker.js sharedFilterDefs). It
+// draws unweighted, with no Weights tab, Weighted toggle or plan-mark request:
+// a plan is self.list's, and so is most of what the weights read. A session
+// with neither key, which the app's route never lets in, keeps every mode with
+// the personal defs dropped.
 import { useCallback, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Navigate, useParams, useSearchParams } from "react-router-dom";
@@ -58,7 +61,16 @@ export default function RandomPicker({ type: typeProp }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = ownData && searchParams.get("tab") === "weights" ? "weights" : "pick";
 
+  // Which picker this is turns on the session, so nothing is drawn or
+  // fetched until it is known.
+  if (auth?.loading) return null;
   if (type && type !== FRANCHISE_MODE && !ALL_TYPES.includes(type)) {
+    return <Navigate to="/random" replace />;
+  }
+  // A shared account - view.random_picker without self.list, as the
+  // dashboard's Recently added reads it - has the one picker over every entry.
+  const shared = Boolean(auth?.has?.("view.random_picker")) && !ownData;
+  if (shared && type) {
     return <Navigate to="/random" replace />;
   }
 
@@ -87,11 +99,13 @@ export default function RandomPicker({ type: typeProp }) {
         <PickerWeights />
       ) : (
         <>
-          <ModeStrip
-            current={mode}
-            types={visibleTypes}
-            linkTo={(m) => (m === "all" ? "/random" : `/random/${m}`)}
-          />
+          {!shared && (
+            <ModeStrip
+              current={mode}
+              types={visibleTypes}
+              linkTo={(m) => (m === "all" ? "/random" : `/random/${m}`)}
+            />
+          )}
 
           {/* Keyed on the mode: each mode has its own defs and defaults, so
               switching starts from that mode's defaults with no pick. */}
@@ -102,6 +116,7 @@ export default function RandomPicker({ type: typeProp }) {
             // what each franchise holds and give it a cover.
             typesKey={type && type !== FRANCHISE_MODE ? type : visibleTypes.join(",")}
             ownsList={ownData}
+            shared={shared}
           />
         </>
       )}
@@ -109,9 +124,9 @@ export default function RandomPicker({ type: typeProp }) {
   );
 }
 
-function PickerBody({ mode, typesKey, ownsList }) {
+function PickerBody({ mode, typesKey, ownsList, shared }) {
   const { entries, filterDefs, defaultFilters, defaultWeighted, isLoading, error } =
-    usePickerData(mode, typesKey);
+    usePickerData(mode, typesKey, { shared });
 
   // Series and franchise plan marks, for the plan weight; entry marks ride on
   // the entries. A plan is one account's own (self.list), so a viewer without

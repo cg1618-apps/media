@@ -62,7 +62,7 @@ are a large share of the bundle and never needed on first paint.
 | `/completions` | `public/Completions.jsx` | lazy, **`self.list`** |
 | `/random` | `public/RandomPicker.jsx` — the general mode | lazy, **`view.random_picker`** |
 | `/random/h-comic`, `/random/h-game`, `/random/hentai` | `RandomPicker type="…"` — the same file, each inside its type's `<ProtectedRoute gatedType>` and, within it, `<ProtectedRoute permission="view.random_picker">` (matched before `/random/:type`) | lazy, **gated**, **`view.random_picker`** |
-| `/random/:type` | `RandomPicker` — one type's mode, or `/random/franchise`, the franchise mode; an unknown type redirects to `/random` | lazy, **`view.random_picker`** |
+| `/random/:type` | `RandomPicker` — one type's mode, or `/random/franchise`, the franchise mode; an unknown type redirects to `/random`, and so does every `/random/<mode>` for a shared account | lazy, **`view.random_picker`** |
 | `/plan` | `public/Plan.jsx` | lazy, **`self.list`** |
 | `/quote` | `public/Quotes.jsx` | lazy, **feature `quotes_memes`** (`<ProtectedRoute feature>`) |
 | `/meme` | `public/Memes.jsx` | lazy, **feature `quotes_memes`** |
@@ -352,10 +352,21 @@ hasFeature)` exactly as `Nav.jsx` does and keeps those two sections, one slip
 per section with one link per row, so the dashboard and the header never
 disagree about which libraries a viewer may open.
 
-**Recently added** reads `GET /api/dashboard/recent?limit=12` — the newest
-entries across every type the viewer may see, already narrowed by the
-server — and draws each as a cover (`thumbUrl`, `focusStyle`), its type and
+**Recently added** reads `GET /api/dashboard/recent?per_type=12` — the
+newest entries of each type the viewer may see, already narrowed and cut per
+type by the server — and draws **one section per type**, in the registry's
+type order (`MEDIA_TYPES`), titled with the type. A type with nothing
+visible has no section. Each card is a cover (`thumbUrl`, `focusStyle`) and
 its name, linking through `entityPath`.
+
+**Anime shows two rows, every other type one.** A row is as many cards as
+the grid has columns at that width — 2, then 3 from `sm`, 4 from `lg`, 6
+from `xl` (`GRID_COLUMNS`) — so a section is always whole rows: anime 4 / 6
+/ 8 / 12 cards, every other type 2 / 3 / 4 / 6. The page asks for enough for
+the widest grid (12, anime's two rows of six), keeps six of every other type,
+and `cardVisibility(index, rows)` hides the cards past the last full row at
+each narrower width. Counting a fixed number of cards would leave a ragged
+last row at every width but one.
 
 **The admin's page** fetches no catalogue at all — the admin's catalogue
 reads answer 401. It has an **Overview** — the summary, drawn even when
@@ -418,7 +429,7 @@ tracker divisions):
 | `#announcements` | Announcement & Notes | `AnnouncementBoard` cards (`components/info/AnnouncementBoard.jsx`); a clipped body expands into `AnnouncementModal`. Read-only on the catalogue dashboard; written on `/system` and on the admin's own page. |
 | `#schedule` | Weekly Schedule | two `WeeklySchedule` blocks: **My Watch Schedule** (`my_watch_day`, anime with `airing_status === "Airing"`; members only) and **Broadcast Schedule** (`broadcast_day` + `broadcast_time`, collapsible, collapsed by default). Only anime feed the schedule today. Sunday-first (`config/weekdays.js`), today highlighted and scrolled into the first visible column whenever a grid is drawn (on load, and on expanding a collapsed one), entries sort by `HH:MM` then name. Under them, **Coming Next** (`schedule-coming`, `components/tracker/ComingNext.jsx`), collapsed by default and drawn only for a viewer holding `self.list` — see below. Directly under it, **Followed watch orders (n)** (`schedule-follows`, `components/tracker/FollowedOrders.jsx`), gated and collapsed the same way: one row per followed order with its group, `done / total`, every step in progress and the step up next — see [../systems/watch-orders.md](../systems/watch-orders.md#following). |
 | `#libraries` | Libraries | viewers without a list (guest, shared): one link per Library and Restricted nav row the viewer is shown. Not drawn when there are none. |
-| `#recent` | Recently added | `view.random_picker` without a list (shared): the newest entries, newest first. |
+| `#recent` | Recently added | `view.random_picker` without a list (shared): one section per visible type, newest first — anime two rows, every other type one. |
 | `#watching` | Watching (Anime · TV Show · Cartoon) | members only, like Reading and Playing and the filter bar above them. Sections `watching-active` Active Watching, `watching-passive` Passive Watching, `watching-paused` Paused, by `watching_status`. Each groups Anime → TV Show → Cartoon, sorted by rating weight (S…F, unrated last), rendering `DashboardCard`. Shown when no type is picked or the picked type is one of its three. |
 | `#reading` | Reading (Manga · Novel · Comics) | `reading-active`, `reading-passive`, `reading-paused` by `reading_status`. Manga → `DashboardCard`, Novel → `NovelDashboardCard`, Comic → `ComicDashboardCard`. Shown when no type is picked or the picked type is one of its three. |
 | `#playing` | Playing (Game) | `playing-active`, `playing-passive`, `playing-anytime`, `playing-paused` by `playing_status`, rendered by a local `PlayingSection` — simpler than `ReadingSection` because the division holds exactly one media type, so there is no per-type grouping and no progress callback. Cards are `GameDashboardCard`, whose playtime figure is read-only for everyone. Shown when no type is picked or the picked type is Game. |
@@ -1765,20 +1776,33 @@ Files `pages/public/RandomPicker.jsx`, `lib/randomPicker.js`,
 `view.random_picker`; it draws from the same lists the library pages read, so
 it can only offer what the viewer may already see.
 
-**Two versions, by `useViewScope().ownData`.** With a list (`self.list`),
-everything below. Without one - a shared account - the catalogue version:
-every FilterDef flagged `personal: true` is dropped
-(`filterDefsForMode(mode, types, { personal })`, one rule for every mode:
-the status groups, my rating, the franchise mode's entry status and
-expectation, and every library filter its config flags, such as a type's own
-status, ownership and usefulness), the draw is
-uniform, the Weights tab and the **Weighted** checkbox are not drawn (a
-`?tab=weights` link opens the picker), a saved default naming a personal
-filter is ignored, and `/api/plan-next/` is never asked. What is left is
-media type, the type's catalogue filters, release decade, genre and the
-external score.
+**Two versions.** With a list (`self.list`), everything below. A **shared
+account** — `view.random_picker` without `self.list`, the same pair the
+dashboard's Recently added reads — gets **one picker, over all media
+entries**: no mode strip, every `/random/<type>` and `/random/franchise`
+redirects to `/random`, and the page waits for the session before it decides
+(it renders nothing while `/api/auth/me` loads), so no mode is fetched first.
+It has **exactly two filters**, media type and release decade
+(`sharedFilterDefs`, through `filterDefsForMode(mode, types, { personal,
+shared })`; `usePickerData(mode, typesKey, { shared })`). The release decade
+is the one the full picker uses: each entry's primary release date by
+`RELEASE_PRIORITY` (`lib/releaseDate.js`, mirroring `app/utils/release_date.py`)
+— `release_date` on every type except anime movie (`release_date_jp`, then
+`release_date_tw`) and movie (`release_date_tw`, then `release_date_usa`) —
+offered as the decades the pool holds, newest first, with Unknown for an
+undated entry. The draw is uniform, the Weights tab and the **Weighted**
+checkbox are not drawn (a `?tab=weights` link opens the picker), a saved
+default naming any other filter is ignored, and `/api/plan-next/` is never
+asked. Picker Defaults never sets `shared`, so the admin's editor is the full
+set.
 
-**Genre** (`genre`) is a catalogue filter in both versions: its chips are
+Without `view.random_picker` the page is unreachable (`<ProtectedRoute>`).
+Inside it, a session holding neither key is treated as the list-less full
+picker: every def flagged `personal: true` is dropped (`filterDefsForMode`'s
+`personal`), leaving media type, the type's catalogue filters, release
+decade, genre and the external score.
+
+**Genre** (`genre`) is a catalogue filter of the full picker: its chips are
 the genres the pool holds, and an entry matches when any of its genres is
 on. It reads each type's own field, a ", "-joined string on every list
 response (`GENRE_FIELD`): `genre_main` on the eight mainstream types and
@@ -1788,7 +1812,7 @@ genre chips. The franchise mode does not offer it: a franchise has no genre
 of its own, and "any entry's genre" would make most franchises match most
 chips.
 
-**External score** (`externalScore`) is a catalogue filter in both versions:
+**External score** (`externalScore`) is a catalogue filter of the full picker:
 chips `9+`, `8+`, `7+`, `6+` and `No score`, which OR like every chip, read
 from `mal_rating` for anime, anime movies, manga and novels and from
 `imdb_rating` for movies, TV shows and cartoons; a null or `N/A` score, or a

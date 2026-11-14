@@ -3753,6 +3753,31 @@ and not by `guest`, rather than as checks for "is anybody logged in".
 
 ## 2026-11
 
+### Recently added per type, and the shared account's one picker (2026-11-14)
+
+- **`/api/dashboard/recent` cuts per type, not overall.** The dashboard draws
+  one section per type, and newest-overall lets one busy type crowd every
+  other off the page. It takes `per_type` (1–24, default 6) instead of
+  `limit`, and answers in one query: the visible entries numbered newest
+  first within their type by `row_number()` and cut there, `system_id`
+  breaking a `created_at` tie. The response stays a flat `RecentEntry[]`, so
+  the schema did not change; the page groups it. Anime's second row is the
+  page's to ask for (`per_type=12`, keeping six of every other type) rather
+  than a server rule about one type.
+- **A row is the grid's column count at that width**, 2 / 3 / 4 / 6, not a
+  fixed number of cards. A fixed count leaves a ragged last row at every
+  width but the one it was picked for. The page fetches enough for the widest
+  grid and hides the cards past the last full row at the narrower ones.
+- **"Shared account" on the picker is `view.random_picker` without
+  `self.list`**, the pair `dashboardSections.js` already reads for Recently
+  added, rather than "no list" alone. A session without the picker key never
+  reaches the page in the app, so for it the list-less full picker stays as
+  it was.
+- **Release decade needed no new derivation.** The full picker already had
+  it, from `RELEASE_PRIORITY`, and its per-type columns were checked against
+  the models: `release_date` everywhere except anime movie (`_jp` then `_tw`)
+  and movie (`_tw` then `_usa`). The shared picker reuses that def.
+
 ### Requests and reports: two permissions, and the owner's seven answers (2026-11-13)
 
 Requests and reports were built before the `shared` role and before the admin

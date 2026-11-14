@@ -160,7 +160,7 @@ each in its catalogue version. The Random Picker asks `view.random_picker`,
 fixed on for super, user and shared and off for guest. Plan and Completions
 ask `self.list`.
 
-¹ Shared accounts get the Random Picker's catalogue version; see
+¹ Shared accounts get the Random Picker's shared version; see
 [Random Picker and Future Releases](#random-picker-and-future-releases).
 
 ## Guest
@@ -185,7 +185,7 @@ The logged-out visitor.
 A guest that can view more, with no data of its own.
 
 - **Reads** everything a guest reads, in its own fixed mode (`normal` or
-  `borderline`), plus the **Random Picker** in its catalogue version and
+  `borderline`), plus the **Random Picker** in its shared version and
   **recently added** entries on the dashboard. **Never quotes or memes**,
   not even by switch.
 - **Entity pages are off by default**, as for a guest; the `shared` role's
@@ -334,7 +334,7 @@ series the viewer's mode hides reads as missing wherever it would be listed
 | Viewer | Random Picker | Future Releases |
 | --- | --- | --- |
 | **super, user** | every filter, the personal ones included — status, my rating, ownership, usefulness, expectation — the weighted draw and its Weights tab | upcoming releases ordered by the viewer's own status and franchise expectation, with **On your list** and **Planned** markers |
-| **shared** | **its catalogue version, catalogue filters only** — media type, genre, release decade, external score, and each type's catalogue library filters — drawn unweighted, with no Weights tab | upcoming releases, catalogue only, in release-date order |
+| **shared** | **one picker over all media entries**, with exactly two filters — media type and release decade — and no per-type or franchise picker; drawn unweighted, with no Weights tab | upcoming releases, catalogue only, in release-date order |
 | **guest** | none | upcoming releases, catalogue only, in release-date order |
 | **admin** | none | none |
 
@@ -379,7 +379,7 @@ kind's key the viewer lacks is plain text rather than a link.
 | **super** | announcements, the broadcast schedule, its own tracker, and a **summary of pending registrations and open requests and reports**: counts and the fewest words that say what waits. Open requests link to the inbox; registrations read as waiting for the admin, unlinked, since only the admin approves them. Not the admin's inbox. **Hidden entirely when nothing waits.** |
 | **user** | announcements, the broadcast schedule, its own tracker |
 | **guest** | announcements, the broadcast schedule, and **a way into each library** — the header's own Library and Restricted rows |
-| **shared** | the guest's dashboard, plus **recently added**: the newest entries across every type it may see |
+| **shared** | the guest's dashboard, plus **recently added**: one section per type it may see, newest first — two rows of anime, one row of every other type; a type with nothing visible has no section |
 | **admin** | its own page: the same summary of pending registrations and open requests, shown even when nothing waits and linking to the pending-registrations panel and the inbox; the latest pipeline runs; and announcements to edit. No catalogue |
 
 The tracker is the viewer's own watch schedule, Coming Next, followed watch
