@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { putMyListRow } from "../../api/myList";
+import { usePageTitle } from "../../contexts/PageTitleContext";
 import { useViewScope } from "../../hooks/useViewScope";
 import { useToast } from "../../hooks/useToast";
 import { getRatingWeight } from "../../utils/media";
@@ -479,5 +480,9 @@ function SeasonalDetailCatalogue() {
 // With a list, the viewer's own season; without one, the catalogue's.
 export default function SeasonalDetail() {
   const { ownData } = useViewScope();
+  // Both branches head the page with the season id, which the URL names
+  // before anything loads; the browser tab shows it too.
+  const { seasonal_id } = useParams();
+  usePageTitle(decodeURIComponent(seasonal_id));
   return ownData ? <SeasonalDetailWithList /> : <SeasonalDetailCatalogue />;
 }

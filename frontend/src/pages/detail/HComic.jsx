@@ -22,6 +22,8 @@ import NamingCard from "../../components/info/NamingCard";
 import { creditLabel, creditValue } from "../../components/info/PersonLinks";
 import SourcesCard from "../../components/info/SourcesCard";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
+import DetailContents, { TocSection } from "../../components/layout/DetailContents";
+import { usePageTitle } from "../../contexts/PageTitleContext";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import StatusOptions from "../../components/ui/StatusOptions";
 import {
@@ -355,6 +357,10 @@ export default function HComic() {
     }
   }
 
+  // The heading's title, which the browser tab shows too.
+  const titleMain = hComic ? getDisplayName(hComic, "h-comic") : null;
+  usePageTitle(loading || error ? null : titleMain);
+
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading details..." />;
   }
@@ -367,7 +373,6 @@ export default function HComic() {
 
   const region = hComic.region;
   const shows = (field) => showsField(region, field);
-  const titleMain = getDisplayName(hComic, "h-comic");
   const titleSub =
     hComic.h_comic_name_en && hComic.h_comic_name_en !== titleMain ? hComic.h_comic_name_en : null;
   const imageUrl = getCoverUrl(hComic.cover_image_file);
@@ -390,7 +395,7 @@ export default function HComic() {
   const num = (v) => (v != null ? String(v) : null);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+    <DetailContents>
       <div className="mb-8 flex items-center justify-between gap-3">
         <nav
           className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint min-w-0 flex items-center gap-3"
@@ -534,103 +539,119 @@ export default function HComic() {
           </header>
 
           {/* Where this entry sits in the watch orders the viewer follows. */}
-          <FollowedOrderPanel entryId={hComic.system_id} />
+          <TocSection id="watch-orders" label="Watch orders">
+            <FollowedOrderPanel entryId={hComic.system_id} />
+          </TocSection>
 
-          <HComicTrackerBlock hComic={hComic} canTrack={ownData} onPatch={saveOwn} />
+          <TocSection id="tracker" label="My tracker">
+            <HComicTrackerBlock hComic={hComic} canTrack={ownData} onPatch={saveOwn} />
+          </TocSection>
 
           <div className="space-y-6">
-            <NamingCard type="h-comic" item={hComic} />
-            <InfoCard
-              title="Information"
-              fields={[
-                [
-                  { label: "Region", value: region },
-                  { label: "Serialization Status", value: hComic.serialization_status },
-                ],
-                ...(region === "JP"
-                  ? [
-                      [
-                        { label: "Originality", value: hComic.originality },
+            <TocSection id="naming" label="Naming">
+              <NamingCard type="h-comic" item={hComic} />
+            </TocSection>
+            <TocSection id="information" label="Information">
+              <InfoCard
+                title="Information"
+                fields={[
+                  [
+                    { label: "Region", value: region },
+                    { label: "Serialization Status", value: hComic.serialization_status },
+                  ],
+                  ...(region === "JP"
+                    ? [
+                        [
+                          { label: "Originality", value: hComic.originality },
+                          {
+                            label: "Animation Status",
+                            value: isDerivedAnimationStatus(hComic) ? (
+                              <DerivedAnimationStatus hComic={hComic} adaptations={adaptations} />
+                            ) : (
+                              hComic.animation_status
+                            ),
+                          },
+                        ],
+                        [
+                          { label: "Series Number", value: num(hComic.series_number) },
+                          { label: "Page Total", value: num(hComic.page_total) },
+                        ],
+                      ]
+                    : []),
+                  ...(region === "KR"
+                    ? [
+                        [
+                          { label: "Chapter Total", value: num(hComic.ch_total) },
+                          { label: "Chapters Behind Official", value: num(hComic.ch_behind) },
+                        ],
+                        { label: "Official Source", value: hComic.original_source },
+                      ]
+                    : []),
+                  [
+                    { label: "Release Date", value: hComic.release_date || null },
+                    { label: "End Date", value: hComic.end_date || null },
+                  ],
+                ]}
+              />
+            </TocSection>
+            <TocSection id="credits" label="Credits">
+              <InfoCard
+                title="Credits"
+                fields={[
+                  [
+                    {
+                      label: creditLabel(hComic, "illustrator", "繪師"),
+                      value: creditValue(hComic, "illustrator", hComic.illustrator),
+                    },
+                    {
+                      label: creditLabel(hComic, "club", "Club"),
+                      value: creditValue(hComic, "club", hComic.club),
+                    },
+                  ],
+                  ...(shows("author")
+                    ? [
                         {
-                          label: "Animation Status",
-                          value: isDerivedAnimationStatus(hComic) ? (
-                            <DerivedAnimationStatus hComic={hComic} adaptations={adaptations} />
-                          ) : (
-                            hComic.animation_status
-                          ),
+                          label: creditLabel(hComic, "author", "Author"),
+                          value: creditValue(hComic, "author", hComic.author),
                         },
-                      ],
-                      [
-                        { label: "Series Number", value: num(hComic.series_number) },
-                        { label: "Page Total", value: num(hComic.page_total) },
-                      ],
-                    ]
-                  : []),
-                ...(region === "KR"
-                  ? [
-                      [
-                        { label: "Chapter Total", value: num(hComic.ch_total) },
-                        { label: "Chapters Behind Official", value: num(hComic.ch_behind) },
-                      ],
-                      { label: "Official Source", value: hComic.original_source },
-                    ]
-                  : []),
-                [
-                  { label: "Release Date", value: hComic.release_date || null },
-                  { label: "End Date", value: hComic.end_date || null },
-                ],
-              ]}
-            />
-            <InfoCard
-              title="Credits"
-              fields={[
-                [
-                  {
-                    label: creditLabel(hComic, "illustrator", "繪師"),
-                    value: creditValue(hComic, "illustrator", hComic.illustrator),
-                  },
-                  {
-                    label: creditLabel(hComic, "club", "Club"),
-                    value: creditValue(hComic, "club", hComic.club),
-                  },
-                ],
-                ...(shows("author")
-                  ? [
-                      {
-                        label: creditLabel(hComic, "author", "Author"),
-                        value: creditValue(hComic, "author", hComic.author),
-                      },
-                    ]
-                  : []),
-              ]}
-            />
-            <InfoCard
-              title="Genres"
-              fields={[
-                { label: "Genre Plot", value: hComic.h_genre_plot },
-                { label: "Genre Appearance", value: hComic.h_genre_appearance },
-                { label: "Genre Relation", value: hComic.h_genre_relation },
-              ]}
-            />
+                      ]
+                    : []),
+                ]}
+              />
+            </TocSection>
+            <TocSection id="genres" label="Genres">
+              <InfoCard
+                title="Genres"
+                fields={[
+                  { label: "Genre Plot", value: hComic.h_genre_plot },
+                  { label: "Genre Appearance", value: hComic.h_genre_appearance },
+                  { label: "Genre Relation", value: hComic.h_genre_relation },
+                ]}
+              />
+            </TocSection>
           </div>
 
-          <CastSection cast={cast} />
+          <TocSection id="cast" label="Cast">
+            <CastSection cast={cast} />
+          </TocSection>
 
-          {ownData && hComic.remark && (
-            <Slip title="Remarks">
-              <textarea
-                key={hComic.system_id}
-                defaultValue={hComic.remark || ""}
-                onBlur={(e) => {
-                  if (e.target.value !== (hComic.remark || ""))
-                    saveMyRemark(e.target.value);
-                }}
-                rows={4}
-                placeholder="Add remarks…"
-                className={selectCls}
-              ></textarea>
-            </Slip>
-          )}
+          <TocSection id="remarks" label="Remarks">
+            {ownData && hComic.remark && (
+              <Slip title="Remarks">
+                <textarea
+                  key={hComic.system_id}
+                  defaultValue={hComic.remark || ""}
+                  onBlur={(e) => {
+                    if (e.target.value !== (hComic.remark || ""))
+                      saveMyRemark(e.target.value);
+                  }}
+                  rows={4}
+                  placeholder="Add remarks…"
+                  className={selectCls}
+                ></textarea>
+              </Slip>
+            )}
+          </TocSection>
 
           {/* The dedicated remark textarea above renders only for a holder of
               self.list who has a remark; hide the notes page's `remark`
@@ -647,6 +668,6 @@ export default function HComic() {
           />
         </div>
       </div>
-    </div>
+    </DetailContents>
   );
 }

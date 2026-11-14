@@ -26,6 +26,8 @@ import NamingCard from "../../components/info/NamingCard";
 import SourcesCard from "../../components/info/SourcesCard";
 import { studioValue } from "../../components/info/StudioLinks";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
+import DetailContents, { TocSection } from "../../components/layout/DetailContents";
+import { usePageTitle } from "../../contexts/PageTitleContext";
 import GameCompletionBlock, {
   H_GAME_COMPLETION_AXES,
 } from "../../components/tracker/GameCompletionBlock";
@@ -234,6 +236,10 @@ export default function HGame() {
     }
   }
 
+  // The heading's title, which the browser tab shows too.
+  const titleMain = hGame ? getDisplayName(hGame, "h-game") : null;
+  usePageTitle(loading || error ? null : titleMain);
+
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading details..." />;
   }
@@ -244,7 +250,6 @@ export default function HGame() {
     );
   }
 
-  const titleMain = getDisplayName(hGame, "h-game");
   const titleSub =
     hGame.h_game_name_en && hGame.h_game_name_en !== titleMain ? hGame.h_game_name_en : null;
   const imageUrl = getCoverUrl(hGame.cover_image_file);
@@ -284,7 +289,7 @@ export default function HGame() {
       groupOrder={hGame.highlight_group_order}
       onGroupOrderChange={has("self.personal_notes") ? saveGroupOrder : undefined}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+      <DetailContents>
         <div className="mb-8 flex items-center justify-between gap-3">
           <nav
             className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint min-w-0 flex items-center gap-3"
@@ -433,162 +438,192 @@ export default function HGame() {
             </header>
 
             {/* Where this entry sits in the watch orders the viewer follows. */}
-            <FollowedOrderPanel entryId={hGame.system_id} />
+            <TocSection id="watch-orders" label="Watch orders">
+              <FollowedOrderPanel entryId={hGame.system_id} />
+            </TocSection>
 
             {/* My Tracker - no stepper, as on Game. */}
-            <MyTrackerCard
-              watchingStatus={hGame.playing_status || "Might Play"}
-              statusOptions={PLAYING_STATUSES}
-              statusLabel="Playing Status"
-              myRating={hGame.my_rating}
-              ratingOptions={MY_RATINGS}
-              canTrack={ownData}
-              onStatusChange={(v) => saveOwn({ playing_status: v }, "Status updated")}
-              onRatingChange={(v) => saveOwn({ my_rating: v || null }, "Rating saved")}
-              toRewatch={hGame.to_replay}
-              rewatchLabel="To Replay"
-              onToRewatchChange={(v) =>
-                saveOwn({ to_replay: v }, v ? "Marked to replay" : "Removed from replay")
-              }
-            />
+            <TocSection id="tracker" label="My tracker">
+              <MyTrackerCard
+                watchingStatus={hGame.playing_status || "Might Play"}
+                statusOptions={PLAYING_STATUSES}
+                statusLabel="Playing Status"
+                myRating={hGame.my_rating}
+                ratingOptions={MY_RATINGS}
+                canTrack={ownData}
+                onStatusChange={(v) => saveOwn({ playing_status: v }, "Status updated")}
+                onRatingChange={(v) => saveOwn({ my_rating: v || null }, "Rating saved")}
+                toRewatch={hGame.to_replay}
+                rewatchLabel="To Replay"
+                onToRewatchChange={(v) =>
+                  saveOwn({ to_replay: v }, v ? "Marked to replay" : "Removed from replay")
+                }
+              />
+            </TocSection>
 
             {/* Completion Level, All Endings, All CG - the work's columns, an
                 editor's to change - and usefulness, the viewer's own, which
                 MyTrackerCard (shared by every type) has no place for. */}
-            <GameCompletionBlock
-              game={hGame}
-              isAdmin={isAdmin}
-              canTrack={ownData}
-              axes={H_GAME_COMPLETION_AXES}
-              idPrefix="h-game"
-              onChange={(patch) => performPatch(patch, "Saved")}
-              onOwnChange={(patch) => saveOwn(patch, "Saved")}
-            />
+            <TocSection id="completion" label="Completion">
+              <GameCompletionBlock
+                game={hGame}
+                isAdmin={isAdmin}
+                canTrack={ownData}
+                axes={H_GAME_COMPLETION_AXES}
+                idPrefix="h-game"
+                onChange={(patch) => performPatch(patch, "Saved")}
+                onOwnChange={(patch) => saveOwn(patch, "Saved")}
+              />
+            </TocSection>
 
-            <Slip title="進度/待辦 Progress and Todo">
-              <div className="space-y-4">
-                <HGameProgress hGame={hGame} />
-                <NotesGroup groupKey="todo" />
-              </div>
-            </Slip>
+            <TocSection id="progress" label="進度/待辦 Progress and Todo">
+              <Slip title="進度/待辦 Progress and Todo">
+                <div className="space-y-4">
+                  <HGameProgress hGame={hGame} />
+                  <NotesGroup groupKey="todo" />
+                </div>
+              </Slip>
+            </TocSection>
 
             {/* The choice graph: a shared map of the options and where they
               lead, with the viewer's saves (from 待辦 above) pinned to its
               points. Its own card, inside the NotesProvider so the saves are
               there to read. */}
-            <ChoiceGraphCard gameId={hGame.system_id} title={titleMain} />
+            <TocSection id="choices" label="分歧 Choices">
+              <ChoiceGraphCard gameId={hGame.system_id} title={titleMain} />
+            </TocSection>
 
             <div className="space-y-6">
-              <NamingCard type="h-game" item={hGame} />
-              <InfoCard
-                title="Information"
-                fields={[
-                  [
-                    { label: "Type", value: hGame.game_type },
-                    { label: "Main / Remake", value: hGame.is_main },
-                    {
-                      label: "Base Game",
-                      value: hGame.base_game ? (
-                        <Link
-                          to={entityPath("h-game", hGame.base_game)}
-                          className="text-brand hover:underline"
-                        >
-                          {hGame.base_game.display_name}
-                        </Link>
-                      ) : null,
-                    },
-                  ],
-                  [
-                    { label: "Series Number", value: num(hGame.series_number) },
-                    { label: "Play Style", value: hGame.playstyle },
-                  ],
-                  [
-                    { label: "Platform", value: choiceText(hGame.platform) },
-                    { label: "Language", value: hGame.language_availability },
-                  ],
-                ]}
-              />
-              <InfoCard
-                title="Genres"
-                fields={[
-                  [
-                    { label: "Genre", value: hGame.game_genre },
-                    { label: "Theme", value: hGame.game_theme },
-                  ],
-                  { label: "Genre Plot", value: hGame.h_genre_plot },
-                  { label: "Genre Appearance", value: hGame.h_genre_appearance },
-                  { label: "Genre Relation", value: hGame.h_genre_relation },
-                ]}
-              />
-              <InfoCard
-                title="Presentation"
-                fields={[
-                  [
-                    { label: "Art Style", value: choiceText(hGame.art_style) },
-                    { label: "H 演出 Art Style", value: choiceText(hGame.h_art_style) },
-                  ],
-                  { label: "H 演出形式", value: choiceText(hGame.h_presentation) },
-                  [
-                    { label: "Dialogue Audio", value: choiceText(hGame.dialogue_audio) },
-                    { label: "Sound Effect", value: choiceText(hGame.sound_effect) },
-                  ],
-                ]}
-              />
-              <InfoCard
-                title="Production & Release"
-                fields={[
-                  { label: "Developer", value: studioValue(hGame) },
-                  [
-                    { label: "Release Status", value: hGame.release_status },
-                    { label: "Release Date", value: hGame.release_date },
-                    { label: "Current Patch", value: hGame.current_patch },
-                  ],
-                ]}
-              />
-              <TimeToBeatCard entry={hGame} />
-              <InfoCard
-                title="Prices"
-                fields={[
-                  [
-                    { label: "MSRP (US)", value: money(hGame.price_original_us, "USD") },
-                    { label: "MSRP (JP)", value: money(hGame.price_original_jp, "JPY") },
-                    { label: "MSRP (TW)", value: money(hGame.price_original_tw, "TWD") },
-                  ],
-                ]}
-              />
-              <InfoCard
-                title="Library"
-                fields={[
-                  [
-                    // Derived from the copy rows server-side, never stored.
-                    { label: "Ownership", value: hGame.ownership },
-                    {
-                      label: "Copies",
-                      value: hGame.copies?.length ? String(hGame.copies.length) : null,
-                    },
-                  ],
-                  { label: "Steam Progress Sync", value: yesNo(hGame.steam_progress_sync) },
-                ]}
-              />
+              <TocSection id="naming" label="Naming">
+                <NamingCard type="h-game" item={hGame} />
+              </TocSection>
+              <TocSection id="information" label="Information">
+                <InfoCard
+                  title="Information"
+                  fields={[
+                    [
+                      { label: "Type", value: hGame.game_type },
+                      { label: "Main / Remake", value: hGame.is_main },
+                      {
+                        label: "Base Game",
+                        value: hGame.base_game ? (
+                          <Link
+                            to={entityPath("h-game", hGame.base_game)}
+                            className="text-brand hover:underline"
+                          >
+                            {hGame.base_game.display_name}
+                          </Link>
+                        ) : null,
+                      },
+                    ],
+                    [
+                      { label: "Series Number", value: num(hGame.series_number) },
+                      { label: "Play Style", value: hGame.playstyle },
+                    ],
+                    [
+                      { label: "Platform", value: choiceText(hGame.platform) },
+                      { label: "Language", value: hGame.language_availability },
+                    ],
+                  ]}
+                />
+              </TocSection>
+              <TocSection id="genres" label="Genres">
+                <InfoCard
+                  title="Genres"
+                  fields={[
+                    [
+                      { label: "Genre", value: hGame.game_genre },
+                      { label: "Theme", value: hGame.game_theme },
+                    ],
+                    { label: "Genre Plot", value: hGame.h_genre_plot },
+                    { label: "Genre Appearance", value: hGame.h_genre_appearance },
+                    { label: "Genre Relation", value: hGame.h_genre_relation },
+                  ]}
+                />
+              </TocSection>
+              <TocSection id="presentation" label="Presentation">
+                <InfoCard
+                  title="Presentation"
+                  fields={[
+                    [
+                      { label: "Art Style", value: choiceText(hGame.art_style) },
+                      { label: "H 演出 Art Style", value: choiceText(hGame.h_art_style) },
+                    ],
+                    { label: "H 演出形式", value: choiceText(hGame.h_presentation) },
+                    [
+                      { label: "Dialogue Audio", value: choiceText(hGame.dialogue_audio) },
+                      { label: "Sound Effect", value: choiceText(hGame.sound_effect) },
+                    ],
+                  ]}
+                />
+              </TocSection>
+              <TocSection id="production-release" label="Production & Release">
+                <InfoCard
+                  title="Production & Release"
+                  fields={[
+                    { label: "Developer", value: studioValue(hGame) },
+                    [
+                      { label: "Release Status", value: hGame.release_status },
+                      { label: "Release Date", value: hGame.release_date },
+                      { label: "Current Patch", value: hGame.current_patch },
+                    ],
+                  ]}
+                />
+              </TocSection>
+              <TocSection id="time-to-beat" label="Time to Beat">
+                <TimeToBeatCard entry={hGame} />
+              </TocSection>
+              <TocSection id="prices" label="Prices">
+                <InfoCard
+                  title="Prices"
+                  fields={[
+                    [
+                      { label: "MSRP (US)", value: money(hGame.price_original_us, "USD") },
+                      { label: "MSRP (JP)", value: money(hGame.price_original_jp, "JPY") },
+                      { label: "MSRP (TW)", value: money(hGame.price_original_tw, "TWD") },
+                    ],
+                  ]}
+                />
+              </TocSection>
+              <TocSection id="library" label="Library">
+                <InfoCard
+                  title="Library"
+                  fields={[
+                    [
+                      // Derived from the copy rows server-side, never stored.
+                      { label: "Ownership", value: hGame.ownership },
+                      {
+                        label: "Copies",
+                        value: hGame.copies?.length ? String(hGame.copies.length) : null,
+                      },
+                    ],
+                    { label: "Steam Progress Sync", value: yesNo(hGame.steam_progress_sync) },
+                  ]}
+                />
+              </TocSection>
             </div>
 
-            <GameCopiesSection copies={hGame.copies} />
+            <TocSection id="copies" label="Copies">
+              <GameCopiesSection copies={hGame.copies} />
+            </TocSection>
 
-            {ownData && hGame.remark && (
-              <Slip title="Remarks">
-                <textarea
-                  key={hGame.system_id}
-                  defaultValue={hGame.remark || ""}
-                  onBlur={(e) => {
-                    if (e.target.value !== (hGame.remark || ""))
-                      saveMyRemark(e.target.value);
-                  }}
-                  rows={4}
-                  placeholder="Add remarks…"
-                  className={textareaCls}
-                ></textarea>
-              </Slip>
-            )}
+            <TocSection id="remarks" label="Remarks">
+              {ownData && hGame.remark && (
+                <Slip title="Remarks">
+                  <textarea
+                    key={hGame.system_id}
+                    defaultValue={hGame.remark || ""}
+                    onBlur={(e) => {
+                      if (e.target.value !== (hGame.remark || ""))
+                        saveMyRemark(e.target.value);
+                    }}
+                    rows={4}
+                    placeholder="Add remarks…"
+                    className={textareaCls}
+                  ></textarea>
+                </Slip>
+              )}
+            </TocSection>
 
             <NotesBlocks
               hideSections={ownData && hGame.remark ? ["remark"] : []}
@@ -597,7 +632,7 @@ export default function HGame() {
             />
           </div>
         </div>
-      </div>
+      </DetailContents>
     </NotesProvider>
   );
 }

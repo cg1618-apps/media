@@ -138,7 +138,11 @@ describe("NotesTemplate groups", () => {
     expect(notesCard.textContent).toContain("Overview");
     // Peers under one parent, so the page lays them out with equal weight.
     const groupCard = screen.getByText("音樂 Music").closest("div.bg-surface");
-    expect(groupCard.parentElement).toBe(notesCard.parentElement);
+    // Each card sits in its own contents anchor (TocSection); the anchors are
+    // the siblings.
+    expect(groupCard.closest("[data-toc]").parentElement).toBe(
+      notesCard.closest("[data-toc]").parentElement,
+    );
   });
 });
 
@@ -194,7 +198,9 @@ describe("NotesTemplate standalone sections", () => {
     );
     const notesCard = screen.getByText("Notes").closest("div.bg-surface");
     const solo = screen.getByText("Resources").closest("div.bg-surface");
-    expect(solo.parentElement).toBe(notesCard.parentElement);
+    expect(solo.closest("[data-toc]").parentElement).toBe(
+      notesCard.closest("[data-toc]").parentElement,
+    );
   });
 });
 

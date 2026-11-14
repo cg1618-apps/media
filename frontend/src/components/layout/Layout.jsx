@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import Nav from "./Nav";
 import Toast from "./Toast";
+import { PageTitleProvider } from "../../contexts/PageTitleContext";
 
 function ScrollButtons() {
   const [showTop, setShowTop] = useState(false);
@@ -57,7 +58,10 @@ function ScrollButtons() {
 }
 
 export default function Layout() {
+  // Every route renders inside this layout, so the tab title is set here once
+  // (PageTitleContext) rather than by each page.
   return (
+    <PageTitleProvider>
     <div className="bg-canvas text-text min-h-screen flex flex-col font-sans">
       <Nav />
       <main className="flex-1">
@@ -73,5 +77,6 @@ export default function Layout() {
       <Toast />
       <ScrollButtons />
     </div>
+    </PageTitleProvider>
   );
 }

@@ -26,6 +26,8 @@ import { creditLabel, creditValue } from "../../components/info/PersonLinks";
 import SourcesCard from "../../components/info/SourcesCard";
 import { studioValue } from "../../components/info/StudioLinks";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
+import DetailContents, { TocSection } from "../../components/layout/DetailContents";
+import { usePageTitle } from "../../contexts/PageTitleContext";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import StatusOptions from "../../components/ui/StatusOptions";
 import { Button, Eyebrow, RatingStamp, Slip } from "../../components/ui/primitives";
@@ -240,6 +242,10 @@ export default function Hentai() {
     }
   }
 
+  // The heading's title, which the browser tab shows too.
+  const titleMain = hentai ? getDisplayName(hentai, "hentai") : null;
+  usePageTitle(loading || error ? null : titleMain);
+
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading details..." />;
   }
@@ -250,7 +256,6 @@ export default function Hentai() {
     );
   }
 
-  const titleMain = getDisplayName(hentai, "hentai");
   const titleSub =
     hentai.hentai_name_en && hentai.hentai_name_en !== titleMain ? hentai.hentai_name_en : null;
   const imageUrl = getCoverUrl(hentai.cover_image_file);
@@ -261,7 +266,7 @@ export default function Hentai() {
     .join("  ·  ");
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+    <DetailContents>
       <div className="mb-8 flex items-center justify-between gap-3">
         <nav
           className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint min-w-0 flex items-center gap-3"
@@ -390,73 +395,89 @@ export default function Hentai() {
           </header>
 
           {/* Where this entry sits in the watch orders the viewer follows. */}
-          <FollowedOrderPanel entryId={hentai.system_id} />
+          <TocSection id="watch-orders" label="Watch orders">
+            <FollowedOrderPanel entryId={hentai.system_id} />
+          </TocSection>
 
-          <HentaiTrackerBlock hentai={hentai} canTrack={ownData} onPatch={saveOwn} />
+          <TocSection id="tracker" label="My tracker">
+            <HentaiTrackerBlock hentai={hentai} canTrack={ownData} onPatch={saveOwn} />
+          </TocSection>
 
           <div className="space-y-6">
-            <NamingCard type="hentai" item={hentai} />
-            <InfoCard
-              title="Information"
-              fields={[
-                [
-                  { label: "Source Material", value: hentai.source_material },
-                  { label: "Originality", value: hentai.originality },
-                ],
-                [
-                  { label: "Airing Status", value: hentai.airing_status },
-                  { label: "Release Date", value: hentai.release_date || null },
-                ],
-                [
+            <TocSection id="naming" label="Naming">
+              <NamingCard type="hentai" item={hentai} />
+            </TocSection>
+            <TocSection id="information" label="Information">
+              <InfoCard
+                title="Information"
+                fields={[
+                  [
+                    { label: "Source Material", value: hentai.source_material },
+                    { label: "Originality", value: hentai.originality },
+                  ],
+                  [
+                    { label: "Airing Status", value: hentai.airing_status },
+                    { label: "Release Date", value: hentai.release_date || null },
+                  ],
+                  [
+                    {
+                      label: "Episodes",
+                      value: hentai.ep_total != null ? String(hentai.ep_total) : null,
+                    },
+                  ],
+                ]}
+              />
+            </TocSection>
+            <TocSection id="credits" label="Credits">
+              <InfoCard
+                title="Credits"
+                fields={[
+                  [
+                    { label: "Studio", value: studioValue(hentai) },
+                    {
+                      label: creditLabel(hentai, "director", "Director"),
+                      value: creditValue(hentai, "director", hentai.director),
+                    },
+                  ],
                   {
-                    label: "Episodes",
-                    value: hentai.ep_total != null ? String(hentai.ep_total) : null,
+                    label: creditLabel(hentai, "author", "Author"),
+                    value: creditValue(hentai, "author", hentai.author),
                   },
-                ],
-              ]}
-            />
-            <InfoCard
-              title="Credits"
-              fields={[
-                [
-                  { label: "Studio", value: studioValue(hentai) },
-                  {
-                    label: creditLabel(hentai, "director", "Director"),
-                    value: creditValue(hentai, "director", hentai.director),
-                  },
-                ],
-                {
-                  label: creditLabel(hentai, "author", "Author"),
-                  value: creditValue(hentai, "author", hentai.author),
-                },
-              ]}
-            />
-            <CastSection cast={cast} />
-            <InfoCard
-              title="Genres"
-              fields={[
-                { label: "Genre Plot", value: hentai.h_genre_plot },
-                { label: "Genre Appearance", value: hentai.h_genre_appearance },
-                { label: "Genre Relation", value: hentai.h_genre_relation },
-              ]}
-            />
+                ]}
+              />
+            </TocSection>
+            <TocSection id="cast" label="Cast">
+              <CastSection cast={cast} />
+            </TocSection>
+            <TocSection id="genres" label="Genres">
+              <InfoCard
+                title="Genres"
+                fields={[
+                  { label: "Genre Plot", value: hentai.h_genre_plot },
+                  { label: "Genre Appearance", value: hentai.h_genre_appearance },
+                  { label: "Genre Relation", value: hentai.h_genre_relation },
+                ]}
+              />
+            </TocSection>
           </div>
 
-          {ownData && hentai.remark && (
-            <Slip title="Remarks">
-              <textarea
-                key={hentai.system_id}
-                defaultValue={hentai.remark || ""}
-                onBlur={(e) => {
-                  if (e.target.value !== (hentai.remark || ""))
-                    saveMyRemark(e.target.value);
-                }}
-                rows={4}
-                placeholder="Add remarks…"
-                className={selectCls}
-              ></textarea>
-            </Slip>
-          )}
+          <TocSection id="remarks" label="Remarks">
+            {ownData && hentai.remark && (
+              <Slip title="Remarks">
+                <textarea
+                  key={hentai.system_id}
+                  defaultValue={hentai.remark || ""}
+                  onBlur={(e) => {
+                    if (e.target.value !== (hentai.remark || ""))
+                      saveMyRemark(e.target.value);
+                  }}
+                  rows={4}
+                  placeholder="Add remarks…"
+                  className={selectCls}
+                ></textarea>
+              </Slip>
+            )}
+          </TocSection>
 
           {/* The dedicated remark textarea above renders only for a holder of
               self.list who has a remark; hide the notes page's `remark`
@@ -471,6 +492,6 @@ export default function Hentai() {
           />
         </div>
       </div>
-    </div>
+    </DetailContents>
   );
 }

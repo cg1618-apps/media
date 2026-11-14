@@ -28,6 +28,8 @@ import ChoiceGraphCard from "../../components/game-choices/ChoiceGraphCard";
 import { NotesProvider } from "../notes/NotesContext";
 import { NotesBlocks, NotesGroup } from "../notes/NotesTemplate";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
+import DetailContents, { TocSection } from "../../components/layout/DetailContents";
+import { usePageTitle } from "../../contexts/PageTitleContext";
 import {
   Button,
   Chip,
@@ -270,6 +272,10 @@ export default function Game() {
     }
   }
 
+  // The heading's title, which the browser tab shows too.
+  const titleMain = game ? getDisplayName(game, "game") : null;
+  usePageTitle(loading || error ? null : titleMain);
+
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading details..." />;
   }
@@ -278,7 +284,6 @@ export default function Game() {
     return <MediaLoadingState error={error || "Game not found"} errorTitle="Error Loading Game" />;
   }
 
-  const titleMain = getDisplayName(game, "game");
   const titleSub = game.game_name_en && game.game_name_en !== titleMain ? game.game_name_en : null;
 
   const imageUrl = getCoverUrl(game.cover_image_file);
@@ -309,7 +314,7 @@ export default function Game() {
       series={series}
       franchise={franchise}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+      <DetailContents>
         <div className="mb-8 flex items-center justify-between gap-3">
           <nav
             className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint min-w-0 flex items-center gap-3"
@@ -479,34 +484,40 @@ export default function Game() {
             </header>
 
             {/* Where this entry sits in the watch orders the viewer follows. */}
-            <FollowedOrderPanel entryId={game.system_id} />
+            <TocSection id="watch-orders" label="Watch orders">
+              <FollowedOrderPanel entryId={game.system_id} />
+            </TocSection>
 
             {/* My Tracker — no stepper: a game has no unit to count off, so the
               playtime and achievement figures live in GameProgress below. */}
-            <MyTrackerCard
-              watchingStatus={game.playing_status || "Might Play"}
-              statusOptions={PLAYING_STATUSES}
-              statusLabel="Playing Status"
-              myRating={game.my_rating}
-              ratingOptions={MY_RATINGS}
-              canTrack={ownData}
-              onStatusChange={(v) => saveOwn({ playing_status: v }, "Status updated")}
-              onRatingChange={(v) => saveOwn({ my_rating: v || null }, "Rating saved")}
-              toRewatch={game.to_replay}
-              rewatchLabel="To Replay"
-              onToRewatchChange={(v) =>
-                saveOwn({ to_replay: v }, v ? "Marked to replay" : "Removed from replay")
-              }
-            />
+            <TocSection id="tracker" label="My tracker">
+              <MyTrackerCard
+                watchingStatus={game.playing_status || "Might Play"}
+                statusOptions={PLAYING_STATUSES}
+                statusLabel="Playing Status"
+                myRating={game.my_rating}
+                ratingOptions={MY_RATINGS}
+                canTrack={ownData}
+                onStatusChange={(v) => saveOwn({ playing_status: v }, "Status updated")}
+                onRatingChange={(v) => saveOwn({ my_rating: v || null }, "Rating saved")}
+                toRewatch={game.to_replay}
+                rewatchLabel="To Replay"
+                onToRewatchChange={(v) =>
+                  saveOwn({ to_replay: v }, v ? "Marked to replay" : "Removed from replay")
+                }
+              />
+            </TocSection>
 
             {/* How deep the finish went, and the three axes beside it. Next to
               the tracker rather than in Information: these are answers about a
               playthrough, not facts about the game. */}
-            <GameCompletionBlock
-              game={game}
-              isAdmin={isAdmin}
-              onChange={(patch) => performPatch(patch, "Completion updated")}
-            />
+            <TocSection id="completion" label="Completion">
+              <GameCompletionBlock
+                game={game}
+                isAdmin={isAdmin}
+                onChange={(patch) => performPatch(patch, "Completion updated")}
+              />
+            </TocSection>
 
             {/* Progress and 待辦 Todo in one card. How far in I am and what I
               still mean to do are the same question asked twice, and they
@@ -515,157 +526,181 @@ export default function Game() {
               GameProgress renders nothing when there is no playtime and no
               achievement total, which leaves the card holding the todo lists
               alone; that is fine, and better than an empty Progress card. */}
-            <Slip title="進度/待辦 Progress and Todo">
-              <div className="space-y-4">
-                <GameProgress game={game} />
-                <NotesGroup groupKey="todo" />
-              </div>
-            </Slip>
+            <TocSection id="progress" label="進度/待辦 Progress and Todo">
+              <Slip title="進度/待辦 Progress and Todo">
+                <div className="space-y-4">
+                  <GameProgress game={game} />
+                  <NotesGroup groupKey="todo" />
+                </div>
+              </Slip>
+            </TocSection>
 
             {/* The choice graph: a shared map of the options and where they
               lead, with the viewer's saves (from 待辦 above) pinned to its
               points. Its own card, inside the NotesProvider so the saves are
               there to read. */}
-            <ChoiceGraphCard gameId={game.system_id} title={titleMain} />
+            <TocSection id="choices" label="分歧 Choices">
+              <ChoiceGraphCard gameId={game.system_id} title={titleMain} />
+            </TocSection>
 
             <div className="space-y-6">
-              <NamingCard type="game" item={game} />
-              <InfoCard
-                title="Information"
-                fields={[
-                  [
-                    { label: "Type", value: game.game_type },
-                    { label: "Main / Remake", value: game.is_main },
-                    {
-                      label: "Base Game",
-                      value: game.base_game ? (
-                        <Link
-                          to={entityPath("game", game.base_game)}
-                          className="text-brand hover:underline"
-                        >
-                          {game.base_game.display_name}
-                        </Link>
-                      ) : null,
-                    },
-                  ],
-                  [
-                    { label: "Platform", value: game.game_platform },
-                    { label: "Mode", value: game.game_mode },
-                    { label: "Combat Mode", value: game.combat_mode },
-                  ],
-                ]}
-              />
-              <InfoCard
-                title="Genres"
-                fields={[
-                  [
-                    { label: "Genre", value: game.game_genre },
-                    { label: "Theme", value: game.game_theme },
-                  ],
-                  { label: "標籤 Label", value: game.label },
-                ]}
-              />
-              <InfoCard
-                title="Production & Release"
-                fields={[
-                  [
-                    { label: "Developer", value: studioValue(game) },
-                    {
-                      label: publisherLabel(game, "發行商"),
-                      value: publisherValue(game),
-                    },
-                  ],
-                  [
-                    {
-                      label: creditLabel(game, "director", "Director"),
-                      value: creditValue(game, "director", game.director),
-                    },
-                    {
-                      label: creditLabel(game, "composer", "Composer"),
-                      value: creditValue(game, "composer", game.composer),
-                    },
-                  ],
-                  [
-                    { label: "Release Status", value: game.release_status },
-                    { label: "Release Date", value: game.release_date },
-                    { label: "Current Patch", value: game.current_patch },
-                  ],
-                ]}
-              />
-              <InfoCard
-                title="Reception"
-                fields={[
-                  [
-                    // Metacritic's public verdict, not mine - my_rating is the
-                    // stamp on the cover.
-                    {
-                      label: "Metacritic",
-                      value: outOf(game.metacritic_score, 100),
-                    },
-                    {
-                      label: "Metacritic User",
-                      value: outOf(game.metacritic_user_score, 10),
-                    },
-                  ],
-                ]}
-              />
-              <TimeToBeatCard entry={game} />
-              <InfoCard
-                title="Prices"
-                fields={[
-                  [
-                    {
-                      label: "MSRP (US)",
-                      value: money(game.price_original_us, "USD"),
-                    },
-                    {
-                      label: "MSRP (JP)",
-                      value: money(game.price_original_jp, "JPY"),
-                    },
-                    {
-                      label: "MSRP (TW)",
-                      value: money(game.price_original_tw, "TWD"),
-                    },
-                  ],
-                ]}
-              />
-              <InfoCard
-                title="Library"
-                fields={[
-                  [
-                    // Derived from the copy rows server-side, never stored.
-                    { label: "Ownership", value: game.ownership },
-                    {
-                      label: "Copies",
-                      value: game.copies?.length ? String(game.copies.length) : null,
-                    },
-                  ],
-                  // Playing status and the four completion axes are NOT here:
-                  // they are editable in My tracker and the Completion block
-                  // above. This one is a fact about the source - whether Steam
-                  // may write this entry's progress - so it sits with the copies.
-                  { label: "Steam Progress Sync", value: yesNo(game.steam_progress_sync) },
-                ]}
-              />
+              <TocSection id="naming" label="Naming">
+                <NamingCard type="game" item={game} />
+              </TocSection>
+              <TocSection id="information" label="Information">
+                <InfoCard
+                  title="Information"
+                  fields={[
+                    [
+                      { label: "Type", value: game.game_type },
+                      { label: "Main / Remake", value: game.is_main },
+                      {
+                        label: "Base Game",
+                        value: game.base_game ? (
+                          <Link
+                            to={entityPath("game", game.base_game)}
+                            className="text-brand hover:underline"
+                          >
+                            {game.base_game.display_name}
+                          </Link>
+                        ) : null,
+                      },
+                    ],
+                    [
+                      { label: "Platform", value: game.game_platform },
+                      { label: "Mode", value: game.game_mode },
+                      { label: "Combat Mode", value: game.combat_mode },
+                    ],
+                  ]}
+                />
+              </TocSection>
+              <TocSection id="genres" label="Genres">
+                <InfoCard
+                  title="Genres"
+                  fields={[
+                    [
+                      { label: "Genre", value: game.game_genre },
+                      { label: "Theme", value: game.game_theme },
+                    ],
+                    { label: "標籤 Label", value: game.label },
+                  ]}
+                />
+              </TocSection>
+              <TocSection id="production-release" label="Production & Release">
+                <InfoCard
+                  title="Production & Release"
+                  fields={[
+                    [
+                      { label: "Developer", value: studioValue(game) },
+                      {
+                        label: publisherLabel(game, "發行商"),
+                        value: publisherValue(game),
+                      },
+                    ],
+                    [
+                      {
+                        label: creditLabel(game, "director", "Director"),
+                        value: creditValue(game, "director", game.director),
+                      },
+                      {
+                        label: creditLabel(game, "composer", "Composer"),
+                        value: creditValue(game, "composer", game.composer),
+                      },
+                    ],
+                    [
+                      { label: "Release Status", value: game.release_status },
+                      { label: "Release Date", value: game.release_date },
+                      { label: "Current Patch", value: game.current_patch },
+                    ],
+                  ]}
+                />
+              </TocSection>
+              <TocSection id="reception" label="Reception">
+                <InfoCard
+                  title="Reception"
+                  fields={[
+                    [
+                      // Metacritic's public verdict, not mine - my_rating is the
+                      // stamp on the cover.
+                      {
+                        label: "Metacritic",
+                        value: outOf(game.metacritic_score, 100),
+                      },
+                      {
+                        label: "Metacritic User",
+                        value: outOf(game.metacritic_user_score, 10),
+                      },
+                    ],
+                  ]}
+                />
+              </TocSection>
+              <TocSection id="time-to-beat" label="Time to Beat">
+                <TimeToBeatCard entry={game} />
+              </TocSection>
+              <TocSection id="prices" label="Prices">
+                <InfoCard
+                  title="Prices"
+                  fields={[
+                    [
+                      {
+                        label: "MSRP (US)",
+                        value: money(game.price_original_us, "USD"),
+                      },
+                      {
+                        label: "MSRP (JP)",
+                        value: money(game.price_original_jp, "JPY"),
+                      },
+                      {
+                        label: "MSRP (TW)",
+                        value: money(game.price_original_tw, "TWD"),
+                      },
+                    ],
+                  ]}
+                />
+              </TocSection>
+              <TocSection id="library" label="Library">
+                <InfoCard
+                  title="Library"
+                  fields={[
+                    [
+                      // Derived from the copy rows server-side, never stored.
+                      { label: "Ownership", value: game.ownership },
+                      {
+                        label: "Copies",
+                        value: game.copies?.length ? String(game.copies.length) : null,
+                      },
+                    ],
+                    // Playing status and the four completion axes are NOT here:
+                    // they are editable in My tracker and the Completion block
+                    // above. This one is a fact about the source - whether Steam
+                    // may write this entry's progress - so it sits with the copies.
+                    { label: "Steam Progress Sync", value: yesNo(game.steam_progress_sync) },
+                  ]}
+                />
+              </TocSection>
             </div>
 
-            <GameCopiesSection copies={game.copies} />
+            <TocSection id="copies" label="Copies">
+              <GameCopiesSection copies={game.copies} />
+            </TocSection>
 
-            {ownData && game.remark && (
-              <Slip title="Remarks">
-                <textarea
-                  key={game.system_id}
-                  defaultValue={game.remark || ""}
-                  onBlur={(e) => {
-                    if (e.target.value !== (game.remark || ""))
-                      saveMyRemark(e.target.value);
-                  }}
-                  rows={4}
-                  placeholder="Add remarks…"
-                  className={textareaCls}
-                ></textarea>
-              </Slip>
-            )}
+            <TocSection id="remarks" label="Remarks">
+              {ownData && game.remark && (
+                <Slip title="Remarks">
+                  <textarea
+                    key={game.system_id}
+                    defaultValue={game.remark || ""}
+                    onBlur={(e) => {
+                      if (e.target.value !== (game.remark || ""))
+                        saveMyRemark(e.target.value);
+                    }}
+                    rows={4}
+                    placeholder="Add remarks…"
+                    className={textareaCls}
+                  ></textarea>
+                </Slip>
+              )}
+            </TocSection>
 
             <NotesBlocks
               hideSections={ownData && game.remark ? ["remark"] : []}
@@ -674,7 +709,7 @@ export default function Game() {
             />
           </div>
         </div>
-      </div>
+      </DetailContents>
     </NotesProvider>
   );
 }

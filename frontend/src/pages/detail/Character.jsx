@@ -39,6 +39,7 @@ import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { Eyebrow, RatingStamp } from "../../components/ui/primitives";
 import LazyImage from "../../components/ui/LazyImage";
 import { useAuth } from "../../contexts/AuthContext";
+import { usePageTitle } from "../../contexts/PageTitleContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { useViewScope } from "../../hooks/useViewScope";
 import { useMyRatingSaver } from "../../api/mutations/useMyRatingMutations";
@@ -94,6 +95,10 @@ export default function Character() {
     };
   }, [publicId]);
 
+  // The heading's name, which the browser tab shows too.
+  const name = character ? character.display_name || "Unknown Character" : null;
+  usePageTitle(loading || error ? null : name);
+
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading character..." />;
   }
@@ -107,7 +112,6 @@ export default function Character() {
     );
   }
 
-  const name = character.display_name || "Unknown Character";
   // The server resolves the fallback: the chosen entry's casting photo, then
   // its cover, then the newest visible casting photo, then the newest cover.
   const photoUrl = getCoverUrl(character.display_photo_file ?? character.photo_file);
