@@ -3,11 +3,19 @@
 // Used in two places at two densities: compact inside the Franchise/Collection
 // page tab, roomy on the standalone /watch-order/:id page. Guests see it too,
 // so nothing here writes.
+//
+// A step's list status is the viewer's own, so it is drawn only for a holder
+// of self.list (useViewScope().ownData), at the far right of the row. The
+// standalone page also passes `colourCoded`, which tints the status and
+// importance chips (config/watchOrderColors.js, design rule 5's third
+// exception); the franchise and collection tab keeps them in ink.
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { ADMIN_TABS } from "../../config/adminTabs";
 import { MEDIA_CONFIG } from "../../config/mediaRegistry";
+import { IMPORTANCE_CHIPS, statusChip } from "../../config/watchOrderColors";
+import { useViewScope } from "../../hooks/useViewScope";
 import { getCoverUrl, FALLBACK_SVG, focusStyle, thumbUrl } from "../../lib/covers";
 import { Chip, Eyebrow } from "../ui/primitives";
 import LazyImage from "../ui/LazyImage";
@@ -247,7 +255,17 @@ function entryPath(item) {
   return navPath ? `${navPath}/${item.entry_id}` : null;
 }
 
-function StepRow({ item, index, roomy }) {
+// The importance chip. Normal has none either way; uncoloured, Essential and
+// Recommended are ink and Optional the muted tone, as the tab draws them.
+function ImportanceChip({ importance, colourCoded }) {
+  if (!["Essential", "Recommended", "Optional"].includes(importance)) return null;
+  if (colourCoded) {
+    return <Chip hue={IMPORTANCE_CHIPS[importance]}>{importance}</Chip>;
+  }
+  return <Chip tone={importance === "Optional" ? "muted" : "ink"}>{importance}</Chip>;
+}
+
+function StepRow({ item, index, roomy, showStatus, colourCoded }) {
   const label = rangeLabel(item);
   const special = specialLabel(item);
   const path = entryPath(item);
@@ -298,9 +316,7 @@ function StepRow({ item, index, roomy }) {
             {item.display_name}
           </span>
           {label && <Chip>{label}</Chip>}
-          {item.importance === "Essential" && <Chip>Essential</Chip>}
-          {item.importance === "Recommended" && <Chip>Recommended</Chip>}
-          {item.importance === "Optional" && <Chip tone="muted">Optional</Chip>}
+          <ImportanceChip importance={item.importance} colourCoded={colourCoded} />
         </div>
 
         <div className="flex flex-wrap items-center gap-2 mt-1 font-mono text-[11px] text-text-faint">
@@ -310,7 +326,6 @@ function StepRow({ item, index, roomy }) {
             <span>{item.total_episodes} total</span>
           )}
           {special && <Chip>{special}</Chip>}
-          {item.status && <Chip>{item.status}</Chip>}
         </div>
 
         {item.note && (
@@ -323,6 +338,20 @@ function StepRow({ item, index, roomy }) {
           </p>
         )}
       </div>
+
+      {/*
+        Not on the list is no chip at all. A status this build has no tone
+        for keeps the ink chip rather than going missing.
+      */}
+      {showStatus && item.status && (
+        <Chip
+          hue={colourCoded ? statusChip(item.status) : null}
+          className="shrink-0 self-center"
+          data-testid="step-status"
+        >
+          {item.status}
+        </Chip>
+      )}
     </>
   );
 
@@ -368,8 +397,10 @@ export default function WatchOrderGuide({
   roomy = false,
   limit,
   fullHref,
+  colourCoded = false,
 }) {
   const [filter, setFilter] = useState("all");
+  const { ownData } = useViewScope();
 
   const items = useMemo(() => list?.items || [], [list]);
   const optionalCount = items.filter((i) => i.importance === "Optional").length;
@@ -527,6 +558,8 @@ export default function WatchOrderGuide({
                     item={row.item}
                     index={row.number}
                     roomy={roomy}
+                    showStatus={ownData}
+                    colourCoded={colourCoded}
                   />
                 ))}
               </ol>
@@ -545,6 +578,8 @@ export default function WatchOrderGuide({
                   item={row.item}
                   index={row.number}
                   roomy={roomy}
+                  showStatus={ownData}
+                  colourCoded={colourCoded}
                 />
               ))}
             </ol>

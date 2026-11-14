@@ -363,6 +363,7 @@ describe("NovelTrackerBlock — typing progress on a web novel with arcs", () =>
     expect(screen.getByLabelText("Chapters read in this arc")).toHaveValue(7);
 
     fireEvent.change(arc, { target: { value: "1" } });
+    fireEvent.blur(arc);
     expect(onArcProgressChange).toHaveBeenCalledWith({ arc_fin: 0, ch_fin_in_arc: 0 });
   });
 
@@ -375,8 +376,10 @@ describe("NovelTrackerBlock — typing progress on a web novel with arcs", () =>
     );
     const ch = screen.getByLabelText("Chapters read in this arc");
     fireEvent.change(ch, { target: { value: "30" } });
+    fireEvent.blur(ch);
     expect(onArcProgressChange).toHaveBeenLastCalledWith({ arc_fin: 0, ch_fin_in_arc: 30 });
     fireEvent.change(ch, { target: { value: "104" } });
+    fireEvent.blur(ch);
     expect(onArcProgressChange).toHaveBeenLastCalledWith({ arc_fin: 1, ch_fin_in_arc: 4 });
   });
 
@@ -397,6 +400,7 @@ describe("NovelTrackerBlock — typing progress on a web novel with arcs", () =>
       />,
     );
     fireEvent.change(screen.getByLabelText("Arc being read"), { target: { value: "2" } });
+    fireEvent.blur(screen.getByLabelText("Arc being read"));
     expect(onArcProgressChange).toHaveBeenCalledWith({ arc_fin: 1, ch_fin_in_arc: 0 });
   });
 
@@ -413,6 +417,7 @@ describe("NovelTrackerBlock — typing progress on a web novel with arcs", () =>
       />,
     );
     fireEvent.change(screen.getByLabelText("Chapters finished"), { target: { value: "120" } });
+    fireEvent.blur(screen.getByLabelText("Chapters finished"));
     expect(onArcProgressChange).toHaveBeenCalledWith({ arc_fin: 1, ch_fin_in_arc: 20 });
     expect(onChChange).not.toHaveBeenCalled();
 

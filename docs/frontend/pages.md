@@ -452,8 +452,10 @@ types are not shown on the dashboard. The selection lives in
 own, so a guest's would always be empty.
 
 **The steppers are the viewer's own** (cards read `canTrack`, which is
-`has("self.list")`, not `isAdmin`): −/input/+ progress steppers. A viewer
-without a list sees a read-only counter.
+`has("self.list")`, not `isAdmin`): −/input/+ progress steppers. A typed
+count saves on blur or Enter and Escape reverts it; − and + save at once
+(`ProgressInput`, see [components.md](components.md)). A viewer without a
+list sees a read-only counter.
 
 **Optimistic handlers.** Each handler patches every `["media-list", type]`
 cache with `queryClient.setQueriesData`, writes the caller's own row through
@@ -1546,11 +1548,16 @@ File `pages/detail/WatchOrderPage.jsx`. GET `/api/watch-order/lists/{id}`
 cancellable. Shows owner link, `MediaScopeLine`, list name, badges
 (`list_type`, most-recommended, Default, "{n} steps"), an **admin-only** link
 to `/watch-orders`, `WatchOrderGuide` (filter all / essentials / no-optional,
-section blocks, list remark) and "Other orders for {owner}".
+section blocks, list remark) and "Other orders for {owner}". The guide is
+drawn `colourCoded`: each step's own list status sits at the far right of the
+row for a viewer holding `self.list` (none for a guest, none for a step not
+on the list), tinted by status, and the importance chips are tinted too —
+the scoped exception to colour rule 5 in
+[design-system.md](design-system.md#rules).
 
 The hub tab uses `components/tracker/WatchOrderSection.jsx`: lists for the
 scope, chips for 2–6 lists (select above 6), inline guide capped at 10 steps
-with a "see full" link, and an admin-only **Add built-in order** button
+with a "see full" link, its status and importance chips in ink, and an admin-only **Add built-in order** button
 (`POST /api/watch-order/lists/release?…`, hidden once a release order exists).
 Editing happens only on the admin `/watch-orders` page.
 

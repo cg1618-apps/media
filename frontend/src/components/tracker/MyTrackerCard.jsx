@@ -14,6 +14,7 @@ import { useId } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { Button, Chip, Eyebrow, Slip } from "../ui/primitives";
 import StatusOptions from "../ui/StatusOptions";
+import ProgressInput from "./ProgressInput";
 
 export const SELECT_CLS =
   "block w-full bg-surface border border-border-strong text-text text-sm px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand disabled:bg-surface-2 disabled:text-text-faint disabled:cursor-not-allowed";
@@ -48,8 +49,7 @@ export function EpisodeStepper({
     onEpChange(next);
   }
 
-  function handleInputChange(e) {
-    const v = parseInt(e.target.value, 10) || 0;
+  function handleTyped(v) {
     if (epTotal !== "?" && epTotal != null && v > parseInt(epTotal)) return;
     onEpChange(Math.max(0, v));
   }
@@ -70,10 +70,9 @@ export function EpisodeStepper({
         −
       </Button>
       <div className="font-mono text-sm flex items-center gap-1 whitespace-nowrap">
-        <input
-          type="number"
+        <ProgressInput
           value={epFin}
-          onChange={handleInputChange}
+          onCommit={handleTyped}
           className={STEP_INPUT_CLS}
           aria-label="Episodes finished"
         />
