@@ -43,6 +43,7 @@ from app.services.domain.user_list import (
     apply_list_payload,
     ensure_list_row,
     list_row,
+    write_list_payload,
 )
 from app.services.rbac.enforcement import entry_visible, tier_visible
 from app.services.rbac.permissions import PERM_SELF_LIST
@@ -92,23 +93,20 @@ def _media_or_404(
     return media
 
 
-def _run_list_hook(db: Session, row, media: models.Media) -> None:
+def _spec_and_entry(db: Session, media: models.Media):
     """
-    The type's progress_hook_list, as the entry endpoints run it after a list
-    payload (_factory._write_list). This path writes the same row, so it
-    owes the same checks: h-comic's usefulness vocabulary and region
-    clears, novel's arc derivation. The hook reads the detail row, not the
-    `media` supertable row.
+    The type's MediaSpec and detail row, which the tracker's rules read:
+    progress_hook_list (h-comic's usefulness vocabulary and region clears,
+    novel's arc derivation) and the progress counter's total live on the
+    detail table, not the `media` supertable.
     """
     spec = next(
         (s for s in MEDIA_REGISTRY.values() if s.owner_type == media.media_type),
         None,
     )
-    if spec is None or spec.progress_hook_list is None:
-        return
-    entry = db.get(spec.model, media.system_id)
-    if entry is not None:
-        spec.progress_hook_list(row, entry)
+    if spec is None:
+        return None, None
+    return spec, db.get(spec.model, media.system_id)
 
 
 def _caller_id(viewer: Viewer) -> UUID:
@@ -190,8 +188,14 @@ def write_my_list_row(
         )
 
     row = ensure_list_row(db, user_id, media_id, media.media_type)
-    apply_list_payload(row, payload, media.media_type)
-    _run_list_hook(db, row, media)
+    spec, entry = _spec_and_entry(db, media)
+    if entry is None:
+        apply_list_payload(row, payload, media.media_type)
+    else:
+        # The tracker's rules, as the catalogue PATCH applies them: reaching
+        # the total finishes this row. Never the work's catalogue half
+        # (airing or serialization status) - that is a catalogue edit.
+        write_list_payload(row, entry, payload, spec, complete_on_total=True)
     db.commit()
     db.refresh(row)
 

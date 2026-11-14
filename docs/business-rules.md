@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-11-13
+Last verified: 2026-11-14
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -341,7 +341,13 @@ pages, the dashboard, and the seasonal pages.
 - **A status in the same payload wins.** The Modify form sends the status it
   shows, so a form save that reaches the total while saying `Dropped` stays
   `Dropped`.
-- **`PATCH` only.** `POST` and `PUT` never finish an entry by count.
+- **`PATCH` and the caller's own `PUT /api/me/list`.** The entry endpoints'
+  `POST` and `PUT` never finish an entry by count.
+- **`PUT /api/me/list` finishes the row, not the work.** It runs the personal
+  half and the stamp, never the catalogue half: an airing or serialization
+  status is a catalogue fact, and the list route is open to accounts that may
+  not edit the catalogue. Both paths share `write_list_payload` in
+  `services/domain/user_list.py`, so the rule cannot drift between them.
 
 The response carries the new status, and the frontend's toast says "Marked as
 Completed!" rather than "Episodes updated!" when a write changed the status

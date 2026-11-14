@@ -4550,3 +4550,17 @@ columns on `users`. Migration `s1w2itches345` carries all of it.
   a default of `[]`. The groups and seasonal are always present, because no
   switch hides them. The SPA already read every bucket as `?? []`, and the
   nav search offers only the scopes whose bucket would come back.
+
+### A personal list write never finishes the work (2026-11-14)
+
+`PUT /api/me/list` applies the tracker's rule that reaching the total
+completes, because the SPA's steppers move onto it from the catalogue `PATCH`
+and a `user` would otherwise press `+` on 11 / 12 and stay Watching. It runs
+only the row's half, though. `mark_completed` also writes the work's
+catalogue half - an anime becomes Finished Airing, a manga 完結 - and one
+member reaching the last episode it has seen says nothing about whether the
+work has ended. On the catalogue `PATCH` that edit is an editor's; on the
+list route it would be a catalogue write by an account without
+`manage.catalog`. So an editor who wants the catalogue half still gets it from
+Mark completed or a `PATCH`, and the two paths share `write_list_payload` so
+the row's half is the same on both.

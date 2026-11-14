@@ -21,12 +21,10 @@ from app.models.user_media_list import UserMediaList
 from app.routers._patching import apply_column_patch
 from app.schemas.image_focus import coerce_image_focus
 from app.services.domain import (
-    apply_list_completion_timestamp,
     attach_remark,
     pop_remark,
     upsert_remark,
 )
-from app.services.domain.completion import reached_total
 from app.services.domain.content_labels import attach_content_labels
 from app.services.domain.credits import attach_link_fields
 from app.services.domain.entry_fields import attach_entry_list_fields
@@ -45,12 +43,13 @@ from app.services.domain.user_list import (
     LIST_FIELDS,
     STATUS_FIELD,
     acting_user_id,
-    apply_list_payload,
     attach_list_fields,
     attach_unit_ratings,
     ensure_list_row,
+    finish_list_row,
     join_list,
     split_list_payload,
+    write_list_payload,
 )
 from app.services.integrations.image_manager import delete_cover_image
 from app.services.rbac.enforcement import apply_entry_visibility, entry_visible
@@ -180,15 +179,11 @@ def make_media_router(spec) -> APIRouter:
 
     def _mark_completed(entry, row) -> None:
         """Finish the entry: the work's catalogue half, and the acting user's
-        own row when there is one. Shared by /complete and by a PATCH that
-        carries the progress counter to its total."""
+        own row when there is one. Used by /complete; a PATCH that carries
+        the progress counter to its total finishes through _write_list."""
         spec.mark_completed(entry)
-        if row is None:
-            return
-        spec.mark_completed_list(row, entry)
-        if row.completed_at is None:
-            row.completed_at = get_taipei_now()
-        row.updated_at = get_taipei_now()
+        if row is not None:
+            finish_list_row(row, entry, spec)
 
     def _write_list(
         db: Session, entry, personal: dict, viewer, complete_on_total: bool = False
@@ -199,29 +194,19 @@ def make_media_router(spec) -> APIRouter:
         empty personal half: a brand-new entry needs its default-status row to
         exist so the detail page has something to read and to edit.
 
-        `complete_on_total` is the tracker's rule, and only patch asks for it:
-        a write that carries the progress counter up to its total finishes the
-        entry, exactly as Mark completed would. A payload that names a status
-        of its own is left alone - the writer said what the status is.
+        `complete_on_total` is the tracker's rule (write_list_payload), and
+        only patch asks for it here. When it finishes the row, this is a
+        catalogue write, so the work's catalogue half runs too - which
+        PUT /api/me/list never does.
         """
         user_id = acting_user_id(db, viewer)
         if user_id is None:
             return
         row = ensure_list_row(db, user_id, entry.system_id, spec.owner_type)
-        counter = spec.progress_counter if complete_on_total else None
-        fin_before = counter(row, entry)[0] if counter else None
-        apply_list_payload(row, personal, spec.owner_type)
-        apply_list_completion_timestamp(
-            row, personal.get(STATUS_FIELD[spec.owner_type])
-        )
-        # After the payload, never before: the derivation folds the cursor the
-        # writer just sent through the work's arc widths.
-        if spec.progress_hook_list is not None:
-            spec.progress_hook_list(row, entry)
-        if counter and STATUS_FIELD[spec.owner_type] not in personal:
-            fin_after, total = counter(row, entry)
-            if reached_total(fin_before, fin_after, total):
-                _mark_completed(entry, row)
+        if write_list_payload(
+            row, entry, personal, spec, complete_on_total=complete_on_total
+        ):
+            spec.mark_completed(entry)
 
     def _finish(db: Session, entry, viewer=None):
         user_id = acting_user_id(db, viewer)
