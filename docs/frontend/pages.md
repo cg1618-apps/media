@@ -1671,8 +1671,18 @@ status, ownership and usefulness), the draw is
 uniform, the Weights tab and the **Weighted** checkbox are not drawn (a
 `?tab=weights` link opens the picker), a saved default naming a personal
 filter is ignored, and `/api/plan-next/` is never asked. What is left is
-media type, the type's catalogue filters, release decade and the external
-score.
+media type, the type's catalogue filters, release decade, genre and the
+external score.
+
+**Genre** (`genre`) is a catalogue filter in both versions: its chips are
+the genres the pool holds, and an entry matches when any of its genres is
+on. It reads each type's own field, a ", "-joined string on every list
+response (`GENRE_FIELD`): `genre_main` on the eight mainstream types and
+`game_genre` on game and h-game. The adult genre fields are left out, as
+`/api/statistics/catalogue` leaves them out, so h-comic and hentai have no
+genre chips. The franchise mode does not offer it: a franchise has no genre
+of its own, and "any entry's genre" would make most franchises match most
+chips.
 
 **External score** (`externalScore`) is a catalogue filter in both versions:
 chips `9+`, `8+`, `7+`, `6+` and `No score`, which OR like every chip, read

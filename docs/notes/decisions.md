@@ -4810,5 +4810,7 @@ separate components rather than one component full of `ownData` checks.
   filters.
 - **External score is a catalogue filter.** It reads the stored MAL or IMDb
   score, which every viewer is shown on the card, so it is offered with and
-  without a list. Genre is not a picker filter in either version yet; adding
-  one is new filtering, not a per-viewer change.
+  without a list. So is genre, read from the joined `genre_main` or
+  `game_genre` field every list response carries; the adult genre fields are
+  left out, as the catalogue statistics leave them out, and the franchise
+  mode offers neither, since a franchise has no genre or score of its own.
