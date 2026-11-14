@@ -301,6 +301,7 @@ stamps the same attribute before first paint. See components.md → Theming.
 | `Layout` | `components/layout/Layout.jsx` | `<Nav/>`, `<Outlet/>`, footer, `<Toast/>`, `ScrollButtons` (to-top after 300 px, to-bottom when >300 px from the end) |
 | `ProtectedRoute` | `components/layout/ProtectedRoute.jsx` | spinner while `auth.loading`; `has(permission)`, or with `anyPermission={[...]}` any one of a list, or `hasFeature(feature)` when a `feature` prop is passed, or `requireAuth` (anyone signed in), or `gatedType` (`canSeeGatedType`) → `<Outlet/>`, else `<Navigate to="/login?next=<path+search>" replace/>`. **With none of those props the route is open**: a page that needs a capability names its permission. A redirect, not a security boundary — the API enforces. |
 | `MediaLoadingState` | `components/layout/MediaLoadingState.jsx` | spinner + `loadingText`, or red error card |
+| Tab title | `contexts/PageTitleContext.jsx`, `lib/pageTitle.js` | the page's name alone: the nav row's label (`<label> Library` on a library row), a record page's displayed name via `usePageTitle`, and while that loads or fails the nav row it lights up ("Anime"). See [components.md](components.md#contexts) |
 | Toasts | `hooks/useToast.jsx`, `components/layout/Toast.jsx` | `showToast(type, message)`, auto-dismiss 3.5 s, bottom-left stack |
 | Data hooks | `hooks/useMediaList` (`["media-list", type, params]`), `useMediaItem` (`["media-item", type, id]`), `useApiQuery`, `useStatusToggle`, `useMediaCacheUpdate` | `LIST_OPTIONS = { params: { limit: 2000 } }` — every library-sized list uses it |
 
@@ -405,7 +406,9 @@ view has **no stepper** — tracking stays in card view and on the entry page.
 The table scrolls sideways inside its own wrapper below ~640px so the page
 itself never does.
 
-**Layout** (an `xl:`-only sticky left TOC, `DashboardTOC`, tracks the active
+**Layout** (an `xl:`-only sticky left TOC, the shared `TableOfContents`
+with `useScrollSpy` - see
+[components.md](components.md#in-page-table-of-contents) - tracks the active
 section with a threshold at the bottom of whatever sticky header covers it —
 the division header for Announcements and Schedule, the filter bar for the
 tracker divisions):
@@ -1159,7 +1162,20 @@ to the placeholder in silence.
 ### Detail pages — `/{type}/:system_id`
 
 Files `pages/detail/Anime.jsx`, `AnimeMovie.jsx`, `Movie.jsx`, `TV.jsx`,
-`Cartoon.jsx`, `Manga.jsx`, `Novel.jsx`, `Comic.jsx`, `Game.jsx`, `HComic.jsx`.
+`Cartoon.jsx`, `Manga.jsx`, `Novel.jsx`, `Comic.jsx`, `Game.jsx`, `HComic.jsx`,
+`HGame.jsx`, `Hentai.jsx`.
+
+**Tab title and contents.** The tab reads the entry's displayed title - the
+`<h1>`'s - through `usePageTitle`, and the type's name ("Anime") while it
+loads or when it fails. The page sits in `DetailContents`, which draws a
+sticky **Contents** column on the right on `xl:` screens and nothing below
+`xl`. Its rows are the main-column sections this viewer was actually shown,
+in page order - Watch orders, My tracker (or the type's own tracker block),
+Naming, Information, Genres, Production, Cast and each type's further
+sections - then the note cards: Notes, each group card (攻略 Guides, never
+its Beginner and Controls) and each standalone section. The header and the
+left column are not listed. See
+[components.md](components.md#in-page-table-of-contents).
 
 **Common skeleton.** Data: `useMediaItem(type, id)` mirrored into local
 state, `useMediaList("franchise", LIST_OPTIONS)`, `useMediaList("series")`

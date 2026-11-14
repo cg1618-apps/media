@@ -96,6 +96,31 @@ toggled inside a hub does not update the library cache until it goes stale.
   first paint (no flash). `useThemeOrLight()` returns `"light"` when no
   provider is mounted (leaf components rendered in isolation, e.g. the
   relations canvas).
+- **`PageTitleContext`** — the browser tab's title, and the only code that
+  writes `document.title`. `PageTitleProvider` sits in `Layout`, so every
+  route is inside it. It shows the route's own title
+  (`routeTitle(pathname)`, `lib/pageTitle.js`) unless the page on screen has
+  named itself with `usePageTitle(name)`; the name is dropped when that page
+  unmounts. The title is the page's name alone, with no site suffix:
+  - a page with a nav row: the row's label; a `/library/...` row reads
+    `<label> Library` ("Anime Library", "Seiyuu Library"), since the nav
+    prints those rows under the Library tab;
+  - a page with no nav row: `OFF_NAV_TITLES` in `lib/pageTitle.js`
+    ("Dashboard", "Log In", "Settings", "Requests", ...);
+  - a page showing one record - the twelve media-type detail pages, the
+    three hubs, person, studio, publisher, character, identity, a watch
+    order, a season - calls `usePageTitle` with the name its `<h1>` shows,
+    and `null` while it loads or after it fails;
+  - **the fallback**, while such a page loads, when it fails (not found
+    included), and on a sub-route such as `/random/anime`: the label of the
+    nav row the path lights up (`activeItem`), so `/anime/12` reads "Anime"
+    and `/series/4` "Franchise". A path nothing claims reads
+    `SITE_NAME`, "CG1618 Tracker" - `index.html`'s own `<title>`, so the tab
+    is the same before the bundle runs.
+
+  `usePageTitle` does nothing outside a provider, so a page rendered alone in
+  a test needs no wrapper; a test of the title mounts `PageTitleProvider`
+  inside its router.
 - **`RestrictedPrefillContext`** — the form-defaults config, provided by the
   Add and Modify pages, so the Sources editors deep inside each tab prefill
   the names picked on `/defaults`. `usePrefillPicks(mediaType)` returns the
@@ -236,7 +261,9 @@ columns.
   `planFlagColumn`, `myRatingSort`, `usefulnessSort` - carry `personal: true`
   themselves, see [The `personal` flag](#the-personal-flag)),
   `GroupedEntryPage`, `CollapsibleCardGrid`, `CollapsiblePillRow`,
-  `AdminTabBar`, `FittedName`, `TierBadge`.
+  `AdminTabBar`, `FittedName`, `TierBadge`, and the in-page contents:
+  `TableOfContents` and `DetailContents` (see
+  [In-page table of contents](#in-page-table-of-contents)).
 - **`components/hub`** — `HubChrome` (`HubShell`, `GRID_CLS`, `Crumbs` (an
   optional `action` sits at the row's right-hand end),
   `AdminStrip`, `HeroCover`, `Field`, `HubTabs`, `Section`, `SELECT_CLS`,
@@ -1026,6 +1053,49 @@ functions `tagsForLabels`, `labelsForTags`, `applyLabelEdit` and
 | `hGameForm.js` | `hGameSourceFields(form, split)`: the same for h-game - the developer (a studio) and the five tag fields, every option source scoped to `h-game` |
 | `hentaiForm.js` | `HENTAI_SOURCES` and `hentaiSourceFields(form, split)`: the same for hentai - the studio (no scope of its own: it is counted and scoped under the form's type), the director and the author (each with its role and the `hentai` scope) and h-comic's three H genre vocabularies asked for under the `hentai` scope. `fieldMeta.js` reads `HENTAI_SOURCES` too, so the defaults page suggests from the lists the form does |
 | `novelUnits.js` | `NOVEL_UNIT_KINDS_BY_TYPE` (hand-mirrored from `app/utils/constants.py`, pinned by `config/novelUnitKinds.test.js`), `kindsForType`, `unitDisplayKey`, `arcStep` (frontend mirror of `normalize_arc_progress`), `arcProgressView` / `arcCursorFromView` (the arc being read as screens show it, and a typed arc and chapter back to the stored cursor), `arcCursorForChapters` (a typed chapter total folded into the arcs) |
+
+## In-page table of contents
+
+One component draws every sticky contents column: **`TableOfContents`**
+(`components/layout/TableOfContents.jsx`) takes `items` (`{ id, label,
+level }`; level 2 is a smaller mono sub-row), `activeId` and `offsetFor(id)`,
+and scrolls the clicked anchor to just below whatever covers it
+(`scrollToAnchor`). Which row is current comes from **`useScrollSpy(ids, {
+offsetFor, enabled })`** (`hooks/useScrollSpy.js`): the last anchor whose top
+has passed `offsetFor(id)` plus 16 px. `offsetFor` defaults to the nav's
+height (`navOffset`); the dashboard passes its own, because its anchors sit
+under sticky division headers and the filter bar.
+
+- **The dashboard** writes its rows down (`TOC_ITEMS` in
+  `pages/public/Index.jsx`, filtered by `visibleTocItems`), since it has
+  sub-rows and knows exactly which divisions it draws.
+- **The twelve media-type detail pages** read theirs from the page instead,
+  through **`DetailContents`** (`components/layout/DetailContents.jsx`),
+  which replaces the page's outer container. Its rows are every element
+  under it carrying `data-toc` - each **`TocSection id label`** the page
+  wraps a main-column section in, and each top-level note card - in
+  document order, read by **`useTocAnchors(ref)`** (`hooks/useTocAnchors.js`)
+  and re-read by a `MutationObserver` whenever the tree changes, which is how
+  the note cards join once the registry loads. A `TocSection` whose content
+  rendered nothing is left empty, collapses (`empty:hidden`) and is not
+  listed, so the contents list exactly what this viewer was shown: no "My
+  tracker" without `self.list`, no "Cast" with nobody cast, no "Watch
+  orders" for an entry in no followed order.
+- **Notes** list at card level only. `NotesBlocks` wraps the Notes card
+  (`#notes`), each group card (`#notes-<group key>`, labelled with the
+  group's label, e.g. "攻略 Guides") and each standalone section
+  (`#notes-<section key>`) in a `TocSection`; a group's own sections
+  (Beginner, Controls) sit inside its card and are never rows. The hubs
+  render `NotesBlocks` too and carry the same anchors, unread.
+- **Not listed**: the header (title, eyebrow, scores) and the left column
+  (cover, sources, relations), which sit beside the top of the page anyway.
+- **Placement**: on the right, `xl:` only, `w-40`, sticky under the nav. On
+  `xl:` the container widens from `max-w-7xl` to `88rem`, by about the
+  column's width, so the cover column keeps close to its usual size. Below
+  `xl` the column is not rendered and the page is unchanged.
+
+The statistics page keeps its own `StatsSidebar` (IntersectionObserver,
+`lg:`-only, left), see [pages.md](pages.md).
 
 ## Testing conventions
 

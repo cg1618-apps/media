@@ -1,6 +1,6 @@
 # Design system — "the archive"
 
-Last verified: 2026-11-13
+Last verified: 2026-11-14
 
 The UI is styled as a physical media archive: paper, ink, index slips,
 spine labels and a rating stamp. It replaced the generic dashboard look
@@ -234,10 +234,17 @@ ANIME  /  <title>                REPORT A PROBLEM  ← Eyebrow breadcrumb; the r
 │ id  │─────────│  ───────────────────────────────
 │     │ progress│  FRANCHISE <link>   SERIES <link>
 └─────┴─────────┘  8.35 │ #274 │ 85 │ #74 │ #364   ← ScoreBlock
- Sources           My tracker (Slip)
- Relations         Naming / Information / Production (InfoCard)
-                   Notes
+ Sources           My tracker (Slip)                          CONTENTS        ← xl+ only, sticky,
+ Relations         Naming / Information / Production (InfoCard)  My tracker     right of the page
+                   Notes                                          Naming …
 ```
+
+The contents column (`DetailContents`) goes on the right because the left
+column is already the cover, the sources and the relations; it is drawn on
+`xl:` and up only, and the page container widens there (`max-w-7xl` →
+`88rem`) by about the column's width so the cover column is not squeezed.
+Rows are display-face text with a 2 px left rule, `brand` on the current
+row - the same `TableOfContents` the dashboard uses on its left.
 
 Cards (`components/cards/*.jsx`): cover with a thin ink spine on the left
 carrying the media type; the rating stamp top-right; title in display

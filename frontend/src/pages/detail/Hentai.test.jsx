@@ -122,7 +122,7 @@ describe("Hentai detail page", () => {
     expect(screen.getByText("Plot A")).toBeInTheDocument();
     // The tracker is the viewer's own and this viewer holds no list (the
     // tracker's tests are below); the total is in the Information card.
-    expect(screen.queryByText("My tracker")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "My tracker" })).toBeNull();
     expect(screen.getByText("Episodes")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /anidb/i })).toHaveAttribute(
       "href",
@@ -193,7 +193,7 @@ describe("Hentai detail page", () => {
     mockFetch(ENTRY);
     mount(ENTRY);
     await screen.findByRole("heading", { name: "中文名" });
-    await screen.findByText("Notes");
+    await screen.findByRole("heading", { name: "Notes" });
     // The shared registry, asked for this type: no section of its own.
     const urls = fetch.mock.calls.map(([url]) => String(url));
     expect(urls).toContain("/api/notes/sections?owner_type=hentai");
@@ -212,7 +212,7 @@ describe("Hentai detail page", () => {
     ]);
     mount(ENTRY);
     await screen.findByText("Heroine");
-    expect(screen.getByText("Cast")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Cast" })).toBeInTheDocument();
     expect(screen.getByText("voiced by")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Voice Actor" })).toBeInTheDocument();
   });
@@ -221,8 +221,8 @@ describe("Hentai detail page", () => {
     mockFetch(ENTRY);
     mount(ENTRY);
     await screen.findByRole("heading", { name: "中文名" });
-    await screen.findByText("Notes");
-    expect(screen.queryByText("Cast")).toBeNull();
+    await screen.findByRole("heading", { name: "Notes" });
+    expect(screen.queryByRole("heading", { name: "Cast" })).toBeNull();
   });
 });
 
@@ -268,7 +268,7 @@ describe("Hentai detail page own remark", () => {
     mockFetch(remarked, [], { permissions: [] });
     mount(remarked);
     await screen.findByRole("heading", { name: "中文名" });
-    await screen.findByText("Notes");
+    await screen.findByRole("heading", { name: "Notes" });
     expect(remarkBox()).toBeNull();
   });
 });
@@ -309,14 +309,16 @@ describe("Hentai detail page own tracker", () => {
     expect(puts("/api/me/list/")).toHaveLength(0);
     expect(patches()).toHaveLength(0);
     expect(screen.getByRole("checkbox", { name: "Watch next" })).toBeChecked();
+    // The mirror of the "no tracker" cases below: with a list the slip is drawn.
+    expect(screen.getByRole("heading", { name: "My tracker" })).toBeInTheDocument();
   });
 
   it("draws no tracker without self.list", async () => {
     mockFetch(watching, [], { permissions: [] });
     mount(watching);
     await screen.findByRole("heading", { name: "中文名" });
-    await screen.findByText("Notes");
-    expect(screen.queryByText("My tracker")).toBeNull();
+    await screen.findByRole("heading", { name: "Notes" });
+    expect(screen.queryByRole("heading", { name: "My tracker" })).toBeNull();
     expect(screen.queryByRole("combobox", { name: "Watching status" })).toBeNull();
     expect(screen.queryByRole("checkbox", { name: "Watch next" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Next episode" })).toBeNull();
@@ -327,7 +329,7 @@ describe("Hentai detail page own tracker", () => {
     mount(watching);
     expect(await screen.findByRole("button", { name: "Mark completed" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Quick edit" })).toBeInTheDocument();
-    expect(screen.queryByText("My tracker")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "My tracker" })).toBeNull();
     expect(screen.queryByRole("combobox", { name: "Watching status" })).toBeNull();
   });
 });
