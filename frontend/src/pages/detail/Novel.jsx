@@ -7,6 +7,7 @@ import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
 import { useAuth } from "../../contexts/AuthContext";
 import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
 import { useToast } from "../../hooks/useToast";
+import { useOwnTrackerSave } from "../../hooks/useOwnTrackerSave";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import InfoCard from "../../components/info/InfoCard";
@@ -256,6 +257,16 @@ export default function Novel() {
     seriesQuery.error?.message ||
     null;
 
+  // The viewer's own values (status, rating, progress, plan flags) go through /api/me;
+  // saveRelease is the toolbar's release step, the work's half through the
+  // catalogue PATCH. performPatch below is that PATCH, for the units editor.
+  const { saveOwn, saveRelease } = useOwnTrackerSave("novel", {
+    entry: novel,
+    setEntry: setNovel,
+    setMediaItem,
+    fetchMediaItem,
+  });
+
   async function performPatch(payload, msg) {
     if (!isAdmin) return;
     setNovel((prev) => ({ ...prev, ...payload }));
@@ -412,7 +423,7 @@ export default function Novel() {
             >
               Mark completed
             </Button>
-            <MarkReleaseButton type="novel" entry={novel} title={titleMain} onPatch={performPatch} />
+            <MarkReleaseButton type="novel" entry={novel} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
             <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
               {autofilling ? "Autofilling…" : "Autofill & update"}
             </Button>
@@ -551,26 +562,26 @@ export default function Novel() {
           {/* My Tracker Block */}
           <NovelTrackerBlock
             novel={novel}
-            isAdmin={isAdmin}
+            canTrack={ownData}
             onChChange={(v) =>
-              performPatch({ ch_fin: v }, "Chapter progress saved")
+              saveOwn({ ch_fin: v }, "Chapter progress saved")
             }
             onVolChange={(v) =>
-              performPatch({ vol_fin: v }, "Volume progress saved")
+              saveOwn({ vol_fin: v }, "Volume progress saved")
             }
             onArcProgressChange={(next) =>
-              performPatch(next, "Arc progress saved")
+              saveOwn(next, "Arc progress saved")
             }
             onStatusChange={(v) =>
-              performPatch({ reading_status: v }, "Status updated")
+              saveOwn({ reading_status: v }, "Status updated")
             }
             onRatingChange={(v) =>
-              performPatch({ my_rating: v || null }, "Rating saved")
+              saveOwn({ my_rating: v || null }, "Rating saved")
             }
-            onReadNextChange={(v, msg) => performPatch({ read_next: v }, msg)}
-            onToRerereadChange={(v, msg) => performPatch({ to_reread: v }, msg)}
+            onReadNextChange={(v, msg) => saveOwn({ read_next: v }, msg)}
+            onToRerereadChange={(v, msg) => saveOwn({ to_reread: v }, msg)}
             onProgressDisplayChange={(v) =>
-              performPatch({ progress_display: v || null }, "Progress display updated")
+              saveOwn({ progress_display: v || null }, "Progress display updated")
             }
           />
 

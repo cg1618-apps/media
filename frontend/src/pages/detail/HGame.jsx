@@ -45,6 +45,7 @@ import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
 import { useToast } from "../../hooks/useToast";
+import { useOwnTrackerSave } from "../../hooks/useOwnTrackerSave";
 import { entityPath } from "../../lib/entityPath";
 import { hours } from "../../lib/gameHours";
 import { releaseYear } from "../../lib/releaseDate";
@@ -165,6 +166,16 @@ export default function HGame() {
   const loading = itemQuery.isLoading || franchiseQuery.isLoading || seriesQuery.isLoading;
   const error =
     itemQuery.error?.message || franchiseQuery.error?.message || seriesQuery.error?.message || null;
+
+  // The viewer's own values (status, rating, progress, plan flags) go through /api/me;
+  // saveRelease is the toolbar's release step, the work's half through the
+  // catalogue PATCH. performPatch below is that PATCH, for the completion axes.
+  const { saveOwn, saveRelease } = useOwnTrackerSave("h-game", {
+    entry: hGame,
+    setEntry: setHGame,
+    setMediaItem,
+    fetchMediaItem,
+  });
 
   async function performPatch(payload, msg) {
     if (!isAdmin) return;
@@ -313,7 +324,7 @@ export default function HGame() {
                 Quick edit
               </Button>
               <Button onClick={markCompleted}>Mark completed</Button>
-              <MarkReleaseButton type="h-game" entry={hGame} title={titleMain} onPatch={performPatch} />
+              <MarkReleaseButton type="h-game" entry={hGame} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
               <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
                 {autofilling ? "Autofilling…" : "Autofill & update"}
               </Button>
@@ -431,25 +442,27 @@ export default function HGame() {
               statusLabel="Playing Status"
               myRating={hGame.my_rating}
               ratingOptions={MY_RATINGS}
-              isAdmin={isAdmin}
-              onStatusChange={(v) => performPatch({ playing_status: v }, "Status updated")}
-              onRatingChange={(v) => performPatch({ my_rating: v || null }, "Rating saved")}
+              canTrack={ownData}
+              onStatusChange={(v) => saveOwn({ playing_status: v }, "Status updated")}
+              onRatingChange={(v) => saveOwn({ my_rating: v || null }, "Rating saved")}
               toRewatch={hGame.to_replay}
               rewatchLabel="To Replay"
               onToRewatchChange={(v) =>
-                performPatch({ to_replay: v }, v ? "Marked to replay" : "Removed from replay")
+                saveOwn({ to_replay: v }, v ? "Marked to replay" : "Removed from replay")
               }
             />
 
-            {/* Completion Level, All Endings, All CG - and usefulness, the
-                other personal answer about a playthrough, which MyTrackerCard
-                (shared by every type) has no place for. */}
+            {/* Completion Level, All Endings, All CG - the work's columns, an
+                editor's to change - and usefulness, the viewer's own, which
+                MyTrackerCard (shared by every type) has no place for. */}
             <GameCompletionBlock
               game={hGame}
               isAdmin={isAdmin}
+              canTrack={ownData}
               axes={H_GAME_COMPLETION_AXES}
               idPrefix="h-game"
               onChange={(patch) => performPatch(patch, "Saved")}
+              onOwnChange={(patch) => saveOwn(patch, "Saved")}
             />
 
             <Slip title="進度/待辦 Progress and Todo">

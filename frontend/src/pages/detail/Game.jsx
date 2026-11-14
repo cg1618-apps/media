@@ -13,6 +13,7 @@ import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
 import { useAuth } from "../../contexts/AuthContext";
 import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
 import { useToast } from "../../hooks/useToast";
+import { useOwnTrackerSave } from "../../hooks/useOwnTrackerSave";
 import { getCoverUrl, FALLBACK_SVG, getDisplayName } from "../../utils/media";
 import InfoCard from "../../components/info/InfoCard";
 import TimeToBeatCard from "../../components/info/TimeToBeatCard";
@@ -219,6 +220,16 @@ export default function Game() {
   const error =
     gameQuery.error?.message || franchiseQuery.error?.message || seriesQuery.error?.message || null;
 
+  // The viewer's own values (status, rating, progress, plan flags) go through /api/me;
+  // saveRelease is the toolbar's release step, the work's half through the
+  // catalogue PATCH. performPatch below is that PATCH, for the completion axes.
+  const { saveOwn, saveRelease } = useOwnTrackerSave("game", {
+    entry: game,
+    setEntry: setGame,
+    setMediaItem,
+    fetchMediaItem,
+  });
+
   async function performPatch(payload, msg) {
     if (!isAdmin) return;
     setGame((prev) => ({ ...prev, ...payload }));
@@ -356,7 +367,7 @@ export default function Game() {
               >
                 Mark completed
               </Button>
-              <MarkReleaseButton type="game" entry={game} title={titleMain} onPatch={performPatch} />
+              <MarkReleaseButton type="game" entry={game} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
               <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
                 {autofilling ? "Autofilling…" : "Autofill & update"}
               </Button>
@@ -478,13 +489,13 @@ export default function Game() {
               statusLabel="Playing Status"
               myRating={game.my_rating}
               ratingOptions={MY_RATINGS}
-              isAdmin={isAdmin}
-              onStatusChange={(v) => performPatch({ playing_status: v }, "Status updated")}
-              onRatingChange={(v) => performPatch({ my_rating: v || null }, "Rating saved")}
+              canTrack={ownData}
+              onStatusChange={(v) => saveOwn({ playing_status: v }, "Status updated")}
+              onRatingChange={(v) => saveOwn({ my_rating: v || null }, "Rating saved")}
               toRewatch={game.to_replay}
               rewatchLabel="To Replay"
               onToRewatchChange={(v) =>
-                performPatch({ to_replay: v }, v ? "Marked to replay" : "Removed from replay")
+                saveOwn({ to_replay: v }, v ? "Marked to replay" : "Removed from replay")
               }
             />
 

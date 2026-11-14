@@ -7,6 +7,7 @@ import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
 import { useAuth } from "../../contexts/AuthContext";
 import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
 import { useToast } from "../../hooks/useToast";
+import { useOwnTrackerSave } from "../../hooks/useOwnTrackerSave";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import InfoCard from "../../components/info/InfoCard";
@@ -31,7 +32,6 @@ import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
 import LazyImage from "../../components/ui/LazyImage";
-import { progressToast } from "../../lib/progressToast";
 import { focusStyle } from "../../lib/covers";
 import { useViewScope } from "../../hooks/useViewScope";
 import { useMyRemarkSaver } from "../../api/mutations/useMyRemark";
@@ -93,28 +93,15 @@ export default function TV() {
     seriesQuery.error?.message ||
     null;
 
-  async function performPatch(payload, msg) {
-    if (!isAdmin) return;
-    setShow((prev) => ({ ...prev, ...payload }));
-    try {
-      const res = await fetch(endpoints.resource("tv-show").patch(system_id), {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Sync failed");
-      const updated = await res.json();
-      // `show` is still the pre-write row here: this closure never saw the
-      // optimistic update. A progress step can finish the entry.
-      showToast("success", progressToast(show, updated, msg || "Saved"));
-      setShow(updated);
-      setMediaItem(updated);
-    } catch {
-      showToast("error", "Update failed");
-      fetchMediaItem();
-    }
-  }
+  // The viewer's own values (status, rating, progress, plan flags) go through /api/me;
+  // saveRelease is the toolbar's release step, the work's half through the
+  // catalogue PATCH.
+  const { saveOwn, saveRelease } = useOwnTrackerSave("tv-show", {
+    entry: show,
+    setEntry: setShow,
+    setMediaItem,
+    fetchMediaItem,
+  });
 
   async function handleAutofill() {
     setAutofilling(true);
@@ -237,7 +224,7 @@ export default function TV() {
             >
               Mark completed
             </Button>
-            <MarkReleaseButton type="tv-show" entry={show} title={titleMain} onPatch={performPatch} />
+            <MarkReleaseButton type="tv-show" entry={show} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
             <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
               {autofilling ? "Autofilling…" : "Autofill & update"}
             </Button>
@@ -402,27 +389,27 @@ export default function TV() {
             timeFin={show.time_fin}
             watchNext={show.watch_next}
             toRewatch={show.to_rewatch}
-            isAdmin={isAdmin}
+            canTrack={ownData}
             onEpChange={(v) =>
-              performPatch({ ep_fin: v }, "Episode progress saved")
+              saveOwn({ ep_fin: v }, "Episode progress saved")
             }
             onStatusChange={(v) =>
-              performPatch({ watching_status: v }, "Status updated")
+              saveOwn({ watching_status: v }, "Status updated")
             }
             onRatingChange={(v) =>
-              performPatch({ my_rating: v }, "Rating saved")
+              saveOwn({ my_rating: v }, "Rating saved")
             }
             onTimeFinChange={(v) =>
-              performPatch({ time_fin: v }, "Paused position saved")
+              saveOwn({ time_fin: v }, "Paused position saved")
             }
             onWatchNextChange={(v) =>
-              performPatch(
+              saveOwn(
                 { watch_next: v },
                 v ? "Added to Watch Next" : "Removed from Watch Next",
               )
             }
             onToRewatchChange={(v) =>
-              performPatch(
+              saveOwn(
                 { to_rewatch: v },
                 v ? "Marked for rewatch" : "Removed from rewatch",
               )

@@ -38,8 +38,8 @@ import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
 import { useToast } from "../../hooks/useToast";
+import { useOwnTrackerSave } from "../../hooks/useOwnTrackerSave";
 import { entityPath } from "../../lib/entityPath";
-import { progressToast } from "../../lib/progressToast";
 import { FALLBACK_SVG, getCoverUrl, getDisplayName } from "../../utils/media";
 import HentaiNotes from "./HentaiNotes";
 import { focusStyle } from "../../lib/covers";
@@ -56,7 +56,10 @@ const lineageLinkCls =
   "text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition";
 
 
-function HentaiTrackerBlock({ hentai, isAdmin, onPatch }) {
+function HentaiTrackerBlock({ hentai, canTrack, onPatch }) {
+  // Every control here is the viewer's own (self.list), saved through /api/me
+  // by the page; without it the slip is not drawn.
+  if (!canTrack) return null;
   const select = (id, label, field, options, { emptyLabel, msg }) => (
     <div className="space-y-1">
       <Eyebrow as="label" htmlFor={id}>
@@ -65,8 +68,7 @@ function HentaiTrackerBlock({ hentai, isAdmin, onPatch }) {
       <select
         id={id}
         value={hentai[field] || ""}
-        disabled={!isAdmin}
-        onChange={(e) => isAdmin && onPatch({ [field]: e.target.value || null }, msg)}
+        onChange={(e) => onPatch({ [field]: e.target.value || null }, msg)}
         className={selectCls}
       >
         <option value="">{emptyLabel}</option>
@@ -82,15 +84,12 @@ function HentaiTrackerBlock({ hentai, isAdmin, onPatch }) {
   const flag = (field, label, onMsg, offMsg) => (
     <div className="space-y-1">
       <Eyebrow>{label}</Eyebrow>
-      <label
-        className={`flex items-center gap-2 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
-      >
+      <label className="flex items-center gap-2 cursor-pointer">
         <input
           type="checkbox"
           checked={!!hentai[field]}
-          disabled={!isAdmin}
           onChange={(e) =>
-            isAdmin && onPatch({ [field]: e.target.checked }, e.target.checked ? onMsg : offMsg)
+            onPatch({ [field]: e.target.checked }, e.target.checked ? onMsg : offMsg)
           }
           className="w-4 h-4 accent-brand"
         />
@@ -105,7 +104,7 @@ function HentaiTrackerBlock({ hentai, isAdmin, onPatch }) {
     <EpisodeStepper
       epFin={hentai.ep_fin ?? 0}
       epTotal={hentai.ep_total ?? "?"}
-      isAdmin={isAdmin}
+      canTrack={canTrack}
       onEpChange={(v) => onPatch({ ep_fin: v }, "Episode progress saved")}
     />
   );
@@ -120,9 +119,8 @@ function HentaiTrackerBlock({ hentai, isAdmin, onPatch }) {
           <select
             id="hentai-watching-status"
             value={hentai.watching_status || ""}
-            disabled={!isAdmin}
             onChange={(e) =>
-              isAdmin && onPatch({ watching_status: e.target.value }, "Status updated")
+              onPatch({ watching_status: e.target.value }, "Status updated")
             }
             className={selectCls}
           >
@@ -140,7 +138,7 @@ function HentaiTrackerBlock({ hentai, isAdmin, onPatch }) {
         })}
         <PausedAtInput
           value={hentai.time_fin}
-          isAdmin={isAdmin}
+          canTrack={canTrack}
           onChange={(v) => onPatch({ time_fin: v }, "Paused position saved")}
           className="space-y-1"
         />
@@ -195,28 +193,15 @@ export default function Hentai() {
   const error =
     itemQuery.error?.message || franchiseQuery.error?.message || seriesQuery.error?.message || null;
 
-  async function performPatch(payload, msg) {
-    if (!isAdmin) return;
-    setHentai((prev) => ({ ...prev, ...payload }));
-    try {
-      const res = await fetch(endpoints.resource("hentai").patch(system_id), {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Sync failed");
-      const updated = await res.json();
-      // `hentai` is still the pre-write row here: this closure never saw the
-      // optimistic update. A progress step can finish the entry.
-      showToast("success", progressToast(hentai, updated, msg || "Saved"));
-      setHentai(updated);
-      setMediaItem(updated);
-    } catch {
-      showToast("error", "Update failed");
-      fetchMediaItem();
-    }
-  }
+  // The viewer's own values (status, rating, progress, plan flags) go through /api/me;
+  // saveRelease is the toolbar's release step, the work's half through the
+  // catalogue PATCH.
+  const { saveOwn, saveRelease } = useOwnTrackerSave("hentai", {
+    entry: hentai,
+    setEntry: setHentai,
+    setMediaItem,
+    fetchMediaItem,
+  });
 
   async function markCompleted() {
     if (!isAdmin) return;
@@ -305,7 +290,7 @@ export default function Hentai() {
               Quick edit
             </Button>
             <Button onClick={markCompleted}>Mark completed</Button>
-            <MarkReleaseButton type="hentai" entry={hentai} title={titleMain} onPatch={performPatch} />
+            <MarkReleaseButton type="hentai" entry={hentai} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
             <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
               {autofilling ? "Autofilling…" : "Autofill & update"}
             </Button>
@@ -407,7 +392,7 @@ export default function Hentai() {
           {/* Where this entry sits in the watch orders the viewer follows. */}
           <FollowedOrderPanel entryId={hentai.system_id} />
 
-          <HentaiTrackerBlock hentai={hentai} isAdmin={isAdmin} onPatch={performPatch} />
+          <HentaiTrackerBlock hentai={hentai} canTrack={ownData} onPatch={saveOwn} />
 
           <div className="space-y-6">
             <NamingCard type="hentai" item={hentai} />

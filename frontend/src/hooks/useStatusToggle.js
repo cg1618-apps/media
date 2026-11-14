@@ -16,7 +16,9 @@
 //
 // The answer is the entry as the caller's caches hold it with every saved
 // value folded in, so a caller that replaces its row with the result keeps
-// the catalogue half it did not send.
+// the catalogue half it did not send. A caller that holds the entry itself -
+// a detail page, whose cache is keyed by the public id - passes it as
+// `entry`, and the saved values are folded into that instead.
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchJson, jsonBody } from "../api/client";
 import { endpoints } from "../api/endpoints";
@@ -60,12 +62,12 @@ export function useStatusToggle(type) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, value, field, fields, catalogue }) => {
+    mutationFn: async ({ id, value, field, fields, catalogue, entry: held }) => {
       const { apiEndpoint, statusField } = MEDIA_CONFIG[type];
       const personal = fields || { [field || statusField]: value };
       const { list, planFlags } = splitPersonal(personal);
 
-      let entry = cachedEntry(queryClient, type, id);
+      let entry = held || cachedEntry(queryClient, type, id);
       if (catalogue && Object.keys(catalogue).length) {
         entry = await fetchJson(`${apiEndpoint}/${id}`, {
           method: "PATCH",
