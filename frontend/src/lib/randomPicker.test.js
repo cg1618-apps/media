@@ -12,6 +12,7 @@ import {
   decadeOf,
   entryKey,
   generalFilterDefs,
+  genresOf,
   resolveDefaultFilters,
   statusGroupOf,
   toEntries,
@@ -91,6 +92,7 @@ describe("one-type mode", () => {
       ...LIBRARY_CONFIGS.anime.filterDefs.map((d) => d.key),
       "myRating",
       "decade",
+      "genre",
       "externalScore",
     ]);
     const entries = toEntries("anime", [
@@ -223,7 +225,7 @@ describe("personal filters", () => {
 
   it("keeps every def, flagged or not, with a list", () => {
     const keys = keysOf(filterDefsForMode("all", ALL_TYPES, { personal: true }));
-    expect(keys).toEqual(["mediaType", "statusGroup", "myRating", "decade", "externalScore"]);
+    expect(keys).toEqual(["mediaType", "statusGroup", "myRating", "decade", "genre", "externalScore"]);
     expect(keysOf(franchiseFilterDefs(["anime"]))).toEqual([
       "franchiseType",
       "heldType",
@@ -282,6 +284,60 @@ describe("external score", () => {
     expect(typeFilterDefs("game").some((fd) => fd.key === "externalScore")).toBe(false);
     expect(generalFilterDefs(["game"]).some((fd) => fd.key === "externalScore")).toBe(false);
     expect(franchiseFilterDefs(["anime"]).some((fd) => fd.key === "externalScore")).toBe(false);
+  });
+});
+
+describe("genre", () => {
+  // Several genres on one entry, a game's own vocabulary, an untagged entry
+  // and a type with no mainstream genre, so every chip has something to
+  // refuse.
+  const entries = [
+    ...toEntries("anime", [
+      { system_id: "a1", genre_main: "奇幻, 冒險" },
+      { system_id: "a2", genre_main: "戀愛" },
+      { system_id: "a0", genre_main: null },
+    ]),
+    ...toEntries("game", [{ system_id: "g1", game_genre: "RPG" }]),
+    ...toEntries("h-comic", [{ system_id: "h1", h_genre_plot: "純愛" }]),
+  ];
+  const defs = generalFilterDefs(["anime", "game", "h-comic"]);
+  const genre = defs.find((fd) => fd.key === "genre");
+  const ids = (values) =>
+    applyFilterDefs(entries, defs, withActive(defs, "genre", values)).map(
+      (e) => e.item.system_id,
+    );
+
+  it("splits a joined field into trimmed genres, reading the type's own field", () => {
+    expect(genresOf("anime", { genre_main: "奇幻, 冒險" })).toEqual(["奇幻", "冒險"]);
+    expect(genresOf("game", { game_genre: "RPG" })).toEqual(["RPG"]);
+    expect(genresOf("h-game", { game_genre: "ADV", h_genre_plot: "純愛" })).toEqual(["ADV"]);
+    expect(genresOf("anime", { genre_main: null })).toEqual([]);
+  });
+
+  it("offers the genres the pool holds, and never an adult genre", () => {
+    expect(genre.deriveOptions(entries)).toEqual(["RPG", "冒險", "奇幻", "戀愛"].sort((a, b) => a.localeCompare(b)));
+    expect(genre.deriveOptions(entries)).not.toContain("純愛");
+  });
+
+  it("keeps an entry when any of its genres is on", () => {
+    expect(ids(["冒險"])).toEqual(["a1"]);
+    expect(ids(["戀愛", "RPG"])).toEqual(["a2", "g1"]);
+    // The untagged anime and the h-comic, whose genres are adult ones,
+    // match no chip.
+    expect(ids(["奇幻", "冒險", "戀愛", "RPG"])).toEqual(["a1", "a2", "g1"]);
+  });
+
+  it("is a catalogue filter, offered with and without a list", () => {
+    expect(genre.personal).toBeFalsy();
+    expect(keysOf(filterDefsForMode("anime", ["anime"], { personal: false }))).toContain("genre");
+    expect(keysOf(filterDefsForMode("anime", ["anime"], { personal: true }))).toContain("genre");
+  });
+
+  it("is not offered where no type has a mainstream genre, nor to the franchise mode", () => {
+    expect(typeFilterDefs("h-comic").some((fd) => fd.key === "genre")).toBe(false);
+    expect(typeFilterDefs("hentai").some((fd) => fd.key === "genre")).toBe(false);
+    expect(typeFilterDefs("h-game").some((fd) => fd.key === "genre")).toBe(true);
+    expect(franchiseFilterDefs(["anime"]).some((fd) => fd.key === "genre")).toBe(false);
   });
 });
 

@@ -4,11 +4,11 @@
 // The picker works on ENTRIES, `{ type, item }`, so one pool can mix media
 // types. It has three kinds of mode:
 //   general   every visible type at once, filtered by what all types share:
-//             media type, status group, my rating, release decade, external
-//             score
+//             media type, status group, my rating, release decade, genre,
+//             external score
 //   one type  that type's own library filterDefs (LIBRARY_CONFIGS), plus my
-//             rating, release decade and, where the type has one, external
-//             score
+//             rating, release decade and, where the type has them, genre
+//             and external score
 //   franchise draws a franchise rather than an entry: `{ type: "franchise",
 //             item, cover, heldTypes, statusGroups }`, filtered by franchise
 //             type, expectation, my rating, and what its entries are
@@ -190,6 +190,56 @@ export function externalScoreDef(types) {
   };
 }
 
+// Each type's genre field, a ", "-joined string on every list response: the
+// mainstream vocabulary (Genre Main) on the eight types that have it, Game
+// Genre on game and h-game. The adult genre fields of h-comic, hentai and
+// h-game are left out on purpose, as /api/statistics/catalogue leaves them
+// out: a filter offered to every viewer does not mix them in. A type not
+// listed has no genre.
+export const GENRE_FIELD = {
+  anime: "genre_main",
+  "anime-movie": "genre_main",
+  movie: "genre_main",
+  "tv-show": "genre_main",
+  cartoon: "genre_main",
+  manga: "genre_main",
+  novel: "genre_main",
+  comic: "genre_main",
+  game: "game_genre",
+  "h-game": "game_genre",
+};
+
+/** An entry's genres as trimmed values; [] when its type has none or it is untagged. */
+export function genresOf(type, item) {
+  const field = GENRE_FIELD[type];
+  const raw = field ? item[field] : null;
+  if (!raw) return [];
+  return String(raw)
+    .split(",")
+    .map((g) => g.trim())
+    .filter(Boolean);
+}
+
+/**
+ * The genre filter over `types`, or null when none of them has a genre. A
+ * catalogue filter: the genres are the work's, so it is offered with and
+ * without a list. Its chips are the genres the pool holds; an entry matches
+ * when any of its genres is on.
+ */
+export function genreDef(types) {
+  if (!types.some((t) => GENRE_FIELD[t])) return null;
+  return {
+    key: "genre",
+    label: "Genre",
+    type: "set-dynamic",
+    deriveOptions: (entries) =>
+      [...new Set(entries.flatMap((e) => genresOf(e.type, e.item)))].sort((a, b) =>
+        a.localeCompare(b),
+      ),
+    match: (entry, active) => genresOf(entry.type, entry.item).some((g) => active.has(g)),
+  };
+}
+
 /** The general mode's defs, offering only `types` as media-type chips. */
 export function generalFilterDefs(types) {
   return [
@@ -204,6 +254,7 @@ export function generalFilterDefs(types) {
     statusGroupDef,
     ratingDef,
     decadeDef,
+    genreDef(types),
     externalScoreDef(types),
   ].filter(Boolean);
 }
@@ -224,7 +275,7 @@ function forEntries(fd) {
 
 /**
  * One type's defs: its library filters, then my rating, release decade and,
- * where the type has one, external score.
+ * where the type has them, genre and external score.
  */
 export function typeFilterDefs(type) {
   const libraryDefs = LIBRARY_CONFIGS[type]?.filterDefs ?? [];
@@ -232,6 +283,7 @@ export function typeFilterDefs(type) {
     ...libraryDefs.map(forEntries),
     ratingDef,
     decadeDef,
+    genreDef([type]),
     externalScoreDef([type]),
   ].filter(Boolean);
 }
