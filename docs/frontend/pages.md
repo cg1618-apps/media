@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-11-13
+Last verified: 2026-11-14
 
 **What this is for.** This is the map of every page outside the admin
 tabs — what a guest can open, what a member adds (see "The guest scope"
@@ -1686,14 +1686,17 @@ happens on hubs, detail pages and Modify, not here. See systems/plan-next.md.
 Files `pages/public/Quotes.jsx`, `Memes.jsx`, shell
 `components/layout/GroupedEntryPage.jsx`. Quotes:
 `useApiQuery(["quotes-grouped"], "/api/quote/grouped", { params })` with
-`media_type`, `is_general`, `is_favorite`, `needs_review` (admin-only
+`media_type`, `is_general`, `is_favorite` (the viewer's own; the toggle
+shows only with the `favourites` feature), `needs_review` (admin-only
 toggle), `search_query`. Memes: `useApiQuery(["memes-grouped"], "/api/meme/grouped", { params })`
-with `owner_type`, `is_favorite`, `search_query`. The Quotes media-type
+with `owner_type`, `is_favorite` (as on Quotes), `search_query`. The Quotes media-type
 filter offers H-Comic, H-Game and Hentai only to a session that can see each type. Both group rows under an
 owner card (cover or tier icon; "Unlinked / deleted owner" when missing).
-Row actions: copy text/image for everyone; **admin-only** favourite toggle,
-edit (`QuoteForm` / `MemeForm`, PATCH `/api/quote/{id}` / `/api/meme/{id}`)
-and delete, followed by `invalidateQueries` on the grouped key.
+Row actions: copy text/image for everyone; the viewer's own favourite star
+(`FavoriteStar`, only with the `favourites` feature, `PUT
+/api/me/favorites/{kind}/{id}`); **admin-only** edit (`QuoteForm` /
+`MemeForm`, PATCH `/api/quote/{id}` / `/api/meme/{id}`) and delete, followed
+by `invalidateQueries` on the grouped key.
 
 ### Resources — `/resources`
 

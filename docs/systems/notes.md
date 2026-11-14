@@ -1,6 +1,6 @@
 # Notes
 
-Last verified: 2026-11-13
+Last verified: 2026-11-14
 
 ## What this is for
 
@@ -621,9 +621,10 @@ see [API](#api).
 
 **Granted features** are asked through `has_feature(db, viewer, name)` in
 `app/services/rbac/features.py`, `FEATURE_NAMES` = `quotes_memes`,
-`favourites`, `music_status`, `mod_status`. It answers from a stand-in today
-— true for an account holding `self.personal_notes` — and is the one place
-the per-account switches will be read from.
+`favourites`, `music_status`, `mod_status`. It reads the account's own
+switch - only a `user` or `super` account with it on holds one, so the
+admin sees neither status - and it is the one place a switch is read from
+([authorization.md](../authorization.md#per-account-feature-switches)).
 
 ### Mixed sections
 

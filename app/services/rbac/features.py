@@ -12,9 +12,19 @@ switching one on for any other account with 409, and every role change an
 admin can make stays inside those two roles. A Pull can still store one from
 a hand-edited sheet, so held_features asks the role as well as the column.
 
-Only `quotes_memes` gates anything today - the quote and meme reads, and the
-Quotes and Memes sections of a detail page. The other three are storage and a
-switch on /users until the features they name gain teeth.
+What each one gates:
+
+  quotes_memes  the quote and meme reads, and the Quotes and Memes sections
+                of a detail page.
+  favourites    the account's own favourite quotes and memes: `is_favorite`
+                on a quote or meme is false without it, the `is_favorite`
+                filter finds nothing, and PUT /api/me/favorites/... is 401
+                (services/domain/user_favorite.py).
+  music_status  the music statuses on note rows - the per-song and per-list
+                status, and the review queue's waiting music - which are
+                absent without it (services/domain/note_marks.py,
+                music_review.py).
+  mod_status    a mod's status on note rows, absent without it, the same way.
 
 THE ROOT ROLE HOLDS `quotes_memes` WITHOUT THE SWITCH. The admin account may
 never be switched on, and the quote and meme reads were view.extras until

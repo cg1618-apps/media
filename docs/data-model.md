@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-11-13
+Last verified: 2026-11-14
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -20,7 +20,7 @@ Enum values are **not** repeated here: every closed vocabulary lives in
 - [Grouping tiers](#grouping-tiers): collection, franchise, series
 - [Media entries](#media-entries): anime, anime_movies, movies, tv_shows, cartoons, manga, novel, novel_unit, comic, games, game_copy, game_choice_node, game_choice_edge, game_choice_mark, h_comic, h_game, hentai
 - [Virtual fields on media entries](#virtual-fields-on-media-entries)
-- [Personal data](#personal-data): user_media_list, user_novel_unit_rating, user_rating
+- [Personal data](#personal-data): user_media_list, user_novel_unit_rating, user_rating, user_favorite
 - [People, studios and links](#people-studios-and-links): person, person_role, person_membership, studio, publisher, publisher_scope, character, character_tag, character_casting, character_casting_voice, media_credit, media_tag
 - [Where an entry can be watched or read](#media_source): media_source
 - [Notes, quotes and memes](#notes-quotes-and-memes): note, note_mark, quote, meme
@@ -949,7 +949,8 @@ carries `ch_fin_in_arc` as NULL forever. It is cheaper than the alternative.
 sit on it; a two-column join table is the smallest thing that is correct.
 
 `user_rating` holds the same kind of opinion for the rows that are not media
-entries either: the grouping tiers and the four entities.
+entries either: the grouping tiers and the four entities. `user_favorite`
+holds which quotes and memes an account favours.
 
 ### `user_media_list`
 
@@ -1083,6 +1084,33 @@ columns, so they cannot be filtered or sorted on in SQL. A merge of two
 characters, people, studios or publishers moves the loser's rows to the
 survivor for every account that has none there (`merge_user_ratings`); the
 survivor's own rating wins.
+
+### `user_favorite`
+
+One account's favourite quote or meme. Model: `UserFavorite`
+(`app/models/user_favorite.py`).
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `user_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE, indexed |
+| `quote_id` | UUID | yes | | FK `quote.system_id` ON DELETE CASCADE, indexed |
+| `meme_id` | UUID | yes | | FK `meme.system_id` ON DELETE CASCADE, indexed |
+| `created_at` / `updated_at` | DateTime | yes | now | |
+
+Constraints: `ck_user_favorite_one_item` (`num_nonnulls(quote_id, meme_id)
+= 1`); `uq_user_favorite_quote` UNIQUE (`user_id`, `quote_id`) and
+`uq_user_favorite_meme` UNIQUE (`user_id`, `meme_id`) - the NULL in the
+other column keeps a quote row and a meme row from colliding.
+
+A row exists only while the item is a favourite: `write_favorite`
+(`app/services/domain/user_favorite.py`) deletes it on clearing.
+`attach_favorites` puts the viewer's answer back on each quote and meme as
+`is_favorite`, one query per page, and only for an account holding the
+`favourites` feature; it is a plain class attribute defaulted to `False`
+(`app/models/__init__.py`), not a column. The `is_favorite` list filter is
+a subquery on this table for the viewer. Deleting the quote, the meme or the
+account deletes the row.
 
 ## People, studios and links
 
@@ -1777,7 +1805,6 @@ a specific work). Model: `Quote`.
 | `image_file` | String | yes | | Bare filename under `static/quotes/` - a flat directory of its own, not the owner-typed `static/covers/` layout |
 | `tags` | JSONB | yes | | |
 | `is_general` | Boolean | yes | `False` | Works in any conversation ("hi") - meant to be sent as a message |
-| `is_favorite` | Boolean | yes | `False` | |
 | `needs_review` | Boolean | yes | `False` | Set on rows imported from the old `notes.quotes_memes` lists |
 | `sort_index` | Float | yes | | |
 | `remark` | Text | yes | | Real column |
@@ -1806,7 +1833,6 @@ gag often spans a franchise). Sibling of Quote, not a variant of it. Model: `Mem
 | `quote_id` | UUID | yes | | FK `quote.system_id` ON DELETE SET NULL, **UNIQUE** (a quote belongs to at most one meme; many NULLs allowed), indexed |
 | `episode` | String | yes | | |
 | `link` | String | yes | | |
-| `is_favorite` | Boolean | yes | `False` | |
 | `sort_index` | Float | yes | | |
 | `remark` | Text | yes | | |
 | `created_at` / `updated_at` | DateTime | yes | now | |
@@ -2319,9 +2345,9 @@ over `role.name` so login can still return it and mint it as a JWT claim.
 | `mode_ceiling` | String | yes | `normal` (server default) | The widest access mode the account may use: a mode **key**, ranked by `seed_modes.MODE_ORDER` (`safe < normal < borderline < unrestricted`). NULL together with `mode_default` is no mode - the account resolves the empty object set. Written by `services/rbac/modes.py::set_mode_ceiling`. A key rather than an `access_mode` id: the order is defined on keys, and a key survives a Pull where a per-database uuid does not. |
 | `mode_default` | String | yes | `normal` (server default) | The mode a login lands in; at or below the ceiling. |
 | `feature_quotes_memes` | Boolean | **no** | `false` (server default) | The account's **quotes and memes** switch: the quote and meme reads, and the Quotes and Memes sections of a detail page, ask it (`services/rbac/features.py`). The root admin holds the feature without it. |
-| `feature_favourites` | Boolean | **no** | `false` (server default) | The favourites switch. Stored and set on `/users`; gates nothing yet. |
-| `feature_music_status` | Boolean | **no** | `false` (server default) | The music status switch. Stored and set on `/users`; gates nothing yet. |
-| `feature_mod_status` | Boolean | **no** | `false` (server default) | The mod status switch. Stored and set on `/users`; gates nothing yet. |
+| `feature_favourites` | Boolean | **no** | `false` (server default) | The favourites switch: whether the account keeps favourite quotes and memes ([`user_favorite`](#user_favorite)). |
+| `feature_music_status` | Boolean | **no** | `false` (server default) | The music status switch: whether the account sees and sets the music statuses on note rows. |
+| `feature_mod_status` | Boolean | **no** | `false` (server default) | The mod status switch: whether the account sees and sets a mod's status on note rows. |
 
 The mode pair is held by three CHECK constraints, so a hand edit or a Pull
 cannot break it: `ck_users_mode_keys` (each NULL or one of the four keys),

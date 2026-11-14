@@ -102,6 +102,9 @@ export const endpoints = {
     rating: (ownerType, ownerId) => `/api/me/ratings/${ownerType}/${ownerId}`,
     novelUnit: (unitId) => `/api/me/novel-units/${unitId}`,
     highlightGroupOrder: (mediaId) => `/api/me/highlight-group-order/${mediaId}`,
+    // The caller's own favourite quote or meme (the `favourites` feature): a
+    // PUT of `{is_favorite: bool}`; kind is "quote" or "meme".
+    favorite: (kind, id) => `/api/me/favorites/${kind}/${id}`,
   },
 
   contentLabels: {

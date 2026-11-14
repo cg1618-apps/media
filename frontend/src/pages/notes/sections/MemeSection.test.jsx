@@ -14,6 +14,12 @@ vi.mock("../../../hooks/useToast", () => ({
   useToast: () => ({ showToast }),
 }));
 
+// The row's favourite star asks the viewer's features; this viewer holds
+// none, so the section renders as it does for an account without them.
+vi.mock("../../../contexts/AuthContext", () => ({
+  useAuth: () => ({ hasFeature: () => false }),
+}));
+
 const attachUploadedImage = vi.fn();
 vi.mock("../../../components/forms/ImagePicker", () => ({
   default: ({ onChange }) => (

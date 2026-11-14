@@ -72,6 +72,7 @@ from app.models.system import (
     User,
 )
 from app.models.tv_show import TVShows
+from app.models.user_favorite import UserFavorite
 from app.models.user_highlight_group_order import UserHighlightGroupOrder
 from app.models.user_media_list import UserMediaList
 from app.models.user_novel_unit_rating import UserNovelUnitRating
@@ -92,6 +93,7 @@ __all__ = [
     "Franchise",
     "Series",
     "Media",
+    "UserFavorite",
     "UserHighlightGroupOrder",
     "UserMediaList",
     "UserNovelUnitRating",
@@ -241,6 +243,11 @@ NovelUnit.remark = None
 # app.services.domain.highlight_group_order.attach_group_orders.
 HComic.highlight_group_order = None
 HGame.highlight_group_order = None
+# Whether a quote or a meme is a favourite is the viewer's own, in
+# user_favorite, attached by
+# app.services.domain.user_favorite.attach_favorites.
+Quote.is_favorite = False
+Meme.is_favorite = False
 
 
 # ---------------------------------------------------------------------------

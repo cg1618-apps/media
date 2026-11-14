@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-11-13
+Last verified: 2026-11-14
 
 ## What this is for
 
@@ -570,9 +570,9 @@ by default.
 | Feature | Column | Gates |
 |---|---|---|
 | `quotes_memes` | `feature_quotes_memes` | every read on `/api/quote` and `/api/meme` (`require_feature_quotes_memes`). In the SPA: `/quote`, `/meme`, their nav rows, and the Quotes and Memes sections of a detail page |
-| `favourites` | `feature_favourites` | nothing yet — stored, and switched on `/users` |
-| `music_status` | `feature_music_status` | nothing yet — stored, and switched on `/users` |
-| `mod_status` | `feature_mod_status` | nothing yet — stored, and switched on `/users` |
+| `favourites` | `feature_favourites` | the account's own favourite quotes and memes: without it `is_favorite` reads false on every quote and meme, the `is_favorite` filter finds nothing, and `PUT /api/me/favorites/{kind}/{id}` is **401**. In the SPA: the star on a quote or meme row and the Favorites filter |
+| `music_status` | `feature_music_status` | the music statuses on note rows - each song's and each song list's status, and the review queue's waiting music - absent without it (see "Granted features" under the notes rules) |
+| `mod_status` | `feature_mod_status` | a mod's status on note rows, absent without it, the same way |
 
 - **Only a `user` or `super` account holds one** (`FEATURE_ROLE_NAMES`).
   `PATCH /api/users/{id}` answers **409** to switching one on for any other
@@ -1182,6 +1182,7 @@ type's nav row, routes, tabs and pickers out rather than render them empty.
 | own values on catalogue note rows (`PUT /api/notes/{note_id}/mark`, `POST /api/notes/ng-reset`) | `routers/note.py`, behind `self.personal_notes` **and** `require_visible_owner` on the note's owner: 404 "Note not found." / "Owner not found." for a hidden one. Reads overlay only the viewer's own marks (`note_marks.notes_out`) |
 | own highlight group order (`/api/me/highlight-group-order/{media_id}`) | `routers/me_highlights.py`, behind `self.personal_notes` on the router **and** `entry_visible` on the h-comic or h-game: 404 "Entry not found." for a hidden one, any other type, or none. The order is read back on the h-comic and h-game responses as the viewer's own (`highlight_group_order.attach_group_orders`) |
 | own ratings (`/api/me/ratings/{owner_type}/{owner_id}`, `/api/me/novel-units/{unit_id}`) | `routers/me_ratings.py`, behind `self.list` on the router **and** the owner's own read check (`franchise_visible`, `series_visible`, the kind's view key (`view.studio`, `view.publisher`, `view.person`, `view.character`) plus `shared_record_visible` for an entity, `entry_visible` on the unit's novel). Writes follow reads: 404 with the owner's not-found message |
+| own favourites (`PUT /api/me/favorites/{kind}/{id}`) | `routers/me_favorites.py`, behind the `favourites` **and** `quotes_memes` features on the router **and** the item's own read check (`entry_visible` on a quote's entry, `drop_hidden_rows` on a meme's owner): 404 "Quote not found." / "Meme not found." for a hidden or missing one. Read back as each quote's and meme's `is_favorite` (`user_favorite.attach_favorites`) |
 | account settings (`/api/account/settings`) | `routers/account.py` - a read of the caller's own username and role; no path takes a user id, and there is no write |
 | requests and reports (`/api/requests`) | `routers/requests.py` — filing and the caller's own behind `self.requests`, the inbox behind `manage.requests`. **No object check**: a target must exist, not be visible - see [Accepted residuals](#accepted-residuals) |
 | `data_control` / `system` GETs | behind `require_manage_pipelines` |
@@ -1390,6 +1391,31 @@ another.
   fields; the SPA's sorts, filters and statistics run on the response, so
   they work on the viewer's own values.
 
+## Favourite quotes and memes (`user_favorite`)
+
+Whether a quote or a meme is a favourite is **each account's own**, on
+`user_favorite` (see [data-model.md](data-model.md)), and a **granted
+feature**: only an account holding `favourites` keeps any.
+
+- **Read as the viewer's own.** Every quote and meme response keeps
+  `is_favorite`, filled per request by
+  `app.services.domain.user_favorite.attach_favorites` from the caller's own
+  rows. A logged-out visitor, the admin, and any account without the
+  `favourites` switch read **false** on every row, whatever is stored - even
+  rows of its own from while the switch was on.
+- **The filter is the viewer's.** `is_favorite=true` on the quote and meme
+  list and grouped reads finds the caller's own favourites; `false` finds the
+  rest. Without the feature the caller has none, so `true` finds nothing.
+- **Written under the feature**, through `PUT /api/me/favorites/{kind}/{id}`
+  (`routers/me_favorites.py`), behind `favourites` and `quotes_memes` - the
+  second is the switch every quote and meme read is behind, so a caller who
+  cannot read quotes gets the same **401** the read gives. The catalogue
+  create and update schemas do not carry `is_favorite`, and a `PATCH` naming
+  it has the key ignored, so a `manage.catalog` write cannot make one
+  account's favourite everybody's.
+- **Writes follow reads.** A quote or meme the caller's GET would answer 404
+  for is a 404 on the write too, in the same words.
+
 ## What a guest sees
 
 **Which PAGES:** the libraries of every media type the guest role holds, the
@@ -1596,10 +1622,10 @@ the review queue's music block, which lists only the caller's own statuses.
 Every check goes through `has_feature(db, viewer, name)` in
 `app/services/rbac/features.py`, over `FEATURE_NAMES` (`quotes_memes`,
 `favourites`, `music_status`, `mod_status`); an unknown name raises
-`ValueError`. It answers from a stand-in today - an account holding
-`self.personal_notes` holds every feature, anyone else none, the admin
-included - and the per-account switches replace that module wholesale
-without touching a caller.
+`ValueError`. It answers from the account's switch, as
+[Per-account feature switches](#per-account-feature-switches) describes: only
+a `user` or `super` account with the switch on holds one, and the admin
+holds neither status.
 
 **Quotes and memes are untouched by scope.** They carry an `author_id` for
 provenance and every viewer holding the `quotes_memes` feature reads the same

@@ -4277,7 +4277,8 @@ values into the installation owner's marks and clears them from `note`.
   `users.feature_<name>` - and no caller changes. The stub's answer means
   that until then every member sees the statuses and the admin none, which
   matches "today only the owner uses them" on an installation whose only
-  member is the owner.
+  member is the owner. P3g's per-account switches have since replaced the
+  stand-in: `has_feature` reads `users.feature_<name>`.
 - **The review queue reads the caller's own music statuses** (decided with
   the owner). The rows are shared, but "waiting on something" is a fact
   about one person's tracking, so the queue is per caller, like the remarks
@@ -4369,6 +4370,38 @@ groups. The registry marks them (`NoteSection.mixed`); revision
   only catalogue rows. It lives in the route, not the foreign key, because an
   ON DELETE rule cannot tell a personal child from a catalogue one; catalogue
   children still go with their parent, as everywhere else.
+
+### Favourite quotes and memes are each account's own (2026-11-14)
+
+The account spec makes a quote's and a meme's `is_favorite` each user's own
+and a granted feature (`favourites`). Revision `f1a2vourites3` adds
+`user_favorite` and moves every flagged quote and meme to the installation
+owner, by the frozen rule `u1r2atings3` uses.
+
+- **One table, two FK columns.** `quote_id` or `meme_id`, exactly one set,
+  each CASCADE - the owner-column shape `user_rating` and `note` use, so a
+  deleted quote, meme or account takes its favourites with it and no merge
+  code is needed: quotes and memes are never merged, and moving one to
+  another entry keeps its id.
+- **Presence is the value.** A row exists only while the item is a
+  favourite; clearing deletes it. There is no `is_favorite` column on the
+  row to disagree with its existence, and the PUT is idempotent by
+  construction.
+- **The switch hides, it does not delete.** An account whose `favourites`
+  switch is off reads false everywhere and its filter finds nothing, but its
+  rows stay: switching it back on brings them back, as a mode change does
+  not destroy a list. Deleting on switch-off would make a misclick on
+  `/users` lose data.
+- **The write asks both switches, 401 for either.** Favouring a quote means
+  reading it, and the quote reads are behind `quotes_memes`, which answer
+  401 without it. The favourite route answers the same 401, rather than the
+  404 a hidden item gets, because a caller without the read switch is not
+  being told about one item - it holds no quote reads at all, and the read
+  route already says so in those words.
+- **An old backup's flag clears as well as sets.** On a Quote or Meme tab
+  that still carries `is_favorite`, false or blank clears the installation
+  owner's favourite of that row, as a blank rating cell clears a rating: the
+  old sheet held exactly the owner's view, so it is applied whole.
 
 ### Account lifecycle, second half: invite links and registration (2026-11-13)
 

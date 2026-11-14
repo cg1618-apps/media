@@ -365,8 +365,8 @@ class User(Base):
     # Per-account feature switches (services/rbac/features.py). Only a `user`
     # or `super` account may hold one - PATCH /api/users/{id} refuses the
     # rest with 409. Columns rather than a table so they travel on the Sheets
-    # Users tab beside the mode pair and the request limit. Only
-    # feature_quotes_memes gates anything today: the quote and meme reads.
+    # Users tab beside the mode pair and the request limit. What each one
+    # gates is in features.py's docstring.
     feature_quotes_memes = Column(
         Boolean, nullable=False, default=False, server_default="false"
     )

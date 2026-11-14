@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-11-13
+Last verified: 2026-11-14
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -525,6 +525,13 @@ not drawn. The character, person and studio libraries use it for
   build on dnd-kit's `useDraggable` / `useDroppable` with `useDragSensors` and
   the same ArrowUp / ArrowDown keys - the first two with the same grip and
   label, the ranked list by its whole row, which holds no inputs.
+  `FavoriteStar` (`kind`, `item`) is the star that makes a quote or a meme
+  the viewer's own favourite, on the Quote and Meme pages and in the notes
+  page's Quotes and Memes sections. It renders nothing without
+  `hasFeature("favourites")`, writes through `PUT
+  /api/me/favorites/{kind}/{id}` (`api/mutations/useMyFavorite.js`,
+  `useSetMyFavorite`), and refetches every quote and meme list
+  (`FAVORITE_READ_KEYS`).
   `AutoGrowTextarea` is the textarea for a note's short free text - every
   notes section's description, remark and list-item field, and the text
   fields of `QuoteForm` and `MemeForm`. It opens `rows` high (2 by default),
@@ -670,9 +677,8 @@ not drawn. The character, person and studio libraries use it for
   `api.ngReset`, then a reload and a success toast with the cleared count).
   A value the viewer lacks the feature for never reaches the page: the
   sections listing leaves it out. `hasFeature` lives on `useAuth()`
-  (`contexts/AuthContext.jsx`) and reads `/me`'s `features`; until `/me`
-  carries the list it answers as the server's stand-in does, true for a
-  holder of `self.personal_notes`.
+  (`contexts/AuthContext.jsx`) and is a membership test on `/me`'s
+  `features`.
 - **`pages/notes/sections`** — one component per note shape (`TextSection`,
   `TextLinksSection`, `EpisodeTextSection`, `NameLinksSection`,
   `MusicTrackSection`, `QuoteSection`, `MemeSection`,

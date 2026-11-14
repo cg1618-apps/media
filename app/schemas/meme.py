@@ -17,7 +17,6 @@ class MemeBase(BaseModel):
     quote_id: Optional[UUID] = None
     episode: Optional[str] = None
     link: Optional[str] = None
-    is_favorite: Optional[bool] = False
     sort_index: Optional[float] = None
     remark: Optional[str] = None
 
@@ -32,6 +31,11 @@ class MemeUpdate(MemeBase):
 
 class MemeResponse(MemeBase):
     system_id: UUID
+    # Read-only: the VIEWER'S own answer, from user_favorite
+    # (services.domain.user_favorite.attach_favorites) - false for anyone
+    # without the `favourites` feature. Not on the create/update base, so a
+    # catalogue write that still sends it is ignored, not stored.
+    is_favorite: bool = False
     # Read-only. Set from the request's viewer, never from the payload, which
     # is why it is on the response schema and not on the create/update base.
     author_id: Optional[UUID] = None

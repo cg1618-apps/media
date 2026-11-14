@@ -400,6 +400,22 @@ def parse_user_rating_from_sheet(raw: dict) -> dict:
     }
 
 
+def parse_user_favorite_from_sheet(raw: dict) -> dict:
+    """
+    One account's favourite quote or meme. user_id is not in the sheet -
+    pull.py resolves the row's `username` - and quote_id / meme_id are the
+    uuids the Quote and Meme tabs carry, so they travel unchanged. Exactly one
+    is set; an unparseable cell becomes None and the CHECK refuses the row.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "quote_id": _uuid_or_none(raw.get("quote_id")),
+        "meme_id": _uuid_or_none(raw.get("meme_id")),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
 def parse_user_novel_unit_rating_from_sheet(raw: dict) -> dict:
     """One reader's rating of and remark on one novel unit; user_id as above."""
     return {
@@ -2088,6 +2104,9 @@ def parse_quote_from_sheet(raw: dict) -> dict:
         "image_file": parse_from_sheet(raw.get("image_file"), str),
         "tags": _safe_json(raw.get("tags")),
         "is_general": parse_from_sheet(raw.get("is_general"), bool),
+        # Not a column any more: a backup taken before revision f1a2vourites3
+        # carries it, and Pull files it under the installation owner
+        # (legacy_personal.LEGACY_PERSONAL_COLUMNS).
         "is_favorite": parse_from_sheet(raw.get("is_favorite"), bool),
         "needs_review": parse_from_sheet(raw.get("needs_review"), bool),
         "sort_index": parse_from_sheet(raw.get("sort_index"), float),
@@ -2123,6 +2142,7 @@ def parse_meme_from_sheet(raw: dict) -> dict:
         "quote_id": _uuid_or_none(raw.get("quote_id")),
         "episode": parse_from_sheet(raw.get("episode"), str),
         "link": parse_from_sheet(raw.get("link"), str),
+        # Not a column any more; an old backup's, filed as on Quote.
         "is_favorite": parse_from_sheet(raw.get("is_favorite"), bool),
         "sort_index": parse_from_sheet(raw.get("sort_index"), float),
         "remark": parse_from_sheet(raw.get("remark"), str),

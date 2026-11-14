@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-11-13
+Last verified: 2026-11-14
 
 ## What this is for
 
@@ -31,7 +31,7 @@ All routes need **one** gate, declared on the router: `Depends(require_manage_pi
 
 **One Backup at a time.** Every Backup first takes a PostgreSQL session-level advisory lock (`BACKUP_LOCK_KEY`) on a connection of its own, so the web app and the separate `sheets.sh` process exclude each other. A second Backup raises `BackupAlreadyRunning` before it reads or writes anything and logs no row; the route answers it with **409**, and a Fill All / Replace All that reaches its Auto Backup while another runs ends `Failed` with that message. Two writers on one sheet would each trim what the other wrote and share one per-minute Sheets quota. PostgreSQL drops the lock with its connection, so a process that dies cannot leave it held.
 
-**The manual route streams, and the Backup outlives it.** Production sits behind a Cloudflare Tunnel, which answers 524 to a request that sends nothing for about 100 seconds, and a full Backup (59 tabs at a few seconds each, longer through a Sheets 429 pause) takes longer than that. So `POST /backup` claims the lock, starts the Backup on a thread with its own session, and relays its progress as SSE: one `processing` event per tab (`current_entry` = tab name, `processed` / `total`), then `success` or `error`, with a `: keepalive` comment every 15 seconds (`BACKUP_KEEPALIVE_SECONDS`) while a tab is slow. The thread never waits on its listener: a reloaded page or a dropped connection stops the events, not the Backup, which finishes and writes its log row anyway — a sheet with some tabs new and some old is a worse restore point than either. The thread carries the request's context, so its log lines keep the starting request's `request_id`.
+**The manual route streams, and the Backup outlives it.** Production sits behind a Cloudflare Tunnel, which answers 524 to a request that sends nothing for about 100 seconds, and a full Backup (60 tabs at a few seconds each, longer through a Sheets 429 pause) takes longer than that. So `POST /backup` claims the lock, starts the Backup on a thread with its own session, and relays its progress as SSE: one `processing` event per tab (`current_entry` = tab name, `processed` / `total`), then `success` or `error`, with a `: keepalive` comment every 15 seconds (`BACKUP_KEEPALIVE_SECONDS`) while a tab is slow. The thread never waits on its listener: a reloaded page or a dropped connection stops the events, not the Backup, which finishes and writes its log row anyway — a sheet with some tabs new and some old is a worse restore point than either. The thread carries the request's context, so its log lines keep the starting request's `request_id`.
 
 Steps, for each tab in `SHEET_TABS` order (section 2 lists it):
 
@@ -67,7 +67,8 @@ same holds one level out: a rating or expectation of a collection, franchise,
 series, character, person, studio or publisher travels in the **User Rating**
 tab, a novel unit's rating and remark in **User Novel Unit Rating**, an
 h-comic's or h-game's highlight group order in **User Highlight Group
-Order**, and the tier, entity, Novel Unit, H-Comic and H-Game tabs carry none
+Order**, an account's favourite quotes and memes in **User Favorite**, and
+the tier, entity, Novel Unit, H-Comic, H-Game, Quote and Meme tabs carry none
 of them.
 
 The restore order follows from that: `users` and every media tab must land
@@ -101,10 +102,11 @@ Users, Collection / Franchise / Series, Character / Person / Studio / Publisher 
 Users, Novel Unit -> User Novel Unit Rating
 Users, Media, H-Comic, H-Game -> User Highlight Group Order
 Users, Note      -> Note Mark
+Users, Quote, Meme -> User Favorite
 ```
 
 `Users` is first because nothing in the sheet points at it, and `Plan Next`,
-`Seasonal`, `Watch Order Follow`, `User Rating`, `User Novel Unit Rating`, `User Highlight Group Order`, `Game Copy`, `Game Choice Mark` and `Note Mark` all carry a NOT NULL `user_id`. The enforcement is
+`Seasonal`, `Watch Order Follow`, `User Rating`, `User Novel Unit Rating`, `User Highlight Group Order`, `Game Copy`, `Game Choice Mark`, `Note Mark` and `User Favorite` all carry a NOT NULL `user_id`. The enforcement is
 `tests/api/test_sheet_restore_order.py`; move the tab rather than weaken the
 test.
 
@@ -162,15 +164,16 @@ test.
 | 48 | `Character Casting` | `CharacterCasting` |  |
 | 49 | `Character Casting Voice` | `CharacterCastingVoice` |  |
 | 50 | `Meme` | `Meme` |  |
-| 51 | `Note` | `Note` |  |
-| 52 | `Note Mark` | `NoteMark` |  |
-| 53 | `Resources` | `ResourceNode` |  |
-| 54 | `Media Source` | `MediaSource` |  |
-| 55 | `Media Content Label` | `MediaContentLabel` |  |
-| 56 | `Franchise Content Label` | `FranchiseContentLabel` |  |
-| 57 | `Collection Content Label` | `CollectionContentLabel` |  |
-| 58 | `Series Content Label` | `SeriesContentLabel` |  |
-| 59 | `Seasonal` | `Seasonal` |  |
+| 51 | `User Favorite` | `UserFavorite` |  |
+| 52 | `Note` | `Note` |  |
+| 53 | `Note Mark` | `NoteMark` |  |
+| 54 | `Resources` | `ResourceNode` |  |
+| 55 | `Media Source` | `MediaSource` |  |
+| 56 | `Media Content Label` | `MediaContentLabel` |  |
+| 57 | `Franchise Content Label` | `FranchiseContentLabel` |  |
+| 58 | `Collection Content Label` | `CollectionContentLabel` |  |
+| 59 | `Series Content Label` | `SeriesContentLabel` |  |
+| 60 | `Seasonal` | `Seasonal` |  |
 
 `Media` sits immediately before the twelve entry tabs: every entry table has a
 composite FK `(system_id, media_type)` up to `media`, and although that FK is
@@ -309,6 +312,20 @@ H-Comic and H-Game tabs carry `highlight_group_order`, and no `User Highlight
 Group Order` tab. `legacy_personal.py` names that header for both tabs too,
 and files the value as the installation owner's `user_highlight_group_order`
 row; a cell that is not a list of names is named in `unresolved_refs`.
+
+**`User Favorite`** carries every account's favourite quotes and memes.
+Backup drops `user_id` for `username`; `quote_id` and `meme_id` are the Quote
+and Meme tabs' uuids and travel unchanged. Pull resolves the name (an unknown
+one skips the row and names it in `unresolved_refs`) and matches on
+`(user_id, quote_id, meme_id)` - `uq_user_favorite_quote` /
+`uq_user_favorite_meme`, exactly one of the two item columns set - so a
+second Pull adds nothing.
+
+**A backup taken before `f1a2vourites3` still Pulls its favourites.** Its
+Quote and Meme tabs carry `is_favorite`, and it has no User Favorite tab.
+`legacy_personal.py` names that header for both tabs, and a row's value is
+filed as the installation owner's favourite of the row restored - true
+favours it, false or blank clears it - exactly as the opinions below.
 
 **A backup taken before `u1r2atings3` still Pulls its opinions.** Such a sheet
 carries `my_rating` (and the tier's `*_expectation`) on its Collection,
