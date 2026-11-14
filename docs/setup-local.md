@@ -1,6 +1,6 @@
 # Local Development Setup
 
-Last verified: 2026-11-13
+Last verified: 2026-11-14
 
 **What this is for.** This page takes a machine with nothing on it to a working
 copy of the CG1618 Media Tracker: backend on :8000, Vite dev server on :5173,
@@ -270,7 +270,8 @@ cd frontend; npm run lint            # eslint src
 cd frontend; npm run format:check    # prettier
 ```
 
-CI runs `ruff check .` and `npm run lint` on every pull request; both must
+CI runs `ruff check .` and `npm run lint` on every pull request that changes
+more than documentation; both must
 pass before a branch can be merged. Nothing is deployed — see
 [testing.md](testing.md#what-ci-runs).
 

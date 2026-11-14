@@ -447,13 +447,38 @@ There is one job, `test`:
    plus `APP_ENV=development` and throwaway values for `JWT_SECRET_KEY` and
    `ADMIN_PASSWORD` — the runner has no `.env`, and without them the startup
    secret check refuses to boot and every API test fails.
-2. Python 3.13 (same as the Docker image), `pip install -r requirements-dev.txt`.
-3. `ruff check .`
-4. `pytest -q -p no:cacheprovider` (unit + API).
-5. Node 20, `npm ci` in `frontend/`.
-6. `npm run lint`
-7. `npm run test:run`
-8. `npm run build`
+2. Checks out with the whole history and decides whether the pull request
+   changes anything but documentation (below). Every later step runs only if
+   it does.
+3. Python 3.13 (same as the Docker image), `pip install -r requirements-dev.txt`.
+4. `ruff check .`
+5. `shellcheck deploy/migrations deploy/backup/*.sh`
+6. `pytest -q -p no:cacheprovider` (unit + API).
+7. Node 20, `npm ci` in `frontend/`.
+8. `npm run lint`
+9. `npm run test:run`
+10. `npm run build`
+
+### A documentation-only pull request skips the job
+
+The job's first step after the checkout diffs the pull request against its base
+(`git diff --name-only <base>...<head>`, with the checkout at `fetch-depth: 0`
+so the base is present). When every changed path is under `docs/` or ends in
+`.md` — `README.md` and `CLAUDE.md` included, wherever they sit — every other
+step is skipped, and `test` reports passed within seconds. One changed file of
+any other kind runs the whole job, and so does an empty diff: the fast path is
+taken only on positive evidence that nothing but documentation moved.
+
+**It is a step condition, not a workflow-level `paths-ignore`.** A workflow
+that does not run reports nothing, and a required check that is never reported
+leaves the pull request blocked for ever. Skipping the steps inside a job that
+does run reports `test` as passed, which is what the ruleset waits for.
+
+The `postgres:17` service still starts, because a service cannot depend on a
+step's output; that is most of the few seconds a documentation-only run takes.
+Nothing in the suites reads a file under `docs/` or a Markdown file, which is
+what makes skipping them sound — a test that starts to would have to be
+covered by narrowing the rule.
 
 **The workflow deploys nothing**, and there is no second job. A red run is
 therefore always a real test failure and never a failed release. Deploying is
