@@ -18,6 +18,27 @@ The credits PUT refuses (422) dropping NSFW from `tags.label` while
 輕微色情/擦邊肉番 stays, and the Label option 肉番 is called 擦邊肉番. A
 fixture or test that writes labels follows both.
 
+**Fixtures after P3h (#362).** `admin_client` becomes the real admin: no
+mode, only its fixed set (`admin.authz`, `manage.pipelines`,
+`manage.requests`, `manage.announcements`, `manage.options`,
+`manage.images`, `manage.resources`), no catalogue, no personal data.
+Catalogue work moves to `owner_client` / `owner_user` (`aaa_testowner`, a
+`super` in `unrestricted`); `list_row`, `sample_anime` and `mode_client` hang
+on `owner_user`. When dev with #362 is merged in: take c157426's side of
+conflicting hunks wholesale, then in every P7 test move `admin_client` →
+`owner_client`, `admin_user` → `owner_user`, `"aaa_testadmin"` →
+`"aaa_testowner"` - **except** a test calling an `admin.authz` route
+(`/api/users*`, `/api/roles*`, `/api/access-modes*`) or asserting what the
+admin itself is refused or allowed. A wrong move into a refusal test can pass
+for the wrong reason: check each admin-refusal test by hand. P7's files using
+the fixtures: `test_view_random_picker.py` (`configured_mode` → owner; the
+`/api/roles` saves stay on admin), `test_view_permissions.py`,
+`test_seasonal_api_per_user.py`. The admin's SPA has no `isRoot`, `has()` is
+plain membership, and the Library tab needs a `media_type.*` key it lacks.
+Part E's admin page may settle the open item on `/options` Tier 3 showing
+zero counts for the admin (it cannot read `/api/person/role-counts` or
+`/api/studio/`).
+
 **What this branch does not do**, because another branch owns it:
 quotes and memes (P3g's `feature_quotes_memes`), `/resources` and the
 admin's fixed permission set (P3h's `manage.resources`), the entity
