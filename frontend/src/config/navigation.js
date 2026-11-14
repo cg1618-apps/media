@@ -26,9 +26,10 @@
 
 // The nine ordinary media types' keys. A role holding none of them reads no
 // library at all - the admin, whose role holds no media_type.* - so the
-// Library tab asks for any one of them. The gated three have their own
+// Library tab asks for any one of them, and so do Future Releases' row and
+// route (App.jsx), which read the same lists. The gated three have their own
 // Restricted tab.
-const LIBRARY_MEDIA_TYPE_PERMISSIONS = [
+export const LIBRARY_MEDIA_TYPE_PERMISSIONS = [
   "media_type.anime",
   "media_type.anime-movie",
   "media_type.manga",
@@ -223,14 +224,9 @@ export const NAV_SECTIONS = [
       // holds any self.* key. Settings, in the account strip, is gated the
       // same way.
       { label: "Plan", icon: "fas fa-clipboard-list", to: "/plan", requires: "self.list" },
-      // Completions is an extra a member gets on top of browsing:
-      // view.extras, the same key App.jsx's route asks.
-      {
-        label: "Completions",
-        icon: "fas fa-history",
-        to: "/completions",
-        requires: "view.extras",
-      },
+      // Completions is built from the account's own completions, so it asks
+      // self.list as Plan does.
+      { label: "Completions", icon: "fas fa-history", to: "/completions", requires: "self.list" },
     ],
   },
   {
@@ -243,15 +239,17 @@ export const NAV_SECTIONS = [
       // self.list for the same reason: Statistics is built from the caller's
       // own seasonal rows.
       { label: "Seasonal", icon: "fas fa-leaf", to: "/seasonal", requires: "self.list" },
-      // Future Releases is an extra (view.extras); the Random Picker asks its
+      // Future Releases reads the catalogue lists, so it asks for any
+      // ordinary media type, as the Library tab does: every viewer that reads
+      // the catalogue has it, the admin does not. The Random Picker asks its
       // own key, view.random_picker - super, user and shared, never guest.
-      // Each is the key App.jsx's routes ask. /random/<type> lights the
-      // Random Picker row up too.
+      // Each is what App.jsx's routes ask. /random/<type> lights the Random
+      // Picker row up too.
       {
         label: "Future Releases",
         icon: "fas fa-calendar-plus",
         to: "/future-releases",
-        requires: "view.extras",
+        requires: LIBRARY_MEDIA_TYPE_PERMISSIONS,
       },
       {
         label: "Random Picker",

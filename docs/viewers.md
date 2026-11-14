@@ -76,12 +76,10 @@ catalogue and what is an account's own data is
 > **`/resources` is the admin's and super's alone**: a `user` does not
 > reach it.
 >
-> **A shared account's Random Picker is the member's page, and it lacks
-> Future Releases.** It holds `view.random_picker`, so it opens the picker,
-> but the catalogue-only version (no personal filters, unweighted picking) is
-> not built: the personal filters read empty for it. Future Releases still sits
-> behind `view.extras`, which also opens Completions — not a shared
-> account's — so it is locked off for `shared`.
+> **A shared account's Random Picker, and every viewer's Future Releases, are
+> the member's pages.** The catalogue-only versions (no personal filters,
+> unweighted picking; no status sort or expectation badge) are not built, so
+> the personal values read empty for a viewer without a list.
 
 ## At a glance
 

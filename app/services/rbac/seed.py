@@ -103,7 +103,7 @@ def default_user_permissions() -> set[str]:
     """
     A signed-in member's grants: everything a guest may read, the gated
     types (locked on for a member; the access mode still decides whether
-    their entries show), search, extras and personal content, and the four
+    their entries show), search, the Random Picker and personal content, and the four
     permissions over their own account - their list, their personal notes,
     their requests and their password.
 

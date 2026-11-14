@@ -173,13 +173,11 @@ viewers.md:
 
 ### Migration (`v1i2ewextras3`, parented on the head at execution)
 
-**Built in two steps in the one revision.** Parented on `f1a2vourites3`
-(P5's head on 2026-11-14). Step 1 ships now; steps 2 and 3's `view.extras`
-half wait until P3h is merged in, because `/resources` reads on
-`view.extras` until P3h moves it to `manage.resources`. When P3h lands,
-re-check `alembic heads`, add the removal to the same revision, and delete
-`PERM_VIEW_EXTRAS`, `require_view_extras` and `useViewScope().extras`.
-The admin's lock (off) also waits for P3h's non-root admin.
+**Done**, parented on `f1a2vourites3`. The downgrade re-grants
+`view.extras` to `user` and `super` only (the earlier code held it locked off
+for `shared`). No `is_root` filter: P3h dropped the column. Future Releases'
+gate is any ordinary media type (`LIBRARY_MEDIA_TYPE_PERMISSIONS`), not
+"none", so the admin is not offered a page of catalogue it cannot read.
 
 1. Grant `view.random_picker` to `super`, `user` and `shared`; never to
    `guest` or `admin`.

@@ -35,7 +35,6 @@ from app.services.rbac.permissions import (
     PERM_MANAGE_IMAGES,
     PERM_MANAGE_OPTIONS,
     PERM_MANAGE_RESOURCES,
-    PERM_VIEW_EXTRAS,
 )
 from app.services.rbac.seed import default_guest_permissions, default_user_permissions
 from tests.api.conftest import make_viewer
@@ -58,7 +57,6 @@ def _png(colour=(10, 120, 200)):
 def _catalogue_editor(db_session, client):
     """manage.catalog and every member read - everything but the page keys."""
     held = default_user_permissions() | ENTITY_VIEW_PERMISSIONS | {PERM_MANAGE_CATALOG}
-    assert PERM_VIEW_EXTRAS in held  # so a resources refusal is not view.extras'
     return make_viewer(db_session, client, "cat-editor", held)
 
 
@@ -312,7 +310,7 @@ def test_a_catalogue_editor_is_refused_resources_reads_and_writes(
 
 
 def test_a_member_is_refused_the_resources_page(user_client, resources):
-    """`user` holds view.extras, which used to open this read."""
+    """`user` holds every member read, and none of them opens this one."""
     assert user_client.get("/api/resources").status_code == 401
 
 

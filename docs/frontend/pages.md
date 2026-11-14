@@ -57,9 +57,9 @@ are a large share of the bundle and never needed on first paint.
 | `/watch-order/:system_id` | `detail/WatchOrder.jsx` → `WatchOrderPage.jsx` | lazy |
 | `/seasonal` | `public/SeasonalOverall.jsx` | lazy, **login required** |
 | `/seasonal/:seasonal_id` | `public/SeasonalDetail.jsx` | lazy, **login required** |
-| `/future-releases` | `public/FutureReleases.jsx` | lazy, **`view.extras`** |
+| `/future-releases` | `public/FutureReleases.jsx` — reads the open `/api/seasonal/current-season` | lazy, **any ordinary `media_type.*`** (`anyPermission={LIBRARY_MEDIA_TYPE_PERMISSIONS}`, the list the Library tab asks) |
 | `/statistics` | `public/Statistics.jsx` | lazy, **login required** |
-| `/completions` | `public/Completions.jsx` | lazy, **`view.extras`** |
+| `/completions` | `public/Completions.jsx` | lazy, **`self.list`** |
 | `/random` | `public/RandomPicker.jsx` — the general mode | lazy, **`view.random_picker`** |
 | `/random/h-comic`, `/random/h-game`, `/random/hentai` | `RandomPicker type="…"` — the same file, each inside its type's `<ProtectedRoute gatedType>` and, within it, `<ProtectedRoute permission="view.random_picker">` (matched before `/random/:type`) | lazy, **gated**, **`view.random_picker`** |
 | `/random/:type` | `RandomPicker` — one type's mode, or `/random/franchise`, the franchise mode; an unknown type redirects to `/random` | lazy, **`view.random_picker`** |
@@ -89,7 +89,7 @@ Broadcast schedule, the `/library/:type` lists, `/library/collection`,
 watch-order pages they lead to. Everything else a member reads is behind a
 `view.*` permission, which `super` holds, `guest` does not hold as seeded,
 and the `admin` role never holds — the admin reads no catalogue at all. `user`
-holds `view.search`, `view.random_picker` and `view.extras` as seeded (a shared
+holds `view.search` and `view.random_picker` as seeded (a shared
 account holds `view.random_picker` alone; it is locked off for `guest`); the four entity keys are each a switch on the role,
 seeded off, so a fresh database shows a `user` entity names as plain text
 until an admin ticks a kind on:
@@ -102,7 +102,6 @@ until an admin ticks a kind on:
 | `view.character` | the character library, character and identity pages | character and identity names render as plain text; the franchise and series hubs have no Characters tab |
 | `view.search` | `/search` | `NavSearch` is not drawn — not the inline slot, the phone button or its sheet |
 | `view.random_picker` | every `/random` route | the picker asks `/api/plan-next/` for plan marks only with `self.list` (`useViewScope().ownData`), so a shared account's picker draws no plan weight and never gets a 401 |
-| `view.extras` | Future Releases, Completions, `/resources` | — |
 
 A personal note section is not behind a `view.*` key either: the registry
 lists it for every viewer and the rows are only the viewer's own, so a guest
@@ -148,8 +147,8 @@ about styling.
 |---|---|---|---|
 | `library` | Library | mega-panel (`columns`), `requires` any of the nine ordinary `media_type.*` keys (`LIBRARY_MEDIA_TYPE_PERMISSIONS`), so a role holding none — the admin — has no Library tab. Nav only: the `/library` routes themselves stay open | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities** (each row `requires` its own kind's key, so a row whose kind is off is dropped and a viewer holding none has no Entities column): Studio `/library/studio` (also matches `/studio`; `view.studio`), Publisher `/library/publisher` (also matches `/publisher`; `view.publisher`), Person `/library/person` (also matches `/person`; `view.person`), Character `/library/character` (also matches `/character` and `/identity`; `view.character`), Seiyuu `/library/seiyuu` (`view.person`) · **ACG**: Anime, Anime Movie, Manga, Novel, Game `/library/game` (also matches `/game`) · **Reality**: TV Show, Movie, Cartoon, Comic |
 | `restricted` | Restricted | flat `items`, every row gated | H-Comic `/library/h-comic` (also matches `/h-comic`; `gatedType: "h-comic"`), H-Game `/library/h-game` (also matches `/h-game`; `gatedType: "h-game"`), Hentai `/library/hentai` (also matches `/hentai`; `gatedType: "hentai"`). Each is drawn only for a session that can see its type; a session that can see no gated type has every row dropped, so the tab itself is not drawn |
-| `track` | Track | flat `items` | Plan `/plan` (`requires: "self.list"` — see below), Completions `/completions` (`requires: "view.extras"`). The account's own progress; a guest holds neither key, so the tab is not drawn |
-| `explore` | Explore | flat `items` | Seasonal `/seasonal` (`requires: "self.list"`), Future Releases `/future-releases` (`requires: "view.extras"`), Random Picker `/random` (`requires: "view.random_picker"`; its `/random/<type>` pages light it too), Statistics `/statistics` (`requires: "self.list"`). A shared account holds only the picker's key, so its Explore tab is the Random Picker alone |
+| `track` | Track | flat `items` | Plan `/plan` (`requires: "self.list"` — see below), Completions `/completions` (`requires: "self.list"`). The account's own progress; a guest holds no `self.*` key, so the tab is not drawn |
+| `explore` | Explore | flat `items` | Seasonal `/seasonal` (`requires: "self.list"`), Future Releases `/future-releases` (`requires: LIBRARY_MEDIA_TYPE_PERMISSIONS`, any ordinary media type, so a guest's Explore holds this row and the admin's has none), Random Picker `/random` (`requires: "view.random_picker"`; its `/random/<type>` pages light it too), Statistics `/statistics` (`requires: "self.list"`). A shared account holds only the picker's key, so its Explore tab is the Random Picker alone |
 | `extras` | Extras | flat | Quotes `/quote` and Memes `/meme` (each `feature: "quotes_memes"`), Resources `/resources` (`requires: "manage.resources"`, so the admin and super only) ┃ Relations `/relations`, Watch Orders `/watch-orders` — these two carry `requires: "manage.catalog"` on the row, inside a tab everyone may open |
 | `entry` | Entry | flat, `requires` any of `manage.catalog` / `manage.images` | Add `/add`, Modify `/modify`, Delete `/delete`, Form Defaults `/defaults`, Picker Defaults `/random-defaults` — each `requires: "manage.catalog"` — and Images `/images` (`requires: "manage.images"`). The admin holds no `manage.catalog`, so Images is the one row it sees |
 | `note` | Note | flat, `requires` any of `manage.options` / `admin.authz` / `manage.catalog` / `manage.pipelines` — whatever its rows ask, so the admin, holding no `manage.catalog`, still sees the whole section | System Options `/options`, Alias Conversion `/aliases`, External APIs `/external-apis` — the three read-only inventories of how the data is described, each `requires: "manage.options"` — Content Labels `/content-labels`, the read-only label reference, which carries `requires: ["admin.authz", "manage.catalog"]` (any of the two, the same either-of its route asks), and Business Logic `/business-logic`, what Calculate All changes step by step, which carries `requires: "manage.pipelines"` on the row, so only the super role and admin see it |

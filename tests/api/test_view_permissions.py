@@ -1,9 +1,10 @@
 """
 The view.* family: what a logged-out visitor does not see.
 
-Seven keys: four entity-page keys (studio, publisher, person, character),
-search, random_picker and extras. `super` holds all seven by lock; `user` is seeded with the
-last two and the entity keys start off; `guest` holds none. Each refusal below is
+Six keys: four entity-page keys (studio, publisher, person, character),
+search and random_picker. `super` holds all six by lock; `user` is seeded with
+the last two and the entity keys start off; `shared` holds random_picker by
+lock; `guest` and `admin` hold none. Each refusal below is
 asserted with the gated thing PRESENT - a row to read - and is mirrored by a viewer holding the key reading the
 same thing through the same fixture, so a green proves the gate refused and not
 that there was nothing to return.
@@ -19,7 +20,6 @@ from app.services.rbac.permissions import (
     FAMILY_VIEW,
     PERM_MANAGE_CATALOG,
     PERM_VIEW_CHARACTER,
-    PERM_VIEW_EXTRAS,
     PERM_VIEW_PERSON,
     PERM_VIEW_PUBLISHER,
     PERM_VIEW_RANDOM_PICKER,
@@ -66,7 +66,7 @@ def _held(db, role_name):
 # ---------------------------------------------------------------------------
 
 
-def test_the_seven_keys_are_in_the_catalog():
+def test_the_six_keys_are_in_the_catalog():
     assert VIEW_PERMISSION_KEYS == (
         "studio",
         "publisher",
@@ -74,7 +74,6 @@ def test_the_seven_keys_are_in_the_catalog():
         "character",
         "search",
         "random_picker",
-        "extras",
     )
     assert {view_perm(k) for k in VIEW_PERMISSION_KEYS} == VIEW_ALL
     assert ENTITY_VIEW_PERMISSIONS == ENTITY_KEYS
@@ -233,7 +232,7 @@ def test_a_holder_of_the_family_reads_every_gated_read(db, client, gated_reads):
 
 def test_a_seeded_member_reads_no_entity_page(user_client, gated_reads):
     """The seeded `user` role starts with the entity keys off - and still
-    reads search and the extras, so each refusal is an entity gate's."""
+    reads search and the Random Picker, so each refusal is an entity gate's."""
     for permission, urls in gated_reads.items():
         expected = 401 if permission in ENTITY_KEYS else 200
         for url in urls:

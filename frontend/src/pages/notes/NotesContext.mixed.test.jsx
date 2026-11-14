@@ -105,7 +105,7 @@ afterEach(() => {
 });
 
 async function renderAs(permissions) {
-  held = new Set(["view.extras", ...permissions]);
+  held = new Set(["view.random_picker", ...permissions]);
   render(<NotesTemplate ownerType="game" ownerId="g1" />);
   await waitFor(() => expect(screen.getByText("Potion")).toBeInTheDocument());
   // Items holds four rows; unfold it so the fourth is drawn.

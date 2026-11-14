@@ -104,9 +104,11 @@ export default function FutureReleases() {
 
   const animeQuery = useMediaList("anime", LIST_OPTIONS);
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
+  // The open read every catalogue reader may ask, not the Control Center's
+  // manage.pipelines route, which a member would be refused.
   const seasonQuery = useApiQuery(
-    ["api", "system", "current-season-config"],
-    "/api/system/config/current_season",
+    ["api", "seasonal", "current-season"],
+    "/api/seasonal/current-season",
   );
   const animeMovieQuery = useMediaList("anime-movie", {
     params: { limit: 2000 },

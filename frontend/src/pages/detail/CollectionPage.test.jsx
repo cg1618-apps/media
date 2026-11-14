@@ -65,7 +65,7 @@ function renderPage() {
   );
 }
 
-const VIEW_KEYS = ["view.studio", "view.publisher", "view.person", "view.character", "view.search", "view.extras"];
+const VIEW_KEYS = ["view.studio", "view.publisher", "view.person", "view.character", "view.search", "view.random_picker"];
 
 describe("CollectionPage own rating and expectation", () => {
   it("lets a holder of self.list save its own rating", async () => {

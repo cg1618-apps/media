@@ -35,8 +35,9 @@ DEFAULTS = "/api/random-picker-defaults/anime"
 
 
 @pytest.fixture
-def configured_mode(admin_client):
-    saved = admin_client.put(
+def configured_mode(owner_client):
+    """Saving defaults is manage.catalog: the owner's, not the admin's."""
+    saved = owner_client.put(
         DEFAULTS, json={"filters": {"genre": ["Comedy"]}}
     )
     assert saved.status_code == 200, saved.text
@@ -73,13 +74,24 @@ def test_the_key_is_in_the_catalog_with_a_label():
 
 @pytest.mark.parametrize("role_name", ("super", "user", "shared"))
 def test_it_is_locked_on_for_super_user_and_shared(role_name):
-    on, _ = locked_permissions(role_name, False)
+    on, _ = locked_permissions(role_name)
     assert PERM_VIEW_RANDOM_PICKER in on
 
 
-def test_it_is_locked_off_for_guest():
-    _, off = locked_permissions("guest", False)
+@pytest.mark.parametrize("role_name", ("guest", "admin"))
+def test_it_is_locked_off_for_guest_and_admin(role_name):
+    """The admin's lock is its fixed set and every other key, so a key minted
+    later is locked off without naming it - asserted here, not coded."""
+    on, off = locked_permissions(role_name)
     assert PERM_VIEW_RANDOM_PICKER in off
+    assert PERM_VIEW_RANDOM_PICKER not in on
+
+
+def test_view_extras_is_gone_from_the_catalog():
+    """Each page it gated has its own gate now: the picker this key, Future
+    Releases any ordinary media type, Completions self.list."""
+    assert "view.extras" not in static_catalog()
+    assert "extras" not in VIEW_PERMISSION_LABELS
 
 
 def test_the_seed_defaults_follow_the_locks():

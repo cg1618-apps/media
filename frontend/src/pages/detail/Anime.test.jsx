@@ -46,7 +46,7 @@ function respond(url, isAdmin) {
         "view.person",
         "view.character",
         "view.search",
-        "view.extras",
+        "view.random_picker",
         ...(isAdmin ? ["manage.catalog"] : []),
       ],
     };

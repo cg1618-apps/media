@@ -1,15 +1,21 @@
-"""The Random Picker gets its own permission, view.random_picker
+"""view.extras goes; the Random Picker gets its own permission, view.random_picker
 
 1. `super`, `user` and `shared` are granted `view.random_picker`, which their
-   locks hold on; `guest` never is, which its lock holds off. The boot seed
-   enforces the same, and doing it here puts the release's grant change in one
-   place.
+   locks hold on; `guest` and `admin` never are, which their locks hold off.
+2. Every `view.extras` grant row is deleted. After the admin's pages moved to
+   `manage.*` keys it gated only the Random Picker, Future Releases and
+   Completions, and each now has its own gate: `view.random_picker`, any
+   ordinary media type, and `self.list`. Permissions are not stored apart from
+   their grant rows, so nothing else names it.
 
-Root roles store no grant rows and are skipped. The permission name is a
-frozen copy rather than imported from app code - a migration importing app
-code breaks the day a later revision changes what it imports.
+The boot seed enforces the same locks; doing it here puts the release's grant
+change in one place. Every permission name is a frozen copy rather than
+imported from app code - a migration importing app code breaks the day a later
+revision changes what it imports.
 
-The downgrade deletes every `view.random_picker` row.
+The downgrade re-grants `view.extras` to `user` and `super` where they hold
+`view.random_picker` - the two roles the earlier code seeded it on; `shared`
+held it locked off - and deletes every `view.random_picker` row.
 
 Revision ID: v1i2ewextras3
 Revises: f1a2vourites3
@@ -28,33 +34,53 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 RANDOM_PICKER = "view.random_picker"
+EXTRAS = "view.extras"
 HOLDERS = ("super", "user", "shared")
+EXTRAS_HOLDERS = ("super", "user")
 
 
-def grant_random_picker(conn) -> None:
-    """Grant view.random_picker to the three holders that lack it."""
+def _grant(conn, permission, role_names, *, holding=None) -> None:
+    """Grant `permission` to the named roles lacking it (and holding
+    `holding`, when given)."""
+    holding_clause = (
+        "AND EXISTS (SELECT 1 FROM role_permission h "
+        "WHERE h.role_id = r.system_id AND h.permission = :holding) "
+        if holding
+        else ""
+    )
     conn.execute(
         sa.text(
             "INSERT INTO role_permission (role_id, permission) "
             "SELECT r.system_id, :permission FROM role r "
-            "WHERE NOT r.is_root AND r.name IN :names "
-            "AND NOT EXISTS (SELECT 1 FROM role_permission x "
+            "WHERE r.name IN :names "
+            + holding_clause
+            + "AND NOT EXISTS (SELECT 1 FROM role_permission x "
             "WHERE x.role_id = r.system_id AND x.permission = :permission)"
         ).bindparams(sa.bindparam("names", expanding=True)),
-        {"permission": RANDOM_PICKER, "names": list(HOLDERS)},
+        {"permission": permission, "names": list(role_names), "holding": holding},
     )
 
 
-def revoke_random_picker(conn) -> None:
+def _revoke(conn, permission) -> None:
     conn.execute(
         sa.text("DELETE FROM role_permission WHERE permission = :permission"),
-        {"permission": RANDOM_PICKER},
+        {"permission": permission},
     )
+
+
+def apply_upgrade(conn) -> None:
+    _grant(conn, RANDOM_PICKER, HOLDERS)
+    _revoke(conn, EXTRAS)
+
+
+def apply_downgrade(conn) -> None:
+    _grant(conn, EXTRAS, EXTRAS_HOLDERS, holding=RANDOM_PICKER)
+    _revoke(conn, RANDOM_PICKER)
 
 
 def upgrade() -> None:
-    grant_random_picker(op.get_bind())
+    apply_upgrade(op.get_bind())
 
 
 def downgrade() -> None:
-    revoke_random_picker(op.get_bind())
+    apply_downgrade(op.get_bind())

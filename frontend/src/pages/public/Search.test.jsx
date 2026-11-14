@@ -111,7 +111,7 @@ const EVERY_KEY = [
   "view.person",
   "view.character",
   "view.search",
-  "view.extras",
+  "view.random_picker",
 ];
 
 // What the stubbed /api/search/ answers, and the keys the stubbed

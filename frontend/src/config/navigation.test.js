@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  LIBRARY_MEDIA_TYPE_PERMISSIONS,
   NAV_SECTIONS,
   activeItem,
   activeSectionKey,
@@ -46,7 +47,6 @@ const holdsAdmin = (p) => ADMIN.has(p);
 const USER = new Set([
   ...MEDIA_TYPE_KEYS,
   "view.search",
-  "view.extras",
   "view.personal",
   "self.list",
   "self.personal_notes",
@@ -507,7 +507,6 @@ describe("visibleSections - the guest scope", () => {
     "view.character",
     "view.search",
     "view.random_picker",
-    "view.extras",
   ]);
   const holdsMember = (p) => MEMBER.has(p);
   const routesFor = (has, hasFeature) =>
@@ -517,10 +516,12 @@ describe("visibleSections - the guest scope", () => {
   // Quotes and Memes follow the account's switch, which a guest never has.
   const memberFeatures = (f) => f === "quotes_memes";
 
-  it("leaves a guest only the Library tab", () => {
-    expect(visibleSections(NAV_SECTIONS, holdsNothing).map((s) => s.key)).toEqual([
-      "library",
-    ]);
+  it("leaves a guest the Library tab and Explore's Future Releases", () => {
+    // Future Releases reads the catalogue lists, which a guest reads.
+    const sections = visibleSections(NAV_SECTIONS, holdsNothing);
+    expect(sections.map((s) => s.key)).toEqual(["library", "explore"]);
+    const explore = sections.find((s) => s.key === "explore");
+    expect(sectionItems(explore).map((i) => i.label)).toEqual(["Future Releases"]);
   });
 
   it("keeps Groups and the media types, drops the Entities column", () => {
@@ -538,7 +539,6 @@ describe("visibleSections - the guest scope", () => {
 
   it("hides every extra from a guest and shows each to a member", () => {
     const extras = [
-      "/future-releases",
       "/completions",
       "/random",
       "/quote",
@@ -624,14 +624,28 @@ describe("the header's tab grouping", () => {
   });
 
   it("draws no Track, Explore or Extras tab for a viewer holding nothing", () => {
-    // Every row of all three asks self.list, view.extras, manage.catalog or
-    // the quotes_memes switch, so a guest's has() leaves each section empty
+    // Every row of all three asks self.list, a media type, view.random_picker,
+    // manage.catalog, manage.resources or the quotes_memes switch, so a
+    // has() holding nothing leaves each section empty
     // and visibleSections drops the tab. The mirror below, over the same
     // data, proves the rows exist to be dropped.
     const keys = visibleSections(NAV_SECTIONS, () => false).map((s) => s.key);
     expect(keys).not.toContain("track");
     expect(keys).not.toContain("explore");
     expect(keys).not.toContain("extras");
+  });
+
+  it("offers Future Releases to a catalogue reader and not to the admin", () => {
+    // A guest reads the nine ordinary types; the admin holds no media_type.*.
+    const guest = (p) => p === "media_type.anime";
+    const admin = (p) => ["admin.authz", "manage.pipelines", "manage.resources"].includes(p);
+    const routes = (has) =>
+      visibleSections(NAV_SECTIONS, has).flatMap((s) => sectionItems(s).map((i) => i.to));
+    expect(routes(guest)).toContain("/future-releases");
+    expect(routes(admin)).not.toContain("/future-releases");
+    // Completions is the account's own: neither has a list.
+    expect(routes(guest)).not.toContain("/completions");
+    expect(routes((p) => p === "self.list")).toContain("/completions");
   });
 
   it("gives a shared account the Random Picker and no Track", () => {
@@ -645,7 +659,13 @@ describe("the header's tab grouping", () => {
   });
 
   it("shows a member and catalogue editor each tab's rows in order", () => {
-    const held = new Set(["self.list", "view.random_picker", "view.extras", "manage.catalog"]);
+    const held = new Set([
+      "media_type.anime",
+      "self.list",
+      "view.random_picker",
+      "manage.catalog",
+      "manage.resources",
+    ]);
     const sections = visibleSections(NAV_SECTIONS, (p) => held.has(p));
     expect(labelsIn(sections, "track")).toEqual(["Plan", "Completions"]);
     expect(labelsIn(sections, "explore")).toEqual([
@@ -716,8 +736,8 @@ describe("the two permission surfaces agree", () => {
     "/library/person": "view.person",
     "/library/character": "view.character",
     "/library/seiyuu": "view.person",
-    "/future-releases": "view.extras",
-    "/completions": "view.extras",
+    "/future-releases": LIBRARY_MEDIA_TYPE_PERMISSIONS,
+    "/completions": "self.list",
     "/random": "view.random_picker",
     "/resources": "manage.resources",
     "/options": "manage.options",

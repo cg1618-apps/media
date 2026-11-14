@@ -4696,8 +4696,16 @@ line is the design's, not an admin's. The plan-marks read inside the picker
 asks `self.list` rather than "signed in", because a shared account is signed
 in, keeps no plan, and would get a 401.
 
-It lands before `view.extras` goes, not with it. `/resources` still reads on
-`view.extras` until P3h moves it to `manage.resources`, and removing the key
-first would close Resources to everyone in between; so `v1i2ewextras3` grants
-the new key now and gains the `view.extras` removal when P3h is merged in, as
-the one revision this branch ships.
+`view.extras` goes with it. Once Resources answered to `manage.resources`,
+the key gated three pages, and each has a better question of its own: the
+picker this key; Future Releases any ordinary media type, because it reads
+nothing but the catalogue lists (the same test the Library tab asks, so a
+guest has it and the admin, which reads no catalogue, does not); Completions
+`self.list`, because it is built from the viewer's own completions. A key
+naming three unrelated pages was a key nobody could reason about. Future
+Releases reads the open `/api/seasonal/current-season`, not the Control
+Center's `manage.pipelines` route, which every member was refused.
+
+The admin needs no lock code for the new key: its lock is its fixed set and
+every other permission in the catalogue, so a key minted later is locked off
+for it already. A test asserts it.

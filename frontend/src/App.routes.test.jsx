@@ -53,7 +53,7 @@ vi.mock("./pages/admin/Images", () => stub("images"));
 
 import App from "./App";
 
-const MEMBER_KEYS = ["self.list", "view.studio", "view.publisher", "view.person", "view.character", "view.search", "view.random_picker", "view.extras"];
+const MEMBER_KEYS = ["self.list", "view.studio", "view.publisher", "view.person", "view.character", "view.search", "view.random_picker"];
 
 function session(permissions, username, features = []) {
   auth.current = {
@@ -67,7 +67,7 @@ function session(permissions, username, features = []) {
 const asGuest = () => session([], null);
 const asMember = () => session(MEMBER_KEYS, "reader", ["quotes_memes"]);
 // A member whose account does not have the quotes-and-memes switch on: every
-// permission asMember holds, view.extras included.
+// permission asMember holds.
 const asMemberWithoutQuotes = () => session(MEMBER_KEYS, "reader");
 
 async function visit(path) {
@@ -99,7 +99,6 @@ const CLOSED = {
   "/character/1": "character",
   "/identity/1": "identity",
   "/search": "search",
-  "/future-releases": "future releases",
   "/completions": "completions",
   "/random": "random picker",
   "/random/anime": "random picker",
@@ -126,6 +125,23 @@ describe("a member-only route", () => {
       expect(await screen.findByText(`${page} page`)).toBeInTheDocument();
     });
   }
+});
+
+describe("the Future Releases route", () => {
+  // It reads the catalogue lists, so it asks for any ordinary media type - a
+  // guest's nine keys open it, and a session holding none is sent to log in.
+  it("opens for a reader of one ordinary media type", async () => {
+    session(["media_type.anime"], null);
+    await visit("/future-releases");
+    expect(await screen.findByText("future releases page")).toBeInTheDocument();
+  });
+
+  it("sends a session holding no media type to log in", async () => {
+    asGuest();
+    await visit("/future-releases");
+    expect(await screen.findByText("login page")).toBeInTheDocument();
+    expect(screen.queryByText("future releases page")).toBeNull();
+  });
 });
 
 describe("the quotes and memes routes", () => {

@@ -1,8 +1,8 @@
 """
 Per-account feature switches: the four `feature_*` columns on users.
 
-Only `quotes_memes` gates anything - the quote and meme reads - and it does
-so in place of view.extras. Only a `user` or `super` account may hold one.
+Only `quotes_memes` gates anything - the quote and meme reads - and no role
+grant opens them. Only a `user` or `super` account may hold one.
 
 Every refusal is paired with its mirror on the same data, and the quote and
 meme the reads ask for exist (`quote_and_meme`), so a 401 is the gate and not
@@ -103,11 +103,11 @@ def test_the_admin_reads_no_quotes_or_memes(
         assert owner_client.get(url).status_code == 200, url
 
 
-def test_view_extras_opens_neither_resources_nor_quotes(
+def test_a_member_reads_neither_resources_nor_quotes_by_role(
     db_session, user_client, plain_user, quote_and_meme
 ):
-    """Resources moved to manage.resources and quotes and memes to the
-    switch, so a member holding view.extras reads neither. The refusal of
+    """Resources is manage.resources and quotes and memes are the switch, so
+    a member's role grants open neither. The refusal of
     /api/resources against a populated tree, with its mirror, is in
     test_admin_page_permissions.py."""
     _switch(db_session, plain_user, False)

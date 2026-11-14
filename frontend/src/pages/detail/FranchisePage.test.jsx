@@ -176,7 +176,7 @@ describe("FranchisePage for a guest", () => {
   const MEMBER = {
     username: "reader",
     role: "user",
-    permissions: ["view.studio", "view.publisher", "view.person", "view.character", "view.search", "view.extras", "self.list"],
+    permissions: ["view.studio", "view.publisher", "view.person", "view.character", "view.search", "view.random_picker", "self.list"],
   };
   // The member without self.list: every view.* key, the same franchise.
   const READER = { ...MEMBER, permissions: MEMBER.permissions.filter((p) => p !== "self.list") };

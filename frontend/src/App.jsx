@@ -6,6 +6,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { ToastProvider } from "./hooks/useToast";
 import Layout from "./components/layout/Layout";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
+import { LIBRARY_MEDIA_TYPE_PERMISSIONS } from "./config/navigation";
 import { useConstants } from "./config/useConstants";
 
 import Index from "./pages/public/Index";
@@ -263,13 +264,13 @@ export default function App() {
                   <Route path="/random" element={<RandomPicker />} />
                   <Route path="/random/:type" element={<RandomPicker />} />
                 </Route>
-                {/* The extras. Resources is read-only here; its edit controls
-                    ask for manage.catalog themselves. Quotes and Memes are
-                    not extras: they follow the account's quotes_memes feature
-                    switch, below. */}
-                <Route element={<ProtectedRoute permission="view.extras" />}>
+                {/* Future Releases reads the catalogue lists: any viewer that
+                    reads one ordinary media type opens it, the same list
+                    navigation.js asks for its row and the Library tab. */}
+                <Route
+                  element={<ProtectedRoute anyPermission={LIBRARY_MEDIA_TYPE_PERMISSIONS} />}
+                >
                   <Route path="/future-releases" element={<FutureReleases />} />
-                  <Route path="/completions" element={<Completions />} />
                 </Route>
                 {/* The site-wide Resources page is the admin's and super's
                     alone: manage.resources gates /api/resources reads and
@@ -295,6 +296,7 @@ export default function App() {
                     the same question; self.list is the right one, since every
                     control on these pages writes the viewer's own rows. */}
                 <Route element={<ProtectedRoute permission="self.list" />}>
+                  <Route path="/completions" element={<Completions />} />
                   <Route path="/seasonal" element={<SeasonalOverall />} />
                   <Route
                     path="/seasonal/:seasonal_id"

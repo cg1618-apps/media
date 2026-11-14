@@ -38,7 +38,6 @@ const MEMBER_KEYS = new Set([
   "view.character",
   "view.search",
   "view.random_picker",
-  "view.extras",
 ]);
 const auth = {
   isAdmin: false,
@@ -128,7 +127,6 @@ const ADMIN_PERMISSIONS = [
 const USER_PERMISSIONS = [
   ...MEDIA_TYPE_KEYS,
   "view.search",
-  "view.extras",
   "view.personal",
   "self.list",
   "self.personal_notes",
@@ -168,7 +166,7 @@ describe("Nav tabs", () => {
 
   it("marks no tab on routes outside every section", () => {
     renderNav("/");
-    for (const label of ["library", "track", "explore", "extras"]) {
+    for (const label of ["library", "track", "explore"]) {
       expect(tab(label)).not.toHaveAttribute("aria-current");
     }
   });
@@ -192,12 +190,12 @@ describe("Nav panels", () => {
     const user = userEvent.setup();
     renderNav("/");
 
-    await user.click(tab("extras"));
-    expect(tab("extras")).toHaveAttribute("aria-expanded", "true");
+    await user.click(tab("explore"));
+    expect(tab("explore")).toHaveAttribute("aria-expanded", "true");
 
     await user.keyboard("{Escape}");
-    expect(tab("extras")).toHaveAttribute("aria-expanded", "false");
-    expect(tab("extras")).toHaveFocus();
+    expect(tab("explore")).toHaveAttribute("aria-expanded", "false");
+    expect(tab("explore")).toHaveFocus();
   });
 
   it("groups Collection and Franchise away from ACG and Reality", async () => {
@@ -325,7 +323,9 @@ describe("Nav admin gating", () => {
     const user = userEvent.setup();
     renderNav("/");
 
-    for (const label of ["library", "track", "explore", "extras"]) {
+    // The member holds no quotes_memes switch and no manage.resources, so
+    // Extras has nothing for it and is not drawn.
+    for (const label of ["library", "track", "explore"]) {
       await user.click(tab(label));
       expect(
         screen.queryByRole("link", { name: /watch orders/i }),
@@ -622,17 +622,21 @@ describe("Nav - what a guest is shown", () => {
     expect(screen.getByRole("button", { name: /^search$/i })).toBeInTheDocument();
   });
 
-  it("leaves a guest the Library tab alone: no Track, Explore or Extras", () => {
+  it("leaves a guest Library and Explore: no Track or Extras", () => {
+    // Explore holds Future Releases, which reads the catalogue lists a guest
+    // reads; everything else there and in Track and Extras is a member's.
     guest();
     renderNav("/");
     expect(tab("library")).toBeInTheDocument();
+    expect(tab("^explore$")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^track$/i })).toBeNull();
-    expect(screen.queryByRole("button", { name: /^explore$/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /^extras$/i })).toBeNull();
   });
 
   it("draws Track, Explore and Extras for a member", () => {
-    // The mirror of the guest case: the same render with the member keys.
+    // The mirror of the guest case: the same render with the member keys,
+    // and the quotes_memes switch that draws Extras for a member.
+    auth.features = ["quotes_memes"];
     renderNav("/");
     expect(tab("^track$")).toBeInTheDocument();
     expect(tab("^explore$")).toBeInTheDocument();
@@ -704,7 +708,7 @@ describe("Nav - the admin, who is not root", () => {
     expect(screen.queryByRole("button", { name: /^search$/i })).toBeNull();
     // Its own tabs are drawn, so the header is not simply empty.
     expect(tab("admin")).toBeInTheDocument();
-    expect(tab("pipelines")).toBeInTheDocument();
+    expect(tab("system")).toBeInTheDocument();
   });
 
   it("offers the admin the Back up button, a pipeline", () => {
@@ -721,7 +725,7 @@ describe("Nav - the admin, who is not root", () => {
     expect(tab("library")).toBeInTheDocument();
     expect(tab("track")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^note$/i })).toBeNull();
-    for (const label of ["library", "track", "insights"]) {
+    for (const label of ["library", "track", "explore"]) {
       await user.click(tab(label));
       for (const name of NOTE_ROWS) {
         expect(screen.queryByRole("link", { name })).toBeNull();
@@ -734,12 +738,13 @@ describe("Nav - the admin, who is not root", () => {
 describe("Nav - the Resources link", () => {
   it("is not offered to a user", async () => {
     auth.held = [...USER_PERMISSIONS];
+    auth.features = ["quotes_memes"];
     auth.username = "bob";
     const user = userEvent.setup();
     renderNav("/");
-    // Insights is drawn (Statistics), so the missing row is its own gate's.
-    await user.click(tab("insights"));
-    expect(screen.getByRole("link", { name: /statistics/i })).toBeInTheDocument();
+    // Extras is drawn (Quotes), so the missing row is its own gate's.
+    await user.click(tab("extras"));
+    expect(screen.getByRole("link", { name: /quotes/i })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^resources$/i })).toBeNull();
   });
 
@@ -751,7 +756,7 @@ describe("Nav - the Resources link", () => {
     auth.role = "super";
     const user = userEvent.setup();
     renderNav("/");
-    await user.click(tab("insights"));
+    await user.click(tab("extras"));
     expect(screen.getByRole("link", { name: /^resources$/i })).toHaveAttribute(
       "href",
       "/resources",

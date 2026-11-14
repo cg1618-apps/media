@@ -77,7 +77,6 @@ nothing short-circuits `Viewer.has()`.
 | `view.studio`, `view.publisher`, `view.person`, `view.character` | — (free choice) | — (free choice) | — (free choice) | **locked on** | **locked off** |
 | `view.search` | — (free choice) | — (free choice) | yes | **locked on** | **locked off** |
 | `view.random_picker` | **locked off** | **locked on** | **locked on** | **locked on** | **locked off** |
-| `view.extras` | — (free choice) | **locked off** | yes | **locked on** | **locked off** |
 | `self.list` | **locked off** | **locked off** | yes | **locked on** | **locked off** |
 | `self.personal_notes` | **locked off** | **locked off** | yes | **locked on** | **locked off** |
 | `self.requests` | **locked off** | **locked on** | **locked on** | **locked on** | **locked off** |
@@ -146,7 +145,7 @@ never hold. A permission in neither set is a free choice.
 | `admin` | `admin.authz`, `manage.pipelines`, `manage.requests`, `manage.announcements`, `manage.options`, `manage.images`, `manage.resources` (`ADMIN_FIXED_PERMISSIONS`) | everything else | nothing |
 | `super` | everything except `admin.authz` | `admin.authz` | nothing |
 | `guest` | — | `admin.*`, `manage.*`, `self.*`, the three gated `media_type.*`, `view.random_picker` | the nine ordinary `media_type.*`, the other `view.*` |
-| `shared` | `self.requests`, `view.random_picker` | `admin.*`, `manage.*`, `self.list`, `self.personal_notes`, `self.password`, `view.extras`, the three gated `media_type.*` | the nine ordinary `media_type.*`, `view.studio`, `view.publisher`, `view.person`, `view.character`, `view.search` |
+| `shared` | `self.requests`, `view.random_picker` | `admin.*`, `manage.*`, `self.list`, `self.personal_notes`, `self.password`, the three gated `media_type.*` | the nine ordinary `media_type.*`, `view.studio`, `view.publisher`, `view.person`, `view.character`, `view.search` |
 | `user` | `self.requests`, `self.password`, `view.random_picker`, the three gated `media_type.*` | `admin.authz`, `manage.catalog`, `manage.pipelines`, `manage.requests`, `manage.announcements`, `manage.options`, `manage.images`, `manage.resources` | `self.list`, `self.personal_notes`, the nine ordinary `media_type.*`, `view.*` |
 | any other name | — | everything | nothing |
 
@@ -180,9 +179,9 @@ never hold. A permission in neither set is a free choice.
   would be everyone's — and it cannot change its own password, because one
   person changing it would lock out everyone else using the login; the admin
   sets it on `/users`. It holds the Random Picker (`view.random_picker`,
-  locked on). `view.extras` is locked off: it opens completions, which are
-  not a shared account's, and future releases, which a shared account is to
-  get in a version of its own. Quotes and memes are not a permission at all but a
+  locked on) and reads Future Releases, which asks only a catalogue read;
+  Completions is built from an account's own list, which it has none of.
+  Quotes and memes are not a permission at all but a
   per-account switch, which a shared account can never hold ([Per-account
   feature switches](#per-account-feature-switches)).
 - **The gated types follow the kind of viewer, not the admin's taste.** A
@@ -303,7 +302,8 @@ The matrix above is the grants; this is what holding one means.
 | open the pages of one entity kind, and follow the links to them: studios (`view.studio`), publishers (`view.publisher`), people and the seiyuu library (`view.person`), characters and their identities (`view.character`) | — (seeded off) | — (seeded off) | — (seeded off) | yes | **never** |
 | search (`view.search`) | — | — | yes | yes | **never** |
 | open the Random Picker and read its saved defaults (`view.random_picker`) | **never** | **always** | **always** | **always** | **never** |
-| read future releases, completions (`view.extras`) | — | **never** | yes | yes | **never** |
+| read Future Releases (any ordinary `media_type.*`) | yes | yes | yes | yes | **never** |
+| read Completions (`self.list`) | — | **never** | yes | yes | **never** |
 | read and edit the site-wide Resources page (`manage.resources`) | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **always** |
 | read quotes and memes, and the Quotes and Memes sections of a detail page (the account's `quotes_memes` switch) | — | **never** | per account | per account | **never** |
 | switch their own access mode | — (no account) | **never** — its mode is fixed (409) | yes | yes | **never** — it has no mode |
@@ -461,14 +461,13 @@ The `view` family, as the role editor labels it (`VIEW_PERMISSION_LABELS`):
 | `view.character` | View Characters | every read on `/api/character` and `/api/character-identity`. In the SPA: the character library, character and identity pages, character and identity names rendered as links, and the Characters tab on franchise and series pages |
 | `view.search` | Search | `GET /api/search/`. In the SPA: the nav search and `/search` |
 | `view.random_picker` | Random Picker | `GET /api/random-picker-defaults/{mode}`. In the SPA: every `/random` route and the Random Picker nav row. Locked per role: on for `super`, `user` and `shared`, off for `guest` and `admin` - no other key draws that line |
-| `view.extras` | View Extras | no route of its own: future releases and completions read the catalogue lists. In the SPA: those two pages. Not the Resources page, which is `manage.resources`. Quotes and memes are not here: they follow the account's `quotes_memes` switch ([Per-account feature switches](#per-account-feature-switches)) |
 
 Each read route depends on `require_view_studio`, `require_view_publisher`,
 `require_view_person`, `require_view_character`, `require_view_search`,
-`require_view_random_picker` or `require_view_extras` (`resolver.py`) **per route, not on the router**, so a write on the same router answers to
+or `require_view_random_picker` (`resolver.py`) **per route, not on the router**, so a write on the same router answers to
 `manage.catalog` alone and a role holding that is not also required to hold
 the read.
-The seven keys are independent:
+The six keys are independent:
 a role may hold any subset the locks allow. The four entity keys are `ENTITY_VIEW_KEYS`, one
 per kind, so an admin can open the people pages and keep the character pages
 closed, say.
@@ -510,7 +509,7 @@ creates, renames or deletes a role:
 |---|---|---|
 | `guest` | 0 | `default_guest_permissions()` — the nine ordinary media types, and nothing else. Field groups are the mode axis, not this one |
 | `shared` | 25 | `default_shared_permissions()` — guest's set plus `self.requests` and `view.random_picker` |
-| `user` | 50 | `default_user_permissions()` — guest's set plus the three gated types, `view.search`, `view.random_picker`, `view.extras`, and `self.list`, `self.personal_notes`, `self.requests` and `self.password`. Not the four entity keys, which start off |
+| `user` | 50 | `default_user_permissions()` — guest's set plus the three gated types, `view.search`, `view.random_picker`, and `self.list`, `self.personal_notes`, `self.requests` and `self.password`. Not the four entity keys, which start off |
 | `super` | 75 | `default_user_permissions()` plus the four entity keys, `manage.catalog`, `manage.pipelines` and `manage.requests`, and the four admin-page keys by lock on the first boot — every catalogue capability, deliberately **not** `admin.authz` |
 | `admin` | 100 | `ADMIN_FIXED_PERMISSIONS`, by lock: `admin.authz`, `manage.pipelines`, `manage.requests`, `manage.announcements`, `manage.options`, `manage.images`, `manage.resources`, and nothing else |
 
@@ -768,7 +767,7 @@ API refuses to let an admin do to one.
 | Role | Rules |
 |---|---|
 | `guest` | Has no user rows; every anonymous or unresolvable request becomes this role. Can hold the nine ordinary `media_type.*` and `view.*` but `view.random_picker`, and nothing else — the whole of `admin.*`, `manage.*` and `self.*`, the three gated types and `view.random_picker` are locked off → **409** ([Locked grants](#locked-grants)), because that would hand any anonymous caller the ability to administer, write the catalogue, run a pipeline, or keep a list every visitor shares. Cannot be deleted or renamed. |
-| `shared` | Held by the two shared accounts only. Files requests and reads; `admin.*`, `manage.*`, `self.list`, `self.personal_notes`, `self.password`, `view.extras` and the three gated types are locked off → **409**, `self.requests` and `view.random_picker` locked on. Its free cells are the nine ordinary `media_type.*` and the other five `view.*`. Cannot be deleted or renamed. |
+| `shared` | Held by the two shared accounts only. Files requests and reads; `admin.*`, `manage.*`, `self.list`, `self.personal_notes`, `self.password` and the three gated types are locked off → **409**, `self.requests` and `view.random_picker` locked on. Its free cells are the nine ordinary `media_type.*` and the other five `view.*`. Cannot be deleted or renamed. |
 | `user` | Cannot be deleted or renamed. Its free grants *can* be edited, and `view.*` plus `self.list` / `self.personal_notes` are the free cells separating it from `guest`. The three gated types are locked on, and `manage.catalog` and the four admin-page keys locked off → **409**. |
 | `super` | Its grants are ordinary rows, but every one except `admin.authz` is locked on, so there is nothing on it to edit. Cannot be deleted or renamed. |
 | `admin` | Holds exactly `ADMIN_FIXED_PERMISSIONS` as ordinary rows, and every cell of its row is locked — the seven on, the rest off — so a `PUT /permissions` that changes anything on it → **409**. A permission or a media type added later does not reach it. It keeps no list, plan queue, season ratings, game copies or personal notes, and reads no catalogue. Cannot be deleted or renamed. |
@@ -2030,8 +2029,10 @@ matters is enforced server-side.
 | `tests/api/test_guest_has_no_list.py` | a guest reads no status, rating or progress; the personal-column filter matches nothing rather than cross-joining; `installation_owner_id` answers the flag holder over every fallback, and a member over the admin |
 | `tests/api/test_viewer_user_id.py` | `Viewer.user_id`, and that `acting_user_id` does **not** fall back |
 | `tests/api/test_view_permissions.py` | the `view` family: the six keys in the catalog with labels, `view.personal` in neither the catalog nor any seeded role, offered by the role editor, the seed defaults, `super` holding all six by lock with the entity keys free below it; every gated read refused to a guest and read by a holder against populated rows, a seeded member reading no entity page, and each key opening exactly its own reads; entity writes still need `manage.catalog` and do not need the read; group, entity and novel-unit ratings, expectations and remarks the viewer's own - null for a guest and for another viewer, the member's own through list, detail and search, and a catalogue manager's own rather than the member's |
+| `tests/api/test_view_random_picker.py` | `view.random_picker`: in the catalog with a label; locked on for `super`, `user` and `shared` and off for `guest` and `admin` (the admin's by its fixed set, asserted rather than coded); the seed defaults following the locks; saving `guest` with it or `shared` without it 409; the picker-defaults read 401 for a guest against saved defaults and read by `shared` and `user`; `view.extras` gone from the catalog |
+| `tests/api/test_view_random_picker_migration.py` | `v1i2ewextras3` run by its own functions: the three holders granted and guest and admin not, every `view.extras` row deleted (one present, so the deletion bites), idempotent, and the downgrade restoring `view.extras` on `user` and `super` only |
 | `tests/api/test_view_permissions_migration.py` | revision `v1i2ewperms34`, run from its own file: it grants the keys of its day to an established `user` role and nothing to `guest`, is idempotent, and its downgrade takes them off every role |
-| `tests/api/test_account_features.py` | the feature switches: quotes and memes refused to a member without the switch and read with it, against a populated quote and meme; refused to a guest; the admin reading neither; `view.extras` opening neither resources nor quotes; `/me`'s `features` for a member, a guest and the admin (none); switching one on for a shared or the admin account 409 with the user and super mirrors; switching off always allowed; a stored switch on a shared account opening nothing |
+| `tests/api/test_account_features.py` | the feature switches: quotes and memes refused to a member without the switch and read with it, against a populated quote and meme; refused to a guest; the admin reading neither; a member's role grants opening neither resources nor quotes; `/me`'s `features` for a member, a guest and the admin (none); switching one on for a shared or the admin account 409 with the user and super mirrors; switching off always allowed; a stored switch on a shared account opening nothing |
 | `tests/api/test_switches_migration.py` | revision `s1w2itches345` on a scratch database: the four columns with `cg1618` switched on, the entity key carried onto all four kinds, the gated types reconciled, missing ordinary types granted, and the downgrade folding the four back |
 | `tests/api/test_note_scope_reads.py`, `test_note_scope_writes.py` | personal note sections filter by author; catalogue sections do not; who may write which |
 | `tests/api/test_private_user_data.py` | there is no profile or community route and no settings write; an `author` parameter is ignored and a viewer reads only their own personal notes, against a second account's note on the same entry; `sources_restricted` is the only field group, and a viewer holding none still gets the `other` sources while losing the `restricted` ones; an older Users tab carrying `list_is_public` Pulls cleanly |

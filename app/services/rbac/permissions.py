@@ -185,7 +185,6 @@ ENTITY_VIEW_KEYS: tuple[str, ...] = ("studio", "publisher", "person", "character
 VIEW_PERMISSION_KEYS: tuple[str, ...] = ENTITY_VIEW_KEYS + (
     "search",
     "random_picker",
-    "extras",
 )
 
 VIEW_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
@@ -221,11 +220,6 @@ VIEW_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
         "Open the Random Picker and read its saved defaults. Fixed per role: "
         "super, user and shared hold it, a guest never does.",
     ),
-    "extras": (
-        "View Extras",
-        "Future releases and completions. Quotes and memes are a per-account "
-        "switch on Users instead.",
-    ),
 }
 
 
@@ -260,7 +254,6 @@ ENTITY_VIEW_PERMISSIONS: frozenset[str] = frozenset(
 )
 PERM_VIEW_SEARCH = view_perm("search")
 PERM_VIEW_RANDOM_PICKER = view_perm("random_picker")
-PERM_VIEW_EXTRAS = view_perm("extras")
 
 
 def split_perm(permission: str) -> tuple[str, str]:
@@ -429,14 +422,12 @@ def locked_permissions(role_name: str) -> tuple[frozenset[str], frozenset[str]]:
         # would be everyone's. Its password is the admin's to set - one person
         # changing it would lock out everyone else using the login. It holds
         # the Random Picker, in its catalogue-only version (viewers.md,
-        # "Shared"). view.extras stays off until it goes. Quotes and memes are
-        # a per-account switch, which a shared account can never hold
-        # (features.FEATURE_ROLE_NAMES).
+        # "Shared"). Quotes and memes are a per-account switch, which a shared
+        # account can never hold (features.FEATURE_ROLE_NAMES).
         return frozenset({PERM_SELF_REQUESTS, PERM_VIEW_RANDOM_PICKER}), frozenset(
             {admin_perm(key) for key in ADMIN_PERMISSION_KEYS}
             | {manage_perm(key) for key in MANAGE_PERMISSION_KEYS}
             | {PERM_SELF_LIST, PERM_SELF_PERSONAL_NOTES, PERM_SELF_PASSWORD}
-            | {PERM_VIEW_EXTRAS}
             | gated
         )
     # A name outside ROLE_NAMES cannot exist after migration f1i2veroles45.

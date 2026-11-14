@@ -16,10 +16,11 @@ from app import models
 from app.services.rbac.gated_types import gated_types
 from app.services.rbac.permissions import (
     PERM_MANAGE_CATALOG,
+    PERM_SELF_LIST,
     PERM_SELF_PASSWORD,
     PERM_SELF_REQUESTS,
-    PERM_VIEW_EXTRAS,
     PERM_VIEW_PERSON,
+    PERM_VIEW_SEARCH,
     ROLE_NAMES,
     SHARED_ROLE_NAME,
     SUPER_ROLE_NAME,
@@ -110,7 +111,7 @@ def test_shared_must_hold_requests(admin_client):
 
 
 @pytest.mark.parametrize(
-    "permission", [PERM_VIEW_EXTRAS, PERM_MANAGE_CATALOG, PERM_SELF_PASSWORD]
+    "permission", [PERM_SELF_LIST, PERM_MANAGE_CATALOG, PERM_SELF_PASSWORD]
 )
 def test_shared_can_never_hold(admin_client, permission):
     shared = _role(admin_client, SHARED_ROLE_NAME)
@@ -301,7 +302,7 @@ def test_boot_strips_a_stray_role_of_everything(db_session):
     db_session.add(stray)
     db_session.flush()
     db_session.add(
-        models.RolePermission(role_id=stray.system_id, permission=PERM_VIEW_EXTRAS)
+        models.RolePermission(role_id=stray.system_id, permission=PERM_VIEW_SEARCH)
     )
     db_session.flush()
 

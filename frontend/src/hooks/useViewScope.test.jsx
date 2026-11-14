@@ -18,10 +18,10 @@ describe("useViewScope", () => {
   });
 
   it("ownData is false without self.list, even holding every view.* key", () => {
-    held = ["view.studio", "view.publisher", "view.person", "view.character", "view.search", "view.extras"];
+    held = ["view.studio", "view.publisher", "view.person", "view.character", "view.search", "view.random_picker"];
     const { result } = renderHook(() => useViewScope());
     expect(result.current.ownData).toBe(false);
-    expect(result.current.extras).toBe(true);
+    expect(result.current.randomPicker).toBe(true);
   });
 
   it("has no personal key: a personal note section is served to every viewer", () => {
