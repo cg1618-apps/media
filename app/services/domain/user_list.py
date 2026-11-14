@@ -173,7 +173,8 @@ def installation_owner_id(db: Session) -> Optional[UUID]:
     The answer is DATA: `users.is_installation_owner`, a partial-unique flag
     so at most one account holds it. Its holder is the owner whatever its
     status - the flag is a deliberate choice, and a disabled owner's rows are
-    still theirs.
+    still theirs - unless its role is `admin`: no admin account is ever the
+    owner, and an admin flag holder is passed over for the fallback.
 
     With nobody holding the flag - a fresh install, or a restore from a sheet
     backed up before the column existed - the owner is the first `active`
@@ -190,9 +191,18 @@ def installation_owner_id(db: Session) -> Optional[UUID]:
     Nothing on a request path may call this. If a route needs to know who is
     asking, the answer is acting_user_id() and it is allowed to be None.
     """
+    # An admin-role flag holder is passed over: no admin account may be the
+    # owner. Pull and boot never leave the flag on one (pull.py's Users tab,
+    # seed.ensure_no_admin_installation_owner), so this only matters for a
+    # hand-edited database - whose rows then go to the fallback below rather
+    # than to an account that keeps no personal data.
     owner = (
         db.query(models.User)
-        .filter(models.User.is_installation_owner)
+        .join(models.Role, models.User.role_id == models.Role.system_id)
+        .filter(
+            models.User.is_installation_owner,
+            models.Role.name != ADMIN_ROLE_NAME,
+        )
         .first()
     )
     if owner is not None:
