@@ -28,8 +28,10 @@ construction**: what a mode shows is derived in code from its place in the
 mode order and stored nowhere, so there is nowhere `manage.catalog` could be
 put on a mode, and no
 helper exists that would let code ask the role axis an object question. That
-is what lets the owner's own admin account sit in a narrow mode and actually
-be narrowed.
+is what lets the owner's own account sit in a narrow mode and actually be
+narrowed. **No role is exempt from either axis**: `Viewer.has()` is a set
+membership test for every role, the admin's included, and the object axis
+narrows every viewer.
 
 Entries and the three grouping tiers — collections, franchises and series —
 are hidden with **content labels** (`nsfw`, `ecchi`,
@@ -64,33 +66,33 @@ The mode matrix is not a seed. It is code, and every database shows the same.
 
 Columns are the five roles, and there are exactly five: `ROLE_NAMES` in
 `permissions.py`. No route creates or deletes a role; an admin edits a role's
-label, description, sort order and free grants, and nothing else. `admin` is
-`is_root`, so it holds no explicit grants at all; *implicit* means
-`Viewer.has()` short-circuits to true, including for permissions that do not
-exist yet.
+label, description, sort order and free grants, and nothing else. Every
+role, `admin` included, holds exactly its grant rows: no role is root, and
+nothing short-circuits `Viewer.has()`.
 
 | Permission | `guest` | `shared` | `user` | `super` | `admin` |
 |---|---|---|---|---|---|
-| `media_type.anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, `game` (the nine ordinary types) | yes (as seeded) | yes (as seeded) | yes (as seeded) | **locked on** | implicit |
-| `media_type.h-comic`, `h-game`, `hentai` (the three gated types) | **locked off** | **locked off** | **locked on** | **locked on** | implicit |
-| `view.studio`, `view.publisher`, `view.person`, `view.character` | — (free choice) | — (free choice) | — (free choice) | **locked on** | implicit |
-| `view.search` | — (free choice) | — (free choice) | yes | **locked on** | implicit |
-| `view.extras` | — (free choice) | **locked off** | yes | **locked on** | implicit |
-| `self.list` | **locked off** | **locked off** | yes | **locked on** | **never implicit** |
-| `self.personal_notes` | **locked off** | **locked off** | yes | **locked on** | **never implicit** |
-| `self.requests` | **locked off** | **locked on** | **locked on** | **locked on** | **never implicit** |
-| `self.password` | **locked off** | **locked off** | **locked on** | **locked on** | **never implicit** |
-| `manage.catalog` | **locked off** | **locked off** | **locked off** | **locked on** | implicit |
-| `manage.pipelines` | **locked off** | **locked off** | **locked off** | **locked on** | implicit |
-| `manage.requests` | **locked off** | **locked off** | **locked off** | **locked on** | implicit |
-| `admin.authz` | **locked off** | **locked off** | **locked off** | **locked off** | implicit |
+| `media_type.anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, `game` (the nine ordinary types) | yes (as seeded) | yes (as seeded) | yes (as seeded) | **locked on** | **locked off** |
+| `media_type.h-comic`, `h-game`, `hentai` (the three gated types) | **locked off** | **locked off** | **locked on** | **locked on** | **locked off** |
+| `view.studio`, `view.publisher`, `view.person`, `view.character` | — (free choice) | — (free choice) | — (free choice) | **locked on** | **locked off** |
+| `view.search` | — (free choice) | — (free choice) | yes | **locked on** | **locked off** |
+| `view.extras` | — (free choice) | **locked off** | yes | **locked on** | **locked off** |
+| `self.list` | **locked off** | **locked off** | yes | **locked on** | **locked off** |
+| `self.personal_notes` | **locked off** | **locked off** | yes | **locked on** | **locked off** |
+| `self.requests` | **locked off** | **locked on** | **locked on** | **locked on** | **locked off** |
+| `self.password` | **locked off** | **locked off** | **locked on** | **locked on** | **locked off** |
+| `manage.catalog` | **locked off** | **locked off** | **locked off** | **locked on** | **locked off** |
+| `manage.pipelines` | **locked off** | **locked off** | **locked off** | **locked on** | **locked on** |
+| `manage.requests` | **locked off** | **locked off** | **locked off** | **locked on** | **locked on** |
+| `manage.announcements`, `manage.options`, `manage.images`, `manage.resources` (the admin's pages) | **locked off** | **locked off** | **locked off** | **locked on** | **locked on** |
+| `admin.authz` | **locked off** | **locked off** | **locked off** | **locked off** | **locked on** |
 
 - **"As seeded" is what a fresh database gets.** The seed derives the
   ordinary `media_type.*` grants from `MEDIA_TYPE_KEYS` minus the gated
   types, but it tops up only a role holding nothing, so on an established
   database an ordinary media type added later reaches `super` (locked on) and
-  `admin` (implicit) and not `guest`, `shared` or `user` until an admin
-  grants it.
+  not `guest`, `shared` or `user` until an admin grants it. It never reaches
+  `admin`, whose row is fixed.
 - **The gated types are locked, not chosen**: on for `user` and `super`, off
   for `guest` and `shared`, reconciled on every boot. Holding one shows
   nothing outside `unrestricted` — the type's label is what hides it from a
@@ -99,16 +101,25 @@ exist yet.
   an anonymous visitor or a shared login never.
 - **The four entity keys start off for every role but `super`.** A fresh
   database seeds `guest`, `shared` and `user` without them, so entity names
-  render as plain text for everyone but `super` and `admin` until an admin
-  ticks a kind on, per role, on `/roles`.
+  render as plain text for everyone but `super` until an admin ticks a kind
+  on, per role, on `/roles`.
 - **Locked means that cell is not an admin choice** — see
   [Locked grants](#locked-grants) below. Saving a locked-off grant answers
   **409**, and so does a save that drops a locked-on one.
-- **`admin` never holds `self.*`, implicitly or otherwise**, so an
-  administrative account keeps no list, plan queue, season ratings, game
-  copies or personal notes, and files no requests - it handles them, through
-  `manage.requests`. An explicit grant still wins. See
+- **`admin` holds exactly seven permissions, and nothing on its row is a
+  choice** (`ADMIN_FIXED_PERMISSIONS` in `permissions.py`): `admin.authz`,
+  `manage.pipelines`, `manage.requests` and the four admin-page keys. Every
+  other cell — `manage.catalog`, every `media_type.*`, every `view.*`, every
+  `self.*` — is locked off. So the admin account reads and writes no
+  catalogue, keeps no list, plan queue, season ratings, game copies or
+  personal notes, and files no requests — it handles them, through
+  `manage.requests`. A permission or a media type added later reaches it
+  only by a change to that set. See
   [The admin account holds no user data](#the-admin-account-holds-no-user-data).
+- **The four admin-page keys** — `manage.announcements`, `manage.options`,
+  `manage.images`, `manage.resources` — gate the admin's own pages apart
+  from `manage.catalog`, so that reaching them writes no catalogue row.
+  `super` holds all four by lock; `user`, `guest` and `shared` never do.
 - **`shared`, `user` and `super` are derived, not restated**:
   `default_shared_permissions()` and `default_user_permissions()` build on
   `default_guest_permissions()`, and `default_super_permissions()` on the
@@ -125,28 +136,31 @@ exist yet.
 #### Locked grants
 
 Some cells of the role grid are not an administrator's to decide.
-`permissions.locked_permissions(role_name, is_root)` returns
+`permissions.locked_permissions(role_name)` returns
 `(locked_on, locked_off)` for one role: what it must hold and what it may
 never hold. A permission in neither set is a free choice.
 
 | Role | Locked ON | Locked OFF | Left to decide |
 |---|---|---|---|
-| `admin` (any root role) | everything except `self.*` | `self.*` | nothing |
+| `admin` | `admin.authz`, `manage.pipelines`, `manage.requests`, `manage.announcements`, `manage.options`, `manage.images`, `manage.resources` (`ADMIN_FIXED_PERMISSIONS`) | everything else | nothing |
 | `super` | everything except `admin.authz` | `admin.authz` | nothing |
 | `guest` | — | `admin.*`, `manage.*`, `self.*`, the three gated `media_type.*` | the nine ordinary `media_type.*`, `view.*` |
 | `shared` | `self.requests` | `admin.*`, `manage.*`, `self.list`, `self.personal_notes`, `self.password`, `view.extras`, the three gated `media_type.*` | the nine ordinary `media_type.*`, `view.studio`, `view.publisher`, `view.person`, `view.character`, `view.search` |
-| `user` | `self.requests`, `self.password`, the three gated `media_type.*` | `admin.authz`, `manage.catalog`, `manage.pipelines`, `manage.requests` | `self.list`, `self.personal_notes`, the nine ordinary `media_type.*`, `view.*` |
+| `user` | `self.requests`, `self.password`, the three gated `media_type.*` | `admin.authz`, `manage.catalog`, `manage.pipelines`, `manage.requests`, `manage.announcements`, `manage.options`, `manage.images`, `manage.resources` | `self.list`, `self.personal_notes`, the nine ordinary `media_type.*`, `view.*` |
 | any other name | — | everything | nothing |
 
-- **`admin.authz` is grantable to nothing.** The root short-circuit is
-  the only way to hold it: handing out the permission to change who may do
-  what, through the very page that governs it, is how an installation loses
-  control of itself.
-- **A root role's `self.*` is locked OFF, not on.** `Viewer.has()` does not
-  short-circuit that family (`resolver.py`), so an administrative account
-  genuinely keeps no list and no personal notes — a ticked box there would
-  state the opposite of what the resolver does. It is the one cell where the
-  admin column is not uniform.
+- **`admin.authz` is grantable to nothing.** Only the `admin` role holds
+  it, locked on, and that role's row is fixed: handing out the permission to
+  change who may do what, through the very page that governs it, is how an
+  installation loses control of itself.
+- **The `admin` row has no free cell.** Its two sets cover the whole
+  vocabulary, so the editor draws every box on it disabled, a `PUT` that
+  changes anything on it answers **409**, and the boot reconciliation tops
+  it up to its seven grants and drops any other. It stores them as grant
+  rows, like every role.
+- **`user` never holds the admin's pages.** `manage.announcements`,
+  `manage.options`, `manage.images` and `manage.resources` are locked off,
+  so a member does not read `/resources`.
 - **`guest` can only view.** Every anonymous request resolves to it, so a
   `self.*` grant would hand one shared list to the whole internet, and any
   `manage.*` grant would hand an anonymous visitor the collection.
@@ -164,11 +178,11 @@ never hold. A permission in neither set is a free choice.
   in to one shared account, so it keeps no list and no personal notes — they
   would be everyone's — and it cannot change its own password, because one
   person changing it would lock out everyone else using the login; the admin
-  sets it on `/users`. `view.extras` is locked off: it opens resources and
-  completions, which are not a shared account's, along with the random picker
-  and future releases, which a shared account is to get in a version of its
-  own; until that split is made a shared account reads what a guest reads,
-  plus requests. Quotes and memes are not a permission at all but a
+  sets it on `/users`. `view.extras` is locked off: it opens completions,
+  which are not a shared account's, along with the random picker and future
+  releases, which a shared account is to get in a version of its own; until
+  that split is made a shared account reads what a guest reads, plus
+  requests. Quotes and memes are not a permission at all but a
   per-account switch, which a shared account can never hold ([Per-account
   feature switches](#per-account-feature-switches)).
 - **The gated types follow the kind of viewer, not the admin's taste.** A
@@ -273,23 +287,25 @@ content labels and field groups and nothing else, so there is nowhere
   is **no mode**: the account resolves the empty set.
 
 **Effective access is the two read together.** `super` in `safe` can write the
-catalogue but cannot see a labelled entry to write it; `admin` in `safe` is
-narrowed the same way, which is the whole reason the axes are separate.
+catalogue but cannot see a labelled entry to write it, which is the whole
+reason the axes are separate. The admin account has **no mode** — ceiling and
+default both NULL, re-asserted on every boot by
+`seed.ensure_admin_accounts_modeless` — so it resolves the empty object set,
+and even a route that forgot a permission check shows it no catalogue row.
 
 ### What each role can DO
 
-The matrix above is the grants; this is what holding one means. `implicit` is
-the root short-circuit; `never` is the `self` family, which that
-short-circuit deliberately does not cover.
+The matrix above is the grants; this is what holding one means.
 
 | A viewer may… | `guest` | `shared` | `user` | `super` | `admin` |
 |---|---|---|---|---|---|
-| browse entries of a type — the library lists and detail pages, collection, franchise, series and watch-order pages | yes | yes | yes | yes | implicit |
-| open the pages of one entity kind, and follow the links to them: studios (`view.studio`), publishers (`view.publisher`), people and the seiyuu library (`view.person`), characters and their identities (`view.character`) | — (seeded off) | — (seeded off) | — (seeded off) | yes | implicit |
-| search (`view.search`) | — | — | yes | yes | implicit |
-| read resources, the random picker, future releases, completions (`view.extras`) | — | **never** | yes | yes | implicit |
-| read quotes and memes, and the Quotes and Memes sections of a detail page (the account's `quotes_memes` switch) | — | **never** | per account | per account | **always**, without the switch |
-| switch their own access mode | — (no account) | **never** — its mode is fixed (409) | yes | yes | yes |
+| browse entries of a type — the library lists and detail pages, collection, franchise, series and watch-order pages | yes | yes | yes | yes | **never** |
+| open the pages of one entity kind, and follow the links to them: studios (`view.studio`), publishers (`view.publisher`), people and the seiyuu library (`view.person`), characters and their identities (`view.character`) | — (seeded off) | — (seeded off) | — (seeded off) | yes | **never** |
+| search (`view.search`) | — | — | yes | yes | **never** |
+| read the random picker, future releases, completions (`view.extras`) | — | **never** | yes | yes | **never** |
+| read and edit the site-wide Resources page (`manage.resources`) | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **always** |
+| read quotes and memes, and the Quotes and Memes sections of a detail page (the account's `quotes_memes` switch) | — | **never** | per account | per account | **never** |
+| switch their own access mode | — (no account) | **never** — its mode is fixed (409) | yes | yes | **never** — it has no mode |
 | keep a list row — status, rating, progress | — | **never** | yes | yes | **never** |
 | keep a plan queue | — | **never** | yes | yes | **never** |
 | write their own highlights and other personal notes, their own highlight group order on an h-comic or h-game, and their own values on catalogue note rows - collected, beaten, completion, my value, the NG reset (`self.personal_notes`) | — | **never** | yes | yes | **never** |
@@ -299,15 +315,18 @@ short-circuit deliberately does not cover.
 | change their own password (`self.password`) — the admin sets its own, and a shared account's, on `/users` | — | **never** | **always** | **always** | **never** |
 | write a personal note — a review or a remark | — | **never** | yes | yes | **never** |
 | file a request or report, and read and edit their own (`self.requests`) | — | **always** | **always** | **always** | **never** |
-| handle requests — the inbox: mark done or declined, reopen, delete (`manage.requests`) | **409 if granted** | **409 if granted** | **409 if granted** | **always** | implicit |
-| write the catalogue — entries, groups, people, credits, options, relations, watch orders, quotes, memes, catalogue notes, the Resources page | **409 if granted** | **409 if granted** | **409 if granted** | **always** | implicit |
-| run a pipeline — Backup, Pull, Fill, Replace, Calculate | **409 if granted** | **409 if granted** | **409 if granted** | **always** | implicit |
-| restore accounts, content labels and label assignments on a Pull | — | — | — | **no** — those six tabs are skipped | implicit |
-| change what a role holds | **409 if granted** | **409 if granted** | — | — | implicit |
-| create accounts, set a role, assign modes, disable or enable an account, issue a reset link | **409 if granted** | **409 if granted** | — | — | implicit |
-| label an entry, a collection, a franchise or a series | **409 if granted** | **409 if granted** | **409 if granted** | **always** | implicit |
-| read the label reference, `/content-labels` (`manage.catalog` **or** `admin.authz`) | **409 if granted** | **409 if granted** | **409 if granted** | **always** | implicit |
-| rename an access mode or edit its description | **409 if granted** | **409 if granted** | — | — | implicit |
+| handle requests — the inbox: mark done or declined, reopen, delete (`manage.requests`) | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **always** |
+| write the catalogue — entries, groups, people, credits, relations, watch orders, a game's choice graph, quotes, memes, catalogue notes, form and picker defaults (`manage.catalog`) | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **never** |
+| write, edit and remove announcements (`manage.announcements`) | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **always** |
+| edit the vocabulary and read the Note pages' inventories — System Options, Alias Conversion, External APIs (`manage.options`) | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **always** |
+| manage the image library, `/images` (`manage.images`) | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **always** |
+| run a pipeline — Backup, Pull, Fill, Replace, Calculate | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **always** |
+| restore accounts, content labels and label assignments on a Pull | — | — | — | **no** — those six tabs are skipped | yes |
+| change what a role holds | **409 if granted** | **409 if granted** | — | — | **always** |
+| create accounts, set a role, assign modes, disable or enable an account, issue a reset link | **409 if granted** | **409 if granted** | — | — | **always** |
+| label an entry, a collection, a franchise or a series | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **never** |
+| read the label reference, `/content-labels` (`manage.catalog` **or** `admin.authz`) | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **always** |
+| rename an access mode or edit its description | **409 if granted** | **409 if granted** | — | — | **always** |
 
 - **Nobody creates, renames or deletes a content label, or creates, deletes
   or regrants an access mode.** Both are code; see
@@ -316,6 +335,10 @@ short-circuit deliberately does not cover.
   everything authorization-shaped is `—`; that gap is why the bare `admin`
   permission became three named ones. None of it is editable —
   [Locked grants](#locked-grants).
+- **`admin` is its mirror.** Everything authorization-shaped, the pipelines,
+  the inbox and its own pages are **always**; every catalogue read and write
+  and everything personal is **never**. Nothing in its column is editable
+  either.
 - **A capability refusal is 401, never 403**, so the SPA sees one error shape.
   An *object* refusal is 404 — a hidden entry answers exactly as an absent one.
 - **`guest` cannot hold any of these**: granting one answers **409**, because
@@ -354,7 +377,7 @@ restated here, or the two copies drift.
 
 | Table | Purpose | Notable columns / constraints |
 |---|---|---|
-| `role` | one named bundle of permissions | `name` unique — exactly the five in `ROLE_NAMES`, each read by name, none renamed, created or deleted through the API — `label`, `description`, `is_root` (holds every permission implicitly **except the `self` family** — see [The admin account holds no user data](#the-admin-account-holds-no-user-data)), `sort_order` |
+| `role` | one named bundle of permissions | `name` unique — exactly the five in `ROLE_NAMES`, each read by name, none renamed, created or deleted through the API — `label`, `description`, `sort_order`. No flag makes a role hold anything beyond its `role_permission` rows |
 | `role_permission` | one grant | `role_id` FK → role (`CASCADE`), `permission` string; unique `(role_id, permission)` |
 | `content_label` | the row for one code-defined label (`app/services/rbac/labels.py`), kept as the foreign-key target of the four tables below | `key` unique, `label`, `description`, `sort_order` — all four written from code by `gated_labels.ensure_labels` on every start |
 | `media_content_label` | one label on one entry | `media_id` FK → `media.system_id` (`CASCADE`), `label_id` FK → content_label (`CASCADE`), `position`; unique `(media_id, label_id)`. A label on a deleted entry is cleaned up by the database |
@@ -398,16 +421,25 @@ anywhere, but a grant removed by hand is per-machine. See
 
 `app/services/rbac/permissions.py`. A permission is `<family>.<key>`.
 
-There is no bare `admin` permission. Administration is three named
+There is no bare `admin` permission. Administration is split into named
 permissions, so an account can administer *who* may do what without also being
 handed the catalogue, or vice versa:
 
 | Name | Meaning | Source of keys |
 |---|---|---|
 | `admin.authz` | may **change who may do what** — roles, accounts, each account's mode ceiling, default and denials, and the access modes' names and descriptions | `ADMIN_PERMISSION_KEYS` in `app/services/rbac/permissions.py` |
-| `manage.catalog` | may **write the catalogue** — entries, groups, people, credits, options, relations, watch orders, a game's choice graph, catalogue notes, the Resources page, and **which labels an entry or a group carries** | `MANAGE_PERMISSION_KEYS` in the same module |
+| `manage.catalog` | may **write the catalogue** — entries, groups, people, credits, relations, watch orders, a game's choice graph, quotes, memes, catalogue notes, form and picker defaults, and **which labels an entry or a group carries** | `MANAGE_PERMISSION_KEYS` in the same module |
 | `manage.pipelines` | may **run a pipeline** — Backup, Pull, Fill, Replace, Calculate | `MANAGE_PERMISSION_KEYS` in the same module |
 | `manage.requests` | may **handle requests** — the request inbox: read every account's requests, set their status, delete them | `MANAGE_PERMISSION_KEYS` in the same module |
+| `manage.announcements` | may **write, edit and remove the announcements** (`/api/announcements` writes; the list is public) | `MANAGE_PERMISSION_KEYS` in the same module |
+| `manage.options` | may use **the Note pages** — System Options, Alias Conversion, External APIs: every `/api/options` write and `GET /api/constants/external-apis` | `MANAGE_PERMISSION_KEYS` in the same module |
+| `manage.images` | may use **the image library** — every route on `/api/images` | `MANAGE_PERMISSION_KEYS` in the same module |
+| `manage.resources` | may **read and edit the site-wide Resources page** — every route on `/api/resources`, reads included | `MANAGE_PERMISSION_KEYS` in the same module |
+
+The last four are `ADMIN_PAGE_PERMISSIONS`: the admin's own pages beyond
+accounts and pipelines, each on its own key rather than `manage.catalog` so
+that reaching them writes no catalogue row. The admin and `super` hold all
+four; no other role can.
 | `media_type.<key>` | may see any entry of that type; keys are hyphenated (`media_type.tv-show`) | `MEDIA_TYPE_KEYS` in `app/utils/media_resolver.py` |
 | `self.<key>` | may **write** your own rows of that kind — `self.list`, `self.personal_notes`, `self.requests` — or change your own password, `self.password` (`PUT /api/account/password`) | `SELF_PERMISSION_KEYS` in `app/services/rbac/permissions.py` |
 | `view.<key>` | may **read** one part of the site beyond the libraries and their detail pages — see the table below | `VIEW_PERMISSION_KEYS` in `app/services/rbac/permissions.py` |
@@ -427,7 +459,7 @@ The `view` family, as the role editor labels it (`VIEW_PERMISSION_LABELS`):
 | `view.person` | View People | every read on `/api/person`, the seiyuu library's `?role=seiyuu` included. In the SPA: the person and seiyuu libraries, person pages, and staff, author and voice-cast names rendered as links |
 | `view.character` | View Characters | every read on `/api/character` and `/api/character-identity`. In the SPA: the character library, character and identity pages, character and identity names rendered as links, and the Characters tab on franchise and series pages |
 | `view.search` | Search | `GET /api/search/`. In the SPA: the nav search and `/search` |
-| `view.extras` | View Extras | every read on `/api/resources`, and `GET /api/random-picker-defaults/{mode}`. In the SPA: the Resources page, the random picker, future releases and completions. Quotes and memes are not here: they follow the account's `quotes_memes` switch ([Per-account feature switches](#per-account-feature-switches)) |
+| `view.extras` | View Extras | `GET /api/random-picker-defaults/{mode}`. In the SPA: the random picker, future releases and completions. Not the Resources page, which is `manage.resources`. Quotes and memes are not here: they follow the account's `quotes_memes` switch ([Per-account feature switches](#per-account-feature-switches)) |
 
 Each read route depends on `require_view_studio`, `require_view_publisher`,
 `require_view_person`, `require_view_character`, `require_view_search` or
@@ -443,9 +475,12 @@ closed, say.
 very different blast radii: an account can fix a typo on an entry without being
 able to overwrite the entire database with a Pull All. `/api/auth/me`'s
 `is_admin` flag, which 394 call sites across the SPA read as "may this person
-edit the catalogue", means `manage.catalog`; only the genuinely
-authorization-shaped screens (`Roles.jsx`, the users page,
-`ContentLabels.jsx`) ask for `admin.authz`. See [Roles](#roles) for the
+edit the catalogue", means `manage.catalog` — so it is true for `super` and
+**false for the admin account**, which holds no `manage.catalog`. A control
+that belongs to the administrator asks the admin's own key through `has()`
+instead: the genuinely authorization-shaped screens (`Roles.jsx`, the users
+page, `ContentLabels.jsx`) ask for `admin.authz`, and the admin's pages ask
+their `manage.*` key. See [Roles](#roles) for the
 `super` role this makes possible — every catalogue capability, none of the
 authorization one.
 
@@ -469,19 +504,18 @@ all five by name - the lock table keys on every one, and the request limit on
 `user`, `shared` and `super` (`app/services/domain/requests.py`). No route
 creates, renames or deletes a role:
 
-| Name | `sort_order` | Root | Holds |
-|---|---|---|---|
-| `guest` | 0 | no | `default_guest_permissions()` — the nine ordinary media types, and nothing else. Field groups are the mode axis, not this one |
-| `shared` | 25 | no | `default_shared_permissions()` — guest's set plus `self.requests` |
-| `user` | 50 | no | `default_user_permissions()` — guest's set plus the three gated types, `view.search`, `view.extras`, and `self.list`, `self.personal_notes`, `self.requests` and `self.password`. Not the four entity keys, which start off |
-| `super` | 75 | no | `default_user_permissions()` plus the four entity keys, `manage.catalog`, `manage.pipelines` and `manage.requests` — every catalogue capability, deliberately **not** `admin.authz` |
-| `admin` | 100 | **yes** | nothing explicitly; a root role holds every permission implicitly **except `self.*`**, which is ownership rather than privilege and so has no implicit holder |
+| Name | `sort_order` | Holds |
+|---|---|---|
+| `guest` | 0 | `default_guest_permissions()` — the nine ordinary media types, and nothing else. Field groups are the mode axis, not this one |
+| `shared` | 25 | `default_shared_permissions()` — guest's set plus `self.requests` |
+| `user` | 50 | `default_user_permissions()` — guest's set plus the three gated types, `view.search`, `view.extras`, and `self.list`, `self.personal_notes`, `self.requests` and `self.password`. Not the four entity keys, which start off |
+| `super` | 75 | `default_user_permissions()` plus the four entity keys, `manage.catalog`, `manage.pipelines` and `manage.requests`, and the four admin-page keys by lock on the first boot — every catalogue capability, deliberately **not** `admin.authz` |
+| `admin` | 100 | `ADMIN_FIXED_PERMISSIONS`, by lock: `admin.authz`, `manage.pipelines`, `manage.requests`, `manage.announcements`, `manage.options`, `manage.images`, `manage.resources`, and nothing else |
 
-`super` is the helper account the three named permissions make possible: it
-can write the catalogue and run pipelines without being able to touch roles,
-accounts or content labels. It is **not** `is_root` — its grants are real
-rows, inspectable on `/roles`, and `viewer.has()` does not short-circuit for
-it the way it does for `admin`.
+`super` is the helper account the named permissions make possible: it can
+write the catalogue and run pipelines without being able to touch roles,
+accounts or content labels. Its grants are real rows, inspectable on
+`/roles` — as every role's are, `admin`'s included.
 
 `shared` is the role of the two shared accounts, `shared-normal` and
 `shared-borderline` — see [Shared accounts](#shared-accounts). It holds no
@@ -515,7 +549,11 @@ Migration `s1w2itches345` gives `view.studio`, `view.publisher`,
 entity key they replace, so an established database shows the same pages it
 did; it also reconciles the gated types to their locks and grants any of the
 nine ordinary types missing from `guest`, `user`, `shared` or `super` once
-([notes/decisions.md](notes/decisions.md)).
+([notes/decisions.md](notes/decisions.md)). Migration `a1d2minroot45` writes
+the admin role's seven grants as rows and deletes any other it holds, drops
+`role.is_root`, and sets every `admin`-role account's ceiling and default to
+NULL. It moves no data: a personal row owned by an `admin`-role account is
+logged and left.
 
 `self.personal_notes` is what `app/routers/note.py` requires of every
 personal-scope note write - the six highlight sections among them - what
@@ -578,14 +616,12 @@ by default.
   `PATCH /api/users/{id}` answers **409** to switching one on for any other
   account, and every role change that route makes stays inside those two
   roles, so a stored switch never outlives the role that could hold it.
-- **The gate asks the role as well as the column.** `held_features(user,
-  is_root)` counts a column only on a `user` or `super` account, so a switch
-  that a Pull restores onto a shared account from a hand-edited Users tab
-  opens nothing.
-- **The root role holds `quotes_memes` without the switch** (`ROOT_FEATURES`).
-  The admin account can never be switched on, and it writes quotes and memes,
-  so it reads them too. Only that one: the other three name personal data,
-  which the root short-circuit does not cover.
+- **The gate asks the role as well as the column.** `held_features(user)`
+  counts a column only on a `user` or `super` account, so a switch that a
+  Pull restores onto a shared account from a hand-edited Users tab opens
+  nothing.
+- **No role holds a feature without its account's switch.** The admin
+  account can never be switched on, so it reads no quotes or memes.
 - **One answer, two readers.** `/api/auth/me` publishes `held_features` as
   `features`, and `require_feature(name)` asks the same function, so the
   SPA's `hasFeature(name)` (`AuthContext.jsx`) cannot disagree with the
@@ -658,11 +694,12 @@ already allowed to see. Removing it from the UI entirely would mean routing on
 slugs instead of UUIDs.
 
 A decorative copy of it is printed down the spine of a detail page's poster,
-and **that block is drawn on `is_root`** — not on a permission, and
-deliberately not on `super`, which is not a root role. There is nothing to
-gate server-side, so there is no permission to invent: the SPA reads the
-`is_root` field `/api/auth/me` already carries. It is presentation, like
-every `has()` call that hides a block the server has already emptied.
+and **that block is drawn for a catalogue editor** — `has("manage.catalog")`,
+which in practice is `super`, the account that reads and writes the
+catalogue. There is nothing to gate server-side, so there is no permission to
+invent: the SPA asks a key `/api/auth/me` already carries. It is
+presentation, like every `has()` call that hides a block the server has
+already emptied.
 
 Withheld fields are **absent, not blanked**, in the UI as well as the API: the
 "Last updated" figure is dropped rather than showing `—`, for the same reason
@@ -730,9 +767,9 @@ API refuses to let an admin do to one.
 |---|---|
 | `guest` | Has no user rows; every anonymous or unresolvable request becomes this role. Can hold the nine ordinary `media_type.*` and `view.*` and nothing else — the whole of `admin.*`, `manage.*` and `self.*`, and the three gated types, is locked off → **409** ([Locked grants](#locked-grants)), because that would hand any anonymous caller the ability to administer, write the catalogue, run a pipeline, or keep a list every visitor shares. Cannot be deleted or renamed. |
 | `shared` | Held by the two shared accounts only. Files requests and reads; `admin.*`, `manage.*`, `self.list`, `self.personal_notes`, `self.password`, `view.extras` and the three gated types are locked off → **409**, `self.requests` locked on. Its free cells are the nine ordinary `media_type.*` and the other six `view.*`. Cannot be deleted or renamed. |
-| `user` | Cannot be deleted or renamed. Its free grants *can* be edited - it is not root role - and `view.*` plus `self.list` / `self.personal_notes` are the free cells separating it from `guest`. The three gated types are locked on and `manage.catalog` locked off → **409**. |
-| `super` | Not root role - its grants are ordinary rows - but every one except `admin.authz` is locked on, so there is nothing on it to edit. Cannot be deleted or renamed. |
-| `admin` | `is_root=True`, so `Viewer.has()` short-circuits and it holds every permission including ones that do not exist yet (a new content label hides nothing from it) - **except the `self` family, which the short-circuit deliberately does not cover**, so an admin keeps no list, plan queue, season ratings, game copies or personal notes. `PUT /permissions` on a root role → **409**. Cannot be deleted or renamed. |
+| `user` | Cannot be deleted or renamed. Its free grants *can* be edited, and `view.*` plus `self.list` / `self.personal_notes` are the free cells separating it from `guest`. The three gated types are locked on, and `manage.catalog` and the four admin-page keys locked off → **409**. |
+| `super` | Its grants are ordinary rows, but every one except `admin.authz` is locked on, so there is nothing on it to edit. Cannot be deleted or renamed. |
+| `admin` | Holds exactly `ADMIN_FIXED_PERMISSIONS` as ordinary rows, and every cell of its row is locked — the seven on, the rest off — so a `PUT /permissions` that changes anything on it → **409**. A permission or a media type added later does not reach it. It keeps no list, plan queue, season ratings, game copies or personal notes, and reads no catalogue. Cannot be deleted or renamed. |
 
 Seed: `app/services/rbac/seed.py::ensure_rbac_seed` is idempotent and runs
 from both the `r1b2a3c4c5o6_add_rbac_core` migration and the app lifespan
@@ -744,7 +781,7 @@ handed back on restart.
 ## Viewer resolution
 
 `app/services/rbac/resolver.py::resolve_viewer(request, db)` → frozen
-`Viewer(username, role_id, role_name, is_root, permissions, user_id,
+`Viewer(username, role_id, role_name, permissions, user_id,
 token_payload, mode_id, mode_key, visible_label_ids, field_groups,
 mode_expires_at, hidden_labels, hidden_gated)`.
 
@@ -800,7 +837,7 @@ keeping:
   never within a ceiling, so it resolves the same way.
 - A signed-in account with no override and no mode (ceiling and default NULL)
   does **not** inherit the guest default. That mode is the anonymous policy, not this
-  account's.
+  account's. The admin account is always this case.
 - A missing `safe` mode gives a guest nothing, rather than everything. A
   misconfiguration must hide, not publish.
 - **Never raises.** Missing/garbage/expired cookie, deleted user, deleted role,
@@ -808,12 +845,14 @@ keeping:
   lets `/api/auth/me` and the public routes share it.
 - `get_viewer` is the `Depends` form (deduped per request);
   `require_permission(name)` is a dependency factory.
-- `app/services/rbac/resolver.py` binds three capability gates at import time,
+- `app/services/rbac/resolver.py` binds the capability gates at import time,
   one per capability: `require_admin_authz`, `require_manage_catalog`,
-  `require_manage_pipelines` — each `require_permission(<name>)`, else
-  **401**. The view gates and the two request gates, `require_file_requests`
-  (`self.requests`) and `require_handle_requests` (`manage.requests`), are
-  bound the same way. There is no single "is an admin" dependency, deliberately: routers
+  `require_manage_pipelines`, and the admin's pages'
+  `require_manage_announcements`, `require_manage_options`,
+  `require_manage_images` and `require_manage_resources` — each
+  `require_permission(<name>)`, else **401**. The view gates and the two
+  request gates, `require_file_requests` (`self.requests`) and
+  `require_handle_requests` (`manage.requests`), are bound the same way. There is no single "is an admin" dependency, deliberately: routers
   depend on these by name rather than calling `require_permission` inline, so
   swapping a router's gate is a one-word edit and grepping for a capability
   finds every route holding it. A valid token for a deleted user, or for a
@@ -833,8 +872,10 @@ keeping:
   (`frontend/src/components/layout/ProtectedRoute.jsx`), which gates on
   `username` rather than on `has(permission)`. `/plan`, `/seasonal`,
   `/seasonal/:seasonal_id` and `/statistics` use it.
-- `/api/auth/me` returns `is_admin`, `username`, `role`, `is_root`,
-  `permissions` (sorted); `AuthContext.jsx` builds a `Set` and exposes `has()`.
+- `/api/auth/me` returns `is_admin` (`manage.catalog`, so false for the
+  admin account), `username`, `role`, `permissions` (sorted);
+  `AuthContext.jsx` builds a `Set` and exposes `has()`, a plain membership
+  test.
   It also returns `visible_gated_types`, the sorted gated media types this
   session may see (`gated_types.visible_gated_types`) - `["h-comic", "h-game",
   "hentai"]` in `unrestricted`, which shows every label, and `[]` in every
@@ -945,7 +986,7 @@ only part of the question.
 
 | Helper | Use | Behaviour |
 |---|---|---|
-| `hidden_label_ids(db, viewer)` | building block | ids of labels the viewer's ACTIVE MODE does not carry; `[]` is the common case and every caller short-circuits on it. **No `is_root` short-circuit** — labels are an object question, and holding every capability does not answer one |
+| `hidden_label_ids(db, viewer)` | building block | ids of labels the viewer's ACTIVE MODE does not carry; `[]` is the common case and every caller short-circuits on it. **No role is exempt** — labels are an object question, and holding a capability does not answer one |
 | `apply_entry_visibility(query, model, media_type, db, viewer)` | list routes | `filter(false)` if the type is not held; otherwise `NOT EXISTS` on `_hidden_by_label`: the entry's own labels and every group above it, reached through `media.franchise_id` and `media.series_id` |
 | `apply_collection_visibility(query, db, viewer)` / `collection_visible(db, viewer, collection_id)` | collection list and search bucket; collection detail and its writes; the collection assignment routes | `NOT EXISTS` on `_collection_hidden`. A collection has no tier above it, so its own labels are the whole of it; bool callers **404 with their normal not-found message** |
 | `apply_franchise_visibility(query, db, viewer)` | franchise list, franchise search bucket | `NOT EXISTS` on `_franchise_hidden` — its own labels and its collection's. No media-type half: a franchise has no type of its own and may hold entries of several |
@@ -960,11 +1001,11 @@ only part of the question.
 
 `viewer=None` returns input untouched everywhere, and that half of the guard
 **must stay**: internal callers pass `None` to mean "not a request", and
-`_factory._finish(db, entry, viewer=None)` relies on it. There is deliberately
-no `is_root` half: object scoping lives on the mode axis, which holding
-every capability does not reach. The media-type half goes through `has()`,
-which does short-circuit on `is_root`, because `media_type.*` is a role
-permission.
+`_factory._finish(db, entry, viewer=None)` relies on it. No role is exempt:
+object scoping lives on the mode axis, which no capability reaches, and
+every viewer — the admin included — is narrowed by it. The media-type half
+goes through `has()`, because `media_type.*` is a role permission; the admin
+holds none, so every type disappears for it.
 
 **404, not 403.** A hidden entry answers exactly as an absent one, so a viewer
 cannot enumerate what exists. Admin routes use **401**, never 403, so the SPA
@@ -1133,9 +1174,9 @@ permission surfaces ask - `<ProtectedRoute gatedType="h-comic">`,
 `gatedType="h-game"` and `gatedType="hentai"` around each type's library and
 detail routes, and the nav row's `gatedType` in `navigation.js` - along with
 every picker, tab, list and favourite grid that names the type
-([frontend/components.md](frontend/components.md#gated-media-types)). A root
-account in a narrower mode is not shown the type either: the gate is the
-mode's label, not a capability.
+([frontend/components.md](frontend/components.md#gated-media-types)). A
+`super` account in a narrower mode is not shown the type either: the gate is
+the mode's label, not a capability.
 
 #### What a narrow session is not told
 
@@ -1170,7 +1211,7 @@ type's nav row, routes, tabs and pickers out rather than render them empty.
 | quotes (list, grouped, by id) | `routers/quote.py` — every read behind the `quotes_memes` feature (`require_feature_quotes_memes`), then `drop_hidden_rows` |
 | memes (list, grouped, by id) | `routers/meme.py` — every read behind the `quotes_memes` feature; a meme on a hidden entry, collection, franchise or series is dropped; writes use `require_visible_owner` |
 | plan-next rows | `routers/plan_next.py` |
-| the Resources page | `routers/resources.py` — the read is behind `view.extras`; past that there is nothing to filter: a node names no entry, franchise or label, so every viewer holding the key reads the whole tree, and every write is `require_manage_catalog` |
+| the Resources page | `routers/resources.py` — every read and write is behind `manage.resources`; past that there is nothing to filter: a node names no entry, franchise or label, so every viewer holding the key reads the whole tree |
 | random picker defaults (`/api/random-picker-defaults/{mode}`) | `routers/random_picker_defaults.py` — the read is behind `view.extras`, writes `require_manage_catalog` |
 | relations `for-entry`, `scope`, `graph` | `routers/media_relation.py` — hidden anchor → 404; an edge naming a hidden entry is dropped whole; graph is viewer-filtered |
 | a game's choice graph and its marks | `routers/game_choice.py` (`require_visible_media`) — a hidden game → 404 "Game not found." on the read and on every write; graph writes are `require_manage_catalog`, marks need `self.personal_notes` and the read returns only the viewer's own |
@@ -1320,8 +1361,8 @@ registry key would never match a grant and would hide the whole type.
 
 `gate(viewer, media_type, payload, schema)` applies withheld field groups to
 one entry or a list. **`_withheld(viewer)` reads `viewer.field_groups` — the
-active MODE's set — not `viewer.has(field_group.<key>)`, and it does not
-short-circuit on `is_root`.** A `None` viewer
+active MODE's set — not `viewer.has(field_group.<key>)`, and no role is
+exempt from it.** A `None` viewer
 still withholds nothing, because internal callers pass `None` to mean "not a
 request".
 
@@ -1377,8 +1418,7 @@ another.
   `NovelUnitWrite` has no `my_rating` or `remark`, an item naming one has it
   ignored, and `write_novel_units` writes only the unit's own columns - so a
   units save neither files the writer's opinion nor clears anybody's.
-- **The admin keeps none.** The root short-circuit does not cover the `self`
-  family, so `admin` gets 401 on both `/api/me` writes and the SPA draws no
+- **The admin keeps none.** It holds no `self.*` key, so `admin` gets 401 on both `/api/me` writes and the SPA draws no
   group, entity or novel unit rating, expectation or remark editor for it.
 - **Writes follow reads.** An owner the caller's GET would answer 404 for is
   a 404 on the write too, in the same words, so a hidden row cannot be
@@ -1425,7 +1465,8 @@ dashboard's announcements and broadcast schedule. Everything else is behind a
 `view.*` key the guest role does not hold as seeded, and its API answers
 **401**: studios (`view.studio`), publishers (`view.publisher`), people and
 seiyuu (`view.person`), characters and identities (`view.character`), search
-(`view.search`), resources and the random picker's defaults (`view.extras`).
+(`view.search`), the random picker's defaults (`view.extras`) and the
+Resources page (`manage.resources`, which no guest can hold).
 Quotes and memes are a per-account switch, and a guest has no account. On a
 detail page the name of every entity kind the guest role does not hold -
 studio, publisher, staff, character, identity, seiyuu - renders as plain
@@ -1487,16 +1528,18 @@ Two rules that are **not** this one:
   Pull and Calculate have to name somebody. A data-ownership question, never a
   visibility one; nothing on a request path may call it. The answer is
   `users.is_installation_owner` — see [The admin account holds no user
-  data](#the-admin-account-holds-no-user-data) below — with two fallbacks for
-  a database where nobody holds the flag: the alphabetically-first
-  non-root account, then the first account of any kind, so a restore onto
-  a fresh machine still lands. Neither fallback ever names a `shared` or
-  `guest` account: the seed creates the two shared accounts on every boot,
-  so on a fresh machine a shared login would otherwise be the first
-  fallback's answer and receive the owner's whole collection. Nor does
-  either name an account whose status is not `active` — a pending
-  registrant or a disabled account. The flag holder is the answer whatever
-  its status: a disabled owner's data is still theirs.
+  data](#the-admin-account-holds-no-user-data) below — and the flag holder is
+  the answer whatever its status: a disabled owner's data is still theirs.
+  Where nobody holds the flag, the answer is the first `active` account by
+  username whose role is not `admin`, `guest` or `shared`
+  (`NEVER_OWNER_ROLE_NAMES`): the admin keeps no personal data; the seed
+  creates the two shared accounts on every boot, so on a fresh machine a
+  shared login would otherwise receive the owner's whole collection; and a
+  pending registrant or a disabled account is not one to file under.
+  **Otherwise the answer is None, never the admin.** Every caller skips on
+  None: Pull counts the rows it could not file and names them in its report
+  (`no installation owner: N row(s) skipped` — see
+  [data-actions.md](data-actions.md)), and Calculate derives no reader's half.
 - **`viewer_user_id`** — the non-raising companion for the two public paths
   that must show nothing per-user. It has no fallback either.
 
@@ -1505,16 +1548,16 @@ Two rules that are **not** this one:
 An administrative account administers the site. It does not keep a library on
 it — no list rows, no plan queue, no season ratings, no ratings or
 expectations of groups and entities, no game copies, no personal notes, no
-marks on a game's choice graph.
+marks on a game's choice graph — and it reads no catalogue, so it has no use
+for one.
 
-**The rule is one condition in `Viewer.has()`: the root short-circuit
-does not cover the `self` family.** `self.list`, `self.personal_notes` and
-`self.password` are not privileges — they are OWNERSHIP, the right to keep rows
-of your own and to keep your own credential. "May
-do anything to the system" and "has a personal library" are different claims,
-and conflating them is what fills an admin account with somebody's collection.
-Everything else short-circuits, so a content label or a media type added
-tomorrow hides nothing from an admin.
+**The rule is the admin role's locked row.** `self.list`,
+`self.personal_notes`, `self.requests` and `self.password` are locked off for
+it (`locked_permissions("admin")`), as is everything outside its seven
+grants. `self.*` is not privilege — it is OWNERSHIP, the right to keep rows of
+your own and to keep your own credential. "May administer the site" and "has a
+personal library" are different claims, and conflating them is what fills an
+admin account with somebody's collection.
 
 It lives in the permission model rather than in refusals scattered through the
 write routes: a rule spelled out in twenty routers is a rule that will be
@@ -1522,22 +1565,23 @@ missing from the twenty-first.
 
 | Surface | What it does with the rule |
 |---|---|
-| `Viewer.has()` (`services/rbac/resolver.py`) | the rule itself |
-| `AuthContext.has()` (`frontend/src/contexts/AuthContext.jsx`) | mirrors it. **Both halves or neither** — with only the server half, the nav advertises Plan, Seasonal and Statistics to an account the API answers 401 |
+| `Viewer.has()` (`services/rbac/resolver.py`) | a set membership test, for every role; the admin's set holds no `self.*` |
+| `AuthContext.has()` (`frontend/src/contexts/AuthContext.jsx`) | the same test over `/me`'s `permissions`, so the nav never advertises Plan, Seasonal and Statistics to an account the API answers 401 |
 | `/api/me/*`, `/api/plan-next/*`, `/api/seasonal/*` | all three prefixes are gated on `self.list` at the router, so a route added later is covered by default. An admin gets 401 |
 | `/api/watch-order/follows*`, `/api/watch-order/lists/{id}/follow` | gated on `self.list` **per route** (`require_self_list` in `routers/watch_order.py`), because the rest of that router is public reads and catalogue writes. An admin gets 401. The SPA asks `has("self.list")` before drawing the follow toggle, the entry panel or the dashboard section, and before fetching for them |
 | Nested game `copies` | skipped, not refused, for a viewer without `self.list` (`services/domain/game_copies.py`). A copy is personal ownership written through a **catalogue** route, so failing the whole Game edit would refuse a legitimate catalogue change. The SPA hides the editor, so this is the second stop |
-| `navigation.js`, `App.jsx` | both ask `self.list`, so the personal pages disappear from an admin's nav with no change of their own — the payoff of putting the rule in `has()` |
+| `navigation.js`, `App.jsx` | both ask `self.list`, so the personal pages disappear from an admin's nav with no change of their own — the payoff of putting the rule in the permission set |
 
-**A grant beats the carve-out.** The rule removes the *implicit* hold, so an
-account whose role is explicitly granted `self.list` keeps its library
-whatever its `is_root` flag says.
+**Authorship is not ownership.** Quotes, memes and catalogue-scope notes are
+`manage.catalog` writes, and `author_id` records who wrote them
+(`models/note.py`). The admin holds no `manage.catalog`, so it writes none of
+them; `super` does. "Holds no user data" is a statement about ownership —
+lists, queues, ratings, copies, personal notes — not about authorship.
 
-**Authorship is not ownership, and an admin does create rows.** Quotes, memes
-and catalogue-scope notes are `manage.catalog` writes, and `author_id` records
-who wrote them (`models/note.py`). An admin doing its job makes them. "Holds
-no user data" is a statement about ownership — lists, queues, ratings, copies,
-personal notes — not about authorship.
+**The admin also edits nobody else's personal data.** A personal-scope note
+is edited and deleted by its author alone (`note.py` `_authorize_edit`), with
+no role exempt, so the admin's `PATCH` or `DELETE` on a member's personal note
+answers the same **404** a missing note does.
 
 Whose rows a pipeline files under is the matching data question, answered by
 `users.is_installation_owner` and never by a role. See
@@ -1568,12 +1612,12 @@ both in one section:
 |---|---|---|
 | `user`, or any account without `manage.catalog` holding `self.personal_notes` | personal rows only | the catalogue rows and its own personal rows |
 | `super`, or anyone holding `manage.catalog` | catalogue rows only | the catalogue rows, and any personal rows of its own from before it held `manage.catalog` |
-| `admin` | catalogue rows only - it keeps no personal data | the catalogue rows |
+| `admin` | nothing (**401**) - it holds neither `manage.catalog` nor `self.personal_notes` | the catalogue rows of an owner it may see, which with no `media_type.*` grant is none |
 | a logged-out visitor | nothing (**401**) | the catalogue rows |
 
 A personal row is edited, deleted, reordered, marked and nested under by its
 author alone, and is **404** to anyone else - a member, a catalogue editor,
-the `admin` account: `_authorize_edit` has no root short-circuit for it. A
+the `admin` account: `_authorize_edit` exempts no role. A
 catalogue row is edited under `manage.catalog` (**401** otherwise). A reorder
 renumbers one kind: the catalogue rows for a `manage.catalog` holder, the
 caller's own personal rows for anyone else. No write changes a row's kind.
@@ -1589,9 +1633,15 @@ row gets, because a 403 confirms a row exists exactly as surely as a 200 does.
 | no `self.personal_notes` (a guest included) | **401** |
 | no `manage.catalog`, creating a catalogue note | **401** |
 | no `manage.catalog`, editing a catalogue note | **401** — the caller may not edit catalogue notes at all, which is not a fact about this note |
-| somebody else's personal note | **404**, worded identically to a missing one |
+| somebody else's personal note, edited or deleted — whatever the caller's role, the admin's included | **404**, worded identically to a missing one |
 | somebody else's personal row in a mixed section - edit, delete, mark, or as a parent (**422 "Parent note not found."**) | **404**, the `admin` account included |
 | a catalogue row nesting under a personal row | **422** |
+
+A `DELETE` asks what a write does: the edit rule above, then the section's
+write capability (`self.personal_notes` for a personal section,
+`manage.catalog` for a catalogue one). A row in a section the registry no
+longer knows stays deletable by a `manage.catalog` holder. The admin holds
+neither key, so it creates, edits and deletes no note row of either scope.
 
 `tests/api/test_note_status_codes.py` asserts the absence of 403 directly, so
 a "clearer" 403 fails the suite rather than quietly reintroducing an oracle.
@@ -1610,7 +1660,7 @@ owner's own read check:
 
 | Situation | Answer |
 |---|---|
-| no `self.personal_notes` - a guest, or the `admin` account, whose root flag never passes `self.*` | **401** |
+| no `self.personal_notes` - a guest, or the `admin` account, which holds no `self.*` key | **401** |
 | a value granted by a feature the caller does not hold | **401**, naming the feature |
 | a note that does not exist, or whose owner the caller may not see | **404 "Note not found."** (the NG reset: **404 "Owner not found."**) |
 | a key that is not personal on the row's section, or a value outside its vocabulary | **422** |
@@ -1654,7 +1704,7 @@ turns a loud refusal into an accepted-then-invisible write.
 | `GET /api/roles/`, `GET /api/roles/{id}` | with `permissions` and `user_count` |
 | `GET /api/roles/catalog` | the vocabulary grouped by family — the editor grid is built from it, never mirrored in the SPA. **Five families only**: `admin`, `manage`, `media_type`, `self`, `view`. Content labels and field groups are not offered, because a role cannot express "minus this label" — permission resolution is a union |
 | `PATCH /api/roles/{id}` | label/description/sort_order only; no role can be renamed |
-| `PUT /api/roles/{id}/permissions` | replaces the set; 422 unknown, 409 root role, 409 if the payload holds a locked-off grant or drops a locked-on one |
+| `PUT /api/roles/{id}/permissions` | replaces the set; 422 unknown, 409 if the payload holds a locked-off grant or drops a locked-on one — so any change at all to the `admin` role, whose row is wholly locked |
 | `GET/POST/PATCH/DELETE /api/users/…` | `role_id` must exist (422), and on create or a role change must be `user` or `super` (422); a new username or password that fails the checks in `security.py` 422; a username taken ignoring case 409; `PATCH` takes `status` `active` / `disabled` and the four `feature_*` switches, 409 for switching one on for an account that is not `user` or `super` |
 | `POST /api/users/{id}/reset-link` | a one-time reset link, returned once; 409 for an account that is not active or is shared. See [authentication.md](authentication.md#reset-links) |
 | `GET /api/content-labels/` | the label reference, read with `admin.authz` **or** `manage.catalog` — see [api.md](api.md#apicontent-labels). No route creates, renames or deletes a label |
@@ -1718,7 +1768,8 @@ people hit and work around.
 Both null is allowed - an account with no mode resolves the empty object set,
 fail-closed, and a legitimate way to park somebody; its denials go with it.
 The users table calls that state out in red, because it is correct and looks
-exactly like a broken site.
+exactly like a broken site — except on the admin account's row, which reads
+`No mode (admin)`, because there it is the only state there is.
 
 **A new account starts at ceiling `normal`, default `normal`** - the columns'
 default, so an account created on `/users` and one restored by a Pull from a
@@ -1726,9 +1777,16 @@ sheet that predates the columns both get it. `normal` holds no labelled entry
 and every field of a visible one: narrow enough that an invitee is widened
 deliberately, wide enough that the invitation does not look broken.
 
-**The fresh `admin` account starts at `unrestricted` / `unrestricted`**, set
-by the lifespan when it seeds the account - the faithful mapping of the root
-role, which sees everything.
+**The `admin` account has no mode**: ceiling and default NULL, on every
+boot. The admin reads no catalogue, so the empty object set is its whole
+object axis, and a route that forgot a permission check still shows it
+nothing. The lifespan's INSERT takes the columns' `normal` default — a
+Python-side default fires even on an explicit None — so
+`seed.ensure_admin_accounts_modeless` parks it afterwards with an UPDATE, and
+re-asserts NULL on every admin-role account on every start, whatever a Pull
+or a hand edit left, the way `ensure_shared_accounts` re-asserts the shared
+modes. `PUT /api/users/{id}/access-modes` on it answers **409** `The admin
+account has no mode.`
 
 ### Switching mid-session: `POST /api/auth/access-mode`
 
@@ -1824,7 +1882,7 @@ component alone:
 `data_control.py` and `system.py` carry **one** router-level dependency:
 `require_manage_pipelines`. The session's access mode is not consulted, so
 `admin` and `super` may run any pipeline from whatever mode they are sitting
-in.
+in — the admin from no mode at all.
 
 `manage.pipelines` is **unscoped on the object axis** — no pipeline filters by
 label, field group or media type. `execute_backup` reads
@@ -1838,8 +1896,11 @@ mode, and writes the same complete sheet either way.
 every orphan row, including entries a narrow mode conceals, and `/clean/apply`
 deletes by `system_id`; `/replace/{type}/{id}` likewise distinguishes a hidden
 entry from a missing one. Both are now reachable from a narrowed session. The
-caller holds `manage.pipelines` — `admin` or `super` — and a mode is a view
-ceiling they chose for themselves rather than a boundary against them. If
+caller holds `manage.pipelines` — `admin` or `super`. For `super` a mode is
+a view ceiling it chose for itself rather than a boundary against it. The
+admin, which reads no catalogue through any other route, sees the entry
+names these pipeline reports carry: the pipelines run over every row by
+design, and the admin runs them. If
 either needs closing, close it at the route (filter the report, add an
 `entry_visible` check to replace-one), not by gating the router on a mode the
 other four pipelines never read.
@@ -1853,15 +1914,14 @@ answers the same in `safe` as in `unrestricted`.
 
 ### Guards on users (`app/routers/users.py`)
 
-- **Last admin:** changing the role of, or deleting, the last **active**
-  account whose role can administer (root role or holds `admin.authz`) →
-  **409** "last account that can administer the site".
 - **Self-delete:** deleting your own account → **409**.
 - **Self-disable:** disabling your own account → **409** `You cannot disable
   yourself.`
-- **A disabled account does not count as an administrator** for the last-admin
-  guard, so disabling the other root account and then demoting yourself is
-  refused.
+- **The admin account is never deleted** → **409** `The admin account cannot
+  be deleted.` Together with its fixed role, this is what keeps an
+  installation administrable; there is no count of administering accounts.
+- **The admin account has no mode**: `PUT /api/users/{id}/access-modes` on it
+  → **409** `The admin account has no mode.`
 - **A pending registration is not edited here** → **409**; it is approved or
   declined.
 - **An account is given `user` or `super`, nothing else** (`ASSIGNABLE_ROLE_NAMES`):
@@ -1869,8 +1929,7 @@ answers the same in `safe` as in `unrestricted`.
   **422**.
 - **The admin account's role and a shared account's role are fixed**:
   changing either — the admin's own included — → **409** `The admin account's
-  role is fixed.` / `A shared account's role is fixed.` This is its own
-  refusal, not left to the last-admin guard.
+  role is fixed.` / `A shared account's role is fixed.`
 - **A shared account is never deleted** → **409** `A shared account cannot be
   deleted. Disable it instead.`; disabling it is allowed.
 - **A shared account's mode is fixed**: `PUT /api/users/{id}/access-modes` on
@@ -1886,8 +1945,8 @@ answers the same in `safe` as in `unrestricted`.
 
 | Page | File | What it does |
 |---|---|---|
-| Roles | `frontend/src/pages/admin/Roles.jsx` | the five roles, no create or delete; checkbox grid per family from `/api/roles/catalog`, locked cells drawn disabled; root role roles show a notice instead of a grid |
-| Users | `frontend/src/pages/admin/Users.jsx` | create users, assign roles (the selects offer only User and Super; an admin or shared row shows its role as text), reset passwords, delete (not a shared row); the access panel sets an account's ceiling, its default (offered only up to the ceiling) and its denials (the ceiling's own items) — a shared row has no panel and shows `Mode: <label> (fixed)`; a `user` or `super` row carries the four feature toggles (Quotes & memes, Favourites, Music status, Mod status), each saved as it is ticked, and an admin or shared row none |
+| Roles | `frontend/src/pages/admin/Roles.jsx` | the five roles, no create or delete; checkbox grid per family from `/api/roles/catalog`, locked cells drawn disabled, so the `admin` row — locked in every cell — draws wholly disabled with no Save button; each role's list entry counts its grants |
+| Users | `frontend/src/pages/admin/Users.jsx` | create users, assign roles (the selects offer only User and Super; an admin or shared row shows its role as text), reset passwords, delete (not an admin or shared row); the access panel sets an account's ceiling, its default (offered only up to the ceiling) and its denials (the ceiling's own items) — a shared row has no panel and shows `Mode: <label> (fixed)`, the admin row has none and shows `No mode (admin)`; a `user` or `super` row carries the four feature toggles (Quotes & memes, Favourites, Music status, Mod status), each saved as it is ticked, and an admin or shared row none |
 | Content Labels | `frontend/src/pages/admin/ContentLabels.jsx` | the read-only label reference: name, key, description, a chip per mode that shows the label, "also carries NSFW", and entry, collection, franchise and series counts. Reached by `admin` and `super` (`<ProtectedRoute anyPermission>`), from the Note section of the nav |
 | Access Modes | `frontend/src/pages/admin/AccessModes.jsx` | one card per mode, narrowest first: editable name and description, `user_count`, and the derived labels and field groups read-only |
 | Label picker | `frontend/src/components/forms/ContentLabelPicker.jsx` | rendered **once** on Add and once on Modify (not in the per-type tabs); on Add the parent holds the selection and `PUT`s after create, mirroring the credits control |
@@ -1906,8 +1965,8 @@ What an admin can change from the browser, and what needs a commit:
 | which field groups exist | | `field_groups.py` |
 | which media types / field-group families exist | | `permissions.py`, the registry |
 
-Some blocks the SPA hides itself: the detail pages read
-`useAuth().isRoot` to draw the poster-spine id. The component is named in
+Some blocks the SPA hides itself: the detail pages ask
+`useAuth().has("manage.catalog")` to draw the poster-spine id. The component is named in
 JSX, not declared anywhere server-side — there is no `ui_block` field and
 never was a mapping behind it.
 Where the server already blanks the value there is nothing to ask —
@@ -1920,29 +1979,33 @@ matters is enforced server-side.
 | File | Covers |
 |---|---|
 | `tests/unit/test_rbac_permissions.py` | catalog, naming, `split_perm` |
-| `tests/unit/test_rbac_viewer.py` | `Viewer.has`, root role, guest |
+| `tests/unit/test_rbac_viewer.py` | `Viewer.has` as plain membership, the admin holding no permission nobody granted, guest |
 | `tests/unit/test_field_groups.py` | every declared column/link field exists |
 | `tests/api/test_rbac_core.py` | seed idempotence, `/me` never raises, deleted-user / de-admined tokens rejected |
 | `tests/api/test_rbac_admin_api.py` | roles/users/labels routes, 409/422 guards |
-| `tests/api/test_group_content_labels.py` | labels on collections and series and the cascade: an unlabelled tree hides nothing; a collection's label hides the whole tree, a franchise's its series and entries but not its collection, a series' itself and its entries only (not its franchise or a sibling); moving a franchise out of a labelled collection reveals it; a labelled collection and series absent from lists and search; `tier_visible` and `filter_visible_pairs` on collection and series ids; per tier, assignment adding `nsfw`, refusing to drop it, 422 on an unknown key, 404 to a narrow editor and refused to a plain user; group responses carrying their own labels; the reference counting each tier; `add_missing_nsfw` on a group. Every refusal pairs with `admin_client`, and `nsfw_label` makes refusal possible |
+| `tests/api/test_group_content_labels.py` | labels on collections and series and the cascade: an unlabelled tree hides nothing; a collection's label hides the whole tree, a franchise's its series and entries but not its collection, a series' itself and its entries only (not its franchise or a sibling); moving a franchise out of a labelled collection reveals it; a labelled collection and series absent from lists and search; `tier_visible` and `filter_visible_pairs` on collection and series ids; per tier, assignment adding `nsfw`, refusing to drop it, 422 on an unknown key, 404 to a narrow editor and refused to a plain user; group responses carrying their own labels; the reference counting each tier; `add_missing_nsfw` on a group. Every refusal pairs with `owner_client`, and `nsfw_label` makes refusal possible |
 | `tests/api/test_mode_ceiling.py` | `set_mode_ceiling`'s refusals and acceptances, denial pruning on a lowered ceiling, a switch above the ceiling 404 with the mirror at and below it, a live override above a just-lowered ceiling resolving nothing, `/me` listing exactly the modes up to the ceiling, a denial applying in every mode that shows it, a denial the ceiling does not show 422 with the mirror, a new account at `normal` / `normal`, and the three `ck_users_mode_*` constraints |
 | `tests/api/test_mode_ceiling_migration.py` | the real `alembic upgrade` into `m1c2eiling345` on a scratch database seeded with held sets - widest held, the flagged default, `cg1618`'s owner pair, a modeless account, a logged gap, the denial union - and the downgrade restoring one grant per mode up to the ceiling |
 | `tests/api/test_labels_in_code.py` | the six labels and their lowest modes, each mode showing everything the mode below shows, a session in each mode seeing exactly its labels (refusals paired with the mode above), restricted sources withheld in `safe`, the removed create/delete/regrant routes absent, a mode's name still adjustable, the reference read by admin and super and refused to a member, `ensure_labels` restoring a missing label and a rewritten name |
 | `tests/api/test_labels_in_code_migration.py` | revision `l1a2belcode3`: its frozen copy matches the code, an unknown label nothing cites is deleted and one still on an entry stops the upgrade, an unknown mode is deleted outright because `ck_users_mode_keys` means no account can use one, and the six labels' rows are written |
-| `tests/api/test_role_locks.py` | the locked-grant table and both halves that read it: what the role list serves, what the write path refuses, and what the seed reconciles |
+| `tests/api/test_role_locks.py` | the locked-grant table and both halves that read it: what the role list serves, what the write path refuses, and what the seed reconciles; the admin row wholly fixed, served wholly locked, and any change to it refused |
 | `tests/api/test_fixed_roles.py` | no route creates or deletes a role; the seed creates exactly the five; an unknown name is locked out of everything; `shared`'s and `user`'s locks refused on save with the free-cell mirror; boot drops a stored `manage.catalog` from `user`; a gated type refused on `guest` and `shared` and required on `user`, each ordinary type free for all three, and boot reconciling the gated types both ways |
 | `tests/api/test_fixed_roles_migration.py` | revision `f1i2veroles45` on a scratch database: an empty role outside the five is deleted, one holding an account makes the upgrade fail naming it and leaves everything in place |
 | `tests/api/test_shared_accounts.py` | the seed creates both shared accounts at their own mode with limit 10 and an unusable password (login refused until the admin sets one, with the mirror); a hand-edited role or ceiling restored on the next seed run, password, status and limit untouched; a shared account files a request and cannot read quotes or memes or change its own password; it cannot switch mode (409) while a member switches within its ceiling, and `/me` offers it its own mode alone |
 | `tests/api/test_users_router.py` | `/users`' role guards: create or change to a role other than `user` / `super` 422, the admin's and a shared account's role 409, a shared account's delete and access-modes 409 — each with its accepted mirror |
+| `tests/api/test_admin_not_root.py` | the admin is not root, each refusal against a row that is there with the mirror beside it: refused (401) a catalogue read and write that `owner_client` makes; reaches each of its pages' APIs and writes announcements and options; cannot edit or delete a member's personal note (404) while its author can; writes no catalogue note while super does; the seeded admin has no mode, cannot be deleted (409) and takes no mode (409), each with a member's mirror |
+| `tests/api/test_admin_page_permissions.py` | the four admin-page keys: a catalogue editor (`manage.catalog` plus the member set) is refused every announcement write, the Note pages' APIs, the image library and the Resources page's reads and writes, against rows that are there; `super`, and an account holding only the page's key over guest reads, reach each; a member is refused `/resources` while super reads it; form and picker defaults stay on `manage.catalog` and `manage.options` does not open them |
+| `tests/api/test_admin_not_root_migration.py` | revision `a1d2minroot45` with the real `alembic` on a scratch database: the admin role's stray grant replaced by its seven, `is_root` dropped, the admin account's mode NULL while a `super` account's stays, its personal row logged and kept, and the downgrade |
+| `tests/api/test_pull_users_first.py` | Pull All restores the Users tab before every tab that files rows under the installation owner, asserted on the order Pull actually iterates |
 | `tests/api/test_admin_compat.py` | characterization test: every route enumerated from the app itself must stay gated by one of the three capabilities, so a route that loses its guard in a refactor fails here |
-| `tests/api/test_capability_dependencies.py` | `require_admin_authz` / `require_manage_catalog` / `require_manage_pipelines` each answer 401, never 403 |
+| `tests/api/test_capability_dependencies.py` | `require_admin_authz` / `require_manage_catalog` / `require_manage_pipelines` each answer 401, never 403; the admin passes `admin.authz` and `manage.pipelines` and is refused `manage.catalog` |
 | `tests/api/test_catalog_router_gates.py` | a `super` account may edit the catalogue, an ordinary `user` may not - one representative route per router family, pinning that the *right* capability was chosen |
 | `tests/api/test_no_bare_admin_permission.py` | the bare `admin` permission is absent from `static_catalog()`, and no module imports a single all-powerful admin dependency |
 | `tests/api/test_media_type_gating.py` | whole type disappears, 404 on detail |
 | `tests/api/test_field_gating.py` | link and source stripping; the narrowest viewer there is still gets credits, both timestamps and `system_id`; and a probe group stands the columns flavour up so the copy-not-setattr rule stays tested with no real column group left |
-| `tests/api/test_cover_viewer_cache.py` | a warm cover request runs no viewer query (anonymous, narrowed and admin, by statement count); a session warming the cache lends nothing to another; labelling an entry reaches the next cover request because no cache holds what an entry carries, and a new denial and a deleted account each reach it through `bump()`; an unbumped change expires on the TTL (clock moved by hand); an entry never outlives its token; an answer resolved across a bump is not kept, mirrored by the same call without one being a hit. `hidden_anime` keeps every refusal from being vacuous |
-| `tests/api/test_cover_images_are_gated.py` | a hidden entry's cover 404s and the same file 200s for an admin, the lying-folder case, and that `/static/covers/` no longer answers. The written file and `nsfw_label` are load-bearing: a missing file 404s too, and an empty label set makes every refusal vacuous |
-| `tests/api/test_shared_record_visibility.py` | the shared-record rule: a person, seiyuu, character, studio, publisher or vocabulary value connected only to label-hidden entries is hidden, one visible connection keeps it visible with the hidden one omitted, no connections stays visible, a type gap hides nothing; series under a hidden franchise; entity photos; notes on a hidden series; and scope connections through a gated type registered for the test (`manga` pointed at `nsfw`), independent of h-comic. Every refusal pairs with `admin_client` seeing the same record |
+| `tests/api/test_cover_viewer_cache.py` | a warm cover request runs no viewer query (anonymous, narrowed and the owner, by statement count); a session warming the cache lends nothing to another; labelling an entry reaches the next cover request because no cache holds what an entry carries, and a new denial and a deleted account each reach it through `bump()`; an unbumped change expires on the TTL (clock moved by hand); an entry never outlives its token; an answer resolved across a bump is not kept, mirrored by the same call without one being a hit. `hidden_anime` keeps every refusal from being vacuous |
+| `tests/api/test_cover_images_are_gated.py` | a hidden entry's cover 404s and the same file 200s for a session that sees the entry, the lying-folder case, and that `/static/covers/` no longer answers. The written file and `nsfw_label` are load-bearing: a missing file 404s too, and an empty label set makes every refusal vacuous |
+| `tests/api/test_shared_record_visibility.py` | the shared-record rule: a person, seiyuu, character, studio, publisher or vocabulary value connected only to label-hidden entries is hidden, one visible connection keeps it visible with the hidden one omitted, no connections stays visible, a type gap hides nothing; series under a hidden franchise; entity photos; notes on a hidden series; and scope connections through a gated type registered for the test (`manga` pointed at `nsfw`), independent of h-comic. Every refusal pairs with `owner_client` seeing the same record |
 | `tests/api/test_h_comic_entries.py` | h-comic: the label stamped on every router write path and refused removal (422) and deletion (no route), guest / `normal` / `borderline` 404 and absent from list and search while `unrestricted` sees it, only `unrestricted` shows the label, `visible_gated_types`, no `h-comic` search bucket for a narrow session, `PUT /api/me/list` running the list hook, H-Comic franchises labelled and segregated from mainstream ones |
 | `tests/api/test_hentai_entries.py` | hentai: the same set as h-comic's - label stamped, refused removal and deletion, narrow modes 404 while `unrestricted` sees it, only `unrestricted` shows the label - plus its franchise family |
 | `tests/api/test_hentai_shared_records.py` | a studio, director or author credited only on hentai is hidden (the author from guest and from an h-comic-only session alike), one also on an anime is not, and an author also on the h-comic the hentai adapts is seen through the h-comic alone by an h-comic-only session and through both by `unrestricted`; an H Genre value used only by hentai is hidden; `/api/constants` for a session seeing neither gated type and for one seeing h-comic only (`unrestricted` with `hentai` denied, both labels present) |
@@ -1956,13 +2019,13 @@ matters is enforced server-side.
 | `tests/api/test_visibility.py` | label hiding on lists/detail — asserts on `response.text` so an id cannot leak through any field |
 | `tests/api/test_visibility_aggregates.py` | quotes, memes, credits, notes, plan, relations, watch orders, person counts |
 | `tests/api/test_visibility_graph.py` | `/graph` filtering |
-| `tests/api/test_resources.py` | the Resources page: a guest is refused the read (401) and a `user` reads it, against a populated tree; both are refused every write (401), and the same writes succeed for `super` (by grant) and `admin` (root) |
+| `tests/api/test_resources.py` | the Resources page: a guest and a `user` are refused the read (401) against a populated tree, which `super` reads; both are refused every write (401), and the same writes succeed for a `manage.resources` holder |
 | `tests/api/test_user_rating.py`, `test_user_rating_migration.py`, `test_user_rating_sheets.py` | two accounts rating one row each read their own, a guest reads null, every write without `self.list` (the admin's included) is 401 against an existing row and changes nothing, the vocabularies on all seven owners, writes following reads, merges moving rows; `u1r2atings3`'s own data steps, run against the test session, filing values under the owner (flag unset with an eligible-looking guest, flag set, admin and guest only) and its downgrade restoring only the owner's; the two Sheets tabs round-tripping and an old sheet's columns landing on the owner |
-| `tests/api/test_guest_has_no_list.py` | a guest reads no status, rating or progress; the personal-column filter matches nothing rather than cross-joining; `installation_owner_id` still answers |
+| `tests/api/test_guest_has_no_list.py` | a guest reads no status, rating or progress; the personal-column filter matches nothing rather than cross-joining; `installation_owner_id` answers the flag holder over every fallback, and a member over the admin |
 | `tests/api/test_viewer_user_id.py` | `Viewer.user_id`, and that `acting_user_id` does **not** fall back |
 | `tests/api/test_view_permissions.py` | the `view` family: the six keys in the catalog with labels, `view.personal` in neither the catalog nor any seeded role, offered by the role editor, the seed defaults, `super` holding all six by lock with the entity keys free below it; every gated read refused to a guest and read by a holder against populated rows, a seeded member reading no entity page, and each key opening exactly its own reads; entity writes still need `manage.catalog` and do not need the read; group, entity and novel-unit ratings, expectations and remarks the viewer's own - null for a guest and for another viewer, the member's own through list, detail and search, and a catalogue manager's own rather than the member's |
 | `tests/api/test_view_permissions_migration.py` | revision `v1i2ewperms34`, run from its own file: it grants the keys of its day to an established `user` role and nothing to `guest`, is idempotent, and its downgrade takes them off every role |
-| `tests/api/test_account_features.py` | the feature switches: quotes and memes refused to a member without the switch and read with it, against a populated quote and meme; refused to a guest; read by the admin without the switch; `view.extras` still opening resources; `/me`'s `features` for a member, a guest and the admin; switching one on for a shared or the admin account 409 with the user and super mirrors; switching off always allowed; a stored switch on a shared account opening nothing |
+| `tests/api/test_account_features.py` | the feature switches: quotes and memes refused to a member without the switch and read with it, against a populated quote and meme; refused to a guest; the admin reading neither; `view.extras` opening neither resources nor quotes; `/me`'s `features` for a member, a guest and the admin (none); switching one on for a shared or the admin account 409 with the user and super mirrors; switching off always allowed; a stored switch on a shared account opening nothing |
 | `tests/api/test_switches_migration.py` | revision `s1w2itches345` on a scratch database: the four columns with `cg1618` switched on, the entity key carried onto all four kinds, the gated types reconciled, missing ordinary types granted, and the downgrade folding the four back |
 | `tests/api/test_note_scope_reads.py`, `test_note_scope_writes.py` | personal note sections filter by author; catalogue sections do not; who may write which |
 | `tests/api/test_private_user_data.py` | there is no profile or community route and no settings write; an `author` parameter is ignored and a viewer reads only their own personal notes, against a second account's note on the same entry; `sources_restricted` is the only field group, and a viewer holding none still gets the `other` sources while losing the `restricted` ones; an older Users tab carrying `list_is_public` Pulls cleanly |
@@ -1992,7 +2055,7 @@ another:
 
 | Gate | Question | Answer when it fails |
 |---|---|---|
-| `require_admin_authz` / `require_manage_catalog` / `require_manage_pipelines`, and the six `require_view_*` | do you hold this one capability? | 401 |
+| `require_admin_authz` / `require_manage_catalog` / `require_manage_pipelines`, the four admin-page gates (`require_manage_announcements`, `_options`, `_images`, `_resources`), and the six `require_view_*` | do you hold this one capability? | 401 |
 | `require_permission(name)` | do you hold this one grant? | 401 |
 | `get_current_user_id` | is there an **account** at all? | 401 |
 | `require_feature(name)` (`features.py`) | does your **account** have this feature switched on? | 401 |

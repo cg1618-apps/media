@@ -114,8 +114,8 @@ def test_a_holder_still_sees_the_bucket(client, db_session, anime_with_sources):
     assert {s["bucket"] for s in body["sources"]} == {"restricted"}
 
 
-def test_admin_still_sees_the_bucket(admin_client, anime_with_sources):
-    body = admin_client.get(f"/api/anime/{anime_with_sources.system_id}").json()
+def test_admin_still_sees_the_bucket(owner_client, anime_with_sources):
+    body = owner_client.get(f"/api/anime/{anime_with_sources.system_id}").json()
     assert {s["bucket"] for s in body["sources"]} == {"restricted"}
 
 
@@ -233,9 +233,9 @@ def test_credit_refs_are_served_too(client, db_session, sample_anime):
 # ---------------------------------------------------------------------------
 
 @pytest.fixture
-def personal_note(db_session, sample_anime, admin_user):
+def personal_note(db_session, sample_anime, owner_user):
     n = models.Note(
-        author_id=admin_user.id,
+        author_id=owner_user.id,
         system_id=uuid.uuid4(),
         media_id=sample_anime.system_id,
         section="personal_reviews",
@@ -247,9 +247,9 @@ def personal_note(db_session, sample_anime, admin_user):
 
 
 @pytest.fixture
-def public_note(db_session, sample_anime, admin_user):
+def public_note(db_session, sample_anime, owner_user):
     n = models.Note(
-        author_id=admin_user.id,
+        author_id=owner_user.id,
         system_id=uuid.uuid4(),
         media_id=sample_anime.system_id,
         section="public_reviews",
@@ -284,7 +284,7 @@ def test_another_authors_personal_section_is_withheld(
 # `system_id` was never gated either: it is the route parameter of the page
 # the viewer is already on, so withholding it would break navigation without
 # concealing anything. The decorative copy printed down a detail page's spine
-# is drawn on `is_root` in the SPA, which is presentation and not a gate.
+# is drawn on `manage.catalog` in the SPA, which is presentation and not a gate.
 
 
 @pytest.fixture
@@ -394,7 +394,7 @@ def test_gating_a_column_does_not_erase_it_from_the_database(
 
 
 def test_a_viewer_without_restricted_sources_does_not_see_them(
-    client, admin_client, sample_anime, db_session
+    client, owner_client, sample_anime, db_session
 ):
     from app import models
 
@@ -409,7 +409,7 @@ def test_a_viewer_without_restricted_sources_does_not_see_them(
         )
     db_session.commit()
 
-    seen = admin_client.get(f"/api/anime/{sample_anime.system_id}").json()["sources"]
+    seen = owner_client.get(f"/api/anime/{sample_anime.system_id}").json()["sources"]
     assert {s["bucket"] for s in seen} == {"other", "restricted"}
 
     # The explicit removal is kept even though `safe` already withholds the

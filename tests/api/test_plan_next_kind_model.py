@@ -39,17 +39,17 @@ def _row(db, owner, kind, media_type="anime", franchise=None):
     return row
 
 
-def test_kind_is_stored(db_session, admin_user):
-    row = _row(db_session, admin_user, "rewatch")
+def test_kind_is_stored(db_session, owner_user):
+    row = _row(db_session, owner_user, "rewatch")
     db_session.refresh(row)
     assert row.kind == "rewatch"
 
 
-def test_same_target_under_both_kinds_is_allowed(db_session, admin_user):
+def test_same_target_under_both_kinds_is_allowed(db_session, owner_user):
     # A franchise can be both queued and marked for rewatch.
     target = _franchise(db_session)
-    _row(db_session, admin_user, "next", franchise=target)
-    _row(db_session, admin_user, "rewatch", franchise=target)
+    _row(db_session, owner_user, "next", franchise=target)
+    _row(db_session, owner_user, "rewatch", franchise=target)
     assert (
         db_session.query(models.PlanNext)
         .filter_by(franchise_id=target.system_id)
@@ -58,15 +58,15 @@ def test_same_target_under_both_kinds_is_allowed(db_session, admin_user):
     )
 
 
-def test_duplicate_within_one_kind_is_rejected(db_session, admin_user):
+def test_duplicate_within_one_kind_is_rejected(db_session, owner_user):
     target = _franchise(db_session)
-    _row(db_session, admin_user, "rewatch", franchise=target)
+    _row(db_session, owner_user, "rewatch", franchise=target)
     with pytest.raises(IntegrityError):
-        _row(db_session, admin_user, "rewatch", franchise=target)
+        _row(db_session, owner_user, "rewatch", franchise=target)
     db_session.rollback()
 
 
-def test_kind_is_not_nullable(db_session, admin_user):
+def test_kind_is_not_nullable(db_session, owner_user):
     # The NOT NULL constraint still stands. This has to go through raw SQL:
     # once the column carries a server default, SQLAlchemy omits it from the
     # INSERT whether the attribute is unset OR explicitly set to None, so the
@@ -79,20 +79,20 @@ def test_kind_is_not_nullable(db_session, admin_user):
                 "(system_id, user_id, kind, media_type, franchise_id) "
                 "VALUES (:sid, :uid, NULL, 'movie', :fid)"
             ),
-            {"sid": uuid.uuid4(), "uid": admin_user.id, "fid": target.system_id},
+            {"sid": uuid.uuid4(), "uid": owner_user.id, "fid": target.system_id},
         )
         db_session.commit()
     db_session.rollback()
 
 
-def test_omitted_kind_defaults_to_next(db_session, admin_user):
+def test_omitted_kind_defaults_to_next(db_session, owner_user):
     # An OMITTED kind is filled by the server default rather than failing.
     # This is the exact shape pull.py builds when restoring a "Plan Next" tab
     # backed up before the kind column existed: the sheet has no such header,
     # pull drops parsed keys the header lacked, and the row arrives with kind
     # unset. Every row in such a tab predates rewatch, so "next" is correct.
     row = models.PlanNext(
-        user_id=admin_user.id,
+        user_id=owner_user.id,
         media_type="movie",
         franchise_id=_franchise(db_session).system_id,
     )

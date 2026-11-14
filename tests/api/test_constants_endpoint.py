@@ -53,8 +53,8 @@ def test_seiyuu_status_is_gone(client):
     assert "seiyuu_status" not in body
 
 
-def test_serves_the_person_role_vocabulary(admin_client):
-    # admin_client: `unrestricted`, which sees every gated type, so nothing
+def test_serves_the_person_role_vocabulary(owner_client):
+    # owner_client: `unrestricted`, which sees every gated type, so nothing
     # is narrowed. A narrow session's payload is covered below.
     """
     OptionsAddTab.jsx hand-duplicated this list with nothing enforcing the
@@ -63,24 +63,24 @@ def test_serves_the_person_role_vocabulary(admin_client):
     """
     from app.utils.credit_roles import PERSON_ROLES
 
-    body = admin_client.get("/api/constants").json()
+    body = owner_client.get("/api/constants").json()
     assert body["person_role"] == list(PERSON_ROLES)
 
 
-def test_serves_the_hyphenated_media_type_keys(admin_client):
-    # admin_client: `unrestricted`, which sees every gated type, so nothing
+def test_serves_the_hyphenated_media_type_keys(owner_client):
+    # owner_client: `unrestricted`, which sees every gated type, so nothing
     # is narrowed. A narrow session's payload is covered below.
     """What the Options form's scope picker offers. NOT person-role scopes."""
     from app.utils.media_resolver import MEDIA_TYPE_KEYS
 
-    body = admin_client.get("/api/constants").json()
+    body = owner_client.get("/api/constants").json()
     assert body["media_type"] == list(MEDIA_TYPE_KEYS)
     assert "anime-movie" in body["media_type"]
     assert "anime_movie" not in body["media_type"]
 
 
-def test_serves_the_declared_option_categories(admin_client):
-    # admin_client: `unrestricted`, which sees every gated type, so nothing
+def test_serves_the_declared_option_categories(owner_client):
+    # owner_client: `unrestricted`, which sees every gated type, so nothing
     # is narrowed. A narrow session's payload is covered below.
     """
     The Options form cannot build its category list from the options already
@@ -89,7 +89,7 @@ def test_serves_the_declared_option_categories(admin_client):
     """
     from app.utils.credit_roles import OPTION_CATEGORIES
 
-    body = admin_client.get("/api/constants").json()
+    body = owner_client.get("/api/constants").json()
     assert body["option_categories"] == list(OPTION_CATEGORIES)
     assert "Combat Mode" in body["option_categories"]
     assert "Quality" not in body["option_categories"]
@@ -138,8 +138,8 @@ def test_serves_the_two_completion_vocabularies(client):
     assert body["game_achievement_flag"] == ["Fully", "Yes", "No", "Inapplicable"]
 
 
-def test_serves_the_h_comic_vocabularies_to_unrestricted(admin_client):
-    body = admin_client.get("/api/constants").json()
+def test_serves_the_h_comic_vocabularies_to_unrestricted(owner_client):
+    body = owner_client.get("/api/constants").json()
     assert body["h_comic_region"] == list(c.H_COMIC_REGIONS)
     assert body["h_comic_originality"] == list(c.H_COMIC_ORIGINALITY)
     assert body["h_comic_animation_status"] == list(c.H_COMIC_ANIMATION_STATUSES)

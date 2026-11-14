@@ -9,8 +9,9 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 ## Authentication
 
 - **Public endpoints** — accessible by any visitor (guest or admin).
-- **Capability-gated endpoints** — require a valid JWT in the `access_token` HTTP-Only cookie plus the capability the route names: `require_manage_catalog`, `require_manage_pipelines` or `require_admin_authz` (`app/services/rbac/resolver.py`). There is no single "is an admin" dependency.
+- **Capability-gated endpoints** — require a valid JWT in the `access_token` HTTP-Only cookie plus the capability the route names: `require_manage_catalog`, `require_manage_pipelines`, `require_admin_authz`, or one of the admin's page keys — `require_manage_announcements`, `require_manage_options`, `require_manage_images`, `require_manage_resources` (`app/services/rbac/resolver.py`). There is no single "is an admin" dependency, and no role passes every gate: the admin account holds `admin.authz`, `manage.pipelines`, `manage.requests` and the four page keys, and no `manage.catalog`, so every catalogue write — and every catalogue read, since it holds no `media_type.*` and no mode — is refused to it.
 - **View-gated reads** — an Auth cell naming a `view.*` permission (`view.studio`, `view.publisher`, `view.person`, `view.character`, `view.search`, `view.extras`) is a read the `guest` role does not hold as seeded, so a logged-out visitor gets **401**. A signed-in `user` holds `view.search` and `view.extras` as seeded; the four entity keys are the admin's to switch on per role. See [authorization.md](authorization.md#permission-catalog-code).
+- **"Admin" in an Auth cell means `manage.catalog`** — a catalogue write, which `super` holds — and not the admin account: the `admin` role holds no `manage.catalog`, so every such route answers it **401**. A cell naming another key (`manage.options`, `manage.resources`, …) means that key.
 - **Feature-gated reads** — an Auth cell naming `feature quotes_memes` is a read the caller's **account** must have switched on (`users.feature_quotes_memes`), answered **401** otherwise, the same shape as a permission refusal. See [authorization.md](authorization.md#per-account-feature-switches).
 - Login flow: `POST /api/auth/login` → sets cookie → all subsequent admin requests carry it automatically.
 - A missing or invalid cookie on an admin endpoint is **401**, never 403. The one 403 in the app is the login route's, for a pending or disabled account that gave the right password. Public read endpoints additionally resolve a *viewer* and hide what the viewer's role may not see (as 404) — see [Authorization](#authorization) at the end of this file and `docs/authorization.md`.
@@ -842,7 +843,7 @@ Every route needs the game visible to the caller (`require_visible_media`): a
 hidden or unknown game answers **404 "Game not found."**, and a visible entry
 of any type but `game` or `h-game` answers **422**. Graph writes need
 `manage.catalog`; a mark needs a signed-in account holding
-`self.personal_notes`, which the root flag does not grant - so the `admin`
+`self.personal_notes`, which the `admin` role never holds - so the admin
 account cannot write marks and reads none. The tables' `system_id` is sent as
 `id` in every response.
 
@@ -887,8 +888,8 @@ business-rules.md.
 ## Quote — `/api/quote`
 
 Memorable lines attached to a media entry. Reads need the caller's account to
-have the `quotes_memes` feature switched on (the root admin holds it without
-the switch); every write is admin-only.
+have the `quotes_memes` feature switched on, which only a `user` or `super`
+account can hold; every write needs `manage.catalog`.
 
 | Method   | Path            | Auth   | Description                                                                                                                                                                                    |
 | -------- | --------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -962,17 +963,17 @@ above it.
 ## Resources — `/api/resources`
 
 The site-wide Resources page: one tree of groups and items (links, plain text,
-text with inline links). Reads need `view.extras`, which a guest does not
-hold; every write needs `manage.catalog`. See
-[systems/resources.md](systems/resources.md).
+text with inline links). Reads and writes alike need `manage.resources`,
+which only the `admin` and `super` roles hold: a guest and a `user` get
+**401** on every route. See [systems/resources.md](systems/resources.md).
 
 | Method   | Path            | Auth             | Description |
 | -------- | --------------- | ---------------- | ----------- |
-| `GET`    | (root)          | `view.extras`           | The whole page as a tree: the top-level nodes, each with `children` nested to any depth, every level sorted by `sort_index` (groups and items interleaved). |
-| `POST`   | (root)          | `manage.catalog` | Create. Body: `{kind, parent_id?, title?, content?}`. **201** with the node (`children: []`), appended after its siblings (`max(sort_index) + 1`). **422** when a group has no title or has content, an item has no content, `kind` is not `group`/`item`, or `parent_id` names no node or an item. |
-| `PATCH`  | `/reorder`      | `manage.catalog` | Body: `{parent_id: uuid\|null, ordered_ids: [uuid, ...]}`. Moves every listed node under `parent_id` and sets its `sort_index` to its position (0.0, 1.0, …), so it both reorders and moves between groups. **422** on a duplicate id, an unknown id, a parent that is missing or an item, a list that leaves out any node already under that parent, or a group moved inside itself or its own descendant. Returns `{"status": "success", "reordered": n}`. |
-| `PATCH`  | `/{system_id}`  | `manage.catalog` | Edit `title` and/or `content`. `kind` and `parent_id` are not editable here (extra keys are ignored); moves go through `/reorder`. Same **422** shape rules as create; **404** on an unknown id. |
-| `DELETE` | `/{system_id}`  | `manage.catalog` | Delete the node and, by the cascading `parent_id` FK, everything under it. Logs to `deleted_record` as type "Resource". Returns `{"status": "success", "message": ...}`. |
+| `GET`    | (root)          | `manage.resources` | The whole page as a tree: the top-level nodes, each with `children` nested to any depth, every level sorted by `sort_index` (groups and items interleaved). |
+| `POST`   | (root)          | `manage.resources` | Create. Body: `{kind, parent_id?, title?, content?}`. **201** with the node (`children: []`), appended after its siblings (`max(sort_index) + 1`). **422** when a group has no title or has content, an item has no content, `kind` is not `group`/`item`, or `parent_id` names no node or an item. |
+| `PATCH`  | `/reorder`      | `manage.resources` | Body: `{parent_id: uuid\|null, ordered_ids: [uuid, ...]}`. Moves every listed node under `parent_id` and sets its `sort_index` to its position (0.0, 1.0, …), so it both reorders and moves between groups. **422** on a duplicate id, an unknown id, a parent that is missing or an item, a list that leaves out any node already under that parent, or a group moved inside itself or its own descendant. Returns `{"status": "success", "reordered": n}`. |
+| `PATCH`  | `/{system_id}`  | `manage.resources` | Edit `title` and/or `content`. `kind` and `parent_id` are not editable here (extra keys are ignored); moves go through `/reorder`. Same **422** shape rules as create; **404** on an unknown id. |
+| `DELETE` | `/{system_id}`  | `manage.resources` | Delete the node and, by the cascading `parent_id` FK, everything under it. Logs to `deleted_record` as type "Resource". Returns `{"status": "success", "message": ...}`. |
 
 **Response model:** `ResourceNodeResponse` - `system_id`, `parent_id`, `kind`,
 `title`, `content`, `sort_index`, `created_at`, `updated_at`, `children`.
@@ -1051,19 +1052,21 @@ never caches a cover.
 ## Images — `/api/images`
 
 Upload an image from the caller's own machine and attach it to anything else
-in the catalogue. Every route is behind `require_manage_catalog` — there is
-no public read.
+in the catalogue. Every route is behind `require_manage_images`
+(`manage.images`, held by the `admin` and `super` roles) — there is no public
+read, and `manage.catalog` alone does not open it. The Auth column's
+"Images" is that key.
 
 | Method   | Path                          | Auth   | Description                                                                                                                                |
 | -------- | ----------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `POST`   | `/`                           | Catalog | Upload one file (`multipart/form-data`, field `file`). Validates, re-encodes to JPEG, stores it, and returns the `image` row. Attaches it to nothing — upload and attach are separate calls. 413 over `MAX_IMAGE_UPLOAD_MB` (default 10), 422 if the bytes are not a PNG/JPEG/WebP image. |
-| `GET`    | `/`                           | Catalog | The library, paginated (`limit` ≤200, `offset`). `?q=` matches `original_filename`; `?unused=true` restricts to images with no attachment and no cast row using them as a photo; `?missing=true` restricts to images whose file is not on this machine; `?duplicates=true` is always empty (checksum is unique) and exists to prove dedup rather than to filter anything. |
-| `POST`   | `/{image_id}/attach`          | Catalog | Body: `{owner_type, owner_id, role}`. Points an owner at this image; re-attaching the same `(owner_type, owner_id, role)` replaces rather than duplicating. 400 on an `owner_type` outside `ATTACHABLE_OWNERS`. |
-| `DELETE` | `/{image_id}/attach/{attachment_id}` | Catalog | Detach. An uploaded image (`uploaded_by` set) stays in the library for reuse. A downloaded one is deleted with its file once its last attachment goes: its file is keyed on the owner it was downloaded for, so the next download for that owner overwrites it, and kept in the library it would alias that owner's live cover. |
-| `DELETE` | `/owners/{owner_type}/{owner_id}/{role}` | Catalog | Clear an owner's image, so it has none — the picker's **Remove**. Clears the attachment if there is one (by the rule detach follows), the mirror column, and — for `role` `cover` on a `COVER_OWNERS` type — the file downloaded for the owner at `covers/<owner_type>/<owner_id>.jpg`, unless an `image` row attached elsewhere still points at it. Keyed on the owner because a cover downloaded after the library was introduced has no `image` row to detach. The next Replace downloads the cover of whatever external id the entry holds then. 204 when there was nothing to clear; 400 on an `owner_type` outside `ATTACHABLE_OWNERS`. |
-| `DELETE` | `/{image_id}`                 | Catalog | Delete the file and its row. 409 while any attachment or cast photo still points at it, unless `?force=true`; a forced delete empties those owners' mirror columns and those cast rows' `photo_file`, and NULLs the focus beside each. |
+| `POST`   | `/`                           | Images | Upload one file (`multipart/form-data`, field `file`). Validates, re-encodes to JPEG, stores it, and returns the `image` row. Attaches it to nothing — upload and attach are separate calls. 413 over `MAX_IMAGE_UPLOAD_MB` (default 10), 422 if the bytes are not a PNG/JPEG/WebP image. |
+| `GET`    | `/`                           | Images | The library, paginated (`limit` ≤200, `offset`). `?q=` matches `original_filename`; `?unused=true` restricts to images with no attachment and no cast row using them as a photo; `?missing=true` restricts to images whose file is not on this machine; `?duplicates=true` is always empty (checksum is unique) and exists to prove dedup rather than to filter anything. |
+| `POST`   | `/{image_id}/attach`          | Images | Body: `{owner_type, owner_id, role}`. Points an owner at this image; re-attaching the same `(owner_type, owner_id, role)` replaces rather than duplicating. 400 on an `owner_type` outside `ATTACHABLE_OWNERS`. |
+| `DELETE` | `/{image_id}/attach/{attachment_id}` | Images | Detach. An uploaded image (`uploaded_by` set) stays in the library for reuse. A downloaded one is deleted with its file once its last attachment goes: its file is keyed on the owner it was downloaded for, so the next download for that owner overwrites it, and kept in the library it would alias that owner's live cover. |
+| `DELETE` | `/owners/{owner_type}/{owner_id}/{role}` | Images | Clear an owner's image, so it has none — the picker's **Remove**. Clears the attachment if there is one (by the rule detach follows), the mirror column, and — for `role` `cover` on a `COVER_OWNERS` type — the file downloaded for the owner at `covers/<owner_type>/<owner_id>.jpg`, unless an `image` row attached elsewhere still points at it. Keyed on the owner because a cover downloaded after the library was introduced has no `image` row to detach. The next Replace downloads the cover of whatever external id the entry holds then. 204 when there was nothing to clear; 400 on an `owner_type` outside `ATTACHABLE_OWNERS`. |
+| `DELETE` | `/{image_id}`                 | Images | Delete the file and its row. 409 while any attachment or cast photo still points at it, unless `?force=true`; a forced delete empties those owners' mirror columns and those cast rows' `photo_file`, and NULLs the focus beside each. |
 
-**The 404 on attach and clear.** `manage.catalog` says nothing about *which* entries a
+**The 404 on attach and clear.** `manage.images` says nothing about *which* entries a
 holder may reach, so attaching to or clearing a media owner (one of `MEDIA_TABLES`) also
 runs `entry_visible` — the same content-label check a detail read applies —
 and answers **404 "Entry not found."** exactly as a genuinely missing entry
@@ -1103,7 +1106,7 @@ whether the file exists on this machine — and `attachments`, the list of
 
 Structured commentary on any owner: one row per bullet, linked resource or
 episode comment. This is the only storage for them — there is no `notes` JSONB column on the
-seven media tables. Reads are public; a catalogue write needs `manage.catalog` and a personal one `self.personal_notes`.
+seven media tables. Reads are public. Every write — create, reorder, edit and delete — asks its **section**'s capability, shown as "By scope" below: `manage.catalog` for a catalogue section, `self.personal_notes` for a personal one, where a row is edited and deleted by its author alone and anyone else, whatever the role, gets the 404 a missing note gets ([authorization.md](authorization.md#note-scope)). The admin account holds neither key, so it writes no note.
 
 Like Meme, a note's owner may be a media entry **or** one of the three
 grouping tiers — the same twelve hyphenated `owner_type` values.
@@ -1120,7 +1123,7 @@ the id, never from the payload's `owner_type`.
 | `POST`   | `""`           | By scope | Create (201). Body: `NoteCreate`. In a mixed section the server picks the row's kind, never the payload (a `personal` key is ignored): a caller holding `manage.catalog` writes a catalogue row, any other caller holding `self.personal_notes` a personal row. 422 on a payload the registry rejects, on a catalogue row nesting under a personal one or a row nesting under another account's personal row, on a second row in a singleton section, or on a second `music_status` row for the same anime and `kind`. `sort_index` defaults to the end.     |
 | `PATCH`  | `/reorder`     | By scope | Rewrite `sort_index` for one section of one owner. Body: `NoteReorder`. 400 unless `ordered_ids` names exactly that section's notes, each once - in a personal section, exactly the caller's own; in a mixed section exactly its catalogue rows for a `manage.catalog` holder and exactly the caller's own personal rows for anyone else.                |
 | `PATCH`  | `/{note_id}`   | By scope | Partial update. Body: `NoteUpdate`, validated as the row *will* be, so a partial update cannot land on an invalid combination. A PATCH that changes `section` without sending `sort_index` puts the row at the end of its new section. A personal row of a mixed section is edited only by its author, may move only to another mixed section (422 otherwise), and never changes kind. |
-| `DELETE` | `/{note_id}`   | By scope | Delete, **204 No Content**. Logs to `deleted_record` as type "Note", standing a truncated `content` in for the name a note does not have. Every account's note marks on the row go with it.        |
+| `DELETE` | `/{note_id}`   | By scope | Delete, **204 No Content**. Asks the author rule and then the section's write capability, as a `PATCH` does; a row in a section the registry no longer knows is deletable by a `manage.catalog` holder. Logs to `deleted_record` as type "Note", standing a truncated `content` in for the name a note does not have. Every account's note marks on the row go with it.        |
 | `PUT`    | `/{note_id}/mark` | `self.personal_notes` | Set or clear the caller's own personal values on one catalogue row. Body `{"values": {key: value \| null}}`: each key is one of the row's personal values (a personal field's key, or `status` for a section-level personal status); a value sets it, `null` or blank clears it, a key not named is left alone. Returns the `NoteResponse` as the caller now reads it. **401** without the permission - the `admin` account included, it keeps no personal data - and for a value granted by a feature the caller lacks; **404** for a missing note or an owner the caller may not see; **422** for a key that is not personal on the row's section, or a value outside its vocabulary. |
 | `POST`   | `/ng-reset`    | `self.personal_notes` | Start a new cycle of one owner for the caller. Body `{"owner_type", "owner_id"}`. Clears, from the caller's own marks only, `collected` and `amount_collected` on every 物品 row whose `ng_reset` is `yes` (a row without one reads `yes`) and `beaten` on every 敵人 row. Returns `{"cleared": n}`, the number of the caller's marks changed. 400 unknown `owner_type`, 401 as above, 404 owner not visible. |
 
@@ -1141,13 +1144,12 @@ nor checked. The detail is in [systems/notes.md](systems/notes.md).
 `manage.catalog`, a `personal` one under `self.personal_notes` (which the
 `admin` account does not hold - its creates, edits and reorders there are
 **401**). A personal row is edited, reordered and deleted only by its author;
-another account's row is **404** - except that the `admin` account may delete
-one (`_authorize_edit`'s root short-circuit). A **mixed** section is decided by
-`manage.catalog`: its holders - `super`, the `admin` account - write, edit and
-reorder its catalogue rows (**401** for anyone else), and every other account
-holding `self.personal_notes` writes its own personal rows, which only it
-edits, deletes, reorders, marks and nests under (**404** to anyone else, the
-`admin` account included - no root short-circuit here). Personal sections include the six highlight sections and 下周目目標
+another account's row is **404** to everyone, the `admin` account included. A
+**mixed** section is decided by `manage.catalog`: its holders - `super` as
+seeded - write, edit and reorder its catalogue rows (**401** for anyone else,
+the `admin` account included), and every other account holding
+`self.personal_notes` writes its own personal rows, which only it edits,
+deletes, reorders, marks and nests under (**404** to anyone else). Personal sections include the six highlight sections and 下周目目標
 (`ng_goals`) - [catalogue.md](catalogue.md) lists every section's scope.
 
 **Response models:** `NoteResponse` (carries `personal`, true on a personal
@@ -1388,8 +1390,8 @@ scope and whether or not `q` is empty (`_viewer_may_search`,
 
 A present bucket is empty for the types the scope did not ask about. A
 `scope` naming a bucket the viewer may not see is accepted and answers with
-every present bucket empty. The admin's root flag holds every key, so the
-admin gets every bucket its mode shows. The SPA reads every bucket as
+every present bucket empty. The admin account holds no `view.search`, so the
+route answers it **401**, as it does a guest. The SPA reads every bucket as
 `results[type] ?? []`, so an absent bucket draws no section, no tab and no
 count. An h-comic row carries its derived `animation_status`,
 as on its own list. Rows carry the same response schema as that type's own list endpoint —
@@ -1531,7 +1533,9 @@ enums — see the value-discrepancy note in `docs/options.md`.
 
 ### `GET /api/constants/external-apis`
 
-Admin-only, unlike the enum list above: it is an inventory of the integrations
+Behind `manage.options` (`require_manage_options`), unlike the enum list
+above — the key the Note pages ask, held by the `admin` and `super` roles: it
+is an inventory of the integrations
 rather than a vocabulary a form needs, and it names the environment variable
 behind each service. Read-only in the strong sense — every rule it reports is a
 property of the code in `app/services/domain/autofill.py`, so there is nothing
@@ -1584,9 +1588,9 @@ scoped to no gated type stays. A `?scope=` naming a gated type the viewer
 cannot see answers `[]`, and a visible value's `scopes` omit such types. `PUT`
 and `DELETE` on a hidden value answer 404, and `PUT` keeps the scope rows the
 editor cannot see.
-| `POST`   | `/`            | Admin  | Add a new option. Body: `SystemOptionCreate` (`{category, value, sort_order, remark, scopes: [...], usages: [...], aliases: [{source, value}, ...]}`). 400 if `(category, value)` already exists. |
-| `PUT`    | `/{option_id}` | Admin  | Update an existing option by UUID `system_id`. Body: `SystemOptionCreate`; replaces the option's scope, usage **and alias** rows wholesale — a body omitting a list deletes it. 400 on a duplicate `(category, value)`. |
-| `DELETE` | `/{option_id}` | Admin  | Delete an option by UUID. Cascades its `system_option_scope`, `system_option_alias`, `media_tag` and `character_tag` rows. Logs to `deleted_record`.                  |
+| `POST`   | `/`            | `manage.options` | Add a new option. Body: `SystemOptionCreate` (`{category, value, sort_order, remark, scopes: [...], usages: [...], aliases: [{source, value}, ...]}`). 400 if `(category, value)` already exists. |
+| `PUT`    | `/{option_id}` | `manage.options` | Update an existing option by UUID `system_id`. Body: `SystemOptionCreate`; replaces the option's scope, usage **and alias** rows wholesale — a body omitting a list deletes it. 400 on a duplicate `(category, value)`. |
+| `DELETE` | `/{option_id}` | `manage.options` | Delete an option by UUID. Cascades its `system_option_scope`, `system_option_alias`, `media_tag` and `character_tag` rows. Logs to `deleted_record`.                  |
 
 **Response model:** `SystemOptionResponse` (`{system_id, category, value, sort_order, remark, scopes: [str, ...], usages: [str, ...], aliases: [{source, value}, ...]}`)
 
@@ -2206,9 +2210,12 @@ Dashboard "Announcement & Notes" board. Each note is one `system_configs` row ke
 | Method   | Path | Auth   | Description                                                                                     |
 | -------- | ---- | ------ | ----------------------------------------------------------------------------------------------- |
 | `GET`    | `/`  | Public | List all announcements in creation order (`system_configs.id`).                                 |
-| `POST`   | `/`  | Admin  | Add a note. Body: `AnnouncementCreate` (`{title, body}`). 409 if the title exists.               |
-| `PUT`    | `/`  | Admin  | Update / rename. Body: `AnnouncementUpdate` (`{original_title, title, body}`). 404 / 409.        |
-| `DELETE` | `/`  | Admin  | Delete by `?title=` query param. 404 if missing.                                                 |
+| `POST`   | `/`  | `manage.announcements` | Add a note. Body: `AnnouncementCreate` (`{title, body}`). 409 if the title exists.               |
+| `PUT`    | `/`  | `manage.announcements` | Update / rename. Body: `AnnouncementUpdate` (`{original_title, title, body}`). 404 / 409.        |
+| `DELETE` | `/`  | `manage.announcements` | Delete by `?title=` query param. 404 if missing.                                                 |
+
+The writes ask `manage.announcements`, held by the `admin` and `super` roles,
+rather than `manage.catalog`.
 
 Titles travel in the body or query string, never the path — free-text titles may contain `/`.
 Empty titles/bodies and titles over 120 chars are rejected with 400.
@@ -2545,8 +2552,7 @@ person, studio or publisher, the expectation of a collection, franchise or
 series, and the rating of and remark on a novel unit
 (`app/routers/me_ratings.py`). Gated at **router level** on `self.list`, as
 My List is: a logged-out visitor, a viewer without the permission and the
-`admin` account (the root short-circuit does not cover the `self` family)
-all get **401**.
+`admin` account (which holds no `self.*` key) all get **401**.
 
 | Method | Path | Notes |
 |---|---|---|
@@ -2604,7 +2610,7 @@ it at another account.
 | Method | Path | Auth | Notes |
 |---|---|---|---|
 | GET | `/api/account/settings` | session | `{username, role_name}`. **401** for an anonymous caller. |
-| PUT | `/api/account/password` | `self.password` | `OwnPasswordChange` — `{current_password, new_password}`. **200** `{"message": "Password changed."}`. **400** `Your current password is not right.` (not 401, which the SPA reads as a lost session). **422** for an empty new password or one past 72 UTF-8 bytes. **401** without `self.password` - a guest, and the root admin, which sets its own on `/users`. Does not end the account's other sessions. |
+| PUT | `/api/account/password` | `self.password` | `OwnPasswordChange` — `{current_password, new_password}`. **200** `{"message": "Password changed."}`. **400** `Your current password is not right.` (not 401, which the SPA reads as a lost session). **422** for an empty new password or one past 72 UTF-8 bytes. **401** without `self.password` - a guest, and the admin, whose role has it locked off and which sets its own on `/users`. Does not end the account's other sessions. |
 
 There is no public profile and no community aggregate: everything per user —
 the list, personal notes, marks — is private to its account, the admin's
@@ -2668,17 +2674,21 @@ that was never there. Admin gates answer **401**, as they always did.
 
 ### `GET /api/auth/me` (extended)
 
-Still never raises, and still carries `is_admin` and `username` unchanged.
-Now also returns:
+Never raises. Returns:
 
 ```json
 { "is_admin": false, "username": null, "role": "guest",
-  "is_root": false,
   "permissions": ["media_type.anime", "field_group.sources_restricted", ...],
   "visible_gated_types": [],
   "features": [],
   "mode": { "id": "…uuid…", "key": "safe", "expires_at": null } }
 ```
+
+**`is_admin`** means the viewer holds `manage.catalog` — "may edit the
+catalogue" — so it is true for `super` and **false for the admin account**,
+which holds no `manage.catalog`. Nothing in the response says "holds
+everything": no role does, and `permissions` is the whole of what the role
+holds.
 
 **`mode.expires_at`** is when a switched-to mode ends and the session returns
 to the account's default mode (ISO 8601, UTC), or `null` when there is no
@@ -2698,7 +2708,7 @@ a fixed order (`quotes_memes`, `favourites`, `music_status`, `mod_status`),
 from `features.held_features` — the same function the routes they gate ask,
 so the SPA's `hasFeature(name)` cannot disagree with them. A guest gets `[]`.
 A switch counts only on a `user` or `super` account, whatever the column
-holds; the root admin gets `["quotes_memes"]` without its switch
+holds, so the admin account gets `[]`
 ([authorization.md](authorization.md#per-account-feature-switches)).
 
 This is where the SPA learns what to draw. Hiding in the UI is cosmetic — the
@@ -2727,8 +2737,9 @@ free, adding even one content label or field group asks for the password
 again. It is computed here rather than in the browser because two
 implementations of one rule drift, and the one in the SPA would be the one
 nobody tested - the switch endpoint enforces the rule with the *same*
-function that fills this field. A guest, and an account with no mode, get
-`[]`.
+function that fills this field. A guest, and an account with no mode — the
+admin account always — get `[]`, and `mode`'s `id` and `key` are null for the
+latter.
 
 Both sides are **effective** sets, after per-account denials: an account at
 ceiling `borderline` denied `nsfw` reaches no more in `borderline` than in
@@ -2794,7 +2805,10 @@ in one payload. `ceiling` and `default` are mode keys.
 ```
 
 **409** on a shared account (`A shared account's mode is fixed.`): its
-ceiling and default are its own mode, re-asserted on every boot. **422** for
+ceiling and default are its own mode, re-asserted on every boot. **409** on
+the admin account (`The admin account has no mode.`): its ceiling and
+default are NULL, also re-asserted on every boot, because it reads no
+catalogue. **422** for
 an unknown key, for exactly one of `ceiling` / `default` null, and
 for a default ranked above the ceiling. **A denial naming something the
 ceiling does not show is 422**, naming the strays, and asked of the ceiling's
@@ -2820,17 +2834,19 @@ source and this endpoint returns the same shape.
 | GET | `/api/roles/catalog` | Every grantable permission, grouped by family — **five of them** (`admin`, `manage`, `media_type`, `self`, `view`) with human labels. The role editor is built from this, so its checkboxes cannot drift from what the write path accepts. `field_group` and `label` are deliberately absent: they are the access-mode axis, and a role cannot express "minus this label" because permission resolution is a union. |
 | GET | `/api/roles/{id}` | |
 | PATCH | `/api/roles/{id}` | Label, description, sort order. `name` is not editable — code reads every role by name. |
-| PUT | `/api/roles/{id}/permissions` | **Replaces the whole set**, the same contract as `PUT /api/credits/...`. 422 on an unknown permission, 409 on a root role. |
+| PUT | `/api/roles/{id}/permissions` | **Replaces the whole set**, the same contract as `PUT /api/credits/...`. 422 on an unknown permission; 409 on a payload that disagrees with the role's locks (below). |
 
 **There are exactly five roles** — `admin`, `super`, `user`, `guest`,
 `shared` — and no route creates or deletes one: `POST /api/roles/` and
 `DELETE /api/roles/{id}` do not exist. `RoleResponse` carries `name`,
-`label`, `description`, `sort_order`, `system_id`, `is_root`, `permissions`,
+`label`, `description`, `sort_order`, `system_id`, `permissions`,
 `user_count`, `locked_on` and `locked_off`.
 
-Also 409: a `PUT /permissions` payload that holds a locked-off grant or drops
+**409**: a `PUT /permissions` payload that holds a locked-off grant or drops
 a locked-on one — anything beyond a read on `guest`, for one, since anonymous
-requests resolve to it. The table is
+requests resolve to it. The `admin` role's row is locked in every cell — its
+seven grants on, everything else off — so any change to it is 409, and only
+its own set saves. The table is
 [authorization.md](authorization.md#locked-grants).
 
 ### `/api/users` — admin
@@ -2847,12 +2863,12 @@ already stored are not re-checked. Uniqueness ignores case.
 |---|---|---|
 | GET | `/api/users/` | Optional `status` (`pending` / `active` / `disabled`) narrows the list - `?status=pending` is the pending registrations. Every account (or every one with that status) as `ManagedUserResponse` (`id`, `username`, `role_id`, `role_name`, `status`, `mode_ceiling`, `mode_default`, `denied_label_keys`, `denied_field_group_keys`, `open_request_limit`, `feature_quotes_memes`, `feature_favourites`, `feature_music_status`, `feature_mod_status`). `open_request_limit` is how many open requests the account may hold, null for no limit. The four `feature_*` booleans are the account's feature switches as stored. Passwords never leave the server. |
 | POST | `/api/users/` | `ManagedUserCreate` (`username`, `password`, `role_id`). 201, `status` `active`. The role must be `user` or `super`: any other role is **422** (`An account's role is either user or super.`). The account's `open_request_limit` is its role's default — 15 for `user`, none for `super` (10 for `shared`, which only the seed's shared accounts hold). 409 on a username taken ignoring case, 422 on an unknown role or a username or password the checks refuse. |
-| PATCH | `/api/users/{id}` | `ManagedUserUpdate` — any of `username`, `password`, `role_id`, `status` (`active` / `disabled`; anything else 422), `open_request_limit` (an integer ≥ 0, or null for no limit; negative is 422), `feature_quotes_memes`, `feature_favourites`, `feature_music_status`, `feature_mod_status` (booleans; one left out is untouched). Switching a feature **on** for an account whose role, after this save, is not `user` or `super` — the admin account, a shared account — is **409** `Only a user or super account can have a feature switched on.`; switching one off is always allowed, and a role change between `user` and `super` keeps the switches. Setting a password **ends the account's sessions**, and so does disabling it; enabling does not revive them. A `role_id` change must move the account to `user` or `super` (anything else **422**), and is **409** on an `admin` or `shared` account — the admin's own included — with `The admin account's role is fixed.` / `A shared account's role is fixed.`; it resets the limit to the new role's default unless the same body sets `open_request_limit`. Setting a shared account's password is allowed — it is how the admin hands one out. A non-null limit on a `super` account — or on an account this save moves to `super` — is **422**: super's limit is fixed at none. 409 if the new username is taken, if the change would demote the last **active** account that can still administer the site, if you disable yourself (`You cannot disable yourself.`), or if the account is `pending` (approved or declined, not edited). |
+| PATCH | `/api/users/{id}` | `ManagedUserUpdate` — any of `username`, `password`, `role_id`, `status` (`active` / `disabled`; anything else 422), `open_request_limit` (an integer ≥ 0, or null for no limit; negative is 422), `feature_quotes_memes`, `feature_favourites`, `feature_music_status`, `feature_mod_status` (booleans; one left out is untouched). Switching a feature **on** for an account whose role, after this save, is not `user` or `super` — the admin account, a shared account — is **409** `Only a user or super account can have a feature switched on.`; switching one off is always allowed, and a role change between `user` and `super` keeps the switches. Setting a password **ends the account's sessions**, and so does disabling it; enabling does not revive them. A `role_id` change must move the account to `user` or `super` (anything else **422**), and is **409** on an `admin` or `shared` account — the admin's own included — with `The admin account's role is fixed.` / `A shared account's role is fixed.`; it resets the limit to the new role's default unless the same body sets `open_request_limit`. Setting a shared account's password is allowed — it is how the admin hands one out. A non-null limit on a `super` account — or on an account this save moves to `super` — is **422**: super's limit is fixed at none. 409 if the new username is taken, if you disable yourself (`You cannot disable yourself.`), or if the account is `pending` (approved or declined, not edited). |
 | POST | `/api/users/{id}/reset-link` | No body. **200** `{link, expires_at}` - a one-time password reset link, valid 24 hours, returned **once** (only a hash is stored). Issuing one deletes the account's unspent reset links. **409** for an account that is not `active` or whose role is `shared`; 404 for an unknown id. |
 | POST | `/api/users/invites` | No body. **200** `{link, expires_at}` - a one-time invite link (`/register?code=...`), valid 24 hours, returned **once**. Open invites do not void one another. |
 | POST | `/api/users/{id}/approve` | `RegistrationApproval` - `role_id` (optional; `user` or `super`, default `user`), `ceiling_mode` and `default_mode` (default `normal` / `normal`). Makes a `pending` account `active` with the role's request limit; returns `ManagedUserResponse`. **422** for any other role, for `unrestricted` as either mode, or a pair the ceiling rules refuse; **409** for an account that is not `pending`. |
 | POST | `/api/users/{id}/reject` | No body. **204**: deletes a `pending` account; its invite stays spent. **409** for an account that is not `pending`. |
-| DELETE | `/api/users/{id}` | **204**. 409 if you are deleting yourself, the last administering account, or a shared account (`A shared account cannot be deleted. Disable it instead.`). |
+| DELETE | `/api/users/{id}` | **204**. 409 if you are deleting yourself, the admin account (`The admin account cannot be deleted.`), or a shared account (`A shared account cannot be deleted. Disable it instead.`). |
 
 ### `/api/content-labels`
 

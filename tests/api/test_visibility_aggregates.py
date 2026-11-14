@@ -31,9 +31,9 @@ MEME_TEXT = "Zvornik meme caption that must not leak"
 
 
 @pytest.fixture
-def hidden_quote(db_session, hidden_anime, admin_user):
+def hidden_quote(db_session, hidden_anime, owner_user):
     q = models.Quote(
-        author_id=admin_user.id,
+        author_id=owner_user.id,
         system_id=uuid.uuid4(),
         media_type="anime",
         entry_id=hidden_anime.system_id,
@@ -45,10 +45,10 @@ def hidden_quote(db_session, hidden_anime, admin_user):
 
 
 @pytest.fixture
-def general_quote(db_session, admin_user):
+def general_quote(db_session, owner_user):
     """Not tied to any entry - must survive the filter."""
     q = models.Quote(
-        author_id=admin_user.id,
+        author_id=owner_user.id,
         system_id=uuid.uuid4(), text="A general quote tied to nothing"
     )
     db_session.add(q)
@@ -57,9 +57,9 @@ def general_quote(db_session, admin_user):
 
 
 @pytest.fixture
-def hidden_meme(db_session, hidden_anime, admin_user):
+def hidden_meme(db_session, hidden_anime, owner_user):
     m = models.Meme(
-        author_id=admin_user.id,
+        author_id=owner_user.id,
         system_id=uuid.uuid4(),
         media_id=hidden_anime.system_id,
         text=MEME_TEXT,
@@ -73,7 +73,7 @@ def hidden_meme(db_session, hidden_anime, admin_user):
 def hidden_plan(db_session, super_user, hidden_anime):
     """A library-keeping account's own plan row on a hidden entry.
 
-    `super_user`, not `admin_user`: since 2026-09-12 an administrative account
+    `super_user`, not `owner_user`: since 2026-09-12 an administrative account
     holds no `self.*` grant, so it has no plan queue to leak and /api/plan-next
     answers it 401. The `super` role is the account shape that keeps one.
 
@@ -121,8 +121,8 @@ def test_a_general_quote_survives(quote_reader, general_quote):
     assert general_quote.text in quote_reader.get("/api/quote/").text
 
 
-def test_admin_still_sees_the_quote(admin_client, hidden_quote):
-    assert QUOTE_TEXT in admin_client.get("/api/quote/").text
+def test_admin_still_sees_the_quote(owner_client, hidden_quote):
+    assert QUOTE_TEXT in owner_client.get("/api/quote/").text
 
 
 # ---------------------------------------------------------------------------
@@ -213,7 +213,7 @@ def test_an_unnarrowed_viewer_still_sees_the_plan_row(super_client, hidden_plan)
     """
     The mirror of the test above, on the same fixture, so a green there proves
     the MODE did the hiding rather than the row being absent or the caller
-    being refused outright. It was `admin_client` until 2026-09-12, when an
+    being refused outright. It was `owner_client` until 2026-09-12, when an
     administrative account stopped holding a plan queue at all.
     """
     assert HIDDEN_NAME in super_client.get("/api/plan-next/").text
@@ -299,8 +299,8 @@ def test_a_watch_order_step_on_a_hidden_entry_is_dropped(
     assert HIDDEN_NAME not in response.text
 
 
-def test_admin_still_sees_the_watch_order_step(admin_client, hidden_watch_step):
-    response = admin_client.get(
+def test_admin_still_sees_the_watch_order_step(owner_client, hidden_watch_step):
+    response = owner_client.get(
         f"/api/watch-order/lists/{hidden_watch_step.system_id}"
     )
     assert HIDDEN_NAME in response.text
@@ -348,7 +348,7 @@ def test_a_credit_on_a_hidden_entry_is_not_counted(
     assert row["credit_count"] == 1
 
 
-def test_admin_still_counts_the_credit(admin_client, db_session, hidden_anime):
+def test_admin_still_counts_the_credit(owner_client, db_session, hidden_anime):
     person = models.Person(system_id=uuid.uuid4(), name_en="Zvornik Director 2")
     db_session.add(person)
     db_session.flush()
@@ -362,6 +362,6 @@ def test_admin_still_counts_the_credit(admin_client, db_session, hidden_anime):
     )
     db_session.flush()
 
-    body = admin_client.get("/api/person/").json()
+    body = owner_client.get("/api/person/").json()
     row = next(p for p in body if p["system_id"] == str(person.system_id))
     assert row["credit_count"] == 1

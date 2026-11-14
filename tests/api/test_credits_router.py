@@ -16,9 +16,9 @@ def test_read_returns_empty_maps_for_a_bare_entry(client, db_session):
     assert body == {"credits": {}, "tags": {}}
 
 
-def test_replace_then_read_round_trips(admin_client, client, db_session):
+def test_replace_then_read_round_trips(owner_client, client, db_session):
     a = _anime(db_session)
-    admin_client.put(
+    owner_client.put(
         f"/api/credits/anime/{a.system_id}",
         json={
             "credits": {"studio": ["MAPPA"], "director": ["新海誠"]},
@@ -30,13 +30,13 @@ def test_replace_then_read_round_trips(admin_client, client, db_session):
     assert body["tags"]["genre_main"] == ["Action"]
 
 
-def test_replace_only_touches_the_roles_named(admin_client, client, db_session):
+def test_replace_only_touches_the_roles_named(owner_client, client, db_session):
     a = _anime(db_session)
-    admin_client.put(
+    owner_client.put(
         f"/api/credits/anime/{a.system_id}",
         json={"credits": {"studio": ["MAPPA"], "director": ["新海誠"]}, "tags": {}},
     )
-    admin_client.put(
+    owner_client.put(
         f"/api/credits/anime/{a.system_id}",
         json={"credits": {"director": []}, "tags": {}},
     )
@@ -45,9 +45,9 @@ def test_replace_only_touches_the_roles_named(admin_client, client, db_session):
     assert "director" not in body["credits"]
 
 
-def test_a_role_the_media_type_does_not_have_is_rejected(admin_client, db_session):
+def test_a_role_the_media_type_does_not_have_is_rejected(owner_client, db_session):
     a = _anime(db_session)
-    r = admin_client.put(
+    r = owner_client.put(
         f"/api/credits/anime/{a.system_id}",
         json={"credits": {"author": ["X"]}, "tags": {}},
     )
@@ -74,8 +74,8 @@ def test_writes_require_admin(client, db_session):
     assert r.status_code in (401, 403)
 
 
-def test_exclusive_source_rejects_a_second_value(admin_client, sample_anime):
-    r = admin_client.put(
+def test_exclusive_source_rejects_a_second_value(owner_client, sample_anime):
+    r = owner_client.put(
         f"/api/credits/anime/{sample_anime.system_id}",
         json={"tags": {"exclusive_source": ["Netflix", "Crunchyroll"]}},
     )
@@ -83,7 +83,7 @@ def test_exclusive_source_rejects_a_second_value(admin_client, sample_anime):
 
 
 def test_anime_payload_carries_linkable_studio_refs(
-    admin_client, db_session, sample_anime
+    owner_client, db_session, sample_anime
 ):
     studio = models.Studio(name_en="MAPPA")
     db_session.add(studio)
@@ -98,7 +98,7 @@ def test_anime_payload_carries_linkable_studio_refs(
     )
     db_session.commit()
 
-    body = admin_client.get(f"/api/anime/{sample_anime.system_id}").json()
+    body = owner_client.get(f"/api/anime/{sample_anime.system_id}").json()
     assert body["studio"] == "MAPPA"          # legacy string, unchanged
     # public_id rides along so the page can build /studio/<id>/<slug> without
     # a second fetch; the UUID stays for every other call.
@@ -112,14 +112,14 @@ def test_anime_payload_carries_linkable_studio_refs(
 
 
 def test_manga_genre_and_label_round_trip_onto_its_detail(
-    admin_client, client, manga_entry
+    owner_client, client, manga_entry
 ):
     """
     Genre Main, Genre Sub and Label serve every mainstream type, not only
     anime. A write through /api/credits lands on the manga's own detail
     response under the field key.
     """
-    r = admin_client.put(
+    r = owner_client.put(
         f"/api/credits/manga/{manga_entry.system_id}",
         json={
             "tags": {
@@ -140,18 +140,18 @@ def test_manga_genre_and_label_round_trip_onto_its_detail(
     assert body["label"] == "神作"
 
 
-def test_genre_main_is_still_refused_on_a_game(admin_client, db_session):
+def test_genre_main_is_still_refused_on_a_game(owner_client, db_session):
     """Game keeps its own Game Genre vocabulary; Label is the mirror case."""
     g = models.Game(game_name_en="Hades")
     db_session.add(g)
     db_session.commit()
 
-    refused = admin_client.put(
+    refused = owner_client.put(
         f"/api/credits/game/{g.system_id}", json={"tags": {"genre_main": ["奇幻"]}}
     )
     assert refused.status_code == 400
 
-    accepted = admin_client.put(
+    accepted = owner_client.put(
         f"/api/credits/game/{g.system_id}", json={"tags": {"label": ["神作"]}}
     )
     assert accepted.status_code == 200, accepted.text

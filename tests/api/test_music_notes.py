@@ -99,13 +99,13 @@ def test_a_visitor_is_listed_no_music_status(client):
 
 
 def test_admin_writes_a_list_row_and_its_status_is_not_stored(
-    admin_client, db_session, sample_anime, admin_user
+    owner_client, db_session, sample_anime, owner_user
 ):
-    r = admin_client.post("/api/notes", json=_status_row(sample_anime))
+    r = owner_client.post("/api/notes", json=_status_row(sample_anime))
     assert r.status_code == 201, r.text
-    assert r.json()["author_id"] == str(admin_user.id)
+    assert r.json()["author_id"] == str(owner_user.id)
 
-    r = admin_client.patch(
+    r = owner_client.patch(
         f"/api/notes/{r.json()['system_id']}", json={"status": "All Done"}
     )
     assert r.status_code == 200, r.text
@@ -114,47 +114,47 @@ def test_admin_writes_a_list_row_and_its_status_is_not_stored(
     assert row.status is None
 
 
-def test_a_second_status_for_the_same_list_is_refused(admin_client, sample_anime):
-    assert admin_client.post("/api/notes", json=_status_row(sample_anime)).status_code == 201
-    r = admin_client.post(
+def test_a_second_status_for_the_same_list_is_refused(owner_client, sample_anime):
+    assert owner_client.post("/api/notes", json=_status_row(sample_anime)).status_code == 201
+    r = owner_client.post(
         "/api/notes", json=_status_row(sample_anime, status="Done")
     )
     assert r.status_code == 422
     assert "already has" in r.text
 
 
-def test_each_list_holds_its_own_status(admin_client, db_session, sample_anime):
+def test_each_list_holds_its_own_status(owner_client, db_session, sample_anime):
     # The mirror of the refusal above, over the same owner: a status per list
     # is four rows, so only a SECOND row for one list is refused.
     for kind in SONG_SECTIONS:
-        r = admin_client.post("/api/notes", json=_status_row(sample_anime, kind=kind))
+        r = owner_client.post("/api/notes", json=_status_row(sample_anime, kind=kind))
         assert r.status_code == 201, r.text
     assert {n.kind for n in _rows(db_session, sample_anime, "music_status")} == set(
         SONG_SECTIONS
     )
 
 
-def test_moving_a_status_onto_a_taken_list_is_refused(admin_client, sample_anime):
-    admin_client.post("/api/notes", json=_status_row(sample_anime, kind="op"))
-    ed = admin_client.post(
+def test_moving_a_status_onto_a_taken_list_is_refused(owner_client, sample_anime):
+    owner_client.post("/api/notes", json=_status_row(sample_anime, kind="op"))
+    ed = owner_client.post(
         "/api/notes", json=_status_row(sample_anime, kind="ed")
     ).json()
-    r = admin_client.patch(f"/api/notes/{ed['system_id']}", json={"kind": "op"})
+    r = owner_client.patch(f"/api/notes/{ed['system_id']}", json={"kind": "op"})
     assert r.status_code == 422
     # Patching a row onto its own kind is not a conflict with itself.
-    r = admin_client.patch(
+    r = owner_client.patch(
         f"/api/notes/{ed['system_id']}", json={"kind": "ed", "status": "Need"}
     )
     assert r.status_code == 200, r.text
 
 
 def test_a_song_and_a_list_can_have_no_full_version(user_client, db_session,
-                                                    sample_anime, admin_user):
+                                                    sample_anime, owner_user):
     # An OP whose full-length version was never released: the song cannot
     # reach Done, and neither can its list. Both are the viewer's marks.
-    song = models.Note(author_id=admin_user.id, media_id=sample_anime.system_id,
+    song = models.Note(author_id=owner_user.id, media_id=sample_anime.system_id,
                        section="op", title="TV Size")
-    listed = models.Note(author_id=admin_user.id, media_id=sample_anime.system_id,
+    listed = models.Note(author_id=owner_user.id, media_id=sample_anime.system_id,
                          section="music_status", kind="op")
     db_session.add_all([song, listed])
     db_session.flush()
@@ -166,9 +166,9 @@ def test_a_song_and_a_list_can_have_no_full_version(user_client, db_session,
 
 
 def test_a_list_status_outside_the_vocabulary_is_refused(
-    user_client, db_session, sample_anime, admin_user
+    user_client, db_session, sample_anime, owner_user
 ):
-    listed = models.Note(author_id=admin_user.id, media_id=sample_anime.system_id,
+    listed = models.Note(author_id=owner_user.id, media_id=sample_anime.system_id,
                          section="music_status", kind="op")
     db_session.add(listed)
     db_session.flush()
@@ -187,14 +187,14 @@ def test_a_logged_out_visitor_cannot_write_a_list_status(client, sample_anime):
 
 
 def test_the_database_refuses_a_second_status_for_one_list(
-    db_session, sample_anime, admin_user
+    db_session, sample_anime, owner_user
 ):
     from sqlalchemy.exc import IntegrityError
 
     for status in ("Need", "Done"):
         db_session.add(
             models.Note(
-                author_id=admin_user.id,
+                author_id=owner_user.id,
                 media_id=sample_anime.system_id,
                 section="music_status",
                 kind="ost",
@@ -209,8 +209,8 @@ def test_the_database_refuses_a_second_status_for_one_list(
 # --- seeded on create ---------------------------------------------------------
 
 
-def test_creating_an_anime_seeds_a_row_per_list(admin_client, db_session, admin_user):
-    r = admin_client.post("/api/anime/", json={"anime_name_en": "Frieren"})
+def test_creating_an_anime_seeds_a_row_per_list(owner_client, db_session, owner_user):
+    r = owner_client.post("/api/anime/", json={"anime_name_en": "Frieren"})
     assert r.status_code == 201, r.text
     anime_id = uuid.UUID(r.json()["system_id"])
 
@@ -225,12 +225,12 @@ def test_creating_an_anime_seeds_a_row_per_list(admin_client, db_session, admin_
     assert [(n.kind, n.status) for n in rows] == [
         (kind, None) for kind in SONG_SECTIONS
     ]
-    assert {n.author_id for n in rows} == {admin_user.id}
+    assert {n.author_id for n in rows} == {owner_user.id}
 
 
-def test_updating_an_anime_does_not_seed_again(admin_client, db_session):
-    created = admin_client.post("/api/anime/", json={"anime_name_en": "Frieren"}).json()
-    r = admin_client.put(
+def test_updating_an_anime_does_not_seed_again(owner_client, db_session):
+    created = owner_client.post("/api/anime/", json={"anime_name_en": "Frieren"}).json()
+    r = owner_client.put(
         f"/api/anime/{created['system_id']}",
         json={"anime_name_en": "Frieren", "franchise_id": created["franchise_id"]},
     )
@@ -246,8 +246,8 @@ def test_updating_an_anime_does_not_seed_again(admin_client, db_session):
     assert count == len(SONG_SECTIONS)
 
 
-def test_creating_another_type_seeds_nothing(admin_client, db_session):
-    r = admin_client.post("/api/anime-movie/", json={"anime_movie_name_en": "Your Name"})
+def test_creating_another_type_seeds_nothing(owner_client, db_session):
+    r = owner_client.post("/api/anime-movie/", json={"anime_movie_name_en": "Your Name"})
     assert r.status_code == 201, r.text
     assert (
         db_session.query(models.Note)
@@ -261,7 +261,7 @@ def test_creating_another_type_seeds_nothing(admin_client, db_session):
 
 
 @pytest.mark.parametrize("section", SONG_SECTIONS)
-def test_a_song_round_trips_its_link_pairs_and_episode(admin_client, sample_anime, section):
+def test_a_song_round_trips_its_link_pairs_and_episode(owner_client, sample_anime, section):
     body = {
         **_owner(sample_anime),
         "section": section,
@@ -273,20 +273,20 @@ def test_a_song_round_trips_its_link_pairs_and_episode(admin_client, sample_anim
             {"text": None, "url": "https://b.example"},
         ],
     }
-    r = admin_client.post("/api/notes", json=body)
+    r = owner_client.post("/api/notes", json=body)
     assert r.status_code == 201, r.text
     assert r.json()["links"] == body["links"]
     assert r.json()["locator"] == "ep 1"
 
-    r = admin_client.patch(
+    r = owner_client.patch(
         f"/api/notes/{r.json()['system_id']}", json={"status": "Done"}
     )
     assert r.status_code == 200, r.text
     assert r.json()["links"] == body["links"]
 
 
-def test_an_op_takes_a_song_type_outside_the_suggestions(admin_client, sample_anime):
-    r = admin_client.post(
+def test_an_op_takes_a_song_type_outside_the_suggestions(owner_client, sample_anime):
+    r = owner_client.post(
         "/api/notes",
         json={**_owner(sample_anime), "section": "op", "kind": "TV size", "title": "x"},
     )
@@ -294,18 +294,18 @@ def test_an_op_takes_a_song_type_outside_the_suggestions(admin_client, sample_an
     assert r.json()["kind"] == "TV size"
 
 
-def test_a_song_refuses_bare_url_links(admin_client, sample_anime):
-    r = admin_client.post(
+def test_a_song_refuses_bare_url_links(owner_client, sample_anime):
+    r = owner_client.post(
         "/api/notes",
         json={**_owner(sample_anime), "section": "op", "links": ["https://a.example"]},
     )
     assert r.status_code == 422
 
 
-def test_an_anime_holds_several_ost_songs(admin_client, db_session, sample_anime):
+def test_an_anime_holds_several_ost_songs(owner_client, db_session, sample_anime):
     # OST was a singleton; now it is a list like OP and ED.
     for title in ("Opening Theme", "Battle Theme"):
-        r = admin_client.post(
+        r = owner_client.post(
             "/api/notes",
             json={**_owner(sample_anime), "section": "ost", "title": title},
         )
@@ -316,7 +316,7 @@ def test_an_anime_holds_several_ost_songs(admin_client, db_session, sample_anime
     ]
 
 
-def test_an_easter_egg_round_trips(admin_client, sample_anime):
+def test_an_easter_egg_round_trips(owner_client, sample_anime):
     body = {
         **_owner(sample_anime),
         "section": "easter_eggs",
@@ -324,13 +324,13 @@ def test_an_easter_egg_round_trips(admin_client, sample_anime):
         "content": "The poster is the ep 12 villain.",
         "links": ["https://b23.tv/x", "https://youtu.be/y"],
     }
-    r = admin_client.post("/api/notes", json=body)
+    r = owner_client.post("/api/notes", json=body)
     assert r.status_code == 201, r.text
     assert r.json()["links"] == body["links"]
     assert r.json()["locator"] == "ep 3"
 
     # Its links are URL strings, like the rest of 解析: a pair is refused.
-    r = admin_client.post(
+    r = owner_client.post(
         "/api/notes",
         json={**body, "links": [{"text": "Bilibili", "url": "https://b23.tv/x"}]},
     )

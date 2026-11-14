@@ -28,8 +28,8 @@ def db(db_session):
 
 
 @pytest.fixture
-def novel_with_arcs(admin_client):
-    response = admin_client.post(
+def novel_with_arcs(owner_client):
+    response = owner_client.post(
         "/api/novel/",
         json={
             "novel_name_en": "Unit Rating Sentinel",
@@ -103,26 +103,26 @@ def test_deleting_the_unit_removes_the_rating(db, novel_with_arcs, user_client):
 
 
 @pytest.mark.parametrize("method", ["post", "put", "patch"])
-def test_an_admin_units_save_creates_no_rating_row(db, admin_client, method):
+def test_a_catalogue_units_save_creates_no_rating_row(db, owner_client, method):
     """my_rating and remark on a units item are ignored, by every write
-    verb - the admin keeps no personal data, and nobody gets a row through
-    the catalogue."""
+    verb. The owner holds self.list, so it could keep a rating - and still
+    gets no row through the catalogue."""
     units = [{"unit_kind": "arc", "position": 1, "name_en": "Arc One",
               "ch_count": 10, "my_rating": "S", "remark": "admin note"}]
     if method == "post":
-        r = admin_client.post(
+        r = owner_client.post(
             "/api/novel/",
             json={"novel_name_en": "Admin Units", "type": "Web", "units": units},
         )
         assert r.status_code == 201, r.text
     else:
-        novel = admin_client.post(
+        novel = owner_client.post(
             "/api/novel/", json={"novel_name_en": "Admin Units", "type": "Web"}
         ).json()
         body = {"units": units}
         if method == "put":
             body.update(novel_name_en="Admin Units", type="Web")
-        r = getattr(admin_client, method)(f"/api/novel/{novel['system_id']}", json=body)
+        r = getattr(owner_client, method)(f"/api/novel/{novel['system_id']}", json=body)
         assert r.status_code == 200, r.text
 
     # The unit itself was written, so the save did run.
@@ -135,8 +135,8 @@ def test_an_admin_units_save_creates_no_rating_row(db, admin_client, method):
 
 
 @pytest.mark.parametrize("method", ["put", "patch"])
-def test_a_readers_unit_rating_survives_an_admin_units_save(
-    db, novel_with_arcs, admin_client, user_client, plain_user, method
+def test_a_readers_unit_rating_survives_a_catalogue_units_save(
+    db, novel_with_arcs, owner_client, user_client, plain_user, method
 ):
     """The row exists first, so a save that cleared it would be seen."""
     unit = _unit(db, "Arc One")
@@ -154,7 +154,7 @@ def test_a_readers_unit_rating_survives_an_admin_units_save(
     ]}
     if method == "put":
         body.update(novel_name_en="Unit Rating Sentinel", type="Web")
-    r = getattr(admin_client, method)(
+    r = getattr(owner_client, method)(
         f"/api/novel/{novel_with_arcs['system_id']}", json=body
     )
     assert r.status_code == 200, r.text

@@ -36,10 +36,12 @@ def revision():
 
 
 @pytest.fixture
-def old_schema(db_session, revision):
+def old_schema(db_session, revision, sample_anime, sample_franchise):
     """The pre-revision columns, and no account eligible to own anything:
     every account the database already holds is set aside, so each test
-    names the accounts the rule chooses between."""
+    names the accounts the rule chooses between. The catalogue fixtures are
+    built first because sample_anime brings the owner account with it, which
+    the purge below must then remove."""
     conn = db_session.connection()
     revision.add_old_columns(conn)
     db_session.query(models.User).update({"is_installation_owner": False})

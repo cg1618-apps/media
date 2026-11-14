@@ -137,10 +137,10 @@ def _stored(db, user, note):
 # ---------------------------------------------------------------------------
 
 
-def test_two_accounts_mark_one_row_and_each_reads_its_own(db, alice_and_bob, admin_user, game):
+def test_two_accounts_mark_one_row_and_each_reads_its_own(db, alice_and_bob, owner_user, game):
     a = alice_and_bob
-    item = _row(db, admin_user, game, "items", title="Flask", fields={"amount_total": "12"})
-    stat = _row(db, admin_user, game, "stats_and_points", title="Vigor")
+    item = _row(db, owner_user, game, "items", title="Flask", fields={"amount_total": "12"})
+    stat = _row(db, owner_user, game, "stats_and_points", title="Vigor")
 
     r = _mark(a.as_("alice"), item, collected="collected", amount_collected="3")
     assert r.status_code == 200, r.text
@@ -164,16 +164,16 @@ def test_two_accounts_mark_one_row_and_each_reads_its_own(db, alice_and_bob, adm
 
 
 def test_no_mark_reads_the_fields_default_or_null_never_the_row(
-    db, alice_and_bob, admin_user, game
+    db, alice_and_bob, owner_user, game
 ):
     """The row carries a stale value on every personal field; an unmarked
     viewer must read the registry's empty value, not that."""
     a = alice_and_bob
-    item = _row(db, admin_user, game, "items", title="Flask", status="fully collected",
+    item = _row(db, owner_user, game, "items", title="Flask", status="fully collected",
                 fields={"amount_collected": "9"})
-    enemy = _row(db, admin_user, game, "enemies", title="Malenia", status="beaten")
-    ending = _row(db, admin_user, game, "endings", title="Frenzied Flame", status="reached")
-    stat = _row(db, admin_user, game, "stats_and_points", title="Vigor", fields={"my_value": "60"})
+    enemy = _row(db, owner_user, game, "enemies", title="Malenia", status="beaten")
+    ending = _row(db, owner_user, game, "endings", title="Frenzied Flame", status="reached")
+    stat = _row(db, owner_user, game, "stats_and_points", title="Vigor", fields={"my_value": "60"})
     # Somebody else's mark on every row, so "no mark" is the viewer's alone.
     for note, values in ((item, {"collected": "skip"}), (enemy, {"beaten": "cheesed"}),
                          (ending, {"completion": "skipped"}), (stat, {"my_value": "1"})):
@@ -187,10 +187,10 @@ def test_no_mark_reads_the_fields_default_or_null_never_the_row(
     assert rows[str(stat.system_id)]["fields"] is None
 
 
-def test_a_guest_reads_the_defaults(db, alice_and_bob, admin_user, game):
+def test_a_guest_reads_the_defaults(db, alice_and_bob, owner_user, game):
     a = alice_and_bob
-    item = _row(db, admin_user, game, "items", title="Flask")
-    enemy = _row(db, admin_user, game, "enemies", title="Malenia")
+    item = _row(db, owner_user, game, "items", title="Flask")
+    enemy = _row(db, owner_user, game, "enemies", title="Malenia")
     assert _mark(a.as_("alice"), item, collected="collected", amount_collected="2").status_code == 200
     assert _mark(a.as_("alice"), enemy, beaten="beaten").status_code == 200
 
@@ -215,11 +215,11 @@ def featureless(accounts):
     return accounts
 
 
-def test_a_granted_value_is_absent_without_the_feature(db, featureless, admin_user, game, sample_anime):
+def test_a_granted_value_is_absent_without_the_feature(db, featureless, owner_user, game, sample_anime):
     a = featureless
-    mod = _row(db, admin_user, game, "mods_and_tools", title="Seamless Co-op", status="played")
-    song = _row(db, admin_user, sample_anime, "op", title="紅蓮華", kind="normal", status="Need")
-    lst = _row(db, admin_user, sample_anime, "music_status", kind="op", status="Need")
+    mod = _row(db, owner_user, game, "mods_and_tools", title="Seamless Co-op", status="played")
+    song = _row(db, owner_user, sample_anime, "op", title="紅蓮華", kind="normal", status="Need")
+    lst = _row(db, owner_user, sample_anime, "music_status", kind="op", status="Need")
     assert _mark(a.as_("alice"), mod, status="常駐").status_code == 200
     assert _mark(a.as_("alice"), song, status="Pending").status_code == 200
     assert _mark(a.as_("alice"), lst, status="Done").status_code == 200
@@ -266,18 +266,18 @@ def test_the_sections_listing_drops_a_granted_value_without_the_feature(featurel
 # ---------------------------------------------------------------------------
 
 
-def test_the_admin_may_not_mark(db, admin_client, admin_user, game):
-    """The root role never passes self.*: it keeps no personal data."""
-    item = _row(db, admin_user, game, "items", title="Flask")
+def test_the_admin_may_not_mark(db, admin_client, admin_user, owner_user, game):
+    """The admin holds no self.*: it keeps no personal data."""
+    item = _row(db, owner_user, game, "items", title="Flask")
     r = _mark(admin_client, item, collected="collected")
     assert r.status_code == 401
     assert _stored(db, admin_user, item) is None
 
 
-def test_a_granted_value_needs_its_feature(db, alice_and_bob, admin_user, game, monkeypatch):
+def test_a_granted_value_needs_its_feature(db, alice_and_bob, owner_user, game, monkeypatch):
     a = alice_and_bob
-    mod = _row(db, admin_user, game, "mods_and_tools", title="Seamless Co-op")
-    item = _row(db, admin_user, game, "items", title="Flask")
+    mod = _row(db, owner_user, game, "mods_and_tools", title="Seamless Co-op")
+    item = _row(db, owner_user, game, "items", title="Flask")
     real = features.has_feature
     monkeypatch.setattr(
         features, "has_feature",
@@ -297,10 +297,10 @@ def test_a_granted_value_needs_its_feature(db, alice_and_bob, admin_user, game, 
 
 @pytest.mark.parametrize("key", ["name", "amount_total", "ng_reset", "nonsense"])
 def test_a_key_that_is_not_personal_on_the_section_is_refused(
-    db, alice_and_bob, admin_user, game, key
+    db, alice_and_bob, owner_user, game, key
 ):
     a = alice_and_bob
-    item = _row(db, admin_user, game, "items", title="Flask")
+    item = _row(db, owner_user, game, "items", title="Flask")
     assert _mark(a.as_("alice"), item, **{key: "x"}).status_code == 422
     assert _stored(db, a.user("alice"), item) is None
     # "beaten" is personal - but on 敵人, not here.
@@ -308,18 +308,18 @@ def test_a_key_that_is_not_personal_on_the_section_is_refused(
     assert _mark(a.as_("alice"), item, amount_collected="1").status_code == 200
 
 
-def test_an_option_outside_the_vocabulary_is_refused(db, alice_and_bob, admin_user, game):
+def test_an_option_outside_the_vocabulary_is_refused(db, alice_and_bob, owner_user, game):
     a = alice_and_bob
-    enemy = _row(db, admin_user, game, "enemies", title="Malenia")
+    enemy = _row(db, owner_user, game, "enemies", title="Malenia")
     assert _mark(a.as_("alice"), enemy, beaten="defeated").status_code == 422
     assert _stored(db, a.user("alice"), enemy) is None
     assert _mark(a.as_("alice"), enemy, beaten="cheesed").status_code == 200
 
 
-def test_a_note_on_an_owner_the_viewer_cannot_see_is_404(db, accounts, admin_user, game):
+def test_a_note_on_an_owner_the_viewer_cannot_see_is_404(db, accounts, owner_user, game):
     accounts.add("alice")
     accounts.add("nogames", default_user_permissions() - {media_type_perm("game")})
-    item = _row(db, admin_user, game, "items", title="Flask")
+    item = _row(db, owner_user, game, "items", title="Flask")
     # The read is refused first, so the write's 404 is the same answer.
     hidden = accounts.as_("nogames").get(
         "/api/notes", params={"owner_type": "game", "owner_id": str(game.system_id)}
@@ -331,9 +331,9 @@ def test_a_note_on_an_owner_the_viewer_cannot_see_is_404(db, accounts, admin_use
     assert _mark(accounts.as_("alice"), item, collected="skip").status_code == 200
 
 
-def test_clearing_every_value_deletes_the_mark(db, alice_and_bob, admin_user, game):
+def test_clearing_every_value_deletes_the_mark(db, alice_and_bob, owner_user, game):
     a = alice_and_bob
-    item = _row(db, admin_user, game, "items", title="Flask")
+    item = _row(db, owner_user, game, "items", title="Flask")
     assert _mark(a.as_("alice"), item, collected="skip", amount_collected="2").status_code == 200
     assert _mark(a.as_("alice"), item, collected=None).status_code == 200
     assert _stored(db, a.user("alice"), item) == {"amount_collected": "2"}
@@ -349,15 +349,15 @@ def test_clearing_every_value_deletes_the_mark(db, alice_and_bob, admin_user, ga
 
 
 def test_ng_reset_clears_only_the_viewers_resettable_values(
-    db, alice_and_bob, admin_user, game, other_game
+    db, alice_and_bob, owner_user, game, other_game
 ):
     a = alice_and_bob
-    resets = _row(db, admin_user, game, "items", title="Flask", fields={"ng_reset": "yes"})
-    unset = _row(db, admin_user, game, "weapons_and_gear", title="Sword")
-    kept = _row(db, admin_user, game, "collectibles", title="Key", fields={"ng_reset": "no"})
-    enemy = _row(db, admin_user, game, "enemies", title="Malenia")
-    stat = _row(db, admin_user, game, "stats_and_points", title="Vigor")
-    elsewhere = _row(db, admin_user, other_game, "items", title="Gourd")
+    resets = _row(db, owner_user, game, "items", title="Flask", fields={"ng_reset": "yes"})
+    unset = _row(db, owner_user, game, "weapons_and_gear", title="Sword")
+    kept = _row(db, owner_user, game, "collectibles", title="Key", fields={"ng_reset": "no"})
+    enemy = _row(db, owner_user, game, "enemies", title="Malenia")
+    stat = _row(db, owner_user, game, "stats_and_points", title="Vigor")
+    elsewhere = _row(db, owner_user, other_game, "items", title="Gourd")
     alice = a.as_("alice")
     for note in (resets, unset, kept, elsewhere):
         assert _mark(alice, note, collected="collected", amount_collected="4").status_code == 200
@@ -384,7 +384,7 @@ def test_ng_reset_clears_only_the_viewers_resettable_values(
     assert _stored(db, bob_user, enemy) == {"beaten": "cheesed"}
 
 
-def test_ng_reset_refusals(db, admin_client, accounts, admin_user, game):
+def test_ng_reset_refusals(db, admin_client, accounts, owner_user, game):
     accounts.add("nogames", default_user_permissions() - {media_type_perm("game")})
     body = {"owner_type": "game", "owner_id": str(game.system_id)}
     assert admin_client.post("/api/notes/ng-reset", json=body).status_code == 401
@@ -451,15 +451,15 @@ def test_a_music_status_row_is_written_without_a_status(db, super_client, sample
 # ---------------------------------------------------------------------------
 
 
-def test_the_review_queue_lists_music_flagged_by_the_viewer_only(db, accounts, admin_user):
+def test_the_review_queue_lists_music_flagged_by_the_viewer_only(db, accounts, owner_user):
     perms = default_user_permissions() | {PERM_MANAGE_PIPELINES}
     accounts.add("alice", perms)
     accounts.add("bob", perms)
     anime = models.Anime(system_id=uuid.uuid4(), anime_name_en="Flagged")
     db.add(anime)
     db.flush()
-    song = _row(db, admin_user, anime, "op", title="Opening", kind="normal")
-    lst = _row(db, admin_user, anime, "music_status", kind="ed")
+    song = _row(db, owner_user, anime, "op", title="Opening", kind="normal")
+    lst = _row(db, owner_user, anime, "music_status", kind="ed")
     assert _mark(accounts.as_("alice"), song, status="Need").status_code == 200
     assert _mark(accounts.as_("alice"), lst, status="Pending").status_code == 200
     assert _mark(accounts.as_("bob"), song, status="Done").status_code == 200

@@ -32,8 +32,8 @@ def _series(db_session, franchise, name="Zvornik Series"):
     return series
 
 
-def _anime(admin_client, franchise, **fields):
-    created = admin_client.post(
+def _anime(owner_client, franchise, **fields):
+    created = owner_client.post(
         "/api/anime/",
         json={
             "anime_name_en": "Zvornik Anime",
@@ -45,13 +45,13 @@ def _anime(admin_client, franchise, **fields):
     return created.json()
 
 
-def test_patch_sets_an_entrys_series(admin_client, db_session):
+def test_patch_sets_an_entrys_series(owner_client, db_session):
     franchise = _franchise(db_session)
     series = _series(db_session, franchise)
-    entry = _anime(admin_client, franchise)
+    entry = _anime(owner_client, franchise)
     assert entry["series_id"] is None
 
-    response = admin_client.patch(
+    response = owner_client.patch(
         f"/api/anime/{entry['system_id']}", json={"series_id": str(series.system_id)}
     )
 
@@ -62,13 +62,13 @@ def test_patch_sets_an_entrys_series(admin_client, db_session):
     assert stored.series_id == series.system_id
 
 
-def test_patch_clears_an_entrys_series(admin_client, db_session):
+def test_patch_clears_an_entrys_series(owner_client, db_session):
     franchise = _franchise(db_session)
     series = _series(db_session, franchise)
-    entry = _anime(admin_client, franchise, series_id=str(series.system_id))
+    entry = _anime(owner_client, franchise, series_id=str(series.system_id))
     assert entry["series_id"] == str(series.system_id)
 
-    response = admin_client.patch(
+    response = owner_client.patch(
         f"/api/anime/{entry['system_id']}", json={"series_id": None}
     )
 
@@ -76,12 +76,12 @@ def test_patch_clears_an_entrys_series(admin_client, db_session):
     assert response.json()["series_id"] is None
 
 
-def test_patch_without_a_series_key_keeps_the_series(admin_client, db_session):
+def test_patch_without_a_series_key_keeps_the_series(owner_client, db_session):
     franchise = _franchise(db_session)
     series = _series(db_session, franchise)
-    entry = _anime(admin_client, franchise, series_id=str(series.system_id))
+    entry = _anime(owner_client, franchise, series_id=str(series.system_id))
 
-    response = admin_client.patch(
+    response = owner_client.patch(
         f"/api/anime/{entry['system_id']}", json={"anime_name_cn": "茲沃爾尼克"}
     )
 
@@ -89,12 +89,12 @@ def test_patch_without_a_series_key_keeps_the_series(admin_client, db_session):
     assert response.json()["series_id"] == str(series.system_id)
 
 
-def test_patch_moves_an_entry_to_another_franchise(admin_client, db_session):
+def test_patch_moves_an_entry_to_another_franchise(owner_client, db_session):
     franchise = _franchise(db_session)
     other = _franchise(db_session, name="Zvornik Other")
-    entry = _anime(admin_client, franchise)
+    entry = _anime(owner_client, franchise)
 
-    response = admin_client.patch(
+    response = owner_client.patch(
         f"/api/anime/{entry['system_id']}", json={"franchise_id": str(other.system_id)}
     )
 
@@ -102,18 +102,18 @@ def test_patch_moves_an_entry_to_another_franchise(admin_client, db_session):
     assert response.json()["franchise_id"] == str(other.system_id)
 
 
-def test_patch_ignores_a_series_on_a_type_without_series(admin_client, db_session):
+def test_patch_ignores_a_series_on_a_type_without_series(owner_client, db_session):
     """anime_movies has no series: the key stays a harmless extra, not a write."""
     franchise = _franchise(db_session)
     series = _series(db_session, franchise)
-    created = admin_client.post(
+    created = owner_client.post(
         "/api/anime-movie/",
         json={"anime_movie_name_en": "Zvornik Movie", "franchise_id": str(franchise.system_id)},
     )
     assert created.status_code == 201, created.text
     entry_id = created.json()["system_id"]
 
-    response = admin_client.patch(
+    response = owner_client.patch(
         f"/api/anime-movie/{entry_id}", json={"series_id": str(series.system_id)}
     )
 

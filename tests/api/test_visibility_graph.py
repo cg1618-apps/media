@@ -57,9 +57,9 @@ def test_scope_listing_omits_relations_touching_a_hidden_entry(
 
 
 def test_admin_still_sees_the_hidden_node_and_edge(
-    admin_client, sample_franchise, hidden_relation, hidden_anime
+    owner_client, sample_franchise, hidden_relation, hidden_anime
 ):
-    response = admin_client.get(
+    response = owner_client.get(
         "/api/media-relation/graph", params={"franchise_id": str(sample_franchise.system_id)}
     )
     assert HIDDEN_NAME in response.text

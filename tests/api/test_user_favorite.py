@@ -88,10 +88,10 @@ def kana_client(db_session, client, kana):
 
 
 @pytest.fixture
-def quote(db_session, admin_user, sample_anime):
+def quote(db_session, owner_user, sample_anime):
     q = models.Quote(
         system_id=uuid.uuid4(),
-        author_id=admin_user.id,
+        author_id=owner_user.id,
         media_type="anime",
         entry_id=sample_anime.system_id,
         text="A line worth keeping",
@@ -102,10 +102,10 @@ def quote(db_session, admin_user, sample_anime):
 
 
 @pytest.fixture
-def other_quote(db_session, admin_user, sample_anime):
+def other_quote(db_session, owner_user, sample_anime):
     q = models.Quote(
         system_id=uuid.uuid4(),
-        author_id=admin_user.id,
+        author_id=owner_user.id,
         media_type="anime",
         entry_id=sample_anime.system_id,
         text="A line nobody keeps",
@@ -116,10 +116,10 @@ def other_quote(db_session, admin_user, sample_anime):
 
 
 @pytest.fixture
-def meme(db_session, admin_user, sample_anime):
+def meme(db_session, owner_user, sample_anime):
     m = models.Meme(
         system_id=uuid.uuid4(),
-        author_id=admin_user.id,
+        author_id=owner_user.id,
         media_id=sample_anime.system_id,
         text="A running gag",
     )
@@ -213,11 +213,15 @@ def test_an_account_with_the_switch_off_reads_false_even_over_its_own_rows(
     assert _quote_flags(off_client)[str(quote.system_id)] is True
 
 
-def test_the_admin_reads_no_favourite(db_session, admin_client, mio, quote):
-    """The admin reads quotes (its root role holds quotes_memes) but keeps
-    no favourites - not even with somebody else's present."""
+def test_the_admin_reads_no_quote_and_so_no_favourite(
+    db_session, admin_client, mio, mio_client, quote
+):
+    """The admin holds no feature - not quotes_memes, not favourites - so
+    the read itself is refused, with somebody else's favourite present."""
     _fav(db_session, mio, quote=quote)
-    assert _quote_flags(admin_client)[str(quote.system_id)] is False
+    assert admin_client.get("/api/quote/").status_code == 401
+    # The mirror: the favourite exists and its author reads it.
+    assert _quote_flags(mio_client)[str(quote.system_id)] is True
 
 
 # --- The filter is the viewer's -------------------------------------------
@@ -326,21 +330,21 @@ def test_a_guest_and_the_admin_cannot_write(client, admin_client, quote):
 
 
 def test_put_on_a_hidden_quote_or_meme_is_404(
-    db_session, client, admin_user, hidden_anime, quote
+    db_session, client, owner_user, hidden_anime, quote
 ):
     """A safe-mode account cannot see an nsfw entry, so it may not favour
     its quote or meme - the same 404 the GET gives. Mirror: a visible quote
     through the same account."""
     hidden_q = models.Quote(
         system_id=uuid.uuid4(),
-        author_id=admin_user.id,
+        author_id=owner_user.id,
         media_type="anime",
         entry_id=hidden_anime.system_id,
         text="hidden line",
     )
     hidden_m = models.Meme(
         system_id=uuid.uuid4(),
-        author_id=admin_user.id,
+        author_id=owner_user.id,
         media_id=hidden_anime.system_id,
         text="hidden gag",
     )

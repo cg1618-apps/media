@@ -42,8 +42,8 @@ def tenrai_calls(monkeypatch):
     return calls
 
 
-def test_creating_a_studio_with_a_mal_id_fills_it_from_mal(admin_client, tenrai_calls):
-    body = admin_client.post(
+def test_creating_a_studio_with_a_mal_id_fills_it_from_mal(owner_client, tenrai_calls):
+    body = owner_client.post(
         "/api/studio/", json={"name_en": "MAPPA", "mal_id": 569}
     ).json()
     assert tenrai_calls == [569]
@@ -54,15 +54,15 @@ def test_creating_a_studio_with_a_mal_id_fills_it_from_mal(admin_client, tenrai_
     assert body["mal_link"] == "https://myanimelist.net/anime/producer/569/MAPPA"
 
 
-def test_creating_a_studio_without_a_mal_id_calls_nothing(admin_client, tenrai_calls):
-    body = admin_client.post("/api/studio/", json={"name_en": "Bones"}).json()
+def test_creating_a_studio_without_a_mal_id_calls_nothing(owner_client, tenrai_calls):
+    body = owner_client.post("/api/studio/", json={"name_en": "Bones"}).json()
     assert tenrai_calls == []
     assert body["logo_file"] is None
 
 
-def test_adding_a_mal_id_on_update_fills_the_studio(admin_client, tenrai_calls):
-    created = admin_client.post("/api/studio/", json={"name_en": "MAPPA"}).json()
-    body = admin_client.put(
+def test_adding_a_mal_id_on_update_fills_the_studio(owner_client, tenrai_calls):
+    created = owner_client.post("/api/studio/", json={"name_en": "MAPPA"}).json()
+    body = owner_client.put(
         f"/api/studio/{created['system_id']}",
         json={"name_en": "MAPPA", "mal_id": 569},
     ).json()
@@ -71,31 +71,31 @@ def test_adding_a_mal_id_on_update_fills_the_studio(admin_client, tenrai_calls):
 
 
 def test_update_never_overwrites_a_logo_already_on_the_studio(
-    admin_client, tenrai_calls
+    owner_client, tenrai_calls
 ):
-    created = admin_client.post("/api/studio/", json={"name_en": "MAPPA"}).json()
-    body = admin_client.put(
+    created = owner_client.post("/api/studio/", json={"name_en": "MAPPA"}).json()
+    body = owner_client.put(
         f"/api/studio/{created['system_id']}",
         json={"name_en": "MAPPA", "mal_id": 569, "logo_file": "mine.png"},
     ).json()
     assert body["logo_file"] == "mine.png"
 
 
-def test_posting_an_existing_studio_name_does_not_refetch(admin_client, tenrai_calls):
+def test_posting_an_existing_studio_name_does_not_refetch(owner_client, tenrai_calls):
     """
     POST is find-or-create - ensureSourceValues hits it for every typed name.
     Re-filling on each of those would spend the MAL budget on nothing.
     """
-    admin_client.post("/api/studio/", json={"name_en": "MAPPA", "mal_id": 569})
+    owner_client.post("/api/studio/", json={"name_en": "MAPPA", "mal_id": 569})
     tenrai_calls.clear()
-    admin_client.post("/api/studio/", json={"name_en": "MAPPA", "mal_id": 569})
+    owner_client.post("/api/studio/", json={"name_en": "MAPPA", "mal_id": 569})
     assert tenrai_calls == []
 
 
 def test_creating_a_studio_from_a_pasted_link_derives_the_mal_id(
-    admin_client, tenrai_calls
+    owner_client, tenrai_calls
 ):
-    body = admin_client.post(
+    body = owner_client.post(
         "/api/studio/",
         json={
             "name_en": "A-1 Pictures",
@@ -107,9 +107,9 @@ def test_creating_a_studio_from_a_pasted_link_derives_the_mal_id(
     assert body["logo_file"] == "stored.jpg"
 
 
-def test_pasting_the_link_on_update_derives_the_mal_id(admin_client, tenrai_calls):
-    created = admin_client.post("/api/studio/", json={"name_en": "A-1 Pictures"}).json()
-    body = admin_client.put(
+def test_pasting_the_link_on_update_derives_the_mal_id(owner_client, tenrai_calls):
+    created = owner_client.post("/api/studio/", json={"name_en": "A-1 Pictures"}).json()
+    body = owner_client.put(
         f"/api/studio/{created['system_id']}",
         json={
             "name_en": "A-1 Pictures",
@@ -121,9 +121,9 @@ def test_pasting_the_link_on_update_derives_the_mal_id(admin_client, tenrai_call
 
 
 def test_a_website_in_mal_link_derives_nothing_and_fetches_nothing(
-    admin_client, tenrai_calls
+    owner_client, tenrai_calls
 ):
-    body = admin_client.post(
+    body = owner_client.post(
         "/api/studio/", json={"name_en": "A-1 Pictures", "mal_link": "https://a-1p.co.jp/"}
     ).json()
     assert body["mal_id"] is None

@@ -96,7 +96,7 @@ class TestSingleReplace:
 
 
 class TestRoutes:
-    def test_the_bulk_route_exists(self, admin_client):
+    def test_the_bulk_route_exists(self, owner_client):
         """It must not 404 - the route is registered from the spec."""
-        response = admin_client.post("/api/data-control/replace/game")
+        response = owner_client.post("/api/data-control/replace/game")
         assert response.status_code != 404

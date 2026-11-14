@@ -70,50 +70,50 @@ def test_resolve_publisher_does_not_duplicate_a_held_scope(db):
     assert [s.scope for s in pub.scopes] == ["anime"]
 
 
-def test_the_list_endpoint_filters_by_scope(admin_client):
-    admin_client.post("/api/publisher/",
+def test_the_list_endpoint_filters_by_scope(owner_client):
+    owner_client.post("/api/publisher/",
                       json={"name_en": "Anime Only", "scopes": ["anime"]})
-    admin_client.post("/api/publisher/",
+    owner_client.post("/api/publisher/",
                       json={"name_en": "Game Only", "scopes": ["game"]})
 
     names = [
         p["name_en"]
-        for p in admin_client.get("/api/publisher/?scope=anime").json()
+        for p in owner_client.get("/api/publisher/?scope=anime").json()
     ]
     assert names == ["Anime Only"]
 
 
-def test_an_illegal_scope_is_rejected(admin_client):
-    res = admin_client.post("/api/publisher/",
+def test_an_illegal_scope_is_rejected(owner_client):
+    res = owner_client.post("/api/publisher/",
                             json={"name_en": "Nope", "scopes": ["tv-show"]})
     assert res.status_code == 422
 
 
-def test_update_replaces_the_whole_scope_set(admin_client):
-    created = admin_client.post(
+def test_update_replaces_the_whole_scope_set(owner_client):
+    created = owner_client.post(
         "/api/publisher/",
         json={"name_en": "Shifty", "scopes": ["anime", "manga"]},
     ).json()
-    res = admin_client.put(
+    res = owner_client.put(
         f"/api/publisher/{created['system_id']}",
         json={"name_en": "Shifty", "scopes": ["novel"]},
     )
     assert res.json()["scopes"] == ["novel"]
 
 
-def test_merge_unions_the_scopes(admin_client):
-    keep = admin_client.post(
+def test_merge_unions_the_scopes(owner_client):
+    keep = owner_client.post(
         "/api/publisher/", json={"name_en": "Keep", "scopes": ["anime"]}
     ).json()
-    drop = admin_client.post(
+    drop = owner_client.post(
         "/api/publisher/", json={"name_en": "Drop", "scopes": ["manga"]}
     ).json()
-    admin_client.post(
+    owner_client.post(
         f"/api/publisher/{keep['system_id']}/merge",
         json={"source_id": drop["system_id"]},
     )
 
-    survivor = admin_client.get(f"/api/publisher/{keep['system_id']}").json()
+    survivor = owner_client.get(f"/api/publisher/{keep['system_id']}").json()
     assert sorted(survivor["scopes"]) == ["anime", "manga"]
 
 

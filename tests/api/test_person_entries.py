@@ -142,9 +142,9 @@ def test_a_labelled_entry_is_hidden_from_a_restricted_viewer(
 
 
 def test_a_root_role_sees_the_labelled_entry(
-    admin_client, person_with_labelled_credit
+    owner_client, person_with_labelled_credit
 ):
-    body = admin_client.get(
+    body = owner_client.get(
         f"/api/person/{person_with_labelled_credit.system_id}/entries"
     ).json()
     assert any(g["entries"] for g in body["groups"])
@@ -270,31 +270,31 @@ def test_a_seiyuu_cast_only_on_a_hidden_entry_is_404(
 # ---------------------------------------------------------------------------
 
 
-def test_delete_rejects_a_stale_credit_count(admin_client, person_with_credits):
-    r = admin_client.delete(f"/api/person/{person_with_credits.system_id}?credits=99")
+def test_delete_rejects_a_stale_credit_count(owner_client, person_with_credits):
+    r = owner_client.delete(f"/api/person/{person_with_credits.system_id}?credits=99")
     assert r.status_code == 409
     assert "credits" in r.json()["detail"].lower()
 
 
 def test_delete_accepts_the_current_credit_count(
-    admin_client, person_with_credits, db_session
+    owner_client, person_with_credits, db_session
 ):
     n = (
         db_session.query(models.MediaCredit)
         .filter_by(person_id=person_with_credits.system_id)
         .count()
     )
-    r = admin_client.delete(
+    r = owner_client.delete(
         f"/api/person/{person_with_credits.system_id}?credits={n}"
     )
     assert r.status_code == 200
     assert db_session.get(models.Person, person_with_credits.system_id) is None
 
 
-def test_delete_without_the_count_is_rejected(admin_client, person_with_credits):
+def test_delete_without_the_count_is_rejected(owner_client, person_with_credits):
     """
     The count is required, not optional: a caller that forgets it would delete
     credit history the admin never saw a number for.
     """
-    r = admin_client.delete(f"/api/person/{person_with_credits.system_id}")
+    r = owner_client.delete(f"/api/person/{person_with_credits.system_id}")
     assert r.status_code == 422

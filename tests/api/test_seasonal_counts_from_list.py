@@ -45,13 +45,13 @@ def _list_row(db, owner, media_id, status):
 
 
 @pytest.fixture
-def one_season(db, admin_client, admin_user, sample_franchise):
+def one_season(db, owner_client, owner_user, sample_franchise):
     """FAL 2023 with one entry in each of the four counted buckets, plus one
     the counters must ignore because no list row exists for it.
 
     The season belongs to the admin: a seasonal row is per user from Step 3 on.
     """
-    season = models.Seasonal(user_id=admin_user.id, seasonal="FAL 2023")
+    season = models.Seasonal(user_id=owner_user.id, seasonal="FAL 2023")
     db.add(season)
     db.flush()
 
@@ -62,7 +62,7 @@ def one_season(db, admin_client, admin_user, sample_franchise):
         ("Seasonal Dropped", "Dropped"),
     ]:
         entry = _anime(db, sample_franchise, name, "FAL", 2023)
-        _list_row(db, admin_user, entry.system_id, status)
+        _list_row(db, owner_user, entry.system_id, status)
 
     _anime(db, sample_franchise, "Seasonal Untouched", "FAL", 2023)
     return season

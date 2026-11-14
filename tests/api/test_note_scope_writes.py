@@ -62,14 +62,14 @@ def test_a_logged_out_visitor_may_not_write_anything(client, sample_anime):
 
 
 def test_a_user_may_not_edit_someone_elses_personal_note(
-    db, user_client, sample_anime, admin_user
+    db, user_client, sample_anime, owner_user
 ):
     note = models.Note(
         system_id=uuid.uuid4(),
         media_id=sample_anime.system_id,
         section="advantages",
         content="admin 的",
-        author_id=admin_user.id,
+        author_id=owner_user.id,
     )
     db.add(note)
     db.commit()
@@ -83,8 +83,8 @@ def test_a_user_may_not_edit_someone_elses_personal_note(
     assert r.status_code == 404
 
 
-def test_an_admin_still_writes_catalogue_notes(db, admin_client, sample_anime):
-    r = admin_client.post(
+def test_an_admin_still_writes_catalogue_notes(db, owner_client, sample_anime):
+    r = owner_client.post(
         "/api/notes",
         json=_payload(sample_anime.system_id, "public_reviews", "大眾評價"),
     )
@@ -98,7 +98,7 @@ def test_the_write_own_permission_is_in_the_catalogue(db):
 
 
 def test_another_accounts_personal_notes_never_reach_the_admin(
-    db, admin_client, sample_anime
+    db, owner_client, sample_anime
 ):
     """Everything per user is private to its account, the admin included.
     `author` is not a parameter any more; naming somebody in it changes
@@ -124,7 +124,7 @@ def test_another_accounts_personal_notes_never_reach_the_admin(
     )
     db.commit()
 
-    r = admin_client.get(
+    r = owner_client.get(
         "/api/notes",
         params={
             "owner_type": "anime",

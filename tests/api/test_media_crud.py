@@ -28,60 +28,60 @@ IDS = [c[0] for c in CASES]
 
 @pytest.mark.parametrize("route,name_field,status_field,model,label", CASES, ids=IDS)
 class TestMediaCrud:
-    def _create(self, admin_client, route, name_field, name="Smoke Test"):
-        return admin_client.post(f"/api/{route}/", json={name_field: name})
+    def _create(self, owner_client, route, name_field, name="Smoke Test"):
+        return owner_client.post(f"/api/{route}/", json={name_field: name})
 
-    def test_create_returns_201_and_echoes_name(self, admin_client, route, name_field, status_field, model, label):
-        r = self._create(admin_client, route, name_field)
+    def test_create_returns_201_and_echoes_name(self, owner_client, route, name_field, status_field, model, label):
+        r = self._create(owner_client, route, name_field)
         assert r.status_code == 201, r.text
         assert r.json()[name_field] == "Smoke Test"
 
-    def test_get_by_id(self, admin_client, route, name_field, status_field, model, label):
-        created = self._create(admin_client, route, name_field).json()
-        r = admin_client.get(f"/api/{route}/{created['system_id']}")
+    def test_get_by_id(self, owner_client, route, name_field, status_field, model, label):
+        created = self._create(owner_client, route, name_field).json()
+        r = owner_client.get(f"/api/{route}/{created['system_id']}")
         assert r.status_code == 200
         assert r.json()["system_id"] == created["system_id"]
 
-    def test_get_nonexistent_returns_404(self, admin_client, route, name_field, status_field, model, label):
-        r = admin_client.get(f"/api/{route}/{uuid.uuid4()}")
+    def test_get_nonexistent_returns_404(self, owner_client, route, name_field, status_field, model, label):
+        r = owner_client.get(f"/api/{route}/{uuid.uuid4()}")
         assert r.status_code == 404
 
-    def test_list_includes_created(self, admin_client, route, name_field, status_field, model, label):
-        created = self._create(admin_client, route, name_field).json()
-        r = admin_client.get(f"/api/{route}/")
+    def test_list_includes_created(self, owner_client, route, name_field, status_field, model, label):
+        created = self._create(owner_client, route, name_field).json()
+        r = owner_client.get(f"/api/{route}/")
         assert r.status_code == 200
         assert any(e["system_id"] == created["system_id"] for e in r.json())
 
-    def test_search_query_filters_by_name(self, admin_client, route, name_field, status_field, model, label):
+    def test_search_query_filters_by_name(self, owner_client, route, name_field, status_field, model, label):
         unique = f"Zephyr{uuid.uuid4().hex[:8]}"
-        created = self._create(admin_client, route, name_field, name=unique).json()
+        created = self._create(owner_client, route, name_field, name=unique).json()
         # Matching query includes the entry.
-        r = admin_client.get(f"/api/{route}/?search_query={unique}")
+        r = owner_client.get(f"/api/{route}/?search_query={unique}")
         assert r.status_code == 200
         assert any(e["system_id"] == created["system_id"] for e in r.json())
         # Non-matching query excludes it (regression: movies used to ignore search_query).
-        r2 = admin_client.get(f"/api/{route}/?search_query=ZZZNoMatch{uuid.uuid4().hex[:6]}")
+        r2 = owner_client.get(f"/api/{route}/?search_query=ZZZNoMatch{uuid.uuid4().hex[:6]}")
         assert all(e["system_id"] != created["system_id"] for e in r2.json())
 
-    def test_patch_updates_field(self, admin_client, route, name_field, status_field, model, label):
-        created = self._create(admin_client, route, name_field).json()
-        r = admin_client.patch(f"/api/{route}/{created['system_id']}", json={name_field: "Renamed"})
+    def test_patch_updates_field(self, owner_client, route, name_field, status_field, model, label):
+        created = self._create(owner_client, route, name_field).json()
+        r = owner_client.patch(f"/api/{route}/{created['system_id']}", json={name_field: "Renamed"})
         assert r.status_code == 200
         assert r.json()[name_field] == "Renamed"
 
-    def test_complete_sets_status(self, admin_client, route, name_field, status_field, model, label):
-        created = self._create(admin_client, route, name_field).json()
-        r = admin_client.post(f"/api/{route}/{created['system_id']}/complete")
+    def test_complete_sets_status(self, owner_client, route, name_field, status_field, model, label):
+        created = self._create(owner_client, route, name_field).json()
+        r = owner_client.post(f"/api/{route}/{created['system_id']}/complete")
         assert r.status_code == 200
         assert r.json()[status_field] == "Completed"
         assert r.json()["completed_at"] is not None
 
-    def test_delete_removes_and_logs(self, admin_client, db_session, route, name_field, status_field, model, label):
-        created = self._create(admin_client, route, name_field).json()
-        r = admin_client.delete(f"/api/{route}/{created['system_id']}")
+    def test_delete_removes_and_logs(self, owner_client, db_session, route, name_field, status_field, model, label):
+        created = self._create(owner_client, route, name_field).json()
+        r = owner_client.delete(f"/api/{route}/{created['system_id']}")
         assert r.status_code == 200
         assert r.json()["status"] == "success"
-        assert admin_client.get(f"/api/{route}/{created['system_id']}").status_code == 404
+        assert owner_client.get(f"/api/{route}/{created['system_id']}").status_code == 404
         # The db_session transaction is isolated per test, so exactly one
         # deleted_record should have been staged by this delete.
         assert db_session.query(models.DeletedRecord).count() == 1
@@ -96,7 +96,7 @@ class TestMediaCrud:
         r = client.post(f"/api/{route}/", json={name_field: "Nope"})
         assert r.status_code == 401
 
-    def test_guest_cannot_delete(self, admin_client, client, route, name_field, status_field, model, label):
-        created = self._create(admin_client, route, name_field).json()
+    def test_guest_cannot_delete(self, owner_client, client, route, name_field, status_field, model, label):
+        created = self._create(owner_client, route, name_field).json()
         r = client.delete(f"/api/{route}/{created['system_id']}")
         assert r.status_code == 401

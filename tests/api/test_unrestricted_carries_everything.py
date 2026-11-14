@@ -27,6 +27,7 @@ from app.services.rbac import cache
 from app.services.rbac.enforcement import entry_visible, hidden_label_ids
 from app.services.rbac.field_groups import FIELD_GROUP_KEYS
 from app.services.rbac.labels import LABEL_KEYS
+from app.services.rbac.permissions import static_catalog
 from app.services.rbac.resolver import Viewer
 from app.services.rbac.seed_modes import (
     MODE_BORDERLINE,
@@ -87,9 +88,8 @@ def _viewer_in(db_session, mode_row):
     return Viewer(
         username="someone",
         role_id=None,
-        role_name="admin",
-        is_root=True,
-        permissions=frozenset(),
+        role_name="super",
+        permissions=frozenset(static_catalog()),
         mode_id=mode_row.system_id,
         mode_key=mode_row.key,
         visible_label_ids=sets.label_ids,

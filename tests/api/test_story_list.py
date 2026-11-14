@@ -58,19 +58,19 @@ def _entry(client, game, section=SECTION, **payload):
 # --- Nesting for real -----------------------------------------------------
 
 
-def test_a_three_level_entry_round_trips(admin_client, game):
-    chapter = _entry(admin_client, game, locator="1", title="Limgrave").json()
+def test_a_three_level_entry_round_trips(owner_client, game):
+    chapter = _entry(owner_client, game, locator="1", title="Limgrave").json()
     scene = _entry(
-        admin_client, game, locator="1.1", title="The Gate",
+        owner_client, game, locator="1.1", title="The Gate",
         parent_id=chapter["system_id"],
     ).json()
     beat = _entry(
-        admin_client, game, title="Tree Sentinel", parent_id=scene["system_id"]
+        owner_client, game, title="Tree Sentinel", parent_id=scene["system_id"]
     )
     assert beat.status_code == 201, beat.text
     assert beat.json()["parent_id"] == scene["system_id"]
 
-    rows = admin_client.get(
+    rows = owner_client.get(
         "/api/notes",
         params={"owner_type": "game", "owner_id": str(game.system_id)},
     ).json()
@@ -80,36 +80,36 @@ def test_a_three_level_entry_round_trips(admin_client, game):
     assert by_id[beat.json()["system_id"]]["parent_id"] == scene["system_id"]
 
 
-def test_an_entry_needs_an_order_number_or_a_name(admin_client, game):
-    r = _entry(admin_client, game, content="Something happens")
+def test_an_entry_needs_an_order_number_or_a_name(owner_client, game):
+    r = _entry(owner_client, game, content="Something happens")
     assert r.status_code == 422
     assert "at least one of" in r.json()["detail"]
 
-    assert _entry(admin_client, game, locator="3.2").status_code == 201
-    assert _entry(admin_client, game, title="The Lake").status_code == 201
+    assert _entry(owner_client, game, locator="3.2").status_code == 201
+    assert _entry(owner_client, game, title="The Lake").status_code == 201
 
 
-def test_a_parent_from_another_strand_is_refused(admin_client, game):
+def test_a_parent_from_another_strand_is_refused(owner_client, game):
     # The four strands are four sections, so this is the "own section" rule
     # with the case it was actually written for.
-    side = _entry(admin_client, game, section="story_list_side", title="Ranni").json()
-    r = _entry(admin_client, game, title="Scene", parent_id=side["system_id"])
+    side = _entry(owner_client, game, section="story_list_side", title="Ranni").json()
+    r = _entry(owner_client, game, title="Scene", parent_id=side["system_id"])
     assert r.status_code == 422
     assert "its own section" in r.json()["detail"]
 
 
 def test_deleting_a_chapter_takes_its_scenes_and_beats(
-    admin_client, db_session, game
+    owner_client, db_session, game
 ):
-    chapter = _entry(admin_client, game, title="Limgrave").json()
+    chapter = _entry(owner_client, game, title="Limgrave").json()
     scene = _entry(
-        admin_client, game, title="The Gate", parent_id=chapter["system_id"]
+        owner_client, game, title="The Gate", parent_id=chapter["system_id"]
     ).json()
     beat = _entry(
-        admin_client, game, title="Sentinel", parent_id=scene["system_id"]
+        owner_client, game, title="Sentinel", parent_id=scene["system_id"]
     ).json()
 
-    assert admin_client.delete(f"/api/notes/{chapter['system_id']}").status_code == 204
+    assert owner_client.delete(f"/api/notes/{chapter['system_id']}").status_code == 204
     db_session.expire_all()
     left = {
         str(n.system_id)
@@ -118,19 +118,19 @@ def test_deleting_a_chapter_takes_its_scenes_and_beats(
     assert not left & {chapter["system_id"], scene["system_id"], beat["system_id"]}
 
 
-def test_a_cycle_is_refused_at_any_depth(admin_client, game):
-    a = _entry(admin_client, game, title="A").json()
-    b = _entry(admin_client, game, title="B", parent_id=a["system_id"]).json()
-    c = _entry(admin_client, game, title="C", parent_id=b["system_id"]).json()
+def test_a_cycle_is_refused_at_any_depth(owner_client, game):
+    a = _entry(owner_client, game, title="A").json()
+    b = _entry(owner_client, game, title="B", parent_id=a["system_id"]).json()
+    c = _entry(owner_client, game, title="C", parent_id=b["system_id"]).json()
 
-    r = admin_client.patch(
+    r = owner_client.patch(
         f"/api/notes/{a['system_id']}", json={"parent_id": c["system_id"]}
     )
     assert r.status_code == 422
     assert "loop" in r.json()["detail"]
 
 
-def test_a_reorder_must_name_every_note_of_the_section(admin_client, game):
+def test_a_reorder_must_name_every_note_of_the_section(owner_client, game):
     """
     The invariant the page works WITH rather than around.
 
@@ -139,11 +139,11 @@ def test_a_reorder_must_name_every_note_of_the_section(admin_client, game):
     list would quietly renumber half a section and leave the rest at whatever
     it was. The page flattens its whole tree depth-first instead.
     """
-    a = _entry(admin_client, game, title="A").json()
-    _entry(admin_client, game, title="A-1", parent_id=a["system_id"]).json()
-    b = _entry(admin_client, game, title="B").json()
+    a = _entry(owner_client, game, title="A").json()
+    _entry(owner_client, game, title="A-1", parent_id=a["system_id"]).json()
+    b = _entry(owner_client, game, title="B").json()
 
-    partial = admin_client.patch(
+    partial = owner_client.patch(
         "/api/notes/reorder",
         json={
             "owner_type": "game",
@@ -157,16 +157,16 @@ def test_a_reorder_must_name_every_note_of_the_section(admin_client, game):
 
 
 def test_a_whole_tree_reorder_leaves_sort_index_ascending_as_drawn(
-    admin_client, db_session, game
+    owner_client, db_session, game
 ):
-    a = _entry(admin_client, game, title="A").json()
+    a = _entry(owner_client, game, title="A").json()
     child = _entry(
-        admin_client, game, title="A-1", parent_id=a["system_id"]
+        owner_client, game, title="A-1", parent_id=a["system_id"]
     ).json()
-    b = _entry(admin_client, game, title="B").json()
+    b = _entry(owner_client, game, title="B").json()
 
     # B moved above A, depth-first: B, A, A-1 - which is what the page sends.
-    r = admin_client.patch(
+    r = owner_client.patch(
         "/api/notes/reorder",
         json={
             "owner_type": "game",
@@ -207,12 +207,12 @@ def _reload(db, row):
 
 
 def test_a_side_quest_becomes_a_side_strand_entry(
-    db_session, revision, game, admin_user
+    db_session, revision, game, owner_user
 ):
     row = _side_quest(
         db_session,
         game,
-        admin_user.id,
+        owner_user.id,
         title="Ranni's questline",
         sort_index=3.0,
         entries=[
@@ -239,7 +239,7 @@ def test_a_side_quest_becomes_a_side_strand_entry(
 
 
 def test_a_nameless_side_quest_is_named_by_its_first_line(
-    db_session, revision, game, admin_user
+    db_session, revision, game, owner_user
 ):
     """
     A Story List entry needs an order number or a name. A row with neither
@@ -249,7 +249,7 @@ def test_a_nameless_side_quest_is_named_by_its_first_line(
     row = _side_quest(
         db_session,
         game,
-        admin_user.id,
+        owner_user.id,
         entries=[
             {"type": "text", "value": "Volcano Manor"},
             {"type": "text", "value": "Three invasions"},
@@ -267,22 +267,22 @@ def test_a_nameless_side_quest_is_named_by_its_first_line(
 
 
 def test_every_migrated_side_quest_validates_against_the_new_spec(
-    db_session, revision, game, admin_user
+    db_session, revision, game, owner_user
 ):
     from app.schemas.note import NoteCreate, validate_note_payload
 
     rows = [
-        _side_quest(db_session, game, admin_user.id, title="Named", content="Body"),
+        _side_quest(db_session, game, owner_user.id, title="Named", content="Body"),
         _side_quest(
             db_session,
             game,
-            admin_user.id,
+            owner_user.id,
             entries=[{"type": "text", "value": "Nameless"}],
         ),
         _side_quest(
             db_session,
             game,
-            admin_user.id,
+            owner_user.id,
             title="Links only",
             entries=[{"type": "link", "value": "https://example.com"}],
         ),

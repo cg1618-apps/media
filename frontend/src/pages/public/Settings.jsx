@@ -68,8 +68,8 @@ export default function Settings() {
       </Slip>
 
       {/* self.password, not "signed in": a shared account has no password
-          of its own to change, and the root admin sets its own on /users
-          (has() does not short-circuit the self family for it). */}
+          of its own to change, and the admin, whose role holds no self.*
+          key, sets its own on /users. */}
       {has("self.password") && <PasswordCard />}
     </div>
   );

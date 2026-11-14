@@ -1,6 +1,6 @@
 # Authentication
 
-Last verified: 2026-11-13
+Last verified: 2026-11-14
 
 ## What this is for
 
@@ -163,18 +163,19 @@ The one place the SPA learns who it is. It **never raises**: a missing, expired 
   "is_admin": false,
   "username": null,
   "role": "guest",
-  "is_root": false,
   "permissions": ["field_group.sources_restricted", "media_type.anime", "..."]
 }
 ```
 
-- `is_admin` is `viewer.has("admin")` - true for a root role or any role granted the `admin` permission.
+The full shape, with `visible_gated_types`, `features`, `mode` and `modes`, is [api.md](api.md#get-apiauthme-extended).
+
+- `is_admin` is `viewer.has("manage.catalog")` - "may edit the catalogue". It is true for `super` and false for the admin account, which holds no `manage.catalog`.
 - `username` is `null` for an anonymous caller.
-- `permissions` is the sorted grant list of the viewer's role. For a root role it may be empty; `is_root` is what says "everything".
+- `permissions` is the sorted grant list of the viewer's role, plus the session's field groups. It is the whole of what the role holds: no role holds anything beyond its grants.
 
 ## The capability gates (`app/services/rbac/resolver.py`)
 
-Every write route names the capability it needs — `require_manage_catalog`, `require_manage_pipelines` or `require_admin_authz`. Each calls `resolve_viewer` and requires that one permission; there is deliberately no single "is an admin" dependency, so grepping for a capability finds every route holding it.
+Every write route names the capability it needs — `require_manage_catalog`, `require_manage_pipelines`, `require_admin_authz`, or one of the admin's page gates (`require_manage_announcements`, `require_manage_options`, `require_manage_images`, `require_manage_resources`). Each calls `resolve_viewer` and requires that one permission; there is deliberately no single "is an admin" dependency, so grepping for a capability finds every route holding it.
 
 - Failure is always **401** with `Could not validate credentials or insufficient permissions` and `WWW-Authenticate: Bearer`. A gate never answers 403: the SPA has one error shape to handle, and a non-admin caller learns nothing about *why* it was refused. (The login route's 403 for a pending or disabled account is not a gate - it answers someone who has just proved they know the password.)
 - Because the user row is consulted on each request, a validly signed token for a deleted, disabled or revoked account, or for one whose role has since lost a permission, is rejected immediately. There is no token blacklist or refresh flow to maintain.
@@ -195,7 +196,7 @@ Incrementing `session_version` ends every session the account holds, at once, wi
 | --- | --- |
 | A reset link spent | yes |
 | The admin disabling the account on `/users` | yes |
-| The admin setting the account's password on `/users` | yes - `ADMIN_SET_PASSWORD_REVOKES_SESSIONS = True`, the owner's decision; it matters most for a leaked shared login. When the account is the admin's **own**, every session still ends, but the browser that made the change gets a fresh login cookie at the new counter, so it stays signed in and every other device is signed out (`KEEP_OWN_SESSION_ON_ADMIN_SET_PASSWORD`, the owner's decision). `/users` is the admin's only way to change its own password, because the root role does not hold `self.password`. The fresh cookie keeps the **original deadline**, so a password change never extends a login |
+| The admin setting the account's password on `/users` | yes - `ADMIN_SET_PASSWORD_REVOKES_SESSIONS = True`, the owner's decision; it matters most for a leaked shared login. When the account is the admin's **own**, every session still ends, but the browser that made the change gets a fresh login cookie at the new counter, so it stays signed in and every other device is signed out (`KEEP_OWN_SESSION_ON_ADMIN_SET_PASSWORD`, the owner's decision). `/users` is the admin's only way to change its own password, because the admin role has `self.password` locked off. The fresh cookie keeps the **original deadline**, so a password change never extends a login |
 | Enabling a disabled account | no - its sessions ended when it was disabled, and enabling does not revive them |
 | Changing your own password (`PUT /api/account/password`) | no - the person changing it is the one holding the session |
 | Logging out | no - it clears one browser's cookie |
@@ -258,7 +259,7 @@ An invite lets one person register one account. Only the admin issues one, from 
 
 `PUT /api/account/password` `{current_password, new_password}` on `app/routers/account.py`, gated on **`self.password`** ([authorization.md](authorization.md)). A wrong current password is **400** `Your current password is not right.`, not 401, which the SPA reads as a lost session. The new password passes `validate_new_password` (422 otherwise). It returns `{"message": "Password changed."}` and does **not** touch `session_version`.
 
-The root admin does not hold `self.password` - the self family is outside the root short-circuit - so the admin sets its own password on `/users`.
+The admin does not hold `self.password` - its role has every `self.*` key locked off - so the admin sets its own password on `/users`.
 
 ## Rate limiting
 
@@ -284,6 +285,7 @@ There is no library: slowapi keys per route, and the login limit needs a per-use
 1. `ensure_rbac_seed(db)` creates the `guest` and `admin` roles if missing (idempotent - see [authorization.md](authorization.md)).
 2. If a `users` row named `admin` exists with a `NULL` `role_id` (a row from before the RBAC migration, or restored from a backup), it is attached to the `admin` role.
 3. If no `admin` user exists at all, one is created with `ADMIN_PASSWORD` (default `admin123`) hashed via `get_password_hash` and `role_id` = the admin role.
+4. `ensure_admin_accounts_modeless(db)` sets every `admin`-role account's mode ceiling and default to NULL - the admin has no mode. It is an UPDATE after the INSERT because the INSERT takes the columns' `normal` default even when None is passed, and it runs on every boot, so a Pull or a hand edit that gave the account a mode is undone on the next start.
 
 Any exception during seeding is printed and swallowed so the server still starts; check the boot log for `Critical Error during seeding`.
 
@@ -298,9 +300,8 @@ Any exception during seeding is printed and swallowed so the server still starts
 | `isAdmin` | `is_admin` from the server; the flag every existing "show this control" check reads |
 | `username` | `null` when anonymous |
 | `role` | Role name, `"guest"` by default |
-| `isRoot` | Mirrors the server flag |
 | `permissions` | Array of grant strings |
-| `has(permission)` | `isRoot || permissions.includes(permission)` - same semantics as `Viewer.has` on the server, backed by a `Set` |
+| `has(permission)` | `permissions.includes(permission)`, backed by a `Set` - the same plain membership test as `Viewer.has` on the server, for every role |
 | `loading` | True until the first `/me` response |
 | `refetchAuth()` | Re-runs the `/me` fetch. Nothing calls it on an identity change - see below |
 
@@ -308,7 +309,7 @@ A failed or non-OK `/me` request resets to the anonymous snapshot rather than er
 
 ### `ProtectedRoute` and `?next`
 
-`<Route element={<ProtectedRoute />}>` wraps every admin page in `App.jsx`. It takes an optional `permission` prop (default `"admin"`), shows a spinner while `loading`, then either renders the `<Outlet />` or redirects to `/login?next=<current path + search>` with `replace`.
+`<Route element={<ProtectedRoute permission="..." />}>` wraps every admin page in `App.jsx`. It takes a `permission` prop (or `anyPermission`, `feature`, `requireAuth` or `gatedType`; with none of them the route is open), shows a spinner while `loading`, then either renders the `<Outlet />` or redirects to `/login?next=<current path + search>` with `replace`.
 
 `Login.jsx` posts the form, then **loads** `next` **only if it starts with `/`** (an absolute path on this site) and does not point back at `/login`, otherwise `/system`. The first test prevents an open redirect through the query string; the second stops a `next` that lands a signed-in visitor on the login form again.
 

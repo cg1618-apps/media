@@ -108,7 +108,42 @@ Users, Quote, Meme -> User Favorite
 `Users` is first because nothing in the sheet points at it, and `Plan Next`,
 `Seasonal`, `Watch Order Follow`, `User Rating`, `User Novel Unit Rating`, `User Highlight Group Order`, `Game Copy`, `Game Choice Mark`, `Note Mark` and `User Favorite` all carry a NOT NULL `user_id`. The enforcement is
 `tests/api/test_sheet_restore_order.py`; move the tab rather than weaken the
-test.
+test. It is first for a second reason too: every tab that files a row under
+the [installation owner](#the-installation-owner) reads the owner from the
+`users` table, and the owner is data on the Users tab, so restored any later
+the sheet's owner would arrive after the rows that needed it.
+`tests/api/test_pull_users_first.py` asserts the order Pull All actually
+iterates.
+
+#### The installation owner
+
+`installation_owner_id(db)` (`app/services/domain/user_list.py`) is whose
+account a restore or Calculate files a personal row under when the row itself
+does not say. It answers, in order:
+
+1. the account holding `users.is_installation_owner`, whatever its status;
+2. else the first `active` account, by username, whose role is not `admin`,
+   `guest` or `shared` (`NEVER_OWNER_ROLE_NAMES`);
+3. else **None** — never the admin, which keeps no personal data.
+
+**None skips the row, and the report says so by name.** Every row Pull could
+not file for want of an owner — `User Media List`, `Plan Next`, `Seasonal`,
+`Watch Order Follow`, `User Rating` and `User Novel Unit Rating` on a sheet
+with no `username` header, a `Note`, `Quote` or `Meme` row whose author is
+unknown here, and every `Game Copy` and `Game Choice Mark` row — is counted in the tab's `owner_missing`, as well as in
+`rows_skipped`, and the tab adds one line to `unresolved_refs`:
+
+```
+<tab>: no installation owner: N row(s) skipped
+```
+
+(`user_list.no_owner_message`). Those rows are not bad: they restore once an
+owner exists — the Users tab's `is_installation_owner`, or an active member
+account — so set one and Pull again. Because the line is in
+`unresolved_refs`, a Pull All that hit it logs its master row `Failed`
+([3.2](#32-pull-all--execute_pull_alldb-action_type)). Calculate derives no
+reader's half without an owner and says so the same way
+([6](#6-calculate-all)).
 
 ### 2.2 The tab list
 
@@ -246,10 +281,7 @@ rule in [business-rules.md](business-rules.md#a-paused-position-is-cleared-by-pr
 runs on a restore.
 
 **`Plan Next`, `Seasonal`, `Watch Order Follow`, `User Rating` and `User Novel Unit Rating`** drop `user_id` for `username` too, for the same
-reason (the follow and the two rating tabs have carried `username` from their first day, so they meet the fallback below only for a hand-built sheet). Pull falls back to `_restore_owner_id` — the **installation owner**:
-`users.is_installation_owner`, else the alphabetically-first non-root
-account, else the first account, never a `shared` or `guest` one and never
-one whose status is not `active` — **only** when the header is absent
+reason (the follow and the two rating tabs have carried `username` from their first day, so they meet the fallback below only for a hand-built sheet). Pull falls back to `_restore_owner_id` — the [installation owner](#the-installation-owner), and with none the row is skipped and counted — **only** when the header is absent
 altogether, which means a sheet written before the column existed and in which
 everything did belong to one person. A `username` that is present and names
 nobody skips the row and lands in `unresolved_refs` rather than being quietly
@@ -337,8 +369,9 @@ Franchise, Series, Character, Person, Studio and Publisher tabs, and
 **installation owner's** `user_rating` / `user_novel_unit_rating` row
 (`restore_legacy_personal`). Only the headers a row carries are applied, so a
 blank cell clears that value and a header the sheet never had leaves it
-alone. With no account to own them the values are dropped and named in
-`unresolved_refs`. The header names live in that module rather than in
+alone. With no installation owner the row still restores and its personal
+values are skipped: they are counted into the tab's one `no installation
+owner` line (`no_owner_message`), not named row by row. The header names live in that module rather than in
 `pull.py` because no pipeline module may name a personal column.
 
 **`Resources`** is the Resources page (`resource_node`), every column as it
@@ -668,7 +701,10 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
        files the row under the **installation owner** rather than skipping it:
        the column is `NOT NULL`, a line whose author is uncertain is still the
        line, and without the fallback the tab's commit fails with a
-       `ForeignKeyViolation` that rolls back every row in it.
+       `ForeignKeyViolation` that rolls back every row in it. With no owner
+       either, the row is skipped and counted as
+       [no installation owner](#the-installation-owner), so the rest of the
+       tab still commits.
 
    - **After the tab commits**, two passes, each over the whole table and each
      committed. A restore writes rows straight to the tables, so neither the
@@ -927,7 +963,9 @@ The manual route `POST /replace/{key}/{entry_id}` calls the same function with `
 | 5 | `bulk_check_cover_image(db)` | runs the cover check; its result is discarded |
 | 6 | log | `Calculate` / `Calculate All` / `Manual` / `Success` |
 
-Any exception logs `Failed` with the message and re-raises (500). Response on success: `{"status": "success", "message": "Full calculation complete. Created N sequel relation(s) in M franchise(s); K group(s) skipped (tied season/part)."}`, the counts coming from step 3; the admin page shows the message as its toast. Rules behind each step are in [business-rules.md](business-rules.md).
+Any exception logs `Failed` with the message and re-raises (500). Response on success: `{"status": "success", "message": "Full calculation complete. Created N sequel relation(s) in M franchise(s); K group(s) skipped (tied season/part).", "owner_missing": 0}`, the counts coming from step 3; the admin page shows the message as its toast.
+
+**With no [installation owner](#the-installation-owner)**, `run_sync_novel` still derives every novel's catalogue half but files no reader's half — the owner's list row is whose progress it derives — and counts each novel it could not. The run still succeeds, but `owner_missing` carries the count, the message gains `no installation owner: N row(s) skipped (novel list rows).`, and the `Success` audit row carries the same line in `details_json` under `no_installation_owner`. Rules behind each step are in [business-rules.md](business-rules.md).
 
 ---
 

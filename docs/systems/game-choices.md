@@ -1,6 +1,6 @@
 # Game Choices
 
-Last verified: 2026-10-05
+Last verified: 2026-11-14
 
 ## What this is for
 
@@ -124,7 +124,7 @@ The deleted-record row names a block by its title and records its kind; it names
 
 The graph is shared, but whether you have played a part or taken a choice, and what you thought of it, is yours. A mark is that: `done` plus a `note`, on one block or one branch.
 
-- **Who may write one**: a signed-in account holding `self.personal_notes` - the same gate as a personal note. Anyone else gets `401` "You may not write personal notes." (`_authorize_mark`). The root flag does not cover the `self` family (`Viewer.has`), so the `admin` account holds no marks and cannot write one, as it holds no personal notes.
+- **Who may write one**: a signed-in account holding `self.personal_notes` - the same gate as a personal note. Anyone else gets `401` "You may not write personal notes." (`_authorize_mark`). The `admin` role has every `self.*` key locked off, so the admin account holds no marks and cannot write one, as it holds no personal notes.
 - **Who sees one**: only its owner. The graph read returns the caller's own marks, and `[]` for a caller who may not hold any (a guest, the `admin` account) (`_viewer_marks_user`).
 - **An upsert of the whole mark**: `PUT` sends `{done, note}`; the row is created or overwritten. A mark that is not done and has no note says nothing, so it is deleted rather than stored, and the response carries `id: null`.
 - Marking needs the game visible, as reading it does.
@@ -207,7 +207,7 @@ Items are never dragged: positions are not stored, so a hand-placed item would j
 
 ### Permissions in the page
 
-Two different gates, as on the server. `isAdmin` (AuthContext: holds `manage.catalog`) shows every edit control. `canMark` is `has("self.personal_notes")`; AuthContext's `has` mirrors the server in leaving the `self` family out of the root short-circuit, so the `admin` account sees no Mine section and no "endings done" count. Hiding is cosmetic: the server refuses what the page hides.
+Two different gates, as on the server. `isAdmin` (AuthContext: holds `manage.catalog`) shows every edit control. `canMark` is `has("self.personal_notes")`, a plain membership test as on the server, so the `admin` account — which reads no game page at all — would see no Mine section and no "endings done" count either. Hiding is cosmetic: the server refuses what the page hides.
 
 ### Layout — `frontend/src/lib/choiceLayout.js`
 
@@ -238,7 +238,7 @@ Three tabs, registered in `app/services/pipelines/tabs.py` right after "Game Cop
 
 - **Blocks and edges travel with their uuid.** They are written by hand on one machine, and a save's `fields.choice_node` names a block by that uuid, so the Note tab, further down the list, needs nothing translated. The edge tab's columns are `system_id, game_id, kind, from_node_id, to_node_id, title, content, sort_index, created_at, updated_at`; a blank `to_node_id` is a branch leading nowhere. A sheet row breaking a CHECK - a bad kind, a blank title, a link with no target or with text - fails the tab at its commit.
 - **An older edge tab still Pulls.** A sheet backed up before edges had a kind carries `option` and neither `kind` nor `title`. The parser reads the option text as the title and derives the kind from it - text was a `choice`, none a `link` - which is what the revision did to the stored rows; Pull puts the two derived keys back after its header filter, only when the sheet carries neither. `RENAMED_HEADERS` in `pull.py` lists `option` for the tab, so the header is not reported as unexpected. Its node tab is read the same way: `parse_game_choice_node_from_sheet` reads a block of the old kind `choice` or `scene` as a `part`, as the revision did, so the whole older graph restores.
-- **Marks are personal and restored like Game Copy.** Pull files every mark under the installation owner (`installation_owner_id`) rather than the `user_id` the sheet carries, which names whichever database wrote it; with no account at all the row is skipped. Marks are written through the page on each machine, so the same person's mark carries a different `system_id` here and there: "Game Choice Mark" is in `DERIVED_IDENTITY_KEYS` (`app/services/pipelines/pull.py`) with the natural key `(user_id, node_id, edge_id)` - what the two partial unique indexes name, the unset one compared as `IS NULL` - so a mark whose uuid is unknown here updates the local mark on the same block or edge rather than inserting beside it.
+- **Marks are personal and restored like Game Copy.** Pull files every mark under the installation owner (`installation_owner_id`) rather than the `user_id` the sheet carries, which names whichever database wrote it; with no installation owner the row is skipped and reported as `no installation owner` ([data-actions.md](../data-actions.md#the-installation-owner)). Marks are written through the page on each machine, so the same person's mark carries a different `system_id` here and there: "Game Choice Mark" is in `DERIVED_IDENTITY_KEYS` (`app/services/pipelines/pull.py`) with the natural key `(user_id, node_id, edge_id)` - what the two partial unique indexes name, the unset one compared as `IS NULL` - so a mark whose uuid is unknown here updates the local mark on the same block or edge rather than inserting beside it.
 
 The full tab list and its ordering contract are in [../data-actions.md](../data-actions.md).
 

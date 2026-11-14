@@ -23,16 +23,16 @@ def test_quote_table_has_a_not_null_author_id(db):
 
 
 def test_a_quote_created_through_the_api_records_its_author(
-    db, admin_client, admin_user
+    db, owner_client, owner_user
 ):
     # `media_type` and `entry_id` are read-only column_properties over `media`
     # (app/models/__init__.py), so the create payload names neither: a quote
     # posted through the API is unattached, which `is_general` already allows.
-    r = admin_client.post("/api/quote/", json={"text": "有名的一句"})
+    r = owner_client.post("/api/quote/", json={"text": "有名的一句"})
     # These two routes return 200, not 201 - matching them as they are.
     assert r.status_code == 200
     quote = db.query(models.Quote).filter_by(system_id=r.json()["system_id"]).one()
-    assert quote.author_id == admin_user.id
+    assert quote.author_id == owner_user.id
 
 
 def test_a_quote_without_an_author_is_rejected(db):
@@ -99,7 +99,7 @@ def sheets(monkeypatch):
 
 
 def test_a_quote_whose_author_is_unknown_here_restores_to_the_admin(
-    db, sheets, admin_user
+    db, sheets, owner_user
 ):
     from app.services.pipelines import pull
 
@@ -110,16 +110,16 @@ def test_a_quote_whose_author_is_unknown_here_restores_to_the_admin(
 
     assert result["status"] == "success"
     quote = db.query(models.Quote).filter_by(text="名台詞").one()
-    assert quote.author_id == admin_user.id
+    assert quote.author_id == owner_user.id
 
 
-def test_a_quote_whose_author_is_known_here_keeps_it(db, sheets, admin_user):
+def test_a_quote_whose_author_is_known_here_keeps_it(db, sheets, owner_user):
     from app.services.pipelines import pull
 
-    sheets({"Quote": [QUOTE_HEADERS, _quote_row(admin_user.id, "既知の作者")]})
+    sheets({"Quote": [QUOTE_HEADERS, _quote_row(owner_user.id, "既知の作者")]})
 
     result = pull.execute_pull_specific(db, "Quote", log_action=False)
 
     assert result["status"] == "success"
     quote = db.query(models.Quote).filter_by(text="既知の作者").one()
-    assert quote.author_id == admin_user.id
+    assert quote.author_id == owner_user.id

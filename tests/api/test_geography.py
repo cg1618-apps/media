@@ -39,15 +39,15 @@ def _entry(client, game, **payload):
     )
 
 
-def test_a_grouped_region_holding_areas_round_trips(admin_client, game):
-    region = _entry(admin_client, game, title="Limgrave", kind="地區")
+def test_a_grouped_region_holding_areas_round_trips(owner_client, game):
+    region = _entry(owner_client, game, title="Limgrave", kind="地區")
     assert region.status_code == 201, region.text
     area = _entry(
-        admin_client, game, title="Stormveil", parent_id=region.json()["system_id"]
+        owner_client, game, title="Stormveil", parent_id=region.json()["system_id"]
     )
     assert area.status_code == 201, area.text
     room = _entry(
-        admin_client,
+        owner_client,
         game,
         title="Gatefront",
         content="the first grace",
@@ -58,7 +58,7 @@ def test_a_grouped_region_holding_areas_round_trips(admin_client, game):
 
     rows = {
         r["system_id"]: r
-        for r in admin_client.get(
+        for r in owner_client.get(
             "/api/notes",
             params={"owner_type": "game", "owner_id": str(game.system_id)},
         ).json()
@@ -69,31 +69,31 @@ def test_a_grouped_region_holding_areas_round_trips(admin_client, game):
     assert rows[room.json()["system_id"]]["parent_id"] == area.json()["system_id"]
 
 
-def test_a_child_with_a_group_is_refused_on_post(admin_client, game):
-    region = _entry(admin_client, game, title="Limgrave", kind="地區").json()
+def test_a_child_with_a_group_is_refused_on_post(owner_client, game):
+    region = _entry(owner_client, game, title="Limgrave", kind="地區").json()
     refused = _entry(
-        admin_client, game, title="Stormveil", kind="城", parent_id=region["system_id"]
+        owner_client, game, title="Stormveil", kind="城", parent_id=region["system_id"]
     )
     assert refused.status_code == 422
     assert refused.json()["detail"] == REFUSAL
     # The mirror: the same child with no group is taken.
-    taken = _entry(admin_client, game, title="Stormveil", parent_id=region["system_id"])
+    taken = _entry(owner_client, game, title="Stormveil", parent_id=region["system_id"])
     assert taken.status_code == 201, taken.text
 
 
 def test_reparenting_a_grouped_root_is_refused_unless_the_group_is_cleared(
-    admin_client, game
+    owner_client, game
 ):
-    region = _entry(admin_client, game, title="Limgrave", kind="地區").json()
-    other = _entry(admin_client, game, title="Liurnia", kind="地區").json()
+    region = _entry(owner_client, game, title="Limgrave", kind="地區").json()
+    other = _entry(owner_client, game, title="Liurnia", kind="地區").json()
 
-    refused = admin_client.patch(
+    refused = owner_client.patch(
         f"/api/notes/{other['system_id']}", json={"parent_id": region["system_id"]}
     )
     assert refused.status_code == 422
     assert refused.json()["detail"] == REFUSAL
 
-    moved = admin_client.patch(
+    moved = owner_client.patch(
         f"/api/notes/{other['system_id']}",
         json={"parent_id": region["system_id"], "kind": None},
     )
@@ -102,21 +102,21 @@ def test_reparenting_a_grouped_root_is_refused_unless_the_group_is_cleared(
     assert moved.json()["kind"] is None
 
 
-def test_giving_an_existing_child_a_group_is_refused(admin_client, game):
-    region = _entry(admin_client, game, title="Limgrave").json()
+def test_giving_an_existing_child_a_group_is_refused(owner_client, game):
+    region = _entry(owner_client, game, title="Limgrave").json()
     area = _entry(
-        admin_client, game, title="Stormveil", parent_id=region["system_id"]
+        owner_client, game, title="Stormveil", parent_id=region["system_id"]
     ).json()
-    refused = admin_client.patch(f"/api/notes/{area['system_id']}", json={"kind": "城"})
+    refused = owner_client.patch(f"/api/notes/{area['system_id']}", json={"kind": "城"})
     assert refused.status_code == 422
     assert refused.json()["detail"] == REFUSAL
     # The mirror: a root takes the same group.
-    taken = admin_client.patch(f"/api/notes/{region['system_id']}", json={"kind": "城"})
+    taken = owner_client.patch(f"/api/notes/{region['system_id']}", json={"kind": "城"})
     assert taken.status_code == 200, taken.text
 
 
-def test_a_row_needs_a_name(admin_client, game):
-    r = _entry(admin_client, game, kind="地區", content="somewhere")
+def test_a_row_needs_a_name(owner_client, game):
+    r = _entry(owner_client, game, kind="地區", content="somewhere")
     assert r.status_code == 422
     assert "at least one of" in r.json()["detail"]
 
@@ -138,10 +138,10 @@ def test_the_section_is_served_to_game(client):
     assert group["column"] == "kind"
 
 
-def test_h_game_is_served_the_section_after_enemies(admin_client):
+def test_h_game_is_served_the_section_after_enemies(owner_client):
     keys = [
         s["key"]
-        for s in admin_client.get(
+        for s in owner_client.get(
             "/api/notes/sections", params={"owner_type": "h-game"}
         ).json()
     ]

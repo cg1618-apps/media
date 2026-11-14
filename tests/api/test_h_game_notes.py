@@ -31,8 +31,8 @@ def _row(entry, **overrides):
 
 
 @pytest.fixture
-def entry(admin_client):
-    return admin_client.post("/api/h-game/", json={"h_game_name_cn": "Zvornik Notes"}).json()
+def entry(owner_client):
+    return owner_client.post("/api/h-game/", json={"h_game_name_cn": "Zvornik Notes"}).json()
 
 
 def _sections(c, owner_type):
@@ -63,26 +63,26 @@ GAME_ONLY = {
 }
 
 
-def test_h_game_takes_game_sections_less_the_game_only_ones(admin_client):
-    game = _sections(admin_client, "game")
-    h_game = _sections(admin_client, "h-game")
+def test_h_game_takes_game_sections_less_the_game_only_ones(owner_client):
+    game = _sections(owner_client, "game")
+    h_game = _sections(owner_client, "h-game")
     assert set(game) - set(h_game) == GAME_ONLY
     assert set(h_game) - set(game) == {SECTION}
 
 
-def test_the_game_labels_and_placeholders_carry_over(admin_client):
-    h_game = _sections(admin_client, "h-game")
-    game = _sections(admin_client, "game")
+def test_the_game_labels_and_placeholders_carry_over(owner_client):
+    h_game = _sections(owner_client, "h-game")
+    game = _sections(owner_client, "game")
     for key in ("analysis", "guide_notes", "endings"):
         assert h_game[key]["label"] == game[key]["label"], key
         assert h_game[key].get("group") == game[key].get("group"), key
         assert h_game[key].get("locator_placeholder") == game[key].get("locator_placeholder"), key
 
 
-def test_the_story_list_is_the_h_game_story(admin_client):
+def test_the_story_list_is_the_h_game_story(owner_client):
     """No prose 劇情, so the four lists render in the 劇情 card with 結局."""
-    h_game = _sections(admin_client, "h-game")
-    game = _sections(admin_client, "game")
+    h_game = _sections(owner_client, "h-game")
+    game = _sections(owner_client, "game")
     story = [k for k, s in h_game.items() if s.get("group") == "story"]
     assert story == [
         "story_list_main",
@@ -94,8 +94,8 @@ def test_the_story_list_is_the_h_game_story(admin_client):
     assert game["story_list_main"]["group"] == "story_list"
 
 
-def test_the_highlights_section_shape(admin_client):
-    section = _sections(admin_client, "h-game")[SECTION]
+def test_the_highlights_section_shape(owner_client):
+    section = _sections(owner_client, "h-game")[SECTION]
     assert section["group_by"] == "female_characters"
     assert section["owner_where"] == {}
     fields = {f["key"]: f for f in section["fields"]}
@@ -155,9 +155,9 @@ def test_usefulness_is_a_closed_vocabulary(user_client, entry):
     assert user_client.post("/api/notes", json=_row(entry, status="very")).status_code == 422
 
 
-def test_the_section_is_not_offered_to_game_or_h_comic(admin_client):
+def test_the_section_is_not_offered_to_game_or_h_comic(owner_client):
     for owner in ("game", "h-comic"):
-        assert SECTION not in _sections(admin_client, owner), owner
+        assert SECTION not in _sections(owner_client, owner), owner
 
 
 def test_a_guest_cannot_read_the_highlights(client, user_client, entry):
@@ -176,26 +176,26 @@ def _plain(entry, section, **columns):
     }
 
 
-def test_a_game_section_takes_a_row_on_h_game(admin_client, entry):
-    response = admin_client.post(
+def test_a_game_section_takes_a_row_on_h_game(owner_client, entry):
+    response = owner_client.post(
         "/api/notes", json=_plain(entry, "guide_notes", content="save before the boss")
     )
     assert response.status_code == 201, response.text
 
 
-def test_a_game_only_section_refuses_a_row_on_h_game(admin_client, user_client, entry):
+def test_a_game_only_section_refuses_a_row_on_h_game(owner_client, user_client, entry):
     """lore is catalogue, so the admin writes it; highlight_moments is
     personal, so a member does - each refused for the owner, not the writer."""
     for client, section, columns in (
         (user_client, "highlight_moments", {"locator": "Ch 3", "content": "the moment"}),
-        (admin_client, "lore", {"content": "the world"}),
+        (owner_client, "lore", {"content": "the world"}),
     ):
         response = client.post("/api/notes", json=_plain(entry, section, **columns))
         assert response.status_code == 422, section
 
 
 def test_h_game_takes_personal_reviews_and_not_reviews_and_comments(
-    admin_client, mode_client, plain_user, entry
+    owner_client, mode_client, plain_user, entry
 ):
     """
     Personal sections, so a member writes them - an admin holds no personal
@@ -218,7 +218,7 @@ def test_h_game_takes_personal_reviews_and_not_reviews_and_comments(
     )
     taken = c.post("/api/notes", json=_plain(entry, "personal_reviews", content="good"))
     assert taken.status_code == 201, taken.text
-    public = admin_client.post(
+    public = owner_client.post(
         "/api/notes", json=_plain(entry, "public_reviews", content="well liked")
     )
     assert public.status_code == 201, public.text
@@ -229,8 +229,8 @@ def test_h_game_takes_personal_reviews_and_not_reviews_and_comments(
 # ---------------------------------------------------------------------------
 
 
-def test_the_entry_update_ignores_a_group_order(admin_client, entry, db_session):
-    for write in (admin_client.patch, admin_client.put):
+def test_the_entry_update_ignores_a_group_order(owner_client, entry, db_session):
+    for write in (owner_client.patch, owner_client.put):
         response = write(
             f"/api/h-game/{entry['system_id']}",
             json={"highlight_group_order": ["Bea", "Ana"]},

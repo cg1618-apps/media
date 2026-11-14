@@ -265,7 +265,7 @@ function HComicTrackerBlock({ hComic, isAdmin, onPatch }) {
 export default function HComic() {
   const { publicId } = useParams();
   const navigate = useNavigate();
-  const { isAdmin, isRoot, has } = useAuth();
+  const { isAdmin, has } = useAuth();
   const { showToast } = useToast();
 
   const [hComic, setHComic] = useState(null);
@@ -456,7 +456,7 @@ export default function HComic() {
               >
                 H-Comic{region ? ` · ${region}` : ""}
               </span>
-              {isRoot && (
+              {has("manage.catalog") && (
                 <span
                   className="font-mono text-[9px] tracking-[0.1em] opacity-60 whitespace-nowrap"
                   style={{ writingMode: "vertical-rl" }}

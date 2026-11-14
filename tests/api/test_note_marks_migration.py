@@ -55,7 +55,7 @@ def _role_id(db, name):
     role = db.query(models.Role).filter(models.Role.name == name).first()
     if role is None:
         role = models.Role(system_id=uuid.uuid4(), name=name, label=name,
-                           is_system=False, is_root=False)
+                           is_system=False)
         db.add(role)
         db.flush()
     return role_id_for(db, name)

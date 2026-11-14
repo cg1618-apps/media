@@ -14,8 +14,8 @@ from app.services.rbac.seed_modes import MODE_UNRESTRICTED
 SECTION = "h_comic_highlights"
 
 
-def _entry(admin_client, region):
-    body = admin_client.post(
+def _entry(owner_client, region):
+    body = owner_client.post(
         "/api/h-comic/", json={"h_comic_name_cn": f"Zvornik {region}", "region": region}
     ).json()
     return body
@@ -37,13 +37,13 @@ def _row(entry, **overrides):
 
 
 @pytest.fixture
-def kr(admin_client):
-    return _entry(admin_client, "KR")
+def kr(owner_client):
+    return _entry(owner_client, "KR")
 
 
 @pytest.fixture
-def jp(admin_client):
-    return _entry(admin_client, "JP")
+def jp(owner_client):
+    return _entry(owner_client, "JP")
 
 
 def test_a_kr_highlight_round_trips(user_client, kr):
@@ -94,8 +94,8 @@ def test_a_highlight_cannot_be_moved_onto_a_jp_entry(user_client, kr, jp):
     assert response.status_code == 422
 
 
-def test_the_section_is_offered_to_h_comic_with_its_grouping(admin_client):
-    sections = admin_client.get("/api/notes/sections", params={"owner_type": "h-comic"}).json()
+def test_the_section_is_offered_to_h_comic_with_its_grouping(owner_client):
+    sections = owner_client.get("/api/notes/sections", params={"owner_type": "h-comic"}).json()
     by_key = {s["key"]: s for s in sections}
     section = by_key[SECTION]
     assert section["group_by"] == "female_characters"
@@ -130,9 +130,9 @@ def test_the_section_is_offered_to_h_comic_with_its_grouping(admin_client):
         ),
     ],
 )
-def test_h_comic_and_hentai_keep_a_reviews_card_of_two(admin_client, owner_type, expected):
+def test_h_comic_and_hentai_keep_a_reviews_card_of_two(owner_client, owner_type, expected):
     """No 解析, Questions or 名言/梗 - a 評論 card of public and personal reviews."""
-    sections = admin_client.get("/api/notes/sections", params={"owner_type": owner_type}).json()
+    sections = owner_client.get("/api/notes/sections", params={"owner_type": owner_type}).json()
     assert [s["key"] for s in sections] == expected
     by_key = {s["key"]: s for s in sections}
     assert by_key["public_reviews"]["shape"] == "text_links"
@@ -145,7 +145,7 @@ def test_h_comic_and_hentai_keep_a_reviews_card_of_two(admin_client, owner_type,
 
 
 def test_personal_reviews_takes_a_row_where_advantages_does_not(
-    admin_client, mode_client, plain_user
+    owner_client, mode_client, plain_user
 ):
     """
     Personal sections, so a member in the unrestricted mode writes them - an
@@ -153,7 +153,7 @@ def test_personal_reviews_takes_a_row_where_advantages_does_not(
     refused advantages is the mirror: the 201 is the section's, not the
     member's.
     """
-    hentai = admin_client.post("/api/hentai/", json={"hentai_name_cn": "Zvornik Hentai"}).json()
+    hentai = owner_client.post("/api/hentai/", json={"hentai_name_cn": "Zvornik Hentai"}).json()
     member = mode_client(MODE_UNRESTRICTED, user=plain_user)
 
     def post(section):
@@ -171,7 +171,7 @@ def test_personal_reviews_takes_a_row_where_advantages_does_not(
     # Retired: an unknown section, which the router answers 400.
     assert post("reviews_and_comments").status_code == 400
     assert post("personal_reviews").status_code == 201
-    public = admin_client.post(
+    public = owner_client.post(
         "/api/notes",
         json={
             "owner_type": "hentai",
@@ -203,10 +203,10 @@ def test_a_guest_cannot_read_the_highlights(client, user_client, kr):
 # ---------------------------------------------------------------------------
 
 
-def test_the_entry_update_ignores_a_group_order(admin_client, kr, db_session):
+def test_the_entry_update_ignores_a_group_order(owner_client, kr, db_session):
     """An entry write is the catalogue's: a sent order is dropped, never
     stored for anybody, and the response carries the caller's own (none)."""
-    for write in (admin_client.patch, admin_client.put):
+    for write in (owner_client.patch, owner_client.put):
         response = write(
             f"/api/h-comic/{kr['system_id']}",
             json={"highlight_group_order": ["Bea", "Ana"]},

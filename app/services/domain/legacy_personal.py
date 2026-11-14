@@ -85,6 +85,11 @@ def legacy_personal_headers(tab_name: str) -> frozenset[str]:
     return frozenset(legacy[1]) if legacy else frozenset()
 
 
+class NoInstallationOwner(Exception):
+    """No account can own an old sheet's personal values (see
+    user_list.installation_owner_id)."""
+
+
 def pop_legacy_personal(tab_name: str, payload: dict) -> dict:
     """
     Take an old sheet's personal values out of a row's payload, in place.
@@ -112,18 +117,19 @@ def restore_legacy_personal(
 ) -> Optional[str]:
     """
     File an old sheet's personal values under the installation owner, on the
-    row just restored. Returns a reason when nobody can own them, for the
-    run's unresolved_refs - the values are then lost, and the log says so.
+    row just restored. Returns a reason when a value cannot be restored, for
+    the run's unresolved_refs.
+
+    Raises NoInstallationOwner when installation_owner_id() answers None: the
+    row itself stays restored, its personal values are skipped, and the
+    caller counts them into one no_owner_message line, as Pull does for every
+    other row it cannot file under an owner.
     """
     if not values:
         return None
     owner = installation_owner_id(db)
     if owner is None:
-        return (
-            f"{tab_name}: a rating, expectation, remark, group order, note "
-            "mark or favourite could not be restored - no account exists to "
-            "own it"
-        )
+        raise NoInstallationOwner(tab_name)
     if tab_name == NOTE_TAB:
         # Merged into the owner's mark: a value the sheet does not carry
         # leaves the owner's own alone.

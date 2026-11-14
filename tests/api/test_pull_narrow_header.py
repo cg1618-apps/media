@@ -51,7 +51,7 @@ def effective_status(db, entry, media_type="anime"):
 # ---------------------------------------------------------------------------
 
 
-def test_absent_column_does_not_wipe_an_existing_value(db_session, sheet, admin_user):
+def test_absent_column_does_not_wipe_an_existing_value(db_session, sheet, owner_user):
     anime = models.Anime(anime_name_en="Frieren", mal_rank="S")
     db_session.add(anime)
     db_session.flush()
@@ -67,7 +67,7 @@ def test_absent_column_does_not_wipe_an_existing_value(db_session, sheet, admin_
     assert anime.mal_rank == "S"
 
 
-def test_blank_cell_still_clears_the_value(db_session, sheet, admin_user):
+def test_blank_cell_still_clears_the_value(db_session, sheet, owner_user):
     anime = models.Anime(anime_name_en="Frieren", mal_rank="S")
     db_session.add(anime)
     db_session.flush()
@@ -85,7 +85,7 @@ def test_blank_cell_still_clears_the_value(db_session, sheet, admin_user):
     assert anime.mal_rank is None
 
 
-def test_absent_owner_column_does_not_orphan_a_watch_order_list(db_session, sheet, admin_user):
+def test_absent_owner_column_does_not_orphan_a_watch_order_list(db_session, sheet, owner_user):
     """`watch_order_list.series_id` is a post-migration column with no guard."""
     series = models.Series(series_name_en="Monogatari")
     db_session.add(series)
@@ -114,7 +114,7 @@ def test_absent_owner_column_does_not_orphan_a_watch_order_list(db_session, shee
 
 
 def test_pulling_anime_does_not_reset_the_status_on_the_list_row(
-    db_session, sheet, list_row, admin_user,
+    db_session, sheet, list_row, owner_user,
 ):
     """The Anime tab no longer carries a status; `User Media List` does.
 
@@ -137,7 +137,7 @@ def test_pulling_anime_does_not_reset_the_status_on_the_list_row(
 
 
 def test_absent_created_at_does_not_restamp_an_existing_movie(
-    db_session, sheet, list_row, admin_user,
+    db_session, sheet, list_row, owner_user,
 ):
     movie = models.Movies(movie_name_en="Arrival")
     db_session.add(movie)
@@ -155,7 +155,7 @@ def test_absent_created_at_does_not_restamp_an_existing_movie(
     assert effective_status(db_session, movie, "movie") == "Completed"
 
 
-def test_insert_still_gets_its_defaults(db_session, sheet, admin_user):
+def test_insert_still_gets_its_defaults(db_session, sheet, owner_user):
     """The defaults exist to make an INSERT valid - inserts must keep them."""
     sheet(["system_id", "anime_name_en"], [["", "Bocchi the Rock!"]])
 
@@ -173,7 +173,7 @@ def test_insert_still_gets_its_defaults(db_session, sheet, admin_user):
     assert effective_status(db_session, fresh) == "Might Watch"
 
 
-def test_movie_insert_still_gets_its_timestamps(db_session, sheet, admin_user):
+def test_movie_insert_still_gets_its_timestamps(db_session, sheet, owner_user):
     sheet(["system_id", "movie_name_en"], [["", "Dune"]])
 
     result = pull.execute_pull_specific(db_session, "Movies", log_action=False)
@@ -190,7 +190,7 @@ def test_movie_insert_still_gets_its_timestamps(db_session, sheet, admin_user):
 
 
 def test_row_with_a_uuid_missing_locally_still_inserts_with_defaults(
-    db_session, sheet, admin_user,
+    db_session, sheet, owner_user,
 ):
     """PK present but no local row -> the INSERT branch, so defaults apply."""
     orphan_id = str(uuid.uuid4())

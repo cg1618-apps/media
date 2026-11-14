@@ -7,7 +7,7 @@ A content label and its 標籤 Label tag, kept in step on an entry, both ways
   Pull          reconcile_label_tags, the label winning
 
 A tag write changes who can see the entry, so the visibility tests pair the
-refusal (`narrow`, in `safe`, sees no label) with its mirror (`admin_client`,
+refusal (`narrow`, in `safe`, sees no label) with its mirror (`owner_client`,
 `unrestricted`, sees every label) on the same entry.
 
 Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
@@ -81,23 +81,23 @@ def tagged_anime(db_session, sample_anime):
 # ---------------------------------------------------------------------------
 
 
-def test_attaching_a_label_adds_its_tag_and_nsfws(admin_client, tagged_anime):
-    assert _put_labels(admin_client, tagged_anime, ["ecchi"]).status_code == 200
+def test_attaching_a_label_adds_its_tag_and_nsfws(owner_client, tagged_anime):
+    assert _put_labels(owner_client, tagged_anime, ["ecchi"]).status_code == 200
 
-    assert _tags(admin_client, tagged_anime) == ["會跳OP", "NSFW", "輕微色情"]
-
-
-def test_detaching_a_label_removes_its_tag_only(admin_client, tagged_anime):
-    _put_labels(admin_client, tagged_anime, ["erotica"])
-
-    assert _put_labels(admin_client, tagged_anime, []).status_code == 200
-
-    assert _tags(admin_client, tagged_anime) == ["會跳OP"]
+    assert _tags(owner_client, tagged_anime) == ["會跳OP", "NSFW", "輕微色情"]
 
 
-def test_a_label_without_a_tag_adds_none(db_session, admin_client, sample_hentai):
+def test_detaching_a_label_removes_its_tag_only(owner_client, tagged_anime):
+    _put_labels(owner_client, tagged_anime, ["erotica"])
+
+    assert _put_labels(owner_client, tagged_anime, []).status_code == 200
+
+    assert _tags(owner_client, tagged_anime) == ["會跳OP"]
+
+
+def test_a_label_without_a_tag_adds_none(db_session, owner_client, sample_hentai):
     """A gated type has no Label field: its label write touches no tag."""
-    res = admin_client.put(
+    res = owner_client.put(
         f"/api/content-labels/entry/hentai/{sample_hentai.system_id}",
         json={"label_keys": ["hentai"]},
     )
@@ -110,67 +110,67 @@ def test_a_label_without_a_tag_adds_none(db_session, admin_client, sample_hentai
 # ---------------------------------------------------------------------------
 
 
-def test_adding_a_tag_attaches_its_label_and_nsfw(admin_client, tagged_anime):
-    res = _put_tags(admin_client, tagged_anime, ["會跳OP", "輕微色情"])
+def test_adding_a_tag_attaches_its_label_and_nsfw(owner_client, tagged_anime):
+    res = _put_tags(owner_client, tagged_anime, ["會跳OP", "輕微色情"])
 
     assert res.status_code == 200, res.text
-    assert _labels(admin_client, tagged_anime) == ["ecchi", "nsfw"]
+    assert _labels(owner_client, tagged_anime) == ["ecchi", "nsfw"]
     # The nsfw rule's label brought its tag back with it.
-    assert _tags(admin_client, tagged_anime) == ["會跳OP", "輕微色情", "NSFW"]
+    assert _tags(owner_client, tagged_anime) == ["會跳OP", "輕微色情", "NSFW"]
 
 
-def test_a_tag_edit_hides_the_entry(narrow, admin_client, tagged_anime):
+def test_a_tag_edit_hides_the_entry(narrow, owner_client, tagged_anime):
     path = f"/api/anime/{tagged_anime.public_id}"
     assert narrow.get(path).status_code == 200
 
-    _put_tags(admin_client, tagged_anime, ["擦邊肉番"])
+    _put_tags(owner_client, tagged_anime, ["擦邊肉番"])
 
     assert narrow.get(path).status_code == 404
     # The mirror: a mode showing erotica still sees it.
-    assert admin_client.get(path).status_code == 200
+    assert owner_client.get(path).status_code == 200
 
 
-def test_removing_a_tag_detaches_its_label(admin_client, tagged_anime):
-    _put_labels(admin_client, tagged_anime, ["erotica"])
+def test_removing_a_tag_detaches_its_label(owner_client, tagged_anime):
+    _put_labels(owner_client, tagged_anime, ["erotica"])
 
-    res = _put_tags(admin_client, tagged_anime, ["會跳OP", "NSFW"])
+    res = _put_tags(owner_client, tagged_anime, ["會跳OP", "NSFW"])
 
     assert res.status_code == 200, res.text
-    assert _labels(admin_client, tagged_anime) == ["nsfw"]
+    assert _labels(owner_client, tagged_anime) == ["nsfw"]
 
 
 def test_removing_the_nsfw_tag_while_another_stays_is_refused(
-    admin_client, tagged_anime
+    owner_client, tagged_anime
 ):
-    _put_labels(admin_client, tagged_anime, ["ecchi"])
+    _put_labels(owner_client, tagged_anime, ["ecchi"])
 
-    res = _put_tags(admin_client, tagged_anime, ["會跳OP", "輕微色情"])
+    res = _put_tags(owner_client, tagged_anime, ["會跳OP", "輕微色情"])
 
     assert res.status_code == 422
     assert "NSFW" in res.json()["detail"]
     # Nothing moved.
-    assert _labels(admin_client, tagged_anime) == ["ecchi", "nsfw"]
-    assert _tags(admin_client, tagged_anime) == ["會跳OP", "NSFW", "輕微色情"]
+    assert _labels(owner_client, tagged_anime) == ["ecchi", "nsfw"]
+    assert _tags(owner_client, tagged_anime) == ["會跳OP", "NSFW", "輕微色情"]
 
 
-def test_removing_every_label_tag_clears_the_labels(admin_client, tagged_anime):
-    _put_labels(admin_client, tagged_anime, ["ecchi"])
+def test_removing_every_label_tag_clears_the_labels(owner_client, tagged_anime):
+    _put_labels(owner_client, tagged_anime, ["ecchi"])
 
-    res = _put_tags(admin_client, tagged_anime, ["會跳OP"])
+    res = _put_tags(owner_client, tagged_anime, ["會跳OP"])
 
     assert res.status_code == 200, res.text
-    assert _labels(admin_client, tagged_anime) == []
+    assert _labels(owner_client, tagged_anime) == []
 
 
 def test_a_narrow_editor_cannot_tag_what_it_cannot_see(
-    narrow, admin_client, tagged_anime
+    narrow, owner_client, tagged_anime
 ):
     """The tag write is gated on the entry like the label write is, or a
     tag edit would be a way round the label's 404."""
-    _put_labels(admin_client, tagged_anime, ["erotica"])
+    _put_labels(owner_client, tagged_anime, ["erotica"])
 
     assert _put_tags(narrow, tagged_anime, ["會跳OP"]).status_code == 404
-    assert _labels(admin_client, tagged_anime) == ["erotica", "nsfw"]
+    assert _labels(owner_client, tagged_anime) == ["erotica", "nsfw"]
 
 
 # ---------------------------------------------------------------------------

@@ -14,10 +14,9 @@ function respond(url, init) {
   if (url.startsWith("/api/auth/me")) {
     return {
       is_admin: true,
-      username: "admin",
-      role: "admin",
-      is_root: true,
-      permissions: [],
+      username: "cg1618",
+      role: "super",
+      permissions: ["manage.catalog"],
       visible_gated_types: [],
     };
   }

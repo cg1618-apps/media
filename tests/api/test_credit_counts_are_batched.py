@@ -75,18 +75,18 @@ def _query_counter(db_session, client):
 
 
 def test_person_list_query_count_does_not_grow_with_the_row_count(
-    admin_client, db_session
+    owner_client, db_session
 ):
     entry = _anime(db_session, "測試")
     for i in range(2):
         _credit(db_session, _person(db_session, f"D{i}"), entry)
     db_session.commit()
 
-    queries_for = _query_counter(db_session, admin_client)
+    queries_for = _query_counter(db_session, owner_client)
     # The RBAC permission cache is process-local and loads on the first call,
     # so an unwarmed measurement counts a query the second never issues and
     # the comparison would measure the cache rather than the N+1.
-    admin_client.get("/api/person/")
+    owner_client.get("/api/person/")
 
     two, body = queries_for("/api/person/")
     assert len(body) == 2
@@ -100,7 +100,7 @@ def test_person_list_query_count_does_not_grow_with_the_row_count(
     assert five == two, "query count grew with the number of people"
 
 
-def test_person_list_counts_each_person_separately(admin_client, db_session):
+def test_person_list_counts_each_person_separately(owner_client, db_session):
     """
     A batch that shares one visible-pair set across every row is exactly the
     way this optimisation goes wrong: everyone ends up with the total. Three
@@ -120,13 +120,13 @@ def test_person_list_counts_each_person_separately(admin_client, db_session):
 
     counts = {
         p["display_name"]: p["credit_count"]
-        for p in admin_client.get("/api/person/").json()
+        for p in owner_client.get("/api/person/").json()
     }
     assert counts == {"None": 0, "One": 1, "Two": 2}
 
 
 def test_person_list_counts_castings_not_only_credits(
-    admin_client, db_session, seiyuu_with_one_casting
+    owner_client, db_session, seiyuu_with_one_casting
 ):
     """
     A seiyuu has no media_credit rows at all, so a batch that walked only
@@ -134,13 +134,13 @@ def test_person_list_counts_castings_not_only_credits(
     fixed for, reintroduced by the batching.
     """
     rows = {
-        r["system_id"]: r for r in admin_client.get("/api/person/").json()
+        r["system_id"]: r for r in owner_client.get("/api/person/").json()
     }
     assert rows[str(seiyuu_with_one_casting.system_id)]["credit_count"] == 1
 
 
 def test_person_list_does_not_double_count_one_entry(
-    admin_client, db_session, seiyuu_with_one_casting
+    owner_client, db_session, seiyuu_with_one_casting
 ):
     """
     The two stores are unioned as a SET of (media_type, entry_id) pairs, so a
@@ -162,13 +162,13 @@ def test_person_list_does_not_double_count_one_entry(
     db_session.commit()
 
     rows = {
-        r["system_id"]: r for r in admin_client.get("/api/person/").json()
+        r["system_id"]: r for r in owner_client.get("/api/person/").json()
     }
     assert rows[str(seiyuu_with_one_casting.system_id)]["credit_count"] == 1
 
 
 def test_studio_list_query_count_does_not_grow_with_the_row_count(
-    admin_client, db_session
+    owner_client, db_session
 ):
     entry = _anime(db_session, "測試")
     for i in range(2):
@@ -182,8 +182,8 @@ def test_studio_list_query_count_does_not_grow_with_the_row_count(
         )
     db_session.commit()
 
-    queries_for = _query_counter(db_session, admin_client)
-    admin_client.get("/api/studio/")
+    queries_for = _query_counter(db_session, owner_client)
+    owner_client.get("/api/studio/")
     two, body = queries_for("/api/studio/")
     assert len(body) == 2
 
@@ -204,7 +204,7 @@ def test_studio_list_query_count_does_not_grow_with_the_row_count(
 
 
 def test_publisher_list_query_count_does_not_grow_with_the_row_count(
-    admin_client, db_session
+    owner_client, db_session
 ):
     entry = _anime(db_session, "測試")
     for i in range(2):
@@ -220,8 +220,8 @@ def test_publisher_list_query_count_does_not_grow_with_the_row_count(
         )
     db_session.commit()
 
-    queries_for = _query_counter(db_session, admin_client)
-    admin_client.get("/api/publisher/")
+    queries_for = _query_counter(db_session, owner_client)
+    owner_client.get("/api/publisher/")
     two, body = queries_for("/api/publisher/")
     assert len(body) == 2
 

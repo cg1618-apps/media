@@ -59,20 +59,20 @@ def _list_row(db, user_id, media_id):
 
 @pytest.mark.parametrize("media_type,name_key,counts,extra", CASES)
 def test_create_with_null_counts_stores_null_and_reads_back_zero(
-    admin_client, admin_user, db_session, media_type, name_key, counts, extra
+    owner_client, owner_user, db_session, media_type, name_key, counts, extra
 ):
     body = {name_key: f"Blank Count {media_type}", **extra, **{k: None for k in counts}}
-    resp = admin_client.post(f"/api/{media_type}/", json=body)
+    resp = owner_client.post(f"/api/{media_type}/", json=body)
     assert resp.status_code == 201, resp.text
     created = resp.json()
     for key in counts:
         assert created[key] == _read_back(key)
 
-    row = _list_row(db_session, admin_user.id, uuid.UUID(created["system_id"]))
+    row = _list_row(db_session, owner_user.id, uuid.UUID(created["system_id"]))
     for key in counts:
         assert getattr(row, key) is None
 
-    one = admin_client.get(f"/api/{media_type}/{created['system_id']}")
+    one = owner_client.get(f"/api/{media_type}/{created['system_id']}")
     assert one.status_code == 200, one.text
     for key in counts:
         assert one.json()[key] == _read_back(key)
@@ -80,15 +80,15 @@ def test_create_with_null_counts_stores_null_and_reads_back_zero(
 
 @pytest.mark.parametrize("media_type,name_key,counts,extra", CASES)
 def test_patch_with_null_counts_clears_them(
-    admin_client, admin_user, db_session, media_type, name_key, counts, extra
+    owner_client, owner_user, db_session, media_type, name_key, counts, extra
 ):
     """The Modify form's save of a blank count. PATCH takes the body as a raw
     dict, so no schema stands between the null and the list row."""
-    created = admin_client.post(
+    created = owner_client.post(
         f"/api/{media_type}/",
         json={name_key: f"Patched Count {media_type}", **extra, **{k: 3 for k in counts}},
     ).json()
-    resp = admin_client.patch(
+    resp = owner_client.patch(
         f"/api/{media_type}/{created['system_id']}",
         json={k: None for k in counts},
     )
@@ -96,34 +96,34 @@ def test_patch_with_null_counts_clears_them(
     for key in counts:
         assert resp.json()[key] == _read_back(key)
 
-    row = _list_row(db_session, admin_user.id, uuid.UUID(created["system_id"]))
+    row = _list_row(db_session, owner_user.id, uuid.UUID(created["system_id"]))
     for key in counts:
         assert getattr(row, key) is None
 
 
 @pytest.mark.parametrize("media_type,name_key,counts,extra", CASES)
 def test_put_with_null_counts_clears_them(
-    admin_client, admin_user, db_session, media_type, name_key, counts, extra
+    owner_client, owner_user, db_session, media_type, name_key, counts, extra
 ):
     """PUT validates against the Update schema, which PATCH (a raw dict) does
     not - so this is the write path the Optional declarations open."""
     name = f"Put Count {media_type}"
-    created = admin_client.post(
+    created = owner_client.post(
         f"/api/{media_type}/", json={name_key: name, **extra, **{k: 3 for k in counts}}
     ).json()
-    resp = admin_client.put(
+    resp = owner_client.put(
         f"/api/{media_type}/{created['system_id']}",
         json={name_key: name, **extra, **{k: None for k in counts}},
     )
     assert resp.status_code == 200, resp.text
-    row = _list_row(db_session, admin_user.id, uuid.UUID(created["system_id"]))
+    row = _list_row(db_session, owner_user.id, uuid.UUID(created["system_id"]))
     for key in counts:
         assert getattr(row, key) is None
 
 
 @pytest.mark.parametrize("media_type,name_key,counts,extra", CASES)
 def test_a_stored_null_count_reads_back_on_the_list_and_the_entry(
-    admin_client, admin_user, db_session, sample_franchise, media_type, name_key, counts, extra
+    owner_client, owner_user, db_session, sample_franchise, media_type, name_key, counts, extra
 ):
     """A list row already holding NULL - as one written outside the API, or by
     a restore, would - serves 0 on both read paths rather than failing
@@ -140,7 +140,7 @@ def test_a_stored_null_count_reads_back_on_the_list_and_the_entry(
     db_session.add(
         models.UserMediaList(
             system_id=uuid.uuid4(),
-            user_id=admin_user.id,
+            user_id=owner_user.id,
             media_id=entry.system_id,
             status="Reading",
             **{k: None for k in counts},
@@ -148,12 +148,12 @@ def test_a_stored_null_count_reads_back_on_the_list_and_the_entry(
     )
     db_session.flush()
 
-    one = admin_client.get(f"/api/{media_type}/{entry.system_id}")
+    one = owner_client.get(f"/api/{media_type}/{entry.system_id}")
     assert one.status_code == 200, one.text
     for key in counts:
         assert one.json()[key] == _read_back(key)
 
-    rows = admin_client.get(f"/api/{media_type}/?limit=2000")
+    rows = owner_client.get(f"/api/{media_type}/?limit=2000")
     assert rows.status_code == 200, rows.text
     found = [r for r in rows.json() if r["system_id"] == str(entry.system_id)]
     assert len(found) == 1

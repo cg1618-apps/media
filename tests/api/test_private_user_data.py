@@ -25,12 +25,12 @@ from tests.api.conftest import make_viewer, role_id_for
 # --- The removed routes ----------------------------------------------------
 
 
-def test_the_profile_route_is_gone(admin_client, admin_user):
-    assert admin_client.get(f"/api/profile/{admin_user.username}").status_code == 404
+def test_the_profile_route_is_gone(owner_client, owner_user):
+    assert owner_client.get(f"/api/profile/{owner_user.username}").status_code == 404
 
 
-def test_the_community_route_is_gone(admin_client, sample_anime):
-    assert admin_client.get(f"/api/community/{sample_anime.system_id}").status_code == 404
+def test_the_community_route_is_gone(owner_client, sample_anime):
+    assert owner_client.get(f"/api/community/{sample_anime.system_id}").status_code == 404
 
 
 def test_account_settings_carry_no_list_visibility(user_client):

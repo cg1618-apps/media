@@ -58,20 +58,27 @@ catalogue and what is an account's own data is
 > settings are a name and a description, and nothing else, because the modes
 > and what each shows are code. The rest of those two sections is not built.
 >
-> **Built underneath, not yet as described here:** every account has a mode
-> ceiling and a default, set on the Users page, and switches among the modes
-> up to its ceiling ([authorization.md](authorization.md), "Access modes").
-> A shared account's mode is fixed for switching too, so the mode switcher
-> does not appear for it. The "Content (modes)" row is not yet true as a
-> whole: `admin` still sits in `unrestricted` rather than in no mode.
+> **Built:** every account has a mode ceiling and a default, set on the Users
+> page, and switches among the modes up to its ceiling
+> ([authorization.md](authorization.md), "Access modes"). A shared account's
+> mode is fixed for switching too, so the mode switcher does not appear for
+> it, and the admin account has no mode at all — the "Content (modes)" row of
+> [At a glance](#at-a-glance) is true as a whole.
 >
-> **The admin is still a root role**, so it still reads every page this
-> design takes from it — the catalogue, the entity pages, and quotes and
-> memes, which it holds without a switch.
+> **Built:** [Admin](#admin), in full, and the whole admin column of
+> [At a glance](#at-a-glance). The admin is an ordinary role with a fixed
+> set of permissions; it reads no library, entry, group, entity or search
+> page, no quotes or memes, keeps no personal data, and has no mode
+> switcher. Its header carries only its own pages. Its own dashboard is not
+> built — see [Dashboard](#dashboard-) — and until it is, `/` shows the
+> admin the dashboard a guest sees, with announcements and with the
+> catalogue sections empty, since it reads no catalogue.
+> **`/resources` is the admin's and super's alone**: a `user` does not
+> reach it.
 >
 > **A shared account lacks Random Picker and Future Releases** until
 > `view.extras` is split. Both sit behind that one key, which also opens
-> Resources and Completions — neither of them a shared account's — so it is
+> Completions — not a shared account's — so it is
 > locked off for `shared`; until the split a shared account reads what a
 > guest reads, plus requests.
 
@@ -127,10 +134,10 @@ design.
   - **`/images`**;
   - **`/resources`** — the site-wide Resources page is admin's and super's
     alone.
-- **It stops being a root role.** Today `is_root` passes every permission
-  check, including ones added later. The admin becomes an ordinary role
-  with a fixed set of permissions, so a later feature reaches it only by
-  decision.
+- **It is an ordinary role with a fixed set of permissions** — no role is
+  root, and nothing passes every check. A later feature reaches the admin
+  only by decision. It holds no mode, so even a route that forgot a check
+  shows it no catalogue row.
 - **Why:** the most powerful login exposes the least, the rules lose their
   carve-outs ("everything except personal data"), and an admin with its own
   pages is a small set to design. The cost — the admin cannot see what a
@@ -196,8 +203,7 @@ Super without the catalogue work.
   franchise and series pages.
 - **They apply to guest, shared and user**, adjustable per role on the
   Roles page, and a fresh database starts **all three with them off**.
-  Super always holds them; the admin is to hold none once it stops being a
-  root role.
+  Super always holds them; the admin holds none.
 
 ## Track and Insights pages
 
@@ -434,5 +440,5 @@ kind's key the viewer lacks is plain text rather than a link.
 | **user** | announcements, the broadcast schedule, its own tracker |
 | **guest** | announcements, the broadcast schedule, and **a way into each library** |
 | **shared** | the guest's dashboard, plus **recently added** entries |
-| **admin** | its own page: pending registrations, open requests and reports, recent pipeline runs, and announcements to edit; no catalogue |
+| **admin** | its own page: pending registrations, open requests and reports, recent pipeline runs, and announcements to edit; no catalogue. **Not built yet** ([to-do-next.md](to-do-next.md), the per-viewer pages); until it is, the admin gets the guest's dashboard, with announcements and no catalogue |
 

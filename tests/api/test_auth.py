@@ -62,12 +62,12 @@ class TestLogin:
 
 
 class TestGetMe:
-    def test_with_valid_cookie_returns_admin_true(self, admin_client):
-        response = admin_client.get("/api/auth/me")
+    def test_with_valid_cookie_returns_admin_true(self, owner_client):
+        response = owner_client.get("/api/auth/me")
         assert response.status_code == 200
         data = response.json()
         assert data["is_admin"] is True
-        assert data["username"] == "aaa_testadmin"
+        assert data["username"] == "aaa_testowner"
 
     def test_without_cookie_returns_admin_false(self, client):
         response = client.get("/api/auth/me")
@@ -84,12 +84,12 @@ class TestGetMe:
 
 
 class TestLogout:
-    def test_logout_returns_200(self, admin_client):
-        response = admin_client.post("/api/auth/logout")
+    def test_logout_returns_200(self, owner_client):
+        response = owner_client.post("/api/auth/logout")
         assert response.status_code == 200
 
-    def test_logout_clears_cookie(self, admin_client):
-        response = admin_client.post("/api/auth/logout")
+    def test_logout_clears_cookie(self, owner_client):
+        response = owner_client.post("/api/auth/logout")
         # Assert the server's actual contract: it instructs the client to expire
         # the auth cookie (Max-Age=0 / past expiry). We check the response header
         # rather than re-reading /me, because the test client's cookie jar does
@@ -99,7 +99,7 @@ class TestLogout:
         assert "max-age=0" in set_cookie.lower() or "expires=" in set_cookie.lower()
 
 
-def test_resolved_viewer_carries_the_user_id(db_session, admin_client):
+def test_resolved_viewer_carries_the_user_id(db_session, owner_client):
     """
     Phase C filters personal notes by author_id, so "who is asking" has to
     answer with an id and not only a username.
@@ -108,7 +108,7 @@ def test_resolved_viewer_carries_the_user_id(db_session, admin_client):
 
     from app.services.rbac.resolver import GUEST_FALLBACK, resolve_viewer
 
-    cookie = admin_client.cookies.get("access_token")
+    cookie = owner_client.cookies.get("access_token")
     scope = {
         "type": "http",
         "headers": [(b"cookie", f"access_token={cookie}".encode())],

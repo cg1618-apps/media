@@ -72,15 +72,15 @@ def _fetch(c):
     return res.json()
 
 
-def test_flagged_lists_and_songs_are_reported_per_anime(db_session, admin_user, reviewer):
+def test_flagged_lists_and_songs_are_reported_per_anime(db_session, owner_user, reviewer):
     c, me = reviewer
     anime = _anime(db_session, "Flagged")
-    _note(db_session, admin_user, anime, "music_status", me, "Need", kind="op")
-    _note(db_session, admin_user, anime, "music_status", me, "Not Done", kind="ed")
-    _note(db_session, admin_user, anime, "ed", me, "No Full Version",
+    _note(db_session, owner_user, anime, "music_status", me, "Need", kind="op")
+    _note(db_session, owner_user, anime, "music_status", me, "Not Done", kind="ed")
+    _note(db_session, owner_user, anime, "ed", me, "No Full Version",
           title="Ending A", locator="ep 1")
-    _note(db_session, admin_user, anime, "ost", me, "Pending", title="Track 1")
-    _note(db_session, admin_user, anime, "op", me, "Done", title="Opening A")
+    _note(db_session, owner_user, anime, "ost", me, "Pending", title="Track 1")
+    _note(db_session, owner_user, anime, "op", me, "Done", title="Opening A")
 
     (row,) = _fetch(c)
     assert row["system_id"] == str(anime.system_id)
@@ -93,52 +93,52 @@ def test_flagged_lists_and_songs_are_reported_per_anime(db_session, admin_user, 
     ]
 
 
-def test_an_anime_with_nothing_flagged_is_not_listed(db_session, admin_user, reviewer):
+def test_an_anime_with_nothing_flagged_is_not_listed(db_session, owner_user, reviewer):
     # Mirror case on the same request: `flagged` IS listed, so an absent
     # `settled` is the filter working, not an empty table.
     c, me = reviewer
     settled = _anime(db_session, "Settled")
-    _note(db_session, admin_user, settled, "music_status", me, "Not Done", kind="op")
-    _note(db_session, admin_user, settled, "music_status", me, "All Done", kind="ed")
-    _note(db_session, admin_user, settled, "op", me, "Done", title="Opening")
+    _note(db_session, owner_user, settled, "music_status", me, "Not Done", kind="op")
+    _note(db_session, owner_user, settled, "music_status", me, "All Done", kind="ed")
+    _note(db_session, owner_user, settled, "op", me, "Done", title="Opening")
     flagged = _anime(db_session, "Flagged")
-    _note(db_session, admin_user, flagged, "insert_songs", me, "Need", title="Insert")
+    _note(db_session, owner_user, flagged, "insert_songs", me, "Need", title="Insert")
 
     assert [r["system_id"] for r in _fetch(c)] == [str(flagged.system_id)]
 
 
-def test_another_accounts_status_does_not_count(db_session, admin_user, plain_user, reviewer):
+def test_another_accounts_status_does_not_count(db_session, owner_user, plain_user, reviewer):
     c, me = reviewer
     theirs = _anime(db_session, "Flagged By Someone Else")
-    _note(db_session, admin_user, theirs, "op", plain_user, "Pending", title="Opening")
+    _note(db_session, owner_user, theirs, "op", plain_user, "Pending", title="Opening")
     mine = _anime(db_session, "Flagged By Me")
-    _note(db_session, admin_user, mine, "op", me, "Pending", title="Opening")
+    _note(db_session, owner_user, mine, "op", me, "Pending", title="Opening")
 
     assert [r["system_id"] for r in _fetch(c)] == [str(mine.system_id)]
 
 
-def test_a_status_left_on_the_row_itself_is_not_read(db_session, admin_user, reviewer):
+def test_a_status_left_on_the_row_itself_is_not_read(db_session, owner_user, reviewer):
     """A catalogue row's own status column is never anyone's status."""
     c, me = reviewer
     stale = _anime(db_session, "Stale")
-    _note(db_session, admin_user, stale, "op", title="Opening", status="Need")
+    _note(db_session, owner_user, stale, "op", title="Opening", status="Need")
     mine = _anime(db_session, "Mine")
-    _note(db_session, admin_user, mine, "op", me, "Need", title="Opening")
+    _note(db_session, owner_user, mine, "op", me, "Need", title="Opening")
 
     assert [r["system_id"] for r in _fetch(c)] == [str(mine.system_id)]
 
 
-def test_the_admin_has_no_music_status(admin_client, db_session, admin_user, plain_user):
-    """Root never passes self.*, so it holds no feature and no status."""
+def test_the_admin_has_no_music_status(admin_client, db_session, owner_user, plain_user):
+    """The admin keeps no personal data and holds no feature, so it has no status."""
     anime = _anime(db_session, "Flagged")
-    _note(db_session, admin_user, anime, "op", plain_user, "Need", title="Opening")
+    _note(db_session, owner_user, anime, "op", plain_user, "Need", title="Opening")
     assert _fetch(admin_client) == []
 
 
-def test_a_non_music_section_is_ignored(db_session, admin_user, reviewer):
+def test_a_non_music_section_is_ignored(db_session, owner_user, reviewer):
     c, me = reviewer
     anime = _anime(db_session, "Not Music")
-    _note(db_session, admin_user, anime, "remark", content="Need to rewatch")
+    _note(db_session, owner_user, anime, "remark", content="Need to rewatch")
     assert _fetch(c) == []
 
 

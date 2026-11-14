@@ -255,29 +255,29 @@ class TestTheSavePath:
     key on and the HowLongToBeat search is the only fetch the hook makes.
     """
 
-    def test_a_save_does_not_repeat_a_miss_but_autofill_does(self, admin_client, hltb):
+    def test_a_save_does_not_repeat_a_miss_but_autofill_does(self, owner_client, hltb):
         hltb["answer"] = None
 
-        created = admin_client.post("/api/game/", json={"game_name_en": "Miss Sentinel"})
+        created = owner_client.post("/api/game/", json={"game_name_en": "Miss Sentinel"})
         assert created.status_code == 201, created.text
         game_id = created.json()["system_id"]
         # The create's hook asked once, and missed.
         assert len(hltb["calls"]) == 1
 
         # PUT, not PATCH: PUT is the update that runs the write hook.
-        updated = admin_client.put(
+        updated = owner_client.put(
             f"/api/game/{game_id}", json={"game_name_en": "Miss Sentinel"}
         )
         assert updated.status_code == 200, updated.text
         assert len(hltb["calls"]) == 1
 
-        autofill = admin_client.post(f"/api/data-control/replace/game/{game_id}")
+        autofill = owner_client.post(f"/api/data-control/replace/game/{game_id}")
         assert autofill.status_code == 200, autofill.text
         assert len(hltb["calls"]) == 2
 
-    def test_a_save_still_asks_for_a_game_that_never_missed(self, admin_client, hltb):
+    def test_a_save_still_asks_for_a_game_that_never_missed(self, owner_client, hltb):
         """The mirror: the save path skips remembered misses only."""
-        admin_client.post("/api/game/", json={"game_name_en": "Hit Sentinel"})
+        owner_client.post("/api/game/", json={"game_name_en": "Hit Sentinel"})
 
         assert len(hltb["calls"]) == 1
 

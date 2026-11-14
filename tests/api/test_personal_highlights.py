@@ -189,20 +189,11 @@ def test_reordering_names_only_the_callers_rows(user_client, second_client, samp
     assert taken.status_code == 200, taken.text
 
 
-def test_the_admin_may_not_write_a_highlight(admin_client, sample_anime):
-    """Root never passes a self.* permission. The mirror is the same admin
-    writing a catalogue section on the same entry."""
+def test_the_admin_may_not_write_a_highlight(admin_client, owner_client, sample_anime):
+    """The admin holds no self.* permission, so it keeps no highlight. The
+    mirror is an account holding self.personal_notes writing the same one."""
     assert _highlight(admin_client, sample_anime, "admin's").status_code == 401
-    catalogue = admin_client.post(
-        "/api/notes",
-        json={
-            "owner_type": "anime",
-            "owner_id": str(sample_anime.system_id),
-            "section": "public_reviews",
-            "content": "well liked",
-        },
-    )
-    assert catalogue.status_code == 201, catalogue.text
+    assert _highlight(owner_client, sample_anime, "owner's").status_code == 201
 
 
 # ---------------------------------------------------------------------------
@@ -268,8 +259,8 @@ def test_the_admin_may_not_write_an_ng_goal(admin_client, user_client, game):
 
 
 @pytest.fixture
-def kr(admin_client):
-    r = admin_client.post(
+def kr(owner_client):
+    r = owner_client.post(
         "/api/h-comic/", json={"h_comic_name_cn": "Zvornik KR", "region": "KR"}
     )
     assert r.status_code in (200, 201), r.text
@@ -277,8 +268,8 @@ def kr(admin_client):
 
 
 @pytest.fixture
-def jp(admin_client):
-    r = admin_client.post(
+def jp(owner_client):
+    r = owner_client.post(
         "/api/h-comic/", json={"h_comic_name_cn": "Zvornik JP", "region": "JP"}
     )
     assert r.status_code in (200, 201), r.text
@@ -286,8 +277,8 @@ def jp(admin_client):
 
 
 @pytest.fixture
-def h_game(admin_client):
-    r = admin_client.post("/api/h-game/", json={"h_game_name_cn": "Zvornik Order"})
+def h_game(owner_client):
+    r = owner_client.post("/api/h-game/", json={"h_game_name_cn": "Zvornik Order"})
     assert r.status_code in (200, 201), r.text
     return r.json()
 
@@ -301,7 +292,7 @@ def _put_order(c, entry, order):
 
 @pytest.mark.parametrize("route, fixture", [("h-comic", "kr"), ("h-game", "h_game")])
 def test_each_account_reads_its_own_group_order(
-    request, route, fixture, user_client, second_client, admin_client
+    request, route, fixture, user_client, second_client, owner_client
 ):
     entry = request.getfixturevalue(fixture)
     mine = _put_order(user_client, entry, ["Bea", " Ana", "Bea", ""])
@@ -322,8 +313,8 @@ def test_each_account_reads_its_own_group_order(
     assert detail(second_client) == ["Ana"]
     assert listed(user_client) == ["Bea", "Ana"]
     assert listed(second_client) == ["Ana"]
-    # The admin keeps none, whoever else has one.
-    assert detail(admin_client) is None
+    # An account that set none reads none, whoever else has one.
+    assert detail(owner_client) is None
 
 
 @pytest.mark.parametrize("cleared", [None, [], ["  "]])
@@ -400,14 +391,14 @@ def test_a_jp_h_comic_takes_no_order(user_client, jp):
 
 
 def test_turning_an_h_comic_jp_deletes_every_accounts_order(
-    db, admin_client, user_client, second_client, kr, h_game
+    db, owner_client, user_client, second_client, kr, h_game
 ):
     assert _put_order(user_client, kr, ["Ana"]).status_code == 200
     assert _put_order(second_client, kr, ["Bea"]).status_code == 200
     # An order on another entry, which must survive.
     assert _put_order(user_client, h_game, ["Cy"]).status_code == 200
 
-    r = admin_client.patch(f"/api/h-comic/{kr['system_id']}", json={"region": "JP"})
+    r = owner_client.patch(f"/api/h-comic/{kr['system_id']}", json={"region": "JP"})
     assert r.status_code == 200, r.text
 
     held = {

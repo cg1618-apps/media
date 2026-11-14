@@ -19,13 +19,13 @@ from tests.api.conftest import role_id_for
 
 
 @pytest.fixture
-def quote_and_meme(db_session, admin_client, sample_anime):
+def quote_and_meme(db_session, owner_client, sample_anime):
     """One quote and one meme, and the URLs that read them. Load-bearing for
     every refusal below: without rows a refused list and an empty one could
     not be told apart."""
-    quote = admin_client.post("/api/quote/", json={"text": "名台詞"})
+    quote = owner_client.post("/api/quote/", json={"text": "名台詞"})
     assert quote.status_code == 200, quote.text
-    meme = admin_client.post(
+    meme = owner_client.post(
         "/api/meme/",
         json={
             "owner_type": "anime",
@@ -88,22 +88,30 @@ def test_an_anonymous_visitor_is_refused(client, quote_and_meme):
         assert client.get(url).status_code == 401, url
 
 
-def test_the_admin_reads_them_without_the_switch(
-    db_session, admin_client, admin_user, quote_and_meme
+def test_the_admin_reads_no_quotes_or_memes(
+    db_session, admin_client, owner_client, owner_user, quote_and_meme
 ):
-    """The root role holds quotes_memes by short-circuit, as it held
-    view.extras: the admin writes quotes and must read them back."""
-    assert admin_user.feature_quotes_memes is False
+    """No role holds a feature without its account's switch, and the admin
+    account can never be switched on. The quote and the meme are THERE
+    (quote_and_meme), so the 401 is the gate's."""
     for url in quote_and_meme["urls"]:
-        assert admin_client.get(url).status_code == 200, url
+        assert admin_client.get(url).status_code == 401, url
+
+    # The mirror: the same reads open for an account whose switch is on.
+    _switch(db_session, owner_user, True)
+    for url in quote_and_meme["urls"]:
+        assert owner_client.get(url).status_code == 200, url
 
 
-def test_view_extras_still_opens_resources(
+def test_view_extras_opens_neither_resources_nor_quotes(
     db_session, user_client, plain_user, quote_and_meme
 ):
-    """Only the quote and meme part of view.extras moved."""
+    """Resources moved to manage.resources and quotes and memes to the
+    switch, so a member holding view.extras reads neither. The refusal of
+    /api/resources against a populated tree, with its mirror, is in
+    test_admin_page_permissions.py."""
     _switch(db_session, plain_user, False)
-    assert user_client.get("/api/resources").status_code == 200
+    assert user_client.get("/api/resources").status_code == 401
     assert user_client.get("/api/quote/").status_code == 401
 
 
@@ -127,8 +135,8 @@ def test_me_gives_a_guest_no_features(client):
     assert client.get("/api/auth/me").json()["features"] == []
 
 
-def test_me_gives_the_admin_quotes_memes_only(admin_client):
-    assert admin_client.get("/api/auth/me").json()["features"] == ["quotes_memes"]
+def test_me_gives_the_admin_no_features(admin_client):
+    assert admin_client.get("/api/auth/me").json()["features"] == []
 
 
 # ---------------------------------------------------------------------------
@@ -255,7 +263,6 @@ def _viewer(user=None):
         username=user.username if user else None,
         role_id=user.role_id if user else None,
         role_name=user.role if user else "guest",
-        is_root=False,
         permissions=frozenset(),
         user_id=user.id if user else None,
     )
@@ -296,16 +303,16 @@ def test_a_role_outside_the_five_gets_no_features(db_session, plain_user):
     from app.services.rbac.features import held_features
 
     stray = models.Role(
-        system_id=uuid.uuid4(), name="friend", label="Friend", is_root=False
+        system_id=uuid.uuid4(), name="friend", label="Friend"
     )
     db_session.add(stray)
     db_session.flush()
     for column in FEATURE_COLUMNS:
         setattr(plain_user, column, True)
     db_session.flush()
-    assert held_features(plain_user, False) == list(FEATURE_NAMES)
+    assert held_features(plain_user) == list(FEATURE_NAMES)
 
     plain_user.role_id = stray.system_id
     db_session.flush()
     db_session.refresh(plain_user)
-    assert held_features(plain_user, False) == []
+    assert held_features(plain_user) == []

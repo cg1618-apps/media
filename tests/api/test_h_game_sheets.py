@@ -144,7 +144,7 @@ def test_a_label_tab_restore_repairs_a_missing_label(monkeypatch, db_session):
     assert label_keys_for_entry(db_session, entry.system_id) == ["h-game", "nsfw"]
 
 
-def test_a_game_copy_row_restores_onto_an_h_game(monkeypatch, db_session, admin_user):
+def test_a_game_copy_row_restores_onto_an_h_game(monkeypatch, db_session, owner_user):
     entry = models.HGame(h_game_name_cn="Zvornik Copied")
     db_session.add(entry)
     db_session.commit()

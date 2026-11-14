@@ -211,7 +211,6 @@ describe("SeriesPage own rating and expectation", () => {
   const MEMBER = {
     username: "reader",
     role: "user",
-    is_root: false,
     permissions: ["view.studio", "view.publisher", "view.person", "view.character", "view.search", "view.extras", "self.list"],
   };
   const READER = { ...MEMBER, permissions: MEMBER.permissions.filter((p) => p !== "self.list") };

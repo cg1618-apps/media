@@ -114,16 +114,13 @@ class TestFactoryWrites:
         )
         assert response.status_code == 200
 
-    def test_admin_is_unaffected(self, admin_client, hidden_anime):
-        """The owner's account sees no change on the day this lands.
-
-        NOT because is_root short-circuits entry_visible - it no longer
-        does, and Phase B removed that short-circuit deliberately. It is
-        because admin_client sits in `unrestricted`, which carries every
-        label. Narrow the same account's mode and it is narrowed like anybody
+    def test_the_owner_is_unaffected(self, owner_client, hidden_anime):
+        """The owner's account writes the labelled entry because
+        owner_client sits in `unrestricted`, which carries every label - no
+        role is exempt from entry_visible. Narrow the same account's mode and it is narrowed like anybody
         else; tests/api/test_access_modes.py asserts exactly that.
         """
-        response = admin_client.put(
+        response = owner_client.put(
             f"/api/anime/{hidden_anime.system_id}",
             json={"anime_name_en": HIDDEN_NAME},
         )
@@ -182,7 +179,7 @@ class TestQuoteAndMeme:
         assert db_session.query(models.Quote).count() == before
 
     def test_patching_a_quote_onto_a_hidden_entry_is_refused(
-        self, catalog_writer, hidden_anime, sample_anime, db_session, admin_user
+        self, catalog_writer, hidden_anime, sample_anime, db_session, owner_user
     ):
         """The move case: the check runs against the INCOMING entry, not the
         stored one."""
@@ -191,7 +188,7 @@ class TestQuoteAndMeme:
             media_type="anime",
             entry_id=sample_anime.system_id,
             text="A line from a show I can see.",
-            author_id=admin_user.id,
+            author_id=owner_user.id,
         )
         db_session.add(quote)
         db_session.flush()
@@ -205,7 +202,7 @@ class TestQuoteAndMeme:
         assert quote.entry_id == sample_anime.system_id
 
     def test_patching_only_entry_id_gates_on_the_new_entrys_own_type(
-        self, db_session, client, sample_anime, sample_manga, admin_user
+        self, db_session, client, sample_anime, sample_manga, owner_user
     ):
         """`Quote.media_type` is derived from `entry_id`, so a payload naming
         only `entry_id` must be gated on the INCOMING entry's own type - not
@@ -224,7 +221,7 @@ class TestQuoteAndMeme:
             system_id=uuid.uuid4(),
             entry_id=sample_anime.system_id,
             text="A line from a show I can see.",
-            author_id=admin_user.id,
+            author_id=owner_user.id,
         )
         db_session.add(quote)
         db_session.flush()
@@ -285,12 +282,12 @@ class TestQuoteAndMeme:
             | {PERM_MANAGE_CATALOG},
         )
 
-    def _meme_on(self, db_session, entry, admin_user):
+    def _meme_on(self, db_session, entry, owner_user):
         meme = models.Meme(
             system_id=uuid.uuid4(),
             media_id=entry.system_id,
             text="A meme about a show I can see",
-            author_id=admin_user.id,
+            author_id=owner_user.id,
         )
         db_session.add(meme)
         db_session.flush()
@@ -317,10 +314,10 @@ class TestQuoteAndMeme:
         assert db_session.query(models.Meme).count() == before
 
     def test_putting_a_meme_onto_an_unreachable_owner_is_refused(
-        self, db_session, client, sample_anime, sample_manga, admin_user
+        self, db_session, client, sample_anime, sample_manga, owner_user
     ):
         writer = self._typeblind_writer(db_session, client, "memeputliar")
-        meme = self._meme_on(db_session, sample_anime, admin_user)
+        meme = self._meme_on(db_session, sample_anime, owner_user)
         response = writer.put(
             f"/api/meme/{meme.system_id}",
             json={
@@ -334,12 +331,12 @@ class TestQuoteAndMeme:
         assert meme.media_id == sample_anime.system_id
 
     def test_patching_owner_id_alone_gates_on_the_new_owners_own_type(
-        self, db_session, client, sample_anime, sample_manga, admin_user
+        self, db_session, client, sample_anime, sample_manga, owner_user
     ):
         """The stale-type case: a PATCH naming only owner_id would otherwise
         pair the NEW id with the STORED owner_type."""
         writer = self._typeblind_writer(db_session, client, "memepatchliar")
-        meme = self._meme_on(db_session, sample_anime, admin_user)
+        meme = self._meme_on(db_session, sample_anime, owner_user)
         response = writer.patch(
             f"/api/meme/{meme.system_id}",
             json={"owner_id": str(sample_manga.system_id)},
@@ -349,7 +346,7 @@ class TestQuoteAndMeme:
         assert meme.media_id == sample_anime.system_id
 
     def test_patching_a_meme_onto_a_reachable_owner_still_writes(
-        self, db_session, client, sample_anime, sample_manga, admin_user
+        self, db_session, client, sample_anime, sample_manga, owner_user
     ):
         """The control: the same single-field PATCH is not blanket-refused for
         a writer who does hold media_type.manga."""
@@ -359,7 +356,7 @@ class TestQuoteAndMeme:
             "memepatchok",
             default_user_permissions() | {PERM_MANAGE_CATALOG},
         )
-        meme = self._meme_on(db_session, sample_anime, admin_user)
+        meme = self._meme_on(db_session, sample_anime, owner_user)
         response = writer.patch(
             f"/api/meme/{meme.system_id}",
             json={"owner_id": str(sample_manga.system_id)},
@@ -563,12 +560,12 @@ class TestRelationAndWatchOrderWrites:
         assert response.status_code == 201
 
     def test_adding_a_hidden_entry_to_a_watch_order_answers_as_missing(
-        self, admin_client, catalog_writer, hidden_anime, sample_franchise, db_session
+        self, owner_client, catalog_writer, hidden_anime, sample_franchise, db_session
     ):
         """The order is created through the API as admin rather than by
         constructing the model, so this test does not encode
         watch_order_list's column shape."""
-        order = admin_client.post(
+        order = owner_client.post(
             "/api/watch-order/lists",
             json={
                 "franchise_id": str(sample_franchise.system_id),
@@ -599,11 +596,11 @@ class TestRelationAndWatchOrderWrites:
     # ------------------------------------------------------------------
 
     def test_patching_a_relation_touching_a_hidden_entry_answers_as_missing(
-        self, admin_client, catalog_writer, hidden_anime, sample_anime, db_session
+        self, owner_client, catalog_writer, hidden_anime, sample_anime, db_session
     ):
         """The PATCH changes only `remark`, not either endpoint - the guard
         checks the row's STORED endpoints, not anything in the payload."""
-        created = admin_client.post(
+        created = owner_client.post(
             "/api/media-relation/",
             json={
                 "from_type": "anime",
@@ -630,14 +627,14 @@ class TestRelationAndWatchOrderWrites:
 
     def test_resetting_a_scope_touching_a_hidden_entry_answers_as_missing(
         self,
-        admin_client,
+        owner_client,
         catalog_writer,
         hidden_anime,
         sample_anime,
         sample_franchise,
         db_session,
     ):
-        created = admin_client.post(
+        created = owner_client.post(
             "/api/media-relation/",
             json={
                 "from_type": "anime",
@@ -663,9 +660,9 @@ class TestRelationAndWatchOrderWrites:
         )
 
     def test_deleting_a_relation_touching_a_hidden_entry_answers_as_missing(
-        self, admin_client, catalog_writer, hidden_anime, sample_anime, db_session
+        self, owner_client, catalog_writer, hidden_anime, sample_anime, db_session
     ):
-        created = admin_client.post(
+        created = owner_client.post(
             "/api/media-relation/",
             json={
                 "from_type": "anime",
@@ -687,15 +684,15 @@ class TestRelationAndWatchOrderWrites:
             is not None
         )
 
-    def _hidden_watch_order_item(self, admin_client, hidden_anime, sample_franchise):
-        order = admin_client.post(
+    def _hidden_watch_order_item(self, owner_client, hidden_anime, sample_franchise):
+        order = owner_client.post(
             "/api/watch-order/lists",
             json={
                 "franchise_id": str(sample_franchise.system_id),
                 "list_name": "An order",
             },
         ).json()
-        return admin_client.post(
+        return owner_client.post(
             f"/api/watch-order/lists/{order['system_id']}/items",
             json={
                 "media_type": "anime",
@@ -704,10 +701,10 @@ class TestRelationAndWatchOrderWrites:
         ).json()
 
     def test_putting_a_watch_order_item_touching_a_hidden_entry_answers_as_missing(
-        self, admin_client, catalog_writer, hidden_anime, sample_franchise, db_session
+        self, owner_client, catalog_writer, hidden_anime, sample_franchise, db_session
     ):
         item = self._hidden_watch_order_item(
-            admin_client, hidden_anime, sample_franchise
+            owner_client, hidden_anime, sample_franchise
         )
         client = catalog_writer()
         response = client.put(
@@ -734,10 +731,10 @@ class TestRelationAndWatchOrderWrites:
         assert row.importance != "Essential"
 
     def test_patching_a_watch_order_item_touching_a_hidden_entry_answers_as_missing(
-        self, admin_client, catalog_writer, hidden_anime, sample_franchise, db_session
+        self, owner_client, catalog_writer, hidden_anime, sample_franchise, db_session
     ):
         item = self._hidden_watch_order_item(
-            admin_client, hidden_anime, sample_franchise
+            owner_client, hidden_anime, sample_franchise
         )
         client = catalog_writer()
         response = client.patch(
@@ -760,10 +757,10 @@ class TestRelationAndWatchOrderWrites:
         assert row.importance != "Essential"
 
     def test_deleting_a_watch_order_item_touching_a_hidden_entry_answers_as_missing(
-        self, admin_client, catalog_writer, hidden_anime, sample_franchise, db_session
+        self, owner_client, catalog_writer, hidden_anime, sample_franchise, db_session
     ):
         item = self._hidden_watch_order_item(
-            admin_client, hidden_anime, sample_franchise
+            owner_client, hidden_anime, sample_franchise
         )
         client = catalog_writer()
         response = client.delete(f"/api/watch-order/items/{item['system_id']}")

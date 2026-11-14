@@ -24,8 +24,8 @@ def db(db_session):
     return db_session
 
 
-def test_upsert_remark_records_its_author(db, sample_anime, admin_user):
-    upsert_remark(db, "anime", sample_anime.system_id, "備註", admin_user.id)
+def test_upsert_remark_records_its_author(db, sample_anime, owner_user):
+    upsert_remark(db, "anime", sample_anime.system_id, "備註", owner_user.id)
     db.commit()
 
     row = (
@@ -33,11 +33,11 @@ def test_upsert_remark_records_its_author(db, sample_anime, admin_user):
         .filter_by(media_id=sample_anime.system_id, section="remark")
         .one()
     )
-    assert row.author_id == admin_user.id
+    assert row.author_id == owner_user.id
 
 
 def test_a_second_users_remark_on_the_same_owner_is_accepted(
-    db, sample_anime, admin_user
+    db, sample_anime, owner_user
 ):
     """
     The boundary moved, and this is the regression test for the move.
@@ -59,7 +59,7 @@ def test_a_second_users_remark_on_the_same_owner_is_accepted(
     db.add(erin)
     db.commit()
 
-    upsert_remark(db, "anime", sample_anime.system_id, "admin 的備註", admin_user.id)
+    upsert_remark(db, "anime", sample_anime.system_id, "admin 的備註", owner_user.id)
     db.commit()
 
     db.add(
@@ -80,7 +80,7 @@ def test_a_second_users_remark_on_the_same_owner_is_accepted(
             models.Note.section == "remark",
         )
     }
-    assert rows == {admin_user.id: "admin 的備註", erin.id: "erin 的備註"}
+    assert rows == {owner_user.id: "admin 的備註", erin.id: "erin 的備註"}
 
 
 def test_remark_is_declared_personal_in_the_registry(db):

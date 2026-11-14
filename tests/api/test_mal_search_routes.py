@@ -61,51 +61,51 @@ def test_a_user_without_manage_catalog_is_refused(user_client, stub_searches, pa
 
 
 @pytest.mark.parametrize("path", PATHS)
-def test_returns_the_search_results(admin_client, stub_searches, path):
-    response = admin_client.get(f"{path}?q=frieren&limit=5")
+def test_returns_the_search_results(owner_client, stub_searches, path):
+    response = owner_client.get(f"{path}?q=frieren&limit=5")
     assert response.status_code == 200
     assert response.json() == [ROW]
     assert stub_searches[0][:2] == ("frieren", 5)
 
 
-def test_the_anime_movie_picker_filters_to_movies(admin_client, stub_searches):
-    admin_client.get("/api/anime-movie/search-mal?q=spirited")
-    admin_client.get("/api/anime/search-mal?q=spirited")
+def test_the_anime_movie_picker_filters_to_movies(owner_client, stub_searches):
+    owner_client.get("/api/anime-movie/search-mal?q=spirited")
+    owner_client.get("/api/anime/search-mal?q=spirited")
     assert stub_searches[0][2] == {"media_type": "movie"}
     assert stub_searches[1][2] == {}
 
 
 @pytest.mark.parametrize("path", PATHS)
-def test_an_empty_query_is_a_422(admin_client, stub_searches, path):
-    assert admin_client.get(f"{path}?q=").status_code == 422
+def test_an_empty_query_is_a_422(owner_client, stub_searches, path):
+    assert owner_client.get(f"{path}?q=").status_code == 422
     assert stub_searches == []
 
 
 @pytest.mark.parametrize("path", PATHS)
-def test_a_limit_over_fifty_is_a_422(admin_client, stub_searches, path):
-    assert admin_client.get(f"{path}?q=frieren&limit=51").status_code == 422
+def test_a_limit_over_fifty_is_a_422(owner_client, stub_searches, path):
+    assert owner_client.get(f"{path}?q=frieren&limit=51").status_code == 422
 
 
 @pytest.mark.parametrize("path, module, name", ROUTES)
-def test_a_search_failure_is_a_502_with_its_message(admin_client, monkeypatch, path, module, name):
+def test_a_search_failure_is_a_502_with_its_message(owner_client, monkeypatch, path, module, name):
     def failing(q, limit, **kwargs):
         raise ExternalSearchError("MyAnimeList search (Tenrai) is unreachable.")
 
     monkeypatch.setattr(module, name, failing)
-    response = admin_client.get(f"{path}?q=frieren")
+    response = owner_client.get(f"{path}?q=frieren")
     assert response.status_code == 502
     assert response.json()["detail"] == "MyAnimeList search (Tenrai) is unreachable."
 
 
 @pytest.mark.parametrize("path, module, name", ROUTES)
-def test_the_path_is_not_swallowed_by_the_id_route(admin_client, stub_searches, path, module, name):
+def test_the_path_is_not_swallowed_by_the_id_route(owner_client, stub_searches, path, module, name):
     """The literal route must win over the router's GET /{id} route.
 
     The factory's is /{entry_id}, person's and character's /{system_id}.
     Taken by the id route, this would be a 404 or 422 (no entry called
     "search-mal") and the stub would never be called.
     """
-    assert admin_client.get(f"{path}?q=frieren").status_code == 200
+    assert owner_client.get(f"{path}?q=frieren").status_code == 200
     assert len(stub_searches) == 1
     literal = next(
         i for i, route in enumerate(module.router.routes) if getattr(route, "path", None) == path

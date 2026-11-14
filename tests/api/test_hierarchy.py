@@ -167,11 +167,11 @@ def test_a_series_name_matching_one_alt_fragment_resolves(db_session, listed, ke
     assert resolve(db_session, f.system_id, "Space Cowboys", {})[1] is None
 
 
-def test_an_anime_saved_under_an_alt_fragment_joins_that_franchise(admin_client, listed):
+def test_an_anime_saved_under_an_alt_fragment_joins_that_franchise(owner_client, listed):
     """The write path the Add form takes, end to end: no franchise picked, so
     the entry's own names are looked up - and its alt list is split too."""
     f, _ = listed
-    response = admin_client.post(
+    response = owner_client.post(
         "/api/anime/", json={"anime_name_en": "Bebop TV", "anime_name_alt": "Bebop 1998, CB"}
     )
     assert response.status_code == 201, response.text
@@ -179,12 +179,12 @@ def test_an_anime_saved_under_an_alt_fragment_joins_that_franchise(admin_client,
 
 
 def test_an_anime_whose_names_hold_no_fragment_gets_a_new_franchise(
-    admin_client, db_session, listed
+    owner_client, db_session, listed
 ):
     # Mirror: "Space" sits inside one of the franchise's fragments, and the
     # entry's one alt name is two of the franchise's run together.
     f, _ = listed
-    response = admin_client.post(
+    response = owner_client.post(
         "/api/anime/", json={"anime_name_en": "Space", "anime_name_alt": "Space Cowboys CB"}
     )
     assert response.status_code == 201, response.text
