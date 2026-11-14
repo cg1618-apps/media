@@ -1,9 +1,12 @@
 """
 The two shared accounts, `shared-normal` and `shared-borderline`.
 
-The seed creates them with role `shared`, their own fixed mode, a request
-limit of 10 and an unusable password, and on every run re-asserts the role
-and the mode. The password, status and limit are the admin's.
+The seed creates them with role `shared`, a ceiling and default at the
+account's own seeded mode, a request limit of 10 and an unusable password, and
+on every run re-asserts the role. The mode is a ceiling plus a default like
+any other account's: the admin's to change, and the account's to switch within
+- narrowing freely, widening only with the password. The password, status,
+limit and mode are the admin's.
 
 Every refusal below is paired with the mirror case that must still succeed.
 """
@@ -17,7 +20,12 @@ from app.models.system import USER_STATUS_ACTIVE, USER_STATUS_DISABLED
 from app.services.rbac.modes import default_mode_id
 from app.services.rbac.permissions import SHARED_ROLE_NAME
 from app.services.rbac.seed import SHARED_ACCOUNTS, ensure_shared_accounts
-from app.services.rbac.seed_modes import MODE_BORDERLINE, MODE_NORMAL, MODE_SAFE
+from app.services.rbac.seed_modes import (
+    MODE_BORDERLINE,
+    MODE_NORMAL,
+    MODE_SAFE,
+    MODE_UNRESTRICTED,
+)
 from app.services.security import UNUSABLE_PASSWORD_HASH, create_access_token
 from tests.api.conftest import role_id_for
 from tests.api.test_account_lifecycle import login
@@ -60,7 +68,7 @@ def test_the_seed_names_both_accounts():
 
 
 @pytest.mark.parametrize("username, mode", SHARED_ACCOUNTS)
-def test_each_account_is_shared_at_its_own_fixed_mode(db_session, username, mode):
+def test_each_account_is_seeded_at_its_own_mode(db_session, username, mode):
     user = _account(db_session, username)
     assert user.role == SHARED_ROLE_NAME
     assert (user.mode_ceiling, user.mode_default) == (mode, mode)
@@ -86,16 +94,42 @@ def test_login_is_refused_until_the_admin_sets_a_password(admin_client, shared_n
 # ---------------------------------------------------------------------------
 
 
-def test_a_hand_edited_role_and_mode_are_restored(db_session, shared_normal):
+def test_a_hand_edited_role_is_restored(db_session, shared_normal):
     shared_normal.role_id = role_id_for(db_session, "user")
-    shared_normal.mode_ceiling = "unrestricted"
-    shared_normal.mode_default = "safe"
     db_session.flush()
 
     ensure_shared_accounts(db_session)
     db_session.refresh(shared_normal)
 
     assert shared_normal.role == SHARED_ROLE_NAME
+
+
+def test_the_admins_mode_is_left_alone(db_session, shared_normal):
+    """The mode is the admin's, like the password: the seed does not put the
+    account back at its seeded mode."""
+    shared_normal.mode_ceiling = MODE_BORDERLINE
+    shared_normal.mode_default = MODE_SAFE
+    db_session.flush()
+
+    ensure_shared_accounts(db_session)
+    db_session.refresh(shared_normal)
+
+    assert (shared_normal.mode_ceiling, shared_normal.mode_default) == (
+        MODE_BORDERLINE,
+        MODE_SAFE,
+    )
+
+
+def test_an_account_with_no_mode_gets_its_seeded_mode(db_session, shared_normal):
+    """The mirror: an account left with no mode at all (a Pull of a row with
+    none) would see nothing, so the seed gives it its own mode back."""
+    shared_normal.mode_ceiling = None
+    shared_normal.mode_default = None
+    db_session.flush()
+
+    ensure_shared_accounts(db_session)
+    db_session.refresh(shared_normal)
+
     assert (shared_normal.mode_ceiling, shared_normal.mode_default) == (
         MODE_NORMAL,
         MODE_NORMAL,
@@ -150,7 +184,7 @@ def test_a_shared_account_cannot_read_quotes_or_memes(
 
 
 # ---------------------------------------------------------------------------
-# A shared account's mode is fixed for switching too
+# Switching: a ceiling and a default, like any account
 # ---------------------------------------------------------------------------
 
 SWITCH = "/api/auth/access-mode"
@@ -162,31 +196,88 @@ def _mode_id(db, key):
     )
 
 
-def test_a_shared_account_cannot_switch_mode(admin_client, db_session, shared_normal):
-    """`safe` ranks below shared-normal's ceiling, so only the fixed-mode
-    rule refuses it - the ceiling would allow it."""
+def test_a_shared_account_narrows_without_the_password(
+    admin_client, db_session, shared_normal
+):
+    """`safe` is below shared-normal's default: free, as for anyone."""
     c = _client_for(db_session, shared_normal)
     r = c.post(SWITCH, json={"mode_id": _mode_id(db_session, MODE_SAFE)})
-    assert r.status_code == 409
-    assert r.json()["detail"] == "A shared account's mode is fixed."
-    assert c.get("/api/auth/me").json()["mode"]["key"] == MODE_NORMAL
-
-
-def test_a_member_switches_within_its_ceiling(admin_client, user_client, db_session):
-    """The mirror: the same move, from an account that is not shared."""
-    r = user_client.post(SWITCH, json={"mode_id": _mode_id(db_session, MODE_SAFE)})
     assert r.status_code == 200, r.text
     assert r.json()["mode"]["key"] == MODE_SAFE
+    assert c.get("/api/auth/me").json()["mode"]["key"] == MODE_SAFE
 
 
-def test_me_offers_a_shared_account_its_own_mode_alone(
-    admin_client, user_client, db_session, shared_normal
+@pytest.fixture
+def shared_wide(db_session, shared_normal):
+    """shared-normal with room above its default: ceiling borderline, default
+    normal, and a password to widen with."""
+    from app.services.security import get_password_hash
+
+    shared_normal.mode_ceiling = MODE_BORDERLINE
+    shared_normal.mode_default = MODE_NORMAL
+    shared_normal.hashed_password = get_password_hash("family")
+    db_session.flush()
+    return shared_normal
+
+
+def test_a_shared_account_widens_only_with_the_password(
+    admin_client, db_session, shared_wide
 ):
-    modes = _client_for(db_session, shared_normal).get("/api/auth/me").json()["modes"]
-    assert [m["key"] for m in modes] == [MODE_NORMAL]
-    # Mirror: a member is offered every mode up to its ceiling, more than
-    # one, which is what makes the switcher render.
-    assert len(user_client.get("/api/auth/me").json()["modes"]) > 1
+    c = _client_for(db_session, shared_wide)
+    target = {"mode_id": _mode_id(db_session, MODE_BORDERLINE)}
+
+    r = c.post(SWITCH, json=target)
+    assert r.status_code == 401
+    assert r.json()["requires_password"] is True
+    assert c.get("/api/auth/me").json()["mode"]["key"] == MODE_NORMAL
+
+    # Mirror: the same move with the shared password goes through.
+    r = c.post(SWITCH, json={**target, "password": "family"})
+    assert r.status_code == 200, r.text
+    assert r.json()["mode"]["key"] == MODE_BORDERLINE
+
+
+def test_a_wider_mode_is_on_the_usual_clock(admin_client, db_session, shared_wide):
+    """Widening past the default sets the timed override cookie, as it does
+    for any account; narrowing below it sets the untimed one."""
+    import jwt
+
+    from app.services.rbac.resolver import MODE_OVERRIDE_COOKIE
+
+    def claims():
+        token = c.cookies.get(MODE_OVERRIDE_COOKIE)
+        return jwt.decode(token, options={"verify_signature": False})
+
+    c = _client_for(db_session, shared_wide)
+    c.post(
+        SWITCH,
+        json={"mode_id": _mode_id(db_session, MODE_BORDERLINE), "password": "family"},
+    )
+    assert "timed" not in claims()
+
+    c.post(SWITCH, json={"mode_id": _mode_id(db_session, MODE_SAFE)})
+    assert claims()["timed"] is False
+
+
+def test_no_shared_account_reaches_past_its_ceiling(
+    admin_client, db_session, shared_wide
+):
+    c = _client_for(db_session, shared_wide)
+    r = c.post(
+        SWITCH,
+        json={"mode_id": _mode_id(db_session, MODE_UNRESTRICTED), "password": "family"},
+    )
+    assert r.status_code == 404
+
+
+def test_me_offers_a_shared_account_every_mode_up_to_its_ceiling(
+    admin_client, db_session, shared_wide
+):
+    modes = _client_for(db_session, shared_wide).get("/api/auth/me").json()["modes"]
+    by_key = {m["key"]: m for m in modes}
+    assert list(by_key) == [MODE_SAFE, MODE_NORMAL, MODE_BORDERLINE]
+    assert by_key[MODE_SAFE]["requires_password"] is False
+    assert by_key[MODE_BORDERLINE]["requires_password"] is True
 
 
 def test_a_shared_account_cannot_change_its_own_password(

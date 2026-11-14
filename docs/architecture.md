@@ -1,6 +1,6 @@
 # Architecture
 
-Last verified: 2026-11-13
+Last verified: 2026-11-14
 
 **What this is for.** A map of the backend: how a request travels through the
 `app/` package, where each kind of code lives, and the two generator patterns
@@ -245,8 +245,8 @@ In the lifespan (before the first request):
    (`app/services/rbac/seed.py`).
 2. `ensure_access_mode_seed(db)` and `ensure_system_labels(db)`, then
    `ensure_shared_accounts(db)` -- creates `shared-normal` and
-   `shared-borderline` if missing, and re-asserts each one's role and fixed
-   mode.
+   `shared-borderline` if missing, and re-asserts each one's role (and its
+   seeded mode, if it has no mode at all).
 3. Admin user: create `admin` with `ADMIN_PASSWORD` if missing; attach the
    admin role to a pre-RBAC `admin` row that has `role_id IS NULL`.
    Exceptions here are printed, not raised.

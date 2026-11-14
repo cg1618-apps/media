@@ -147,10 +147,15 @@ def test_a_member_can_be_deleted(admin_client, plain_user):
 _PAIR = {"ceiling": "borderline", "default": "normal"}
 
 
-def test_a_shared_accounts_mode_is_fixed(admin_client, db_session):
+def test_a_shared_accounts_mode_can_be_set(admin_client, db_session):
+    """A shared account has a ceiling and a default like any other; only its
+    role is fixed."""
     r = admin_client.put(f"{USERS}{_shared(db_session).id}/access-modes", json=_PAIR)
-    assert r.status_code == 409
-    assert r.json()["detail"] == "A shared account's mode is fixed."
+    assert r.status_code == 200, r.text
+    assert (r.json()["mode_ceiling"], r.json()["mode_default"]) == (
+        "borderline",
+        "normal",
+    )
 
 
 def test_a_members_mode_can_be_set(admin_client, plain_user):

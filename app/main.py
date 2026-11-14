@@ -147,7 +147,7 @@ async def lifespan(app: FastAPI):
         # each is derived, so nothing is granted.
         ensure_labels(db)
         # The two shared accounts, after the roles and the modes they name.
-        # Re-asserts each one's role and fixed mode on every boot.
+        # Re-asserts each one's role on every boot, and a mode if it has none.
         ensure_shared_accounts(db)
         db.commit()
         admin_role = (
