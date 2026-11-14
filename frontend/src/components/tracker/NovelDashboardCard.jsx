@@ -33,7 +33,7 @@ function StepButton({ onClick, label, children }) {
 export default function NovelDashboardCard({
   novel,
   franchise,
-  isAdmin,
+  canTrack,
   onProgressChange,
   view = "card",
 }) {
@@ -178,7 +178,7 @@ export default function NovelDashboardCard({
           : (novel.vol_total_original ?? "?");
       const unit = pd === "vol_tw" ? "vol tw" : "vol";
 
-      if (isAdmin) {
+      if (canTrack) {
         return (
           <div className="flex items-center justify-between gap-2 relative z-20">
             <StepButton
@@ -225,7 +225,7 @@ export default function NovelDashboardCard({
       const arcTotal = novel.arc_total ?? arcs.length ?? "?";
       const chInArcTotal = arcView.arc?.ch_count ?? "?";
 
-      if (isAdmin) {
+      if (canTrack) {
         return (
           <div className="flex items-center justify-between gap-2 relative z-20">
             <StepButton
@@ -289,7 +289,7 @@ export default function NovelDashboardCard({
       const fin = novel.ch_fin ?? 0;
       const total = novel.ch_total ?? "?";
 
-      if (isAdmin) {
+      if (canTrack) {
         return (
           <div className="flex items-center justify-between gap-2 relative z-20">
             <StepButton

@@ -26,9 +26,10 @@
 
 // The nine ordinary media types' keys. A role holding none of them reads no
 // library at all - the admin, whose role holds no media_type.* - so the
-// Library tab asks for any one of them. The gated three have their own
+// Library tab asks for any one of them, and so do Future Releases' row and
+// route (App.jsx), which read the same lists. The gated three have their own
 // Restricted tab.
-const LIBRARY_MEDIA_TYPE_PERMISSIONS = [
+export const LIBRARY_MEDIA_TYPE_PERMISSIONS = [
   "media_type.anime",
   "media_type.anime-movie",
   "media_type.manga",
@@ -212,41 +213,67 @@ export const NAV_SECTIONS = [
   {
     key: "track",
     label: "Track",
+    // The account's own progress: what it plans to watch and what it has
+    // finished.
     items: [
-      // Plan and Seasonal are per-user pages: their APIs answer 401 to a
-      // stranger and their routes redirect to login (App.jsx, ProtectedRoute
-      // requireAuth), so showing the rows logged out would only bounce people.
-      // self.list is the nav's spelling of "a signed-in member with a library
-      // of their own" - user and super hold it; guest and admin do not, since
-      // neither role holds any self.* key. The Settings row below is gated
-      // the same way.
+      // Plan is a per-user page: its API answers 401 to a stranger and its
+      // route redirects to login (App.jsx, ProtectedRoute permission="self.list"), so
+      // showing the row logged out would only bounce people. self.list is the
+      // nav's spelling of "a signed-in member with a library of their own" -
+      // user and super hold it; guest and admin do not, since neither role
+      // holds any self.* key. Settings, in the account strip, is gated the
+      // same way.
       { label: "Plan", icon: "fas fa-clipboard-list", to: "/plan", requires: "self.list" },
-      { label: "Seasonal", icon: "fas fa-leaf", to: "/seasonal", requires: "self.list" },
-      // Future Releases, Completions and the Random Picker are the extras a
-      // member gets on top of browsing: view.extras, the same key App.jsx's
-      // routes ask. /random/<type> lights the Random Picker row up too.
+      // Completions is built from the account's own completions, so it asks
+      // self.list as Plan does.
+      { label: "Completions", icon: "fas fa-history", to: "/completions", requires: "self.list" },
+    ],
+  },
+  {
+    key: "explore",
+    label: "Explore",
+    // The browsing pages: ways into the collection by season, by release
+    // date, by chance and by the numbers.
+    items: [
+      // Seasonal, Future Releases and Statistics read the catalogue, so each
+      // asks for any ordinary media type, as the Library tab does: every
+      // viewer that reads the catalogue has it, the admin does not. With a
+      // list the page is the viewer's own; without one, the catalogue's. The
+      // Random Picker asks its own key, view.random_picker - super, user and
+      // shared, never guest. Each is what App.jsx's routes ask.
+      // /random/<type> lights the Random Picker row up too.
+      {
+        label: "Seasonal",
+        icon: "fas fa-leaf",
+        to: "/seasonal",
+        requires: LIBRARY_MEDIA_TYPE_PERMISSIONS,
+      },
       {
         label: "Future Releases",
         icon: "fas fa-calendar-plus",
         to: "/future-releases",
-        requires: "view.extras",
+        requires: LIBRARY_MEDIA_TYPE_PERMISSIONS,
       },
       {
-        label: "Completions",
-        icon: "fas fa-history",
-        to: "/completions",
-        requires: "view.extras",
+        label: "Random Picker",
+        icon: "fas fa-dice",
+        to: "/random",
+        requires: "view.random_picker",
       },
-      { label: "Random Picker", icon: "fas fa-dice", to: "/random", requires: "view.extras" },
+      {
+        label: "Statistics",
+        icon: "fas fa-chart-bar",
+        to: "/statistics",
+        requires: LIBRARY_MEDIA_TYPE_PERMISSIONS,
+      },
     ],
   },
   {
-    key: "insights",
-    label: "Insights",
+    key: "extras",
+    label: "Extras",
+    // Quotes, memes and resources, then the catalogue editors' relations and
+    // watch orders.
     items: [
-      // Per-user, like Plan and Seasonal above: the page is built from the
-      // caller's own seasonal rows.
-      { label: "Statistics", icon: "fas fa-chart-bar", to: "/statistics", requires: "self.list" },
       // Quotes and Memes follow the account's quotes_memes feature switch,
       // the one App.jsx's routes ask. Both are read-only for a member; their
       // edit controls ask manage.catalog inside the page. Resources is the
@@ -277,18 +304,10 @@ export const NAV_SECTIONS = [
         to: "/watch-orders",
         requires: "manage.catalog",
       },
-      // The account's own settings. Not in Admin or Pipelines: those
-      // sections require admin.authz / manage.pipelines, and this is the one
-      // page a member who holds neither has of their own.
-      { divider: true, requires: "self.list" },
-      {
-        label: "Settings",
-        icon: "fas fa-sliders-h",
-        to: "/settings",
-        requires: "self.list",
-      },
     ],
   },
+  // The account's own settings are not a section row: they sit with the
+  // account in Nav.jsx's strip, beside Requests and log out.
   {
     key: "entry",
     label: "Entry",
@@ -378,8 +397,8 @@ export const NAV_SECTIONS = [
     ],
   },
   {
-    key: "pipelines",
-    label: "Pipelines",
+    key: "system",
+    label: "System",
     // Control Center, Data History and Review Queue call only
     // /api/system/* and /api/data-control/*, which require manage.pipelines
     // — not the same capability as the catalogue CRUD pages above, and not

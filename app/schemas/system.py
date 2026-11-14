@@ -508,3 +508,46 @@ class DeletedRecordResponse(BaseModel):
     timestamp: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class SeasonCount(BaseModel):
+    """One season in the catalogue and how many visible anime aired in it."""
+
+    season: str
+    entry_count: int
+
+
+class GenreCount(BaseModel):
+    genre: str
+    entry_count: int
+
+
+class CatalogueStatistics(BaseModel):
+    """GET /api/statistics/catalogue. Every count is over what the viewer may
+    see; a media type with no visible entry is absent from `by_type`."""
+
+    by_type: Dict[str, int]
+    by_season: List[SeasonCount]
+    by_genre: List[GenreCount]
+
+
+class DashboardSummary(BaseModel):
+    """GET /api/dashboard/summary: what waits for whoever handles it."""
+
+    pending_registrations: int
+    open_requests: int
+
+
+class RecentEntry(BaseModel):
+    """One recently added entry, as much as a dashboard card needs: what it
+    is, where it lives (`/<media_type>/<public_id>`) and its cover."""
+
+    system_id: UUID
+    media_type: str
+    public_id: int
+    display_name: str
+    cover_image_file: Optional[str] = None
+    cover_image_focus: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)

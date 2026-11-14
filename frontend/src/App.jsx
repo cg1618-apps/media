@@ -6,6 +6,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { ToastProvider } from "./hooks/useToast";
 import Layout from "./components/layout/Layout";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
+import { LIBRARY_MEDIA_TYPE_PERMISSIONS } from "./config/navigation";
 import { useConstants } from "./config/useConstants";
 
 import Index from "./pages/public/Index";
@@ -139,9 +140,9 @@ export default function App() {
                     path="/library/h-comic"
                     element={<Library type="h-comic" />}
                   />
-                  {/* The picker is an extra as well: the type's gate and
-                      view.extras, both asked. */}
-                  <Route element={<ProtectedRoute permission="view.extras" />}>
+                  {/* The picker has its own key: the type's gate and
+                      view.random_picker, both asked. */}
+                  <Route element={<ProtectedRoute permission="view.random_picker" />}>
                     <Route
                       path="/random/h-comic"
                       element={<RandomPicker type="h-comic" />}
@@ -158,9 +159,9 @@ export default function App() {
                     path="/library/h-game"
                     element={<Library type="h-game" />}
                   />
-                  {/* The picker is an extra as well: the type's gate and
-                      view.extras, both asked. */}
-                  <Route element={<ProtectedRoute permission="view.extras" />}>
+                  {/* The picker has its own key: the type's gate and
+                      view.random_picker, both asked. */}
+                  <Route element={<ProtectedRoute permission="view.random_picker" />}>
                     <Route
                       path="/random/h-game"
                       element={<RandomPicker type="h-game" />}
@@ -177,9 +178,9 @@ export default function App() {
                     path="/library/hentai"
                     element={<Library type="hentai" />}
                   />
-                  {/* The picker is an extra as well: the type's gate and
-                      view.extras, both asked. */}
-                  <Route element={<ProtectedRoute permission="view.extras" />}>
+                  {/* The picker has its own key: the type's gate and
+                      view.random_picker, both asked. */}
+                  <Route element={<ProtectedRoute permission="view.random_picker" />}>
                     <Route
                       path="/random/hentai"
                       element={<RandomPicker type="hentai" />}
@@ -257,14 +258,28 @@ export default function App() {
                   <Route path="/search" element={<Search />} />
                 </Route>
 
-                {/* The extras. The gated /random/h-* routes above ask this
-                    key too. Quotes and Memes are not extras: they follow the
-                    account's quotes_memes feature switch, below. */}
-                <Route element={<ProtectedRoute permission="view.extras" />}>
-                  <Route path="/future-releases" element={<FutureReleases />} />
+                {/* The Random Picker asks its own key, as the gated
+                    /random/h-* routes above do. */}
+                <Route element={<ProtectedRoute permission="view.random_picker" />}>
                   <Route path="/random" element={<RandomPicker />} />
                   <Route path="/random/:type" element={<RandomPicker />} />
-                  <Route path="/completions" element={<Completions />} />
+                </Route>
+                {/* Future Releases, Seasonal and Statistics read the
+                    catalogue: any viewer that reads one ordinary media type
+                    opens them, the same list navigation.js asks for their
+                    rows and the Library tab. Each page draws the viewer's own
+                    version with a list (self.list) and the catalogue's
+                    without one. */}
+                <Route
+                  element={<ProtectedRoute anyPermission={LIBRARY_MEDIA_TYPE_PERMISSIONS} />}
+                >
+                  <Route path="/future-releases" element={<FutureReleases />} />
+                  <Route path="/seasonal" element={<SeasonalOverall />} />
+                  <Route
+                    path="/seasonal/:seasonal_id"
+                    element={<SeasonalDetail />}
+                  />
+                  <Route path="/statistics" element={<Statistics />} />
                 </Route>
                 {/* The site-wide Resources page is the admin's and super's
                     alone: manage.resources gates /api/resources reads and
@@ -277,8 +292,8 @@ export default function App() {
                   <Route path="/meme" element={<Memes />} />
                 </Route>
 
-                {/* Per-user pages: a plan queue and a season's counters belong
-                    to one account, and their APIs 401 a stranger.
+                {/* Per-user pages: a plan queue and a list's completions
+                    belong to one account, and their APIs 401 a stranger.
 
                     `permission="self.list"`, not `requireAuth`. These asked
                     two different questions until 2026-09-12: the route let in
@@ -290,12 +305,7 @@ export default function App() {
                     the same question; self.list is the right one, since every
                     control on these pages writes the viewer's own rows. */}
                 <Route element={<ProtectedRoute permission="self.list" />}>
-                  <Route path="/seasonal" element={<SeasonalOverall />} />
-                  <Route
-                    path="/seasonal/:seasonal_id"
-                    element={<SeasonalDetail />}
-                  />
-                  <Route path="/statistics" element={<Statistics />} />
+                  <Route path="/completions" element={<Completions />} />
                   <Route path="/plan" element={<Plan />} />
                 </Route>
 
@@ -316,7 +326,7 @@ export default function App() {
 
                 {/* The handler's inbox: its own permission, not the
                     pipelines', though navigation.js lists it under the
-                    Pipelines tab. */}
+                    System tab. */}
                 <Route element={<ProtectedRoute permission="manage.requests" />}>
                   <Route path="/request-inbox" element={<RequestInbox />} />
                 </Route>

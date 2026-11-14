@@ -38,13 +38,15 @@ import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
 import { useToast } from "../../hooks/useToast";
+import { useOwnTrackerSave } from "../../hooks/useOwnTrackerSave";
 import { entityPath } from "../../lib/entityPath";
-import { progressToast } from "../../lib/progressToast";
 import { FALLBACK_SVG, getCoverUrl, getDisplayName } from "../../utils/media";
 import HentaiNotes from "./HentaiNotes";
 import { focusStyle } from "../../lib/covers";
 import CastSection from "../../components/info/CastSection";
 import LazyImage from "../../components/ui/LazyImage";
+import { useViewScope } from "../../hooks/useViewScope";
+import { useMyRemarkSaver } from "../../api/mutations/useMyRemark";
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
@@ -54,7 +56,10 @@ const lineageLinkCls =
   "text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition";
 
 
-function HentaiTrackerBlock({ hentai, isAdmin, onPatch }) {
+function HentaiTrackerBlock({ hentai, canTrack, onPatch }) {
+  // Every control here is the viewer's own (self.list), saved through /api/me
+  // by the page; without it the slip is not drawn.
+  if (!canTrack) return null;
   const select = (id, label, field, options, { emptyLabel, msg }) => (
     <div className="space-y-1">
       <Eyebrow as="label" htmlFor={id}>
@@ -63,8 +68,7 @@ function HentaiTrackerBlock({ hentai, isAdmin, onPatch }) {
       <select
         id={id}
         value={hentai[field] || ""}
-        disabled={!isAdmin}
-        onChange={(e) => isAdmin && onPatch({ [field]: e.target.value || null }, msg)}
+        onChange={(e) => onPatch({ [field]: e.target.value || null }, msg)}
         className={selectCls}
       >
         <option value="">{emptyLabel}</option>
@@ -80,15 +84,12 @@ function HentaiTrackerBlock({ hentai, isAdmin, onPatch }) {
   const flag = (field, label, onMsg, offMsg) => (
     <div className="space-y-1">
       <Eyebrow>{label}</Eyebrow>
-      <label
-        className={`flex items-center gap-2 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
-      >
+      <label className="flex items-center gap-2 cursor-pointer">
         <input
           type="checkbox"
           checked={!!hentai[field]}
-          disabled={!isAdmin}
           onChange={(e) =>
-            isAdmin && onPatch({ [field]: e.target.checked }, e.target.checked ? onMsg : offMsg)
+            onPatch({ [field]: e.target.checked }, e.target.checked ? onMsg : offMsg)
           }
           className="w-4 h-4 accent-brand"
         />
@@ -103,7 +104,7 @@ function HentaiTrackerBlock({ hentai, isAdmin, onPatch }) {
     <EpisodeStepper
       epFin={hentai.ep_fin ?? 0}
       epTotal={hentai.ep_total ?? "?"}
-      isAdmin={isAdmin}
+      canTrack={canTrack}
       onEpChange={(v) => onPatch({ ep_fin: v }, "Episode progress saved")}
     />
   );
@@ -118,9 +119,8 @@ function HentaiTrackerBlock({ hentai, isAdmin, onPatch }) {
           <select
             id="hentai-watching-status"
             value={hentai.watching_status || ""}
-            disabled={!isAdmin}
             onChange={(e) =>
-              isAdmin && onPatch({ watching_status: e.target.value }, "Status updated")
+              onPatch({ watching_status: e.target.value }, "Status updated")
             }
             className={selectCls}
           >
@@ -138,7 +138,7 @@ function HentaiTrackerBlock({ hentai, isAdmin, onPatch }) {
         })}
         <PausedAtInput
           value={hentai.time_fin}
-          isAdmin={isAdmin}
+          canTrack={canTrack}
           onChange={(v) => onPatch({ time_fin: v }, "Paused position saved")}
           className="space-y-1"
         />
@@ -163,6 +163,8 @@ export default function Hentai() {
   // Everything past the lookup speaks UUIDs; resolved from the fetched row so
   // the URL segment and the id can never disagree.
   const system_id = itemQuery.data?.system_id;
+  const { ownData } = useViewScope();
+  const saveMyRemark = useMyRemarkSaver("hentai", system_id, setHentai);
   const castingQuery = useCasting("hentai", system_id);
   const cast = castingQuery.data?.cast || [];
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
@@ -191,28 +193,15 @@ export default function Hentai() {
   const error =
     itemQuery.error?.message || franchiseQuery.error?.message || seriesQuery.error?.message || null;
 
-  async function performPatch(payload, msg) {
-    if (!isAdmin) return;
-    setHentai((prev) => ({ ...prev, ...payload }));
-    try {
-      const res = await fetch(endpoints.resource("hentai").patch(system_id), {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Sync failed");
-      const updated = await res.json();
-      // `hentai` is still the pre-write row here: this closure never saw the
-      // optimistic update. A progress step can finish the entry.
-      showToast("success", progressToast(hentai, updated, msg || "Saved"));
-      setHentai(updated);
-      setMediaItem(updated);
-    } catch {
-      showToast("error", "Update failed");
-      fetchMediaItem();
-    }
-  }
+  // The viewer's own values (status, rating, progress, plan flags) go through /api/me;
+  // saveRelease is the toolbar's release step, the work's half through the
+  // catalogue PATCH.
+  const { saveOwn, saveRelease } = useOwnTrackerSave("hentai", {
+    entry: hentai,
+    setEntry: setHentai,
+    setMediaItem,
+    fetchMediaItem,
+  });
 
   async function markCompleted() {
     if (!isAdmin) return;
@@ -301,7 +290,7 @@ export default function Hentai() {
               Quick edit
             </Button>
             <Button onClick={markCompleted}>Mark completed</Button>
-            <MarkReleaseButton type="hentai" entry={hentai} title={titleMain} onPatch={performPatch} />
+            <MarkReleaseButton type="hentai" entry={hentai} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
             <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
               {autofilling ? "Autofilling…" : "Autofill & update"}
             </Button>
@@ -403,7 +392,7 @@ export default function Hentai() {
           {/* Where this entry sits in the watch orders the viewer follows. */}
           <FollowedOrderPanel entryId={hentai.system_id} />
 
-          <HentaiTrackerBlock hentai={hentai} isAdmin={isAdmin} onPatch={performPatch} />
+          <HentaiTrackerBlock hentai={hentai} canTrack={ownData} onPatch={saveOwn} />
 
           <div className="space-y-6">
             <NamingCard type="hentai" item={hentai} />
@@ -453,15 +442,15 @@ export default function Hentai() {
             />
           </div>
 
-          {hentai.remark && (
+          {ownData && hentai.remark && (
             <Slip title="Remarks">
               <textarea
                 key={hentai.system_id}
                 defaultValue={hentai.remark || ""}
-                disabled={!isAdmin}
-                onBlur={(e) =>
-                  isAdmin && performPatch({ remark: e.target.value || null }, "Remark saved")
-                }
+                onBlur={(e) => {
+                  if (e.target.value !== (hentai.remark || ""))
+                    saveMyRemark(e.target.value);
+                }}
                 rows={4}
                 placeholder="Add remarks…"
                 className={selectCls}
@@ -469,13 +458,14 @@ export default function Hentai() {
             </Slip>
           )}
 
-          {/* The dedicated remark textarea above renders only when a remark
-              exists; hide the notes page's `remark` section exactly then, so
-              the singleton row never has two editors on one screen. */}
+          {/* The dedicated remark textarea above renders only for a holder of
+              self.list who has a remark; hide the notes page's `remark`
+              section exactly then, so the viewer's own row never has two
+              editors on one screen. */}
           <HentaiNotes
             key={hentai.system_id}
             hentai={hentai}
-            hideSections={hentai.remark ? ["remark"] : []}
+            hideSections={ownData && hentai.remark ? ["remark"] : []}
             series={series}
             franchise={franchise}
           />

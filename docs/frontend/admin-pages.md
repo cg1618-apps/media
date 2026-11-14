@@ -112,9 +112,13 @@ label reference and the RBAC pages — never the catalogue editors.
   and leave out an h-game row for a session that may not see the type
   (`visibleByType`), so a hidden row is never ticked or posted.
 - **Announcements.** Create / edit / delete the dashboard board
-  (`/api/announcements/`; title is the identifier — see api.md). Drawn only
-  for `has("manage.announcements")`, the key the writes ask — the admin and
-  super both hold it beside `manage.pipelines`.
+  (`/api/announcements/`; title is the identifier — see api.md). The card is
+  `AnnouncementBoard` beside `AnnouncementEditor`
+  (`components/dashboard/`), the same editor the admin's dashboard draws, and
+  both read the `["announcements"]` query, so a write on either page
+  refreshes the other. Drawn only for `has("manage.announcements")`, the key
+  the writes ask — the admin and super both hold it beside
+  `manage.pipelines`.
 - **Current season.** Reads and writes `/api/system/config/current_season`
   (`"SPR 2025"` shape; not validated server-side). The season and year
   pickers default to the season after today's (`nextSeason` in
@@ -172,7 +176,7 @@ mode (the data-control router is gated on `manage.pipelines` alone).
 The handler's side of requests and reports
 ([../systems/requests.md](../systems/requests.md)). The route asks
 `manage.requests` — super and the admin, each by lock — and so does its
-**Inbox** row, which sits in the Pipelines tab with its own `requires`.
+**Inbox** row, which sits in the System tab with its own `requires`.
 Data: `useRequestInbox(status)` from `api/mutations/useRequestMutations.js`
 (`GET /api/requests?status=`, key `["requests", "inbox", status]`).
 
@@ -1451,7 +1455,7 @@ prose twin is [../data-actions.md](../data-actions.md#6-calculate-all).
   server will accept. Each permission family is one bordered block headed by its
   label and an icon from `FAMILY_ICONS` (`fa-key` for a family with none);
   the Viewing family (`view.*` - the four entity kinds (studios, publishers,
-  people, characters), search, extras and personal content, the member-only
+  people, characters), search and the Random Picker, the member-only
   reading surfaces) is drawn with `fa-eye`. On `user`, `guest` and `shared`
   the three gated media types are drawn locked (on for `user`, off for the
   other two), through the same `locked_on` / `locked_off`.

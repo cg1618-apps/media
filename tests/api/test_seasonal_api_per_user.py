@@ -68,7 +68,8 @@ def test_the_list_returns_one_row_per_season_for_the_caller(super_client, two_ra
 def test_every_seasonal_read_refuses_an_anonymous_visitor(client, two_ratings):
     assert client.get("/api/seasonal/").status_code == 401
     assert client.get("/api/seasonal/WIN 2026").status_code == 401
-    assert client.get("/api/seasonal/current-season").status_code == 401
+    # current-season is not a seasonal read: it is the calendar, answered to
+    # every viewer (test_catalogue_counts.py).
 
 
 def test_the_detail_endpoint_is_scoped(super_client, two_ratings):

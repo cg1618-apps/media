@@ -7,6 +7,7 @@ import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
 import { useAuth } from "../../contexts/AuthContext";
 import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
 import { useToast } from "../../hooks/useToast";
+import { useOwnTrackerSave } from "../../hooks/useOwnTrackerSave";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import InfoCard from "../../components/info/InfoCard";
@@ -48,6 +49,7 @@ import { useSaveMyNovelUnit } from "../../api/mutations/useMyRatingMutations";
 import { SELECT_CLS } from "../../components/hub/HubChrome";
 import { MY_RATINGS } from "../../config/fieldOptions";
 import { novelUnitPayload } from "../../lib/payloads";
+import { useMyRemarkSaver } from "../../api/mutations/useMyRemark";
 
 const textareaCls =
   "block w-full border border-border-strong bg-surface text-text px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand disabled:bg-surface-2 disabled:text-text-faint disabled:cursor-not-allowed";
@@ -217,6 +219,8 @@ export default function Novel() {
   // Everything past the lookup still speaks UUIDs; only the URL segment
   // changed. Resolved from the fetched row so the two can never disagree.
   const system_id = novelQuery.data?.system_id;
+  const { ownData } = useViewScope();
+  const saveMyRemark = useMyRemarkSaver("novel", system_id, setNovel);
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const allNovelsQuery = useMediaList("novel", LIST_OPTIONS);
@@ -252,6 +256,16 @@ export default function Novel() {
     franchiseQuery.error?.message ||
     seriesQuery.error?.message ||
     null;
+
+  // The viewer's own values (status, rating, progress, plan flags) go through /api/me;
+  // saveRelease is the toolbar's release step, the work's half through the
+  // catalogue PATCH. performPatch below is that PATCH, for the units editor.
+  const { saveOwn, saveRelease } = useOwnTrackerSave("novel", {
+    entry: novel,
+    setEntry: setNovel,
+    setMediaItem,
+    fetchMediaItem,
+  });
 
   async function performPatch(payload, msg) {
     if (!isAdmin) return;
@@ -409,7 +423,7 @@ export default function Novel() {
             >
               Mark completed
             </Button>
-            <MarkReleaseButton type="novel" entry={novel} title={titleMain} onPatch={performPatch} />
+            <MarkReleaseButton type="novel" entry={novel} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
             <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
               {autofilling ? "Autofilling…" : "Autofill & update"}
             </Button>
@@ -548,26 +562,26 @@ export default function Novel() {
           {/* My Tracker Block */}
           <NovelTrackerBlock
             novel={novel}
-            isAdmin={isAdmin}
+            canTrack={ownData}
             onChChange={(v) =>
-              performPatch({ ch_fin: v }, "Chapter progress saved")
+              saveOwn({ ch_fin: v }, "Chapter progress saved")
             }
             onVolChange={(v) =>
-              performPatch({ vol_fin: v }, "Volume progress saved")
+              saveOwn({ vol_fin: v }, "Volume progress saved")
             }
             onArcProgressChange={(next) =>
-              performPatch(next, "Arc progress saved")
+              saveOwn(next, "Arc progress saved")
             }
             onStatusChange={(v) =>
-              performPatch({ reading_status: v }, "Status updated")
+              saveOwn({ reading_status: v }, "Status updated")
             }
             onRatingChange={(v) =>
-              performPatch({ my_rating: v || null }, "Rating saved")
+              saveOwn({ my_rating: v || null }, "Rating saved")
             }
-            onReadNextChange={(v, msg) => performPatch({ read_next: v }, msg)}
-            onToRerereadChange={(v, msg) => performPatch({ to_reread: v }, msg)}
+            onReadNextChange={(v, msg) => saveOwn({ read_next: v }, msg)}
+            onToRerereadChange={(v, msg) => saveOwn({ to_reread: v }, msg)}
             onProgressDisplayChange={(v) =>
-              performPatch({ progress_display: v || null }, "Progress display updated")
+              saveOwn({ progress_display: v || null }, "Progress display updated")
             }
           />
 
@@ -679,19 +693,15 @@ export default function Novel() {
           <CastSection cast={cast} />
 
           {/* Remarks */}
-          {novel.remark && (
+          {ownData && novel.remark && (
             <Slip title="Remarks">
               <textarea
                 key={novel.system_id}
                 defaultValue={novel.remark || ""}
-                disabled={!isAdmin}
-                onBlur={(e) =>
-                  isAdmin &&
-                  performPatch(
-                    { remark: e.target.value || null },
-                    "Remark saved",
-                  )
-                }
+                onBlur={(e) => {
+                  if (e.target.value !== (novel.remark || ""))
+                    saveMyRemark(e.target.value);
+                }}
                 rows={4}
                 placeholder="Add remarks…"
                 className={textareaCls}
@@ -707,13 +717,14 @@ export default function Novel() {
           />
 
           {/* Structured Notes */}
-          {/* The dedicated remark textarea above renders only when a remark
-              exists; hide the notes page's `remark` section exactly then, so
-              the singleton row never has two editors on one screen. */}
+          {/* The dedicated remark textarea above renders only for a holder of
+              self.list who has a remark; hide the notes page's `remark`
+              section exactly then, so the viewer's own row never has two
+              editors on one screen. */}
           <NovelNotes
             key={novel.system_id}
             novel={novel}
-            hideSections={novel.remark ? ["remark"] : []}
+            hideSections={ownData && novel.remark ? ["remark"] : []}
             series={series}
             franchise={franchise}
           />

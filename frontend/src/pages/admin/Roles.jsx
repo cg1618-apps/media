@@ -29,8 +29,8 @@ const FAMILY_ICONS = {
   media_type: "fa-photo-film",
   field_group: "fa-table-columns",
   label: "fa-tags",
-  // The member-only reading surfaces: the four entity kinds, search, extras
-  // and personal content. The rows come from the served catalogue.
+  // The member-only reading surfaces: the four entity kinds, search and the
+  // Random Picker. The rows come from the served catalogue.
   view: "fa-eye",
 };
 

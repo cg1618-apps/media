@@ -10,7 +10,7 @@
 //
 // Below lg the tab strip gives way to a drawer, and below sm the ink row keeps
 // only the mark, a search button and the menu button - everything else
-// (access mode, theme, back up, log out) moves into the drawer's footer, where
+// (access mode, theme, back up, requests, settings, log out) moves into the drawer's footer, where
 // a phone has the width to show it. A phone has no room for the search slot
 // either, so the search button opens it as a full-width row under the bar.
 import { useState, useRef, useEffect } from "react";
@@ -168,6 +168,9 @@ export default function Nav() {
   // desktop slot, the phone button and its sheet are all absent.
   const canSearch = has("view.search");
   const canFileRequests = has("self.requests");
+  // Settings is the account's own page, so it sits with the account rather
+  // than in a tab. self.list is the key App.jsx's /settings route asks.
+  const canOpenSettings = has("self.list");
   // The role chip marks a privileged account (see the strip below).
   const showRoleChip = isAdmin || has("admin.authz");
   // Back up is a pipeline (POST /api/data-control/backup asks
@@ -367,6 +370,16 @@ export default function Nav() {
                   className="hidden sm:inline-flex items-center px-2 py-1.5 text-xs text-ink-text/80 hover:text-ink-text hover:bg-ink-text/10 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                 >
                   Requests
+                </Link>
+              )}
+              {canOpenSettings && (
+                <Link
+                  to="/settings"
+                  title="Settings"
+                  aria-label="Settings"
+                  className={`hidden sm:inline-block ${INK_ICON_BTN}`}
+                >
+                  <i className="fas fa-sliders-h text-sm" aria-hidden="true"></i>
                 </Link>
               )}
               {username ? (
@@ -589,6 +602,17 @@ export default function Nav() {
                   className={DRAWER_ROW}
                 >
                   Requests
+                </Link>
+              )}
+
+              {canOpenSettings && (
+                <Link
+                  to="/settings"
+                  onClick={() => setMobileOpen(false)}
+                  className={DRAWER_ROW}
+                >
+                  <i className="fas fa-sliders-h mr-2 text-text-muted" aria-hidden="true"></i>
+                  Settings
                 </Link>
               )}
 

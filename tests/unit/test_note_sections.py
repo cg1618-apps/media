@@ -891,7 +891,8 @@ def test_sections_by_scope_returns_registry_order():
 
 # --- mixed sections ----------------------------------------------------------
 # A mixed section holds catalogue rows and each account's own personal rows
-# together. The ten are the account spec's list, by key.
+# together. The ten are the list in docs/notes/decisions.md, "mixed
+# sections", by key.
 
 MIXED = {
     "weapons_and_gear",

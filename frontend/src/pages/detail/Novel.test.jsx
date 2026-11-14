@@ -38,7 +38,7 @@ const BASE_NOVEL = {
   units: [],
 };
 
-const MEMBER_VIEW = ["view.studio", "view.publisher", "view.person", "view.character", "view.search", "view.extras", "self.list"];
+const MEMBER_VIEW = ["view.studio", "view.publisher", "view.person", "view.character", "view.search", "view.random_picker", "self.list"];
 // What /api/auth/me grants the non-admin viewer; a guest case sets [].
 let viewPermissions = MEMBER_VIEW;
 

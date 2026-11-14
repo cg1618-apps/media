@@ -19,7 +19,7 @@ const STEPPER_INPUT =
 export default function DashboardCard({
   anime,
   franchise,
-  isAdmin,
+  canTrack,
   onEpChange,
   view = "card",
 }) {
@@ -77,7 +77,7 @@ export default function DashboardCard({
     : anime.airing_status || "Unknown";
 
   async function handleEpChange(newVal) {
-    if (!isAdmin) return;
+    if (!canTrack) return;
     const target = Math.max(0, newVal);
     if (localTotal !== "?" && target > localTotal) {
       showToast("error", "Cannot exceed total episodes.");
@@ -189,7 +189,7 @@ export default function DashboardCard({
         </div>
         <ProgressRule value={progressValue} className="mb-3" />
 
-        {isAdmin ? (
+        {canTrack ? (
           <div className="flex items-center justify-between gap-2 relative z-20">
             <Button
               kind="outline"

@@ -3,14 +3,21 @@
 // The thing worth pinning is the section split: an anime waiting for its
 // season to air and one simply queued up are different intentions, so they
 // get separate sections here as they do on the Next Season tab of /seasonal.
+//
+// Without a list (no self.list) the page is the catalogue's season instead:
+// one grid, no status split, and no read of the viewer's own seasonal row.
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import SeasonalDetail from "./SeasonalDetail";
 
+const auth = vi.hoisted(() => ({ held: new Set(["self.list"]) }));
 vi.mock("../../contexts/AuthContext", () => ({
-  useAuth: () => ({ isAdmin: false }),
+  useAuth: () => ({ isAdmin: false, has: (p) => auth.held.has(p) }),
+}));
+vi.mock("../../components/cards/MediaCard", () => ({
+  default: ({ data }) => <div data-testid="media-card">{data.display_name}</div>,
 }));
 vi.mock("../../hooks/useToast", () => ({
   useToast: () => ({ showToast: vi.fn() }),
@@ -65,6 +72,7 @@ function renderAt(seasonalId = "SPR 2026") {
 
 describe("SeasonalDetail", () => {
   beforeEach(() => {
+    auth.held = new Set(["self.list"]);
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url) => ({ ok: true, status: 200, json: async () => respond(url) })),
@@ -91,5 +99,38 @@ describe("SeasonalDetail", () => {
     expect(whenAirs.closest("section")).not.toHaveTextContent("膽大黨");
     expect(planned.closest("section")).toHaveTextContent("膽大黨");
     expect(planned.closest("section")).not.toHaveTextContent("藥師少女的獨語");
+  });
+
+  it("reads the viewer's own seasonal row with a list", async () => {
+    renderAt();
+    await screen.findAllByRole("heading", { level: 2 });
+    const urls = fetch.mock.calls.map(([url]) => url);
+    expect(urls).toContain(`/api/seasonal/${encodeURIComponent("SPR 2026")}`);
+  });
+
+  describe("without a list", () => {
+    beforeEach(() => {
+      auth.held = new Set();
+    });
+
+    it("shows every anime of the season in one grid, with no status split", async () => {
+      renderAt();
+      const cards = await screen.findAllByTestId("media-card");
+      expect(cards.map((c) => c.textContent).sort()).toEqual(
+        ["葬送的芙莉蓮", "藥師少女的獨語", "膽大黨"].sort(),
+      );
+      // The same anime carry the statuses the list version splits on (the
+      // mirror above), so the absence is the page's and not the data's.
+      expect(screen.queryByRole("heading", { level: 2, name: "Completed" })).toBeNull();
+      expect(screen.queryByRole("heading", { level: 2, name: "Plan to Watch" })).toBeNull();
+    });
+
+    it("never reads the viewer's own seasonal row", async () => {
+      renderAt();
+      await screen.findAllByTestId("media-card");
+      const urls = fetch.mock.calls.map(([url]) => url);
+      expect(urls.some((u) => u.startsWith("/api/seasonal/"))).toBe(false);
+      expect(urls.some((u) => u.startsWith("/api/franchise/"))).toBe(false);
+    });
   });
 });

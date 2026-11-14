@@ -41,6 +41,9 @@ vi.mock("./pages/detail/Person", () => stub("person"));
 vi.mock("./pages/detail/Character", () => stub("character"));
 vi.mock("./pages/detail/Identity", () => stub("identity"));
 vi.mock("./pages/public/FutureReleases", () => stub("future releases"));
+vi.mock("./pages/public/SeasonalOverall", () => stub("seasonal"));
+vi.mock("./pages/public/SeasonalDetail", () => stub("seasonal detail"));
+vi.mock("./pages/public/Statistics", () => stub("statistics"));
 vi.mock("./pages/public/Completions", () => stub("completions"));
 vi.mock("./pages/public/RandomPicker", () => stub("random picker"));
 vi.mock("./pages/public/Quotes", () => stub("quotes"));
@@ -53,7 +56,7 @@ vi.mock("./pages/admin/Images", () => stub("images"));
 
 import App from "./App";
 
-const MEMBER_KEYS = ["self.list", "view.studio", "view.publisher", "view.person", "view.character", "view.search", "view.extras"];
+const MEMBER_KEYS = ["self.list", "view.studio", "view.publisher", "view.person", "view.character", "view.search", "view.random_picker"];
 
 function session(permissions, username, features = []) {
   auth.current = {
@@ -67,7 +70,7 @@ function session(permissions, username, features = []) {
 const asGuest = () => session([], null);
 const asMember = () => session(MEMBER_KEYS, "reader", ["quotes_memes"]);
 // A member whose account does not have the quotes-and-memes switch on: every
-// permission asMember holds, view.extras included.
+// permission asMember holds.
 const asMemberWithoutQuotes = () => session(MEMBER_KEYS, "reader");
 
 async function visit(path) {
@@ -99,7 +102,6 @@ const CLOSED = {
   "/character/1": "character",
   "/identity/1": "identity",
   "/search": "search",
-  "/future-releases": "future releases",
   "/completions": "completions",
   "/random": "random picker",
   "/random/anime": "random picker",
@@ -124,6 +126,32 @@ describe("a member-only route", () => {
       asMember();
       await visit(path);
       expect(await screen.findByText(`${page} page`)).toBeInTheDocument();
+    });
+  }
+});
+
+describe("the catalogue Explore routes", () => {
+  // Future Releases, Seasonal and Statistics read the catalogue, so each asks
+  // for any ordinary media type - a guest's nine keys open it, with no list -
+  // and a session holding none (the admin's shape) is sent to log in.
+  for (const [path, page] of [
+    ["/future-releases", "future releases"],
+    ["/seasonal", "seasonal"],
+    [`/seasonal/${encodeURIComponent("SPR 2026")}`, "seasonal detail"],
+    ["/statistics", "statistics"],
+  ]) {
+    it(`opens ${path} for a reader of one ordinary media type, without a list`, async () => {
+      session(["media_type.anime"], null);
+      await visit(path);
+      expect(await screen.findByText(`${page} page`)).toBeInTheDocument();
+    });
+
+    it(`sends a session holding no media type from ${path} to log in`, async () => {
+      // A list alone is not enough: the pages read the catalogue.
+      session(["self.list"], "listonly");
+      await visit(path);
+      expect(await screen.findByText("login page")).toBeInTheDocument();
+      expect(screen.queryByText(`${page} page`)).toBeNull();
     });
   }
 });

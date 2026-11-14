@@ -6,9 +6,9 @@
 // sees (the dashed admin strip is manage.catalog only, so a `user` never
 // sees it) - is provisional, pending the owner's design.
 //
-// Drawn only for a viewer holding self.requests: user and super. Never the
-// guest, and never the admin account, which files nothing (its role holds
-// no self.* key).
+// Drawn only for a viewer holding self.requests: user, super and the shared
+// accounts. Never the guest, and never the admin account, which files
+// nothing (its role holds no self.* key).
 import { useState } from "react";
 import { useLocation } from "react-router-dom";
 

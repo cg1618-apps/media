@@ -15,73 +15,6 @@ register and recover an account is [account.md](account.md); what is the
 catalogue and what is an account's own data is
 [catalogue.md](catalogue.md).
 
-> **Not available yet.** Everything on this page below this note is the
-> decided design of the account and authorization rework
-> ([to-do-next.md](to-do-next.md), item 1), not today's behaviour, except
-> what is listed as built here. The five viewers exist — `admin`, `super`,
-> `user`, the signed-out guest, and the two shared accounts — and what each
-> role can do today is [authorization.md](authorization.md), "What each role
-> can DO". Each remaining part of this page becomes true when the change that
-> builds it lands, and that change rewrites it in the present tense.
->
-> **Built:** [Removed](#removed), under "Customised pages";
-> [Requests and reports](#requests-and-reports), and every row of
-> [My requests, the inbox, and pending registrations](#my-requests-the-inbox-and-pending-registrations);
-> [Entity pages, shown per kind](#entity-pages-shown-per-kind); and, in
-> "At a glance", the rows for the nine ordinary media types, H-Comic, H-Game
-> and Hentai, the entity pages, and quotes and memes for `super` and `user`.
-> Requests and reports work for `admin`, `super`, `user` and the shared
-> accounts. Quotes and memes follow a per-account switch on the Users page,
-> held only by `user` and `super` accounts ([authorization.md](authorization.md),
-> "Per-account feature switches"); favourites, music status and mod status
-> are switches there too, and each account's favourite quotes and memes and
-> its music and mod statuses appear only with its own switch on. Until the header rework, the inbox sits under Pipelines for both
-> admin and super, and pending registrations are a panel on `/system`, shown
-> only to the admin. Invite links are issued on `/users`. A `user` never writes the catalogue (`manage.catalog` is
-> locked off for the role). The shared accounts, `shared-normal` and
-> `shared-borderline`, each fixed at its own mode, keep no data of their own,
-> and only the admin sets their password
-> ([authorization.md](authorization.md), "Shared accounts").
-> Ratings and expectations: each account keeps its own rating of every
-> collection, franchise, series, character, person, studio and publisher,
-> its own expectation of every collection, franchise and series, and its own
-> rating of and remark on every novel unit; a guest has none and the admin
-> keeps none ([authorization.md](authorization.md), "Ratings and
-> expectations"). That is the rating and expectation part of the rows below.
->
-> **Built:** the read-only label reference, for `admin` and `super` — the
-> "Label reference" row of [At a glance](#at-a-glance) and its bullets under
-> [Admin](#admin) and [Super](#super). `/content-labels` lists every label,
-> which modes show it and how many entries, collections, franchises and series
-> carry it, and sits
-> under the Note section of the nav. Also built: the access modes' adjustable
-> settings are a name and a description, and nothing else, because the modes
-> and what each shows are code. The rest of those two sections is not built.
->
-> **Built:** every account has a mode ceiling and a default, set on the Users
-> page, and switches among the modes up to its ceiling
-> ([authorization.md](authorization.md), "Access modes"). A shared account's
-> mode is fixed for switching too, so the mode switcher does not appear for
-> it, and the admin account has no mode at all — the "Content (modes)" row of
-> [At a glance](#at-a-glance) is true as a whole.
->
-> **Built:** [Admin](#admin), in full, and the whole admin column of
-> [At a glance](#at-a-glance). The admin is an ordinary role with a fixed
-> set of permissions; it reads no library, entry, group, entity or search
-> page, no quotes or memes, keeps no personal data, and has no mode
-> switcher. Its header carries only its own pages. Its own dashboard is not
-> built — see [Dashboard](#dashboard-) — and until it is, `/` shows the
-> admin the dashboard a guest sees, with announcements and with the
-> catalogue sections empty, since it reads no catalogue.
-> **`/resources` is the admin's and super's alone**: a `user` does not
-> reach it.
->
-> **A shared account lacks Random Picker and Future Releases** until
-> `view.extras` is split. Both sit behind that one key, which also opens
-> Completions — not a shared account's — so it is
-> locked off for `shared`; until the split a shared account reads what a
-> guest reads, plus requests.
-
 ## At a glance
 
 The sections below are the detail; this table summarises them.
@@ -94,7 +27,8 @@ it; "per account" is a per-account feature switch, off by default.
 | The nine ordinary media types | — | ✓ | switch, on | switch, on | switch, on |
 | H-Comic, H-Game, Hentai | — | in `unrestricted` | in `unrestricted` | never | never |
 | Studio, publisher, person, character pages | — | ✓ | switch, off | switch, off | switch, off |
-| Search, Future Releases | — | ✓ | ✓ | ✓ | ✓ |
+| Search | — | ✓ | switch, on | switch, off | switch, off |
+| Future Releases | — | ✓ | ✓ | ✓ | ✓ |
 | Seasonal, Statistics | — | ✓ | ✓ | ✓ ² | ✓ ² |
 | Random Picker | — | ✓ | ✓ | — | ✓ ¹ |
 | Plan, Completions | — | ✓ | ✓ | — | — |
@@ -111,8 +45,8 @@ it; "per account" is a per-account feature switch, off by default.
 | Label reference | ✓ | ✓ | — | — | — |
 | Anyone else's personal data | — | — | — | — | — |
 
-¹ a customised version. ² a version without personal data, still to
-design.
+¹ its catalogue version: catalogue filters only, drawn unweighted. ² the
+catalogue version, without personal data.
 
 ## Admin
 
@@ -157,8 +91,8 @@ The catalogue account — in practice the owner's, `cg1618`.
 - **Writes the catalogue**: entries, groups, people, credits, relations,
   watch orders, catalogue notes, images, options, announcements, and
   attaching labels. In mixed sections it writes catalogue rows only.
-- **The Note pages, `/images`, and every pipeline**, as today — its Pull
-  still skips the account tabs, so keeping Backup and Pull here costs no
+- **The Note pages, `/images`, and every pipeline** — its Pull skips the
+  account tabs, so keeping Backup and Pull here costs no
   safety and saves switching logins.
 - **The read-only label reference**, since super is the one attaching
   labels.
@@ -205,11 +139,11 @@ Super without the catalogue work.
   Roles page, and a fresh database starts **all three with them off**.
   Super always holds them; the admin holds none.
 
-## Track and Insights pages
+## Search, Track and Explore pages
 
 | Page | guest | shared | user | super |
 | --- | --- | --- | --- | --- |
-| Search | ✓ | ✓ | ✓ | ✓ |
+| Search | switch, off | switch, off | switch, on | ✓ |
 | Future Releases | ✓ | ✓ | ✓ | ✓ |
 | Seasonal | ✓ | ✓ | ✓ | ✓ |
 | Statistics | ✓ | ✓ | ✓ | ✓ |
@@ -217,27 +151,27 @@ Super without the catalogue work.
 | Plan | — | — | ✓ | ✓ |
 | Completions | — | — | ✓ | ✓ |
 
-The admin has none of them: it reads no catalogue.
+The admin has none of them: it reads no catalogue. Search asks
+`view.search`, a switch on each role: fixed on for super, seeded on for
+user and seeded off for guest and shared. Seasonal, Statistics and
+Future Releases ask for any ordinary media type, so every viewer that reads
+the catalogue has them; a viewer without a list — guest and shared — gets
+each in its catalogue version. The Random Picker asks `view.random_picker`,
+fixed on for super, user and shared and off for guest. Plan and Completions
+ask `self.list`.
 
-¹ Shared accounts get a Random Picker that differs from today's; see
-[Customised pages](#customised-pages).
-
-**Seasonal and Statistics need a version without personal data.** Both are
-built from the viewer's own list today — Seasonal sorts a season's anime
-into Completed / Watching / Planned / Might Watch / Dropped by the viewer's
-status, and Statistics counts the viewer's ratings and favourites. A guest
-or shared account has no list, so as built both pages would be empty for
-them. What those two pages show an account without data is in
-[Customised pages](#customised-pages).
+¹ Shared accounts get the Random Picker's catalogue version; see
+[Random Picker and Future Releases](#random-picker-and-future-releases).
 
 ## Guest
 
 The logged-out visitor.
 
 - **Reads** the libraries, entry and group pages, watch orders, the
-  dashboard's announcements and broadcast schedule, Search, Future
-  Releases, Seasonal and Statistics (in a version without personal data),
-  and the entity kinds its role's switches open.
+  dashboard's announcements, broadcast schedule and library links, Future
+  Releases, Seasonal and Statistics (each in its catalogue version, without
+  personal data), and Search and the entity kinds where its role's switches
+  open them (Search is seeded off).
 - **The nine ordinary media types, games included**, in `safe` — each a
   switch on the role, seeded on. Never H-Comic, H-Game or Hentai: those are
   fixed off for a guest.
@@ -251,14 +185,15 @@ The logged-out visitor.
 A guest that can view more, with no data of its own.
 
 - **Reads** everything a guest reads, in its own fixed mode (`normal` or
-  `borderline`), plus a **Random Picker** in a customised version. **Never
-  quotes or memes**, not even by switch.
+  `borderline`), plus the **Random Picker** in its catalogue version and
+  **recently added** entries on the dashboard. **Never quotes or memes**,
+  not even by switch.
 - **Entity pages are off by default**, as for a guest; the `shared` role's
   switches are set separately from the guest's.
 - **Keeps no data of its own**: no list, ratings, progress, personal notes
   or personal rows. **Its only write is requests and reports**, whose
   status it sees.
-- **Nothing else beyond guest for now**; the rest of the difference is the
+- **Nothing else beyond guest**; the rest of the difference is the
   per-viewer customisation in [Customised pages](#customised-pages).
 - Only the admin changes its password.
 
@@ -324,36 +259,37 @@ Every page listed below is settled in its general version.
 | Restricted | H-Comic, H-Game, Hentai | — | in `unrestricted` | in `unrestricted` | — | — |
 | **Track** | Plan, Completions | — | ✓ | ✓ | — | — |
 | **Explore** | Seasonal, Future Releases, Random Picker, Statistics | — | ✓ | ✓ | all but Random Picker | ✓ |
-| **Extras** | Quotes, Memes, Resources | Resources | ✓ | quotes and memes by switch | — | — |
-| Entry, Note | catalogue editing, options | Note | ✓ | — | — | — |
-| **System** (was Pipelines) | Control Center, history, review queue, … | ✓ | ✓ | — | — | — |
-| Admin | users, roles, labels, modes | ✓ | — | — | — | — |
+| **Extras** | Quotes, Memes, Resources ┃ Relations, Watch Orders | Resources | Resources, Relations, Watch Orders; quotes and memes by switch | quotes and memes by switch | — | — |
+| Entry | catalogue editing, Picker Defaults, Images | Images | ✓ | — | — | — |
+| Note | System Options, Alias Conversion, External APIs, Content Labels, Business Logic | ✓ | ✓ | — | — | — |
+| **System** | Control Center, Data History, Review Queue, Clean Orphans, Inbox | ✓ | ✓ | — | — | — |
+| Admin | Users, Roles, Access Modes | ✓ | — | — | — | — |
 
-- **Three tabs replace Track and Insights.** **Track** keeps the
-  account's own progress — Plan and Completions; **Explore** holds the
-  browsing pages — Seasonal, Future Releases, Random Picker and
-  Statistics; **Extras** is the old Insights. Super's Relations and Watch
-  Orders editors stay in Extras.
+- **Track** holds the account's own progress — Plan and Completions.
+  **Explore** holds the browsing pages — Seasonal, Future Releases, Random
+  Picker and Statistics. **Extras** holds quotes, memes and resources and,
+  after a rule, super's Relations and Watch Orders editors.
 - **A tab with nothing left in it is not drawn.**
-- **Requests sits in the header**, beside sign out, for shared, user and
-  super, opening My requests — the same place for every filer. The inbox
-  sits under System for super and Admin for the admin.
-- **The Pipelines tab is renamed System.**
-- **The admin's header** carries only its own tabs — no Library, no search
-  box.
+- **Requests sits in the header's account strip**, beside sign out, for
+  shared, user and super, opening My requests — the same place for every
+  filer. **Settings** sits beside it for user and super. The inbox sits
+  under System, for super and the admin alike.
+- **The admin's header** carries only its own tabs — Extras with Resources
+  alone, Entry with Images alone, Note, System and Admin. No Library,
+  Restricted, Track or Explore, and no search box.
 - **The mode switcher** appears only for an account that can use more than
   one mode - a ceiling above `safe` - so never for a shared account.
-- Sign in and sign out stay as they are.
 
 ### Libraries
 
 - **super, user:** essentially the same page — every filter, sort and
   column, the personal ones holding the viewer's own status, progress,
   rating, usefulness and ownership. The status button and the plan-flag
-  checkboxes work for both, since they write the viewer's own list; today
-  they are gated on being the admin.
+  checkboxes work for both, since they write the viewer's own list
+  (`/api/me`).
 - **guest, shared:** **the catalogue parts only.** No personal filter, sort
-  or column at all — not empty ones. Cards show the external score.
+  or column at all — not empty ones. Cards show the external score and no
+  status.
 - **admin:** no libraries.
 - The gated types' libraries follow the same split, for super and user in
   `unrestricted`.
@@ -375,27 +311,31 @@ an account that has them switched on.
 
 | Viewer | Collection / franchise / series page | Watch order page |
 | --- | --- | --- |
-| **super** | catalogue information; its own rating and expectation of the group; the entries' list status as its own; personal and catalogue notes; edit controls; Report a problem | the watch order, the follow toggle, edit controls |
+| **super** | catalogue information; its own rating and expectation of the group; the entries' list status as its own; personal and catalogue notes; edit controls; Report a problem | the watch order, the follow toggle, a link to the Watch Orders editor |
 | **user** | the same without edit controls | the watch order, the follow toggle |
 | **guest** | catalogue only — no rating, expectation or list status | the watch order only |
 | **shared** | the guest's page, plus Report a problem | the watch order only |
 | **admin** | none | none |
 
+A watch order, or a relations graph, whose owning collection, franchise or
+series the viewer's mode hides reads as missing wherever it would be listed
+— the group's page, the watch order page, the dashboard's followed orders.
+
 ### Seasonal and Statistics
 
 | Viewer | Seasonal | Statistics |
 | --- | --- | --- |
-| **super, user** | the season's anime sorted by the viewer's own status, and its own season rating | its own ratings, favourites and counts |
-| **guest, shared** | the season's anime **without a status split** — what aired or airs that season, with external scores — and the All Seasons table | **counts of the catalogue**, not anyone's opinion: entries per type, per season, per genre |
+| **super, user** | the season's anime grouped by the viewer's own status, its own season rating, and its own episode steppers | its own ratings, favourites and counts, from its own list |
+| **guest, shared** | the season's anime **without a status split** — what aired or airs that season, best external score first — and the All Seasons table, each season with its count of entries | **counts of the catalogue**, not anyone's opinion: entries per type, per anime season and per genre, over what the viewer's role and mode show |
 | **admin** | none | none |
 
 ### Random Picker and Future Releases
 
 | Viewer | Random Picker | Future Releases |
 | --- | --- | --- |
-| **super, user** | every filter, the personal ones included — on my list, by status, planned, my rating | upcoming releases, with on-your-list and plan markers |
-| **shared** | **its own version, catalogue filters only** — type, genre, season, external score | upcoming releases, catalogue only |
-| **guest** | none | upcoming releases, catalogue only |
+| **super, user** | every filter, the personal ones included — status, my rating, ownership, usefulness, expectation — the weighted draw and its Weights tab | upcoming releases ordered by the viewer's own status and franchise expectation, with **On your list** and **Planned** markers |
+| **shared** | **its catalogue version, catalogue filters only** — media type, genre, release decade, external score, and each type's catalogue library filters — drawn unweighted, with no Weights tab | upcoming releases, catalogue only, in release-date order |
+| **guest** | none | upcoming releases, catalogue only, in release-date order |
 | **admin** | none | none |
 
 ### My requests, the inbox, and pending registrations
@@ -403,7 +343,7 @@ an account that has them switched on.
 | Page | Who | General version |
 | --- | --- | --- |
 | **My requests** — from the header | shared, user, super | the account's own requests — kind, target, description, remark, status; filing a new one; editing an open one. A shared account's requests are seen by everyone using that login |
-| **Request and report inbox** | admin (under Admin), super (under System) | every request, opening on the open ones, with a filter for done and declined; marking one done or declined with a remark; deleting one by hand, with a confirmation |
+| **Request and report inbox** | admin and super, under System | every request, opening on the open ones, with a filter for done and declined; marking one done or declined with a remark; deleting one by hand, with a confirmation |
 | **Pending registrations** | admin | the accounts waiting for approval; approving sets the role (default `user`) and the ceiling and default mode (`normal`) in one form; declining deletes the account |
 
 Super's dashboard summary counts pending registrations too, though only the
@@ -436,9 +376,12 @@ kind's key the viewer lacks is plain text rather than a link.
 
 | Viewer | Shows |
 | --- | --- |
-| **super** | announcements, the broadcast schedule, its own tracker, and a **summary of pending registrations and open requests and reports**: counts and the fewest words that say what waits, linking to where it is handled. Not the admin's inbox. **Hidden entirely when nothing waits.** |
+| **super** | announcements, the broadcast schedule, its own tracker, and a **summary of pending registrations and open requests and reports**: counts and the fewest words that say what waits. Open requests link to the inbox; registrations read as waiting for the admin, unlinked, since only the admin approves them. Not the admin's inbox. **Hidden entirely when nothing waits.** |
 | **user** | announcements, the broadcast schedule, its own tracker |
-| **guest** | announcements, the broadcast schedule, and **a way into each library** |
-| **shared** | the guest's dashboard, plus **recently added** entries |
-| **admin** | its own page: pending registrations, open requests and reports, recent pipeline runs, and announcements to edit; no catalogue. **Not built yet** ([to-do-next.md](to-do-next.md), the per-viewer pages); until it is, the admin gets the guest's dashboard, with announcements and no catalogue |
+| **guest** | announcements, the broadcast schedule, and **a way into each library** — the header's own Library and Restricted rows |
+| **shared** | the guest's dashboard, plus **recently added**: the newest entries across every type it may see |
+| **admin** | its own page: the same summary of pending registrations and open requests, shown even when nothing waits and linking to the pending-registrations panel and the inbox; the latest pipeline runs; and announcements to edit. No catalogue |
+
+The tracker is the viewer's own watch schedule, Coming Next, followed watch
+orders and the Watching, Reading and Playing divisions.
 

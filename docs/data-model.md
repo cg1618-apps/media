@@ -2276,7 +2276,7 @@ sheet tab, which is what lets a rate entered on one machine reach the other.
 One user's view of one airing season: their rating and their four counters,
 rebuilt by `run_sync_anime` (`app/services/domain/seasonal.py`) from **that
 user's** `user_media_list` rows. Model: `Seasonal`. Per user
-(`m3b1seasonal`); every `/api/seasonal` route requires an account.
+(`m3b1seasonal`); every `/api/seasonal` route that reads or writes these rows requires an account.
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|

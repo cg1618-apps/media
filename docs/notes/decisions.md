@@ -3853,7 +3853,9 @@ changes only grants and nothing in the feature itself.
 
 The half of the notes rework that needs nothing from the account work, in one
 revision, `n1o2tesrwk3`. The personal half - the amount collected, the NG
-reset button, 下周目目標 - waits for the account rework and stays in the spec.
+reset button, 下周目目標 - came with the account rework: 下周目目標 under
+"Highlights are each account's own", the amount collected and the NG reset
+under "note marks", both below.
 
 - **地理 Geography sits in 圖鑑與名詞 Compendium & Terms, for game and h-game
   alike.** It is declared straight after 敵人 Enemies, because "where is it"
@@ -4709,3 +4711,268 @@ flag and the admin role never meet on one account.
   the row's update then saw no change and wrote nothing, so every Pull left
   the collection with no flag holder (the fallback then answered). The
   clearing step now spares the row's own account, by username.
+
+### A personal list write never finishes the work (2026-11-14)
+
+`PUT /api/me/list` applies the tracker's rule that reaching the total
+completes, because the SPA's steppers move onto it from the catalogue `PATCH`
+and a `user` would otherwise press `+` on 11 / 12 and stay Watching. It runs
+only the row's half, though. `mark_completed` also writes the work's
+catalogue half - an anime becomes Finished Airing, a manga 完結 - and one
+member reaching the last episode it has seen says nothing about whether the
+work has ended. On the catalogue `PATCH` that edit is an editor's; on the
+list route it would be a catalogue write by an account without
+`manage.catalog`. So an editor who wants the catalogue half still gets it from
+Mark completed or a `PATCH`, and the two paths share `write_list_payload` so
+the row's half is the same on both.
+
+### The Random Picker gets its own key, `view.random_picker` (2026-11-14)
+
+viewers.md gives the picker to `super`, `user` and `shared` and never to the
+guest. No existing key drew that line: `view.extras` also opens Resources and
+Completions, which are not a shared account's, and `self.list` is exactly what
+a shared account lacks. So the picker has a key of its own, locked on for the
+three and off for the guest, which leaves no cell of it a free choice - the
+line is the design's, not an admin's. The plan-marks read inside the picker
+asks `self.list` rather than "signed in", because a shared account is signed
+in, keeps no plan, and would get a 401.
+
+`view.extras` goes with it. Once Resources answered to `manage.resources`,
+the key gated three pages, and each has a better question of its own: the
+picker this key; Future Releases any ordinary media type, because it reads
+nothing but the catalogue lists (the same test the Library tab asks, so a
+guest has it and the admin, which reads no catalogue, does not); Completions
+`self.list`, because it is built from the viewer's own completions. A key
+naming three unrelated pages was a key nobody could reason about. Future
+Releases reads the open `/api/seasonal/current-season`, not the Control
+Center's `manage.pipelines` route, which every member was refused.
+
+The admin needs no lock code for the new key: its lock is its fixed set and
+every other permission in the catalogue, so a key minted later is locked off
+for it already. A test asserts it.
+
+### Personal writes leave the catalogue PATCH (2026-11-14)
+
+The SPA wrote every status, progress count and plan flag through
+`PATCH /api/<type>/{id}`, which asks `manage.catalog`, while the controls were
+drawn on `self.list` in one place and `isAdmin` in others. So a `user` was
+shown a status button that answered 401, and could not keep its own list at
+all. Those writes now go to `/api/me` - the list row and the plan flags - and
+every control that writes them asks `self.list` (`ownData`), which is what
+the write route asks.
+
+- **One hook routes by key, with a small explicit split.** `useStatusToggle`
+  sends the six plan-flag names to `/api/me/plan-flags` and everything else
+  personal to `/api/me/list`. The SPA does not mirror the server's full
+  `LIST_FIELDS` table: a second copy would drift, and the routes already
+  refuse a key a type does not hold (422), so a wrong key fails loudly.
+- **A control that edits the work as well says so.** MediaCard's bolt marks
+  the work released (a catalogue fact) and may also move the viewer's status.
+  It passes the catalogue half as `catalogue`, which alone goes to the PATCH,
+  and it is drawn for an editor only; the status half is sent only by an
+  account that keeps a list.
+- **The answer is the cached entry with the row folded in**, because the
+  list route answers the row, not the entry, and the callers replace their
+  row with what comes back.
+- **`isAdmin` became `canTrack` on the dashboard cards.** The prop gated the
+  steppers only, and a name that says "editor" on a control that writes the
+  viewer's own progress is how the two gates drifted apart.
+
+### The Explore pages draw two versions, chosen once at the top (2026-11-14)
+
+Seasonal, Statistics, Future Releases and the Random Picker each ask
+`useViewScope().ownData` (`self.list`) once, in the page's default export,
+and draw either the viewer's own version or the catalogue's. The two are
+separate components rather than one component full of `ownData` checks.
+
+- **Why separate components.** The list version reads per-user routes
+  (`/api/seasonal/`, `/api/plan-next/`, the full lists Statistics counts)
+  that refuse a viewer without a list. A component that branches inside
+  would still mount those queries, or need a guard on each, and one missed
+  guard is an error banner for a guest. A catalogue component simply never
+  names them, and a test asserts each is never fetched.
+- **The list version is unchanged.** With a list each page is the page it
+  was, so the change cannot regress a member's view.
+- **Seasonal and Statistics ask what Future Releases asks.** They left the
+  `self.list` route block for `anyPermission={LIBRARY_MEDIA_TYPE_PERMISSIONS}`,
+  on the route and the nav row together: what decides whether the page
+  opens is whether the viewer reads the catalogue, and what it shows is
+  decided by the list. The admin reads no catalogue and opens none of them.
+- **Future Releases' markers sit under the card, not in it.** The On your
+  list and Planned chips are drawn by the page around `MediaCard` from fields
+  every list response carries, so the shared card is unchanged for every
+  other page. Without a list the groups are in release-date order
+  (`primaryReleaseValue` + `releaseScore`), the only order that does not
+  need an opinion.
+- **The picker's personal filters and weights are flagged, not listed per
+  call.** A FilterDef carries `personal: true` and a weight input is marked
+  personal in `WEIGHT_INPUTS`; `filterDefsForMode` and `entryFactors` apply
+  one rule to every mode. A type's own library filters keep the flag their
+  library config gives them, so the picker and the library drop the same
+  filters.
+- **External score is a catalogue filter.** It reads the stored MAL or IMDb
+  score, which every viewer is shown on the card, so it is offered with and
+  without a list. So is genre, read from the joined `genre_main` or
+  `game_genre` field every list response carries; the adult genre fields are
+  left out, as the catalogue statistics leave them out, and the franchise
+  mode offers neither, since a franchise has no genre or score of its own.
+
+### The dashboard is chosen per viewer, on permissions (2026-11-14)
+
+`/` became five dashboards (viewers.md, "Dashboard") without becoming five
+pages: one `Index` picks its parts in `components/dashboard/dashboardSections.js`,
+and every pick is a permission, never a role name, so a role edited on
+`/roles` gets the dashboard its permissions describe.
+
+- **The admin is "admin.authz and no library media type", not "admin.authz".**
+  What makes the admin's page necessary is that it reads no catalogue; the
+  catalogue dashboard would only fetch lists the admin is refused. A role
+  holding both would be shown the catalogue dashboard, since it can read it.
+  "Reads the catalogue" is asked as `LIBRARY_MEDIA_TYPE_PERMISSIONS.some(has)`,
+  the question the Library tab and Future Releases already ask, so the
+  dashboard and the header cannot disagree about it.
+- **Nothing is chosen before `/me` answers.** Until then every viewer looks
+  like a guest, and the admin would fire catalogue reads that answer 401. The
+  page shows its loading state instead; the cost is one round trip that the
+  rest of the page waited on anyway.
+- **The library links are the nav's rows, not a second list.** They come
+  from `visibleSections` with Nav's arguments, filtered to the Library and
+  Restricted sections, so a library the header hides is never linked from
+  the dashboard and a new library row appears on both at once.
+- **Super's pending-registrations line is not a link.** Only `admin.authz`
+  approves a registration, in `/system`'s panel, which is not drawn for
+  super; linking super there would send it to a page that does not show what
+  the line promised. The line says who approves instead, and the open
+  requests line, which super handles itself, links to the inbox.
+- **The pipeline runs link to `/system`, not `/data-history`.** The data
+  control log (`/api/system/logs`) is drawn on `/system`; `/data-history`
+  shows recent and deleted records, not pipeline runs.
+- **One announcement editor, on both pages.** `AnnouncementEditor` is what
+  the admin's dashboard and `/system`'s Announcement & Notes card both draw,
+  over the one `["announcements"]` query. `/system` had its own hand-written
+  editor for the same routes; two editors would drift, so the card now
+  renders the component and its inline state, handlers and form are gone.
+
+### Everything an account keeps is private to it, the admin included (2026-11-14)
+
+No account reads another's list, ratings, plan, copies, choice marks, notes
+or marks, and the admin reads none of them either. Three things went with
+the list-visibility setting (`users.list_is_public` and its Settings card)
+rather than being kept behind it, because each could only ever be empty:
+the public profile (`/user/<username>`), reading personal notes by author
+(`?author=`, now ignored), and the community card with `/api/community/`.
+`field_group.personal_notes` went for the same reason - it only decided
+whether a mode could read *another* account's personal notes - and
+`field_group.sources_other` went because every viewer gets the other
+sources, which leaves `sources_restricted` the one field group.
+
+- **User data is private from the admin too.** `admin.authz` used to open
+  any profile whatever its setting; that override went with the profile,
+  and nothing in the app shows the admin an account's list, ratings or
+  notes. The admin keeps no personal data of its own either.
+- **Requests and reports are not an account's data in this sense.** They
+  are addressed to whoever handles them, who reads them in the inbox; the
+  filer's own copy is My requests.
+
+### Catalogue or account: the test for anything added later (2026-11-14)
+
+The account rework sorted every stored value into the catalogue (one copy
+everyone shares) or an account (one copy each), and the rule it settled for
+anything added later is: **if two people could disagree about it and both
+be right, it belongs to an account; if it is a fact about the work, it
+belongs to the catalogue.** The present-tense split is
+[catalogue.md](../catalogue.md).
+
+- **Every personal rating is an account's, and only external scores are
+  catalogue.** `mal_rating` and `mal_rank`, `anilist_rating`, `imdb_rating`
+  and `imdb_series_rating`, `metacritic_score` and `metacritic_user_score`
+  are scores someone else published, so they are facts about the work. Every
+  `my_rating` and every expectation is an opinion.
+- **`remark` on entities, credits, relations, watch orders and options stays
+  catalogue.** Those are editorial annotations on the shared record, not one
+  reader's view of the work.
+- **`usefulness` is the account's own, and its meaning is too.** It is used
+  mainly on restricted media, where few accounts other than the owner's
+  will see it, but any account can keep its own. Nothing documents or
+  derives what a value means.
+- **Of the note sections, only the six highlights changed scope.** Others
+  split instead: the row stays catalogue and named fields on it become each
+  account's (note marks, above). OP/ED 變動 does not split, and stays
+  catalogue as it is.
+- **很多福利 stays an ordinary Label tag.** It is not the `ecchi` label's
+  tag, so it decides nothing about who sees an entry.
+
+### A mixed section has no "only me" switch (2026-11-14)
+
+**Not built: letting a `manage.catalog` holder keep personal rows in a
+mixed section.** Which kind of row an account writes follows from whether
+it writes the catalogue (mixed sections, above), and there is no switch to
+make a `super`'s row its own. The reason is who the feature is for: the
+owner is the one creating catalogue data, and personal rows exist for the
+other accounts, whose catalogue is far from complete. A `super` that needs
+rows of its own is dealt with if it ever happens.
+
+### Recovery goes through the admin, and nothing signs out everywhere (2026-11-14)
+
+What the account rework deliberately did not build around signing in:
+
+- **No email address or phone number on an account**, and so no
+  self-service recovery: the site has no way to reach anyone. Recovery is a
+  link the admin issues and hands over, and it recovers a forgotten
+  username as well as a password, because the page it opens says which
+  account it is for.
+- **No in-app "forgot my password" request.** A signed-out form identifies
+  nobody - anyone can type a username - and the link it would ask for still
+  has to be handed over outside the app, so the request would save no
+  step. The sign-in page's "Forgot your password or
+  username?" opens a note saying to ask the admin, and nothing else links
+  to `/reset`.
+- **No public way to the register page.** Nothing links to `/register`, so
+  nobody reaches it only to find they cannot register without an invite.
+- **No "sign out everywhere" and no admin force-logout.** Sessions end on a
+  spent reset link, the admin setting a password, and disabling the account,
+  and those cover the cases: someone else knows my password (a reset), a
+  leaked shared login (the admin sets a new password), an account to cut
+  off (disable it).
+- **No sliding refresh.** A login lasts 30 days from sign-in, used or not.
+
+### `shared` is its own role and not a reserved word; a new account starts at `normal` (2026-11-14)
+
+- **The shared accounts are not on the `guest` role.** A guest is the
+  signed-out visitor and nobody else; a shared account is signed in. Giving
+  them their own role lets what visitors read and what shared logins read
+  be tuned separately on `/roles`.
+- **Only `admin` and `guest` are reserved in usernames.** `shared` is not,
+  because the shared accounts are seeded, never registered, so no
+  registrant can collide with them. The test is a substring of the
+  lowercased name, not a similarity test: `admin1` and `qadminqe` are
+  refused, `adamin` and `adm1in` allowed.
+- **A new account starts at `normal` / `normal`, not `safe`.** That replaced
+  an earlier rule that every new account starts in `safe`: an account can
+  switch up to its ceiling at once, so starting lower protects nothing.
+
+### One test decides a page's catalogue version: `self.list` (2026-11-14)
+
+Every page that differs for a viewer without a list - libraries, cards,
+detail pages, Seasonal, Statistics, the Random Picker, Future Releases, the
+dashboard - asks the same question, `has("self.list")`
+(`useViewScope().ownData`), and nothing else. Guest and shared both lack it,
+and so does the admin, which holds no `self.*` key. The alternative, a test
+per page on role names or on a mixture of keys, is how the SPA drifted
+before: one control asked `isAdmin`, the next `self.list`, and a `user` was
+shown buttons that answered 401.
+
+- **Whether a page opens is a different question.** Seasonal, Statistics
+  and Future Releases open for any viewer that reads the catalogue (an
+  ordinary `media_type.*`); what they show inside is decided by the list.
+- **Statistics' catalogue counts are computed server-side**
+  (`GET /api/statistics/catalogue`). They are aggregates over the viewer's
+  visible object set, so a viewer without a list does not download every
+  list to count it, and a mode never learns from a total what it hides.
+- **What P7 opens to more viewers follows the owning group's visibility.**
+  Watch orders and the relations graph used to filter only the entries
+  inside them, so an order owned by a hidden group still listed by name.
+  They answer a hidden owner as missing, so the guest's and shared
+  account's watch-order pages and the dashboard's followed orders leak
+  nothing.
+

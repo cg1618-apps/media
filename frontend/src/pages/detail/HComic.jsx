@@ -40,15 +40,17 @@ import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
 import { useToast } from "../../hooks/useToast";
+import { useOwnTrackerSave } from "../../hooks/useOwnTrackerSave";
 import { entityPath } from "../../lib/entityPath";
 import { adaptingHentai, isDerivedAnimationStatus } from "../../lib/hComicAnimation";
 import { progressFor, showsField } from "../../lib/hComicRegion";
 import { FALLBACK_SVG, getCoverUrl, getDisplayName } from "../../utils/media";
 import HComicNotes from "./HComicNotes";
-import { progressToast } from "../../lib/progressToast";
 import { focusStyle } from "../../lib/covers";
 import CastSection from "../../components/info/CastSection";
 import LazyImage from "../../components/ui/LazyImage";
+import { useViewScope } from "../../hooks/useViewScope";
+import { useMyRemarkSaver } from "../../api/mutations/useMyRemark";
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
@@ -92,11 +94,10 @@ function DerivedAnimationStatus({ hComic, adaptations }) {
 
 
 // The counter: pages on JP, chapters on KR, whichever the region reads in.
-function ProgressStepper({ progress, isAdmin, onChange }) {
+function ProgressStepper({ progress, onChange }) {
   const { fin, total, unit, label } = progress;
 
   function step(delta) {
-    if (!isAdmin) return;
     let next = (fin || 0) + delta;
     if (total !== null && next > total) next = total;
     if (next < 0) next = 0;
@@ -110,7 +111,6 @@ function ProgressStepper({ progress, isAdmin, onChange }) {
       <div className="flex items-center border border-border-strong w-fit">
         <button
           onClick={() => step(-1)}
-          disabled={!isAdmin}
           aria-label={`Previous ${unit === "ch" ? "chapter" : "page"}`}
           className={stepBtnCls}
         >
@@ -121,9 +121,7 @@ function ProgressStepper({ progress, isAdmin, onChange }) {
             type="number"
             aria-label={`${label} read`}
             value={fin}
-            disabled={!isAdmin}
             onChange={(e) => {
-              if (!isAdmin) return;
               const v = parseInt(e.target.value, 10) || 0;
               if (total !== null && v > total) return;
               onChange(Math.max(0, v));
@@ -136,7 +134,6 @@ function ProgressStepper({ progress, isAdmin, onChange }) {
         </div>
         <button
           onClick={() => step(1)}
-          disabled={!isAdmin}
           aria-label={`Next ${unit === "ch" ? "chapter" : "page"}`}
           className={`${stepBtnCls} text-brand`}
         >
@@ -147,22 +144,23 @@ function ProgressStepper({ progress, isAdmin, onChange }) {
   );
 }
 
-function HComicTrackerBlock({ hComic, isAdmin, onPatch }) {
+function HComicTrackerBlock({ hComic, canTrack, onPatch }) {
+  // Every control here is the viewer's own (self.list), saved through /api/me
+  // by the page; without it the slip is not drawn. Behind official is the
+  // work's, and the Information card shows it to everyone.
+  if (!canTrack) return null;
   const progress = progressFor(hComic);
   const behind = showsField(hComic.region, "ch_behind") ? hComic.ch_behind : null;
 
   const flag = (field, label, onMsg, offMsg) => (
     <div className="space-y-1">
       <Eyebrow>{label}</Eyebrow>
-      <label
-        className={`flex items-center gap-2 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
-      >
+      <label className="flex items-center gap-2 cursor-pointer">
         <input
           type="checkbox"
           checked={!!hComic[field]}
-          disabled={!isAdmin}
           onChange={(e) =>
-            isAdmin && onPatch({ [field]: e.target.checked }, e.target.checked ? onMsg : offMsg)
+            onPatch({ [field]: e.target.checked }, e.target.checked ? onMsg : offMsg)
           }
           className="w-4 h-4 accent-brand"
         />
@@ -178,7 +176,6 @@ function HComicTrackerBlock({ hComic, isAdmin, onPatch }) {
           <div className="flex flex-wrap items-end gap-6">
             <ProgressStepper
               progress={progress}
-              isAdmin={isAdmin}
               onChange={(v) => onPatch({ [progress.finField]: v }, `${progress.label} saved`)}
             />
             {/* Hand-set by the owner, not derived (spec D8). */}
@@ -202,9 +199,8 @@ function HComicTrackerBlock({ hComic, isAdmin, onPatch }) {
             <select
               id="h-comic-reading-status"
               value={hComic.reading_status || ""}
-              disabled={!isAdmin}
               onChange={(e) =>
-                isAdmin && onPatch({ reading_status: e.target.value }, "Status updated")
+                onPatch({ reading_status: e.target.value }, "Status updated")
               }
               className={selectCls}
             >
@@ -218,9 +214,8 @@ function HComicTrackerBlock({ hComic, isAdmin, onPatch }) {
             <select
               id="h-comic-rating"
               value={hComic.my_rating || ""}
-              disabled={!isAdmin}
               onChange={(e) =>
-                isAdmin && onPatch({ my_rating: e.target.value || null }, "Rating saved")
+                onPatch({ my_rating: e.target.value || null }, "Rating saved")
               }
               className={selectCls}
             >
@@ -240,9 +235,8 @@ function HComicTrackerBlock({ hComic, isAdmin, onPatch }) {
             <select
               id="h-comic-usefulness"
               value={hComic.usefulness || ""}
-              disabled={!isAdmin}
               onChange={(e) =>
-                isAdmin && onPatch({ usefulness: e.target.value || null }, "Usefulness saved")
+                onPatch({ usefulness: e.target.value || null }, "Usefulness saved")
               }
               className={selectCls}
             >
@@ -278,6 +272,8 @@ export default function HComic() {
   // Everything past the lookup speaks UUIDs; resolved from the fetched row so
   // the URL segment and the id can never disagree.
   const system_id = itemQuery.data?.system_id;
+  const { ownData } = useViewScope();
+  const saveMyRemark = useMyRemarkSaver("h-comic", system_id, setHComic);
   // The highlight group order is the viewer's own (self.personal_notes).
   const saveGroupOrder = useHighlightGroupOrderSaver("h-comic", system_id, setHComic);
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
@@ -313,28 +309,15 @@ export default function HComic() {
   const error =
     itemQuery.error?.message || franchiseQuery.error?.message || seriesQuery.error?.message || null;
 
-  async function performPatch(payload, msg) {
-    if (!isAdmin) return;
-    setHComic((prev) => ({ ...prev, ...payload }));
-    try {
-      const res = await fetch(endpoints.resource("h-comic").patch(system_id), {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Sync failed");
-      const updated = await res.json();
-      // `hComic` is still the pre-write row here: this closure never saw the
-      // optimistic update. A progress step can finish the entry.
-      showToast("success", progressToast(hComic, updated, msg || "Saved"));
-      setHComic(updated);
-      setMediaItem(updated);
-    } catch {
-      showToast("error", "Update failed");
-      fetchMediaItem();
-    }
-  }
+  // The viewer's own values (status, rating, progress, plan flags) go through /api/me;
+  // saveRelease is the toolbar's release step, the work's half through the
+  // catalogue PATCH.
+  const { saveOwn, saveRelease } = useOwnTrackerSave("h-comic", {
+    entry: hComic,
+    setEntry: setHComic,
+    setMediaItem,
+    fetchMediaItem,
+  });
 
   async function markCompleted() {
     if (!isAdmin) return;
@@ -437,7 +420,7 @@ export default function HComic() {
               Quick edit
             </Button>
             <Button onClick={markCompleted}>Mark completed</Button>
-            <MarkReleaseButton type="h-comic" entry={hComic} title={titleMain} onPatch={performPatch} />
+            <MarkReleaseButton type="h-comic" entry={hComic} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
             <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
               {autofilling ? "Autofilling…" : "Autofill & update"}
             </Button>
@@ -554,7 +537,7 @@ export default function HComic() {
           {/* Where this entry sits in the watch orders the viewer follows. */}
           <FollowedOrderPanel entryId={hComic.system_id} />
 
-          <HComicTrackerBlock hComic={hComic} isAdmin={isAdmin} onPatch={performPatch} />
+          <HComicTrackerBlock hComic={hComic} canTrack={ownData} onPatch={saveOwn} />
 
           <div className="space-y-6">
             <NamingCard type="h-comic" item={hComic} />
@@ -634,15 +617,15 @@ export default function HComic() {
 
           <CastSection cast={cast} />
 
-          {hComic.remark && (
+          {ownData && hComic.remark && (
             <Slip title="Remarks">
               <textarea
                 key={hComic.system_id}
                 defaultValue={hComic.remark || ""}
-                disabled={!isAdmin}
-                onBlur={(e) =>
-                  isAdmin && performPatch({ remark: e.target.value || null }, "Remark saved")
-                }
+                onBlur={(e) => {
+                  if (e.target.value !== (hComic.remark || ""))
+                    saveMyRemark(e.target.value);
+                }}
                 rows={4}
                 placeholder="Add remarks…"
                 className={selectCls}
@@ -650,13 +633,14 @@ export default function HComic() {
             </Slip>
           )}
 
-          {/* The dedicated remark textarea above renders only when a remark
-              exists; hide the notes page's `remark` section exactly then, so
-              the singleton row never has two editors on one screen. */}
+          {/* The dedicated remark textarea above renders only for a holder of
+              self.list who has a remark; hide the notes page's `remark`
+              section exactly then, so the viewer's own row never has two
+              editors on one screen. */}
           <HComicNotes
             key={hComic.system_id}
             hComic={hComic}
-            hideSections={hComic.remark ? ["remark"] : []}
+            hideSections={ownData && hComic.remark ? ["remark"] : []}
             series={series}
             franchise={franchise}
             nameSuggestions={castNames}

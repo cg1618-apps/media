@@ -1,6 +1,6 @@
 # Documentation index
 
-Last verified: 2026-11-13
+Last verified: 2026-11-14
 
 These docs describe the CG1618 Media Tracker as it is in the code. Every file
 opens with a short "what this is for", then reference sections. Each file
@@ -49,7 +49,7 @@ right and the doc needs the fix.
 |---|---|
 | [account.md](account.md) | for the people who use the site: kinds of account, signing in, getting an account, recovering one, changing a password. No technical detail |
 | [catalogue.md](catalogue.md) | for the people who use the site: what is the shared catalogue and what is your own data, down to each Notes section. No technical detail |
-| [viewers.md](viewers.md) | what each viewer — admin, super, user, guest, shared — sees, and how a page differs between them. The decided design of the account rework, marked not available yet |
+| [viewers.md](viewers.md) | what each viewer — admin, super, user, guest, shared — sees, and how a page differs between them. |
 | [authentication.md](authentication.md) | login, JWT cookie, admin seeding, the frontend auth context |
 | [authorization.md](authorization.md) | RBAC: roles, permissions, content labels, visibility enforcement, field gating, what a guest sees. Ends with a **Known drift** section naming the three half-finished pieces the authorization redesign has to settle |
 

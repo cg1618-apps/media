@@ -12,113 +12,32 @@ lifecycle**. Work starts by cutting a branch, and an item is closed by
 deleting it in the same change that builds it; the commit and the pull
 request are the record. If the order changes, the list is reordered.
 
-Each item is a short statement and a pointer. The detail lives in the
-design it points at — under `superpowers/specs/` while it is being built —
-and the present-tense pages take over once it ships.
+Each item is a short statement and the detail it needs. Where a design
+document exists — under `superpowers/specs/` while it is being built — the
+item points at it instead, and the present-tense pages take over once it
+ships.
 
-## 1. Account and authorization rework
+## 1. A content label chip says who sees it
 
-Users, roles, access modes, content labels and authentication together,
-including what becomes personal: highlights, personal fields on catalogue rows, mixed sections, granted
-features, and the personal half of the notes rework — the amount
-collected, the NG reset button, 下周目目標 — whose design is
-[superpowers/specs/2026-11-12-notes-rework-design.md](superpowers/specs/2026-11-12-notes-rework-design.md).
-**The design is complete.**
-What each viewer sees is [viewers.md](viewers.md).
+**The chip a detail page draws for each content label gets a tooltip that
+says which modes show the label and which label it also carries, generated
+from the rule in code, never written as prose.** Today the chip's tooltip
+is the label's description (`components/info/ContentLabelChips.jsx`), or
+for a group the note saying what it covers.
 
-Design: [superpowers/specs/2026-11-03-account-system-design.md](superpowers/specs/2026-11-03-account-system-design.md).
-
-### How the rest is built
-
-**The goal is to finish all of it, in parallel, without lowering quality.**
-The work is split into branches so that several sessions can build at once
-and each pull request carries exactly one feature. It is not split to
-change what gets built.
-
-**One branch per feature. A branch merges into `dev` only when the whole
-feature is finished.** Until then its pull request stays a **draft**, which
-keeps CI running on every push and holds the handover. A draft is marked
-ready only when every part of the feature is built, its docs are written
-and CI is green.
-
-The remaining branches, in the order they reach `dev`. Where a branch's
-pull request is already open, its body says exactly where the work stopped
-and what comes next, so read that before anything else.
-
-| Branch | Feature | Plan | Waits for |
-| --- | --- | --- | --- |
-| `feat/personal-data` (#354) | P5: the personal data, Parts A → C → D → E → B | the PR body, and `docs/superpowers/plans/2026-11-13-personal-data.md` on the branch | Part B only: P3g's switch columns |
-| not cut yet (`feat/per-viewer-pages`) | The rest of `view.extras` and the per-viewer pages (P7) | [plans/2026-11-13-view-extras-and-per-viewer-pages.md](superpowers/plans/2026-11-13-view-extras-and-per-viewer-pages.md) | P3g to cut it; merges last, after P3h and #354, merging `feat/personal-data` in sideways first |
-
-P3a (#350), P3b1–P3d, the labels track (#353), P3e (#351), P3f (#357),
-P4a (#352), P4b (#359) and P6, requests and reports (#349), are on `dev`.
-
-**Waiting does not have to mean idle. A branch can merge another branch,
-not only `dev`.** When a branch needs code from one that is not on `dev`
-yet, it merges that branch in and carries on: P5 can merge
-`feat/role-and-account-switches` to build Part B, and P7 merges
-`feat/personal-data` before the parts that touch P5's files. Three rules keep
-this from mixing features:
-
-- **The pull request's base stays `dev`.** Never retarget it at the other
-  branch, because that is a stacked PR, and the platform `CLAUDE.md` says
-  how those fail silently.
-- **The branch that merged another one merges into `dev` strictly after
-  that one.** Merging it first would land the other feature unreviewed,
-  inside the wrong pull request. Keeping it a draft enforces this.
-- **Once the other branch lands, merge `dev` in again,** so the pull
-  request's diff shows only its own feature. If the other branch changed
-  after it was merged in, merge it again before relying on it.
-
-Merge sideways only when there is genuinely nothing else to do on the
-branch. While a branch has its own parts left, it builds those and waits
-for `dev`.
-
-**Shared files to coordinate.** Whoever edits one of these first tells the
-manager, and the manager tells the others:
-
-- `MODE_ORDER` / `mode_rank` live in `app/services/rbac/seed_modes.py`
-  alone, and `mode_rank` answers None for an unknown key. Nobody defines a
-  second order.
-- `installation_owner_id` in `app/services/domain/user_list.py` answers
-  None when there is no owner — never the admin — and every caller has to
-  skip on None and count the row with `no_owner_message`. P5's old-backup
-  Pull (`legacy_personal.py` on #354) calls it: check that caller when #354
-  merges `dev`.
-
-**Every one of these branches adds an Alembic revision.** Whenever any of
-them lands, every other open branch merges `dev` in, runs `alembic heads`
-and reparents its first revision onto the new head: `down_revision` and
-`Revises:` only, never the id. Before a branch is marked ready, run
-`tests/api/test_migrations_build_the_schema.py`. See this repository's
-`CLAUDE.md`, "Migrations and branches".
-
-**Sessions: one manager and four builders.**
-
-- **Manager.** Started in the platform repository, and does no feature
-  work. It merges each draft into `dev` once it is ready and CI is green.
-  When `dev` moves, it tells every builder to merge `dev` in and reparent.
-  It relays the shared-file handoffs above. It drafts the release pull
-  request into `main` and shows it to the owner, and the owner merges it.
-  Every branch here adds a migration, so **that release takes the gated
-  lane** and waits for the owner's approval in `production` after the
-  merge.
-- **Builder 1:** `feat/labels-in-code` until it is merged.
-- **Builder 2:** `feat/personal-data` until it is merged.
-- **Builder 3:** P3f → P3g → P3h, one branch at a time. Cut each one off
-  `dev` once the previous one has merged.
-- **Builder 4:** the remaining `view.extras` and the per-viewer pages
-  (P7), cut once P3g is on `dev`.
-
-More than four builders mostly queue: every tree on the machine shares one
-PostgreSQL and the machine-wide pytest lock. Each builder runs only the
-tests its change touches, and CI runs the full suite.
-
-**Starting each builder on a machine.** Each builder works in a worktree of
-its own. For a new branch, `.\worktree.ps1 -Topic <topic>` cuts it off
-`dev` and does the whole setup. For a branch that already exists on
-`origin` (#353, #354), the helper cannot create it, so run
-`git worktree add ../media_<topic> <branch>` and do the setup the helper
-would have done, by hand. The platform `CLAUDE.md`, "Concurrent Claude
-Code Sessions", lists it. A worktree starts with its own empty database,
-built by `alembic upgrade head`.
+- **The rule is the one the label reference already draws.**
+  `/content-labels` (`pages/admin/ContentLabels.jsx`) shows "Shown in" and
+  "Also carries" from `lowest_mode`, `modes` and the required labels on
+  `ContentLabelResponse` (`app/schemas/rbac.py`), all derived from
+  `app/services/rbac/labels.py` and `seed_modes.MODE_ORDER`. The chip says
+  the same thing in the same words.
+- **The description stays what it is: what the label marks, in Chinese**,
+  and nothing about who sees it. Generating the "who" from the rule is what
+  keeps it from drifting when a label's lowest mode changes.
+- **What it needs on the server.** A detail page's labels arrive as
+  `ContentLabelRef` (`key`, `label`, `description`), which is kept narrow so
+  that widening the admin payload does not widen every public entry
+  response. The tooltip needs the modes and the required labels on that
+  ref, or a lookup by key that every viewer may read: `GET
+  /api/content-labels/` is the reference's and answers only `admin.authz`
+  or `manage.catalog`.

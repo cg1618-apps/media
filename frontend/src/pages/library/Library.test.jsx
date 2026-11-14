@@ -8,10 +8,27 @@ import { ToastProvider } from "../../hooks/useToast";
 import Library from "./Library";
 import { LIBRARY_CONFIGS } from "./configs";
 
+// What /api/auth/me grants; a test that needs a list holder sets it.
+let permissions = [];
+
 function respond(url) {
   if (url.startsWith("/api/auth/me")) {
-    return { is_admin: false, username: null, role: "guest", permissions: [] };
+    return { is_admin: false, username: null, role: "guest", permissions };
   }
+  if (url.startsWith("/api/anime-movie/"))
+    return [
+      {
+        system_id: "m1",
+        anime_movie_name_en: "Suzume",
+        franchise_id: "f1",
+        airing_status: "Finished Airing",
+        mal_rating: "7.81",
+        watching_status: "Completed",
+        my_rating: "A",
+        watch_next: false,
+        to_rewatch: true,
+      },
+    ];
   if (url.startsWith("/api/anime/"))
     return [
       {
@@ -28,6 +45,7 @@ function respond(url) {
 }
 
 beforeEach(() => {
+  permissions = [];
   vi.stubGlobal(
     "fetch",
     vi.fn((url) => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(respond(String(url))) }))
@@ -125,4 +143,55 @@ it("the three restricted types sort by usefulness, and no other type does", () =
     const keys = cfg.sortDefs.map((s) => s.key);
     expect(keys.includes("usefulness")).toBe(RESTRICTED_TYPES.includes(type));
   }
+});
+
+// docs/viewers.md, "Libraries": a viewer without self.list is shown the
+// catalogue parts only - no personal filter, sort or column, not empty ones.
+// The same data for both viewers, so the difference is the scope alone; the
+// list holder is the mirror that proves the guest's absences are the scope
+// doing the dropping and not the defs failing to render.
+describe("a library for a viewer without a list", () => {
+  async function openAnimeMovieLibrary() {
+    mount("/library/anime-movie");
+    await waitFor(() => expect(screen.getByText("Suzume")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Filters" }));
+  }
+
+  const sortLabels = () =>
+    Array.from(screen.getByRole("combobox").options).map((o) => o.textContent);
+
+  async function openTable() {
+    fireEvent.click(screen.getByRole("button", { name: "Table view" }));
+    await waitFor(() => expect(screen.getByRole("columnheader", { name: "Title" })).toBeInTheDocument());
+    return screen.getAllByRole("columnheader").map((th) => th.textContent);
+  }
+
+  it("shows a guest no status filter, my-rating sort, status or plan-flag column", async () => {
+    await openAnimeMovieLibrary();
+    expect(screen.getByText("Airing Status")).toBeInTheDocument();
+    expect(screen.queryByText("Watch Status")).not.toBeInTheDocument();
+
+    expect(sortLabels()).toContain("Sort: MAL Rating");
+    expect(sortLabels()).not.toContain("Sort: My Rating");
+
+    const headers = await openTable();
+    expect(headers).toContain("MAL");
+    for (const personal of ["My", "Watch", "Watch Next", "To Rewatch"]) {
+      expect(headers).not.toContain(personal);
+    }
+  });
+
+  it("shows a self.list holder every one of them, on the same data", async () => {
+    permissions = ["self.list"];
+    await openAnimeMovieLibrary();
+    await waitFor(() => expect(screen.getByText("Watch Status")).toBeInTheDocument());
+    expect(screen.getByText("Airing Status")).toBeInTheDocument();
+
+    expect(sortLabels()).toContain("Sort: My Rating");
+
+    const headers = await openTable();
+    for (const personal of ["MAL", "My", "Watch", "Watch Next", "To Rewatch"]) {
+      expect(headers).toContain(personal);
+    }
+  });
 });

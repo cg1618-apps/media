@@ -14,12 +14,12 @@ session is currently doing, live in the branch and the pull request. Machine
 state — which database is at which revision, where the dumps are — is
 [switching-environments.md](switching-environments.md).
 
-## Per-viewer page detail — first, once the rework is built
+## Per-viewer page detail — first
 
 **Each page's detailed customisation per viewer is undecided, and it is the
-first thing to take up** once everything in [to-do-next.md](to-do-next.md)
-has been built — the notes rework and the account and authorization rework
-— and the remaining page-level discussions have been had.
+first thing to take up** now that the notes rework and the account and
+authorization rework are built, once the remaining page-level discussions
+have been had.
 
 What is settled now is each page's **general** version per viewer, in
 [viewers.md](viewers.md), "Customised pages": for a library, for instance,
@@ -122,9 +122,20 @@ guard, and its database is populated rather than fresh.
 
 ## Authorization and accounts
 
-The account and authorization rework is decided work, queued in
-[to-do-next.md](to-do-next.md); what is still undecided about it is in its
-design.
+**Should a guest and a shared account search by default?** The account
+design gave both Search. `view.search` is a switch on each role, and the
+seed grants it to `user` and `super` only, so on a fresh database neither a
+guest nor a shared account sees the search box until the admin ticks it on
+`/roles`. Unmade decision: seed it on for `guest` and `shared` (a seed
+change and a migration granting it to the existing roles), or keep it off
+and let `viewers.md` say so, as it does now.
+
+**Four content label descriptions are drafts.** The owner wrote the
+descriptions of `ecchi` and `erotica`; those of `nsfw` (不適合公開場合觀看),
+`hentai` (成人動畫), `h-game` (成人遊戲) and `h-comic` (成人漫畫) were drafted
+for the owner to correct, and the code still holds the drafts. They live in
+`app/services/rbac/labels.py`, are rewritten onto the label rows on every
+start, and say only what a label marks, in Chinese.
 
 **Libraries cannot filter by content label.** The franchise library already
 receives each franchise's labels and only draws them as chips; the collection
@@ -142,13 +153,6 @@ existed miss it, and a role is topped up only when it holds nothing; the
 company development database has the grant, so it is a per-database fact.
 Guests are to see games: on `/roles`, check the `guest` role on each
 database and grant `media_type.game` where it is missing.
-
-**A watch order owned by a hidden group still lists.** `routers/watch_order.py`
-filters the entries inside an order but never asks whether its owning
-collection, franchise or series is visible, so a viewer whose mode hides that
-group still sees the order and the group's display name. `media_relation`'s
-`/graph` and scope listing behave the same way. Fix by gating each on
-`tier_visible` and answering a hidden owner as missing.
 
 **Two community-adjacent measurements are unanswered.** Does any endpoint return
 an entry's `system_id` for a type the viewer lacks? And the same for a
@@ -243,7 +247,6 @@ design system so the behaviour can be used, and their look is undecided:
 | Item | Where |
 |---|---|
 | Games and comics are absent from the cover lists | `FranchiseLibrary`, `CollectionLibrary`, `CollectionPage`, `usePlanData` |
-| No Games tab | `FutureReleases.jsx` |
 | `/defaults` shows an inert auto-fill column for Game | `frontend/src/config/formFields/fieldMeta.js` |
 | Invented entities never reach the admin log table — `error_message` renders only on Failed rows, never `details_json` | `Admin.jsx` |
 | The colour-token table holds pre-archive hexes | `docs/frontend/components.md` |

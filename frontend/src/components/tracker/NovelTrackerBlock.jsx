@@ -1,6 +1,6 @@
 // Frontend: tracker component file for NovelTrackerBlock.
 import { useAuth } from "../../contexts/AuthContext";
-import { Button, Chip, Eyebrow, Slip } from "../ui/primitives";
+import { Button, Eyebrow, Slip } from "../ui/primitives";
 import { SELECT_CLS, STEP_INPUT_CLS } from "./MyTrackerCard";
 import StatusOptions from "../ui/StatusOptions";
 import {
@@ -69,7 +69,7 @@ function TrackerRow({ isHighlighted, label, children }) {
 
 export default function NovelTrackerBlock({
   novel,
-  isAdmin,
+  canTrack,
   onChChange,
   onVolChange,
   onArcProgressChange,
@@ -79,13 +79,16 @@ export default function NovelTrackerBlock({
   onToRerereadChange,
   onProgressDisplayChange,
 }) {
-  // A guest has no tracker. The card is titled "My tracker" and every field in
-  // it is one person's - status, rating, progress - so with nobody signed in
-  // there is no "my" and the card does not belong on the page at all. Guarded
+  // A guest has no tracker, and neither has a viewer without self.list. The
+  // card is titled "My tracker" and every field in it is one person's -
+  // status, rating, progress - so without a list of the viewer's there is no
+  // "my" and the card does not belong on the page at all. Guarded
   // here rather than at each of the nine detail pages, so a tenth media type
   // cannot forget it.
+  // Every field is the viewer's own (self.list), written through /api/me by
+  // the page; without self.list there is nothing of the viewer's to show.
   const { username } = useAuth();
-  if (!username) return null;
+  if (!username || !canTrack) return null;
 
   const pd = effectiveProgressDisplay(novel);
   const volHighlighted = pd === "vol_original" || pd === "vol_tw";
@@ -116,7 +119,6 @@ export default function NovelTrackerBlock({
   const chIsDerived = arcs.length > 0;
 
   function handleVolStep(dir) {
-    if (!isAdmin) return;
     const next = dir > 0 ? stepUp(volFin) : stepDown(volFin);
     const bounded = primaryVolTotal !== null ? Math.min(next, primaryVolTotal) : next;
     if (bounded < 0 || bounded === volFin) return;
@@ -124,14 +126,12 @@ export default function NovelTrackerBlock({
   }
 
   function handleWholeArcStep(dir) {
-    if (!isAdmin) return;
     const next = wholeArcStep(arcs, arcFin, chInArc, dir);
     if (next.arc_fin === arcFin && next.ch_fin_in_arc === chInArc) return;
     onArcProgressChange(next);
   }
 
   function handleArcChapterStep(dir) {
-    if (!isAdmin) return;
     const next = arcStep(arcs, novel.arc_fin ?? 0, chInArc, dir);
     if (next.arc_fin === (novel.arc_fin ?? 0) && next.ch_fin_in_arc === chInArc) {
       return;
@@ -141,13 +141,11 @@ export default function NovelTrackerBlock({
 
   // A typed arc or chapter, as the rows show them, back to the stored cursor.
   function handleArcCursorInput(next) {
-    if (!isAdmin) return;
     if (next.arc_fin === arcFin && next.ch_fin_in_arc === chInArc) return;
     onArcProgressChange(next);
   }
 
   function handleChStep(dir) {
-    if (!isAdmin) return;
     const next = dir > 0 ? stepUp(chFin) : stepDown(chFin);
     const bounded = chTotal !== null ? Math.min(next, chTotal) : next;
     if (bounded < 0 || bounded === chFin) return;
@@ -163,42 +161,28 @@ export default function NovelTrackerBlock({
             <Eyebrow as="label" className="block">
               Reading status
             </Eyebrow>
-            {isAdmin ? (
-              <select
-                value={novel.reading_status || ""}
-                disabled={!isAdmin}
-                onChange={(e) => isAdmin && onStatusChange(e.target.value)}
-                className={SELECT_CLS}
-              >
-                <StatusOptions statuses={READING_STATUSES} />
-              </select>
-            ) : (
-              <div>
-                <Chip>{novel.reading_status || "—"}</Chip>
-              </div>
-            )}
+            <select
+              value={novel.reading_status || ""}
+              onChange={(e) => onStatusChange(e.target.value)}
+              className={SELECT_CLS}
+            >
+              <StatusOptions statuses={READING_STATUSES} />
+            </select>
           </div>
           <div className="space-y-1.5">
             <Eyebrow as="label" className="block">
               Rating
             </Eyebrow>
-            {isAdmin ? (
-              <select
-                value={novel.my_rating || ""}
-                disabled={!isAdmin}
-                onChange={(e) => isAdmin && onRatingChange(e.target.value)}
-                className={SELECT_CLS}
-              >
-                <option value="">Unrated</option>
-                {MY_RATINGS.map((r) => (
-                  <option key={r} value={r}>{r}</option>
-                ))}
-              </select>
-            ) : (
-              <div>
-                <Chip>{novel.my_rating || "Unrated"}</Chip>
-              </div>
-            )}
+            <select
+              value={novel.my_rating || ""}
+              onChange={(e) => onRatingChange(e.target.value)}
+              className={SELECT_CLS}
+            >
+              <option value="">Unrated</option>
+              {MY_RATINGS.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
           </div>
           <div className="space-y-1.5">
             <Eyebrow as="label" className="block">
@@ -206,8 +190,7 @@ export default function NovelTrackerBlock({
             </Eyebrow>
             <select
               value={novel.progress_display || ""}
-              disabled={!isAdmin}
-              onChange={(e) => isAdmin && onProgressDisplayChange(e.target.value)}
+              onChange={(e) => onProgressDisplayChange(e.target.value)}
               className={SELECT_CLS}
               aria-label="Progress display"
             >
@@ -229,17 +212,13 @@ export default function NovelTrackerBlock({
         {countsVolumes(novel) && (
         <TrackerRow isHighlighted={volHighlighted} label="Volumes">
           <div className="flex items-center gap-1.5 w-fit">
-            {isAdmin && (
-              <StepButton onClick={() => handleVolStep(-1)} label="Previous volume">−</StepButton>
-            )}
+            <StepButton onClick={() => handleVolStep(-1)} label="Previous volume">−</StepButton>
             <div className="font-mono text-sm flex items-center gap-1 whitespace-nowrap">
               <input
                 type="number"
                 value={volFin}
-                disabled={!isAdmin}
                 step="1"
                 onChange={(e) => {
-                  if (!isAdmin) return;
                   const v = parseFloat(e.target.value) || 0;
                   if (primaryVolTotal !== null && v > primaryVolTotal) return;
                   onVolChange(Math.max(0, v));
@@ -270,9 +249,7 @@ export default function NovelTrackerBlock({
               )}
               <span className={UNIT_CLS}>vol</span>
             </div>
-            {isAdmin && (
-              <StepButton onClick={() => handleVolStep(1)} label="Next volume">+</StepButton>
-            )}
+            <StepButton onClick={() => handleVolStep(1)} label="Next volume">+</StepButton>
           </div>
         </TrackerRow>
         )}
@@ -292,7 +269,6 @@ export default function NovelTrackerBlock({
                 <input
                   type="number"
                   value={view.arcNumber}
-                  disabled={!isAdmin}
                   step="1"
                   onChange={(e) =>
                     handleArcCursorInput(arcCursorFromView(arcs, typedNumber(e), 0))
@@ -303,16 +279,13 @@ export default function NovelTrackerBlock({
                 <span className={UNIT_CLS}>of {arcs.length}</span>
               </span>
               <span className="text-text-faint">·</span>
-              {isAdmin && (
-                <StepButton onClick={() => handleArcChapterStep(-1)} label="Previous chapter">
+              <StepButton onClick={() => handleArcChapterStep(-1)} label="Previous chapter">
                   −
                 </StepButton>
-              )}
               <span className="font-mono text-sm flex items-center gap-1 whitespace-nowrap">
                 <input
                   type="number"
                   value={view.chInArc}
-                  disabled={!isAdmin}
                   step="1"
                   onChange={(e) =>
                     handleArcCursorInput(
@@ -324,11 +297,9 @@ export default function NovelTrackerBlock({
                 />
                 <span className={UNIT_CLS}>/ {view.arc?.ch_count ?? "?"} ch</span>
               </span>
-              {isAdmin && (
-                <StepButton onClick={() => handleArcChapterStep(1)} label="Next chapter">
+              <StepButton onClick={() => handleArcChapterStep(1)} label="Next chapter">
                   +
                 </StepButton>
-              )}
             </div>
           </TrackerRow>
         ) : pd === "arc" ? (
@@ -337,17 +308,14 @@ export default function NovelTrackerBlock({
              and resets the in-arc cursor. */
           <TrackerRow isHighlighted label="Arcs">
             <div className="flex items-center gap-1.5 w-fit">
-              {isAdmin && (
-                <StepButton onClick={() => handleWholeArcStep(-1)} label="Previous arc">
+              <StepButton onClick={() => handleWholeArcStep(-1)} label="Previous arc">
                   −
                 </StepButton>
-              )}
               <span className="font-mono text-sm whitespace-nowrap flex items-center gap-1">
                 arc
                 <input
                   type="number"
                   value={view.arcNumber}
-                  disabled={!isAdmin}
                   step="1"
                   onChange={(e) =>
                     handleArcCursorInput(arcCursorFromView(arcs, typedNumber(e), 0))
@@ -365,11 +333,9 @@ export default function NovelTrackerBlock({
                   </span>
                 )}
               </span>
-              {isAdmin && (
-                <StepButton onClick={() => handleWholeArcStep(1)} label="Next arc">
+              <StepButton onClick={() => handleWholeArcStep(1)} label="Next arc">
                   +
                 </StepButton>
-              )}
             </div>
           </TrackerRow>
         ) : chIsDerived ? (
@@ -379,14 +345,11 @@ export default function NovelTrackerBlock({
              ch_fin back from it. */
           <TrackerRow isHighlighted={chHighlighted} label="Chapters">
             <div className="flex items-center gap-1.5 w-fit">
-              {isAdmin && (
-                <StepButton onClick={() => handleArcChapterStep(-1)} label="Previous chapter">−</StepButton>
-              )}
+              <StepButton onClick={() => handleArcChapterStep(-1)} label="Previous chapter">−</StepButton>
               <div className="font-mono text-sm flex items-center gap-1 whitespace-nowrap">
                 <input
                   type="number"
                   value={chFin}
-                  disabled={!isAdmin}
                   step="1"
                   onChange={(e) => {
                     const v = typedNumber(e);
@@ -401,26 +364,20 @@ export default function NovelTrackerBlock({
                 <span className={UNIT_CLS}>ch</span>
                 <span className="text-text-faint text-xs">· from arcs</span>
               </div>
-              {isAdmin && (
-                <StepButton onClick={() => handleArcChapterStep(1)} label="Next chapter">+</StepButton>
-              )}
+              <StepButton onClick={() => handleArcChapterStep(1)} label="Next chapter">+</StepButton>
             </div>
           </TrackerRow>
         ) : (
           /* Ch tracker (flat, editable) — novels with no arc rows */
           <TrackerRow isHighlighted={chHighlighted} label="Chapters">
             <div className="flex items-center gap-1.5 w-fit">
-              {isAdmin && (
-                <StepButton onClick={() => handleChStep(-1)} label="Previous chapter">−</StepButton>
-              )}
+              <StepButton onClick={() => handleChStep(-1)} label="Previous chapter">−</StepButton>
               <div className="font-mono text-sm flex items-center gap-1 whitespace-nowrap">
                 <input
                   type="number"
                   value={chFin}
-                  disabled={!isAdmin}
                   step="1"
                   onChange={(e) => {
-                    if (!isAdmin) return;
                     const v = parseFloat(e.target.value) || 0;
                     if (chTotal !== null && v > chTotal) return;
                     onChChange(Math.max(0, v));
@@ -432,9 +389,7 @@ export default function NovelTrackerBlock({
                 <span className="text-text-muted">{chTotal ?? "?"}</span>
                 <span className={UNIT_CLS}>ch</span>
               </div>
-              {isAdmin && (
-                <StepButton onClick={() => handleChStep(1)} label="Next chapter">+</StepButton>
-              )}
+              <StepButton onClick={() => handleChStep(1)} label="Next chapter">+</StepButton>
             </div>
           </TrackerRow>
         )}
@@ -443,15 +398,11 @@ export default function NovelTrackerBlock({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-1.5">
             <Eyebrow className="block">Read next</Eyebrow>
-            <label
-              className={`flex items-center gap-2 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
-            >
+            <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={!!novel.read_next}
-                disabled={!isAdmin}
                 onChange={(e) =>
-                  isAdmin &&
                   onReadNextChange(
                     e.target.checked,
                     e.target.checked ? "Added to Read Next" : "Removed from Read Next",
@@ -464,15 +415,11 @@ export default function NovelTrackerBlock({
           </div>
           <div className="space-y-1.5">
             <Eyebrow className="block">To reread</Eyebrow>
-            <label
-              className={`flex items-center gap-2 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
-            >
+            <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={!!novel.to_reread}
-                disabled={!isAdmin}
                 onChange={(e) =>
-                  isAdmin &&
                   onToRerereadChange(
                     e.target.checked,
                     e.target.checked ? "Marked for reread" : "Removed from reread",

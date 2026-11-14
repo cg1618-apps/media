@@ -22,9 +22,21 @@ import AnnouncementBoard from "../../components/info/AnnouncementBoard";
 import { useMediaList } from "../../hooks/useMediaList";
 import { useApiQuery } from "../../hooks/useApiQuery";
 import { endpoints } from "../../api/endpoints";
+import { putMyListRow } from "../../api/myList";
 import { Eyebrow } from "../../components/ui/primitives";
 import { parseSeason, seasonAfter, seasonOfDate } from "../../lib/comingNext";
 import { progressToast } from "../../lib/progressToast";
+import AdminDashboard from "../../components/dashboard/AdminDashboard";
+import DashboardSummary from "../../components/dashboard/DashboardSummary";
+import DivisionHeader from "../../components/dashboard/DivisionHeader";
+import LibraryLinks, {
+  useLibraryLinks,
+} from "../../components/dashboard/LibraryLinks";
+import RecentlyAdded from "../../components/dashboard/RecentlyAdded";
+import {
+  dashboardSections,
+  isAdminDashboard,
+} from "../../components/dashboard/dashboardSections";
 
 const RATING_WEIGHT = {
   S: 0,
@@ -152,6 +164,8 @@ const TOC_ITEMS = [
   { id: "schedule-broadcast", label: "Broadcast", level: 2 },
   { id: "schedule-coming", label: "Coming next", level: 2 },
   { id: "schedule-follows", label: "Followed orders", level: 2 },
+  { id: "libraries", label: "Libraries", level: 1 },
+  { id: "recent", label: "Recently added", level: 1 },
   { id: "watching", label: "Watching", level: 1 },
   { id: "watching-active", label: "Active", level: 2 },
   { id: "watching-passive", label: "Passive", level: 2 },
@@ -187,11 +201,20 @@ function stickyOffset(id) {
 }
 
 // The TOC rows a viewer is shown, in order. A guest (not a member) has only
-// Announcements and the Broadcast schedule; a division the type filter hides
+// Announcements and the Broadcast schedule, plus Libraries when it may open
+// any and Recently added when it is drawn; a division the type filter hides
 // has no anchor to scroll to. The scroll-spy reads the same list, so the
 // two never disagree about which anchors exist.
-function visibleTocItems({ isMember, typeFilter, showComingNext }) {
+function visibleTocItems({
+  isMember,
+  typeFilter,
+  showComingNext,
+  showLibraries,
+  showRecent,
+}) {
   return TOC_ITEMS.filter(({ id }) => {
+    if (id === "libraries") return showLibraries;
+    if (id === "recent") return showRecent;
     if (!isMember && !GUEST_TOC_IDS.has(id)) return false;
     // Followed orders is gated exactly as Coming Next is.
     if (
@@ -249,7 +272,7 @@ function Section({
   count,
   items,
   franchiseData,
-  isAdmin,
+  canTrack,
   onEpChange,
   headerTop,
   view,
@@ -294,7 +317,7 @@ function Section({
                 franchise={franchiseData.find(
                   (f) => f.system_id === anime.franchise_id,
                 )}
-                isAdmin={isAdmin}
+                canTrack={canTrack}
                 onEpChange={onEpChange}
                 view="list"
               />
@@ -327,7 +350,7 @@ function Section({
                       franchise={franchiseData.find(
                         (f) => f.system_id === anime.franchise_id,
                       )}
-                      isAdmin={isAdmin}
+                      canTrack={canTrack}
                       onEpChange={onEpChange}
                     />
                   ))}
@@ -347,7 +370,7 @@ function ReadingSection({
   count,
   items,
   franchiseData,
-  isAdmin,
+  canTrack,
   onChChange,
   onNovelProgressChange,
   onComicProgressChange,
@@ -385,7 +408,7 @@ function ReadingSection({
                     key={item.system_id}
                     comic={item}
                     franchise={franchise}
-                    isAdmin={isAdmin}
+                    canTrack={canTrack}
                     onProgressChange={onComicProgressChange}
                     view="list"
                   />
@@ -397,7 +420,7 @@ function ReadingSection({
                     key={item.system_id}
                     novel={item}
                     franchise={franchise}
-                    isAdmin={isAdmin}
+                    canTrack={canTrack}
                     onProgressChange={onNovelProgressChange}
                     view="list"
                   />
@@ -408,7 +431,7 @@ function ReadingSection({
                   key={item.system_id}
                   anime={item}
                   franchise={franchise}
-                  isAdmin={isAdmin}
+                  canTrack={canTrack}
                   onEpChange={onChChange}
                   view="list"
                 />
@@ -445,7 +468,7 @@ function ReadingSection({
                         franchise={franchiseData.find(
                           (f) => f.system_id === item.franchise_id,
                         )}
-                        isAdmin={isAdmin}
+                        canTrack={canTrack}
                         onProgressChange={onComicProgressChange}
                       />
                     ) : item._ui_type === "Novel" ? (
@@ -455,7 +478,7 @@ function ReadingSection({
                         franchise={franchiseData.find(
                           (f) => f.system_id === item.franchise_id,
                         )}
-                        isAdmin={isAdmin}
+                        canTrack={canTrack}
                         onProgressChange={onNovelProgressChange}
                       />
                     ) : (
@@ -465,7 +488,7 @@ function ReadingSection({
                         franchise={franchiseData.find(
                           (f) => f.system_id === item.franchise_id,
                         )}
-                        isAdmin={isAdmin}
+                        canTrack={canTrack}
                         onEpChange={onChChange}
                       />
                     ),
@@ -546,8 +569,27 @@ function PlayingSection({
   );
 }
 
+// The dashboard differs per viewer (docs/viewers.md, "Dashboard"), chosen on
+// permissions in components/dashboard/dashboardSections.js. The admin, which
+// reads no catalogue, gets its own page; everyone else gets the catalogue
+// dashboard with the parts its permissions open. Nothing is chosen until
+// /me has answered: before then every viewer looks like a guest, and the
+// admin would fetch catalogue lists it is refused.
 export default function Index() {
-  const { isAdmin, has } = useAuth();
+  const auth = useAuth();
+  if (auth.loading) {
+    return <MediaLoadingState isLoading loadingText="Loading dashboard..." />;
+  }
+  if (isAdminDashboard(auth)) return <AdminDashboard />;
+  return <CatalogueDashboard />;
+}
+
+function CatalogueDashboard() {
+  const auth = useAuth();
+  const { has } = auth;
+  const sections = dashboardSections(auth);
+  const libraryGroups = useLibraryLinks();
+  const showLibraries = sections.libraryLinks && libraryGroups.length > 0;
   const { showToast } = useToast();
   const queryClient = useQueryClient();
   // Who the dashboard is for. Everything below Announcements and the
@@ -561,6 +603,9 @@ export default function Index() {
   // view.* keys open catalogue reads; nothing in this part of the dashboard
   // is catalogue - it is the viewer's own list.
   const isMember = has("self.list");
+  // The steppers write the viewer's own progress (/api/me/list), so they ask
+  // for a list, not for manage.catalog.
+  const canTrack = isMember;
   const animeQuery = useMediaList("anime", LIST_OPTIONS);
   // Only the tracker divisions read the other lists. A guest is shown none
   // of them, so they are not fetched for one: the Broadcast schedule needs
@@ -651,9 +696,8 @@ export default function Index() {
   // its total), so the saved row replaces the optimistic one: its status is
   // the part the stepper could not have guessed. `list` is the pre-write
   // data, read for the status the entry had before.
-  async function settleProgress(type, list, sysId, res, savedMessage) {
+  function settleProgress(type, list, sysId, saved, savedMessage) {
     const before = list.find((x) => x.system_id === sysId);
-    const saved = await res.json().catch(() => null);
     if (saved) {
       updateCachedList(type, (x) =>
         x.system_id === sysId ? { ...x, ...saved } : x,
@@ -662,7 +706,13 @@ export default function Index() {
     showToast("success", progressToast(before, saved, savedMessage));
   }
 
-  const tocItems = visibleTocItems({ isMember, typeFilter, showComingNext });
+  const tocItems = visibleTocItems({
+    isMember,
+    typeFilter,
+    showComingNext,
+    showLibraries,
+    showRecent: sections.recentlyAdded,
+  });
   const tocIdsKey = tocItems.map(({ id }) => id).join(" ");
 
   // Track which section is in view to highlight TOC. It watches the anchors
@@ -697,14 +747,8 @@ export default function Index() {
         t.system_id === sysId ? { ...t, ep_fin: newVal } : t,
       );
       try {
-        const res = await fetch(`/api/tv-shows/${sysId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ep_fin: newVal }),
-          credentials: "include",
-        });
-        if (!res.ok) throw new Error("Failed to sync");
-        await settleProgress("tv-show", tvData, sysId, res, "Episodes updated!");
+        const saved = await putMyListRow(sysId, { ep_fin: newVal });
+        settleProgress("tv-show", tvData, sysId, saved, "Episodes updated!");
       } catch {
         updateCachedList("tv-show", (t) =>
           t.system_id === sysId ? { ...t, ep_fin: prevVal } : t,
@@ -716,14 +760,8 @@ export default function Index() {
         c.system_id === sysId ? { ...c, ep_fin: newVal } : c,
       );
       try {
-        const res = await fetch(`/api/cartoon/${sysId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ep_fin: newVal }),
-          credentials: "include",
-        });
-        if (!res.ok) throw new Error("Failed to sync");
-        await settleProgress("cartoon", cartoonData, sysId, res, "Episodes updated!");
+        const saved = await putMyListRow(sysId, { ep_fin: newVal });
+        settleProgress("cartoon", cartoonData, sysId, saved, "Episodes updated!");
       } catch {
         updateCachedList("cartoon", (c) =>
           c.system_id === sysId ? { ...c, ep_fin: prevVal } : c,
@@ -741,14 +779,8 @@ export default function Index() {
           : a,
       );
       try {
-        const res = await fetch(`/api/anime/${sysId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ep_fin: newVal }),
-          credentials: "include",
-        });
-        if (!res.ok) throw new Error("Failed to sync");
-        await settleProgress("anime", animeData, sysId, res, "Episodes updated!");
+        const saved = await putMyListRow(sysId, { ep_fin: newVal });
+        settleProgress("anime", animeData, sysId, saved, "Episodes updated!");
       } catch {
         updateCachedList("anime", (a) =>
           a.system_id === sysId
@@ -782,14 +814,8 @@ export default function Index() {
       m.system_id === sysId ? { ...m, ch_fin: newVal } : m,
     );
     try {
-      const res = await fetch(`/api/manga/${sysId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ch_fin: newVal }),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to sync");
-      await settleProgress("manga", mangaData, sysId, res, "Chapters updated!");
+      const saved = await putMyListRow(sysId, { ch_fin: newVal });
+      settleProgress("manga", mangaData, sysId, saved, "Chapters updated!");
     } catch {
       updateCachedList("manga", (m) =>
         m.system_id === sysId ? { ...m, ch_fin: prevVal } : m,
@@ -807,14 +833,8 @@ export default function Index() {
       n.system_id === sysId ? { ...n, ...fieldUpdates } : n,
     );
     try {
-      const res = await fetch(`/api/novel/${sysId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(fieldUpdates),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to sync");
-      await settleProgress("novel", novelData, sysId, res, "Progress updated!");
+      const saved = await putMyListRow(sysId, fieldUpdates);
+      settleProgress("novel", novelData, sysId, saved, "Progress updated!");
     } catch {
       updateCachedList("novel", (n) =>
         n.system_id === sysId ? { ...n, ...prevFieldUpdates } : n,
@@ -832,14 +852,8 @@ export default function Index() {
       c.system_id === sysId ? { ...c, ...fieldUpdates } : c,
     );
     try {
-      const res = await fetch(`/api/comic/${sysId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(fieldUpdates),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to sync");
-      await settleProgress("comic", comicData, sysId, res, "Progress updated!");
+      const saved = await putMyListRow(sysId, fieldUpdates);
+      settleProgress("comic", comicData, sysId, saved, "Progress updated!");
     } catch {
       updateCachedList("comic", (c) =>
         c.system_id === sysId ? { ...c, ...prevFieldUpdates } : c,
@@ -972,43 +986,30 @@ export default function Index() {
 
         {/* Main Content */}
         <div className="flex-1 min-w-0 space-y-16">
+          {/* What waits for a handler: a member holding manage.requests
+              (super). It draws nothing when nothing waits, and is not
+              fetched for anyone else. */}
+          {sections.summary && <DashboardSummary />}
+
           {/* Announcement Division */}
           <div id="announcements">
-            <div
-              data-division-header
-              className="sticky top-[var(--nav-h)] z-30 bg-canvas flex items-end justify-between gap-3 pb-2 border-b border-border-strong"
-            >
-              <div>
-                <Eyebrow className="mb-1">Pinned to the top of the dashboard</Eyebrow>
-                <h2 className="font-display text-3xl font-semibold text-text leading-none">
-                  Announcements &amp; notes
-                </h2>
-              </div>
-              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
-                {announcements.length} posted
-              </span>
-            </div>
+            <DivisionHeader
+              eyebrow="Pinned to the top of the dashboard"
+              title={<>Announcements &amp; notes</>}
+              count={`${announcements.length} posted`}
+            />
             <AnnouncementBoard announcements={announcements} />
           </div>
 
           {/* Schedule Division */}
           <div id="schedule">
-            <div
-              data-division-header
-              className="sticky top-[var(--nav-h)] z-30 bg-canvas flex items-end justify-between gap-3 pb-2 border-b border-border-strong"
-            >
-              <div>
-                <Eyebrow className="mb-1">Sunday · Saturday</Eyebrow>
-                <h2 className="font-display text-3xl font-semibold text-text leading-none">
-                  Weekly schedule
-                </h2>
-              </div>
-              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
-                {broadcastSchedule.length +
-                  (isMember ? watchSchedule.length : 0)}{" "}
-                scheduled
-              </span>
-            </div>
+            <DivisionHeader
+              eyebrow="Sunday · Saturday"
+              title="Weekly schedule"
+              count={`${
+                broadcastSchedule.length + (isMember ? watchSchedule.length : 0)
+              } scheduled`}
+            />
             <div className="pt-8 space-y-12">
               {isMember && (
                 <WeeklySchedule
@@ -1051,6 +1052,24 @@ export default function Index() {
             </div>
           </div>
 
+          {/* A way into each library, for a viewer with no tracker: the
+              nav's own Library and Restricted rows (LibraryLinks.jsx). */}
+          {showLibraries && (
+            <div id="libraries">
+              <DivisionHeader eyebrow="Browse the catalogue" title="Libraries" />
+              <LibraryLinks groups={libraryGroups} />
+            </div>
+          )}
+
+          {/* The newest entries, for a shared account (view.random_picker
+              without a list). */}
+          {sections.recentlyAdded && (
+            <div id="recent">
+              <DivisionHeader eyebrow="Newest first" title="Recently added" />
+              <RecentlyAdded />
+            </div>
+          )}
+
           {/* Tracker divisions. The filter bar is their one sticky header, so
               this wrapper bounds it: it scrolls in after Schedule and stays
               pinned to the end of Playing. A member's only (see isMember). */}
@@ -1088,7 +1107,7 @@ export default function Index() {
                       franchiseData={franchiseData}
                       headerTop={subHeaderTop}
                       view={view}
-                      isAdmin={isAdmin}
+                      canTrack={canTrack}
                       onEpChange={handleEpChange}
                     />
                     <Section
@@ -1099,7 +1118,7 @@ export default function Index() {
                       franchiseData={franchiseData}
                       headerTop={subHeaderTop}
                       view={view}
-                      isAdmin={isAdmin}
+                      canTrack={canTrack}
                       onEpChange={handleEpChange}
                     />
                     <Section
@@ -1110,7 +1129,7 @@ export default function Index() {
                       franchiseData={franchiseData}
                       headerTop={subHeaderTop}
                       view={view}
-                      isAdmin={isAdmin}
+                      canTrack={canTrack}
                       onEpChange={handleEpChange}
                     />
                   </div>
@@ -1144,7 +1163,7 @@ export default function Index() {
                       franchiseData={franchiseData}
                       headerTop={subHeaderTop}
                       view={view}
-                      isAdmin={isAdmin}
+                      canTrack={canTrack}
                       onChChange={handleChChange}
                       onNovelProgressChange={handleNovelProgressChange}
                       onComicProgressChange={handleComicProgressChange}
@@ -1157,7 +1176,7 @@ export default function Index() {
                       franchiseData={franchiseData}
                       headerTop={subHeaderTop}
                       view={view}
-                      isAdmin={isAdmin}
+                      canTrack={canTrack}
                       onChChange={handleChChange}
                       onNovelProgressChange={handleNovelProgressChange}
                       onComicProgressChange={handleComicProgressChange}
@@ -1170,7 +1189,7 @@ export default function Index() {
                       franchiseData={franchiseData}
                       headerTop={subHeaderTop}
                       view={view}
-                      isAdmin={isAdmin}
+                      canTrack={canTrack}
                       onChChange={handleChChange}
                       onNovelProgressChange={handleNovelProgressChange}
                       onComicProgressChange={handleComicProgressChange}

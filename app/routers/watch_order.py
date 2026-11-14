@@ -33,7 +33,12 @@ from app.services.domain.watch_order import (
     list_candidate_entries,
     resolve_items,
 )
-from app.services.rbac.enforcement import entry_visible
+from app.services.rbac.enforcement import (
+    apply_owner_visibility,
+    entry_visible,
+    tier_visible,
+    visible_scope_franchise_ids,
+)
 from app.services.rbac.permissions import PERM_SELF_LIST
 from app.services.rbac.resolver import (
     Viewer,
@@ -60,6 +65,36 @@ def _get_list_or_404(db: Session, list_id: str) -> models.WatchOrderList:
     if not db_list:
         raise HTTPException(status_code=404, detail="Watch order not found.")
     return db_list
+
+
+def _owner_id(db_list: models.WatchOrderList):
+    """The one owner column set on the order (ck_watch_order_list_single_owner)."""
+    return db_list.franchise_id or db_list.series_id or db_list.collection_id
+
+
+def _get_visible_list_or_404(
+    db: Session, list_id: str, viewer
+) -> models.WatchOrderList:
+    """
+    As _get_list_or_404, and an order whose owning group the viewer's mode
+    hides answers as missing: its name and owner would confirm the group.
+    """
+    db_list = _get_list_or_404(db, list_id)
+    if not tier_visible(db, viewer, _owner_id(db_list)):
+        raise HTTPException(status_code=404, detail="Watch order not found.")
+    return db_list
+
+
+def _visible_lists(query, db: Session, viewer):
+    """Narrow a WatchOrderList query to orders whose owner the viewer sees."""
+    return apply_owner_visibility(
+        query,
+        db,
+        viewer,
+        collection_id_column=models.WatchOrderList.collection_id,
+        franchise_id_column=models.WatchOrderList.franchise_id,
+        series_id_column=models.WatchOrderList.series_id,
+    )
 
 
 def _get_item_or_404(db: Session, item_id: str) -> models.WatchOrderItem:
@@ -547,14 +582,16 @@ def get_watch_order_lists(
     limit: int = Query(default=500, ge=1, le=2000),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """
     Retrieves watch order summaries (no items).
 
     Filtered by owner when franchise_id or collection_id is given; unfiltered it
-    backs the admin Watch Orders page, which lists every order.
+    backs the admin Watch Orders page, which lists every order the viewer's
+    mode shows. An order whose owning group is hidden is left out.
     """
-    query = db.query(models.WatchOrderList)
+    query = _visible_lists(db.query(models.WatchOrderList), db, viewer)
 
     if franchise_id:
         query = query.filter(models.WatchOrderList.franchise_id == franchise_id)
@@ -636,7 +673,7 @@ def get_watch_order_list(
     viewer: Viewer = Depends(get_viewer),
 ):
     """Retrieves one watch order with its items resolved to display data."""
-    db_list = _get_list_or_404(db, system_id)
+    db_list = _get_visible_list_or_404(db, system_id, viewer)
     sections = (
         db.query(models.WatchOrderSection)
         .filter(models.WatchOrderSection.list_id == db_list.system_id)
@@ -682,16 +719,9 @@ def get_watch_order_candidates(
             detail="Provide exactly one of franchise_id or collection_id.",
         )
 
-    if franchise_id:
-        franchise_ids = [franchise_id]
-    else:
-        franchise_ids = [
-            row[0]
-            for row in db.query(models.Franchise.system_id)
-            .filter(models.Franchise.collection_id == collection_id)
-            .all()
-        ]
-
+    franchise_ids = visible_scope_franchise_ids(
+        db, viewer, franchise_id=franchise_id, collection_id=collection_id
+    )
     return list_candidate_entries(db, franchise_ids, viewer=viewer)
 
 
@@ -1660,15 +1690,19 @@ def _follow_summary(db: Session, db_list: models.WatchOrderList, viewer) -> dict
     return {**_follow_heading(db, db_list), **follow_progress.summarize(states)}
 
 
-def _followed_lists(db: Session, user_id) -> List[models.WatchOrderList]:
-    """The caller's followed orders, oldest follow first."""
+def _followed_lists(db: Session, viewer) -> List[models.WatchOrderList]:
+    """
+    The caller's followed orders, oldest follow first, without those whose
+    owning group the session's mode hides. The follow row stays; a wider mode
+    lists it again.
+    """
     return (
-        db.query(models.WatchOrderList)
+        _visible_lists(db.query(models.WatchOrderList), db, viewer)
         .join(
             models.WatchOrderFollow,
             models.WatchOrderFollow.list_id == models.WatchOrderList.system_id,
         )
-        .filter(models.WatchOrderFollow.user_id == user_id)
+        .filter(models.WatchOrderFollow.user_id == viewer.user_id)
         .order_by(models.WatchOrderFollow.created_at.asc())
         .all()
     )
@@ -1686,7 +1720,7 @@ def get_my_follows(
     """Every order the caller follows, with done / total, now and up next."""
     return [
         _follow_summary(db, db_list, viewer)
-        for db_list in _followed_lists(db, viewer.user_id)
+        for db_list in _followed_lists(db, viewer)
     ]
 
 
@@ -1705,7 +1739,7 @@ def get_my_follows_for_entry(
     steps either side of it. Empty when no followed order contains the entry.
     """
     contexts = []
-    for db_list in _followed_lists(db, viewer.user_id):
+    for db_list in _followed_lists(db, viewer):
         states = _follow_steps(db, db_list, viewer)
         occurrences = follow_progress.occurrences_of(states, entry_id)
         if not occurrences:
@@ -1734,7 +1768,7 @@ def follow_watch_order(
     Follows the order, replacing whichever order of the same group the caller
     followed before. Idempotent: following the followed order changes nothing.
     """
-    db_list = _get_list_or_404(db, system_id)
+    db_list = _get_visible_list_or_404(db, system_id, viewer)
     owner = {column: getattr(db_list, column) for column in _OWNER_COLUMNS}
 
     existing = (
@@ -1772,7 +1806,7 @@ def unfollow_watch_order(
     viewer: Viewer = Depends(require_self_list),
 ):
     """Stops following the order. 404 when the caller does not follow it."""
-    db_list = _get_list_or_404(db, system_id)
+    db_list = _get_visible_list_or_404(db, system_id, viewer)
     deleted = (
         db.query(models.WatchOrderFollow)
         .filter(

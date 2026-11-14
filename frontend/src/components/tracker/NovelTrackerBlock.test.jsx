@@ -18,7 +18,7 @@ const noop = () => {};
 function baseProps(overrides = {}) {
   return {
     novel: { system_id: "n1", type: "Web", units: [] },
-    isAdmin: true,
+    canTrack: true,
     onChChange: noop,
     onVolChange: noop,
     onArcProgressChange: noop,
@@ -418,5 +418,18 @@ describe("NovelTrackerBlock — typing progress on a web novel with arcs", () =>
 
     fireEvent.click(screen.getByLabelText("Next chapter"));
     expect(onArcProgressChange).toHaveBeenLastCalledWith({ arc_fin: 0, ch_fin_in_arc: 4 });
+  });
+});
+
+describe("NovelTrackerBlock without self.list", () => {
+  it("draws nothing: every field is the viewer's own", () => {
+    const { container } = render(<NovelTrackerBlock {...baseProps({ canTrack: false })} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("draws the controls, enabled, for a holder of self.list", () => {
+    render(<NovelTrackerBlock {...baseProps()} />);
+    expect(screen.getByLabelText("Progress display")).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Next chapter" })).toBeEnabled();
   });
 });

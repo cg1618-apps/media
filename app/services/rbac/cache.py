@@ -108,7 +108,7 @@ def mode_sets(db: Session, mode_id: UUID) -> "ModeSets":
     `unrestricted` shows every label ROW rather than every label the code
     names. The two are the same once ensure_labels and the migration have run;
     the difference is that a row nobody expected is still reachable in the
-    widest mode, as the spec's "unrestricted always reaches everything" says,
+    widest mode, because `unrestricted` always reaches everything,
     and hidden everywhere else. A key that is not a mode shows nothing.
 
     Shared by everyone holding the mode, so cached until bump().

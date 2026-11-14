@@ -2,8 +2,9 @@
 The view.* family: what a logged-out visitor does not see.
 
 Six keys: four entity-page keys (studio, publisher, person, character),
-search and extras. `super` holds all six by lock; `user` is seeded with the
-last two and the entity keys start off; `guest` holds none. Each refusal below is
+search and random_picker. `super` holds all six by lock; `user` is seeded with
+the last two and the entity keys start off; `shared` holds random_picker by
+lock; `guest` and `admin` hold none. Each refusal below is
 asserted with the gated thing PRESENT - a row to read - and is mirrored by a viewer holding the key reading the
 same thing through the same fixture, so a green proves the gate refused and not
 that there was nothing to return.
@@ -19,9 +20,9 @@ from app.services.rbac.permissions import (
     FAMILY_VIEW,
     PERM_MANAGE_CATALOG,
     PERM_VIEW_CHARACTER,
-    PERM_VIEW_EXTRAS,
     PERM_VIEW_PERSON,
     PERM_VIEW_PUBLISHER,
+    PERM_VIEW_RANDOM_PICKER,
     PERM_VIEW_SEARCH,
     PERM_VIEW_STUDIO,
     VIEW_PERMISSION_KEYS,
@@ -72,7 +73,7 @@ def test_the_six_keys_are_in_the_catalog():
         "person",
         "character",
         "search",
-        "extras",
+        "random_picker",
     )
     assert {view_perm(k) for k in VIEW_PERMISSION_KEYS} == VIEW_ALL
     assert ENTITY_VIEW_PERMISSIONS == ENTITY_KEYS
@@ -128,7 +129,8 @@ def test_the_seed_defaults():
     assert not ENTITY_KEYS & default_user_permissions()
     assert VIEW_ALL <= default_super_permissions()
     assert not VIEW_ALL & default_guest_permissions()
-    assert not VIEW_ALL & default_shared_permissions()
+    # A shared account opens the Random Picker, and nothing else of the family.
+    assert VIEW_ALL & default_shared_permissions() == {PERM_VIEW_RANDOM_PICKER}
 
 
 def test_the_seeded_roles_hold_what_the_defaults_say(db, client):
@@ -206,11 +208,9 @@ def gated_reads(db, person, character, anime_with_studio, sample_anime):
         # The quote and meme reads are not here: they answer to the
         # account's quotes-and-memes switch, not to a view key - see
         # test_account_features.py.
-        # /api/resources is not here either: it answers to manage.resources
-        # - see test_admin_page_permissions.py.
-        PERM_VIEW_EXTRAS: [
-            "/api/random-picker-defaults/all",
-        ],
+        # /api/resources is not here: it answers to manage.resources - see
+        # test_admin_page_permissions.py.
+        PERM_VIEW_RANDOM_PICKER: ["/api/random-picker-defaults/all"],
     }
 
 
@@ -232,7 +232,7 @@ def test_a_holder_of_the_family_reads_every_gated_read(db, client, gated_reads):
 
 def test_a_seeded_member_reads_no_entity_page(user_client, gated_reads):
     """The seeded `user` role starts with the entity keys off - and still
-    reads search and the extras, so each refusal is an entity gate's."""
+    reads search and the Random Picker, so each refusal is an entity gate's."""
     for permission, urls in gated_reads.items():
         expected = 401 if permission in ENTITY_KEYS else 200
         for url in urls:

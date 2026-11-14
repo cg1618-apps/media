@@ -11,7 +11,6 @@ import { useParams, Link } from "react-router-dom";
 import { endpoints } from "../../api/endpoints";
 import { buildUrl } from "../../api/client";
 import { useAuth } from "../../contexts/AuthContext";
-import { useToast } from "../../hooks/useToast";
 import {
   getDisplayName,
   getNamingFields,
@@ -56,14 +55,14 @@ import CollectionNotes from "./CollectionNotes";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { useViewScope } from "../../hooks/useViewScope";
 import { useMyRatingSaver } from "../../api/mutations/useMyRatingMutations";
+import { useMyRemarkSaver } from "../../api/mutations/useMyRemark";
 
 export default function CollectionPage() {
   const { publicId } = useParams();
-  const { isAdmin, has } = useAuth();
+  const { isAdmin } = useAuth();
   // The rating and expectation are the viewer's own, drawn and edited by a
   // holder of self.list; anyone else has none.
   const { ownData } = useViewScope();
-  const { showToast } = useToast();
 
   const [collection, setCollection] = useState(null);
   const [members, setMembers] = useState([]);
@@ -78,6 +77,7 @@ export default function CollectionPage() {
   // Everything past the lookup still speaks UUIDs; only the URL segment
   // changed. Resolved from the fetched row so the two can never disagree.
   const system_id = collection?.system_id;
+  const saveMyRemark = useMyRemarkSaver("collection", system_id, setCollection);
   const saveMyRating = useMyRatingSaver("collection", system_id, setCollection);
   const remarkRef = useRef(null);
 
@@ -194,32 +194,10 @@ export default function CollectionPage() {
     [members],
   );
 
-  async function saveField(field, value) {
-    try {
-      const res = await fetch(
-        endpoints.resource("collection").patch(system_id),
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ [field]: value === "" ? null : value }),
-          credentials: "include",
-        },
-      );
-      if (res.ok) {
-        setCollection(await res.json());
-        showToast("success", "Collection updated successfully");
-      } else {
-        showToast("error", "Save failed");
-      }
-    } catch {
-      showToast("error", "Network error. Reverting.");
-    }
-  }
-
   // Shared by the inline box and the full-view modal, which edit one draft.
   function saveRemark() {
-    if (isAdmin && remarkDraft !== (collection?.remark || ""))
-      saveField("remark", remarkDraft);
+    if (ownData && remarkDraft !== (collection?.remark || ""))
+      saveMyRemark(remarkDraft);
   }
 
   if (loading) return <HubLoading label="Loading collection..." />;
@@ -372,7 +350,7 @@ export default function CollectionPage() {
             </Slip>
           )}
 
-          {(isAdmin || collection.remark) && (
+          {ownData && (
             <Slip
               title="Remark"
               actions={
@@ -391,11 +369,10 @@ export default function CollectionPage() {
               <textarea
                 ref={remarkRef}
                 value={remarkDraft}
-                disabled={!isAdmin}
                 onChange={(e) => setRemarkDraft(e.target.value)}
                 onBlur={() => saveRemark()}
                 rows={3}
-                className={`w-full border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none transition ${isAdmin ? "border-border bg-surface text-text" : "border-border bg-surface-2 text-text-muted cursor-default"}`}
+                className="w-full border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none transition border-border bg-surface text-text"
               />
             </Slip>
           )}
@@ -498,7 +475,7 @@ export default function CollectionPage() {
               hide the duplicate `remark` section wherever that editor renders. */}
           <CollectionNotes
             collection={collection}
-            hideSections={isAdmin || collection.remark ? ["remark"] : []}
+            hideSections={ownData ? ["remark"] : []}
           />
         </Section>
       )}
@@ -506,7 +483,7 @@ export default function CollectionPage() {
       {showRemark && (
         <RemarkModal
           value={remarkDraft}
-          canEdit={has("self.personal_notes")}
+          canEdit={ownData}
           onChange={setRemarkDraft}
           onClose={() => {
             saveRemark();

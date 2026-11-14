@@ -8,11 +8,19 @@
 // checks: Free Games With a List Price opens all ticked and zeroes only what
 // is still ticked, Bought Copies Without a List Price only lists, and both
 // leave out an h-game row for a session that may not see the type.
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { fireEvent, render as rtlRender, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import Admin from "./Admin";
+
+// The Announcement & Notes card reads the ["announcements"] query, so every
+// render needs a client; a fresh one per render keeps tests independent.
+function render(ui) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return rtlRender(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+}
 
 const showToast = vi.fn();
 vi.mock("../../hooks/useToast", () => ({ useToast: () => ({ showToast }) }));
@@ -156,7 +164,7 @@ describe("Control Center announcements", () => {
       </MemoryRouter>,
     );
     expect(screen.getByRole("button", { name: /Sync Cast/ })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Add Announcement" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Add announcement" })).toBeNull();
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
   });
 
@@ -168,7 +176,7 @@ describe("Control Center announcements", () => {
       </MemoryRouter>,
     );
     expect(
-      await screen.findByRole("button", { name: "Add Announcement" }),
+      await screen.findByRole("button", { name: "Add announcement" }),
     ).toBeInTheDocument();
   });
 });

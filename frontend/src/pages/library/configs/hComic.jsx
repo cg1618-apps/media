@@ -71,6 +71,7 @@ const H_COMIC_LIBRARY_CONFIG = {
     {
       key: "readingStatus",
       label: "Read Status",
+      personal: true,
       type: "set-grouped",
       groupOptions: ["Reading", "Planned", "Completed", "Dropped", "Might Read"],
       match: (item, active) =>
@@ -79,7 +80,7 @@ const H_COMIC_LIBRARY_CONFIG = {
     setFilter("serializationStatus", "Serialization Status", "serialization_status"),
     setFilter("originality", "Originality", "originality"),
     setFilter("animationStatus", "Animation Status", "animation_status"),
-    setFilter("usefulness", "Usefulness", "usefulness"),
+    { ...setFilter("usefulness", "Usefulness", "usefulness"), personal: true },
   ],
 
   sortDefs: [
@@ -127,6 +128,7 @@ const H_COMIC_LIBRARY_CONFIG = {
     {
       key: "progress",
       header: "Progress",
+      personal: true,
       thClass: "hidden lg:table-cell",
       tdClass: "text-xs text-center font-mono text-text-muted hidden lg:table-cell",
       render: progressText,
@@ -134,6 +136,7 @@ const H_COMIC_LIBRARY_CONFIG = {
     {
       key: "usefulness",
       header: "Usefulness",
+      personal: true,
       thClass: "hidden lg:table-cell",
       tdClass: "text-xs text-center text-text-faint hidden lg:table-cell",
       render: (item) => item.usefulness || "-",

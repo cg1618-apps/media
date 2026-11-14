@@ -8,6 +8,7 @@ import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
 import { useAuth } from "../../contexts/AuthContext";
 import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
 import { useToast } from "../../hooks/useToast";
+import { useOwnTrackerSave } from "../../hooks/useOwnTrackerSave";
 import {
   getCoverUrl,
   FALLBACK_SVG,
@@ -41,8 +42,9 @@ import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
 import LazyImage from "../../components/ui/LazyImage";
-import { progressToast } from "../../lib/progressToast";
 import { focusStyle } from "../../lib/covers";
+import { useViewScope } from "../../hooks/useViewScope";
+import { useMyRemarkSaver } from "../../api/mutations/useMyRemark";
 
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
@@ -83,6 +85,8 @@ export default function Comic() {
   // Everything past the lookup still speaks UUIDs; only the URL segment
   // changed. Resolved from the fetched row so the two can never disagree.
   const system_id = comicQuery.data?.system_id;
+  const { ownData } = useViewScope();
+  const saveMyRemark = useMyRemarkSaver("comic", system_id, setComic);
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const { setMediaItem, fetchMediaItem, invalidateMedia } =
@@ -117,28 +121,15 @@ export default function Comic() {
     seriesQuery.error?.message ||
     null;
 
-  async function performPatch(payload, msg) {
-    if (!isAdmin) return;
-    setComic((prev) => ({ ...prev, ...payload }));
-    try {
-      const res = await fetch(endpoints.resource("comic").patch(system_id), {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Sync failed");
-      const updated = await res.json();
-      // `comic` is still the pre-write row here: this closure never saw the
-      // optimistic update. A progress step can finish the entry.
-      showToast("success", progressToast(comic, updated, msg || "Saved"));
-      setComic(updated);
-      setMediaItem(updated);
-    } catch {
-      showToast("error", "Update failed");
-      fetchMediaItem();
-    }
-  }
+  // The viewer's own values (status, rating, progress, plan flags) go through /api/me;
+  // saveRelease is the toolbar's release step, the work's half through the
+  // catalogue PATCH.
+  const { saveOwn, saveRelease } = useOwnTrackerSave("comic", {
+    entry: comic,
+    setEntry: setComic,
+    setMediaItem,
+    fetchMediaItem,
+  });
 
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading details..." />;
@@ -252,7 +243,7 @@ export default function Comic() {
             >
               Mark completed
             </Button>
-            <MarkReleaseButton type="comic" entry={comic} title={titleMain} onPatch={performPatch} />
+            <MarkReleaseButton type="comic" entry={comic} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
           </div>
         </div>
       )}
@@ -383,19 +374,19 @@ export default function Comic() {
             epTotal={comic.issue_total != null ? comic.issue_total : "?"}
             watchingStatus={comic.reading_status || "Might Read"}
             myRating={comic.my_rating}
-            isAdmin={isAdmin}
+            canTrack={ownData}
             onEpChange={(v) =>
-              performPatch({ issue_fin: v }, "Issue progress saved")
+              saveOwn({ issue_fin: v }, "Issue progress saved")
             }
             onStatusChange={(v) =>
-              performPatch({ reading_status: v }, "Status updated")
+              saveOwn({ reading_status: v }, "Status updated")
             }
             onRatingChange={(v) =>
-              performPatch({ my_rating: v || null }, "Rating saved")
+              saveOwn({ my_rating: v || null }, "Rating saved")
             }
             toRewatch={comic.to_reread}
             onToRewatchChange={(v) =>
-              performPatch(
+              saveOwn(
                 { to_reread: v },
                 v ? "Marked for reread" : "Removed from reread",
               )
@@ -486,19 +477,15 @@ export default function Comic() {
           </div>
 
           {/* Remarks */}
-          {comic.remark && (
+          {ownData && comic.remark && (
             <Slip title="Remarks">
               <textarea
                 key={comic.system_id}
                 defaultValue={comic.remark || ""}
-                disabled={!isAdmin}
-                onBlur={(e) =>
-                  isAdmin &&
-                  performPatch(
-                    { remark: e.target.value || null },
-                    "Remark saved",
-                  )
-                }
+                onBlur={(e) => {
+                  if (e.target.value !== (comic.remark || ""))
+                    saveMyRemark(e.target.value);
+                }}
                 rows={4}
                 placeholder="Add remarks…"
                 className={textareaCls}
@@ -506,13 +493,14 @@ export default function Comic() {
             </Slip>
           )}
 
-          {/* Structured Notes — the remark textarea above renders only when a
-              remark exists; hide the notes page's `remark` section exactly
-              then, so the singleton row never has two editors on one screen. */}
+          {/* Structured Notes — the remark textarea above renders only for a
+              holder of self.list who has a remark; hide the notes page's
+              `remark` section exactly then, so the viewer's own row never has
+              two editors on one screen. */}
           <ComicNotes
             key={comic.system_id}
             comic={comic}
-            hideSections={comic.remark ? ["remark"] : []}
+            hideSections={ownData && comic.remark ? ["remark"] : []}
             series={series}
             franchise={franchise}
           />

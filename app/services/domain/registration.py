@@ -36,7 +36,8 @@ from app.services.security import (
 )
 
 # The approval form never hands out `unrestricted`; the admin grants it later
-# on /users, per person (account-system spec, "Roles and modes").
+# on /users, per person (docs/notes/decisions.md, "Account lifecycle, second
+# half").
 APPROVAL_REFUSED_MODE = "unrestricted"
 
 

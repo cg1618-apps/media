@@ -10,7 +10,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 
 - **Public endpoints** — accessible by any visitor (guest or admin).
 - **Capability-gated endpoints** — require a valid JWT in the `access_token` HTTP-Only cookie plus the capability the route names: `require_manage_catalog`, `require_manage_pipelines`, `require_admin_authz`, or one of the admin's page keys — `require_manage_announcements`, `require_manage_options`, `require_manage_images`, `require_manage_resources` (`app/services/rbac/resolver.py`). There is no single "is an admin" dependency, and no role passes every gate: the admin account holds `admin.authz`, `manage.pipelines`, `manage.requests` and the four page keys, and no `manage.catalog`, so every catalogue write — and every catalogue read, since it holds no `media_type.*` and no mode — is refused to it.
-- **View-gated reads** — an Auth cell naming a `view.*` permission (`view.studio`, `view.publisher`, `view.person`, `view.character`, `view.search`, `view.extras`) is a read the `guest` role does not hold as seeded, so a logged-out visitor gets **401**. A signed-in `user` holds `view.search` and `view.extras` as seeded; the four entity keys are the admin's to switch on per role. See [authorization.md](authorization.md#permission-catalog-code).
+- **View-gated reads** — an Auth cell naming a `view.*` permission (`view.studio`, `view.publisher`, `view.person`, `view.character`, `view.search`, `view.random_picker`) is a read the `guest` role does not hold as seeded, so a logged-out visitor gets **401**. A signed-in `user` holds `view.search` and `view.random_picker` as seeded; the four entity keys are the admin's to switch on per role. See [authorization.md](authorization.md#permission-catalog-code).
 - **"Admin" in an Auth cell means `manage.catalog`** — a catalogue write, which `super` holds — and not the admin account: the `admin` role holds no `manage.catalog`, so every such route answers it **401**. A cell naming another key (`manage.options`, `manage.resources`, …) means that key.
 - **Feature-gated reads** — an Auth cell naming `feature quotes_memes` is a read the caller's **account** must have switched on (`users.feature_quotes_memes`), answered **401** otherwise, the same shape as a permission refusal. See [authorization.md](authorization.md#per-account-feature-switches).
 - Login flow: `POST /api/auth/login` → sets cookie → all subsequent admin requests carry it automatically.
@@ -62,6 +62,8 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [Images — `/api/images`](#images--apiimages)
 - [Note — `/api/notes`](#note--apinotes)
 - [Seasonal — `/api/seasonal`](#seasonal--apiseasonal)
+- [Statistics — `/api/statistics`](#statistics--apistatistics)
+- [Dashboard — `/api/dashboard`](#dashboard--apidashboard)
 - [Add-tab picker searches](#add-tab-picker-searches)
 - [Search — `/api/search`](#search--apisearch)
 - [FX Rates — `/api/fx-rates`](#fx-rates--apifx-rates)
@@ -656,9 +658,9 @@ per-entry `watch_order` Float column, which has been dropped.
 
 | Method   | Path                          | Auth   | Description                                                                                                                                        |
 | -------- | ----------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/lists`                      | Public | List order summaries (no items). Optional params: `franchise_id`, `collection_id`, `series_id` (owner filters), `search_query`, `auto` (`exclude` hides generated lists, `only` shows just them), `limit` (≤2000), `offset`. Sorted most-recommended, then default, then `sort_index`, then name. |
-| `GET`    | `/lists/{system_id}`          | Public | One order with its items **resolved** to display data.                                                                                             |
-| `GET`    | `/candidates`                 | Public | Every entry an order for this owner may include, flattened across the eight media tables, in the resolver's shape (`display_name`, `cover_image_file`, `cover_image_focus`, `franchise_id`, `status`, `total_episodes`, `ep_special`). Exactly one of `franchise_id` / `collection_id` required. |
+| `GET`    | `/lists`                      | Public | List order summaries (no items). Optional params: `franchise_id`, `collection_id`, `series_id` (owner filters), `search_query`, `auto` (`exclude` hides generated lists, `only` shows just them), `limit` (≤2000), `offset`. Sorted most-recommended, then default, then `sort_index`, then name. An order whose owning collection, franchise or series the viewer's mode hides is left out. |
+| `GET`    | `/lists/{system_id}`          | Public | One order with its items **resolved** to display data. 404 when its owning group is hidden from the viewer, as for a missing order. |
+| `GET`    | `/candidates`                 | Public | Every entry an order for this owner may include, flattened across the eight media tables, in the resolver's shape (`display_name`, `cover_image_file`, `cover_image_focus`, `franchise_id`, `status`, `total_episodes`, `ep_special`). Exactly one of `franchise_id` / `collection_id` required. 404 when the owner is hidden from the viewer; a collection's hidden member franchises are skipped. |
 | `POST`   | `/lists`                      | Admin  | Create an order. Body: `WatchOrderListCreate`. 400 unless exactly one owner is given.                                                               |
 | `POST`   | `/lists/release`              | Admin  | Give one owner a built-in order (`franchise_id`, `collection_id` or `series_id`; `anime_only=true` for the anime variant). Idempotent per kind. 400 below 2 entries in scope, or for a collection that opts out. |
 | `POST`   | `/lists/release/backfill`     | Admin  | Give every franchise, series and collection its built-in orders, skipping owners that already have them, those below 2 entries, and opted-out collections. Safe to re-run; returns `created`, `skipped_too_small` and `skipped_opted_out`. |
@@ -769,8 +771,8 @@ admin-only, matching watch orders. Replaces the per-entry `prequel_id` /
 | -------- | ---------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------- |
 | `GET`    | `/kinds`                                 | Public | The relation vocabulary: `key`, `label`, `inverse_label`, `family` (`timeline`, `equivalence`, `branch`, `derivation`), `symmetric`, `stored_as`. Fifteen entries — the fourteen stored kinds (`sequel`, `alternative`, `corresponding`, `renew`, `directors_cut`, `extended`, `remake`, `remaster`, `side_story`, `spin_off`, `setting`, `dlc`, `related`, `adaptation`) plus `prequel`, which is stored as a swapped `sequel`. |
 | `GET`    | `/for-entry?media_type=&entry_id=`       | Public | Every relation touching one entry, from **both** endpoints, each resolved to the far entry's display data and labelled for the side being viewed. |
-| `GET`    | `/?franchise_id=` or `?collection_id=`   | Public | Every relation with at least one endpoint among a scope's entries. Backs the admin page's count badges in one request. Exactly one scope param, else 400. |
-| `GET`    | `/graph?franchise_id=`, `?collection_id=` or `?series_id=` | Public | Everything the `/relations` canvas draws for one scope, in one request: `{nodes, edges}`. Exactly one scope param, else 400. A series scope resolves against `series_id` directly (an anime movie has no `series_id`, so it can only appear as a ghost). **Viewer-filtered**: nodes and edges touching an entry the viewer may not see are dropped. |
+| `GET`    | `/?franchise_id=` or `?collection_id=`   | Public | Every relation with at least one endpoint among a scope's entries. Backs the admin page's count badges in one request. Exactly one scope param, else 400. 404 when the scope is hidden from the viewer; a collection's hidden member franchises are skipped. |
+| `GET`    | `/graph?franchise_id=`, `?collection_id=` or `?series_id=` | Public | Everything the `/relations` canvas draws for one scope, in one request: `{nodes, edges}`. Exactly one scope param, else 400. A series scope resolves against `series_id` directly (an anime movie has no `series_id`, so it can only appear as a ghost). **Viewer-filtered**: nodes and edges touching an entry the viewer may not see are dropped. A hidden scope, at any tier, is 404. |
 | `POST`   | `/`                                      | Admin  | Create. Body is the relation as typed; direction is normalized before writing.                                             |
 | `PATCH`  | `/{system_id}`                           | Admin  | Edit `kind`, `swap` and/or `remark`. Changing the kind re-normalizes, so Sequel → Prequel flips the stored endpoints; `swap: true` trades the endpoints over keeping the kind, which is the only way to turn an Adaptation or a Spin-off around. Swapping a symmetric kind is a no-op, and one that would duplicate an existing row is a 409. |
 | `DELETE` | `/{system_id}`                           | Admin  | Delete. Logs to `deleted_record` as type "Media Relation". The two entries are untouched.                                  |
@@ -1228,23 +1230,43 @@ leaves `sort_index` ascending in the order the page draws.
 
 | Method  | Path              | Auth   | Description                                                                                         |
 | ------- | ----------------- | ------ | --------------------------------------------------------------------------------------------------- |
-| `GET`   | `/current-season` | `self.list` | Returns `{current_season}` from `system_configs`. Used by frontend to highlight the current season. |
+| `GET`   | `/current-season` | Public | Returns `{current_season}` from `system_configs` (null when unset). The calendar, not anybody's data, so it answers every viewer. |
+| `GET`   | `/catalogue`      | Public | `SeasonCount[]` — `{season, entry_count}` for every season the viewer's visible anime aired in, newest first. A season is `release_season` plus the year of `release_date`, the pair `?airing_season=` filters on. Narrowed to the viewer's media types and mode. |
 | `GET`   | `/`               | `self.list` | List the CALLER'S OWN seasonal records, ordered by `seasonal` descending.                           |
 | `GET`   | `/{seasonal_id}`  | `self.list` | Get the caller's own record for one season (e.g. `"WIN 2026"`). `404` when they have none.          |
 | `PATCH` | `/{seasonal_id}`  | `self.list` | Update `my_rating` on the caller's own row. Any real account, not just an admin - the rating is theirs. Body: `SeasonalUpdate`. |
 
 **Response model:** `SeasonalResponse` (unchanged).
 
-**Per user, and behind `self.list`.** A seasonal row is keyed
-`(user_id, seasonal)`, its four counters are aggregates over that user's
-`user_media_list` rows, and `my_rating` is their own - so a logged-out visitor
-gets `401` from every route here rather than somebody else's numbers. The admin
-mirror of the season value, `/api/system/config/current_season`, is untouched.
+**Per user, and behind `self.list`, except the two catalogue reads.** A
+seasonal row is keyed `(user_id, seasonal)`, its four counters are aggregates
+over that user's `user_media_list` rows, and `my_rating` is their own - so a
+logged-out visitor gets `401` from `/`, `/{seasonal_id}` and the `PATCH` rather
+than somebody else's numbers. `/current-season` and `/catalogue` are about the
+catalogue, not an account, and sit on a separate router
+(`seasonal.catalogue_router`, included first so `/catalogue` is not taken for a
+`{seasonal_id}`). The Control Center writes the season value through
+`/api/system/config/current_season`, which stays `manage.pipelines`.
+
+## Statistics — `/api/statistics`
+
+| Method | Path | Auth | Description |
+| ------ | ---- | ---- | ----------- |
+| `GET`  | `/catalogue` | Public | `CatalogueStatistics` — `by_type` (`{media_type: count}`, a type with no visible entry absent), `by_season` (as `/api/seasonal/catalogue`) and `by_genre` (`{genre, entry_count}[]`, most first, over Genre Main and Game Genre). Counts of the catalogue for a viewer without a list, narrowed to the media types its role holds and the labels its mode shows (`services/domain/catalogue_stats.py`). |
 `/api/search` stays public, but its `seasonal` bucket holds the caller's own
 rows and is empty for an anonymous searcher.
 
 ---
 
+
+## Dashboard — `/api/dashboard`
+
+What the dashboard needs beyond the routes it links to (`app/routers/dashboard.py`).
+
+| Method | Path | Auth | Description |
+| ------ | ---- | ---- | ----------- |
+| `GET`  | `/summary` | `manage.requests` | `DashboardSummary` — `{pending_registrations, open_requests}`: how many accounts wait for approval and how many requests and reports are open. Counts only. Any other viewer gets **401**. |
+| `GET`  | `/recent` | Public | `RecentEntry[]` — `{system_id, media_type, public_id, display_name, cover_image_file, cover_image_focus, created_at}`, newest first across every media type the viewer may see. `limit` 1–50, default 12. A type the role lacks and an entry its mode hides are left out. |
 ## Add-tab picker searches
 
 Each Add tab can identify a new entry against the outside database Fill reads
@@ -2307,7 +2329,7 @@ session that may not see the type, so the endpoint does not say it exists.
 
 | Method   | Path      | Auth           | Description                                                           |
 | -------- | --------- | -------------- | --------------------------------------------------------------------- |
-| `GET`    | `/{mode}` | `view.extras`  | One mode. Unconfigured returns **200 with `filters: {}`, `weighted: true`**, never 404. |
+| `GET`    | `/{mode}` | `view.random_picker` | One mode. Unconfigured returns **200 with `filters: {}`, `weighted: true`**, never 404. |
 | `PUT`    | `/{mode}` | manage.catalog | Full-replacement upsert. Body: `RandomPickerDefaultsPayload`.          |
 | `DELETE` | `/{mode}` | manage.catalog | Delete the row, so the mode opens with no filters, weighted. Idempotent. |
 
@@ -2538,7 +2560,9 @@ which keys a type owns.
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/api/me/list/{media_id}` | The caller's row. Never creates one: an entry they have never touched reads back the type's default status and `null` for the rest, the same values `attach_list_fields` puts on an untouched entry. 404 on an unknown `media_id`. |
-| PUT | `/api/me/list/{media_id}` | Upsert. A key this media type does not own is **422**, not silently dropped. 404 on an unknown `media_id`. Runs the type's `progress_hook_list` after the payload, as the entry endpoints do: an h-comic's `usefulness` outside its vocabulary is **422** and the counter its region does not use is cleared; a novel's arc cursor is derived. The `time_fin` rules apply here as on the entry endpoints: stripped, a blank stored as `null`, and cleared when `ep_fin` goes up or the status becomes Completed ([business-rules.md](business-rules.md#a-paused-position-is-cleared-by-progress)). |
+| PUT | `/api/me/list/{media_id}` | Upsert. A key this media type does not own is **422**, not silently dropped. 404 on an unknown `media_id`. Runs the type's `progress_hook_list` after the payload, as the entry endpoints do: an h-comic's `usefulness` outside its vocabulary is **422** and the counter its region does not use is cleared; a novel's arc cursor is derived. The `time_fin` rules apply here as on the entry endpoints: stripped, a blank stored as `null`, and cleared when `ep_fin` goes up or the status becomes Completed ([business-rules.md](business-rules.md#a-paused-position-is-cleared-by-progress)). A Completed status stamps `completed_at`, and a write that carries the progress counter up to its total finishes the caller's row as a catalogue `PATCH` does ([business-rules.md](business-rules.md#reaching-the-total-completes)) - the row's half only, never the work's airing or serialization status. |
+| PUT | `/api/me/plan-flags/{media_id}` | The caller's plan flags on one entry, by the type's own keys (`watch_next`, `to_rewatch`, `read_next`, `to_reread`, `play_next`, `to_replay`, as `PLAN_FLAG_FIELDS` gives each type). Body `{key: bool}`; a key left out is untouched, a key the type lacks is **422**. Returns every flag the type has as the caller now holds it. 404 on an unknown or hidden entry. |
+| PUT | `/api/me/remarks/{owner_type}/{owner_id}` | The caller's remark on an entry (`owner_type` a media type) or a group (`collection`, `franchise`, `series`). Body `{"remark": text}`; empty or null clears it. Returns `{remark}`. Another account's remark on the same owner is untouched. 404 when the id is not an owner of that type, or is hidden from the caller; 422 on any other body. |
 
 Neither route takes a user id, so there is no shape of request that writes
 somebody else's list. Catalogue writes are unaffected and stay behind

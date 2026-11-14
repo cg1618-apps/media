@@ -11,6 +11,7 @@ let visibleGatedTypes = [];
 let storedDefaults = {};
 let storedWeighted = {};
 let username = null;
+let permissions = [];
 
 function respond(url) {
   if (url.startsWith("/api/auth/me")) {
@@ -18,14 +19,29 @@ function respond(url) {
       is_admin: false,
       username,
       role: "guest",
-      permissions: [],
+      permissions,
       visible_gated_types: visibleGatedTypes,
     };
   }
   if (url.startsWith("/api/anime/"))
+    // A status and a rating on each, so a personal filter has something to
+    // act on, and a MAL score either side of 8 for the external-score filter.
     return [
-      { system_id: "a1", anime_name_en: "Frieren", airing_type: "TV" },
-      { system_id: "a2", anime_name_en: "Mushishi Special", airing_type: "Special" },
+      {
+        system_id: "a1",
+        anime_name_en: "Frieren",
+        airing_type: "TV",
+        watching_status: "Completed",
+        my_rating: "S",
+        mal_rating: 9.3,
+      },
+      {
+        system_id: "a2",
+        anime_name_en: "Mushishi Special",
+        airing_type: "Special",
+        watching_status: "Plan to Watch",
+        mal_rating: 7.6,
+      },
     ];
   if (url.startsWith("/api/random-picker-defaults/")) {
     const mode = url.split("/").pop();
@@ -51,6 +67,7 @@ beforeEach(() => {
   storedDefaults = {};
   storedWeighted = {};
   username = null;
+  permissions = [];
   vi.stubGlobal(
     "fetch",
     vi.fn((url) => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(respond(String(url))) }))
@@ -77,6 +94,17 @@ function mount(path) {
 }
 
 const fetched = () => fetch.mock.calls.map(([url]) => String(url));
+
+// The two kinds of signed-in picker viewer: a shared account holds the
+// picker and keeps no list; a member keeps one.
+function signInShared() {
+  username = "shared-reader";
+  permissions = ["view.random_picker"];
+}
+function signInMember() {
+  username = "reader";
+  permissions = ["view.random_picker", "self.list"];
+}
 
 it("draws across types in the general mode, narrowed by media type", async () => {
   mount("/random");
@@ -183,6 +211,7 @@ it("offers no Defaults button for a mode with none saved", async () => {
 });
 
 it("draws weighted by default, and says the chance the pick had", async () => {
+  signInMember();
   mount("/random/anime");
   await waitFor(() => expect(screen.getByText("2 in the pool")).toBeInTheDocument());
   expect(screen.getByRole("checkbox", { name: "Weighted" })).toBeChecked();
@@ -193,6 +222,7 @@ it("draws weighted by default, and says the chance the pick had", async () => {
 });
 
 it("opens a mode saved unweighted as unweighted, and Defaults brings that back", async () => {
+  signInMember();
   storedWeighted = { anime: false };
   mount("/random/anime");
   await waitFor(() => expect(screen.getByText("2 in the pool")).toBeInTheDocument());
@@ -213,15 +243,95 @@ it("asks a guest for no plan marks, since a plan is private", async () => {
   expect(fetched().some((u) => u.startsWith("/api/plan-next"))).toBe(false);
 });
 
-it("asks a signed-in session for its plan marks", async () => {
-  username = "reader";
+// The two versions of the page. Each pair is the same page, mocks and data
+// - entries with a status and a rating to filter on - with only the session
+// differing, so an absence is the list gate's doing.
+it("without a list, offers no personal filter, no weighting and asks for no plan marks", async () => {
+  signInShared();
   mount("/random");
+  await waitFor(() => expect(screen.getByText("3 in the pool")).toBeInTheDocument());
+  expect(screen.getByText("Media Type")).toBeInTheDocument();
+  expect(screen.queryByText("Status")).not.toBeInTheDocument();
+  expect(screen.queryByText("My Rating")).not.toBeInTheDocument();
+  expect(screen.queryByRole("checkbox", { name: "Weighted" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Weights" })).not.toBeInTheDocument();
+  expect(fetched().some((u) => u.startsWith("/api/plan-next"))).toBe(false);
+});
+
+it("with a list, offers the personal filters and weighting, and asks for plan marks", async () => {
+  signInMember();
+  mount("/random");
+  await waitFor(() => expect(screen.getByText("3 in the pool")).toBeInTheDocument());
+  expect(screen.getByText("Status")).toBeInTheDocument();
+  expect(screen.getByText("My Rating")).toBeInTheDocument();
+  expect(screen.getByRole("checkbox", { name: "Weighted" })).toBeChecked();
+  expect(screen.getByRole("button", { name: "Weights" })).toBeInTheDocument();
   await waitFor(() =>
     expect(fetched().some((u) => u.startsWith("/api/plan-next"))).toBe(true),
   );
 });
 
+it("without a list, drops a type's own status filter", async () => {
+  signInShared();
+  mount("/random/anime");
+  await waitFor(() => expect(screen.getByText("2 in the pool")).toBeInTheDocument());
+  expect(screen.getByText("Airing Type")).toBeInTheDocument();
+  expect(screen.queryByText("Watch Status")).not.toBeInTheDocument();
+});
+
+it("with a list, offers a type's own status filter", async () => {
+  signInMember();
+  mount("/random/anime");
+  await waitFor(() => expect(screen.getByText("2 in the pool")).toBeInTheDocument());
+  expect(screen.getByText("Watch Status")).toBeInTheDocument();
+});
+
+it("without a list, ignores a saved personal default and draws evenly", async () => {
+  signInShared();
+  storedDefaults = { all: { statusGroup: ["Completed"] } };
+  mount("/random");
+  await waitFor(() => expect(screen.getByText("3 in the pool")).toBeInTheDocument());
+  expect(screen.queryByRole("button", { name: "Defaults" })).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Anime" }));
+  fireEvent.click(screen.getByRole("button", { name: /^pick$/i }));
+  expect(await screen.findByText("1 in 2 (50.0%) chance")).toBeInTheDocument();
+});
+
+it("with a list, opens on the same saved personal default", async () => {
+  signInMember();
+  storedDefaults = { all: { statusGroup: ["Completed"] } };
+  mount("/random");
+  await waitFor(() => expect(screen.getByText("1 in the pool")).toBeInTheDocument());
+  expect(screen.getByRole("button", { name: "Defaults" })).toBeInTheDocument();
+});
+
+it("without a list, opens the picker for a Weights tab link", async () => {
+  signInShared();
+  mount("/random?tab=weights");
+  await waitFor(() => expect(screen.getByText("3 in the pool")).toBeInTheDocument());
+  expect(screen.queryByText("Step 1 · Status group")).not.toBeInTheDocument();
+});
+
+// Offered in both versions: a catalogue filter, not a personal one.
+it.each([
+  ["without a list", signInShared],
+  ["with a list", signInMember],
+])("narrows the pool by external score %s", async (_label, signIn) => {
+  signIn();
+  mount("/random/anime");
+  await waitFor(() => expect(screen.getByText("2 in the pool")).toBeInTheDocument());
+  expect(screen.getByText("MAL Score")).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "8+" }));
+  expect(screen.getByText("1 in the pool")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: /^pick$/i }));
+  expect(await screen.findByText("Frieren")).toBeInTheDocument();
+  expect(screen.queryByText("Mushishi Special")).not.toBeInTheDocument();
+});
+
 it("lists every weight on the Weights tab", async () => {
+  signInMember();
   mount("/random?tab=weights");
   expect(await screen.findByText("Step 1 · Status group")).toBeInTheDocument();
   expect(screen.getByText("Serialization · Manga mode only")).toBeInTheDocument();

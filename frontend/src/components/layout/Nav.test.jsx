@@ -37,7 +37,7 @@ const MEMBER_KEYS = new Set([
   "view.person",
   "view.character",
   "view.search",
-  "view.extras",
+  "view.random_picker",
 ]);
 const auth = {
   isAdmin: false,
@@ -127,7 +127,6 @@ const ADMIN_PERMISSIONS = [
 const USER_PERMISSIONS = [
   ...MEDIA_TYPE_KEYS,
   "view.search",
-  "view.extras",
   "view.personal",
   "self.list",
   "self.personal_notes",
@@ -167,7 +166,7 @@ describe("Nav tabs", () => {
 
   it("marks no tab on routes outside every section", () => {
     renderNav("/");
-    for (const label of ["library", "track", "insights"]) {
+    for (const label of ["library", "track", "explore"]) {
       expect(tab(label)).not.toHaveAttribute("aria-current");
     }
   });
@@ -191,12 +190,12 @@ describe("Nav panels", () => {
     const user = userEvent.setup();
     renderNav("/");
 
-    await user.click(tab("insights"));
-    expect(tab("insights")).toHaveAttribute("aria-expanded", "true");
+    await user.click(tab("explore"));
+    expect(tab("explore")).toHaveAttribute("aria-expanded", "true");
 
     await user.keyboard("{Escape}");
-    expect(tab("insights")).toHaveAttribute("aria-expanded", "false");
-    expect(tab("insights")).toHaveFocus();
+    expect(tab("explore")).toHaveAttribute("aria-expanded", "false");
+    expect(tab("explore")).toHaveFocus();
   });
 
   it("groups Collection and Franchise away from ACG and Reality", async () => {
@@ -324,7 +323,9 @@ describe("Nav admin gating", () => {
     const user = userEvent.setup();
     renderNav("/");
 
-    for (const label of ["library", "track", "insights"]) {
+    // The member holds no quotes_memes switch and no manage.resources, so
+    // Extras has nothing for it and is not drawn.
+    for (const label of ["library", "track", "explore"]) {
       await user.click(tab(label));
       expect(
         screen.queryByRole("link", { name: /watch orders/i }),
@@ -454,6 +455,61 @@ describe("Nav - the Requests link", () => {
   });
 });
 
+describe("Nav - the System tab", () => {
+  it("is labelled System for a holder of manage.pipelines", () => {
+    auth.isAdmin = true; // holds manage.pipelines in this mock
+    renderNav("/");
+    expect(screen.getByRole("button", { name: /^system$/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^pipelines$/i })).toBeNull();
+  });
+
+  it("is not drawn without manage.pipelines", () => {
+    renderNav("/");
+    expect(screen.queryByRole("button", { name: /^system$/i })).toBeNull();
+  });
+});
+
+describe("Nav - the Settings link", () => {
+  // Settings sits with the account, not in a tab. self.list is the key
+  // App.jsx's /settings route asks; the refusal case is a session holding
+  // everything else, so a missing link is self.list's doing.
+  it("is offered in the strip and the drawer to a holder of self.list", async () => {
+    auth.username = "bob";
+    const user = userEvent.setup();
+    renderNav("/");
+    expect(screen.getByRole("link", { name: /^settings$/i })).toHaveAttribute(
+      "href",
+      "/settings",
+    );
+    await user.click(screen.getByRole("button", { name: /toggle navigation/i }));
+    expect(
+      within(drawer()).getByRole("link", { name: /^settings$/i }),
+    ).toHaveAttribute("href", "/settings");
+  });
+
+  it("is not offered without self.list, whatever else is held", async () => {
+    auth.username = "admin";
+    auth.isAdmin = true;
+    auth.member = false;
+    auth.filesRequests = true;
+    // isAdmin answers yes to every key in this mock, self.list included, so
+    // take self.list alone away.
+    const has = auth.has;
+    auth.has = (p) => (p === "self.list" ? false : has(p));
+    try {
+      const user = userEvent.setup();
+      renderNav("/");
+      expect(screen.queryByRole("link", { name: /^settings$/i })).toBeNull();
+      // The strip was drawn: Requests, its neighbour, is there.
+      expect(screen.getByRole("link", { name: /^requests$/i })).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: /toggle navigation/i }));
+      expect(within(drawer()).queryByRole("link", { name: /^settings$/i })).toBeNull();
+    } finally {
+      auth.has = has;
+    }
+  });
+});
+
 describe("Nav - the phone drawer", () => {
   async function openDrawer(user) {
     await user.click(screen.getByRole("button", { name: /toggle navigation/i }));
@@ -461,7 +517,7 @@ describe("Nav - the phone drawer", () => {
   }
 
   // The drawer used to print every section's every link at once, so Track
-  // and Insights sat several screens below Library on a phone. Both halves
+  // and the tabs after it sat several screens below Library on a phone. Both halves
   // are asserted: the current section open alone would pass for a drawer
   // that opens everything.
   it("opens with only the current section unfolded", async () => {
@@ -566,12 +622,25 @@ describe("Nav - what a guest is shown", () => {
     expect(screen.getByRole("button", { name: /^search$/i })).toBeInTheDocument();
   });
 
-  it("leaves a guest the Library tab alone: no Track, no Insights", () => {
+  it("leaves a guest Library and Explore: no Track or Extras", () => {
+    // Explore holds Future Releases, which reads the catalogue lists a guest
+    // reads; everything else there and in Track and Extras is a member's.
     guest();
     renderNav("/");
     expect(tab("library")).toBeInTheDocument();
+    expect(tab("^explore$")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^track$/i })).toBeNull();
-    expect(screen.queryByRole("button", { name: /^insights$/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^extras$/i })).toBeNull();
+  });
+
+  it("draws Track, Explore and Extras for a member", () => {
+    // The mirror of the guest case: the same render with the member keys,
+    // and the quotes_memes switch that draws Extras for a member.
+    auth.features = ["quotes_memes"];
+    renderNav("/");
+    expect(tab("^track$")).toBeInTheDocument();
+    expect(tab("^explore$")).toBeInTheDocument();
+    expect(tab("^extras$")).toBeInTheDocument();
   });
 
   it("keeps Groups and the media types in a guest's Library, not Entities", async () => {
@@ -594,7 +663,7 @@ describe("Nav - what a guest is shown", () => {
     const panel = document.querySelector("[data-nav-panel]");
     expect(within(panel).getByText("Entities")).toBeInTheDocument();
     expect(within(panel).getByRole("link", { name: /studio/i })).toBeInTheDocument();
-    await user.click(tab("track"));
+    await user.click(tab("explore"));
     expect(screen.getByRole("link", { name: /random picker/i })).toBeInTheDocument();
   });
 });
@@ -639,7 +708,7 @@ describe("Nav - the admin, who is not root", () => {
     expect(screen.queryByRole("button", { name: /^search$/i })).toBeNull();
     // Its own tabs are drawn, so the header is not simply empty.
     expect(tab("admin")).toBeInTheDocument();
-    expect(tab("pipelines")).toBeInTheDocument();
+    expect(tab("system")).toBeInTheDocument();
   });
 
   it("offers the admin the Back up button, a pipeline", () => {
@@ -656,7 +725,7 @@ describe("Nav - the admin, who is not root", () => {
     expect(tab("library")).toBeInTheDocument();
     expect(tab("track")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^note$/i })).toBeNull();
-    for (const label of ["library", "track", "insights"]) {
+    for (const label of ["library", "track", "explore"]) {
       await user.click(tab(label));
       for (const name of NOTE_ROWS) {
         expect(screen.queryByRole("link", { name })).toBeNull();
@@ -669,12 +738,13 @@ describe("Nav - the admin, who is not root", () => {
 describe("Nav - the Resources link", () => {
   it("is not offered to a user", async () => {
     auth.held = [...USER_PERMISSIONS];
+    auth.features = ["quotes_memes"];
     auth.username = "bob";
     const user = userEvent.setup();
     renderNav("/");
-    // Insights is drawn (Statistics), so the missing row is its own gate's.
-    await user.click(tab("insights"));
-    expect(screen.getByRole("link", { name: /statistics/i })).toBeInTheDocument();
+    // Extras is drawn (Quotes), so the missing row is its own gate's.
+    await user.click(tab("extras"));
+    expect(screen.getByRole("link", { name: /quotes/i })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^resources$/i })).toBeNull();
   });
 
@@ -686,7 +756,7 @@ describe("Nav - the Resources link", () => {
     auth.role = "super";
     const user = userEvent.setup();
     renderNav("/");
-    await user.click(tab("insights"));
+    await user.click(tab("extras"));
     expect(screen.getByRole("link", { name: /^resources$/i })).toHaveAttribute(
       "href",
       "/resources",

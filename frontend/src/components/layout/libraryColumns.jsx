@@ -4,6 +4,12 @@
 // columns below were copied into all nine of them; a change to how a rating
 // chip or the watch/read toggle looks now happens once, here.
 //
+// `personal: true` marks a column or sort whose value is the viewer's own -
+// a list-row field (user_list.LIST_FIELDS), a plan flag, a game copy - rather
+// than a fact about the work. LibraryLayout drops every such def for a viewer
+// without self.list (lib/libraryScope.js), so the factories below that read
+// one carry the flag themselves and no config can forget it.
+//
 // Colour never encodes a category here: airing status and the toggle's
 // target are text in a chip, the rating figures are plain mono numerals.
 import {
@@ -54,6 +60,7 @@ export function airingStatusColumn({ key = "status", header = "Status", hidden =
 export function myRatingColumn() {
   return {
     key: "my",
+    personal: true,
     header: "My",
     thClass: HIDDEN.lg,
     tdClass: `text-center ${HIDDEN.lg}`,
@@ -114,6 +121,7 @@ function statusToggleColumn({ key, header, statusField, buttonConfig, fallback, 
   return {
     key,
     header,
+    personal: true,
     // Echoed back so a caller (and a test) can read which field the column
     // toggles without re-deriving it from the render closure.
     statusField,
@@ -192,6 +200,7 @@ export function planFlagColumn(field, header) {
   return {
     key: field,
     header,
+    personal: true,
     thClass: HIDDEN.xl,
     tdClass: `text-center ${HIDDEN.xl}`,
     stopPropagation: true,
@@ -214,6 +223,7 @@ export function planFlagColumn(field, header) {
 export const myRatingSort = {
   key: "my_rating",
   label: "My Rating",
+  personal: true,
   compare: (a, b) => getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating),
 };
 
@@ -227,6 +237,7 @@ function usefulnessWeight(value) {
 export const usefulnessSort = {
   key: "usefulness",
   label: "Usefulness",
+  personal: true,
   compare: (a, b) => usefulnessWeight(a.usefulness) - usefulnessWeight(b.usefulness),
 };
 
