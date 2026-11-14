@@ -541,39 +541,67 @@ the data), `set-grouped` (group labels mapped through `WATCHING_STATUS_GROUP`
 / `READING_STATUS_GROUP`), `boolean` (checkbox). Top bar: search, "Sort:"
 select, Filters button with an active-count badge, grid/table toggle, result
 count. Table rows link to `${config.navPath}/${id}`; table cells receive
-`{ franchiseDict, seriesDict, isAdmin, handleStatusToggle }`, and
+`{ franchiseDict, seriesDict, canTrack, handleStatusToggle }`, and
 `handleStatusToggle` goes through `useStatusToggle(type)` with toasts
 ("Added to Watch/Read Next", "Marked for rewatch/reread", "Status → X"); the
 hook writes a status to `/api/me/list` and a plan flag to
 `/api/me/plan-flags`.
 
 **The viewer's own** in tables (`canTrack = has("self.list")`): the
-watch/read status button advances the status on click (`watchButtonColumn` /
-`readButtonColumn`), and the plan-flag checkboxes (`planFlagColumn`) work;
-without a list they are not offered.
+watch/read/play status button advances the status on click
+(`watchButtonColumn` / `readButtonColumn` / `playButtonColumn`), and the
+plan-flag checkboxes (`planFlagColumn`) work.
+
+**A viewer without a list is shown the catalogue parts only.** Every filter
+def, sort def and table column whose value is the viewer's own carries
+`personal: true`, and `LibraryLayout` drops all of them when
+`useViewScope().ownData` (`self.list`) is false, before `useLibraryState`,
+the filter panel, the sort select or the table read the config
+(`libraryConfigFor` in `lib/libraryScope.js`). So guest and shared see no
+status filter, no My Rating or Usefulness sort, and no status, my, progress,
+usefulness or plan-flag column at all - not empty ones - while super and user
+see every def, the personal ones holding their own values. A default sort
+that names a dropped sort falls back to the first remaining one, and the body
+is keyed on the scope, so a sort or filter chosen before the viewer's
+permissions changed is not carried across. Grid cards are `MediaCard`, which
+draws no status button or chip without `ownData` on its own.
+
+The flag decides by the value, not the name: personal means a field in the
+server's `LIST_FIELDS` (`app/services/domain/user_list.py`) or a per-user
+table - status and its status-group filter, my rating, usefulness, every
+`fin / total` progress column, the plan flags, and `ownership`, which is
+derived from the viewer's own `game_copy` rows. Airing, serialization and
+release status, the external ratings, game `hours_played` and h-game
+achievements are catalogue columns on the entry's row and are shown to every
+viewer. In the table below the personal defs are marked *(p)*.
 
 | Type | Series? | Filters (key: type) | Sorts | Table columns |
 |---|---|---|---|---|
-| anime | yes | airingType: set (TV/Movie/ONA/OVA/Special) · airingStatus: set · watchingStatus: set-grouped · bahaOnly: boolean | title (franchise→series→entry), release_date, my_rating, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title, type, season, status, ep (`cum_ep_fin/cum_ep_total`), my, mal, studio, baha, watch |
-| anime-movie | no | airingStatus · watchingStatus · bahaOnly | title (en→roman→alt→cn→jp), release_date (jp→tw), my_rating, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title, status, my, mal, studio, director, baha, watch, watch_next, to_rewatch |
-| movie | no | airingStatus "Release Status" · movieType (Reality/Animation) · watchingStatus | title, release_date (year of `release_date_usa` only), my_rating, imdb_rating | franchise, title, status, my, imdb, director, release, watch, watch_next, to_rewatch |
-| tv-show | no | airingStatus · watchingStatus · region: set-dynamic | title, release_date, my_rating, imdb_rating, imdb_series_rating | franchise, title, season, status, ep, my, imdb, imdb_show, watch, watch_next, to_rewatch |
-| cartoon | yes | airingStatus · airingType: set-dynamic · watchingStatus · officialSource: set-dynamic | title, release_date, my_rating, imdb_rating, imdb_series_rating | franchise, title_cn, title_en, type, season, airing, ep, source, my, imdb, imdb_show, watch |
-| manga | yes | serializationStatus: set-dynamic · readingStatus: set-grouped · region: set-dynamic | title, release_date, end_date, my_rating, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title_cn, title_en, status, ch, vol, my, mal, read, read_next, to_reread |
-| novel | yes | serializationStatus · readingStatus · region · type: set-dynamic | title, release_date, end_date, my_rating, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title_cn, title_en, status, progress (`getNovelProgress`), my, mal, read, read_next, to_reread |
-| comic | yes | comicType: set-dynamic · readingStatus · era: set-dynamic · events: set-dynamic (multi-value via `parseTypes`) | title (EN-first), release_date, my_rating | franchise, title_en, title_cn, volume_label, comic_type, era, progress (`issue_fin / issue_total ISS`), my, read, to_reread |
-| game | yes | gameType: set-dynamic · playingStatus: set-grouped (Playing / Planned / Completed / Dropped / Might Play, via `PLAYING_STATUS_GROUP`) · ownership: set-dynamic · releaseStatus: set-dynamic | title (CN-first), release_date, hours_played ("Playtime"), metacritic_score ("Metacritic", highest first, unscored last), my_rating | franchise, title_cn, title_en, game_type, hours_played (`32.5 h`), my, play (`playButtonColumn`), to_replay |
+| anime | yes | airingType: set (TV/Movie/ONA/OVA/Special) · airingStatus: set · watchingStatus: set-grouped *(p)* · bahaOnly: boolean | title (franchise→series→entry), release_date, my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title, type, season, status, ep (`cum_ep_fin/cum_ep_total`) *(p)*, my *(p)*, mal, studio, baha, watch *(p)* |
+| anime-movie | no | airingStatus · watchingStatus *(p)* · bahaOnly | title (en→roman→alt→cn→jp), release_date (jp→tw), my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title, status, my *(p)*, mal, studio, director, baha, watch *(p)*, watch_next *(p)*, to_rewatch *(p)* |
+| movie | no | airingStatus "Release Status" · movieType (Reality/Animation) · watchingStatus *(p)* | title, release_date (year of `release_date_usa` only), my_rating *(p)*, imdb_rating | franchise, title, status, my *(p)*, imdb, director, release, watch *(p)*, watch_next *(p)*, to_rewatch *(p)* |
+| tv-show | no | airingStatus · watchingStatus *(p)* · region: set-dynamic | title, release_date, my_rating *(p)*, imdb_rating, imdb_series_rating | franchise, title, season, status, ep *(p)*, my *(p)*, imdb, imdb_show, watch *(p)*, watch_next *(p)*, to_rewatch *(p)* |
+| cartoon | yes | airingStatus · airingType: set-dynamic · watchingStatus *(p)* · officialSource: set-dynamic | title, release_date, my_rating *(p)*, imdb_rating, imdb_series_rating | franchise, title_cn, title_en, type, season, airing, ep *(p)*, source, my *(p)*, imdb, imdb_show, watch *(p)* |
+| manga | yes | serializationStatus: set-dynamic · readingStatus: set-grouped *(p)* · region: set-dynamic | title, release_date, end_date, my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title_cn, title_en, status, ch *(p)*, vol *(p)*, my *(p)*, mal, read *(p)*, read_next *(p)*, to_reread *(p)* |
+| novel | yes | serializationStatus · readingStatus *(p)* · region · type: set-dynamic | title, release_date, end_date, my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title_cn, title_en, status, progress (`getNovelProgress`) *(p)*, my *(p)*, mal, read *(p)*, read_next *(p)*, to_reread *(p)* |
+| comic | yes | comicType: set-dynamic · readingStatus *(p)* · era: set-dynamic · events: set-dynamic (multi-value via `parseTypes`) | title (EN-first), release_date, my_rating *(p)* | franchise, title_en, title_cn, volume_label, comic_type, era, progress (`issue_fin / issue_total ISS`) *(p)*, my *(p)*, read *(p)*, to_reread *(p)* |
+| game | yes | gameType: set-dynamic · playingStatus: set-grouped (Playing / Planned / Completed / Dropped / Might Play, via `PLAYING_STATUS_GROUP`) *(p)* · ownership: set-dynamic *(p)* · releaseStatus: set-dynamic | title (CN-first), release_date, hours_played ("Playtime"), metacritic_score ("Metacritic", highest first, unscored last), my_rating *(p)* | franchise, title_cn, title_en, game_type, hours_played (`32.5 h`), my *(p)*, play (`playButtonColumn`) *(p)*, to_replay *(p)* |
 
 All default to the `title` sort. `Library.test.jsx` pins the twelve config
 keys, requires more than three table columns and a `my_rating` sort per
-config, and checks the unknown-type redirect. Search strings cover every name
+config, and checks the unknown-type redirect; it also renders one library
+for a guest and for a `self.list` holder on the same data and checks the
+personal filter, sort and columns are drawn for the second only.
+`configs/personal.test.js` requires every config's status-group filter,
+my-rating sort, status, my and plan-flag columns to carry `personal: true`,
+and every config to keep a catalogue sort and columns. Search strings cover every name
 field of the entry plus franchise/series names, release date/season (anime
 also matches `SPR2024` / `Spring2024`), genres, studio, label, for comic the
 writer and volume label, and for game the game type and release status.
 
-The game row's `ownership` filter is a plain string column here: it is derived
-server-side from the entry's `game_copy` rows and stored nowhere, so the page
-treats it like any other value. `playButtonColumn` is the third
+The game row's `ownership` filter reads a plain string: it is derived
+server-side from the viewer's own `game_copy` rows and stored nowhere, which is
+why it is `personal`. `playButtonColumn` is the third
 `statusToggleColumn` beside `watchButtonColumn` / `readButtonColumn`, driven by
 `getPlayingButtonConfig`; every one of them now also echoes its `statusField`
 and `fallback` back on the column object so a test can read which field it

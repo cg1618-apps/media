@@ -76,6 +76,7 @@ const GAME_LIBRARY_CONFIG = {
     {
       key: "playingStatus",
       label: "Play Status",
+      personal: true,
       type: "set-grouped",
       groupOptions: ["Playing", "Planned", "Completed", "Dropped", "Might Play"],
       match: (item, active) =>
@@ -86,6 +87,7 @@ const GAME_LIBRARY_CONFIG = {
       // a plain string here like any other column.
       key: "ownership",
       label: "Ownership",
+      personal: true,
       type: "set-dynamic",
       deriveOptions: (data) =>
         [...new Set(data.map((d) => d.ownership).filter(Boolean))].sort(),

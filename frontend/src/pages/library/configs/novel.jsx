@@ -54,6 +54,7 @@ const NOVEL_LIBRARY_CONFIG = {
     {
       key: "readingStatus",
       label: "Read Status",
+      personal: true,
       type: "set-grouped",
       groupOptions: ["Reading", "Planned", "Completed", "Dropped", "Might Read"],
       match: (item, active) =>
@@ -125,6 +126,7 @@ const NOVEL_LIBRARY_CONFIG = {
     {
       key: "progress",
       header: "Progress",
+      personal: true,
       thClass: "hidden lg:table-cell",
       tdClass: "text-xs text-center font-mono text-text-muted hidden lg:table-cell",
       render: (item) => getNovelProgress(item),
