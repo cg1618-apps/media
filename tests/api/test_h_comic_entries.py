@@ -165,7 +165,7 @@ def test_delete_removes_the_entry(owner_client, db_session):
 # ---------------------------------------------------------------------------
 
 JP_ONLY = {
-    "originality": "原創",
+    "originality": "原版",
     "animation_status": "Animated",
     "series_number": 2,
     "page_total": 30,
