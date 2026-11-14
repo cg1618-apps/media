@@ -87,6 +87,7 @@ const H_GAME_LIBRARY_CONFIG = {
     {
       key: "playingStatus",
       label: "Play Status",
+      personal: true,
       type: "set-grouped",
       groupOptions: ["Playing", "Planned", "Completed", "Dropped", "Might Play"],
       match: (item, active) =>
@@ -96,9 +97,9 @@ const H_GAME_LIBRARY_CONFIG = {
     setFilter("language", "Language", "language_availability"),
     listFilter("platform", "Platform", "platform"),
     // Derived server-side from the copy rows, as on Game.
-    setFilter("ownership", "Ownership", "ownership"),
+    { ...setFilter("ownership", "Ownership", "ownership"), personal: true },
     setFilter("releaseStatus", "Release", "release_status"),
-    setFilter("usefulness", "Usefulness", "usefulness"),
+    { ...setFilter("usefulness", "Usefulness", "usefulness"), personal: true },
   ],
 
   sortDefs: [

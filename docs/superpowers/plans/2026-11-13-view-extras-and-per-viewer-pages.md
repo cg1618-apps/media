@@ -225,6 +225,15 @@ gate is any ordinary media type (`LIBRARY_MEDIA_TYPE_PERMISSIONS`), not
   first). If none is left, the PATCH refuses personal keys with **422**
   rather than dropping them, as `/api/me/list` refuses a foreign key. If
   one is left, say which in the PR body rather than leave it silently.
+  **Checked 2026-11-14: callers remain, so no 422.** The Add and Modify forms
+  (`pages/admin/Add.jsx`, `Modify.jsx`, `pages/add-tabs/*`, through
+  `lib/payloads.js`'s `*FieldsPayload` and `buildAnime*Payload`) send the
+  editor's own status, `my_rating`, progress counters and plan flags in the
+  same body as the catalogue fields, on POST, PUT and PATCH. They are
+  catalogue editors' forms (super holds `self.list` too), so the personal
+  half stays on those routes for them; the PR body lists them. Every
+  self-service control a viewer without `manage.catalog` is offered writes
+  through `/api/me`.
 - UI gates: every personal control asks P5's
   `useViewScope().ownData` (= `has("self.list")`), not `isAdmin`. Nothing
   here builds on `useViewScope().personal`: `view.personal` survives only

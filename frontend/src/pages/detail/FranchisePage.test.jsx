@@ -2,7 +2,7 @@
 //
 // Every media tab carries the number of entries it lists. A tab whose label
 // had no count showed "Game 0" beside a full list of games.
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -69,6 +69,9 @@ beforeEach(() => {
           my_rating: body.my_rating ?? franchise.my_rating ?? null,
           expectation: body.expectation ?? franchise.franchise_expectation ?? null,
         });
+      }
+      if (init.method === "PUT" && u.startsWith("/api/me/remarks/")) {
+        return jsonRes({ remark: JSON.parse(init.body).remark });
       }
       if (u.startsWith("/api/franchise/FR001")) return jsonRes(franchise);
       if (u.startsWith("/api/game/")) return jsonRes(GAMES);
@@ -234,5 +237,51 @@ describe("FranchisePage for a guest", () => {
     expect(ratingSelect()).toBeFalsy();
     expect(screen.queryByLabelText("Rating S")).toBeNull();
     expect(screen.queryByText(/Expectation · High/)).toBeNull();
+  });
+});
+
+// The hero remark is the viewer's own: a holder of self.list writes it through
+// /api/me/remarks, never the catalogue's PATCH. The franchise carries a remark
+// in both cases, so the box's absence without self.list is the permission's
+// doing and not an empty row's.
+describe("FranchisePage own remark", () => {
+  const LISTER = { username: "reader", role: "user", is_admin: false, permissions: ["self.list"] };
+  const NO_LIST = { ...LISTER, permissions: [] };
+  const remarked = { ...FRANCHISE, remark: "Watch the films first." };
+  const remarkBox = () => screen.queryByPlaceholderText(/Private overview notes/);
+  const putCalls = () =>
+    fetch.mock.calls.filter(
+      ([url, init]) => init?.method === "PUT" && String(url).startsWith("/api/me/remarks/"),
+    );
+  const patchCalls = () => fetch.mock.calls.filter(([, init]) => init?.method === "PATCH");
+
+  it("lets a holder of self.list edit it, saved through /api/me/remarks", async () => {
+    franchise = remarked;
+    me = LISTER;
+    renderPage();
+    const box = await screen.findByPlaceholderText(/Private overview notes/);
+    expect(box).toHaveValue("Watch the films first.");
+    expect(box).toBeEnabled();
+
+    await userEvent.clear(box);
+    await userEvent.type(box, "Start with the games.");
+    fireEvent.blur(box);
+    await waitFor(() => expect(putCalls()).toHaveLength(1));
+    expect(putCalls()[0][0]).toBe("/api/me/remarks/franchise/FR001");
+    expect(JSON.parse(putCalls()[0][1].body)).toEqual({ remark: "Start with the games." });
+
+    await userEvent.clear(box);
+    fireEvent.blur(box);
+    await waitFor(() => expect(putCalls()).toHaveLength(2));
+    expect(JSON.parse(putCalls()[1][1].body)).toEqual({ remark: null });
+    expect(patchCalls()).toHaveLength(0);
+  });
+
+  it("does not draw the box without self.list", async () => {
+    franchise = remarked;
+    me = NO_LIST;
+    renderPage();
+    expect(await screen.findByRole("button", { name: /^Game\s*2$/ })).toBeInTheDocument();
+    expect(remarkBox()).toBeNull();
   });
 });

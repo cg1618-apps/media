@@ -44,6 +44,8 @@ import { entityPath } from "../../lib/entityPath";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
 import LazyImage from "../../components/ui/LazyImage";
 import { focusStyle } from "../../lib/covers";
+import { useViewScope } from "../../hooks/useViewScope";
+import { useMyRemarkSaver } from "../../api/mutations/useMyRemark";
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
@@ -191,6 +193,8 @@ export default function Game() {
   // Everything past the lookup still speaks UUIDs; only the URL segment
   // changed. Resolved from the fetched row so the two can never disagree.
   const system_id = gameQuery.data?.system_id;
+  const { ownData } = useViewScope();
+  const saveMyRemark = useMyRemarkSaver("game", system_id, setGame);
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const { setMediaItem, fetchMediaItem, invalidateMedia } = useMediaCacheUpdate("game", publicId);
@@ -636,15 +640,15 @@ export default function Game() {
 
             <GameCopiesSection copies={game.copies} />
 
-            {game.remark && (
+            {ownData && game.remark && (
               <Slip title="Remarks">
                 <textarea
                   key={game.system_id}
                   defaultValue={game.remark || ""}
-                  disabled={!isAdmin}
-                  onBlur={(e) =>
-                    isAdmin && performPatch({ remark: e.target.value || null }, "Remark saved")
-                  }
+                  onBlur={(e) => {
+                    if (e.target.value !== (game.remark || ""))
+                      saveMyRemark(e.target.value);
+                  }}
                   rows={4}
                   placeholder="Add remarks…"
                   className={textareaCls}
@@ -653,7 +657,7 @@ export default function Game() {
             )}
 
             <NotesBlocks
-              hideSections={game.remark ? ["remark"] : []}
+              hideSections={ownData && game.remark ? ["remark"] : []}
               // Rendered in the Progress slip at the top instead.
               hideGroups={["todo"]}
             />

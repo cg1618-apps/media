@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import { useLibraryState } from "../../hooks/useLibraryState";
+import { useViewScope } from "../../hooks/useViewScope";
+import { libraryConfigFor } from "../../lib/libraryScope";
 import { useStatusToggle } from "../../hooks/useStatusToggle";
 import { useIncrementalList } from "../../hooks/useIncrementalList";
 import MediaCard from "../cards/MediaCard";
@@ -24,8 +26,22 @@ import { Eyebrow } from "../ui/primitives";
  *   series      {object[]} — series array (pass [] if type doesn't use it)
  *   isLoading   {boolean}
  *   error       {string|null}
+ *
+ * A viewer without self.list (`ownData`) is shown the catalogue parts only:
+ * every filter, sort and column the config marks `personal` is dropped before
+ * anything reads the config (lib/libraryScope.js). The body is keyed on the
+ * scope, so a sort or filter chosen under one scope is not carried into the
+ * other when the viewer's permissions change.
  */
-export default function LibraryLayout({
+export default function LibraryLayout({ config, ...props }) {
+  const { ownData } = useViewScope();
+  const scoped = useMemo(() => libraryConfigFor(config, ownData), [config, ownData]);
+  return (
+    <LibraryBody key={ownData ? "own" : "catalogue"} config={scoped} {...props} />
+  );
+}
+
+function LibraryBody({
   type,
   config,
   data,

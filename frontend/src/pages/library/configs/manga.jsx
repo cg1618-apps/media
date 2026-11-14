@@ -54,6 +54,7 @@ const MANGA_LIBRARY_CONFIG = {
     {
       key: "readingStatus",
       label: "Read Status",
+      personal: true,
       type: "set-grouped",
       groupOptions: ["Reading", "Planned", "Completed", "Dropped", "Might Read"],
       match: (item, active) =>
@@ -117,6 +118,7 @@ const MANGA_LIBRARY_CONFIG = {
     {
       key: "ch",
       header: "CH",
+      personal: true,
       thClass: "hidden lg:table-cell",
       tdClass: "text-xs text-center font-mono text-text-muted hidden lg:table-cell",
       render: (item) => `${item.ch_fin ?? 0} / ${item.ch_total ?? "?"}`,
@@ -124,6 +126,7 @@ const MANGA_LIBRARY_CONFIG = {
     {
       key: "vol",
       header: "VOL",
+      personal: true,
       thClass: "hidden lg:table-cell",
       tdClass: "text-xs text-center font-mono text-text-muted hidden lg:table-cell",
       render: (item) => `${item.vol_fin ?? 0} / ${item.vol_total ?? "?"}`,

@@ -53,6 +53,7 @@ const CARTOON_LIBRARY_CONFIG = {
     {
       key: "watchingStatus",
       label: "Watch Status",
+      personal: true,
       type: "set-grouped",
       groupOptions: ["Watching", "Planned", "Completed", "Dropped", "Might Watch"],
       match: (item, active) =>
@@ -118,6 +119,7 @@ const CARTOON_LIBRARY_CONFIG = {
     {
       key: "ep",
       header: "EP",
+      personal: true,
       thClass: "hidden lg:table-cell",
       tdClass: "text-xs text-center font-mono text-text-muted hidden lg:table-cell",
       render: (item) => `${item.ep_fin ?? 0} / ${item.ep_total ?? "?"}`,

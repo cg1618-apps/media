@@ -2,6 +2,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { applyFilterDefs } from "../lib/libraryFilters";
+import { resolveSortKey } from "../lib/libraryScope";
 import { cleanString } from "../utils/media";
 import { useFilterState } from "./useFilterState";
 
@@ -34,6 +35,12 @@ import { useFilterState } from "./useFilterState";
 //
 // SortDef shape:
 //   { key, label, compare(a, b, franchiseDict, seriesDict) => number }
+//
+// Optional on a FilterDef, a SortDef and a table column: `personal: true`,
+// when the value it reads is the viewer's own (a list-row field, a plan flag,
+// a game copy) rather than catalogue. LibraryLayout drops every such def for
+// a viewer without self.list before this hook sees the config
+// (lib/libraryScope.js).
 // ---------------------------------------------------------------------------
 
 /**
@@ -49,7 +56,10 @@ export function useLibraryState(type, config, data, franchiseDict, seriesDict) {
   const queryClient = useQueryClient();
 
   const [searchQuery, setSearchQuery]   = useState("");
-  const [currentSort, setCurrentSort]   = useState(config.defaultSort ?? "title");
+  const [chosenSort, setCurrentSort]    = useState(config.defaultSort ?? "title");
+  // A sort the config does not offer - a default naming a dropped sort, say -
+  // falls back to its first, so the select and the order always agree.
+  const currentSort = resolveSortKey(config.sortDefs, chosenSort);
   const [currentView, setCurrentView]   = useState("grid");
   const [showFilters, setShowFilters]   = useState(false);
 

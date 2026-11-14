@@ -60,6 +60,7 @@ import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { useViewScope } from "../../hooks/useViewScope";
 import { useMyRatingSaver } from "../../api/mutations/useMyRatingMutations";
 import { entityPath } from "../../lib/entityPath";
+import { useMyRemarkSaver } from "../../api/mutations/useMyRemark";
 
 const WATCHING_STATUS_GROUPS = {
   Planned: ["Plan to Watch", "Watch When Airs"],
@@ -216,6 +217,7 @@ export default function SeriesPage() {
   // Everything past the lookup still speaks UUIDs; only the URL segment
   // changed. Resolved from the fetched row so the two can never disagree.
   const system_id = series?.system_id;
+  const saveMyRemark = useMyRemarkSaver("series", system_id, setSeries);
   const saveMyRating = useMyRatingSaver("series", system_id, setSeries);
 
   useCanonicalPath("series", series);
@@ -605,29 +607,10 @@ export default function SeriesPage() {
     }
   }
 
-  async function saveField(field, value) {
-    try {
-      const res = await fetch(endpoints.resource("series").patch(system_id), {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [field]: value === "" ? null : value }),
-        credentials: "include",
-      });
-      if (res.ok) {
-        setSeries(await res.json());
-        showToast("success", "Series updated successfully");
-      } else {
-        showToast("error", "Save failed");
-      }
-    } catch {
-      showToast("error", "Network error. Reverting.");
-    }
-  }
-
   // Shared by the inline box and the full-view modal, which edit one draft.
   function saveRemark() {
-    if (isAdmin && remark !== (series?.remark || ""))
-      saveField("remark", remark);
+    if (ownData && remark !== (series?.remark || ""))
+      saveMyRemark(remark);
   }
 
   function toggleSetFilter(setFn, group, value) {
@@ -1226,7 +1209,7 @@ export default function SeriesPage() {
             </Slip>
           )}
 
-          {(isAdmin || series.remark) && (
+          {ownData && (
             <Slip
               title="Remark"
               actions={
@@ -1245,12 +1228,11 @@ export default function SeriesPage() {
               <textarea
                 ref={remarkRef}
                 value={remark}
-                disabled={!isAdmin}
                 onChange={(e) => setRemark(e.target.value)}
                 onBlur={() => saveRemark()}
                 rows={3}
                 placeholder="Private overview notes, watch order guides or remarks for the whole series"
-                className={`w-full border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none transition ${isAdmin ? "border-border bg-surface text-text" : "border-border bg-surface-2 text-text-muted cursor-default"}`}
+                className="w-full border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none transition border-border bg-surface text-text"
               />
             </Slip>
           )}
@@ -2046,7 +2028,7 @@ export default function SeriesPage() {
               hide the duplicate `remark` section wherever that editor renders. */}
           <SeriesNotes
             series={series}
-            hideSections={isAdmin || series.remark ? ["remark"] : []}
+            hideSections={ownData ? ["remark"] : []}
           />
         </Section>
       )}
@@ -2067,7 +2049,7 @@ export default function SeriesPage() {
       {showRemark && (
         <RemarkModal
           value={remark}
-          canEdit={has("self.personal_notes")}
+          canEdit={ownData}
           onChange={setRemark}
           onClose={() => {
             saveRemark();

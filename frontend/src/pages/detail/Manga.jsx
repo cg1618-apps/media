@@ -41,6 +41,8 @@ import { progressToast } from "../../lib/progressToast";
 import { focusStyle } from "../../lib/covers";
 import CastSection from "../../components/info/CastSection";
 import LazyImage from "../../components/ui/LazyImage";
+import { useViewScope } from "../../hooks/useViewScope";
+import { useMyRemarkSaver } from "../../api/mutations/useMyRemark";
 
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
@@ -303,6 +305,8 @@ export default function Manga() {
   // Everything past the lookup still speaks UUIDs; only the URL segment
   // changed. Resolved from the fetched row so the two can never disagree.
   const system_id = mangaQuery.data?.system_id;
+  const { ownData } = useViewScope();
+  const saveMyRemark = useMyRemarkSaver("manga", system_id, setManga);
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const allMangaQuery = useMediaList("manga", LIST_OPTIONS);
@@ -745,19 +749,15 @@ export default function Manga() {
           <CastSection cast={cast} />
 
           {/* Remarks */}
-          {(manga.remark || isAdmin) && manga.remark && (
+          {ownData && manga.remark && (
             <Slip title="Remarks">
               <textarea
                 key={manga.system_id}
                 defaultValue={manga.remark || ""}
-                disabled={!isAdmin}
-                onBlur={(e) =>
-                  isAdmin &&
-                  performPatch(
-                    { remark: e.target.value || null },
-                    "Remark saved",
-                  )
-                }
+                onBlur={(e) => {
+                  if (e.target.value !== (manga.remark || ""))
+                    saveMyRemark(e.target.value);
+                }}
                 rows={4}
                 placeholder="Add remarks…"
                 className={selectCls}
@@ -766,13 +766,14 @@ export default function Manga() {
           )}
 
           {/* Structured Notes */}
-          {/* The dedicated remark textarea above renders only when a remark
-              exists; hide the notes page's `remark` section exactly then, so
-              the singleton row never has two editors on one screen. */}
+          {/* The dedicated remark textarea above renders only for a holder of
+              self.list who has a remark; hide the notes page's `remark`
+              section exactly then, so the viewer's own row never has two
+              editors on one screen. */}
           <MangaNotes
             key={manga.system_id}
             manga={manga}
-            hideSections={manga.remark ? ["remark"] : []}
+            hideSections={ownData && manga.remark ? ["remark"] : []}
             series={series}
             franchise={franchise}
           />
