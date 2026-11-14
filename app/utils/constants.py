@@ -360,8 +360,8 @@ H_COMIC_REGIONS: tuple[str, ...] = ("JP", "KR")
 H_COMIC_REGION_JP = "JP"
 H_COMIC_REGION_KR = "KR"
 
-# 原創 is an original work, 同人 a derivative one. JP only.
-H_COMIC_ORIGINALITY: tuple[str, ...] = ("原創", "同人")
+# 原版 is an original work, 同人 a derivative one. JP only.
+H_COMIC_ORIGINALITY: tuple[str, ...] = ("原版", "同人")
 # hentai.originality reuses it.
 
 # Hand-set, JP only. Whether the work has been adapted into a hentai entry.
@@ -383,8 +383,9 @@ H_COMIC_USEFULNESS: tuple[str, ...] = ("非常實用", "實用", "特定情況�
 # status AiringStatus.
 # ---------------------------------------------------------------------------
 
-# What the episode is adapted from, or Original.
-HENTAI_SOURCE_MATERIALS: tuple[str, ...] = ("Original", "Manga", "Novel")
+# What the episode is adapted from, or Original. Neither MAL nor AniDB records
+# a source material for a hentai, so nothing fills it: it is always hand-set.
+HENTAI_SOURCE_MATERIALS: tuple[str, ...] = ("Original", "Manga", "Novel", "Game")
 
 
 # ---------------------------------------------------------------------------

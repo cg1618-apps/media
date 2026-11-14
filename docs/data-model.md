@@ -769,7 +769,7 @@ write path; see [authorization.md](authorization.md#gated-types).
 | `h_comic_name_jp` | String | yes | | The JP name |
 | `h_comic_name_kr` | String | yes | | The KR name |
 | `region` | String | yes | | H_COMIC_REGIONS (JP / KR). Required by the write schemas and checked again by the tracker PATCH (422); nullable here so a Pull row with a blank cell restores rather than fails the tab |
-| `originality` | String | yes | | **JP.** H_COMIC_ORIGINALITY (原創 / 同人) |
+| `originality` | String | yes | | **JP.** H_COMIC_ORIGINALITY (原版 / 同人) |
 | `animation_status` | String | yes | | **JP.** H_COMIC_ANIMATION_STATUSES (Not Animated / Announced / Animated), the hand-set value. While the entry has `adaptation` relations from hentai entries, the API serves a **derived** value instead and this column keeps the hand-set one ([entry-types.md](entry-types.md#h-comic-animation-status-attach_animation_status-appservicesdomainh_comicpy)) |
 | `series_number` | Integer | yes | | **JP.** The entry's position in its series, like a volume number |
 | `serialization_status` | String | yes | | Both. MANGA_SERIALIZATION_STATUSES |
@@ -863,8 +863,8 @@ write path; see [authorization.md](authorization.md#gated-types).
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `hentai_name_en` / `_cn` / `_roman` / `_jp` / `_alt` | String | yes | | Anime's five. `display_name` order CN -> EN -> Alt -> roman -> JP |
-| `source_material` | String | yes | | HENTAI_SOURCE_MATERIALS (Original / Manga / Novel): what the entry adapts |
-| `originality` | String | yes | | H_COMIC_ORIGINALITY (原創 / 同人) |
+| `source_material` | String | yes | | HENTAI_SOURCE_MATERIALS (Original / Manga / Novel / Game): what the entry adapts |
+| `originality` | String | yes | | H_COMIC_ORIGINALITY (原版 / 同人) |
 | `series_number` | Integer | yes | | The entry's position in its series |
 | `airing_status` | String | yes | | AiringStatus, anime's vocabulary. Filled by Tenrai when blank, then by AniDB (derived from its dates) |
 | `release_date` | String | yes | | Truncated ISO-8601, CHECK `ck_hentai_release_date_iso`. Filled by Tenrai when blank, then by AniDB's `startdate` |

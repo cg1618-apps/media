@@ -1190,6 +1190,17 @@ def parse_game_from_sheet(raw: dict) -> dict:
     return parsed
 
 
+# An originality value a sheet backed up before its rename still holds. Shared
+# by h-comic and hentai, which read one vocabulary (H_COMIC_ORIGINALITY).
+_LEGACY_ORIGINALITY = {"原創": "原版"}
+
+
+def _originality_from_sheet(val: Any) -> Optional[str]:
+    """h_comic / hentai originality, with a renamed value read as its new name."""
+    originality = parse_from_sheet(val, str)
+    return _LEGACY_ORIGINALITY.get(originality, originality)
+
+
 def parse_h_comic_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the H-Comic sheet into typed data ready for
@@ -1215,7 +1226,7 @@ def parse_h_comic_from_sheet(raw: dict) -> dict:
         "h_comic_name_jp": parse_from_sheet(raw.get("h_comic_name_jp"), str),
         "h_comic_name_kr": parse_from_sheet(raw.get("h_comic_name_kr"), str),
         "region": parse_from_sheet(raw.get("region"), str),
-        "originality": parse_from_sheet(raw.get("originality"), str),
+        "originality": _originality_from_sheet(raw.get("originality")),
         "animation_status": parse_from_sheet(raw.get("animation_status"), str),
         "series_number": parse_from_sheet(raw.get("series_number"), int),
         "serialization_status": parse_from_sheet(
@@ -1272,7 +1283,7 @@ def parse_hentai_from_sheet(raw: dict) -> dict:
         "hentai_name_jp": parse_from_sheet(raw.get("hentai_name_jp"), str),
         "hentai_name_alt": parse_from_sheet(raw.get("hentai_name_alt"), str),
         "source_material": parse_from_sheet(raw.get("source_material"), str),
-        "originality": parse_from_sheet(raw.get("originality"), str),
+        "originality": _originality_from_sheet(raw.get("originality")),
         "series_number": parse_from_sheet(raw.get("series_number"), int),
         "airing_status": parse_from_sheet(raw.get("airing_status"), str),
         "release_date": release_date.normalize(

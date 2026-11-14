@@ -127,8 +127,10 @@ def test_display_name_falls_back_through_the_names(owner_client):
 @pytest.mark.parametrize(
     "field,value",
     [
-        ("source_material", "Game"),
+        ("source_material", "Comic"),
         ("originality", "fan work"),
+        # The value before its rename to 原版.
+        ("originality", "原創"),
         ("airing_status", "Animated"),
         ("usefulness", "very"),
     ],
@@ -140,10 +142,24 @@ def test_the_vocabularies_are_checked_on_create(owner_client, field, value):
     assert response.status_code == 422
 
 
+def test_a_game_source_and_the_renamed_originality_are_accepted(owner_client):
+    """The mirror of the refusals above: the same fields take the new values."""
+    response = owner_client.post(
+        f"{ROUTE}/",
+        json={"hentai_name_cn": TITLE, "source_material": "Game", "originality": "原版"},
+    )
+    assert response.status_code in (200, 201), response.text
+    assert (response.json()["source_material"], response.json()["originality"]) == (
+        "Game",
+        "原版",
+    )
+
+
 def test_the_vocabularies_are_checked_on_the_tracker_patch(owner_client):
     body = _create(owner_client)
     for payload in (
-        {"source_material": "Game"},
+        {"source_material": "Comic"},
+        {"originality": "原創"},
         {"airing_status": "Animated"},
         {"usefulness": "very"},
     ):
