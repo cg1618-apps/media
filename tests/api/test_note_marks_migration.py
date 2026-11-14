@@ -215,3 +215,25 @@ def test_downgrade_copies_the_owners_marks_back(db_session, rows, revision):
     assert _note(db_session, r["list"]).status == "Done"
     assert _note(db_session, r["stat"]).fields == {"min_value": "10", "my_value": "40"}
     assert owner.id != other.id
+
+
+def test_downgrade_onto_json_null_fields_builds_an_object(db_session, rows, revision):
+    """A row whose fields is the JSON scalar null, not SQL NULL. `||` onto a
+    JSON null builds an array ([null, {...}]), so the copy-back must treat it
+    as no fields at all. The mirror is the SQL NULL row beside it."""
+    _account(db_session, "cg1618", "super")
+    conn = db_session.connection()
+    revision.move_to_owner(conn)
+    conn.execute(
+        text("UPDATE note SET fields = 'null'::jsonb WHERE system_id = :id"),
+        {"id": rows["stat"].system_id},
+    )
+    conn.execute(
+        text("UPDATE note SET fields = NULL WHERE system_id = :id"),
+        {"id": rows["item"].system_id},
+    )
+
+    revision.copy_back_to_note(conn)
+
+    assert _note(db_session, rows["stat"]).fields == {"my_value": "40"}
+    assert _note(db_session, rows["item"]).status == "collected"

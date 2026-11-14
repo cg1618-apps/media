@@ -217,6 +217,32 @@ npm run lint            # eslint src
 `test_engine` guard aborts if the configured database name lacks `test`, so a
 mis-set `POSTGRES_DB` fails fast instead of wiping a real database.
 
+## Data migrations over JSON columns
+
+An installed database holds JSON columns whose cell is the JSON scalar `null`
+(`jsonb_typeof` is `'null'`), not SQL NULL — whole tables of them. Three
+operators raise on a scalar: `jsonb_array_length`, `jsonb_array_elements`
+(and its siblings), and `-` (delete a key). `->>`, `?` and `?|` answer NULL
+or false and are safe. `||` onto a JSON null does not raise but builds an
+array, `[null, {...}]`.
+
+So a revision that reads a JSON column guards it with a **CASE, never an
+AND**: PostgreSQL does not promise to evaluate an AND's operands left to
+right, so `jsonb_typeof(x) = 'array' AND jsonb_array_length(x) > 0` can still
+call `jsonb_array_length` on the scalar. `CASE WHEN jsonb_typeof(x) = 'array'
+THEN jsonb_array_length(x) ELSE 0 END > 0` cannot. An operator in an UPDATE's
+`SET` is evaluated only for rows its `WHERE` passed, so a `WHERE` guard is
+enough there, provided the `WHERE` holds nothing that raises. JSON null is "no
+value", like SQL NULL: it moves nothing, and a merge onto it starts from `{}`.
+
+The planner, not the Python, picks the evaluation order, so calling a
+revision's data steps on the test session does not prove a guard holds. That
+takes the real command over seeded rows:
+`test_highlights_json_null_migration.py` upgrades a scratch database to the
+revision before, seeds JSON-null, scalar, empty and real orders, ANALYZEs, and
+runs `alembic upgrade` and `downgrade` through `h1i2ghlights3`, the pattern
+`test_admin_not_root_migration.py` set.
+
 ## The `media` supertable in tests
 
 `tests/api/conftest.py` builds its schema with `Base.metadata.create_all` and
