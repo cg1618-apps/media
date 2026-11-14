@@ -307,11 +307,11 @@ Any exception during seeding is printed and swallowed so the server still starts
 
 A failed or non-OK `/me` request resets to the anonymous snapshot rather than erroring. Hiding in the UI is cosmetic - the server has already withheld anything the viewer may not see.
 
-### `ProtectedRoute` and `?next`
+### `ProtectedRoute` and where a login lands
 
-`<Route element={<ProtectedRoute permission="..." />}>` wraps every admin page in `App.jsx`. It takes a `permission` prop (or `anyPermission`, `feature`, `requireAuth` or `gatedType`; with none of them the route is open), shows a spinner while `loading`, then either renders the `<Outlet />` or redirects to `/login?next=<current path + search>` with `replace`.
+`<Route element={<ProtectedRoute permission="..." />}>` wraps every admin page in `App.jsx`. It takes a `permission` prop (or `anyPermission`, `feature`, `requireAuth` or `gatedType`; with none of them the route is open), shows a spinner while `loading`, then either renders the `<Outlet />` or redirects to a plain `/login` with `replace`. The page the visitor wanted is not carried along.
 
-`Login.jsx` posts the form, then **loads** `next` **only if it starts with `/`** (an absolute path on this site) and does not point back at `/login`, otherwise `/system`. The first test prevents an open redirect through the query string; the second stops a `next` that lands a signed-in visitor on the login form again.
+`Login.jsx` posts the form, then **always loads the dashboard, `/`**, as a full page load. It reads no `?next=`: the page a visitor was on belonged to whoever was signed in before, and the account signing in now may not be able to open it - sign out of one account on `/statistics`, sign in as `admin`, and a return to `/statistics` would bounce straight back to the login form. Landing on `/` also leaves no query-string redirect to abuse. An access-mode switch is not a login and does not land on `/`: it reloads the page the viewer is on.
 
 ### Saved usernames on the login page
 

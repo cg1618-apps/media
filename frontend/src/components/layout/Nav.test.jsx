@@ -335,31 +335,21 @@ describe("Nav admin gating", () => {
   });
 });
 
-// The header "Log in" button builds its next= from wherever the visitor
-// currently is. On /login that used to nest the login page inside its own
-// next - /login?next=%2Flogin%3Fnext%3D%252Fstatistics - so a visitor who was
-// bounced to /login from a protected page and then clicked this button
-// instead of filling in the form had their real destination buried one level
-// down, and Login.jsx would navigate them straight back to the login form.
-describe("Nav - the log in link's next", () => {
-  it("carries the page the visitor actually wanted", () => {
+// The header "Log in" button is a plain link to /login wherever the visitor
+// is: a login always lands on the dashboard, so there is no destination to
+// carry along.
+describe("Nav - the log in link", () => {
+  it("is a plain /login from an ordinary page", () => {
     renderNav("/statistics");
-    for (const link of screen.getAllByRole("link", { name: /log in/i })) {
-      expect(link).toHaveAttribute("href", "/login?next=%2Fstatistics");
+    const links = screen.getAllByRole("link", { name: /log in/i });
+    expect(links.length).toBeGreaterThan(0);
+    for (const link of links) {
+      expect(link).toHaveAttribute("href", "/login");
     }
   });
 
-  it("does not nest /login inside its own next when already on /login", () => {
+  it("is a plain /login on the login page, whatever its query string", () => {
     renderNav("/login?next=%2Fstatistics");
-    for (const link of screen.getAllByRole("link", { name: /log in/i })) {
-      // The next ProtectedRoute already put there is preserved, not rebuilt
-      // around the login page itself.
-      expect(link).toHaveAttribute("href", "/login?next=%2Fstatistics");
-    }
-  });
-
-  it("leaves a bare /login alone rather than pointing next at it", () => {
-    renderNav("/login");
     for (const link of screen.getAllByRole("link", { name: /log in/i })) {
       expect(link).toHaveAttribute("href", "/login");
     }

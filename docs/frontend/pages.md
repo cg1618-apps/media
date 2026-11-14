@@ -121,8 +121,8 @@ rows that link there — the SPA's two permission surfaces have to agree, and
 answers 401 on the gated endpoints and strips the personal fields, so the UI's
 half is to draw nothing rather than an empty slot, and not to ask for what it
 would be refused: `useViewScope()` (`hooks/useViewScope.js`) is where a
-component reads the flags. A guest is sent to
-`/login?next=<path>` from any member route.
+component reads the flags. A guest is sent to a plain
+`/login` from any member route.
 
 **Quotes and memes are not a `view.*` key** but the account's
 `quotes_memes` feature switch, which only a `user` or `super` account can
@@ -205,7 +205,7 @@ uses the same helper. **Log out** (POST `/api/auth/logout`, then a full
 load of the page it is on, so nothing cached for the outgoing account
 survives) follows the indicator rather than the chip: it renders for any
 signed-in account, because a strip naming you with no way out is a dead end.
-Guests get **Log in** → `/login?next=<current path>`.
+Guests get **Log in** → `/login`.
 **Requests** → `/requests` sits before log out, and in the drawer above
 it, for a viewer holding `self.requests` — the key the route asks. It
 is an account control rather than a tab, and the admin account, which files
@@ -299,7 +299,7 @@ stamps the same attribute before first paint. See components.md → Theming.
 | Piece | File | Notes |
 |---|---|---|
 | `Layout` | `components/layout/Layout.jsx` | `<Nav/>`, `<Outlet/>`, footer, `<Toast/>`, `ScrollButtons` (to-top after 300 px, to-bottom when >300 px from the end) |
-| `ProtectedRoute` | `components/layout/ProtectedRoute.jsx` | spinner while `auth.loading`; `has(permission)`, or with `anyPermission={[...]}` any one of a list, or `hasFeature(feature)` when a `feature` prop is passed, or `requireAuth` (anyone signed in), or `gatedType` (`canSeeGatedType`) → `<Outlet/>`, else `<Navigate to="/login?next=<path+search>" replace/>`. **With none of those props the route is open**: a page that needs a capability names its permission. A redirect, not a security boundary — the API enforces. |
+| `ProtectedRoute` | `components/layout/ProtectedRoute.jsx` | spinner while `auth.loading`; `has(permission)`, or with `anyPermission={[...]}` any one of a list, or `hasFeature(feature)` when a `feature` prop is passed, or `requireAuth` (anyone signed in), or `gatedType` (`canSeeGatedType`) → `<Outlet/>`, else `<Navigate to="/login" replace/>` (no `?next=`: a login always lands on `/`). **With none of those props the route is open**: a page that needs a capability names its permission. A redirect, not a security boundary — the API enforces. |
 | `MediaLoadingState` | `components/layout/MediaLoadingState.jsx` | spinner + `loadingText`, or red error card |
 | Tab title | `contexts/PageTitleContext.jsx`, `lib/pageTitle.js` | the page's name alone: the nav row's label (`<label> Library` on a library row), a record page's displayed name via `usePageTitle`, and while that loads or fails the nav row it lights up ("Anime"). See [components.md](components.md#contexts) |
 | Toasts | `hooks/useToast.jsx`, `components/layout/Toast.jsx` | `showToast(type, message)`, auto-dismiss 3.5 s, bottom-left stack |
@@ -1986,8 +1986,9 @@ design.
 
 File `pages/public/Login.jsx`. Heading "Sign in". POSTs
 `/api/auth/login` as `application/x-www-form-urlencoded` (`username`,
-`password`), then **loads** `?next` when it starts with `/` and does not point
-back at `/login`, otherwise `/system`. A full page load, not a route change -
+`password`), then **always loads the dashboard, `/`**, whatever page the
+visitor came from: the account signing in may not be able to open that page.
+The page reads no `?next=`. A full page load, not a route change -
 everything cached up to that moment was cached as a guest. A refusal shows the
 server's `detail` as it comes, inline and as a toast: the generic 401, the
 403 a pending or a disabled account gets after the right password, and the

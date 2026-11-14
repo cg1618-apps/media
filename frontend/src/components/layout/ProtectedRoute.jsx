@@ -30,7 +30,7 @@
 // This is a redirect, not a security boundary: the API refuses the request on
 // its own. The point is to send someone to the login page instead of showing
 // them a screen that will only fill with errors.
-import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { canSeeGatedType } from "../../lib/gatedTypes";
 
@@ -43,7 +43,6 @@ export default function ProtectedRoute({
 }) {
   const auth = useAuth();
   const { has, hasFeature, username, loading } = auth;
-  const location = useLocation();
 
   if (loading) {
     return (
@@ -60,10 +59,7 @@ export default function ProtectedRoute({
     return username ? (
       <Navigate to="/" replace />
     ) : (
-      <Navigate
-        to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`}
-        replace
-      />
+      <Navigate to="/login" replace />
     );
   }
 
@@ -79,13 +75,8 @@ export default function ProtectedRoute({
         ? anyPermission.some((p) => has(p))
         : true;
 
-  // Without it, send them to login and preserve the page they wanted.
-  return allowed ? (
-    <Outlet />
-  ) : (
-    <Navigate
-      to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`}
-      replace
-    />
-  );
+  // Without it, send them to login. The page they wanted is not carried
+  // along: a successful login always lands on the dashboard, because the
+  // account that signs in may not be one that can open this page.
+  return allowed ? <Outlet /> : <Navigate to="/login" replace />;
 }
