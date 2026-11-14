@@ -4783,12 +4783,13 @@ pages: one `Index` picks its parts in `components/dashboard/dashboardSections.js
 and every pick is a permission, never a role name, so a role edited on
 `/roles` gets the dashboard its permissions describe.
 
-- **The admin is "admin.authz and no media_type.* key", not "admin.authz".**
+- **The admin is "admin.authz and no library media type", not "admin.authz".**
   What makes the admin's page necessary is that it reads no catalogue; the
   catalogue dashboard would only fetch lists the admin is refused. A role
   holding both would be shown the catalogue dashboard, since it can read it.
-  The SPA has no `isRoot` and `has()` is plain membership, so the test reads
-  `permissions` for the prefix.
+  "Reads the catalogue" is asked as `LIBRARY_MEDIA_TYPE_PERMISSIONS.some(has)`,
+  the question the Library tab and Future Releases already ask, so the
+  dashboard and the header cannot disagree about it.
 - **Nothing is chosen before `/me` answers.** Until then every viewer looks
   like a guest, and the admin would fire catalogue reads that answer 401. The
   page shows its loading state instead; the cost is one round trip that the
@@ -4805,7 +4806,8 @@ and every pick is a permission, never a role name, so a role edited on
 - **The pipeline runs link to `/system`, not `/data-history`.** The data
   control log (`/api/system/logs`) is drawn on `/system`; `/data-history`
   shows recent and deleted records, not pipeline runs.
-- **The admin page's announcement editor is a component, `/system`'s is
-  still inline.** `AnnouncementEditor` uses the same routes as the
-  Announcement & Notes card on `/system`. Moving that card onto the component
-  is the obvious next step; it was left to a change that owns `Admin.jsx`.
+- **One announcement editor, on both pages.** `AnnouncementEditor` is what
+  the admin's dashboard and `/system`'s Announcement & Notes card both draw,
+  over the one `["announcements"]` query. `/system` had its own hand-written
+  editor for the same routes; two editors would drift, so the card now
+  renders the component and its inline state, handlers and form are gone.

@@ -112,9 +112,13 @@ label reference and the RBAC pages — never the catalogue editors.
   and leave out an h-game row for a session that may not see the type
   (`visibleByType`), so a hidden row is never ticked or posted.
 - **Announcements.** Create / edit / delete the dashboard board
-  (`/api/announcements/`; title is the identifier — see api.md). Drawn only
-  for `has("manage.announcements")`, the key the writes ask — the admin and
-  super both hold it beside `manage.pipelines`.
+  (`/api/announcements/`; title is the identifier — see api.md). The card is
+  `AnnouncementBoard` beside `AnnouncementEditor`
+  (`components/dashboard/`), the same editor the admin's dashboard draws, and
+  both read the `["announcements"]` query, so a write on either page
+  refreshes the other. Drawn only for `has("manage.announcements")`, the key
+  the writes ask — the admin and super both hold it beside
+  `manage.pipelines`.
 - **Current season.** Reads and writes `/api/system/config/current_season`
   (`"SPR 2025"` shape; not validated server-side). The season and year
   pickers default to the season after today's (`nextSeason` in

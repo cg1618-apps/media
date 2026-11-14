@@ -321,7 +321,7 @@ loading state until then, because before it every viewer looks like a guest.
 
 | Part | Asks | Who that is, as seeded |
 |---|---|---|
-| The admin's own page (`AdminDashboard`), **instead of** everything below | `has("admin.authz")` and no `media_type.*` key in `permissions` | admin |
+| The admin's own page (`AdminDashboard`), **instead of** everything below | `has("admin.authz")` and none of `LIBRARY_MEDIA_TYPE_PERMISSIONS`, the Library tab's own question | admin |
 | Tracker: My watch schedule, Coming Next, Followed orders, the type filter bar, Watching, Reading, Playing | `has("self.list")` | super, user |
 | Summary (`DashboardSummary`) above Announcements | `has("self.list") && has("manage.requests")` | super |
 | Libraries (`#libraries`, `LibraryLinks`) | `!has("self.list")`, and at least one library row visible | guest, shared |

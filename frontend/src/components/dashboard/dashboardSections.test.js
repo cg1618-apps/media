@@ -1,6 +1,17 @@
 // Which dashboard parts a permission set opens. Each refusal has its mirror:
 // the same set with the one deciding key added or removed.
-import { dashboardSections, holdsAnyMediaType, isAdminDashboard } from "./dashboardSections";
+import { dashboardSections, isAdminDashboard } from "./dashboardSections";
+
+// The admin's fixed set: every key it holds, and no library media type.
+const ADMIN_KEYS = [
+  "admin.authz",
+  "manage.pipelines",
+  "manage.requests",
+  "manage.announcements",
+  "manage.options",
+  "manage.images",
+  "manage.resources",
+];
 
 function auth(permissions) {
   const held = new Set(permissions);
@@ -8,20 +19,16 @@ function auth(permissions) {
 }
 
 describe("isAdminDashboard", () => {
-  it("is true for admin.authz with no media_type.* key", () => {
-    expect(isAdminDashboard(auth(["admin.authz", "manage.pipelines"]))).toBe(true);
+  it("is true for the admin's seven keys, which read no library", () => {
+    expect(isAdminDashboard(auth(ADMIN_KEYS))).toBe(true);
   });
-  it("is false once any media_type.* key is held", () => {
-    expect(isAdminDashboard(auth(["admin.authz", "media_type.game"]))).toBe(false);
+  it("is false for the same keys plus one library media type", () => {
+    expect(isAdminDashboard(auth([...ADMIN_KEYS, "media_type.anime"]))).toBe(false);
   });
   it("is false without admin.authz", () => {
-    expect(isAdminDashboard(auth(["manage.pipelines"]))).toBe(false);
+    const withoutAuthz = ADMIN_KEYS.filter((k) => k !== "admin.authz");
+    expect(isAdminDashboard(auth(withoutAuthz))).toBe(false);
   });
-});
-
-it("holdsAnyMediaType matches the prefix only", () => {
-  expect(holdsAnyMediaType(["view.media_type"])).toBe(false);
-  expect(holdsAnyMediaType(["media_type.anime"])).toBe(true);
 });
 
 describe("dashboardSections", () => {
