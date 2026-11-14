@@ -35,6 +35,8 @@ import ContentLabelChips from "../../components/info/ContentLabelChips";
 import { focusStyle } from "../../lib/covers";
 import CastSection from "../../components/info/CastSection";
 import LazyImage from "../../components/ui/LazyImage";
+import { useViewScope } from "../../hooks/useViewScope";
+import { useMyRemarkSaver } from "../../api/mutations/useMyRemark";
 
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
@@ -68,6 +70,8 @@ export default function AnimeMovie() {
   // Everything past the lookup still speaks UUIDs; only the URL segment
   // changed. Resolved from the fetched row so the two can never disagree.
   const system_id = movieQuery.data?.system_id;
+  const { ownData } = useViewScope();
+  const saveMyRemark = useMyRemarkSaver("anime-movie", system_id, setMovie);
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const { setMediaItem, fetchMediaItem, invalidateMedia } =
     useMediaCacheUpdate("anime-movie", publicId);
@@ -475,16 +479,15 @@ export default function AnimeMovie() {
           <CastSection cast={cast} />
 
           {/* Remarks */}
-          {movie.remark && (
+          {ownData && movie.remark && (
             <Slip title="Remarks">
               <textarea
                 key={movie.system_id}
                 defaultValue={movie.remark || ""}
-                disabled={!isAdmin}
-                onBlur={(e) =>
-                  isAdmin &&
-                  performUpdate({ remark: e.target.value }, "Remark saved")
-                }
+                onBlur={(e) => {
+                  if (e.target.value !== (movie.remark || ""))
+                    saveMyRemark(e.target.value);
+                }}
                 rows={4}
                 placeholder="Add remarks…"
                 className={selectCls}
@@ -493,13 +496,14 @@ export default function AnimeMovie() {
           )}
 
           {/* Structured Notes */}
-          {/* The dedicated remark textarea above renders only when a remark
-              exists; hide the notes page's `remark` section exactly then, so
-              the singleton row never has two editors on one screen. */}
+          {/* The dedicated remark textarea above renders only for a holder of
+              self.list who has a remark; hide the notes page's `remark`
+              section exactly then, so the viewer's own row never has two
+              editors on one screen. */}
           <AnimeMovieNotes
             key={movie.system_id}
             movie={movie}
-            hideSections={movie.remark ? ["remark"] : []}
+            hideSections={ownData && movie.remark ? ["remark"] : []}
             franchise={franchise}
           />
         </div>
