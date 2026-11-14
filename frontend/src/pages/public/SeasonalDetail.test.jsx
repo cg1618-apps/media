@@ -6,10 +6,11 @@
 //
 // Without a list (no self.list) the page is the catalogue's season instead:
 // one grid, no status split, and no read of the viewer's own seasonal row.
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { PageTitleProvider } from "../../contexts/PageTitleContext";
 import SeasonalDetail from "./SeasonalDetail";
 
 const auth = vi.hoisted(() => ({ held: new Set(["self.list"]) }));
@@ -63,9 +64,11 @@ function respond(url) {
 function renderAt(seasonalId = "SPR 2026") {
   return render(
     <MemoryRouter initialEntries={[`/seasonal/${encodeURIComponent(seasonalId)}`]}>
-      <Routes>
-        <Route path="/seasonal/:seasonal_id" element={<SeasonalDetail />} />
-      </Routes>
+      <PageTitleProvider>
+        <Routes>
+          <Route path="/seasonal/:seasonal_id" element={<SeasonalDetail />} />
+        </Routes>
+      </PageTitleProvider>
     </MemoryRouter>,
   );
 }
@@ -99,6 +102,11 @@ describe("SeasonalDetail", () => {
     expect(whenAirs.closest("section")).not.toHaveTextContent("膽大黨");
     expect(planned.closest("section")).toHaveTextContent("膽大黨");
     expect(planned.closest("section")).not.toHaveTextContent("藥師少女的獨語");
+  });
+
+  it("names the season in the browser tab as its heading does", async () => {
+    renderAt();
+    await waitFor(() => expect(document.title).toBe("SPR 2026"));
   });
 
   it("reads the viewer's own seasonal row with a list", async () => {

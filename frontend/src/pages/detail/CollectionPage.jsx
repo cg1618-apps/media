@@ -52,6 +52,7 @@ import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import WatchOrderSection from "../../components/tracker/WatchOrderSection";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
 import CollectionNotes from "./CollectionNotes";
+import { usePageTitle } from "../../contexts/PageTitleContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { useViewScope } from "../../hooks/useViewScope";
 import { useMyRatingSaver } from "../../api/mutations/useMyRatingMutations";
@@ -200,6 +201,12 @@ export default function CollectionPage() {
       saveMyRemark(remarkDraft);
   }
 
+  // The heading's name, which the browser tab shows too.
+  const name = collection
+    ? getDisplayName(collection, "collection") || "Unknown Collection"
+    : null;
+  usePageTitle(loading || error ? null : name);
+
   if (loading) return <HubLoading label="Loading collection..." />;
 
   if (error || !collection)
@@ -221,7 +228,6 @@ export default function CollectionPage() {
     allEntriesByFranchise,
   );
 
-  const name = getDisplayName(collection, "collection") || "Unknown Collection";
   const altNames = getNamingFields(collection, "collection").filter(
     (f) => f.value && f.value !== name,
   );

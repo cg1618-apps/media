@@ -24,6 +24,8 @@ import ScoreBlock from "../../components/info/ScoreBlock";
 import NovelNotes from "./NovelNotes";
 import NovelUnitsEditor from "../../components/forms/NovelUnitsEditor";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
+import DetailContents, { TocSection } from "../../components/layout/DetailContents";
+import { usePageTitle } from "../../contexts/PageTitleContext";
 import { effectiveProgressDisplay } from "../../lib/novelUnits";
 import {
   Button,
@@ -312,6 +314,17 @@ export default function Novel() {
     }
   }
 
+  // The heading's title, which the browser tab shows too.
+  const titleMain = novel
+    ? novel.novel_name_cn ||
+      novel.novel_name_en ||
+      novel.novel_name_roman ||
+      novel.novel_name_jp ||
+      novel.novel_name_alt ||
+      "Unknown"
+    : null;
+  usePageTitle(loading || error ? null : titleMain);
+
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading details..." />;
   }
@@ -325,13 +338,6 @@ export default function Novel() {
     );
   }
 
-  const titleMain =
-    novel.novel_name_cn ||
-    novel.novel_name_en ||
-    novel.novel_name_roman ||
-    novel.novel_name_jp ||
-    novel.novel_name_alt ||
-    "Unknown";
   const titleSub =
     novel.novel_name_en && novel.novel_name_en !== titleMain
       ? novel.novel_name_en
@@ -372,7 +378,7 @@ export default function Novel() {
     .join("  ·  ");
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+    <DetailContents>
       {/* Breadcrumb: a catalogue path, set in mono */}
       <div className="mb-8 flex items-center justify-between gap-3">
         <nav
@@ -557,164 +563,182 @@ export default function Novel() {
           </header>
 
           {/* Where this entry sits in the watch orders the viewer follows. */}
-          <FollowedOrderPanel entryId={novel.system_id} />
+          <TocSection id="watch-orders" label="Watch orders">
+            <FollowedOrderPanel entryId={novel.system_id} />
+          </TocSection>
 
           {/* My Tracker Block */}
-          <NovelTrackerBlock
-            novel={novel}
-            canTrack={ownData}
-            onChChange={(v) =>
-              saveOwn({ ch_fin: v }, "Chapter progress saved")
-            }
-            onVolChange={(v) =>
-              saveOwn({ vol_fin: v }, "Volume progress saved")
-            }
-            onArcProgressChange={(next) =>
-              saveOwn(next, "Arc progress saved")
-            }
-            onStatusChange={(v) =>
-              saveOwn({ reading_status: v }, "Status updated")
-            }
-            onRatingChange={(v) =>
-              saveOwn({ my_rating: v || null }, "Rating saved")
-            }
-            onReadNextChange={(v, msg) => saveOwn({ read_next: v }, msg)}
-            onToRerereadChange={(v, msg) => saveOwn({ to_reread: v }, msg)}
-            onProgressDisplayChange={(v) =>
-              saveOwn({ progress_display: v || null }, "Progress display updated")
-            }
-          />
+          <TocSection id="tracker" label="My tracker">
+            <NovelTrackerBlock
+              novel={novel}
+              canTrack={ownData}
+              onChChange={(v) =>
+                saveOwn({ ch_fin: v }, "Chapter progress saved")
+              }
+              onVolChange={(v) =>
+                saveOwn({ vol_fin: v }, "Volume progress saved")
+              }
+              onArcProgressChange={(next) =>
+                saveOwn(next, "Arc progress saved")
+              }
+              onStatusChange={(v) =>
+                saveOwn({ reading_status: v }, "Status updated")
+              }
+              onRatingChange={(v) =>
+                saveOwn({ my_rating: v || null }, "Rating saved")
+              }
+              onReadNextChange={(v, msg) => saveOwn({ read_next: v }, msg)}
+              onToRerereadChange={(v, msg) => saveOwn({ to_reread: v }, msg)}
+              onProgressDisplayChange={(v) =>
+                saveOwn({ progress_display: v || null }, "Progress display updated")
+              }
+            />
+          </TocSection>
 
           {/* Detail Cards */}
           <div className="space-y-6">
-            <NamingCard type="novel" item={novel} />
-            <InfoCard
-              title="Information"
-              fields={[
-                [
-                  { label: "Region", value: novel.region },
-                  { label: "Type", value: novel.type },
-                  { label: "Version", value: novel.version },
-                ],
-                [
-                  { label: "本傳 / 外傳", value: novel.is_main },
-                  {
-                    label: "Serialization Status",
-                    value: novel.serialization_status,
-                  },
-                ],
-                [
-                  {
-                    label: "Release Date",
-                    value: novel.release_date || null,
-                  },
-                  {
-                    label: "End Date",
-                    value: novel.end_date || null,
-                  },
-                ],
-                [
-                  {
-                    label: "Total Volumes (JP/KR)",
-                    value:
-                      novel.vol_total_original != null
-                        ? String(novel.vol_total_original)
-                        : null,
-                  },
-                  {
-                    label: "Vol Total (TW)",
-                    value:
-                      novel.vol_total_tw != null
-                        ? String(novel.vol_total_tw)
-                        : null,
-                  },
-                ],
-                [
-                  {
-                    label: "Arc Total",
-                    value:
-                      novel.arc_total != null ? String(novel.arc_total) : null,
-                  },
-                  {
-                    label: "Chapter Total",
-                    value:
-                      novel.ch_total != null ? String(novel.ch_total) : null,
-                  },
-                ],
-              ]}
-            />
-            <GenresCard item={novel} />
-            {/* Production Card */}
-            {(novel.author ||
-              novel.illustrator ||
-              novel.publisher_tw ||
-              novel.publisher_refs?.length > 0) && (
+            <TocSection id="naming" label="Naming">
+              <NamingCard type="novel" item={novel} />
+            </TocSection>
+            <TocSection id="information" label="Information">
               <InfoCard
-                title="Production"
+                title="Information"
                 fields={[
-                  ...(novel.author
-                    ? [
-                        {
-                          label: creditLabel(novel, "author", "Author"),
-                          value: creditValue(novel, "author", novel.author),
-                        },
-                      ]
-                    : []),
-                  ...(novel.illustrator
-                    ? [
-                        {
-                          label: creditLabel(
-                            novel,
-                            "illustrator",
-                            "Illustrator",
-                          ),
-                          value: creditValue(
-                            novel,
-                            "illustrator",
-                            novel.illustrator,
-                          ),
-                        },
-                      ]
-                    : []),
-                  ...(novel.publisher_tw || novel.publisher_refs?.length
-                    ? [
-                        {
-                          label: publisherLabel(novel, "台灣出版商"),
-                          value: publisherValue(novel),
-                        },
-                      ]
-                    : []),
+                  [
+                    { label: "Region", value: novel.region },
+                    { label: "Type", value: novel.type },
+                    { label: "Version", value: novel.version },
+                  ],
+                  [
+                    { label: "本傳 / 外傳", value: novel.is_main },
+                    {
+                      label: "Serialization Status",
+                      value: novel.serialization_status,
+                    },
+                  ],
+                  [
+                    {
+                      label: "Release Date",
+                      value: novel.release_date || null,
+                    },
+                    {
+                      label: "End Date",
+                      value: novel.end_date || null,
+                    },
+                  ],
+                  [
+                    {
+                      label: "Total Volumes (JP/KR)",
+                      value:
+                        novel.vol_total_original != null
+                          ? String(novel.vol_total_original)
+                          : null,
+                    },
+                    {
+                      label: "Vol Total (TW)",
+                      value:
+                        novel.vol_total_tw != null
+                          ? String(novel.vol_total_tw)
+                          : null,
+                    },
+                  ],
+                  [
+                    {
+                      label: "Arc Total",
+                      value:
+                        novel.arc_total != null ? String(novel.arc_total) : null,
+                    },
+                    {
+                      label: "Chapter Total",
+                      value:
+                        novel.ch_total != null ? String(novel.ch_total) : null,
+                    },
+                  ],
                 ]}
               />
-            )}
+            </TocSection>
+            <TocSection id="genres" label="Genres">
+              <GenresCard item={novel} />
+            </TocSection>
+            {/* Production Card */}
+            <TocSection id="production" label="Production">
+              {(novel.author ||
+                novel.illustrator ||
+                novel.publisher_tw ||
+                novel.publisher_refs?.length > 0) && (
+                <InfoCard
+                  title="Production"
+                  fields={[
+                    ...(novel.author
+                      ? [
+                          {
+                            label: creditLabel(novel, "author", "Author"),
+                            value: creditValue(novel, "author", novel.author),
+                          },
+                        ]
+                      : []),
+                    ...(novel.illustrator
+                      ? [
+                          {
+                            label: creditLabel(
+                              novel,
+                              "illustrator",
+                              "Illustrator",
+                            ),
+                            value: creditValue(
+                              novel,
+                              "illustrator",
+                              novel.illustrator,
+                            ),
+                          },
+                        ]
+                      : []),
+                    ...(novel.publisher_tw || novel.publisher_refs?.length
+                      ? [
+                          {
+                            label: publisherLabel(novel, "台灣出版商"),
+                            value: publisherValue(novel),
+                          },
+                        ]
+                      : []),
+                  ]}
+                />
+              )}
+            </TocSection>
           </div>
 
           {/* Cast */}
-          <CastSection cast={cast} />
+          <TocSection id="cast" label="Cast">
+            <CastSection cast={cast} />
+          </TocSection>
 
           {/* Remarks */}
-          {ownData && novel.remark && (
-            <Slip title="Remarks">
-              <textarea
-                key={novel.system_id}
-                defaultValue={novel.remark || ""}
-                onBlur={(e) => {
-                  if (e.target.value !== (novel.remark || ""))
-                    saveMyRemark(e.target.value);
-                }}
-                rows={4}
-                placeholder="Add remarks…"
-                className={textareaCls}
-              ></textarea>
-            </Slip>
-          )}
+          <TocSection id="remarks" label="Remarks">
+            {ownData && novel.remark && (
+              <Slip title="Remarks">
+                <textarea
+                  key={novel.system_id}
+                  defaultValue={novel.remark || ""}
+                  onBlur={(e) => {
+                    if (e.target.value !== (novel.remark || ""))
+                      saveMyRemark(e.target.value);
+                  }}
+                  rows={4}
+                  placeholder="Add remarks…"
+                  className={textareaCls}
+                ></textarea>
+              </Slip>
+            )}
+          </TocSection>
 
           {/* Units */}
-          <NovelUnitsCard
-            novel={novel}
-            isAdmin={isAdmin}
-            onSave={(payload) => performPatch(payload, "Units saved")}
-          />
+          <TocSection id="units" label="Units">
+            <NovelUnitsCard
+              novel={novel}
+              isAdmin={isAdmin}
+              onSave={(payload) => performPatch(payload, "Units saved")}
+            />
+          </TocSection>
 
           {/* Structured Notes */}
           {/* The dedicated remark textarea above renders only for a holder of
@@ -730,6 +754,6 @@ export default function Novel() {
           />
         </div>
       </div>
-    </div>
+    </DetailContents>
   );
 }

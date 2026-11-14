@@ -10,6 +10,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import FranchisePage from "./FranchisePage";
 import { ToastProvider } from "../../hooks/useToast";
 import { AuthProvider } from "../../contexts/AuthContext";
+import { PageTitleProvider } from "../../contexts/PageTitleContext";
 
 // The canvas needs a real layout engine, and the Relations tab is tested here
 // only for the link above it.
@@ -93,12 +94,14 @@ function renderPage() {
       <MemoryRouter initialEntries={["/franchise/FR001"]}>
         <AuthProvider>
           <ToastProvider>
-            <Routes>
-              <Route
-                path="/franchise/:publicId/:slug?"
-                element={<FranchisePage />}
-              />
-            </Routes>
+            <PageTitleProvider>
+              <Routes>
+                <Route
+                  path="/franchise/:publicId/:slug?"
+                  element={<FranchisePage />}
+                />
+              </Routes>
+            </PageTitleProvider>
           </ToastProvider>
         </AuthProvider>
       </MemoryRouter>
@@ -112,6 +115,13 @@ describe("FranchisePage tab counts", () => {
     expect(
       await screen.findByRole("button", { name: /^Game\s*2$/ }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("FranchisePage browser tab", () => {
+  it("names the franchise as its heading does", async () => {
+    renderPage();
+    await waitFor(() => expect(document.title).toBe("Elden Ring"));
   });
 });
 

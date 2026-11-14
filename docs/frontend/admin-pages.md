@@ -1264,9 +1264,13 @@ box. `h-game`'s four multi-choice lists offer no default, since their unset
 state is `null`, "not recorded"; auto-fill copies them as they are, `null`
 included (`buildAutofillPatch` keeps any field whose blank form value is
 `null`). `hentai`'s `mal_id` and `anidb_id` are hidden (the write hook derives
-each from its link) and `mal_link` and `anidb_link` are not auto-fillable;
-`h-comic`'s `mal_id` and `mal_link` the same, and its `ehentai_link` (group
-Links) is neither defaultable nor auto-fillable.
+each from its link), and `mal_link` and `anidb_link` are auto-filled by
+default - copying a link copies its id, which the hook derives again on save.
+`h-comic`'s `mal_id` is hidden the same way and its `mal_link` is auto-filled by
+default; its `ehentai_link` (group Links) is neither defaultable nor
+auto-fillable. A stored auto-fill list for either type carries the links too,
+since a list saved before they could be ticked was given them; switching one
+off here stops it being copied.
 
 `game` is present here like any other media type, and its auto-fill ticks
 drive the Game Add form's copy-an-existing-entry box (`BUILTIN_AUTOFILL.game`

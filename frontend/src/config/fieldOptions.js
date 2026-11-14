@@ -283,7 +283,7 @@ export const GAME_ACHIEVEMENT_HINT = "Fully: hidden ones too · Yes: all but hid
 // these fallbacks are simply never overwritten - and never rendered, since
 // no h-comic form is offered to that session.
 export const H_COMIC_REGIONS = ["JP", "KR"];
-export const H_COMIC_ORIGINALITY = ["原創", "同人"];
+export const H_COMIC_ORIGINALITY = ["原版", "同人"];
 export const H_COMIC_ANIMATION_STATUSES = ["Not Animated", "Announced", "Animated"];
 export const H_COMIC_USEFULNESS = ["非常實用", "實用", "特定情況實用", "不實用"];
 
@@ -323,7 +323,7 @@ export const H_GAME_PLATFORMS = ["Steam", "DLsite", "Nintendo", "Other"];
 // The hentai vocabulary of its own (HENTAI_SOURCE_MATERIALS). A hentai also
 // reads H_COMIC_ORIGINALITY and H_COMIC_USEFULNESS above, served for it as
 // for h-comic, and anime's AIRING_STATUSES. Gated the same way.
-export const HENTAI_SOURCE_MATERIALS = ["Original", "Manga", "Novel"];
+export const HENTAI_SOURCE_MATERIALS = ["Original", "Manga", "Novel", "Game"];
 
 export const MUSIC_STATUSES = ["Need", "Pending", "No Full Version", "Done"];
 // The status of a whole song list (an anime's OPs, EDs, insert songs or OST).

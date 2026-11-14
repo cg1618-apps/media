@@ -17,6 +17,8 @@ import SourcesCard from "../../components/info/SourcesCard";
 import MyTrackerCard from "../../components/tracker/MyTrackerCard";
 import TVShowNotes from "./TVShowNotes";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
+import DetailContents, { TocSection } from "../../components/layout/DetailContents";
+import { usePageTitle } from "../../contexts/PageTitleContext";
 import {
   Button,
   Eyebrow,
@@ -122,6 +124,12 @@ export default function TV() {
     }
   }
 
+  // The heading's title, which the browser tab shows too.
+  const titleMain = show
+    ? show.tv_name_cn || show.tv_name_en || show.tv_name_alt || "Unknown"
+    : null;
+  usePageTitle(loading || error ? null : titleMain);
+
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading details..." />;
   }
@@ -135,8 +143,6 @@ export default function TV() {
     );
   }
 
-  const titleMain =
-    show.tv_name_cn || show.tv_name_en || show.tv_name_alt || "Unknown";
   const titleSub =
     show.tv_name_en && show.tv_name_en !== titleMain ? show.tv_name_en : null;
 
@@ -170,7 +176,7 @@ export default function TV() {
       : null;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+    <DetailContents>
       {/* Breadcrumb: a catalogue path, set in mono */}
       <div className="mb-8 flex items-center justify-between gap-3">
         <nav
@@ -378,87 +384,99 @@ export default function TV() {
           </header>
 
           {/* Where this entry sits in the watch orders the viewer follows. */}
-          <FollowedOrderPanel entryId={show.system_id} />
+          <TocSection id="watch-orders" label="Watch orders">
+            <FollowedOrderPanel entryId={show.system_id} />
+          </TocSection>
 
           {/* My Tracker Block */}
-          <MyTrackerCard
-            epFin={epFin}
-            epTotal={epTotal ?? "?"}
-            watchingStatus={show.watching_status}
-            myRating={show.my_rating}
-            timeFin={show.time_fin}
-            watchNext={show.watch_next}
-            toRewatch={show.to_rewatch}
-            canTrack={ownData}
-            onEpChange={(v) =>
-              saveOwn({ ep_fin: v }, "Episode progress saved")
-            }
-            onStatusChange={(v) =>
-              saveOwn({ watching_status: v }, "Status updated")
-            }
-            onRatingChange={(v) =>
-              saveOwn({ my_rating: v }, "Rating saved")
-            }
-            onTimeFinChange={(v) =>
-              saveOwn({ time_fin: v }, "Paused position saved")
-            }
-            onWatchNextChange={(v) =>
-              saveOwn(
-                { watch_next: v },
-                v ? "Added to Watch Next" : "Removed from Watch Next",
-              )
-            }
-            onToRewatchChange={(v) =>
-              saveOwn(
-                { to_rewatch: v },
-                v ? "Marked for rewatch" : "Removed from rewatch",
-              )
-            }
-            statusOptions={WATCHING_STATUSES}
-            ratingOptions={MY_RATINGS}
-          />
+          <TocSection id="tracker" label="My tracker">
+            <MyTrackerCard
+              epFin={epFin}
+              epTotal={epTotal ?? "?"}
+              watchingStatus={show.watching_status}
+              myRating={show.my_rating}
+              timeFin={show.time_fin}
+              watchNext={show.watch_next}
+              toRewatch={show.to_rewatch}
+              canTrack={ownData}
+              onEpChange={(v) =>
+                saveOwn({ ep_fin: v }, "Episode progress saved")
+              }
+              onStatusChange={(v) =>
+                saveOwn({ watching_status: v }, "Status updated")
+              }
+              onRatingChange={(v) =>
+                saveOwn({ my_rating: v }, "Rating saved")
+              }
+              onTimeFinChange={(v) =>
+                saveOwn({ time_fin: v }, "Paused position saved")
+              }
+              onWatchNextChange={(v) =>
+                saveOwn(
+                  { watch_next: v },
+                  v ? "Added to Watch Next" : "Removed from Watch Next",
+                )
+              }
+              onToRewatchChange={(v) =>
+                saveOwn(
+                  { to_rewatch: v },
+                  v ? "Marked for rewatch" : "Removed from rewatch",
+                )
+              }
+              statusOptions={WATCHING_STATUSES}
+              ratingOptions={MY_RATINGS}
+            />
+          </TocSection>
 
           {/* Detail Cards */}
           <div className="space-y-6">
-            <NamingCard type="tv-show" item={show} />
-            <InfoCard
-              title="Information"
-              fields={[
-                [
-                  { label: "本傳 / 外傳", value: show.is_main },
-                  { label: "Season", value: show.season_part },
-                ],
-                [
-                  {
-                    label: "Total Ep",
-                    value: show.ep_total != null ? String(show.ep_total) : null,
-                  },
-                ],
-                [
-                  { label: "Airing Status", value: show.airing_status },
-                  { label: "Release Date", value: show.release_date },
-                ],
-              ]}
-            />
-            <GenresCard item={show} />
+            <TocSection id="naming" label="Naming">
+              <NamingCard type="tv-show" item={show} />
+            </TocSection>
+            <TocSection id="information" label="Information">
+              <InfoCard
+                title="Information"
+                fields={[
+                  [
+                    { label: "本傳 / 外傳", value: show.is_main },
+                    { label: "Season", value: show.season_part },
+                  ],
+                  [
+                    {
+                      label: "Total Ep",
+                      value: show.ep_total != null ? String(show.ep_total) : null,
+                    },
+                  ],
+                  [
+                    { label: "Airing Status", value: show.airing_status },
+                    { label: "Release Date", value: show.release_date },
+                  ],
+                ]}
+              />
+            </TocSection>
+            <TocSection id="genres" label="Genres">
+              <GenresCard item={show} />
+            </TocSection>
           </div>
 
           {/* Remarks */}
-          {ownData && show.remark && (
-            <Slip title="Remarks">
-              <textarea
-                key={show.system_id}
-                defaultValue={show.remark || ""}
-                onBlur={(e) => {
-                  if (e.target.value !== (show.remark || ""))
-                    saveMyRemark(e.target.value);
-                }}
-                rows={4}
-                placeholder="Add remarks…"
-                className={textareaCls}
-              ></textarea>
-            </Slip>
-          )}
+          <TocSection id="remarks" label="Remarks">
+            {ownData && show.remark && (
+              <Slip title="Remarks">
+                <textarea
+                  key={show.system_id}
+                  defaultValue={show.remark || ""}
+                  onBlur={(e) => {
+                    if (e.target.value !== (show.remark || ""))
+                      saveMyRemark(e.target.value);
+                  }}
+                  rows={4}
+                  placeholder="Add remarks…"
+                  className={textareaCls}
+                ></textarea>
+              </Slip>
+            )}
+          </TocSection>
 
           {/* Structured Notes */}
           {/* The dedicated remark textarea above renders only for a holder of
@@ -474,6 +492,6 @@ export default function TV() {
           />
         </div>
       </div>
-    </div>
+    </DetailContents>
   );
 }
