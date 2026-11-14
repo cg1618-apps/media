@@ -22,7 +22,7 @@ src/
   config/             registries and vocab tables (see "Config catalog")
   lib/                pure helpers (naming, dates, layout, payloads…)
   utils/              media.js barrel, planNext.js, statsUtils.js
-  components/         cards, hub, layout, forms, modals, plan, relations, game-choices, tracker, seasonal, info, charts, requests
+  components/         cards, hub, layout, forms, modals, plan, relations, game-choices, tracker, dashboard, seasonal, info, charts, requests
   pages/              public, detail, library (+configs), admin, add-tabs, modify-tabs,
                       defaults-tabs, notes (+sections), plan, statistics
   theme-tokens.test.js  guard against hard-coded greys
@@ -280,6 +280,22 @@ columns.
   the server-resolved photo or fallback cover, positioned by
   `display_photo_focus`, the focus of whichever source won). Every card crops
   its image at the image's focal point (design-system.md, rule 9).
+- **`components/dashboard`** — the per-viewer parts of the dashboard (`/`),
+  each one small component asking its own endpoint; which viewer gets which
+  is in [pages.md](pages.md#index-dashboard--). `dashboardSections.js`
+  holds the choice as pure functions over the session (`isAdminDashboard`,
+  `dashboardSections`), so it is tested without a
+  render. `DivisionHeader` is the sticky eyebrow-title-count header every
+  dashboard division uses. `DashboardSummary` (pending registrations and
+  open requests, `GET /api/dashboard/summary`; `alwaysShow` keeps it drawn
+  when nothing waits), `LibraryLinks` with `useLibraryLinks()` and the pure
+  `libraryLinkGroups(sections)` (the nav's Library and Restricted rows,
+  from `visibleSections`), `RecentlyAdded` (`GET /api/dashboard/recent`),
+  `RecentPipelineRuns` (the latest `GET /api/system/logs` rows),
+  `AnnouncementEditor` (add, edit and delete through the announcement
+  routes, invalidating `["announcements"]`; the one announcement editor,
+  also drawn by `/system`'s Announcement & Notes card), and
+  `AdminDashboard`, the admin's own page composed from them.
 - **`components/seasonal`** — `CatalogueSeasonGrid`, one season's anime for a
   viewer without a list: a grid of `MediaCard`s, best MAL score first
   (`sortByExternalScore`), with no status split. Both seasonal pages draw it

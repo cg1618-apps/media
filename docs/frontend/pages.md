@@ -313,26 +313,66 @@ cannot paint stale data.
 
 File `pages/public/Index.jsx`.
 
-**Who sees what.** The page asks one question, `has("self.list")` — the
-SPA's spelling of "a signed-in member", the key `navigation.js` and `App.jsx`
-gate Plan, Seasonal and Settings on, and one the guest role does not hold.
-Everything below the Broadcast schedule is built from the viewer's own
-statuses and progress, and its controls write the viewer's own rows, so it is
-a member's list, not catalogue, and no `view.*` key decides it. A guest sees
-**Announcements** and the **Broadcast schedule** only: no My watch schedule, no
-Coming Next or Followed orders, no type filter bar and no Watching, Reading or
-Playing division, and the TOC, the scroll-spy and the schedule's
-"N scheduled" count cover only those two parts.
+**Who sees what.** The page differs per viewer
+([../viewers.md](../viewers.md#dashboard-)), and every choice is a permission,
+never a role name, made in `components/dashboard/dashboardSections.js`.
+Nothing is chosen until `/api/auth/me` has answered — the page shows its
+loading state until then, because before it every viewer looks like a guest.
 
-**Data**: `useMediaList("anime")` and
+| Part | Asks | Who that is, as seeded |
+|---|---|---|
+| The admin's own page (`AdminDashboard`), **instead of** everything below | `has("admin.authz")` and none of `LIBRARY_MEDIA_TYPE_PERMISSIONS`, the Library tab's own question | admin |
+| Tracker: My watch schedule, Coming Next, Followed orders, the type filter bar, Watching, Reading, Playing | `has("self.list")` | super, user |
+| Summary (`DashboardSummary`) above Announcements | `has("self.list") && has("manage.requests")` | super |
+| Libraries (`#libraries`, `LibraryLinks`) | `!has("self.list")`, and at least one library row visible | guest, shared |
+| Recently added (`#recent`, `RecentlyAdded`) | `!has("self.list") && has("view.random_picker")` | shared |
+
+Announcements and the Broadcast schedule are drawn for every viewer of the
+catalogue dashboard. The tracker is built from the viewer's own statuses and
+progress, and its controls write the viewer's own rows, so it is a member's
+list, not catalogue, and `self.list` decides it rather than a `view.*` key.
+The TOC, the scroll-spy and the schedule's "N scheduled" count cover only the
+parts drawn.
+
+**The summary** reads `GET /api/dashboard/summary` and is fetched only for a
+viewer it is drawn for. It says, in a few words each, how many registrations
+wait and how many requests and reports are open, and **draws nothing when
+both are zero**. Open requests link to `/request-inbox`. Registrations link
+to `/system` (its Pending registrations panel) for a viewer holding
+`admin.authz`; for anyone else — super — they read "waiting for the admin to
+approve", unlinked, since `/system` would not show that viewer the panel.
+
+**The library links** are the nav's own Library and Restricted rows:
+`useLibraryLinks()` calls `visibleSections(NAV_SECTIONS, has, canSeeGatedType,
+hasFeature)` exactly as `Nav.jsx` does and keeps those two sections, one slip
+per section with one link per row, so the dashboard and the header never
+disagree about which libraries a viewer may open.
+
+**Recently added** reads `GET /api/dashboard/recent?limit=12` — the newest
+entries across every type the viewer may see, already narrowed by the
+server — and draws each as a cover (`thumbUrl`, `focusStyle`), its type and
+its name, linking through `entityPath`.
+
+**The admin's page** fetches no catalogue at all — the admin's catalogue
+reads answer 401. It has an **Overview** — the summary, drawn even when
+nothing waits (`manage.requests`), and the five latest pipeline runs from
+`GET /api/system/logs` with status and time, linking to the full log on
+`/system` (`manage.pipelines`) — and **Announcements & notes**: the
+`AnnouncementBoard`, with `AnnouncementEditor` (add, edit, delete) below it
+for `manage.announcements`. Each part asks its own key, so a role edited on
+`/roles` keeps only the parts it may read.
+
+**Data** (the catalogue dashboard; the admin's page reads only what is listed
+above): `useMediaList("anime")` and
 `useApiQuery(["announcements"], "/api/announcements/")` for everyone — the
 Broadcast schedule reads the anime list alone. For a member it also loads
 `franchise`, `tv-show`, `cartoon`, `manga`, `novel`, `comic` and `game` (all
 `LIST_OPTIONS`), which only the tracker divisions read, plus `anime-movie`,
 `movie` and `/api/seasonal/current-season` for Coming Next. The combined
 loading/error gate covers the anime list and, for a member, the seven tracker
-lists; announcements and the three Coming Next queries stay out of it so a
-failure there never blanks the dashboard.
+lists; announcements, the three Coming Next queries, the summary and
+recently added stay out of it so a failure there never blanks the dashboard.
+The summary and recently added each show their own error in place.
 
 **Type filter and view**: one `TypeFilterBar` sits above the Watching
 division and is the sticky header for Watching, Reading and Playing together —
@@ -369,8 +409,10 @@ tracker divisions):
 
 | Anchor | Division | What it shows |
 |---|---|---|
-| `#announcements` | Announcement & Notes | `AnnouncementBoard` cards (`components/info/AnnouncementBoard.jsx`); a clipped body expands into `AnnouncementModal`. Read-only here; CRUD is on `/system`. |
+| `#announcements` | Announcement & Notes | `AnnouncementBoard` cards (`components/info/AnnouncementBoard.jsx`); a clipped body expands into `AnnouncementModal`. Read-only on the catalogue dashboard; written on `/system` and on the admin's own page. |
 | `#schedule` | Weekly Schedule | two `WeeklySchedule` blocks: **My Watch Schedule** (`my_watch_day`, anime with `airing_status === "Airing"`; members only) and **Broadcast Schedule** (`broadcast_day` + `broadcast_time`, collapsible, collapsed by default). Only anime feed the schedule today. Sunday-first (`config/weekdays.js`), today highlighted and scrolled into the first visible column whenever a grid is drawn (on load, and on expanding a collapsed one), entries sort by `HH:MM` then name. Under them, **Coming Next** (`schedule-coming`, `components/tracker/ComingNext.jsx`), collapsed by default and drawn only for a viewer holding `self.list` — see below. Directly under it, **Followed watch orders (n)** (`schedule-follows`, `components/tracker/FollowedOrders.jsx`), gated and collapsed the same way: one row per followed order with its group, `done / total`, every step in progress and the step up next — see [../systems/watch-orders.md](../systems/watch-orders.md#following). |
+| `#libraries` | Libraries | viewers without a list (guest, shared): one link per Library and Restricted nav row the viewer is shown. Not drawn when there are none. |
+| `#recent` | Recently added | `view.random_picker` without a list (shared): the newest entries, newest first. |
 | `#watching` | Watching (Anime · TV Show · Cartoon) | members only, like Reading and Playing and the filter bar above them. Sections `watching-active` Active Watching, `watching-passive` Passive Watching, `watching-paused` Paused, by `watching_status`. Each groups Anime → TV Show → Cartoon, sorted by rating weight (S…F, unrated last), rendering `DashboardCard`. Shown when no type is picked or the picked type is one of its three. |
 | `#reading` | Reading (Manga · Novel · Comics) | `reading-active`, `reading-passive`, `reading-paused` by `reading_status`. Manga → `DashboardCard`, Novel → `NovelDashboardCard`, Comic → `ComicDashboardCard`. Shown when no type is picked or the picked type is one of its three. |
 | `#playing` | Playing (Game) | `playing-active`, `playing-passive`, `playing-anytime`, `playing-paused` by `playing_status`, rendered by a local `PlayingSection` — simpler than `ReadingSection` because the division holds exactly one media type, so there is no per-type grouping and no progress callback. Cards are `GameDashboardCard`, whose playtime figure is read-only for everyone. Shown when no type is picked or the picked type is Game. |
