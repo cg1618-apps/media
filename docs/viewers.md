@@ -69,10 +69,7 @@ catalogue and what is an account's own data is
 > [At a glance](#at-a-glance). The admin is an ordinary role with a fixed
 > set of permissions; it reads no library, entry, group, entity or search
 > page, no quotes or memes, keeps no personal data, and has no mode
-> switcher. Its header carries only its own pages. Its own dashboard is not
-> built — see [Dashboard](#dashboard-) — and until it is, `/` shows the
-> admin the dashboard a guest sees, with announcements and with the
-> catalogue sections empty, since it reads no catalogue.
+> switcher. Its header carries only its own pages.
 > **`/resources` is the admin's and super's alone**: a `user` does not
 > reach it.
 >
@@ -439,5 +436,5 @@ kind's key the viewer lacks is plain text rather than a link.
 | **user** | announcements, the broadcast schedule, its own tracker |
 | **guest** | announcements, the broadcast schedule, and **a way into each library** |
 | **shared** | the guest's dashboard, plus **recently added** entries |
-| **admin** | its own page: pending registrations, open requests and reports, recent pipeline runs, and announcements to edit; no catalogue. **Not built yet** ([to-do-next.md](to-do-next.md), the per-viewer pages); until it is, the admin gets the guest's dashboard, with announcements and no catalogue |
+| **admin** | its own page: pending registrations, open requests and reports, recent pipeline runs, and announcements to edit; no catalogue |
 

@@ -4775,3 +4775,37 @@ the write route asks.
 - **`isAdmin` became `canTrack` on the dashboard cards.** The prop gated the
   steppers only, and a name that says "editor" on a control that writes the
   viewer's own progress is how the two gates drifted apart.
+
+### The dashboard is chosen per viewer, on permissions (2026-11-14)
+
+`/` became five dashboards (viewers.md, "Dashboard") without becoming five
+pages: one `Index` picks its parts in `components/dashboard/dashboardSections.js`,
+and every pick is a permission, never a role name, so a role edited on
+`/roles` gets the dashboard its permissions describe.
+
+- **The admin is "admin.authz and no media_type.* key", not "admin.authz".**
+  What makes the admin's page necessary is that it reads no catalogue; the
+  catalogue dashboard would only fetch lists the admin is refused. A role
+  holding both would be shown the catalogue dashboard, since it can read it.
+  The SPA has no `isRoot` and `has()` is plain membership, so the test reads
+  `permissions` for the prefix.
+- **Nothing is chosen before `/me` answers.** Until then every viewer looks
+  like a guest, and the admin would fire catalogue reads that answer 401. The
+  page shows its loading state instead; the cost is one round trip that the
+  rest of the page waited on anyway.
+- **The library links are the nav's rows, not a second list.** They come
+  from `visibleSections` with Nav's arguments, filtered to the Library and
+  Restricted sections, so a library the header hides is never linked from
+  the dashboard and a new library row appears on both at once.
+- **Super's pending-registrations line is not a link.** Only `admin.authz`
+  approves a registration, in `/system`'s panel, which is not drawn for
+  super; linking super there would send it to a page that does not show what
+  the line promised. The line says who approves instead, and the open
+  requests line, which super handles itself, links to the inbox.
+- **The pipeline runs link to `/system`, not `/data-history`.** The data
+  control log (`/api/system/logs`) is drawn on `/system`; `/data-history`
+  shows recent and deleted records, not pipeline runs.
+- **The admin page's announcement editor is a component, `/system`'s is
+  still inline.** `AnnouncementEditor` uses the same routes as the
+  Announcement & Notes card on `/system`. Moving that card onto the component
+  is the obvious next step; it was left to a change that owns `Admin.jsx`.

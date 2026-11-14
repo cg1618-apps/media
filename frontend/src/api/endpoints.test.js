@@ -76,6 +76,11 @@ describe("named endpoint groups", () => {
     expect(endpoints.seasonal.update("WIN 2026")).toBe("/api/seasonal/WIN 2026");
   });
 
+  it("dashboard", () => {
+    expect(endpoints.dashboard.summary()).toBe("/api/dashboard/summary");
+    expect(endpoints.dashboard.recent()).toBe("/api/dashboard/recent");
+  });
+
   it("system", () => {
     expect(endpoints.system.currentSeason()).toBe("/api/system/config/current_season");
     expect(endpoints.system.logs()).toBe("/api/system/logs");

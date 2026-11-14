@@ -339,6 +339,14 @@ export const endpoints = {
     update: () => "/api/fx-rates",
   },
 
+  // What the dashboard (/) reads beyond the pages it links to. `summary` is
+  // the handler's (manage.requests); `recent` is a catalogue read, narrowed
+  // to what the viewer may see.
+  dashboard: {
+    summary: () => "/api/dashboard/summary",
+    recent: () => "/api/dashboard/recent",
+  },
+
   system: {
     currentSeason: () => "/api/system/config/current_season",
     logs: () => "/api/system/logs",

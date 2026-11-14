@@ -26,6 +26,17 @@ import { putMyListRow } from "../../api/myList";
 import { Eyebrow } from "../../components/ui/primitives";
 import { parseSeason, seasonAfter, seasonOfDate } from "../../lib/comingNext";
 import { progressToast } from "../../lib/progressToast";
+import AdminDashboard from "../../components/dashboard/AdminDashboard";
+import DashboardSummary from "../../components/dashboard/DashboardSummary";
+import DivisionHeader from "../../components/dashboard/DivisionHeader";
+import LibraryLinks, {
+  useLibraryLinks,
+} from "../../components/dashboard/LibraryLinks";
+import RecentlyAdded from "../../components/dashboard/RecentlyAdded";
+import {
+  dashboardSections,
+  isAdminDashboard,
+} from "../../components/dashboard/dashboardSections";
 
 const RATING_WEIGHT = {
   S: 0,
@@ -153,6 +164,8 @@ const TOC_ITEMS = [
   { id: "schedule-broadcast", label: "Broadcast", level: 2 },
   { id: "schedule-coming", label: "Coming next", level: 2 },
   { id: "schedule-follows", label: "Followed orders", level: 2 },
+  { id: "libraries", label: "Libraries", level: 1 },
+  { id: "recent", label: "Recently added", level: 1 },
   { id: "watching", label: "Watching", level: 1 },
   { id: "watching-active", label: "Active", level: 2 },
   { id: "watching-passive", label: "Passive", level: 2 },
@@ -188,11 +201,20 @@ function stickyOffset(id) {
 }
 
 // The TOC rows a viewer is shown, in order. A guest (not a member) has only
-// Announcements and the Broadcast schedule; a division the type filter hides
+// Announcements and the Broadcast schedule, plus Libraries when it may open
+// any and Recently added when it is drawn; a division the type filter hides
 // has no anchor to scroll to. The scroll-spy reads the same list, so the
 // two never disagree about which anchors exist.
-function visibleTocItems({ isMember, typeFilter, showComingNext }) {
+function visibleTocItems({
+  isMember,
+  typeFilter,
+  showComingNext,
+  showLibraries,
+  showRecent,
+}) {
   return TOC_ITEMS.filter(({ id }) => {
+    if (id === "libraries") return showLibraries;
+    if (id === "recent") return showRecent;
     if (!isMember && !GUEST_TOC_IDS.has(id)) return false;
     // Followed orders is gated exactly as Coming Next is.
     if (
@@ -547,8 +569,27 @@ function PlayingSection({
   );
 }
 
+// The dashboard differs per viewer (docs/viewers.md, "Dashboard"), chosen on
+// permissions in components/dashboard/dashboardSections.js. The admin, which
+// reads no catalogue, gets its own page; everyone else gets the catalogue
+// dashboard with the parts its permissions open. Nothing is chosen until
+// /me has answered: before then every viewer looks like a guest, and the
+// admin would fetch catalogue lists it is refused.
 export default function Index() {
-  const { has } = useAuth();
+  const auth = useAuth();
+  if (auth.loading) {
+    return <MediaLoadingState isLoading loadingText="Loading dashboard..." />;
+  }
+  if (isAdminDashboard(auth)) return <AdminDashboard />;
+  return <CatalogueDashboard />;
+}
+
+function CatalogueDashboard() {
+  const auth = useAuth();
+  const { has } = auth;
+  const sections = dashboardSections(auth);
+  const libraryGroups = useLibraryLinks();
+  const showLibraries = sections.libraryLinks && libraryGroups.length > 0;
   const { showToast } = useToast();
   const queryClient = useQueryClient();
   // Who the dashboard is for. Everything below Announcements and the
@@ -665,7 +706,13 @@ export default function Index() {
     showToast("success", progressToast(before, saved, savedMessage));
   }
 
-  const tocItems = visibleTocItems({ isMember, typeFilter, showComingNext });
+  const tocItems = visibleTocItems({
+    isMember,
+    typeFilter,
+    showComingNext,
+    showLibraries,
+    showRecent: sections.recentlyAdded,
+  });
   const tocIdsKey = tocItems.map(({ id }) => id).join(" ");
 
   // Track which section is in view to highlight TOC. It watches the anchors
@@ -939,43 +986,30 @@ export default function Index() {
 
         {/* Main Content */}
         <div className="flex-1 min-w-0 space-y-16">
+          {/* What waits for a handler: a member holding manage.requests
+              (super). It draws nothing when nothing waits, and is not
+              fetched for anyone else. */}
+          {sections.summary && <DashboardSummary />}
+
           {/* Announcement Division */}
           <div id="announcements">
-            <div
-              data-division-header
-              className="sticky top-[var(--nav-h)] z-30 bg-canvas flex items-end justify-between gap-3 pb-2 border-b border-border-strong"
-            >
-              <div>
-                <Eyebrow className="mb-1">Pinned to the top of the dashboard</Eyebrow>
-                <h2 className="font-display text-3xl font-semibold text-text leading-none">
-                  Announcements &amp; notes
-                </h2>
-              </div>
-              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
-                {announcements.length} posted
-              </span>
-            </div>
+            <DivisionHeader
+              eyebrow="Pinned to the top of the dashboard"
+              title={<>Announcements &amp; notes</>}
+              count={`${announcements.length} posted`}
+            />
             <AnnouncementBoard announcements={announcements} />
           </div>
 
           {/* Schedule Division */}
           <div id="schedule">
-            <div
-              data-division-header
-              className="sticky top-[var(--nav-h)] z-30 bg-canvas flex items-end justify-between gap-3 pb-2 border-b border-border-strong"
-            >
-              <div>
-                <Eyebrow className="mb-1">Sunday · Saturday</Eyebrow>
-                <h2 className="font-display text-3xl font-semibold text-text leading-none">
-                  Weekly schedule
-                </h2>
-              </div>
-              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
-                {broadcastSchedule.length +
-                  (isMember ? watchSchedule.length : 0)}{" "}
-                scheduled
-              </span>
-            </div>
+            <DivisionHeader
+              eyebrow="Sunday · Saturday"
+              title="Weekly schedule"
+              count={`${
+                broadcastSchedule.length + (isMember ? watchSchedule.length : 0)
+              } scheduled`}
+            />
             <div className="pt-8 space-y-12">
               {isMember && (
                 <WeeklySchedule
@@ -1017,6 +1051,24 @@ export default function Index() {
               )}
             </div>
           </div>
+
+          {/* A way into each library, for a viewer with no tracker: the
+              nav's own Library and Restricted rows (LibraryLinks.jsx). */}
+          {showLibraries && (
+            <div id="libraries">
+              <DivisionHeader eyebrow="Browse the catalogue" title="Libraries" />
+              <LibraryLinks groups={libraryGroups} />
+            </div>
+          )}
+
+          {/* The newest entries, for a shared account (view.random_picker
+              without a list). */}
+          {sections.recentlyAdded && (
+            <div id="recent">
+              <DivisionHeader eyebrow="Newest first" title="Recently added" />
+              <RecentlyAdded />
+            </div>
+          )}
 
           {/* Tracker divisions. The filter bar is their one sticky header, so
               this wrapper bounds it: it scrolls in after Schedule and stays
