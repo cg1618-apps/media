@@ -1,6 +1,6 @@
 # Plan Next
 
-Last verified: 2026-11-13
+Last verified: 2026-11-14
 
 ## What this is for
 
@@ -34,7 +34,7 @@ Four design points worth knowing:
 
 - **Row existence is the flag.** There is no `is_next` column. Marking inserts, un-marking deletes, so the table only ever holds what is actually planned.
 - **The owner is three real foreign keys** - `media_id` / `franchise_id` / `series_id` - not the FK-less `(scope, media_type, target_id)` contract that `media_relation` and `watch_order_item` still use. Every owner cascades in the database, so there is no `delete_plans_for` to call and a dangling plan row cannot exist: `missing: true` is unreachable for these rows, though the field stays on the schema.
-- **A plan queue is private.** Every `/api/plan-next` route requires an account (`Depends(get_current_user_id)`, 401 otherwise) and answers only with the caller's own rows; `/plan` redirects a logged-out visitor to `/login?next=...`. There is no site-owner fallback and no public view of anybody's queue.
+- **A plan queue is private.** Every `/api/plan-next` route requires an account (`Depends(get_current_user_id)`, 401 otherwise) and answers only with the caller's own rows; `/plan` redirects a logged-out visitor to `/login`. There is no site-owner fallback and no public view of anybody's queue.
 - **`kind` has a server default, and that is load-bearing.** A Google Sheets "Plan Next" tab backed up before `kind` existed has no `kind` header. `app/services/pipelines/pull.py` drops every parsed key the header did not carry, so the ORM builds the row with `kind` unset. SQLAlchemy sends an unset NOT NULL column as an explicit `NULL` unless the *model* declares a default, and that fails the NOT NULL check; a database-side `SET DEFAULT` alone does not help because the NULL is sent explicitly. Declaring `server_default="next"` on the model makes SQLAlchemy omit the column so PostgreSQL fills it. A row carrying no `kind` is a queue entry rather than a rewatch mark, so `next` is the right answer. The column carries the same default, so the database and the model agree.
 
 ### Size buckets on franchise and series

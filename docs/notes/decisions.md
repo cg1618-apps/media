@@ -5063,3 +5063,30 @@ shown buttons that answered 401.
   column. The completions statistics grouped by a hard-coded copy of the list,
   which would have put a Game hentai under Unrecorded. The grouping moved to
   `pages/statistics/hentaiCompletions.js` and reads the shared vocabulary.
+
+### A shared account's mode is a ceiling and a default; a login lands on the dashboard (2026-11-14)
+
+- **The shared account's mode stopped being fixed.** It was fixed on the
+  reasoning that one person narrowing would be "one person's choice made for
+  everyone signed in". That was wrong: a switched mode is the `access_mode`
+  cookie of one browser, so it never reaches the others on the same login.
+  The real consequence of letting it switch is the opposite one: anyone with
+  the shared password can widen to the ceiling, for up to an hour at a time.
+  So the ceiling is what the admin hands out with the password, and it is
+  set on `/users` like any account's. The shared ROLE stays fixed.
+- **The seed stops re-asserting the mode.** It still creates each shared
+  account at its own mode, and puts back a mode only on an account left with
+  none. No migration: every existing shared account already holds its seeded
+  mode as both ceiling and default, which is the state the new rule starts
+  from.
+- **A login always lands on `/`, and `?next=` is gone.** Sending a login to
+  the page the previous visitor was on breaks whenever the new account may
+  not open it - logging out of a member page and in as the admin left the
+  admin on `/login?next=/statistics`. The dashboard is the one page every
+  account can open. A mode switch is not a login and still reloads the page
+  it is on.
+- **The Users page edits in one dialog.** The Access column was the only
+  place where a tick saved at once; it is now a summary, and the switches,
+  ceiling, default and denials sit in the Edit dialog beside role, password
+  and limit, saved together. The PATCH and the PUT are sent only for what
+  changed.

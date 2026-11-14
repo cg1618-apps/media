@@ -1,11 +1,11 @@
-// Login sends the visitor to ?next= after a successful sign-in. It already
-// refuses a next that does not start with "/" (an absolute URL would be an
-// open redirect). It must also refuse one that points back at /login: such a
-// next lands an authenticated visitor on the login form again, with the page
-// they actually wanted buried one level further down, and Login has no
-// already-signed-in bounce to rescue them from it.
+// A successful sign-in always lands on the dashboard, "/". The page the
+// visitor was on belonged to whoever was signed in before, and the account
+// signing in now may not be able to open it - sign out of cg1618 on
+// /statistics, sign in as admin, and a login that went back to /statistics
+// would bounce admin straight back to this form. So any ?next= in the URL is
+// ignored, not filtered: a next naming an ordinary page is ignored too.
 //
-// It reaches that destination with a FULL PAGE LOAD, not a client-side
+// It reaches the dashboard with a FULL PAGE LOAD, not a client-side
 // navigate: everything the SPA cached a moment ago it cached as a guest.
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -49,25 +49,28 @@ async function signIn(route) {
   await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
 }
 
-describe("Login - where ?next= is allowed to send you", () => {
-  it("honours a next naming a real page", async () => {
+describe("Login - where a successful sign-in lands", () => {
+  it("lands on the dashboard with no next", async () => {
+    await signIn("/login");
+    expect(hardNavigate).toHaveBeenCalledTimes(1);
+    expect(hardNavigate).toHaveBeenCalledWith("/");
+  });
+
+  it("lands on the dashboard when next names a page the account cannot open", async () => {
+    // The reported case: cg1618 signed out on /statistics, admin signs in,
+    // and admin cannot open /statistics.
     await signIn("/login?next=%2Fstatistics");
-    expect(hardNavigate).toHaveBeenCalledWith("/statistics");
+    expect(hardNavigate).toHaveBeenCalledTimes(1);
+    expect(hardNavigate).toHaveBeenCalledWith("/");
   });
 
-  it("refuses a next pointing back at /login", async () => {
-    await signIn("/login?next=%2Flogin%3Fnext%3D%252Fstatistics");
-    expect(hardNavigate).toHaveBeenCalledWith("/system");
-  });
-
-  it("refuses a bare /login next", async () => {
-    await signIn("/login?next=%2Flogin");
-    expect(hardNavigate).toHaveBeenCalledWith("/system");
-  });
-
-  it("still refuses an absolute URL", async () => {
-    await signIn("/login?next=https%3A%2F%2Felsewhere.example%2Fx");
-    expect(hardNavigate).toHaveBeenCalledWith("/system");
+  it("lands on the dashboard even when next names an ordinary page", async () => {
+    // The mirror case: a next any account can open is ignored too, so the
+    // test above proves next is not read at all, not merely that a
+    // forbidden one is skipped.
+    await signIn("/login?next=%2Flibrary%2Fanime");
+    expect(hardNavigate).toHaveBeenCalledTimes(1);
+    expect(hardNavigate).toHaveBeenCalledWith("/");
   });
 });
 
