@@ -400,7 +400,8 @@ Restoring from R2 in an actual disaster is
 ## Deploying, and what CI does
 
 **`ci.yml` deploys nothing** — it runs ruff, shellcheck, pytest, eslint, vitest
-and the frontend build on every pull request, and has no deployment job.
+and the frontend build on every pull request that changes more than
+documentation, and has no deployment job.
 Deploying is a second workflow, `deploy.yml`.
 
 It does **not** run again on the push to `main`, because the repository ruleset
