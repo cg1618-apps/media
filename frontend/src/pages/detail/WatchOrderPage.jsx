@@ -168,7 +168,7 @@ export default function WatchOrderPage() {
         </div>
       </header>
 
-      <WatchOrderGuide list={list} roomy />
+      <WatchOrderGuide list={list} roomy colourCoded />
 
       {siblings.length > 0 && (
         <Slip

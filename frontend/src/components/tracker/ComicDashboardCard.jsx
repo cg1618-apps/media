@@ -10,6 +10,7 @@ import { Button, Chip, ProgressRule, RatingStamp } from "../ui/primitives";
 import { entityPath } from "../../lib/entityPath";
 import { EntryRow } from "./DashboardTable";
 import LazyImage from "../ui/LazyImage";
+import ProgressInput from "./ProgressInput";
 import { focusStyle, thumbUrl } from "../../lib/covers";
 
 const STEPPER_INPUT =
@@ -187,13 +188,11 @@ export default function ComicDashboardCard({
               <i className="fas fa-minus text-[10px]"></i>
             </Button>
             <div className="font-mono text-[13px] flex items-baseline justify-center select-none flex-1 whitespace-nowrap">
-              <input
-                type="number"
+              <ProgressInput
                 className={STEPPER_INPUT}
                 value={fin}
-                onChange={(e) =>
-                  handleIssueChange(parseInt(e.target.value, 10) || 0)
-                }
+                onCommit={handleIssueChange}
+                aria-label="Issues read"
               />
               <span className="text-text-faint mx-1 text-xs">/</span>
               <span className="text-text-faint w-12 text-center">
