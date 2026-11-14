@@ -3853,7 +3853,9 @@ changes only grants and nothing in the feature itself.
 
 The half of the notes rework that needs nothing from the account work, in one
 revision, `n1o2tesrwk3`. The personal half - the amount collected, the NG
-reset button, 下周目目標 - waits for the account rework and stays in the spec.
+reset button, 下周目目標 - came with the account rework: 下周目目標 under
+"Highlights are each account's own", the amount collected and the NG reset
+under "note marks", both below.
 
 - **地理 Geography sits in 圖鑑與名詞 Compendium & Terms, for game and h-game
   alike.** It is declared straight after 敵人 Enemies, because "where is it"
@@ -4850,3 +4852,101 @@ and every pick is a permission, never a role name, so a role edited on
   over the one `["announcements"]` query. `/system` had its own hand-written
   editor for the same routes; two editors would drift, so the card now
   renders the component and its inline state, handlers and form are gone.
+
+### Everything an account keeps is private to it, the admin included (2026-11-14)
+
+No account reads another's list, ratings, plan, copies, choice marks, notes
+or marks, and the admin reads none of them either. Three things went with
+the list-visibility setting (`users.list_is_public` and its Settings card)
+rather than being kept behind it, because each could only ever be empty:
+the public profile (`/user/<username>`), reading personal notes by author
+(`?author=`, now ignored), and the community card with `/api/community/`.
+`field_group.personal_notes` went for the same reason - it only decided
+whether a mode could read *another* account's personal notes - and
+`field_group.sources_other` went because every viewer gets the other
+sources, which leaves `sources_restricted` the one field group.
+
+- **User data is private from the admin too.** `admin.authz` used to open
+  any profile whatever its setting; that override went with the profile,
+  and nothing in the app shows the admin an account's list, ratings or
+  notes. The admin keeps no personal data of its own either.
+- **Requests and reports are not an account's data in this sense.** They
+  are addressed to whoever handles them, who reads them in the inbox; the
+  filer's own copy is My requests.
+
+### Catalogue or account: the test for anything added later (2026-11-14)
+
+The account rework sorted every stored value into the catalogue (one copy
+everyone shares) or an account (one copy each), and the rule it settled for
+anything added later is: **if two people could disagree about it and both
+be right, it belongs to an account; if it is a fact about the work, it
+belongs to the catalogue.** The present-tense split is
+[catalogue.md](../catalogue.md).
+
+- **Every personal rating is an account's, and only external scores are
+  catalogue.** `mal_rating` and `mal_rank`, `anilist_rating`, `imdb_rating`
+  and `imdb_series_rating`, `metacritic_score` and `metacritic_user_score`
+  are scores someone else published, so they are facts about the work. Every
+  `my_rating` and every expectation is an opinion.
+- **`remark` on entities, credits, relations, watch orders and options stays
+  catalogue.** Those are editorial annotations on the shared record, not one
+  reader's view of the work.
+- **`usefulness` is the account's own, and its meaning is too.** It is used
+  mainly on restricted media, where few accounts other than the owner's
+  will see it, but any account can keep its own. Nothing documents or
+  derives what a value means.
+- **Of the note sections, only the six highlights changed scope.** Others
+  split instead: the row stays catalogue and named fields on it become each
+  account's (note marks, above). OP/ED 變動 does not split, and stays
+  catalogue as it is.
+- **很多福利 stays an ordinary Label tag.** It is not the `ecchi` label's
+  tag, so it decides nothing about who sees an entry.
+
+### A mixed section has no "only me" switch (2026-11-14)
+
+**Not built: letting a `manage.catalog` holder keep personal rows in a
+mixed section.** Which kind of row an account writes follows from whether
+it writes the catalogue (mixed sections, above), and there is no switch to
+make a `super`'s row its own. The reason is who the feature is for: the
+owner is the one creating catalogue data, and personal rows exist for the
+other accounts, whose catalogue is far from complete. A `super` that needs
+rows of its own is dealt with if it ever happens.
+
+### Recovery goes through the admin, and nothing signs out everywhere (2026-11-14)
+
+What the account rework deliberately did not build around signing in:
+
+- **No email address or phone number on an account**, and so no
+  self-service recovery: the site has no way to reach anyone. Recovery is a
+  link the admin issues and hands over, and it recovers a forgotten
+  username as well as a password, because the page it opens says which
+  account it is for.
+- **No in-app "forgot my password" request.** A signed-out form identifies
+  nobody - anyone can type a username - and the link it would ask for still
+  has to be handed over outside the app, so the request would save no
+  step. The sign-in page's "Forgot your password or
+  username?" opens a note saying to ask the admin, and nothing else links
+  to `/reset`.
+- **No public way to the register page.** Nothing links to `/register`, so
+  nobody reaches it only to find they cannot register without an invite.
+- **No "sign out everywhere" and no admin force-logout.** Sessions end on a
+  spent reset link, the admin setting a password, and disabling the account,
+  and those cover the cases: someone else knows my password (a reset), a
+  leaked shared login (the admin sets a new password), an account to cut
+  off (disable it).
+- **No sliding refresh.** A login lasts 30 days from sign-in, used or not.
+
+### `shared` is its own role and not a reserved word; a new account starts at `normal` (2026-11-14)
+
+- **The shared accounts are not on the `guest` role.** A guest is the
+  signed-out visitor and nobody else; a shared account is signed in. Giving
+  them their own role lets what visitors read and what shared logins read
+  be tuned separately on `/roles`.
+- **Only `admin` and `guest` are reserved in usernames.** `shared` is not,
+  because the shared accounts are seeded, never registered, so no
+  registrant can collide with them. The test is a substring of the
+  lowercased name, not a similarity test: `admin1` and `qadminqe` are
+  refused, `adamin` and `adm1in` allowed.
+- **A new account starts at `normal` / `normal`, not `safe`.** That replaced
+  an earlier rule that every new account starts in `safe`: an account can
+  switch up to its ceiling at once, so starting lower protects nothing.

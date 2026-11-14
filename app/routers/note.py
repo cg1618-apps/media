@@ -317,8 +317,9 @@ def _authorize_write(viewer: Viewer, section_key: Optional[str]) -> bool:
     A mixed section takes both, and the kind is decided here, never by the
     payload: a viewer holding manage.catalog writes catalogue rows - the
     admin and `super` included - and any other viewer holding
-    self.personal_notes writes personal rows. That is the account spec's
-    table: whoever writes the catalogue keeps no personal rows beside it.
+    self.personal_notes writes personal rows: whoever writes the catalogue
+    keeps no personal rows beside it (docs/notes/decisions.md, "mixed
+    sections" and "A mixed section has no 'only me' switch").
 
     Scope is read from the registry rather than from a list here, so a section
     reclassified in note_sections.py changes who may write it with no change to

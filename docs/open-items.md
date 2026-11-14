@@ -14,12 +14,12 @@ session is currently doing, live in the branch and the pull request. Machine
 state — which database is at which revision, where the dumps are — is
 [switching-environments.md](switching-environments.md).
 
-## Per-viewer page detail — first, once the rework is built
+## Per-viewer page detail — first
 
 **Each page's detailed customisation per viewer is undecided, and it is the
-first thing to take up** once everything in [to-do-next.md](to-do-next.md)
-has been built — the notes rework and the account and authorization rework
-— and the remaining page-level discussions have been had.
+first thing to take up** now that the notes rework and the account and
+authorization rework are built, once the remaining page-level discussions
+have been had.
 
 What is settled now is each page's **general** version per viewer, in
 [viewers.md](viewers.md), "Customised pages": for a library, for instance,
@@ -122,9 +122,12 @@ guard, and its database is populated rather than fresh.
 
 ## Authorization and accounts
 
-The account and authorization rework is decided work, queued in
-[to-do-next.md](to-do-next.md); what is still undecided about it is in its
-design.
+**Four content label descriptions are drafts.** The owner wrote the
+descriptions of `ecchi` and `erotica`; those of `nsfw` (不適合公開場合觀看),
+`hentai` (成人動畫), `h-game` (成人遊戲) and `h-comic` (成人漫畫) were drafted
+for the owner to correct, and the code still holds the drafts. They live in
+`app/services/rbac/labels.py`, are rewritten onto the label rows on every
+start, and say only what a label marks, in Chinese.
 
 **Libraries cannot filter by content label.** The franchise library already
 receives each franchise's labels and only draws them as chips; the collection
