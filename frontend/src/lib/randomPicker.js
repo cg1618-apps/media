@@ -20,6 +20,10 @@
 // franchise library puts on its personal columns. A viewer without self.list
 // has none of those values, so filterDefsForMode drops every flagged def for
 // them and keeps the catalogue ones.
+//
+// A shared account (view.random_picker without self.list) gets less again:
+// the general mode only, with exactly two filters, media type and release
+// decade (sharedFilterDefs). The page offers it no other mode.
 import { FRANCHISE_EXPECTATIONS, FRANCHISE_TYPES, MY_RATINGS } from "../config/fieldOptions";
 import { MEDIA_CONFIG } from "../config/mediaRegistry";
 import {
@@ -240,17 +244,22 @@ export function genreDef(types) {
   };
 }
 
+/** The media-type filter, offering only `types` as chips. */
+function mediaTypeDef(types) {
+  return {
+    key: "mediaType",
+    label: "Media Type",
+    type: "set",
+    options: types,
+    optionLabel: pickerTypeLabel,
+    match: (entry, active) => active.has(entry.type),
+  };
+}
+
 /** The general mode's defs, offering only `types` as media-type chips. */
 export function generalFilterDefs(types) {
   return [
-    {
-      key: "mediaType",
-      label: "Media Type",
-      type: "set",
-      options: types,
-      optionLabel: pickerTypeLabel,
-      match: (entry, active) => active.has(entry.type),
-    },
+    mediaTypeDef(types),
     statusGroupDef,
     ratingDef,
     decadeDef,
@@ -302,11 +311,24 @@ export function entryKey(entry) {
 export const PICKER_MODES = ["all", ...PICKER_TYPES.map((t) => t.type), FRANCHISE_MODE];
 
 /**
+ * A shared account's defs: media type and release decade, nothing else. The
+ * decade is each entry's primary release date (lib/releaseDate.js
+ * RELEASE_PRIORITY - release_date on most types, release_date_jp then _tw on
+ * an anime movie, release_date_tw then _usa on a movie), offered as the
+ * decades the pool holds, plus Unknown when an entry has no date.
+ */
+export function sharedFilterDefs(types) {
+  return [mediaTypeDef(types), decadeDef];
+}
+
+/**
  * A mode's defs: the general ones for "all", the franchise ones, else that
  * type's. `personal` is whether the viewer holds self.list; without it every
- * def flagged `personal: true` is dropped.
+ * def flagged `personal: true` is dropped. `shared` is the shared account's
+ * picker, which has the general mode only and sharedFilterDefs there.
  */
-export function filterDefsForMode(mode, types, { personal = true } = {}) {
+export function filterDefsForMode(mode, types, { personal = true, shared = false } = {}) {
+  if (shared) return mode === "all" ? sharedFilterDefs(types) : [];
   const defs =
     mode === "all"
       ? generalFilterDefs(types)

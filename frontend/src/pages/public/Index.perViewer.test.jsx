@@ -52,16 +52,21 @@ function me(role, permissions, extra = {}) {
   };
 }
 
+// Newest per type, as /api/dashboard/recent sends it: two types, so the
+// sections have something to tell apart. Manga is listed first here and
+// still draws after anime, in the registry's order.
+const recent = (id, media_type, public_id, display_name) => ({
+  system_id: id,
+  media_type,
+  public_id,
+  display_name,
+  cover_image_file: null,
+  cover_image_focus: null,
+  created_at: "2026-11-01T00:00:00Z",
+});
 const RECENT = [
-  {
-    system_id: "r1",
-    media_type: "anime",
-    public_id: 7,
-    display_name: "Dungeon Meshi",
-    cover_image_file: null,
-    cover_image_focus: null,
-    created_at: "2026-11-01T00:00:00Z",
-  },
+  recent("r2", "manga", 3, "Yotsuba"),
+  recent("r1", "anime", 7, "Dungeon Meshi"),
 ];
 const LOGS = [
   {
@@ -280,8 +285,25 @@ describe("recently added", () => {
     expect(toc.getByRole("button", { name: "Recently added" })).toBeInTheDocument();
   });
 
-  it("is not shown to a user, whose dashboard is its tracker", async () => {
-    setup(me("user", USER_PERMS));
+  it("draws one section per type the server sent, anime first, asking per type", async () => {
+    setup(me("shared", SHARED_PERMS));
+    mount();
+    const recentBlock = await screen.findByTestId("recently-added");
+    const sections = within(recentBlock).getAllByRole("region");
+    expect(sections.map((s) => s.getAttribute("aria-label"))).toEqual(["Anime", "Manga"]);
+    expect(within(screen.getByTestId("recent-manga")).getByRole("link", { name: /Yotsuba/ })).toBeInTheDocument();
+    // No section for a type with nothing visible.
+    expect(screen.queryByTestId("recent-movie")).toBeNull();
+    expect(fetched("/api/dashboard/recent?per_type=12")).toBe(true);
+  });
+
+  // The mirror of the shared account: same mocks, the recent rows ready to
+  // answer, and neither member role asks for them.
+  it.each([
+    ["user", USER_PERMS],
+    ["super", SUPER_PERMS],
+  ])("is not shown to %s, whose dashboard is its tracker", async (role, perms) => {
+    setup(me(role, perms));
     mount();
     await waitFor(() => expect(screen.getByText("My watch schedule")).toBeInTheDocument());
     expect(document.getElementById("recent")).toBeNull();

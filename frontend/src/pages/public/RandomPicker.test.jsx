@@ -53,7 +53,8 @@ function respond(url) {
     };
   }
   if (url.startsWith("/api/manga/"))
-    return [{ system_id: "m1", manga_name_en: "Yotsuba", franchise_id: "f2" }];
+    // Dated, so the release decade has a decade beside the undated anime.
+    return [{ system_id: "m1", manga_name_en: "Yotsuba", franchise_id: "f2", release_date: "2003-03-21" }];
   if (url.startsWith("/api/franchise/"))
     return [
       { system_id: "f1", public_id: 1, franchise_name_en: "Steins Gate", franchise_type: "ACG" },
@@ -271,12 +272,50 @@ it("with a list, offers the personal filters and weighting, and asks for plan ma
   );
 });
 
-it("without a list, drops a type's own status filter", async () => {
+// A shared account's picker is the one over every entry, with two filters.
+// The member mirror below runs the same page and mocks.
+it("gives a shared account one picker with only media type and release decade", async () => {
   signInShared();
-  mount("/random/anime");
-  await waitFor(() => expect(screen.getByText("2 in the pool")).toBeInTheDocument());
-  expect(screen.getByText("Airing Type")).toBeInTheDocument();
-  expect(screen.queryByText("Watch Status")).not.toBeInTheDocument();
+  mount("/random");
+  await waitFor(() => expect(screen.getByText("3 in the pool")).toBeInTheDocument());
+  expect(screen.queryByRole("navigation", { name: "Picker mode" })).not.toBeInTheDocument();
+  expect(screen.getByText("Media Type")).toBeInTheDocument();
+  expect(screen.getByText("Release Decade")).toBeInTheDocument();
+  for (const gone of ["Genre", "MAL Score", "External Score", "Status", "My Rating"]) {
+    expect(screen.queryByText(gone)).not.toBeInTheDocument();
+  }
+
+  // The decades are the ones the pool holds: the manga's, and Unknown for
+  // the undated anime.
+  fireEvent.click(screen.getByRole("button", { name: "2000s" }));
+  expect(screen.getByText("1 in the pool")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "2010s" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: /^pick$/i }));
+  expect(await screen.findByText("Yotsuba")).toBeInTheDocument();
+});
+
+it.each(["/random/anime", "/random/franchise"])(
+  "sends a shared account from %s to the one picker",
+  async (path) => {
+    signInShared();
+    mount(path);
+    await waitFor(() => expect(screen.getByText("3 in the pool")).toBeInTheDocument());
+    expect(screen.queryByRole("navigation", { name: "Picker mode" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Airing Type")).not.toBeInTheDocument();
+    expect(fetched().some((u) => u.startsWith("/api/franchise/"))).toBe(false);
+  },
+);
+
+it("keeps every mode and the full filters for a member", async () => {
+  signInMember();
+  mount("/random");
+  await waitFor(() => expect(screen.getByText("3 in the pool")).toBeInTheDocument());
+  const strip = screen.getByRole("navigation", { name: "Picker mode" });
+  expect(strip).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Franchise" })).toBeInTheDocument();
+  expect(screen.getByText("Release Decade")).toBeInTheDocument();
+  expect(screen.getByText("External Score")).toBeInTheDocument();
+  expect(screen.getByText("Status")).toBeInTheDocument();
 });
 
 it("with a list, offers a type's own status filter", async () => {
@@ -313,9 +352,10 @@ it("without a list, opens the picker for a Weights tab link", async () => {
   expect(screen.queryByText("Step 1 · Status group")).not.toBeInTheDocument();
 });
 
-// Offered in both versions: a catalogue filter, not a personal one.
+// A catalogue filter, so a guest-like session without a list has it too; a
+// shared account does not, having only the one picker.
 it.each([
-  ["without a list", signInShared],
+  ["without a list", () => {}],
   ["with a list", signInMember],
 ])("narrows the pool by external score %s", async (_label, signIn) => {
   signIn();

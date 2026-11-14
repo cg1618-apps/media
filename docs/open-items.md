@@ -122,6 +122,13 @@ guard, and its database is populated rather than fresh.
 
 ## Authorization and accounts
 
+**Should user and super get Recently added on their dashboard?** It is drawn
+for a shared account only (`view.random_picker` without `self.list`,
+`dashboardSections.js`); a member's dashboard is its own tracker, so user and
+super do not get it. Unmade decision for the owner: add it for them too, and
+if so where it sits among the tracker sections, or keep it a shared
+account's.
+
 **Should a guest and a shared account search by default?** The account
 design gave both Search. `view.search` is a switch on each role, and the
 seed grants it to `user` and `super` only, so on a fresh database neither a
