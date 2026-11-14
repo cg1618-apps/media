@@ -8,9 +8,10 @@ One row per picker mode in the system_configs key/value table, keyed as
 routers/form_defaults.py stores form defaults. A mode is "all" (the general
 picker), one media type, or "franchise" (the mode that draws a franchise).
 
-Reading is open to everyone, because the picker is: a guest's picker opens
-with the same defaults as anyone's. Writing is manage.catalog, as with form
-defaults. A gated type's mode answers 404 to a session that may not see the
+Reading asks view.random_picker, the picker's own key: every account that
+opens the picker (super, user, shared) opens it with the same defaults, and a
+guest, which has no picker, reads none. Writing is manage.catalog, as with
+form defaults. A gated type's mode answers 404 to a session that may not see the
 type, on every verb, so the endpoint does not say the type exists.
 
 Filter keys and chip values are the frontend's (the FilterDefs in
@@ -30,7 +31,7 @@ from app.services.rbac.gated_types import can_see_gated_type
 from app.services.rbac.resolver import (
     Viewer,
     require_manage_catalog,
-    require_view_extras,
+    require_view_random_picker,
 )
 
 logger = logging.getLogger(__name__)
@@ -115,7 +116,7 @@ def _serialize(payload: schemas.RandomPickerDefaultsPayload) -> str:
 def get_picker_defaults(
     mode: str,
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(require_view_extras),
+    viewer: Viewer = Depends(require_view_random_picker),
 ):
     """Returns one mode's default filters; an unconfigured mode has none."""
     _validate_mode(db, viewer, mode)

@@ -69,11 +69,12 @@ catalogue and what is an account's own data is
 > design takes from it — the catalogue, the entity pages, and quotes and
 > memes, which it holds without a switch.
 >
-> **A shared account lacks Random Picker and Future Releases** until
-> `view.extras` is split. Both sit behind that one key, which also opens
-> Resources and Completions — neither of them a shared account's — so it is
-> locked off for `shared`; until the split a shared account reads what a
-> guest reads, plus requests.
+> **A shared account's Random Picker is the member's page, and it lacks
+> Future Releases.** It holds `view.random_picker`, so it opens the picker,
+> but the catalogue-only version (no personal filters, unweighted picking) is
+> not built: the personal filters read empty for it. Future Releases still sits
+> behind `view.extras`, which also opens Resources and Completions — neither
+> of them a shared account's — so it is locked off for `shared`.
 
 ## At a glance
 

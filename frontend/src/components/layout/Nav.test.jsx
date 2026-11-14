@@ -23,6 +23,7 @@ const MEMBER_KEYS = new Set([
   "view.person",
   "view.character",
   "view.search",
+  "view.random_picker",
   "view.extras",
 ]);
 const auth = {

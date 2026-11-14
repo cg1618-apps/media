@@ -11,6 +11,7 @@ let visibleGatedTypes = [];
 let storedDefaults = {};
 let storedWeighted = {};
 let username = null;
+let permissions = [];
 
 function respond(url) {
   if (url.startsWith("/api/auth/me")) {
@@ -19,7 +20,7 @@ function respond(url) {
       username,
       role: "guest",
       is_root: false,
-      permissions: [],
+      permissions,
       visible_gated_types: visibleGatedTypes,
     };
   }
@@ -52,6 +53,7 @@ beforeEach(() => {
   storedDefaults = {};
   storedWeighted = {};
   username = null;
+  permissions = [];
   vi.stubGlobal(
     "fetch",
     vi.fn((url) => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(respond(String(url))) }))
@@ -214,8 +216,18 @@ it("asks a guest for no plan marks, since a plan is private", async () => {
   expect(fetched().some((u) => u.startsWith("/api/plan-next"))).toBe(false);
 });
 
-it("asks a signed-in session for its plan marks", async () => {
+it("asks a signed-in account without a list for no plan marks", async () => {
+  // A shared account: signed in, holding the picker, keeping no list.
+  username = "shared-reader";
+  permissions = ["view.random_picker"];
+  mount("/random");
+  await waitFor(() => expect(screen.getByText("3 in the pool")).toBeInTheDocument());
+  expect(fetched().some((u) => u.startsWith("/api/plan-next"))).toBe(false);
+});
+
+it("asks an account holding self.list for its plan marks", async () => {
   username = "reader";
+  permissions = ["view.random_picker", "self.list"];
   mount("/random");
   await waitFor(() =>
     expect(fetched().some((u) => u.startsWith("/api/plan-next"))).toBe(true),

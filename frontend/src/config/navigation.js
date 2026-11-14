@@ -225,16 +225,22 @@ export const NAV_SECTIONS = [
       // self.list for the same reason: Statistics is built from the caller's
       // own seasonal rows.
       { label: "Seasonal", icon: "fas fa-leaf", to: "/seasonal", requires: "self.list" },
-      // Future Releases and the Random Picker are extras: view.extras, the
-      // same key App.jsx's routes ask. /random/<type> lights the Random
-      // Picker row up too.
+      // Future Releases is an extra (view.extras); the Random Picker asks its
+      // own key, view.random_picker - super, user and shared, never guest.
+      // Each is the key App.jsx's routes ask. /random/<type> lights the
+      // Random Picker row up too.
       {
         label: "Future Releases",
         icon: "fas fa-calendar-plus",
         to: "/future-releases",
         requires: "view.extras",
       },
-      { label: "Random Picker", icon: "fas fa-dice", to: "/random", requires: "view.extras" },
+      {
+        label: "Random Picker",
+        icon: "fas fa-dice",
+        to: "/random",
+        requires: "view.random_picker",
+      },
       { label: "Statistics", icon: "fas fa-chart-bar", to: "/statistics", requires: "self.list" },
     ],
   },

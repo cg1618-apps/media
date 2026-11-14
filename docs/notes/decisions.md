@@ -4597,3 +4597,20 @@ list route it would be a catalogue write by an account without
 `manage.catalog`. So an editor who wants the catalogue half still gets it from
 Mark completed or a `PATCH`, and the two paths share `write_list_payload` so
 the row's half is the same on both.
+
+### The Random Picker gets its own key, `view.random_picker` (2026-11-14)
+
+viewers.md gives the picker to `super`, `user` and `shared` and never to the
+guest. No existing key drew that line: `view.extras` also opens Resources and
+Completions, which are not a shared account's, and `self.list` is exactly what
+a shared account lacks. So the picker has a key of its own, locked on for the
+three and off for the guest, which leaves no cell of it a free choice - the
+line is the design's, not an admin's. The plan-marks read inside the picker
+asks `self.list` rather than "signed in", because a shared account is signed
+in, keeps no plan, and would get a 401.
+
+It lands before `view.extras` goes, not with it. `/resources` still reads on
+`view.extras` until P3h moves it to `manage.resources`, and removing the key
+first would close Resources to everyone in between; so `v1i2ewextras3` grants
+the new key now and gains the `view.extras` removal when P3h is merged in, as
+the one revision this branch ships.

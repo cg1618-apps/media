@@ -10,7 +10,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 
 - **Public endpoints** — accessible by any visitor (guest or admin).
 - **Capability-gated endpoints** — require a valid JWT in the `access_token` HTTP-Only cookie plus the capability the route names: `require_manage_catalog`, `require_manage_pipelines` or `require_admin_authz` (`app/services/rbac/resolver.py`). There is no single "is an admin" dependency.
-- **View-gated reads** — an Auth cell naming a `view.*` permission (`view.studio`, `view.publisher`, `view.person`, `view.character`, `view.search`, `view.extras`) is a read the `guest` role does not hold as seeded, so a logged-out visitor gets **401**. A signed-in `user` holds `view.search` and `view.extras` as seeded; the four entity keys are the admin's to switch on per role. See [authorization.md](authorization.md#permission-catalog-code).
+- **View-gated reads** — an Auth cell naming a `view.*` permission (`view.studio`, `view.publisher`, `view.person`, `view.character`, `view.search`, `view.random_picker`, `view.extras`) is a read the `guest` role does not hold as seeded, so a logged-out visitor gets **401**. A signed-in `user` holds `view.search` and `view.extras` as seeded; the four entity keys are the admin's to switch on per role. See [authorization.md](authorization.md#permission-catalog-code).
 - **Feature-gated reads** — an Auth cell naming `feature quotes_memes` is a read the caller's **account** must have switched on (`users.feature_quotes_memes`), answered **401** otherwise, the same shape as a permission refusal. See [authorization.md](authorization.md#per-account-feature-switches).
 - Login flow: `POST /api/auth/login` → sets cookie → all subsequent admin requests carry it automatically.
 - A missing or invalid cookie on an admin endpoint is **401**, never 403. The one 403 in the app is the login route's, for a pending or disabled account that gave the right password. Public read endpoints additionally resolve a *viewer* and hide what the viewer's role may not see (as 404) — see [Authorization](#authorization) at the end of this file and `docs/authorization.md`.
@@ -2321,7 +2321,7 @@ session that may not see the type, so the endpoint does not say it exists.
 
 | Method   | Path      | Auth           | Description                                                           |
 | -------- | --------- | -------------- | --------------------------------------------------------------------- |
-| `GET`    | `/{mode}` | `view.extras`  | One mode. Unconfigured returns **200 with `filters: {}`, `weighted: true`**, never 404. |
+| `GET`    | `/{mode}` | `view.random_picker` | One mode. Unconfigured returns **200 with `filters: {}`, `weighted: true`**, never 404. |
 | `PUT`    | `/{mode}` | manage.catalog | Full-replacement upsert. Body: `RandomPickerDefaultsPayload`.          |
 | `DELETE` | `/{mode}` | manage.catalog | Delete the row, so the mode opens with no filters, weighted. Idempotent. |
 

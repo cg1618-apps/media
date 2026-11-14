@@ -152,6 +152,14 @@ viewers.md:
 
 ### Migration (`v1i2ewextras3`, parented on the head at execution)
 
+**Built in two steps in the one revision.** Parented on `f1a2vourites3`
+(P5's head on 2026-11-14). Step 1 ships now; steps 2 and 3's `view.extras`
+half wait until P3h is merged in, because `/resources` reads on
+`view.extras` until P3h moves it to `manage.resources`. When P3h lands,
+re-check `alembic heads`, add the removal to the same revision, and delete
+`PERM_VIEW_EXTRAS`, `require_view_extras` and `useViewScope().extras`.
+The admin's lock (off) also waits for P3h's non-root admin.
+
 1. Grant `view.random_picker` to `super`, `user` and `shared`; never to
    `guest` or `admin`.
 2. Delete every `view.extras` grant row, and the permission row if

@@ -144,7 +144,11 @@ SELF_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
 # covers character identities, which are pages of a character.
 ENTITY_VIEW_KEYS: tuple[str, ...] = ("studio", "publisher", "person", "character")
 
-VIEW_PERMISSION_KEYS: tuple[str, ...] = ENTITY_VIEW_KEYS + ("search", "extras")
+VIEW_PERMISSION_KEYS: tuple[str, ...] = ENTITY_VIEW_KEYS + (
+    "search",
+    "random_picker",
+    "extras",
+)
 
 VIEW_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
     "studio": (
@@ -174,10 +178,15 @@ VIEW_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
         "Search",
         "Use the site-wide search.",
     ),
+    "random_picker": (
+        "Random Picker",
+        "Open the Random Picker and read its saved defaults. Fixed per role: "
+        "super, user and shared hold it, a guest never does.",
+    ),
     "extras": (
         "View Extras",
-        "Resources, the random picker, future releases and completions. "
-        "Quotes and memes are a per-account switch on Users instead.",
+        "Resources, future releases and completions. Quotes and memes are a "
+        "per-account switch on Users instead.",
     ),
 }
 
@@ -212,6 +221,7 @@ ENTITY_VIEW_PERMISSIONS: frozenset[str] = frozenset(
     view_perm(key) for key in ENTITY_VIEW_KEYS
 )
 PERM_VIEW_SEARCH = view_perm("search")
+PERM_VIEW_RANDOM_PICKER = view_perm("random_picker")
 PERM_VIEW_EXTRAS = view_perm("extras")
 
 
@@ -349,6 +359,7 @@ def locked_permissions(
             | {manage_perm(key) for key in MANAGE_PERMISSION_KEYS}
             | own
             | gated
+            | {PERM_VIEW_RANDOM_PICKER}
         )
     if role_name == SUPER_ROLE_NAME:
         return frozenset(every - {PERM_ADMIN_AUTHZ}), frozenset({PERM_ADMIN_AUTHZ})
@@ -361,19 +372,21 @@ def locked_permissions(
         # Handling requests is not a member's: the inbox reads every
         # account's requests. Writing the catalogue is what makes an account
         # `super`, so a member never holds it.
-        return frozenset({PERM_SELF_REQUESTS, PERM_SELF_PASSWORD} | gated), frozenset(
+        return frozenset(
+            {PERM_SELF_REQUESTS, PERM_SELF_PASSWORD, PERM_VIEW_RANDOM_PICKER} | gated
+        ), frozenset(
             refused | {PERM_MANAGE_CATALOG, PERM_MANAGE_REQUESTS}
         )
     if role_name == SHARED_ROLE_NAME:
         # Several people sign in to one shared account. It files requests and
         # reads; it keeps no list or personal notes of its own, because they
         # would be everyone's. Its password is the admin's to set - one person
-        # changing it would lock out everyone else using the login. view.extras
-        # stays off: a shared account's own Random Picker and Future Releases
-        # are a separate change, and until it lands the account reads what a
-        # guest reads. Quotes and memes are a per-account switch, which a
-        # shared account can never hold (features.FEATURE_ROLE_NAMES).
-        return frozenset({PERM_SELF_REQUESTS}), frozenset(
+        # changing it would lock out everyone else using the login. It holds
+        # the Random Picker, in its catalogue-only version (viewers.md,
+        # "Shared"). view.extras stays off until it goes. Quotes and memes are
+        # a per-account switch, which a shared account can never hold
+        # (features.FEATURE_ROLE_NAMES).
+        return frozenset({PERM_SELF_REQUESTS, PERM_VIEW_RANDOM_PICKER}), frozenset(
             {admin_perm(key) for key in ADMIN_PERMISSION_KEYS}
             | {manage_perm(key) for key in MANAGE_PERMISSION_KEYS}
             | {PERM_SELF_LIST, PERM_SELF_PERSONAL_NOTES, PERM_SELF_PASSWORD}

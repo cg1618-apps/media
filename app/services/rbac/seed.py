@@ -42,6 +42,7 @@ from app.services.rbac.permissions import (
     PERM_SELF_PASSWORD,
     PERM_SELF_PERSONAL_NOTES,
     PERM_SELF_REQUESTS,
+    PERM_VIEW_RANDOM_PICKER,
     SHARED_ROLE_NAME,
     SUPER_ROLE_NAME,
     USER_ROLE_NAME,
@@ -130,13 +131,14 @@ def default_user_permissions() -> set[str]:
 
 def default_shared_permissions() -> set[str]:
     """
-    A shared account's grants: what a guest reads, plus filing requests.
+    A shared account's grants: what a guest reads, plus filing requests and
+    the Random Picker (both locked on for this role).
 
     Derived from default_guest_permissions() so a media type added later
     reaches it too. No gated types, as for guest: they are locked off for
     this role. The four entity-page keys start off and stay adjustable.
     """
-    return default_guest_permissions() | {PERM_SELF_REQUESTS}
+    return default_guest_permissions() | {PERM_SELF_REQUESTS, PERM_VIEW_RANDOM_PICKER}
 
 
 def default_super_permissions() -> set[str]:

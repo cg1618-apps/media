@@ -139,9 +139,9 @@ export default function App() {
                     path="/library/h-comic"
                     element={<Library type="h-comic" />}
                   />
-                  {/* The picker is an extra as well: the type's gate and
-                      view.extras, both asked. */}
-                  <Route element={<ProtectedRoute permission="view.extras" />}>
+                  {/* The picker has its own key: the type's gate and
+                      view.random_picker, both asked. */}
+                  <Route element={<ProtectedRoute permission="view.random_picker" />}>
                     <Route
                       path="/random/h-comic"
                       element={<RandomPicker type="h-comic" />}
@@ -158,9 +158,9 @@ export default function App() {
                     path="/library/h-game"
                     element={<Library type="h-game" />}
                   />
-                  {/* The picker is an extra as well: the type's gate and
-                      view.extras, both asked. */}
-                  <Route element={<ProtectedRoute permission="view.extras" />}>
+                  {/* The picker has its own key: the type's gate and
+                      view.random_picker, both asked. */}
+                  <Route element={<ProtectedRoute permission="view.random_picker" />}>
                     <Route
                       path="/random/h-game"
                       element={<RandomPicker type="h-game" />}
@@ -177,9 +177,9 @@ export default function App() {
                     path="/library/hentai"
                     element={<Library type="hentai" />}
                   />
-                  {/* The picker is an extra as well: the type's gate and
-                      view.extras, both asked. */}
-                  <Route element={<ProtectedRoute permission="view.extras" />}>
+                  {/* The picker has its own key: the type's gate and
+                      view.random_picker, both asked. */}
+                  <Route element={<ProtectedRoute permission="view.random_picker" />}>
                     <Route
                       path="/random/hentai"
                       element={<RandomPicker type="hentai" />}
@@ -257,15 +257,18 @@ export default function App() {
                   <Route path="/search" element={<Search />} />
                 </Route>
 
-                {/* The extras. Resources is read-only here; its edit controls
-                    ask for manage.catalog themselves. The gated
-                    /random/h-* routes above ask this key too. Quotes and
-                    Memes are not extras: they follow the account's
-                    quotes_memes feature switch, below. */}
-                <Route element={<ProtectedRoute permission="view.extras" />}>
-                  <Route path="/future-releases" element={<FutureReleases />} />
+                {/* The Random Picker asks its own key, as the gated
+                    /random/h-* routes above do. */}
+                <Route element={<ProtectedRoute permission="view.random_picker" />}>
                   <Route path="/random" element={<RandomPicker />} />
                   <Route path="/random/:type" element={<RandomPicker />} />
+                </Route>
+                {/* The extras. Resources is read-only here; its edit controls
+                    ask for manage.catalog themselves. Quotes and Memes are
+                    not extras: they follow the account's quotes_memes feature
+                    switch, below. */}
+                <Route element={<ProtectedRoute permission="view.extras" />}>
+                  <Route path="/future-releases" element={<FutureReleases />} />
                   <Route path="/completions" element={<Completions />} />
                   <Route path="/resources" element={<Resources />} />
                 </Route>

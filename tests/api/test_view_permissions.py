@@ -1,8 +1,8 @@
 """
 The view.* family: what a logged-out visitor does not see.
 
-Six keys: four entity-page keys (studio, publisher, person, character),
-search and extras. `super` holds all six by lock; `user` is seeded with the
+Seven keys: four entity-page keys (studio, publisher, person, character),
+search, random_picker and extras. `super` holds all seven by lock; `user` is seeded with the
 last two and the entity keys start off; `guest` holds none. Each refusal below is
 asserted with the gated thing PRESENT - a row to read - and is mirrored by a viewer holding the key reading the
 same thing through the same fixture, so a green proves the gate refused and not
@@ -22,6 +22,7 @@ from app.services.rbac.permissions import (
     PERM_VIEW_EXTRAS,
     PERM_VIEW_PERSON,
     PERM_VIEW_PUBLISHER,
+    PERM_VIEW_RANDOM_PICKER,
     PERM_VIEW_SEARCH,
     PERM_VIEW_STUDIO,
     VIEW_PERMISSION_KEYS,
@@ -65,13 +66,14 @@ def _held(db, role_name):
 # ---------------------------------------------------------------------------
 
 
-def test_the_six_keys_are_in_the_catalog():
+def test_the_seven_keys_are_in_the_catalog():
     assert VIEW_PERMISSION_KEYS == (
         "studio",
         "publisher",
         "person",
         "character",
         "search",
+        "random_picker",
         "extras",
     )
     assert {view_perm(k) for k in VIEW_PERMISSION_KEYS} == VIEW_ALL
@@ -128,7 +130,8 @@ def test_the_seed_defaults():
     assert not ENTITY_KEYS & default_user_permissions()
     assert VIEW_ALL <= default_super_permissions()
     assert not VIEW_ALL & default_guest_permissions()
-    assert not VIEW_ALL & default_shared_permissions()
+    # A shared account opens the Random Picker, and nothing else of the family.
+    assert VIEW_ALL & default_shared_permissions() == {PERM_VIEW_RANDOM_PICKER}
 
 
 def test_the_seeded_roles_hold_what_the_defaults_say(db, client):
@@ -210,10 +213,8 @@ def gated_reads(db, admin_client, person, character, anime_with_studio, sample_a
         # The quote and meme reads are not here: they answer to the
         # account's quotes-and-memes switch, not to a view key - see
         # test_account_features.py.
-        PERM_VIEW_EXTRAS: [
-            "/api/resources",
-            "/api/random-picker-defaults/all",
-        ],
+        PERM_VIEW_EXTRAS: ["/api/resources"],
+        PERM_VIEW_RANDOM_PICKER: ["/api/random-picker-defaults/all"],
     }
 
 

@@ -437,6 +437,7 @@ describe("visibleSections - the guest scope", () => {
     "view.person",
     "view.character",
     "view.search",
+    "view.random_picker",
     "view.extras",
   ]);
   const holdsMember = (p) => MEMBER.has(p);
@@ -563,8 +564,18 @@ describe("the header's tab grouping", () => {
     expect(keys).not.toContain("extras");
   });
 
+  it("gives a shared account the Random Picker and no Track", () => {
+    // A shared account holds view.random_picker without self.list.
+    const sections = visibleSections(NAV_SECTIONS, (p) => p === "view.random_picker");
+    expect(sections.map((s) => s.key)).not.toContain("track");
+    expect(labelsIn(sections, "explore")).toContain("Random Picker");
+    // Mirror: a guest, holding neither, is offered no picker.
+    const guest = visibleSections(NAV_SECTIONS, () => false);
+    expect(guest.flatMap((s) => sectionItems(s).map((i) => i.to))).not.toContain("/random");
+  });
+
   it("shows a member and catalogue editor each tab's rows in order", () => {
-    const held = new Set(["self.list", "view.extras", "manage.catalog"]);
+    const held = new Set(["self.list", "view.random_picker", "view.extras", "manage.catalog"]);
     const sections = visibleSections(NAV_SECTIONS, (p) => held.has(p));
     expect(labelsIn(sections, "track")).toEqual(["Plan", "Completions"]);
     expect(labelsIn(sections, "explore")).toEqual([
@@ -637,7 +648,7 @@ describe("the two permission surfaces agree", () => {
     "/library/seiyuu": "view.person",
     "/future-releases": "view.extras",
     "/completions": "view.extras",
-    "/random": "view.extras",
+    "/random": "view.random_picker",
     "/resources": "view.extras",
     "/request-inbox": "manage.requests",
   };

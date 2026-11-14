@@ -60,9 +60,9 @@ are a large share of the bundle and never needed on first paint.
 | `/future-releases` | `public/FutureReleases.jsx` | lazy, **`view.extras`** |
 | `/statistics` | `public/Statistics.jsx` | lazy, **login required** |
 | `/completions` | `public/Completions.jsx` | lazy, **`view.extras`** |
-| `/random` | `public/RandomPicker.jsx` — the general mode | lazy, **`view.extras`** |
-| `/random/h-comic`, `/random/h-game`, `/random/hentai` | `RandomPicker type="…"` — the same file, each inside its type's `<ProtectedRoute gatedType>` and, within it, `<ProtectedRoute permission="view.extras">` (matched before `/random/:type`) | lazy, **gated**, **`view.extras`** |
-| `/random/:type` | `RandomPicker` — one type's mode, or `/random/franchise`, the franchise mode; an unknown type redirects to `/random` | lazy, **`view.extras`** |
+| `/random` | `public/RandomPicker.jsx` — the general mode | lazy, **`view.random_picker`** |
+| `/random/h-comic`, `/random/h-game`, `/random/hentai` | `RandomPicker type="…"` — the same file, each inside its type's `<ProtectedRoute gatedType>` and, within it, `<ProtectedRoute permission="view.random_picker">` (matched before `/random/:type`) | lazy, **gated**, **`view.random_picker`** |
+| `/random/:type` | `RandomPicker` — one type's mode, or `/random/franchise`, the franchise mode; an unknown type redirects to `/random` | lazy, **`view.random_picker`** |
 | `/plan` | `public/Plan.jsx` | lazy, **login required** |
 | `/quote` | `public/Quotes.jsx` | lazy, **feature `quotes_memes`** (`<ProtectedRoute feature>`) |
 | `/meme` | `public/Memes.jsx` | lazy, **feature `quotes_memes`** |
@@ -88,8 +88,9 @@ Broadcast schedule, the `/library/:type` lists, `/library/collection`,
 `/library/franchise`, and the entry, collection, franchise, series and
 watch-order pages they lead to. Everything else a member reads is behind a
 `view.*` permission, which `super` holds, `admin` passes through the root
-flag, and `guest` does not hold as seeded. `user` holds `view.search` and
-`view.extras` as seeded; the four entity keys are each a switch on the role,
+flag, and `guest` does not hold as seeded. `user` holds `view.search`,
+`view.random_picker` and `view.extras` as seeded (a shared account holds
+`view.random_picker` alone; it is locked off for `guest`); the four entity keys are each a switch on the role,
 seeded off, so a fresh database shows a `user` entity names as plain text
 until an admin ticks a kind on:
 
@@ -100,7 +101,8 @@ until an admin ticks a kind on:
 | `view.person` | the person and seiyuu libraries and person pages | staff, author, club-member and seiyuu names render as plain text |
 | `view.character` | the character library, character and identity pages | character and identity names render as plain text; the franchise and series hubs have no Characters tab |
 | `view.search` | `/search` | `NavSearch` is not drawn — not the inline slot, the phone button or its sheet |
-| `view.extras` | Future Releases, Completions, every `/random` route, `/resources` | — |
+| `view.random_picker` | every `/random` route | the picker asks `/api/plan-next/` for plan marks only with `self.list` (`useViewScope().ownData`), so a shared account's picker draws no plan weight and never gets a 401 |
+| `view.extras` | Future Releases, Completions, `/resources` | — |
 
 A personal note section is not behind a `view.*` key either: the registry
 lists it for every viewer and the rows are only the viewer's own, so a guest
@@ -146,11 +148,12 @@ about styling.
 |---|---|---|---|
 | `library` | Library | mega-panel (`columns`) | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities** (each row `requires` its own kind's key, so a row whose kind is off is dropped and a viewer holding none has no Entities column): Studio `/library/studio` (also matches `/studio`; `view.studio`), Publisher `/library/publisher` (also matches `/publisher`; `view.publisher`), Person `/library/person` (also matches `/person`; `view.person`), Character `/library/character` (also matches `/character` and `/identity`; `view.character`), Seiyuu `/library/seiyuu` (`view.person`) · **ACG**: Anime, Anime Movie, Manga, Novel, Game `/library/game` (also matches `/game`) · **Reality**: TV Show, Movie, Cartoon, Comic |
 | `restricted` | Restricted | flat `items`, every row gated | H-Comic `/library/h-comic` (also matches `/h-comic`; `gatedType: "h-comic"`), H-Game `/library/h-game` (also matches `/h-game`; `gatedType: "h-game"`), Hentai `/library/hentai` (also matches `/hentai`; `gatedType: "hentai"`). Each is drawn only for a session that can see its type; a session that can see no gated type has every row dropped, so the tab itself is not drawn |
-| `track` | Track | flat `items` | Plan `/plan`, Seasonal `/seasonal` (both `requires: "self.list"` — see below), Future Releases `/future-releases`, Completions `/completions`, Random Picker `/random` (whose `/random/<type>` pages light it too) — the last three `requires: "view.extras"`. A guest holds none of these keys, so the tab is not drawn |
-| `insights` | Insights | flat | Statistics `/statistics` (`requires: "self.list"`), Quotes `/quote` and Memes `/meme` (each `feature: "quotes_memes"`), Resources `/resources` (`requires: "view.extras"`) ┃ Relations `/relations`, Watch Orders `/watch-orders` — these two carry `requires: "admin"` on the row, inside a tab everyone may open |
+| `track` | Track | flat `items` | Plan `/plan` (`requires: "self.list"` — see below), Completions `/completions` (`requires: "view.extras"`). The account's own progress; a guest holds neither key, so the tab is not drawn |
+| `explore` | Explore | flat `items` | Seasonal `/seasonal` (`requires: "self.list"`), Future Releases `/future-releases` (`requires: "view.extras"`), Random Picker `/random` (`requires: "view.random_picker"`; its `/random/<type>` pages light it too), Statistics `/statistics` (`requires: "self.list"`). A shared account holds only the picker's key, so its Explore tab is the Random Picker alone |
+| `extras` | Extras | flat | Quotes `/quote` and Memes `/meme` (each `feature: "quotes_memes"`), Resources `/resources` (`requires: "view.extras"`) ┃ Relations `/relations`, Watch Orders `/watch-orders` — these two carry `requires: "manage.catalog"` on the row, inside a tab everyone may open |
 | `entry` | Entry | flat, `requires: "admin"` | Add `/add`, Modify `/modify`, Delete `/delete`, Form Defaults `/defaults`, Picker Defaults `/random-defaults` |
 | `note` | Note | flat, `requires: "manage.catalog"` | System Options `/options`, Alias Conversion `/aliases`, External APIs `/external-apis` — the three read-only inventories of how the data is described — Content Labels `/content-labels`, the read-only label reference, which carries `requires: ["admin.authz", "manage.catalog"]` (any of the two, the same either-of its route asks), and Business Logic `/business-logic`, what Calculate All changes step by step, which carries `requires: "manage.pipelines"` on the row, so only the super role and admin see it |
-| `pipelines` | Pipelines | flat, `requires: "manage.pipelines"` | Control Center `/system`, Data History, Review Queue, Clean Orphans, and **Inbox** `/request-inbox`, which carries `requires: "manage.requests"` on the row — the key its route asks |
+| `system` | System | flat, `requires: "manage.pipelines"` | Control Center `/system`, Data History, Review Queue, Clean Orphans, and **Inbox** `/request-inbox`, which carries `requires: "manage.requests"` on the row — the key its route asks |
 | `admin` | Admin | flat, `requires: "admin.authz"` | Users, Roles, Access Modes |
 
 Each item has `label`, `icon` (Font Awesome class), `to`, optional `matches`
@@ -172,7 +175,7 @@ hidden), then drops any section
 left holding nothing but dividers. It
 hands back the original item objects, since Nav marks the current row by
 identity. The Entry, Note and Admin tabs are gated by `has("admin")` from
-`useAuth()`, as are the Relations and Watch Orders rows inside Insights.
+`useAuth()`, as are the Relations and Watch Orders rows inside Extras.
 
 A guest is therefore shown one tab, Library, holding Groups, ACG and
 Reality.

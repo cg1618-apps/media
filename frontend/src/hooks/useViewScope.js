@@ -2,8 +2,8 @@
 //
 // The view.* keys open what a guest is not shown: the credited entities, one
 // key per kind (studio, publisher, person - which covers seiyuu - and
-// character, which covers identities), search and the extras (Future Releases,
-// Completions, the Random Picker, Resources). super
+// character, which covers identities), search, the Random Picker and the
+// extras (Future Releases, Completions, Resources). super
 // holds them all; user holds what its role grants; guest holds none; admin
 // passes through the root flag.
 // A personal note section needs no key: every viewer is served it, holding
@@ -32,6 +32,7 @@ export function useViewScope() {
     person: has("view.person"),
     character: has("view.character"),
     search: has("view.search"),
+    randomPicker: has("view.random_picker"),
     extras: has("view.extras"),
     ownData: has("self.list"),
   };

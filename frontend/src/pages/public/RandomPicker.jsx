@@ -21,6 +21,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { fetchJson } from "../../hooks/queryUtils";
 import { useFilterState } from "../../hooks/useFilterState";
 import { usePickerData } from "../../hooks/usePickerData";
+import { useViewScope } from "../../hooks/useViewScope";
 import { visibleMediaTypes } from "../../lib/gatedTypes";
 import { applyFilterDefs, countActiveFilters } from "../../lib/libraryFilters";
 import { groupPlanMarks, pickWeighted } from "../../lib/pickerWeights";
@@ -45,6 +46,7 @@ export default function RandomPicker({ type: typeProp }) {
   const params = useParams();
   const type = typeProp ?? params.type ?? null;
   const auth = useAuth();
+  const { ownData } = useViewScope();
   const visibleTypes = visibleMediaTypes(auth, ALL_TYPES);
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get("tab") === "weights" ? "weights" : "pick";
@@ -90,7 +92,7 @@ export default function RandomPicker({ type: typeProp }) {
             // The franchise mode reads every visible type's list: they say
             // what each franchise holds and give it a cover.
             typesKey={type && type !== FRANCHISE_MODE ? type : visibleTypes.join(",")}
-            signedIn={Boolean(auth.username)}
+            ownsList={ownData}
           />
         </>
       )}
@@ -98,18 +100,19 @@ export default function RandomPicker({ type: typeProp }) {
   );
 }
 
-function PickerBody({ mode, typesKey, signedIn }) {
+function PickerBody({ mode, typesKey, ownsList }) {
   const { entries, filterDefs, defaultFilters, defaultWeighted, isLoading, error } =
     usePickerData(mode, typesKey);
 
   // Series and franchise plan marks, for the plan weight; entry marks ride on
-  // the entries. A plan is private, so a guest has none to ask for. The Plan
-  // page reads the same key.
+  // the entries. A plan is one account's own (self.list), so a viewer without
+  // a list - a guest or a shared account - has none to ask for, and asking
+  // would be a 401. The Plan page reads the same key.
   const planNextQuery = useQuery({
     queryKey: ["plan-next"],
     queryFn: () => fetchJson("/api/plan-next/"),
     staleTime: 30_000,
-    enabled: signedIn,
+    enabled: ownsList,
   });
   const planMarks = useMemo(() => groupPlanMarks(planNextQuery.data), [planNextQuery.data]);
 
