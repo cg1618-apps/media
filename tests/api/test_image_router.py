@@ -15,6 +15,7 @@ from PIL import Image as PILImage
 
 from app import models
 from app.services.integrations import image_library
+from app.services.rbac.permissions import PERM_MANAGE_IMAGES
 from tests.api.conftest import (  # noqa: F401
     catalog_writer,
     hidden_anime,
@@ -182,7 +183,7 @@ def test_attach_404s_on_a_missing_image(owner_client, sample_anime):
 def test_attach_404s_for_a_writer_who_cannot_see_the_entry(
     db_session, client, catalog_writer, hidden_anime  # noqa: F811
 ):
-    writer = catalog_writer(username="blindwriter", label_keys=())
+    writer = catalog_writer(extra={PERM_MANAGE_IMAGES}, username="blindwriter", label_keys=())
     upload = writer.post(
         "/api/images", files={"file": ("c.png", _png(), "image/png")}
     )
@@ -204,7 +205,7 @@ def test_attach_404s_for_a_writer_who_cannot_see_the_entry(
 def test_attach_succeeds_for_a_writer_who_holds_the_label(
     db_session, client, catalog_writer, hidden_anime  # noqa: F811
 ):
-    writer = catalog_writer(username="seeingwriter", label_keys=("nsfw",))
+    writer = catalog_writer(extra={PERM_MANAGE_IMAGES}, username="seeingwriter", label_keys=("nsfw",))
     upload = writer.post(
         "/api/images", files={"file": ("c.png", _png(), "image/png")}
     )
@@ -724,7 +725,7 @@ def test_clear_404s_for_a_writer_who_cannot_see_the_entry(
     hidden_anime.cover_image_file = f"anime/{hidden_anime.system_id}.jpg"
     path = _downloaded_file(covers_dir, "anime", hidden_anime.system_id)
     db_session.flush()
-    writer = catalog_writer(username="blindclearer", label_keys=())
+    writer = catalog_writer(extra={PERM_MANAGE_IMAGES}, username="blindclearer", label_keys=())
 
     response = _clear(writer, "anime", hidden_anime.system_id)
 
@@ -740,7 +741,7 @@ def test_clear_succeeds_for_a_writer_who_holds_the_label(
     hidden_anime.cover_image_file = f"anime/{hidden_anime.system_id}.jpg"
     path = _downloaded_file(covers_dir, "anime", hidden_anime.system_id)
     db_session.flush()
-    writer = catalog_writer(username="seeingclearer", label_keys=("nsfw",))
+    writer = catalog_writer(extra={PERM_MANAGE_IMAGES}, username="seeingclearer", label_keys=("nsfw",))
 
     response = _clear(writer, "anime", hidden_anime.system_id)
 

@@ -23,6 +23,7 @@ from app.services import rate_limit
 from app.services.domain.gated_labels import ensure_label, ensure_labels
 from app.services.integrations import image_manager, sheets
 from app.services.rbac import cache as rbac_cache
+from app.services.rbac.modes import set_mode_ceiling
 from app.services.rbac.permissions import (
     ENTITY_VIEW_PERMISSIONS,
     PERM_MANAGE_CATALOG,
@@ -249,21 +250,12 @@ def client(db_session):
 @pytest.fixture(scope="function")
 def admin_user(db_session):
     """
-    The account admin_client's requests act as.
-
-    Its own fixture because personal data now hangs off a user: a test that
-    seeds a user_media_list row has to hang it on the SAME user the request
-    will resolve to.
-
-    The name sorts before the "admin" the app's lifespan seeds
-    (app/main.py:108), and that is the whole point. `acting_user_id` resolves
-    a GUEST to the lowest-username admin, so without the prefix a fixture row
-    written here is invisible to every anonymous `client` read while being
-    visible to `admin_client` - and a Completed entry silently reads back as
-    "Might Watch" through one client and not the other. Production has exactly
-    one admin and no such split; sorting first is what reproduces that here.
-    `an_admin` in test_viewer_user_id.py uses the same trick for the same
-    reason.
+    An account on the `admin` role, as production's own is: no mode, no
+    personal data, and exactly the admin's fixed permission set
+    (permissions.ADMIN_FIXED_PERMISSIONS) - accounts, roles, access modes,
+    pipelines, the request inbox, announcements, options, images and
+    resources. It reads and writes no catalogue; a test that needs the
+    catalogue uses owner_client.
     """
     user = models.User(
         id=uuid.uuid4(),
@@ -273,25 +265,23 @@ def admin_user(db_session):
     )
     db_session.add(user)
     db_session.flush()
+    # After the INSERT, not in it: the columns default to `normal` even when
+    # None is passed. app/main.py parks the seeded admin the same way.
+    set_mode_ceiling(db_session, user, None, None)
     return user
 
 
 @pytest.fixture(scope="function")
 def admin_client(db_session, admin_user):
-    """Authenticated admin test client — sets valid JWT cookie."""
+    """Authenticated client for the admin account. No mode: the admin
+    resolves the empty object set, like the real one."""
 
     def override_get_db():
         yield db_session
 
     app.dependency_overrides[get_db] = override_get_db
 
-    # Carries a mode, like a real account does after the Phase B migration.
-    # Without one, a signed-in caller resolves the EMPTY object set and every
-    # gated field vanishes from every response.
-    mode_id = seed_modes_and_grant(db_session, admin_user)
-    token = create_access_token(
-        {"sub": admin_user.username, "role": "admin", "mode": str(mode_id or "")}
-    )
+    token = create_access_token({"sub": admin_user.username, "role": "admin"})
 
     with TestClient(app) as c:
         c.cookies.set("access_token", f"Bearer {token}")
@@ -615,7 +605,6 @@ def make_viewer(
         system_id=uuid.uuid4(),
         name=f"role-{username}",
         label=username,
-        is_root=False,
     )
     db_session.add(role)
     db_session.flush()
@@ -684,7 +673,6 @@ def make_guest_reader(
         system_id=uuid.uuid4(),
         name=f"role-{username}",
         label=username,
-        is_root=False,
     )
     db_session.add(role)
     db_session.flush()

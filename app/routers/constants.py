@@ -24,7 +24,7 @@ from app.services.rbac.gated_types import (
     only_for,
     unseeable_gated_types,
 )
-from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
+from app.services.rbac.resolver import Viewer, get_viewer, require_manage_options
 from app.utils import constants as c
 from app.utils.character_roles import CHARACTER_ROLES
 from app.utils.credit_roles import (
@@ -194,7 +194,7 @@ def _constants() -> dict[str, list[str]]:
 
 @router.get("/external-apis", summary="Get External API Field Coverage")
 def get_external_api_coverage(
-    _admin=Depends(require_manage_catalog),
+    _admin=Depends(require_manage_options),
     db: Session = Depends(get_db),
     viewer: Viewer = Depends(get_viewer),
 ) -> dict:

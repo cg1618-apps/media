@@ -248,7 +248,6 @@ def _viewer(visible_label_ids):
         username=None,
         role_id=None,
         role_name="guest",
-        is_root=False,
         permissions=frozenset(),
         visible_label_ids=visible_label_ids,
     )

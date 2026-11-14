@@ -209,7 +209,6 @@ def get_me(request: Request, db: Session = Depends(get_db)):
         "is_admin": viewer.has(PERM_MANAGE_CATALOG),
         "username": viewer.username,
         "role": viewer.role_name,
-        "is_root": viewer.is_root,
         # TWO AXES, ONE LIST, deliberately. The role half answers "what may
         # this account DO"; the field_group.* half answers "which fields of a
         # reachable entry may this SESSION see" and comes from the active
@@ -238,7 +237,7 @@ def get_me(request: Request, db: Session = Depends(get_db)):
         # The account's feature switches, by name (services/rbac/features.py)
         # - the same function the routes they gate ask, so the SPA's
         # hasFeature() cannot disagree with them. A guest holds none.
-        "features": held_features(user, viewer.is_root),
+        "features": held_features(user),
         "mode": {
             "id": str(viewer.mode_id) if viewer.mode_id else None,
             "key": viewer.mode_key,

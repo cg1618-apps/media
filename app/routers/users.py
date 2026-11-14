@@ -7,15 +7,14 @@ admin issues the invite, whoever holds it registers (routers/auth.py), and the
 account waits `pending` until the admin approves or declines it here. Nobody
 registers without an invite.
 
-Three guards exist because each mistake locks the admin out of their own site:
-you cannot delete or disable yourself, and you cannot remove the last active
-account that can still administer anything.
+You cannot delete or disable yourself: either mistake locks the admin out of
+their own site.
 
 The roles are fixed, and so is who holds two of them. An account is given
 `user` or `super` and nothing else (422 otherwise). The `admin` account's role
-and a shared account's role never change, and a shared account is never
-deleted and its mode never edited - each a 409 of its own, not left to the
-last-admin guard.
+and a shared account's role never change, neither account is ever deleted,
+and neither has its mode edited - the admin has no mode, a shared account a
+fixed one. Each is a 409 of its own.
 
 Every NEW username and password passes the checks in services/security.py
 (validate_new_username, validate_new_password), and a refusal is a 422 whose
@@ -32,7 +31,6 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.dependencies import get_db
 from app.models.system import (
-    USER_STATUS_ACTIVE,
     USER_STATUS_DISABLED,
     USER_STATUS_PENDING,
 )
@@ -61,7 +59,6 @@ from app.services.rbac.modes import ModeSets, check_mode_pair, set_mode_ceiling
 from app.services.rbac.permissions import (
     ADMIN_ROLE_NAME,
     ASSIGNABLE_ROLE_NAMES,
-    PERM_ADMIN_AUTHZ,
     SHARED_ROLE_NAME,
 )
 from app.services.rbac.resolver import Viewer, require_admin_authz, role_for_user
@@ -173,41 +170,9 @@ def _is_shared(db: Session, user: models.User) -> bool:
     return role is not None and role.name == SHARED_ROLE_NAME
 
 
-def _can_administer(db: Session, role: models.Role) -> bool:
-    if role is None:
-        return False
-    if role.is_root:
-        return True
-    # No role can be GRANTED admin.authz any more - it is locked off for every
-    # one of them (permissions.locked_permissions), so in practice the branch
-    # above is the only one that answers True. The row lookup stays because
-    # this guard decides whether the last administrator may be demoted, and a
-    # guard that reads the grants directly keeps answering correctly if the
-    # lock table ever widens.
-    return (
-        db.query(models.RolePermission)
-        .filter(
-            models.RolePermission.role_id == role.system_id,
-            models.RolePermission.permission == PERM_ADMIN_AUTHZ,
-        )
-        .first()
-        is not None
-    )
-
-
-def _admin_count(db: Session, excluding: UUID = None) -> int:
-    """Accounts that can administer the site right now. A disabled one cannot
-    sign in, so it does not count - otherwise disabling the other admin and
-    then demoting yourself would leave nobody."""
-    count = 0
-    for user in db.query(models.User).all():
-        if excluding is not None and user.id == excluding:
-            continue
-        if user.status != USER_STATUS_ACTIVE:
-            continue
-        if _can_administer(db, role_for_user(db, user)):
-            count += 1
-    return count
+def _is_admin_account(db: Session, user: models.User) -> bool:
+    role = role_for_user(db, user)
+    return role is not None and role.name == ADMIN_ROLE_NAME
 
 
 @router.get("/", response_model=List[schemas.ManagedUserResponse], summary="List Users")
@@ -364,6 +329,10 @@ def replace_access_modes(
     if _is_shared(db, user):
         raise HTTPException(
             status_code=409, detail="A shared account's mode is fixed."
+        )
+    if _is_admin_account(db, user):
+        raise HTTPException(
+            status_code=409, detail="The admin account has no mode."
         )
 
     try:
@@ -527,14 +496,6 @@ def update_user(
         user.status = payload.status
 
     if new_role is not None:
-        would_lose_admin = _can_administer(
-            db, role_for_user(db, user)
-        ) and not _can_administer(db, new_role)
-        if would_lose_admin and _admin_count(db, excluding=user.id) == 0:
-            raise HTTPException(
-                status_code=409,
-                detail="This is the last account that can administer the site.",
-            )
         user.role_id = new_role.system_id
 
     # The limit follows the role: a role change resets it to the new role's
@@ -598,12 +559,9 @@ def delete_user(
             status_code=409,
             detail="A shared account cannot be deleted. Disable it instead.",
         )
-    if _can_administer(db, role_for_user(db, user)) and _admin_count(
-        db, excluding=user.id
-    ) == 0:
+    if _is_admin_account(db, user):
         raise HTTPException(
-            status_code=409,
-            detail="This is the last account that can administer the site.",
+            status_code=409, detail="The admin account cannot be deleted."
         )
 
     db.delete(user)

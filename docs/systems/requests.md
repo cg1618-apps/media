@@ -1,6 +1,6 @@
 # Requests and reports
 
-Last verified: 2026-11-13
+Last verified: 2026-11-14
 
 ## What this is for
 
@@ -96,8 +96,8 @@ this feature asks anything else:
 
 | Permission | Dependency | Means | Held by |
 |---|---|---|---|
-| `self.requests` | `require_file_requests` | file a request; read and edit your own | `shared` (locked on), `user` (locked on), `super` (locked on). A shared account's requests are everyone's who uses that login. Never the root role: `Viewer.has()` does not short-circuit `self.*`, so the admin account files nothing. Locked off for `guest` |
-| `manage.requests` | `require_handle_requests` | the inbox: read every request, set its status, delete it | `super` (locked on), `admin` through root. Locked off for `shared`, `user` and `guest` |
+| `self.requests` | `require_file_requests` | file a request; read and edit your own | `shared` (locked on), `user` (locked on), `super` (locked on). A shared account's requests are everyone's who uses that login. Never the `admin` role, which has every `self.*` key locked off, so the admin account files nothing. Locked off for `guest` |
+| `manage.requests` | `require_handle_requests` | the inbox: read every request, set its status, delete it | `super` (locked on), `admin` (locked on). Locked off for `shared`, `user` and `guest` |
 
 A refusal is **401**, as everywhere. The locks are in
 [authorization.md](../authorization.md#locked-grants); there are exactly five

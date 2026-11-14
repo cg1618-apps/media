@@ -1,10 +1,9 @@
 """
 The bare `admin` permission is gone, and nothing may quietly reintroduce it.
 
-While it existed, a router that had not been re-gated kept working - the admin
-role is is_root, so has() answered True for anything. That made a missed
-router invisible. Removing the name turns the same mistake into an ImportError
-at startup.
+A name no role holds gates a router shut without saying why, and a missed
+router is easy not to notice. Removing the name turns the mistake into an
+ImportError at startup.
 """
 
 from pathlib import Path

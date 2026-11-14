@@ -24,7 +24,7 @@ from app.dependencies import get_db
 from app.schemas.image import AttachmentIn, AttachmentOut, ImageListOut, ImageOut
 from app.services.integrations import image_library, image_manager
 from app.services.rbac.enforcement import entry_visible
-from app.services.rbac.resolver import Viewer, require_manage_catalog, viewer_user_id
+from app.services.rbac.resolver import Viewer, require_manage_images, viewer_user_id
 from app.services.rbac.shared_visibility import (
     ENTITY_OWNER_MODELS,
     IDENTITY_OWNER,
@@ -234,7 +234,7 @@ def _to_out(db: Session, image: models.Image) -> ImageOut:
 def upload_image(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    admin: Viewer = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_images),
 ):
     """
     Validate, normalize and store one image. Attaches it to nothing.
@@ -289,7 +289,7 @@ def list_images(
     limit: int = Query(60, le=200),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
-    admin: Viewer = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_images),
 ):
     """The library, filtered by the questions the manager page and picker ask."""
     if owner_type is not None and owner_type not in ATTACHABLE_OWNERS:
@@ -369,7 +369,7 @@ def attach_image(
     image_id: UUID,
     payload: AttachmentIn,
     db: Session = Depends(get_db),
-    admin: Viewer = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_images),
 ):
     """
     Point an owner at this image. Idempotent per (owner, role): re-attaching
@@ -428,7 +428,7 @@ def detach_image(
     image_id: UUID,
     attachment_id: UUID,
     db: Session = Depends(get_db),
-    admin: Viewer = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_images),
 ):
     """
     Unlink. An uploaded image stays in the library for reuse; a downloaded one
@@ -461,7 +461,7 @@ def clear_owner_image(
     owner_id: UUID,
     role: str,
     db: Session = Depends(get_db),
-    admin: Viewer = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_images),
 ):
     """
     Take the owner's image away, so it has none - the Remove button on an
@@ -532,7 +532,7 @@ def delete_image(
     image_id: UUID,
     force: bool = Query(False),
     db: Session = Depends(get_db),
-    admin: Viewer = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_images),
 ):
     """
     Remove the image and its file. Refuses while anything still uses it, unless

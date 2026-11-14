@@ -273,15 +273,15 @@ def test_an_author_updates_one_row(super_client, anime_note):
     assert r.json()["content"] == "改過的內容"
 
 
-def test_update_revalidates_against_registry(owner_client, anime_note):
-    r = owner_client.patch(
+def test_update_revalidates_against_registry(super_client, anime_note):
+    r = super_client.patch(
         f"/api/notes/{anime_note.system_id}", json={"section": "analysis"}
     )
     # advantages -> analysis with no kind is still valid for an anime, so this
     # must succeed; the guard is on unknown sections. episode_comments would
     # not do here - it requires a locator the patch does not supply.
     assert r.status_code == 200
-    r = owner_client.patch(
+    r = super_client.patch(
         f"/api/notes/{anime_note.system_id}", json={"section": "nope"}
     )
     assert r.status_code == 422
@@ -326,10 +326,10 @@ def test_update_404s_on_missing_note(owner_client):
     assert r.status_code == 404
 
 
-def test_admin_deletes_one_row(owner_client, anime_note):
-    r = owner_client.delete(f"/api/notes/{anime_note.system_id}")
+def test_the_author_deletes_one_row(super_client, anime_note):
+    r = super_client.delete(f"/api/notes/{anime_note.system_id}")
     assert r.status_code == 204
-    r = owner_client.delete(f"/api/notes/{anime_note.system_id}")
+    r = super_client.delete(f"/api/notes/{anime_note.system_id}")
     assert r.status_code == 404
 
 

@@ -114,13 +114,10 @@ class TestFactoryWrites:
         )
         assert response.status_code == 200
 
-    def test_admin_is_unaffected(self, owner_client, hidden_anime):
-        """The owner's account sees no change on the day this lands.
-
-        NOT because is_root short-circuits entry_visible - it no longer
-        does, and Phase B removed that short-circuit deliberately. It is
-        because owner_client sits in `unrestricted`, which carries every
-        label. Narrow the same account's mode and it is narrowed like anybody
+    def test_the_owner_is_unaffected(self, owner_client, hidden_anime):
+        """The owner's account writes the labelled entry because
+        owner_client sits in `unrestricted`, which carries every label - no
+        role is exempt from entry_visible. Narrow the same account's mode and it is narrowed like anybody
         else; tests/api/test_access_modes.py asserts exactly that.
         """
         response = owner_client.put(

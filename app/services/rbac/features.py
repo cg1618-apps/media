@@ -16,11 +16,8 @@ Only `quotes_memes` gates anything today - the quote and meme reads, and the
 Quotes and Memes sections of a detail page. The other three are storage and a
 switch on /users until the features they name gain teeth.
 
-THE ROOT ROLE HOLDS `quotes_memes` WITHOUT THE SWITCH. The admin account may
-never be switched on, and the quote and meme reads were view.extras until
-now, which the root short-circuit gave it - so it still reads what it writes.
-Only that one: the other three name personal data, which the root role does
-not hold (Viewer.has()'s `self` exception), so they are not short-circuited.
+No role holds a feature without its account's switch. The admin account can
+never be switched on, so it reads no quotes or memes.
 """
 
 from typing import Optional
@@ -40,10 +37,6 @@ FEATURE_NAMES: tuple[str, ...] = USER_FEATURE_NAMES
 # The roles whose accounts may hold a feature.
 FEATURE_ROLE_NAMES: frozenset[str] = frozenset({USER_ROLE_NAME, SUPER_ROLE_NAME})
 
-# The features the root role holds without its account's switch.
-ROOT_FEATURES: frozenset[str] = frozenset({FEATURE_QUOTES_MEMES})
-
-
 FEATURE_COLUMNS: tuple[str, ...] = USER_FEATURE_COLUMNS
 
 
@@ -52,7 +45,7 @@ def feature_column(name: str) -> str:
     return FEATURE_COLUMNS[FEATURE_NAMES.index(name)]
 
 
-def held_features(user: Optional[models.User], is_root: bool) -> list[str]:
+def held_features(user: Optional[models.User]) -> list[str]:
     """The features this account holds, in FEATURE_NAMES order.
 
     What /api/auth/me publishes as `features` and what require_feature asks,
@@ -66,8 +59,7 @@ def held_features(user: Optional[models.User], is_root: bool) -> list[str]:
     return [
         name
         for name in FEATURE_NAMES
-        if (is_root and name in ROOT_FEATURES)
-        or (may_hold and getattr(user, feature_column(name)))
+        if may_hold and getattr(user, feature_column(name))
     ]
 
 
@@ -87,7 +79,7 @@ def has_feature(db: Session, viewer: Viewer, name: str) -> bool:
     """
     if name not in FEATURE_NAMES:
         raise ValueError(f"Unknown feature {name!r}")
-    return name in held_features(_user_of(db, viewer), viewer.is_root)
+    return name in held_features(_user_of(db, viewer))
 
 
 def require_feature(name: str):

@@ -284,7 +284,7 @@ def test_another_authors_personal_section_is_withheld(
 # `system_id` was never gated either: it is the route parameter of the page
 # the viewer is already on, so withholding it would break navigation without
 # concealing anything. The decorative copy printed down a detail page's spine
-# is drawn on `is_root` in the SPA, which is presentation and not a gate.
+# is drawn on `manage.catalog` in the SPA, which is presentation and not a gate.
 
 
 @pytest.fixture

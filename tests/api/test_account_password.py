@@ -61,9 +61,10 @@ def test_super_holds_it(super_client):
     assert change(super_client, "testpass", "newpass").status_code == 200
 
 
-def test_the_root_admin_does_not(owner_client):
-    """The mirror of the two above: the same request from a root account."""
-    assert change(owner_client, "testpass", "newpass").status_code == 401
+def test_the_admin_does_not(admin_client):
+    """The mirror of the two above: the admin role has self.password locked
+    off, so the same request is refused."""
+    assert change(admin_client, "testpass", "newpass").status_code == 401
 
 
 def test_a_guest_does_not(client):
@@ -83,12 +84,12 @@ def test_user_and_super_are_seeded_with_it_and_guest_is_not():
 
 
 def test_it_is_locked_on_for_user_and_super():
-    assert PERM_SELF_PASSWORD in locked_permissions(USER_ROLE, False)[0]
-    assert PERM_SELF_PASSWORD in locked_permissions(SUPER_ROLE_NAME, False)[0]
+    assert PERM_SELF_PASSWORD in locked_permissions(USER_ROLE)[0]
+    assert PERM_SELF_PASSWORD in locked_permissions(SUPER_ROLE_NAME)[0]
 
 
 def test_it_is_locked_off_for_a_shared_account():
     """One person changing a shared login's password would lock out everyone
     else using it; the admin sets it on /users."""
-    on, off = locked_permissions(SHARED_ROLE_NAME, False)
+    on, off = locked_permissions(SHARED_ROLE_NAME)
     assert PERM_SELF_PASSWORD in off and PERM_SELF_PASSWORD not in on

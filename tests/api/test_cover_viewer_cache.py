@@ -289,7 +289,6 @@ def _viewer(**fields):
         username="u",
         role_id=uuid.uuid4(),
         role_name="user",
-        is_root=False,
         permissions=frozenset(),
         **fields,
     )

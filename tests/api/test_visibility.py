@@ -37,8 +37,8 @@ def test_a_labelled_entry_detail_is_indistinguishable_from_missing(
     assert HIDDEN_NAME not in response.text
 
 
-def test_admin_still_sees_a_labelled_entry(owner_client, hidden_anime):
-    """is_root must not need a label.* grant to see labelled content."""
+def test_the_owner_sees_a_labelled_entry(owner_client, hidden_anime):
+    """The owner's mode, `unrestricted`, carries every label."""
     assert HIDDEN_NAME in owner_client.get("/api/anime/").text
     assert (
         owner_client.get(f"/api/anime/{hidden_anime.system_id}").status_code == 200

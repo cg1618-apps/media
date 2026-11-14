@@ -274,13 +274,11 @@ class TestPermission:
             == 401
         )
 
-    def test_admin_without_self_list_is_refused(self, owner_client, split_run):
-        # The admin is root and holds every non-self permission.
-        assert owner_client.get(
-            f"/api/watch-order/lists/{split_run.system_id}"
-        ).status_code == 200
-        assert _follow(owner_client, split_run).status_code == 401
-        assert owner_client.get("/api/watch-order/follows").status_code == 401
+    def test_admin_without_self_list_is_refused(self, admin_client, split_run):
+        # The admin holds no self.* permission: it follows nothing. The run
+        # is THERE (split_run), so the 401 is the gate's.
+        assert _follow(admin_client, split_run).status_code == 401
+        assert admin_client.get("/api/watch-order/follows").status_code == 401
 
     def test_member_without_self_list_is_refused(
         self, client, db_session, split_run

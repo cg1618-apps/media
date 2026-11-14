@@ -202,6 +202,7 @@ from app.services.domain.user_list import (
     installation_owner_id,
     join_list,
     list_row,
+    no_owner_message,
     split_list_payload,
 )
 from app.services.domain.watch_order import (
@@ -383,6 +384,7 @@ __all__ = [
     "LIST_FIELDS",
     "acting_user_id",
     "installation_owner_id",
+    "no_owner_message",
     "list_row",
     "ensure_list_row",
     "attach_list_fields",

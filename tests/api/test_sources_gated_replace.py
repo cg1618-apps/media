@@ -34,7 +34,6 @@ def _viewer(*permissions, field_groups=()):
         username="gated",
         role_id=uuid.uuid4(),
         role_name="gated",
-        is_root=False,
         permissions=frozenset(permissions),
         field_groups=frozenset(field_groups),
     )

@@ -114,12 +114,12 @@ def test_the_seeded_roles_hold_what_the_defaults_say(db, client):
 
 
 def test_super_holds_the_family_by_lock_and_the_entity_keys_are_free_below_it():
-    super_on, _ = locked_permissions("super", False)
+    super_on, _ = locked_permissions("super")
     assert VIEW_ALL <= super_on
     # Deliberately a free choice for user, guest and shared: an admin may
     # open any one kind of entity page to them.
     for name in ("user", "guest", "shared"):
-        on, off = locked_permissions(name, False)
+        on, off = locked_permissions(name)
         assert not ENTITY_KEYS & (on | off), name
 
 
@@ -129,7 +129,7 @@ def test_super_holds_the_family_by_lock_and_the_entity_keys_are_free_below_it():
 
 
 @pytest.fixture
-def gated_reads(db, owner_client, person, character, anime_with_studio, sample_anime):
+def gated_reads(db, person, character, anime_with_studio, sample_anime):
     """
     One readable thing behind every gated read, and the URL that reads it.
 
@@ -144,10 +144,6 @@ def gated_reads(db, owner_client, person, character, anime_with_studio, sample_a
     )
     db.add_all([publisher, identity])
     db.flush()
-    resource = owner_client.post(
-        "/api/resources", json={"kind": "group", "title": "Links"}
-    )
-    assert resource.status_code in (200, 201), resource.text
     return {
         PERM_VIEW_STUDIO: [
             "/api/studio/",
@@ -183,8 +179,9 @@ def gated_reads(db, owner_client, person, character, anime_with_studio, sample_a
         # The quote and meme reads are not here: they answer to the
         # account's quotes-and-memes switch, not to a view key - see
         # test_account_features.py.
+        # /api/resources is not here either: it answers to manage.resources
+        # - see test_admin_page_permissions.py.
         PERM_VIEW_EXTRAS: [
-            "/api/resources",
             "/api/random-picker-defaults/all",
         ],
         # view.personal gates no route of its own: what it opens are

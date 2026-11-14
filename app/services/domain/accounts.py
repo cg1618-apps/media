@@ -43,8 +43,8 @@ ADMIN_SET_PASSWORD_REVOKES_SESSIONS = True
 # caller's browser is given a fresh cookie at the new counter, so the browser
 # that made the change stays signed in and every other device is signed out
 # (Django's update_session_auth_hash does the same). /users is the admin's
-# only way to change its own password - the root role does not hold
-# self.password - so without this the admin signs itself out by doing it.
+# only way to change its own password - the admin role has self.password
+# locked off - so without this the admin signs itself out by doing it.
 # False restores the plain sign-out.
 KEEP_OWN_SESSION_ON_ADMIN_SET_PASSWORD = True
 

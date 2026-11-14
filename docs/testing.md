@@ -1,6 +1,6 @@
 # Testing
 
-Last verified: 2026-11-13
+Last verified: 2026-11-14
 
 ## What this is for
 
@@ -138,13 +138,14 @@ the two-stage cursor stepper.
 | `_clear_permission_cache` | function, autouse | RBAC cache bumped before and after the test |
 | `_clear_rate_limits` | function, autouse | The login and reset rate limiter (`app/services/rate_limit.py`) emptied before and after the test. It is a process-global dict and every test client calls from the same address, so without it the sixth wrong password in a run would be refused with a 429 |
 | `client` | function | Unauthenticated `TestClient` with `get_db` overridden to `db_session` |
-| `admin_client` | function | `TestClient` with a `testadmin` user (role `admin`) inserted, its mode ceiling and default set to `unrestricted`, and a valid `access_token` cookie |
-| `user_client` / `plain_user` | function | The same for an account on the `user` role |
-| `super_client` / `super_user` | function | The same for the `super` role - both `manage.*`, no `admin.authz`. **This is the account shape that keeps a library**, so it is what a test of a personal endpoint should use: an admin holds no `self.*` grant. Use the fixture rather than building one inline |
+| `admin_client` / `admin_user` | function | `TestClient` for the **real admin**: a `testadmin` account on the `admin` role, with **no mode** (ceiling and default NULL, parked after the INSERT as the lifespan parks the seeded one), so it resolves the empty object set and holds exactly the admin's fixed set — accounts, roles, access modes, pipelines, the request inbox, announcements, options, images, resources. It reads and writes no catalogue |
+| `owner_client` / `owner_user` | function | `TestClient` for the **installation owner**: `aaa_testowner`, a `super` account holding `is_installation_owner`, in mode `unrestricted`. Every catalogue read and write, every personal feature, everything but `admin.authz`. `list_row`, `sample_anime` and `mode_client` hang their rows on this account, so a personal read through `owner_client` answers from them |
+| `user_client` / `plain_user` | function | An authenticated client for an account on the `user` role, carrying a mode as `owner_client` does |
+| `super_client` / `super_user` | function | The same for a `super` account that is not the owner - every `manage.*`, no `admin.authz`. **This is the account shape that keeps a library**, so it is what a test of a personal endpoint should use: an admin holds no `self.*` grant. Use the fixture rather than building one inline |
 | `mode_client(key, user=None, denials=())` | function | A client sitting in one named access mode. The account's ceiling is raised to the mode if it sits below it, and the mode travels in the `access_mode` override cookie exactly as after a switch in production, so these exercise the real resolution path rather than a `Viewer` built by hand |
 | `mode(key)` / `grant_mode(user, key, denials=(), is_default=False)` | function | The seeded modes, and making one available: raises the account's ceiling to it (never lowers it), optionally makes it the default, and adds label denials named by key - which, like every denial, apply in every mode the account uses |
 | `nsfw_label` / `hidden_anime` | function | The `nsfw` label and an entry carrying it. Every code label exists in every test - the session seed runs `ensure_labels` - so `nsfw_label` finds the row rather than creating one. It is shown from `normal` up, so a logged-out visitor (`safe`) never sees what carries it |
-| `catalog_writer(username=…, extra=…, label_keys=())` | function | An account holding `manage.catalog` whose effective set shows NO labels - i.e. a writer who cannot see the labelled entry. `make_viewer` builds it from a fixed mode and denials, as below. `tests/api/test_franchise_content_labels.py` and `tests/api/test_group_content_labels.py` build their `narrow` fixtures from this, and pair every refusal with the same call from `admin_client`: a mode-scoped 404 and an empty database are indistinguishable without the mirror |
+| `catalog_writer(username=…, extra=…, label_keys=())` | function | An account holding `manage.catalog` whose effective set shows NO labels - i.e. a writer who cannot see the labelled entry. `make_viewer` builds it from a fixed mode and denials, as below. `tests/api/test_franchise_content_labels.py` and `tests/api/test_group_content_labels.py` build their `narrow` fixtures from this, and pair every refusal with the same call from `owner_client`: a mode-scoped 404 and an empty database are indistinguishable without the mirror |
 | `sample_collection` | function | `Collection` "Test Collection" / "測試合集" |
 | `sample_collected_franchise` | function | Anime `Franchise` linked to `sample_collection` |
 | `sample_franchise` | function | Anime `Franchise` "Test Franchise" / "測試系列" |
@@ -153,6 +154,15 @@ the two-stage cursor stepper.
 | `sample_comic` | function | `Comic` under `sample_franchise`, 6/6 issues, Completed |
 | `role_id_for(db, name)` | helper, not a fixture | Looks up a seeded role's `system_id`; needed because `users.role` is a read-only mapping and fixtures must set `role_id` |
 | `make_viewer(db, client, username, permissions, field_groups=None, label_keys=None)` | helper | Logs `client` in as a new account. `permissions` is the ROLE axis; the two keyword arguments are the OBJECT axis. The four modes are fixed, so `grant_bespoke_mode` narrows the way production does: it puts the account at the lowest mode whose derived sets contain the request, as both ceiling and default, and denies the difference per account. A request no mode can satisfy fails the test loudly rather than testing something else. Both default to "everything" (`unrestricted`, no denial), so a test that only cares about capabilities need not mention them |
+
+**Which client: `admin_client` only for the admin's own work.** A test uses
+`admin_client` when it calls an `admin.authz` route — `/api/users*`,
+`/api/roles*`, `/api/access-modes*` — or when it asserts what the admin
+itself is refused or allowed. Everything else — catalogue reads and writes,
+a refusal's mirror, a personal row — uses `owner_client`. The admin holds no
+`manage.catalog`, no `media_type.*` and no mode, so a catalogue test written
+against `admin_client` fails on a 401 or an empty list that says nothing
+about the code under test.
 
 **A signed-in test client whose account has no mode, or whose token names a
 mode above its ceiling, resolves the EMPTY object set**

@@ -1,6 +1,6 @@
 # Notes
 
-Last verified: 2026-11-13
+Last verified: 2026-11-14
 
 ## What this is for
 
@@ -545,7 +545,7 @@ Who may write, and whose rows a read returns, follow from it — the router read
 | Scope | Write (`_authorize_write` / `_authorize_edit`) | Read |
 | --- | --- | --- |
 | `catalog` | admin only | everyone, unfiltered |
-| `personal` | any signed-in account holding `self.personal_notes`, own rows only (a root role may also edit another's) | `WHERE author_id = viewer`; a logged-out visitor has no id and sees none |
+| `personal` | any signed-in account holding `self.personal_notes`, own rows only: a row is edited and deleted by its author alone, whatever anyone else's role, and anyone else gets the 404 a missing note gets | `WHERE author_id = viewer`; a logged-out visitor has no id and sees none |
 
 Personal rows are private to their author. There is no way to read another account's, the admin's included: `GET /api/notes` takes no author parameter, and an `author` in the query string is ignored. The `highlights` and `highlight_episodes` sections are withheld from a viewer without `view.personal` - their rows and their entries in `/api/notes/sections` alike. The full rules live in [../authorization.md](../authorization.md#note-scope).
 

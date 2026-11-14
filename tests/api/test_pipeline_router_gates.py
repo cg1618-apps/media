@@ -30,7 +30,6 @@ def catalog_only_client(db, client):
         system_id=uuid.uuid4(),
         name="catalog-only",
         label="Catalogue only",
-        is_root=False,
     )
     db.add(role)
     db.flush()

@@ -13,8 +13,8 @@ reaches, which is the access-mode axis (app/services/rbac/modes.py), and they
 had to leave this one because permission resolution is a union and a union can
 only add - a role holding field_group.sources_restricted could never have it
 taken away by a mode. label_perm() and field_group_perm() were deleted rather
-than left unused, so that any call site still asking has(field_group.<key>) -
-which would silently answer True for a root role - is an ImportError instead.
+than left unused, so that any call site still asking has(field_group.<key>)
+is an ImportError instead.
 
 A name is always `<family>.<key>`. The bare `admin` that used to be the
 exception was removed in Phase A of the authorization redesign; it is now
@@ -213,7 +213,7 @@ VIEW_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
     ),
     "extras": (
         "View Extras",
-        "Resources, the random picker, future releases and completions. "
+        "The random picker, future releases and completions. "
         "Quotes and memes are a per-account switch on Users instead.",
     ),
     "personal": (
@@ -303,8 +303,8 @@ def is_valid(db: "Session", permission: str) -> bool:
 # Some cells of the role grid are not an admin's to decide. `admin.authz` is
 # the clearest: it is the permission to change who may do what, so handing it
 # out through the very page it governs is how an installation loses control of
-# itself. It is now grantable to NOTHING - the root short-circuit is the
-# only way to hold it.
+# itself. It is grantable to nothing: only the `admin` role holds it, locked
+# on, and the admin role's whole row is fixed.
 #
 # The rest follow from what each system role IS, rather than from what it
 # happens to have been seeded with. `super` means "everything except changing
@@ -360,19 +360,24 @@ def gated_type_permissions() -> frozenset[str]:
     return frozenset(media_type_perm(media_type) for media_type in gated_types())
 
 
-def locked_permissions(
-    role_name: str, is_root: bool
-) -> tuple[frozenset[str], frozenset[str]]:
+# The admin role's whole row. It runs the installation - accounts, roles,
+# access modes, pipelines, the request inbox and its own pages - and reads
+# and writes no catalogue: manage.catalog, every media_type.*, every view.*
+# and every self.* are locked off, so nothing on its row is a free choice.
+ADMIN_FIXED_PERMISSIONS: frozenset[str] = frozenset(
+    {PERM_ADMIN_AUTHZ, PERM_MANAGE_PIPELINES, PERM_MANAGE_REQUESTS}
+    | ADMIN_PAGE_PERMISSIONS
+)
+
+
+def locked_permissions(role_name: str) -> tuple[frozenset[str], frozenset[str]]:
     """
     (locked_on, locked_off) for one role: what it must hold and what it may
     never hold. Disjoint by construction - a permission in neither set is the
     admin's free choice.
 
-    A root role's locked_on is everything EXCEPT the self family, and its
-    locked_off is that family, because Viewer.has() deliberately does not
-    short-circuit self.* (resolver.py): an administrative account keeps no
-    list and no personal notes, so drawing those boxes ticked would state the
-    opposite of what the code does.
+    The admin role's two sets cover the whole vocabulary: it holds exactly
+    ADMIN_FIXED_PERMISSIONS and nothing else, so no cell on its row is free.
     """
     every = static_catalog()
     own = _self_family()
@@ -383,8 +388,8 @@ def locked_permissions(
     # `unrestricted`. The nine ordinary types stay free for all three.
     gated = gated_type_permissions()
 
-    if is_root:
-        return frozenset(every - own), own
+    if role_name == ADMIN_ROLE_NAME:
+        return ADMIN_FIXED_PERMISSIONS, frozenset(every - ADMIN_FIXED_PERMISSIONS)
     if role_name == GUEST_ROLE_NAME:
         # Every anonymous request resolves to this role, so anything beyond a
         # read would be handed to every visitor on the internet.

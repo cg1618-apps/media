@@ -154,12 +154,13 @@ def test_the_flag_beats_every_fallback(db, owner_user, plain_user):
     assert installation_owner_id(db) == owner_user.id
 
 
-def test_without_the_flag_a_non_root_wins(db, owner_user, plain_user):
+def test_without_the_flag_a_member_wins_over_the_admin(db, admin_user, plain_user):
     """
-    The first fallback, and the one that matters on a real installation: an
-    administrative account does not own the collection just because it sorts
-    first. `aaa_testadmin` sorts before `plainuser` and still loses.
+    The fallback, and the one that matters on a real installation: an
+    administrative account never owns the collection, even sorting first.
+    `aaa_testadmin` sorts before `plainuser` and still loses.
     """
+    assert admin_user.username < plain_user.username
     assert installation_owner_id(db) == plain_user.id
 
 
@@ -176,13 +177,13 @@ def test_at_most_one_account_can_hold_the_flag(db, owner_user, plain_user):
         db.flush()
 
 
-def test_the_two_are_not_the_same_function(db):
+def test_the_two_are_not_the_same_function(db, plain_user):
     """
     The whole point of the split: the pipeline rule answers, the visibility
     rule does not.
     """
     assert acting_user_id(db, None) is None
-    assert installation_owner_id(db) is not None
+    assert installation_owner_id(db) == plain_user.id
 
 
 # --- the bug the split uncovered ------------------------------------------

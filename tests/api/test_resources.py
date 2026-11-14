@@ -1,8 +1,8 @@
 """
 The Resources page: one site-wide tree of groups and items.
 
-Reads follow the Quote page's gate (any viewer); every write needs
-manage.catalog. Groups nest to any depth, and groups and items share one
+Reads and writes both need manage.resources: the page is the admin's and
+super's alone. Groups nest to any depth, and groups and items share one
 order inside their parent, which PATCH /reorder rewrites - including moving a
 node into another group.
 
@@ -98,8 +98,8 @@ def test_the_page_reads_as_a_nested_tree_in_sort_order(owner_client, tree):
     assert top[1]["children"] == []
 
 
-def test_an_empty_page_reads_as_an_empty_list(user_client):
-    assert user_client.get(URL).json() == []
+def test_an_empty_page_reads_as_an_empty_list(owner_client):
+    assert owner_client.get(URL).json() == []
 
 
 def test_a_guest_cannot_read_the_page(client, tree):
@@ -110,8 +110,12 @@ def test_a_guest_cannot_read_the_page(client, tree):
     assert r.status_code == 401
 
 
-def test_a_member_without_manage_catalog_can_read_the_page(user_client, tree):
-    r = user_client.get(URL)
+def test_a_member_is_refused_the_page(user_client, owner_client, tree):
+    """The page is the admin's and super's alone (manage.resources). The tree
+    is THERE, so the 401 is the gate's."""
+    assert user_client.get(URL).status_code == 401
+    # The mirror: the same tree reads back for super.
+    r = owner_client.get(URL)
     assert r.status_code == 200
     assert len(r.json()) == 2
 
@@ -458,7 +462,7 @@ def test_a_guest_is_refused_every_write(client, db, tree):
     assert db.query(models.ResourceNode).count() == 5
 
 
-def test_a_member_without_manage_catalog_is_refused_every_write(
+def test_a_member_is_refused_every_write(
     user_client, db, tree
 ):
     for method, url, body in _write_requests(tree):
@@ -469,11 +473,12 @@ def test_a_member_without_manage_catalog_is_refused_every_write(
     assert db.get(models.ResourceNode, tree["plain"].system_id).content == "plain text"
 
 
-@pytest.mark.parametrize("client_fixture", ["super_client", "owner_client"])
-def test_a_manage_catalog_holder_may_make_every_write(
+@pytest.mark.parametrize("client_fixture", ["super_client", "admin_client"])
+def test_a_manage_resources_holder_may_make_every_write(
     request, db, tree, client_fixture
 ):
-    """The mirror: the same requests succeed for super (by grant) and admin (root)."""
+    """The mirror: the same requests succeed for super and for the admin,
+    which holds manage.resources without manage.catalog."""
     writer = request.getfixturevalue(client_fixture)
     for method, url, body in _write_requests(tree):
         r = _send(writer, method, url, body)
