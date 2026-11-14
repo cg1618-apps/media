@@ -5,6 +5,13 @@
 // weighted draw lib/pickerWeights.js, the data hooks/usePickerData.js; this
 // file holds the pick and renders. A Weights tab (?tab=weights) lists every
 // weight the draw uses.
+//
+// The page has two versions, by whether the viewer keeps a list (self.list,
+// useViewScope's ownData). With one it is all of the above. Without one - a
+// shared account - it offers only the catalogue filters (the defs not flagged
+// `personal`), draws unweighted, and has no Weights tab, Weighted toggle or
+// plan-mark request: a plan is self.list's, and so is most of what the
+// weights read.
 import { useCallback, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Navigate, useParams, useSearchParams } from "react-router-dom";
@@ -49,7 +56,7 @@ export default function RandomPicker({ type: typeProp }) {
   const { ownData } = useViewScope();
   const visibleTypes = visibleMediaTypes(auth, ALL_TYPES);
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab = searchParams.get("tab") === "weights" ? "weights" : "pick";
+  const tab = ownData && searchParams.get("tab") === "weights" ? "weights" : "pick";
 
   if (type && type !== FRANCHISE_MODE && !ALL_TYPES.includes(type)) {
     return <Navigate to="/random" replace />;
@@ -68,11 +75,13 @@ export default function RandomPicker({ type: typeProp }) {
         </p>
       </header>
 
-      <OptionSubTabBar
-        tabs={TABS}
-        active={tab}
-        onSelect={(key) => setSearchParams(key === "weights" ? { tab: key } : {})}
-      />
+      {ownData && (
+        <OptionSubTabBar
+          tabs={TABS}
+          active={tab}
+          onSelect={(key) => setSearchParams(key === "weights" ? { tab: key } : {})}
+        />
+      )}
 
       {tab === "weights" ? (
         <PickerWeights />
@@ -136,11 +145,20 @@ function PickerBody({ mode, typesKey, ownsList }) {
       defaultFilters={defaultFilters}
       defaultWeighted={defaultWeighted}
       planMarks={planMarks}
+      ownsList={ownsList}
     />
   );
 }
 
-function PickerPool({ mode, entries, filterDefs, defaultFilters, defaultWeighted, planMarks }) {
+function PickerPool({
+  mode,
+  entries,
+  filterDefs,
+  defaultFilters,
+  defaultWeighted,
+  planMarks,
+  ownsList,
+}) {
   const queryClient = useQueryClient();
   const {
     filters,
@@ -151,8 +169,11 @@ function PickerPool({ mode, entries, filterDefs, defaultFilters, defaultWeighted
     dynamicFilterOptions,
   } = useFilterState(filterDefs, entries, defaultFilters);
 
-  const hasDefaults =
-    countActiveFilters(defaultFilters) > 0 || (isWeightedMode(mode) && !defaultWeighted);
+  // Weighting is offered only with a list; without one every pick is even.
+  const canWeight = ownsList && isWeightedMode(mode);
+  const startWeighted = canWeight && defaultWeighted;
+
+  const hasDefaults = countActiveFilters(defaultFilters) > 0 || (canWeight && !defaultWeighted);
 
   const pool = useMemo(
     () => applyFilterDefs(entries, filterDefs, filters),
@@ -168,13 +189,13 @@ function PickerPool({ mode, entries, filterDefs, defaultFilters, defaultWeighted
     [entries, pickedKey],
   );
 
-  const [weighted, setWeighted] = useState(defaultWeighted);
+  const [weighted, setWeighted] = useState(startWeighted);
 
   const draw = useCallback(() => {
-    const next = pickWeighted(pool, picked, { mode, planMarks }, weighted);
+    const next = pickWeighted(pool, picked, { mode, planMarks, personal: ownsList }, weighted);
     setPickedKey(next ? entryKey(next.entry) : null);
     setPickedChance(next ? next.chance : null);
-  }, [pool, picked, mode, planMarks, weighted]);
+  }, [pool, picked, mode, planMarks, ownsList, weighted]);
 
   // Every filter off and the pick gone.
   const clearAll = useCallback(() => {
@@ -185,9 +206,9 @@ function PickerPool({ mode, entries, filterDefs, defaultFilters, defaultWeighted
   // Back to the mode's saved defaults, with the pick gone.
   const restoreDefaults = useCallback(() => {
     resetFilters();
-    setWeighted(defaultWeighted);
+    setWeighted(startWeighted);
     setPickedKey(null);
-  }, [resetFilters, defaultWeighted]);
+  }, [resetFilters, startWeighted]);
 
   const handleUpdated = useCallback(
     (cardType) => (updatedItem) => {
@@ -229,7 +250,7 @@ function PickerPool({ mode, entries, filterDefs, defaultFilters, defaultWeighted
           <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
             {pool.length} in the pool
           </p>
-          {isWeightedMode(mode) && (
+          {canWeight && (
             <label className="inline-flex items-center gap-1.5 text-xs text-text-muted cursor-pointer">
               <input
                 type="checkbox"

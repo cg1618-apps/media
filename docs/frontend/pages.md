@@ -55,10 +55,10 @@ are a large share of the bundle and never needed on first paint.
 | `/character/:system_id` | `detail/Character.jsx` | lazy, **`view.character`** |
 | `/identity/:public_id` | `detail/Identity.jsx` | lazy, **`view.character`** — an identity is a page of a character |
 | `/watch-order/:system_id` | `detail/WatchOrder.jsx` → `WatchOrderPage.jsx` | lazy |
-| `/seasonal` | `public/SeasonalOverall.jsx` | lazy, **login required** |
-| `/seasonal/:seasonal_id` | `public/SeasonalDetail.jsx` | lazy, **login required** |
+| `/seasonal` | `public/SeasonalOverall.jsx` — the viewer's own season with a list, the catalogue's without | lazy, **any ordinary `media_type.*`** (`anyPermission={LIBRARY_MEDIA_TYPE_PERMISSIONS}`, the list the Library tab asks) |
+| `/seasonal/:seasonal_id` | `public/SeasonalDetail.jsx` — likewise | lazy, **any ordinary `media_type.*`** (`anyPermission={LIBRARY_MEDIA_TYPE_PERMISSIONS}`, the list the Library tab asks) |
 | `/future-releases` | `public/FutureReleases.jsx` — reads the open `/api/seasonal/current-season` | lazy, **any ordinary `media_type.*`** (`anyPermission={LIBRARY_MEDIA_TYPE_PERMISSIONS}`, the list the Library tab asks) |
-| `/statistics` | `public/Statistics.jsx` | lazy, **login required** |
+| `/statistics` | `public/Statistics.jsx` — the viewer's own numbers with a list, counts of the catalogue without | lazy, **any ordinary `media_type.*`** (`anyPermission={LIBRARY_MEDIA_TYPE_PERMISSIONS}`, the list the Library tab asks) |
 | `/completions` | `public/Completions.jsx` | lazy, **`self.list`** |
 | `/random` | `public/RandomPicker.jsx` — the general mode | lazy, **`view.random_picker`** |
 | `/random/h-comic`, `/random/h-game`, `/random/hentai` | `RandomPicker type="…"` — the same file, each inside its type's `<ProtectedRoute gatedType>` and, within it, `<ProtectedRoute permission="view.random_picker">` (matched before `/random/:type`) | lazy, **gated**, **`view.random_picker`** |
@@ -148,7 +148,7 @@ about styling.
 | `library` | Library | mega-panel (`columns`), `requires` any of the nine ordinary `media_type.*` keys (`LIBRARY_MEDIA_TYPE_PERMISSIONS`), so a role holding none — the admin — has no Library tab. Nav only: the `/library` routes themselves stay open | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities** (each row `requires` its own kind's key, so a row whose kind is off is dropped and a viewer holding none has no Entities column): Studio `/library/studio` (also matches `/studio`; `view.studio`), Publisher `/library/publisher` (also matches `/publisher`; `view.publisher`), Person `/library/person` (also matches `/person`; `view.person`), Character `/library/character` (also matches `/character` and `/identity`; `view.character`), Seiyuu `/library/seiyuu` (`view.person`) · **ACG**: Anime, Anime Movie, Manga, Novel, Game `/library/game` (also matches `/game`) · **Reality**: TV Show, Movie, Cartoon, Comic |
 | `restricted` | Restricted | flat `items`, every row gated | H-Comic `/library/h-comic` (also matches `/h-comic`; `gatedType: "h-comic"`), H-Game `/library/h-game` (also matches `/h-game`; `gatedType: "h-game"`), Hentai `/library/hentai` (also matches `/hentai`; `gatedType: "hentai"`). Each is drawn only for a session that can see its type; a session that can see no gated type has every row dropped, so the tab itself is not drawn |
 | `track` | Track | flat `items` | Plan `/plan` (`requires: "self.list"` — see below), Completions `/completions` (`requires: "self.list"`). The account's own progress; a guest holds no `self.*` key, so the tab is not drawn |
-| `explore` | Explore | flat `items` | Seasonal `/seasonal` (`requires: "self.list"`), Future Releases `/future-releases` (`requires: LIBRARY_MEDIA_TYPE_PERMISSIONS`, any ordinary media type, so a guest's Explore holds this row and the admin's has none), Random Picker `/random` (`requires: "view.random_picker"`; its `/random/<type>` pages light it too), Statistics `/statistics` (`requires: "self.list"`). A shared account holds only the picker's key, so its Explore tab is the Random Picker alone |
+| `explore` | Explore | flat `items` | Seasonal `/seasonal`, Future Releases `/future-releases` and Statistics `/statistics`, each `requires: LIBRARY_MEDIA_TYPE_PERMISSIONS` (any ordinary media type, so a guest's and a shared account's Explore hold all three and the admin's none), and Random Picker `/random` (`requires: "view.random_picker"`; its `/random/<type>` pages light it too) |
 | `extras` | Extras | flat | Quotes `/quote` and Memes `/meme` (each `feature: "quotes_memes"`), Resources `/resources` (`requires: "manage.resources"`, so the admin and super only) ┃ Relations `/relations`, Watch Orders `/watch-orders` — these two carry `requires: "manage.catalog"` on the row, inside a tab everyone may open |
 | `entry` | Entry | flat, `requires` any of `manage.catalog` / `manage.images` | Add `/add`, Modify `/modify`, Delete `/delete`, Form Defaults `/defaults`, Picker Defaults `/random-defaults` — each `requires: "manage.catalog"` — and Images `/images` (`requires: "manage.images"`). The admin holds no `manage.catalog`, so Images is the one row it sees |
 | `note` | Note | flat, `requires` any of `manage.options` / `admin.authz` / `manage.catalog` / `manage.pipelines` — whatever its rows ask, so the admin, holding no `manage.catalog`, still sees the whole section | System Options `/options`, Alias Conversion `/aliases`, External APIs `/external-apis` — the three read-only inventories of how the data is described, each `requires: "manage.options"` — Content Labels `/content-labels`, the read-only label reference, which carries `requires: ["admin.authz", "manage.catalog"]` (any of the two, the same either-of its route asks), and Business Logic `/business-logic`, what Calculate All changes step by step, which carries `requires: "manage.pipelines"` on the row, so only the super role and admin see it |
@@ -1443,18 +1443,21 @@ with a "see full" link, and an admin-only **Add built-in order** button
 (`POST /api/watch-order/lists/release?…`, hidden once a release order exists).
 Editing happens only on the admin `/watch-orders` page.
 
-### Four pages that need an account
+### Pages in two versions: with a list and without
 
-`/plan`, `/seasonal`, `/seasonal/:seasonal_id` and `/statistics` sit inside
-`<Route element={<ProtectedRoute permission="self.list" />}>` in `App.jsx`.
-They are built from `plan_next` and `seasonal`, which are per-user tables whose
-API routes answer `401` to a stranger, so a logged-out visitor is redirected to
-`/login?next=…` rather than shown a page that fills with errors. `requireAuth`
-gates on "is anyone logged in" rather than on a permission, mirroring the
-server's `get_current_user_id`. Their nav rows carry `requires: "self.list"`,
-the navigation config's spelling of "a signed-in member" (the guest role does
-not hold it; both `user` and `admin` do), so a guest is not shown links that
-would only bounce them.
+`/seasonal`, `/seasonal/:seasonal_id`, `/statistics` and `/future-releases`
+read the catalogue, so they sit inside
+`<ProtectedRoute anyPermission={LIBRARY_MEDIA_TYPE_PERMISSIONS}>` in
+`App.jsx` and their nav rows ask the same list: every viewer that reads an
+ordinary media type opens them, a guest and a shared account included, and
+the admin, holding none, does not. Each page asks `useViewScope().ownData`
+(`self.list`) once, at the top, and draws one of two components: the
+viewer's own version with a list, and the catalogue's without one. The
+catalogue version never asks for a per-user read (`/api/seasonal/`,
+`/api/plan-next/`, the full lists Statistics counts), so it draws no error
+for a viewer those would refuse. `/plan` and `/completions` stay inside
+`<ProtectedRoute permission="self.list">`: they are nothing but the
+account's own rows.
 
 ### SeasonalOverall — `/seasonal` · SeasonalDetail — `/seasonal/:seasonal_id`
 
@@ -1473,7 +1476,17 @@ both of the two planned statuses together. Both render `DashboardCard`s with the
 optimistic `PUT /api/me/list/{id} { ep_fin }` (`putMyListRow`). **The
 viewer's own** (`useViewScope().ownData`): a "Seasonal Rating" select →
 `PATCH /api/seasonal/{id} { my_rating }`, the account's own season row, and
-the steppers. **An editor's** (`isAdmin`): the hint to set the current season
+the steppers. **Without a list** each page is its `…Catalogue` component:
+Overall reads `/api/seasonal/current-season` and `/api/seasonal/catalogue`
+(every season the viewer's visible anime aired in, with its count), then the
+current and next seasons' anime; the season tabs show the season's anime in
+one grid with no status split (`components/seasonal/CatalogueSeasonGrid.jsx`:
+`MediaCard`s, best MAL score first), a Total figure and no season rating or
+rating distribution, and **All Seasons** is the year × season table built
+from the catalogue's seasons, each cell with its count. Detail reads only
+`/api/anime/?airing_season={id}` and draws the same grid under the
+prev/next arrows. Neither reads `/api/seasonal/` or `/api/franchise/`.
+**An editor's** (`isAdmin`): the hint to set the current season
 under Admin → System Config when none is set, and, on Detail,
 `components/tracker/SeasonBulkActions.jsx`, two
 buttons that act on the whole season, each behind a `ConfirmModal` and each
@@ -1490,7 +1503,16 @@ toast reports how many succeeded and names each failure with the server's
 
 Files `pages/public/Statistics.jsx`, `pages/statistics/useStatisticsData.js`,
 `StatsFavoriteGrids.jsx`, `StatsFranchiseSummary.jsx`, `StatsCompletions.jsx`,
-`pages/public/Completions.jsx`, `components/charts/BarChart.jsx`.
+`StatsCatalogue.jsx`, `pages/public/Completions.jsx`,
+`components/charts/BarChart.jsx`.
+
+**Without a list**, Statistics is `StatsCatalogue.jsx`: counts of the
+catalogue from one `GET /api/statistics/catalogue` - entries per type (in
+the registry's order), anime per season and entries per genre, each a plain
+table - over what the viewer's role and mode show. The personal sections
+below, and the sidebar that indexes them, are absent rather than empty, and
+`useStatisticsData` never runs. Everything else in this section is the
+version with a list.
 
 `useStatisticsData` runs `useMediaList` for franchise, series and every
 entry type the session may see (`h-comic`, `h-game` and `hentai` each only
@@ -1580,8 +1602,8 @@ controls on either page.
 ### FutureReleases — `/future-releases`
 
 File `pages/public/FutureReleases.jsx`. `useMediaList("anime")`,
-`useMediaList("franchise")`,
-`useApiQuery(["api","system","current-season-config"], "/api/system/config/current_season")`,
+`useMediaList("franchise")` (with a list only: it feeds the expectation sort),
+`useApiQuery(["api","seasonal","current-season"], "/api/seasonal/current-season")`,
 and lazily per tab `anime-movie`, `movie` (`{ limit: 2000, airing_status: "Not Yet Aired" }`),
 `tv-show`, `cartoon`, `game`. Tabs Anime / Anime Movies / Movies / TV Shows /
 Cartoons / Games.
@@ -1593,21 +1615,50 @@ grouped by the year of `release_date` with TBD last, and sorted inside a year
 by that date, so a full date precedes a bare year. Cards are `MediaCard`: the status select
 is drawn for a holder of `self.list` and the release bolt for an editor
 (`isAdmin`); `onUpdated` patches the `["media-list", type]` caches.
+**With a list**, anime and anime-movie groups are ordered by the viewer's
+status (Watch When Airs, Plan to Watch, Might Watch) and then franchise
+expectation, and under each card an **On your list** chip (any status) and a
+**Planned** chip (any plan flag) are drawn from the fields the list response
+carries. **Without one**, every group is in release-date order
+(`primaryReleaseValue` + `releaseScore`, undated last) and no chip is
+drawn.
 
 ### RandomPicker — `/random` · `/random/:type`
 
 Files `pages/public/RandomPicker.jsx`, `lib/randomPicker.js`,
 `lib/pickerWeights.js`, `hooks/usePickerData.js`,
-`components/picker/ModeStrip.jsx`, `components/picker/PickerWeights.jsx`. Open to
-everyone; it draws from the same lists the library pages read, so it can
-only offer what the viewer may already see.
+`components/picker/ModeStrip.jsx`, `components/picker/PickerWeights.jsx`. Behind
+`view.random_picker`; it draws from the same lists the library pages read, so
+it can only offer what the viewer may already see.
+
+**Two versions, by `useViewScope().ownData`.** With a list (`self.list`),
+everything below. Without one - a shared account - the catalogue version:
+every FilterDef flagged `personal: true` is dropped
+(`filterDefsForMode(mode, types, { personal })`, one rule for every mode:
+the status groups, my rating, the franchise mode's entry status and
+expectation, and a type's own status, ownership and usefulness filters,
+which the picker flags through `PERSONAL_LIBRARY_FILTERS`), the draw is
+uniform, the Weights tab and the **Weighted** checkbox are not drawn (a
+`?tab=weights` link opens the picker), a saved default naming a personal
+filter is ignored, and `/api/plan-next/` is never asked. What is left is
+media type, the type's catalogue filters, release decade and the external
+score.
+
+**External score** (`externalScore`) is a catalogue filter in both versions:
+chips `9+`, `8+`, `7+`, `6+` and `No score`, which OR like every chip, read
+from `mal_rating` for anime, anime movies, manga and novels and from
+`imdb_rating` for movies, TV shows and cartoons; a null or `N/A` score, or a
+type with no score field, is `No score`. It is named "MAL Score" or "IMDb
+Score" when the mode's types share a source and "External Score" otherwise,
+and it is not offered where no type has a score (game, comic, the gated
+types, the franchise mode).
 
 A strip of mode links runs across the top: **All**, then one per media type
 the session may see (`visibleMediaTypes`), then **Franchise**. Each mode has its own filters,
 rendered by the library's `FilterPanel`. Each mode opens on its **default
 filters**, saved on the admin Picker Defaults page
 ([admin-pages.md](admin-pages.md#random-defaults-pickerdefaultsjsx)) and read
-from `/api/random-picker-defaults/<mode>` by everyone; a mode with none saved,
+from `/api/random-picker-defaults/<mode>` by every viewer the page opens for; a mode with none saved,
 or whose defaults cannot be read, opens with every filter empty. Switching
 mode starts over from that mode's defaults, with no pick.
 
@@ -1626,10 +1677,8 @@ mode starts over from that mode's defaults, with no pick.
   what it holds. It filters on franchise type (each type of a multi-type
   franchise counts), the media types it holds an entry of, the status groups
   of the entries it holds (the All mode's groups; a franchise matches when any
-  entry does), expectation, and my rating — the last two the viewer's own,
-  only for a holder of `self.list` (`franchiseFilterDefs(types, { personal })`,
-  with `personal` from `useViewScope().ownData`), since without it the
-  viewer has neither. It always draws evenly - the
+  entry does), expectation, and my rating — the status groups, expectation
+  and rating the viewer's own, flagged `personal`. It always draws evenly - the
   weights are an entry's own status, rating, plan marks and release, which a
   franchise does not have - so it shows no **Weighted** checkbox. The pick is
   a `FranchiseCard`.
@@ -1665,11 +1714,12 @@ its series or its franchise), release decade (2000s and later over earlier or
 undated), and, in the manga, novel and h-comic modes only, serialization
 status. Because every entry factor applies inside the group already chosen,
 none can move an entry into another group's share. A status, rating or
-serialization value the tables do not name weighs 1. Status, rating and plan
-marks are the viewer's own, so a signed-out pick is weighted by decade and
-serialization only: the page asks `/api/plan-next/` for the series and
-franchise marks (under the Plan page's `["plan-next"]` key) only for a
-signed-in session. The numbers are the tables in `lib/pickerWeights.js`, and
+serialization value the tables do not name weighs 1. Status group, rating
+and plan marks are the viewer's own, flagged `personal` in `WEIGHT_INPUTS`:
+with `personal: false` in its context `entryFactors` sets them to 1 and
+`drawChances` keeps the pool in one group. The page asks `/api/plan-next/`
+for the series and franchise marks (under the Plan page's `["plan-next"]`
+key) only with a list. The numbers are the tables in `lib/pickerWeights.js`, and
 the **Weights** tab (`?tab=weights`, `PickerWeights.jsx`) renders those same
 tables, so it lists exactly what the draw uses.
 

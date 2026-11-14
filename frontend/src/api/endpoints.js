@@ -133,6 +133,15 @@ export const endpoints = {
     detail: (id) => `/api/seasonal/${id}`,
     currentSeason: () => "/api/seasonal/current-season",
     update: (id) => `/api/seasonal/${id}`,
+    // Every season the viewer's visible anime aired in, with its count: the
+    // All Seasons table for a viewer without a list.
+    catalogue: () => "/api/seasonal/catalogue",
+  },
+
+  // Counts of the catalogue, for a viewer without a list: entries per type,
+  // per anime season and per genre, over what its role and mode show.
+  statistics: {
+    catalogue: () => "/api/statistics/catalogue",
   },
 
   announcements: {

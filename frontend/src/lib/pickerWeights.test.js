@@ -1,4 +1,5 @@
 import {
+  WEIGHT_INPUTS,
   drawChances,
   entryFactors,
   entryWeight,
@@ -176,5 +177,49 @@ describe("pickWeighted", () => {
     // p holds 1.5 / 1.8 of the draw, so a roll of 0.8 still lands on it.
     expect(entryKey(pickWeighted(mixed, null, {}, true, () => 0.8).entry)).toBe("anime:p");
     expect(entryKey(pickWeighted(mixed, null, {}, false, () => 0.8).entry)).toBe("anime:d");
+  });
+});
+
+describe("personal weight inputs", () => {
+  it("flags the status group, rating and plan mark, and not the catalogue ones", () => {
+    const personal = Object.entries(WEIGHT_INPUTS)
+      .filter(([, input]) => input.personal)
+      .map(([name]) => name);
+    expect(personal).toEqual(["group", "rating", "plan"]);
+    // Every stage-2 factor is described.
+    expect(Object.keys(entryFactors(anime("a"))).every((name) => name in WEIGHT_INPUTS)).toBe(true);
+  });
+
+  // One pool, every entry undated and in the general mode, so only the
+  // personal inputs - status group, rating, plan mark - tell them apart.
+  // With a list they decide the draw; without one, the same pool is even.
+  const pool = [
+    anime("p", { watching_status: "Active Watching", watch_next: true }),
+    anime("s", { watching_status: "Completed", my_rating: "S" }),
+    anime("f", { watching_status: "Completed", my_rating: "F" }),
+    anime("d", { watching_status: "Dropped" }),
+  ];
+
+  it("lets the personal inputs move the chances with a list", () => {
+    const chances = chancesById(pool, { personal: true });
+    expect(chances.p).toBeGreaterThan(chances.s);
+    expect(chances.s).toBeGreaterThan(chances.f);
+    expect(chances.f).not.toBeCloseTo(chances.d);
+  });
+
+  it("leaves them unused without a list, so the draw is uniform", () => {
+    const chances = chancesById(pool, { personal: false });
+    for (const id of ["p", "s", "f", "d"]) expect(chances[id]).toBeCloseTo(1 / 4);
+    const f = entryFactors(pool[0], { personal: false });
+    expect(f.plan).toBe(1);
+    expect(entryFactors(pool[1], { personal: false }).rating).toBe(1);
+    expect(entryFactors(pool[0], { personal: true }).plan).toBe(1.5);
+  });
+
+  it("still applies a catalogue input without a list", () => {
+    const dated = [anime("new", { release_date: "2015" }), anime("old", { release_date: "1990" })];
+    const chances = chancesById(dated, { personal: false });
+    expect(chances.new).toBeCloseTo(1.5 / 2.5);
+    expect(chances.old).toBeCloseTo(1 / 2.5);
   });
 });

@@ -359,15 +359,15 @@ describe("visibleSections", () => {
   });
 
   it("shows Quotes and Memes only to an account with the feature switch", () => {
-    // self.list is held in both cases - it draws Insights (Statistics) - so
-    // the switch is what decides.
+    // self.list is held in both cases - it draws Track (Plan) - so the
+    // switch is what decides.
     const holdsSelfList = (p) => p === "self.list";
     const routesFor = (hasFeature) =>
       visibleSections(NAV_SECTIONS, holdsSelfList, undefined, hasFeature).flatMap(
         (s) => sectionItems(s).map((i) => i.to),
       );
     const without = routesFor(() => false);
-    expect(without).toContain("/statistics");
+    expect(without).toContain("/plan");
     expect(without).not.toContain("/quote");
     expect(without).not.toContain("/meme");
     // Mirror: the same viewer with the switch on.
@@ -377,24 +377,39 @@ describe("visibleSections", () => {
   });
 
   it("hides the per-user rows from a logged-out visitor", () => {
-    // Plan, Seasonal and Statistics are per-user pages: their APIs answer 401
-    // and their routes redirect to login, so the rows would only bounce a
-    // guest. self.list is the nav's spelling of "a signed-in member".
+    // Plan is a per-user page: its API answers 401 and its route redirects
+    // to login, so the row would only bounce a guest. self.list is the nav's
+    // spelling of "a signed-in member".
     const holdsSelfList = (p) => p === "self.list";
     const routesFor = (has) =>
       visibleSections(NAV_SECTIONS, has).flatMap((s) =>
         sectionItems(s).map((i) => i.to),
       );
 
-    const forGuest = routesFor(holdsNothing);
-    expect(forGuest).not.toContain("/plan");
-    expect(forGuest).not.toContain("/seasonal");
-    expect(forGuest).not.toContain("/statistics");
+    expect(routesFor(holdsNothing)).not.toContain("/plan");
+    expect(routesFor(holdsSelfList)).toContain("/plan");
+  });
 
-    const forMember = routesFor(holdsSelfList);
-    expect(forMember).toContain("/plan");
-    expect(forMember).toContain("/seasonal");
-    expect(forMember).toContain("/statistics");
+  it("offers Seasonal and Statistics to every catalogue reader, list or not", () => {
+    // Both draw the catalogue's version without a list, so they ask what
+    // Future Releases asks - any ordinary media type - and not self.list.
+    const routesFor = (has) =>
+      visibleSections(NAV_SECTIONS, has).flatMap((s) =>
+        sectionItems(s).map((i) => i.to),
+      );
+    const reader = routesFor((p) => p === "media_type.anime");
+    expect(reader).toContain("/seasonal");
+    expect(reader).toContain("/statistics");
+    // Mirror: a list without any media type reads no catalogue, and the
+    // admin's own keys read none either.
+    const listOnly = routesFor((p) => p === "self.list");
+    expect(listOnly).not.toContain("/seasonal");
+    expect(listOnly).not.toContain("/statistics");
+    const admin = routesFor((p) =>
+      ["admin.authz", "manage.pipelines", "manage.options"].includes(p),
+    );
+    expect(admin).not.toContain("/seasonal");
+    expect(admin).not.toContain("/statistics");
   });
 
   it("lists Settings in no section: it lives in Nav's account strip", () => {
@@ -516,12 +531,17 @@ describe("visibleSections - the guest scope", () => {
   // Quotes and Memes follow the account's switch, which a guest never has.
   const memberFeatures = (f) => f === "quotes_memes";
 
-  it("leaves a guest the Library tab and Explore's Future Releases", () => {
-    // Future Releases reads the catalogue lists, which a guest reads.
+  it("leaves a guest the Library tab and Explore's catalogue pages", () => {
+    // Seasonal, Future Releases and Statistics read the catalogue, which a
+    // guest reads; the Random Picker asks a key a guest never holds.
     const sections = visibleSections(NAV_SECTIONS, holdsNothing);
     expect(sections.map((s) => s.key)).toEqual(["library", "explore"]);
     const explore = sections.find((s) => s.key === "explore");
-    expect(sectionItems(explore).map((i) => i.label)).toEqual(["Future Releases"]);
+    expect(sectionItems(explore).map((i) => i.label)).toEqual([
+      "Seasonal",
+      "Future Releases",
+      "Statistics",
+    ]);
   });
 
   it("keeps Groups and the media types, drops the Entities column", () => {
@@ -722,8 +742,8 @@ describe("the two permission surfaces agree", () => {
   // match. If you change one, this list is where the other is written down.
   const ROUTE_GATES = {
     "/plan": "self.list",
-    "/seasonal": "self.list",
-    "/statistics": "self.list",
+    "/seasonal": LIBRARY_MEDIA_TYPE_PERMISSIONS,
+    "/statistics": LIBRARY_MEDIA_TYPE_PERMISSIONS,
     "/users": "admin.authz",
     "/roles": "admin.authz",
     "/content-labels": ["admin.authz", "manage.catalog"],
