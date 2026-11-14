@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-11-13
+Last verified: 2026-11-14
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -64,17 +64,22 @@ toggled inside a hub does not update the library cache until it goes stale.
 
 ## Contexts
 
-- **`AuthContext`** — `GET /api/auth/me` on mount; exposes `isAdmin`,
-  `username`, `role`, `isRoot`, `permissions`, `visibleGatedTypes` (read
-  through `lib/gatedTypes.js`, never directly), `features` (the account's
-  feature switches by name), `loading`, `has(permission)` (root
-  short-circuit), `hasFeature(name)` (a plain membership test over
-  `features` - the server already gives the root admin `quotes_memes`) and
-  `refetchAuth()`. `ProtectedRoute` and the nav gate on `has(<permission>)`,
-  or on `hasFeature(<name>)` for a row or route carrying `feature`, the same
-  question on both for one page; page
-  controls gate on `isAdmin`, and the guest scope's flags are read through
-  `useViewScope()`. `refetchAuth()` is
+- **`AuthContext`** — `GET /api/auth/me` on mount; exposes `isAdmin`
+  (`manage.catalog` — "may edit the catalogue", so true for `super` and
+  false for the admin account), `username`, `role`, `permissions`,
+  `visibleGatedTypes` (read through `lib/gatedTypes.js`, never directly),
+  `features` (the account's feature switches by name), `loading`,
+  `has(permission)` (a plain membership test, for every role — nothing
+  short-circuits it), `hasFeature(name)` (a plain membership test over
+  `features`) and `refetchAuth()`. `ProtectedRoute` and the nav gate on
+  `has(<permission>)`, or on `hasFeature(<name>)` for a row or route
+  carrying `feature`, the same question on both for one page; catalogue edit
+  controls gate on `isAdmin`, a control belonging to the administrator asks
+  its own key with `has()` (the role chip asks `isAdmin || has("admin.authz")`,
+  Back up asks `has("manage.pipelines")`, the announcement editor on
+  `/system` asks `has("manage.announcements")`, the poster-spine entry id on
+  the twelve detail pages asks `has("manage.catalog")`), and the guest
+  scope's flags are read through `useViewScope()`. `refetchAuth()` is
   *not* how an identity change is applied: sign-in, sign-out and an
   access-mode switch each call `hardNavigate()` (`lib/hardNavigate.js`) and
   load the page again, because the cached answers around them belong to the
@@ -145,7 +150,7 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
 | File | Holds |
 |---|---|
 | `mediaRegistry.js` | `MEDIA_CONFIG`: per type `statusField`, `apiEndpoint`, `navPath`, `statusType` (incl. collection/franchise/series). `statusType` is the status axis — `watch`, `read` or, for `game` and `h-game`, `play` (`statusField: "playing_status"`). `h-comic` (`read` axis), `h-game` (`play` axis) and `hentai` (`watch` axis) are registered like any other type; where they are drawn is decided by the gate below. Source for `endpoints.resource`. `MEDIA_TYPE_LABELS` / `mediaTypeLabel(type)` name a bare type key for display (the character page's groups, the entity libraries' Entry type chips). |
-| `navigation.js` | `NAV_SECTIONS` (Library mega-panel, Restricted, Track, Insights, then Entry, Note and Admin with `requires: "admin"`), `activeItem`, `meets(has, needed)` (one permission, or any of a list), `visibleSections(sections, has, canSeeType)` (filters rows as well as sections — Insights carries two `requires: "admin"` rows, Note's Content Labels row carries `requires: ["admin.authz", "manage.catalog"]`, and the Restricted section's H-Comic, H-Game and Hentai rows carry `gatedType: "h-comic"` / `"h-game"` / `"hentai"`, each dropped unless `canSeeType` says yes for its own type; left out, every gated row is dropped, and with them the Restricted tab, which holds nothing else). |
+| `navigation.js` | `NAV_SECTIONS` (Library mega-panel, `requires` any ordinary `media_type.*`; Restricted, Track, Insights, then Entry — any of `manage.catalog` / `manage.images` —, Note — any of `manage.options` / `admin.authz` / `manage.catalog` / `manage.pipelines` —, Pipelines — `manage.pipelines` — and Admin — `admin.authz`), `activeItem`, `meets(has, needed)` (one permission, or any of a list), `visibleSections(sections, has, canSeeType, hasFeature)` (filters rows as well as sections — Insights carries Resources on `manage.resources` and two `requires: "manage.catalog"` rows, Entry's rows each ask their own key, Note's three inventories ask `manage.options` and its Content Labels row carries `requires: ["admin.authz", "manage.catalog"]`, and the Restricted section's H-Comic, H-Game and Hentai rows carry `gatedType: "h-comic"` / `"h-game"` / `"hentai"`, each dropped unless `canSeeType` says yes for its own type; left out, every gated row is dropped, and with them the Restricted tab, which holds nothing else). |
 | `statusGroups.js` | `WATCHING_STATUS_GROUP`, `READING_STATUS_GROUP`, `PLAYING_STATUS_GROUP`, `AIRING_STATUS_CLS`; plus the picker groups (`STATUS_PICKER_GROUP`, `groupStatusOptions()`) that `components/ui/StatusOptions.jsx` renders as `<optgroup>`s. Filter buckets and picker groups are separate splits of the same vocabulary — and one `STATUS_PICKER_GROUP` map covers all three status axes, because no value means something different between them (Paused is Paused whether you watch, read or play). |
 | `planNextGroups.js` | Size buckets and labels — a hand-kept copy of `app/utils/plan_next_kinds.py`; keep them in sync. `game` and `h-game` have **no** `SIZE_GROUPS` entry (as `anime-movie` has an empty one): there is no count a game groups by, so each Plan tab renders one ungrouped list. Their `ALLOWED_SCOPES` are entry/series/franchise for both `next` and `rewatch`. `h-comic` and `hentai` are absent from `SIZE_GROUPS` the same way, and are queued at entry scope only for both kinds. |
 | `fieldOptions.js` + `useConstants.js` | Fallback enum arrays, overwritten in place by `/api/constants` once on mount — but only the arrays listed in `CONSTANTS_FALLBACK`. All eleven game vocabularies are in that map: `PLAYING_STATUSES`, `GAME_TYPES`, `GAME_IS_MAIN` (key `game_is_main`, game and h-game's own `is_main` vocabulary - Main, Remake, Remaster - beside the shared `IS_MAIN`), `COMPLETION_LEVELS`, `GAME_COMPLETION_FLAGS` (`game_completion_flag`), `GAME_ACHIEVEMENT_FLAGS` (`game_achievement_flag`, all_achievements' own - Fully, Yes, No, Inapplicable), `GAME_RELEASE_STATUSES`, `GAME_STOREFRONTS`, `GAME_OWNERSHIP_KINDS`, `GAME_COPY_FORMATS` and `GAME_ACQUISITION_KINDS`. `GAME_ACHIEVEMENT_HINT` is frontend-only: the line the Game form shows under All Achievements to tell Fully from Yes. `PRICE_CURRENCIES` is frontend-only: `game_copy.price_currency` is a free string on the backend. The seven h-game vocabularies (`H_GAME_PLAYSTYLES`, `H_GAME_LANGUAGE_AVAILABILITY`, `H_GAME_AUDIO_AVAILABILITY`, `H_GAME_H_PRESENTATIONS`, `H_GAME_ART_STYLES`, `H_GAME_H_ART_STYLES`, `H_GAME_PLATFORMS`) **are** in the map, under the `h_game_*` keys `/api/constants` serves only to a session that can see the type, and so is hentai's own `HENTAI_SOURCE_MATERIALS`, under `hentai_source_material`; a hentai also reads h-comic's originality and usefulness lists and anime's `AIRING_STATUSES`. `GENDERS` (a character's or person's gender, `/api/constants` key `gender`) is in the map; `CHARACTER_ROLES` (Main, Core, Important Supporting, Supporting, Other; `/api/constants` key `character_role`) is in the map too, and serves both a casting's role and a character's own role; `castRoleRank(role)` is the cast-list sort every ACG detail page uses (that order, no role last). `NEW_CAST_CHARACTER_GENDER` is the per-media-type gender `CastEditor` gives a character it mints (女 for h-comic and hentai, unset otherwise). |

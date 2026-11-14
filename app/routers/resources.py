@@ -1,8 +1,8 @@
 """
 routers/resources.py
 The Resources page: one site-wide tree of groups and items (links, plain
-text, text with inline links). Reads need `view.extras`; writes need
-`manage.catalog`.
+text, text with inline links). Reads and writes both need
+`manage.resources`: the page is the admin's and super's alone.
 
 The tree is stored flat - one `resource_node` row per node, each naming its
 parent - and assembled here on every read. It is one page for the whole site,
@@ -24,8 +24,7 @@ from app.database import get_taipei_now
 from app.dependencies import get_db
 from app.services.rbac.resolver import (
     Viewer,
-    require_manage_catalog,
-    require_view_extras,
+    require_manage_resources,
 )
 from app.utils.data_control_utils import log_deleted_record
 
@@ -177,14 +176,14 @@ def _ancestors(db: Session, node_id) -> set:
 )
 def get_resources(
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(require_view_extras),
+    viewer: Viewer = Depends(require_manage_resources),
 ):
     """The whole page as a tree: top-level nodes, each with its children."""
     return _build_tree(db.query(models.ResourceNode).all())
 
 
 # ==========================================
-# WRITES (manage.catalog)
+# WRITES (manage.resources)
 # ==========================================
 
 
@@ -197,7 +196,7 @@ def get_resources(
 def create_resource(
     payload: schemas.ResourceNodeCreate,
     db: Session = Depends(get_db),
-    admin: Viewer = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_resources),
 ):
     """Creates a group or an item at the end of its parent's children."""
     _validate_shape(payload.kind, payload.title, payload.content)
@@ -225,7 +224,7 @@ def create_resource(
 def reorder_resources(
     payload: schemas.ResourceReorder,
     db: Session = Depends(get_db),
-    admin: Viewer = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_resources),
 ):
     """
     Sets the complete order of one parent's children.
@@ -298,7 +297,7 @@ def update_resource(
     system_id: str,
     payload: schemas.ResourceNodeUpdate,
     db: Session = Depends(get_db),
-    admin: Viewer = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_resources),
 ):
     """Edits a node's title and/or content. Kind and parent stay as they are."""
     node = _get_or_404(db, _parse_id(system_id))
@@ -322,7 +321,7 @@ def update_resource(
 def delete_resource(
     system_id: str,
     db: Session = Depends(get_db),
-    admin: Viewer = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_resources),
 ):
     """
     Permanently deletes a node. A group takes everything under it with it -

@@ -1,5 +1,5 @@
 // Frontend: the Resources tree - groups nesting to any depth, Markdown items
-// inside them, and (for a manage.catalog holder) every control that edits it.
+// inside them, and (for a manage.resources holder) every control that edits it.
 //
 // Reading and editing are one component because they draw the same thing: an
 // editor sees the reader's page with controls added, not a second layout.

@@ -1,27 +1,26 @@
 """
 Viewer is the answer to "who is asking", resolved once per request.
 
-A root role holds every permission without any of them being granted, which is
-what keeps a new content label or field group from hiding content from the
-admin the moment it is created.
+has() is a set membership test for every role. No role holds a permission
+it was not granted - the admin included - so a permission minted tomorrow
+reaches nobody until somebody grants it.
 """
 
+from app.services.rbac.permissions import ADMIN_FIXED_PERMISSIONS
 from app.services.rbac.resolver import Viewer
 
 GUEST = Viewer(
     username=None,
     role_id=None,
     role_name="guest",
-    is_root=False,
     permissions=frozenset({"media_type.anime"}),
 )
 
-ROOT_ROLE = Viewer(
+ADMIN = Viewer(
     username="admin",
     role_id=None,
     role_name="admin",
-    is_root=True,
-    permissions=frozenset(),
+    permissions=ADMIN_FIXED_PERMISSIONS,
 )
 
 
@@ -33,10 +32,12 @@ def test_an_ungranted_permission_is_not_held():
     assert not GUEST.has("media_type.manga")
 
 
-def test_a_root_role_holds_a_permission_nobody_granted():
-    """The point of is_root: no grant list to keep in step."""
-    assert ROOT_ROLE.has("label.nsfw")
-    assert ROOT_ROLE.has("anything.at.all")
+def test_the_admin_holds_no_permission_nobody_granted():
+    """The property root had and lost: a name outside its fixed set."""
+    assert not ADMIN.has("anything.at.all")
+    assert not ADMIN.has("manage.catalog")
+    # The mirror: what it was granted, it holds.
+    assert ADMIN.has("admin.authz")
 
 
 def test_a_guest_is_anonymous():

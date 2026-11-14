@@ -118,7 +118,7 @@ def test_a_plain_user_may_assign_nothing(
 
 
 def test_a_narrow_editor_cannot_relabel_what_it_cannot_see(
-    narrow, admin_client, hidden_anime, labelled_franchise
+    narrow, owner_client, hidden_anime, labelled_franchise
 ):
     """
     The write binds to the read. `manage.catalog` says nothing about which
@@ -138,14 +138,14 @@ def test_a_narrow_editor_cannot_relabel_what_it_cannot_see(
     assert franchise.status_code == 404
     # The mirror: the same two calls from a mode that carries the label.
     assert (
-        admin_client.put(
+        owner_client.put(
             f"/api/content-labels/entry/anime/{hidden_anime.system_id}",
             json={"label_keys": []},
         ).status_code
         == 200
     )
     assert (
-        admin_client.put(
+        owner_client.put(
             f"/api/content-labels/franchise/{labelled_franchise.system_id}",
             json={"label_keys": []},
         ).status_code
@@ -165,27 +165,27 @@ def test_a_labelled_franchise_is_hidden(narrow, labelled_franchise):
 
 
 def test_the_same_franchise_is_visible_to_a_mode_carrying_the_label(
-    admin_client, labelled_franchise
+    owner_client, labelled_franchise
 ):
     """The mirror. Without it the 404 above could be any other refusal."""
-    res = admin_client.get(f"/api/franchise/{labelled_franchise.system_id}")
+    res = owner_client.get(f"/api/franchise/{labelled_franchise.system_id}")
     assert res.status_code == 200, res.text
     assert res.json()["system_id"] == str(labelled_franchise.system_id)
 
 
 def test_a_labelled_franchise_is_absent_from_the_list(
-    narrow, admin_client, labelled_franchise
+    narrow, owner_client, labelled_franchise
 ):
     hidden = {row["system_id"] for row in narrow.get("/api/franchise/").json()}
     shown = {
-        row["system_id"] for row in admin_client.get("/api/franchise/").json()
+        row["system_id"] for row in owner_client.get("/api/franchise/").json()
     }
     assert str(labelled_franchise.system_id) not in hidden
     assert str(labelled_franchise.system_id) in shown
 
 
 def test_a_labelled_franchise_is_absent_from_search(
-    narrow, admin_client, labelled_franchise
+    narrow, owner_client, labelled_franchise
 ):
     """
     The `franchise` bucket is not an entry type, so it is not covered by the
@@ -198,7 +198,7 @@ def test_a_labelled_franchise_is_absent_from_search(
         return {row["system_id"] for row in res.json()["results"]["franchise"]}
 
     assert str(labelled_franchise.system_id) not in franchise_ids(narrow)
-    assert str(labelled_franchise.system_id) in franchise_ids(admin_client)
+    assert str(labelled_franchise.system_id) in franchise_ids(owner_client)
 
 
 # ---------------------------------------------------------------------------
@@ -207,7 +207,7 @@ def test_a_labelled_franchise_is_absent_from_search(
 
 
 def test_a_labelled_franchise_hides_its_entries(
-    narrow, admin_client, sample_anime, labelled_franchise
+    narrow, owner_client, sample_anime, labelled_franchise
 ):
     """
     The entry carries NO label of its own - only its franchise does.
@@ -218,13 +218,13 @@ def test_a_labelled_franchise_hides_its_entries(
     assert sample_anime.franchise_id == labelled_franchise.system_id
     assert narrow.get(f"/api/anime/{sample_anime.public_id}").status_code == 404
     assert (
-        admin_client.get(f"/api/anime/{sample_anime.public_id}").status_code
+        owner_client.get(f"/api/anime/{sample_anime.public_id}").status_code
         == 200
     )
 
 
 def test_a_labelled_franchise_hides_its_entries_from_the_list(
-    narrow, admin_client, sample_anime, labelled_franchise
+    narrow, owner_client, sample_anime, labelled_franchise
 ):
     def anime_ids(client):
         res = client.get("/api/anime/")
@@ -232,7 +232,7 @@ def test_a_labelled_franchise_hides_its_entries_from_the_list(
         return {row["system_id"] for row in res.json()}
 
     assert str(sample_anime.system_id) not in anime_ids(narrow)
-    assert str(sample_anime.system_id) in anime_ids(admin_client)
+    assert str(sample_anime.system_id) in anime_ids(owner_client)
 
 
 def test_clearing_the_franchise_labels_reveals_its_entries(
@@ -278,27 +278,27 @@ def test_an_unlabelled_franchise_hides_nothing(
 
 
 def test_the_franchise_response_carries_its_labels(
-    admin_client, labelled_franchise
+    owner_client, labelled_franchise
 ):
-    body = admin_client.get(
+    body = owner_client.get(
         f"/api/franchise/{labelled_franchise.system_id}"
     ).json()
     assert [row["key"] for row in body["content_labels"]] == ["nsfw"]
     assert body["content_labels"][0]["label"] == "NSFW"
 
 
-def test_the_entry_response_carries_its_own_labels(admin_client, hidden_anime):
-    body = admin_client.get(f"/api/anime/{hidden_anime.public_id}").json()
+def test_the_entry_response_carries_its_own_labels(owner_client, hidden_anime):
+    body = owner_client.get(f"/api/anime/{hidden_anime.public_id}").json()
     assert [row["key"] for row in body["content_labels"]] == ["nsfw"]
 
 
 def test_an_entry_does_not_claim_its_franchises_labels(
-    admin_client, sample_anime, labelled_franchise
+    owner_client, sample_anime, labelled_franchise
 ):
     """
     The franchise's set is shown on the franchise, where it can be changed.
     Merging the two here would leave a reader no way to tell which one to
     edit to reveal the entry.
     """
-    body = admin_client.get(f"/api/anime/{sample_anime.public_id}").json()
+    body = owner_client.get(f"/api/anime/{sample_anime.public_id}").json()
     assert body["content_labels"] == []

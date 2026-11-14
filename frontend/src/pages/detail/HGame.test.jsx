@@ -78,7 +78,6 @@ function mockFetch(entry, notes) {
         is_admin: true,
         username: "cg1618",
         role: "admin",
-        is_root: false,
         permissions: ["manage.catalog", "self.list"],
         visible_gated_types: ["h-comic", "h-game"],
       };

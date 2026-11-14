@@ -66,13 +66,13 @@ def _sources(client, franchise_id, exclude=None):
 
 
 def test_lists_a_franchise_entry_that_has_a_cast(
-    admin_client, db_session, sample_franchise, anime, season_two, unrelated_anime,
+    owner_client, db_session, sample_franchise, anime, season_two, unrelated_anime,
     character,
 ):
     _cast(db_session, anime, "anime", character)
     _cast(db_session, unrelated_anime, "anime", character)
 
-    sources = _sources(admin_client, sample_franchise.system_id, exclude=season_two.system_id)
+    sources = _sources(owner_client, sample_franchise.system_id, exclude=season_two.system_id)
     # Season Two has no cast and the unrelated anime is another franchise's.
     assert [(s["entry_id"], s["cast_count"]) for s in sources] == [
         (str(anime.system_id), 1)
@@ -80,9 +80,9 @@ def test_lists_a_franchise_entry_that_has_a_cast(
     assert sources[0]["media_type"] == "anime"
 
 
-def test_excludes_the_entry_being_edited(admin_client, db_session, sample_franchise, anime, character):
+def test_excludes_the_entry_being_edited(owner_client, db_session, sample_franchise, anime, character):
     _cast(db_session, anime, "anime", character)
-    assert _sources(admin_client, sample_franchise.system_id, exclude=anime.system_id) == []
+    assert _sources(owner_client, sample_franchise.system_id, exclude=anime.system_id) == []
 
 
 def test_leaves_out_an_entry_the_editor_cannot_see(

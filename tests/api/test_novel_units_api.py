@@ -16,8 +16,8 @@ def _novel_payload(**overrides):
     return payload
 
 
-def test_create_persists_units_and_derives_totals(admin_client):
-    resp = admin_client.post("/api/novel/", json=_novel_payload(arc_fin=1, ch_fin_in_arc=101))
+def test_create_persists_units_and_derives_totals(owner_client):
+    resp = owner_client.post("/api/novel/", json=_novel_payload(arc_fin=1, ch_fin_in_arc=101))
     assert resp.status_code == 201
     body = resp.json()
 
@@ -28,11 +28,11 @@ def test_create_persists_units_and_derives_totals(admin_client):
     assert body["units"][0]["display_key"] == "arc 1"
 
 
-def test_update_inserts_updates_and_deletes_in_one_request(admin_client):
-    created = admin_client.post("/api/novel/", json=_novel_payload()).json()
+def test_update_inserts_updates_and_deletes_in_one_request(owner_client):
+    created = owner_client.post("/api/novel/", json=_novel_payload()).json()
     keep, drop = created["units"][0], created["units"][1]
 
-    resp = admin_client.put(
+    resp = owner_client.put(
         f"/api/novel/{created['system_id']}",
         json={
             "novel_name_cn": "測試小說",
@@ -61,12 +61,12 @@ def test_update_inserts_updates_and_deletes_in_one_request(admin_client):
     assert body["ch_total"] == 155
 
 
-def test_patching_the_cursor_rolls_over(admin_client):
-    created = admin_client.post(
+def test_patching_the_cursor_rolls_over(owner_client):
+    created = owner_client.post(
         "/api/novel/", json=_novel_payload(arc_fin=1, ch_fin_in_arc=0)
     ).json()
 
-    resp = admin_client.patch(
+    resp = owner_client.patch(
         f"/api/novel/{created['system_id']}", json={"ch_fin_in_arc": 112}
     )
     assert resp.status_code == 200
@@ -77,16 +77,16 @@ def test_patching_the_cursor_rolls_over(admin_client):
     assert body["ch_fin"] == 212
 
 
-def test_patch_saves_units_not_just_the_cursor(admin_client):
+def test_patch_saves_units_not_just_the_cursor(owner_client):
     """PATCH /api/novel/{id} carrying `units` must actually write the rows and
     re-derive progress from them, not silently discard the key.
 
     Regression coverage for the detail-page Units editor, which patches the
     whole novel (including `units`) rather than PUTting it."""
-    created = admin_client.post("/api/novel/", json=_novel_payload()).json()
+    created = owner_client.post("/api/novel/", json=_novel_payload()).json()
     keep, drop = created["units"][0], created["units"][1]
 
-    resp = admin_client.patch(
+    resp = owner_client.patch(
         f"/api/novel/{created['system_id']}",
         json={
             "units": [
@@ -113,13 +113,13 @@ def test_patch_saves_units_not_just_the_cursor(admin_client):
     assert body["ch_total"] == 210
 
 
-def test_deleting_a_novel_removes_its_units(admin_client, db_session):
+def test_deleting_a_novel_removes_its_units(owner_client, db_session):
     from app import models
 
-    created = admin_client.post("/api/novel/", json=_novel_payload()).json()
+    created = owner_client.post("/api/novel/", json=_novel_payload()).json()
     novel_id = uuid.UUID(created["system_id"])
 
-    assert admin_client.delete(f"/api/novel/{novel_id}").status_code == 200
+    assert owner_client.delete(f"/api/novel/{novel_id}").status_code == 200
 
     remaining = (
         db_session.query(models.NovelUnit)
@@ -129,8 +129,8 @@ def test_deleting_a_novel_removes_its_units(admin_client, db_session):
     assert remaining == 0
 
 
-def test_volume_units_do_not_touch_volume_counters(admin_client):
-    resp = admin_client.post(
+def test_volume_units_do_not_touch_volume_counters(owner_client):
+    resp = owner_client.post(
         "/api/novel/",
         json={
             "novel_name_cn": "輕小說",
@@ -150,11 +150,11 @@ def test_volume_units_do_not_touch_volume_counters(admin_client):
     assert len(body["units"]) == 2
 
 
-def test_listing_novels_does_not_n_plus_one(admin_client, test_engine):
+def test_listing_novels_does_not_n_plus_one(owner_client, test_engine):
     from sqlalchemy import event
 
     for _ in range(3):
-        admin_client.post("/api/novel/", json=_novel_payload())
+        owner_client.post("/api/novel/", json=_novel_payload())
 
     units, ratings = [], []
 
@@ -168,7 +168,7 @@ def test_listing_novels_does_not_n_plus_one(admin_client, test_engine):
 
     event.listen(test_engine, "before_cursor_execute", record)
     try:
-        resp = admin_client.get("/api/novel/")
+        resp = owner_client.get("/api/novel/")
     finally:
         event.remove(test_engine, "before_cursor_execute", record)
 
@@ -184,8 +184,8 @@ def test_listing_novels_does_not_n_plus_one(admin_client, test_engine):
 # --- per-unit rating --------------------------------------------------------
 
 
-def test_create_persists_a_unit_rating(admin_client):
-    resp = admin_client.post(
+def test_create_persists_a_unit_rating(owner_client):
+    resp = owner_client.post(
         "/api/novel/",
         json=_novel_payload(
             units=[
@@ -200,8 +200,8 @@ def test_create_persists_a_unit_rating(admin_client):
     assert units[1]["my_rating"] is None
 
 
-def test_a_unit_rating_does_not_touch_the_novels_own_rating(admin_client):
-    body = admin_client.post(
+def test_a_unit_rating_does_not_touch_the_novels_own_rating(owner_client):
+    body = owner_client.post(
         "/api/novel/",
         json=_novel_payload(
             my_rating="C",
@@ -214,8 +214,8 @@ def test_a_unit_rating_does_not_touch_the_novels_own_rating(admin_client):
     assert body["units"][0]["my_rating"] == "S"
 
 
-def test_update_changes_and_clears_a_unit_rating(admin_client):
-    created = admin_client.post(
+def test_update_changes_and_clears_a_unit_rating(owner_client):
+    created = owner_client.post(
         "/api/novel/",
         json=_novel_payload(
             units=[
@@ -225,7 +225,7 @@ def test_update_changes_and_clears_a_unit_rating(admin_client):
     ).json()
     unit = created["units"][0]
 
-    changed = admin_client.put(
+    changed = owner_client.put(
         f"/api/novel/{created['system_id']}",
         json={
             "novel_name_cn": "測試小說",
@@ -244,7 +244,7 @@ def test_update_changes_and_clears_a_unit_rating(admin_client):
     ).json()
     assert changed["units"][0]["my_rating"] == "A"
 
-    cleared = admin_client.put(
+    cleared = owner_client.put(
         f"/api/novel/{created['system_id']}",
         json={
             "novel_name_cn": "測試小說",
@@ -263,8 +263,8 @@ def test_update_changes_and_clears_a_unit_rating(admin_client):
     assert cleared["units"][0]["my_rating"] is None
 
 
-def test_a_volume_row_can_be_rated_too(admin_client):
-    body = admin_client.post(
+def test_a_volume_row_can_be_rated_too(owner_client):
+    body = owner_client.post(
         "/api/novel/",
         json=_novel_payload(
             type="Light Novel",

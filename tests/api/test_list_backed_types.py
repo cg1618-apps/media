@@ -64,11 +64,11 @@ CASES = {
 
 
 @pytest.mark.parametrize("base", list(CASES))
-def test_create_writes_personal_fields_to_the_list_row(admin_client, db, base, admin_user):
+def test_create_writes_personal_fields_to_the_list_row(owner_client, db, base, owner_user):
     model, name_col, media_type, status_key, status, cat_col, cat_val = CASES[base]
     payload = {name_col: "Typed Sentinel", status_key: status,
                "my_rating": "A", cat_col: cat_val}
-    response = admin_client.post(f"{base}/", json=payload)
+    response = owner_client.post(f"{base}/", json=payload)
     assert response.status_code == 201, response.text
     body = response.json()
     assert body[status_key] == status
@@ -81,13 +81,13 @@ def test_create_writes_personal_fields_to_the_list_row(admin_client, db, base, a
     )
     assert row.status == status
     assert row.my_rating == "A"
-    assert row.user_id == admin_user.id
+    assert row.user_id == owner_user.id
 
 
 @pytest.mark.parametrize("base", list(CASES))
-def test_the_catalogue_column_stays_on_the_detail_table(admin_client, db, base):
+def test_the_catalogue_column_stays_on_the_detail_table(owner_client, db, base):
     model, name_col, media_type, status_key, status, cat_col, cat_val = CASES[base]
-    response = admin_client.post(
+    response = owner_client.post(
         f"{base}/", json={name_col: "Catalogue Sentinel", cat_col: cat_val}
     )
     assert response.status_code == 201, response.text
@@ -97,22 +97,22 @@ def test_the_catalogue_column_stays_on_the_detail_table(admin_client, db, base):
 
 
 @pytest.mark.parametrize("base", list(CASES))
-def test_an_entry_with_no_list_row_reads_as_the_type_default(admin_client, db, base):
+def test_an_entry_with_no_list_row_reads_as_the_type_default(owner_client, db, base):
     model, name_col, media_type, status_key, status, cat_col, cat_val = CASES[base]
     entry = model(system_id=uuid.uuid4())
     setattr(entry, name_col, "Default Sentinel")
     db.add(entry)
     db.flush()
-    body = admin_client.get(f"{base}/{entry.system_id}").json()
+    body = owner_client.get(f"{base}/{entry.system_id}").json()
     assert body[status_key] == DEFAULT_STATUS[media_type]
     assert body["my_rating"] is None
 
 
 @pytest.mark.parametrize("base", list(CASES))
-def test_patch_updates_the_list_row(admin_client, db, base):
+def test_patch_updates_the_list_row(owner_client, db, base):
     model, name_col, media_type, status_key, status, cat_col, cat_val = CASES[base]
-    created = admin_client.post(f"{base}/", json={name_col: "Patch Sentinel"}).json()
-    response = admin_client.patch(
+    created = owner_client.post(f"{base}/", json={name_col: "Patch Sentinel"}).json()
+    response = owner_client.patch(
         f"{base}/{created['system_id']}", json={"my_rating": "B", status_key: status}
     )
     assert response.status_code == 200, response.text

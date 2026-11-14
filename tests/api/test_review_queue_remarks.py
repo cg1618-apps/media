@@ -36,16 +36,16 @@ def _entry(db_session, model, **names):
     return entry
 
 
-def _fetch(admin_client, db_session):
+def _fetch(owner_client, db_session):
     # Fresh instances only: nothing an earlier request attached survives.
     db_session.expunge_all()
-    res = admin_client.get("/api/data-control/check/remarks")
+    res = owner_client.get("/api/data-control/check/remarks")
     assert res.status_code == 200, res.text
     return res.json()
 
 
 def test_every_type_reports_its_status_from_the_viewers_list(
-    admin_client, db_session, admin_user, list_row
+    owner_client, db_session, owner_user, list_row
 ):
     anime = _entry(db_session, models.Anime, anime_name_en="Remarked Anime")
     manga = _entry(db_session, models.Manga, manga_name_en="Remarked Manga")
@@ -58,9 +58,9 @@ def test_every_type_reports_its_status_from_the_viewers_list(
     list_row(manga, status="Active Reading")
     list_row(game, status="Active Playing")
     for entry in (anime, manga, game, movie):
-        _remark(db_session, admin_user, entry, f"remark on {entry.system_id}")
+        _remark(db_session, owner_user, entry, f"remark on {entry.system_id}")
 
-    body = _fetch(admin_client, db_session)
+    body = _fetch(owner_client, db_session)
 
     (a,) = body["anime"]
     assert a["watching_status"] == "Completed"
@@ -77,7 +77,7 @@ def test_every_type_reports_its_status_from_the_viewers_list(
 
 
 def test_the_gated_types_report_a_status_too(
-    admin_client, db_session, admin_user, list_row
+    owner_client, db_session, owner_user, list_row
 ):
     h_comic = _entry(db_session, models.HComic, h_comic_name_en="Remarked HC")
     hentai = _entry(db_session, models.Hentai, hentai_name_en="Remarked HT")
@@ -86,9 +86,9 @@ def test_the_gated_types_report_a_status_too(
     list_row(hentai, status="Paused")
     list_row(h_game, status="Completed")
     for entry in (h_comic, hentai, h_game):
-        _remark(db_session, admin_user, entry, "gated remark")
+        _remark(db_session, owner_user, entry, "gated remark")
 
-    body = _fetch(admin_client, db_session)
+    body = _fetch(owner_client, db_session)
 
     assert [r["reading_status"] for r in body["h_comic"]] == ["Completed"]
     assert [r["watching_status"] for r in body["hentai"]] == ["Paused"]
@@ -97,8 +97,8 @@ def test_the_gated_types_report_a_status_too(
         assert body[key][0]["public_id"] is not None
 
 
-def test_every_media_type_has_a_key(admin_client, db_session):
-    body = _fetch(admin_client, db_session)
+def test_every_media_type_has_a_key(owner_client, db_session):
+    body = _fetch(owner_client, db_session)
     assert set(body) == {
         "anime", "anime_movie", "movie", "tv_show", "cartoon", "manga",
         "novel", "comic", "game", "h_comic", "hentai", "h_game",
@@ -106,7 +106,7 @@ def test_every_media_type_has_a_key(admin_client, db_session):
 
 
 def test_another_authors_remark_and_other_sections_are_not_listed(
-    admin_client, db_session, admin_user, plain_user
+    owner_client, db_session, owner_user, plain_user
 ):
     # The mirror case: the same entry IS listed once the caller's own remark
     # exists, so an empty answer here is the filter working, not an empty set.
@@ -114,15 +114,15 @@ def test_another_authors_remark_and_other_sections_are_not_listed(
     _remark(db_session, plain_user, anime, "not mine")
     db_session.add(
         models.Note(
-            author_id=admin_user.id,
+            author_id=owner_user.id,
             media_id=anime.system_id,
             section="personal_reviews",
             content="a review, not a remark",
         )
     )
     db_session.flush()
-    assert _fetch(admin_client, db_session)["anime"] == []
+    assert _fetch(owner_client, db_session)["anime"] == []
 
     anime = db_session.get(models.Anime, anime.system_id)
-    _remark(db_session, admin_user, anime, "mine")
-    assert [r["remark"] for r in _fetch(admin_client, db_session)["anime"]] == ["mine"]
+    _remark(db_session, owner_user, anime, "mine")
+    assert [r["remark"] for r in _fetch(owner_client, db_session)["anime"]] == ["mine"]

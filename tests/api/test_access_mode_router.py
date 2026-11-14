@@ -100,7 +100,7 @@ def test_the_mode_response_publishes_no_guest_flag(admin_client, mode):
 
 
 def test_nothing_an_admin_can_patch_changes_what_a_visitor_sees(
-    db_session, client, admin_client, mode, nsfw_label, hidden_anime
+    db_session, client, admin_client, owner_client, mode, nsfw_label, hidden_anime
 ):
     """The anonymous policy is `safe`, by key, and is not an administrator's
     choice. Patching `unrestricted` with the old flag must not publish every
@@ -117,8 +117,8 @@ def test_nothing_an_admin_can_patch_changes_what_a_visitor_sees(
 
     # Still hidden. The extra key was ignored, not honoured.
     assert client.get(f"/api/anime/{hidden_anime.system_id}").status_code == 404
-    # The mirror: the entry exists and the admin, in `unrestricted`, reads it.
-    assert admin_client.get(f"/api/anime/{hidden_anime.system_id}").status_code == 200
+    # The mirror: the entry exists and the owner, in `unrestricted`, reads it.
+    assert owner_client.get(f"/api/anime/{hidden_anime.system_id}").status_code == 200
 
 
 # ---------------------------------------------------------------------------

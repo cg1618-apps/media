@@ -15,12 +15,12 @@ def db(db_session):
     return db_session
 
 
-def test_renaming_an_entry_updates_its_media_display_name(db, admin_client):
+def test_renaming_an_entry_updates_its_media_display_name(db, owner_client):
     a = models.Anime(anime_name_cn="舊名")
     db.add(a)
     db.commit()
 
-    r = admin_client.patch(f"/api/anime/{a.system_id}", json={"anime_name_cn": "新名"})
+    r = owner_client.patch(f"/api/anime/{a.system_id}", json={"anime_name_cn": "新名"})
     assert r.status_code == 200
 
     db.expire_all()

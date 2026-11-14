@@ -89,14 +89,14 @@ def test_an_unknown_mode_nobody_holds_is_deleted(db_session, revision, access_mo
     assert {"safe", "normal", "borderline", "unrestricted"} <= keys
 
 
-def test_no_account_can_use_an_unknown_mode(db_session, access_modes, admin_user):
+def test_no_account_can_use_an_unknown_mode(db_session, access_modes, owner_user):
     """Why step 3 deletes without checking for holders: the database refuses
     an account whose ceiling names a mode outside the four."""
     db_session.add(models.AccessMode(key="curated", label="Curated", sort_order=5))
     db_session.flush()
 
-    admin_user.mode_ceiling = "curated"
-    admin_user.mode_default = "curated"
+    owner_user.mode_ceiling = "curated"
+    owner_user.mode_default = "curated"
     with pytest.raises(IntegrityError, match="ck_users_mode_keys"):
         db_session.flush()
 

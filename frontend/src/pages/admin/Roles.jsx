@@ -12,7 +12,8 @@
 // as locked_on / locked_off rather than decided here - the same table the PUT
 // enforces with a 409, so a box that looks editable can never be refused on
 // save. A locked_on box draws ticked, a locked_off box draws clear, and both
-// draw disabled.
+// draw disabled. The admin role's row is locked in every cell, so it draws
+// wholly disabled and gets no Save button.
 //
 // The roles themselves are fixed - admin, super, user, guest and shared - so
 // the page edits the five rows the server serves and offers no way to add or
@@ -164,9 +165,7 @@ export default function Roles() {
             >
               <div>{role.label}</div>
               <div className="text-[11px] text-text-faint">
-                {role.is_root
-                  ? "all permissions"
-                  : `${role.permissions.length} permission(s)`}
+                {`${role.permissions.length} permission(s)`}
                 {role.user_count > 0 && ` · ${role.user_count} user(s)`}
               </div>
             </button>
@@ -179,15 +178,6 @@ export default function Roles() {
             <p className="text-text-faint text-sm">Pick a role.</p>
           ) : (
             <>
-              {selected.is_root && (
-                <div className="border border-warning/40 bg-warning/15 rounded-lg p-4 text-sm text-warning mb-4">
-                  <strong>{selected.label}</strong> holds every permission
-                  implicitly, including ones that do not exist yet - which is
-                  why minting a content label never hides anything from an
-                  administrator. Own Rows are the exception: an administrative
-                  account keeps no list and no personal notes.
-                </div>
-              )}
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-lg font-bold text-text">

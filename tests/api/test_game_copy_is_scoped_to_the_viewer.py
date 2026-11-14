@@ -32,8 +32,8 @@ def db(db_session):
 
 
 @pytest.fixture
-def a_game(db, admin_client):
-    response = admin_client.post("/api/game/", json={"game_name_en": "Scope Sentinel"})
+def a_game(db, owner_client):
+    response = owner_client.post("/api/game/", json={"game_name_en": "Scope Sentinel"})
     assert response.status_code == 201, response.text
     return uuid.UUID(response.json()["system_id"])
 
@@ -69,29 +69,29 @@ def someone_elses_copy(db, a_game):
 
 
 def test_the_detail_route_hides_another_accounts_copy(
-    admin_client, a_game, someone_elses_copy,
+    owner_client, a_game, someone_elses_copy,
 ):
-    body = admin_client.get(f"/api/game/{a_game}").json()
+    body = owner_client.get(f"/api/game/{a_game}").json()
     assert body["copies"] == []
 
 
 def test_the_list_route_hides_another_accounts_copy(
-    admin_client, a_game, someone_elses_copy,
+    owner_client, a_game, someone_elses_copy,
 ):
-    rows = admin_client.get("/api/game/?limit=2000").json()
+    rows = owner_client.get("/api/game/?limit=2000").json()
     entry = next(r for r in rows if r["system_id"] == str(a_game))
     assert entry["copies"] == []
 
 
 def test_the_acting_users_own_copy_still_comes_back(
-    db, admin_client, a_game, someone_elses_copy, admin_user,
+    db, owner_client, a_game, someone_elses_copy, owner_user,
 ):
     """The mirror of the two above, on the same fixture: a green there must
     mean the scoping refused the other row, not that copies are always empty."""
     db.add(
         models.GameCopy(
             system_id=uuid.uuid4(),
-            user_id=admin_user.id,
+            user_id=owner_user.id,
             game_id=a_game,
             storefront="Steam",
             copy_format="Digital",
@@ -102,13 +102,13 @@ def test_the_acting_users_own_copy_still_comes_back(
     )
     db.flush()
 
-    body = admin_client.get(f"/api/game/{a_game}").json()
+    body = owner_client.get(f"/api/game/{a_game}").json()
     assert [c["storefront"] for c in body["copies"]] == ["Steam"]
     assert body["copies"][0]["price_paid"] == "19.99"
 
 
 def test_a_later_write_does_not_delete_the_other_accounts_copy(
-    db, admin_client, a_game, someone_elses_copy,
+    db, owner_client, a_game, someone_elses_copy,
 ):
     """
     The data-loss guard. Scoping by assigning to entry.copies would orphan
@@ -118,7 +118,7 @@ def test_a_later_write_does_not_delete_the_other_accounts_copy(
     """
     other_id = someone_elses_copy.system_id
 
-    response = admin_client.patch(
+    response = owner_client.patch(
         f"/api/game/{a_game}",
         json={"copies": [{"storefront": "Steam", "ownership": "Owned",
                           "copy_format": "Digital"}]},

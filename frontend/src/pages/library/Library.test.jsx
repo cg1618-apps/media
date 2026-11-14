@@ -10,7 +10,7 @@ import { LIBRARY_CONFIGS } from "./configs";
 
 function respond(url) {
   if (url.startsWith("/api/auth/me")) {
-    return { is_admin: false, username: null, role: "guest", is_root: false, permissions: [] };
+    return { is_admin: false, username: null, role: "guest", permissions: [] };
   }
   if (url.startsWith("/api/anime/"))
     return [

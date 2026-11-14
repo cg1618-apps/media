@@ -29,11 +29,11 @@ def _anime(db_session, name):
     )
 
 
-def test_scan_returns_the_report(admin_client, db_session, fake_sheet):  # noqa: F811
+def test_scan_returns_the_report(owner_client, db_session, fake_sheet):  # noqa: F811
     media = _anime(db_session, "Forgotten By The Sheet")
     fake_sheet(media_rows=[])
 
-    res = admin_client.get("/api/data-control/clean/scan")
+    res = owner_client.get("/api/data-control/clean/scan")
 
     assert res.status_code == 200
     body = res.json()
@@ -42,33 +42,33 @@ def test_scan_returns_the_report(admin_client, db_session, fake_sheet):  # noqa:
 
 
 def test_scan_is_503_when_the_sheet_cannot_be_read(
-    admin_client, db_session, fake_sheet  # noqa: F811
+    owner_client, db_session, fake_sheet  # noqa: F811
 ):
     """503, not 500: the request was fine, the sheet is unavailable, and
     retrying later is the right advice."""
     fake_sheet(media_rows=[], unreadable={"Media"})
 
-    res = admin_client.get("/api/data-control/clean/scan")
+    res = owner_client.get("/api/data-control/clean/scan")
 
     assert res.status_code == 503
 
 
-def test_scan_writes_no_log_row(admin_client, db_session, fake_sheet):  # noqa: F811
+def test_scan_writes_no_log_row(owner_client, db_session, fake_sheet):  # noqa: F811
     """The scan is read-only, like check/duplicates."""
     _anime(db_session, "Observed Only")
     fake_sheet(media_rows=[])
 
-    admin_client.get("/api/data-control/clean/scan")
+    owner_client.get("/api/data-control/clean/scan")
 
     assert db_session.query(models.DataControlLog).count() == 0
 
 
-def test_apply_deletes_the_named_id(admin_client, db_session, fake_sheet):  # noqa: F811
+def test_apply_deletes_the_named_id(owner_client, db_session, fake_sheet):  # noqa: F811
     media = _anime(db_session, "Ticked For Deletion")
     system_id = media.system_id
     fake_sheet(media_rows=[])
 
-    res = admin_client.post(
+    res = owner_client.post(
         "/api/data-control/clean/apply",
         json={"items": [{"tab": "Media", "system_id": str(system_id)}]},
     )
@@ -84,13 +84,13 @@ def test_apply_deletes_the_named_id(admin_client, db_session, fake_sheet):  # no
 
 
 def test_apply_is_503_when_the_sheet_cannot_be_read(
-    admin_client, db_session, fake_sheet  # noqa: F811
+    owner_client, db_session, fake_sheet  # noqa: F811
 ):
     media = _anime(db_session, "Saved By The Outage")
     system_id = media.system_id
     fake_sheet(media_rows=[], unreadable={"Media"})
 
-    res = admin_client.post(
+    res = owner_client.post(
         "/api/data-control/clean/apply",
         json={"items": [{"tab": "Media", "system_id": str(system_id)}]},
     )

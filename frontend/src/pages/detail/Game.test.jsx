@@ -141,11 +141,12 @@ describe("Game detail page — Replace", () => {
         let body = [];
         if (u.startsWith("/api/auth/me")) {
           body = {
+            // The catalogue editor is super (manage.catalog); the admin role
+            // does not hold it.
             is_admin: isAdmin,
-            username: isAdmin ? "admin" : null,
-            role: isAdmin ? "admin" : "guest",
-            is_root: isAdmin,
-            permissions: [],
+            username: isAdmin ? "cg1618" : null,
+            role: isAdmin ? "super" : "guest",
+            permissions: isAdmin ? ["manage.catalog", "manage.pipelines"] : [],
           };
         } else if (u.startsWith("/api/game/g1")) {
           body = game;

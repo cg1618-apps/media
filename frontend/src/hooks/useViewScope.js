@@ -3,10 +3,10 @@
 // The view.* keys open what a guest is not shown: the credited entities, one
 // key per kind (studio, publisher, person - which covers seiyuu - and
 // character, which covers identities), search, the extras (Future Releases,
-// Completions, the Random Picker, Resources) and personal content (the catalogue's own ratings and
-// expectations, a novel unit's remark, the highlight note sections). super
-// holds them all; user holds what its role grants; guest holds none; admin
-// passes through the root flag.
+// Completions, the Random Picker) and personal content (the catalogue's own
+// ratings and expectations, a novel unit's remark, the highlight note
+// sections). super holds them all; user holds what its role grants; guest
+// and admin hold none.
 //
 // The server already refuses or strips what a viewer may not read. This hook
 // is the UI's half: it hides the chip, column, sort option or section rather

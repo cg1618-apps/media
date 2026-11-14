@@ -14,6 +14,8 @@ Every refusal below is paired with the mirror case that must still succeed - a
 
 from app import models
 from app.services.rbac.permissions import (
+    ADMIN_FIXED_PERMISSIONS,
+    ADMIN_PAGE_PERMISSIONS,
     PERM_ADMIN_AUTHZ,
     PERM_MANAGE_CATALOG,
     PERM_MANAGE_PIPELINES,
@@ -48,16 +50,16 @@ def _role(admin_client, name):
 # ---------------------------------------------------------------------------
 
 def test_no_role_may_be_granted_authz():
-    """The permission to change who may do what is the root role
-    short-circuit and nothing else; handing it out through the very page it
-    governs is how an installation loses control of itself."""
+    """The permission to change who may do what belongs to the admin role
+    alone, locked on there; handing it out through the very page it governs
+    is how an installation loses control of itself."""
     for name in (GUEST_ROLE, USER_ROLE, SUPER_ROLE, "friend"):
-        _, off = locked_permissions(name, False)
+        _, off = locked_permissions(name)
         assert PERM_ADMIN_AUTHZ in off, name
 
 
 def test_super_holds_everything_except_authz_and_can_change_none_of_it():
-    on, off = locked_permissions(SUPER_ROLE, False)
+    on, off = locked_permissions(SUPER_ROLE)
     assert on == static_catalog() - {PERM_ADMIN_AUTHZ}
     assert off == {PERM_ADMIN_AUTHZ}
     # Nothing at all is left for an admin to decide on this role.
@@ -68,7 +70,7 @@ def test_guest_can_only_view():
     """No management, and no "own" anything: every anonymous request resolves
     to this role, so a self.* grant would hand one shared list to the whole
     internet."""
-    on, off = locked_permissions(GUEST_ROLE, False)
+    on, off = locked_permissions(GUEST_ROLE)
     assert on == set()
     assert off == {
         PERM_ADMIN_AUTHZ,
@@ -79,7 +81,7 @@ def test_guest_can_only_view():
         PERM_SELF_PASSWORD,
         PERM_SELF_PERSONAL_NOTES,
         PERM_SELF_REQUESTS,
-    } | gated_type_permissions()
+    } | ADMIN_PAGE_PERMISSIONS | gated_type_permissions()
     # The ordinary media types stay free - narrowing what a guest may read is
     # the point of the page. The gated types are locked off.
     assert media_type_perm("anime") not in off
@@ -89,7 +91,7 @@ def test_guest_can_only_view():
 def test_neither_catalogue_nor_pipelines_is_a_choice_for_user():
     """Writing the catalogue is what makes an account `super`, and one Pull
     All overwrites every table."""
-    on, off = locked_permissions(USER_ROLE, False)
+    on, off = locked_permissions(USER_ROLE)
     assert PERM_MANAGE_PIPELINES in off
     assert PERM_MANAGE_CATALOG in off
     # The mirror: these two are neither forced nor refused.
@@ -100,37 +102,44 @@ def test_neither_catalogue_nor_pipelines_is_a_choice_for_user():
 def test_a_user_always_holds_its_own_password():
     """Changing your own password is fixed for a member, as the reset link
     is: a member who could not would have to ask the admin every time."""
-    on, _off = locked_permissions(USER_ROLE, False)
+    on, _off = locked_permissions(USER_ROLE)
     assert PERM_SELF_PASSWORD in on
 
 
 def test_a_user_always_files_requests_and_never_handles_them():
     """Filing is fixed per role for `user`, and the inbox is not a member's."""
-    on, off = locked_permissions(USER_ROLE, False)
+    on, off = locked_permissions(USER_ROLE)
     assert PERM_SELF_REQUESTS in on
     assert PERM_MANAGE_REQUESTS in off
 
 
 def test_a_user_has_exactly_those_two_and_the_gated_types_locked_on():
-    on, _off = locked_permissions(USER_ROLE, False)
+    on, _off = locked_permissions(USER_ROLE)
     assert gated_type_permissions()
     assert on == {PERM_SELF_REQUESTS, PERM_SELF_PASSWORD} | gated_type_permissions()
 
 
-def test_a_root_role_holds_everything_except_its_own_rows():
-    """Viewer.has() deliberately does not short-circuit the self family, so an
-    administrative account keeps no list and no personal notes. Drawing those
-    two boxes ticked would state the opposite of what the resolver does."""
-    on, off = locked_permissions(ADMIN_ROLE, True)
-    assert off == {
+def test_the_admin_row_is_wholly_fixed():
+    """The admin runs the installation and reads and writes no catalogue:
+    its fixed set is locked on, everything else locked off, and no cell is
+    left free."""
+    on, off = locked_permissions(ADMIN_ROLE)
+    assert on == ADMIN_FIXED_PERMISSIONS
+    assert on | off == static_catalog()
+    assert not on & off
+    for permission in (PERM_ADMIN_AUTHZ, PERM_MANAGE_PIPELINES, PERM_MANAGE_REQUESTS):
+        assert permission in on, permission
+    assert ADMIN_PAGE_PERMISSIONS <= on
+    # What it never holds: the catalogue, any read, any own row.
+    for permission in (
+        PERM_MANAGE_CATALOG,
+        media_type_perm("anime"),
         PERM_SELF_LIST,
         PERM_SELF_PERSONAL_NOTES,
         PERM_SELF_REQUESTS,
         PERM_SELF_PASSWORD,
-    }
-    assert on == static_catalog() - off
-    assert PERM_ADMIN_AUTHZ in on
-    assert PERM_MANAGE_REQUESTS in on
+    ):
+        assert permission in off, permission
 
 
 # ---------------------------------------------------------------------------
@@ -149,20 +158,36 @@ def test_the_role_list_serves_the_locks(admin_client):
     assert PERM_MANAGE_CATALOG in user_role["locked_off"]
 
 
-def test_the_admin_role_serves_every_management_permission_as_locked_on(admin_client):
-    """The admin tab shows the whole grid ticked and unchangeable - except Own
-    Rows, which it genuinely does not hold."""
+def test_the_admin_role_serves_its_whole_row_locked(admin_client):
+    """The admin tab draws every cell disabled: its fixed set ticked, the
+    rest clear - and the grants it stores are exactly the ticked ones."""
     admin_role = _role(admin_client, ADMIN_ROLE)
-    for permission in (PERM_ADMIN_AUTHZ, PERM_MANAGE_CATALOG, PERM_MANAGE_PIPELINES):
-        assert permission in admin_role["locked_on"]
-    assert sorted(admin_role["locked_off"]) == sorted(
-        [
-            PERM_SELF_LIST,
-            PERM_SELF_PERSONAL_NOTES,
-            PERM_SELF_REQUESTS,
-            PERM_SELF_PASSWORD,
-        ]
+    assert set(admin_role["locked_on"]) == ADMIN_FIXED_PERMISSIONS
+    assert set(admin_role["locked_on"]) | set(admin_role["locked_off"]) == static_catalog()
+    assert PERM_MANAGE_CATALOG in admin_role["locked_off"]
+    assert set(admin_role["permissions"]) == ADMIN_FIXED_PERMISSIONS
+
+
+def test_saving_the_admin_role_with_any_change_is_refused(admin_client):
+    """No free cell, so any change is a 409 - in either direction."""
+    admin_id = _role(admin_client, ADMIN_ROLE)["system_id"]
+    fixed = sorted(ADMIN_FIXED_PERMISSIONS)
+
+    adding = admin_client.put(
+        f"{ROLES}{admin_id}/permissions",
+        json={"permissions": fixed + [PERM_MANAGE_CATALOG]},
     )
+    assert adding.status_code == 409
+    dropping = admin_client.put(
+        f"{ROLES}{admin_id}/permissions",
+        json={"permissions": [p for p in fixed if p != PERM_MANAGE_PIPELINES]},
+    )
+    assert dropping.status_code == 409
+
+    # The mirror: saving the row unchanged is accepted, so the 409s above are
+    # the locks and not the role being untouchable.
+    same = admin_client.put(f"{ROLES}{admin_id}/permissions", json={"permissions": fixed})
+    assert same.status_code == 200, same.text
 
 
 # ---------------------------------------------------------------------------

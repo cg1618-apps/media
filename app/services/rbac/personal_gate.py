@@ -3,8 +3,8 @@ Withholding personal content from a viewer without view.personal.
 
 A different axis from field_gate.py. Field groups are the ACCESS MODE's
 (which fields of a reachable entry this session sees); this is the ROLE's -
-a `view.*` permission, resolved through Viewer.has(), so the root short-circuit
-reaches it and a guest does not hold it.
+a `view.*` permission, resolved through Viewer.has(); a guest does not hold
+it, and neither does the admin.
 
 What is personal here is opinion stored on catalogue rows: the owner's rating
 and expectation of a group or an entity, and a novel unit's remark. A viewer

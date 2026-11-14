@@ -40,7 +40,7 @@ function mockFetch(type, entry) {
       let body = [];
       if (u.startsWith(itemUrl(type))) body = entry;
       else if (u.startsWith("/api/auth/me")) {
-        body = { is_admin: false, username: null, role: "guest", is_root: false, permissions: [] };
+        body = { is_admin: false, username: null, role: "guest", permissions: [] };
       }
       return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
     }),

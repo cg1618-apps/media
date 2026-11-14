@@ -19,8 +19,8 @@ def db(db_session):
 
 
 @pytest.fixture
-def novel_with_arcs(admin_client):
-    response = admin_client.post(
+def novel_with_arcs(owner_client):
+    response = owner_client.post(
         "/api/novel/",
         json={
             "novel_name_en": "Unit Rating Sentinel",
@@ -44,7 +44,7 @@ def test_the_unit_row_carries_no_rating_column(db, novel_with_arcs):
     assert not hasattr(unit, "my_rating")
 
 
-def test_the_rating_lands_in_the_readers_own_row(db, novel_with_arcs, admin_user):
+def test_the_rating_lands_in_the_readers_own_row(db, novel_with_arcs, owner_user):
     unit = db.query(models.NovelUnit).filter(
         models.NovelUnit.name_en == "Arc One"
     ).one()
@@ -52,7 +52,7 @@ def test_the_rating_lands_in_the_readers_own_row(db, novel_with_arcs, admin_user
         models.UserNovelUnitRating.unit_id == unit.system_id
     ).one()
     assert rating.my_rating == "A"
-    assert rating.user_id == admin_user.id
+    assert rating.user_id == owner_user.id
 
 
 def test_the_response_still_carries_my_rating_on_each_unit(novel_with_arcs):
@@ -71,7 +71,7 @@ def test_an_unrated_unit_stores_no_row(db, novel_with_arcs):
     ).first() is None
 
 
-def test_deleting_the_unit_removes_the_rating(db, admin_client, novel_with_arcs):
+def test_deleting_the_unit_removes_the_rating(db, owner_client, novel_with_arcs):
     unit = db.query(models.NovelUnit).filter(
         models.NovelUnit.name_en == "Arc One"
     ).one()
@@ -83,9 +83,9 @@ def test_deleting_the_unit_removes_the_rating(db, admin_client, novel_with_arcs)
     ).first() is None
 
 
-def test_a_patch_updates_the_readers_rating(db, admin_client, novel_with_arcs):
+def test_a_patch_updates_the_readers_rating(db, owner_client, novel_with_arcs):
     unit_id = novel_with_arcs["units"][0]["system_id"]
-    response = admin_client.patch(
+    response = owner_client.patch(
         f"/api/novel/{novel_with_arcs['system_id']}",
         json={"units": [
             {"system_id": unit_id, "unit_kind": "arc", "position": 1,

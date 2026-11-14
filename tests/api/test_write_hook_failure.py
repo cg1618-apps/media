@@ -27,16 +27,16 @@ def exploding_movie_hook():
     object.__setattr__(spec, "write_hook", original)
 
 
-def test_create_still_returns_201_and_persists(admin_client, db_session, exploding_movie_hook):
-    response = admin_client.post("/api/movies/", json={"movie_name_en": "Heat"})
+def test_create_still_returns_201_and_persists(owner_client, db_session, exploding_movie_hook):
+    response = owner_client.post("/api/movies/", json={"movie_name_en": "Heat"})
     assert response.status_code == 201, response.text
     system_id = response.json()["system_id"]
     assert db_session.get(models.Movies, system_id) is not None
 
 
-def test_update_still_returns_200(admin_client, exploding_movie_hook):
-    created = admin_client.post("/api/movies/", json={"movie_name_en": "Heat"}).json()
-    response = admin_client.put(
+def test_update_still_returns_200(owner_client, exploding_movie_hook):
+    created = owner_client.post("/api/movies/", json={"movie_name_en": "Heat"}).json()
+    response = owner_client.put(
         f"/api/movies/{created['system_id']}", json={"movie_name_en": "Heat (1995)"}
     )
     assert response.status_code == 200, response.text

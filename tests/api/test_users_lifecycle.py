@@ -179,21 +179,3 @@ def test_the_admin_cannot_disable_itself(admin_client, admin_user, db_session):
     ).status_code == 200
 
 
-def test_a_disabled_administrator_does_not_count_as_the_last_one(
-    admin_client, admin_user, db_session
-):
-    """Otherwise the admin could disable the other root accounts and then
-    demote itself, leaving nobody able to administer. The lifespan seeds a
-    real `admin` account into the test database, so every other account is
-    disabled - not demoted - to reach the case."""
-    second = raw_account(db_session, "second")
-    second.role_id = role_id_for(db_session, "admin")
-    db_session.flush()
-    for user in db_session.query(models.User).all():
-        if user.id != admin_user.id:
-            r = admin_client.patch(f"/api/users/{user.id}", json={"status": "disabled"})
-            assert r.status_code == 200
-
-    guest = str(role_id_for(db_session, "guest"))
-    r = admin_client.patch(f"/api/users/{admin_user.id}", json={"role_id": guest})
-    assert r.status_code == 409

@@ -295,36 +295,36 @@ def test_a_label_key_is_unique(db_session, nsfw_label):
     assert db_session.query(models.ContentLabel).filter_by(key=nsfw_label.key).count() == 1
 
 
-def test_labels_are_assigned_to_an_entry_as_a_whole_set(admin_client, sample_anime):
+def test_labels_are_assigned_to_an_entry_as_a_whole_set(owner_client, sample_anime):
     url = f"/api/content-labels/entry/anime/{sample_anime.system_id}"
-    assert admin_client.put(url, json={"label_keys": ["nsfw", "erotica"]}).json() == [
+    assert owner_client.put(url, json={"label_keys": ["nsfw", "erotica"]}).json() == [
         "erotica",
         "nsfw",
     ]
-    assert admin_client.put(url, json={"label_keys": ["nsfw"]}).json() == ["nsfw"]
-    assert admin_client.get(url).json() == ["nsfw"]
+    assert owner_client.put(url, json={"label_keys": ["nsfw"]}).json() == ["nsfw"]
+    assert owner_client.get(url).json() == ["nsfw"]
 
 
-def test_an_unknown_label_key_is_rejected(admin_client, sample_anime):
-    response = admin_client.put(
+def test_an_unknown_label_key_is_rejected(owner_client, sample_anime):
+    response = owner_client.put(
         f"/api/content-labels/entry/anime/{sample_anime.system_id}",
         json={"label_keys": ["nope"]},
     )
     assert response.status_code == 422
 
 
-def test_an_unknown_media_type_is_a_400(admin_client, sample_anime):
-    response = admin_client.get(
+def test_an_unknown_media_type_is_a_400(owner_client, sample_anime):
+    response = owner_client.get(
         f"/api/content-labels/entry/hologram/{sample_anime.system_id}"
     )
     assert response.status_code == 400
 
 
-def test_labelling_an_entry_hides_it_from_a_guest(admin_client, client, sample_anime):
+def test_labelling_an_entry_hides_it_from_a_guest(owner_client, client, sample_anime):
     """End to end: the admin API and the enforcement path agree."""
     assert str(sample_anime.system_id) in client.get("/api/anime/").text
 
-    admin_client.put(
+    owner_client.put(
         f"/api/content-labels/entry/anime/{sample_anime.system_id}",
         json={"label_keys": ["nsfw"]},
     )

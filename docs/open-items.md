@@ -1,6 +1,6 @@
 # Open items
 
-Last verified: 2026-11-13
+Last verified: 2026-11-14
 
 Known defects, unmade decisions and blocked work. **Everything here is open by
 definition** — there is no status column, no claiming, and no lifecycle. An item
@@ -91,8 +91,8 @@ move" is no longer true of it. What is not established is the *move*:
 before the mode-ceiling migration both `admin` and `cg1618` held all four
 modes, and nothing here says whether that was the correct end state or
 residue. That migration now sets `cg1618` to `unrestricted` / `borderline`
-explicitly; `admin` keeps the widest it held. Compare against home before
-concluding either.
+explicitly, and revision `a1d2minroot45` gives `admin` no mode at all.
+Compare against home before concluding either.
 
 The ordering still matters for any future arrival: `git pull`, then
 `alembic upgrade head`, then Pull All. The migration picks the first non-root
@@ -149,6 +149,15 @@ collection, franchise or series is visible, so a viewer whose mode hides that
 group still sees the order and the group's display name. `media_relation`'s
 `/graph` and scope listing behave the same way. Fix by gating each on
 `tier_visible` and answering a hidden owner as missing.
+
+**System Options shows the admin zero people and studios.** The page's Tier 3
+counts — people by role, and studios — read `/api/person/role-counts` and
+`/api/studio/`, which are `view.person` and `view.studio` reads. The admin
+reaches `/options` through `manage.options` but holds neither key, so both
+requests are refused and the page draws zeros, with no error. Unmade
+decision: give the counts an endpoint of their own behind `manage.options`,
+or accept the gap until the admin's own pages are designed with the
+per-viewer pages ([to-do-next.md](to-do-next.md)).
 
 **Two community-adjacent measurements are unanswered.** Does any endpoint return
 an entry's `system_id` for a type the viewer lacks? And the same for a

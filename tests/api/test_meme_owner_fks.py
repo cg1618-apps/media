@@ -20,8 +20,8 @@ def db(db_session):
 
 
 @pytest.fixture
-def admin_id(admin_user):
-    return admin_user.id
+def admin_id(owner_user):
+    return owner_user.id
 
 
 def test_exactly_one_owner_column_may_be_set(
@@ -103,7 +103,7 @@ def test_owner_type_and_owner_id_are_derived(db, sample_collection, admin_id):
 
 
 def test_the_memes_endpoint_still_filters_by_owner_type(
-    db, admin_client, sample_anime, admin_id
+    db, owner_client, sample_anime, admin_id
 ):
     db.add(
         models.Meme(
@@ -115,17 +115,17 @@ def test_the_memes_endpoint_still_filters_by_owner_type(
     )
     db.commit()
 
-    r = admin_client.get("/api/meme/", params={"owner_type": "anime"})
+    r = owner_client.get("/api/meme/", params={"owner_type": "anime"})
     assert r.status_code == 200
     assert "動畫的梗" in [m["text"] for m in r.json()]
 
-    r = admin_client.get("/api/meme/", params={"owner_type": "collection"})
+    r = owner_client.get("/api/meme/", params={"owner_type": "collection"})
     assert r.status_code == 200
     assert "動畫的梗" not in [m["text"] for m in r.json()]
 
 
 def test_the_grouped_endpoint_still_buckets_by_owner(
-    db, admin_client, sample_anime, admin_id
+    db, owner_client, sample_anime, admin_id
 ):
     db.add(
         models.Meme(
@@ -137,7 +137,7 @@ def test_the_grouped_endpoint_still_buckets_by_owner(
     )
     db.commit()
 
-    r = admin_client.get("/api/meme/grouped")
+    r = owner_client.get("/api/meme/grouped")
     assert r.status_code == 200
     groups = [g for g in r.json() if g["owner_id"] == str(sample_anime.system_id)]
     assert len(groups) == 1

@@ -310,10 +310,13 @@ def _authorize_write(viewer: Viewer, section_key: Optional[str]) -> None:
 
 
 def _authorize_edit(viewer: Viewer, db_note: models.Note) -> None:
-    """A personal note is edited by its author; a catalogue note by an admin."""
+    """
+    A personal note is edited by its author and nobody else - no role is
+    exempt, the admin included; a catalogue note by a manage.catalog holder.
+    """
     section = section_by_key(db_note.section or "")
     if section is not None and section.scope == SCOPE_PERSONAL:
-        if viewer.is_root or db_note.author_id == viewer.user_id:
+        if viewer.user_id is not None and db_note.author_id == viewer.user_id:
             return
         # 404, not 403. Somebody else's note is an OBJECT this caller may not
         # reach, and saying "that belongs to someone else" confirms it exists.
@@ -673,6 +676,12 @@ def delete_note(
 ):
     db_note = _get_or_404(db, note_id)
     _authorize_edit(viewer, db_note)
+    # The same capability a PATCH asks after its merge: deleting a note is
+    # writing its section. Only for a section the registry knows - a row in
+    # a retired section stays deletable by a manage.catalog holder, which
+    # _authorize_edit has already required.
+    if section_by_key(db_note.section or "") is not None:
+        _authorize_write(viewer, db_note.section)
     _require_visible_owner(db, viewer, db_note.owner_id)
 
     # Stage the deleted record log before actually deleting

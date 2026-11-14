@@ -18,7 +18,7 @@ def test_search_requires_admin(client):
     assert client.get("/api/game/search-igdb?q=elden").status_code == 401
 
 
-def test_search_returns_the_shared_result_shape(admin_client, monkeypatch):
+def test_search_returns_the_shared_result_shape(owner_client, monkeypatch):
     seen = {}
 
     def fake_search(q, limit):
@@ -26,21 +26,21 @@ def test_search_returns_the_shared_result_shape(admin_client, monkeypatch):
         return [ELDEN_RING]
 
     monkeypatch.setattr(game_router, "search_igdb_games", fake_search)
-    response = admin_client.get("/api/game/search-igdb?q=elden&limit=5")
+    response = owner_client.get("/api/game/search-igdb?q=elden&limit=5")
     assert response.status_code == 200
     assert response.json() == [ELDEN_RING]
     assert seen["args"] == ("elden", 5)
 
 
-def test_a_search_failure_is_a_502_carrying_the_message(admin_client, monkeypatch):
+def test_a_search_failure_is_a_502_carrying_the_message(owner_client, monkeypatch):
     def failing(q, limit):
         raise ExternalSearchError("IGDB could not be reached.")
 
     monkeypatch.setattr(game_router, "search_igdb_games", failing)
-    response = admin_client.get("/api/game/search-igdb?q=elden")
+    response = owner_client.get("/api/game/search-igdb?q=elden")
     assert response.status_code == 502
     assert response.json()["detail"] == "IGDB could not be reached."
 
 
-def test_an_empty_query_is_a_422(admin_client):
-    assert admin_client.get("/api/game/search-igdb?q=").status_code == 422
+def test_an_empty_query_is_a_422(owner_client):
+    assert owner_client.get("/api/game/search-igdb?q=").status_code == 422

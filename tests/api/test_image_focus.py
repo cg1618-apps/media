@@ -55,10 +55,10 @@ def _media_row(db_session, entry):
 
 
 @pytest.fixture
-def focused_anime(admin_client, db_session, sample_anime):
+def focused_anime(owner_client, db_session, sample_anime):
     """sample_anime with an attached cover AND a non-null focus on it."""
-    image = _upload(admin_client)
-    _attach(admin_client, image, "anime", sample_anime.system_id)
+    image = _upload(owner_client)
+    _attach(owner_client, image, "anime", sample_anime.system_id)
     media = _media_row(db_session, sample_anime)
     media.cover_image_focus = "30% 70%"
     db_session.commit()
@@ -78,8 +78,8 @@ def studio(db_session):
 # ---------------------------------------------------------------------------
 
 
-def test_an_entry_round_trips_cover_image_focus(admin_client, sample_franchise):
-    created = admin_client.post(
+def test_an_entry_round_trips_cover_image_focus(owner_client, sample_franchise):
+    created = owner_client.post(
         "/api/anime/",
         json={
             "anime_name_en": "Focus Test",
@@ -92,22 +92,22 @@ def test_an_entry_round_trips_cover_image_focus(admin_client, sample_franchise):
     assert created.json()["cover_image_focus"] == "50% 20%"
     entry_id = created.json()["system_id"]
 
-    updated = admin_client.put(
+    updated = owner_client.put(
         f"/api/anime/{entry_id}", json={"cover_image_focus": "0% 100%"}
     )
     assert updated.status_code == 200, updated.text
     assert updated.json()["cover_image_focus"] == "0% 100%"
 
-    assert admin_client.get(f"/api/anime/{entry_id}").json()["cover_image_focus"] == (
+    assert owner_client.get(f"/api/anime/{entry_id}").json()["cover_image_focus"] == (
         "0% 100%"
     )
 
 
-def test_an_empty_focus_from_a_form_is_stored_as_null(admin_client, db_session, sample_anime):
+def test_an_empty_focus_from_a_form_is_stored_as_null(owner_client, db_session, sample_anime):
     _media_row(db_session, sample_anime).cover_image_focus = "10% 10%"
     db_session.commit()
 
-    response = admin_client.put(
+    response = owner_client.put(
         f"/api/anime/{sample_anime.system_id}", json={"cover_image_focus": ""}
     )
 
@@ -116,8 +116,8 @@ def test_an_empty_focus_from_a_form_is_stored_as_null(admin_client, db_session, 
     assert _media_row(db_session, sample_anime).cover_image_focus is None
 
 
-def test_a_malformed_focus_is_a_422(admin_client, sample_anime):
-    response = admin_client.put(
+def test_a_malformed_focus_is_a_422(owner_client, sample_anime):
+    response = owner_client.put(
         f"/api/anime/{sample_anime.system_id}", json={"cover_image_focus": "left top"}
     )
     assert response.status_code == 422
@@ -128,22 +128,22 @@ def test_a_malformed_focus_is_a_422(admin_client, sample_anime):
 # ---------------------------------------------------------------------------
 
 
-def test_attaching_a_new_cover_resets_the_focus(admin_client, db_session, focused_anime):
+def test_attaching_a_new_cover_resets_the_focus(owner_client, db_session, focused_anime):
     entry = focused_anime["entry"]
-    other = _upload(admin_client, color=(30, 30, 200))
+    other = _upload(owner_client, color=(30, 30, 200))
 
-    _attach(admin_client, other, "anime", entry.system_id)
+    _attach(owner_client, other, "anime", entry.system_id)
 
     media = _media_row(db_session, entry)
     assert media.cover_image_file == other["storage_key"]
     assert media.cover_image_focus is None
 
 
-def test_a_put_keeps_the_focus(admin_client, db_session, focused_anime):
+def test_a_put_keeps_the_focus(owner_client, db_session, focused_anime):
     """The mirror case: an ordinary write is not an image change."""
     entry = focused_anime["entry"]
 
-    response = admin_client.put(
+    response = owner_client.put(
         f"/api/anime/{entry.system_id}", json={"anime_name_en": "Renamed"}
     )
 
@@ -153,19 +153,19 @@ def test_a_put_keeps_the_focus(admin_client, db_session, focused_anime):
 
 
 def test_reattaching_the_same_picture_keeps_the_focus(
-    admin_client, db_session, focused_anime
+    owner_client, db_session, focused_anime
 ):
     entry = focused_anime["entry"]
 
-    _attach(admin_client, focused_anime["image"], "anime", entry.system_id)
+    _attach(owner_client, focused_anime["image"], "anime", entry.system_id)
 
     assert _media_row(db_session, entry).cover_image_focus == "30% 70%"
 
 
-def test_clearing_the_cover_resets_the_focus(admin_client, db_session, focused_anime):
+def test_clearing_the_cover_resets_the_focus(owner_client, db_session, focused_anime):
     entry = focused_anime["entry"]
 
-    response = admin_client.delete(f"/api/images/owners/anime/{entry.system_id}/cover")
+    response = owner_client.delete(f"/api/images/owners/anime/{entry.system_id}/cover")
 
     assert response.status_code == 204
     media = _media_row(db_session, entry)
@@ -173,10 +173,10 @@ def test_clearing_the_cover_resets_the_focus(admin_client, db_session, focused_a
     assert media.cover_image_focus is None
 
 
-def test_a_forced_delete_resets_the_focus(admin_client, db_session, focused_anime):
+def test_a_forced_delete_resets_the_focus(owner_client, db_session, focused_anime):
     entry = focused_anime["entry"]
 
-    response = admin_client.delete(
+    response = owner_client.delete(
         f"/api/images/{focused_anime['image']['system_id']}?force=true"
     )
 
@@ -184,19 +184,19 @@ def test_a_forced_delete_resets_the_focus(admin_client, db_session, focused_anim
     assert _media_row(db_session, entry).cover_image_focus is None
 
 
-def test_attaching_a_new_logo_resets_logo_focus(admin_client, db_session, studio):
-    _attach(admin_client, _upload(admin_client), "studio", studio.system_id)
+def test_attaching_a_new_logo_resets_logo_focus(owner_client, db_session, studio):
+    _attach(owner_client, _upload(owner_client), "studio", studio.system_id)
     studio.logo_focus = "80% 20%"
     db_session.commit()
 
-    _attach(admin_client, _upload(admin_client, color=(0, 90, 0)), "studio", studio.system_id)
+    _attach(owner_client, _upload(owner_client, color=(0, 90, 0)), "studio", studio.system_id)
 
     db_session.refresh(studio)
     assert studio.logo_focus is None
 
 
-def test_a_studio_put_keeps_and_returns_logo_focus(admin_client, db_session, studio):
-    response = admin_client.put(
+def test_a_studio_put_keeps_and_returns_logo_focus(owner_client, db_session, studio):
+    response = owner_client.put(
         f"/api/studio/{studio.system_id}",
         json={"name_en": "Focus Studio", "logo_focus": "80% 20%"},
     )
@@ -207,11 +207,11 @@ def test_a_studio_put_keeps_and_returns_logo_focus(admin_client, db_session, stu
     assert studio.logo_focus == "80% 20%"
 
 
-def test_an_entity_patch_refuses_a_malformed_focus(admin_client, character):
-    refused = admin_client.patch(
+def test_an_entity_patch_refuses_a_malformed_focus(owner_client, character):
+    refused = owner_client.patch(
         f"/api/character/{character.system_id}", json={"photo_focus": "50%"}
     )
-    allowed = admin_client.patch(
+    allowed = owner_client.patch(
         f"/api/character/{character.system_id}", json={"photo_focus": "50% 0%"}
     )
 
@@ -221,9 +221,9 @@ def test_an_entity_patch_refuses_a_malformed_focus(admin_client, character):
 
 
 def test_a_forced_delete_resets_a_cast_photos_focus(
-    admin_client, db_session, sample_anime, character
+    owner_client, db_session, sample_anime, character
 ):
-    image = _upload(admin_client)
+    image = _upload(owner_client)
     casting = models.CharacterCasting(
         character_id=character.system_id,
         media_type="anime",
@@ -234,7 +234,7 @@ def test_a_forced_delete_resets_a_cast_photos_focus(
     db_session.add(casting)
     db_session.commit()
 
-    response = admin_client.delete(f"/api/images/{image['system_id']}?force=true")
+    response = owner_client.delete(f"/api/images/{image['system_id']}?force=true")
 
     assert response.status_code == 204
     db_session.refresh(casting)
@@ -266,7 +266,7 @@ def _display(client, character):
 
 
 def test_display_photo_focus_follows_the_fallback_source(
-    admin_client, db_session, sample_anime
+    owner_client, db_session, sample_anime
 ):
     """
     Each step's focus is distinct, so the pair can only match when the focus
@@ -286,11 +286,11 @@ def test_display_photo_focus_follows_the_fallback_source(
     _cast(db_session, character, sample_anime, photo="cast.jpg", focus="50% 50%")
     db_session.commit()
 
-    assert _display(admin_client, character) == ("own.jpg", "90% 90%")
+    assert _display(owner_client, character) == ("own.jpg", "90% 90%")
 
     character.photo_file = None
     db_session.commit()
-    assert _display(admin_client, character) == ("cast.jpg", "50% 50%")
+    assert _display(owner_client, character) == ("cast.jpg", "50% 50%")
 
     db_session.query(models.CharacterCasting).filter_by(
         character_id=character.system_id
@@ -298,10 +298,10 @@ def test_display_photo_focus_follows_the_fallback_source(
     db_session.commit()
     # The character's own photo_focus (90% 90%) and the casting's (50% 50%)
     # are both still stored; only the cover's may come back with the cover.
-    assert _display(admin_client, character) == ("covers/anime/cover.jpg", "10% 10%")
+    assert _display(owner_client, character) == ("covers/anime/cover.jpg", "10% 10%")
 
 
-def test_a_person_card_carries_photo_focus(admin_client, db_session):
+def test_a_person_card_carries_photo_focus(owner_client, db_session):
     person = models.Person(
         system_id=uuid.uuid4(), name_en="Focus Person",
         photo_file="p.jpg", photo_focus="40% 60%",
@@ -309,7 +309,7 @@ def test_a_person_card_carries_photo_focus(admin_client, db_session):
     db_session.add(person)
     db_session.commit()
 
-    body = admin_client.get(f"/api/person/{person.system_id}").json()
+    body = owner_client.get(f"/api/person/{person.system_id}").json()
 
     assert body["photo_focus"] == "40% 60%"
     assert body["display_photo_focus"] == "40% 60%"
@@ -320,31 +320,31 @@ def test_a_person_card_carries_photo_focus(admin_client, db_session):
 # ---------------------------------------------------------------------------
 
 
-def test_cast_save_and_read_carry_photo_focus(admin_client, sample_anime, character):
+def test_cast_save_and_read_carry_photo_focus(owner_client, sample_anime, character):
     body = {"cast": [{
         "character_id": str(character.system_id),
         "photo_file": "castings/ichika-here.jpg",
         "photo_focus": "50% 10%",
     }]}
 
-    assert admin_client.put(
+    assert owner_client.put(
         f"/api/casting/anime/{sample_anime.system_id}", json=body
     ).status_code == 200
-    row = admin_client.get(f"/api/casting/anime/{sample_anime.system_id}").json()["cast"][0]
+    row = owner_client.get(f"/api/casting/anime/{sample_anime.system_id}").json()["cast"][0]
 
     assert row["photo_file"] == "castings/ichika-here.jpg"
     assert row["photo_focus"] == "50% 10%"
 
 
 def test_cast_read_displays_the_characters_focus_with_its_photo(
-    admin_client, db_session, sample_anime, character
+    owner_client, db_session, sample_anime, character
 ):
     character.photo_focus = "70% 30%"
     db_session.commit()
     body = {"cast": [{"character_id": str(character.system_id)}]}
 
-    admin_client.put(f"/api/casting/anime/{sample_anime.system_id}", json=body)
-    row = admin_client.get(f"/api/casting/anime/{sample_anime.system_id}").json()["cast"][0]
+    owner_client.put(f"/api/casting/anime/{sample_anime.system_id}", json=body)
+    row = owner_client.get(f"/api/casting/anime/{sample_anime.system_id}").json()["cast"][0]
 
     assert row["display_photo_file"] == character.photo_file
     assert row["display_photo_focus"] == "70% 30%"
@@ -352,13 +352,13 @@ def test_cast_read_displays_the_characters_focus_with_its_photo(
     assert row["photo_focus"] is None
 
 
-def test_cast_save_refuses_a_malformed_focus(admin_client, sample_anime, character):
+def test_cast_save_refuses_a_malformed_focus(owner_client, sample_anime, character):
     body = {"cast": [{
         "character_id": str(character.system_id),
         "photo_focus": "101% 0%",
     }]}
 
-    response = admin_client.put(f"/api/casting/anime/{sample_anime.system_id}", json=body)
+    response = owner_client.put(f"/api/casting/anime/{sample_anime.system_id}", json=body)
 
     assert response.status_code == 422
 
@@ -369,7 +369,7 @@ def test_cast_save_refuses_a_malformed_focus(admin_client, sample_anime, charact
 
 
 def test_the_person_entries_list_carries_cover_image_focus(
-    admin_client, db_session, sample_anime
+    owner_client, db_session, sample_anime
 ):
     person = models.Person(system_id=uuid.uuid4(), name_en="Voice")
     character = models.Character(system_id=uuid.uuid4(), name_en="Voiced")
@@ -394,7 +394,7 @@ def test_the_person_entries_list_carries_cover_image_focus(
     media.cover_image_focus = "15% 85%"
     db_session.commit()
 
-    body = admin_client.get(f"/api/person/{person.system_id}/entries").json()
+    body = owner_client.get(f"/api/person/{person.system_id}/entries").json()
 
     entries = [e for group in body["groups"] for e in group["entries"]]
     assert entries, body
@@ -406,8 +406,8 @@ def test_the_person_entries_list_carries_cover_image_focus(
 # ---------------------------------------------------------------------------
 
 
-def test_an_entry_patch_writes_cover_image_focus(admin_client, db_session, sample_anime):
-    response = admin_client.patch(
+def test_an_entry_patch_writes_cover_image_focus(owner_client, db_session, sample_anime):
+    response = owner_client.patch(
         f"/api/anime/{sample_anime.system_id}", json={"cover_image_focus": "25% 75%"}
     )
 
@@ -417,12 +417,12 @@ def test_an_entry_patch_writes_cover_image_focus(admin_client, db_session, sampl
 
 
 def test_an_entry_patch_clears_cover_image_focus_with_an_empty_value(
-    admin_client, db_session, sample_anime
+    owner_client, db_session, sample_anime
 ):
     _media_row(db_session, sample_anime).cover_image_focus = "10% 10%"
     db_session.commit()
 
-    response = admin_client.patch(
+    response = owner_client.patch(
         f"/api/anime/{sample_anime.system_id}", json={"cover_image_focus": ""}
     )
 
@@ -431,12 +431,12 @@ def test_an_entry_patch_clears_cover_image_focus_with_an_empty_value(
 
 
 def test_an_entry_patch_without_the_key_leaves_the_focus_alone(
-    admin_client, db_session, sample_anime
+    owner_client, db_session, sample_anime
 ):
     _media_row(db_session, sample_anime).cover_image_focus = "10% 10%"
     db_session.commit()
 
-    response = admin_client.patch(
+    response = owner_client.patch(
         f"/api/anime/{sample_anime.system_id}", json={"remark": "unrelated"}
     )
 
@@ -444,8 +444,8 @@ def test_an_entry_patch_without_the_key_leaves_the_focus_alone(
     assert _media_row(db_session, sample_anime).cover_image_focus == "10% 10%"
 
 
-def test_an_entry_patch_refuses_a_malformed_focus(admin_client, sample_anime):
-    response = admin_client.patch(
+def test_an_entry_patch_refuses_a_malformed_focus(owner_client, sample_anime):
+    response = owner_client.patch(
         f"/api/anime/{sample_anime.system_id}", json={"cover_image_focus": "left top"}
     )
 

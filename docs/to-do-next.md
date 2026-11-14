@@ -1,6 +1,6 @@
 # To do next
 
-Last verified: 2026-11-13
+Last verified: 2026-11-14
 
 **Decided work that is not built yet, in the order it is to be built.** An
 item here has been settled with the owner — what to build is known — but
@@ -48,7 +48,6 @@ and what comes next, so read that before anything else.
 
 | Branch | Feature | Plan | Waits for |
 | --- | --- | --- | --- |
-| `feat/admin-not-root` | P3h: admin stops being root | [plans/2026-11-13-admin-not-root.md](superpowers/plans/2026-11-13-admin-not-root.md) | P3g, because every permission and switch it relies on has to exist |
 | `feat/personal-data` (#354) | P5: the personal data, Parts A → C → D → E → B | the PR body, and `docs/superpowers/plans/2026-11-13-personal-data.md` on the branch | Part B only: P3g's switch columns |
 | not cut yet (`feat/per-viewer-pages`) | The rest of `view.extras` and the per-viewer pages (P7) | [plans/2026-11-13-view-extras-and-per-viewer-pages.md](superpowers/plans/2026-11-13-view-extras-and-per-viewer-pages.md) | P3g to cut it; merges last, after P3h and #354, merging `feat/personal-data` in sideways first |
 
@@ -82,9 +81,11 @@ manager, and the manager tells the others:
 - `MODE_ORDER` / `mode_rank` live in `app/services/rbac/seed_modes.py`
   alone, and `mode_rank` answers None for an unknown key. Nobody defines a
   second order.
-- `installation_owner_id` in `app/services/domain/user_list.py`: P3h
-  changes it, and P5's old-backup Pull (`pull.py`) calls it. Check both
-  callers when either one lands.
+- `installation_owner_id` in `app/services/domain/user_list.py` answers
+  None when there is no owner — never the admin — and every caller has to
+  skip on None and count the row with `no_owner_message`. P5's old-backup
+  Pull (`legacy_personal.py` on #354) calls it: check that caller when #354
+  merges `dev`.
 
 **Every one of these branches adds an Alembic revision.** Whenever any of
 them lands, every other open branch merges `dev` in, runs `alembic heads`

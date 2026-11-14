@@ -112,9 +112,9 @@ def test_list_read_is_not_n_plus_one(client, db_session):
     assert len(link_queries) == 3, link_queries
 
 
-def test_link_fields_are_read_only_on_the_write_path(admin_client, client, db_session):
+def test_link_fields_are_read_only_on_the_write_path(owner_client, client, db_session):
     """POSTing a dropped column name must not resurrect it as stored data."""
-    r = admin_client.post(
+    r = owner_client.post(
         "/api/anime/", json={"anime_name_cn": "無視", "studio": "Ghost Studio"}
     )
     assert r.status_code == 201

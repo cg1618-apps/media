@@ -17,7 +17,7 @@ from app import models
 def anime_note(db_session, sample_anime, super_user):
     """
     A personal-scope note (`advantages`), authored by the account that may
-    KEEP one. It was `admin_user` until 2026-09-12; an administrative account
+    KEEP one. It was `owner_user` until 2026-09-12; an administrative account
     holds no self.personal_notes grant now, and a personal note is edited by
     its AUTHOR - so a fixture authored by the admin makes every edit through
     super_client a 404 about ownership rather than the thing under test.
@@ -99,12 +99,12 @@ def test_list_notes_for_owner(super_client, sample_anime, anime_note):
     assert body[0]["content"] == "敘事結構精巧"
 
 
-def test_list_is_registry_ordered(admin_client, db_session, sample_anime, admin_user):
+def test_list_is_registry_ordered(owner_client, db_session, sample_anime, owner_user):
     # questions sorts after advantages in the registry, so insert it first.
     for section, content in (("questions", "為什麼"), ("advantages", "好看")):
         db_session.add(
             models.Note(
-                author_id=admin_user.id,
+                author_id=owner_user.id,
                 system_id=uuid.uuid4(),
                 media_id=sample_anime.system_id,
                 section=section,
@@ -114,7 +114,7 @@ def test_list_is_registry_ordered(admin_client, db_session, sample_anime, admin_
         )
     db_session.flush()
     # Both sections are personal-scope, so the reader has to be their author.
-    r = admin_client.get(
+    r = owner_client.get(
         "/api/notes",
         params={"owner_type": "anime", "owner_id": str(sample_anime.system_id)},
     )
@@ -170,8 +170,8 @@ def test_create_rejects_section_not_applicable(super_client, sample_franchise):
     assert "does not apply" in r.text
 
 
-def test_create_rejects_bad_kind(admin_client, sample_anime):
-    r = admin_client.post(
+def test_create_rejects_bad_kind(owner_client, sample_anime):
+    r = owner_client.post(
         "/api/notes",
         json={
             "owner_type": "anime",
@@ -185,8 +185,8 @@ def test_create_rejects_bad_kind(admin_client, sample_anime):
     assert r.status_code == 422
 
 
-def test_create_rejects_external_section(admin_client, sample_anime):
-    r = admin_client.post(
+def test_create_rejects_external_section(owner_client, sample_anime):
+    r = owner_client.post(
         "/api/notes",
         json={
             "owner_type": "anime",
@@ -273,15 +273,15 @@ def test_an_author_updates_one_row(super_client, anime_note):
     assert r.json()["content"] == "改過的內容"
 
 
-def test_update_revalidates_against_registry(admin_client, anime_note):
-    r = admin_client.patch(
+def test_update_revalidates_against_registry(super_client, anime_note):
+    r = super_client.patch(
         f"/api/notes/{anime_note.system_id}", json={"section": "analysis"}
     )
     # advantages -> analysis with no kind is still valid for an anime, so this
     # must succeed; the guard is on unknown sections. episode_comments would
     # not do here - it requires a locator the patch does not supply.
     assert r.status_code == 200
-    r = admin_client.patch(
+    r = super_client.patch(
         f"/api/notes/{anime_note.system_id}", json={"section": "nope"}
     )
     assert r.status_code == 422
@@ -321,15 +321,15 @@ def test_update_to_singleton_conflict_does_not_flush_mutation(
     assert unchanged["content"] == "敘事結構精巧"
 
 
-def test_update_404s_on_missing_note(admin_client):
-    r = admin_client.patch(f"/api/notes/{uuid.uuid4()}", json={"content": "x"})
+def test_update_404s_on_missing_note(owner_client):
+    r = owner_client.patch(f"/api/notes/{uuid.uuid4()}", json={"content": "x"})
     assert r.status_code == 404
 
 
-def test_admin_deletes_one_row(admin_client, anime_note):
-    r = admin_client.delete(f"/api/notes/{anime_note.system_id}")
+def test_the_author_deletes_one_row(super_client, anime_note):
+    r = super_client.delete(f"/api/notes/{anime_note.system_id}")
     assert r.status_code == 204
-    r = admin_client.delete(f"/api/notes/{anime_note.system_id}")
+    r = super_client.delete(f"/api/notes/{anime_note.system_id}")
     assert r.status_code == 404
 
 
@@ -437,8 +437,8 @@ def test_create_rejects_an_episode_comment_with_no_locator(super_client, sample_
     assert "requires a locator" in r.text
 
 
-def test_sections_endpoint_reports_the_locator_contract(admin_client):
-    r = admin_client.get("/api/notes/sections", params={"owner_type": "anime"})
+def test_sections_endpoint_reports_the_locator_contract(owner_client):
+    r = owner_client.get("/api/notes/sections", params={"owner_type": "anime"})
     by_key = {s["key"]: s for s in r.json()}
     assert by_key["episode_comments"]["locator_placeholder"] == "Episode, e.g. ep 1"
     assert by_key["episode_comments"]["locator_required"] is True
@@ -456,8 +456,8 @@ def test_sections_endpoint_reports_which_sections_take_links(client):
     assert by_key["extended_episodes"]["takes_links"] is False
 
 
-def test_op_ed_change_links_round_trip(admin_client, sample_anime):
-    r = admin_client.post(
+def test_op_ed_change_links_round_trip(owner_client, sample_anime):
+    r = owner_client.post(
         "/api/notes",
         json={
             "owner_type": "anime",
@@ -472,14 +472,14 @@ def test_op_ed_change_links_round_trip(admin_client, sample_anime):
     note = r.json()
     assert note["links"] == ["https://youtu.be/a", "https://b23.tv/b"]
 
-    r = admin_client.patch(
+    r = owner_client.patch(
         f"/api/notes/{note['system_id']}",
         json={"links": ["https://youtu.be/c"]},
     )
     assert r.status_code == 200, r.text
     assert r.json()["links"] == ["https://youtu.be/c"]
 
-    r = admin_client.get(
+    r = owner_client.get(
         "/api/notes",
         params={"owner_type": "anime", "owner_id": str(sample_anime.system_id)},
     )
@@ -490,7 +490,7 @@ def test_op_ed_change_links_round_trip(admin_client, sample_anime):
 # --- music_track rows over the wire ---------------------------------------
 
 
-def _create_music(admin_client, sample_anime, **kw):
+def _create_music(owner_client, sample_anime, **kw):
     body = dict(
         owner_type="anime",
         owner_id=str(sample_anime.system_id),
@@ -499,18 +499,18 @@ def _create_music(admin_client, sample_anime, **kw):
         status="Need",
     )
     body.update(kw)
-    r = admin_client.post("/api/notes", json=body)
+    r = owner_client.post("/api/notes", json=body)
     assert r.status_code == 201, r.text
     return r.json()
 
 
 def test_admin_edits_a_song_that_carries_only_a_status(
-    admin_client, sample_anime
+    owner_client, sample_anime
 ):
     # The rows revision m1u2s3i4c5t6 migrated look exactly like this: a status
     # and the default type, no name yet. Editing one must not 422.
-    note = _create_music(admin_client, sample_anime)
-    r = admin_client.patch(
+    note = _create_music(owner_client, sample_anime)
+    r = owner_client.patch(
         f"/api/notes/{note['system_id']}",
         json={"status": "Done", "title": None, "content": None, "links": []},
     )
@@ -519,10 +519,10 @@ def test_admin_edits_a_song_that_carries_only_a_status(
 
 
 def test_admin_names_a_song_while_clearing_its_status(
-    admin_client, sample_anime
+    owner_client, sample_anime
 ):
-    note = _create_music(admin_client, sample_anime)
-    r = admin_client.patch(
+    note = _create_music(owner_client, sample_anime)
+    r = owner_client.patch(
         f"/api/notes/{note['system_id']}",
         json={"status": None, "title": "紅蓮華"},
     )
@@ -530,17 +530,17 @@ def test_admin_names_a_song_while_clearing_its_status(
     assert r.json()["title"] == "紅蓮華" and r.json()["status"] is None
 
 
-def test_patch_rejects_an_unknown_status(admin_client, sample_anime):
-    note = _create_music(admin_client, sample_anime)
-    r = admin_client.patch(
+def test_patch_rejects_an_unknown_status(owner_client, sample_anime):
+    note = _create_music(owner_client, sample_anime)
+    r = owner_client.patch(
         f"/api/notes/{note['system_id']}", json={"status": "Someday"}
     )
     assert r.status_code == 422
 
 
-def test_patch_that_empties_a_music_row_is_rejected(admin_client, sample_anime):
-    note = _create_music(admin_client, sample_anime, title="紅蓮華")
-    r = admin_client.patch(
+def test_patch_that_empties_a_music_row_is_rejected(owner_client, sample_anime):
+    note = _create_music(owner_client, sample_anime, title="紅蓮華")
+    r = owner_client.patch(
         f"/api/notes/{note['system_id']}",
         json={"status": None, "title": None, "content": None, "links": []},
     )

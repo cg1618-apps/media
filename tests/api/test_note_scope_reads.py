@@ -45,19 +45,19 @@ def _note(owner_id, section, content, author_id):
 
 
 def test_a_viewer_sees_only_their_own_personal_notes(
-    db, admin_client, sample_anime, two_authors, admin_user
+    db, owner_client, sample_anime, two_authors, owner_user
 ):
     alice, bob = two_authors
     db.add_all(
         [
-            _note(sample_anime.system_id, "advantages", "admin 的優點", admin_user.id),
+            _note(sample_anime.system_id, "advantages", "admin 的優點", owner_user.id),
             _note(sample_anime.system_id, "advantages", "alice 的優點", alice.id),
             _note(sample_anime.system_id, "advantages", "bob 的優點", bob.id),
         ]
     )
     db.commit()
 
-    r = admin_client.get(
+    r = owner_client.get(
         "/api/notes",
         params={"owner_type": "anime", "owner_id": str(sample_anime.system_id)},
     )
@@ -67,13 +67,13 @@ def test_a_viewer_sees_only_their_own_personal_notes(
 
 
 def test_every_viewer_sees_the_same_catalogue_notes(
-    db, admin_client, client, sample_anime, two_authors
+    db, owner_client, client, sample_anime, two_authors
 ):
     alice, _bob = two_authors
     db.add(_note(sample_anime.system_id, "public_reviews", "大眾說好看", alice.id))
     db.commit()
 
-    for c in (admin_client, client):
+    for c in (owner_client, client):
         r = c.get(
             "/api/notes",
             params={"owner_type": "anime", "owner_id": str(sample_anime.system_id)},
@@ -99,7 +99,7 @@ def test_a_logged_out_viewer_sees_no_personal_notes(
 
 
 def test_the_personal_notes_field_group_never_hides_a_viewers_own_rows(
-    db, admin_client, sample_anime, admin_user
+    db, owner_client, sample_anime, owner_user
 ):
     """
     field_group.personal_notes gated `personal_reviews` when there was one
@@ -107,10 +107,10 @@ def test_the_personal_notes_field_group_never_hides_a_viewers_own_rows(
     else's, so applying the group to a viewer's OWN rows would hide their notes
     from themselves - which is not what the group is for.
     """
-    db.add(_note(sample_anime.system_id, "personal_reviews", "我的評價", admin_user.id))
+    db.add(_note(sample_anime.system_id, "personal_reviews", "我的評價", owner_user.id))
     db.commit()
 
-    r = admin_client.get(
+    r = owner_client.get(
         "/api/notes",
         params={"owner_type": "anime", "owner_id": str(sample_anime.system_id)},
     )
@@ -129,7 +129,7 @@ def game(db, sample_franchise):
 
 
 def test_a_todo_bucket_reaches_only_its_author(
-    db, admin_client, game, two_authors, admin_user
+    db, owner_client, game, two_authors, owner_user
 ):
     """
     todo_* is personal scope. The alice and bob rows are what makes this bite:
@@ -139,14 +139,14 @@ def test_a_todo_bucket_reaches_only_its_author(
     alice, bob = two_authors
     db.add_all(
         [
-            _note(game.system_id, "todo_now", "admin 的待辦", admin_user.id),
+            _note(game.system_id, "todo_now", "admin 的待辦", owner_user.id),
             _note(game.system_id, "todo_now", "alice 的待辦", alice.id),
             _note(game.system_id, "todo_now", "bob 的待辦", bob.id),
         ]
     )
     db.commit()
 
-    r = admin_client.get(
+    r = owner_client.get(
         "/api/notes",
         params={"owner_type": "game", "owner_id": str(game.system_id)},
     )
@@ -156,7 +156,7 @@ def test_a_todo_bucket_reaches_only_its_author(
 
 
 def test_a_guides_section_is_the_same_for_everyone(
-    db, admin_client, client, game, two_authors, admin_user
+    db, owner_client, client, game, two_authors, owner_user
 ):
     """
     The mirror of the test above, with the same fixture: it proves the filter
@@ -165,14 +165,14 @@ def test_a_guides_section_is_the_same_for_everyone(
     alice, _bob = two_authors
     db.add_all(
         [
-            _note(game.system_id, "beginner", "先打史東薇爾", admin_user.id),
+            _note(game.system_id, "beginner", "先打史東薇爾", owner_user.id),
             _note(game.system_id, "beginner", "別急著點等級", alice.id),
         ]
     )
     db.commit()
 
     params = {"owner_type": "game", "owner_id": str(game.system_id)}
-    signed_in = admin_client.get("/api/notes", params=params)
+    signed_in = owner_client.get("/api/notes", params=params)
     logged_out = client.get("/api/notes", params=params)
 
     assert signed_in.status_code == logged_out.status_code == 200

@@ -86,9 +86,8 @@ def change_password(
     account's sessions - the person changing it is the one holding them; a
     reset link or the admin setting it does.
 
-    Gated on self.password, which the root admin does not hold (the self
-    family is excluded from the root short-circuit): the admin sets its own
-    password on /users.
+    Gated on self.password, which the admin role has locked off: the admin
+    sets its own password on /users.
     """
     user = _current_user(db, viewer)
     if not verify_password(payload.current_password, user.hashed_password):

@@ -119,7 +119,7 @@ def test_a_warm_cover_request_resolves_no_viewer(
     who,
     warm_count,
     client,
-    admin_client,
+    owner_client,
     catalog_writer,
     sample_anime,
     hidden_anime,
@@ -129,7 +129,7 @@ def test_a_warm_cover_request_resolves_no_viewer(
     session = {
         "anonymous": lambda: client,
         "narrowed": lambda: catalog_writer(),
-        "admin": lambda: admin_client,
+        "admin": lambda: owner_client,
     }[who]()
     url = cover_on_disk("anime", sample_anime.system_id)
 
@@ -168,14 +168,14 @@ def test_a_warm_shared_record_cover_skips_the_gated_type_lookup_too(
 
 
 def test_a_session_warming_the_cache_lends_nothing_to_another(
-    client, admin_client, catalog_writer, hidden_anime, cover_on_disk
+    client, owner_client, catalog_writer, hidden_anime, cover_on_disk
 ):
     url = cover_on_disk("anime", hidden_anime.system_id)
 
     # Warm it with the session that MAY see the entry, twice so the second is
     # a hit.
-    assert admin_client.get(url).status_code == 200
-    assert admin_client.get(url).status_code == 200
+    assert owner_client.get(url).status_code == 200
+    assert owner_client.get(url).status_code == 200
 
     assert client.get(url).status_code == 404
     narrowed = catalog_writer()
@@ -183,11 +183,11 @@ def test_a_session_warming_the_cache_lends_nothing_to_another(
     assert narrowed.get(url).status_code == 404
 
     # The mirror: the allowed session is still served after the refusals.
-    assert admin_client.get(url).status_code == 200
+    assert owner_client.get(url).status_code == 200
 
 
 def test_labelling_an_entry_hides_its_cover_on_the_next_request(
-    admin_client, catalog_writer, sample_anime, cover_on_disk
+    owner_client, catalog_writer, sample_anime, cover_on_disk
 ):
     """
     The narrowed session's viewer is cached and was resolved while the entry
@@ -200,7 +200,7 @@ def test_labelling_an_entry_hides_its_cover_on_the_next_request(
     assert narrowed.get(url).status_code == 200
     assert narrowed.get(url).status_code == 200
 
-    assigned = admin_client.put(
+    assigned = owner_client.put(
         f"/api/content-labels/entry/anime/{sample_anime.system_id}",
         json={"label_keys": ["nsfw"]},
     )
@@ -208,7 +208,7 @@ def test_labelling_an_entry_hides_its_cover_on_the_next_request(
 
     assert narrowed.get(url).status_code == 404
     # The mirror: unrestricted shows every label, so admin still sees it.
-    assert admin_client.get(url).status_code == 200
+    assert owner_client.get(url).status_code == 200
 
 
 def _user_named(db_session, username):
@@ -289,7 +289,6 @@ def _viewer(**fields):
         username="u",
         role_id=uuid.uuid4(),
         role_name="user",
-        is_root=False,
         permissions=frozenset(),
         **fields,
     )

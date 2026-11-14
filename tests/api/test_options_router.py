@@ -3,22 +3,22 @@
 from app import models
 
 
-def test_create_returns_the_new_uuid(admin_client):
-    r = admin_client.post(
+def test_create_returns_the_new_uuid(owner_client):
+    r = owner_client.post(
         "/api/options/", json={"category": "Genre Main", "value": "Action"}
     )
     assert r.status_code == 200
     assert r.json()["system_id"]
 
 
-def test_create_rejects_an_exact_duplicate(admin_client):
+def test_create_rejects_an_exact_duplicate(owner_client):
     body = {"category": "Genre Main", "value": "Action"}
-    admin_client.post("/api/options/", json=body)
-    assert admin_client.post("/api/options/", json=body).status_code == 400
+    owner_client.post("/api/options/", json=body)
+    assert owner_client.post("/api/options/", json=body).status_code == 400
 
 
-def test_create_records_scopes(admin_client):
-    r = admin_client.post(
+def test_create_records_scopes(owner_client):
+    r = owner_client.post(
         "/api/options/",
         json={
             "category": "Official Source",
@@ -29,12 +29,12 @@ def test_create_records_scopes(admin_client):
     assert sorted(r.json()["scopes"]) == ["cartoon", "tv-show"]
 
 
-def test_reading_a_category_filters_by_scope(client, admin_client):
-    admin_client.post(
+def test_reading_a_category_filters_by_scope(client, owner_client):
+    owner_client.post(
         "/api/options/",
         json={"category": "Official Source", "value": "Netflix", "scopes": ["tv-show"]},
     )
-    admin_client.post(
+    owner_client.post(
         "/api/options/",
         json={"category": "Official Source", "value": "Disney+", "scopes": ["cartoon"]},
     )
@@ -45,8 +45,8 @@ def test_reading_a_category_filters_by_scope(client, admin_client):
     assert values == ["Netflix"]
 
 
-def test_an_unscoped_value_is_offered_everywhere(client, admin_client):
-    admin_client.post(
+def test_an_unscoped_value_is_offered_everywhere(client, owner_client):
+    owner_client.post(
         "/api/options/", json={"category": "Official Source", "value": "官網"}
     )
     values = [
@@ -56,12 +56,12 @@ def test_an_unscoped_value_is_offered_everywhere(client, admin_client):
     assert "官網" in values
 
 
-def test_results_come_back_in_sort_order_then_value(client, admin_client):
-    admin_client.post(
+def test_results_come_back_in_sort_order_then_value(client, owner_client):
+    owner_client.post(
         "/api/options/",
         json={"category": "Genre Main", "value": "Zombie", "sort_order": 1},
     )
-    admin_client.post(
+    owner_client.post(
         "/api/options/",
         json={"category": "Genre Main", "value": "Action", "sort_order": 2},
     )
@@ -69,12 +69,12 @@ def test_results_come_back_in_sort_order_then_value(client, admin_client):
     assert values == ["Zombie", "Action"]
 
 
-def test_update_replaces_the_scope_set(admin_client):
-    created = admin_client.post(
+def test_update_replaces_the_scope_set(owner_client):
+    created = owner_client.post(
         "/api/options/",
         json={"category": "Official Source", "value": "Netflix", "scopes": ["tv-show"]},
     ).json()
-    r = admin_client.put(
+    r = owner_client.put(
         f"/api/options/{created['system_id']}",
         json={
             "category": "Official Source",
@@ -85,8 +85,8 @@ def test_update_replaces_the_scope_set(admin_client):
     assert r.json()["scopes"] == ["cartoon"]
 
 
-def test_delete_cascades_the_tags(admin_client, db_session):
-    created = admin_client.post(
+def test_delete_cascades_the_tags(owner_client, db_session):
+    created = owner_client.post(
         "/api/options/", json={"category": "Genre Main", "value": "Action"}
     ).json()
     anime = models.Anime(anime_name_cn="測試")
@@ -101,7 +101,7 @@ def test_delete_cascades_the_tags(admin_client, db_session):
     )
     db_session.commit()
 
-    assert admin_client.delete(f"/api/options/{created['system_id']}").status_code == 200
+    assert owner_client.delete(f"/api/options/{created['system_id']}").status_code == 200
     assert db_session.query(models.MediaTag).count() == 0
 
 
@@ -110,7 +110,7 @@ def test_writes_require_admin(client):
     assert r.status_code in (401, 403)
 
 
-def test_using_an_unscoped_value_does_not_narrow_it(admin_client, client, db_session):
+def test_using_an_unscoped_value_does_not_narrow_it(owner_client, client, db_session):
     """
     Ruling R27, the whole point of removing the derive-on-save.
 
@@ -121,7 +121,7 @@ def test_using_an_unscoped_value_does_not_narrow_it(admin_client, client, db_ses
     """
     from app.services.domain.credits import replace_tags
 
-    admin_client.post(
+    owner_client.post(
         "/api/options/",
         json={"category": "Platform", "value": "Disney+", "scopes": []},
     )
@@ -145,9 +145,9 @@ def test_using_an_unscoped_value_does_not_narrow_it(admin_client, client, db_ses
     assert option.scopes == [], "a save wrote a scope row it had no business writing"
 
 
-def test_an_explicit_scope_still_narrows(admin_client, client):
+def test_an_explicit_scope_still_narrows(owner_client, client):
     """Scoping remains a real, admin-chosen restriction."""
-    admin_client.post(
+    owner_client.post(
         "/api/options/",
         json={
             "category": "Official Source",
@@ -166,22 +166,22 @@ def test_an_explicit_scope_still_narrows(admin_client, client):
     assert "Bahamut" not in cartoon_offered
 
 
-def test_an_unknown_scope_is_rejected(admin_client):
+def test_an_unknown_scope_is_rejected(owner_client):
     """A typo'd scope would hide the value from every dropdown at once."""
-    r = admin_client.post(
+    r = owner_client.post(
         "/api/options/",
         json={"category": "Genre Main", "value": "Action", "scopes": ["anime_movie"]},
     )
     assert r.status_code == 422
 
 
-def test_scopes_are_editable_after_creation(admin_client, client):
+def test_scopes_are_editable_after_creation(owner_client, client):
     """The repair path the Options form now exposes."""
-    created = admin_client.post(
+    created = owner_client.post(
         "/api/options/",
         json={"category": "Genre Main", "value": "Mecha", "scopes": ["anime"]},
     ).json()
-    updated = admin_client.put(
+    updated = owner_client.put(
         f"/api/options/{created['system_id']}",
         json={"category": "Genre Main", "value": "Mecha", "scopes": []},
     )
@@ -193,7 +193,7 @@ def test_scopes_are_editable_after_creation(admin_client, client):
     assert "Mecha" in offered
 
 
-def test_update_keeps_a_scope_the_option_already_had(admin_client):
+def test_update_keeps_a_scope_the_option_already_had(owner_client):
     """
     Editing a value without touching its scopes must not fail.
 
@@ -203,12 +203,12 @@ def test_update_keeps_a_scope_the_option_already_had(admin_client):
     (option_id, scope) while the old row was still there and tripped
     uq_system_option_scope with a 500.
     """
-    created = admin_client.post(
+    created = owner_client.post(
         "/api/options/",
         json={"category": "Label", "value": "會跳OP", "scopes": ["anime"]},
     ).json()
 
-    r = admin_client.put(
+    r = owner_client.put(
         f"/api/options/{created['system_id']}",
         json={"category": "Label", "value": "會跳ED", "scopes": ["anime"]},
     )
@@ -217,9 +217,9 @@ def test_update_keeps_a_scope_the_option_already_had(admin_client):
     assert r.json()["scopes"] == ["anime"]
 
 
-def test_update_can_add_and_drop_scopes_at_once(admin_client, db_session):
+def test_update_can_add_and_drop_scopes_at_once(owner_client, db_session):
     """A kept scope, a new one and a dropped one in a single save."""
-    created = admin_client.post(
+    created = owner_client.post(
         "/api/options/",
         json={
             "category": "Official Source",
@@ -228,7 +228,7 @@ def test_update_can_add_and_drop_scopes_at_once(admin_client, db_session):
         },
     ).json()
 
-    r = admin_client.put(
+    r = owner_client.put(
         f"/api/options/{created['system_id']}",
         json={
             "category": "Official Source",
@@ -247,14 +247,14 @@ def test_update_can_add_and_drop_scopes_at_once(admin_client, db_session):
     assert sorted(row.scope for row in rows) == ["movie", "tv-show"]
 
 
-def test_update_can_clear_every_scope(admin_client):
+def test_update_can_clear_every_scope(owner_client):
     """Empty scopes means offered everywhere, and must be reachable."""
-    created = admin_client.post(
+    created = owner_client.post(
         "/api/options/",
         json={"category": "Label", "value": "很多福利", "scopes": ["anime"]},
     ).json()
 
-    r = admin_client.put(
+    r = owner_client.put(
         f"/api/options/{created['system_id']}",
         json={"category": "Label", "value": "很多福利", "scopes": []},
     )
@@ -262,8 +262,8 @@ def test_update_can_clear_every_scope(admin_client):
     assert r.json()["scopes"] == []
 
 
-def test_create_records_usages(admin_client):
-    r = admin_client.post(
+def test_create_records_usages(owner_client):
+    r = owner_client.post(
         "/api/options/",
         json={
             "category": "Platform",
@@ -276,21 +276,21 @@ def test_create_records_usages(admin_client):
     assert r.json()["usages"] == ["origin"]
 
 
-def test_an_unknown_usage_is_rejected(admin_client):
-    r = admin_client.post(
+def test_an_unknown_usage_is_rejected(owner_client):
+    r = owner_client.post(
         "/api/options/",
         json={"category": "Platform", "value": "Bad", "usages": ["streaming"]},
     )
     assert r.status_code == 422
 
 
-def test_a_usage_on_a_category_other_than_platform_is_rejected(admin_client):
+def test_a_usage_on_a_category_other_than_platform_is_rejected(owner_client):
     """
     Usage splits Platform between the Main Sources and Official Source
     pickers. No other category feeds two pickers, so a usage anywhere else
     would save and then do nothing.
     """
-    r = admin_client.post(
+    r = owner_client.post(
         "/api/options/",
         json={"category": "Genre Main", "value": "動作", "usages": ["watch"]},
     )
@@ -298,9 +298,9 @@ def test_a_usage_on_a_category_other_than_platform_is_rejected(admin_client):
     assert "Genre Main" in r.text
 
 
-def test_a_category_other_than_platform_may_be_saved_without_usages(admin_client):
+def test_a_category_other_than_platform_may_be_saved_without_usages(owner_client):
     """The restriction is on the usage rows, not on the category itself."""
-    r = admin_client.post(
+    r = owner_client.post(
         "/api/options/",
         json={"category": "Genre Main", "value": "懸疑", "usages": []},
     )
@@ -308,12 +308,12 @@ def test_a_category_other_than_platform_may_be_saved_without_usages(admin_client
     assert r.json()["usages"] == []
 
 
-def test_reading_a_category_filters_by_usage(client, admin_client):
-    admin_client.post(
+def test_reading_a_category_filters_by_usage(client, owner_client):
+    owner_client.post(
         "/api/options/",
         json={"category": "Platform", "value": "ABC", "usages": ["origin"]},
     )
-    admin_client.post(
+    owner_client.post(
         "/api/options/", json={"category": "Platform", "value": "Netflix"}
     )
 
@@ -322,8 +322,8 @@ def test_reading_a_category_filters_by_usage(client, admin_client):
     assert "ABC" not in values
 
 
-def test_an_unrestricted_value_serves_every_usage(client, admin_client):
-    admin_client.post(
+def test_an_unrestricted_value_serves_every_usage(client, owner_client):
+    owner_client.post(
         "/api/options/", json={"category": "Platform", "value": "Prime Video"}
     )
     for usage in ("watch", "origin"):
@@ -333,13 +333,13 @@ def test_an_unrestricted_value_serves_every_usage(client, admin_client):
         assert "Prime Video" in values
 
 
-def test_update_replaces_the_usage_set(admin_client):
-    created = admin_client.post(
+def test_update_replaces_the_usage_set(owner_client):
+    created = owner_client.post(
         "/api/options/",
         json={"category": "Platform", "value": "HBO Max", "usages": ["origin"]},
     ).json()
 
-    r = admin_client.put(
+    r = owner_client.put(
         f"/api/options/{created['system_id']}",
         json={
             "category": "Platform",

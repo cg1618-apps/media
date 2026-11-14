@@ -35,21 +35,21 @@ def credit(db_session, studio, entry_id):
 
 
 def test_lists_the_entries_credited_to_the_studio(
-    admin_client, db_session, mappa, sample_anime
+    owner_client, db_session, mappa, sample_anime
 ):
     credit(db_session, mappa, sample_anime.system_id)
-    body = admin_client.get(f"/api/studio/{mappa.system_id}/entries").json()
+    body = owner_client.get(f"/api/studio/{mappa.system_id}/entries").json()
     assert body["groups"][0]["media_type"] == "anime"
     assert body["groups"][0]["entries"][0]["system_id"] == str(sample_anime.system_id)
 
 
-def test_a_studio_with_no_credits_returns_no_groups(admin_client, mappa):
-    body = admin_client.get(f"/api/studio/{mappa.system_id}/entries").json()
+def test_a_studio_with_no_credits_returns_no_groups(owner_client, mappa):
+    body = owner_client.get(f"/api/studio/{mappa.system_id}/entries").json()
     assert body["groups"] == []
 
 
-def test_unknown_studio_is_404(admin_client):
-    r = admin_client.get(f"/api/studio/{uuid.uuid4()}/entries")
+def test_unknown_studio_is_404(owner_client):
+    r = owner_client.get(f"/api/studio/{uuid.uuid4()}/entries")
     assert r.status_code == 404
 
 

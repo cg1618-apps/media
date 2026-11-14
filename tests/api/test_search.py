@@ -31,9 +31,9 @@ def punctuated_anime(db_session, sample_franchise):
 
 
 @pytest.fixture
-def sample_seasonal(db_session, admin_user):
+def sample_seasonal(db_session, owner_user):
     # A seasonal row belongs to a user from Step 3 on: this one is the admin's.
-    s = models.Seasonal(user_id=admin_user.id, seasonal="WIN 2026")
+    s = models.Seasonal(user_id=owner_user.id, seasonal="WIN 2026")
     db_session.add(s)
     db_session.flush()
     return s
@@ -136,12 +136,12 @@ class TestFranchiseExpansion:
 
 
 class TestSeasonal:
-    def test_seasonal_is_searchable(self, admin_client, sample_seasonal):
-        payload = admin_client.get("/api/search/?q=WIN+2026").json()
+    def test_seasonal_is_searchable(self, owner_client, sample_seasonal):
+        payload = owner_client.get("/api/search/?q=WIN+2026").json()
         assert [s["seasonal"] for s in payload["results"]["seasonal"]] == ["WIN 2026"]
 
-    def test_seasonal_normalises_like_the_rest(self, admin_client, sample_seasonal):
-        payload = admin_client.get("/api/search/?q=win2026").json()
+    def test_seasonal_normalises_like_the_rest(self, owner_client, sample_seasonal):
+        payload = owner_client.get("/api/search/?q=win2026").json()
         assert [s["seasonal"] for s in payload["results"]["seasonal"]] == ["WIN 2026"]
 
     def test_the_bucket_is_empty_for_another_searcher(
@@ -325,7 +325,7 @@ class TestCharacters:
         assert payload["results"]["character"] == []
 
     def test_a_character_cast_only_on_hidden_entries_is_excluded(
-        self, guest_reader, admin_client, db_session, labelled_anime, character
+        self, guest_reader, owner_client, db_session, labelled_anime, character
     ):
         db_session.add(
             models.CharacterCasting(
@@ -338,7 +338,7 @@ class TestCharacters:
         url = "/api/search/?q=Ichika&characters=true"
         assert str(character.system_id) not in ids(guest_reader.get(url).json(), "character")
         # The mirror: the unrestricted admin sees the same character.
-        assert str(character.system_id) in ids(admin_client.get(url).json(), "character")
+        assert str(character.system_id) in ids(owner_client.get(url).json(), "character")
 
 
 class TestGameAndPublisherBuckets:
@@ -404,11 +404,11 @@ class TestPersonalFields:
     have to be attached, or every result reads as an untouched entry."""
 
     @pytest.fixture
-    def tracked_anime(self, admin_client):
-        created = admin_client.post(
+    def tracked_anime(self, owner_client):
+        created = owner_client.post(
             "/api/anime/", json={"anime_name_en": "Tracked Sentinel", "airing_type": "TV"}
         ).json()
-        response = admin_client.patch(
+        response = owner_client.patch(
             f"/api/anime/{created['system_id']}",
             json={"watching_status": "Active Watching", "ep_fin": 3},
         )
@@ -419,20 +419,20 @@ class TestPersonalFields:
         payload = client.get("/api/search/?q=Tracked+Sentinel").json()
         return next(r for r in payload["results"]["anime"] if r["system_id"] == system_id)
 
-    def test_search_carries_the_viewers_status_and_progress(self, admin_client, tracked_anime):
-        row = self._row(admin_client, tracked_anime)
+    def test_search_carries_the_viewers_status_and_progress(self, owner_client, tracked_anime):
+        row = self._row(owner_client, tracked_anime)
         assert row["watching_status"] == "Active Watching"
         assert row["ep_fin"] == 3
 
-    def test_search_row_matches_the_list_row(self, admin_client, tracked_anime):
+    def test_search_row_matches_the_list_row(self, owner_client, tracked_anime):
         listed = next(
-            r for r in admin_client.get("/api/anime/").json() if r["system_id"] == tracked_anime
+            r for r in owner_client.get("/api/anime/").json() if r["system_id"] == tracked_anime
         )
-        searched = self._row(admin_client, tracked_anime)
+        searched = self._row(owner_client, tracked_anime)
         for field in ("watching_status", "ep_fin", "my_rating", "sources", "remark"):
             assert searched.get(field) == listed.get(field), field
 
-    def test_a_stranger_sees_no_status(self, admin_client, guest_reader, tracked_anime):
+    def test_a_stranger_sees_no_status(self, owner_client, guest_reader, tracked_anime):
         # The mirror case, on the same row that carries a status for its
         # owner: another account's search must not be shown it. That account
         # has no list row, so it reads the type's default, not the owner's.

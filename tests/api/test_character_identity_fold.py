@@ -46,19 +46,19 @@ def _row(db, character, anime, identity=None, person=None, remark=None):
     return row
 
 
-def _delete(admin_client, identity, count):
-    return admin_client.delete(f"/api/character-identity/{identity.system_id}?castings={count}")
+def _delete(owner_client, identity, count):
+    return owner_client.delete(f"/api/character-identity/{identity.system_id}?castings={count}")
 
 
-def test_a_stale_count_is_409(admin_client, db_session, character, anime, identity):
+def test_a_stale_count_is_409(owner_client, db_session, character, anime, identity):
     _row(db_session, character, anime, identity)
-    assert _delete(admin_client, identity, 0).status_code == 409
+    assert _delete(owner_client, identity, 0).status_code == 409
 
 
-def test_a_lone_identity_row_becomes_the_main_row(admin_client, db_session, character, anime, identity):
+def test_a_lone_identity_row_becomes_the_main_row(owner_client, db_session, character, anime, identity):
     takayama = _person(db_session, "高山みなみ")
     row_id = _row(db_session, character, anime, identity, takayama, remark="glasses").system_id
-    assert _delete(admin_client, identity, 1).status_code == 200
+    assert _delete(owner_client, identity, 1).status_code == 200
     db_session.execute(text("SET CONSTRAINTS ALL IMMEDIATE"))  # check the deferred composite FK
     db_session.expire_all()
     row = db_session.get(models.CharacterCasting, row_id)
@@ -68,12 +68,12 @@ def test_a_lone_identity_row_becomes_the_main_row(admin_client, db_session, char
     assert db_session.get(models.CharacterIdentity, identity.system_id) is None
 
 
-def test_fold_keeps_the_main_row_main(admin_client, db_session, character, anime, identity):
+def test_fold_keeps_the_main_row_main(owner_client, db_session, character, anime, identity):
     yamaguchi = _person(db_session, "山口勝平")
     takayama = _person(db_session, "高山みなみ")
     main_id = _row(db_session, character, anime, None, yamaguchi).system_id
     _row(db_session, character, anime, identity, takayama, remark="as Conan")
-    assert _delete(admin_client, identity, 1).status_code == 200
+    assert _delete(owner_client, identity, 1).status_code == 200
     db_session.execute(text("SET CONSTRAINTS ALL IMMEDIATE"))  # check the deferred composite FK
     db_session.expire_all()
     rows = db_session.query(models.CharacterCasting).filter_by(character_id=character.system_id).all()
@@ -83,12 +83,12 @@ def test_fold_keeps_the_main_row_main(admin_client, db_session, character, anime
     assert {v.person_id for v in rows[0].voices} == {yamaguchi.system_id, takayama.system_id}
 
 
-def test_merge_moves_identities_to_the_survivor(admin_client, db_session, character, second_character, anime):
+def test_merge_moves_identities_to_the_survivor(owner_client, db_session, character, second_character, anime):
     stray = models.CharacterIdentity(system_id=uuid.uuid4(), character_id=second_character.system_id, name_en="Kid")
     db_session.add(stray)
     db_session.flush()
     _row(db_session, second_character, anime, stray)
-    r = admin_client.post(f"/api/character/{character.system_id}/merge", json={"source_id": str(second_character.system_id)})
+    r = owner_client.post(f"/api/character/{character.system_id}/merge", json={"source_id": str(second_character.system_id)})
     assert r.status_code == 200
     db_session.execute(text("SET CONSTRAINTS ALL IMMEDIATE"))  # check the deferred composite FK
     db_session.expire_all()
@@ -99,7 +99,7 @@ def test_merge_moves_identities_to_the_survivor(admin_client, db_session, charac
 
 
 def test_merge_places_moved_identities_after_the_survivors_highest_position(
-    admin_client, db_session, character, second_character
+    owner_client, db_session, character, second_character
 ):
     # Survivor positions have a gap (0 and 2), so counting identities (2) would
     # put the moved one on position 2, beside the survivor's own.
@@ -110,13 +110,13 @@ def test_merge_places_moved_identities_after_the_survivors_highest_position(
     stray = models.CharacterIdentity(system_id=uuid.uuid4(), character_id=second_character.system_id, name_en="Kid")
     db_session.add(stray)
     db_session.flush()
-    r = admin_client.post(f"/api/character/{character.system_id}/merge", json={"source_id": str(second_character.system_id)})
+    r = owner_client.post(f"/api/character/{character.system_id}/merge", json={"source_id": str(second_character.system_id)})
     assert r.status_code == 200
     db_session.expire_all()
     assert db_session.get(models.CharacterIdentity, stray.system_id).position > 2
 
 
-def test_merge_matches_castings_per_identity(admin_client, db_session, character, second_character, anime, identity):
+def test_merge_matches_castings_per_identity(owner_client, db_session, character, second_character, anime, identity):
     # The survivor's identity row and the loser's MAIN row share the entry but
     # not the identity, so they are different appearances and both survive.
     # The survivor's main row is created first so that matching on
@@ -125,7 +125,7 @@ def test_merge_matches_castings_per_identity(admin_client, db_session, character
     main_id = _row(db_session, character, anime, None, a).system_id
     identity_row_id = _row(db_session, character, anime, identity, b).system_id
     _row(db_session, second_character, anime, None, c)
-    r = admin_client.post(f"/api/character/{character.system_id}/merge", json={"source_id": str(second_character.system_id)})
+    r = owner_client.post(f"/api/character/{character.system_id}/merge", json={"source_id": str(second_character.system_id)})
     assert r.status_code == 200
     db_session.execute(text("SET CONSTRAINTS ALL IMMEDIATE"))
     db_session.expire_all()

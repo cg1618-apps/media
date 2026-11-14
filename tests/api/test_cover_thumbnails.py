@@ -113,13 +113,13 @@ def test_a_thumbnail_follows_a_replaced_cover(catalog_writer, sample_anime, jpeg
 
 
 def test_a_hidden_entrys_thumbnail_is_not_served(
-    admin_client, catalog_writer, hidden_anime, jpeg_cover
+    owner_client, catalog_writer, hidden_anime, jpeg_cover
 ):
     _, url = jpeg_cover("anime", hidden_anime.system_id, 1000, 1500)
 
     # The mirror, and it also leaves a cached thumbnail on disk - so the
     # refusal below is the gate, not an absent file.
-    allowed = admin_client.get(f"{url}?size=thumb")
+    allowed = owner_client.get(f"{url}?size=thumb")
     assert allowed.status_code == 200
     assert max(_size_of(allowed)) == THUMB_EDGE
 
@@ -140,15 +140,15 @@ def test_a_hidden_entrys_thumbnail_is_never_generated(
 
 
 @pytest.mark.parametrize("size", ["full", "THUMB", "", "small"])
-def test_an_unknown_size_is_a_miss(admin_client, sample_anime, jpeg_cover, size):
+def test_an_unknown_size_is_a_miss(owner_client, sample_anime, jpeg_cover, size):
     """Like every other input that does not name a cover, an unrecognised size
     is a 404 - checked before the gate, so it says nothing about the entry."""
     _, url = jpeg_cover("anime", sample_anime.system_id, 1000, 1500)
 
-    assert admin_client.get(url).status_code == 200
-    assert admin_client.get(f"{url}?size={size}").status_code == 404
+    assert owner_client.get(url).status_code == 200
+    assert owner_client.get(f"{url}?size={size}").status_code == 404
 
 
-def test_a_missing_cover_has_no_thumbnail(admin_client, sample_anime, covers_root):
+def test_a_missing_cover_has_no_thumbnail(owner_client, sample_anime, covers_root):
     url = f"/api/covers/anime/{sample_anime.system_id}.jpg?size=thumb"
-    assert admin_client.get(url).status_code == 404
+    assert owner_client.get(url).status_code == 404

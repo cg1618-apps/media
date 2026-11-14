@@ -74,11 +74,11 @@ def test_writing_a_catalogue_note_without_manage_catalog_is_401(
 
 
 def test_editing_someone_elses_personal_note_is_404(
-    db_session, client, admin_user, note_by
+    db_session, client, owner_user, note_by
 ):
     """404, not 403: a 403 confirms the note exists as surely as a 200 does,
     which is the argument Phase C spent nine commits on."""
-    note = note_by(admin_user)
+    note = note_by(owner_user)
     c = make_viewer(db_session, client, "othernotes", default_user_permissions())
 
     response = c.patch(f"/api/notes/{note.system_id}", json={"content": "mine now"})
@@ -87,10 +87,10 @@ def test_editing_someone_elses_personal_note_is_404(
 
 
 def test_that_refusal_is_worded_exactly_like_a_missing_note(
-    db_session, client, admin_user, note_by
+    db_session, client, owner_user, note_by
 ):
     """Indistinguishability is the property, so the message has to match too."""
-    note = note_by(admin_user)
+    note = note_by(owner_user)
     c = make_viewer(db_session, client, "othernotes2", default_user_permissions())
 
     hidden = c.patch(f"/api/notes/{note.system_id}", json={"content": "x"})
@@ -103,13 +103,13 @@ def test_that_refusal_is_worded_exactly_like_a_missing_note(
 
 
 def test_editing_a_catalogue_note_without_manage_catalog_is_401(
-    db_session, client, admin_user, note_by
+    db_session, client, owner_user, note_by
 ):
     """A CAPABILITY failure, so 401 - this is the correction to decision 13's
     line list. The caller may not edit catalogue notes at all; refusing with
     404 would claim the note does not exist, which is a different and false
     statement."""
-    note = note_by(admin_user, section=CATALOGUE)
+    note = note_by(owner_user, section=CATALOGUE)
     c = make_viewer(db_session, client, "nocatalogue", default_user_permissions())
 
     response = c.patch(f"/api/notes/{note.system_id}", json={"content": "x"})
@@ -118,7 +118,7 @@ def test_editing_a_catalogue_note_without_manage_catalog_is_401(
 
 
 def test_naming_an_author_reveals_nothing_about_accounts(
-    user_client, admin_user, sample_anime
+    user_client, owner_user, sample_anime
 ):
     """There is no way to read another account's notes, so `author` is not a
     parameter: an existing username and a made-up one get the same answer as
@@ -134,7 +134,7 @@ def test_naming_an_author_reveals_nothing_about_accounts(
         )
 
     plain = notes()
-    existing = notes(author=admin_user.username)
+    existing = notes(author=owner_user.username)
     absent = notes(author="nobody-by-this-name")
 
     assert plain.status_code == existing.status_code == absent.status_code == 200

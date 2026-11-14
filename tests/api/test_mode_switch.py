@@ -46,8 +46,8 @@ def _claims(client):
 # ---------------------------------------------------------------------------
 
 
-def test_switching_keeps_the_original_expiry(mode_client, mode, admin_user, grant_mode):
-    grant_mode(admin_user, MODE_SAFE)
+def test_switching_keeps_the_original_expiry(mode_client, mode, owner_user, grant_mode):
+    grant_mode(owner_user, MODE_SAFE)
     c = mode_client(MODE_NORMAL)
     before = _claims(c)["exp"]
 
@@ -58,7 +58,7 @@ def test_switching_keeps_the_original_expiry(mode_client, mode, admin_user, gran
 
 
 def test_toggling_repeatedly_never_extends_the_session(
-    mode_client, mode, admin_user, grant_mode
+    mode_client, mode, owner_user, grant_mode
 ):
     """The oracle in its actual shape.
 
@@ -69,7 +69,7 @@ def test_toggling_repeatedly_never_extends_the_session(
     carry the password precisely so this test exercises the path that could
     mint a fresh token rather than the one that refuses.
     """
-    grant_mode(admin_user, MODE_SAFE)
+    grant_mode(owner_user, MODE_SAFE)
     c = mode_client(MODE_NORMAL)
     before = _claims(c)["exp"]
 
@@ -88,8 +88,8 @@ def test_toggling_repeatedly_never_extends_the_session(
 # ---------------------------------------------------------------------------
 
 
-def test_narrowing_needs_no_password(mode_client, mode, admin_user, grant_mode):
-    grant_mode(admin_user, MODE_SAFE)
+def test_narrowing_needs_no_password(mode_client, mode, owner_user, grant_mode):
+    grant_mode(owner_user, MODE_SAFE)
     c = mode_client(MODE_NORMAL)
 
     assert c.post(SWITCH, json={"mode_id": str(mode(MODE_SAFE).system_id)}).status_code == 200
@@ -97,10 +97,10 @@ def test_narrowing_needs_no_password(mode_client, mode, admin_user, grant_mode):
 
 
 def test_widening_bare_is_refused_with_a_marker(
-    mode_client, mode, admin_user, grant_mode, nsfw_label
+    mode_client, mode, owner_user, grant_mode, nsfw_label
 ):
     """401 with `requires_password` so the SPA prompts rather than guesses."""
-    grant_mode(admin_user, MODE_BORDERLINE)
+    grant_mode(owner_user, MODE_BORDERLINE)
     c = mode_client(MODE_NORMAL)
 
     response = c.post(SWITCH, json={"mode_id": str(mode(MODE_BORDERLINE).system_id)})
@@ -110,10 +110,10 @@ def test_widening_bare_is_refused_with_a_marker(
 
 
 def test_widening_leaves_the_session_where_it_was(
-    mode_client, mode, admin_user, grant_mode, nsfw_label
+    mode_client, mode, owner_user, grant_mode, nsfw_label
 ):
     """A refused switch must not half-apply."""
-    grant_mode(admin_user, MODE_BORDERLINE)
+    grant_mode(owner_user, MODE_BORDERLINE)
     c = mode_client(MODE_NORMAL)
 
     c.post(SWITCH, json={"mode_id": str(mode(MODE_BORDERLINE).system_id)})
@@ -122,9 +122,9 @@ def test_widening_leaves_the_session_where_it_was(
 
 
 def test_widening_with_the_wrong_password_is_refused(
-    mode_client, mode, admin_user, grant_mode, nsfw_label
+    mode_client, mode, owner_user, grant_mode, nsfw_label
 ):
-    grant_mode(admin_user, MODE_BORDERLINE)
+    grant_mode(owner_user, MODE_BORDERLINE)
     c = mode_client(MODE_NORMAL)
 
     response = c.post(
@@ -139,9 +139,9 @@ def test_widening_with_the_wrong_password_is_refused(
 
 
 def test_widening_with_the_right_password_succeeds(
-    mode_client, mode, admin_user, grant_mode, nsfw_label
+    mode_client, mode, owner_user, grant_mode, nsfw_label
 ):
-    grant_mode(admin_user, MODE_BORDERLINE)
+    grant_mode(owner_user, MODE_BORDERLINE)
     c = mode_client(MODE_NORMAL)
 
     response = c.post(
@@ -157,10 +157,10 @@ def test_widening_with_the_right_password_succeeds(
 
 
 def test_widening_with_the_right_password_still_keeps_the_expiry(
-    mode_client, mode, admin_user, grant_mode, nsfw_label
+    mode_client, mode, owner_user, grant_mode, nsfw_label
 ):
     """Re-authenticating proves who you are; it does not buy a new month."""
-    grant_mode(admin_user, MODE_BORDERLINE)
+    grant_mode(owner_user, MODE_BORDERLINE)
     c = mode_client(MODE_NORMAL)
     before = _claims(c)["exp"]
 
@@ -181,7 +181,7 @@ def test_widening_with_the_right_password_still_keeps_the_expiry(
 
 
 def test_switching_to_an_ungranted_mode_is_refused_and_not_as_a_password_problem(
-    db_session, mode_client, admin_user
+    db_session, mode_client, owner_user
 ):
     """The account may not use this mode AT ALL. Answering `requires_password`
     would invite the SPA to prompt for a password that cannot help."""
@@ -197,7 +197,7 @@ def test_switching_to_an_ungranted_mode_is_refused_and_not_as_a_password_problem
 
 
 def test_switching_to_a_mode_that_does_not_exist_answers_the_same(
-    mode_client, admin_user
+    mode_client, owner_user
 ):
     """Indistinguishable from an ungranted one: which modes exist is not this
     caller's business."""

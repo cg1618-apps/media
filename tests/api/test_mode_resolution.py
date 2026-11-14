@@ -43,11 +43,11 @@ def _ceiling(db, user, key):
     db.flush()
 
 
-def test_a_granted_mode_resolves_to_its_sets(db_session, admin_user, label):
+def test_a_granted_mode_resolves_to_its_sets(db_session, owner_user, label):
     mode = _mode(db_session, MODE_UNRESTRICTED)
-    _ceiling(db_session, admin_user, MODE_UNRESTRICTED)
+    _ceiling(db_session, owner_user, MODE_UNRESTRICTED)
 
-    resolved = resolve_mode(db_session, admin_user, mode.system_id)
+    resolved = resolve_mode(db_session, owner_user, mode.system_id)
 
     assert resolved.mode_key == MODE_UNRESTRICTED
     # Every label there is: this one and the system `h-comic` label.
@@ -58,16 +58,16 @@ def test_a_granted_mode_resolves_to_its_sets(db_session, admin_user, label):
     assert "sources_restricted" in resolved.field_groups
 
 
-def test_denials_subtract(db_session, admin_user, label):
+def test_denials_subtract(db_session, owner_user, label):
     mode = _mode(db_session, MODE_UNRESTRICTED)
-    _ceiling(db_session, admin_user, MODE_UNRESTRICTED)
+    _ceiling(db_session, owner_user, MODE_UNRESTRICTED)
     db_session.add(
-        models.UserAccessModeDenial(user_id=admin_user.id, label_id=label.system_id)
+        models.UserAccessModeDenial(user_id=owner_user.id, label_id=label.system_id)
     )
     db_session.flush()
     cache.bump()
 
-    resolved = resolve_mode(db_session, admin_user, mode.system_id)
+    resolved = resolve_mode(db_session, owner_user, mode.system_id)
 
     assert label.system_id not in resolved.label_ids
     assert resolved.label_ids == frozenset(
@@ -79,61 +79,61 @@ def test_denials_subtract(db_session, admin_user, label):
 
 
 def test_a_mode_above_the_ceiling_resolves_to_nothing(
-    db_session, admin_user, label
+    db_session, owner_user, label
 ):
     """NOT to the account's default or its ceiling: a session sitting in a
     mode the account can no longer use has no claim to anything."""
-    _ceiling(db_session, admin_user, MODE_SAFE)
+    _ceiling(db_session, owner_user, MODE_SAFE)
 
     for key in (MODE_NORMAL, MODE_UNRESTRICTED):
         above = _mode(db_session, key)
-        assert resolve_mode(db_session, admin_user, above.system_id) == EMPTY_MODE
+        assert resolve_mode(db_session, owner_user, above.system_id) == EMPTY_MODE
 
 
-def test_a_mode_at_the_ceiling_resolves(db_session, admin_user, label):
+def test_a_mode_at_the_ceiling_resolves(db_session, owner_user, label):
     """The mirror, on the same account."""
-    _ceiling(db_session, admin_user, MODE_SAFE)
+    _ceiling(db_session, owner_user, MODE_SAFE)
 
     resolved = resolve_mode(
-        db_session, admin_user, _mode(db_session, MODE_SAFE).system_id
+        db_session, owner_user, _mode(db_session, MODE_SAFE).system_id
     )
 
     assert resolved.mode_key == MODE_SAFE
 
 
-def test_an_account_with_no_mode_resolves_to_nothing(db_session, admin_user, label):
-    admin_user.mode_ceiling = None
-    admin_user.mode_default = None
+def test_an_account_with_no_mode_resolves_to_nothing(db_session, owner_user, label):
+    owner_user.mode_ceiling = None
+    owner_user.mode_default = None
     db_session.flush()
 
     assert (
-        resolve_mode(db_session, admin_user, _mode(db_session, MODE_SAFE).system_id)
+        resolve_mode(db_session, owner_user, _mode(db_session, MODE_SAFE).system_id)
         == EMPTY_MODE
     )
 
 
-def test_a_mode_outside_the_order_resolves_to_nothing(db_session, admin_user, label):
+def test_a_mode_outside_the_order_resolves_to_nothing(db_session, owner_user, label):
     """A hand-made mode has no rank, so no ceiling reaches it."""
     custom = models.AccessMode(key="custom-resolution", label="Custom")
     db_session.add(custom)
     db_session.flush()
-    _ceiling(db_session, admin_user, MODE_UNRESTRICTED)
+    _ceiling(db_session, owner_user, MODE_UNRESTRICTED)
 
-    assert resolve_mode(db_session, admin_user, custom.system_id) == EMPTY_MODE
+    assert resolve_mode(db_session, owner_user, custom.system_id) == EMPTY_MODE
 
 
-def test_an_unknown_mode_id_resolves_to_nothing(db_session, admin_user, label):
-    assert resolve_mode(db_session, admin_user, uuid.uuid4()) == EMPTY_MODE
+def test_an_unknown_mode_id_resolves_to_nothing(db_session, owner_user, label):
+    assert resolve_mode(db_session, owner_user, uuid.uuid4()) == EMPTY_MODE
 
 
 def test_a_logged_in_account_with_no_claim_resolves_to_nothing(
-    db_session, admin_user, label
+    db_session, owner_user, label
 ):
     """A signed-in caller does NOT fall through to the guest default: that
     would be a fallback that can widen, and the guest mode is not this
     account's policy."""
-    _ceiling(db_session, admin_user, MODE_SAFE)
-    assert resolve_mode(db_session, admin_user, None) == EMPTY_MODE
+    _ceiling(db_session, owner_user, MODE_SAFE)
+    assert resolve_mode(db_session, owner_user, None) == EMPTY_MODE
 
 
 def test_no_user_resolves_to_safe(db_session, label):

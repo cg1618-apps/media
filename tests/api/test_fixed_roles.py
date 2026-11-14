@@ -81,7 +81,7 @@ def test_the_role_response_has_no_is_system(admin_client):
 def test_an_unknown_role_name_is_locked_out_of_everything():
     """Such a row cannot exist after the migration; if one appears anyway,
     the lock table must not hand it the free choices."""
-    on, off = locked_permissions("friend", False)
+    on, off = locked_permissions("friend")
     assert on == frozenset()
     assert off == static_catalog()
 
@@ -90,7 +90,7 @@ def test_every_known_role_has_free_choices():
     """Mirror of the unknown-name case: the fail-closed branch is reached only
     by a stranger, never by one of the five."""
     for name in (USER_ROLE_NAME, SHARED_ROLE_NAME, "guest"):
-        on, off = locked_permissions(name, False)
+        on, off = locked_permissions(name)
         assert static_catalog() - on - off, name
 
 
@@ -258,7 +258,7 @@ def test_user_saves_without_one_ordinary_type(admin_client):
 
 def test_the_ordinary_types_are_free_for_user_guest_and_shared():
     for name in (USER_ROLE_NAME, "guest", SHARED_ROLE_NAME):
-        on, off = locked_permissions(name, False)
+        on, off = locked_permissions(name)
         assert not ORDINARY & (on | off), name
 
 
@@ -296,7 +296,7 @@ def test_boot_strips_a_stray_role_of_everything(db_session):
     """A role row outside the five - only a hand edit could make one - keeps
     nothing across a boot."""
     stray = models.Role(
-        system_id=uuid.uuid4(), name="friend", label="Friend", is_root=False
+        system_id=uuid.uuid4(), name="friend", label="Friend"
     )
     db_session.add(stray)
     db_session.flush()

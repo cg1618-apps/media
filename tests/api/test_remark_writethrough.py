@@ -35,9 +35,9 @@ def _remark_rows(db_session, owner_type, owner_id):
 
 
 def test_patching_an_anime_remark_creates_one_note_row(
-    admin_client, db_session, sample_anime
+    owner_client, db_session, sample_anime
 ):
-    res = admin_client.patch(
+    res = owner_client.patch(
         f"/api/anime/{sample_anime.system_id}", json={"remark": "重看第三次"}
     )
     assert res.status_code == 200
@@ -46,12 +46,12 @@ def test_patching_an_anime_remark_creates_one_note_row(
 
 
 def test_patching_without_remark_leaves_the_note_alone(
-    admin_client, db_session, sample_anime
+    owner_client, db_session, sample_anime
 ):
-    admin_client.patch(
+    owner_client.patch(
         f"/api/anime/{sample_anime.system_id}", json={"remark": "keep me"}
     )
-    res = admin_client.patch(
+    res = owner_client.patch(
         f"/api/anime/{sample_anime.system_id}", json={"ep_fin": 5}
     )
     assert res.status_code == 200
@@ -59,12 +59,12 @@ def test_patching_without_remark_leaves_the_note_alone(
 
 
 def test_patching_an_empty_remark_clears_the_note(
-    admin_client, db_session, sample_anime
+    owner_client, db_session, sample_anime
 ):
-    admin_client.patch(
+    owner_client.patch(
         f"/api/anime/{sample_anime.system_id}", json={"remark": "temporary"}
     )
-    res = admin_client.patch(
+    res = owner_client.patch(
         f"/api/anime/{sample_anime.system_id}", json={"remark": ""}
     )
     assert res.status_code == 200
@@ -93,9 +93,9 @@ def test_a_notes_page_edit_shows_up_on_the_entry(
 
 
 def test_creating_a_movie_with_a_remark_makes_exactly_one_row(
-    admin_client, db_session, sample_franchise
+    owner_client, db_session, sample_franchise
 ):
-    res = admin_client.post(
+    res = owner_client.post(
         "/api/movies/",
         json={
             "movie_name_en": "Remarked Movie",
@@ -110,9 +110,9 @@ def test_creating_a_movie_with_a_remark_makes_exactly_one_row(
 
 
 def test_creating_a_collection_with_a_remark_makes_exactly_one_row(
-    admin_client, db_session
+    owner_client, db_session
 ):
-    res = admin_client.post(
+    res = owner_client.post(
         "/api/collection/",
         json={"collection_name_en": "Remarked Collection", "remark": "hub remark"},
     )
@@ -123,21 +123,21 @@ def test_creating_a_collection_with_a_remark_makes_exactly_one_row(
     assert len(_remark_rows(db_session, "collection", uuid.UUID(body["system_id"]))) == 1
 
 
-def test_the_review_queue_still_finds_remarks(admin_client, db_session, sample_anime):
-    admin_client.patch(
+def test_the_review_queue_still_finds_remarks(owner_client, db_session, sample_anime):
+    owner_client.patch(
         f"/api/anime/{sample_anime.system_id}", json={"remark": "needs a rewatch"}
     )
-    res = admin_client.get("/api/data-control/check/remarks")
+    res = owner_client.get("/api/data-control/check/remarks")
     assert res.status_code == 200
     remarks = [e["remark"] for e in res.json()["anime"]]
     assert "needs a rewatch" in remarks
 
 
-def test_the_entry_list_carries_the_remark(admin_client, db_session, sample_anime):
-    admin_client.patch(
+def test_the_entry_list_carries_the_remark(owner_client, db_session, sample_anime):
+    owner_client.patch(
         f"/api/anime/{sample_anime.system_id}", json={"remark": "on the list too"}
     )
-    res = admin_client.get("/api/anime/")
+    res = owner_client.get("/api/anime/")
     assert res.status_code == 200
     got = [e for e in res.json() if e["system_id"] == str(sample_anime.system_id)]
     assert got and got[0]["remark"] == "on the list too"

@@ -138,11 +138,11 @@ class TestSingleReplaceRunsBothSources:
         assert entry.price_original_us == Decimal("59.99")
         assert all(source == "steam" for source, _ in calls)
 
-    def test_the_route_runs_igdb(self, key, admin_client, db_session, calls):
+    def test_the_route_runs_igdb(self, key, owner_client, db_session, calls):
         """The endpoint behind the detail page's Autofill button."""
         entry = MAKERS[key](db_session, igdb_id=1029)
         db_session.commit()
-        response = admin_client.post(f"/api/data-control/replace/{key}/{entry.system_id}")
+        response = owner_client.post(f"/api/data-control/replace/{key}/{entry.system_id}")
 
         assert response.status_code == 200, response.text
         assert ("igdb", 1029) in calls

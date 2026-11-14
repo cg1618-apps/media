@@ -53,7 +53,7 @@ def historical_schema(db_session):
 
 
 @pytest.fixture
-def legacy_rows(db_session, admin_user, historical_schema):
+def legacy_rows(db_session, owner_user, historical_schema):
     """One row of every kind for each removed group, and the same kinds for
     sources_restricted, which must survive."""
     ensure_access_mode_seed(db_session)
@@ -78,7 +78,7 @@ def legacy_rows(db_session, admin_user, historical_schema):
                 "(system_id, user_id, field_group_key) "
                 "VALUES (gen_random_uuid(), :u, :k)"
             ),
-            {"u": admin_user.id, "k": key},
+            {"u": owner_user.id, "k": key},
         )
         db_session.execute(
             text(
@@ -88,7 +88,7 @@ def legacy_rows(db_session, admin_user, historical_schema):
             {"r": guest.system_id, "p": f"field_group.{key}"},
         )
     db_session.flush()
-    return normal, admin_user, guest
+    return normal, owner_user, guest
 
 
 def _keys(db, sql, **params):

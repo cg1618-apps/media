@@ -11,6 +11,50 @@ import {
   visibleSections,
 } from "./navigation";
 
+// The nine ordinary media types: the whole of the guest role
+// (default_guest_permissions in app/services/rbac/seed.py), and part of every
+// member's. The Library tab asks for any one of them.
+const MEDIA_TYPE_KEYS = [
+  "media_type.anime",
+  "media_type.anime-movie",
+  "media_type.manga",
+  "media_type.novel",
+  "media_type.game",
+  "media_type.tv-show",
+  "media_type.movie",
+  "media_type.cartoon",
+  "media_type.comic",
+];
+const GUEST = new Set(MEDIA_TYPE_KEYS);
+const holdsGuest = (p) => GUEST.has(p);
+
+// The admin role's fixed set (ADMIN_FIXED_PERMISSIONS in
+// app/services/rbac/permissions.py): its own pages, and no catalogue key.
+const ADMIN = new Set([
+  "admin.authz",
+  "manage.pipelines",
+  "manage.requests",
+  "manage.announcements",
+  "manage.options",
+  "manage.images",
+  "manage.resources",
+]);
+const holdsAdmin = (p) => ADMIN.has(p);
+
+// A user's keys as seeded (default_user_permissions): the guest's, the
+// non-entity view.* keys and its own rows. No manage.* at all.
+const USER = new Set([
+  ...MEDIA_TYPE_KEYS,
+  "view.search",
+  "view.extras",
+  "view.personal",
+  "self.list",
+  "self.personal_notes",
+  "self.requests",
+  "self.password",
+]);
+const holdsUser = (p) => USER.has(p);
+
 // The section a route's item sits in, by key.
 function ownersOf(to) {
   return NAV_SECTIONS.filter((s) =>
@@ -138,17 +182,17 @@ describe("NAV_SECTIONS", () => {
     expect(itemRequirement({ to: "/statistics" })).toBeNull();
   });
 
-  it("lists Resources in Insights right after Memes, as an extra", () => {
-    // Resources is an extra (view.extras); Quotes and Memes beside it follow
-    // the account's quotes_memes feature switch instead. Only the edit
-    // controls ask for manage.catalog, and they ask inside the page.
+  it("lists Resources in Insights right after Memes, on manage.resources", () => {
+    // Resources is the admin's and super's alone (manage.resources, reads and
+    // writes); Quotes and Memes beside it follow the account's quotes_memes
+    // feature switch instead.
     expect(ownersOf("/resources")).toEqual(["insights"]);
     const insights = NAV_SECTIONS.find((s) => s.key === "insights");
     const items = sectionItems(insights);
     const tos = items.map((i) => i.to);
     expect(tos.indexOf("/resources")).toBe(tos.indexOf("/meme") + 1);
     const row = (to) => items.find((i) => i.to === to);
-    expect(itemRequirement(row("/resources"))).toBe("view.extras");
+    expect(itemRequirement(row("/resources"))).toBe("manage.resources");
     expect(row("/quote").feature).toBe("quotes_memes");
     expect(row("/meme").feature).toBe("quotes_memes");
   });
@@ -213,17 +257,33 @@ describe("NAV_SECTIONS", () => {
     expect(sectionItems(withInbox).map((i) => i.to)).toContain("/request-inbox");
   });
 
-  it("gates Entry and Note on manage.catalog", () => {
+  it("gates Entry and Note on any of the keys their rows ask", () => {
+    // The admin holds manage.images and manage.options but not
+    // manage.catalog, so a tab gated on manage.catalog alone would hide
+    // pages the admin may open. Each row asks its own key.
     const entry = NAV_SECTIONS.find((s) => s.key === "entry");
     const note = NAV_SECTIONS.find((s) => s.key === "note");
-    expect(sectionRequirement(entry)).toBe("manage.catalog");
-    expect(sectionRequirement(note)).toBe("manage.catalog");
+    expect(sectionRequirement(entry)).toEqual(["manage.catalog", "manage.images"]);
+    expect(sectionRequirement(note)).toEqual([
+      "manage.options",
+      "admin.authz",
+      "manage.catalog",
+      "manage.pipelines",
+    ]);
+    const row = (section, to) => sectionItems(section).find((i) => i.to === to);
+    for (const to of ["/add", "/modify", "/delete", "/defaults", "/random-defaults"]) {
+      expect(itemRequirement(row(entry, to)), to).toBe("manage.catalog");
+    }
+    expect(itemRequirement(row(entry, "/images"))).toBe("manage.images");
+    for (const to of ["/options", "/aliases", "/external-apis"]) {
+      expect(itemRequirement(row(note, to)), to).toBe("manage.options");
+    }
   });
 
   it("lists the label reference once, under Note, for admin and super alike", () => {
     // Super holds manage.catalog and never opens Admin; the admin holds
-    // everything (root). One row in a section both see, so neither is sent
-    // to look for it and the admin is not shown it twice.
+    // admin.authz. One row in a section both see, so neither is sent to look
+    // for it and the admin is not shown it twice.
     expect(ownersOf("/content-labels")).toEqual(["note"]);
     const note = NAV_SECTIONS.find((s) => s.key === "note");
     const item = sectionItems(note).find((i) => i.to === "/content-labels");
@@ -280,11 +340,11 @@ describe("visibleSections", () => {
   });
 
   it("drops the admin-only rows from a section a member may open", () => {
-    // view.extras opens Insights (Resources); the insights section being
+    // manage.resources opens Insights (Resources); the insights section being
     // drawn at all is what lets the manage.catalog rows be dropped by their
     // own gate.
-    const holdsExtras = (p) => p === "view.extras";
-    const [insights] = visibleSections(NAV_SECTIONS, holdsExtras).filter(
+    const holdsResources = (p) => p === "manage.resources";
+    const [insights] = visibleSections(NAV_SECTIONS, holdsResources).filter(
       (s) => s.key === "insights",
     );
     const routes = sectionItems(insights).map((i) => i.to);
@@ -294,14 +354,15 @@ describe("visibleSections", () => {
   });
 
   it("shows Quotes and Memes only to an account with the feature switch", () => {
-    // view.extras is held in both cases, so the switch is what decides.
-    const holdsExtras = (p) => p === "view.extras";
+    // self.list is held in both cases - it draws Insights (Statistics) - so
+    // the switch is what decides.
+    const holdsSelfList = (p) => p === "self.list";
     const routesFor = (hasFeature) =>
-      visibleSections(NAV_SECTIONS, holdsExtras, undefined, hasFeature).flatMap(
+      visibleSections(NAV_SECTIONS, holdsSelfList, undefined, hasFeature).flatMap(
         (s) => sectionItems(s).map((i) => i.to),
       );
     const without = routesFor(() => false);
-    expect(without).toContain("/resources");
+    expect(without).toContain("/statistics");
     expect(without).not.toContain("/quote");
     expect(without).not.toContain("/meme");
     // Mirror: the same viewer with the switch on.
@@ -379,9 +440,15 @@ describe("visibleSections", () => {
     expect(visibleSections(sections, holdsEverything)).toEqual(sections);
   });
 
-  it("leaves the ungated Library section alone either way", () => {
-    const keys = visibleSections(NAV_SECTIONS, holdsNothing).map((s) => s.key);
-    expect(keys).toContain("library");
+  it("shows Library to a holder of any ordinary media type, and to nobody else", () => {
+    // The admin holds a non-empty set with no media_type.* in it, so the
+    // refusal is the gate's doing; the guest's nine keys are the mirror, and
+    // any one of them alone is enough.
+    const keysFor = (has) => visibleSections(NAV_SECTIONS, has).map((s) => s.key);
+    expect(keysFor(holdsAdmin)).not.toContain("library");
+    expect(keysFor(holdsNothing)).not.toContain("library");
+    expect(keysFor(holdsGuest)).toContain("library");
+    expect(keysFor((p) => p === "media_type.comic")).toContain("library");
   });
 
   it("still understands the older adminOnly spelling", () => {
@@ -410,7 +477,7 @@ describe("visibleSections", () => {
     );
     expect(note).toBeDefined();
     const routes = sectionItems(note).map((i) => i.to);
-    expect(routes).toContain("/external-apis");
+    expect(routes).toContain("/content-labels");
     expect(routes).not.toContain("/business-logic");
   });
 
@@ -427,10 +494,12 @@ describe("visibleSections", () => {
 });
 
 describe("visibleSections - the guest scope", () => {
-  // A guest holds no view.* key. What it keeps is the Library tab's Groups
-  // and media-type columns; everything else is a member's.
-  const holdsNothing = () => false;
+  // A guest holds the nine ordinary media types and no view.* key. What it
+  // keeps is the Library tab's Groups and media-type columns; everything
+  // else is a member's.
+  const holdsNothing = holdsGuest;
   const MEMBER = new Set([
+    ...MEDIA_TYPE_KEYS,
     "self.list",
     "view.studio",
     "view.publisher",
@@ -474,7 +543,6 @@ describe("visibleSections - the guest scope", () => {
       "/random",
       "/quote",
       "/meme",
-      "/resources",
       "/library/studio",
       "/library/seiyuu",
     ];
@@ -496,8 +564,10 @@ describe("visibleSections - the entity rows, one key per kind", () => {
     "/library/character": "view.character",
   };
   const KEYS = [...new Set(Object.values(ENTITY_ROWS))];
+  // The guest's media types are held throughout, so the Library tab is drawn
+  // and only the entity keys vary.
   const routesHolding = (held) =>
-    visibleSections(NAV_SECTIONS, (p) => held.includes(p)).flatMap((s) =>
+    visibleSections(NAV_SECTIONS, (p) => GUEST.has(p) || held.includes(p)).flatMap((s) =>
       sectionItems(s).map((i) => i.to),
     );
 
@@ -549,7 +619,14 @@ describe("the two permission surfaces agree", () => {
     "/future-releases": "view.extras",
     "/completions": "view.extras",
     "/random": "view.extras",
-    "/resources": "view.extras",
+    "/resources": "manage.resources",
+    "/options": "manage.options",
+    "/aliases": "manage.options",
+    "/external-apis": "manage.options",
+    "/images": "manage.images",
+    "/add": "manage.catalog",
+    "/defaults": "manage.catalog",
+    "/random-defaults": "manage.catalog",
     "/request-inbox": "manage.requests",
   };
 
@@ -698,5 +775,57 @@ describe("the gated hentai row", () => {
     expect(activeSectionKey("/hentai/3")).toBe("restricted");
     // /anime/... is not /hentai/...: the Anime row keeps its own pages.
     expect(activeItem("/anime/3/some-title").item).not.toBe(item);
+  });
+});
+
+describe("visibleSections - the admin, who is not root", () => {
+  // The admin holds exactly its own pages' keys. Its header is those pages
+  // and nothing of the catalogue; a user is the mirror, holding a non-empty
+  // set with none of the admin's keys in it.
+  const routesFor = (has) =>
+    visibleSections(NAV_SECTIONS, has, undefined, () => false).flatMap((s) =>
+      sectionItems(s).map((i) => i.to),
+    );
+  const NOTE_PAGES = ["/content-labels", "/options", "/aliases", "/external-apis"];
+
+  it("shows the admin Content Labels and the three Note pages under Note", () => {
+    const note = visibleSections(NAV_SECTIONS, holdsAdmin).find((s) => s.key === "note");
+    expect(note).toBeDefined();
+    const routes = sectionItems(note).map((i) => i.to);
+    for (const to of NOTE_PAGES) expect(routes, to).toContain(to);
+  });
+
+  it("shows a user none of them", () => {
+    const routes = routesFor(holdsUser);
+    // The user's header is drawn - it is not an empty set doing the refusing.
+    expect(routes).toContain("/plan");
+    for (const to of NOTE_PAGES) expect(routes, to).not.toContain(to);
+  });
+
+  it("shows the admin its own pages and no library, entry form or Plan", () => {
+    const routes = routesFor(holdsAdmin);
+    for (const to of ["/users", "/system", "/request-inbox", "/images", "/resources"]) {
+      expect(routes, to).toContain(to);
+    }
+    for (const to of ["/library/anime", "/library/collection", "/plan", "/add", "/random"]) {
+      expect(routes, to).not.toContain(to);
+    }
+  });
+});
+
+describe("visibleSections - Resources", () => {
+  const routesFor = (has) =>
+    visibleSections(NAV_SECTIONS, has).flatMap((s) => sectionItems(s).map((i) => i.to));
+
+  it("is not offered to a user", () => {
+    // The user's Insights tab is drawn (Statistics), so the missing row is
+    // its own gate's doing.
+    const routes = routesFor(holdsUser);
+    expect(routes).toContain("/statistics");
+    expect(routes).not.toContain("/resources");
+  });
+
+  it("is offered to super, which holds every key but admin.authz", () => {
+    expect(routesFor((p) => p !== "admin.authz")).toContain("/resources");
   });
 });

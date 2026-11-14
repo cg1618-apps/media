@@ -80,13 +80,13 @@ def test_a_filled_studio_is_no_longer_eligible(db_session):
     assert spec.fill_eligible(db_session, done) is False
 
 
-def test_the_pipeline_fills_a_linked_studio(admin_client, db_session, patched_tenrai):
+def test_the_pipeline_fills_a_linked_studio(owner_client, db_session, patched_tenrai):
     studio = models.Studio(name_en="MAPPA", mal_id=569)
     db_session.add(studio)
     db_session.commit()
     studio_id = studio.system_id
 
-    response = admin_client.post("/api/data-control/fill/studio")
+    response = owner_client.post("/api/data-control/fill/studio")
     assert response.status_code == 200
     assert "success" in response.text
 
@@ -98,7 +98,7 @@ def test_the_pipeline_fills_a_linked_studio(admin_client, db_session, patched_te
 
 
 def test_the_pipeline_extracts_the_mal_id_from_a_pasted_link(
-    admin_client, db_session, patched_tenrai
+    owner_client, db_session, patched_tenrai
 ):
     """
     A studio entered with only the producer URL is queued: extract_id runs over
@@ -112,7 +112,7 @@ def test_the_pipeline_extracts_the_mal_id_from_a_pasted_link(
     db_session.commit()
     studio_id = studio.system_id
 
-    admin_client.post("/api/data-control/fill/studio")
+    owner_client.post("/api/data-control/fill/studio")
 
     db_session.expire_all()
     filled = db_session.get(models.Studio, studio_id)
