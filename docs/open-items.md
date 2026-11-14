@@ -237,6 +237,18 @@ It is left until a run on CI goes red on one of them.
 
 ## Frontend
 
+**The controls for each account's own data are plain placeholders, waiting
+for the owner's designs.** They are built from existing controls and the
+design system so the behaviour can be used, and their look is undecided:
+
+- the per-unit rating and remark on the novel page;
+- reordering highlight groups, which is the existing drag;
+- editing a personal value on a catalogue note row (collected, beaten,
+  completion, my value, the music and mod statuses) and the NG reset button;
+- how a personal row sits among the catalogue rows of a mixed section,
+  including its **Mine** chip;
+- the favourite star on quotes and memes.
+
 | Item | Where |
 |---|---|
 | Games and comics are absent from the cover lists | `FranchiseLibrary`, `CollectionLibrary`, `CollectionPage`, `usePlanData` |
