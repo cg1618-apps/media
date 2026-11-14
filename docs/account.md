@@ -1,6 +1,6 @@
 # Your account
 
-Last verified: 2026-11-13
+Last verified: 2026-11-14
 
 ## What this is for
 
@@ -22,8 +22,8 @@ technical detail — how sign-in works underneath is
 - **The admin** — the owner's account. It runs the site and keeps no list or
   notes of its own.
 - **A shared account** — one login several people use, handed out by the
-  admin: `shared-normal` or `shared-borderline`, each fixed at its own
-  content mode. You can browse and send requests and reports, but not change
+  admin: `shared-normal` or `shared-borderline`, each with the content modes
+  the admin set for it. You can browse and send requests and reports, but not change
   its password, and keep no list or notes on it. Anything sent from it shows
   the shared account as its author, and everyone using that login sees its
   requests.
@@ -83,7 +83,8 @@ password. Remove one with its **×**.
 
 **Access mode.** Once signed in, the mode switcher in the header changes how
 much of the collection you see, among the modes up to your account's
-ceiling. A shared account's mode is fixed, so it has no switcher.
+ceiling. A shared account switches like any other: narrowing is free, and
+widening asks for the shared password.
 
 An account waiting for approval is told so after the right password; a
 wrong password just says the sign-in failed.

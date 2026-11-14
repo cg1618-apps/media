@@ -2753,9 +2753,8 @@ exactly what it is being kept from.
 
 `mode` is the active access mode. `modes` lists every mode this account may
 switch to - each one ranked at or below its ceiling, narrowest first - each
-with `{id, key, label, is_active, requires_password}`. A shared account's
-mode is fixed, so it is offered its own mode alone, and the switcher, which
-needs two, does not render.
+with `{id, key, label, is_active, requires_password}`. A shared account is
+offered its modes the same way.
 
 `requires_password` is the subset test computed **server-side**: narrowing is
 free, adding even one content label or field group asks for the password
@@ -2786,7 +2785,6 @@ Change the active access mode without logging out.
 | **401** | widening with the wrong password |
 | **404** | a mode above this account's ceiling, *and* a mode that does not exist - identical answers, because which modes exist is not the caller's business. Deliberately **not** flagged `requires_password`: it is not a password problem, and saying so would invite a prompt that cannot help |
 | **401** | a guest: no account, nothing to switch between |
-| **409** `A shared account's mode is fixed.` | a shared account, whatever mode it names: several people use the login, and a switch would be one person's choice made for all of them |
 
 **A switched-to mode is temporary.** Switching to any mode other than the
 account's default sets the `access_mode` cookie: a browser-session cookie (no
@@ -2829,9 +2827,8 @@ in one payload. `ceiling` and `default` are mode keys.
   "denied_label_keys": [], "denied_field_group_keys": [] }
 ```
 
-**409** on a shared account (`A shared account's mode is fixed.`): its
-ceiling and default are its own mode, re-asserted on every boot. **409** on
-the admin account (`The admin account has no mode.`): its ceiling and
+A shared account's ceiling and default are set here like any account's.
+**409** on the admin account (`The admin account has no mode.`): its ceiling and
 default are NULL, also re-asserted on every boot, because it reads no
 catalogue. **422** for
 an unknown key, for exactly one of `ceiling` / `default` null, and

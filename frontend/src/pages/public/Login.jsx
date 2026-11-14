@@ -43,18 +43,15 @@ export default function Login() {
       if (res.ok) {
         // Only a sign-in that worked earns a slot, so a typo never spends one.
         rememberUser(formData.get("username"));
-        const params = new URLSearchParams(location.search);
-        const next = params.get("next");
-        // Must start with "/" (an absolute URL would be an open redirect) and
-        // must not point back at /login - that lands a signed-in visitor on
-        // this form again with their real destination buried a level deeper.
-        // The negative lookahead keeps a genuine page like /loginary usable.
-        const usable =
-          next && next.startsWith("/") && !/^\/login(?![\w-])/.test(next);
+        // Always the dashboard, never the page the visitor came from: that
+        // page belonged to whoever was signed in before (or to a guest), and
+        // the account signing in now may not be allowed to open it - landing
+        // there would only bounce straight back to this form.
+        //
         // A FULL page load, not a client-side navigate. Everything the SPA
-        // cached up to this moment it cached as a guest, and the destination
+        // cached up to this moment it cached as a guest, and the dashboard
         // would be drawn from that cache.
-        hardNavigate(usable ? next : "/system");
+        hardNavigate("/");
       } else {
         // The server's detail is shown as it comes: the generic 401, the two
         // 403s a pending or disabled account earns after the right password,
