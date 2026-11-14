@@ -1,38 +1,41 @@
 # Admin Pages
 
-Last verified: 2026-11-13
+Last verified: 2026-11-14
 
-**What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
-in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
+**What this is for.** Every administrative route behind `ProtectedRoute` in
+`frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
 the rules that are easy to get wrong (cascade deletes, enrichment, form
 defaults). Public pages are in [pages.md](pages.md); the shared data layer,
 theming and component catalog are in [components.md](components.md); the
 server side of every action is in [../api.md](../api.md) and
 [../data-actions.md](../data-actions.md).
 
-All admin routes are lazy chunks (loaded on first navigation) and sit under
-the `Admin` nav section, which only renders when `useAuth().has("admin")`.
+All admin routes are lazy chunks (loaded on first navigation). Each sits
+inside a `<ProtectedRoute>` naming its own key, and its nav row asks the
+same one. The admin account holds no `manage.catalog`, so of these it
+reaches the pipeline pages, the inbox, `/images`, the Note pages, the
+label reference and the RBAC pages — never the catalogue editors.
 
-| Route | File | Purpose |
-|---|---|---|
-| `/system` | `pages/admin/Admin.jsx` | Control Center: pipelines, announcements, review modals |
-| `/data-history` | `pages/admin/DataHistory.jsx` | Data-control logs and deleted-record audit |
-| `/review-queue` | `pages/admin/ReviewQueue.jsx` | Checks that list something to look at: remarks, duplicates, music, single-entry groups |
-| `/request-inbox` | `pages/admin/RequestInbox.jsx` | Every account's requests and reports: mark done or declined, reopen, delete; `manage.requests` only |
-| `/add` | `pages/admin/Add.jsx` + `pages/add-tabs/*` | Create entries, groups, options, quotes, memes |
-| `/images` | `pages/admin/Images.jsx` | Image library: upload, filter, detach, delete |
-| `/modify` | `pages/admin/Modify.jsx` + `pages/modify-tabs/*` | Edit an existing row (deep link `?id=`) |
-| `/delete` | `pages/admin/Delete.jsx` | Delete with cascade / orphan handling |
-| `/defaults` | `pages/admin/FormDefaults.jsx` + `pages/defaults-tabs/DefaultsTab.jsx` | Per-type form defaults |
-| `/random-defaults` | `pages/admin/PickerDefaults.jsx` | Per-mode Random Picker default filters |
-| `/watch-orders` | `pages/admin/WatchOrders.jsx` | Watch-order lists editor |
-| `/relations` | `pages/admin/Relations.jsx` | Relations canvas |
-| `/options` | `pages/admin/SystemOptions.jsx` | Read-only view of the three option tiers |
-| `/aliases` | `pages/admin/Aliases.jsx` | Read-only view of the external-source names, inverted by source |
-| `/external-apis` | `pages/admin/ExternalApis.jsx` | Read-only view of which field each external API writes, and whether it fills or replaces it |
-| `/business-logic` | `pages/admin/BusinessLogic.jsx` + `pages/admin/businessLogicTopics.js` | Read-only account of what Calculate All changes, step by step; `manage.pipelines` only |
-| `/roles`, `/users`, `/access-modes` | `pages/admin/{Roles,Users,AccessModes}.jsx` | RBAC administration |
-| `/content-labels` | `pages/admin/ContentLabels.jsx` | The read-only label reference; `admin.authz` **or** `manage.catalog` |
+| Route | File | Purpose | Key |
+|---|---|---|---|
+| `/system` | `pages/admin/Admin.jsx` | Control Center: pipelines, announcements, review modals | `manage.pipelines` |
+| `/data-history` | `pages/admin/DataHistory.jsx` | Data-control logs and deleted-record audit | `manage.pipelines` |
+| `/review-queue` | `pages/admin/ReviewQueue.jsx` | Checks that list something to look at: remarks, duplicates, music, single-entry groups | `manage.pipelines` |
+| `/request-inbox` | `pages/admin/RequestInbox.jsx` | Every account's requests and reports: mark done or declined, reopen, delete | `manage.requests` |
+| `/add` | `pages/admin/Add.jsx` + `pages/add-tabs/*` | Create entries, groups, options, quotes, memes | `manage.catalog` |
+| `/images` | `pages/admin/Images.jsx` | Image library: upload, filter, detach, delete | `manage.images` |
+| `/modify` | `pages/admin/Modify.jsx` + `pages/modify-tabs/*` | Edit an existing row (deep link `?id=`) | `manage.catalog` |
+| `/delete` | `pages/admin/Delete.jsx` | Delete with cascade / orphan handling | `manage.catalog` |
+| `/defaults` | `pages/admin/FormDefaults.jsx` + `pages/defaults-tabs/DefaultsTab.jsx` | Per-type form defaults | `manage.catalog` |
+| `/random-defaults` | `pages/admin/PickerDefaults.jsx` | Per-mode Random Picker default filters | `manage.catalog` |
+| `/watch-orders` | `pages/admin/WatchOrders.jsx` | Watch-order lists editor | `manage.catalog` |
+| `/relations` | `pages/admin/Relations.jsx` | Relations canvas | `manage.catalog` |
+| `/options` | `pages/admin/SystemOptions.jsx` | Read-only view of the three option tiers | `manage.options` |
+| `/aliases` | `pages/admin/Aliases.jsx` | Read-only view of the external-source names, inverted by source | `manage.options` |
+| `/external-apis` | `pages/admin/ExternalApis.jsx` | Read-only view of which field each external API writes, and whether it fills or replaces it | `manage.options` |
+| `/business-logic` | `pages/admin/BusinessLogic.jsx` + `pages/admin/businessLogicTopics.js` | Read-only account of what Calculate All changes, step by step | `manage.pipelines` |
+| `/roles`, `/users`, `/access-modes` | `pages/admin/{Roles,Users,AccessModes}.jsx` | RBAC administration | `admin.authz` |
+| `/content-labels` | `pages/admin/ContentLabels.jsx` | The read-only label reference | `admin.authz` **or** `manage.catalog` |
 
 ---
 
@@ -109,7 +112,9 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
   and leave out an h-game row for a session that may not see the type
   (`visibleByType`), so a hidden row is never ticked or posted.
 - **Announcements.** Create / edit / delete the dashboard board
-  (`/api/announcements/`; title is the identifier — see api.md).
+  (`/api/announcements/`; title is the identifier — see api.md). Drawn only
+  for `has("manage.announcements")`, the key the writes ask — the admin and
+  super both hold it beside `manage.pipelines`.
 - **Current season.** Reads and writes `/api/system/config/current_season`
   (`"SPR 2025"` shape; not validated server-side). The season and year
   pickers default to the season after today's (`nextSeason` in
@@ -166,7 +171,7 @@ mode (the data-control router is gated on `manage.pipelines` alone).
 
 The handler's side of requests and reports
 ([../systems/requests.md](../systems/requests.md)). The route asks
-`manage.requests` — super, and the admin through root — and so does its
+`manage.requests` — super and the admin, each by lock — and so does its
 **Inbox** row, which sits in the Pipelines tab with its own `requires`.
 Data: `useRequestInbox(status)` from `api/mutations/useRequestMutations.js`
 (`GET /api/requests?status=`, key `["requests", "inbox", status]`).
@@ -865,7 +870,10 @@ find-or-create exactly as studio's is.
 ## /images (`Images.jsx`)
 
 The image library: every file ever uploaded, from this machine or another,
-behind `manage.catalog`. A drop zone accepts multiple files at once
+behind `manage.images` — the route, the Entry tab's Images row and every
+`/api/images` call. The admin holds it without `manage.catalog`, so Images is
+the one Entry row it sees; attaching an image to an entry still asks the
+entry's visibility, which the admin, reading no catalogue, never has. A drop zone accepts multiple files at once
 (`POST /api/images` per file); a grid below shows each image's thumbnail,
 size, dimensions and what it is attached to.
 
@@ -1310,6 +1318,10 @@ link opens on that scope. Details in [../systems/relations.md](../systems/relati
 Read-only: Tier 1 enums from `/api/constants`, Tier 2 options grouped by
 category with their scopes, Tier 3 people and studios. Editing happens on
 Add/Modify under System → System Option — see [../options.md](../options.md).
+The route, like `/aliases` and `/external-apis`, asks `manage.options`. The
+Tier 3 counts read `/api/person/role-counts` and `/api/studio/`, which ask
+`view.person` and `view.studio`; the admin holds neither, so for it they
+read as zero ([../open-items.md](../open-items.md)).
 
 ## /aliases (`Aliases.jsx`)
 
@@ -1396,9 +1408,9 @@ anyone remembering this file.
 ## /business-logic (`BusinessLogic.jsx`)
 
 Read-only, listed under the Note tab, but gated on `manage.pipelines` rather
-than the tab's `manage.catalog`: it explains the Control Center's actions, so
-it takes their gate - the super role holds it by grant and admin by the root
-flag. Both surfaces ask it: the row carries `requires: "manage.pipelines"` in
+than the `manage.options` its neighbours ask: it explains the Control
+Center's actions, so it takes their gate - the super role and the admin both
+hold it. Both surfaces ask it: the row carries `requires: "manage.pipelines"` in
 `config/navigation.js`, and the route sits in `App.jsx`'s
 `<ProtectedRoute permission="manage.pipelines">` block beside `/system`.
 
@@ -1426,7 +1438,10 @@ prose twin is [../data-actions.md](../data-actions.md#6-calculate-all).
   replace a role's permission set from the catalog
   (`/api/roles/catalog`). Boxes a role may not change are drawn disabled from
   the `locked_on` / `locked_off` the role itself carries, and a role with
-  nothing left to decide (`super`, `admin`) gets no Save button. The same
+  nothing left to decide (`super`, `admin`) gets no Save button. The `admin`
+  row is locked in every cell — its seven grants ticked, everything else
+  clear — so it draws wholly disabled. Each role in the list shows its grant
+  count; no role is drawn as holding everything. The same
   table answers 409 on the write path, so a box that looks editable is one the
   server will accept. Each permission family is one bordered block headed by its
   label and an icon from `FAMILY_ICONS` (`fa-key` for a family with none);
@@ -1436,16 +1451,20 @@ prose twin is [../data-actions.md](../data-actions.md#6-calculate-all).
   the three gated media types are drawn locked (on for `user`, off for the
   other two), through the same `locked_on` / `locked_off`.
 - **Users** — create users with a role, change role, set a password,
-  delete; the last administrator and your own account are protected. Both
+  delete; the server refuses deleting or disabling your own account, and
+  those refusals surface as toasts. Both
   role selects — on create and in a row's edit mode — offer only **User** and
   **Super**; an `admin` or `shared` row shows its role as text instead of a
   select. A `shared` row has no **Delete** and no access panel: its mode
-  column reads `Mode: <label> (fixed)`. The
+  column reads `Mode: <label> (fixed)`. The `admin` row has no **Delete**
+  and no access panel either: it has no mode, and its mode column reads
+  `No mode (admin)` — the server answers 409 to deleting it or giving it a
+  mode. The
   password field in a row's edit mode says that setting one signs the
   account out everywhere. The edit form also holds an **Open request limit**
   number field (blank is no limit) for any account whose role has one: not
-  for `super`, which is never limited (the server answers 422), and not for a
-  root role, which files nothing. The field follows the role chosen in the
+  for `super`, which is never limited (the server answers 422), and not for
+  `admin`, which files nothing. The field follows the role chosen in the
   same form, and `open_request_limit` is sent only when it changed — left out
   of a save that changes the role, the server resets the limit to the new
   role's default. A **Status** column shows each account's `status` as a chip

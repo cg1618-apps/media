@@ -11,8 +11,8 @@ import { AuthProvider } from "../../contexts/AuthContext";
 import { ToastProvider } from "../../hooks/useToast";
 import Index from "./Index";
 
-const MEMBER = { is_admin: false, username: "reader", role: "member", is_root: false, permissions: ["self.list"] };
-const GUEST = { is_admin: false, username: null, role: "guest", is_root: false, permissions: [] };
+const MEMBER = { is_admin: false, username: "reader", role: "member", permissions: ["self.list"] };
+const GUEST = { is_admin: false, username: null, role: "guest", permissions: [] };
 
 function respond(url, me) {
   if (url.startsWith("/api/auth/me")) return me;

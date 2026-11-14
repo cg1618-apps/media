@@ -1,12 +1,8 @@
 // Frontend: layout component file for ProtectedRoute.
 //
-// Guards a route on one permission. It defaults to "admin", a permission no
-// role holds any more (Phase A split it into admin.authz, manage.catalog and
-// manage.pipelines) - a bare <Route element={<ProtectedRoute />}> now denies
-// everyone but a root role (is_root short-circuits every check), not
-// "everyone who used to pass". Every call site below passes requireAuth or an
-// explicit permission, so nothing currently relies on the default; a new bare
-// use should pick the permission it actually needs rather than lean on this.
+// Guards a route on one permission. With none of the options below, the
+// route is open: a bare <Route element={<ProtectedRoute />}> lets everyone
+// through, so a page that needs a capability names the permission it needs.
 //
 // `requireAuth` asks the weaker question instead - "is anyone logged in?" -
 // mirroring the server's get_current_user_id. The per-user pages (Plan,
@@ -72,8 +68,7 @@ export default function ProtectedRoute({
   }
 
   // requireAuth gates on "is anyone logged in" rather than on a permission.
-  // With neither, a gated-type route asks nothing more; any other bare use
-  // keeps the old default of "admin", a permission no role holds.
+  // With none of the options, the route is open.
   const allowed = feature
     ? hasFeature(feature)
     : requireAuth
@@ -82,9 +77,7 @@ export default function ProtectedRoute({
       ? has(permission)
       : anyPermission
         ? anyPermission.some((p) => has(p))
-        : gatedType
-          ? true
-          : has("admin");
+        : true;
 
   // Without it, send them to login and preserve the page they wanted.
   return allowed ? (

@@ -47,14 +47,15 @@ function respond(url, isAdmin) {
   if (u.startsWith("/api/auth/me")) {
     return {
       is_admin: isAdmin,
-      username: isAdmin ? "admin" : "reader",
-      role: isAdmin ? "admin" : "user",
-      is_root: isAdmin,
+      // The catalogue editor is super: is_admin is manage.catalog, which the
+      // admin role does not hold.
+      username: isAdmin ? "cg1618" : "reader",
+      role: isAdmin ? "super" : "user",
       // A member's view.* keys by default: entity names link (the four entity keys)
       // and a unit's remark is shown (view.personal). The guest view of the
       // links is pinned in CastSection.test and StudioLinks.test, and of the
       // remark below.
-      permissions: viewPermissions,
+      permissions: isAdmin ? [...viewPermissions, "manage.catalog"] : viewPermissions,
     };
   }
   return [];

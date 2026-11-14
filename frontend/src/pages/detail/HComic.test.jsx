@@ -58,7 +58,6 @@ function mockFetch(entry, notes = [], relations = []) {
           is_admin: false,
           username: "cg1618",
           role: "user",
-          is_root: false,
           permissions: [],
           visible_gated_types: ["h-comic"],
         };

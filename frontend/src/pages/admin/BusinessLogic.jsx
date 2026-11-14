@@ -6,7 +6,7 @@
 // content is data (businessLogicTopics.js); this file only lays it out, so a new
 // topic is an entry in that array.
 //
-// Gated on manage.pipelines (super by grant, admin by the root flag), in
+// Gated on manage.pipelines (super and admin both hold it), in
 // App.jsx's route and in navigation.js's row - the two permission surfaces.
 import { Link } from "react-router-dom";
 

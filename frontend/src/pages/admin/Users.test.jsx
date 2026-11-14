@@ -19,7 +19,7 @@ const USERS = [
   {
     id: 1,
     username: "alice",
-    role_id: "admin",
+    role_id: "user",
     mode_ceiling: "borderline",
     mode_default: "normal",
     denied_label_keys: ["nsfw"],
@@ -27,7 +27,7 @@ const USERS = [
   },
 ];
 
-const ROLES = [{ system_id: "admin", label: "Admin" }];
+const ROLES = [{ system_id: "user", name: "user", label: "User" }];
 
 // Served out of rank order on purpose: the panel must order by `rank`.
 const MODES = [
@@ -402,13 +402,13 @@ describe("account lifecycle on /users", () => {
 
 describe("the open request limit", () => {
   // One account per role the field cares about: a user (limited), a super
-  // (never limited) and the root admin (files nothing). The super and admin
+  // (never limited) and the admin (files nothing). The super and admin
   // cases are the refusals; the user case is the mirror that proves the field
   // exists at all, so its absence elsewhere is the role's doing.
   const LIMIT_ROLES = [
-    { system_id: "r-user", name: "user", label: "User", is_root: false },
-    { system_id: "r-super", name: "super", label: "Super", is_root: false },
-    { system_id: "r-admin", name: "admin", label: "Admin", is_root: true },
+    { system_id: "r-user", name: "user", label: "User" },
+    { system_id: "r-super", name: "super", label: "Super" },
+    { system_id: "r-admin", name: "admin", label: "Admin" },
   ];
   const account = (id, username, roleId, limit) => ({
     id,
@@ -423,7 +423,7 @@ describe("the open request limit", () => {
   const LIMIT_USERS = [
     account(1, "ursula", "r-user", 15),
     account(2, "sam", "r-super", null),
-    account(3, "root", "r-admin", null),
+    account(3, "admin", "r-admin", null),
   ];
 
   beforeEach(() => {
@@ -456,8 +456,8 @@ describe("the open request limit", () => {
     expect(screen.queryByLabelText("Open request limit")).toBeNull();
   });
 
-  it("is not offered for the root account", async () => {
-    await editRow("root");
+  it("is not offered for the admin account", async () => {
+    await editRow("admin");
     expect(screen.queryByLabelText("Open request limit")).toBeNull();
   });
 
@@ -497,11 +497,11 @@ describe("the fixed roles on /users", () => {
   // All five, in the server's sort order, so a filter that let any of the
   // other three through would show up as an extra option.
   const FIVE_ROLES = [
-    { system_id: "r-guest", name: "guest", label: "Guest", is_root: false },
-    { system_id: "r-shared", name: "shared", label: "Shared", is_root: false },
-    { system_id: "r-user", name: "user", label: "User", is_root: false },
-    { system_id: "r-super", name: "super", label: "Super", is_root: false },
-    { system_id: "r-admin", name: "admin", label: "Admin", is_root: true },
+    { system_id: "r-guest", name: "guest", label: "Guest" },
+    { system_id: "r-shared", name: "shared", label: "Shared" },
+    { system_id: "r-user", name: "user", label: "User" },
+    { system_id: "r-super", name: "super", label: "Super" },
+    { system_id: "r-admin", name: "admin", label: "Admin" },
   ];
   const account = (id, username, roleName, mode) => ({
     id,
@@ -516,7 +516,8 @@ describe("the fixed roles on /users", () => {
     open_request_limit: null,
   });
   const FIXED_USERS = [
-    account(1, "alice", "admin", "unrestricted"),
+    // The admin account has no mode (ceiling and default null).
+    account(1, "alice", "admin", null),
     account(2, "bob", "user", "normal"),
     account(3, "shared-normal", "shared", "normal"),
   ];
@@ -562,13 +563,28 @@ describe("the fixed roles on /users", () => {
     expect(within(row).queryByRole("combobox", { name: "Role" })).toBeNull();
   });
 
-  it("offers Delete on a user account and not on a shared one", async () => {
+  it("offers Delete on a user account and not on a shared or admin one", async () => {
     render(<Users />);
     await screen.findByText("bob");
     expect(within(rowOf("bob")).queryByRole("button", { name: "Delete" })).toBeTruthy();
     expect(
       within(rowOf("shared-normal")).queryByRole("button", { name: "Delete" }),
     ).toBeNull();
+    // The server answers 409 to deleting the admin account.
+    expect(within(rowOf("alice")).queryByRole("button", { name: "Delete" })).toBeNull();
+  });
+
+  it("offers the admin account no mode panel, since it has no mode", async () => {
+    // The server answers 409 to a ceiling on the admin account. The user row
+    // on the same page is the mirror: its Change button is there and opens
+    // the panel.
+    render(<Users />);
+    await screen.findByText("alice");
+    const admin = rowOf("alice");
+    expect(within(admin).getByText("No mode (admin)")).toBeTruthy();
+    expect(within(admin).queryByRole("button", { name: "Change" })).toBeNull();
+    await userEvent.click(within(rowOf("bob")).getByRole("button", { name: "Change" }));
+    expect(await screen.findByText("Access for bob")).toBeTruthy();
   });
 
   it("keeps Disable on a shared account", async () => {
@@ -598,10 +614,10 @@ describe("the fixed roles on /users", () => {
  */
 describe("the feature switches on /users", () => {
   const ROLES_HERE = [
-    { system_id: "r-shared", name: "shared", label: "Shared", is_root: false },
-    { system_id: "r-user", name: "user", label: "User", is_root: false },
-    { system_id: "r-super", name: "super", label: "Super", is_root: false },
-    { system_id: "r-admin", name: "admin", label: "Admin", is_root: true },
+    { system_id: "r-shared", name: "shared", label: "Shared" },
+    { system_id: "r-user", name: "user", label: "User" },
+    { system_id: "r-super", name: "super", label: "Super" },
+    { system_id: "r-admin", name: "admin", label: "Admin" },
   ];
   const account = (id, username, roleName, features = {}) => ({
     id,

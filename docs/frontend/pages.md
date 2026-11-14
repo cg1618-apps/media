@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-11-13
+Last verified: 2026-11-14
 
 **What this is for.** This is the map of every page outside the admin
 tabs — what a guest can open, what a member adds (see "The guest scope"
@@ -66,7 +66,7 @@ are a large share of the bundle and never needed on first paint.
 | `/plan` | `public/Plan.jsx` | lazy, **login required** |
 | `/quote` | `public/Quotes.jsx` | lazy, **feature `quotes_memes`** (`<ProtectedRoute feature>`) |
 | `/meme` | `public/Memes.jsx` | lazy, **feature `quotes_memes`** |
-| `/resources` | `public/Resources.jsx` | lazy, **`view.extras`** |
+| `/resources` | `public/Resources.jsx` | lazy, **`manage.resources`** — the admin's and super's alone |
 | `/settings` | `public/Settings.jsx` — the account's username and role, a line saying the list, ratings and personal notes are visible to that account only, and the Password card for an account holding `self.password` | lazy, **`self.list`** |
 | `/requests` | `public/MyRequests.jsx` | lazy, **`self.requests`** |
 | `/under-development` | `public/UnderDevelopment.jsx` | eager |
@@ -87,8 +87,8 @@ the media and the groups and nothing else: the dashboard's Announcements and
 Broadcast schedule, the `/library/:type` lists, `/library/collection`,
 `/library/franchise`, and the entry, collection, franchise, series and
 watch-order pages they lead to. Everything else a member reads is behind a
-`view.*` permission, which `super` holds, `admin` passes through the root
-flag, and `guest` does not hold as seeded. `user` holds `view.search`,
+`view.*` permission, which `super` holds, `guest` does not hold as seeded,
+and the `admin` role never holds — the admin reads no catalogue at all. `user` holds `view.search`,
 `view.extras` and `view.personal` as seeded; the four entity keys are each a
 switch on the role, seeded off, so a fresh database shows a `user` entity
 names as plain text until an admin ticks a kind on:
@@ -100,7 +100,7 @@ names as plain text until an admin ticks a kind on:
 | `view.person` | the person and seiyuu libraries and person pages | staff, author, club-member and seiyuu names render as plain text |
 | `view.character` | the character library, character and identity pages | character and identity names render as plain text; the franchise and series hubs have no Characters tab |
 | `view.search` | `/search` | `NavSearch` is not drawn — not the inline slot, the phone button or its sheet |
-| `view.extras` | Future Releases, Completions, every `/random` route, `/resources` | — |
+| `view.extras` | Future Releases, Completions, every `/random` route | — |
 | `view.personal` | none — there is no public profile | no catalogue rating or expectation (cards, the franchise table's Expectation and My columns, the rating and expectation sorts, the hubs' hero stamp and chip, the random picker's franchise filters), no novel unit remark |
 
 Each route block asks one key, and `navigation.js` asks the same key for the
@@ -114,7 +114,7 @@ component reads the flags. A guest is sent to
 
 **Quotes and memes are not a `view.*` key** but the account's
 `quotes_memes` feature switch, which only a `user` or `super` account can
-have on (the root admin holds it without one). `/quote` and `/meme` sit
+have on; no role holds it without the switch. `/quote` and `/meme` sit
 inside `<ProtectedRoute feature="quotes_memes">`, their nav rows carry
 `feature: "quotes_memes"`, and without it `NotesContext.jsx` drops the
 Quotes and Memes note sections, so neither renders nor fetches. Each surface
@@ -133,12 +133,12 @@ about styling.
 
 | Section key | Label | Shape | Contents |
 |---|---|---|---|
-| `library` | Library | mega-panel (`columns`) | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities** (each row `requires` its own kind's key, so a row whose kind is off is dropped and a viewer holding none has no Entities column): Studio `/library/studio` (also matches `/studio`; `view.studio`), Publisher `/library/publisher` (also matches `/publisher`; `view.publisher`), Person `/library/person` (also matches `/person`; `view.person`), Character `/library/character` (also matches `/character` and `/identity`; `view.character`), Seiyuu `/library/seiyuu` (`view.person`) · **ACG**: Anime, Anime Movie, Manga, Novel, Game `/library/game` (also matches `/game`) · **Reality**: TV Show, Movie, Cartoon, Comic |
+| `library` | Library | mega-panel (`columns`), `requires` any of the nine ordinary `media_type.*` keys (`LIBRARY_MEDIA_TYPE_PERMISSIONS`), so a role holding none — the admin — has no Library tab. Nav only: the `/library` routes themselves stay open | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities** (each row `requires` its own kind's key, so a row whose kind is off is dropped and a viewer holding none has no Entities column): Studio `/library/studio` (also matches `/studio`; `view.studio`), Publisher `/library/publisher` (also matches `/publisher`; `view.publisher`), Person `/library/person` (also matches `/person`; `view.person`), Character `/library/character` (also matches `/character` and `/identity`; `view.character`), Seiyuu `/library/seiyuu` (`view.person`) · **ACG**: Anime, Anime Movie, Manga, Novel, Game `/library/game` (also matches `/game`) · **Reality**: TV Show, Movie, Cartoon, Comic |
 | `restricted` | Restricted | flat `items`, every row gated | H-Comic `/library/h-comic` (also matches `/h-comic`; `gatedType: "h-comic"`), H-Game `/library/h-game` (also matches `/h-game`; `gatedType: "h-game"`), Hentai `/library/hentai` (also matches `/hentai`; `gatedType: "hentai"`). Each is drawn only for a session that can see its type; a session that can see no gated type has every row dropped, so the tab itself is not drawn |
 | `track` | Track | flat `items` | Plan `/plan`, Seasonal `/seasonal` (both `requires: "self.list"` — see below), Future Releases `/future-releases`, Completions `/completions`, Random Picker `/random` (whose `/random/<type>` pages light it too) — the last three `requires: "view.extras"`. A guest holds none of these keys, so the tab is not drawn |
-| `insights` | Insights | flat | Statistics `/statistics` (`requires: "self.list"`), Quotes `/quote` and Memes `/meme` (each `feature: "quotes_memes"`), Resources `/resources` (`requires: "view.extras"`) ┃ Relations `/relations`, Watch Orders `/watch-orders` — these two carry `requires: "admin"` on the row, inside a tab everyone may open |
-| `entry` | Entry | flat, `requires: "admin"` | Add `/add`, Modify `/modify`, Delete `/delete`, Form Defaults `/defaults`, Picker Defaults `/random-defaults` |
-| `note` | Note | flat, `requires: "manage.catalog"` | System Options `/options`, Alias Conversion `/aliases`, External APIs `/external-apis` — the three read-only inventories of how the data is described — Content Labels `/content-labels`, the read-only label reference, which carries `requires: ["admin.authz", "manage.catalog"]` (any of the two, the same either-of its route asks), and Business Logic `/business-logic`, what Calculate All changes step by step, which carries `requires: "manage.pipelines"` on the row, so only the super role and admin see it |
+| `insights` | Insights | flat | Statistics `/statistics` (`requires: "self.list"`), Quotes `/quote` and Memes `/meme` (each `feature: "quotes_memes"`), Resources `/resources` (`requires: "manage.resources"`, so the admin and super only) ┃ Relations `/relations`, Watch Orders `/watch-orders` — these two carry `requires: "manage.catalog"` on the row, inside a tab everyone may open ┃ Settings (`requires: "self.list"`). The admin sees Resources alone here |
+| `entry` | Entry | flat, `requires` any of `manage.catalog` / `manage.images` | Add `/add`, Modify `/modify`, Delete `/delete`, Form Defaults `/defaults`, Picker Defaults `/random-defaults` — each `requires: "manage.catalog"` — and Images `/images` (`requires: "manage.images"`). The admin holds no `manage.catalog`, so Images is the one row it sees |
+| `note` | Note | flat, `requires` any of `manage.options` / `admin.authz` / `manage.catalog` / `manage.pipelines` — whatever its rows ask, so the admin, holding no `manage.catalog`, still sees the whole section | System Options `/options`, Alias Conversion `/aliases`, External APIs `/external-apis` — the three read-only inventories of how the data is described, each `requires: "manage.options"` — Content Labels `/content-labels`, the read-only label reference, which carries `requires: ["admin.authz", "manage.catalog"]` (any of the two, the same either-of its route asks), and Business Logic `/business-logic`, what Calculate All changes step by step, which carries `requires: "manage.pipelines"` on the row, so only the super role and admin see it |
 | `pipelines` | Pipelines | flat, `requires: "manage.pipelines"` | Control Center `/system`, Data History, Review Queue, Clean Orphans, and **Inbox** `/request-inbox`, which carries `requires: "manage.requests"` on the row — the key its route asks |
 | `admin` | Admin | flat, `requires: "admin.authz"` | Users, Roles, Access Modes |
 
@@ -152,7 +152,7 @@ through `hasFeature` in place of `requires`). Helpers:
 `sectionItems`, `activeItem` / `activeSectionKey` (segment-aware prefix match,
 so `/library/anime` does not claim `/library/anime-movie`),
 `sectionRequirement` / `itemRequirement` (`adminOnly: true` is the legacy
-spelling of `requires: "admin"`) and `visibleSections(sections, has,
+spelling of `requires: "admin.authz"`) and `visibleSections(sections, has,
 canSeeType, hasFeature)` — which drops both the sections and the individual
 rows the viewer lacks the permission for, a row carrying `gatedType` unless
 `canSeeType` answers yes (Nav passes `canSeeGatedType`), and a row carrying
@@ -160,11 +160,13 @@ rows the viewer lacks the permission for, a row carrying `gatedType` unless
 hidden), then drops any section
 left holding nothing but dividers. It
 hands back the original item objects, since Nav marks the current row by
-identity. The Entry, Note and Admin tabs are gated by `has("admin")` from
-`useAuth()`, as are the Relations and Watch Orders rows inside Insights.
+identity. Every gate is `has()` from `useAuth()`, a plain membership test,
+so a tab or row is drawn only for a role that holds its key.
 
 A guest is therefore shown one tab, Library, holding Groups, ACG and
-Reality.
+Reality. The admin is shown no Library and no Track tab, Insights holding
+Resources alone, Entry holding Images alone, and Note, Pipelines and Admin
+in full.
 
 **`components/layout/Nav.jsx`** renders two rows: an "ink" row (logo → `/`,
 `<NavSearch/>`, session controls) and a paper tab strip. `<NavSearch/>`, the
@@ -281,7 +283,7 @@ stamps the same attribute before first paint. See components.md → Theming.
 | Piece | File | Notes |
 |---|---|---|
 | `Layout` | `components/layout/Layout.jsx` | `<Nav/>`, `<Outlet/>`, footer, `<Toast/>`, `ScrollButtons` (to-top after 300 px, to-bottom when >300 px from the end) |
-| `ProtectedRoute` | `components/layout/ProtectedRoute.jsx` | spinner while `auth.loading`; `has(permission)` (default `"admin"`), or with `anyPermission={[...]}` any one of a list, or `hasFeature(feature)` when a `feature` prop is passed, in place of the permission → `<Outlet/>`, else `<Navigate to="/login?next=<path+search>" replace/>`. A redirect, not a security boundary — the API enforces. |
+| `ProtectedRoute` | `components/layout/ProtectedRoute.jsx` | spinner while `auth.loading`; `has(permission)`, or with `anyPermission={[...]}` any one of a list, or `hasFeature(feature)` when a `feature` prop is passed, or `requireAuth` (anyone signed in), or `gatedType` (`canSeeGatedType`) → `<Outlet/>`, else `<Navigate to="/login?next=<path+search>" replace/>`. **With none of those props the route is open**: a page that needs a capability names its permission. A redirect, not a security boundary — the API enforces. |
 | `MediaLoadingState` | `components/layout/MediaLoadingState.jsx` | spinner + `loadingText`, or red error card |
 | Toasts | `hooks/useToast.jsx`, `components/layout/Toast.jsx` | `showToast(type, message)`, auto-dismiss 3.5 s, bottom-left stack |
 | Data hooks | `hooks/useMediaList` (`["media-list", type, params]`), `useMediaItem` (`["media-item", type, id]`), `useApiQuery`, `useStatusToggle`, `useMediaCacheUpdate` | `LIST_OPTIONS = { params: { limit: 2000 } }` — every library-sized list uses it |
@@ -1641,8 +1643,9 @@ and delete, followed by `invalidateQueries` on the grouped key.
 Files `pages/public/Resources.jsx`, `components/resources/ResourceTree.jsx`,
 `components/resources/ResourceMarkdown.jsx`, helpers `lib/resourceTree.js`,
 writes `api/mutations/useResourceMutations.js`. One site-wide page of notes,
-read by every viewer holding `view.extras`: the route and the nav row both
-ask it. `useApiQuery(["resources"], "/api/resources")` returns the
+the admin's and super's alone: the route, the nav row and every
+`/api/resources` call ask `manage.resources`, and its holder also gets every
+edit control. `useApiQuery(["resources"], "/api/resources")` returns the
 top-level nodes with `children` nested to any depth, every level already in
 `sort_index` order with groups and items interleaved; the page draws them in
 that order and sorts nothing.
@@ -1656,8 +1659,8 @@ that order and sorts nothing.
   dropped, a `javascript:` link renders without an executable href, and every
   link opens in a new tab with `rel="noopener noreferrer"`. Why Markdown:
   [decisions](../notes/decisions.md), "A Resources item's body is Markdown".
-- **Editing** (`has("manage.catalog")` only; the server refuses writes from
-  anyone else). **Add group** at the top; **Add item** / **Add subgroup** at
+- **Editing** (`has("manage.resources")`, which every reader of the page
+  holds; the server refuses writes from anyone else). **Add group** at the top; **Add item** / **Add subgroup** at
   the foot of every group; every row has a grip on its left, and its hover
   toolbar has a **Move to…** list, **Edit** and **Delete**. Edit is inline: a group's
   title, or an item's title and a Markdown textarea with a Write / Preview
@@ -1686,8 +1689,7 @@ File `pages/public/MyRequests.jsx`; data `useMyRequests()` from
 `api/mutations/useRequestMutations.js` (`GET /api/requests/mine`, key
 `["requests", "mine", "all"]`). The account's own requests and reports,
 newest first, behind `<ProtectedRoute permission="self.requests">` — user and
-super; never the admin account, since `has()` does not short-circuit the
-`self.*` family for the root role.
+super; never the admin account, whose role holds no `self.*` key.
 
 - **Table**: kind, what it is about (`RequestTarget`: a link through the
   target's `nav_path`, plain text when there is none, "(deleted)" after the
@@ -1759,8 +1761,8 @@ permission="self.list">`.
   and a line saying the list, ratings and personal notes are visible to this
   account only. This card writes nothing; there is no visibility switch.
 - **Password** - only when `has("self.password")`, so a shared account and the
-  root admin (whose `self.*` permissions are not short-circuited) never see
-  it. Current password, new password, new password again; the same
+  admin (whose role holds no `self.*` key, and which never reaches this page)
+  never see it. Current password, new password, new password again; the same
   `lib/newPassword.js` checks as `/reset`, then `PUT /api/account/password`.
   A refusal (`Your current password is not right.`, a 422) shows inline; a
   success clears the fields and says you stay signed in, here and on your

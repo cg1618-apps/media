@@ -2,10 +2,9 @@
 //
 // Accounts are created here, or arrive through an invite link issued here and
 // wait as `pending` for approval on /system (its Pending registrations panel),
-// so this table does not list them. The server refuses to let you delete
-// yourself or demote the last account that can still administer the site,
-// and those refusals surface as toasts rather than being pre-empted here -
-// one rule, enforced in one place.
+// so this table does not list them. The server refuses to let you delete or
+// disable yourself, and those refusals surface as toasts rather than being
+// pre-empted here - one rule, enforced in one place.
 //
 // The lifecycle controls are offered only where the server would take them,
 // because a button that can only ever earn a 409 is noise: Disable on an
@@ -16,9 +15,11 @@
 //
 // The same reasoning shapes the role and mode controls. An account is created
 // in, or moved to, only `user` or `super`; an admin or shared account keeps
-// its role, so its row shows the role as text. A shared account cannot be
-// deleted (disable it instead) and its access mode is fixed, so its row shows
-// the mode and offers no panel to change it.
+// its role, so its row shows the role as text. Neither can be deleted (the
+// server answers 409). A shared account's access mode is fixed, so its row
+// shows the mode and offers no panel to change it; the admin account has no
+// mode at all - it reads no catalogue - and the server answers 409 to giving
+// it one, so its row says so and offers no panel either.
 //
 // The feature switches (quotes and memes, favourites, music status, mod
 // status) are per account, and only a `user` or `super` account holds them:
@@ -44,9 +45,12 @@ const STATUS_TONE = { active: "ink", disabled: "danger", pending: "muted" };
 const UNLIMITED_ROLE_NAMES = new Set(["super"]);
 
 // Whether an account in `role` has a limit to set. Not for super, which is
-// never limited, and not for the root role, which files nothing.
+// never limited, and not for admin, which files nothing (it holds no
+// self.requests).
 function hasRequestLimit(role) {
-  return Boolean(role) && !role.is_root && !UNLIMITED_ROLE_NAMES.has(role.name);
+  return (
+    Boolean(role) && role.name !== "admin" && !UNLIMITED_ROLE_NAMES.has(role.name)
+  );
 }
 
 // The only roles an account can be created in or moved to. The other three
@@ -347,6 +351,7 @@ export default function Users() {
             .map((user) => {
             const roleName = roleNameOf(user, roles);
             const isShared = roleName === "shared";
+            const isAdminAccount = roleName === "admin";
             return (
             <tr key={user.id} className="border-t border-border">
               <td className="px-4 py-2 font-medium">{user.username}</td>
@@ -425,6 +430,10 @@ export default function Users() {
                     modes.find((m) => m.key === user.mode_ceiling)?.label ??
                     user.mode_ceiling
                   } (fixed)`
+                ) : isAdminAccount ? (
+                  // The admin reads no catalogue, so it has no mode to set:
+                  // the server answers 409 to a ceiling on this account.
+                  "No mode (admin)"
                 ) : (
                   <>
                 {user.mode_ceiling == null ? (
@@ -521,7 +530,7 @@ export default function Users() {
                         Enable
                       </button>
                     )}
-                    {!isShared && (
+                    {!isShared && !isAdminAccount && (
                       <button
                         onClick={() => remove(user)}
                         className="text-danger text-xs"

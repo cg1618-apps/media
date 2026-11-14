@@ -121,7 +121,7 @@ export function HGameProgress({ hGame }) {
 export default function HGame() {
   const { publicId } = useParams();
   const navigate = useNavigate();
-  const { isAdmin, isRoot } = useAuth();
+  const { isAdmin, has } = useAuth();
   const { showToast } = useToast();
 
   const [hGame, setHGame] = useState(null);
@@ -327,7 +327,7 @@ export default function HGame() {
                 >
                   H-Game{hGame.game_type ? ` · ${hGame.game_type}` : ""}
                 </span>
-                {isRoot && (
+                {has("manage.catalog") && (
                   <span
                     className="font-mono text-[9px] tracking-[0.1em] opacity-60 whitespace-nowrap"
                     style={{ writingMode: "vertical-rl" }}
