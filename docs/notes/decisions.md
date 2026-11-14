@@ -4776,6 +4776,43 @@ the write route asks.
   steppers only, and a name that says "editor" on a control that writes the
   viewer's own progress is how the two gates drifted apart.
 
+### The Explore pages draw two versions, chosen once at the top (2026-11-14)
+
+Seasonal, Statistics, Future Releases and the Random Picker each ask
+`useViewScope().ownData` (`self.list`) once, in the page's default export,
+and draw either the viewer's own version or the catalogue's. The two are
+separate components rather than one component full of `ownData` checks.
+
+- **Why separate components.** The list version reads per-user routes
+  (`/api/seasonal/`, `/api/plan-next/`, the full lists Statistics counts)
+  that refuse a viewer without a list. A component that branches inside
+  would still mount those queries, or need a guard on each, and one missed
+  guard is an error banner for a guest. A catalogue component simply never
+  names them, and a test asserts each is never fetched.
+- **The list version is unchanged.** With a list each page is the page it
+  was, so the change cannot regress a member's view.
+- **Seasonal and Statistics ask what Future Releases asks.** They left the
+  `self.list` route block for `anyPermission={LIBRARY_MEDIA_TYPE_PERMISSIONS}`,
+  on the route and the nav row together: what decides whether the page
+  opens is whether the viewer reads the catalogue, and what it shows is
+  decided by the list. The admin reads no catalogue and opens none of them.
+- **Future Releases' markers sit under the card, not in it.** The On your
+  list and Planned chips are drawn by the page around `MediaCard` from fields
+  every list response carries, so the shared card is unchanged for every
+  other page. Without a list the groups are in release-date order
+  (`primaryReleaseValue` + `releaseScore`), the only order that does not
+  need an opinion.
+- **The picker's personal filters and weights are flagged, not listed per
+  call.** A FilterDef carries `personal: true` and a weight input is marked
+  personal in `WEIGHT_INPUTS`; `filterDefsForMode` and `entryFactors` apply
+  one rule to every mode. A type's own library filters keep the flag their
+  library config gives them, so the picker and the library drop the same
+  filters.
+- **External score is a catalogue filter.** It reads the stored MAL or IMDb
+  score, which every viewer is shown on the card, so it is offered with and
+  without a list. Genre is not a picker filter in either version yet; adding
+  one is new filtering, not a per-viewer change.
+
 ### The dashboard is chosen per viewer, on permissions (2026-11-14)
 
 `/` became five dashboards (viewers.md, "Dashboard") without becoming five
