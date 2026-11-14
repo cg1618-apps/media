@@ -29,7 +29,12 @@ from app.services.domain.media_relation import (
     relations_for_entry,
 )
 from app.services.domain.watch_order import list_candidate_entries
-from app.services.rbac.enforcement import entry_visible, filter_visible_pairs
+from app.services.rbac.enforcement import (
+    entry_visible,
+    filter_visible_pairs,
+    tier_visible,
+    visible_scope_franchise_ids,
+)
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.media_resolver import MEDIA_TABLES
@@ -245,15 +250,9 @@ def list_relations_in_scope(
             detail="Provide exactly one of franchise_id or collection_id.",
         )
 
-    if franchise_id:
-        franchise_ids = [franchise_id]
-    else:
-        franchise_ids = [
-            row[0]
-            for row in db.query(models.Franchise.system_id)
-            .filter(models.Franchise.collection_id == collection_id)
-            .all()
-        ]
+    franchise_ids = visible_scope_franchise_ids(
+        db, viewer, franchise_id=franchise_id, collection_id=collection_id
+    )
 
     entry_ids = [
         c["entry_id"] for c in list_candidate_entries(db, franchise_ids)
@@ -316,18 +315,15 @@ def get_relation_graph(
             ),
         )
 
+    # A hidden scope answers as a missing one, whichever tier it is.
     if series_id:
+        if not tier_visible(db, viewer, series_id):
+            raise HTTPException(status_code=404, detail="Scope not found.")
         return graph_for_scope(db, [], series_ids=[series_id], viewer=viewer)
 
-    if franchise_id:
-        franchise_ids = [franchise_id]
-    else:
-        franchise_ids = [
-            row[0]
-            for row in db.query(models.Franchise.system_id)
-            .filter(models.Franchise.collection_id == collection_id)
-            .all()
-        ]
+    franchise_ids = visible_scope_franchise_ids(
+        db, viewer, franchise_id=franchise_id, collection_id=collection_id
+    )
 
     return graph_for_scope(db, franchise_ids, viewer=viewer)
 

@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { groupNotes, groupedIds, movedGroupOrder, movedRow, namesOf } from "./groupedRows";
+import {
+  groupNotes,
+  groupRoots,
+  groupedIds,
+  movedAmong,
+  movedGroupOrder,
+  movedRow,
+  movedTreeIds,
+  namesOf,
+  treeIds,
+} from "./groupedRows";
 
 const note = (id, female) => ({
   system_id: id,
@@ -124,5 +134,98 @@ describe("namesOf", () => {
   it("keeps non-empty strings only", () => {
     expect(namesOf([" a ", "", null, 3, "b"])).toEqual(["a", "b"]);
     expect(namesOf("a")).toEqual([]);
+  });
+});
+
+// A hierarchical section grouped by a column: the ROOTS are grouped, and each
+// carries its subtree. Nodes are `{ note, children }`, as the component's
+// buildTree makes them.
+const node = (id, kind, children = []) => ({
+  note: { system_id: id, kind },
+  children,
+});
+
+describe("groupRoots", () => {
+  const roots = () => [
+    node("r1", "East", [node("c1", null, [node("g1", null)])]),
+    node("r2", null),
+    node("r3", "West"),
+    node("r4", "East", [node("c2", null)]),
+  ];
+
+  it("groups the roots by the column, first appearance first, ungrouped last", () => {
+    const groups = groupRoots(roots(), "kind");
+    expect(groups.map((g) => [g.name, g.nodes.map((n) => n.note.system_id)])).toEqual([
+      ["East", ["r1", "r4"]],
+      ["West", ["r3"]],
+      [null, ["r2"]],
+    ]);
+  });
+
+  it("keeps each root's subtree with it", () => {
+    const [east] = groupRoots(roots(), "kind");
+    expect(east.nodes[0].children[0].note.system_id).toBe("c1");
+    expect(treeIds(east.nodes)).toEqual(["r1", "c1", "g1", "r4", "c2"]);
+  });
+});
+
+describe("movedTreeIds", () => {
+  it("moves a root among its group's roots and sends every row depth-first", () => {
+    const groups = groupRoots(
+      [node("r1", "East", [node("c1", null)]), node("r2", "West"), node("r3", "East")],
+      "kind",
+    );
+    expect(movedTreeIds(groups, groups[0].nodes, 0, 1)).toEqual(["r3", "r1", "c1", "r2"]);
+  });
+
+  it("moves a child among its siblings and leaves the groups' order alone", () => {
+    const groups = groupRoots(
+      [node("r1", "East", [node("c1", null), node("c2", null)]), node("r2", "West")],
+      "kind",
+    );
+    const siblings = groups[0].nodes[0].children;
+    expect(movedTreeIds(groups, siblings, 1, 0)).toEqual(["r1", "c2", "c1", "r2"]);
+  });
+
+  it("leaves the order alone on an out-of-range move", () => {
+    const groups = groupRoots([node("r1", "East"), node("r2", "East")], "kind");
+    expect(movedTreeIds(groups, groups[0].nodes, 0, 5)).toEqual(["r1", "r2"]);
+  });
+});
+
+// A mixed section's viewer moves the rows of its own kind only: the indexes
+// count those rows, and every other row keeps its place.
+describe("movedAmong", () => {
+  const items = ["c1", "c2", "p1", "p2", "p3"];
+  const personal = (id) => id.startsWith("p");
+
+  it("moves among the movable items and leaves the others where they are", () => {
+    expect(movedAmong(items, 2, 0, personal)).toEqual(["c1", "c2", "p3", "p1", "p2"]);
+  });
+
+  it("is a plain move when every item is movable", () => {
+    expect(movedAmong(items, 0, 2)).toEqual(["c2", "p1", "c1", "p2", "p3"]);
+  });
+
+  it("returns the items unchanged on a move out of the movable range", () => {
+    expect(movedAmong(items, 0, 3, personal)).toBe(items);
+  });
+});
+
+describe("a mixed section's moves", () => {
+  it("moves a personal child among the personal children only", () => {
+    const groups = groupRoots(
+      [node("r1", "East", [node("c1", null), node("p1", null), node("p2", null)])],
+      "kind",
+    );
+    const siblings = groups[0].nodes[0].children;
+    const personal = (n) => n.system_id.startsWith("p");
+    expect(movedTreeIds(groups, siblings, 1, 0, personal)).toEqual(["r1", "c1", "p2", "p1"]);
+  });
+
+  it("moves a row within its group among the rows of the viewer's kind", () => {
+    const groups = [{ name: "A", notes: [{ system_id: "c1" }, { system_id: "p1" }, { system_id: "p2" }] }];
+    const personal = (n) => n.system_id.startsWith("p");
+    expect(shape(movedRow(groups, 0, 0, 1, personal))).toEqual([["A", ["c1", "p2", "p1"]]]);
   });
 });

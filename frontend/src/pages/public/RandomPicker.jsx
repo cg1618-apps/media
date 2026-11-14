@@ -5,6 +5,16 @@
 // weighted draw lib/pickerWeights.js, the data hooks/usePickerData.js; this
 // file holds the pick and renders. A Weights tab (?tab=weights) lists every
 // weight the draw uses.
+//
+// The page has two versions. With a list (self.list, useViewScope's ownData)
+// it is all of the above. A shared account - view.random_picker without
+// self.list - gets only the "all media entries" picker: no mode strip, no
+// per-type or franchise mode (their URLs land on /random), and two filters,
+// media type and release decade (lib/randomPicker.js sharedFilterDefs). It
+// draws unweighted, with no Weights tab, Weighted toggle or plan-mark request:
+// a plan is self.list's, and so is most of what the weights read. A session
+// with neither key, which the app's route never lets in, keeps every mode with
+// the personal defs dropped.
 import { useCallback, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Navigate, useParams, useSearchParams } from "react-router-dom";
@@ -21,6 +31,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { fetchJson } from "../../hooks/queryUtils";
 import { useFilterState } from "../../hooks/useFilterState";
 import { usePickerData } from "../../hooks/usePickerData";
+import { useViewScope } from "../../hooks/useViewScope";
 import { visibleMediaTypes } from "../../lib/gatedTypes";
 import { applyFilterDefs, countActiveFilters } from "../../lib/libraryFilters";
 import { groupPlanMarks, pickWeighted } from "../../lib/pickerWeights";
@@ -45,11 +56,21 @@ export default function RandomPicker({ type: typeProp }) {
   const params = useParams();
   const type = typeProp ?? params.type ?? null;
   const auth = useAuth();
+  const { ownData } = useViewScope();
   const visibleTypes = visibleMediaTypes(auth, ALL_TYPES);
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab = searchParams.get("tab") === "weights" ? "weights" : "pick";
+  const tab = ownData && searchParams.get("tab") === "weights" ? "weights" : "pick";
 
+  // Which picker this is turns on the session, so nothing is drawn or
+  // fetched until it is known.
+  if (auth?.loading) return null;
   if (type && type !== FRANCHISE_MODE && !ALL_TYPES.includes(type)) {
+    return <Navigate to="/random" replace />;
+  }
+  // A shared account - view.random_picker without self.list, as the
+  // dashboard's Recently added reads it - has the one picker over every entry.
+  const shared = Boolean(auth?.has?.("view.random_picker")) && !ownData;
+  if (shared && type) {
     return <Navigate to="/random" replace />;
   }
 
@@ -66,21 +87,25 @@ export default function RandomPicker({ type: typeProp }) {
         </p>
       </header>
 
-      <OptionSubTabBar
-        tabs={TABS}
-        active={tab}
-        onSelect={(key) => setSearchParams(key === "weights" ? { tab: key } : {})}
-      />
+      {ownData && (
+        <OptionSubTabBar
+          tabs={TABS}
+          active={tab}
+          onSelect={(key) => setSearchParams(key === "weights" ? { tab: key } : {})}
+        />
+      )}
 
       {tab === "weights" ? (
         <PickerWeights />
       ) : (
         <>
-          <ModeStrip
-            current={mode}
-            types={visibleTypes}
-            linkTo={(m) => (m === "all" ? "/random" : `/random/${m}`)}
-          />
+          {!shared && (
+            <ModeStrip
+              current={mode}
+              types={visibleTypes}
+              linkTo={(m) => (m === "all" ? "/random" : `/random/${m}`)}
+            />
+          )}
 
           {/* Keyed on the mode: each mode has its own defs and defaults, so
               switching starts from that mode's defaults with no pick. */}
@@ -90,7 +115,8 @@ export default function RandomPicker({ type: typeProp }) {
             // The franchise mode reads every visible type's list: they say
             // what each franchise holds and give it a cover.
             typesKey={type && type !== FRANCHISE_MODE ? type : visibleTypes.join(",")}
-            signedIn={Boolean(auth.username)}
+            ownsList={ownData}
+            shared={shared}
           />
         </>
       )}
@@ -98,18 +124,19 @@ export default function RandomPicker({ type: typeProp }) {
   );
 }
 
-function PickerBody({ mode, typesKey, signedIn }) {
+function PickerBody({ mode, typesKey, ownsList, shared }) {
   const { entries, filterDefs, defaultFilters, defaultWeighted, isLoading, error } =
-    usePickerData(mode, typesKey);
+    usePickerData(mode, typesKey, { shared });
 
   // Series and franchise plan marks, for the plan weight; entry marks ride on
-  // the entries. A plan is private, so a guest has none to ask for. The Plan
-  // page reads the same key.
+  // the entries. A plan is one account's own (self.list), so a viewer without
+  // a list - a guest or a shared account - has none to ask for, and asking
+  // would be a 401. The Plan page reads the same key.
   const planNextQuery = useQuery({
     queryKey: ["plan-next"],
     queryFn: () => fetchJson("/api/plan-next/"),
     staleTime: 30_000,
-    enabled: signedIn,
+    enabled: ownsList,
   });
   const planMarks = useMemo(() => groupPlanMarks(planNextQuery.data), [planNextQuery.data]);
 
@@ -133,11 +160,20 @@ function PickerBody({ mode, typesKey, signedIn }) {
       defaultFilters={defaultFilters}
       defaultWeighted={defaultWeighted}
       planMarks={planMarks}
+      ownsList={ownsList}
     />
   );
 }
 
-function PickerPool({ mode, entries, filterDefs, defaultFilters, defaultWeighted, planMarks }) {
+function PickerPool({
+  mode,
+  entries,
+  filterDefs,
+  defaultFilters,
+  defaultWeighted,
+  planMarks,
+  ownsList,
+}) {
   const queryClient = useQueryClient();
   const {
     filters,
@@ -148,8 +184,11 @@ function PickerPool({ mode, entries, filterDefs, defaultFilters, defaultWeighted
     dynamicFilterOptions,
   } = useFilterState(filterDefs, entries, defaultFilters);
 
-  const hasDefaults =
-    countActiveFilters(defaultFilters) > 0 || (isWeightedMode(mode) && !defaultWeighted);
+  // Weighting is offered only with a list; without one every pick is even.
+  const canWeight = ownsList && isWeightedMode(mode);
+  const startWeighted = canWeight && defaultWeighted;
+
+  const hasDefaults = countActiveFilters(defaultFilters) > 0 || (canWeight && !defaultWeighted);
 
   const pool = useMemo(
     () => applyFilterDefs(entries, filterDefs, filters),
@@ -165,13 +204,13 @@ function PickerPool({ mode, entries, filterDefs, defaultFilters, defaultWeighted
     [entries, pickedKey],
   );
 
-  const [weighted, setWeighted] = useState(defaultWeighted);
+  const [weighted, setWeighted] = useState(startWeighted);
 
   const draw = useCallback(() => {
-    const next = pickWeighted(pool, picked, { mode, planMarks }, weighted);
+    const next = pickWeighted(pool, picked, { mode, planMarks, personal: ownsList }, weighted);
     setPickedKey(next ? entryKey(next.entry) : null);
     setPickedChance(next ? next.chance : null);
-  }, [pool, picked, mode, planMarks, weighted]);
+  }, [pool, picked, mode, planMarks, ownsList, weighted]);
 
   // Every filter off and the pick gone.
   const clearAll = useCallback(() => {
@@ -182,9 +221,9 @@ function PickerPool({ mode, entries, filterDefs, defaultFilters, defaultWeighted
   // Back to the mode's saved defaults, with the pick gone.
   const restoreDefaults = useCallback(() => {
     resetFilters();
-    setWeighted(defaultWeighted);
+    setWeighted(startWeighted);
     setPickedKey(null);
-  }, [resetFilters, defaultWeighted]);
+  }, [resetFilters, startWeighted]);
 
   const handleUpdated = useCallback(
     (cardType) => (updatedItem) => {
@@ -226,7 +265,7 @@ function PickerPool({ mode, entries, filterDefs, defaultFilters, defaultWeighted
           <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
             {pool.length} in the pool
           </p>
-          {isWeightedMode(mode) && (
+          {canWeight && (
             <label className="inline-flex items-center gap-1.5 text-xs text-text-muted cursor-pointer">
               <input
                 type="checkbox"

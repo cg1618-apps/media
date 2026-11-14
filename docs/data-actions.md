@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-10-28
+Last verified: 2026-11-14
 
 ## What this is for
 
@@ -31,11 +31,11 @@ All routes need **one** gate, declared on the router: `Depends(require_manage_pi
 
 **One Backup at a time.** Every Backup first takes a PostgreSQL session-level advisory lock (`BACKUP_LOCK_KEY`) on a connection of its own, so the web app and the separate `sheets.sh` process exclude each other. A second Backup raises `BackupAlreadyRunning` before it reads or writes anything and logs no row; the route answers it with **409**, and a Fill All / Replace All that reaches its Auto Backup while another runs ends `Failed` with that message. Two writers on one sheet would each trim what the other wrote and share one per-minute Sheets quota. PostgreSQL drops the lock with its connection, so a process that dies cannot leave it held.
 
-**The manual route streams, and the Backup outlives it.** Production sits behind a Cloudflare Tunnel, which answers 524 to a request that sends nothing for about 100 seconds, and a full Backup (53 tabs at a few seconds each, longer through a Sheets 429 pause) takes longer than that. So `POST /backup` claims the lock, starts the Backup on a thread with its own session, and relays its progress as SSE: one `processing` event per tab (`current_entry` = tab name, `processed` / `total`), then `success` or `error`, with a `: keepalive` comment every 15 seconds (`BACKUP_KEEPALIVE_SECONDS`) while a tab is slow. The thread never waits on its listener: a reloaded page or a dropped connection stops the events, not the Backup, which finishes and writes its log row anyway — a sheet with some tabs new and some old is a worse restore point than either. The thread carries the request's context, so its log lines keep the starting request's `request_id`.
+**The manual route streams, and the Backup outlives it.** Production sits behind a Cloudflare Tunnel, which answers 524 to a request that sends nothing for about 100 seconds, and a full Backup (60 tabs at a few seconds each, longer through a Sheets 429 pause) takes longer than that. So `POST /backup` claims the lock, starts the Backup on a thread with its own session, and relays its progress as SSE: one `processing` event per tab (`current_entry` = tab name, `processed` / `total`), then `success` or `error`, with a `: keepalive` comment every 15 seconds (`BACKUP_KEEPALIVE_SECONDS`) while a tab is slow. The thread never waits on its listener: a reloaded page or a dropped connection stops the events, not the Backup, which finishes and writes its log row anyway — a sheet with some tabs new and some old is a worse restore point than either. The thread carries the request's context, so its log lines keep the starting request's `request_id`.
 
 Steps, for each tab in `SHEET_TABS` order (section 2 lists it):
 
-1. `db.query(tab.model).all()` — every row of the table.
+1. `tab.rows(db)` — every row of the table, narrowed by the tab's `row_filter` where it has one. Only `Users` has one: it leaves out `pending` accounts.
 2. Headers are the model's column names (`tab.model.__table__.columns`); each row is formatted with `format_model_for_sheet`.
 3. If the tab has a `media_type` (the twelve entry tabs), the credit and tag link columns are appended **after** the plain columns: `sheet_link_headers(media_type)` gives the legacy header names (studio, director, genre_main, ...) and `sheet_link_rows(db, media_type, rows)` fills them as comma-joined names in a fixed number of queries. Pull matches these by header name, never by position, so appending them is safe.
 4. `bulk_overwrite_sheet(tab.name, [headers] + matrix)` (`app/services/integrations/sheets.py`): **write first, trim after**. It updates from `A1` with `USER_ENTERED`, then `batch_clear`s only the cells beyond the new data (rows below, columns to the right). A failed write therefore leaves the previous backup intact rather than a blank tab. **Two refusals.** An empty matrix raises `ValueError`, and a **header-only** write over a tab that already has data raises too. The second exists because the first could not fire: Backup always calls this as `[headers] + matrix`, which is never falsy, so an **empty table** produced a header-only write that was written and then trimmed. That is what erased the backup sheet on 2026-09-12 — 16,774 rows across 40 tabs, from a Backup run against a database that was not the one being backed up (the empty-worktree-database hazard in CLAUDE.md). An empty *table* is not by itself wrong — `Character`, `Character Identity`, `Character Casting` and `Media Content Label` are legitimately empty here — so the rule is not “refuse every header-only write” but **“refuse to blank a tab that currently has data”**, probed with one small read and only when the matrix has no data rows. The probe asks whether any **cell** in the first data row holds a value, not merely whether the API returned something: gspread answers an empty cell with `[[]]`, which is truthy, so a bare truthiness check refuses every legitimately empty tab and so blocks every Backup on this installation.
@@ -62,7 +62,14 @@ raises on `Model(**dict)` but **not** on `setattr`, and Pull upserts with
 `tests/services/test_pipelines_write_no_personal_columns.py`, which derives
 the forbidden names from `LIST_FIELDS` so a new column on `user_media_list` is
 guarded from the day it lands. The personal values travel in the **User Media
-List** tab instead, and the twelve media tabs' parsers do not emit them.
+List** tab instead, and the twelve media tabs' parsers do not emit them. The
+same holds one level out: a rating or expectation of a collection, franchise,
+series, character, person, studio or publisher travels in the **User Rating**
+tab, a novel unit's rating and remark in **User Novel Unit Rating**, an
+h-comic's or h-game's highlight group order in **User Highlight Group
+Order**, an account's favourite quotes and memes in **User Favorite**, and
+the tier, entity, Novel Unit, H-Comic, H-Game, Quote and Meme tabs carry none
+of them.
 
 The restore order follows from that: `users` and every media tab must land
 before **User Media List**, because a list row is keyed by `(user_id,
@@ -91,12 +98,53 @@ Collection -> Franchise -> Series -> Media
 Watch Order List -> Watch Order Section -> Watch Order Item -> Watch Order Follow
 Person / Studio / Publisher / Character / Content Label -> the media tabs
 Character -> Character Identity -> Character Casting
+Users, Collection / Franchise / Series, Character / Person / Studio / Publisher -> User Rating
+Users, Novel Unit -> User Novel Unit Rating
+Users, Media, H-Comic, H-Game -> User Highlight Group Order
+Users, Note      -> Note Mark
+Users, Quote, Meme -> User Favorite
 ```
 
 `Users` is first because nothing in the sheet points at it, and `Plan Next`,
-`Seasonal`, `Watch Order Follow`, `Game Copy` and `Game Choice Mark` all carry a NOT NULL `user_id`. The enforcement is
+`Seasonal`, `Watch Order Follow`, `User Rating`, `User Novel Unit Rating`, `User Highlight Group Order`, `Game Copy`, `Game Choice Mark`, `Note Mark` and `User Favorite` all carry a NOT NULL `user_id`. The enforcement is
 `tests/api/test_sheet_restore_order.py`; move the tab rather than weaken the
-test.
+test. It is first for a second reason too: every tab that files a row under
+the [installation owner](#the-installation-owner) reads the owner from the
+`users` table, and the owner is data on the Users tab, so restored any later
+the sheet's owner would arrive after the rows that needed it.
+`tests/api/test_pull_users_first.py` asserts the order Pull All actually
+iterates.
+
+#### The installation owner
+
+`installation_owner_id(db)` (`app/services/domain/user_list.py`) is whose
+account a restore or Calculate files a personal row under when the row itself
+does not say. It answers, in order:
+
+1. the account holding `users.is_installation_owner`, whatever its status,
+   unless its role is `admin` - no admin account is the owner;
+2. else the first `active` account, by username, whose role is not `admin`,
+   `guest` or `shared` (`NEVER_OWNER_ROLE_NAMES`);
+3. else **None** — never the admin, which keeps no personal data.
+
+**None skips the row, and the report says so by name.** Every row Pull could
+not file for want of an owner — `User Media List`, `Plan Next`, `Seasonal`,
+`Watch Order Follow`, `User Rating` and `User Novel Unit Rating` on a sheet
+with no `username` header, a `Note`, `Quote` or `Meme` row whose author is
+unknown here, and every `Game Copy` and `Game Choice Mark` row — is counted in the tab's `owner_missing`, as well as in
+`rows_skipped`, and the tab adds one line to `unresolved_refs`:
+
+```
+<tab>: no installation owner: N row(s) skipped
+```
+
+(`user_list.no_owner_message`). Those rows are not bad: they restore once an
+owner exists — the Users tab's `is_installation_owner`, or an active member
+account — so set one and Pull again. Because the line is in
+`unresolved_refs`, a Pull All that hit it logs its master row `Failed`
+([3.2](#32-pull-all--execute_pull_alldb-action_type)). Calculate derives no
+reader's half without an owner and says so the same way
+([6](#6-calculate-all)).
 
 ### 2.2 The tab list
 
@@ -120,41 +168,48 @@ test.
 | 16 | `Collection` | `Collection` |  |
 | 17 | `Franchise` | `Franchise` |  |
 | 18 | `Series` | `Series` |  |
-| 19 | `Media` | `Media` |  |
-| 20 | `Anime` | `Anime` | `anime` |
-| 21 | `Anime Movie` | `AnimeMovies` | `anime-movie` |
-| 22 | `Movies` | `Movies` | `movie` |
-| 23 | `TV Shows` | `TVShows` | `tv-show` |
-| 24 | `Cartoons` | `Cartoon` | `cartoon` |
-| 25 | `Manga` | `Manga` | `manga` |
-| 26 | `Novel` | `Novel` | `novel` |
-| 27 | `Novel Unit` | `NovelUnit` |  |
-| 28 | `Comic` | `Comic` | `comic` |
-| 29 | `Game` | `Game` | `game` |
-| 30 | `Game Copy` | `GameCopy` |  |
-| 31 | `Game Choice Node` | `GameChoiceNode` |  |
-| 32 | `Game Choice Edge` | `GameChoiceEdge` |  |
-| 33 | `Game Choice Mark` | `GameChoiceMark` |  |
-| 34 | `H-Comic` | `HComic` | `h-comic` |
-| 35 | `Hentai` | `Hentai` | `hentai` |
-| 36 | `H-Game` | `HGame` | `h-game` |
-| 37 | `User Media List` | `UserMediaList` |  |
-| 38 | `Watch Order List` | `WatchOrderList` |  |
-| 39 | `Watch Order Section` | `WatchOrderSection` |  |
-| 40 | `Watch Order Item` | `WatchOrderItem` |  |
-| 41 | `Watch Order Follow` | `WatchOrderFollow` |  |
-| 42 | `Media Relation` | `MediaRelation` |  |
-| 43 | `Plan Next` | `PlanNext` |  |
-| 44 | `Quote` | `Quote` |  |
-| 45 | `Character Casting` | `CharacterCasting` |  |
-| 46 | `Character Casting Voice` | `CharacterCastingVoice` |  |
-| 47 | `Meme` | `Meme` |  |
-| 48 | `Note` | `Note` |  |
-| 49 | `Resources` | `ResourceNode` |  |
-| 50 | `Media Source` | `MediaSource` |  |
-| 51 | `Media Content Label` | `MediaContentLabel` |  |
-| 52 | `Franchise Content Label` | `FranchiseContentLabel` |  |
-| 53 | `Seasonal` | `Seasonal` |  |
+| 19 | `User Rating` | `UserRating` |  |
+| 20 | `Media` | `Media` |  |
+| 21 | `Anime` | `Anime` | `anime` |
+| 22 | `Anime Movie` | `AnimeMovies` | `anime-movie` |
+| 23 | `Movies` | `Movies` | `movie` |
+| 24 | `TV Shows` | `TVShows` | `tv-show` |
+| 25 | `Cartoons` | `Cartoon` | `cartoon` |
+| 26 | `Manga` | `Manga` | `manga` |
+| 27 | `Novel` | `Novel` | `novel` |
+| 28 | `Novel Unit` | `NovelUnit` |  |
+| 29 | `User Novel Unit Rating` | `UserNovelUnitRating` |  |
+| 30 | `Comic` | `Comic` | `comic` |
+| 31 | `Game` | `Game` | `game` |
+| 32 | `Game Copy` | `GameCopy` |  |
+| 33 | `Game Choice Node` | `GameChoiceNode` |  |
+| 34 | `Game Choice Edge` | `GameChoiceEdge` |  |
+| 35 | `Game Choice Mark` | `GameChoiceMark` |  |
+| 36 | `H-Comic` | `HComic` | `h-comic` |
+| 37 | `Hentai` | `Hentai` | `hentai` |
+| 38 | `H-Game` | `HGame` | `h-game` |
+| 39 | `User Media List` | `UserMediaList` |  |
+| 40 | `User Highlight Group Order` | `UserHighlightGroupOrder` |  |
+| 41 | `Watch Order List` | `WatchOrderList` |  |
+| 42 | `Watch Order Section` | `WatchOrderSection` |  |
+| 43 | `Watch Order Item` | `WatchOrderItem` |  |
+| 44 | `Watch Order Follow` | `WatchOrderFollow` |  |
+| 45 | `Media Relation` | `MediaRelation` |  |
+| 46 | `Plan Next` | `PlanNext` |  |
+| 47 | `Quote` | `Quote` |  |
+| 48 | `Character Casting` | `CharacterCasting` |  |
+| 49 | `Character Casting Voice` | `CharacterCastingVoice` |  |
+| 50 | `Meme` | `Meme` |  |
+| 51 | `User Favorite` | `UserFavorite` |  |
+| 52 | `Note` | `Note` |  |
+| 53 | `Note Mark` | `NoteMark` |  |
+| 54 | `Resources` | `ResourceNode` |  |
+| 55 | `Media Source` | `MediaSource` |  |
+| 56 | `Media Content Label` | `MediaContentLabel` |  |
+| 57 | `Franchise Content Label` | `FranchiseContentLabel` |  |
+| 58 | `Collection Content Label` | `CollectionContentLabel` |  |
+| 59 | `Series Content Label` | `SeriesContentLabel` |  |
+| 60 | `Seasonal` | `Seasonal` |  |
 
 `Media` sits immediately before the twelve entry tabs: every entry table has a
 composite FK `(system_id, media_type)` up to `media`, and although that FK is
@@ -163,8 +218,15 @@ its own commit. Each of the twelve entry tabs drops its constant `media_type`
 column and appends a derived, read-only `display_name` for the human reader;
 Pull drops any header that is not a column of the model (`drop_non_columns`).
 
-**`Users`** carries `id`, `username`, `list_is_public`, `is_installation_owner` and `role`.
-`hashed_password` and `role_id` are dropped. `role_id` because
+**`Users`** carries `id`, `username`, `is_installation_owner`, `status`, `open_request_limit`, `mode_ceiling`, `mode_default`, the four feature switches (`feature_quotes_memes`, `feature_favourites`, `feature_music_status`, `feature_mod_status`) and `role`.
+An older sheet whose Users tab still has a `list_is_public` header Pulls
+cleanly: `RETIRED_HEADERS` in `pull.py` names it, so `unexpected_headers` does
+not report it among the run's `unresolved_refs` the way it reports a stale
+header, and the value is not read.
+`hashed_password`, `role_id` and `session_version` are dropped.
+`session_version` because it is this machine's revocation counter: carried
+across, it would sign people out on the other machine for nothing, or roll a
+counter back and revive a token revoked here. `role_id` because
 `role.system_id` is minted per database by `ensure_rbac_seed`, so the role
 **name** travels instead and Pull resolves it locally - the same arrangement
 `Media Source` has with `option_id`; a role name this database does not know
@@ -177,13 +239,36 @@ boundary; Pull stamps `UNUSABLE_PASSWORD_HASH` on an account it creates and
 (UNIQUE), not `id`: the lifespan mints the `admin` account on every machine,
 so the same person holds a different uuid here and there.
 
+The tab carries **`status`** for `active` and `disabled`, so a Pull does not
+re-activate an account disabled on the other machine. Any other value, and a
+sheet with no `status` column, sets nothing: an existing account keeps its own
+status and a new one starts `active`, the column default. `pending` does not
+travel - a registration is approved on the machine it arrived on - and Backup
+writes no row at all for a pending account.
+
 The tab also carries **`is_installation_owner`**, so the two machines agree
 about whose collection this is. A restored `true` clears the flag from
-whatever local account held it first: `ix_one_installation_owner` is unique
-across the whole table, and without the clearing step the tab would raise at
-its commit and roll back **every** account. `parse_user_from_sheet` is an
+whatever other local account held it first: `ix_one_installation_owner` is
+unique across the whole table, and without the clearing step the tab would
+raise at its commit and roll back **every** account. The row's own account
+(by username) is not cleared, so a sheet naming the local owner leaves it the
+owner. **An admin-role row is restored without the flag** - no admin account
+is the owner - and the tab adds `Users: '<name>' is an admin account and
+cannot be the installation owner; restored without the flag` to
+`unresolved_refs`; the clearing step does not run for it, so the local holder
+keeps its flag. `parse_user_from_sheet` is an
 explicit projection, so a column added to the User model does not travel until
-it is named there.
+it is named there. `open_request_limit` is named there; a blank cell is NULL
+(no limit), and a sheet with no header for it leaves the local value alone.
+The four feature switches are named there too: a blank cell is false, a
+sheet with no header for one leaves the local value alone, and an account the
+Pull creates gets false. A switch restored onto an account that is not `user`
+or `super` is stored but opens nothing, because the feature gate asks the role
+as well as the column ([authorization.md](authorization.md#per-account-feature-switches)).
+
+**Requests are not on the sheet.** `user_request` has no tab, so Backup and
+Pull never touch it: the inbox lives on the box and in its own dumps, and a
+Pull would otherwise overwrite it with a development machine's.
 
 **`User Media List`** carries every user's list rows. `user_id`, `media_id`
 and `system_id` are dropped for `username`, `media_type` and `public_id` -
@@ -202,10 +287,8 @@ next Pull. Pull drops one leading apostrophe if a cell still carries it
 rule in [business-rules.md](business-rules.md#a-paused-position-is-cleared-by-progress)
 runs on a restore.
 
-**`Plan Next`, `Seasonal` and `Watch Order Follow`** drop `user_id` for `username` too, for the same
-reason (the follow tab has carried `username` from its first day, so it never meets the fallback below). Pull falls back to `_restore_owner_id` — the **installation owner**:
-`users.is_installation_owner`, else the alphabetically-first non-root
-account, else the first account — **only** when the header is absent
+**`Plan Next`, `Seasonal`, `Watch Order Follow`, `User Rating` and `User Novel Unit Rating`** drop `user_id` for `username` too, for the same
+reason (the follow and the two rating tabs have carried `username` from their first day, so they meet the fallback below only for a hand-built sheet). Pull falls back to `_restore_owner_id` — the [installation owner](#the-installation-owner), and with none the row is skipped and counted — **only** when the header is absent
 altogether, which means a sheet written before the column existed and in which
 everything did belong to one person. A `username` that is present and names
 nobody skips the row and lands in `unresolved_refs` rather than being quietly
@@ -213,6 +296,90 @@ filed under somebody else. `seasonal`'s
 primary key **is** the `(user_id, seasonal)` pair, so the user is not
 decoration there: without it a Pull updates whichever user's row for that
 season happened to be first.
+
+**`User Rating`** carries every account's rating and expectation rows. Its
+natural key is `uq_user_rating_owner` - `user_id` plus the seven owner
+columns, exactly one of them set. The tier and character owner ids travel as
+they are; `person_id`, `studio_id` and `publisher_id` are minted per database
+and are translated through their own tabs (`DERIVED_IDENTITY_PARENTS`).
+**`User Novel Unit Rating`** keys on `(user_id, unit_id)` =
+`uq_user_novel_unit`; `unit_id` travels unchanged.
+**`User Highlight Group Order`** carries every account's order of the
+highlight groups on an h-comic or h-game, keyed naturally as `User Media
+List` is: Backup drops `system_id`, `user_id` and `media_id` and writes
+`media_type`, `public_id` and `username`, and Pull resolves them back
+(`resolve_user_media_list_key`) and matches on `(user_id, media_id)` =
+`uq_user_highlight_group_order`. `group_order` travels as JSON text and is
+normalised as the write path does; a row naming an entry of another type, an
+unknown entry or an unknown user, or an order that is not a list of names, is
+skipped and named in `unresolved_refs`, and an empty order is skipped.
+
+**The Note tab carries `personal`**, after `section`. A personal row of a
+mixed section restores under its author by `username`, like every Note row,
+and keeps its kind; a blank cell reads false. A backup taken before the
+column existed has no `personal` header, and every row it holds restores as
+catalogue - the column's default, and all such a backup can hold. A personal
+row is never retargeted at a local row by content: the twin match reads
+catalogue rows only, on both sides, since a personal row is never minted per
+database.
+
+**`Note Mark`** carries every account's personal values on catalogue note
+rows (collected, the amount collected, beaten, completion, my value, the
+music and mod statuses - see [systems/notes.md](systems/notes.md)). Backup
+drops `user_id` for `username`; `note_id` is the note's uuid and `values`
+travels as JSON text. Pull resolves the name (an unknown one skips the row
+and names it in `unresolved_refs`), matches on `(user_id, note_id)` =
+`uq_note_mark_user_note`, and translates a `note_id` this database does not
+hold through the Note tab (`DERIVED_IDENTITY_PARENTS`): a `music_status` row
+by owner and list, any other row by its content twin, exactly as the Note tab
+itself folds them - so a mark follows a row each database minted under its
+own uuid. A cell with no non-blank value is not restored.
+
+**A backup taken before `n1o2temarks3` still Pulls its personal note
+values.** Its Note tab carries them on the rows - the `status` column on the
+sections whose status is personal, `fields.my_value` on 屬性&配點 - and has no
+Note Mark tab. They are told apart from catalogue values by the row's section,
+which is exact: on those sections that column or key only ever held the
+personal value, and a current backup carries it null. Pull takes them off the
+row before matching it to a local one, through `legacy_personal.py`
+(`pop_legacy_note_values` in `app/services/domain/note_marks.py`), and files
+them in the installation owner's mark for the row it lands on, merged with
+whatever that mark already holds.
+
+**A backup taken before `h1i2ghlights3` still Pulls its group orders.** Its
+H-Comic and H-Game tabs carry `highlight_group_order`, and no `User Highlight
+Group Order` tab. `legacy_personal.py` names that header for both tabs too,
+and files the value as the installation owner's `user_highlight_group_order`
+row; a cell that is not a list of names is named in `unresolved_refs`.
+
+**`User Favorite`** carries every account's favourite quotes and memes.
+Backup drops `user_id` for `username`; `quote_id` and `meme_id` are the Quote
+and Meme tabs' uuids and travel unchanged. Pull resolves the name (an unknown
+one skips the row and names it in `unresolved_refs`) and matches on
+`(user_id, quote_id, meme_id)` - `uq_user_favorite_quote` /
+`uq_user_favorite_meme`, exactly one of the two item columns set - so a
+second Pull adds nothing.
+
+**A backup taken before `f1a2vourites3` still Pulls its favourites.** Its
+Quote and Meme tabs carry `is_favorite`, and it has no User Favorite tab.
+`legacy_personal.py` names that header for both tabs, and a row's value is
+filed as the installation owner's favourite of the row restored - true
+favours it, false or blank clears it - exactly as the opinions below.
+
+**A backup taken before `u1r2atings3` still Pulls its opinions.** Such a sheet
+carries `my_rating` (and the tier's `*_expectation`) on its Collection,
+Franchise, Series, Character, Person, Studio and Publisher tabs, and
+`my_rating` and `remark` on Novel Unit, and has no rating tabs. Pull asks
+`app/services/domain/legacy_personal.py` which of a tab's headers are these
+(`legacy_personal_headers`), takes their values out of the row
+(`pop_legacy_personal`), and once the row is restored files them as the
+**installation owner's** `user_rating` / `user_novel_unit_rating` row
+(`restore_legacy_personal`). Only the headers a row carries are applied, so a
+blank cell clears that value and a header the sheet never had leaves it
+alone. With no installation owner the row still restores and its personal
+values are skipped: they are counted into the tab's one `no installation
+owner` line (`no_owner_message`), not named row by row. The header names live in that module rather than in
+`pull.py` because no pipeline module may name a personal column.
 
 **`Resources`** is the Resources page (`resource_node`), every column as it
 stands. It cites nothing outside itself, so its position is free; its one
@@ -231,9 +398,10 @@ Note the tab for the `anime_movies` table is named `Anime Movie` (singular), whi
 `Media Source` sits after `Note` (both endpoints — the entry, and, when set,
 the option — must already exist), and `Media Content Label` after it (both
 *its* endpoints — the entry, and the label on the `Content Label` tab — must
-already exist too), then `Franchise Content Label`, whose `franchise_id` is a
-real FK and whose `label_id` is translated the same way — the three of them
-before `Seasonal`.
+already exist too), then `Franchise Content Label`, `Collection Content
+Label` and `Series Content Label`, whose owner columns (`franchise_id`,
+`collection_id`, `series_id`) are real FKs and whose `label_id` is translated
+the same way — all five of them before `Seasonal`.
 
 The three tabs games added sit where their foreign keys put them.
 `System Option Alias` follows `System Option Usage`, because `option_id` is a
@@ -282,8 +450,7 @@ under their own keys the same way. Its `ep_total` is an ordinary column of the
 `User Media List`, as cartoon's do. Its credit and
 tag columns (`illustrator`, `author`, `club`, `original_source`,
 `h_genre_plot`, `h_genre_appearance`, `h_genre_relation`) have no legacy
-header, so each travels under its own key, and `highlight_group_order`
-travels as JSON text. `H-Game` follows `H-Comic`, the same way: its credit and
+header, so each travels under its own key. `H-Game` follows `H-Comic`, the same way: its credit and
 tag columns (`studio`, `game_genre`, `game_theme`, `h_genre_plot`,
 `h_genre_appearance`, `h_genre_relation`) travel under their own keys, and its
 six list fields (`dialogue_audio`, `sound_effect`, `h_presentation`,
@@ -298,7 +465,8 @@ each end is translated through the Person tab by natural key before the row is
 stored (`DERIVED_IDENTITY_PARENTS` maps one tab to several `(column, parent
 tab)` pairs); its own natural key is `(member_id, club_id)`.
 
-`Person` and `Character` fold `gender` and `my_rating` onto their closed
+`Person` and `Character` fold `gender`, and an old sheet's `my_rating` (filed
+under the installation owner, above), onto their closed
 vocabularies on the way in rather than refusing the row: `male` / `female`
 (trimmed, any case) become `男` / `女`, a rating is trimmed and upper-cased,
 and anything still outside the vocabulary restores as blank
@@ -427,23 +595,36 @@ like its `system_option_scope` sibling. See
 [data-model.md](data-model.md#system_option_usage) and
 [options.md](options.md#tier-2-system-options).
 
-`content_label` and `media_content_label` have tabs for the same reason, and a
+`content_label` and the four assignment tables (`media_content_label` and
+the three group tables) have tabs for the same reason, and a
 sharper one: they are the only tables whose absence from the sheet fails
 **open**. A Pull All on a machine that had never been told which entries carry
 `nsfw` restored every one of them unlabelled — visible to every viewer — and
-nothing in the run reported a problem. All three tables mint their `system_id`
-per database (the labels are typed into the admin page on each machine), so all
-three are derived-identity tabs: `Content Label` is identified by its unique `key`,
-`Media Content Label` by `(media_id, label_id)` and `Franchise Content Label`
-by `(franchise_id, label_id)`, and the `label_id` a sheet carries is translated
+nothing in the run reported a problem. All five tables mint their `system_id`
+per database (each machine's `ensure_labels` inserts its own label rows), so
+all of them are derived-identity tabs: `Content Label` is identified by its unique `key`,
+`Media Content Label` by `(media_id, label_id)`, `Franchise Content Label`
+by `(franchise_id, label_id)`, `Collection Content Label` by
+`(collection_id, label_id)` and `Series Content Label` by
+`(series_id, label_id)`, and the `label_id` a sheet carries is translated
 through the `Content Label` tab before it is stored — the same treatment
-`System Option Scope` gets. `Franchise Content Label` fails open the widest:
-one missing row reveals a franchise **and every entry in it**. A labelling whose label
-cannot be resolved is skipped with a warning rather than failing the tab.
+`System Option Scope` gets. `Collection Content Label` fails open the widest:
+one missing row reveals a collection **and every franchise, series and entry
+under it**; a missing `Franchise Content Label` row reveals a franchise, its
+series and its entries, and a missing `Series Content Label` row a series and
+its entries. A labelling whose label cannot be resolved is skipped with a
+warning rather than failing the tab.
+
+**The labels themselves are code** (`app/services/rbac/labels.py`), so the
+`Content Label` tab travels for its uuids, which are what the four assignment
+tabs cite, and not to carry a vocabulary. A row whose `key` the code does not
+name is skipped and named in the run's `unresolved_refs` — never inserted. A
+known key's `label` and `description` are restored to the code's after the
+tab, because `enforce_gated_label_invariants` runs `ensure_labels` first.
 
 Still outside the sheet, deliberately: `role` and `role_permission`
-(`ensure_rbac_seed` recreates guest, user and admin on any machine, but a role
-added or narrowed by hand is per-machine), `data_control_logs` and
+(`ensure_rbac_seed` recreates the five roles on any machine, but a role
+narrowed by hand is per-machine), `data_control_logs` and
 `deleted_record`. `users` **is** in the sheet, minus its
 `hashed_password` - see the per-tab note below.
 
@@ -501,7 +682,7 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
      | everything else (incl. `Novel`, `Comic`, `Watch Order Item`) | no natural key — an id-less row always inserts |
 
      If matched, the local PK is used; otherwise the PK key is dropped so the database mints one.
-   - **Singleton notes** (`remark`): a `Note` row in a singleton section is retargeted at the owner's existing row in that section (`ix_note_one_remark_per_owner` allows only one), keeping the local `system_id`.
+   - **Singleton notes** (`remark`): a `Note` row in a singleton section is retargeted at the existing row in that section for the same owner **and the same author** (`ix_note_one_remark_per_owner` allows one per owner per author, `remark` being personal-scope), keeping the local `system_id`. Two accounts' remarks on one entry therefore come back as two rows.
    - **Music status notes** (`music_status`): the same, per owner **and list** - a row is retargeted at the anime's existing `music_status` row with the same `kind` (`ix_note_one_music_status_per_kind` allows one per list), keeping the local `system_id`. Revision `m1s2ongstat3` minted those rows separately on every database, so this is what folds the two machines' copies together instead of failing the tab at commit. `ost` rows are songs and are never folded.
    - **Old-shape music rows**: an `ost` row carrying a type comes from a backup taken while the OST was one row per anime (an OST song has no type); it is read as that anime's `music_status` row for `ost`, its status kept when it is one of `MUSIC_STATUSES` (Need, Pending, No Full Version, Done) and `Not Done` otherwise, and folded as above. Song-list links that arrive as URL strings are read as text-URL pairs with no text; text-URL pairs that arrive on any other section (彩蛋/致敬 Easter Eggs/References, from a backup taken while its links were pairs) are read as their URLs, the text dropped, and a `fields` blob on a section that is not `structured` is dropped.
    - **Note twins under another uuid**: a `Note` row whose `system_id` is unknown locally is retargeted at a local row with the same owner, section and content (`parent_id`, `locator`, `kind`, `status`, `title`, `content`, `links`, `entries`, `fields`), keeping the local `system_id` (`_match_note_twin` in `pull.py`). It exists because the OP and ED rows were minted by a migration once per database, so the same row has a different uuid on every machine and would otherwise arrive as a second copy. Two guards keep genuinely separate identical rows apart: a local row whose own id is in the sheet is never a candidate, and each local row is claimed by at most one sheet row.
@@ -516,43 +697,53 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
        into the right column against `media` and the three tier tables. A row
        whose owner resolves to nothing is **skipped and reported** in
        `unresolved_refs` rather than written, because the CHECK would reject it.
-     - **`author_id` travels as a raw uuid, and for `admin` that uuid is not
-       portable.** An account the sheet *inserts* here keeps the uuid it
-       carries (`Users` is deliberately absent from `DERIVED_IDENTITY_MINTED_PK`),
-       so most authors resolve. `admin` is the exception: `app/main.py`'s
-       lifespan mints one on every machine, so the two are never the same row,
-       and the `username` match keeps the local id and discards the sheet's —
-       permanently, since it re-matches the same way on every Pull. Every row
-       the other machine's admin wrote therefore names a user this database
-       does not have. That, a blank cell, or any other unknown id falls back to
-       the **installation owner** — the column is `NOT NULL`, and a line whose
-       author is uncertain is still the line. The fallback covers `Note`, `Meme` **and
-       `Quote`** — all three, and it has to: without it the `Quote` tab's
-       commit fails with a `ForeignKeyViolation` that rolls back every quote in
-       it. So authorship does not round-trip for the admin's own rows: a
-       cross-machine restore re-files them under the local installation owner.
-       Harmless
-       while one person writes them; these three tabs need a `username`
-       column, the way `Plan Next` has one, before a second author matters.
+     - **The author travels as `username`, not as `author_id`.** Backup
+       drops the uuid and writes the author's name, the way `Plan Next`,
+       `Seasonal` and `Watch Order Follow` drop `user_id`: `users.id` is minted
+       per database — `admin` above all, which `app/main.py`'s lifespan mints
+       on every machine — so the uuid would name nobody on the other one. Pull
+       resolves the name back to the local account. A name nobody here holds,
+       a blank cell, or a sheet written before the column existed (which
+       carries `author_id` and no `username` header, and is tried by uuid)
+       files the row under the **installation owner** rather than skipping it:
+       the column is `NOT NULL`, a line whose author is uncertain is still the
+       line, and without the fallback the tab's commit fails with a
+       `ForeignKeyViolation` that rolls back every row in it. With no owner
+       either, the row is skipped and counted as
+       [no installation owner](#the-installation-owner), so the rest of the
+       tab still commits.
 
    - **After the tab commits**, two passes, each over the whole table and each
      committed. A restore writes rows straight to the tables, so neither the
      region rule nor the label would otherwise hold for it.
      - When the tab is one of `H_COMIC_INVARIANT_TABS` (`H-Comic`,
-       `User Media List`), `enforce_h_comic_invariants`: each h-comic's unused
-       region columns are cleared (and a `highlight_group_order` that is not a
-       list of names is dropped), and every reader's unused counter is cleared.
+       `User Media List`, `User Highlight Group Order`),
+       `enforce_h_comic_invariants`: each h-comic's unused region columns are
+       cleared, every reader's unused counter is cleared, and every account's
+       highlight group order on a JP h-comic is deleted.
      - When the tab is one of `GATED_LABEL_INVARIANT_TABS` - every gated
        type's entry tab (`H-Comic`, `H-Game`, `Hentai`), `Franchise`, `Content Label`,
-       `Media Content Label` and `Franchise Content Label` -
+       `Media Content Label`, `Franchise Content Label`,
+       `Collection Content Label` and `Series Content Label` -
        `enforce_gated_label_invariants` (`app/services/domain/gated_labels.py`):
-       every gated type's label is re-attached to every entry of the type and
+       first `ensure_labels` rewrites every label row's name, description and
+       display order to the code's, then `add_missing_nsfw` attaches `nsfw`
+       beside any other label on every entry, collection, franchise and series
+       that lacks it, then every gated type's label is re-attached to every entry of the type and
        every franchise of its franchise type (`h-comic` on every h-comic and
        every `H-Comic` franchise, `h-game` on every h-game and every `H-Game`
        franchise, `hentai` on every hentai and every `Hentai` franchise). A
        hand-edited sheet that dropped a label cannot make a gated entry public.
        The set is derived from `REQUIRED_LABEL_FOR_TYPE`, so a new gated type's
-       tab joins it by being registered.
+       tab joins it by being registered. Last, `reconcile_label_tags`.
+     - Otherwise, when the tab is one of `LABEL_TAG_RECONCILE_TABS` - the
+       entry tab of every type with the Label field, and `Media Content
+       Label` - `reconcile_label_tags` (`app/services/domain/label_tags.py`)
+       alone: every such entry's NSFW, 輕微色情 and 擦邊肉番 tags are made to
+       match its `nsfw`, `ecchi` and `erotica` labels, **the label winning** -
+       a missing tag is added and a tag with no label behind it is removed,
+       because the label decides visibility and the sheet's tag column is a
+       copy of it.
 
 ### 3.2 Pull All — `execute_pull_all(db, action_type)`
 
@@ -779,7 +970,9 @@ The manual route `POST /replace/{key}/{entry_id}` calls the same function with `
 | 5 | `bulk_check_cover_image(db)` | runs the cover check; its result is discarded |
 | 6 | log | `Calculate` / `Calculate All` / `Manual` / `Success` |
 
-Any exception logs `Failed` with the message and re-raises (500). Response on success: `{"status": "success", "message": "Full calculation complete. Created N sequel relation(s) in M franchise(s); K group(s) skipped (tied season/part)."}`, the counts coming from step 3; the admin page shows the message as its toast. Rules behind each step are in [business-rules.md](business-rules.md).
+Any exception logs `Failed` with the message and re-raises (500). Response on success: `{"status": "success", "message": "Full calculation complete. Created N sequel relation(s) in M franchise(s); K group(s) skipped (tied season/part).", "owner_missing": 0}`, the counts coming from step 3; the admin page shows the message as its toast.
+
+**With no [installation owner](#the-installation-owner)**, `run_sync_novel` still derives every novel's catalogue half but files no reader's half — the owner's list row is whose progress it derives — and counts each novel it could not. The run still succeeds, but `owner_missing` carries the count, the message gains `no installation owner: N row(s) skipped (novel list rows).`, and the `Success` audit row carries the same line in `details_json` under `no_installation_owner`. Rules behind each step are in [business-rules.md](business-rules.md).
 
 ---
 
@@ -945,7 +1138,7 @@ the garbage into the sheet and destroy the evidence.
 |---|---|---|
 | `GET /check/duplicates` | `find_all_duplicates(db)` (`app/services/domain/duplicates.py`) | one key per check: `franchise`, `series`, `anime`, `anime_movie`, `cartoon`, `movie`, `tv_show`, `manga`, `novel`, `comic`, `game`, `h_comic`, `h_game`, `hentai`, `system_options`, `entities` — each a list of duplicate groups (h-comic's key: same franchise, series, `region` and `series_number` plus a shared name; h-game's: same franchise, series, `game_type` and `series_number` plus a shared name; hentai's: same franchise, series and `series_number` plus a shared name) (lists of dicts). Matching rules are in [business-rules.md](business-rules.md). |
 | `GET /check/remarks` | `find_all_remarks(db, viewer.user_id)` (`app/services/domain/remarks.py`) | the caller's own non-empty `remark` notes, one key per media type (`anime`, `anime_movie`, `movie`, `tv_show`, `cartoon`, `manga`, `novel`, `comic`, `game`, `h_comic`, `hentai`, `h_game`), newest `updated_at` first, each with `system_id`, `public_id`, its name columns, the caller's status (`attach_list_fields`, so an unlisted entry reads its type's default) and `remark`. |
-| `GET /check/music` | `find_flagged_music(db)` (`app/services/domain/music_review.py`) | a list, one row per anime with a song list (`music_status` row) or a song (`op` / `ed` / `insert_songs` / `ost` row) on `Need`, `Pending` or `No Full Version` (`FLAGGED_MUSIC_STATUSES`), by display name: `system_id`, `public_id`, `anime_name_cn`, `anime_name_en`, `display_name`, `lists` (`[{kind, status}]`, flagged lists only, in song-list order) and `songs` (`[{section, title, status, locator}]`, flagged songs only, in song-list order then notes-page order). `Not Done` flags nothing: every list starts there. Not filtered by author - the music sections are catalogue notes (`MusicReviewRow`, `app/schemas/review.py`). |
+| `GET /check/music` | `find_flagged_music(db, viewer)` (`app/services/domain/music_review.py`) | a list, one row per anime with a song list (`music_status` row) or a song (`op` / `ed` / `insert_songs` / `ost` row) that the **caller's own** note mark has on `Need`, `Pending` or `No Full Version` (`FLAGGED_MUSIC_STATUSES`), by display name: `system_id`, `public_id`, `anime_name_cn`, `anime_name_en`, `display_name`, `lists` (`[{kind, status}]`, flagged lists only, in song-list order) and `songs` (`[{section, title, status, locator}]`, flagged songs only, in song-list order then notes-page order). `Not Done` flags nothing: every list starts there. Per caller: the rows are catalogue, the statuses each account's own, so another account's statuses list nothing, and a caller without the `music_status` feature is listed nothing (`MusicReviewRow`, `app/schemas/review.py`). |
 
 | `GET /check/alone-groups` | `find_alone_groups(db)` (`app/services/domain/alone_groups.py`) | `{franchise: [...], series: [...]}`: every franchise and series with exactly one `media` row pointing at it (`media.franchise_id`, `media.series_id`, all twelve types), less those whose `alone_reviewed_media_id` is that row's id, by display name. Each: `system_id`, `public_id`, `display_name`, `entry: {system_id, media_type, public_id, display_name}` (`AloneGroupsReport`, `app/schemas/review.py`). |
 | `POST /check/alone-groups/{kind}/{system_id}/reviewed` | `mark_alone_group_reviewed(db, kind, system_id)` | sets `alone_reviewed_media_id` to the group's current lone entry. 409 when the group does not hold exactly one entry. |

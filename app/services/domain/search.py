@@ -22,20 +22,29 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.registry import MEDIA_REGISTRY
 from app.services.domain.character_responses import character_responses
-from app.services.domain.content_labels import attach_franchise_content_labels
+from app.services.domain.content_labels import attach_group_content_labels
 from app.services.domain.credits import credit_summaries
 from app.services.domain.entity_photos import person_media
 from app.services.domain.entry_fields import attach_entry_list_fields
+from app.services.domain.user_rating import OWNER_COLUMNS, attach_ratings
 from app.services.rbac.enforcement import (
+    apply_collection_visibility,
     apply_entry_visibility,
     apply_franchise_visibility,
     apply_series_visibility,
 )
 from app.services.rbac.field_gate import gate
 from app.services.rbac.gated_types import unseeable_gated_types
-from app.services.rbac.personal_gate import strip_personal
+from app.services.rbac.permissions import (
+    PERM_VIEW_CHARACTER,
+    PERM_VIEW_PERSON,
+    PERM_VIEW_PUBLISHER,
+    PERM_VIEW_STUDIO,
+    media_type_perm,
+)
 from app.services.rbac.resolver import viewer_user_id
 from app.services.rbac.shared_visibility import CONNECTIONS, apply_shared_visibility
+from app.utils.media_resolver import MEDIA_TYPE_KEYS
 
 # The characters cleanString deletes: whitespace plus the punctuation that
 # separates words in a title. translate() drops every character listed here
@@ -254,6 +263,19 @@ def _exact_first(spec: SearchableType, q_clean: str):
     return ~matches
 
 
+# The grouping tiers' visibility gates, and their tier names.
+_GROUP_VISIBILITY = {
+    models.Collection: apply_collection_visibility,
+    models.Franchise: apply_franchise_visibility,
+    models.Series: apply_series_visibility,
+}
+_GROUP_TIER = {
+    models.Collection: "collection",
+    models.Franchise: "franchise",
+    models.Series: "series",
+}
+
+
 def _run(
     db: Session, viewer, spec: SearchableType, criteria, q_clean: str, limit: int
 ) -> list:
@@ -261,14 +283,11 @@ def _run(
     query = db.query(spec.model)
     if spec.owner_type is not None:
         query = apply_entry_visibility(query, spec.model, spec.owner_type, db, viewer)
-    elif spec.model is models.Franchise:
+    elif spec.model in _GROUP_VISIBILITY:
         # A grouping tier holds no media_type permission, so it is not an
-        # `owner_type` - but a franchise can carry content labels of its own,
-        # and one that does must not surface in a search either.
-        query = apply_franchise_visibility(query, db, viewer)
-    elif spec.model is models.Series:
-        # Hidden with its franchise, read-time through series.franchise_id.
-        query = apply_series_visibility(query, db, viewer)
+        # `owner_type` - but every tier can carry content labels, and a group
+        # hidden by its own or by one above it must not surface in a search.
+        query = _GROUP_VISIBILITY[spec.model](query, db, viewer)
     elif spec.model in CONNECTIONS:
         # People, characters, studios and publishers: hidden when every
         # connection is - the rule their own list routes apply.
@@ -350,15 +369,15 @@ def _person_results(db: Session, viewer, entries: list) -> list:
 def _decorate(db: Session, viewer, spec: SearchableType, entries: list):
     """
     The bucket as its own list endpoint answers it: the non-column fields
-    attached, then the mode's field groups and the role's personal fields
-    withheld.
+    attached - the viewer's own rating among them - then the mode's field
+    groups withheld.
     """
-    return strip_personal(
-        viewer,
-        spec.owner_type or spec.key,
-        _attach(db, viewer, spec, entries),
-        spec.response_schema,
-    )
+    if spec.key in OWNER_COLUMNS and spec.key != CHARACTER_SEARCH.key:
+        # Before _attach: the person bucket is copied into schema instances
+        # there, and the copy reads my_rating off the row. Characters attach
+        # their own inside character_responses.
+        attach_ratings(db, spec.key, entries, viewer_user_id(viewer))
+    return _attach(db, viewer, spec, entries)
 
 
 def _attach(db: Session, viewer, spec: SearchableType, entries: list):
@@ -373,10 +392,10 @@ def _attach(db: Session, viewer, spec: SearchableType, entries: list):
         _attach_credit_counts(db, viewer, spec, entries)
         return entries
     if spec.owner_type is None:
-        if spec.model is models.Franchise:
-            # FranchiseResponse carries content_labels, and an unattached []
+        if spec.model in _GROUP_TIER:
+            # A group's response carries content_labels, and an unattached []
             # would read as "no labels" rather than "not loaded".
-            attach_franchise_content_labels(db, entries)
+            attach_group_content_labels(db, _GROUP_TIER[spec.model], entries)
         return entries
     # The same fields the media list routes attach, so a search card shows
     # the viewer's status and progress rather than an untouched entry's.
@@ -403,6 +422,31 @@ def _related_franchises(db: Session, entries: list, limit: int) -> list:
     )
 
 
+# The permission each entity bucket needs: the same key that opens that
+# kind's pages, so search never lists a person the viewer could not open.
+_ENTITY_BUCKET_PERMISSION = {
+    "person": PERM_VIEW_PERSON,
+    "studio": PERM_VIEW_STUDIO,
+    "publisher": PERM_VIEW_PUBLISHER,
+    "character": PERM_VIEW_CHARACTER,
+}
+
+
+def _viewer_may_search(viewer, spec: SearchableType) -> bool:
+    """Whether this bucket belongs in the viewer's response at all.
+
+    An entity bucket needs its kind's view.* key, and a media-type bucket the
+    role's media_type.* grant. Groups and seasonal need neither. A None
+    viewer is an internal caller and sees every bucket.
+    """
+    if viewer is None:
+        return True
+    needed = _ENTITY_BUCKET_PERMISSION.get(spec.key)
+    if needed is None and spec.owner_type in MEDIA_TYPE_KEYS:
+        needed = media_type_perm(spec.owner_type)
+    return needed is None or viewer.has(needed)
+
+
 def search(
     db: Session,
     viewer,
@@ -416,8 +460,10 @@ def search(
 
     Returns (buckets, related_franchises). Buckets carry a key for every
     searchable type this viewer may see, empty for the ones this scope did not
-    ask about. A gated type the viewer cannot see has NO key: an empty bucket
-    would still say the type exists (gated_types.py).
+    ask about. A type the viewer cannot see has NO key - a gated type its mode
+    hides, an entity kind whose view.* key it lacks, a media type its role
+    does not hold: an empty bucket would still say the type exists
+    (gated_types.py).
 
     `include_characters` adds a `character` bucket, searched at scope "all"
     only; without it there is no such key.
@@ -426,6 +472,7 @@ def search(
     searchable = tuple(spec for spec in SEARCHABLE_TYPES if spec.key not in hidden)
     if include_characters:
         searchable += (CHARACTER_SEARCH,)
+    searchable = tuple(spec for spec in searchable if _viewer_may_search(viewer, spec))
     buckets: dict[str, list] = {spec.key: [] for spec in searchable}
     q_clean = clean_string(query)
     if not q_clean:
@@ -470,12 +517,8 @@ def search(
             criteria = and_(criteria, models.Seasonal.user_id == searcher_id)
         raw[spec.key] = _run(db, viewer, spec, criteria, q_clean, limit)
 
-    related = strip_personal(
-        viewer,
-        "franchise",
-        _related_franchises(db, raw.get("anime", []), limit),
-        schemas.FranchiseResponse,
-    )
+    related = _related_franchises(db, raw.get("anime", []), limit)
+    attach_ratings(db, "franchise", related, viewer_user_id(viewer))
     for spec in active:
         buckets[spec.key] = _decorate(db, viewer, spec, raw[spec.key])
     return buckets, related

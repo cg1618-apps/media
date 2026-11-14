@@ -10,7 +10,7 @@
 //
 // Below lg the tab strip gives way to a drawer, and below sm the ink row keeps
 // only the mark, a search button and the menu button - everything else
-// (access mode, theme, back up, log out) moves into the drawer's footer, where
+// (access mode, theme, back up, requests, settings, log out) moves into the drawer's footer, where
 // a phone has the width to show it. A phone has no room for the search slot
 // either, so the search button opens it as a full-width row under the bar.
 import { useState, useRef, useEffect } from "react";
@@ -148,7 +148,7 @@ function DrawerSection({ section, currentItem, onNavigate }) {
 export default function Nav() {
   const { theme, toggle: toggleTheme } = useTheme();
   const auth = useAuth();
-  const { isAdmin, has, username, role } = auth;
+  const { isAdmin, has, hasFeature, username, role } = auth;
   const { showToast } = useToast();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -167,8 +167,21 @@ export default function Nav() {
   // view.search, the key App.jsx's /search route asks. Without it the
   // desktop slot, the phone button and its sheet are all absent.
   const canSearch = has("view.search");
-  const sections = visibleSections(NAV_SECTIONS, has, (type) =>
-    canSeeGatedType(auth, type),
+  const canFileRequests = has("self.requests");
+  // Settings is the account's own page, so it sits with the account rather
+  // than in a tab. self.list is the key App.jsx's /settings route asks.
+  const canOpenSettings = has("self.list");
+  // The role chip marks a privileged account (see the strip below).
+  const showRoleChip = isAdmin || has("admin.authz");
+  // Back up is a pipeline (POST /api/data-control/backup asks
+  // manage.pipelines), so it asks that key alone: the admin holds it without
+  // manage.catalog.
+  const canBackUp = has("manage.pipelines");
+  const sections = visibleSections(
+    NAV_SECTIONS,
+    has,
+    (type) => canSeeGatedType(auth, type),
+    hasFeature,
   );
   const currentSection = activeSectionKey(location.pathname);
   const currentItem = activeItem(location.pathname)?.item ?? null;
@@ -278,17 +291,6 @@ export default function Nav() {
     hardNavigate(location.pathname + location.search);
   }
 
-  // On /login itself the next ProtectedRoute already put in the query string
-  // IS the destination. Rebuilding the link around the current location there
-  // would nest the login page inside its own next, and Login has no
-  // already-signed-in bounce - so a visitor who was sent here from a protected
-  // page and clicked this button instead of filling in the form would sign in
-  // and land straight back on this form.
-  const loginHref =
-    location.pathname === "/login"
-      ? `/login${location.search}`
-      : `/login?next=${encodeURIComponent(location.pathname + location.search)}`;
-
   return (
     <nav className="sticky top-0 z-50">
       {/* Row 1 — the drawer front */}
@@ -312,12 +314,14 @@ export default function Nav() {
                   strip: a guest reads "Guest", any signed-in account reads
                   its username and gets a way out.
 
-                  It prints the ROLE, never a fixed word. `isAdmin` is
-                  has(manage.catalog), which `super` holds as well as
-                  `admin`, so a chip hard-coding "Admin" labels a super
-                  account with the wrong role - and the two are exactly what
-                  this chip exists to tell apart. */}
-              {isAdmin && (
+                  It prints the ROLE, never a fixed word, and is drawn for
+                  the two privileged roles: `super` (isAdmin, which is
+                  has(manage.catalog)) and `admin` (admin.authz - it holds no
+                  manage.catalog, so isAdmin alone would drop its chip). A
+                  chip hard-coding "Admin" would label a super account with
+                  the wrong role, and the two are exactly what it exists to
+                  tell apart. */}
+              {showRoleChip && (
                 <span
                   title="Your role"
                   className="hidden sm:inline-flex items-center font-mono text-[10px] uppercase tracking-[0.12em] text-ink-text/60 border border-ink-text/30 px-1.5 py-0.5"
@@ -333,7 +337,7 @@ export default function Nav() {
               >
                 {username ?? "Guest"}
               </span>
-              {isAdmin && has("manage.pipelines") && (
+              {canBackUp && (
                 <button
                   type="button"
                   onClick={handleBackup}
@@ -344,6 +348,28 @@ export default function Nav() {
                     ? `Backing up${backupProgress ? ` ${backupProgress}` : ""}…`
                     : "Back up"}
                 </button>
+              )}
+              {/* The account's own requests sit with the account, beside log
+                  out, not in a tab. self.requests is the key App.jsx's
+                  /requests route asks, so the admin account - which files
+                  nothing - is not offered it. */}
+              {canFileRequests && (
+                <Link
+                  to="/requests"
+                  className="hidden sm:inline-flex items-center px-2 py-1.5 text-xs text-ink-text/80 hover:text-ink-text hover:bg-ink-text/10 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                >
+                  Requests
+                </Link>
+              )}
+              {canOpenSettings && (
+                <Link
+                  to="/settings"
+                  title="Settings"
+                  aria-label="Settings"
+                  className={`hidden sm:inline-block ${INK_ICON_BTN}`}
+                >
+                  <i className="fas fa-sliders-h text-sm" aria-hidden="true"></i>
+                </Link>
               )}
               {username ? (
                 <button
@@ -357,7 +383,7 @@ export default function Nav() {
                 </button>
               ) : (
                 <Link
-                  to={loginHref}
+                  to="/login"
                   className="inline-flex items-center border border-ink-text/40 hover:border-ink-text px-3 py-1.5 text-xs font-medium text-ink-text transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                 >
                   Log in
@@ -527,7 +553,7 @@ export default function Nav() {
                 <span className="text-sm text-text-muted truncate">
                   {username ?? "Guest"}
                 </span>
-                {isAdmin && (
+                {showRoleChip && (
                   <span
                     title="Your role"
                     className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint border border-border px-1.5 py-0.5"
@@ -545,7 +571,7 @@ export default function Nav() {
                 {theme === "dark" ? "Light mode" : "Dark mode"}
               </button>
 
-              {isAdmin && has("manage.pipelines") && (
+              {canBackUp && (
                 <button
                   type="button"
                   onClick={() => {
@@ -556,6 +582,27 @@ export default function Nav() {
                 >
                   Back up data
                 </button>
+              )}
+
+              {canFileRequests && (
+                <Link
+                  to="/requests"
+                  onClick={() => setMobileOpen(false)}
+                  className={DRAWER_ROW}
+                >
+                  Requests
+                </Link>
+              )}
+
+              {canOpenSettings && (
+                <Link
+                  to="/settings"
+                  onClick={() => setMobileOpen(false)}
+                  className={DRAWER_ROW}
+                >
+                  <i className="fas fa-sliders-h mr-2 text-text-muted" aria-hidden="true"></i>
+                  Settings
+                </Link>
               )}
 
               {username ? (
@@ -571,7 +618,7 @@ export default function Nav() {
                 </button>
               ) : (
                 <Link
-                  to={loginHref}
+                  to="/login"
                   onClick={() => setMobileOpen(false)}
                   className={DRAWER_ROW}
                 >

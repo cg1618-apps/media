@@ -360,8 +360,8 @@ H_COMIC_REGIONS: tuple[str, ...] = ("JP", "KR")
 H_COMIC_REGION_JP = "JP"
 H_COMIC_REGION_KR = "KR"
 
-# 原創 is an original work, 同人 a derivative one. JP only.
-H_COMIC_ORIGINALITY: tuple[str, ...] = ("原創", "同人")
+# 原版 is an original work, 同人 a derivative one. JP only.
+H_COMIC_ORIGINALITY: tuple[str, ...] = ("原版", "同人")
 # hentai.originality reuses it.
 
 # Hand-set, JP only. Whether the work has been adapted into a hentai entry.
@@ -383,8 +383,9 @@ H_COMIC_USEFULNESS: tuple[str, ...] = ("非常實用", "實用", "特定情況�
 # status AiringStatus.
 # ---------------------------------------------------------------------------
 
-# What the episode is adapted from, or Original.
-HENTAI_SOURCE_MATERIALS: tuple[str, ...] = ("Original", "Manga", "Novel")
+# What the episode is adapted from, or Original. Neither MAL nor AniDB records
+# a source material for a hentai, so nothing fills it: it is always hand-set.
+HENTAI_SOURCE_MATERIALS: tuple[str, ...] = ("Original", "Manga", "Novel", "Game")
 
 
 # ---------------------------------------------------------------------------
@@ -439,3 +440,29 @@ H_GAME_ART_STYLES: tuple[str, ...] = (
 # Where it is sold. Multi-choice, hand-set, never filled from IGDB - not
 # Game's game_platform tag field, which names hardware.
 H_GAME_PLATFORMS: tuple[str, ...] = ("Steam", "DLsite", "Nintendo", "Other")
+
+
+# Requests and reports (app/services/domain/requests.py). What a member files:
+# a missing entry, wrong data, incomplete data, a bug in the site, anything
+# else. CHECK-constrained on user_request.kind, so a value added here needs a
+# migration too.
+REQUEST_KINDS: tuple[str, ...] = (
+    "new_entry",
+    "data_error",
+    "incomplete_data",
+    "bug",
+    "other",
+)
+
+# A request is open until a handler marks it done or declined; a handler may
+# set it back to open. Only open requests count against a member's limit, and
+# only an open request may be edited by its author. CHECK-constrained on
+# user_request.status.
+REQUEST_STATUS_OPEN = "open"
+REQUEST_STATUS_DONE = "done"
+REQUEST_STATUS_DECLINED = "declined"
+REQUEST_STATUSES: tuple[str, ...] = (
+    REQUEST_STATUS_OPEN,
+    REQUEST_STATUS_DONE,
+    REQUEST_STATUS_DECLINED,
+)

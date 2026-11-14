@@ -72,7 +72,13 @@ export const TIER1_GROUPS = [
   },
   {
     title: "Internal Keys",
-    keys: ["media_type", "person_role", "option_categories", "tag_categories"],
+    keys: [
+      "media_type",
+      "person_role",
+      "option_categories",
+      "tag_categories",
+      "note_suggestion_categories",
+    ],
   },
 ];
 
@@ -133,6 +139,17 @@ export const TIER2_GROUPS = [
   {
     title: "Character",
     categories: ["Character Appearance", "Character Trait"],
+  },
+  // What the game guide note sections' free-text fields suggest - a
+  // character's group, a collectible's or an item's type, a place's group.
+  {
+    title: "Note Suggestions",
+    categories: [
+      "Character Group",
+      "Collectible Type",
+      "Item Type",
+      "Geography Group",
+    ],
   },
 ];
 

@@ -13,8 +13,8 @@ reaches, which is the access-mode axis (app/services/rbac/modes.py), and they
 had to leave this one because permission resolution is a union and a union can
 only add - a role holding field_group.sources_restricted could never have it
 taken away by a mode. label_perm() and field_group_perm() were deleted rather
-than left unused, so that any call site still asking has(field_group.<key>) -
-which would silently answer True for a root role - is an ImportError instead.
+than left unused, so that any call site still asking has(field_group.<key>)
+is an ImportError instead.
 
 A name is always `<family>.<key>`. The bare `admin` that used to be the
 exception was removed in Phase A of the authorization redesign; it is now
@@ -55,16 +55,24 @@ PERMISSION_FAMILIES: tuple[str, ...] = (
 )
 
 ADMIN_PERMISSION_KEYS: tuple[str, ...] = ("authz",)
-MANAGE_PERMISSION_KEYS: tuple[str, ...] = ("catalog", "pipelines")
+MANAGE_PERMISSION_KEYS: tuple[str, ...] = (
+    "catalog",
+    "pipelines",
+    "requests",
+    "announcements",
+    "options",
+    "images",
+    "resources",
+)
 
 ADMIN_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
     "authz": (
         "Manage Authorization",
-        "Create and edit roles, accounts and content labels directly - that "
-        "is, change who may do what. Does not itself grant any catalogue "
-        "write. Not the only way to change these, though: manage.pipelines "
-        "can rewrite accounts, content labels and role assignments too, by "
-        "running Pull All over the sheet.",
+        "Create and edit roles and accounts, and the adjustable parts of the "
+        "access modes - that is, change who may do what. Does not itself "
+        "grant any catalogue write. Not the only way to change these, "
+        "though: manage.pipelines can rewrite accounts and role assignments "
+        "too, by running Pull All over the sheet.",
     ),
 }
 
@@ -79,6 +87,27 @@ MANAGE_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
         "Run Pipelines",
         "Backup, Pull, Fill, Replace and Calculate. Separate from the "
         "catalogue because a single Pull All overwrites every table.",
+    ),
+    "requests": (
+        "Handle Requests",
+        "The request inbox: read every member's requests and reports, mark "
+        "them done or declined with a response, reopen them, and delete them.",
+    ),
+    "announcements": (
+        "Manage Announcements",
+        "Write, edit and remove the site announcements.",
+    ),
+    "options": (
+        "Manage Options",
+        "The Note pages: System Options, Alias Conversion and External APIs.",
+    ),
+    "images": (
+        "Manage Images",
+        "The image library: upload, crop, attach and remove images.",
+    ),
+    "resources": (
+        "Manage Resources",
+        "Read and edit the site-wide Resources page.",
     ),
 }
 
@@ -96,11 +125,31 @@ def manage_perm(key: str) -> str:
 PERM_ADMIN_AUTHZ = admin_perm("authz")
 PERM_MANAGE_CATALOG = manage_perm("catalog")
 PERM_MANAGE_PIPELINES = manage_perm("pipelines")
+PERM_MANAGE_REQUESTS = manage_perm("requests")
+# The admin's own pages beyond accounts and pipelines. Separate from
+# manage.catalog so that holding them writes no catalogue row.
+PERM_MANAGE_ANNOUNCEMENTS = manage_perm("announcements")
+PERM_MANAGE_OPTIONS = manage_perm("options")
+PERM_MANAGE_IMAGES = manage_perm("images")
+PERM_MANAGE_RESOURCES = manage_perm("resources")
+ADMIN_PAGE_PERMISSIONS: frozenset[str] = frozenset(
+    {
+        PERM_MANAGE_ANNOUNCEMENTS,
+        PERM_MANAGE_OPTIONS,
+        PERM_MANAGE_IMAGES,
+        PERM_MANAGE_RESOURCES,
+    }
+)
 
 # Declared here rather than derived from a table: like every other permission
 # these name code (a router dependency), so a row with no code behind it would
 # be inert.
-SELF_PERMISSION_KEYS: tuple[str, ...] = ("list", "personal_notes")
+SELF_PERMISSION_KEYS: tuple[str, ...] = (
+    "list",
+    "personal_notes",
+    "requests",
+    "password",
+)
 
 SELF_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
     "list": (
@@ -110,35 +159,72 @@ SELF_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
     ),
     "personal_notes": (
         "Own Personal Notes",
-        "Write your own personal-scope notes on an entry. Catalogue notes stay "
-        "admin-only.",
+        "Write your own personal-scope notes on an entry - highlights, todos, "
+        "saves, NG+ goals - and your own highlight group order. Catalogue "
+        "notes stay admin-only.",
+    ),
+    "requests": (
+        "Own Requests",
+        "File requests and reports - a missing entry, wrong or incomplete "
+        "data, a bug - and read and edit your own while they are open.",
+    ),
+    "password": (
+        "Own Password",
+        "Change your own password from Settings, given the current one. An "
+        "account without it asks the admin, who sets it on Users.",
     ),
 }
 
 
-VIEW_PERMISSION_KEYS: tuple[str, ...] = ("entities", "search", "extras", "personal")
+# The four entity kinds are four keys rather than one, so an admin can open
+# the people pages and keep the character pages closed, say. `person` covers
+# the seiyuu library too - a seiyuu opens a person page - and `character`
+# covers character identities, which are pages of a character.
+ENTITY_VIEW_KEYS: tuple[str, ...] = ("studio", "publisher", "person", "character")
+
+VIEW_PERMISSION_KEYS: tuple[str, ...] = ENTITY_VIEW_KEYS + (
+    "search",
+    "random_picker",
+    "statistics",
+)
 
 VIEW_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
-    "entities": (
-        "View Entities",
-        "Open the studio, publisher, person, character and character-identity "
-        "pages, and follow the links to them from an entry, franchise or "
-        "series page. Without it those names show as plain text.",
+    "studio": (
+        "View Studios",
+        "Open the studio library and studio pages, and follow the links to "
+        "them from an entry, franchise or series page. Without it studio "
+        "names show as plain text.",
+    ),
+    "publisher": (
+        "View Publishers",
+        "Open the publisher library and publisher pages, and follow the links "
+        "to them. Without it publisher names show as plain text.",
+    ),
+    "person": (
+        "View People",
+        "Open the person and seiyuu libraries and person pages, and follow "
+        "the links to them - staff, authors and the voice cast. Without it "
+        "their names show as plain text.",
+    ),
+    "character": (
+        "View Characters",
+        "Open the character library, character and character-identity pages, "
+        "the Characters tab on franchise and series pages, and follow the "
+        "links to them. Without it character names show as plain text.",
     ),
     "search": (
         "Search",
         "Use the site-wide search.",
     ),
-    "extras": (
-        "View Extras",
-        "Quotes, memes, resources, the random picker, future releases and "
-        "completions, and the Quotes and Memes sections on detail pages.",
+    "random_picker": (
+        "Random Picker",
+        "Open the Random Picker and read its saved defaults. Fixed per role: "
+        "super, user and shared hold it, a guest never does.",
     ),
-    "personal": (
-        "View Personal Content",
-        "See what members write about the catalogue: public profiles, the "
-        "community aggregate, notes by author, highlights, personal ratings "
-        "and expectations on groups and entities, and novel unit remarks.",
+    "statistics": (
+        "Statistics",
+        "Open the Statistics page and read its catalogue counts. Fixed per "
+        "role: super, user and shared hold it, a guest never does.",
     ),
 }
 
@@ -155,6 +241,8 @@ def self_perm(key: str) -> str:
 
 PERM_SELF_LIST = self_perm("list")
 PERM_SELF_PERSONAL_NOTES = self_perm("personal_notes")
+PERM_SELF_REQUESTS = self_perm("requests")
+PERM_SELF_PASSWORD = self_perm("password")
 
 
 def view_perm(key: str) -> str:
@@ -162,10 +250,17 @@ def view_perm(key: str) -> str:
     return f"{FAMILY_VIEW}.{key}"
 
 
-PERM_VIEW_ENTITIES = view_perm("entities")
+PERM_VIEW_STUDIO = view_perm("studio")
+PERM_VIEW_PUBLISHER = view_perm("publisher")
+PERM_VIEW_PERSON = view_perm("person")
+PERM_VIEW_CHARACTER = view_perm("character")
+# The four entity-page keys together.
+ENTITY_VIEW_PERMISSIONS: frozenset[str] = frozenset(
+    view_perm(key) for key in ENTITY_VIEW_KEYS
+)
 PERM_VIEW_SEARCH = view_perm("search")
-PERM_VIEW_EXTRAS = view_perm("extras")
-PERM_VIEW_PERSONAL = view_perm("personal")
+PERM_VIEW_RANDOM_PICKER = view_perm("random_picker")
+PERM_VIEW_STATISTICS = view_perm("statistics")
 
 
 def split_perm(permission: str) -> tuple[str, str]:
@@ -212,8 +307,8 @@ def is_valid(db: "Session", permission: str) -> bool:
 # Some cells of the role grid are not an admin's to decide. `admin.authz` is
 # the clearest: it is the permission to change who may do what, so handing it
 # out through the very page it governs is how an installation loses control of
-# itself. It is now grantable to NOTHING - the root short-circuit is the
-# only way to hold it.
+# itself. It is grantable to nothing: only the `admin` role holds it, locked
+# on, and the admin role's whole row is fixed.
 #
 # The rest follow from what each system role IS, rather than from what it
 # happens to have been seeded with. `super` means "everything except changing
@@ -229,33 +324,76 @@ def is_valid(db: "Session", permission: str) -> bool:
 # a table keyed on a name must own that name, or a rename reaches the seed and
 # silently unlocks the role.
 
+ADMIN_ROLE_NAME = "admin"
 SUPER_ROLE_NAME = "super"
 GUEST_ROLE_NAME = "guest"
+USER_ROLE_NAME = "user"
+# The role of an account several people sign in to - the two shared accounts
+# seed.py::ensure_shared_accounts keeps on every boot.
+SHARED_ROLE_NAME = "shared"
+
+# Every role there is. The set is fixed: there is no route that creates or
+# deletes a role, and migration f1i2veroles45 removed every other name.
+ROLE_NAMES: tuple[str, ...] = (
+    ADMIN_ROLE_NAME,
+    SUPER_ROLE_NAME,
+    USER_ROLE_NAME,
+    GUEST_ROLE_NAME,
+    SHARED_ROLE_NAME,
+)
+
+# The roles an admin may give an account on /users. admin and guest are not
+# held by choice (one installation account; the anonymous visitor), and a
+# shared account's role is fixed by the seed.
+ASSIGNABLE_ROLE_NAMES: frozenset[str] = frozenset({USER_ROLE_NAME, SUPER_ROLE_NAME})
 
 
 def _self_family() -> frozenset[str]:
     return frozenset(self_perm(key) for key in SELF_PERMISSION_KEYS)
 
 
-def locked_permissions(
-    role_name: str, is_root: bool
-) -> tuple[frozenset[str], frozenset[str]]:
+def gated_type_permissions() -> frozenset[str]:
+    """
+    media_type.<key> for every gated type (gated_types.REQUIRED_LABEL_FOR_TYPE).
+
+    Imported lazily: gated_types reaches this module back through
+    enforcement.py, so a top-level import would be a cycle.
+    """
+    from app.services.rbac.gated_types import gated_types
+
+    return frozenset(media_type_perm(media_type) for media_type in gated_types())
+
+
+# The admin role's whole row. It runs the installation - accounts, roles,
+# access modes, pipelines, the request inbox and its own pages - and reads
+# and writes no catalogue: manage.catalog, every media_type.*, every view.*
+# and every self.* are locked off, so nothing on its row is a free choice.
+ADMIN_FIXED_PERMISSIONS: frozenset[str] = frozenset(
+    {PERM_ADMIN_AUTHZ, PERM_MANAGE_PIPELINES, PERM_MANAGE_REQUESTS}
+    | ADMIN_PAGE_PERMISSIONS
+)
+
+
+def locked_permissions(role_name: str) -> tuple[frozenset[str], frozenset[str]]:
     """
     (locked_on, locked_off) for one role: what it must hold and what it may
     never hold. Disjoint by construction - a permission in neither set is the
     admin's free choice.
 
-    A root role's locked_on is everything EXCEPT the self family, and its
-    locked_off is that family, because Viewer.has() deliberately does not
-    short-circuit self.* (resolver.py): an administrative account keeps no
-    list and no personal notes, so drawing those boxes ticked would state the
-    opposite of what the code does.
+    The admin role's two sets cover the whole vocabulary: it holds exactly
+    ADMIN_FIXED_PERMISSIONS and nothing else, so no cell on its row is free.
     """
     every = static_catalog()
     own = _self_family()
+    # The gated types are not a free choice for any role. A member holds them
+    # and a guest or shared account never does; what a member actually SEES
+    # of them is still the access mode's decision, through each type's
+    # required label, so holding the permission shows nothing outside
+    # `unrestricted`. The nine ordinary types stay free for all three.
+    gated = gated_type_permissions()
 
-    if is_root:
-        return frozenset(every - own), own
+    if role_name == ADMIN_ROLE_NAME:
+        return ADMIN_FIXED_PERMISSIONS, frozenset(every - ADMIN_FIXED_PERMISSIONS)
     if role_name == GUEST_ROLE_NAME:
         # Every anonymous request resolves to this role, so anything beyond a
         # read would be handed to every visitor on the internet.
@@ -263,10 +401,51 @@ def locked_permissions(
             {admin_perm(key) for key in ADMIN_PERMISSION_KEYS}
             | {manage_perm(key) for key in MANAGE_PERMISSION_KEYS}
             | own
+            | gated
+            | {PERM_VIEW_RANDOM_PICKER, PERM_VIEW_STATISTICS}
         )
     if role_name == SUPER_ROLE_NAME:
         return frozenset(every - {PERM_ADMIN_AUTHZ}), frozenset({PERM_ADMIN_AUTHZ})
-    # `user` and every custom role. manage.catalog and the self family are
-    # free choices here; running a pipeline is not, because one Pull All
-    # overwrites every table including the accounts and role assignments.
-    return frozenset(), frozenset({PERM_ADMIN_AUTHZ, PERM_MANAGE_PIPELINES})
+    # Running a pipeline is never a free choice below super, because one Pull
+    # All overwrites every table including the accounts and role assignments.
+    refused = {PERM_ADMIN_AUTHZ, PERM_MANAGE_PIPELINES}
+    if role_name == USER_ROLE_NAME:
+        # Filing requests and changing your own password are fixed for a
+        # member: without the second every change goes through the admin.
+        # Handling requests is not a member's: the inbox reads every
+        # account's requests. Writing the catalogue is what makes an account
+        # `super`, so a member never holds it.
+        # The admin's own pages are not a member's either.
+        return frozenset(
+            {
+                PERM_SELF_REQUESTS,
+                PERM_SELF_PASSWORD,
+                PERM_VIEW_RANDOM_PICKER,
+                PERM_VIEW_STATISTICS,
+            }
+            | gated
+        ), frozenset(
+            refused
+            | {PERM_MANAGE_CATALOG, PERM_MANAGE_REQUESTS}
+            | ADMIN_PAGE_PERMISSIONS
+        )
+    if role_name == SHARED_ROLE_NAME:
+        # Several people sign in to one shared account. It files requests and
+        # reads; it keeps no list or personal notes of its own, because they
+        # would be everyone's. Its password is the admin's to set - one person
+        # changing it would lock out everyone else using the login. It holds
+        # the Random Picker and Statistics, each in its catalogue-only version
+        # (viewers.md, "Shared"). Quotes and memes are a per-account switch, which a shared
+        # account can never hold (features.FEATURE_ROLE_NAMES).
+        return frozenset(
+            {PERM_SELF_REQUESTS, PERM_VIEW_RANDOM_PICKER, PERM_VIEW_STATISTICS}
+        ), frozenset(
+            {admin_perm(key) for key in ADMIN_PERMISSION_KEYS}
+            | {manage_perm(key) for key in MANAGE_PERMISSION_KEYS}
+            | {PERM_SELF_LIST, PERM_SELF_PERSONAL_NOTES, PERM_SELF_PASSWORD}
+            | gated
+        )
+    # A name outside ROLE_NAMES cannot exist after migration f1i2veroles45.
+    # Should one appear anyway, it is given nothing: a lock table must not
+    # hand a stranger the free choices.
+    return frozenset(), frozenset(every)

@@ -12,6 +12,7 @@ from uuid import UUID
 
 # The image focal-point rule, so a restored focus is judged exactly as a form
 # value is.
+from app.models.system import USER_FEATURE_COLUMNS
 from app.schemas.image_focus import coerce_image_focus
 
 # The h-game vocabularies, and the lenient list rule a restore uses, imported
@@ -376,6 +377,97 @@ def parse_watch_order_follow_from_sheet(raw: dict) -> dict:
     }
 
 
+def parse_user_rating_from_sheet(raw: dict) -> dict:
+    """
+    One account's rating and expectation of one catalogue row. user_id is not
+    in the sheet - pull.py resolves the row's `username` - and each owner
+    column is a uuid: the tiers' and characters' travel unchanged, and a
+    person's, studio's or publisher's is translated through its own tab.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "collection_id": _uuid_or_none(raw.get("collection_id")),
+        "franchise_id": _uuid_or_none(raw.get("franchise_id")),
+        "series_id": _uuid_or_none(raw.get("series_id")),
+        "character_id": _uuid_or_none(raw.get("character_id")),
+        "person_id": _uuid_or_none(raw.get("person_id")),
+        "studio_id": _uuid_or_none(raw.get("studio_id")),
+        "publisher_id": _uuid_or_none(raw.get("publisher_id")),
+        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
+        "expectation": parse_from_sheet(raw.get("expectation"), str),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
+def parse_user_favorite_from_sheet(raw: dict) -> dict:
+    """
+    One account's favourite quote or meme. user_id is not in the sheet -
+    pull.py resolves the row's `username` - and quote_id / meme_id are the
+    uuids the Quote and Meme tabs carry, so they travel unchanged. Exactly one
+    is set; an unparseable cell becomes None and the CHECK refuses the row.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "quote_id": _uuid_or_none(raw.get("quote_id")),
+        "meme_id": _uuid_or_none(raw.get("meme_id")),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
+def parse_user_novel_unit_rating_from_sheet(raw: dict) -> dict:
+    """One reader's rating of and remark on one novel unit; user_id as above."""
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "unit_id": _uuid_or_none(raw.get("unit_id")),
+        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
+        "remark": parse_from_sheet(raw.get("remark"), str),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
+def parse_note_mark_from_sheet(raw: dict) -> dict:
+    """
+    One account's personal values on one catalogue note row. user_id is not
+    in the sheet - pull.py resolves the row's `username` - and note_id is the
+    note's uuid, which travels on the Note tab; one the other database minted
+    under its own uuid is translated through that tab.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "note_id": _uuid_or_none(raw.get("note_id")),
+        "values": _safe_json(raw.get("values")),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
+def parse_user_highlight_group_order_from_sheet(raw: dict) -> dict:
+    """
+    One account's highlight group order on one h-comic or h-game, keyed
+    naturally like User Media List: media_type + public_id for the entry and
+    username for the account. Pull resolves both and normalises the order.
+    """
+    media_type = parse_from_sheet(raw.get("media_type"), str)
+    public_id = parse_from_sheet(raw.get("public_id"), int)
+    username = parse_from_sheet(raw.get("username"), str)
+    if not media_type or public_id is None or not username:
+        raise ValueError(
+            "User Highlight Group Order row needs media_type, public_id and "
+            f"username; got {media_type!r}, {public_id!r}, {username!r}"
+        )
+    return {
+        "media_type": media_type,
+        "public_id": public_id,
+        "username": username,
+        "group_order": _safe_json(raw.get("group_order")),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
 def parse_user_media_list_from_sheet(raw: dict) -> dict:
     """
     One user's list row, keyed naturally rather than by uuid.
@@ -550,6 +642,9 @@ def parse_franchise_from_sheet(raw: dict) -> dict:
         "franchise_name_roman": parse_from_sheet(raw.get("franchise_name_roman"), str),
         "franchise_name_jp": parse_from_sheet(raw.get("franchise_name_jp"), str),
         "franchise_name_alt": parse_from_sheet(raw.get("franchise_name_alt"), str),
+        # Not a column any more: a backup taken before revision u1r2atings3
+        # carries it, and Pull files it under the installation owner
+        # (legacy_personal.LEGACY_PERSONAL_COLUMNS).
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "franchise_expectation": parse_from_sheet(
             raw.get("franchise_expectation"), str
@@ -593,6 +688,9 @@ def parse_collection_from_sheet(raw: dict) -> dict:
         ),
         "collection_name_jp": parse_from_sheet(raw.get("collection_name_jp"), str),
         "collection_name_alt": parse_from_sheet(raw.get("collection_name_alt"), str),
+        # Not a column any more: a backup taken before revision u1r2atings3
+        # carries it, and Pull files it under the installation owner
+        # (legacy_personal.LEGACY_PERSONAL_COLUMNS).
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "collection_expectation": parse_from_sheet(
             raw.get("collection_expectation"), str
@@ -631,6 +729,9 @@ def parse_series_from_sheet(raw: dict) -> dict:
         "series_name_roman": parse_from_sheet(raw.get("series_name_roman"), str),
         "series_name_jp": parse_from_sheet(raw.get("series_name_jp"), str),
         "series_name_alt": parse_from_sheet(raw.get("series_name_alt"), str),
+        # Not a column any more: a backup taken before revision u1r2atings3
+        # carries it, and Pull files it under the installation owner
+        # (legacy_personal.LEGACY_PERSONAL_COLUMNS).
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "series_expectation": parse_from_sheet(raw.get("series_expectation"), str),
         # Must be a real UUID: unlike franchise_id there is no name-resolution
@@ -973,6 +1074,9 @@ def parse_novel_unit_from_sheet(raw: dict) -> dict:
         "unit_key": parse_from_sheet(raw.get("unit_key"), str),
         "name_cn": parse_from_sheet(raw.get("name_cn"), str),
         "name_en": parse_from_sheet(raw.get("name_en"), str),
+        # Not a column any more: a backup taken before revision u1r2atings3
+        # carries it, and Pull files it under the installation owner
+        # (legacy_personal.LEGACY_PERSONAL_COLUMNS).
         "remark": parse_from_sheet(raw.get("remark"), str),
         "ch_count": parse_from_sheet(raw.get("ch_count"), float),
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
@@ -1086,6 +1190,17 @@ def parse_game_from_sheet(raw: dict) -> dict:
     return parsed
 
 
+# An originality value a sheet backed up before its rename still holds. Shared
+# by h-comic and hentai, which read one vocabulary (H_COMIC_ORIGINALITY).
+_LEGACY_ORIGINALITY = {"原創": "原版"}
+
+
+def _originality_from_sheet(val: Any) -> Optional[str]:
+    """h_comic / hentai originality, with a renamed value read as its new name."""
+    originality = parse_from_sheet(val, str)
+    return _LEGACY_ORIGINALITY.get(originality, originality)
+
+
 def parse_h_comic_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the H-Comic sheet into typed data ready for
@@ -1111,7 +1226,7 @@ def parse_h_comic_from_sheet(raw: dict) -> dict:
         "h_comic_name_jp": parse_from_sheet(raw.get("h_comic_name_jp"), str),
         "h_comic_name_kr": parse_from_sheet(raw.get("h_comic_name_kr"), str),
         "region": parse_from_sheet(raw.get("region"), str),
-        "originality": parse_from_sheet(raw.get("originality"), str),
+        "originality": _originality_from_sheet(raw.get("originality")),
         "animation_status": parse_from_sheet(raw.get("animation_status"), str),
         "series_number": parse_from_sheet(raw.get("series_number"), int),
         "serialization_status": parse_from_sheet(
@@ -1127,6 +1242,8 @@ def parse_h_comic_from_sheet(raw: dict) -> dict:
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),
         "ehentai_link": parse_from_sheet(raw.get("ehentai_link"), str),
+        # An old sheet's header: no column any more. Pull hands it to
+        # legacy_personal, which files it as the installation owner's order.
         "highlight_group_order": _safe_json(raw.get("highlight_group_order")),
         "illustrator": parse_from_sheet(raw.get("illustrator"), str),
         "author": parse_from_sheet(raw.get("author"), str),
@@ -1166,7 +1283,7 @@ def parse_hentai_from_sheet(raw: dict) -> dict:
         "hentai_name_jp": parse_from_sheet(raw.get("hentai_name_jp"), str),
         "hentai_name_alt": parse_from_sheet(raw.get("hentai_name_alt"), str),
         "source_material": parse_from_sheet(raw.get("source_material"), str),
-        "originality": parse_from_sheet(raw.get("originality"), str),
+        "originality": _originality_from_sheet(raw.get("originality")),
         "series_number": parse_from_sheet(raw.get("series_number"), int),
         "airing_status": parse_from_sheet(raw.get("airing_status"), str),
         "release_date": release_date.normalize(
@@ -1288,6 +1405,8 @@ def parse_h_game_from_sheet(raw: dict) -> dict:
         "steam_link": parse_from_sheet(raw.get("steam_link"), str),
         "dlsite_link_jp": parse_from_sheet(raw.get("dlsite_link_jp"), str),
         "dlsite_link_tw": parse_from_sheet(raw.get("dlsite_link_tw"), str),
+        # An old sheet's header: no column any more. Pull hands it to
+        # legacy_personal, which files it as the installation owner's order.
         "highlight_group_order": _safe_json(raw.get("highlight_group_order")),
         "type_slots": _safe_json(raw.get("type_slots")),
         "studio": parse_from_sheet(raw.get("studio"), str),
@@ -1474,6 +1593,9 @@ def parse_person_from_sheet(raw: dict) -> dict:
         # Folded onto the vocabularies, so a backup from before they existed
         # cannot bring "Male" or "a+" back - see app/utils/entity_vocab.py.
         "gender": normalize_gender(parse_from_sheet(raw.get("gender"), str)),
+        # Not a column any more: a backup taken before revision u1r2atings3
+        # carries it, and Pull files it under the installation owner
+        # (legacy_personal.LEGACY_PERSONAL_COLUMNS).
         "my_rating": normalize_my_rating(parse_from_sheet(raw.get("my_rating"), str)),
         "photo_file": parse_from_sheet(raw.get("photo_file"), str),
         "photo_focus": _focus_from_sheet(raw.get("photo_focus")),
@@ -1519,6 +1641,9 @@ def parse_character_from_sheet(raw: dict) -> dict:
         # Folded onto the vocabularies, so a backup from before they existed
         # cannot bring "Male" or "a+" back - see app/utils/entity_vocab.py.
         "gender": normalize_gender(parse_from_sheet(raw.get("gender"), str)),
+        # Not a column any more: a backup taken before revision u1r2atings3
+        # carries it, and Pull files it under the installation owner
+        # (legacy_personal.LEGACY_PERSONAL_COLUMNS).
         "my_rating": normalize_my_rating(parse_from_sheet(raw.get("my_rating"), str)),
         "photo_file": parse_from_sheet(raw.get("photo_file"), str),
         "photo_focus": _focus_from_sheet(raw.get("photo_focus")),
@@ -1634,6 +1759,9 @@ def parse_studio_from_sheet(raw: dict) -> dict:
         "name_jp": parse_from_sheet(raw.get("name_jp"), str),
         "name_alt": parse_from_sheet(raw.get("name_alt"), str),
         "display_name_field": parse_from_sheet(raw.get("display_name_field"), str),
+        # Not a column any more: a backup taken before revision u1r2atings3
+        # carries it, and Pull files it under the installation owner
+        # (legacy_personal.LEGACY_PERSONAL_COLUMNS).
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "logo_file": parse_from_sheet(raw.get("logo_file"), str),
         "logo_focus": _focus_from_sheet(raw.get("logo_focus")),
@@ -1667,6 +1795,9 @@ def parse_publisher_from_sheet(raw: dict) -> dict:
         "name_jp": parse_from_sheet(raw.get("name_jp"), str),
         "name_alt": parse_from_sheet(raw.get("name_alt"), str),
         "display_name_field": parse_from_sheet(raw.get("display_name_field"), str),
+        # Not a column any more: a backup taken before revision u1r2atings3
+        # carries it, and Pull files it under the installation owner
+        # (legacy_personal.LEGACY_PERSONAL_COLUMNS).
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "logo_file": parse_from_sheet(raw.get("logo_file"), str),
         "logo_focus": _focus_from_sheet(raw.get("logo_focus")),
@@ -1801,10 +1932,20 @@ def parse_user_from_sheet(raw: dict) -> dict:
     app/main.py's lifespan on every machine, so the same person holds a
     different uuid on each - see pull.py's DERIVED_IDENTITY_KEYS.
 
-    list_is_public and is_installation_owner are coerced rather than left
-    None: both columns are NOT NULL, and a blank cell means false, not
-    "unknown". A sheet written before either column existed has no header for
-    it at all, which is the same case and the same answer.
+    is_installation_owner is coerced rather than left None: the column is
+    NOT NULL, and a blank cell means false, not "unknown". A sheet written
+    before the column existed has no header for it at all, which is the same
+    case and the same answer. A sheet written while users.list_is_public
+    existed still carries that header; it is not read (pull.py's
+    RETIRED_HEADERS keeps it out of the run's unresolved references).
+
+    `status` travels for `active` and `disabled`, so a Pull does not
+    re-activate an account disabled on the other machine. Any other value -
+    and a sheet written before the column existed - emits no `status` at all:
+    an existing account keeps its own, and a new one starts at the column
+    default, `active`. `pending` belongs to the approval flow on the machine
+    the registration arrived on and does not travel. `session_version` is
+    never read: it is this machine's revocation counter.
 
     THIS IS AN EXPLICIT PROJECTION, NOT A COLUMN SWEEP. A column added to the
     User model does not travel until it is named here, and the failure is
@@ -1813,14 +1954,32 @@ def parse_user_from_sheet(raw: dict) -> dict:
     travel, or the two databases disagree about whose collection this is and
     each files restored rows under a different account.
     """
-    is_public = parse_from_sheet(raw.get("list_is_public"), bool)
     is_owner = parse_from_sheet(raw.get("is_installation_owner"), bool)
-    return {
+    parsed = {
         "id": parse_from_sheet(raw.get("id"), UUID),
         "username": parse_from_sheet(raw.get("username"), str),
-        "list_is_public": bool(is_public),
         "is_installation_owner": bool(is_owner),
+        # NULL is no limit, so a blank cell is NULL, not 0. A sheet with no
+        # header for it leaves the local value alone (pull drops the key).
+        "open_request_limit": parse_from_sheet(raw.get("open_request_limit"), int),
+        # Mode keys, not ids, so they mean the same thing on both machines.
+        # Blank is NULL, which as a pair is "no mode". A sheet with neither
+        # header leaves the local pair alone on an update, and an insert gets
+        # the columns' `normal` default.
+        "mode_ceiling": parse_from_sheet(raw.get("mode_ceiling"), str),
+        "mode_default": parse_from_sheet(raw.get("mode_default"), str),
+        # The feature switches: NOT NULL, so a blank cell is false, like
+        # is_installation_owner. A sheet with no header for one leaves the
+        # local value alone (pull drops the key), and an insert gets false.
+        **{
+            column: bool(parse_from_sheet(raw.get(column), bool))
+            for column in USER_FEATURE_COLUMNS
+        },
     }
+    status = parse_from_sheet(raw.get("status"), str)
+    if status in ("active", "disabled"):
+        parsed["status"] = status
+    return parsed
 
 
 def parse_content_label_from_sheet(raw: dict) -> dict:
@@ -1882,6 +2041,30 @@ def parse_franchise_content_label_from_sheet(raw: dict) -> dict:
     }
 
 
+def parse_collection_content_label_from_sheet(raw: dict) -> dict:
+    """The Collection Content Label row; the same shape as
+    parse_franchise_content_label_from_sheet, one tier up."""
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "collection_id": _uuid_or_none(raw.get("collection_id")),
+        "label_id": _uuid_or_none(raw.get("label_id")),
+        "position": parse_from_sheet(raw.get("position"), int),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+    }
+
+
+def parse_series_content_label_from_sheet(raw: dict) -> dict:
+    """The Series Content Label row; the same shape as
+    parse_franchise_content_label_from_sheet, one tier down."""
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "series_id": _uuid_or_none(raw.get("series_id")),
+        "label_id": _uuid_or_none(raw.get("label_id")),
+        "position": parse_from_sheet(raw.get("position"), int),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+    }
+
+
 def parse_system_config_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the System Configs sheet into typed data ready for the Database.
@@ -1932,6 +2115,9 @@ def parse_quote_from_sheet(raw: dict) -> dict:
         "image_file": parse_from_sheet(raw.get("image_file"), str),
         "tags": _safe_json(raw.get("tags")),
         "is_general": parse_from_sheet(raw.get("is_general"), bool),
+        # Not a column any more: a backup taken before revision f1a2vourites3
+        # carries it, and Pull files it under the installation owner
+        # (legacy_personal.LEGACY_PERSONAL_COLUMNS).
         "is_favorite": parse_from_sheet(raw.get("is_favorite"), bool),
         "needs_review": parse_from_sheet(raw.get("needs_review"), bool),
         "sort_index": parse_from_sheet(raw.get("sort_index"), float),
@@ -1967,6 +2153,7 @@ def parse_meme_from_sheet(raw: dict) -> dict:
         "quote_id": _uuid_or_none(raw.get("quote_id")),
         "episode": parse_from_sheet(raw.get("episode"), str),
         "link": parse_from_sheet(raw.get("link"), str),
+        # Not a column any more; an old backup's, filed as on Quote.
         "is_favorite": parse_from_sheet(raw.get("is_favorite"), bool),
         "sort_index": parse_from_sheet(raw.get("sort_index"), float),
         "remark": parse_from_sheet(raw.get("remark"), str),
@@ -2028,6 +2215,20 @@ def _note_fields(raw: dict):
     return fields
 
 
+# Sections that left the registry, and where their rows went. A sheet backed
+# up before the move still names the old key, and Pull files each row where
+# the migration filed the local ones.
+_RETIRED_NOTE_SECTIONS = {
+    # The gated types' one list of reviews became their 大眾評價.
+    "reviews_and_comments": "public_reviews",
+}
+
+
+def _pulled_note_section(value) -> str | None:
+    section = parse_from_sheet(value, str)
+    return _RETIRED_NOTE_SECTIONS.get(section, section)
+
+
 def parse_note_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Note sheet into typed data ready for the
@@ -2051,7 +2252,12 @@ def parse_note_from_sheet(raw: dict) -> dict:
         # Users tab; `None` here means "fall back to the admin", which
         # app/services/pipelines/pull.py applies.
         "author_id": _uuid_or_none(raw.get("author_id")),
-        "section": parse_from_sheet(raw.get("section"), str),
+        "section": _pulled_note_section(raw.get("section")),
+        # A personal row of a mixed section. NOT NULL, so a blank cell reads
+        # as catalogue; a sheet backed up before the column existed has no
+        # header, so Pull leaves the key out and the column's default - also
+        # catalogue - applies, which is all such a sheet can hold.
+        "personal": parse_from_sheet(raw.get("personal"), bool) is True,
         # The tree link for the hierarchical sections. A plain UUID column, so
         # it needs no JSON handling - but it does need to be here, or Pull
         # flattens every nested Story List entry to a root.

@@ -13,13 +13,14 @@
 import { Link } from "react-router-dom";
 
 import { getCoverUrl, FALLBACK_SVG, focusStyle, thumbUrl } from "../../lib/covers";
-import { entityPath } from "../../lib/entityPath";
+import { useEntityHref } from "../../lib/entityPath";
 import { releaseYear } from "../../lib/releaseDate";
 import LazyImage from "../ui/LazyImage";
 
 export default function CastingCard({ entry, navPath, hideIdentity = false }) {
   const title = entry.display_name || "Untitled";
   const year = releaseYear(entry.release_date);
+  const entityHref = useEntityHref();
   const cover = (
     <div
       className="bg-surface-2 overflow-hidden"
@@ -96,19 +97,32 @@ export default function CastingCard({ entry, navPath, hideIdentity = false }) {
       )}
       {entry.seiyuu?.length > 0 && (
         <div className="px-2.5 pb-2.5 flex flex-col gap-0.5">
-          {entry.seiyuu.map((seiyuu) => (
-            <Link
-              key={seiyuu.system_id}
-              to={entityPath("person", {
-                public_id: seiyuu.public_id,
-                display_name: seiyuu.display_name,
-              })}
-              className="text-xs text-text-muted hover:text-brand transition-colors truncate"
-            >
-              {seiyuu.display_name}
-              {seiyuu.remark && <span className="text-text-faint"> ({seiyuu.remark})</span>}
-            </Link>
-          ))}
+          {entry.seiyuu.map((seiyuu) => {
+            // "" for a viewer without view.person: the name stays, unlinked.
+            const path = entityHref("person", {
+              public_id: seiyuu.public_id,
+              display_name: seiyuu.display_name,
+            });
+            const label = (
+              <>
+                {seiyuu.display_name}
+                {seiyuu.remark && <span className="text-text-faint"> ({seiyuu.remark})</span>}
+              </>
+            );
+            return path ? (
+              <Link
+                key={seiyuu.system_id}
+                to={path}
+                className="text-xs text-text-muted hover:text-brand transition-colors truncate"
+              >
+                {label}
+              </Link>
+            ) : (
+              <span key={seiyuu.system_id} className="text-xs text-text-muted truncate">
+                {label}
+              </span>
+            );
+          })}
         </div>
       )}
     </div>

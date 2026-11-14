@@ -39,7 +39,6 @@ export default function ComicModifyTab({
           other on Save Changes. */}
       <ComicNotes
         comic={editingItem ?? {}}
-        isAdmin={true}
         hideSections={["remark"]}
       />
     </>

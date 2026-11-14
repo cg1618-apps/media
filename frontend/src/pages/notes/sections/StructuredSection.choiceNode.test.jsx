@@ -38,7 +38,7 @@ const renderSection = (notes, props = {}) =>
     <StructuredSection
       section={SAVES}
       notes={notes}
-      isAdmin
+      canWrite
       ownerId={GAME_ID}
       onCreate={vi.fn()}
       onUpdate={vi.fn()}

@@ -31,11 +31,11 @@ from app.routers import (
     character_identity,
     collection,
     comic,
-    community,
     constants,
     content_labels,
     covers,
     credits,
+    dashboard,
     data_control,
     form_defaults,
     franchise,
@@ -48,7 +48,10 @@ from app.routers import (
     hentai,
     images,
     manga,
+    me_favorites,
+    me_highlights,
     me_list,
+    me_ratings,
     media_relation,
     meme,
     movie,
@@ -57,15 +60,16 @@ from app.routers import (
     options,
     person,
     plan_next,
-    profile,
     publisher,
     quote,
     random_picker_defaults,
+    requests,
     resources,
     roles,
     search,
     seasonal,
     series,
+    statistics,
     studio,
     system,
     tv_show,
@@ -73,10 +77,15 @@ from app.routers import (
     watch_order,
 )
 from app.schema_guard import ensure_schema
-from app.services.domain.gated_labels import ensure_system_labels
+from app.services.domain.gated_labels import ensure_labels
 from app.services.integrations.image_manager import COVER_DIR, COVER_OWNERS
-from app.services.rbac.modes import grant_all_modes_to_existing_accounts
-from app.services.rbac.seed import ADMIN_ROLE, ensure_rbac_seed
+from app.services.rbac.seed import (
+    ADMIN_ROLE,
+    ensure_admin_accounts_modeless,
+    ensure_no_admin_installation_owner,
+    ensure_rbac_seed,
+    ensure_shared_accounts,
+)
 from app.services.rbac.seed_modes import ensure_access_mode_seed
 from app.services.security import get_password_hash
 
@@ -133,19 +142,13 @@ async def lifespan(app: FastAPI):
         # should find both seeds in one place. Idempotent for the same reason
         # ensure_rbac_seed is.
         ensure_access_mode_seed(db)
-        # The system labels the gated types require (h-comic, hentai), AFTER
-        # the modes so each can be granted to `unrestricted` - and to nothing
-        # else, which ensure_access_mode_seed guarantees on every later boot
-        # too. Found by key: a row an admin created by hand is adopted.
-        ensure_system_labels(db)
-        # And make sure every existing account HOLDS a mode. A signed-in
-        # caller with no mode resolves the empty object set - fail-closed,
-        # and correct - so on a database built by create_all rather than by
-        # Alembic (schema_guard's fresh-install path) the seeded admin would
-        # otherwise log in and see nothing. Idempotent and all-or-nothing per
-        # account: anyone already holding a mode is left alone, so this does
-        # not fight the future rule that a NEW account gets `safe` only.
-        grant_all_modes_to_existing_accounts(db)
+        # The content labels, as rows in step with app/services/rbac/labels.py:
+        # a missing one created, a renamed one renamed back. Which modes show
+        # each is derived, so nothing is granted.
+        ensure_labels(db)
+        # The two shared accounts, after the roles and the modes they name.
+        # Re-asserts each one's role on every boot, and a mode if it has none.
+        ensure_shared_accounts(db)
         db.commit()
         admin_role = (
             db.query(models.Role).filter(models.Role.name == ADMIN_ROLE).first()
@@ -165,6 +168,11 @@ async def lifespan(app: FastAPI):
             logger.info("[System] No admin detected. Seeding master account...")
 
             hashed_pwd = get_password_hash(admin_pass)
+            # The admin has no mode, but it cannot be created without one:
+            # the INSERT takes the columns' `normal` default even when None is
+            # passed, because a Python-side default fires on None.
+            # ensure_admin_accounts_modeless below parks it - an UPDATE, which
+            # fires no default.
             new_admin = models.User(
                 username="admin",
                 hashed_password=hashed_pwd,
@@ -175,6 +183,12 @@ async def lifespan(app: FastAPI):
             logger.info("[System] Admin user 'admin' created successfully.")
         else:
             logger.info("[System] Admin account verified.")
+        # Whatever a Pull or a hand edit left, an admin-role account has no
+        # mode - the way ensure_shared_accounts re-asserts the shared modes.
+        ensure_admin_accounts_modeless(db)
+        # Nor is it ever the installation owner.
+        ensure_no_admin_installation_owner(db)
+        db.commit()
 
     except Exception as e:
         # `logging` never lets an emit failure propagate (it routes through
@@ -300,7 +314,12 @@ app.include_router(plan_next.router)
 app.include_router(quote.router)
 app.include_router(meme.router)
 app.include_router(resources.router)
+# catalogue_router first: its /catalogue must not fall to router's
+# /{seasonal_id}, which is behind self.list.
+app.include_router(seasonal.catalogue_router)
 app.include_router(seasonal.router)
+app.include_router(statistics.router)
+app.include_router(dashboard.router)
 app.include_router(search.router)
 
 app.include_router(announcements.router)
@@ -322,10 +341,12 @@ app.include_router(roles.router)
 app.include_router(access_modes.router)
 app.include_router(users.router)
 app.include_router(account.router)
-app.include_router(profile.router)
-app.include_router(community.router)
 app.include_router(me_list.router)
+app.include_router(me_ratings.router)
+app.include_router(me_favorites.router)
+app.include_router(me_highlights.router)
 app.include_router(content_labels.router)
+app.include_router(requests.router)
 
 
 # ==========================================

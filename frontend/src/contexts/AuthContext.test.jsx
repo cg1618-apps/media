@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { hardNavigate } from "../lib/hardNavigate";
@@ -17,6 +17,7 @@ function Probe() {
       <span data-testid="manga">{String(has("media_type.manga"))}</span>
       <span data-testid="invented">{String(has("label.invented"))}</span>
       <span data-testid="selflist">{String(has("self.list"))}</span>
+      <span data-testid="authz">{String(has("admin.authz"))}</span>
     </div>
   );
 }
@@ -42,7 +43,6 @@ describe("useAuth().has", () => {
       is_admin: false,
       username: "friend",
       role: "friend",
-      is_root: false,
       permissions: ["media_type.anime"],
     });
 
@@ -59,14 +59,25 @@ describe("useAuth().has", () => {
     expect(screen.getByTestId("role")).toHaveTextContent("friend");
   });
 
-  it("gives a root role every permission, including ones nobody granted", async () => {
-    // The reason a new content label never hides content from an admin.
+  it("gives the admin exactly its fixed set, and nothing it was not granted", async () => {
+    // No role short-circuits any more. The admin's /me carries its fixed set
+    // and is_admin false (it holds no manage.catalog); a permission outside
+    // that set - a media type, self.list, one nobody has minted - is false.
+    // The set is non-empty and admin.authz answers true from it, so the
+    // falses are the membership test's doing, not an empty session's.
     mockMe({
-      is_admin: true,
+      is_admin: false,
       username: "admin",
       role: "admin",
-      is_root: true,
-      permissions: [],
+      permissions: [
+        "admin.authz",
+        "manage.pipelines",
+        "manage.requests",
+        "manage.announcements",
+        "manage.options",
+        "manage.images",
+        "manage.resources",
+      ],
     });
 
     render(
@@ -76,48 +87,20 @@ describe("useAuth().has", () => {
     );
 
     await waitFor(() =>
-      expect(screen.getByTestId("invented")).toHaveTextContent("true"),
+      expect(screen.getByTestId("authz")).toHaveTextContent("true"),
     );
-    expect(screen.getByTestId("manga")).toHaveTextContent("true");
+    expect(screen.getByTestId("admin")).toHaveTextContent("false");
+    expect(screen.getByTestId("manga")).toHaveTextContent("false");
+    expect(screen.getByTestId("invented")).toHaveTextContent("false");
+    expect(screen.getByTestId("selflist")).toHaveTextContent("false");
   });
 
-  it("does not hand a root role the self family", async () => {
-    // The one exception to the short-circuit above, and it mirrors
-    // Viewer.has on the server: self.* is ownership, not privilege. An admin
-    // account administers the site and keeps no library on it, so the nav
-    // must not advertise Plan, Seasonal and Statistics to a caller the API
-    // answers 401.
+  it("answers self.* from the grant like any other family", async () => {
+    // The mirror of the false above: self.list granted is self.list held.
     mockMe({
-      is_admin: true,
-      username: "admin",
-      role: "admin",
-      is_root: true,
-      permissions: [],
-    });
-
-    render(
-      <AuthProvider>
-        <Probe />
-      </AuthProvider>,
-    );
-
-    await waitFor(() =>
-      expect(screen.getByTestId("selflist")).toHaveTextContent("false"),
-    );
-    // The mirror on the same viewer: everything else still short-circuits,
-    // so a false above is the carve-out and not a broken root flag.
-    expect(screen.getByTestId("invented")).toHaveTextContent("true");
-  });
-
-  it("gives a root role the self family when it is granted explicitly", async () => {
-    // Nothing about the carve-out stops a grant. It removes the IMPLICIT
-    // hold, so an account that really is granted self.list keeps its library
-    // whatever its role's root flag says.
-    mockMe({
-      is_admin: true,
-      username: "admin",
-      role: "admin",
-      is_root: true,
+      is_admin: false,
+      username: "friend",
+      role: "user",
       permissions: ["self.list"],
     });
 
@@ -149,12 +132,12 @@ describe("useAuth().has", () => {
   });
 
   it("keeps isAdmin working for the components that still read it", async () => {
+    // is_admin means manage.catalog: true for super.
     mockMe({
       is_admin: true,
-      username: "admin",
-      role: "admin",
-      is_root: true,
-      permissions: [],
+      username: "cg1618",
+      role: "super",
+      permissions: ["manage.catalog"],
     });
 
     render(
@@ -177,7 +160,7 @@ describe("useAuth().visibleGatedTypes", () => {
   }
 
   it("carries the gated types /api/auth/me names", async () => {
-    mockMe({ is_admin: true, username: "admin", role: "admin", is_root: true, permissions: [], visible_gated_types: ["h-comic"] });
+    mockMe({ is_admin: true, username: "cg1618", role: "super", permissions: [], visible_gated_types: ["h-comic"] });
     render(
       <AuthProvider>
         <GatedProbe />
@@ -186,8 +169,8 @@ describe("useAuth().visibleGatedTypes", () => {
     await waitFor(() => expect(screen.getByTestId("gated")).toHaveTextContent("h-comic"));
   });
 
-  it("is empty when the server names none - even for a root account", async () => {
-    mockMe({ is_admin: true, username: "admin", role: "admin", is_root: true, permissions: [], visible_gated_types: [] });
+  it("is empty when the server names none - even for a catalogue editor", async () => {
+    mockMe({ is_admin: true, username: "cg1618", role: "super", permissions: ["manage.catalog"], visible_gated_types: [] });
     render(
       <AuthProvider>
         <GatedProbe />
@@ -204,29 +187,37 @@ describe("a switched-to access mode that expires", () => {
   function meWithMode(expiresAt) {
     mockMe({
       is_admin: true,
-      username: "admin",
-      role: "admin",
-      is_root: true,
+      username: "cg1618",
+      role: "super",
       permissions: [],
       mode: { id: "m1", key: "unrestricted", expires_at: expiresAt },
       modes: [],
     });
   }
 
+  // The clock must not move while the page signs in. The reload's delay is
+  // computed when /me answers, and every assertion below is about a margin
+  // measured from that moment, so any fake time that passes during the render
+  // eats into it. /me is a mocked promise, so signing in needs microtasks
+  // only: act() drains them without touching the clock. Neither
+  // testing-library's waitFor (under `shouldAdvanceTime` the clock follows
+  // real time, seconds of it on a loaded machine) nor vi.waitFor (it advances
+  // the clock by each polling interval) can promise that.
   async function renderSignedIn() {
     render(
       <AuthProvider>
         <Probe />
       </AuthProvider>,
     );
-    await waitFor(() =>
-      expect(screen.getByTestId("role")).toHaveTextContent("admin"),
-    );
+    for (let i = 0; i < 20 && !screen.queryByTestId("role")?.textContent; i++) {
+      await act(async () => {});
+    }
+    expect(screen.getByTestId("role")).toHaveTextContent("super");
   }
 
   beforeEach(() => {
     hardNavigate.mockClear();
-    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.useFakeTimers();
   });
 
   afterEach(() => {

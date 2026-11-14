@@ -5,7 +5,7 @@ see an entry, and its franchises.
 Every refusal test here reads an entry that CARRIES the `hentai` label - the
 label is attached by the server on every write, and each refusal asserts it is
 there first - so the hidden set is never empty and the gate has something to
-refuse. Each refusal is paired with its mirror: `admin_client` sits in
+refuse. Each refusal is paired with its mirror: `owner_client` sits in
 `unrestricted`, which carries every label, and reads the same entry back.
 
 The narrow viewers:
@@ -34,9 +34,9 @@ LABEL = "hentai"
 TITLE = "Zvornik Hidden Hentai"
 
 
-def _create(admin_client, **fields):
+def _create(owner_client, **fields):
     payload = {"hentai_name_cn": TITLE, **fields}
-    response = admin_client.post(f"{ROUTE}/", json=payload)
+    response = owner_client.post(f"{ROUTE}/", json=payload)
     assert response.status_code == 201, response.text
     return response.json()
 
@@ -64,9 +64,9 @@ def plain_member(db_session):
 # ---------------------------------------------------------------------------
 
 
-def test_an_entry_round_trips(admin_client):
+def test_an_entry_round_trips(owner_client):
     body = _create(
-        admin_client,
+        owner_client,
         hentai_name_jp="日本語タイトル",
         hentai_name_roman="Nihongo",
         source_material="Manga",
@@ -76,7 +76,7 @@ def test_an_entry_round_trips(admin_client):
         release_date="2024-05",
         ep_total=4,
     )
-    fetched = admin_client.get(f"{ROUTE}/{body['public_id']}").json()
+    fetched = owner_client.get(f"{ROUTE}/{body['public_id']}").json()
     assert fetched["ep_total"] == 4
     assert fetched["source_material"] == "Manga"
     assert fetched["originality"] == "同人"
@@ -87,89 +87,105 @@ def test_an_entry_round_trips(admin_client):
     assert fetched["watching_status"] == "Might Watch"
 
 
-def test_an_author_is_credited_and_read_back(admin_client):
+def test_an_author_is_credited_and_read_back(owner_client):
     """h-comic's author role, on hentai: written through /api/credits like
     every credit, read back joined and as linkable refs labelled Author."""
-    body = _create(admin_client)
-    response = admin_client.put(
+    body = _create(owner_client)
+    response = owner_client.put(
         f"/api/credits/hentai/{body['system_id']}",
         json={"credits": {"author": ["Zvornik Writer", "Zvornik Second"]}},
     )
     assert response.status_code == 200, response.text
 
-    fetched = admin_client.get(f"{ROUTE}/{body['public_id']}").json()
+    fetched = owner_client.get(f"{ROUTE}/{body['public_id']}").json()
     assert fetched["author"] == "Zvornik Writer, Zvornik Second"
     refs = fetched["credit_refs"]["author"]
     assert [r["display_name"] for r in refs] == ["Zvornik Writer", "Zvornik Second"]
     assert {r["label"] for r in refs} == {"Author"}
-    credits = admin_client.get(f"/api/credits/hentai/{body['system_id']}").json()
+    credits = owner_client.get(f"/api/credits/hentai/{body['system_id']}").json()
     assert credits["credits"]["author"] == ["Zvornik Writer", "Zvornik Second"]
 
     # An update replaces the set; an empty list clears it.
-    admin_client.put(
+    owner_client.put(
         f"/api/credits/hentai/{body['system_id']}",
         json={"credits": {"author": ["Zvornik Third"]}},
     )
-    assert admin_client.get(f"{ROUTE}/{body['public_id']}").json()["author"] == "Zvornik Third"
-    admin_client.put(
+    assert owner_client.get(f"{ROUTE}/{body['public_id']}").json()["author"] == "Zvornik Third"
+    owner_client.put(
         f"/api/credits/hentai/{body['system_id']}", json={"credits": {"author": []}}
     )
-    cleared = admin_client.get(f"{ROUTE}/{body['public_id']}").json()
+    cleared = owner_client.get(f"{ROUTE}/{body['public_id']}").json()
     assert cleared["author"] is None
     assert "author" not in cleared["credit_refs"]
 
 
-def test_display_name_falls_back_through_the_names(admin_client):
-    body = admin_client.post(f"{ROUTE}/", json={"hentai_name_roman": "Romaji Only"}).json()
+def test_display_name_falls_back_through_the_names(owner_client):
+    body = owner_client.post(f"{ROUTE}/", json={"hentai_name_roman": "Romaji Only"}).json()
     assert body["display_name"] == "Romaji Only"
 
 
 @pytest.mark.parametrize(
     "field,value",
     [
-        ("source_material", "Game"),
+        ("source_material", "Comic"),
         ("originality", "fan work"),
+        # The value before its rename to 原版.
+        ("originality", "原創"),
         ("airing_status", "Animated"),
         ("usefulness", "very"),
     ],
 )
-def test_the_vocabularies_are_checked_on_create(admin_client, field, value):
-    response = admin_client.post(
+def test_the_vocabularies_are_checked_on_create(owner_client, field, value):
+    response = owner_client.post(
         f"{ROUTE}/", json={"hentai_name_cn": TITLE, field: value}
     )
     assert response.status_code == 422
 
 
-def test_the_vocabularies_are_checked_on_the_tracker_patch(admin_client):
-    body = _create(admin_client)
+def test_a_game_source_and_the_renamed_originality_are_accepted(owner_client):
+    """The mirror of the refusals above: the same fields take the new values."""
+    response = owner_client.post(
+        f"{ROUTE}/",
+        json={"hentai_name_cn": TITLE, "source_material": "Game", "originality": "原版"},
+    )
+    assert response.status_code in (200, 201), response.text
+    assert (response.json()["source_material"], response.json()["originality"]) == (
+        "Game",
+        "原版",
+    )
+
+
+def test_the_vocabularies_are_checked_on_the_tracker_patch(owner_client):
+    body = _create(owner_client)
     for payload in (
-        {"source_material": "Game"},
+        {"source_material": "Comic"},
+        {"originality": "原創"},
         {"airing_status": "Animated"},
         {"usefulness": "very"},
     ):
-        response = admin_client.patch(f"{ROUTE}/{body['system_id']}", json=payload)
+        response = owner_client.patch(f"{ROUTE}/{body['system_id']}", json=payload)
         assert response.status_code == 422, payload
 
 
-def test_the_personal_fields_land_on_the_list_row(admin_client, db_session, admin_user):
-    body = _create(admin_client)
-    response = admin_client.patch(
+def test_the_personal_fields_land_on_the_list_row(owner_client, db_session, owner_user):
+    body = _create(owner_client)
+    response = owner_client.patch(
         f"{ROUTE}/{body['system_id']}",
         json={"watching_status": "Active Watching", "my_rating": "A", "usefulness": "實用"},
     )
     assert response.status_code == 200, response.text
     row = (
         db_session.query(models.UserMediaList)
-        .filter_by(user_id=admin_user.id, media_id=uuid.UUID(body["system_id"]))
+        .filter_by(user_id=owner_user.id, media_id=uuid.UUID(body["system_id"]))
         .one()
     )
     assert (row.status, row.my_rating, row.usefulness) == ("Active Watching", "A", "實用")
     assert response.json()["usefulness"] == "實用"
 
 
-def test_complete_marks_it_watched_and_aired(admin_client):
-    body = _create(admin_client, airing_status="Airing", ep_total=3)
-    response = admin_client.post(f"{ROUTE}/{body['system_id']}/complete")
+def test_complete_marks_it_watched_and_aired(owner_client):
+    body = _create(owner_client, airing_status="Airing", ep_total=3)
+    response = owner_client.post(f"{ROUTE}/{body['system_id']}/complete")
     assert response.status_code == 200
     assert response.json()["watching_status"] == "Completed"
     assert response.json()["airing_status"] == "Finished Airing"
@@ -182,22 +198,22 @@ def test_complete_marks_it_watched_and_aired(admin_client):
 # ---------------------------------------------------------------------------
 
 
-def test_an_update_changes_the_episode_total(admin_client):
-    body = _create(admin_client, ep_total=2)
-    response = admin_client.put(f"{ROUTE}/{body['system_id']}", json={"ep_total": 6})
+def test_an_update_changes_the_episode_total(owner_client):
+    body = _create(owner_client, ep_total=2)
+    response = owner_client.put(f"{ROUTE}/{body['system_id']}", json={"ep_total": 6})
     assert response.status_code == 200, response.text
     assert response.json()["ep_total"] == 6
-    assert admin_client.get(f"{ROUTE}/{body['public_id']}").json()["ep_total"] == 6
+    assert owner_client.get(f"{ROUTE}/{body['public_id']}").json()["ep_total"] == 6
 
 
-def test_ep_fin_lands_on_the_list_row(admin_client, db_session, admin_user):
-    body = _create(admin_client, ep_total=4)
-    response = admin_client.patch(f"{ROUTE}/{body['system_id']}", json={"ep_fin": 2})
+def test_ep_fin_lands_on_the_list_row(owner_client, db_session, owner_user):
+    body = _create(owner_client, ep_total=4)
+    response = owner_client.patch(f"{ROUTE}/{body['system_id']}", json={"ep_fin": 2})
     assert response.status_code == 200, response.text
     assert response.json()["ep_fin"] == 2
     row = (
         db_session.query(models.UserMediaList)
-        .filter_by(user_id=admin_user.id, media_id=uuid.UUID(body["system_id"]))
+        .filter_by(user_id=owner_user.id, media_id=uuid.UUID(body["system_id"]))
         .one()
     )
     assert row.ep_fin == 2
@@ -205,12 +221,12 @@ def test_ep_fin_lands_on_the_list_row(admin_client, db_session, admin_user):
     assert _db_entry(db_session, body).ep_total == 4
 
 
-def test_stepping_to_the_total_finishes_it(admin_client):
-    body = _create(admin_client, airing_status="Airing", ep_total=2)
-    admin_client.patch(
+def test_stepping_to_the_total_finishes_it(owner_client):
+    body = _create(owner_client, airing_status="Airing", ep_total=2)
+    owner_client.patch(
         f"{ROUTE}/{body['system_id']}", json={"watching_status": "Active Watching", "ep_fin": 1}
     )
-    response = admin_client.patch(f"{ROUTE}/{body['system_id']}", json={"ep_fin": 2})
+    response = owner_client.patch(f"{ROUTE}/{body['system_id']}", json={"ep_fin": 2})
     assert response.status_code == 200, response.text
     data = response.json()
     assert data["ep_fin"] == 2
@@ -218,30 +234,30 @@ def test_stepping_to_the_total_finishes_it(admin_client):
     assert data["airing_status"] == "Finished Airing"
 
 
-def test_stepping_below_the_total_does_not(admin_client):
+def test_stepping_below_the_total_does_not(owner_client):
     # The mirror case: the same entry, one short of its total.
-    body = _create(admin_client, airing_status="Airing", ep_total=3)
-    admin_client.patch(
+    body = _create(owner_client, airing_status="Airing", ep_total=3)
+    owner_client.patch(
         f"{ROUTE}/{body['system_id']}", json={"watching_status": "Active Watching"}
     )
-    response = admin_client.patch(f"{ROUTE}/{body['system_id']}", json={"ep_fin": 2})
+    response = owner_client.patch(f"{ROUTE}/{body['system_id']}", json={"ep_fin": 2})
     data = response.json()
     assert data["watching_status"] == "Active Watching"
     assert data["airing_status"] == "Airing"
 
 
-def test_my_list_put_accepts_ep_fin(admin_client, mode_client, plain_member):
+def test_my_list_put_accepts_ep_fin(owner_client, mode_client, plain_member):
     """A member, not the admin: root holds no list rows."""
-    body = _create(admin_client, ep_total=4)
+    body = _create(owner_client, ep_total=4)
     member = mode_client("unrestricted", user=plain_member)
     response = member.put(f"/api/me/list/{body['system_id']}", json={"ep_fin": 3})
     assert response.status_code == 200, response.text
     assert response.json()["ep_fin"] == 3
 
 
-def test_delete_removes_the_entry(admin_client, db_session):
-    body = _create(admin_client)
-    response = admin_client.delete(f"{ROUTE}/{body['system_id']}")
+def test_delete_removes_the_entry(owner_client, db_session):
+    body = _create(owner_client)
+    response = owner_client.delete(f"{ROUTE}/{body['system_id']}")
     assert response.status_code == 200
     assert _db_entry(db_session, body) is None
     assert db_session.get(models.Media, uuid.UUID(body["system_id"])) is None
@@ -253,41 +269,41 @@ def test_delete_removes_the_entry(admin_client, db_session):
 # ---------------------------------------------------------------------------
 
 
-def test_create_stamps_the_label(admin_client, db_session):
-    body = _create(admin_client)
-    assert label_keys_for_entry(db_session, uuid.UUID(body["system_id"])) == [LABEL]
-    assert [label["key"] for label in body["content_labels"]] == [LABEL]
+def test_create_stamps_the_label(owner_client, db_session):
+    body = _create(owner_client)
+    assert label_keys_for_entry(db_session, uuid.UUID(body["system_id"])) == [LABEL, "nsfw"]
+    assert [label["key"] for label in body["content_labels"]] == [LABEL, "nsfw"]
 
 
 def test_update_and_patch_restore_a_label_removed_behind_the_api(
-    admin_client, db_session
+    owner_client, db_session
 ):
-    body = _create(admin_client)
+    body = _create(owner_client)
     entry_id = uuid.UUID(body["system_id"])
     for method, payload in (("put", {"hentai_name_en": "x"}), ("patch", {"series_number": 1})):
         db_session.query(models.MediaContentLabel).filter_by(media_id=entry_id).delete()
         db_session.flush()
         assert label_keys_for_entry(db_session, entry_id) == []
-        response = getattr(admin_client, method)(f"{ROUTE}/{entry_id}", json=payload)
+        response = getattr(owner_client, method)(f"{ROUTE}/{entry_id}", json=payload)
         assert response.status_code == 200, response.text
-        assert label_keys_for_entry(db_session, entry_id) == [LABEL], method
+        assert label_keys_for_entry(db_session, entry_id) == [LABEL, "nsfw"], method
 
 
-def test_the_label_endpoint_refuses_to_remove_it(admin_client, db_session):
-    body = _create(admin_client)
-    response = admin_client.put(
+def test_the_label_endpoint_refuses_to_remove_it(owner_client, db_session):
+    body = _create(owner_client)
+    response = owner_client.put(
         f"/api/content-labels/entry/hentai/{body['system_id']}",
         json={"label_keys": []},
     )
     assert response.status_code == 422
-    assert label_keys_for_entry(db_session, uuid.UUID(body["system_id"])) == [LABEL]
+    assert label_keys_for_entry(db_session, uuid.UUID(body["system_id"])) == [LABEL, "nsfw"]
 
 
 def test_the_label_endpoint_accepts_a_set_that_keeps_it(
-    admin_client, db_session, nsfw_label
+    owner_client, db_session, nsfw_label
 ):
-    body = _create(admin_client)
-    response = admin_client.put(
+    body = _create(owner_client)
+    response = owner_client.put(
         f"/api/content-labels/entry/hentai/{body['system_id']}",
         json={"label_keys": [LABEL, "nsfw"]},
     )
@@ -298,10 +314,12 @@ def test_the_label_endpoint_accepts_a_set_that_keeps_it(
     ]
 
 
-def test_the_required_label_cannot_be_deleted(admin_client, db_session):
+def test_the_required_label_cannot_be_deleted(owner_client, db_session):
+    """Labels are code: there is no route that deletes one, so the label an
+    entry of this type requires survives an admin's attempt."""
     label = db_session.query(models.ContentLabel).filter_by(key=LABEL).one()
-    response = admin_client.delete(f"/api/content-labels/{label.system_id}")
-    assert response.status_code == 409
+    response = owner_client.delete(f"/api/content-labels/{label.system_id}")
+    assert response.status_code in (404, 405)
     assert db_session.query(models.ContentLabel).filter_by(key=LABEL).count() == 1
 
 
@@ -311,10 +329,10 @@ def test_the_required_label_cannot_be_deleted(admin_client, db_session):
 
 
 @pytest.fixture
-def labelled_hentai(admin_client, db_session):
-    body = _create(admin_client)
+def labelled_hentai(owner_client, db_session):
+    body = _create(owner_client)
     # The set the gate computes over is not empty: the entry carries the label.
-    assert label_keys_for_entry(db_session, uuid.UUID(body["system_id"])) == [LABEL]
+    assert label_keys_for_entry(db_session, uuid.UUID(body["system_id"])) == [LABEL, "nsfw"]
     return body
 
 
@@ -335,12 +353,12 @@ def test_a_safe_mode_searcher_does_not_find_it(guest_reader, labelled_hentai):
     assert "manga" in body["results"]
 
 
-def test_unrestricted_sees_it_everywhere(admin_client, labelled_hentai):
+def test_unrestricted_sees_it_everywhere(owner_client, labelled_hentai):
     """The mirror of the three refusals above."""
-    assert admin_client.get(f"{ROUTE}/{labelled_hentai['public_id']}").status_code == 200
-    listed = admin_client.get(f"{ROUTE}/").json()
+    assert owner_client.get(f"{ROUTE}/{labelled_hentai['public_id']}").status_code == 200
+    listed = owner_client.get(f"{ROUTE}/").json()
     assert any(e["system_id"] == labelled_hentai["system_id"] for e in listed)
-    body = admin_client.get("/api/search/", params={"q": "Zvornik"}).json()
+    body = owner_client.get("/api/search/", params={"q": "Zvornik"}).json()
     assert [e["system_id"] for e in body["results"]["hentai"]] == [
         labelled_hentai["system_id"]
     ]
@@ -378,8 +396,8 @@ def test_only_unrestricted_carries_the_hentai_label(db_session, labelled_hentai)
     assert carrying == {"unrestricted"}
 
 
-def test_me_names_both_gated_types_for_unrestricted(admin_client):
-    assert admin_client.get("/api/auth/me").json()["visible_gated_types"] == [
+def test_me_names_both_gated_types_for_unrestricted(owner_client):
+    assert owner_client.get("/api/auth/me").json()["visible_gated_types"] == [
         "h-comic",
         "h-game",
         "hentai",
@@ -405,37 +423,37 @@ def _franchise(db_session, franchise_type, name="Fate"):
     return row
 
 
-def test_an_auto_created_franchise_is_typed_and_labelled(admin_client, db_session):
-    body = _create(admin_client)
+def test_an_auto_created_franchise_is_typed_and_labelled(owner_client, db_session):
+    body = _create(owner_client)
     franchise = db_session.get(models.Franchise, uuid.UUID(body["franchise_id"]))
     assert franchise.franchise_type == "Hentai"
-    assert label_keys_for_franchise(db_session, franchise.system_id) == [LABEL]
+    assert label_keys_for_franchise(db_session, franchise.system_id) == [LABEL, "nsfw"]
 
 
-def test_a_hentai_attaches_to_the_h_comic_franchise_of_its_name(admin_client, db_session):
+def test_a_hentai_attaches_to_the_h_comic_franchise_of_its_name(owner_client, db_session):
     """D5: an h-comic and its adaptation share a franchise."""
     own = _franchise(db_session, "H-Comic")
-    body = _create(admin_client, hentai_name_cn=None, hentai_name_en="Fate")
+    body = _create(owner_client, hentai_name_cn=None, hentai_name_en="Fate")
     assert body["franchise_id"] == str(own.system_id)
 
 
-def test_a_hentai_never_attaches_to_a_mainstream_franchise(admin_client, db_session):
+def test_a_hentai_never_attaches_to_a_mainstream_franchise(owner_client, db_session):
     mainstream = _franchise(db_session, "ACG")
-    body = _create(admin_client, hentai_name_cn=None, hentai_name_en="Fate")
+    body = _create(owner_client, hentai_name_cn=None, hentai_name_en="Fate")
     assert body["franchise_id"] != str(mainstream.system_id)
     created = db_session.get(models.Franchise, uuid.UUID(body["franchise_id"]))
     assert created.franchise_type == "Hentai"
 
 
-def test_a_mainstream_entry_never_attaches_to_a_hentai_franchise(admin_client, db_session):
+def test_a_mainstream_entry_never_attaches_to_a_hentai_franchise(owner_client, db_session):
     own = _franchise(db_session, "Hentai")
-    body = admin_client.post("/api/anime/", json={"anime_name_en": "Fate"}).json()
+    body = owner_client.post("/api/anime/", json={"anime_name_en": "Fate"}).json()
     assert body["franchise_id"] != str(own.system_id)
 
 
-def test_a_mainstream_franchise_named_by_id_is_refused(admin_client, db_session):
+def test_a_mainstream_franchise_named_by_id_is_refused(owner_client, db_session):
     mainstream = _franchise(db_session, "ACG")
-    response = admin_client.post(
+    response = owner_client.post(
         f"{ROUTE}/",
         json={"hentai_name_cn": TITLE, "franchise_id": str(mainstream.system_id)},
     )
@@ -443,38 +461,38 @@ def test_a_mainstream_franchise_named_by_id_is_refused(admin_client, db_session)
 
 
 def test_a_mainstream_franchise_named_by_id_is_refused_on_the_update(
-    admin_client, db_session
+    owner_client, db_session
 ):
-    body = _create(admin_client)
+    body = _create(owner_client)
     mainstream = _franchise(db_session, "ACG")
-    response = admin_client.put(
+    response = owner_client.put(
         f"{ROUTE}/{body['system_id']}", json={"franchise_id": str(mainstream.system_id)}
     )
     assert response.status_code == 422
 
 
-def test_an_h_comic_franchise_named_by_id_is_accepted(admin_client, db_session):
+def test_an_h_comic_franchise_named_by_id_is_accepted(owner_client, db_session):
     """The mirror: the same family is allowed."""
     own = _franchise(db_session, "H-Comic")
-    body = _create(admin_client, franchise_id=str(own.system_id))
+    body = _create(owner_client, franchise_id=str(own.system_id))
     assert body["franchise_id"] == str(own.system_id)
 
 
-def test_the_franchise_label_cannot_be_removed(admin_client, db_session):
-    body = _create(admin_client)
-    response = admin_client.put(
+def test_the_franchise_label_cannot_be_removed(owner_client, db_session):
+    body = _create(owner_client)
+    response = owner_client.put(
         f"/api/content-labels/franchise/{body['franchise_id']}", json={"label_keys": []}
     )
     assert response.status_code == 422
-    assert label_keys_for_franchise(db_session, uuid.UUID(body["franchise_id"])) == [LABEL]
+    assert label_keys_for_franchise(db_session, uuid.UUID(body["franchise_id"])) == [LABEL, "nsfw"]
 
 
-def test_a_hentai_franchise_hides_from_a_guest(client, admin_client, db_session):
-    body = _create(admin_client)
+def test_a_hentai_franchise_hides_from_a_guest(client, owner_client, db_session):
+    body = _create(owner_client)
     franchise_id = body["franchise_id"]
-    assert label_keys_for_franchise(db_session, uuid.UUID(franchise_id)) == [LABEL]
+    assert label_keys_for_franchise(db_session, uuid.UUID(franchise_id)) == [LABEL, "nsfw"]
     assert client.get(f"/api/franchise/{franchise_id}").status_code == 404
-    assert admin_client.get(f"/api/franchise/{franchise_id}").status_code == 200
+    assert owner_client.get(f"/api/franchise/{franchise_id}").status_code == 200
 
 
 # ---------------------------------------------------------------------------
@@ -510,9 +528,9 @@ def test_find_all_duplicates_reports_hentai(db_session):
     assert "hentai" in find_all_duplicates(db_session)
 
 
-def test_plan_next_flags_watch_next_and_to_rewatch(admin_client):
-    body = _create(admin_client)
-    response = admin_client.put(
+def test_plan_next_flags_watch_next_and_to_rewatch(owner_client):
+    body = _create(owner_client)
+    response = owner_client.put(
         f"{ROUTE}/{body['system_id']}", json={"watch_next": True, "to_rewatch": True}
     )
     assert response.status_code == 200, response.text

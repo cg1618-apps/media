@@ -35,16 +35,16 @@ DOMAIN = "testserver.local"
 
 
 @pytest.fixture
-def signed_in(db_session, admin_user, grant_mode, nsfw_label):
-    """admin_user holding `borderline` (default), `unrestricted` and `safe`.
+def signed_in(db_session, owner_user, grant_mode, nsfw_label):
+    """owner_user at ceiling `unrestricted`, default `borderline`.
 
     `nsfw_label` is load-bearing: it is what makes `borderline` and
     `unrestricted` different from `safe`, so "landed back in the default" is
     distinguishable from "landed in whatever was lying around".
     """
-    grant_mode(admin_user, MODE_BORDERLINE, is_default=True)
-    grant_mode(admin_user, MODE_UNRESTRICTED)
-    grant_mode(admin_user, MODE_SAFE)
+    grant_mode(owner_user, MODE_BORDERLINE, is_default=True)
+    grant_mode(owner_user, MODE_UNRESTRICTED)
+    grant_mode(owner_user, MODE_SAFE)
 
     def override_get_db():
         yield db_session
@@ -52,7 +52,7 @@ def signed_in(db_session, admin_user, grant_mode, nsfw_label):
     app.dependency_overrides[get_db] = override_get_db
 
     def _client(login_mode_id=None, login_expires_at=None):
-        claims = {"sub": admin_user.username, "role": admin_user.role}
+        claims = {"sub": owner_user.username, "role": owner_user.role}
         if login_mode_id is not None:
             claims["mode"] = str(login_mode_id)
         token = create_access_token(claims, expires_at=login_expires_at)
@@ -103,23 +103,13 @@ def test_the_login_tokens_mode_claim_is_not_read(signed_in, mode):
 
 
 def test_a_changed_default_applies_on_the_next_request(
-    signed_in, db_session, admin_user, mode
+    signed_in, db_session, owner_user, mode
 ):
     """The default is read from the database, not frozen into the login."""
-    from app import models
     from app.services.rbac import cache
 
     c = signed_in()
-    rows = (
-        db_session.query(models.UserAccessMode)
-        .filter(models.UserAccessMode.user_id == admin_user.id)
-        .all()
-    )
-    for row in rows:
-        row.is_default = False
-    db_session.flush()
-    for row in rows:
-        row.is_default = row.mode_id == mode(MODE_SAFE).system_id
+    owner_user.mode_default = MODE_SAFE
     db_session.flush()
     cache.bump()
 
@@ -182,11 +172,11 @@ def test_closing_the_browser_returns_to_the_default(signed_in, mode):
     assert _active(c)["key"] == MODE_BORDERLINE
 
 
-def test_an_expired_override_returns_to_the_default(signed_in, mode, admin_user):
+def test_an_expired_override_returns_to_the_default(signed_in, mode, owner_user):
     """What a browser that restores its session keeps: an expired token."""
     c = signed_in()
     expired = create_access_token(
-        {"sub": admin_user.username, "mode": str(mode(MODE_UNRESTRICTED).system_id)},
+        {"sub": owner_user.username, "mode": str(mode(MODE_UNRESTRICTED).system_id)},
         expires_at=datetime.now(timezone.utc) - timedelta(seconds=1),
     )
     c.cookies.set(OVERRIDE, expired, domain=DOMAIN)
@@ -194,12 +184,12 @@ def test_an_expired_override_returns_to_the_default(signed_in, mode, admin_user)
     assert _active(c)["key"] == MODE_BORDERLINE
 
 
-def test_a_live_override_applies(signed_in, mode, admin_user):
+def test_a_live_override_applies(signed_in, mode, owner_user):
     """The mirror of the expiry test, so its green is the expiry and not the
     cookie being ignored altogether."""
     c = signed_in()
     live = create_access_token(
-        {"sub": admin_user.username, "mode": str(mode(MODE_UNRESTRICTED).system_id)},
+        {"sub": owner_user.username, "mode": str(mode(MODE_UNRESTRICTED).system_id)},
         expires_delta=timedelta(minutes=5),
     )
     c.cookies.set(OVERRIDE, live, domain=DOMAIN)
@@ -218,20 +208,17 @@ def test_another_accounts_override_is_ignored(signed_in, mode):
     assert _active(c)["key"] == MODE_BORDERLINE
 
 
-def test_an_override_naming_a_revoked_mode_resolves_to_nothing(
-    signed_in, mode, db_session, admin_user
+def test_an_override_above_a_lowered_ceiling_resolves_to_nothing(
+    signed_in, mode, db_session, owner_user
 ):
-    """Revocation stays fail-closed: the EMPTY set, not the default. The
-    default can be wider than what was revoked."""
-    from app import models
+    """Lowering the ceiling stays fail-closed: the EMPTY set, not the default
+    and not the new ceiling."""
     from app.services.rbac import cache
 
     c = signed_in()
-    _switch(c, mode(MODE_SAFE))
-    db_session.query(models.UserAccessMode).filter(
-        models.UserAccessMode.user_id == admin_user.id,
-        models.UserAccessMode.mode_id == mode(MODE_SAFE).system_id,
-    ).delete(synchronize_session=False)
+    _switch(c, mode(MODE_UNRESTRICTED))
+    assert _active(c)["key"] == MODE_UNRESTRICTED
+    owner_user.mode_ceiling = MODE_BORDERLINE
     db_session.flush()
     cache.bump()
 
@@ -265,13 +252,13 @@ def test_logout_clears_the_override(signed_in, mode):
     assert OVERRIDE not in c.cookies
 
 
-def test_login_clears_the_override(signed_in, mode, admin_user):
+def test_login_clears_the_override(signed_in, mode, owner_user):
     c = signed_in()
     _switch(c, mode(MODE_UNRESTRICTED))
 
     response = c.post(
         "/api/auth/login",
-        data={"username": admin_user.username, "password": "testpass"},
+        data={"username": owner_user.username, "password": "testpass"},
     )
 
     assert response.status_code == 200
@@ -350,13 +337,13 @@ def test_a_narrower_mode_still_ends_when_the_browser_closes(signed_in, mode):
 
 
 def test_an_override_minted_before_the_timed_claim_still_reports_its_end(
-    signed_in, mode, admin_user
+    signed_in, mode, owner_user
 ):
     """Cookies issued before this change carry no `timed` claim; they are all
     hour-long wider-or-not overrides, so they keep reporting their end."""
     c = signed_in()
     live = create_access_token(
-        {"sub": admin_user.username, "mode": str(mode(MODE_SAFE).system_id)},
+        {"sub": owner_user.username, "mode": str(mode(MODE_SAFE).system_id)},
         expires_delta=timedelta(minutes=5),
     )
     c.cookies.set(OVERRIDE, live, domain=DOMAIN)

@@ -17,7 +17,6 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
-from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
 
 from app import models, schemas
@@ -28,6 +27,7 @@ from app.routers._patching import apply_column_patch
 from app.schemas.external_search import ExternalSearchResult
 from app.services.domain.autofill import autofill_person_from_mal
 from app.services.domain.casting import fallback_photo
+from app.services.domain.credit_counts import person_role_counts
 from app.services.domain.credits import find_person
 from app.services.domain.derivation import apply_extract_mal_id_person
 from app.services.domain.entity_photos import EntityMedia, person_media
@@ -39,17 +39,18 @@ from app.services.domain.membership import (
     replace_members,
 )
 from app.services.domain.merge_fill import finish_merge
+from app.services.domain.user_rating import ratings_by_owner
 from app.services.integrations.tenrai import search_mal_people
 from app.services.rbac.enforcement import (
     filter_visible_pairs,
     label_hidden_entry_ids,
 )
 from app.services.rbac.gated_types import hidden_person_roles
-from app.services.rbac.personal_gate import strip_personal
 from app.services.rbac.resolver import (
     Viewer,
     require_manage_catalog,
-    require_view_entities,
+    require_view_person,
+    viewer_user_id,
 )
 from app.services.rbac.shared_visibility import (
     apply_shared_visibility,
@@ -76,6 +77,7 @@ def _to_response(
     viewer=None,
     media: Optional[EntityMedia] = None,
     hidden: Optional[frozenset[str]] = None,
+    ratings: Optional[dict] = None,
 ) -> schemas.PersonResponse:
     # Count credits on entries the viewer may see, from BOTH stores: a seiyuu
     # has no media_credit rows at all (see credit_roles.CreditRole.credited_via)
@@ -93,7 +95,15 @@ def _to_response(
     # connection, and a visible person omits it rather than naming the type.
     if hidden is None:
         hidden = hidden_scopes(db, viewer)
-    response = schemas.PersonResponse(
+    # `ratings` is the viewer's own user_rating rows, {id: row}: passed in by
+    # the list route for the whole page in one query, looked up here
+    # otherwise. A guest has none, and reads null.
+    if ratings is None:
+        ratings = ratings_by_owner(
+            db, "person", [person.system_id], viewer_user_id(viewer)
+        )
+    own = ratings.get(person.system_id)
+    return schemas.PersonResponse(
         system_id=person.system_id,
         public_id=person.public_id,
         name_en=person.name_en,
@@ -103,7 +113,7 @@ def _to_response(
         display_name_field=person.display_name_field,
         display_name=person.display_name,
         gender=person.gender,
-        my_rating=person.my_rating,
+        my_rating=own.my_rating if own is not None else None,
         photo_file=person.photo_file,
         photo_focus=person.photo_focus,
         photo_fallback_entry_id=media.photo_fallback_entry_id,
@@ -120,7 +130,6 @@ def _to_response(
         media_types=media.media_types,
         restricted=media.restricted,
     )
-    return strip_personal(viewer, "person", response)
 
 
 def _derive_and_fill_from_mal(db: Session, person: models.Person) -> None:
@@ -150,7 +159,7 @@ def get_all_people(
     role: Optional[str] = Query(default=None),
     scope: Optional[str] = Query(default=None),
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(require_view_entities),
+    viewer: Viewer = Depends(require_view_person),
 ):
     """
     Retrieves people, optionally filtered to those who hold a given role, and
@@ -184,8 +193,11 @@ def get_all_people(
     # with a per-row choice, so no single ORDER BY column can express it.
     people.sort(key=lambda p: p.display_name.casefold())
     media = person_media(db, viewer, people)
+    ratings = ratings_by_owner(
+        db, "person", [person.system_id for person in people], viewer_user_id(viewer)
+    )
     return [
-        _to_response(db, person, viewer, media[person.system_id], hidden)
+        _to_response(db, person, viewer, media[person.system_id], hidden, ratings)
         for person in people
     ]
 
@@ -212,7 +224,7 @@ def search_mal(
 )
 def get_role_counts(
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(require_view_entities),
+    viewer: Viewer = Depends(require_view_person),
 ):
     """
     How many distinct people hold each person_role, zeros included.
@@ -223,19 +235,9 @@ def get_role_counts(
     Counts people, not person_role rows - a director scoped for
     all three of their media types has three rows but is one person. Counts
     only the people and role scopes this viewer may see, so the tally agrees
-    with the list it heads.
+    with the list it heads (app/services/domain/credit_counts.py).
     """
-    hidden = hidden_scopes(db, viewer)
-    roles = [role for role in PERSON_ROLES if role not in hidden_person_roles(hidden)]
-    query = db.query(
-        models.PersonRole.role,
-        func.count(func.distinct(models.PersonRole.person_id)),
-    ).join(models.Person, models.PersonRole.person_id == models.Person.system_id)
-    query = apply_shared_visibility(query, models.Person, db, viewer)
-    if hidden:
-        query = query.filter(models.PersonRole.scope.notin_(hidden))
-    tallied = dict(query.group_by(models.PersonRole.role).all())
-    return {role: tallied.get(role, 0) for role in roles}
+    return person_role_counts(db, viewer)
 
 
 @router.get(
@@ -245,7 +247,7 @@ def get_role_counts(
 )
 def get_role_scopes(
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(require_view_entities),
+    viewer: Viewer = Depends(require_view_person),
 ):
     """
     Which media types each person role may be scoped to.
@@ -276,7 +278,7 @@ def get_role_scopes(
 def get_person_entries(
     system_id: UUID,
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(require_view_entities),
+    viewer: Viewer = Depends(require_view_person),
 ):
     """
     The entries this person is credited on, grouped by media type AND role.
@@ -501,7 +503,7 @@ def _visible_person_or_404(db: Session, viewer, system_id: str) -> models.Person
 def get_person_clubs(
     system_id: str,
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(require_view_entities),
+    viewer: Viewer = Depends(require_view_person),
 ):
     """The visible clubs this artist belongs to, ordered by name."""
     person = _visible_person_or_404(db, viewer, system_id)
@@ -537,7 +539,7 @@ def put_person_clubs(
 def get_club_members(
     system_id: str,
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(require_view_entities),
+    viewer: Viewer = Depends(require_view_person),
 ):
     """The visible members of a club, in the club's order. Empty for a person
     who is not a club."""
@@ -573,7 +575,7 @@ def put_club_members(
 def get_person_by_id(
     system_id: str,
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(require_view_entities),
+    viewer: Viewer = Depends(require_view_person),
 ):
     """Retrieves a single person by their public_id or their UUID."""
     person = find_entity(db, models.Person, system_id)
@@ -732,11 +734,12 @@ def patch_person(
 ):
     """
     Partially updates a person's own columns - the detail page's inline
-    rating and remark edits. Only the keys sent change; roles are not a
-    column and are edited through PUT.
+    remark edit. Only the keys sent change; roles are not a column and are
+    edited through PUT. The viewer's rating is written through
+    PUT /api/me/ratings/person/{id}.
 
-    The same rules as PUT, checked before anything is written: gender and
-    my_rating are their vocabularies ("" is NULL), display_name_field is en /
+    The same rules as PUT, checked before anything is written: gender is
+    its vocabulary ("" is NULL), display_name_field is en /
     cn / jp / alt, at least one name survives the patch, and a
     photo_fallback_entry_id names an entry this person is credited or cast
     on. Server columns (system_id, public_id, timestamps) are a 422; keys that

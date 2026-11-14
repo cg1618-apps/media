@@ -15,6 +15,7 @@ import { Chip, Eyebrow } from "../../components/ui/primitives";
 import { useAuth } from "../../contexts/AuthContext";
 import { useViewScope } from "../../hooks/useViewScope";
 import { canSeeGatedType } from "../../lib/gatedTypes";
+import { withoutPersonal } from "../../lib/libraryScope";
 
 const EXPECTATION_WEIGHT = { Highest: 0, High: 1, Medium: 2, Low: 3 };
 
@@ -130,8 +131,8 @@ const TABLE_COLUMNS = [
     render: (f, { entriesByFranchise }) =>
       entriesByFranchise[f.system_id]?.length ?? 0,
   },
-  // Expectation and My are the catalogue's own judgements, personal content
-  // a viewer without view.personal is not shown (`personal: true`).
+  // Expectation and My are the viewer's own judgements, not shown to a viewer
+  // without self.list (`personal: true`), who has none.
   {
     key: "expectation",
     personal: true,
@@ -165,9 +166,7 @@ const TABLE_COLUMNS = [
 // libraries read as one component rather than two tables that drifted.
 function FranchiseTable({ franchises, columnCtx, showPersonal }) {
   const navigate = useNavigate();
-  const columns = showPersonal
-    ? TABLE_COLUMNS
-    : TABLE_COLUMNS.filter((col) => !col.personal);
+  const columns = showPersonal ? TABLE_COLUMNS : withoutPersonal(TABLE_COLUMNS);
   return (
     <div className="bg-surface border border-border overflow-auto max-h-[75vh]">
       <table className="w-full text-left">
@@ -223,7 +222,7 @@ async function fetchList(path) {
 
 export default function FranchiseLibrary() {
   const auth = useAuth();
-  const { personal: showPersonal } = useViewScope();
+  const { ownData: showPersonal } = useViewScope();
   const authLoading = Boolean(auth?.loading);
   const canSeeHComic = canSeeGatedType(auth, "h-comic");
   const canSeeHGame = canSeeGatedType(auth, "h-game");

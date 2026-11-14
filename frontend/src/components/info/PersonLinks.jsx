@@ -11,7 +11,7 @@
 // The studio half of the same idea lives in StudioLinks.jsx; studios are one
 // role, so theirs needs no role key.
 //
-// A person page is a member's (view.entities): without the key the names
+// A person page is behind view.person: without the key the names
 // render as plain text, through useEntityHref.
 import { Link } from "react-router-dom";
 

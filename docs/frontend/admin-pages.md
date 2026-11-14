@@ -1,36 +1,41 @@
 # Admin Pages
 
-Last verified: 2026-10-30
+Last verified: 2026-11-14
 
-**What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
-in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
+**What this is for.** Every administrative route behind `ProtectedRoute` in
+`frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
 the rules that are easy to get wrong (cascade deletes, enrichment, form
 defaults). Public pages are in [pages.md](pages.md); the shared data layer,
 theming and component catalog are in [components.md](components.md); the
 server side of every action is in [../api.md](../api.md) and
 [../data-actions.md](../data-actions.md).
 
-All admin routes are lazy chunks (loaded on first navigation) and sit under
-the `Admin` nav section, which only renders when `useAuth().has("admin")`.
+All admin routes are lazy chunks (loaded on first navigation). Each sits
+inside a `<ProtectedRoute>` naming its own key, and its nav row asks the
+same one. The admin account holds no `manage.catalog`, so of these it
+reaches the pipeline pages, the inbox, `/images`, the Note pages, the
+label reference and the RBAC pages — never the catalogue editors.
 
-| Route | File | Purpose |
-|---|---|---|
-| `/system` | `pages/admin/Admin.jsx` | Control Center: pipelines, announcements, review modals |
-| `/data-history` | `pages/admin/DataHistory.jsx` | Data-control logs and deleted-record audit |
-| `/review-queue` | `pages/admin/ReviewQueue.jsx` | Checks that list something to look at: remarks, duplicates, music, single-entry groups |
-| `/add` | `pages/admin/Add.jsx` + `pages/add-tabs/*` | Create entries, groups, options, quotes, memes |
-| `/images` | `pages/admin/Images.jsx` | Image library: upload, filter, detach, delete |
-| `/modify` | `pages/admin/Modify.jsx` + `pages/modify-tabs/*` | Edit an existing row (deep link `?id=`) |
-| `/delete` | `pages/admin/Delete.jsx` | Delete with cascade / orphan handling |
-| `/defaults` | `pages/admin/FormDefaults.jsx` + `pages/defaults-tabs/DefaultsTab.jsx` | Per-type form defaults |
-| `/random-defaults` | `pages/admin/PickerDefaults.jsx` | Per-mode Random Picker default filters |
-| `/watch-orders` | `pages/admin/WatchOrders.jsx` | Watch-order lists editor |
-| `/relations` | `pages/admin/Relations.jsx` | Relations canvas |
-| `/options` | `pages/admin/SystemOptions.jsx` | Read-only view of the three option tiers |
-| `/aliases` | `pages/admin/Aliases.jsx` | Read-only view of the external-source names, inverted by source |
-| `/external-apis` | `pages/admin/ExternalApis.jsx` | Read-only view of which field each external API writes, and whether it fills or replaces it |
-| `/business-logic` | `pages/admin/BusinessLogic.jsx` + `pages/admin/businessLogicTopics.js` | Read-only account of what Calculate All changes, step by step; `manage.pipelines` only |
-| `/roles`, `/users`, `/content-labels` | `pages/admin/{Roles,Users,ContentLabels}.jsx` | RBAC administration |
+| Route | File | Purpose | Key |
+|---|---|---|---|
+| `/system` | `pages/admin/Admin.jsx` | Control Center: pipelines, announcements, review modals | `manage.pipelines` |
+| `/data-history` | `pages/admin/DataHistory.jsx` | Data-control logs and deleted-record audit | `manage.pipelines` |
+| `/review-queue` | `pages/admin/ReviewQueue.jsx` | Checks that list something to look at: remarks, duplicates, music, single-entry groups | `manage.pipelines` |
+| `/request-inbox` | `pages/admin/RequestInbox.jsx` | Every account's requests and reports: mark done or declined, reopen, delete | `manage.requests` |
+| `/add` | `pages/admin/Add.jsx` + `pages/add-tabs/*` | Create entries, groups, options, quotes, memes | `manage.catalog` |
+| `/images` | `pages/admin/Images.jsx` | Image library: upload, filter, detach, delete | `manage.images` |
+| `/modify` | `pages/admin/Modify.jsx` + `pages/modify-tabs/*` | Edit an existing row (deep link `?id=`) | `manage.catalog` |
+| `/delete` | `pages/admin/Delete.jsx` | Delete with cascade / orphan handling | `manage.catalog` |
+| `/defaults` | `pages/admin/FormDefaults.jsx` + `pages/defaults-tabs/DefaultsTab.jsx` | Per-type form defaults | `manage.catalog` |
+| `/random-defaults` | `pages/admin/PickerDefaults.jsx` | Per-mode Random Picker default filters | `manage.catalog` |
+| `/watch-orders` | `pages/admin/WatchOrders.jsx` | Watch-order lists editor | `manage.catalog` |
+| `/relations` | `pages/admin/Relations.jsx` | Relations canvas | `manage.catalog` |
+| `/options` | `pages/admin/SystemOptions.jsx` | Read-only view of the three option tiers | `manage.options` |
+| `/aliases` | `pages/admin/Aliases.jsx` | Read-only view of the external-source names, inverted by source | `manage.options` |
+| `/external-apis` | `pages/admin/ExternalApis.jsx` | Read-only view of which field each external API writes, and whether it fills or replaces it | `manage.options` |
+| `/business-logic` | `pages/admin/BusinessLogic.jsx` + `pages/admin/businessLogicTopics.js` | Read-only account of what Calculate All changes, step by step | `manage.pipelines` |
+| `/roles`, `/users`, `/access-modes` | `pages/admin/{Roles,Users,AccessModes}.jsx` | RBAC administration | `admin.authz` |
+| `/content-labels` | `pages/admin/ContentLabels.jsx` | The read-only label reference | `admin.authz` **or** `manage.catalog` |
 
 ---
 
@@ -107,7 +112,13 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
   and leave out an h-game row for a session that may not see the type
   (`visibleByType`), so a hidden row is never ticked or posted.
 - **Announcements.** Create / edit / delete the dashboard board
-  (`/api/announcements/`; title is the identifier — see api.md).
+  (`/api/announcements/`; title is the identifier — see api.md). The card is
+  `AnnouncementBoard` beside `AnnouncementEditor`
+  (`components/dashboard/`), the same editor the admin's dashboard draws, and
+  both read the `["announcements"]` query, so a write on either page
+  refreshes the other. Drawn only for `has("manage.announcements")`, the key
+  the writes ask — the admin and super both hold it beside
+  `manage.pipelines`.
 - **Current season.** Reads and writes `/api/system/config/current_season`
   (`"SPR 2025"` shape; not validated server-side). The season and year
   pickers default to the season after today's (`nextSeason` in
@@ -159,6 +170,33 @@ mode (the data-control router is gated on `manage.pipelines` alone).
   group comes back by itself once its lone entry is replaced. A 409 (the group
   changed since the list loaded) is shown above the table. A row whose entry
   is of a gated type the session cannot see is not drawn.
+
+## /request-inbox (`RequestInbox.jsx`)
+
+The handler's side of requests and reports
+([../systems/requests.md](../systems/requests.md)). The route asks
+`manage.requests` — super and the admin, each by lock — and so does its
+**Inbox** row, which sits in the System tab with its own `requires`.
+Data: `useRequestInbox(status)` from `api/mutations/useRequestMutations.js`
+(`GET /api/requests?status=`, key `["requests", "inbox", status]`).
+
+- **Status filter**: Open, Done, Declined, All, as `aria-pressed` buttons
+  around a `Chip` (brand when chosen, ink otherwise — the `/images` filter
+  pattern). The page opens on Open.
+- **Table**: kind, who filed it ("deleted account" when `author_username` is
+  null), what it is about (`RequestTarget`, as on My requests), description,
+  remark, status, response, who handled it and when, and the filing date.
+- **Done** and **Decline** on an open row open `ConfirmModal` holding an
+  optional response textarea, then `PUT /api/requests/{id}/status` with
+  `{status, response}` (an empty response is sent as null). **Reopen** on a
+  done or declined row sends `{status: "open"}` straight away, which lets the
+  author edit the request again.
+- **Delete** asks in `ConfirmModal` (danger) before `DELETE
+  /api/requests/{id}`; the server keeps no other record of it.
+- Every write invalidates the `["requests"]` prefix, so the inbox and My
+  requests refetch together. Outcomes are toasts.
+
+`GET /api/requests/summary` has no page yet; it is there for the dashboard.
 
 ## /add (`Add.jsx`)
 
@@ -407,8 +445,11 @@ Once a media submit succeeds, the page keeps the created row beside the
 section that type has is listed and each saves on its own. It hides nothing,
 `remark` included — the form has already reset to a blank entry, so its Remark
 field no longer edits this row. For h-comic and h-game the created row feeds
-`owner_where` and the 亮點 Highlights group order, which a header drag saves
-with a `PATCH`. The panel shows only on the tab the entry was added from, is
+`owner_where`, and the viewer's own 亮點 Highlights group order, which a
+holder of `self.personal_notes` saves by a header drag through
+`PUT /api/me/highlight-group-order/{system_id}`. Each section's write
+controls follow its scope, as on the detail pages: an admin adding an entry
+writes the catalogue sections and reads the personal ones. The panel shows only on the tab the entry was added from, is
 replaced by the next media add, and goes when the banner is dismissed or a
 non-media row (collection, person, …) is added.
 
@@ -591,7 +632,8 @@ link - and the **E-Hentai Link**, the gallery URL the second fill source reads
 E-Hentai Link is sent as `null` (`hComicFieldsPayload`). The
 content-label picker shows the `h-comic` label checked and locked: every entry
 carries it, and the save adds it back. The form never sends
-`highlight_group_order` - the detail page's drag owns it.
+`highlight_group_order` - it is each viewer's own, written through
+`PUT /api/me/highlight-group-order`.
 
 **H-Game tab.** `HGameAddTab.jsx`, gated like the H-Comic tab. It is the Game
 tab reshaped for `h_game`: the same two boxes at the top (`EntryAutofillSearch`
@@ -663,12 +705,13 @@ entry's Ownership is derived from these rows, not typed.
 `PersonSubTabBar` here — the
 bar filters a list, and Add has no list; the role × scope matrix inside the
 form already says which types a new person holds. `PersonFields` holds the four name fields with a
-"Display name" select, the **role × scope matrix**, then gender and rating
-(`GenderRatingFields` from `components/forms/EntityProfileFields.jsx`: Gender
-is **男** and **女** as `QuickPicks` chips beside a closed select of "—" plus
-every `GENDERS` value — one click picks, clicking the pressed chip clears, and
-the select follows either way and is how the other genders are picked; My
-Rating is a select of "Unrated" plus `MY_RATINGS`; unset saves as null), a **MAL Link** (`mal_link`; the server reads the MAL id from
+"Display name" select, the **role × scope matrix**, then gender
+(`GenderField` from `components/forms/EntityProfileFields.jsx`: **男** and
+**女** as `QuickPicks` chips beside a closed select of "—" plus every
+`GENDERS` value — one click picks, clicking the pressed chip clears, and the
+select follows either way and is how the other genders are picked; unset
+saves as null). There is no rating field: a rating is the viewer's own, set on
+the person's page. Then a **MAL Link** (`mal_link`; the server reads the MAL id from
 its `myanimelist.net/people/<id>` path, so there is no id field), the photo
 and the remark. Ticking a type selects its first legal media type, because a
 scopeless role is a 422; the legal types per role come from
@@ -685,7 +728,7 @@ person form without the role × scope matrix: the four name fields, the
 "Display name" select, a **Role** as `QuickPicks` chips — one per
 `CHARACTER_ROLES` value, Main, Core, Important Supporting, Supporting, Other, with no select beside
 them since all four fit at any width; clicking the pressed chip clears it to
-none — the same Gender and My Rating fields, **Appearance** and **Trait**
+none — the same Gender field (no rating, as on the person form), **Appearance** and **Trait**
 (`MultiSelect`s suggesting from the `Character Appearance` and `Character
 Trait` option categories — one vocabulary each, for every character, no
 scope; `lib/characterForm.js` turns the comma-joined form strings into the
@@ -718,13 +761,16 @@ order — role rank, then position (`orderLoadedCast`) — and reloads it in tha
 order after a save, once the cast has been refetched; it does not re-sort
 while the admin is editing.
 
-**Options tab.** Two sub-tabs (`OptionSubTabBar`, shared with Modify and
-Delete): **Options** and **Tags**, both creating system options (category +
-value + scopes). They are the same form posting to the same endpoint; only the
-categories the Category picker offers differ (`TAG_CATEGORIES`, see
-[../options.md](../options.md)). All three pages now show the same two, so the
-Add-only `OPTION_VALUE_SUB_TABS` variant is gone. People and studios are
-**not** here — each has its own Entity tab.
+**Options tab.** Three sub-tabs (`OPTION_SUB_TABS` in `OptionSubTabBar`,
+shared with Modify and Delete): **Options**, **Tags** and **Note
+Suggestions**, all creating system options (category + value + scopes). They
+are the same form posting to the same endpoint; only the categories the
+Category picker offers differ (`categoriesForSubTab` in
+`lib/optionCategoryGroups.js`: Tags takes `TAG_CATEGORIES`, Note Suggestions
+takes `NOTE_SUGGESTION_CATEGORIES`, Options takes what neither claims; see
+[../options.md](../options.md)). All three pages show the same three, and
+there is no Add-only variant. People and studios are **not** here — each has
+its own Entity tab.
 
 On Modify and Delete, a chosen category's values are listed grouped by the
 media type each is scoped to (`forms/OptionValueGroups.jsx` over
@@ -792,15 +838,15 @@ is the form's. The picker
 arranges its categories with `groupTier2Categories` (`lib/optionsPageGroups.js`,
 see [/options](#options-systemoptionsjsx)) into `<optgroup>`s, with unclaimed
 categories under **Other**; a list that yields a single section — the Tags
-sub-tab, whose four categories are one group — renders flat rather than under
-a heading repeating the sub-tab's own name.
+sub-tab and the Note Suggestions sub-tab, whose categories are each one group
+— renders flat rather than under a heading repeating the sub-tab's own name.
 
 **Studio tab (Entity).** `StudioAddTab.jsx`. Four name fields (English,
 Chinese, Japanese, Alternative) with a "Display name" select naming which one
-to show, plus a rating select over the shared `MY_RATINGS` vocabulary
-(S…F, the same one entries use), logo key, country, founded/defunct dates
+to show, plus logo key, country, founded/defunct dates
 (`ReleaseDateInput`, so partial precision is allowed), website, MAL id/link
-and remark. Submit is blocked client-side until at least one name is filled,
+and remark — no rating, which is the viewer's own and set on the studio's
+page. Submit is blocked client-side until at least one name is filled,
 matching `ck_studio_has_a_name` and the schema's 422. `POST /api/studio/` is
 find-or-create: posting a name that already exists returns the existing
 studio rather than splitting its credits, and leaves its metadata untouched.
@@ -812,7 +858,7 @@ studio tab and split the same way (`PublisherFields` exported beside the page
 wrapper, so `PublisherModifyTab` renders the identical inputs). Same four name
 fields with the "Display name" select — it is the third consumer of the shared
 `STUDIO_NAME_FIELDS` list in `lib/naming.js`, after studio and person — plus
-rating, logo key, country, founded/defunct `ReleaseDateInput`s, website and
+logo key, country, founded/defunct `ReleaseDateInput`s, website and
 remark. **MAL ID and MAL Link are deliberately absent**: the `publisher` table
 carries no MAL columns, because MAL has no record of a games publisher or a
 Taiwanese distributor. Submit is blocked until at least one name is filled,
@@ -833,7 +879,10 @@ find-or-create exactly as studio's is.
 ## /images (`Images.jsx`)
 
 The image library: every file ever uploaded, from this machine or another,
-behind `manage.catalog`. A drop zone accepts multiple files at once
+behind `manage.images` — the route, the Entry tab's Images row and every
+`/api/images` call. The admin holds it without `manage.catalog`, so Images is
+the one Entry row it sees; attaching an image to an entry still asks the
+entry's visibility, which the admin, reading no catalogue, never has. A drop zone accepts multiple files at once
 (`POST /api/images` per file); a grid below shows each image's thumbnail,
 size, dimensions and what it is attached to.
 
@@ -914,14 +963,32 @@ only land in its own grid. The swap is a draft until **Save Grid**.
   one → for **anime, anime movie, cartoon and manga**, enrichment via
   `lib/enrich.js`, after which the page shows the *enriched* row (not the
   pre-enrichment one) and warns if enrichment failed → **content labels,
-  last**. Other types save without enrichment. A franchise saves its own
-  label set through `saveFranchiseLabels`.
+  last**. Other types save without enrichment. A collection, franchise or
+  series saves its own label set after its update, through
+  `saveCollectionLabels`, `saveFranchiseLabels` or `saveSeriesLabels`; a save
+  that adds a label confirms first, naming what that tier hides ("this
+  collection and every franchise, series and entry in it"). On Add the group's
+  set is `PUT` after the create call, and a failure there is its own toast.
 - **Labels go last because a label can hide the entry from the session that
   saves it.** An admin is narrowed by their active access mode like anyone
   else, and a hidden entry answers 404, so a label written mid-save would
   fail every later step — the cast, the enrichment, the reload. `saveCredits`
   only records the entry (`pendingLabels`), and `handleSave` writes the set
   once the type's own save has run.
+- **The label picker and the 標籤 Label field move together**, on the nine
+  types with that field, because the server keeps a label and its tag in step
+  (NSFW `nsfw`, 輕微色情 `ecchi`, 擦邊肉番 `erotica`). Ticking a label adds its
+  tag at the end of the field and unticking removes it; adding one of the
+  three tags ticks its label, with the `nsfw` rule on both sides - 輕微色情
+  alone brings NSFW. Removing the NSFW chip while 輕微色情 or 擦邊肉番 stays
+  is refused with a toast, as the picker locks NSFW. Other tags keep their
+  place. `hooks/useLabelTagSync.js` does it for both pages: `editLabels` takes
+  a tick, `syncUpdater` wraps the tab's field updater, so TagReplace's edits
+  sync too. On Add, switching tabs or the reset after a create sets the
+  picker from the open tab's tags. On Modify, the form takes its labels from
+  the label PUT's answer and re-reads the credits after it, because that
+  write can rewrite the tags; a tick leaves the field alone if the credits
+  never loaded, so a save cannot wipe tags it did not read.
 - **Adding a label asks first.** When the ticked set holds a label the entry
   (or franchise) did not carry when it was opened — `labelsAdded` against the
   set the picker reported through `onLoaded` — Save asks for confirmation
@@ -1197,9 +1264,13 @@ box. `h-game`'s four multi-choice lists offer no default, since their unset
 state is `null`, "not recorded"; auto-fill copies them as they are, `null`
 included (`buildAutofillPatch` keeps any field whose blank form value is
 `null`). `hentai`'s `mal_id` and `anidb_id` are hidden (the write hook derives
-each from its link) and `mal_link` and `anidb_link` are not auto-fillable;
-`h-comic`'s `mal_id` and `mal_link` the same, and its `ehentai_link` (group
-Links) is neither defaultable nor auto-fillable.
+each from its link), and `mal_link` and `anidb_link` are auto-filled by
+default - copying a link copies its id, which the hook derives again on save.
+`h-comic`'s `mal_id` is hidden the same way and its `mal_link` is auto-filled by
+default; its `ehentai_link` (group Links) is neither defaultable nor
+auto-fillable. A stored auto-fill list for either type carries the links too,
+since a list saved before they could be ticked was given them; switching one
+off here stops it being copied.
 
 `game` is present here like any other media type, and its auto-fill ticks
 drive the Game Add form's copy-an-existing-entry box (`BUILTIN_AUTOFILL.game`
@@ -1260,6 +1331,10 @@ link opens on that scope. Details in [../systems/relations.md](../systems/relati
 Read-only: Tier 1 enums from `/api/constants`, Tier 2 options grouped by
 category with their scopes, Tier 3 people and studios. Editing happens on
 Add/Modify under System → System Option — see [../options.md](../options.md).
+The route, like `/aliases` and `/external-apis`, asks `manage.options`, and
+so do the Tier 3 counts: they read `/api/options/record-counts`, which returns
+numbers only, rather than `/api/person/role-counts` and `/api/studio/`, which
+ask `view.person` and `view.studio` - keys the admin does not hold.
 
 ## /aliases (`Aliases.jsx`)
 
@@ -1284,9 +1359,11 @@ work is this" lists together under Entry Type, files the game lists by the
 question they answer (`game_release_status` under Publication Status,
 `playing_status` under My Progress) and keeps only the game_copy vocabularies
 in a **Game** group. Tier 2 (`TIER2_GROUPS`, keyed by `system_option.category`)
-reads as Tags, Game, Comic, Source & Platform, Music and **Character** (the
-`Character Appearance` and `Character Trait` vocabularies). That last group holds the
-platform and reference vocabularies, the ones that name an outside party.
+reads as Tags, Game, Comic, Source & Platform, Music, **Character** (the
+`Character Appearance` and `Character Trait` vocabularies) and **Note
+Suggestions** (`Character Group`, `Collectible Type`, `Item Type`, `Geography
+Group`, which the game note sections' free-text fields suggest from). Source &
+Platform holds the platform and reference vocabularies, the ones that name an outside party.
 Publishers and distributors are **not** among them — they are entities, edited
 on the Entity → Publisher tab.
 
@@ -1344,9 +1421,9 @@ anyone remembering this file.
 ## /business-logic (`BusinessLogic.jsx`)
 
 Read-only, listed under the Note tab, but gated on `manage.pipelines` rather
-than the tab's `manage.catalog`: it explains the Control Center's actions, so
-it takes their gate - the super role holds it by grant and admin by the root
-flag. Both surfaces ask it: the row carries `requires: "manage.pipelines"` in
+than the `manage.options` its neighbours ask: it explains the Control
+Center's actions, so it takes their gate - the super role and the admin both
+hold it. Both surfaces ask it: the row carries `requires: "manage.pipelines"` in
 `config/navigation.js`, and the route sits in `App.jsx`'s
 `<ProtectedRoute permission="manage.pipelines">` block beside `/system`.
 
@@ -1368,23 +1445,92 @@ for an admin - what it changes and why - and the page states the code as it
 is, so it changes in the same commit as `app/services/calculation.py`. The
 prose twin is [../data-actions.md](../data-actions.md#6-calculate-all).
 
-## /roles, /users, /content-labels
+## /roles, /users, /access-modes, /content-labels
 
-- **Roles** — create roles, replace their permission set from the catalog
+- **Roles** — the five fixed roles, with no way to add or remove one;
+  replace a role's permission set from the catalog
   (`/api/roles/catalog`). Boxes a role may not change are drawn disabled from
   the `locked_on` / `locked_off` the role itself carries, and a role with
-  nothing left to decide (`super`, `admin`) gets no Save button. The same
+  nothing left to decide (`super`, `admin`) gets no Save button. The `admin`
+  row is locked in every cell — its seven grants ticked, everything else
+  clear — so it draws wholly disabled. Each role in the list shows its grant
+  count; no role is drawn as holding everything. The same
   table answers 409 on the write path, so a box that looks editable is one the
   server will accept. Each permission family is one bordered block headed by its
   label and an icon from `FAMILY_ICONS` (`fa-key` for a family with none);
-  the Viewing family (`view.*` - entities, search, extras, personal, the
-  member-only reading surfaces) is drawn with `fa-eye`.
-- **Users** — create users with a role, change role, delete; the last
-  administrator and your own account are protected.
-- **Content Labels** — the label vocabulary; deleting a label immediately
-  re-exposes every entry and franchise that carried only that label. This page
-  is `admin.authz`; **assigning** a label on Add/Modify is `manage.catalog`, so
-  a `super` account labels things here without reaching this screen.
+  the Viewing family (`view.*` - the four entity kinds (studios, publishers,
+  people, characters), search and the Random Picker, the member-only
+  reading surfaces) is drawn with `fa-eye`. On `user`, `guest` and `shared`
+  the three gated media types are drawn locked (on for `user`, off for the
+  other two), through the same `locked_on` / `locked_off`.
+- **Users** — create users with a role, and edit, disable or delete them;
+  the server refuses deleting or disabling your own account, and those
+  refusals surface as toasts. The create form's role select offers only
+  **User** and **Super**. A **Status** column shows each account's
+  `status` as a chip (`active`, `disabled` in danger, `pending`). The
+  **Access** column is a read-only summary with no controls in it: the
+  account's `<ceiling> / <default>` (with `(narrowed)` when it has
+  denials), `no mode — sees nothing` in danger for an account with no
+  ceiling, or `No mode (admin)` for the admin account; and, on a `user` or
+  `super` row, a chip for each feature switch that is on (`No features
+  on` when none is). Each row offers only what the server would accept:
+  - **Edit** on every row opens the account's edit dialog, which holds
+    everything the row can change:
+    - **Role** — a select offering only **User** and **Super**; an `admin`
+      or `shared` account shows its role as text, since the server answers
+      409 to changing either.
+    - **Password** — optional, and the field says that setting one signs the
+      account out everywhere.
+    - **Open request limit** — a number field (blank is no limit) for any
+      account whose role has one: not for `super`, which is never limited
+      (the server answers 422), and not for `admin`, which files nothing.
+      The field follows the role chosen in the same dialog, and
+      `open_request_limit` is sent only when it changed — left out of a save
+      that changes the role, the server resets the limit to the new role's
+      default.
+    - **Features**, on a `user` or `super` account: four checkboxes —
+      **Quotes & memes**, **Favourites**, **Music status**, **Mod status** —
+      each its `feature_<name>` field. An `admin` or `shared` account has
+      none, since the server answers 409 to switching one on there. Only
+      Quotes & memes opens anything today; the other three are stored for
+      the personal-data pages.
+    - **Access mode**, on every account but the admin, `shared` accounts
+      included: the **ceiling** (any ranked mode, narrowest first, or none),
+      the login **default** (only modes at or below the ceiling), and the
+      ceiling's own labels and field groups as tick-to-show boxes, unticked
+      to deny. Lowering the ceiling below the default moves the default down
+      and drops denials the new ceiling does not show. The admin account has
+      no mode — the server answers 409 to giving it one — so its dialog says
+      so instead.
 
-Rules and enforcement are in [../authorization.md](../authorization.md). These
-three pages have one-click deletes with no confirm dialog.
+    **Save** sends the changed role, password, limit and switches as one
+    `PATCH /api/users/{id}`, and a changed mode as one
+    `PUT /api/users/{id}/access-modes` with `ceiling`, `default`,
+    `denied_label_keys` and `denied_field_group_keys`; each is sent only
+    when something in it changed, and a save that changed nothing sends
+    nothing. **Cancel** or Escape closes the dialog without saving.
+  - **Delete** on any account but an `admin` or `shared` one — the server
+    answers 409 to deleting either.
+  - **Disable** on an active account other than your own, behind a
+    `ConfirmModal` saying it signs the account out everywhere and nothing in
+    it is lost; **Enable** on a disabled one, straight away. Both are
+    `PATCH /api/users/{id}` with `status`. A pending account gets neither.
+  - **Reset link** on an active account whose role is not `shared`:
+    `POST /api/users/{id}/reset-link`, then `OnceLinkModal` with the link, a
+    **Copy link** button and the expiry, saying the link is shown only once -
+    the server keeps only a hash, and making another stops this one working.
+- **Access Modes** — one card per mode, narrowest first: its name and
+  description, editable; how many accounts' ceilings reach it; and the labels
+  and field groups it shows, read-only, because those are derived in code.
+  Nothing on the page creates, deletes or regrants a mode.
+- **Content Labels** — the read-only label reference: each label's name, key
+  and description, a chip for every mode that shows it, whether it also
+  carries NSFW, and how many entries, collections, franchises and series carry
+  it directly. Labels are
+  defined in code, so the page creates, renames and deletes nothing. It is
+  read by `admin` and `super` (`admin.authz` **or** `manage.catalog`) and sits
+  under Note in the nav; **assigning** a label is on Add/Modify, which is
+  `manage.catalog`.
+
+Rules and enforcement are in [../authorization.md](../authorization.md). Roles
+and Users have one-click deletes with no confirm dialog.

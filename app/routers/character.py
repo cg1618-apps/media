@@ -47,7 +47,7 @@ from app.services.rbac.enforcement import entry_visible, filter_visible_pairs
 from app.services.rbac.resolver import (
     Viewer,
     require_manage_catalog,
-    require_view_entities,
+    require_view_character,
 )
 from app.services.rbac.shared_visibility import (
     apply_shared_visibility,
@@ -125,7 +125,7 @@ def get_all_characters(
         description="Only characters cast on an entry in this series.",
     ),
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(require_view_entities),
+    viewer: Viewer = Depends(require_view_character),
 ):
     """
     Retrieves every character, or - when `name` is given - only those whose
@@ -197,7 +197,7 @@ def search_mal(
 def get_character_entries(
     system_id: UUID,
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(require_view_entities),
+    viewer: Viewer = Depends(require_view_character),
 ):
     """
     The entries this character appears in, grouped by media type.
@@ -237,7 +237,7 @@ def get_character_entries(
 def get_character_by_id(
     system_id: str,
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(require_view_entities),
+    viewer: Viewer = Depends(require_view_character),
 ):
     """Retrieves a single character by their public_id or their UUID."""
     character = find_entity(db, models.Character, system_id)
@@ -348,11 +348,12 @@ def patch_character(
     admin: Viewer = Depends(require_manage_catalog),
 ):
     """
-    Partially updates a character - the detail page's inline rating and
-    remark edits. Only the keys sent change.
+    Partially updates a character - the detail page's inline remark edit.
+    Only the keys sent change. The viewer's rating is not a column here; it
+    is written through PUT /api/me/ratings/character/{id}.
 
-    The same rules as PUT, checked before anything is written: gender,
-    my_rating and role are their vocabularies ("" is NULL), display_name_field
+    The same rules as PUT, checked before anything is written: gender and
+    role are their vocabularies ("" is NULL), display_name_field
     is en / cn / jp / alt, at least one name survives the patch, and a
     photo_fallback_entry_id names an entry this character is cast on. Server
     columns (system_id, public_id, timestamps) are a 422; keys that are not

@@ -26,16 +26,16 @@ import {
   brandTagCls,
   draftCls,
   rowCls,
-  tagCls,
   useEntryCap,
 } from "./ui";
+import FavoriteStar from "../../../components/ui/FavoriteStar";
 import LazyImage from "../../../components/ui/LazyImage";
 
 export default function MemeSection({
   label,
   ownerType,
   ownerId,
-  isAdmin,
+  canWrite,
   onCount,
 }) {
   const { showToast } = useToast();
@@ -141,7 +141,7 @@ export default function MemeSection({
     <SectionCard
       label={label}
       count={isLoading ? null : items.length}
-      isAdmin={isAdmin}
+      canWrite={canWrite}
       onAdd={() => setAdding(true)}
     >
       {cap.visible.map((item) => {
@@ -184,15 +184,14 @@ export default function MemeSection({
                   )}
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[10px] text-text-faint">
                     {item.episode && <span>{item.episode}</span>}
-                    {item.is_favorite && (
-                      <span className={tagCls}>favourite</span>
-                    )}
+                    {/* The viewer's own favourite - only with the feature. */}
+                    <FavoriteStar kind="meme" item={item} className="px-0.5" />
                     {item.remark && <span>{item.remark}</span>}
                   </div>
                   {item.link && <LinkPill url={item.link} />}
                 </div>
                 <ItemActions
-                  isAdmin={isAdmin}
+                  canWrite={canWrite}
                   onEdit={() => {
                     setEditId(item.system_id);
                     setEditVal(emptyMeme(item));

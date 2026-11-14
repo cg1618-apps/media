@@ -5,7 +5,7 @@ identity_public_id a cast row carries so the entry page can link to it.
 The hidden-character tests make the refusal bite the same way
 test_shared_record_visibility.py does: `nsfw_label` on the entry the character
 is cast on (without it, the anonymous `client` has no label to lack and the
-gate refuses nothing), and the mirror - `admin_client`, whose mode carries
+gate refuses nothing), and the mirror - `owner_client`, whose mode carries
 every label - asking the same thing and getting it.
 """
 
@@ -75,12 +75,12 @@ def test_each_identity_gets_its_own_public_id(db_session, character):
     assert a.public_id != b.public_id
 
 
-def test_public_id_is_in_the_admin_and_the_nested_responses(admin_client, guest_reader, character):
-    created = admin_client.post(
+def test_public_id_is_in_the_admin_and_the_nested_responses(owner_client, guest_reader, character):
+    created = owner_client.post(
         BASE, json={"character_id": str(character.system_id), "name_en": "Conan"}
     ).json()
     assert isinstance(created["public_id"], int)
-    listed = admin_client.get(BASE).json()
+    listed = owner_client.get(BASE).json()
     assert [i["public_id"] for i in listed] == [created["public_id"]]
     nested = guest_reader.get(f"/api/character/{character.system_id}").json()["identities"]
     assert [i["public_id"] for i in nested] == [created["public_id"]]
@@ -125,14 +125,14 @@ def test_an_unknown_identity_is_404(guest_reader):
 
 
 def test_an_identity_of_a_hidden_character_is_404(
-    guest_reader, admin_client, db_session, labelled_anime, character, identity
+    guest_reader, owner_client, db_session, labelled_anime, character, identity
 ):
     _cast(db_session, character, labelled_anime, identity)
     for path in (f"{BASE}{identity.public_id}", f"{BASE}{identity.public_id}/entries"):
         assert guest_reader.get(path).status_code == 404
         # The mirror: the same row, asked by a viewer whose mode carries the
         # label, is there - so the 404 above is the gate refusing.
-        assert admin_client.get(path).status_code == 200
+        assert owner_client.get(path).status_code == 200
 
 
 # ---------------------------------------------------------------------------

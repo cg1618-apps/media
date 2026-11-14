@@ -163,7 +163,96 @@ def test_the_status_vocabularies_have_one_source():
 
 
 def test_note_option_categories_come_from_the_registry():
-    assert ns.NOTE_OPTION_CATEGORIES == ("Song Type", "Song Source")
+    # Registry order: the game sections' field-level suggestion categories
+    # come before the music group's section-level ones.
+    assert ns.NOTE_OPTION_CATEGORIES == (
+        "Item Type",
+        "Collectible Type",
+        "Character Group",
+        "Geography Group",
+        "Song Type",
+        "Song Source",
+    )
+
+
+def test_note_suggestion_categories_are_the_field_level_ones():
+    # Exactly the four the owner settled, in registry order. Geography Group is
+    # in it with no seeded value: the constant, not a row, puts it in pickers.
+    assert ns.NOTE_SUGGESTION_CATEGORIES == (
+        "Item Type",
+        "Collectible Type",
+        "Character Group",
+        "Geography Group",
+    )
+    assert set(ns.NOTE_SUGGESTION_CATEGORIES) <= set(ns.NOTE_OPTION_CATEGORIES)
+
+
+def test_each_suggestion_category_sits_on_the_field_it_names():
+    def category(section, field):
+        return ns.field_by_key(ns.section_by_key(section), field).option_category
+
+    assert category("characters_guide", "group") == "Character Group"
+    assert category("collectibles", "type") == "Collectible Type"
+    assert category("items", "type") == "Item Type"
+    assert category("geography", "group") == "Geography Group"
+    # Weapons share the spec and not the category.
+    assert category("weapons_and_gear", "type") is None
+    assert category("guide_resources", "group") is None
+
+
+def test_an_option_category_is_only_ever_on_a_free_text_select():
+    for sec in ns.NOTE_SECTIONS:
+        for f in sec.fields:
+            if f.option_category:
+                assert f.type == ns.FIELD_SELECT and not f.options, (sec.key, f.key)
+
+
+def test_an_option_category_on_a_closed_select_is_refused_at_import():
+    import pytest
+
+    closed = ns.NoteSection(
+        key="x",
+        shape=ns.SHAPE_STRUCTURED,
+        label="X",
+        owners=("game",),
+        scope=ns.SCOPE_CATALOG,
+        fields=(
+            ns.NoteField(
+                key="t",
+                label="T",
+                type=ns.FIELD_SELECT,
+                options=("a",),
+                option_category="Cat",
+            ),
+        ),
+    )
+    with pytest.raises(ValueError, match="option_category"):
+        ns._check_option_categories(closed)
+    text = dataclasses.replace(
+        closed,
+        fields=(ns.NoteField(key="t", label="T", option_category="Cat"),),
+    )
+    with pytest.raises(ValueError, match="option_category"):
+        ns._check_option_categories(text)
+    # The mirror: the same field as a free-text select is accepted.
+    ok = dataclasses.replace(
+        closed,
+        fields=(
+            ns.NoteField(
+                key="t", label="T", type=ns.FIELD_SELECT, option_category="Cat"
+            ),
+        ),
+    )
+    ns._check_option_categories(ok)
+
+
+def test_only_the_four_todo_buckets_quick_move():
+    assert [s.key for s in ns.NOTE_SECTIONS if s.quick_move] == [
+        "todo_now",
+        "todo_next",
+        "todo_later",
+        "todo_maybe",
+    ]
 
 
 def test_easter_eggs_is_text_links_like_the_rest_of_analysis():
@@ -501,7 +590,6 @@ def test_labels_use_ascii_solidus():
 
 
 REVIEW_LISTS = (
-    "reviews_and_comments",
     "advantages",
     "disadvantages",
     "double_edged",
@@ -641,9 +729,16 @@ PERSONAL_KEYS = {
     "episode_comments",
     "questions",
     "personal_reviews",
-    # The gated types' one list of reviews and comments, personal like the
-    # 我的評價 it stands in for.
-    "reviews_and_comments",
+    # The six highlight sections: which episode or scene was the best is one
+    # person's opinion of the work.
+    "highlights",
+    "highlight_episodes",
+    "highlight_passages",
+    "highlight_moments",
+    "h_comic_highlights",
+    "h_game_highlights",
+    # 下周目目標: what I mean to do on my next run.
+    "ng_goals",
     # The 待辦 buckets. Four sections rather than one with a kind, because
     # sort_index orders rows within one (owner, section) pair.
     "todo_now",
@@ -667,12 +762,6 @@ CATALOG_KEYS = {
     "adaptation",
     "resources",
     "public_reviews",
-    "highlights",
-    "highlight_episodes",
-    "highlight_passages",
-    "highlight_moments",
-    "h_comic_highlights",
-    "h_game_highlights",
     "analysis",
     "cinematography",
     "craft",
@@ -705,6 +794,7 @@ CATALOG_KEYS = {
     "endings",
     "mods_and_tools",
     "guide_resources",
+    "geography",
     # 劇情 Story
     "main_plot",
     "side_plot",
@@ -750,7 +840,7 @@ def test_external_sections_carry_no_scope():
         assert sec.scope is None
 
 
-def test_the_personal_sections_are_exactly_these_fourteen():
+def test_the_personal_sections_are_exactly_these_twenty():
     assert {s.key for s in ns.NOTE_SECTIONS if s.scope == ns.SCOPE_PERSONAL} == (
         PERSONAL_KEYS
     )
@@ -766,7 +856,7 @@ def test_the_catalog_sections_are_exactly_these():
 
 def test_the_two_scopes_partition_every_stored_section():
     stored = {s.key for s in ns.NOTE_SECTIONS if s.shape in ns.STORED_SHAPES}
-    assert len(stored) == 74
+    assert len(stored) == 75
     assert ns.PERSONAL_SECTIONS | ns.CATALOG_SECTIONS == stored
     assert not (ns.PERSONAL_SECTIONS & ns.CATALOG_SECTIONS)
 
@@ -776,12 +866,19 @@ def test_sections_by_scope_returns_registry_order():
     assert keys == [
         "remark",
         "remark_list",
-        "reviews_and_comments",
         "advantages",
         "disadvantages",
         "double_edged",
         "personal_reviews",
         "episode_comments",
+        "highlights",
+        "highlight_episodes",
+        "highlight_passages",
+        "highlight_moments",
+        "h_comic_highlights",
+        "h_game_highlights",
+        # The last of NG 多周目, right before 待辦.
+        "ng_goals",
         # The 待辦 run sits after `symmetry` and before the music group.
         "todo_now",
         "todo_next",
@@ -790,3 +887,83 @@ def test_sections_by_scope_returns_registry_order():
         "saves",
         "questions",
     ]
+
+
+# --- mixed sections ----------------------------------------------------------
+# A mixed section holds catalogue rows and each account's own personal rows
+# together. The ten are the list in docs/notes/decisions.md, "mixed
+# sections", by key.
+
+MIXED = {
+    "weapons_and_gear",
+    "items",
+    "collectibles",
+    "enemies",
+    "characters_guide",
+    "geography",
+    "builds_and_styles",
+    "team_composition",
+    "guide_resources",
+    "resources",
+}
+
+
+def test_the_mixed_sections_are_exactly_these_ten():
+    assert {s.key for s in ns.NOTE_SECTIONS if s.mixed} == MIXED
+    assert ns.MIXED_SECTIONS == frozenset(MIXED)
+
+
+def test_mixed_defaults_to_false():
+    field = {f.name: f for f in dataclasses.fields(ns.NoteSection)}["mixed"]
+    assert field.default is False
+
+
+def test_every_mixed_section_is_catalogue_and_never_a_singleton():
+    # A singleton's one row per owner has no room for a second kind, and the
+    # unique indexes on `note` are per owner (remark) or per kind
+    # (music_status), neither of which is one of these.
+    for key in MIXED:
+        sec = ns.section_by_key(key)
+        assert sec.scope == ns.SCOPE_CATALOG, key
+        assert not sec.singleton and not sec.one_per_kind, key
+
+
+def test_mixed_is_refused_off_a_catalogue_section():
+    for scope in (ns.SCOPE_PERSONAL, None):
+        bad = ns.NoteSection(
+            key="bad", shape=ns.SHAPE_TEXT, label="Bad", owners=("anime",),
+            scope=scope, mixed=True,
+        )
+        try:
+            ns._check_mixed(bad)
+        except ValueError:
+            continue
+        raise AssertionError(f"mixed on scope {scope!r} was accepted")
+    # The mirror: the same section on the catalogue passes.
+    ns._check_mixed(
+        ns.NoteSection(
+            key="ok", shape=ns.SHAPE_TEXT, label="Ok", owners=("anime",),
+            scope=ns.SCOPE_CATALOG, mixed=True,
+        )
+    )
+
+
+def test_a_mixed_singleton_is_refused():
+    bad = ns.NoteSection(
+        key="bad", shape=ns.SHAPE_TEXT, label="Bad", owners=("anime",),
+        scope=ns.SCOPE_CATALOG, mixed=True, singleton=True,
+    )
+    try:
+        ns._check_mixed(bad)
+    except ValueError:
+        return
+    raise AssertionError("a mixed singleton was accepted")
+
+
+def test_the_sections_listing_carries_mixed():
+    from app.schemas.note import sections_out
+
+    out = {s.key: s for s in sections_out("game")}
+    assert out["items"].mixed is True
+    assert out["skills"].mixed is False
+    assert {s.key: s for s in sections_out("anime")}["resources"].mixed is True

@@ -78,8 +78,6 @@ class Character(Base, NameFallbackMixin):
     # One of "en" | "cn" | "jp" | "alt", or NULL for the fallback chain.
     display_name_field = Column(String, nullable=True)
     gender = Column(String, nullable=True)
-    # One of constants.MY_RATINGS.
-    my_rating = Column(String, nullable=True)
     # Storage key under static/covers/. The canonical portrait; a casting may
     # override it with its own photo_file for how the character looks in that
     # entry.

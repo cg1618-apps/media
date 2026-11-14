@@ -152,6 +152,18 @@ async function openTab(user, c) {
   return screen.getByPlaceholderText(/^Auto-fill from existing entry/);
 }
 
+// Put a whole query in the box as one input event. The box filters on every
+// change, and these tests pin WHAT it matches, not how typing feels; with
+// user.type every keystroke re-renders the whole Add form, which made the
+// five-name test alone take seconds and time out when the full suite ran
+// files in parallel. user.paste is still a real user event: focus, then one
+// input with the full value.
+async function enter(user, box, text) {
+  await user.clear(box);
+  await user.click(box);
+  await user.paste(text);
+}
+
 // The option a search shows for the entry: its title text, inside a picker
 // row. Waits for the list to load first.
 async function findResult(c, entry) {
@@ -175,12 +187,10 @@ describe.each(CASES)("Add page — $label auto-fill box", (c) => {
     const box = await openTab(user, c);
 
     for (const key of c.names) {
-      await user.clear(box);
-      await user.type(box, entry[key]);
+      await enter(user, box, entry[key]);
       expect(await findResult(c, entry)).toBeInTheDocument();
     }
-    await user.clear(box);
-    await user.type(box, "nothing matches this");
+    await enter(user, box, "nothing matches this");
     const title = entry[c.title[0]];
     expect(
       screen.queryByText(title, { selector: "span, div" }),
@@ -195,7 +205,7 @@ describe.each(CASES)("Add page — $label auto-fill box", (c) => {
     mount();
     const box = await openTab(user, c);
 
-    await user.type(box, entry[c.names[0]]);
+    await enter(user, box, entry[c.names[0]]);
     const result = await findResult(c, entry);
     const row = result.closest("li, [role='option'], button") ?? result.parentElement.parentElement;
     expect(within(row).getByText("Test Franchise")).toBeInTheDocument();
@@ -219,7 +229,7 @@ describe.each(CASES)("Add page — $label auto-fill box", (c) => {
     mount();
     const box = await openTab(user, c);
 
-    await user.type(box, entry[c.names[0]]);
+    await enter(user, box, entry[c.names[0]]);
     await user.click(await findResult(c, entry));
 
     expect(autofill.buildAutofillPatch).toHaveBeenCalledTimes(1);

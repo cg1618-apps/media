@@ -23,12 +23,13 @@ from app.services.domain.autofill import autofill_studio_from_mal
 from app.services.domain.credits import CreditSummary, credit_summaries, find_studio
 from app.services.domain.derivation import apply_extract_mal_id_studio
 from app.services.domain.merge_fill import finish_merge
+from app.services.domain.user_rating import ratings_by_owner
 from app.services.rbac.enforcement import filter_visible_pairs
-from app.services.rbac.personal_gate import strip_personal
 from app.services.rbac.resolver import (
     Viewer,
     require_manage_catalog,
-    require_view_entities,
+    require_view_studio,
+    viewer_user_id,
 )
 from app.services.rbac.shared_visibility import (
     apply_shared_visibility,
@@ -51,6 +52,7 @@ def _to_response(
     studio: models.Studio,
     viewer=None,
     summary: Optional[CreditSummary] = None,
+    ratings: Optional[dict] = None,
 ) -> schemas.StudioResponse:
     # Count only credits on entries the viewer may see. A number is a smaller
     # leak than a title, but "worked on 3 things, you can see 2" is still one.
@@ -62,7 +64,15 @@ def _to_response(
         summary = credit_summaries(
             db, viewer, [studio.system_id], models.MediaCredit.studio_id
         )[studio.system_id]
-    response = schemas.StudioResponse(
+    # `ratings` is the viewer's own user_rating rows, {id: row}: passed in by
+    # the list route for the whole page in one query, looked up here
+    # otherwise. A guest has none, and reads null.
+    if ratings is None:
+        ratings = ratings_by_owner(
+            db, "studio", [studio.system_id], viewer_user_id(viewer)
+        )
+    own = ratings.get(studio.system_id)
+    return schemas.StudioResponse(
         system_id=studio.system_id,
         public_id=studio.public_id,
         name_en=studio.name_en,
@@ -71,7 +81,7 @@ def _to_response(
         name_alt=studio.name_alt,
         display_name_field=studio.display_name_field,
         display_name=studio.display_name,
-        my_rating=studio.my_rating,
+        my_rating=own.my_rating if own is not None else None,
         logo_file=studio.logo_file,
         logo_focus=studio.logo_focus,
         remark=studio.remark,
@@ -85,7 +95,6 @@ def _to_response(
         media_types=summary.media_types,
         restricted=summary.restricted,
     )
-    return strip_personal(viewer, "studio", response)
 
 
 # ==========================================
@@ -96,7 +105,7 @@ def _to_response(
 @router.get("/", response_model=List[schemas.StudioResponse], summary="Get All Studios")
 def get_all_studios(
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(require_view_entities),
+    viewer: Viewer = Depends(require_view_studio),
 ):
     """
     Retrieves every studio this viewer may see, sorted by display name. A
@@ -113,8 +122,11 @@ def get_all_studios(
         [studio.system_id for studio in studios],
         models.MediaCredit.studio_id,
     )
+    ratings = ratings_by_owner(
+        db, "studio", [studio.system_id for studio in studios], viewer_user_id(viewer)
+    )
     return [
-        _to_response(db, studio, viewer, summaries[studio.system_id])
+        _to_response(db, studio, viewer, summaries[studio.system_id], ratings)
         for studio in studios
     ]
 
@@ -125,7 +137,7 @@ def get_all_studios(
 def get_studio_by_id(
     system_id: str,
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(require_view_entities),
+    viewer: Viewer = Depends(require_view_studio),
 ):
     """Retrieves a single studio by its public_id or its UUID."""
     studio = find_entity(db, models.Studio, system_id)
@@ -139,7 +151,7 @@ def get_studio_by_id(
 def get_studio_entries(
     system_id: UUID,
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(require_view_entities),
+    viewer: Viewer = Depends(require_view_studio),
 ):
     """
     The entries this studio is credited on, grouped by media type.
@@ -283,10 +295,11 @@ def patch_studio(
 ):
     """
     Partially updates a studio's own columns - the detail page's inline
-    rating and remark edits. Only the keys sent change.
+    remark edit. Only the keys sent change. The viewer's rating is written
+    through PUT /api/me/ratings/studio/{id}.
 
-    The same rules as PUT, checked before anything is written: my_rating is
-    its vocabulary ("" is NULL), display_name_field is en / cn / jp / alt, and
+    The same rules as PUT, checked before anything is written:
+    display_name_field is en / cn / jp / alt, and
     at least one name survives the patch. Server columns (system_id,
     public_id, timestamps) are a 422; keys that are not columns are ignored
     (_patching.apply_column_patch). A mal_link in the patch re-derives mal_id;

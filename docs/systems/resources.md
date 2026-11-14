@@ -1,6 +1,6 @@
 # Resources
 
-Last verified: 2026-10-30
+Last verified: 2026-11-14
 
 ## What this is for
 
@@ -76,11 +76,11 @@ Router: `app/routers/resources.py`, prefix `/api/resources`. Full table in
 
 | Method | Path | Gate |
 |---|---|---|
-| GET | `/api/resources` | `view.extras` (`require_view_extras`, as the Quote list) - not a guest |
-| POST | `/api/resources` | `manage.catalog` |
-| PATCH | `/api/resources/reorder` | `manage.catalog` |
-| PATCH | `/api/resources/{system_id}` | `manage.catalog` |
-| DELETE | `/api/resources/{system_id}` | `manage.catalog` |
+| GET | `/api/resources` | `manage.resources` (`require_manage_resources`) |
+| POST | `/api/resources` | `manage.resources` |
+| PATCH | `/api/resources/reorder` | `manage.resources` |
+| PATCH | `/api/resources/{system_id}` | `manage.resources` |
+| DELETE | `/api/resources/{system_id}` | `manage.resources` |
 
 Every node in a response has the same shape: `system_id`, `parent_id`,
 `kind`, `title`, `content`, `sort_index`, `created_at`, `updated_at` and
@@ -89,13 +89,14 @@ Every node in a response has the same shape: `system_id`, `parent_id`,
 
 ## Who may read and write
 
-Reading follows the Quote page: guests, members and admins all get the whole
-tree. There is nothing for a content label to hide - a node names no entry,
-franchise or series - so no visibility filter applies.
-
-Writing is catalogue work, `require_manage_catalog`: the `super` role by
-grant, `admin` through the root flag, and any role granted `manage.catalog`.
-Everyone else gets the usual **401**. See `docs/authorization.md`.
+**The page is the admin's and super's alone.** Reading and writing both need
+`manage.resources`, which the `admin` and `super` roles hold by lock and no
+other role can hold: a `user`, a shared account and a guest get **401** on
+every route, reads included. It is its own key rather than `manage.catalog`
+so that the admin, which writes no catalogue row, keeps the page. There is
+nothing for a content label to hide - a node names no entry, franchise or
+series - so no visibility filter applies, and every holder reads the whole
+tree. See `docs/authorization.md`.
 
 ## Sheets
 
@@ -122,6 +123,6 @@ Details of the tab registry and Pull are in `docs/data-actions.md`.
 
 - `docs/data-model.md` — `resource_node`
 - `docs/api.md` — Resources
-- `docs/authorization.md` — `manage.catalog`
+- `docs/authorization.md` — `manage.resources`
 - `docs/data-actions.md` — the `Resources` tab
 - `tests/api/test_resources.py`, `tests/api/test_resources_sheets.py`

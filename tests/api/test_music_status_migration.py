@@ -15,6 +15,7 @@ import uuid
 from pathlib import Path
 
 import pytest
+from sqlalchemy import text
 
 from app import models
 
@@ -22,6 +23,17 @@ ROOT = Path(__file__).resolve().parents[2]
 REVISION = (
     ROOT / "alembic" / "versions" / "m1s2ongstat3_music_status_and_song_rows.py"
 )
+
+
+@pytest.fixture(autouse=True)
+def _role_is_root(db_session):
+    """The schema this revision was written against. Its frozen AUTHOR query
+    orders by role.is_root, which a later revision (a1d2minroot45) drops and
+    create_all's schema therefore lacks. Added inside the test's transaction,
+    so the teardown rollback takes it away again."""
+    db_session.execute(
+        text("ALTER TABLE role ADD COLUMN is_root boolean NOT NULL DEFAULT false")
+    )
 
 
 @pytest.fixture(scope="module")
@@ -68,10 +80,10 @@ def _second_anime(db, franchise):
 
 
 def test_every_anime_gets_a_status_per_list_and_ost_keeps_its_own(
-    db_session, sample_anime, sample_franchise, admin_user, revision
+    db_session, sample_anime, sample_franchise, owner_user, revision
 ):
     other = _second_anime(db_session, sample_franchise)
-    _note(db_session, sample_anime, admin_user.id, "ost", kind="normal", status="Pending")
+    _note(db_session, sample_anime, owner_user.id, "ost", kind="normal", status="Pending")
 
     conn = db_session.connection()
     revision.refuse_ost_extras(conn)
@@ -103,7 +115,7 @@ def test_the_backfill_is_idempotent(db_session, sample_anime, revision):
 
 
 def test_the_backfill_is_authored_by_the_installation_owner(
-    db_session, sample_anime, admin_user, super_user, revision
+    db_session, sample_anime, owner_user, super_user, revision
 ):
     db_session.query(models.User).update({"is_installation_owner": False})
     super_user.is_installation_owner = True
@@ -121,37 +133,37 @@ def test_the_backfill_is_authored_by_the_installation_owner(
 
 
 def test_an_ost_row_carrying_a_song_is_refused(
-    db_session, sample_anime, admin_user, revision
+    db_session, sample_anime, owner_user, revision
 ):
     # Non-empty set: the row exists and carries something, so the refusal has
     # a row to refuse. The mirror is the first test, whose plain OST passes.
-    _note(db_session, sample_anime, admin_user.id, "ost", kind="normal",
+    _note(db_session, sample_anime, owner_user.id, "ost", kind="normal",
           status="Done", title="Battle Theme")
     with pytest.raises(RuntimeError, match="Move them by hand"):
         revision.refuse_ost_extras(db_session.connection())
 
 
 def test_an_ost_row_of_another_type_is_refused(
-    db_session, sample_anime, admin_user, revision
+    db_session, sample_anime, owner_user, revision
 ):
-    _note(db_session, sample_anime, admin_user.id, "ost",
+    _note(db_session, sample_anime, owner_user.id, "ost",
           kind="different version", status="Done")
     with pytest.raises(RuntimeError, match="Move them by hand"):
         revision.refuse_ost_extras(db_session.connection())
 
 
 def test_song_links_become_pairs_and_back(
-    db_session, sample_anime, admin_user, revision
+    db_session, sample_anime, owner_user, revision
 ):
-    op_row = _note(db_session, sample_anime, admin_user.id, "op", kind="normal",
+    op_row = _note(db_session, sample_anime, owner_user.id, "op", kind="normal",
                    links=["https://youtu.be/a", "https://b.example"])
-    empty = _note(db_session, sample_anime, admin_user.id, "ed", kind="normal",
+    empty = _note(db_session, sample_anime, owner_user.id, "ed", kind="normal",
                   status="Done", links=[])
     # links=None on a JSONB column stores JSON null, not SQL NULL - the shape
     # most migrated OP and ED rows carry, and a scalar no array function takes.
-    json_null = _note(db_session, sample_anime, admin_user.id, "op",
+    json_null = _note(db_session, sample_anime, owner_user.id, "op",
                       kind="normal", status="Need", links=None)
-    other = _note(db_session, sample_anime, admin_user.id, "analysis",
+    other = _note(db_session, sample_anime, owner_user.id, "analysis",
                   content="x", links=["https://c.example"])
 
     conn = db_session.connection()
@@ -176,16 +188,16 @@ def test_song_links_become_pairs_and_back(
 
 
 def test_downgrade_restores_the_one_row_ost(
-    db_session, sample_anime, sample_franchise, admin_user, revision
+    db_session, sample_anime, sample_franchise, owner_user, revision
 ):
     other = _second_anime(db_session, sample_franchise)
-    _note(db_session, sample_anime, admin_user.id, "ost", kind="normal", status="Need")
+    _note(db_session, sample_anime, owner_user.id, "ost", kind="normal", status="Need")
 
     conn = db_session.connection()
     revision.backfill_music_status(conn)
     revision.delete_ost_singletons(conn)
     # A song written after the upgrade has no place in the old shape.
-    _note(db_session, sample_anime, admin_user.id, "ost", title="Battle Theme")
+    _note(db_session, sample_anime, owner_user.id, "ost", title="Battle Theme")
 
     revision.restore_ost_singletons(conn)
     db_session.expire_all()

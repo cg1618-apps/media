@@ -1,11 +1,11 @@
-// Login sends the visitor to ?next= after a successful sign-in. It already
-// refuses a next that does not start with "/" (an absolute URL would be an
-// open redirect). It must also refuse one that points back at /login: such a
-// next lands an authenticated visitor on the login form again, with the page
-// they actually wanted buried one level further down, and Login has no
-// already-signed-in bounce to rescue them from it.
+// A successful sign-in always lands on the dashboard, "/". The page the
+// visitor was on belonged to whoever was signed in before, and the account
+// signing in now may not be able to open it - sign out of cg1618 on
+// /statistics, sign in as admin, and a login that went back to /statistics
+// would bounce admin straight back to this form. So any ?next= in the URL is
+// ignored, not filtered: a next naming an ordinary page is ignored too.
 //
-// It reaches that destination with a FULL PAGE LOAD, not a client-side
+// It reaches the dashboard with a FULL PAGE LOAD, not a client-side
 // navigate: everything the SPA cached a moment ago it cached as a guest.
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -49,25 +49,28 @@ async function signIn(route) {
   await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
 }
 
-describe("Login - where ?next= is allowed to send you", () => {
-  it("honours a next naming a real page", async () => {
+describe("Login - where a successful sign-in lands", () => {
+  it("lands on the dashboard with no next", async () => {
+    await signIn("/login");
+    expect(hardNavigate).toHaveBeenCalledTimes(1);
+    expect(hardNavigate).toHaveBeenCalledWith("/");
+  });
+
+  it("lands on the dashboard when next names a page the account cannot open", async () => {
+    // The reported case: cg1618 signed out on /statistics, admin signs in,
+    // and admin cannot open /statistics.
     await signIn("/login?next=%2Fstatistics");
-    expect(hardNavigate).toHaveBeenCalledWith("/statistics");
+    expect(hardNavigate).toHaveBeenCalledTimes(1);
+    expect(hardNavigate).toHaveBeenCalledWith("/");
   });
 
-  it("refuses a next pointing back at /login", async () => {
-    await signIn("/login?next=%2Flogin%3Fnext%3D%252Fstatistics");
-    expect(hardNavigate).toHaveBeenCalledWith("/system");
-  });
-
-  it("refuses a bare /login next", async () => {
-    await signIn("/login?next=%2Flogin");
-    expect(hardNavigate).toHaveBeenCalledWith("/system");
-  });
-
-  it("still refuses an absolute URL", async () => {
-    await signIn("/login?next=https%3A%2F%2Felsewhere.example%2Fx");
-    expect(hardNavigate).toHaveBeenCalledWith("/system");
+  it("lands on the dashboard even when next names an ordinary page", async () => {
+    // The mirror case: a next any account can open is ignored too, so the
+    // test above proves next is not read at all, not merely that a
+    // forbidden one is skipped.
+    await signIn("/login?next=%2Flibrary%2Fanime");
+    expect(hardNavigate).toHaveBeenCalledTimes(1);
+    expect(hardNavigate).toHaveBeenCalledWith("/");
   });
 });
 
@@ -145,5 +148,112 @@ describe("Login - saved users", () => {
     saveUsers(["admin", "cgent", "guest"]);
     await signIn("/login");
     expect(readSavedUsers()).toEqual(["admin", "cgent", "guest"]);
+  });
+});
+
+// What a refused sign-in says. The server's detail is shown as it comes, so
+// a pending or disabled account and a rate-limited visitor each learn what
+// is actually wrong.
+describe("Login - refusals", () => {
+  function refuse(status, detail) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve({ ok: false, status, json: () => Promise.resolve({ detail }) }),
+      ),
+    );
+  }
+
+  it("shows the pending account's 403", async () => {
+    refuse(403, "Your account is waiting for the admin's approval.");
+    await signIn("/login");
+    expect(
+      await screen.findByText("Your account is waiting for the admin's approval."),
+    ).toBeInTheDocument();
+    expect(hardNavigate).not.toHaveBeenCalled();
+  });
+
+  it("shows the disabled account's 403", async () => {
+    refuse(403, "This account is disabled.");
+    await signIn("/login");
+    expect(await screen.findByText("This account is disabled.")).toBeInTheDocument();
+  });
+
+  it("shows the 429 with how long to wait", async () => {
+    refuse(429, "Too many attempts. Try again in 12 minutes.");
+    await signIn("/login");
+    expect(
+      await screen.findByText("Too many attempts. Try again in 12 minutes."),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("Login - ?username= pre-fills", () => {
+  it("fills the username from the query string", () => {
+    render(
+      <MemoryRouter initialEntries={["/login?username=kana"]}>
+        <Login />
+      </MemoryRouter>,
+    );
+    expect(screen.getByLabelText(/username/i)).toHaveValue("kana");
+  });
+
+  it("starts empty without one", () => {
+    renderLogin();
+    expect(screen.getByLabelText(/username/i)).toHaveValue("");
+  });
+
+  it("still lets a saved username replace the pre-filled one", async () => {
+    saveUsers(["cgent"]);
+    render(
+      <MemoryRouter initialEntries={["/login?username=kana"]}>
+        <Login />
+      </MemoryRouter>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /use cgent/i }));
+    expect(screen.getByLabelText(/username/i)).toHaveValue("cgent");
+  });
+});
+
+// The site cannot reach anyone, so "forgot" is a note pointing at the admin,
+// not a form - and not a link to /reset, which needs a code only the admin
+// can hand out.
+describe("Login - forgot your password or username", () => {
+  it("keeps the note closed until asked", () => {
+    renderLogin();
+    expect(screen.queryByText(/ask the admin for a reset link/i)).not.toBeInTheDocument();
+  });
+
+  it("opens and closes the note", async () => {
+    renderLogin();
+    const toggle = screen.getByRole("button", {
+      name: "Forgot your password or username?",
+    });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+
+    await userEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText(/ask the admin for a reset link/i)).toBeInTheDocument();
+    expect(screen.getByText(/shows your username/i)).toBeInTheDocument();
+
+    await userEvent.click(toggle);
+    expect(screen.queryByText(/ask the admin for a reset link/i)).not.toBeInTheDocument();
+  });
+
+  it("offers no form and no link to /reset", async () => {
+    const { container } = render(
+      <MemoryRouter initialEntries={["/login"]}>
+        <Login />
+      </MemoryRouter>,
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Forgot your password or username?" }),
+    );
+    // The note is open, and still the sign-in form is the only form and
+    // nothing on the page is a link.
+    expect(screen.getByText(/ask the admin for a reset link/i)).toBeInTheDocument();
+    expect(container.querySelectorAll("form")).toHaveLength(1);
+    expect(container.querySelector('a[href*="/reset"]')).toBeNull();
+    expect(screen.queryAllByRole("link")).toHaveLength(0);
   });
 });

@@ -1,6 +1,6 @@
 # Testing
 
-Last verified: 2026-10-18
+Last verified: 2026-11-14
 
 ## What this is for
 
@@ -79,8 +79,9 @@ PostgreSQL database. `tests/api/conftest.py` does the following:
    scratch database from empty and compares the result to the models, object
    by object and column by column. The RBAC roles that
    migration A would normally seed are created once here via
-   `ensure_rbac_seed`, followed by `ensure_access_mode_seed` and
-   `grant_all_modes_to_existing_accounts`. `drop_all` runs at session end.
+   `ensure_rbac_seed`, followed by `ensure_access_mode_seed`,
+   `ensure_system_labels` and `ensure_shared_accounts`. `drop_all` runs at
+   session end.
 
    **Anything the lifespan seeds must be seeded here too, committed.** This
    has caused a hang twice. `with TestClient(app)` runs the lifespan on its
@@ -135,14 +136,16 @@ the two-stage cursor stepper.
 | `test_engine` | session | Engine on `media_test` with a fresh schema and seeded roles |
 | `db_session` | function | SQLAlchemy session inside a rolled-back transaction (savepoint mode) |
 | `_clear_permission_cache` | function, autouse | RBAC cache bumped before and after the test |
+| `_clear_rate_limits` | function, autouse | The login and reset rate limiter (`app/services/rate_limit.py`) emptied before and after the test. It is a process-global dict and every test client calls from the same address, so without it the sixth wrong password in a run would be refused with a 429 |
 | `client` | function | Unauthenticated `TestClient` with `get_db` overridden to `db_session` |
-| `admin_client` | function | `TestClient` with a `testadmin` user (role `admin`) inserted, all four access modes granted with `unrestricted` as the default, and a valid `access_token` cookie |
-| `user_client` / `plain_user` | function | The same for an account on the `user` role |
-| `super_client` / `super_user` | function | The same for the `super` role - both `manage.*`, no `admin.authz`. **This is the account shape that keeps a library**, so it is what a test of a personal endpoint should use: an admin holds no `self.*` grant. Use the fixture rather than building one inline |
-| `mode_client(key, user=None, denials=())` | function | A client sitting in one named access mode. The mode is granted as a non-default and travels in the `access_mode` override cookie exactly as after a switch in production, so these exercise the real resolution path rather than a `Viewer` built by hand |
-| `mode(key)` / `grant_mode(user, key, denials=(), is_default=False)` | function | The seeded modes, and granting one (optionally minus some labels, named by key) |
-| `nsfw_label` / `hidden_anime` | function | A content label and an entry carrying it. Label fixtures call `carry_label_in_wide_modes`, because a mode's labels are materialised rows and a label created after the seed would otherwise reach no mode - which would make fixture ORDER decide what a mode holds |
-| `catalog_writer(username=…, extra=…, label_keys=())` | function | An account holding `manage.catalog` in a mode carrying NO labels - i.e. a writer who cannot see the labelled entry. `tests/api/test_franchise_content_labels.py` builds its `narrow` fixture from this, and pairs every refusal with the same call from `admin_client`: a mode-scoped 404 and an empty database are indistinguishable without the mirror |
+| `admin_client` / `admin_user` | function | `TestClient` for the **real admin**: a `testadmin` account on the `admin` role, with **no mode** (ceiling and default NULL, parked after the INSERT as the lifespan parks the seeded one), so it resolves the empty object set and holds exactly the admin's fixed set — accounts, roles, access modes, pipelines, the request inbox, announcements, the Note pages' reads, images, resources. It reads and writes no catalogue |
+| `owner_client` / `owner_user` | function | `TestClient` for the **installation owner**: `aaa_testowner`, a `super` account in mode `unrestricted` with every account switch on. It is the installation owner by the fallback (the first active member account by username) and holds no `is_installation_owner` flag, which is unique - a test about the flag sets it on an account of its own. Every catalogue read and write, every personal feature, everything but `admin.authz`. `list_row`, `sample_anime` and `mode_client` hang their rows on this account, so a personal read through `owner_client` answers from them |
+| `user_client` / `plain_user` | function | An authenticated client for an account on the `user` role, carrying a mode as `owner_client` does |
+| `super_client` / `super_user` | function | The same for a `super` account that is not the owner - every `manage.*`, no `admin.authz`. **This is the account shape that keeps a library**, so it is what a test of a personal endpoint should use: an admin holds no `self.*` grant. Use the fixture rather than building one inline |
+| `mode_client(key, user=None, denials=())` | function | A client sitting in one named access mode. The account's ceiling is raised to the mode if it sits below it, and the mode travels in the `access_mode` override cookie exactly as after a switch in production, so these exercise the real resolution path rather than a `Viewer` built by hand |
+| `mode(key)` / `grant_mode(user, key, denials=(), is_default=False)` | function | The seeded modes, and making one available: raises the account's ceiling to it (never lowers it), optionally makes it the default, and adds label denials named by key - which, like every denial, apply in every mode the account uses |
+| `nsfw_label` / `hidden_anime` | function | The `nsfw` label and an entry carrying it. Every code label exists in every test - the session seed runs `ensure_labels` - so `nsfw_label` finds the row rather than creating one. It is shown from `normal` up, so a logged-out visitor (`safe`) never sees what carries it |
+| `catalog_writer(username=…, extra=…, label_keys=())` | function | An account holding `manage.catalog` whose effective set shows NO labels - i.e. a writer who cannot see the labelled entry. `make_viewer` builds it from a fixed mode and denials, as below. `tests/api/test_franchise_content_labels.py` and `tests/api/test_group_content_labels.py` build their `narrow` fixtures from this, and pair every refusal with the same call from `owner_client`: a mode-scoped 404 and an empty database are indistinguishable without the mirror |
 | `sample_collection` | function | `Collection` "Test Collection" / "測試合集" |
 | `sample_collected_franchise` | function | Anime `Franchise` linked to `sample_collection` |
 | `sample_franchise` | function | Anime `Franchise` "Test Franchise" / "測試系列" |
@@ -150,10 +153,19 @@ the two-stage cursor stepper.
 | `sample_anime` | function | TV `Anime` under `sample_franchise`, 12/12 episodes, Completed |
 | `sample_comic` | function | `Comic` under `sample_franchise`, 6/6 issues, Completed |
 | `role_id_for(db, name)` | helper, not a fixture | Looks up a seeded role's `system_id`; needed because `users.role` is a read-only mapping and fixtures must set `role_id` |
-| `make_viewer(db, client, username, permissions, field_groups=None, label_keys=None)` | helper | Logs `client` in as a new account. `permissions` is the ROLE axis; the two keyword arguments are the OBJECT axis and build a bespoke mode. Both default to "everything", so a test that only cares about capabilities need not mention them |
+| `make_viewer(db, client, username, permissions, field_groups=None, label_keys=None)` | helper | Logs `client` in as a new account. `permissions` is the ROLE axis; the two keyword arguments are the OBJECT axis. The four modes are fixed, so `grant_bespoke_mode` narrows the way production does: it puts the account at the lowest mode whose derived sets contain the request, as both ceiling and default, and denies the difference per account. A request no mode can satisfy fails the test loudly rather than testing something else. Both default to "everything" (`unrestricted`, no denial), so a test that only cares about capabilities need not mention them |
 
-**A signed-in test client whose account holds no default mode, and has no
-`access_mode` override, resolves the EMPTY object set**
+**Which client: `admin_client` only for the admin's own work.** A test uses
+`admin_client` when it calls an `admin.authz` route — `/api/users*`,
+`/api/roles*`, `/api/access-modes*` — or when it asserts what the admin
+itself is refused or allowed. Everything else — catalogue reads and writes,
+a refusal's mirror, a personal row — uses `owner_client`. The admin holds no
+`manage.catalog`, no `media_type.*` and no mode, so a catalogue test written
+against `admin_client` fails on a 401 or an empty list that says nothing
+about the code under test.
+
+**A signed-in test client whose account has no mode, or whose token names a
+mode above its ceiling, resolves the EMPTY object set**
 and every gated field vanishes from every response. Never mint a token by
 hand; use the fixtures above. This has cost two debugging cycles, each time
 presenting as "my route 401s / my field is missing" with nothing wrong in the
@@ -205,6 +217,32 @@ npm run lint            # eslint src
 `test_engine` guard aborts if the configured database name lacks `test`, so a
 mis-set `POSTGRES_DB` fails fast instead of wiping a real database.
 
+## Data migrations over JSON columns
+
+An installed database holds JSON columns whose cell is the JSON scalar `null`
+(`jsonb_typeof` is `'null'`), not SQL NULL — whole tables of them. Three
+operators raise on a scalar: `jsonb_array_length`, `jsonb_array_elements`
+(and its siblings), and `-` (delete a key). `->>`, `?` and `?|` answer NULL
+or false and are safe. `||` onto a JSON null does not raise but builds an
+array, `[null, {...}]`.
+
+So a revision that reads a JSON column guards it with a **CASE, never an
+AND**: PostgreSQL does not promise to evaluate an AND's operands left to
+right, so `jsonb_typeof(x) = 'array' AND jsonb_array_length(x) > 0` can still
+call `jsonb_array_length` on the scalar. `CASE WHEN jsonb_typeof(x) = 'array'
+THEN jsonb_array_length(x) ELSE 0 END > 0` cannot. An operator in an UPDATE's
+`SET` is evaluated only for rows its `WHERE` passed, so a `WHERE` guard is
+enough there, provided the `WHERE` holds nothing that raises. JSON null is "no
+value", like SQL NULL: it moves nothing, and a merge onto it starts from `{}`.
+
+The planner, not the Python, picks the evaluation order, so calling a
+revision's data steps on the test session does not prove a guard holds. That
+takes the real command over seeded rows:
+`test_highlights_json_null_migration.py` upgrades a scratch database to the
+revision before, seeds JSON-null, scalar, empty and real orders, ANALYZEs, and
+runs `alembic upgrade` and `downgrade` through `h1i2ghlights3`, the pattern
+`test_admin_not_root_migration.py` set.
+
 ## The `media` supertable in tests
 
 `tests/api/conftest.py` builds its schema with `Base.metadata.create_all` and
@@ -249,8 +287,8 @@ Look at these files, in this order:
 | `tests/unit/test_plan_next_kinds.py` | `EXPECTED_MEMBERS` / `EXPECTED_NON_MEMBERS` | Decide which list the type belongs to. |
 
 A **gated type** needs more than rows in those tables: its label must be
-present for its refusal tests to bite. The conftest seeds every system label
-session-wide (`ensure_system_labels`), as every real database has them, so a
+present for its refusal tests to bite. The conftest seeds every label the code
+defines session-wide (`ensure_labels`), as every real database has them, so a
 narrow mode is never vacuously narrow; a test that counts labels or asserts
 `visible_gated_types` has to allow for all of them. The hentai files are the
 current template: `test_hentai_entries.py` (CRUD, label, who sees it,
@@ -435,13 +473,42 @@ There is one job, `test`:
    plus `APP_ENV=development` and throwaway values for `JWT_SECRET_KEY` and
    `ADMIN_PASSWORD` — the runner has no `.env`, and without them the startup
    secret check refuses to boot and every API test fails.
-2. Python 3.13 (same as the Docker image), `pip install -r requirements-dev.txt`.
-3. `ruff check .`
-4. `pytest -q -p no:cacheprovider` (unit + API).
-5. Node 20, `npm ci` in `frontend/`.
-6. `npm run lint`
-7. `npm run test:run`
-8. `npm run build`
+2. Checks out with the whole history and decides whether the pull request
+   changes anything but documentation (below). Every later step runs only if
+   it does.
+3. Python 3.13 (same as the Docker image), `pip install -r requirements-dev.txt`.
+4. `ruff check .`
+5. `shellcheck deploy/migrations deploy/backup/*.sh`
+6. `pytest -q -p no:cacheprovider` (unit + API).
+7. Node 20, `npm ci` in `frontend/`.
+8. `npm run lint`
+9. `npm run test:run`
+10. `npm run build`
+
+### A documentation-only pull request skips the job
+
+The job's first step after the checkout diffs the pull request against its base
+(`git diff --name-only <base>...<head>`, with the checkout at `fetch-depth: 0`
+so the base is present). When every changed path is under `docs/` or ends in
+`.md` — `README.md` and `CLAUDE.md` included, wherever they sit — every other
+step is skipped, and `test` reports passed within seconds. One changed file of
+any other kind runs the whole job, and so does an empty diff: the fast path is
+taken only on positive evidence that nothing but documentation moved.
+
+The run's log says which way it went: the deciding step prints every changed
+path, and on the fast path its last line is `Documentation only: every other
+step is skipped.`, with each later step marked skipped.
+
+**It is a step condition, not a workflow-level `paths-ignore`.** A workflow
+that does not run reports nothing, and a required check that is never reported
+leaves the pull request blocked for ever. Skipping the steps inside a job that
+does run reports `test` as passed, which is what the ruleset waits for.
+
+The `postgres:17` service still starts, because a service cannot depend on a
+step's output; that is most of the few seconds a documentation-only run takes.
+Nothing in the suites reads a file under `docs/` or a Markdown file, which is
+what makes skipping them sound — a test that starts to would have to be
+covered by narrowing the rule.
 
 **The workflow deploys nothing**, and there is no second job. A red run is
 therefore always a real test failure and never a failed release. Deploying is

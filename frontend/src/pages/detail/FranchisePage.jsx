@@ -45,6 +45,7 @@ import {
 } from "../../components/ui/primitives";
 import MediaCard from "../../components/cards/MediaCard";
 import RemarkModal from "../../components/modals/RemarkModal";
+import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import WatchOrderSection from "../../components/tracker/WatchOrderSection";
 import HubCharacters from "../../components/hub/HubCharacters";
 import FranchiseNotes from "./FranchiseNotes";
@@ -56,9 +57,13 @@ import PlanKindToggles, {
 } from "../../components/plan/PlanKindToggles";
 import { SIZE_GROUPS, scopesFor } from "../../config/planNextGroups";
 import { effectiveBucket } from "../../utils/planNext";
+import { usePageTitle } from "../../contexts/PageTitleContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
+import { useViewScope } from "../../hooks/useViewScope";
+import { useMyRatingSaver } from "../../api/mutations/useMyRatingMutations";
 import { entityPath } from "../../lib/entityPath";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
+import { useMyRemarkSaver } from "../../api/mutations/useMyRemark";
 
 function GroupRail({ label, count }) {
   return (
@@ -109,12 +114,12 @@ export default function FranchisePage() {
   const { publicId } = useParams();
   const { isAdmin, has } = useAuth();
   const { showToast } = useToast();
-  // A guest's view of a hub (the view.* keys, held by members): without
-  // view.personal the franchise's own rating and expectation and the "my rating"
-  // sorts are not drawn; without view.entities there is no Characters tab,
-  // and HubCharacters never asks /api/character/ for one.
-  const showPersonal = has("view.personal");
-  const showCharacters = has("view.entities");
+  // A guest's view of a hub (the keys members hold): without self.list the
+  // viewer has no rating or expectation of the franchise and no "my rating"
+  // to sort by, so neither is drawn; without view.character there is no
+  // Characters tab, and HubCharacters never asks /api/character/ for one.
+  const { ownData } = useViewScope();
+  const showCharacters = has("view.character");
 
   // ── data ──────────────────────────────────────────────────────────────────
   const [franchise, setFranchise] = useState(null);
@@ -218,6 +223,8 @@ export default function FranchisePage() {
   // Everything past the lookup still speaks UUIDs; only the URL segment
   // changed. Resolved from the fetched row so the two can never disagree.
   const system_id = franchise?.system_id;
+  const saveMyRemark = useMyRemarkSaver("franchise", system_id, setFranchise);
+  const saveMyRating = useMyRatingSaver("franchise", system_id, setFranchise);
 
   useCanonicalPath("franchise", franchise);
 
@@ -730,8 +737,8 @@ export default function FranchisePage() {
 
   // Shared by the inline box and the full-view modal, which edit one draft.
   function saveRemark() {
-    if (isAdmin && remark !== (franchise?.remark || ""))
-      saveField("remark", remark);
+    if (ownData && remark !== (franchise?.remark || ""))
+      saveMyRemark(remark);
   }
 
   function toggleSetFilter(setFn, group, value) {
@@ -1251,6 +1258,17 @@ export default function FranchisePage() {
     totalEntries > 0 ? Math.round((completedCount / totalEntries) * 100) : 0;
 
   // ── loading / error ───────────────────────────────────────────────────────
+  // The heading's title, which the browser tab shows too.
+  const mainTitle = franchise
+    ? franchise.franchise_name_cn ||
+      franchise.franchise_name_en ||
+      franchise.franchise_name_alt ||
+      franchise.franchise_name_roman ||
+      franchise.franchise_name_jp ||
+      "Unknown Franchise"
+    : null;
+  usePageTitle(loading || error ? null : mainTitle);
+
   if (loading) return <HubLoading label="Loading Franchise Hub..." />;
 
   if (error)
@@ -1288,14 +1306,6 @@ export default function FranchisePage() {
     { [franchise.system_id]: allEntries },
   );
 
-  const mainTitle =
-    franchise.franchise_name_cn ||
-    franchise.franchise_name_en ||
-    franchise.franchise_name_alt ||
-    franchise.franchise_name_roman ||
-    franchise.franchise_name_jp ||
-    "Unknown Franchise";
-
   const subTitles = [
     { label: "EN", value: franchise.franchise_name_en },
     { label: "JP", value: franchise.franchise_name_jp },
@@ -1325,7 +1335,17 @@ export default function FranchisePage() {
 
   return (
     <HubShell>
-      <Crumbs trail={trail} current={mainTitle} />
+      <Crumbs
+        trail={trail}
+        current={mainTitle}
+        action={
+          <ReportProblemButton
+            targetType="franchise"
+            targetId={system_id}
+            targetLabel={mainTitle}
+          />
+        }
+      />
 
       {isAdmin && <AdminStrip editId={system_id} />}
 
@@ -1336,7 +1356,7 @@ export default function FranchisePage() {
             cover={cover}
             spine={`Franchise · ${franchise.franchise_type || "—"}`}
             id={franchise.system_id}
-            rating={showPersonal ? franchise.my_rating : null}
+            rating={ownData ? franchise.my_rating : null}
             done={completedCount}
             total={totalEntries}
             pct={completionPct}
@@ -1391,15 +1411,15 @@ export default function FranchisePage() {
                 the curation chips below. */}
             <ContentLabelChips
               labels={franchise.content_labels}
-              note="Hides this franchise and every entry in it."
+              note="Hides this franchise and every series and entry in it."
               className="mt-4"
             />
 
-            {((showPersonal && franchise.franchise_expectation) ||
+            {((ownData && franchise.franchise_expectation) ||
               plannedTypes.size > 0 ||
               rewatchMarked.size > 0) && (
               <div className="flex flex-wrap gap-2 mt-4">
-                {showPersonal && franchise.franchise_expectation && (
+                {ownData && franchise.franchise_expectation && (
                   <Chip>Expectation · {franchise.franchise_expectation}</Chip>
                 )}
                 {Array.from(plannedTypes).map((mediaType) => {
@@ -1428,72 +1448,88 @@ export default function FranchisePage() {
             )}
           </header>
 
-          {isAdmin && (
+          {/* The rating and expectation are the viewer's own (self.list);
+              the plan and rewatch controls stay the catalogue manager's. */}
+          {(ownData || isAdmin) && (
             <Slip title="Curation">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Overall rating">
-                  <select
-                    value={rating}
-                    onChange={(e) => {
-                      setRating(e.target.value);
-                      saveField("my_rating", e.target.value);
-                    }}
-                    className={`${SELECT_CLS} w-full`}
-                  >
-                    <option value="">Not rated</option>
-                    {["S", "A+", "A", "B", "C", "D", "E", "F"].map((r) => (
-                      <option key={r} value={r}>
-                        {r}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Expectation">
-                  <select
-                    value={expectation}
-                    onChange={(e) => {
-                      setExpectation(e.target.value);
-                      saveField("franchise_expectation", e.target.value);
-                    }}
-                    className={`${SELECT_CLS} w-full`}
-                  >
-                    <option value="">None</option>
-                    {["Highest", "High", "Medium", "Low"].map((r) => (
-                      <option key={r} value={r}>
-                        {r}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Plan next" className="sm:col-span-2">
-                  <SizeGroupControls
-                    mediaTypes={sizeGroupMediaTypes}
-                    planned={plannedTypes}
-                    derived={franchise.size_group_derived}
-                    manual={franchise.size_group_manual}
-                    onTogglePlan={handleTogglePlan}
-                    onOverride={handleOverride}
-                  />
-                </Field>
-                {franchiseApplicableRewatchTypes.length > 0 && (
-                  <Field
-                    label={kindLabel("rewatch", franchiseApplicableRewatchTypes)}
-                    className="sm:col-span-2"
-                  >
-                    <PlanKindToggles
-                      kind="rewatch"
-                      scope="franchise"
-                      mediaTypes={franchiseMediaTypes}
-                      marked={rewatchMarked}
-                      onToggle={handleRewatchToggle}
-                    />
-                  </Field>
+                {ownData && (
+                  <>
+                    <Field label="Overall rating">
+                      <select
+                        value={rating}
+                        onChange={(e) => {
+                          setRating(e.target.value);
+                          saveMyRating(
+                            { my_rating: e.target.value || null },
+                            "Rating saved",
+                          );
+                        }}
+                        className={`${SELECT_CLS} w-full`}
+                      >
+                        <option value="">Not rated</option>
+                        {["S", "A+", "A", "B", "C", "D", "E", "F"].map((r) => (
+                          <option key={r} value={r}>
+                            {r}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Expectation">
+                      <select
+                        value={expectation}
+                        onChange={(e) => {
+                          setExpectation(e.target.value);
+                          saveMyRating(
+                            { expectation: e.target.value || null },
+                            "Expectation saved",
+                          );
+                        }}
+                        className={`${SELECT_CLS} w-full`}
+                      >
+                        <option value="">None</option>
+                        {["Highest", "High", "Medium", "Low"].map((r) => (
+                          <option key={r} value={r}>
+                            {r}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                  </>
+                )}
+                {isAdmin && (
+                  <>
+                    <Field label="Plan next" className="sm:col-span-2">
+                      <SizeGroupControls
+                        mediaTypes={sizeGroupMediaTypes}
+                        planned={plannedTypes}
+                        derived={franchise.size_group_derived}
+                        manual={franchise.size_group_manual}
+                        onTogglePlan={handleTogglePlan}
+                        onOverride={handleOverride}
+                      />
+                    </Field>
+                    {franchiseApplicableRewatchTypes.length > 0 && (
+                      <Field
+                        label={kindLabel("rewatch", franchiseApplicableRewatchTypes)}
+                        className="sm:col-span-2"
+                      >
+                        <PlanKindToggles
+                          kind="rewatch"
+                          scope="franchise"
+                          mediaTypes={franchiseMediaTypes}
+                          marked={rewatchMarked}
+                          onToggle={handleRewatchToggle}
+                        />
+                      </Field>
+                    )}
+                  </>
                 )}
               </div>
             </Slip>
           )}
 
-          {(isAdmin || franchise.remark) && (
+          {ownData && (
             <Slip
               title="Remark"
               actions={
@@ -1512,12 +1548,11 @@ export default function FranchisePage() {
               <textarea
                 ref={remarkRef}
                 value={remark}
-                disabled={!isAdmin}
                 onChange={(e) => setRemark(e.target.value)}
                 onBlur={() => saveRemark()}
                 rows={3}
                 placeholder="Private overview notes, watch order guides or remarks for the whole franchise"
-                className={`w-full border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none transition ${isAdmin ? "border-border bg-surface text-text" : "border-border bg-surface-2 text-text-muted cursor-default"}`}
+                className="w-full border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none transition border-border bg-surface text-text"
               />
             </Slip>
           )}
@@ -1587,7 +1622,7 @@ export default function FranchisePage() {
               >
                 <option value="title">Sort: title</option>
                 <option value="release_date">Sort: release date</option>
-                {showPersonal && (
+                {ownData && (
                   <option value="my_rating">Sort: my rating</option>
                 )}
                 <option value="mal_rating">Sort: MAL rating</option>
@@ -1737,7 +1772,7 @@ export default function FranchisePage() {
               >
                 <option value="release_date">Sort: release date</option>
                 <option value="title">Sort: title</option>
-                {showPersonal && (
+                {ownData && (
                   <option value="my_rating">Sort: my rating</option>
                 )}
                 <option value="mal_rating">Sort: MAL rating</option>
@@ -1773,7 +1808,7 @@ export default function FranchisePage() {
                 className={SELECT_CLS}
               >
                 <option value="title">Sort: title</option>
-                {showPersonal && (
+                {ownData && (
                   <option value="my_rating">Sort: my rating</option>
                 )}
                 <option value="mal_rating">Sort: MAL rating</option>
@@ -1899,7 +1934,7 @@ export default function FranchisePage() {
                 className={SELECT_CLS}
               >
                 <option value="title">Sort: title</option>
-                {showPersonal && (
+                {ownData && (
                   <option value="my_rating">Sort: my rating</option>
                 )}
                 <option value="mal_rating">Sort: MAL rating</option>
@@ -2023,7 +2058,7 @@ export default function FranchisePage() {
             >
               <option value="release_date">Sort: release date</option>
               <option value="title">Sort: title</option>
-              {showPersonal && (
+              {ownData && (
                 <option value="my_rating">Sort: my rating</option>
               )}
             </select>
@@ -2253,7 +2288,7 @@ export default function FranchisePage() {
               >
                 <option value="release_date">Sort: release date</option>
                 <option value="title">Sort: title</option>
-                {showPersonal && (
+                {ownData && (
                   <option value="my_rating">Sort: my rating</option>
                 )}
                 <option value="imdb_rating">Sort: IMDb rating</option>
@@ -2373,7 +2408,7 @@ export default function FranchisePage() {
               >
                 <option value="release_date">Sort: release date</option>
                 <option value="title">Sort: title</option>
-                {showPersonal && (
+                {ownData && (
                   <option value="my_rating">Sort: my rating</option>
                 )}
                 <option value="imdb_rating">Sort: IMDb rating</option>
@@ -2496,7 +2531,7 @@ export default function FranchisePage() {
               >
                 <option value="release_date">Sort: release date</option>
                 <option value="title">Sort: title</option>
-                {showPersonal && (
+                {ownData && (
                   <option value="my_rating">Sort: my rating</option>
                 )}
                 <option value="imdb_rating">Sort: IMDb rating</option>
@@ -2671,8 +2706,7 @@ export default function FranchisePage() {
               hide the duplicate `remark` section wherever that editor renders. */}
           <FranchiseNotes
             franchise={franchise}
-            isAdmin={isAdmin}
-            hideSections={isAdmin || franchise.remark ? ["remark"] : []}
+            hideSections={ownData ? ["remark"] : []}
           />
         </Section>
       )}
@@ -2692,7 +2726,7 @@ export default function FranchisePage() {
       {showRemark && (
         <RemarkModal
           value={remark}
-          canEdit={has("self.personal_notes")}
+          canEdit={ownData}
           onChange={setRemark}
           onClose={() => {
             saveRemark();

@@ -166,11 +166,6 @@ class HGame(Base, NameFallbackMixin):
     dlsite_link_jp = Column(String, nullable=True)
     dlsite_link_tw = Column(String, nullable=True)
 
-    # The owner's order of the highlight GROUPS (one group per female
-    # character name), read and written whole - h_comic's column, for the
-    # h_game_highlights section.
-    highlight_group_order = Column(JSONB, nullable=True)
-
     # Favourite-grid slot per grid key, as on Game.
     type_slots = Column(JSONB, nullable=True)
 

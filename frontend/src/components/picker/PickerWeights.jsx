@@ -1,6 +1,7 @@
 // Frontend: the random picker's Weights tab - every weight the weighted draw
 // uses, rendered from the tables in lib/pickerWeights.js themselves, so this
-// page cannot say something the draw does not do.
+// page cannot say something the draw does not do. The picker draws it only
+// for a viewer with a list (self.list); without one it draws unweighted.
 import { Eyebrow } from "../ui/primitives";
 import {
   COMPLETED_STATUS_WEIGHTS,
@@ -70,7 +71,7 @@ export default function PickerWeights() {
         />
         <WeightTable
           title="Plan mark"
-          note="A mark counts whether it is on the entry, its series or its franchise. An entry with both takes the larger. Plan marks are your own, so a signed-out pick has none."
+          note="A mark counts whether it is on the entry, its series or its franchise. An entry with both takes the larger. Plan marks are your own."
           rows={PLAN_WEIGHTS.map((p) => [p.mark, p.weight])}
         />
         <WeightTable

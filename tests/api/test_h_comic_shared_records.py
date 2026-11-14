@@ -10,7 +10,7 @@ The two rules at work, both from app/services/rbac/shared_visibility.py:
                is hidden, because h-comic is a gated type
 
 Each refusal has the label present - the entries are created through the API,
-which stamps it - and is paired with `admin_client`, sitting in
+which stamps it - and is paired with `owner_client`, sitting in
 `unrestricted`, reading the same record back.
 
 Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
@@ -25,12 +25,12 @@ from app.services.domain import credits as credits_service
 from app.services.domain.content_labels import label_keys_for_entry
 
 
-def _h_comic(admin_client, db_session, name="Zvornik Shared H-Comic", region="KR"):
-    body = admin_client.post(
+def _h_comic(owner_client, db_session, name="Zvornik Shared H-Comic", region="KR"):
+    body = owner_client.post(
         "/api/h-comic/", json={"h_comic_name_cn": name, "region": region}
     ).json()
     entry_id = uuid.UUID(body["system_id"])
-    assert label_keys_for_entry(db_session, entry_id) == ["h-comic"]
+    assert label_keys_for_entry(db_session, entry_id) == ["h-comic", "nsfw"]
     return entry_id
 
 
@@ -40,8 +40,8 @@ def _ids(response) -> set[str]:
 
 
 @pytest.fixture
-def h_comic_id(admin_client, db_session):
-    return _h_comic(admin_client, db_session)
+def h_comic_id(owner_client, db_session):
+    return _h_comic(owner_client, db_session)
 
 
 # ---------------------------------------------------------------------------
@@ -51,7 +51,7 @@ def h_comic_id(admin_client, db_session):
 
 @pytest.mark.parametrize("role", ["illustrator", "author", "club"])
 def test_a_person_credited_only_on_h_comic_is_hidden(
-    guest_reader, admin_client, db_session, h_comic_id, role
+    guest_reader, owner_client, db_session, h_comic_id, role
 ):
     credits_service.replace_credits(
         db_session, "h-comic", h_comic_id, role, [f"Zvornik {role}"]
@@ -61,8 +61,8 @@ def test_a_person_credited_only_on_h_comic_is_hidden(
     assert guest_reader.get(f"/api/person/{person.system_id}").status_code == 404
     assert str(person.system_id) not in _ids(guest_reader.get("/api/person/"))
 
-    assert admin_client.get(f"/api/person/{person.system_id}").status_code == 200
-    assert str(person.system_id) in _ids(admin_client.get("/api/person/"))
+    assert owner_client.get(f"/api/person/{person.system_id}").status_code == 200
+    assert str(person.system_id) in _ids(owner_client.get("/api/person/"))
 
 
 def test_an_artist_on_mainstream_manga_too_stays_visible_without_the_h_comic(
@@ -87,7 +87,7 @@ def test_an_artist_on_mainstream_manga_too_stays_visible_without_the_h_comic(
 
 
 def test_a_club_created_before_its_first_credit_is_hidden_by_its_scope(
-    guest_reader, admin_client, db_session
+    guest_reader, owner_client, db_session
 ):
     """No credit at all: the club role's only scope, h-comic, is its one
     connection, and it is hidden."""
@@ -99,9 +99,9 @@ def test_a_club_created_before_its_first_credit_is_hidden_by_its_scope(
 
     assert guest_reader.get(f"/api/person/{club.system_id}").status_code == 404
     assert _ids(guest_reader.get("/api/person/?role=club&scope=h-comic")) == set()
-    assert admin_client.get(f"/api/person/{club.system_id}").status_code == 200
+    assert owner_client.get(f"/api/person/{club.system_id}").status_code == 200
     assert str(club.system_id) in _ids(
-        admin_client.get("/api/person/?role=club&scope=h-comic")
+        owner_client.get("/api/person/?role=club&scope=h-comic")
     )
 
 
@@ -111,26 +111,26 @@ def test_a_club_created_before_its_first_credit_is_hidden_by_its_scope(
 
 
 def test_a_character_cast_only_on_h_comic_is_hidden(
-    guest_reader, admin_client, db_session, h_comic_id
+    guest_reader, owner_client, db_session, h_comic_id
 ):
     character = models.Character(system_id=uuid.uuid4(), name_en="Zvornik Heroine")
     db_session.add(character)
     db_session.flush()
-    response = admin_client.put(
+    response = owner_client.put(
         f"/api/casting/h-comic/{h_comic_id}",
         json={"cast": [{"character_id": str(character.system_id), "role": "Main"}]},
     )
     assert response.status_code == 200, response.text
 
     assert guest_reader.get(f"/api/character/{character.system_id}").status_code == 404
-    assert admin_client.get(f"/api/character/{character.system_id}").status_code == 200
+    assert owner_client.get(f"/api/character/{character.system_id}").status_code == 200
 
 
-def test_a_seiyuu_on_an_h_comic_casting_is_refused(admin_client, db_session, h_comic_id, person):
+def test_a_seiyuu_on_an_h_comic_casting_is_refused(owner_client, db_session, h_comic_id, person):
     character = models.Character(system_id=uuid.uuid4(), name_en="Zvornik Voiced")
     db_session.add(character)
     db_session.flush()
-    response = admin_client.put(
+    response = owner_client.put(
         f"/api/casting/h-comic/{h_comic_id}",
         json={
             "cast": [
@@ -145,7 +145,7 @@ def test_a_seiyuu_on_an_h_comic_casting_is_refused(admin_client, db_session, h_c
 
 
 def test_an_official_source_used_only_by_h_comic_is_hidden(
-    client, admin_client, db_session, h_comic_id
+    client, owner_client, db_session, h_comic_id
 ):
     credits_service.replace_tags(
         db_session, h_comic_id, "original_source", ["Zvornik Platform"]
@@ -158,10 +158,10 @@ def test_an_official_source_used_only_by_h_comic_is_hidden(
         return {row["value"] for row in response.json()}
 
     assert "Zvornik Platform" not in values(client)
-    assert "Zvornik Platform" in values(admin_client)
+    assert "Zvornik Platform" in values(owner_client)
 
 
-def test_an_unused_h_genre_value_is_hidden_by_its_scope(client, admin_client, db_session):
+def test_an_unused_h_genre_value_is_hidden_by_its_scope(client, owner_client, db_session):
     option = models.SystemOption(category="H Genre Plot", value="Zvornik Plot")
     option.scopes = [models.SystemOptionScope(scope="h-comic")]
     db_session.add(option)
@@ -171,7 +171,7 @@ def test_an_unused_h_genre_value_is_hidden_by_its_scope(client, admin_client, db
         return {row["value"] for row in c.get("/api/options/H Genre Plot").json()}
 
     assert "Zvornik Plot" not in values(client)
-    assert "Zvornik Plot" in values(admin_client)
+    assert "Zvornik Plot" in values(owner_client)
 
 
 # ---------------------------------------------------------------------------
@@ -209,9 +209,9 @@ def _person(db_session, name):
     return person
 
 
-def test_members_round_trip_in_order(admin_client, db_session, club):
+def test_members_round_trip_in_order(owner_client, db_session, club):
     a, b = _person(db_session, "Zvornik A"), _person(db_session, "Zvornik B")
-    response = admin_client.put(
+    response = owner_client.put(
         f"/api/person/{club.system_id}/members",
         json={"member_ids": [str(b.system_id), str(a.system_id)]},
     )
@@ -219,37 +219,37 @@ def test_members_round_trip_in_order(admin_client, db_session, club):
     assert [m["display_name"] for m in response.json()] == ["Zvornik B", "Zvornik A"]
     assert [m["position"] for m in response.json()] == [0, 1]
 
-    clubs = admin_client.get(f"/api/person/{a.system_id}/clubs").json()
+    clubs = owner_client.get(f"/api/person/{a.system_id}/clubs").json()
     assert [c["system_id"] for c in clubs] == [str(club.system_id)]
 
 
-def test_clubs_round_trip(admin_client, db_session, club):
+def test_clubs_round_trip(owner_client, db_session, club):
     artist = _person(db_session, "Zvornik Artist")
-    response = admin_client.put(
+    response = owner_client.put(
         f"/api/person/{artist.system_id}/clubs",
         json={"club_ids": [str(club.system_id)]},
     )
     assert response.status_code == 200, response.text
     assert [c["system_id"] for c in response.json()] == [str(club.system_id)]
-    members = admin_client.get(f"/api/person/{club.system_id}/members").json()
+    members = owner_client.get(f"/api/person/{club.system_id}/members").json()
     assert [m["system_id"] for m in members] == [str(artist.system_id)]
 
-    response = admin_client.put(
+    response = owner_client.put(
         f"/api/person/{artist.system_id}/clubs", json={"club_ids": []}
     )
     assert response.json() == []
     assert db_session.query(models.PersonMembership).count() == 0
 
 
-def test_a_person_without_the_club_role_cannot_be_a_club(admin_client, db_session):
+def test_a_person_without_the_club_role_cannot_be_a_club(owner_client, db_session):
     not_a_club = _person(db_session, "Zvornik Nobody")
     artist = _person(db_session, "Zvornik Artist")
-    response = admin_client.put(
+    response = owner_client.put(
         f"/api/person/{artist.system_id}/clubs",
         json={"club_ids": [str(not_a_club.system_id)]},
     )
     assert response.status_code == 422
-    response = admin_client.put(
+    response = owner_client.put(
         f"/api/person/{not_a_club.system_id}/members",
         json={"member_ids": [str(artist.system_id)]},
     )
@@ -257,8 +257,8 @@ def test_a_person_without_the_club_role_cannot_be_a_club(admin_client, db_sessio
     assert db_session.query(models.PersonMembership).count() == 0
 
 
-def test_a_club_cannot_be_its_own_member(admin_client, club):
-    response = admin_client.put(
+def test_a_club_cannot_be_its_own_member(owner_client, club):
+    response = owner_client.put(
         f"/api/person/{club.system_id}/members",
         json={"member_ids": [str(club.system_id)]},
     )
@@ -275,7 +275,7 @@ def test_membership_writes_need_the_catalogue_capability(client, club, db_sessio
 
 
 def test_a_visible_clubs_member_list_omits_hidden_members(
-    guest_reader, admin_client, db_session, mainstream_club, h_comic_id
+    guest_reader, owner_client, db_session, mainstream_club, h_comic_id
 ):
     # One member visible through a mainstream credit, one credited only on the
     # h-comic and therefore hidden. Membership reveals neither.
@@ -284,7 +284,7 @@ def test_a_visible_clubs_member_list_omits_hidden_members(
     )
     hidden = credits_service.find_person(db_session, "Zvornik Hidden Artist")
     visible = _person(db_session, "Zvornik Plain Artist")
-    response = admin_client.put(
+    response = owner_client.put(
         f"/api/person/{mainstream_club.system_id}/members",
         json={"member_ids": [str(hidden.system_id), str(visible.system_id)]},
     )
@@ -294,16 +294,16 @@ def test_a_visible_clubs_member_list_omits_hidden_members(
     assert narrow.status_code == 200
     assert [m["system_id"] for m in narrow.json()] == [str(visible.system_id)]
 
-    wide = admin_client.get(f"/api/person/{mainstream_club.system_id}/members").json()
+    wide = owner_client.get(f"/api/person/{mainstream_club.system_id}/members").json()
     assert [m["system_id"] for m in wide] == [str(hidden.system_id), str(visible.system_id)]
 
     # Membership is not a connection: the hidden artist stays hidden.
     assert guest_reader.get(f"/api/person/{hidden.system_id}").status_code == 404
 
 
-def test_a_hidden_clubs_members_are_404(guest_reader, admin_client, db_session, club):
+def test_a_hidden_clubs_members_are_404(guest_reader, owner_client, db_session, club):
     artist = _person(db_session, "Zvornik Artist")
-    admin_client.put(
+    owner_client.put(
         f"/api/person/{club.system_id}/members",
         json={"member_ids": [str(artist.system_id)]},
     )
@@ -311,11 +311,11 @@ def test_a_hidden_clubs_members_are_404(guest_reader, admin_client, db_session, 
     # The artist has no connection at all, so stays visible - and its club
     # list omits the hidden club rather than naming it.
     assert guest_reader.get(f"/api/person/{artist.system_id}/clubs").json() == []
-    assert len(admin_client.get(f"/api/person/{artist.system_id}/clubs").json()) == 1
+    assert len(owner_client.get(f"/api/person/{artist.system_id}/clubs").json()) == 1
 
 
 def test_a_narrow_editor_keeps_the_memberships_it_cannot_see(
-    catalog_writer, admin_client, db_session, club, mainstream_club
+    catalog_writer, owner_client, db_session, club, mainstream_club
 ):
     """A second, h-comic-only club carries the membership the editor cannot see."""
     hidden_club = _person(db_session, "Zvornik Hidden Club")
@@ -324,7 +324,7 @@ def test_a_narrow_editor_keeps_the_memberships_it_cannot_see(
     )
     db_session.flush()
     artist = _person(db_session, "Zvornik Artist")
-    admin_client.put(
+    owner_client.put(
         f"/api/person/{artist.system_id}/clubs",
         json={"club_ids": [str(hidden_club.system_id), str(mainstream_club.system_id)]},
     )
@@ -340,17 +340,17 @@ def test_a_narrow_editor_keeps_the_memberships_it_cannot_see(
     assert remaining == {hidden_club.system_id}
 
 
-def test_merging_people_moves_their_memberships(admin_client, db_session, club):
+def test_merging_people_moves_their_memberships(owner_client, db_session, club):
     keep = _person(db_session, "Zvornik Keep")
     drop = _person(db_session, "Zvornik Drop")
-    admin_client.put(
+    owner_client.put(
         f"/api/person/{drop.system_id}/clubs", json={"club_ids": [str(club.system_id)]}
     )
-    response = admin_client.post(
+    response = owner_client.post(
         f"/api/person/{keep.system_id}/merge", json={"source_id": str(drop.system_id)}
     )
     assert response.status_code == 200, response.text
-    clubs = admin_client.get(f"/api/person/{keep.system_id}/clubs").json()
+    clubs = owner_client.get(f"/api/person/{keep.system_id}/clubs").json()
     assert [c["system_id"] for c in clubs] == [str(club.system_id)]
 
 
@@ -368,27 +368,27 @@ def test_the_role_surfaces_omit_club_for_a_narrow_session(guest_reader, db_sessi
     assert "club" not in guest_reader.get("/api/person/role-counts").json()
 
 
-def test_the_role_surfaces_name_club_for_unrestricted(admin_client):
+def test_the_role_surfaces_name_club_for_unrestricted(owner_client):
     """The mirror."""
-    scopes = admin_client.get("/api/person/role-scopes").json()
+    scopes = owner_client.get("/api/person/role-scopes").json()
     assert scopes["club"] == ["h-comic"]
     assert "h-comic" in scopes["illustrator"]
-    assert "club" in admin_client.get("/api/person/role-counts").json()
+    assert "club" in owner_client.get("/api/person/role-counts").json()
 
 
 def test_the_note_registry_answers_h_comic_as_unknown_to_a_narrow_session(
-    client, admin_client
+    client, owner_client
 ):
     narrow = client.get("/api/notes/sections", params={"owner_type": "h-comic"})
     assert narrow.status_code == 400
-    wide = admin_client.get("/api/notes/sections", params={"owner_type": "h-comic"})
+    wide = owner_client.get("/api/notes/sections", params={"owner_type": "h-comic"})
     assert wide.status_code == 200
     assert "h_comic_highlights" in {s["key"] for s in wide.json()}
     # No other owner lists the section, for anybody.
     for owner in ("manga", "anime", "franchise"):
         keys = {
             s["key"]
-            for s in admin_client.get(
+            for s in owner_client.get(
                 "/api/notes/sections", params={"owner_type": owner}
             ).json()
         }
@@ -400,7 +400,7 @@ def test_the_note_registry_answers_h_comic_as_unknown_to_a_narrow_session(
 # ---------------------------------------------------------------------------
 
 
-def test_an_unscoped_h_genre_value_is_still_hidden(client, admin_client, db_session):
+def test_an_unscoped_h_genre_value_is_still_hidden(client, owner_client, db_session):
     """No scope row and no use: the category alone connects it to h-comic."""
     option = models.SystemOption(category="H Genre Relation", value="Zvornik Unscoped")
     db_session.add(option)
@@ -414,7 +414,7 @@ def test_an_unscoped_h_genre_value_is_still_hidden(client, admin_client, db_sess
 
     for path in ("/api/options/H Genre Relation", "/api/options/"):
         assert "Zvornik Unscoped" not in values(client, path)
-        assert "Zvornik Unscoped" in values(admin_client, path)
+        assert "Zvornik Unscoped" in values(owner_client, path)
 
 
 def test_an_unscoped_unused_official_source_stays_visible(client, db_session):

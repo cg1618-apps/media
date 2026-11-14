@@ -2,11 +2,13 @@
 import { useState, useEffect, useMemo } from "react";
 import { releaseYear } from "../../lib/releaseDate";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import { useAuth } from "../../contexts/AuthContext";
 import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
 import { useToast } from "../../hooks/useToast";
+import { useOwnTrackerSave } from "../../hooks/useOwnTrackerSave";
+import { useViewScope } from "../../hooks/useViewScope";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
-import CommunityCard from "../../components/info/CommunityCard";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
@@ -23,6 +25,8 @@ import ScoreBlock from "../../components/info/ScoreBlock";
 import SourcesCard from "../../components/info/SourcesCard";
 import MyTrackerCard from "../../components/tracker/MyTrackerCard";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
+import DetailContents, { TocSection } from "../../components/layout/DetailContents";
+import { usePageTitle } from "../../contexts/PageTitleContext";
 import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
@@ -32,7 +36,6 @@ import { useCasting } from "../../hooks/useCasting";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
-import { progressToast } from "../../lib/progressToast";
 import { focusStyle } from "../../lib/covers";
 import CastSection from "../../components/info/CastSection";
 import LazyImage from "../../components/ui/LazyImage";
@@ -45,8 +48,9 @@ const LIST_OPTIONS = { params: { limit: 2000 } };
 export default function Anime() {
   const { publicId } = useParams();
   const navigate = useNavigate();
-  const { isAdmin, has, isRoot } = useAuth();
+  const { isAdmin, has } = useAuth();
   const { showToast } = useToast();
+  const { ownData } = useViewScope();
 
   const [anime, setAnime] = useState(null);
   const [autofilling, setAutofilling] = useState(false);
@@ -92,28 +96,15 @@ export default function Anime() {
     seriesQuery.error?.message ||
     null;
 
-  async function performUpdate(payload, msg) {
-    if (!isAdmin) return;
-    setAnime((prev) => ({ ...prev, ...payload }));
-    try {
-      const res = await fetch(endpoints.resource("anime").patch(system_id), {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Sync failed");
-      const updated = await res.json();
-      // `anime` is still the pre-write row here: this closure never saw the
-      // optimistic update. A progress step can finish the entry.
-      showToast("success", progressToast(anime, updated, msg || "Saved"));
-      setAnime(updated);
-      setMediaItem(updated);
-    } catch {
-      showToast("error", "Update failed");
-      fetchMediaItem();
-    }
-  }
+  // The viewer's own values (status, rating, progress, plan flags) go through /api/me;
+  // saveRelease is the toolbar's release step, the work's half through the
+  // catalogue PATCH.
+  const { saveOwn, saveRelease } = useOwnTrackerSave("anime", {
+    entry: anime,
+    setEntry: setAnime,
+    setMediaItem,
+    fetchMediaItem,
+  });
 
   async function handleAutofill() {
     setAutofilling(true);
@@ -134,6 +125,12 @@ export default function Anime() {
     }
   }
 
+  // The heading's title, which the browser tab shows too.
+  const titleMain = anime
+    ? anime.anime_name_cn || anime.anime_name_en || anime.anime_name_roman || "Unknown"
+    : null;
+  usePageTitle(loading || error ? null : titleMain);
+
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading details..." />;
   }
@@ -147,11 +144,6 @@ export default function Anime() {
     );
   }
 
-  const titleMain =
-    anime.anime_name_cn ||
-    anime.anime_name_en ||
-    anime.anime_name_roman ||
-    "Unknown";
   const titleSub =
     anime.anime_name_en && anime.anime_name_en !== titleMain
       ? anime.anime_name_en
@@ -201,20 +193,27 @@ export default function Anime() {
     .join("  ·  ");
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+    <DetailContents>
       {/* Breadcrumb: a catalogue path, set in mono */}
-      <nav
-        className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint mb-8 flex items-center gap-3"
-        aria-label="Breadcrumb"
-      >
-        <Link to="/library/anime" className="hover:text-brand transition">
-          Anime
-        </Link>
-        <span aria-hidden="true">/</span>
-        <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
-          {titleMain}
-        </span>
-      </nav>
+      <div className="mb-8 flex items-center justify-between gap-3">
+        <nav
+          className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint min-w-0 flex items-center gap-3"
+          aria-label="Breadcrumb"
+        >
+          <Link to="/library/anime" className="hover:text-brand transition">
+            Anime
+          </Link>
+          <span aria-hidden="true">/</span>
+          <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
+            {titleMain}
+          </span>
+        </nav>
+        <ReportProblemButton
+          targetType="anime"
+          targetId={system_id}
+          targetLabel={titleMain}
+        />
+      </div>
 
       {/* Admin toolbar: a plain instrument strip */}
       {isAdmin && (
@@ -243,7 +242,7 @@ export default function Anime() {
             >
               Mark completed
             </Button>
-            <MarkReleaseButton type="anime" entry={anime} title={titleMain} onPatch={performUpdate} />
+            <MarkReleaseButton type="anime" entry={anime} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
             <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
               {autofilling ? "Autofilling…" : "Autofill & update"}
             </Button>
@@ -265,11 +264,9 @@ export default function Anime() {
                 Anime · {anime.airing_type || "—"}
               </span>
               {/* Cosmetic only: the id is this page's own URL, so hiding it
-                  tidies the spine rather than concealing the value. Gated on
-                  is_root rather than a permission - `super` is
-                  deliberately NOT a root role, and this is the one thing in
-                  the app only the owner's own account sees. */}
-              {isRoot && (
+                  tidies the spine rather than concealing the value. Shown to
+                  a catalogue editor (manage.catalog). */}
+              {has("manage.catalog") && (
                 <span
                   className="font-mono text-[9px] tracking-[0.1em] opacity-60 whitespace-nowrap"
                   style={{ writingMode: "vertical-rl" }}
@@ -387,106 +384,113 @@ export default function Anime() {
           </header>
 
           {/* Where this entry sits in the watch orders the viewer follows. */}
-          <FollowedOrderPanel entryId={anime.system_id} />
+          <TocSection id="watch-orders" label="Watch orders">
+            <FollowedOrderPanel entryId={anime.system_id} />
+          </TocSection>
 
           {/* My Tracker Block */}
-          <MyTrackerCard
-            epFin={epFin}
-            epTotal={epTotal}
-            hasCum={hasCum}
-            cumFin={cumFin}
-            cumTotal={cumTotal}
-            watchingStatus={anime.watching_status}
-            myRating={anime.my_rating}
-            timeFin={anime.time_fin}
-            isAdmin={isAdmin}
-            onEpChange={(v) =>
-              performUpdate({ ep_fin: v }, "Episode progress saved")
-            }
-            onStatusChange={(v) =>
-              performUpdate({ watching_status: v }, "Status updated")
-            }
-            onRatingChange={(v) =>
-              performUpdate({ my_rating: v }, "Rating saved")
-            }
-            onTimeFinChange={(v) =>
-              performUpdate({ time_fin: v }, "Paused position saved")
-            }
-            statusOptions={WATCHING_STATUSES}
-            ratingOptions={MY_RATINGS}
-          />
-
-          {/* What every public list says about it, beside what I say.
-              Renders nothing when no public list holds this entry. */}
-          <CommunityCard mediaId={anime.system_id} />
+          <TocSection id="tracker" label="My tracker">
+            <MyTrackerCard
+              epFin={epFin}
+              epTotal={epTotal}
+              hasCum={hasCum}
+              cumFin={cumFin}
+              cumTotal={cumTotal}
+              watchingStatus={anime.watching_status}
+              myRating={anime.my_rating}
+              timeFin={anime.time_fin}
+              canTrack={ownData}
+              onEpChange={(v) =>
+                saveOwn({ ep_fin: v }, "Episode progress saved")
+              }
+              onStatusChange={(v) =>
+                saveOwn({ watching_status: v }, "Status updated")
+              }
+              onRatingChange={(v) =>
+                saveOwn({ my_rating: v }, "Rating saved")
+              }
+              onTimeFinChange={(v) =>
+                saveOwn({ time_fin: v }, "Paused position saved")
+              }
+              statusOptions={WATCHING_STATUSES}
+              ratingOptions={MY_RATINGS}
+            />
+          </TocSection>
 
           {/* Naming / Information / Production (stacked) */}
           <div className="space-y-6">
-            <NamingCard type="anime" item={anime} />
-            <InfoCard
-              title="Information"
-              fields={[
-                [
-                  { label: "本傳/外傳", value: anime.is_main },
-                  { label: "Season Part", value: anime.season_part },
-                  { label: "Special Episodes", value: anime.ep_special },
-                  { label: "Total Episodes", value: epTotalDisplay },
-                ],
-                [
-                  { label: "Airing Type", value: anime.airing_type },
-                  { label: "Airing Status", value: anime.airing_status },
-                  { label: "Release Season", value: releaseSeasonYear },
-                  { label: "Release Date", value: releaseDate },
-                ],
-                { label: "Genre (Main)", value: anime.genre_main },
-                { label: "Genre (Sub)", value: anime.genre_sub },
-                { label: "標籤 Label", value: anime.label },
-              ]}
-            />
-            <InfoCard
-              title="Production"
-              fields={[
-                [
-                  { label: "Studio", value: studioValue(anime) },
+            <TocSection id="naming" label="Naming">
+              <NamingCard type="anime" item={anime} />
+            </TocSection>
+            <TocSection id="information" label="Information">
+              <InfoCard
+                title="Information"
+                fields={[
+                  [
+                    { label: "本傳/外傳", value: anime.is_main },
+                    { label: "Season Part", value: anime.season_part },
+                    { label: "Special Episodes", value: anime.ep_special },
+                    { label: "Total Episodes", value: epTotalDisplay },
+                  ],
+                  [
+                    { label: "Airing Type", value: anime.airing_type },
+                    { label: "Airing Status", value: anime.airing_status },
+                    { label: "Release Season", value: releaseSeasonYear },
+                    { label: "Release Date", value: releaseDate },
+                  ],
+                  { label: "Genre (Main)", value: anime.genre_main },
+                  { label: "Genre (Sub)", value: anime.genre_sub },
+                  { label: "標籤 Label", value: anime.label },
+                ]}
+              />
+            </TocSection>
+            <TocSection id="production" label="Production">
+              <InfoCard
+                title="Production"
+                fields={[
+                  [
+                    { label: "Studio", value: studioValue(anime) },
+                    {
+                      // The heading comes from the ref the backend built, not
+                      // from here — see publisherLabel.
+                      label: publisherLabel(anime, "台灣代理商"),
+                      value: publisherValue(anime),
+                    },
+                  ],
+                  [
+                    {
+                      label: "Director",
+                      value: creditValue(anime, "director", anime.director),
+                    },
+                    {
+                      label: "Producer",
+                      value: creditValue(anime, "producer", anime.producer),
+                    },
+                  ],
                   {
-                    // The heading comes from the ref the backend built, not
-                    // from here — see publisherLabel.
-                    label: publisherLabel(anime, "台灣代理商"),
-                    value: publisherValue(anime),
+                    label: "Music",
+                    value: creditValue(anime, "composer", anime.music),
                   },
-                ],
-                [
-                  {
-                    label: "Director",
-                    value: creditValue(anime, "director", anime.director),
-                  },
-                  {
-                    label: "Producer",
-                    value: creditValue(anime, "producer", anime.producer),
-                  },
-                ],
-                {
-                  label: "Music",
-                  value: creditValue(anime, "composer", anime.music),
-                },
-              ]}
-            />
+                ]}
+              />
+            </TocSection>
           </div>
 
           {/* Cast */}
-          <CastSection cast={cast} />
+          <TocSection id="cast" label="Cast">
+            <CastSection cast={cast} />
+          </TocSection>
 
           {/* Structured Notes */}
           <AnimeNotes
             key={anime.system_id}
             anime={anime}
-            isAdmin={isAdmin}
             series={series}
             franchise={franchise}
           />
         </div>
       </div>
 
-    </div>
+    </DetailContents>
   );
 }

@@ -12,9 +12,11 @@
 // offered on (`scopes`).
 //
 // An admin gets the controls Person.jsx has (EntityProfileControls): Quick
-// edit, my rating and the remark, PATCHed in place.
+// edit and the remark, PATCHed in place. My rating is the viewer's own, set
+// by a holder of self.list through PUT /api/me/ratings.
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import { endpoints } from "../../api/endpoints";
 import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
 import { releaseYear } from "../../lib/releaseDate";
@@ -31,7 +33,10 @@ import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { Eyebrow, RatingStamp } from "../../components/ui/primitives";
 import LazyImage from "../../components/ui/LazyImage";
 import { useAuth } from "../../contexts/AuthContext";
+import { usePageTitle } from "../../contexts/PageTitleContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
+import { useViewScope } from "../../hooks/useViewScope";
+import { useMyRatingSaver } from "../../api/mutations/useMyRatingMutations";
 
 // "founded – defunct", or "Since founded" while the publisher still trades.
 // Both empty means the row is dropped entirely rather than shown as a dash.
@@ -51,6 +56,9 @@ export default function Publisher() {
   const [error, setError] = useState(null);
   const { isAdmin } = useAuth();
   const patch = useEntityPatch("publisher", publisher?.system_id, setPublisher);
+  // My rating is the viewer's own (self.list), saved through /api/me/ratings.
+  const { ownData: canRate } = useViewScope();
+  const saveMyRating = useMyRatingSaver("publisher", publisher?.system_id, setPublisher);
 
   useCanonicalPath("publisher", publisher);
 
@@ -91,6 +99,10 @@ export default function Publisher() {
     };
   }, [publicId]);
 
+  // The heading's name, which the browser tab shows too.
+  const name = publisher ? publisher.display_name || "Unknown Publisher" : null;
+  usePageTitle(loading || error ? null : name);
+
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading publisher..." />;
   }
@@ -104,7 +116,6 @@ export default function Publisher() {
     );
   }
 
-  const name = publisher.display_name || "Unknown Publisher";
   const logoUrl = getCoverUrl(publisher.logo_file);
   const span = lifespan(publisher);
   const creditTotal = groups.reduce((sum, g) => sum + g.entries.length, 0);
@@ -112,18 +123,25 @@ export default function Publisher() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
       {/* Breadcrumb: a catalogue path, set in mono */}
-      <nav
-        className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint mb-8 flex items-center gap-3"
-        aria-label="Breadcrumb"
-      >
-        <Link to="/library/publisher" className="hover:text-brand transition">
-          Publishers
-        </Link>
-        <span aria-hidden="true">/</span>
-        <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
-          {name}
-        </span>
-      </nav>
+      <div className="mb-8 flex items-center justify-between gap-3">
+        <nav
+          className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint min-w-0 flex items-center gap-3"
+          aria-label="Breadcrumb"
+        >
+          <Link to="/library/publisher" className="hover:text-brand transition">
+            Publishers
+          </Link>
+          <span aria-hidden="true">/</span>
+          <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
+            {name}
+          </span>
+        </nav>
+        <ReportProblemButton
+          targetType="publisher"
+          targetId={publisher.system_id}
+          targetLabel={name}
+        />
+      </div>
 
       {isAdmin && <AdminToolbar ownerType="publisher" systemId={publisher.system_id} />}
 
@@ -160,10 +178,10 @@ export default function Publisher() {
             </div>
           </div>
 
-          {isAdmin && (
+          {canRate && (
             <RatingSelect
               rating={publisher.my_rating}
-              onChange={(v) => patch({ my_rating: v }, "Rating saved")}
+              onChange={(v) => saveMyRating({ my_rating: v }, "Rating saved")}
             />
           )}
 

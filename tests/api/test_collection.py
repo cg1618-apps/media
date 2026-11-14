@@ -41,9 +41,9 @@ class TestGetCollectionById:
 
 
 class TestCreateCollection:
-    def test_admin_can_create(self, admin_client):
+    def test_admin_can_create(self, owner_client):
         payload = {"collection_name_en": "New Collection"}
-        response = admin_client.post("/api/collection/", json=payload)
+        response = owner_client.post("/api/collection/", json=payload)
         assert response.status_code in (200, 201)
         assert response.json()["collection_name_en"] == "New Collection"
 
@@ -52,13 +52,13 @@ class TestCreateCollection:
         response = client.post("/api/collection/", json=payload)
         assert response.status_code == 401
 
-    def test_created_collection_has_system_id(self, admin_client):
-        response = admin_client.post(
+    def test_created_collection_has_system_id(self, owner_client):
+        response = owner_client.post(
             "/api/collection/", json={"collection_name_en": "Has UUID"}
         )
         assert "system_id" in response.json()
 
-    def test_create_persists_every_field(self, admin_client, sample_franchise):
+    def test_create_persists_every_field(self, owner_client, sample_franchise):
         """
         Regression guard. create_franchise used to build the model field-by-field
         and silently dropped cover_entry_id/type_covers/type_slots/
@@ -71,23 +71,22 @@ class TestCreateCollection:
             "collection_name_roman": "Zen",
             "collection_name_jp": "全",
             "collection_name_alt": "Alt",
-            "my_rating": "S",
-            "collection_expectation": "High",
             "cover_franchise_id": str(sample_franchise.system_id),
             "remark": "a remark",
         }
-        data = admin_client.post("/api/collection/", json=payload).json()
+        data = owner_client.post("/api/collection/", json=payload).json()
         for key, expected in payload.items():
             assert str(data.get(key)) == str(expected), f"{key} was not persisted"
 
 
 class TestUpdateCollection:
-    def test_admin_can_patch(self, admin_client, sample_collection):
-        response = admin_client.patch(
-            f"/api/collection/{sample_collection.system_id}", json={"my_rating": "A"}
+    def test_admin_can_patch(self, owner_client, sample_collection):
+        response = owner_client.patch(
+            f"/api/collection/{sample_collection.system_id}",
+            json={"collection_name_jp": "A"},
         )
         assert response.status_code == 200
-        assert response.json()["my_rating"] == "A"
+        assert response.json()["collection_name_jp"] == "A"
 
     def test_guest_cannot_patch(self, client, sample_collection):
         response = client.patch(
@@ -95,8 +94,8 @@ class TestUpdateCollection:
         )
         assert response.status_code == 401
 
-    def test_admin_can_put(self, admin_client, sample_collection):
-        response = admin_client.put(
+    def test_admin_can_put(self, owner_client, sample_collection):
+        response = owner_client.put(
             f"/api/collection/{sample_collection.system_id}",
             json={"collection_name_en": "Renamed"},
         )
@@ -105,11 +104,11 @@ class TestUpdateCollection:
 
 
 class TestDeleteCollection:
-    def test_admin_can_delete(self, admin_client, sample_collection):
-        response = admin_client.delete(f"/api/collection/{sample_collection.system_id}")
+    def test_admin_can_delete(self, owner_client, sample_collection):
+        response = owner_client.delete(f"/api/collection/{sample_collection.system_id}")
         assert response.status_code == 200
         assert (
-            admin_client.get(
+            owner_client.get(
                 f"/api/collection/{sample_collection.system_id}"
             ).status_code
             == 404
@@ -122,15 +121,15 @@ class TestDeleteCollection:
         )
 
     def test_deleting_collection_keeps_member_franchises(
-        self, admin_client, sample_collection, sample_collected_franchise
+        self, owner_client, sample_collection, sample_collected_franchise
     ):
         """The core safety property of the optional tier: members survive."""
         fid = sample_collected_franchise.system_id
-        assert admin_client.delete(
+        assert owner_client.delete(
             f"/api/collection/{sample_collection.system_id}"
         ).status_code == 200
 
-        response = admin_client.get(f"/api/franchise/{fid}")
+        response = owner_client.get(f"/api/franchise/{fid}")
         assert response.status_code == 200, "member franchise was deleted with cascade"
         assert response.json()["collection_id"] is None
 

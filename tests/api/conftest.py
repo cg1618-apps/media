@@ -19,21 +19,28 @@ from app import models
 from app.database import SQLALCHEMY_DATABASE_URL, Base
 from app.dependencies import get_db
 from app.main import app
-from app.services.domain.gated_labels import ensure_system_labels
+from app.services import rate_limit
+from app.services.domain.gated_labels import ensure_label, ensure_labels
 from app.services.integrations import image_manager, sheets
 from app.services.rbac import cache as rbac_cache
-from app.services.rbac.modes import grant_all_modes_to_existing_accounts
+from app.services.rbac.modes import set_mode_ceiling
 from app.services.rbac.permissions import (
+    ENTITY_VIEW_PERMISSIONS,
     PERM_MANAGE_CATALOG,
     VIEW_PERMISSION_KEYS,
     view_perm,
 )
 from app.services.rbac.resolver import MODE_OVERRIDE_COOKIE
-from app.services.rbac.seed import default_user_permissions, ensure_rbac_seed
+from app.services.rbac.seed import (
+    default_user_permissions,
+    ensure_rbac_seed,
+    ensure_shared_accounts,
+)
 from app.services.rbac.seed_modes import (
     MODE_SAFE,
     MODE_UNRESTRICTED,
     ensure_access_mode_seed,
+    mode_rank,
 )
 from app.services.security import create_access_token, get_password_hash
 
@@ -85,22 +92,20 @@ def test_engine():
     # modes uncommitted, the lifespan's INSERT blocks on access_mode.key
     # forever - the test waits on the client and the client waits on the test.
     # Seeding here, committed and session-wide, keeps the lifespan's copy to a
-    # SELECT. Committed before any content_label row exists, so `unrestricted`
-    # starts with no labels; carry_label_in_wide_modes() tops it up.
+    # SELECT.
     ensure_access_mode_seed(seeding)
     seeding.commit()
-    # The system labels the gated types require (h-comic, hentai). The
-    # lifespan seeds them too, on its own connection; seeding them here first,
-    # committed, keeps the lifespan's copy to a SELECT for the same reason as
-    # the modes above. They exist in every test from here on, as they do on
-    # every real database - so a narrow mode is never vacuously narrow on
-    # this axis.
-    ensure_system_labels(seeding)
+    # The six content labels. The lifespan writes them too, on its own
+    # connection; writing them here first, committed, keeps the lifespan's
+    # copy to a SELECT for the same reason as the modes above. They exist in
+    # every test from here on, as they do on every real database - so a narrow
+    # mode is never vacuously narrow on this axis.
+    ensure_labels(seeding)
     seeding.commit()
-    # And grant them to any account that already exists - the lifespan does
-    # this too, and doing it here first, committed, keeps its copy to a SELECT
-    # so it can never block on a test's open transaction.
-    grant_all_modes_to_existing_accounts(seeding)
+    # The two shared accounts, for the same reason again: the lifespan
+    # creates them on its own connection, and seeding them here first keeps
+    # its copy to a SELECT.
+    ensure_shared_accounts(seeding)
     seeding.commit()
     seeding.close()
 
@@ -184,6 +189,21 @@ def _clear_permission_cache():
     rbac_cache.bump()
 
 
+@pytest.fixture(autouse=True)
+def _clear_rate_limits():
+    """
+    Empty the login and reset rate limiter around every test.
+
+    It is a process-global dict (app/services/rate_limit.py) and every test
+    client calls from the same address, so without this the sixth test to get
+    a password wrong would be refused with a 429 for reasons that have nothing
+    to do with it.
+    """
+    rate_limit.clear()
+    yield
+    rate_limit.clear()
+
+
 @pytest.fixture(scope="function")
 def db_session(test_engine):
     """
@@ -230,21 +250,12 @@ def client(db_session):
 @pytest.fixture(scope="function")
 def admin_user(db_session):
     """
-    The account admin_client's requests act as.
-
-    Its own fixture because personal data now hangs off a user: a test that
-    seeds a user_media_list row has to hang it on the SAME user the request
-    will resolve to.
-
-    The name sorts before the "admin" the app's lifespan seeds
-    (app/main.py:108), and that is the whole point. `acting_user_id` resolves
-    a GUEST to the lowest-username admin, so without the prefix a fixture row
-    written here is invisible to every anonymous `client` read while being
-    visible to `admin_client` - and a Completed entry silently reads back as
-    "Might Watch" through one client and not the other. Production has exactly
-    one admin and no such split; sorting first is what reproduces that here.
-    `an_admin` in test_viewer_user_id.py uses the same trick for the same
-    reason.
+    An account on the `admin` role, as production's own is: no mode, no
+    personal data, and exactly the admin's fixed permission set
+    (permissions.ADMIN_FIXED_PERMISSIONS) - accounts, roles, access modes,
+    pipelines, the request inbox, announcements, options, images and
+    resources. It reads and writes no catalogue; a test that needs the
+    catalogue uses owner_client.
     """
     user = models.User(
         id=uuid.uuid4(),
@@ -254,24 +265,76 @@ def admin_user(db_session):
     )
     db_session.add(user)
     db_session.flush()
+    # After the INSERT, not in it: the columns default to `normal` even when
+    # None is passed. app/main.py parks the seeded admin the same way.
+    set_mode_ceiling(db_session, user, None, None)
     return user
 
 
 @pytest.fixture(scope="function")
 def admin_client(db_session, admin_user):
-    """Authenticated admin test client — sets valid JWT cookie."""
+    """Authenticated client for the admin account. No mode: the admin
+    resolves the empty object set, like the real one."""
 
     def override_get_db():
         yield db_session
 
     app.dependency_overrides[get_db] = override_get_db
 
-    # Carries a mode, like a real account does after the Phase B migration.
-    # Without one, a signed-in caller resolves the EMPTY object set and every
-    # gated field vanishes from every response.
-    mode_id = seed_modes_and_grant(db_session, admin_user)
+    token = create_access_token({"sub": admin_user.username, "role": "admin"})
+
+    with TestClient(app) as c:
+        c.cookies.set("access_token", f"Bearer {token}")
+        yield c
+
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture(scope="function")
+def owner_user(db_session):
+    """
+    The installation's owner: a `super`-role account, at ceiling and default
+    `unrestricted` (set by owner_client). The account owner_client's requests
+    act as, so a test that seeds a personal row (list_row, sample_anime)
+    hangs it on the same user the request resolves to.
+
+    `super`, because that is the role that reads and writes the whole
+    catalogue; the admin role does neither. It holds no
+    is_installation_owner flag - the flag is unique, and tests that are about
+    it set it on an account of their own - and is the owner by the fallback:
+    the first active member account by username.
+    """
+    user = models.User(
+        id=uuid.uuid4(),
+        username="aaa_testowner",
+        hashed_password=get_password_hash("testpass"),
+        role_id=role_id_for(db_session, "super"),
+        # Every account switch on: the owner's own account reads its quotes
+        # and memes, and no role holds a feature without its switch.
+        feature_quotes_memes=True,
+        feature_favourites=True,
+        feature_music_status=True,
+        feature_mod_status=True,
+    )
+    db_session.add(user)
+    db_session.flush()
+    return user
+
+
+@pytest.fixture(scope="function")
+def owner_client(db_session, owner_user):
+    """Authenticated client for the installation owner (a `super` account
+    in mode `unrestricted`): every catalogue read and write, every personal
+    feature, everything but admin.authz."""
+
+    def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    mode_id = seed_modes_and_grant(db_session, owner_user)
     token = create_access_token(
-        {"sub": admin_user.username, "role": "admin", "mode": str(mode_id or "")}
+        {"sub": owner_user.username, "role": "super", "mode": str(mode_id or "")}
     )
 
     with TestClient(app) as c:
@@ -321,9 +384,9 @@ def user_client(db_session, plain_user):
 # ---------------------------------------------------------------------------
 # The object axis. A signed-in caller with no `mode` claim resolves the EMPTY
 # object set - fail-closed, and correct in production - so every authenticated
-# fixture client has to carry a mode, exactly as a real account does after the
-# Phase B migration granted every existing account all four.
-
+# fixture client has to carry a mode, and the mode has to be within the
+# account's ceiling (users.mode_ceiling). A fixture account starts at the
+# columns' default, `normal` / `normal`, like an invited one.
 
 def all_field_group_keys() -> set:
     """Every field group, as a set. Imported lazily: field_groups sits in an
@@ -334,139 +397,71 @@ def all_field_group_keys() -> set:
 
 
 def seed_modes_and_grant(db, user):
-    """Give THIS user all four seeded modes, defaulting to `unrestricted`.
+    """Put THIS user at ceiling and default `unrestricted`.
 
-    What the migration does for every account that already existed, so a
-    fixture client behaves like a real one on the day Phase B lands.
-    Returns the default mode's id.
-
-    Deliberately NOT grant_all_modes_to_existing_accounts(), which walks every
-    user. That would insert rows for the COMMITTED admin account the lifespan
-    also grants, uncommitted - and the lifespan runs on its own connection
-    inside `with TestClient(app)`, so it would block on uq_user_access_mode
-    with the test waiting on the client and the client waiting on the test.
-    The session-scoped setup in test_engine grants that account once,
-    committed, so the lifespan's own copy stays a SELECT.
+    What a fixture client needs to behave like the owner's account: every
+    label and every field group. Returns the default mode's id, for the
+    login token's decorative `mode` claim.
     """
     from app.services.rbac.modes import default_mode_id
 
-    held = (
-        db.query(models.UserAccessMode)
-        .filter(models.UserAccessMode.user_id == user.id)
-        .first()
-    )
-    if held is None:
-        for m in db.query(models.AccessMode).all():
-            db.add(
-                models.UserAccessMode(
-                    user_id=user.id,
-                    mode_id=m.system_id,
-                    is_default=(m.key == MODE_UNRESTRICTED),
-                )
-            )
-        db.flush()
+    user.mode_ceiling = MODE_UNRESTRICTED
+    user.mode_default = MODE_UNRESTRICTED
+    db.flush()
     rbac_cache.bump()
     return default_mode_id(db, user)
 
 
 def grant_bespoke_mode(db, user, username, field_groups=None, label_keys=None):
     """
-    A one-off mode carrying exactly `field_groups` and `label_keys`.
+    Put `user` in a fixed mode narrowed to exactly `field_groups` and
+    `label_keys`, and return that mode.
 
-    For tests that used to build a role holding every permission MINUS one
-    field group. That subtraction moved to this axis in Phase B: the role can
-    no longer express it, because permission resolution is a union and a union
-    can only add.
+    There are no bespoke modes: the four are fixed and what each shows is
+    derived. So the narrowing is done the way production does it - the lowest
+    mode whose derived sets contain the request becomes the account's ceiling
+    and default, and per-account DENIALS take away the difference. Any subset
+    of what the ladder can show is reproduced exactly; a request no mode can
+    satisfy fails here, loudly, rather than quietly testing something else.
 
-    Defaults are "everything", so a test that does not care about the object
-    axis gets the unnarrowed answer and only the tests that narrow say so.
+    Defaults are "everything": `unrestricted` with no denial, so a test that
+    does not care about the object axis gets the unnarrowed answer.
     """
+    from app.services.rbac.labels import labels_shown_in
+    from app.services.rbac.seed_modes import MODE_ORDER, field_groups_shown_in
+
+    ensure_access_mode_seed(db)
+    every_label = {row.key: row.system_id for row in db.query(models.ContentLabel)}
     groups = all_field_group_keys() if field_groups is None else set(field_groups)
-    # Two key shapes on purpose. A mode built with an explicit label_keys is
-    # a DELIBERATE object scope and must survive a label created later;
-    # carry_label_in_wide_modes only tops up the "mode-" ones, which mean
-    # "everything, I do not care about this axis".
-    prefix = "mode" if label_keys is None else "modefixed"
-    mode = models.AccessMode(
-        system_id=uuid.uuid4(),
-        key=f"{prefix}-{username}",
-        label=username,
-        is_system=False,
+    wanted = set(every_label) if label_keys is None else set(label_keys)
+
+    def shown_labels(key):
+        # unrestricted shows every row, the others what the code says.
+        return set(every_label) if key == MODE_UNRESTRICTED else set(labels_shown_in(key))
+
+    for mode_key in MODE_ORDER:
+        if wanted <= shown_labels(mode_key) and groups <= set(
+            field_groups_shown_in(mode_key)
+        ):
+            break
+    else:
+        raise AssertionError(
+            f"no access mode shows labels {sorted(wanted)} and field groups "
+            f"{sorted(groups)}; the four modes are fixed"
+        )
+    target = (
+        db.query(models.AccessMode).filter(models.AccessMode.key == mode_key).one()
     )
-    db.add(mode)
+    user.mode_ceiling = mode_key
+    user.mode_default = mode_key
     db.flush()
-    for key in sorted(groups):
-        db.add(
-            models.AccessModeFieldGroup(mode_id=mode.system_id, field_group_key=key)
-        )
-    labels = db.query(models.ContentLabel).all()
-    for label in labels:
-        if label_keys is not None and label.key not in label_keys:
-            continue
-        db.add(models.AccessModeLabel(mode_id=mode.system_id, label_id=label.system_id))
-    db.add(
-        models.UserAccessMode(
-            user_id=user.id, mode_id=mode.system_id, is_default=True
-        )
-    )
-    db.flush()
-    rbac_cache.bump()
-    return mode
-
-
-def carry_label_in_wide_modes(db, label):
-    """Give a newly created label to the modes that are meant to carry ALL of
-    them, if those modes already exist.
-
-    A mode's labels are materialised rows, so a label created AFTER the seed
-    reaches no mode and hides its entries from everybody - fail-closed, and in
-    production the admin grants it on /access-modes. In tests that would make
-    fixture ORDER decide what a mode holds: request admin_client before
-    nsfw_label and `unrestricted` is seeded empty, so the admin stops seeing
-    labelled entries for no reason the test expresses.
-    """
-    wide = (
-        db.query(models.AccessMode)
-        .filter(models.AccessMode.key.in_((MODE_UNRESTRICTED, "borderline")))
-        .all()
-    )
-    for mode in wide:
-        exists = (
-            db.query(models.AccessModeLabel)
-            .filter(
-                models.AccessModeLabel.mode_id == mode.system_id,
-                models.AccessModeLabel.label_id == label.system_id,
-            )
-            .first()
-        )
-        if exists is None:
-            db.add(
-                models.AccessModeLabel(
-                    mode_id=mode.system_id, label_id=label.system_id
-                )
-            )
-    # Bespoke modes built by make_viewer default to "every label", and they
-    # are created before a test's own labels just as often.
-    for mode in db.query(models.AccessMode).filter(
-        models.AccessMode.key.like("mode-%")
-    ):
-        exists = (
-            db.query(models.AccessModeLabel)
-            .filter(
-                models.AccessModeLabel.mode_id == mode.system_id,
-                models.AccessModeLabel.label_id == label.system_id,
-            )
-            .first()
-        )
-        if exists is None:
-            db.add(
-                models.AccessModeLabel(
-                    mode_id=mode.system_id, label_id=label.system_id
-                )
-            )
+    for key in sorted(shown_labels(mode_key) - wanted):
+        db.add(models.UserAccessModeDenial(user_id=user.id, label_id=every_label[key]))
+    for key in sorted(set(field_groups_shown_in(mode_key)) - groups):
+        db.add(models.UserAccessModeDenial(user_id=user.id, field_group_key=key))
     db.flush()
     rbac_cache.bump()
-    return label
+    return target
 
 
 @pytest.fixture
@@ -490,17 +485,22 @@ def mode(db_session, access_modes):
 
 @pytest.fixture
 def grant_mode(db_session, mode):
-    """Give `user` a seeded mode, optionally minus some of its labels.
+    """Let `user` use a seeded mode, optionally denying some labels.
 
-    Denials name label KEYS rather than ids, because that is what a test can
-    read back.
+    Raises the account's ceiling to the mode if it sits below it, and never
+    lowers it. `is_default=True` also makes it the login default. Denials
+    name label KEYS rather than ids, because that is what a test can read
+    back, and like every denial they apply in every mode the account uses.
+    Returns the mode.
     """
 
     def _grant(user, mode_key, denials=(), is_default=False):
-        row = models.UserAccessMode(
-            user_id=user.id, mode_id=mode(mode_key).system_id, is_default=is_default
-        )
-        db_session.add(row)
+        if user.mode_ceiling is None or mode_rank(user.mode_ceiling) < mode_rank(
+            mode_key
+        ):
+            user.mode_ceiling = mode_key
+        if is_default or user.mode_default is None:
+            user.mode_default = mode_key
         db_session.flush()
         for key in denials:
             label = (
@@ -509,30 +509,28 @@ def grant_mode(db_session, mode):
                 .one()
             )
             db_session.add(
-                models.UserAccessModeDenial(
-                    user_access_mode_id=row.system_id, label_id=label.system_id
-                )
+                models.UserAccessModeDenial(user_id=user.id, label_id=label.system_id)
             )
         db_session.flush()
         rbac_cache.bump()
-        return row
+        return mode(mode_key)
 
     return _grant
 
 
 @pytest.fixture
-def mode_client(db_session, admin_user, grant_mode):
+def mode_client(db_session, owner_user, grant_mode):
     """A client sitting in one named mode.
 
     The mode travels in the access_mode override cookie exactly as it does
     after a switch in production, so these tests exercise the real resolution
-    path rather than a Viewer built by hand. The grant is not the account's
-    default, so without that cookie the session would resolve nothing.
+    path rather than a Viewer built by hand. The account's ceiling is raised
+    to the mode if it sits below it.
     """
 
     def _client(mode_key, user=None, denials=()):
-        user = user or admin_user
-        grant = grant_mode(user, mode_key, denials=denials)
+        user = user or owner_user
+        target = grant_mode(user, mode_key, denials=denials)
 
         def override_get_db():
             yield db_session
@@ -540,7 +538,7 @@ def mode_client(db_session, admin_user, grant_mode):
         app.dependency_overrides[get_db] = override_get_db
         token = create_access_token({"sub": user.username, "role": user.role})
         override = create_access_token(
-            {"sub": user.username, "mode": str(grant.mode_id)},
+            {"sub": user.username, "mode": str(target.system_id)},
             expires_delta=timedelta(minutes=60),
         )
         c = TestClient(app)
@@ -605,7 +603,7 @@ def make_viewer(
 
     `permissions` is the ROLE axis - what this account may DO. The two keyword
     arguments are the OBJECT axis, which left the role axis in Phase B: they
-    build a bespoke mode carrying exactly those field groups and labels.
+    narrow the account to exactly those field groups and labels, by denial.
     Both default to everything, so a test that only cares about capabilities
     need not mention them, and a test that narrows says so explicitly.
     """
@@ -613,8 +611,6 @@ def make_viewer(
         system_id=uuid.uuid4(),
         name=f"role-{username}",
         label=username,
-        is_system=False,
-        is_root=False,
     )
     db_session.add(role)
     db_session.flush()
@@ -652,11 +648,19 @@ def make_viewer(
 ALL_VIEW_PERMISSIONS = frozenset(view_perm(key) for key in VIEW_PERMISSION_KEYS)
 
 
-def make_guest_reader(db_session, client, username="guestreader", extra=ALL_VIEW_PERMISSIONS):
+def make_guest_reader(
+    db_session,
+    client,
+    username="guestreader",
+    extra=ALL_VIEW_PERMISSIONS,
+):
     """
     Log `client` in as an account that sees exactly what a guest sees - this
     database's guest-role grants and the `safe` mode, which is what a
     logged-out visitor resolves - plus the role permissions in `extra`.
+
+    Its role is bespoke, so it holds no feature switch: the feature gate
+    admits only `user` and `super`. A quote or meme read uses quote_reader.
 
     For tests written against the anonymous `client` that read a surface now
     behind a view.* key. Moving them to `user_client` would change the object
@@ -675,8 +679,6 @@ def make_guest_reader(db_session, client, username="guestreader", extra=ALL_VIEW
         system_id=uuid.uuid4(),
         name=f"role-{username}",
         label=username,
-        is_system=False,
-        is_root=False,
     )
     db_session.add(role)
     db_session.flush()
@@ -690,6 +692,8 @@ def make_guest_reader(db_session, client, username="guestreader", extra=ALL_VIEW
         hashed_password=get_password_hash("x"),
         role_id=role.system_id,
     )
+    user.mode_ceiling = MODE_SAFE
+    user.mode_default = MODE_SAFE
     db_session.add(user)
     db_session.flush()
     safe = (
@@ -697,10 +701,6 @@ def make_guest_reader(db_session, client, username="guestreader", extra=ALL_VIEW
         .filter(models.AccessMode.key == MODE_SAFE)
         .one()
     )
-    db_session.add(
-        models.UserAccessMode(user_id=user.id, mode_id=safe.system_id, is_default=True)
-    )
-    db_session.flush()
     rbac_cache.bump()
     token = create_access_token(
         {"sub": username, "role": role.name, "mode": str(safe.system_id)}
@@ -711,18 +711,53 @@ def make_guest_reader(db_session, client, username="guestreader", extra=ALL_VIEW
 
 @pytest.fixture
 def guest_reader(db_session, client):
-    """`client`, logged in as make_guest_reader: a guest plus every view.* key."""
+    """`client`, logged in as make_guest_reader: a guest plus every view.* key
+    - every role-gated read, on the guest's object axis."""
     return make_guest_reader(db_session, client)
 
 
 @pytest.fixture
-def nsfw_label(db_session):
-    label = models.ContentLabel(
-        system_id=uuid.uuid4(), key="nsfw", label="NSFW", sort_order=0
+def quote_reader(db_session, client):
+    """`client`, logged in as a real `user` account in the `safe` mode with
+    the quotes-and-memes switch on.
+
+    The quote and meme reads ask the switch, which the feature gate grants
+    only on a `user` or `super` account - so the visibility tests run on a
+    role the gate admits, and a 404 or a missing row is the visibility rule
+    at work rather than the switch. `safe` is the guest's object axis, as
+    guest_reader's is.
+    """
+    user = models.User(
+        id=uuid.uuid4(),
+        username="quotereader",
+        hashed_password=get_password_hash("x"),
+        role_id=role_id_for(db_session, "user"),
+        feature_quotes_memes=True,
     )
-    db_session.add(label)
+    user.mode_ceiling = MODE_SAFE
+    user.mode_default = MODE_SAFE
+    db_session.add(user)
     db_session.flush()
-    return carry_label_in_wide_modes(db_session, label)
+    safe = (
+        db_session.query(models.AccessMode)
+        .filter(models.AccessMode.key == MODE_SAFE)
+        .one()
+    )
+    rbac_cache.bump()
+    token = create_access_token(
+        {"sub": user.username, "role": "user", "mode": str(safe.system_id)}
+    )
+    client.cookies.set("access_token", f"Bearer {token}")
+    return client
+
+
+@pytest.fixture
+def nsfw_label(db_session):
+    """The `nsfw` label. It exists in every test - the code defines it and the
+    session seed writes it - so this finds it rather than creating one.
+    Shown from `normal` up, so a logged-out visitor (`safe`) never sees what
+    carries it."""
+    return ensure_label(db_session, "nsfw")
 
 
 @pytest.fixture
@@ -769,7 +804,12 @@ def catalog_writer(db_session, client):
             db_session,
             client,
             username,
-            default_user_permissions() | {PERM_MANAGE_CATALOG} | set(extra),
+            # The entity-page keys too: an editor of studios, people and
+            # characters reads their pages, and the seeded member does not.
+            default_user_permissions()
+            | ENTITY_VIEW_PERMISSIONS
+            | {PERM_MANAGE_CATALOG}
+            | set(extra),
             label_keys=label_keys,
         )
 
@@ -832,14 +872,14 @@ def sample_series(db_session, sample_franchise):
 
 
 @pytest.fixture
-def list_row(db_session, admin_user):
+def list_row(db_session, owner_user):
     """Give an entry the acting user's `user_media_list` row.
 
     Step 1 moved the personal fields off the detail tables, so a test that
     needs an entry to be Completed (or rated, or part-watched) writes them
     here instead of as constructor kwargs.
 
-    `admin_user`, because that is the account `admin_client` acts as, and a
+    `owner_user`, because that is the account `owner_client` acts as, and a
     personal read is answered from the caller's own list. It used to matter
     for a second reason - the lifespan seeds an admin named "admin" that sorts
     first and would have won `acting_user_id`'s fallback - and that fallback
@@ -852,7 +892,7 @@ def list_row(db_session, admin_user):
     def _make(entry, **fields):
         row = models.UserMediaList(
             system_id=uuid.uuid4(),
-            user_id=admin_user.id,
+            user_id=owner_user.id,
             media_id=entry.system_id,
             **fields,
         )
@@ -864,14 +904,14 @@ def list_row(db_session, admin_user):
 
 
 @pytest.fixture
-def sample_anime(db_session, admin_user, sample_franchise):
+def sample_anime(db_session, owner_user, sample_franchise):
     """
     A finished anime, watched to the end.
 
     The status and the episode count moved to user_media_list in step 1, so
     they are written as the acting user's list row rather than as columns.
-    `admin_user` and not `acting_user_id(db, None)`: a request through
-    admin_client resolves to that account, and a row hung on any other user
+    `owner_user` and not `acting_user_id(db, None)`: a request through
+    owner_client resolves to that account, and a row hung on any other user
     would read back as the type's default.
     """
     a = models.Anime(
@@ -887,7 +927,7 @@ def sample_anime(db_session, admin_user, sample_franchise):
     db_session.add(
         models.UserMediaList(
             system_id=uuid.uuid4(),
-            user_id=admin_user.id,
+            user_id=owner_user.id,
             media_id=a.system_id,
             status="Completed",
             ep_fin=12,
@@ -1229,12 +1269,7 @@ def entity_for(db_session, client):
 def labelled_hidden_anime(db_session, sample_franchise):
     """An anime carrying a content label the default guest role cannot see -
     the public_id-lookup analogue of test_visibility.hidden_anime."""
-    label = models.ContentLabel(
-        system_id=uuid.uuid4(), key="nsfw-public-id", label="NSFW", sort_order=0
-    )
-    db_session.add(label)
-    db_session.flush()
-    carry_label_in_wide_modes(db_session, label)
+    label = ensure_label(db_session, "nsfw")
     entry = models.Anime(
         system_id=uuid.uuid4(),
         franchise_id=sample_franchise.system_id,
@@ -1252,3 +1287,25 @@ def labelled_hidden_anime(db_session, sample_franchise):
     )
     db_session.flush()
     return {"public_id": entry.public_id, "system_id": str(entry.system_id)}
+
+
+@pytest.fixture
+def features_follow_personal_notes(monkeypatch):
+    """Every feature for a signed-in viewer holding self.personal_notes.
+
+    The real gate (app/services/rbac/features.py) grants a feature only to a
+    `user` or `super` account whose switch is on, and make_viewer's accounts
+    are on bespoke roles. Tests about what a granted value DOES - marks, the
+    music statuses, the review queue - pin this rule instead, so a refusal in
+    them is the behaviour under test and not the switch; the gate itself is
+    tested in test_account_features.py.
+    """
+    from app.services.rbac import features
+    from app.services.rbac.permissions import PERM_SELF_PERSONAL_NOTES
+
+    def has_feature(db, viewer, name):
+        if name not in features.FEATURE_NAMES:
+            raise ValueError(f"Unknown feature {name!r}")
+        return viewer.user_id is not None and viewer.has(PERM_SELF_PERSONAL_NOTES)
+
+    monkeypatch.setattr(features, "has_feature", has_feature)

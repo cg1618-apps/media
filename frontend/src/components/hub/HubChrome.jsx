@@ -40,26 +40,31 @@ export const pillCls = (active) =>
 
 /**
  * Breadcrumb row: a catalogue path set in mono. `trail` is the ancestors,
- * each `{ to, label }`; `current` is this page.
+ * each `{ to, label }`; `current` is this page. `action`, when given, sits at
+ * the row's right-hand end, outside the breadcrumb itself - the hubs' "Report
+ * a problem".
  */
-export function Crumbs({ trail, current }) {
+export function Crumbs({ trail, current, action = null }) {
   return (
-    <nav
-      className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint flex items-center gap-3 flex-wrap"
-      aria-label="Breadcrumb"
-    >
-      {trail.map((c) => (
-        <span key={c.to} className="flex items-center gap-3">
-          <Link to={c.to} className="hover:text-brand transition">
-            {c.label}
-          </Link>
-          <span aria-hidden="true">/</span>
+    <div className="flex items-center justify-between gap-3">
+      <nav
+        className="min-w-0 font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint flex items-center gap-3 flex-wrap"
+        aria-label="Breadcrumb"
+      >
+        {trail.map((c) => (
+          <span key={c.to} className="flex items-center gap-3">
+            <Link to={c.to} className="hover:text-brand transition">
+              {c.label}
+            </Link>
+            <span aria-hidden="true">/</span>
+          </span>
+        ))}
+        <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
+          {current}
         </span>
-      ))}
-      <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
-        {current}
-      </span>
-    </nav>
+      </nav>
+      {action}
+    </div>
   );
 }
 

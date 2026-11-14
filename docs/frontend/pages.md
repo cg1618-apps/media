@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-10-30
+Last verified: 2026-11-14
 
 **What this is for.** This is the map of every page outside the admin
 tabs — what a guest can open, what a member adds (see "The guest scope"
@@ -29,14 +29,15 @@ are a large share of the bundle and never needed on first paint.
 |---|---|---|
 | `/` | `Index` — `public/Index.jsx` | eager |
 | `/login` | `Login` — `public/Login.jsx` | eager |
+| `/reset` | `ResetPassword` — `public/ResetPassword.jsx`, in no menu | lazy |
 | `/search` | `Search` — `public/Search.jsx` | eager, **`view.search`** |
 | `/library/collection` | `CollectionLibrary` — `library/CollectionLibrary.jsx` | eager |
 | `/library/franchise` | `FranchiseLibrary` — `library/FranchiseLibrary.jsx` | eager |
-| `/library/studio` | `StudioLibrary` — `library/StudioLibrary.jsx` (matched before `/library/:type`) | lazy, **`view.entities`** |
-| `/library/publisher` | `PublisherLibrary` — `library/PublisherLibrary.jsx` (matched before `/library/:type`) | lazy, **`view.entities`** |
-| `/library/person` | `PersonLibrary` — `library/PersonLibrary.jsx` (matched before `/library/:type`) | lazy, **`view.entities`** |
-| `/library/seiyuu` | `PersonLibrary role="seiyuu"` — same file, filtered server-side via `?role=seiyuu` (matched before `/library/:type`) | lazy, **`view.entities`** |
-| `/library/character` | `CharacterLibrary` — `library/CharacterLibrary.jsx` (matched before `/library/:type`) | lazy, **`view.entities`** |
+| `/library/studio` | `StudioLibrary` — `library/StudioLibrary.jsx` (matched before `/library/:type`) | lazy, **`view.studio`** |
+| `/library/publisher` | `PublisherLibrary` — `library/PublisherLibrary.jsx` (matched before `/library/:type`) | lazy, **`view.publisher`** |
+| `/library/person` | `PersonLibrary` — `library/PersonLibrary.jsx` (matched before `/library/:type`) | lazy, **`view.person`** |
+| `/library/seiyuu` | `PersonLibrary role="seiyuu"` — same file, filtered server-side via `?role=seiyuu` (matched before `/library/:type`) | lazy, **`view.person`** — a seiyuu is a person |
+| `/library/character` | `CharacterLibrary` — `library/CharacterLibrary.jsx` (matched before `/library/:type`) | lazy, **`view.character`** |
 | `/library/h-comic` | `Library type="h-comic"` — same file, declared on its own inside `<ProtectedRoute gatedType="h-comic">` (matched before `/library/:type`) | eager, **gated** |
 | `/library/h-game` | `Library type="h-game"` — the same, inside `<ProtectedRoute gatedType="h-game">` | eager, **gated** |
 | `/library/hentai` | `Library type="hentai"` — the same, inside `<ProtectedRoute gatedType="hentai">` | eager, **gated** |
@@ -48,25 +49,26 @@ are a large share of the bundle and never needed on first paint.
 | `/collection/:system_id` | `detail/Collection.jsx` → `CollectionPage.jsx` | eager |
 | `/franchise/:system_id` | `detail/Franchise.jsx` → `FranchisePage.jsx` | eager |
 | `/series/:system_id` | `detail/Series.jsx` → `SeriesPage.jsx` | eager |
-| `/studio/:system_id` | `detail/Studio.jsx` | lazy, **`view.entities`** |
-| `/publisher/:system_id` | `detail/Publisher.jsx` | lazy, **`view.entities`** |
-| `/person/:system_id` | `detail/Person.jsx` | lazy, **`view.entities`** |
-| `/character/:system_id` | `detail/Character.jsx` | lazy, **`view.entities`** |
-| `/identity/:public_id` | `detail/Identity.jsx` | lazy, **`view.entities`** |
+| `/studio/:system_id` | `detail/Studio.jsx` | lazy, **`view.studio`** |
+| `/publisher/:system_id` | `detail/Publisher.jsx` | lazy, **`view.publisher`** |
+| `/person/:system_id` | `detail/Person.jsx` | lazy, **`view.person`** |
+| `/character/:system_id` | `detail/Character.jsx` | lazy, **`view.character`** |
+| `/identity/:public_id` | `detail/Identity.jsx` | lazy, **`view.character`** — an identity is a page of a character |
 | `/watch-order/:system_id` | `detail/WatchOrder.jsx` → `WatchOrderPage.jsx` | lazy |
-| `/seasonal` | `public/SeasonalOverall.jsx` | lazy, **login required** |
-| `/seasonal/:seasonal_id` | `public/SeasonalDetail.jsx` | lazy, **login required** |
-| `/future-releases` | `public/FutureReleases.jsx` | lazy, **`view.extras`** |
-| `/statistics` | `public/Statistics.jsx` | lazy, **login required** |
-| `/completions` | `public/Completions.jsx` | lazy, **`view.extras`** |
-| `/random` | `public/RandomPicker.jsx` — the general mode | lazy, **`view.extras`** |
-| `/random/h-comic`, `/random/h-game`, `/random/hentai` | `RandomPicker type="…"` — the same file, each inside its type's `<ProtectedRoute gatedType>` and, within it, `<ProtectedRoute permission="view.extras">` (matched before `/random/:type`) | lazy, **gated**, **`view.extras`** |
-| `/random/:type` | `RandomPicker` — one type's mode, or `/random/franchise`, the franchise mode; an unknown type redirects to `/random` | lazy, **`view.extras`** |
-| `/plan` | `public/Plan.jsx` | lazy, **login required** |
-| `/quote` | `public/Quotes.jsx` | lazy, **`view.extras`** |
-| `/meme` | `public/Memes.jsx` | lazy, **`view.extras`** |
-| `/resources` | `public/Resources.jsx` | lazy, **`view.extras`** |
-| `/user/:username` | `public/Profile.jsx` | lazy, **`view.personal`** |
+| `/seasonal` | `public/SeasonalOverall.jsx` — the viewer's own season with a list, the catalogue's without | lazy, **any ordinary `media_type.*`** (`anyPermission={LIBRARY_MEDIA_TYPE_PERMISSIONS}`, the list the Library tab asks) |
+| `/seasonal/:seasonal_id` | `public/SeasonalDetail.jsx` — likewise | lazy, **any ordinary `media_type.*`** (`anyPermission={LIBRARY_MEDIA_TYPE_PERMISSIONS}`, the list the Library tab asks) |
+| `/future-releases` | `public/FutureReleases.jsx` — reads the open `/api/seasonal/current-season` | lazy, **any ordinary `media_type.*`** (`anyPermission={LIBRARY_MEDIA_TYPE_PERMISSIONS}`, the list the Library tab asks) |
+| `/statistics` | `public/Statistics.jsx` — the viewer's own numbers and the catalogue sections with a list, the catalogue sections alone without | lazy, **`view.statistics`** |
+| `/completions` | `public/Completions.jsx` | lazy, **`self.list`** |
+| `/random` | `public/RandomPicker.jsx` — the general mode | lazy, **`view.random_picker`** |
+| `/random/h-comic`, `/random/h-game`, `/random/hentai` | `RandomPicker type="…"` — the same file, each inside its type's `<ProtectedRoute gatedType>` and, within it, `<ProtectedRoute permission="view.random_picker">` (matched before `/random/:type`) | lazy, **gated**, **`view.random_picker`** |
+| `/random/:type` | `RandomPicker` — one type's mode, or `/random/franchise`, the franchise mode; an unknown type redirects to `/random`, and so does every `/random/<mode>` for a shared account | lazy, **`view.random_picker`** |
+| `/plan` | `public/Plan.jsx` | lazy, **`self.list`** |
+| `/quote` | `public/Quotes.jsx` | lazy, **feature `quotes_memes`** (`<ProtectedRoute feature>`) |
+| `/meme` | `public/Memes.jsx` | lazy, **feature `quotes_memes`** |
+| `/resources` | `public/Resources.jsx` | lazy, **`manage.resources`** — the admin's and super's alone |
+| `/settings` | `public/Settings.jsx` — the account's username and role, a line saying the list, ratings and personal notes are visible to that account only, and the Password card for an account holding `self.password` | lazy, **`self.list`** |
+| `/requests` | `public/MyRequests.jsx` | lazy, **`self.requests`** |
 | `/under-development` | `public/UnderDevelopment.jsx` | eager |
 
 **Gated routes.** The two h-comic routes sit inside
@@ -84,16 +86,34 @@ A guest — a logged-out visitor, or any account on the `guest` role — browses
 the media and the groups and nothing else: the dashboard's Announcements and
 Broadcast schedule, the `/library/:type` lists, `/library/collection`,
 `/library/franchise`, and the entry, collection, franchise, series and
-watch-order pages they lead to. Everything else a member reads is behind one
-of four `view.*` permissions, which `user` and `super` hold, `admin` passes
-through the root flag, and `guest` does not hold:
+watch-order pages they lead to. Everything else a member reads is behind a
+`view.*` permission, which `super` holds, `guest` does not hold as seeded,
+and the `admin` role never holds — the admin reads no catalogue at all. `user`
+holds `view.search` and `view.random_picker` as seeded (a shared
+account holds `view.random_picker` alone; it is locked off for `guest`); the four entity keys are each a switch on the role,
+seeded off, so a fresh database shows a `user` entity names as plain text
+until an admin ticks a kind on:
 
 | Key | Route gate (`<ProtectedRoute permission>`) | Inside the open pages |
 |---|---|---|
-| `view.entities` | the five entity libraries and the studio, publisher, person, character and identity pages | entity names render as plain text (`useEntityHref`, components.md); the franchise and series hubs have no Characters tab |
+| `view.studio` | the studio library and studio pages | studio and developer names render as plain text (`useEntityHref`, components.md) |
+| `view.publisher` | the publisher library and publisher pages | publisher names render as plain text |
+| `view.person` | the person and seiyuu libraries and person pages | staff, author, club-member and seiyuu names render as plain text |
+| `view.character` | the character library, character and identity pages | character and identity names render as plain text; the franchise and series hubs have no Characters tab |
 | `view.search` | `/search` | `NavSearch` is not drawn — not the inline slot, the phone button or its sheet |
-| `view.extras` | Future Releases, Completions, every `/random` route, `/quote`, `/meme`, `/resources` | the Quotes and Memes note sections are dropped |
-| `view.personal` | `/user/:username` | no catalogue rating or expectation (cards, the franchise table's Expectation and My columns, the rating and expectation sorts, the hubs' hero stamp and chip, the random picker's franchise filters), no `CommunityCard`, no novel unit remark |
+| `view.random_picker` | every `/random` route | the picker asks `/api/plan-next/` for plan marks only with `self.list` (`useViewScope().ownData`), so a shared account's picker draws no plan weight and never gets a 401 |
+
+A personal note section is not behind a `view.*` key either: the registry
+lists it for every viewer and the rows are only the viewer's own, so a guest
+sees it empty and without write controls.
+
+The viewer's **own** ratings and expectations are not behind a `view.*` key:
+they are drawn for a holder of `self.list` (`useViewScope().ownData`), since
+anyone else has none and the server sends null — the cards' rating stamps and
+expectation chips, the franchise table's Expectation and My columns, the
+rating and expectation sorts and filters, the hubs' hero stamp, chip and
+rating editors, the entity pages' **My rating** select, the random picker's
+franchise filters and a novel unit's rating and remark controls.
 
 Each route block asks one key, and `navigation.js` asks the same key for the
 rows that link there — the SPA's two permission surfaces have to agree, and
@@ -101,8 +121,17 @@ rows that link there — the SPA's two permission surfaces have to agree, and
 answers 401 on the gated endpoints and strips the personal fields, so the UI's
 half is to draw nothing rather than an empty slot, and not to ask for what it
 would be refused: `useViewScope()` (`hooks/useViewScope.js`) is where a
-component reads the four flags. A guest is sent to
-`/login?next=<path>` from any member route.
+component reads the flags. A guest is sent to a plain
+`/login` from any member route.
+
+**Quotes and memes are not a `view.*` key** but the account's
+`quotes_memes` feature switch, which only a `user` or `super` account can
+have on; no role holds it without the switch. `/quote` and `/meme` sit
+inside `<ProtectedRoute feature="quotes_memes">`, their nav rows carry
+`feature: "quotes_memes"`, and without it `NotesContext.jsx` drops the
+Quotes and Memes note sections, so neither renders nor fetches. Each surface
+asks `hasFeature("quotes_memes")` (`AuthContext`), which reads `/me`'s
+`features`.
 
 `App.jsx` also calls `useConstants()` once: it fetches `/api/constants` and
 overwrites the bundled `config/fieldOptions.js` arrays in place so every
@@ -116,33 +145,42 @@ about styling.
 
 | Section key | Label | Shape | Contents |
 |---|---|---|---|
-| `library` | Library | mega-panel (`columns`) | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities** (every row `requires: "view.entities"`, so a guest's panel has no Entities column): Studio `/library/studio` (also matches `/studio`), Publisher `/library/publisher` (also matches `/publisher`), Person `/library/person` (also matches `/person`), Character `/library/character` (also matches `/character` and `/identity`), Seiyuu `/library/seiyuu` · **ACG**: Anime, Anime Movie, Manga, Novel, Game `/library/game` (also matches `/game`) · **Reality**: TV Show, Movie, Cartoon, Comic |
+| `library` | Library | mega-panel (`columns`), `requires` any of the nine ordinary `media_type.*` keys (`LIBRARY_MEDIA_TYPE_PERMISSIONS`), so a role holding none — the admin — has no Library tab. Nav only: the `/library` routes themselves stay open | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities** (each row `requires` its own kind's key, so a row whose kind is off is dropped and a viewer holding none has no Entities column): Studio `/library/studio` (also matches `/studio`; `view.studio`), Publisher `/library/publisher` (also matches `/publisher`; `view.publisher`), Person `/library/person` (also matches `/person`; `view.person`), Character `/library/character` (also matches `/character` and `/identity`; `view.character`), Seiyuu `/library/seiyuu` (`view.person`) · **ACG**: Anime, Anime Movie, Manga, Novel, Game `/library/game` (also matches `/game`) · **Reality**: TV Show, Movie, Cartoon, Comic |
 | `restricted` | Restricted | flat `items`, every row gated | H-Comic `/library/h-comic` (also matches `/h-comic`; `gatedType: "h-comic"`), H-Game `/library/h-game` (also matches `/h-game`; `gatedType: "h-game"`), Hentai `/library/hentai` (also matches `/hentai`; `gatedType: "hentai"`). Each is drawn only for a session that can see its type; a session that can see no gated type has every row dropped, so the tab itself is not drawn |
-| `track` | Track | flat `items` | Plan `/plan`, Seasonal `/seasonal` (both `requires: "self.list"` — see below), Future Releases `/future-releases`, Completions `/completions`, Random Picker `/random` (whose `/random/<type>` pages light it too) — the last three `requires: "view.extras"`. A guest holds none of these keys, so the tab is not drawn |
-| `insights` | Insights | flat | Statistics `/statistics` (`requires: "self.list"`), Quotes `/quote`, Memes `/meme`, Resources `/resources` (each `requires: "view.extras"`) ┃ Relations `/relations`, Watch Orders `/watch-orders` — these two carry `requires: "admin"` on the row, inside a tab everyone may open |
-| `entry` | Entry | flat, `requires: "admin"` | Add `/add`, Modify `/modify`, Delete `/delete`, Form Defaults `/defaults`, Picker Defaults `/random-defaults` |
-| `note` | Note | flat, `requires: "manage.catalog"` | System Options `/options`, Alias Conversion `/aliases`, External APIs `/external-apis` — the three read-only inventories of how the data is described — and Business Logic `/business-logic`, what Calculate All changes step by step, which carries `requires: "manage.pipelines"` on the row, so only the super role and admin see it |
-| `admin` | Admin | flat, `requires: "admin"` | Control Center `/system`, Data History, Review Queue ┃ Users, Roles, Content Labels |
+| `track` | Track | flat `items` | Plan `/plan` (`requires: "self.list"` — see below), Completions `/completions` (`requires: "self.list"`). The account's own progress; a guest holds no `self.*` key, so the tab is not drawn |
+| `explore` | Explore | flat `items` | Seasonal `/seasonal` and Future Releases `/future-releases`, each `requires: LIBRARY_MEDIA_TYPE_PERMISSIONS` (any ordinary media type, so a guest's and a shared account's Explore hold both and the admin's neither), Statistics `/statistics` (`requires: "view.statistics"`, so super, user and shared and never a guest), and Random Picker `/random` (`requires: "view.random_picker"`; its `/random/<type>` pages light it too) |
+| `extras` | Extras | flat | Quotes `/quote` and Memes `/meme` (each `feature: "quotes_memes"`), Resources `/resources` (`requires: "manage.resources"`, so the admin and super only) ┃ Relations `/relations`, Watch Orders `/watch-orders` — these two carry `requires: "manage.catalog"` on the row, inside a tab everyone may open |
+| `entry` | Entry | flat, `requires` any of `manage.catalog` / `manage.images` | Add `/add`, Modify `/modify`, Delete `/delete`, Form Defaults `/defaults`, Picker Defaults `/random-defaults` — each `requires: "manage.catalog"` — and Images `/images` (`requires: "manage.images"`). The admin holds no `manage.catalog`, so Images is the one row it sees |
+| `note` | Note | flat, `requires` any of `manage.options` / `admin.authz` / `manage.catalog` / `manage.pipelines` — whatever its rows ask, so the admin, holding no `manage.catalog`, still sees the whole section | System Options `/options`, Alias Conversion `/aliases`, External APIs `/external-apis` — the three read-only inventories of how the data is described, each `requires: "manage.options"` — Content Labels `/content-labels`, the read-only label reference, which carries `requires: ["admin.authz", "manage.catalog"]` (any of the two, the same either-of its route asks), and Business Logic `/business-logic`, what Calculate All changes step by step, which carries `requires: "manage.pipelines"` on the row, so only the super role and admin see it |
+| `system` | System | flat, `requires: "manage.pipelines"` | Control Center `/system`, Data History, Review Queue, Clean Orphans, and **Inbox** `/request-inbox`, which carries `requires: "manage.requests"` on the row — the key its route asks |
+| `admin` | Admin | flat, `requires: "admin.authz"` | Users, Roles, Access Modes |
 
 Each item has `label`, `icon` (Font Awesome class), `to`, optional `matches`
 (extra path prefixes that light the tab up — `/anime/123` highlights the Anime
 library item; Franchise also owns `/series` and `/watch-order`), `dev` (routes
 to `/under-development`), `divider` (a rule between item groups) and
-`requires` (a per-row permission). Helpers:
+`requires` (a per-row permission, or a list meaning any of them — `meets(has,
+needed)` answers both) or `feature` (a per-row account feature switch, asked
+through `hasFeature` in place of `requires`). Helpers:
 `sectionItems`, `activeItem` / `activeSectionKey` (segment-aware prefix match,
 so `/library/anime` does not claim `/library/anime-movie`),
 `sectionRequirement` / `itemRequirement` (`adminOnly: true` is the legacy
-spelling of `requires: "admin"`) and `visibleSections(sections, has,
-canSeeType)` — which drops both the sections and the individual rows the
-viewer lacks the permission for, and a row carrying `gatedType` unless
-`canSeeType` answers yes (Nav passes `canSeeGatedType`), then drops any section
+spelling of `requires: "admin.authz"`) and `visibleSections(sections, has,
+canSeeType, hasFeature)` — which drops both the sections and the individual
+rows the viewer lacks the permission for, a row carrying `gatedType` unless
+`canSeeType` answers yes (Nav passes `canSeeGatedType`), and a row carrying
+`feature` unless `hasFeature` answers yes (left out, every such row is
+hidden), then drops any section
 left holding nothing but dividers. It
 hands back the original item objects, since Nav marks the current row by
-identity. The Entry, Note and Admin tabs are gated by `has("admin")` from
-`useAuth()`, as are the Relations and Watch Orders rows inside Insights.
+identity. Every gate is `has()` from `useAuth()`, a plain membership test,
+so a tab or row is drawn only for a role that holds its key.
 
-A guest is therefore shown one tab, Library, holding Groups, ACG and
-Reality.
+A guest is therefore shown two tabs: Library, holding Groups, ACG and
+Reality, and Explore, holding Seasonal and Future Releases. A shared
+account's Explore adds the Random Picker and Statistics. The admin is shown no
+Library, Restricted, Track or Explore tab, Extras holding Resources alone,
+Entry holding Images alone, and Note, System and Admin in full.
 
 **`components/layout/Nav.jsx`** renders two rows: an "ink" row (logo → `/`,
 `<NavSearch/>`, session controls) and a paper tab strip. `<NavSearch/>`, the
@@ -167,7 +205,13 @@ uses the same helper. **Log out** (POST `/api/auth/logout`, then a full
 load of the page it is on, so nothing cached for the outgoing account
 survives) follows the indicator rather than the chip: it renders for any
 signed-in account, because a strip naming you with no way out is a dead end.
-Guests get **Log in** → `/login?next=<current path>`.
+Guests get **Log in** → `/login`.
+**Requests** → `/requests` sits before log out, and in the drawer above
+it, for a viewer holding `self.requests` — the key the route asks. It
+is an account control rather than a tab, and the admin account, which files
+nothing, is not offered it. **Settings** → `/settings` (an icon) sits
+between it and log out, for a viewer holding `self.list`, the key its route
+asks — user and super.
 
 The nav narrows in three steps:
 
@@ -198,8 +242,13 @@ debounces 250 ms, discards stale responses by request id, and calls
 `MAX_RESULTS`, the most rows the dropdown shows, so no bucket sends more than
 can be used. Scopes: all, collection, franchise,
 series, anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, game,
-h-comic, h-game and hentai (each offered only to a session that can see the type), seasonal, person,
-studio, publisher. `mergeBuckets` builds the at most `MAX_RESULTS = 8` rows
+h-comic, h-game, hentai, seasonal, person, studio, publisher. A scope is
+offered only when the server would send its bucket (`canSearchScope`, on the
+rule in [api.md](../api.md#search--apisearch)): a media type needs
+`media_type.<type>`, and a gated one also the mode (`canSeeGatedType`);
+person, studio and publisher need `view.person`, `view.studio` and
+`view.publisher`; all, the three groups and seasonal are always offered.
+`mergeBuckets` builds the at most `MAX_RESULTS = 8` rows
 in three passes. First, every bucket's exact matches (a name column equal to
 the query after `cleanString`), so a whole-title hit is never cut by the cap
 and always sits at the top. Then, with scope `all`, `TYPE_QUOTAS` give one
@@ -209,8 +258,9 @@ h-game, hentai, seasonal — so a broad query shows as many types as fit before
 any type shows a second; person, studio and publisher have no floor. Last,
 the slots left over are filled round-robin from the buckets that still have
 rows, so a query matching only movies gets eight movies. A scoped search has
-one bucket, and it may fill all eight. The server leaves a gated type's bucket out altogether
-for a session that cannot see the type, and a missing bucket reads as empty. Person, studio and publisher come last, with no floor, on
+one bucket, and it may fill all eight. The server leaves out altogether the
+bucket of every type the viewer cannot see, and a missing bucket reads as
+empty. Person, studio and publisher come last, with no floor, on
 purpose: a query is usually about a title, so a name match on a credited
 person, studio or publisher is the weaker answer and takes the slots the media
 buckets left behind. Each row's type badge is a `Chip` coloured by its type
@@ -219,7 +269,10 @@ lets colour name a type, see
 [design-system.md](design-system.md#rules). Enter navigates to
 `/search?q=…[&scope=…]`; a
 result click routes to the entry's page (`/seasonal/<encoded id>` for seasons,
-`/person/:id`, `/studio/:id` and `/publisher/:id` for entities). Comic display
+`/person/:id`, `/studio/:id` and `/publisher/:id` for entities). An entity
+row's path comes from `useEntityHref` (`lib/entityPath.js`), so without its
+kind's `view.*` key the row is the name as plain text — an
+`aria-disabled` option that goes nowhere — as every entity link is. Comic display
 names are EN-first; a person, studio or publisher row shows the
 server-resolved `display_name` and its credit count as the secondary line. The
 dropdown has no characters: it does not send `characters=true`, so its
@@ -246,8 +299,9 @@ stamps the same attribute before first paint. See components.md → Theming.
 | Piece | File | Notes |
 |---|---|---|
 | `Layout` | `components/layout/Layout.jsx` | `<Nav/>`, `<Outlet/>`, footer, `<Toast/>`, `ScrollButtons` (to-top after 300 px, to-bottom when >300 px from the end) |
-| `ProtectedRoute` | `components/layout/ProtectedRoute.jsx` | spinner while `auth.loading`; `has(permission)` (default `"admin"`) → `<Outlet/>`, else `<Navigate to="/login?next=<path+search>" replace/>`. A redirect, not a security boundary — the API enforces. |
+| `ProtectedRoute` | `components/layout/ProtectedRoute.jsx` | spinner while `auth.loading`; `has(permission)`, or with `anyPermission={[...]}` any one of a list, or `hasFeature(feature)` when a `feature` prop is passed, or `requireAuth` (anyone signed in), or `gatedType` (`canSeeGatedType`) → `<Outlet/>`, else `<Navigate to="/login" replace/>` (no `?next=`: a login always lands on `/`). **With none of those props the route is open**: a page that needs a capability names its permission. A redirect, not a security boundary — the API enforces. |
 | `MediaLoadingState` | `components/layout/MediaLoadingState.jsx` | spinner + `loadingText`, or red error card |
+| Tab title | `contexts/PageTitleContext.jsx`, `lib/pageTitle.js` | the page's name alone: the nav row's label (`<label> Library` on a library row), a record page's displayed name via `usePageTitle`, and while that loads or fails the nav row it lights up ("Anime"). See [components.md](components.md#contexts) |
 | Toasts | `hooks/useToast.jsx`, `components/layout/Toast.jsx` | `showToast(type, message)`, auto-dismiss 3.5 s, bottom-left stack |
 | Data hooks | `hooks/useMediaList` (`["media-list", type, params]`), `useMediaItem` (`["media-item", type, id]`), `useApiQuery`, `useStatusToggle`, `useMediaCacheUpdate` | `LIST_OPTIONS = { params: { limit: 2000 } }` — every library-sized list uses it |
 
@@ -263,26 +317,77 @@ cannot paint stale data.
 
 File `pages/public/Index.jsx`.
 
-**Who sees what.** The page asks one question, `has("self.list")` — the
-SPA's spelling of "a signed-in member", the key `navigation.js` and `App.jsx`
-gate Plan, Seasonal and Settings on, and one the guest role does not hold.
-Everything below the Broadcast schedule is built from the viewer's own
-statuses and progress, and its controls write the viewer's own rows, so it is
-a member's list, not catalogue, and no `view.*` key decides it. A guest sees
-**Announcements** and the **Broadcast schedule** only: no My watch schedule, no
-Coming Next or Followed orders, no type filter bar and no Watching, Reading or
-Playing division, and the TOC, the scroll-spy and the schedule's
-"N scheduled" count cover only those two parts.
+**Who sees what.** The page differs per viewer
+([../viewers.md](../viewers.md#dashboard-)), and every choice is a permission,
+never a role name, made in `components/dashboard/dashboardSections.js`.
+Nothing is chosen until `/api/auth/me` has answered — the page shows its
+loading state until then, because before it every viewer looks like a guest.
 
-**Data**: `useMediaList("anime")` and
+| Part | Asks | Who that is, as seeded |
+|---|---|---|
+| The admin's own page (`AdminDashboard`), **instead of** everything below | `has("admin.authz")` and none of `LIBRARY_MEDIA_TYPE_PERMISSIONS`, the Library tab's own question | admin |
+| Tracker: My watch schedule, Coming Next, Followed orders, the type filter bar, Watching, Reading, Playing | `has("self.list")` | super, user |
+| Summary (`DashboardSummary`) above Announcements | `has("self.list") && has("manage.requests")` | super |
+| Libraries (`#libraries`, `LibraryLinks`) | `!has("self.list")`, and at least one library row visible | guest, shared |
+| Recently added (`#recent`, `RecentlyAdded`) | `!has("self.list") && has("view.random_picker")` | shared |
+
+Announcements and the Broadcast schedule are drawn for every viewer of the
+catalogue dashboard. The tracker is built from the viewer's own statuses and
+progress, and its controls write the viewer's own rows, so it is a member's
+list, not catalogue, and `self.list` decides it rather than a `view.*` key.
+The TOC, the scroll-spy and the schedule's "N scheduled" count cover only the
+parts drawn.
+
+**The summary** reads `GET /api/dashboard/summary` and is fetched only for a
+viewer it is drawn for. It says, in a few words each, how many registrations
+wait and how many requests and reports are open, and **draws nothing when
+both are zero**. Open requests link to `/request-inbox`. Registrations link
+to `/system` (its Pending registrations panel) for a viewer holding
+`admin.authz`; for anyone else — super — they read "waiting for the admin to
+approve", unlinked, since `/system` would not show that viewer the panel.
+
+**The library links** are the nav's own Library and Restricted rows:
+`useLibraryLinks()` calls `visibleSections(NAV_SECTIONS, has, canSeeGatedType,
+hasFeature)` exactly as `Nav.jsx` does and keeps those two sections, one slip
+per section with one link per row, so the dashboard and the header never
+disagree about which libraries a viewer may open.
+
+**Recently added** reads `GET /api/dashboard/recent?per_type=12` — the
+newest entries of each type the viewer may see, already narrowed and cut per
+type by the server — and draws **one section per type**, in the registry's
+type order (`MEDIA_TYPES`), titled with the type. A type with nothing
+visible has no section. Each card is a cover (`thumbUrl`, `focusStyle`) and
+its name, linking through `entityPath`.
+
+**Anime shows two rows, every other type one.** A row is as many cards as
+the grid has columns at that width — 2, then 3 from `sm`, 4 from `lg`, 6
+from `xl` (`GRID_COLUMNS`) — so a section is always whole rows: anime 4 / 6
+/ 8 / 12 cards, every other type 2 / 3 / 4 / 6. The page asks for enough for
+the widest grid (12, anime's two rows of six), keeps six of every other type,
+and `cardVisibility(index, rows)` hides the cards past the last full row at
+each narrower width. Counting a fixed number of cards would leave a ragged
+last row at every width but one.
+
+**The admin's page** fetches no catalogue at all — the admin's catalogue
+reads answer 401. It has an **Overview** — the summary, drawn even when
+nothing waits (`manage.requests`), and the five latest pipeline runs from
+`GET /api/system/logs` with status and time, linking to the full log on
+`/system` (`manage.pipelines`) — and **Announcements & notes**: the
+`AnnouncementBoard`, with `AnnouncementEditor` (add, edit, delete) below it
+for `manage.announcements`. Each part asks its own key, so a role edited on
+`/roles` keeps only the parts it may read.
+
+**Data** (the catalogue dashboard; the admin's page reads only what is listed
+above): `useMediaList("anime")` and
 `useApiQuery(["announcements"], "/api/announcements/")` for everyone — the
 Broadcast schedule reads the anime list alone. For a member it also loads
 `franchise`, `tv-show`, `cartoon`, `manga`, `novel`, `comic` and `game` (all
 `LIST_OPTIONS`), which only the tracker divisions read, plus `anime-movie`,
 `movie` and `/api/seasonal/current-season` for Coming Next. The combined
 loading/error gate covers the anime list and, for a member, the seven tracker
-lists; announcements and the three Coming Next queries stay out of it so a
-failure there never blanks the dashboard.
+lists; announcements, the three Coming Next queries, the summary and
+recently added stay out of it so a failure there never blanks the dashboard.
+The summary and recently added each show their own error in place.
 
 **Type filter and view**: one `TypeFilterBar` sits above the Watching
 division and is the sticky header for Watching, Reading and Playing together —
@@ -312,15 +417,19 @@ view has **no stepper** — tracking stays in card view and on the entry page.
 The table scrolls sideways inside its own wrapper below ~640px so the page
 itself never does.
 
-**Layout** (an `xl:`-only sticky left TOC, `DashboardTOC`, tracks the active
+**Layout** (an `xl:`-only sticky left TOC, the shared `TableOfContents`
+with `useScrollSpy` - see
+[components.md](components.md#in-page-table-of-contents) - tracks the active
 section with a threshold at the bottom of whatever sticky header covers it —
 the division header for Announcements and Schedule, the filter bar for the
 tracker divisions):
 
 | Anchor | Division | What it shows |
 |---|---|---|
-| `#announcements` | Announcement & Notes | `AnnouncementBoard` cards (`components/info/AnnouncementBoard.jsx`); a clipped body expands into `AnnouncementModal`. Read-only here; CRUD is on `/system`. |
+| `#announcements` | Announcement & Notes | `AnnouncementBoard` cards (`components/info/AnnouncementBoard.jsx`); a clipped body expands into `AnnouncementModal`. Read-only on the catalogue dashboard; written on `/system` and on the admin's own page. |
 | `#schedule` | Weekly Schedule | two `WeeklySchedule` blocks: **My Watch Schedule** (`my_watch_day`, anime with `airing_status === "Airing"`; members only) and **Broadcast Schedule** (`broadcast_day` + `broadcast_time`, collapsible, collapsed by default). Only anime feed the schedule today. Sunday-first (`config/weekdays.js`), today highlighted and scrolled into the first visible column whenever a grid is drawn (on load, and on expanding a collapsed one), entries sort by `HH:MM` then name. Under them, **Coming Next** (`schedule-coming`, `components/tracker/ComingNext.jsx`), collapsed by default and drawn only for a viewer holding `self.list` — see below. Directly under it, **Followed watch orders (n)** (`schedule-follows`, `components/tracker/FollowedOrders.jsx`), gated and collapsed the same way: one row per followed order with its group, `done / total`, every step in progress and the step up next — see [../systems/watch-orders.md](../systems/watch-orders.md#following). |
+| `#libraries` | Libraries | viewers without a list (guest, shared): one link per Library and Restricted nav row the viewer is shown. Not drawn when there are none. |
+| `#recent` | Recently added | `view.random_picker` without a list (shared): one section per visible type, newest first — anime two rows, every other type one. |
 | `#watching` | Watching (Anime · TV Show · Cartoon) | members only, like Reading and Playing and the filter bar above them. Sections `watching-active` Active Watching, `watching-passive` Passive Watching, `watching-paused` Paused, by `watching_status`. Each groups Anime → TV Show → Cartoon, sorted by rating weight (S…F, unrated last), rendering `DashboardCard`. Shown when no type is picked or the picked type is one of its three. |
 | `#reading` | Reading (Manga · Novel · Comics) | `reading-active`, `reading-passive`, `reading-paused` by `reading_status`. Manga → `DashboardCard`, Novel → `NovelDashboardCard`, Comic → `ComicDashboardCard`. Shown when no type is picked or the picked type is one of its three. |
 | `#playing` | Playing (Game) | `playing-active`, `playing-passive`, `playing-anytime`, `playing-paused` by `playing_status`, rendered by a local `PlayingSection` — simpler than `ReadingSection` because the division holds exactly one media type, so there is no per-type grouping and no progress callback. Cards are `GameDashboardCard`, whose playtime figure is read-only for everyone. Shown when no type is picked or the picked type is Game. |
@@ -356,21 +465,25 @@ types are not shown on the dashboard. The selection lives in
 `lib/comingNext.js`. Guests never see the section: statuses are the viewer's
 own, so a guest's would always be empty.
 
-**Admin-only controls** (cards read `isAdmin`): a "Quick Edit" pencil
-(`/modify?id=…&type=…`; anime omits `type`) and −/input/+ progress steppers.
-Guests see a read-only counter.
+**The steppers are the viewer's own** (cards read `canTrack`, which is
+`has("self.list")`, not `isAdmin`): −/input/+ progress steppers. A typed
+count saves on blur or Enter and Escape reverts it; − and + save at once
+(`ProgressInput`, see [components.md](components.md)). A viewer without a
+list sees a read-only counter.
 
-**Optimistic PATCH handlers.** Each handler patches every
-`["media-list", type]` cache with `queryClient.setQueriesData`, fires a raw
-`fetch` PATCH, and on failure restores the previous value and toasts
-"Network error. Progress reverted.":
+**Optimistic handlers.** Each handler patches every `["media-list", type]`
+cache with `queryClient.setQueriesData`, writes the caller's own row through
+`putMyListRow` (`api/myList.js`, `PUT /api/me/list/{id}`), folds the saved row
+back in - its status may have moved, since reaching the total finishes it -
+and on failure restores the previous value and toasts "Network error.
+Progress reverted.":
 
-| Handler | Endpoint | Body |
-|---|---|---|
-| `handleEpChange` | `/api/anime/{id}` (also recomputes `cum_ep_fin = ep_previous + ep_fin` locally), `/api/tv-shows/{id}`, `/api/cartoon/{id}` | `{ ep_fin }` |
-| `handleChChange` | `/api/manga/{id}` | `{ ch_fin }` |
-| `handleNovelProgressChange` | `/api/novel/{id}` | any of `{ vol_fin | ch_fin | arc_fin }` (the card picks by `progress_display`: `vol_tw`, `vol_original`, `arc_ch`, `ch`) |
-| `handleComicProgressChange` | `/api/comic/{id}` | `{ issue_fin }` |
+| Handler | Body to `PUT /api/me/list/{id}` |
+|---|---|
+| `handleEpChange` (anime, TV show, cartoon; anime also recomputes `cum_ep_fin = ep_previous + ep_fin` locally) | `{ ep_fin }` |
+| `handleChChange` (manga) | `{ ch_fin }` |
+| `handleNovelProgressChange` | any of `{ vol_fin | ch_fin | arc_fin }` (the card picks by `progress_display`: `vol_tw`, `vol_original`, `arc_ch`, `ch`) |
+| `handleComicProgressChange` | `{ issue_fin }` |
 
 Cards cap at the total and toast "Cannot exceed total episodes/volumes/…".
 
@@ -382,9 +495,17 @@ File `pages/public/Search.jsx`. Reads `?q`, `?scope` (default `all`) and
 → effective key `["api","search",{q,scope,characters}]`. The response is
 `results.{collection, seasonal, franchise, series, anime, "anime-movie", movie, "tv-show", cartoon, manga, novel, comic, game, "h-comic", "h-game", hentai, person, studio, publisher, character}`
 plus `related_franchises` (the franchises of the matched anime — used as
-filter pills, not name matches); the three gated buckets are left out for a
-session that cannot see the type and read as `[]`. `characters: true` is what
-adds the `character` bucket; this page is the only caller that sends it.
+filter pills, not name matches). Only `collection`, `franchise`, `series` and
+`seasonal` are always present: the server leaves out the bucket of every type
+the viewer cannot see (a media type the role does not hold, a gated type the
+mode hides, an entity kind without its `view.*` key — see
+[api.md](../api.md#search--apisearch)), and the page reads every bucket as
+`results[type] ?? []`, so an absent bucket draws no section, no count and no
+tab. The scope chip above the results names a scope only when
+`canSearchScope` (NavSearch's rule) lets the viewer search it, so a
+hand-typed `?scope=` for a type the viewer cannot see names nothing.
+`characters: true` is what adds the `character` bucket, for a viewer
+holding `view.character`; this page is the only caller that sends it.
 Results are copied into local state so a card's `onUpdated` can replace a row
 without a refetch.
 
@@ -409,6 +530,10 @@ tabs, with one group labelled "Results" and a count on each tab:
 - **Characters** — a `CharacterCard` grid (`components/cards/CharacterCard.jsx`,
   the character library's card) linking to `/character/:id`. One card per
   character: identities are not separate results.
+
+Every link on the page comes from `useEntityHref` (`lib/entityPath.js`): an
+entity card without its kind's `view.*` key renders as plain text, and the
+tier cards, which no key gates, always open their page.
 
 A tab with no results is not drawn, as on the hub pages, and nothing is
 drawn when every tab is empty. The active tab is `?tab=` (`media`, `people`,
@@ -477,36 +602,67 @@ the data), `set-grouped` (group labels mapped through `WATCHING_STATUS_GROUP`
 / `READING_STATUS_GROUP`), `boolean` (checkbox). Top bar: search, "Sort:"
 select, Filters button with an active-count badge, grid/table toggle, result
 count. Table rows link to `${config.navPath}/${id}`; table cells receive
-`{ franchiseDict, seriesDict, isAdmin, handleStatusToggle }`, and
+`{ franchiseDict, seriesDict, canTrack, handleStatusToggle }`, and
 `handleStatusToggle` goes through `useStatusToggle(type)` with toasts
-("Added to Watch/Read Next", "Marked for rewatch/reread", "Status → X").
+("Added to Watch/Read Next", "Marked for rewatch/reread", "Status → X"); the
+hook writes a status to `/api/me/list` and a plan flag to
+`/api/me/plan-flags`.
 
-**Admin-only** in tables: the watch/read status button advances the status on
-click (`watchButtonColumn` / `readButtonColumn`, guests see text), and the
-plan-flag checkboxes (`planFlagColumn`) are disabled for guests.
+**The viewer's own** in tables (`canTrack = has("self.list")`): the
+watch/read/play status button advances the status on click
+(`watchButtonColumn` / `readButtonColumn` / `playButtonColumn`), and the
+plan-flag checkboxes (`planFlagColumn`) work.
+
+**A viewer without a list is shown the catalogue parts only.** Every filter
+def, sort def and table column whose value is the viewer's own carries
+`personal: true`, and `LibraryLayout` drops all of them when
+`useViewScope().ownData` (`self.list`) is false, before `useLibraryState`,
+the filter panel, the sort select or the table read the config
+(`libraryConfigFor` in `lib/libraryScope.js`). So guest and shared see no
+status filter, no My Rating or Usefulness sort, and no status, my, progress,
+usefulness or plan-flag column at all - not empty ones - while super and user
+see every def, the personal ones holding their own values. A default sort
+that names a dropped sort falls back to the first remaining one, and the body
+is keyed on the scope, so a sort or filter chosen before the viewer's
+permissions changed is not carried across. Grid cards are `MediaCard`, which
+draws no status button or chip without `ownData` on its own.
+
+The flag decides by the value, not the name: personal means a field in the
+server's `LIST_FIELDS` (`app/services/domain/user_list.py`) or a per-user
+table - status and its status-group filter, my rating, usefulness, every
+`fin / total` progress column, the plan flags, and `ownership`, which is
+derived from the viewer's own `game_copy` rows. Airing, serialization and
+release status, the external ratings, game `hours_played` and h-game
+achievements are catalogue columns on the entry's row and are shown to every
+viewer. In the table below the personal defs are marked *(p)*.
 
 | Type | Series? | Filters (key: type) | Sorts | Table columns |
 |---|---|---|---|---|
-| anime | yes | airingType: set (TV/Movie/ONA/OVA/Special) · airingStatus: set · watchingStatus: set-grouped · bahaOnly: boolean | title (franchise→series→entry), release_date, my_rating, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title, type, season, status, ep (`cum_ep_fin/cum_ep_total`), my, mal, studio, baha, watch |
-| anime-movie | no | airingStatus · watchingStatus · bahaOnly | title (en→roman→alt→cn→jp), release_date (jp→tw), my_rating, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title, status, my, mal, studio, director, baha, watch, watch_next, to_rewatch |
-| movie | no | airingStatus "Release Status" · movieType (Reality/Animation) · watchingStatus | title, release_date (year of `release_date_usa` only), my_rating, imdb_rating | franchise, title, status, my, imdb, director, release, watch, watch_next, to_rewatch |
-| tv-show | no | airingStatus · watchingStatus · region: set-dynamic | title, release_date, my_rating, imdb_rating, imdb_series_rating | franchise, title, season, status, ep, my, imdb, imdb_show, watch, watch_next, to_rewatch |
-| cartoon | yes | airingStatus · airingType: set-dynamic · watchingStatus · officialSource: set-dynamic | title, release_date, my_rating, imdb_rating, imdb_series_rating | franchise, title_cn, title_en, type, season, airing, ep, source, my, imdb, imdb_show, watch |
-| manga | yes | serializationStatus: set-dynamic · readingStatus: set-grouped · region: set-dynamic | title, release_date, end_date, my_rating, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title_cn, title_en, status, ch, vol, my, mal, read, read_next, to_reread |
-| novel | yes | serializationStatus · readingStatus · region · type: set-dynamic | title, release_date, end_date, my_rating, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title_cn, title_en, status, progress (`getNovelProgress`), my, mal, read, read_next, to_reread |
-| comic | yes | comicType: set-dynamic · readingStatus · era: set-dynamic · events: set-dynamic (multi-value via `parseTypes`) | title (EN-first), release_date, my_rating | franchise, title_en, title_cn, volume_label, comic_type, era, progress (`issue_fin / issue_total ISS`), my, read, to_reread |
-| game | yes | gameType: set-dynamic · playingStatus: set-grouped (Playing / Planned / Completed / Dropped / Might Play, via `PLAYING_STATUS_GROUP`) · ownership: set-dynamic · releaseStatus: set-dynamic | title (CN-first), release_date, hours_played ("Playtime"), metacritic_score ("Metacritic", highest first, unscored last), my_rating | franchise, title_cn, title_en, game_type, hours_played (`32.5 h`), my, play (`playButtonColumn`), to_replay |
+| anime | yes | airingType: set (TV/Movie/ONA/OVA/Special) · airingStatus: set · watchingStatus: set-grouped *(p)* · bahaOnly: boolean | title (franchise→series→entry), release_date, my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title, type, season, status, ep (`cum_ep_fin/cum_ep_total`) *(p)*, my *(p)*, mal, studio, baha, watch *(p)* |
+| anime-movie | no | airingStatus · watchingStatus *(p)* · bahaOnly | title (en→roman→alt→cn→jp), release_date (jp→tw), my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title, status, my *(p)*, mal, studio, director, baha, watch *(p)*, watch_next *(p)*, to_rewatch *(p)* |
+| movie | no | airingStatus "Release Status" · movieType (Reality/Animation) · watchingStatus *(p)* | title, release_date (year of `release_date_usa` only), my_rating *(p)*, imdb_rating | franchise, title, status, my *(p)*, imdb, director, release, watch *(p)*, watch_next *(p)*, to_rewatch *(p)* |
+| tv-show | no | airingStatus · watchingStatus *(p)* · region: set-dynamic | title, release_date, my_rating *(p)*, imdb_rating, imdb_series_rating | franchise, title, season, status, ep *(p)*, my *(p)*, imdb, imdb_show, watch *(p)*, watch_next *(p)*, to_rewatch *(p)* |
+| cartoon | yes | airingStatus · airingType: set-dynamic · watchingStatus *(p)* · officialSource: set-dynamic | title, release_date, my_rating *(p)*, imdb_rating, imdb_series_rating | franchise, title_cn, title_en, type, season, airing, ep *(p)*, source, my *(p)*, imdb, imdb_show, watch *(p)* |
+| manga | yes | serializationStatus: set-dynamic · readingStatus: set-grouped *(p)* · region: set-dynamic | title, release_date, end_date, my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title_cn, title_en, status, ch *(p)*, vol *(p)*, my *(p)*, mal, read *(p)*, read_next *(p)*, to_reread *(p)* |
+| novel | yes | serializationStatus · readingStatus *(p)* · region · type: set-dynamic | title, release_date, end_date, my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title_cn, title_en, status, progress (`getNovelProgress`) *(p)*, my *(p)*, mal, read *(p)*, read_next *(p)*, to_reread *(p)* |
+| comic | yes | comicType: set-dynamic · readingStatus *(p)* · era: set-dynamic · events: set-dynamic (multi-value via `parseTypes`) | title (EN-first), release_date, my_rating *(p)* | franchise, title_en, title_cn, volume_label, comic_type, era, progress (`issue_fin / issue_total ISS`) *(p)*, my *(p)*, read *(p)*, to_reread *(p)* |
+| game | yes | gameType: set-dynamic · playingStatus: set-grouped (Playing / Planned / Completed / Dropped / Might Play, via `PLAYING_STATUS_GROUP`) *(p)* · ownership: set-dynamic *(p)* · releaseStatus: set-dynamic | title (CN-first), release_date, hours_played ("Playtime"), metacritic_score ("Metacritic", highest first, unscored last), my_rating *(p)* | franchise, title_cn, title_en, game_type, hours_played (`32.5 h`), my *(p)*, play (`playButtonColumn`) *(p)*, to_replay *(p)* |
 
 All default to the `title` sort. `Library.test.jsx` pins the twelve config
 keys, requires more than three table columns and a `my_rating` sort per
-config, and checks the unknown-type redirect. Search strings cover every name
+config, and checks the unknown-type redirect; it also renders one library
+for a guest and for a `self.list` holder on the same data and checks the
+personal filter, sort and columns are drawn for the second only.
+`configs/personal.test.js` requires every config's status-group filter,
+my-rating sort, status, my and plan-flag columns to carry `personal: true`,
+and every config to keep a catalogue sort and columns. Search strings cover every name
 field of the entry plus franchise/series names, release date/season (anime
 also matches `SPR2024` / `Spring2024`), genres, studio, label, for comic the
 writer and volume label, and for game the game type and release status.
 
-The game row's `ownership` filter is a plain string column here: it is derived
-server-side from the entry's `game_copy` rows and stored nowhere, so the page
-treats it like any other value. `playButtonColumn` is the third
+The game row's `ownership` filter reads a plain string: it is derived
+server-side from the viewer's own `game_copy` rows and stored nowhere, which is
+why it is `personal`. `playButtonColumn` is the third
 `statusToggleColumn` beside `watchButtonColumn` / `readButtonColumn`, driven by
 `getPlayingButtonConfig`; every one of them now also echoes its `statusField`
 and `fallback` back on the column object so a test can read which field it
@@ -521,11 +677,11 @@ File `pages/library/CollectionLibrary.jsx`. Raw `fetch` in one `Promise.all`:
 `?limit=2000`, purely to resolve a cover per collection. **Games are not among
 them**, so a game can never supply a collection cover. Search over the five
 collection names; sort `title | my_rating (default) | collection_expectation`
-for a viewer holding `view.personal`. Without it the server sends neither
-value, so only `title` is offered and the list sorts by title whatever was
-chosen. No filter panel, no table view, no admin controls. Renders
-`CollectionCard` with member count; the card's rating stamp and expectation
-chip are drawn only with `view.personal`.
+for a viewer holding `self.list`, the viewer's own values. Without it the
+viewer has neither, so only `title` is offered and the list sorts by title
+whatever was chosen. No filter panel, no table view, no admin controls.
+Renders `CollectionCard` with member count; the card's rating stamp and
+expectation chip are drawn only with `self.list`.
 
 ### FranchiseLibrary — `/library/franchise`
 
@@ -546,15 +702,15 @@ Comic, H-Comic, H-Game, Hentai (each drawn only for a session that can see the t
 such entries) — **there is no Game category**, so a Game-only franchise files
 under "Other". Sort
 `title (default) | my_rating | franchise_expectation`, shared by both views;
-the last two are offered only to a viewer holding `view.personal`, and
-without it the list sorts by title.
+the last two are the viewer's own, offered only to a holder of `self.list`,
+and without it the list sorts by title.
 
 Grid renders `FranchiseCard`. Table view renders the file's `TABLE_COLUMNS`,
 whose markup and class names mirror the table in `LibraryLayout.jsx` so the
 two read as one component: Franchise (a `Link` built by `entityPath`, plain
 text when the row carries no `public_id`), Collection (`md`), Type (`lg`),
 Entries, Expectation (`lg`), My. Expectation and My carry `personal: true`
-and are dropped for a viewer without `view.personal`, as are the card's
+and are dropped for a viewer without `self.list`, as are the card's
 rating stamp and expectation chip. The breakpoint in brackets is where that
 column collapses, so Franchise, Entries and My are what survives at phone
 width; the wrapper is `overflow-auto`, so a wider table scrolls inside itself
@@ -573,7 +729,9 @@ Raw `fetch` of `/api/studio/` alone — the response already carries
 every filter runs client-side. Search runs over **all four** name fields
 (`STUDIO_NAME_FIELDS`), not just the displayed one, so typing "Kyoto
 Animation" finds a studio displayed as "KyoAni". Sort
-`name (default) | credit_count | my_rating`. No table view.
+`name (default) | credit_count | my_rating`, the last — the viewer's own
+rating — offered only to a holder of `self.list` (without it the list sorts by
+name). No table view.
 
 The **Filters** button (`FilterToggleButton`, with the active-chip count)
 toggles a `FilterPanel` over `studioFilterDefs(auth)` from
@@ -583,7 +741,9 @@ toggles a `FilterPanel` over `studioFilterDefs(auth)` from
   **Restricted** parent chip over hentai and h-game, matched against
   `media_types` (the types of the visible entries the studio is credited
   on). No entries matches a studio credited on nothing the viewer can see.
-- **My Rating** — `MY_RATINGS` plus Unrated (null).
+- **My Rating** — `MY_RATINGS` plus Unrated (null), the viewer's own
+  rating; only for a holder of `self.list` (`studioFilterDefs(auth,
+  { ownData })`).
 - **Country** — the countries the loaded studios carry, sorted, plus Not set
   when one has none.
 
@@ -614,7 +774,8 @@ route lives in one place. The response already carries `display_name`,
 `STUDIO_NAME_FIELDS` (`lib/naming.js`, shared by studio, person and
 publisher) and runs over **all four** name fields, so a publisher displayed
 as 木棉花 is still found by typing "Muse Communication". Sort
-`name (default) | credit_count | my_rating`. No table view.
+`name (default) | credit_count | my_rating`, the last as on the studio
+library. No table view.
 
 The filter panel is the studio library's, over `publisherFilterDefs(auth)`,
 open on the same default, with the same Clear all and Reset. **Entry type**
@@ -641,7 +802,8 @@ and the `roles` each person holds, which is what lets every filter run
 client-side — one request serves every filter, where a per-filter request
 would refetch on each click. Search runs over all four name columns
 (`PERSON_NAME_FIELDS`), not just the displayed one. Sort
-`name (default) | credit_count | my_rating`.
+`name (default) | credit_count | my_rating`, the last as on the studio
+library.
 
 The **Filters** button opens a `FilterPanel` over `personFilterDefs(auth)`
 from `lib/entityFilters.js`, open when the page loads and on the studio
@@ -656,7 +818,8 @@ AND across groups:
   `media_types` (the types of the entries the viewer can see the person
   credited or cast on). A gated child the session cannot see is left out,
   and the parent with it once none is left.
-- **My Rating** — `MY_RATINGS` plus Unrated (null).
+- **My Rating** — `MY_RATINGS` plus Unrated (null); only for a holder of
+  `self.list`, as on the studio library.
 - **Gender** — `GENDERS` plus Not set (null).
 
 Each `PersonCard` (`components/cards/StaffCard.jsx`, shared with `/search`)
@@ -685,7 +848,7 @@ sits outside `LIBRARY_CONFIGS` with its route declared before `/library/:type`.
 Raw `fetch` of `/api/character/` alone (server-side `?name=` search is what
 the cast editor's combobox uses instead; this page searches client-side over
 all four name columns). Sort `name (default) | casting_count` ("Appearances")
-`| my_rating`.
+`| my_rating`, the last as on the studio library.
 
 **Cards.** The list is flattened by `characterCards` (`lib/characterCards.js`)
 into one card per character and one per identity in the response's nested
@@ -736,7 +899,7 @@ failing is not.
 Layout: breadcrumb → (admin) the dashed **Admin** strip with **Quick edit**,
 linking to `/modify?id=<system_id>&type=person` → left column with the photo
 (`display_photo_file`: the photo, else the server-resolved fallback cover,
-else `FALLBACK_SVG`) and rating stamp, (admin) a **My rating** select, and a
+else `FALLBACK_SVG`) and rating stamp, (holder of `self.list`) a **My rating** select, and a
 **Naming** card (`NamingCard`, each of the four names that is set) → right column with the
 display name, credited-entry count and, for a person with a `mal_link`, a
 **MyAnimeList** button beside it (`MalButton`, as on the character page; none
@@ -747,9 +910,12 @@ non-admin the remark), (admin) a **Remarks** textarea, then one section per
 group.
 
 The admin controls are `components/info/EntityProfileControls.jsx`, shared
-with the character, studio and publisher pages. The rating select PATCHes
-`{my_rating}` on change (Unrated sends null); the remark PATCHes `{remark}`
-on blur, an emptied one as null and an untouched one not at all. Both go to
+with the character, studio and publisher pages. The rating select is the
+viewer's own and drawn for a holder of `self.list`, not by `isAdmin`: it
+sends `PUT /api/me/ratings/person/{system_id}` `{my_rating}` on change
+(Unrated sends null) and folds the answer into the page's state
+(`useMyRatingSaver`). The remark (admin) PATCHes `{remark}` on blur, an
+emptied one as null and an untouched one not at all, to
 `PATCH /api/person/{system_id}`, and the response becomes the page's state.
 
 The one difference from the studio page: a person may hold several roles, so
@@ -793,8 +959,9 @@ then **Appearance** and **Trait**, each list as a row of `Chip`s in its stored
 order (`tagChips`) ("—" when empty, like every unset row), and a **MAL** row: the `mal_link` as an external link reading
 `Character #<mal_id>` (`MyAnimeList` when no id was derived), "—" without a
 link. The layout and the admin controls — Quick edit
-to `/modify?id=<system_id>&type=character`, the My rating select, the
-Remarks textarea, all PATCHing `/api/character/{system_id}` — are the person
+to `/modify?id=<system_id>&type=character` and the Remarks textarea,
+PATCHing `/api/character/{system_id}`, and the viewer's own My rating select
+(`self.list`, `PUT /api/me/ratings/character/{system_id}`) — are the person
 page's, as is the Naming card in place of a list of other names. The photo
 is `display_photo_file`: the photo, else a casting photo (the chosen entry's,
 then the newest visible), else an entry cover (the same order), else
@@ -881,8 +1048,9 @@ fetches (`GET /api/publisher/{id}`, then `.../entries` by the `system_id` it
 returns), the profile call failing being the page's 404 while the entries
 call failing is not, a breadcrumb back to `/library/publisher`, the admin
 strip with Quick edit to `/modify?id=<system_id>&type=publisher`, the
-logo-plus-rating left column with the admin My rating select and the Naming
-card, the Remarks textarea for an admin (the remark row for anyone else), all
+logo-plus-rating left column with the viewer's own My rating select
+(`self.list`, `PUT /api/me/ratings/publisher/{system_id}`) and the Naming
+card, the Remarks textarea for an admin (the remark row for anyone else),
 PATCHing `/api/publisher/{system_id}`, and one section per group the entries
 endpoint returned rendered as the same local `CreditCard`.
 
@@ -926,9 +1094,10 @@ Layout:
    group the entries endpoint returned, each entry linking to
    `{nav_path}/{system_id}`.
 
-The admin controls are `EntityProfileControls`, the person page's: the
-rating select PATCHes `{my_rating}` on change and the remark `{remark}` on
-blur, to `PATCH /api/studio/{system_id}`.
+The controls are `EntityProfileControls`, the person page's: the
+viewer's own rating select (`self.list`) sends
+`PUT /api/me/ratings/studio/{system_id}` on change, and the admin's remark
+PATCHes `{remark}` on blur to `PATCH /api/studio/{system_id}`.
 
 Empty `groups` renders "No credited entries" as an ordinary empty state, not
 an error: that is exactly what a viewer whose permissions hide every one of
@@ -945,7 +1114,8 @@ renders the card unlinked.
 
 Files `pages/detail/FranchisePage.jsx`, `SeriesPage.jsx`, `CollectionPage.jsx`
 (thin wrappers `Franchise.jsx`, `Series.jsx`, `Collection.jsx`). Chrome comes
-from `components/hub/` (`HubShell`, `Crumbs`, `AdminStrip` — the admin-only
+from `components/hub/` (`HubShell`, `Crumbs` — whose `action` slot holds the
+hub's **Report a problem** —, `AdminStrip` — the admin-only
 dashed strip with the **Quick edit** link `/modify?id=…` —, `HeroCover` with
 the spine strip and optional progress rule, cropping the borrowed cover at
 its entry's focal point, `Field`, `HubTabs`, `Section`,
@@ -958,10 +1128,11 @@ so the first available tab is re-picked (Collection keeps "Franchises").
 | | FranchisePage | SeriesPage | CollectionPage |
 |---|---|---|---|
 | Loads | `/api/franchise/{id}`; series, anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, **game** lists `?franchise_id=`, **h-comic**, **hentai** and **h-game** only when `franchise_type` names a type of the restricted family (`H-Comic`, `Hentai` or `H-Game`, `inFranchiseFamily`); `/api/plan-next/?scope=franchise`; parent collection lazily | `/api/series/{id}`; anime, movie, tv-show, cartoon, manga, novel, comic `?series_id=`, **game** included (no anime-movie — they have no series), **h-comic** in its own effect, only for a session that can see the type, **h-game** and **hentai** likewise, and only once the parent franchise has loaded and its `franchise_type` names a type of the restricted family; `/api/plan-next/?scope=series&kind=rewatch`; parent franchise | `/api/collection/{id}`; `/api/franchise/?collection_id=`; eight entry lists, covers only — game is not among them |
-| Hero badges | `TierBadge` with `franchise_type`, names, my_rating, "{x} Expectation" (these two, here and on the other two hubs, only for a viewer holding `view.personal`), parent collection link, "Plan Next: {type} ({bucket})", "To Rewatch/Reread: {type}", total entries, completion bar | same shape with `series_expectation`, rewatch chips, parent franchise link | names, my_rating, `collection_expectation`, "{n} Franchise(s)" |
-| Admin controls | Overall Rating select, Expectation select, **Plan Next** `SizeGroupControls` (per-type checkbox + derived/manual size-group select → PATCH `size_group_manual`), rewatch `PlanKindToggles` | Overall Rating, Expectation, rewatch `PlanKindToggles scope="series"` (no size groups at series level) | Overall Rating, Expectation |
-| Remark | textarea (admin editable, guest disabled, shown when admin or non-empty), "Show all" opens `RemarkModal`; saved on blur / modal close via PATCH `{ remark }` | same | same |
-| Tabs | "Media" (counted): Anime, Anime Movies, Manga, Novel, Comic, **Game** ("Base games, DLC & expansions", sorted by `release_date` ascending), **H-Comic**, **H-Game** and **Hentai** (each by `series_number`, then release date; the H-Comic, H-Game and Hentai tabs each allowed by any type of the restricted family), Movies, TV Shows, Cartoons — shown when `franchise_type` allows *and* the list is non-empty; "Extras": Characters (only with `view.entities`), Watch Order, Relations, Notes. Every media tab's "Sort: my rating" option is offered only with `view.personal` | Media tabs by non-empty list only; same extras. Its **Game** tab carries its own sort (release_date default, then title / my_rating / hours_played) and a Game Type filter the other tabs have no equivalent of — a series usually mixes a base game with its DLC | "Members" → Franchises (`FranchiseCard`s); extras Watch Order, Relations, Notes |
+| Hero badges | `TierBadge` with `franchise_type`, names, my_rating, "{x} Expectation" (these two, here and on the other two hubs, the viewer's own and drawn only for a holder of `self.list`), parent collection link, "Plan Next: {type} ({bucket})", "To Rewatch/Reread: {type}", total entries, completion bar | same shape with `series_expectation`, rewatch chips, parent franchise link | names, my_rating, `collection_expectation`, "{n} Franchise(s)" |
+| Content labels | the franchise's OWN labels as `ContentLabelChips`, with a note that they hide its series and entries; no row when it carries none | the series' own, noting they hide its entries | the collection's own, noting they hide every franchise, series and entry in it |
+| Curation controls | Overall Rating and Expectation selects for a holder of `self.list` (`PUT /api/me/ratings/franchise/{id}`); for an admin, **Plan Next** `SizeGroupControls` (per-type checkbox + derived/manual size-group select → PATCH `size_group_manual`) and rewatch `PlanKindToggles` | Overall Rating and Expectation (`self.list`, `PUT /api/me/ratings/series/{id}`); rewatch `PlanKindToggles scope="series"` for an admin (no size groups at series level) | Overall Rating and Expectation (`self.list`, `PUT /api/me/ratings/collection/{id}`) |
+| Remark | the viewer's own remark: a textarea drawn, editable, for a holder of `self.list` and not drawn at all without it; "Show all" opens `RemarkModal` (editable on the same key); saved on blur / modal close via `PUT /api/me/remarks/franchise/{id}` `{ remark }` (`useMyRemarkSaver`; emptied is null, untouched saves nothing) | same, `PUT /api/me/remarks/series/{id}` | same, `PUT /api/me/remarks/collection/{id}` |
+| Tabs | "Media" (counted): Anime, Anime Movies, Manga, Novel, Comic, **Game** ("Base games, DLC & expansions", sorted by `release_date` ascending), **H-Comic**, **H-Game** and **Hentai** (each by `series_number`, then release date; the H-Comic, H-Game and Hentai tabs each allowed by any type of the restricted family), Movies, TV Shows, Cartoons — shown when `franchise_type` allows *and* the list is non-empty; "Extras": Characters (only with `view.character`), Watch Order, Relations, Notes. Every media tab's "Sort: my rating" option is offered only with `self.list` | Media tabs by non-empty list only; same extras. Its **Game** tab carries its own sort (release_date default, then title / my_rating / hours_played) and a Game Type filter the other tabs have no equivalent of — a series usually mixes a base game with its DLC | "Members" → Franchises (`FranchiseCard`s); extras Watch Order, Relations, Notes |
 
 Plan toggles call `POST /api/plan-next/` `{ media_type, scope, kind, target_id }`
 (409 tolerated) and `DELETE /api/plan-next/target?scope=&media_type=&kind=&target_id=`
@@ -986,7 +1157,7 @@ plus one dashed card for each of its identities cast on those entries. It asks
 castings on entries the viewer may see, and draws `CharacterCard`s grouped by
 `characterCardsByRole` (`lib/characterCards.js`): Main, Core, Important Supporting, Supporting,
 Other, then No role, each group by name with an identity right after its
-character. Offered to every viewer holding `view.entities`, like the other
+character. Offered to every viewer holding `view.character`, like the other
 extras; an empty tier says so. Without the key the tab is not in the row and
 `HubCharacters` never mounts, so `/api/character/` — which would answer 401 —
 is not asked.
@@ -1004,24 +1175,61 @@ to the placeholder in silence.
 ### Detail pages — `/{type}/:system_id`
 
 Files `pages/detail/Anime.jsx`, `AnimeMovie.jsx`, `Movie.jsx`, `TV.jsx`,
-`Cartoon.jsx`, `Manga.jsx`, `Novel.jsx`, `Comic.jsx`, `Game.jsx`, `HComic.jsx`.
+`Cartoon.jsx`, `Manga.jsx`, `Novel.jsx`, `Comic.jsx`, `Game.jsx`, `HComic.jsx`,
+`HGame.jsx`, `Hentai.jsx`.
+
+**Tab title and contents.** The tab reads the entry's displayed title - the
+`<h1>`'s - through `usePageTitle`, and the type's name ("Anime") while it
+loads or when it fails. The page sits in `DetailContents`, which draws a
+sticky **Contents** column on the right on `xl:` screens and nothing below
+`xl`. Its rows are the main-column sections this viewer was actually shown,
+in page order - Watch orders, My tracker (or the type's own tracker block),
+Naming, Information, Genres, Production, Cast and each type's further
+sections - then the note cards: Notes, each group card (攻略 Guides, never
+its Beginner and Controls) and each standalone section. The header and the
+left column are not listed. See
+[components.md](components.md#in-page-table-of-contents).
 
 **Common skeleton.** Data: `useMediaItem(type, id)` mirrored into local
 state, `useMediaList("franchise", LIST_OPTIONS)`, `useMediaList("series")`
 (not AnimeMovie), and `useMediaCacheUpdate(type, id)` for
-`setMediaItem / fetchMediaItem / invalidateMedia`. Every write goes through a
-local `performPatch(payload, msg)`: no-op for guests, optimistic merge, PATCH
-`endpoints.resource(type).patch(id)`, replace from the response; on failure
-toast "Update failed" and refetch.
+`setMediaItem / fetchMediaItem / invalidateMedia`. Two kinds of write, by
+whose value it is:
+
+- **The viewer's own** - status, my rating, progress counters, Paused at
+  (`time_fin`), usefulness, Novel's `progress_display` and the plan flags
+  (`watch_next` / `to_rewatch` and each type's spelling) - go through
+  `saveOwn(fields, msg)` from `hooks/useOwnTrackerSave.js`, which calls
+  `useStatusToggle(type)`: plan flags to `PUT /api/me/plan-flags/{id}`, every
+  other key to `PUT /api/me/list/{id}`. It is a no-op without `self.list`
+  (`useViewScope().ownData`), merges optimistically, then replaces the held
+  entry with the answer - the entry with the saved row folded in - and calls
+  `setMediaItem`. `/api/me/list` keeps the tracker's rule that reaching the
+  total finishes the row, so the toast is `progressToast`'s: "Marked as
+  Completed!" when the answered status became Completed. On failure, toast
+  "Update failed" and refetch.
+- **The work's** - an editor's (`isAdmin`) - go through the catalogue PATCH
+  `endpoints.resource(type).patch(id)`: the release step (below), Game's and
+  H-Game's completion axes and Novel's units editor (those three pages keep a
+  local `performPatch` for them), with the same optimistic merge, replace and
+  failure handling.
 
 Top to bottom:
 
-1. **Breadcrumb** `/library/{type}` → title.
+1. **Breadcrumb** `/library/{type}` → title, with **Report a problem** at
+   the row's right-hand end for a `self.requests` holder (see MyRequests).
 2. **Admin toolbar** (`isAdmin`): **Quick Edit** → `/modify?id={id}`;
    **Mark Completed** → `POST {apiEndpoint}/{id}/complete` then refetch;
    the **release button** (`components/tracker/MarkReleaseButton.jsx`, rules
    in `lib/releaseAction.js`) moves the entry one step along its release
-   axis through `performPatch`, and is absent when there is no next step:
+   axis, and is absent when there is no next step. It is the one control
+   that edits the work and the viewer's row together, so `saveRelease` (from
+   `useOwnTrackerSave`) splits it: the release fields go to the catalogue
+   PATCH and `RELEASE_PERSONAL_FIELDS` - the Watch When Airs → Active
+   Watching move on **Mark airing**, and anime's **My watch day** in the
+   dialog - to `PUT /api/me/list/{id}`, in one `useStatusToggle` mutation.
+   The page passes `canTrack={ownData}`; without `self.list` the step moves
+   no status and the dialog does not ask for My watch day:
 
    | Type | Shown when | Label → writes |
    | --- | --- | --- |
@@ -1080,8 +1288,8 @@ Top to bottom:
    "Production"` — whose Studio row on Anime and AnimeMovie is built by
    `studioValue()` (`components/info/StudioLinks.jsx`): one link to
    `/studio/{system_id}` per entry in `studio_refs` (plain text, not a link,
-   for a viewer without `view.entities` — every entity name on an open page
-   follows that rule, through `useEntityHref`), falling back to the plain
+   for a viewer without `view.studio` — every entity name on an open page
+   follows that rule for its own kind's key, through `useEntityHref`), falling back to the plain
    comma-joined `studio` string when there are none, which is what a viewer
    without the Credits permission and an entry whose studio never resolved to
    a row both get — and beside it, on **all six** types that credit a publisher
@@ -1097,8 +1305,8 @@ Top to bottom:
    Core, Important Supporting, Supporting, Other, then no role (`castRoleRank`) — then by
    `position` (`sortCast`, `lib/castOrder.js`), and each shows a small
    cover-or-portrait thumbnail, a role chip, a link to the character (the
-   name as plain text for a viewer without `view.entities`, as are the
-   identity and seiyuu names below), and — on Anime/AnimeMovie, the voiced types
+   name as plain text for a viewer without `view.character`, as is the
+   identity name, and the seiyuu names below without `view.person`), and — on Anime/AnimeMovie, the voiced types
    — "voiced by" and every seiyuu of the casting as a link to their person
    page, separated by "·", each followed by its voice remark in brackets
    ("voiced by A · B (child)"). The slip starts collapsed to the Main
@@ -1119,33 +1327,45 @@ Top to bottom:
    persisted. An identity row whose character has no main row is how that
    character appears at all, so it is always shown and never counted in N.
    The tiers and their counts are worked out over the rows the toggle leaves
-   visible — a remark textarea (blur-saves; rendered only when
-   a remark already exists, with the Notes `remark` section hidden so the
-   singleton row never has two editors), then `{Type}Notes` →
+   visible — the viewer's own remark textarea (rendered only for a holder of
+   `self.list` who already has a remark, with the Notes `remark` section
+   hidden exactly then so the row never has two editors; blur-saves a changed
+   value through `useMyRemarkSaver` → `PUT /api/me/remarks/{owner_type}/{system_id}`
+   `{remark}`, never the entry's PATCH), then `{Type}Notes` →
    `pages/notes/NotesTemplate.jsx` — except Game, which composes
    `NotesProvider` / `NotesGroup` / `NotesBlocks` itself (see **Notes** below).
 
-**Tracker**: `MyTrackerCard` (`components/tracker/MyTrackerCard.jsx`:
+**Tracker**: every tracker slip is the viewer's own list row, so it is drawn
+for a holder of `self.list` (`useViewScope().ownData`, passed as `canTrack`)
+and not at all for anyone else - an editor without `self.list` included -
+and every control in it is enabled and saves through `saveOwn`, never the
+catalogue PATCH. `MyTrackerCard` (`components/tracker/MyTrackerCard.jsx`:
 progress stepper with cumulative counts, status select, rating select,
 an optional **Paused at** text input (`time_fin`, `PausedAtInput`), optional
-Watch/Read Next and To Rewatch/Reread checkboxes; every control is
-admin-only) on Anime, TV (`watch_next` + `to_rewatch`), Cartoon
-(`watch_next`) - those three pass `onTimeFinChange`, which `PATCH`es
-`{ time_fin }` - Comic (`issue_fin`, `reading_status`, `to_reread`) and Game
-(`playing_status`, `to_replay`) — Game passes **no** `onEpChange`, which is
-what drops the stepper: a game has no unit to count off, and playtime lives in
-its own Progress slip instead.
+Watch/Read Next and To Rewatch/Reread checkboxes) on Anime, TV (`watch_next`
++ `to_rewatch`), Cartoon (`watch_next`), AnimeMovie and Movie (no stepper,
+`watch_next` + `to_rewatch`, Paused at placeholder `1:10:00`) - those five
+pass `onTimeFinChange` - Comic (`issue_fin`, `reading_status`, `to_reread`),
+Game and H-Game (`playing_status`, `to_replay`). Game and H-Game pass **no**
+`onEpChange`, which is what drops the stepper: a game has no unit to count
+off, and playtime lives in its own Progress slip instead.
 Game also renders `components/tracker/GameCompletionBlock` directly below the
 tracker: `completion_level` plus the three completion axes as four selects -
 `all_endings` and `all_collected` over `GAME_COMPLETION_FLAGS`,
-`all_achievements` over its own `GAME_ACHIEVEMENT_FLAGS` (Fully before Yes) - each patching the one field it changed and sending `null` rather
-than `""` for the unset option. Same two guards as `MyTrackerCard` — nothing
-at all for a logged-out visitor, read-only `Chip`s for a signed-in non-admin.
-AnimeMovie and Movie inline a status/rating/Paused at/Watch Next/To Rewatch
-tracker, the Paused at field being the same `PausedAtInput`;
+`all_achievements` over its own `GAME_ACHIEVEMENT_FLAGS` (Fully before Yes) -
+each patching the one field it changed and sending `null` rather than `""`
+for the unset option. The axes are columns on the game, so they are an
+editor's: a select for `isAdmin`, written through the catalogue PATCH, and a
+read-only `Chip` for any other signed-in viewer; nothing at all for a
+logged-out visitor.
 Manga uses a local `MangaTrackerBlock` (`ch_fin`, `vol_fin`, `vol_fin_page`,
 `read_next`, `to_reread`); Novel uses `components/tracker/NovelTrackerBlock`
-(`ch_fin/vol_fin/arc_fin` by `progress_display`).
+(`ch_fin/vol_fin/arc_fin` by `progress_display`); H-Comic and Hentai use the
+local blocks described below. All take `canTrack` and draw nothing without
+it. **Mark completed** stays in the editor's toolbar: `POST /{id}/complete`
+asks `manage.catalog` and also writes the work's airing status. A list
+holder who is not an editor finishes an entry by choosing Completed in the
+status select, which goes through `/api/me/list`.
 
 **Per-type differences**
 
@@ -1157,9 +1377,9 @@ Manga uses a local `MangaTrackerBlock` (`ch_fin`, `vol_fin`, `vol_fin_page`,
 | TV | 本傳/外傳, Season, Total Ep, Official Source, Airing Status, Release Date | — | **Genres** card (`GenresCard`); IMDb block with this season's rating, and the whole show's beside it when there is one |
 | Cartoon | + Airing Type, Length Per Ep (min) | — | **Genres** card (`GenresCard`); IMDb block as TV's |
 | Manga | Region, 本傳/外傳, Serialization Status/Platform, Release/End Date, Volume/Chapter Total | 作者 or 原作/作畫, 台灣出版商 (linked), Anime Studio (card shown only when any value) | **Genres** card (`GenresCard`), between Information and Production |
-| Novel | Region, Type, Version, 本傳/外傳, Serialization Status, Release/End Date, Vol Total (JP/KR)/TW, Arc Total, Chapter Total | Author, Illustrator, 台灣出版商 (linked, conditional) | **Genres** card (`GenresCard`), between Information and Production; **Units** card (`NovelUnitsEditor` over the `units` relationship — volume/arc/story/chapter rows with a key, CN/EN name and remark; admins get the editor with drag-to-reorder/add/remove and a Save → PATCH, read-only viewers get a plain list keyed by each row's server-computed `display_key`, whose remark is shown only to a viewer holding `view.personal`; hidden entirely for a viewer when the novel has no units) |
+| Novel | Region, Type, Version, 本傳/外傳, Serialization Status, Release/End Date, Vol Total (JP/KR)/TW, Arc Total, Chapter Total | Author, Illustrator, 台灣出版商 (linked, conditional) | **Genres** card (`GenresCard`), between Information and Production; **Units** card (`NovelUnitsEditor` over the `units` relationship — volume/arc/story/chapter rows with a key, CN/EN name and, on an arc, a chapter count; a `manage.catalog` holder gets the editor with drag-to-reorder/add/remove and a Save → PATCH carrying each unit's own fields only (`novelUnitPayload`), everyone else a plain list keyed by each row's server-computed `display_key`. For a holder of `self.list` each row of that list carries the viewer's own rating select (`MY_RATINGS`, saved on change) and remark field (saved on blur), both through `useSaveMyNovelUnit` → `PUT /api/me/novel-units/{unit_id}`; an account holding both keys gets the editor and, under it, that list headed **My ratings**. The admin holds no `self.list` and gets no such control. Hidden entirely for a viewer when the novel has no units) |
 | Comic | Type, Volume Label, Continuity, Era, Serialization/Reading Status, Release Year, Issue Total, Genre main/sub, 標籤 Label | Writer, Artist, 出版商 (linked, conditional), Imprint | **Events** card (red pills); no Autofill, no `RelationsSection`, no `ScoreBlock` |
-| Game | Type, Main / Remake (`is_main`), Base Game (a link to `/game/{base_game_id}`), Platform, Mode, Combat Mode — only what the game *is*; the rest sits in cards of its own, below | **Production & Release**: Developer (`studioValue`), 發行商 (`publisherValue`, labelled by `publisherLabel` rather than a bare literal), Director, Composer, Release Status, Release Date, Current Patch — always shown, with a dash for an empty field | **Genres** card (Genre, Theme, 標籤 Label — the same `Label` vocabulary anime shows); **Reception** card (Metacritic / Metacritic User, each carrying its own denominator — `96 / 100`, `8.6 / 10` — via the exported `outOf` helper, a missing score showing the card's dash rather than a zero; the public verdict, not mine, which is the stamp on the cover); **Time to Beat** card (`TimeToBeatCard`, after Reception: Main, Main + Extra and Completionist from `hltb_main`, `hltb_main_extra` and `hltb_completionist`, IGDB's time-to-beat in hours, formatted by `hours` in `lib/gameHours.js` - only the recorded figures get a field, and with none recorded the card is left out); **Library** card (Ownership, server-derived; Copies, a count; Steam Progress Sync — whether Steam may write this entry's progress, a fact about the source rather than an answer about a playthrough, so it sits with the copies while playing status and the four completion axes stay editable in the tracker and Completion blocks); **Progress** slip (`GameProgress`: playtime against `hltb_main`, achievements gated on `achievements_total` — nothing renders when neither figure exists, since "0 h / ? h" reads as "played none of it" rather than "never measured"); the **分歧 Choices** card (`ChoiceGraphCard`: a still preview of the game's choice graph and **View all**, see below); **Prices** card (MSRP in USD / JPY / TWD); **Copies** slip (`GameCopiesSection`: one row per `game_copy` — storefront and ownership as chips, then format, acquisition, price with the copy's own currency via `copyPrice`, acquired date and remark — sorted by `position`, and rendered only when the game has copies, so the Library card's count is not their only trace on the page; editing still happens in the Add/Modify tab); a cover-side `ProgressRule` on `hours_played / hltb_main`; a Remarks slip that appears only when a remark already exists; `SourcesCard` with `igdbLink` (under "Where to Look Up") and `steamLink` (under "Where to Play", since a Steam store page is a storefront rather than a reference database); no `RelationsSection`, no `ScoreBlock`, no Cast |
+| Game | Type, Main / Remake (`is_main`), Base Game (a link to `/game/{base_game_id}`), Platform, Mode, Combat Mode — only what the game *is*; the rest sits in cards of its own, below | **Production & Release**: Developer (`studioValue`), 發行商 (`publisherValue`, labelled by `publisherLabel` rather than a bare literal), Director, Composer, Release Status, Release Date, Current Patch — always shown, with a dash for an empty field | **Genres** card (Genre, Theme, 標籤 Label — the same `Label` vocabulary anime shows); **Reception** card (Metacritic / Metacritic User, each carrying its own denominator — `96 / 100`, `8.6 / 10` — via the exported `outOf` helper, a missing score showing the card's dash rather than a zero; the public verdict, not mine, which is the stamp on the cover); **Time to Beat** card (`TimeToBeatCard`, after Reception: Main, Main + Extra and Completionist from `hltb_main`, `hltb_main_extra` and `hltb_completionist`, IGDB's time-to-beat in hours, formatted by `hours` in `lib/gameHours.js` - only the recorded figures get a field, and with none recorded the card is left out); **Library** card (Ownership, server-derived; Copies, a count; Steam Progress Sync — whether Steam may write this entry's progress, a fact about the source rather than an answer about a playthrough, so it sits with the copies while playing status and the four completion axes stay editable in the tracker and Completion blocks); **Progress** slip (`GameProgress`: playtime against `hltb_main`, achievements gated on `achievements_total` — nothing renders when neither figure exists, since "0 h / ? h" reads as "played none of it" rather than "never measured"); the **分歧 Choices** card (`ChoiceGraphCard`: a still preview of the game's choice graph and **View all**, see below); **Prices** card (MSRP in USD / JPY / TWD); **Copies** slip (`GameCopiesSection`: one row per `game_copy` — storefront and ownership as chips, then format, acquisition, price with the copy's own currency via `copyPrice`, acquired date and remark — sorted by `position`, and rendered only when the game has copies, so the Library card's count is not their only trace on the page; editing still happens in the Add/Modify tab); a cover-side `ProgressRule` on `hours_played / hltb_main`; a Remarks slip, the viewer's own remark, that appears only for a holder of `self.list` who already has one; `SourcesCard` with `igdbLink` (under "Where to Look Up") and `steamLink` (under "Where to Play", since a Steam store page is a storefront rather than a reference database); no `RelationsSection`, no `ScoreBlock`, no Cast |
 
 **H-Comic** (`pages/detail/HComic.jsx`) is a gated type's page: App.jsx
 routes to it only for a session that can see h-comic
@@ -1176,7 +1396,9 @@ with the region deciding what shows (`lib/hComicRegion.js`):
 | Notes | remark list, reviews and the shared sections | the same, plus **亮點 Highlights** |
 
 Both regions carry the tracker's reading status, rating, **usefulness**
-(personal, like the rating) and Read Next / To Reread; a **Genres** card (Genre
+(personal, like the rating) and Read Next / To Reread - a local
+`HComicTrackerBlock`, drawn for `self.list` and saved through `saveOwn`;
+**Behind official** is the work's and is also in the Information card; a **Genres** card (Genre
 Plot / Appearance / Relation); `SourcesCard` with the KR official source as its
 tag, and the MAL link and the E-Hentai gallery (`ehentaiLink`, tag "EH")
 under "Where to Look Up"; `RelationsSection`; a **Cast** slip, the shared
@@ -1197,11 +1419,17 @@ arrive the note reads "a linked hentai adaptation".
 
 `HComicNotes.jsx` hands the notes page the entry row (so the KR-only
 Highlights section is dropped on a JP entry), the cast's names (suggested in
-the Highlights `names` inputs) and `highlight_group_order` with a callback that
-PATCHes it. Highlights read as one group per female character, a row naming
-two under both; dragging a group by the grip on its header - or ArrowUp /
-ArrowDown on that grip - saves the whole new order, and the rows inside a
-group are not movable
+the Highlights `names` inputs) and `highlight_group_order` - the viewer's own
+order, or null - with a callback that saves a new one through
+`useHighlightGroupOrderSaver` (`api/mutations/useMyHighlightGroupOrder.js`):
+`PUT /api/me/highlight-group-order/{system_id}` with `{group_order}`, the new
+order shown at once and every cached h-comic detail refreshed after. The
+callback is passed only to a holder of `self.personal_notes`, so nobody else
+is offered the reorder. Highlights read as one group per female character, a
+row naming two under both; dragging a group by the grip on its header - or
+ArrowUp / ArrowDown on that grip - saves the whole new order, and the rows
+inside a group are not movable. The reorder is **provisional UI**: the
+ordinary group grips, pending the owner's design for a per-user order
 ([systems/notes.md](../systems/notes.md#h-comic-highlights-h_comic_highlights)).
 
 **H-Game** (`pages/detail/HGame.jsx`) is the second gated type's page, routed
@@ -1213,7 +1441,7 @@ IGDB and Steam fill, through `replaceSingle("h-game")`). What differs:
 
 | | |
 |---|---|
-| Completion block | `GameCompletionBlock` with `H_GAME_COMPLETION_AXES`: Completion Level, All Endings, **All CG**, and **usefulness** (personal, like the rating) - no All Achievements or All Collected |
+| Completion block | `GameCompletionBlock` with `H_GAME_COMPLETION_AXES`: Completion Level, All Endings, **All CG** - the work's, an editor's through the catalogue PATCH - and **usefulness**, the viewer's own (marked `personal` in the axes), drawn for `self.list` and written through `saveOwn` (`onOwnChange`) - no All Achievements or All Collected |
 | Progress | `HGameProgress`: the main-story estimate and achievements - there is no playtime, so the cover's progress rule is achievements earned against the total |
 | Information card | Type, Main / Remake (`is_main`), Base Game (an h-game), Series Number, Play Style, Platform, Language. A multi-choice list reads "None" when it is `[]` and a dash when it is `null` (`choiceText`) |
 | Genres card | Genre, Theme, Genre Plot / Appearance / Relation |
@@ -1225,8 +1453,9 @@ IGDB and Steam fill, through `replaceSingle("h-game")`). What differs:
 | Notes | every game section, plus **亮點 Highlights** |
 
 No Metacritic, no Cast and no `RelationsSection`. The provider is handed the
-entry row, `highlight_group_order` and a callback that PATCHes a new order,
-exactly as on H-Comic; an h-game has no cast, so the Highlights `names` inputs
+entry row, the viewer's own `highlight_group_order` and, for a holder of
+`self.personal_notes`, the callback that PUTs a new one, exactly as on
+H-Comic; an h-game has no cast, so the Highlights `names` inputs
 take free text with no suggestions
 ([systems/notes.md](../systems/notes.md#h-game-highlights-h_game_highlights)).
 
@@ -1234,11 +1463,10 @@ take free text with no suggestions
 the same way. It is tracked like Cartoon: a local `HentaiTrackerBlock`
 (watching status, rating, **usefulness**, Paused at, Watch next, To rewatch) whose slip
 carries `MyTrackerCard`'s `EpisodeStepper` in its actions slot - `ep_fin` of
-`ep_total`, `PATCH { ep_fin }`, and `progressToast`'s "Marked as Completed!"
-when a step reaches the total and the server finishes the entry - then
-`CommunityCard` (on every entry page, and only for a viewer holding
-`view.personal`: without it the card neither draws nor asks
-`/api/community/`), `NamingCard`, and three cards - **Information** (Source
+`ep_total`, `PUT /api/me/list/{id} { ep_fin }`, and `progressToast`'s "Marked
+as Completed!" when a step reaches the total and the server finishes the row;
+the whole slip is drawn only for `self.list` - then
+`NamingCard`, and three cards - **Information** (Source
 Material, Originality, Airing Status, Release Date, Episodes), **Credits** (Studio via `studioValue` and Director on one row, Author below, each person linked through `creditValue`) and
 **Genres** (Genre Plot / Appearance / Relation), with a **Cast** slip between
 Credits and Genres - the shared `CastSection`, characters with "voiced by"
@@ -1250,8 +1478,8 @@ toolbar has Quick edit, Mark completed and **Autofill & update**, the
 single-entry Tenrai and AniDB fetch (`replaceSingle("hentai")`: airing
 status, release date, episode count, cover and the Official site / Twitter
 reference rows,
-each only where blank, AniDB only for what MAL left blank). A Remarks slip appears only when a
-remark exists, and `HentaiNotes.jsx` is the plain wrapper - the type has no
+each only where blank, AniDB only for what MAL left blank). A Remarks slip appears only for a
+holder of `self.list` who has a remark, and `HentaiNotes.jsx` is the plain wrapper - the type has no
 notes section of its own - with the `remark` section hidden exactly then.
 
 `MarkAiringModal` is not used by any detail page; only `MediaCard` opens it.
@@ -1266,11 +1494,39 @@ novel | series | tv-show`
 `/api/notes?owner_type=&owner_id=` (cancellable) and owns the mutations;
 `NotesBlocks` renders a "Notes" card for ungrouped sections plus one card per
 registry group, and hands `quotes`/`memes` sections to `QuoteSection` /
-`MemeSection` — for a viewer holding `view.extras`. Without it both sections
+`MemeSection` — for an account holding the `quotes_memes` feature
+(`hasFeature`). Without it both sections
 are dropped from the registry the page draws, before either component can
-fetch `/api/quote` or `/api/meme`. The highlight sections (`highlights`,
-`highlight_episodes`) need no such rule: the server leaves them out of
-`/api/notes/sections` for a viewer without `view.personal`. `SHAPES` maps all nine stored shapes to components,
+fetch `/api/quote` or `/api/meme`. A personal section needs no such rule:
+the registry lists it for every viewer, and `/api/notes` returns only the
+viewer's own rows in it. Write controls are gated **per section**, from its
+`scope`: a catalogue section (and Quotes and Memes) for a holder of
+`manage.catalog`, a personal one - 備註 Remark, the reviews and advantages,
+the highlight sections, the 待辦 todos, 存檔 Saves and 下周目目標 NG+ Goals
+among them - for a holder of `self.personal_notes`; the admin holds neither
+key and is drawn no control (components.md, `pages/notes`).
+The personal values on catalogue rows - an item's collected and collected
+amount, an enemy's beaten, an ending's completion, a stat's Mine, a mod's
+status, each song's and each song list's status - are the viewer's own and
+gated apart from their section: a holder of `self.personal_notes` (and of
+the feature, for the music and mod statuses) edits its own inline on every
+row, through `PUT /api/notes/{id}/mark`, whether or not it may write the
+section, and the row's form never shows them; anyone else reads them. The
+item and enemy cards carry an **NG reset** button for the same holder, which
+asks in place and then clears its collected values and beaten across the
+whole owner (`POST /api/notes/ng-reset`), toasting how many were cleared.
+Both controls are **provisional UI**, plain controls pending the owner's
+design.
+A **mixed** section - 武器&裝備, 道具, 收集物, 敵人, 角色, 地理, 配裝&流派,
+隊伍組成, 攻略資源 and Resources - holds catalogue rows and the viewer's own
+personal rows together, the catalogue rows first within each group. A holder
+of `manage.catalog` adds catalogue rows and edits, deletes and reorders those
+only; anyone else holding `self.personal_notes` adds personal rows and edits,
+deletes and reorders its own only, and sees the catalogue rows read-only. In
+地理 Geography a catalogue writer is offered no personal row to nest under. A
+personal row carries a **Mine** chip, **provisional UI** pending the owner's
+design (components.md, `pages/notes`).
+`SHAPES` maps all nine stored shapes to components,
 `structured` → `StructuredSection` among them, so a new registry section needs
 no frontend change as long as it reuses an existing shape — every one of the
 game-only sections did. Group cards render in registry first-appearance order,
@@ -1319,26 +1575,36 @@ File `pages/detail/WatchOrderPage.jsx`. GET `/api/watch-order/lists/{id}`
 cancellable. Shows owner link, `MediaScopeLine`, list name, badges
 (`list_type`, most-recommended, Default, "{n} steps"), an **admin-only** link
 to `/watch-orders`, `WatchOrderGuide` (filter all / essentials / no-optional,
-section blocks, list remark) and "Other orders for {owner}".
+section blocks, list remark) and "Other orders for {owner}". The guide is
+drawn `colourCoded`: each step's own list status sits at the far right of the
+row for a viewer holding `self.list` (none for a guest, none for a step not
+on the list), tinted by status, and the importance chips are tinted too —
+the scoped exception to colour rule 5 in
+[design-system.md](design-system.md#rules).
 
 The hub tab uses `components/tracker/WatchOrderSection.jsx`: lists for the
 scope, chips for 2–6 lists (select above 6), inline guide capped at 10 steps
-with a "see full" link, and an admin-only **Add built-in order** button
+with a "see full" link, its status and importance chips in ink, and an admin-only **Add built-in order** button
 (`POST /api/watch-order/lists/release?…`, hidden once a release order exists).
 Editing happens only on the admin `/watch-orders` page.
 
-### Four pages that need an account
+### Pages in two versions: with a list and without
 
-`/plan`, `/seasonal`, `/seasonal/:seasonal_id` and `/statistics` sit inside
-`<Route element={<ProtectedRoute permission="self.list" />}>` in `App.jsx`.
-They are built from `plan_next` and `seasonal`, which are per-user tables whose
-API routes answer `401` to a stranger, so a logged-out visitor is redirected to
-`/login?next=…` rather than shown a page that fills with errors. `requireAuth`
-gates on "is anyone logged in" rather than on a permission, mirroring the
-server's `get_current_user_id`. Their nav rows carry `requires: "self.list"`,
-the navigation config's spelling of "a signed-in member" (the guest role does
-not hold it; both `user` and `admin` do), so a guest is not shown links that
-would only bounce them.
+`/seasonal`, `/seasonal/:seasonal_id` and `/future-releases` read the
+catalogue, so they sit inside
+`<ProtectedRoute anyPermission={LIBRARY_MEDIA_TYPE_PERMISSIONS}>` in
+`App.jsx` and their nav rows ask the same list: every viewer that reads an
+ordinary media type opens them, a guest and a shared account included, and
+the admin, holding none, does not. `/statistics` has two versions too, but
+asks its own key, `view.statistics` - super, user and shared - so a guest
+has none. Each page asks `useViewScope().ownData`
+(`self.list`) once, at the top, and draws one of two components: the
+viewer's own version with a list, and the catalogue's without one. The
+catalogue version never asks for a per-user read (`/api/seasonal/`,
+`/api/plan-next/`, the full lists Statistics counts), so it draws no error
+for a viewer those would refuse. `/plan` and `/completions` stay inside
+`<ProtectedRoute permission="self.list">`: they are nothing but the
+account's own rows.
 
 ### SeasonalOverall — `/seasonal` · SeasonalDetail — `/seasonal/:seasonal_id`
 
@@ -1354,10 +1620,22 @@ with prev/next season arrows, a `RatingDistributionBlock`, and sections
 Completed / Watching / Watch When Airs / Plan to Watch / Might Watch /
 Dropped. The hero's **Planned** figure is `entry_planned`, which still counts
 both of the two planned statuses together. Both render `DashboardCard`s with the same
-optimistic `PATCH /api/anime/{id} { ep_fin }`. **Admin-only**: a "Seasonal
-Rating" select → `PATCH /api/seasonal/{id} { my_rating }`, plus the hint to
-set the current season under Admin → System Config when none is set.
-Detail's hero also carries `components/tracker/SeasonBulkActions.jsx`, two
+optimistic `PUT /api/me/list/{id} { ep_fin }` (`putMyListRow`). **The
+viewer's own** (`useViewScope().ownData`): a "Seasonal Rating" select →
+`PATCH /api/seasonal/{id} { my_rating }`, the account's own season row, and
+the steppers. **Without a list** each page is its `…Catalogue` component:
+Overall reads `/api/seasonal/current-season` and `/api/seasonal/catalogue`
+(every season the viewer's visible anime aired in, with its count), then the
+current and next seasons' anime; the season tabs show the season's anime in
+one grid with no status split (`components/seasonal/CatalogueSeasonGrid.jsx`:
+`MediaCard`s, best MAL score first), a Total figure and no season rating or
+rating distribution, and **All Seasons** is the year × season table built
+from the catalogue's seasons, each cell with its count. Detail reads only
+`/api/anime/?airing_season={id}` and draws the same grid under the
+prev/next arrows. Neither reads `/api/seasonal/` or `/api/franchise/`.
+**An editor's** (`isAdmin`): the hint to set the current season
+under Admin → System Config when none is set, and, on Detail,
+`components/tracker/SeasonBulkActions.jsx`, two
 buttons that act on the whole season, each behind a `ConfirmModal` and each
 reloading the page when done: **Autofill & update** runs the anime detail
 page's own Autofill & update (`POST /api/data-control/replace/anime/{id}`)
@@ -1372,7 +1650,37 @@ toast reports how many succeeded and names each failure with the server's
 
 Files `pages/public/Statistics.jsx`, `pages/statistics/useStatisticsData.js`,
 `StatsFavoriteGrids.jsx`, `StatsFranchiseSummary.jsx`, `StatsCompletions.jsx`,
-`pages/public/Completions.jsx`, `components/charts/BarChart.jsx`.
+`StatsCatalogue.jsx`, `pages/public/Completions.jsx`,
+`components/charts/BarChart.jsx`.
+
+**The catalogue sections** (`StatsCatalogue.jsx`, over the pure functions
+in `catalogueStats.js`) come from one `GET /api/statistics/catalogue`, over
+what the viewer's role and mode show. A shared account sees them as the
+whole page; a viewer with a list sees them at the end, after Game Spend,
+with sidebar entries of their own (`StatsCatalogueSections`). Three blocks:
+
+- **Entries by type** - Type, Franchises and Entries, in the registry's
+  order. Franchises is the distinct franchises holding at least one visible
+  entry of the type.
+- **Anime by season** - Season and Count, newest first, the twelve newest
+  (`SEASONS_SHOWN`) and a **Show all** button opening `SeasonCountsModal`,
+  which lays every season out as season/count pairs in CSS columns - two on
+  a phone, up to six on a wide screen, reading down each. Escape, the close
+  button or a press on the backdrop closes it.
+- **Rating distribution** (eyebrow Catalogue, sidebar label "Catalogue
+  ratings", so it is not confused with the personal Rating distribution) -
+  two `RatingDistributionCard`s, MAL rating in ten one-point buckets and
+  AniList score in ten ten-point buckets, highest first. Each pools every
+  media type carrying the score and has its own type selector, defaulting to
+  All types; every bucket is drawn, at zero if empty, so the chart keeps its
+  shape whatever is selected.
+
+The two tables are each as wide as their content, side by side when the
+screen has room and stacked when it does not.
+
+**Without a list** the personal sections, and the sidebar that indexes
+them, are absent rather than empty, and `useStatisticsData` never runs.
+Everything else in this section is the version with a list.
 
 `useStatisticsData` runs `useMediaList` for franchise, series and every
 entry type the session may see (`h-comic`, `h-game` and `hentai` each only
@@ -1462,8 +1770,8 @@ controls on either page.
 ### FutureReleases — `/future-releases`
 
 File `pages/public/FutureReleases.jsx`. `useMediaList("anime")`,
-`useMediaList("franchise")`,
-`useApiQuery(["api","system","current-season-config"], "/api/system/config/current_season")`,
+`useMediaList("franchise")` (with a list only: it feeds the expectation sort),
+`useApiQuery(["api","seasonal","current-season"], "/api/seasonal/current-season")`,
 and lazily per tab `anime-movie`, `movie` (`{ limit: 2000, airing_status: "Not Yet Aired" }`),
 `tv-show`, `cartoon`, `game`. Tabs Anime / Anime Movies / Movies / TV Shows /
 Cartoons / Games.
@@ -1472,23 +1780,75 @@ Anime keeps `Not Yet Aired` from the current season onward, grouped
 year; TV also includes "Airing". Games keep `release_status` of `Rumored` or
 `Unreleased` — `Early Access` is already out and `Cancelled` is never coming —
 grouped by the year of `release_date` with TBD last, and sorted inside a year
-by that date, so a full date precedes a bare year. Cards are `MediaCard` with
-`isAdmin`; `onUpdated` patches the `["media-list", type]` caches.
+by that date, so a full date precedes a bare year. Cards are `MediaCard`: the status select
+is drawn for a holder of `self.list` and the release bolt for an editor
+(`isAdmin`); `onUpdated` patches the `["media-list", type]` caches.
+**With a list**, anime and anime-movie groups are ordered by the viewer's
+status (Watch When Airs, Plan to Watch, Might Watch) and then franchise
+expectation, and under each card an **On your list** chip (any status) and a
+**Planned** chip (any plan flag) are drawn from the fields the list response
+carries. **Without one**, every group is in release-date order
+(`primaryReleaseValue` + `releaseScore`, undated last) and no chip is
+drawn.
 
 ### RandomPicker — `/random` · `/random/:type`
 
 Files `pages/public/RandomPicker.jsx`, `lib/randomPicker.js`,
 `lib/pickerWeights.js`, `hooks/usePickerData.js`,
-`components/picker/ModeStrip.jsx`, `components/picker/PickerWeights.jsx`. Open to
-everyone; it draws from the same lists the library pages read, so it can
-only offer what the viewer may already see.
+`components/picker/ModeStrip.jsx`, `components/picker/PickerWeights.jsx`. Behind
+`view.random_picker`; it draws from the same lists the library pages read, so
+it can only offer what the viewer may already see.
+
+**Two versions.** With a list (`self.list`), everything below. A **shared
+account** — `view.random_picker` without `self.list`, the same pair the
+dashboard's Recently added reads — gets **one picker, over all media
+entries**: no mode strip, every `/random/<type>` and `/random/franchise`
+redirects to `/random`, and the page waits for the session before it decides
+(it renders nothing while `/api/auth/me` loads), so no mode is fetched first.
+It has **exactly two filters**, media type and release decade
+(`sharedFilterDefs`, through `filterDefsForMode(mode, types, { personal,
+shared })`; `usePickerData(mode, typesKey, { shared })`). The release decade
+is the one the full picker uses: each entry's primary release date by
+`RELEASE_PRIORITY` (`lib/releaseDate.js`, mirroring `app/utils/release_date.py`)
+— `release_date` on every type except anime movie (`release_date_jp`, then
+`release_date_tw`) and movie (`release_date_tw`, then `release_date_usa`) —
+offered as the decades the pool holds, newest first, with Unknown for an
+undated entry. The draw is uniform, the Weights tab and the **Weighted**
+checkbox are not drawn (a `?tab=weights` link opens the picker), a saved
+default naming any other filter is ignored, and `/api/plan-next/` is never
+asked. Picker Defaults never sets `shared`, so the admin's editor is the full
+set.
+
+Without `view.random_picker` the page is unreachable (`<ProtectedRoute>`).
+Inside it, a session holding neither key is treated as the list-less full
+picker: every def flagged `personal: true` is dropped (`filterDefsForMode`'s
+`personal`), leaving media type, the type's catalogue filters, release
+decade, genre and the external score.
+
+**Genre** (`genre`) is a catalogue filter of the full picker: its chips are
+the genres the pool holds, and an entry matches when any of its genres is
+on. It reads each type's own field, a ", "-joined string on every list
+response (`GENRE_FIELD`): `genre_main` on the eight mainstream types and
+`game_genre` on game and h-game. The adult genre fields are left out, so
+h-comic and hentai have no genre chips. The franchise mode does not offer it: a franchise has no genre
+of its own, and "any entry's genre" would make most franchises match most
+chips.
+
+**External score** (`externalScore`) is a catalogue filter of the full picker:
+chips `9+`, `8+`, `7+`, `6+` and `No score`, which OR like every chip, read
+from `mal_rating` for anime, anime movies, manga and novels and from
+`imdb_rating` for movies, TV shows and cartoons; a null or `N/A` score, or a
+type with no score field, is `No score`. It is named "MAL Score" or "IMDb
+Score" when the mode's types share a source and "External Score" otherwise,
+and it is not offered where no type has a score (game, comic, the gated
+types, the franchise mode).
 
 A strip of mode links runs across the top: **All**, then one per media type
 the session may see (`visibleMediaTypes`), then **Franchise**. Each mode has its own filters,
 rendered by the library's `FilterPanel`. Each mode opens on its **default
 filters**, saved on the admin Picker Defaults page
 ([admin-pages.md](admin-pages.md#random-defaults-pickerdefaultsjsx)) and read
-from `/api/random-picker-defaults/<mode>` by everyone; a mode with none saved,
+from `/api/random-picker-defaults/<mode>` by every viewer the page opens for; a mode with none saved,
 or whose defaults cannot be read, opens with every filter empty. Switching
 mode starts over from that mode's defaults, with no pick.
 
@@ -1507,9 +1867,8 @@ mode starts over from that mode's defaults, with no pick.
   what it holds. It filters on franchise type (each type of a multi-type
   franchise counts), the media types it holds an entry of, the status groups
   of the entries it holds (the All mode's groups; a franchise matches when any
-  entry does), expectation, and my rating — the last two only for a viewer
-  holding `view.personal` (`franchiseFilterDefs(types, { personal })`), since
-  without it the server sends neither. It always draws evenly - the
+  entry does), expectation, and my rating — the status groups, expectation
+  and rating the viewer's own, flagged `personal`. It always draws evenly - the
   weights are an entry's own status, rating, plan marks and release, which a
   franchise does not have - so it shows no **Weighted** checkbox. The pick is
   a `FranchiseCard`.
@@ -1545,11 +1904,12 @@ its series or its franchise), release decade (2000s and later over earlier or
 undated), and, in the manga, novel and h-comic modes only, serialization
 status. Because every entry factor applies inside the group already chosen,
 none can move an entry into another group's share. A status, rating or
-serialization value the tables do not name weighs 1. Status, rating and plan
-marks are the viewer's own, so a signed-out pick is weighted by decade and
-serialization only: the page asks `/api/plan-next/` for the series and
-franchise marks (under the Plan page's `["plan-next"]` key) only for a
-signed-in session. The numbers are the tables in `lib/pickerWeights.js`, and
+serialization value the tables do not name weighs 1. Status group, rating
+and plan marks are the viewer's own, flagged `personal` in `WEIGHT_INPUTS`:
+with `personal: false` in its context `entryFactors` sets them to 1 and
+`drawChances` keeps the pool in one group. The page asks `/api/plan-next/`
+for the series and franchise marks (under the Plan page's `["plan-next"]`
+key) only with a list. The numbers are the tables in `lib/pickerWeights.js`, and
 the **Weights** tab (`?tab=weights`, `PickerWeights.jsx`) renders those same
 tables, so it lists exactly what the draw uses.
 
@@ -1578,22 +1938,26 @@ happens on hubs, detail pages and Modify, not here. See systems/plan-next.md.
 Files `pages/public/Quotes.jsx`, `Memes.jsx`, shell
 `components/layout/GroupedEntryPage.jsx`. Quotes:
 `useApiQuery(["quotes-grouped"], "/api/quote/grouped", { params })` with
-`media_type`, `is_general`, `is_favorite`, `needs_review` (admin-only
+`media_type`, `is_general`, `is_favorite` (the viewer's own; the toggle
+shows only with the `favourites` feature), `needs_review` (admin-only
 toggle), `search_query`. Memes: `useApiQuery(["memes-grouped"], "/api/meme/grouped", { params })`
-with `owner_type`, `is_favorite`, `search_query`. The Quotes media-type
+with `owner_type`, `is_favorite` (as on Quotes), `search_query`. The Quotes media-type
 filter offers H-Comic, H-Game and Hentai only to a session that can see each type. Both group rows under an
 owner card (cover or tier icon; "Unlinked / deleted owner" when missing).
-Row actions: copy text/image for everyone; **admin-only** favourite toggle,
-edit (`QuoteForm` / `MemeForm`, PATCH `/api/quote/{id}` / `/api/meme/{id}`)
-and delete, followed by `invalidateQueries` on the grouped key.
+Row actions: copy text/image for everyone; the viewer's own favourite star
+(`FavoriteStar`, only with the `favourites` feature, `PUT
+/api/me/favorites/{kind}/{id}`); **admin-only** edit (`QuoteForm` /
+`MemeForm`, PATCH `/api/quote/{id}` / `/api/meme/{id}`) and delete, followed
+by `invalidateQueries` on the grouped key.
 
 ### Resources — `/resources`
 
 Files `pages/public/Resources.jsx`, `components/resources/ResourceTree.jsx`,
 `components/resources/ResourceMarkdown.jsx`, helpers `lib/resourceTree.js`,
 writes `api/mutations/useResourceMutations.js`. One site-wide page of notes,
-read by everyone who can open Quotes: the route and the nav row ask
-`view.extras`, as Quotes does. `useApiQuery(["resources"], "/api/resources")` returns the
+the admin's and super's alone: the route, the nav row and every
+`/api/resources` call ask `manage.resources`, and its holder also gets every
+edit control. `useApiQuery(["resources"], "/api/resources")` returns the
 top-level nodes with `children` nested to any depth, every level already in
 `sort_index` order with groups and items interleaved; the page draws them in
 that order and sorts nothing.
@@ -1607,8 +1971,8 @@ that order and sorts nothing.
   dropped, a `javascript:` link renders without an executable href, and every
   link opens in a new tab with `rel="noopener noreferrer"`. Why Markdown:
   [decisions](../notes/decisions.md), "A Resources item's body is Markdown".
-- **Editing** (`has("manage.catalog")` only; the server refuses writes from
-  anyone else). **Add group** at the top; **Add item** / **Add subgroup** at
+- **Editing** (`has("manage.resources")`, which every reader of the page
+  holds; the server refuses writes from anyone else). **Add group** at the top; **Add item** / **Add subgroup** at
   the foot of every group; every row has a grip on its left, and its hover
   toolbar has a **Move to…** list, **Edit** and **Delete**. Edit is inline: a group's
   title, or an item's title and a Markdown textarea with a Write / Preview
@@ -1631,14 +1995,91 @@ that order and sorts nothing.
   applied to the cache first and rolled back if the request fails; every
   write then invalidates `["resources"]`.
 
+### MyRequests — `/requests`
+
+File `pages/public/MyRequests.jsx`; data `useMyRequests()` from
+`api/mutations/useRequestMutations.js` (`GET /api/requests/mine`, key
+`["requests", "mine", "all"]`). The account's own requests and reports,
+newest first, behind `<ProtectedRoute permission="self.requests">` — user and
+super; never the admin account, whose role holds no `self.*` key.
+
+- **Table**: kind, what it is about (`RequestTarget`: a link through the
+  target's `nav_path`, plain text when there is none, "(deleted)" after the
+  name of a target that is gone, the page address for a request without a
+  target), description, remark, status, the handler's response and the filing
+  date.
+- **The response column** is one constant at the top of the file,
+  `SHOW_RESPONSE_TO_FILER` (true). The API returns `response` either way.
+- **Edit** on a row whose `can_edit` is true (the caller's own and still
+  open) opens `RequestModal` on that request: description and remark only.
+  Nothing on this page deletes.
+- **New request** opens `RequestModal`'s general form, which opens on the
+  new-entry kind and offers a page-address field for a bug report. A refusal
+  — 409 at the open-request limit, in the server's own sentence — shows inside
+  the modal, which keeps the draft.
+- Loading and error through `MediaLoadingState`; an empty list says how to
+  file one.
+
+A request about one entry, group or entity is filed from that page's
+**Report a problem** instead (`components/requests/ReportProblemButton.jsx`,
+see [components.md](components.md#requests)). It sits at the right-hand end
+of the breadcrumb row on every media detail page, the three hubs (through
+`Crumbs`' `action` slot) and the five entity pages, and is drawn only for a
+`self.requests` holder. Its placement is provisional, pending the owner's
+design.
+
 ### Login — `/login`
 
-File `pages/public/Login.jsx`. Heading "Admin Access". POSTs
+File `pages/public/Login.jsx`. Heading "Sign in". POSTs
 `/api/auth/login` as `application/x-www-form-urlencoded` (`username`,
-`password`), then **loads** `?next` when it starts with `/` and does not point
-back at `/login`, otherwise `/system`. A full page load, not a route change -
-everything cached up to that moment was cached as a guest. Errors show inline
-and as a toast.
+`password`), then **always loads the dashboard, `/`**, whatever page the
+visitor came from: the account signing in may not be able to open that page.
+The page reads no `?next=`. A full page load, not a route change -
+everything cached up to that moment was cached as a guest. A refusal shows the
+server's `detail` as it comes, inline and as a toast: the generic 401, the
+403 a pending or a disabled account gets after the right password, and the
+429 that says how many minutes to wait.
+
+`?username=` pre-fills the username field - `/reset` lands here that way.
+The saved-users row (up to three usernames this browser signed in with, from
+`lib/savedUsers.js`) still replaces it on a click.
+
+**Forgot your password or username?** under the form toggles a short note
+(`aria-expanded`): ask the admin for a reset link, which works once for 24
+hours and shows your username. It is a note only - no form, and no link to
+`/reset`, which is useless without a code from the admin.
+
+### ResetPassword — `/reset`
+
+File `pages/public/ResetPassword.jsx`, in no menu: the only way here is a
+reset link from the admin, `/reset?code=…`. On load it asks
+`GET /api/auth/reset?code=` whose account the code is for, which does not
+spend it. Without a code, or for any code the server refuses, the page shows
+one message - the server's `detail` (`This link is not valid. Ask the admin
+for a new one.`, or the 429) - and no form. Otherwise it reads "Setting a new
+password for *username*", with the new password twice. The two must match,
+and `lib/newPassword.js` repeats the server's only two checks (not empty, at
+most 72 UTF-8 bytes) so the form can say so before a round trip; anything the
+server still refuses (404, 422) is shown inline and the page stays. A save
+POSTs `{code, password}` and then **loads** `/login?username=<username>` - a
+full page load, as signing out is, because the server has just ended every
+session of the account and cleared this browser's login cookies.
+
+### Settings — `/settings`
+
+File `pages/public/Settings.jsx`, behind `<ProtectedRoute
+permission="self.list">`.
+
+- **Account** - the username and role, read from `GET /api/account/settings`,
+  and a line saying the list, ratings and personal notes are visible to this
+  account only. This card writes nothing; there is no visibility switch.
+- **Password** - only when `has("self.password")`, so a shared account and the
+  admin (whose role holds no `self.*` key, and which never reaches this page)
+  never see it. Current password, new password, new password again; the same
+  `lib/newPassword.js` checks as `/reset`, then `PUT /api/account/password`.
+  A refusal (`Your current password is not right.`, a 422) shows inline; a
+  success clears the fields and says you stay signed in, here and on your
+  other devices - a change ends no session, a reset does.
 
 ### UnderDevelopment — `/under-development`
 
@@ -1653,9 +2094,6 @@ lost it once `/library/seiyuu` shipped.
   remaining gaps are `usePlanData.allEntriesByFranchise`, which still skips
   comics, and `CollectionLibrary` and `CollectionPage`, which fetch eight entry
   lists and so can never draw a collection cover from a game.
-- `FutureReleases` has no Games tab, so an unreleased game (`release_status`
-  `Rumored` / `Unreleased`, playing status `Play When Released`) shows up
-  nowhere on that page.
 - `SeasonalDetail` refetches on id change without a cancellation flag;
   `SeasonalOverall`, `CollectionLibrary`, `FranchiseLibrary` fetch once.
 - `Search.jsx` passes `isAdmin` only to the Manga `MediaCard`s.

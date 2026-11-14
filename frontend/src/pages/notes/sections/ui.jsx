@@ -9,7 +9,7 @@
 // locates them by that selector.
 import { createContext, useContext, useState } from "react";
 
-import { Button } from "../../../components/ui/primitives";
+import { Button, Chip } from "../../../components/ui/primitives";
 import { DragHandle, SortableItem, SortableList, arrayMove } from "../../../components/ui/Sortable";
 
 // Collapse state for a card whose emptiness decides its default.
@@ -79,7 +79,7 @@ export const SectionCardProvider = SectionCardContext.Provider;
 // `actions` are extra header controls drawn before Add - a section's view
 // toggles. They sit in the header's click-shielded strip, so pressing one
 // never collapses the card. `openWhenEmpty` - see useCollapsed.
-export function SectionCard({ label, count, isAdmin, onAdd, actions, openWhenEmpty, children }) {
+export function SectionCard({ label, count, canWrite, onAdd, actions, openWhenEmpty, children }) {
   const { bare, appendix, appendixCount } = useContext(SectionCardContext);
   const total = appendixCount ? (count || 0) + appendixCount : count;
   const [collapsed, setCollapsed] = useCollapsed(total, openWhenEmpty);
@@ -100,7 +100,7 @@ export function SectionCard({ label, count, isAdmin, onAdd, actions, openWhenEmp
           onClick={(e) => e.stopPropagation()}
         >
           {actions}
-          {isAdmin && onAdd && (
+          {canWrite && onAdd && (
             <Button
               type="button"
               size="sm"
@@ -157,8 +157,8 @@ export function GroupCard({ label, count, showCount = true, openWhenEmpty, child
   );
 }
 
-export function ItemActions({ isAdmin, onEdit, onDelete }) {
-  if (!isAdmin) return null;
+export function ItemActions({ canWrite, onEdit, onDelete }) {
+  if (!canWrite) return null;
   return (
     <div className="flex gap-1 shrink-0 mt-0.5">
       <button
@@ -181,6 +181,12 @@ export function ItemActions({ isAdmin, onEdit, onDelete }) {
       </button>
     </div>
   );
+}
+
+// A personal row in a mixed section: the viewer's own, not the catalogue's.
+// Provisional UI.
+export function MineChip() {
+  return <Chip title="Your own row, not the catalogue's">Mine</Chip>;
 }
 
 export function SaveCancel({ onSave, onCancel }) {
@@ -321,16 +327,33 @@ export function ShowAllToggle({ total, expanded, onToggle }) {
 // moved down past the fold - which unfolds the section, or the row would
 // vanish. Each move sends the whole section's order, which is what
 // PATCH /api/notes/reorder takes. While a move is being saved every handle is
-// disabled (`reordering`). Only an admin with two rows or more gets handles.
-export function useRowReorder({ section, notes, isAdmin, onReorder, reordering, cap }) {
-  const ids = notes.map((n) => n.system_id);
+// disabled (`reordering`). Only a viewer who may write
+// the section (`canWrite`), with two rows or more, gets handles.
+//
+// `canMoveRow(note)` narrows that to some rows, in a mixed section: only those
+// take a handle, and a move sends their ids alone, in their new order - the
+// server renumbers the viewer's kind of row and leaves the other. It defaults
+// to `canWrite`, so every row of any other section moves.
+export function useRowReorder({
+  section,
+  notes,
+  canWrite,
+  canMoveRow = () => canWrite,
+  onReorder,
+  reordering,
+  cap,
+}) {
+  const ids = notes.filter(canMoveRow).map((n) => n.system_id);
+  const movable = new Set(ids);
   return {
-    on: isAdmin && Boolean(onReorder) && ids.length > 1,
+    on: Boolean(onReorder) && ids.length > 1,
     ids,
+    has: (id) => movable.has(id),
     disabled: Boolean(reordering),
     move: (from, to) => {
       if (from === to) return;
-      if (to >= VISIBLE_ENTRIES) cap.expand();
+      const landing = notes.findIndex((n) => n.system_id === ids[to]);
+      if (landing >= VISIBLE_ENTRIES) cap.expand();
       onReorder(section.key, arrayMove(ids, from, to));
     },
   };
@@ -346,9 +369,10 @@ export function ReorderList({ reorder, children }) {
   );
 }
 
-// One row: a SortableItem when the section is sortable, a plain div otherwise.
+// One row: a SortableItem when the section is sortable and the row is one the
+// viewer may move, a plain div otherwise.
 export function ReorderRow({ reorder, id, className = "", children }) {
-  if (!reorder.on) return <div className={className}>{children}</div>;
+  if (!reorder.on || !reorder.has(id)) return <div className={className}>{children}</div>;
   return (
     <SortableItem id={id} className={className}>
       {children}
@@ -368,9 +392,10 @@ export function noteLabel(note) {
   return text.length > 40 ? `${text.slice(0, 40)}…` : text;
 }
 
-// The grip, or nothing when the section is not sortable.
+// The grip, or nothing when the section is not sortable or the row does not
+// move.
 export function ReorderHandle({ reorder, note, className = "" }) {
-  if (!reorder.on) return null;
+  if (!reorder.on || !reorder.has(note.system_id)) return null;
   return <DragHandle label={noteLabel(note)} className={className} />;
 }
 

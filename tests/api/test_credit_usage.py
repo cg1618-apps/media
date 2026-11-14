@@ -10,7 +10,7 @@ under hentai, so a green proves the media-type split did the excluding.
 
 The visibility tests credit a label-hidden anime. The guest's mode lacks the
 label (the hidden_anime fixture's nsfw label is carried only by wide modes)
-and admin_client's carries it, so the same row read twice proves the label
+and owner_client's carries it, so the same row read twice proves the label
 filter, not an empty table, is what dropped the count.
 
 Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
@@ -72,7 +72,7 @@ def _usage(client):
 
 
 def test_a_studio_is_counted_under_the_types_it_is_credited_on(
-    admin_client, db_session
+    owner_client, db_session
 ):
     first, second = _anime(db_session, "一"), _anime(db_session, "二")
     busy = _studio(db_session, "Usage Busy Studio")
@@ -85,7 +85,7 @@ def test_a_studio_is_counted_under_the_types_it_is_credited_on(
         db_session, _hentai(db_session, "三"), "studio", studio_id=hentai_only.system_id
     )
 
-    usage = _usage(admin_client)
+    usage = _usage(owner_client)
 
     anime = usage["anime"]["studio"]
     assert anime[str(busy.system_id)] == 2
@@ -96,7 +96,7 @@ def test_a_studio_is_counted_under_the_types_it_is_credited_on(
     assert usage["hentai"]["studio"][str(hentai_only.system_id)] == 1
 
 
-def test_an_entry_crediting_a_studio_twice_counts_once(admin_client, db_session):
+def test_an_entry_crediting_a_studio_twice_counts_once(owner_client, db_session):
     entry = _anime(db_session, "重複")
     studio = _studio(db_session, "Usage Twice Studio")
     _credit(db_session, entry, "studio", studio_id=studio.system_id)
@@ -110,10 +110,10 @@ def test_an_entry_crediting_a_studio_twice_counts_once(admin_client, db_session)
     )
     db_session.flush()
 
-    assert _usage(admin_client)["anime"]["studio"][str(studio.system_id)] == 1
+    assert _usage(owner_client)["anime"]["studio"][str(studio.system_id)] == 1
 
 
-def test_people_are_counted_per_role(admin_client, db_session):
+def test_people_are_counted_per_role(owner_client, db_session):
     first, second = _anime(db_session, "甲"), _anime(db_session, "乙")
     person = models.Person(system_id=uuid.uuid4(), name_en="Usage Director")
     db_session.add(person)
@@ -122,24 +122,24 @@ def test_people_are_counted_per_role(admin_client, db_session):
     _credit(db_session, second, "director", person_id=person.system_id)
     _credit(db_session, first, "producer", person_id=person.system_id)
 
-    people = _usage(admin_client)["anime"]["person"]
+    people = _usage(owner_client)["anime"]["person"]
     assert people["director"][str(person.system_id)] == 2
     assert people["producer"][str(person.system_id)] == 1
     assert str(person.system_id) not in people.get("composer", {})
 
 
-def test_publishers_are_counted(admin_client, db_session):
+def test_publishers_are_counted(owner_client, db_session):
     entry = _anime(db_session, "代理")
     publisher = models.Publisher(system_id=uuid.uuid4(), name_en="Usage Distributor")
     db_session.add(publisher)
     db_session.flush()
     _credit(db_session, entry, "publisher", publisher_id=publisher.system_id)
 
-    usage = _usage(admin_client)
+    usage = _usage(owner_client)
     assert usage["anime"]["publisher"][str(publisher.system_id)] == 1
 
 
-def test_vocabulary_values_are_counted_per_type(admin_client, db_session):
+def test_vocabulary_values_are_counted_per_type(owner_client, db_session):
     first, second = _anime(db_session, "戀愛"), _anime(db_session, "喜劇")
     romance = _option(db_session, "Genre Main", "Usage Romance")
     comedy = _option(db_session, "Genre Main", "Usage Comedy")
@@ -147,12 +147,12 @@ def test_vocabulary_values_are_counted_per_type(admin_client, db_session):
     _tag(db_session, second, "genre_main", romance)
     _tag(db_session, second, "genre_main", comedy)
 
-    options = _usage(admin_client)["anime"]["option"]
+    options = _usage(owner_client)["anime"]["option"]
     assert options[str(romance.system_id)] == 2
     assert options[str(comedy.system_id)] == 1
 
 
-def test_a_label_hidden_entry_is_not_counted(client, admin_client, db_session, hidden_anime):
+def test_a_label_hidden_entry_is_not_counted(client, owner_client, db_session, hidden_anime):
     studio = _studio(db_session, "Usage Hidden Studio")
     _credit(db_session, hidden_anime, "studio", studio_id=studio.system_id)
     genre = _option(db_session, "Genre Main", "Usage Hidden Genre")
@@ -163,7 +163,7 @@ def test_a_label_hidden_entry_is_not_counted(client, admin_client, db_session, h
     _credit(db_session, _anime(db_session, "可見"), "studio", studio_id=seen.system_id)
 
     # The mirror first: a mode carrying the label counts the entry.
-    admin = _usage(admin_client)["anime"]
+    admin = _usage(owner_client)["anime"]
     assert admin["studio"][str(studio.system_id)] == 1
     assert admin["option"][str(genre.system_id)] == 1
 
@@ -192,13 +192,13 @@ def _queries_for(db_session, client):
     return len(seen)
 
 
-def test_the_query_count_does_not_grow_with_the_values(admin_client, db_session):
+def test_the_query_count_does_not_grow_with_the_values(owner_client, db_session):
     entry = _anime(db_session, "計數")
     studio = _studio(db_session, "Usage Count Studio 0")
     _credit(db_session, entry, "studio", studio_id=studio.system_id)
     _tag(db_session, entry, "genre_main", _option(db_session, "Genre Main", "Usage C0"))
-    _queries_for(db_session, admin_client)  # warm the permission cache
-    before = _queries_for(db_session, admin_client)
+    _queries_for(db_session, owner_client)  # warm the permission cache
+    before = _queries_for(db_session, owner_client)
 
     for i in range(1, 8):
         other = _anime(db_session, f"計數{i}")
@@ -211,4 +211,4 @@ def test_the_query_count_does_not_grow_with_the_values(admin_client, db_session)
             _option(db_session, "Genre Main", f"Usage C{i}"),
         )
 
-    assert _queries_for(db_session, admin_client) == before
+    assert _queries_for(db_session, owner_client) == before

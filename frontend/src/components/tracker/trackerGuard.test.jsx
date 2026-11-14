@@ -1,4 +1,4 @@
-// A guest has no tracker.
+// A guest has no tracker, and neither has a viewer without self.list.
 //
 // The personal fields stopped reaching a logged-out visitor on the API side
 // (the acting_user_id fallback was removed on 2026-09-10), so the card would
@@ -37,7 +37,7 @@ describe("the tracker is withheld from a logged-out visitor", () => {
         epTotal={12}
         watchingStatus="Completed"
         myRating="S"
-        isAdmin={false}
+        canTrack
       />,
     );
     expect(container).toBeEmptyDOMElement();
@@ -46,14 +46,34 @@ describe("the tracker is withheld from a logged-out visitor", () => {
   it("renders nothing at all for NovelTrackerBlock", () => {
     mockAuth.username = null;
     const { container } = render(
-      <NovelTrackerBlock novel={NOVEL} isAdmin={false} />,
+      <NovelTrackerBlock novel={NOVEL} canTrack />,
     );
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("renders for somebody signed in, admin or not", () => {
-    // The gate is "is anyone signed in", not "is this an admin": a user-role
-    // account has a list of its own and must see it.
+  it("renders nothing for somebody signed in without self.list", () => {
+    // Signed in is not enough: the card is the viewer's own list row, and
+    // without self.list there is none.
+    mockAuth.username = "someone";
+    const { container } = render(
+      <MyTrackerCard
+        epFin={4}
+        epTotal={12}
+        watchingStatus="Completed"
+        myRating="S"
+        canTrack={false}
+        onStatusChange={() => {}}
+        onRatingChange={() => {}}
+        statusOptions={["Completed"]}
+        ratingOptions={["S"]}
+      />,
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("renders for somebody signed in with self.list, admin or not", () => {
+    // The gate is self.list, not "is this an admin": a user-role account has
+    // a list of its own and must see it.
     mockAuth.username = "someone";
     render(
       <MyTrackerCard
@@ -61,9 +81,13 @@ describe("the tracker is withheld from a logged-out visitor", () => {
         epTotal={12}
         watchingStatus="Completed"
         myRating="S"
-        isAdmin={false}
+        canTrack
+        onStatusChange={() => {}}
+        onRatingChange={() => {}}
+        statusOptions={["Completed"]}
+        ratingOptions={["S"]}
       />,
     );
-    expect(screen.getByText("Completed")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Watching status" })).toHaveValue("Completed");
   });
 });

@@ -1,9 +1,9 @@
 """Role, user-management and content-label schemas."""
 
-from typing import List, Optional
+from typing import List, Literal, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 # ---------------------------------------------------------------------------
 # Permission catalog
@@ -41,10 +41,6 @@ class RoleBase(BaseModel):
     sort_order: int = 0
 
 
-class RoleCreate(RoleBase):
-    permissions: List[str] = []
-
-
 class RoleUpdate(BaseModel):
     label: Optional[str] = None
     description: Optional[str] = None
@@ -59,8 +55,6 @@ class RolePermissions(BaseModel):
 
 class RoleResponse(RoleBase):
     system_id: UUID
-    is_system: bool
-    is_root: bool
     permissions: List[str] = []
     user_count: int = 0
     # What this role must hold and what it may never hold, from
@@ -77,27 +71,10 @@ class RoleResponse(RoleBase):
 # Users
 # ---------------------------------------------------------------------------
 
-class AccessModeItems(BaseModel):
-    """What a mode carries. Replaced wholesale, like a role's permissions."""
-
-    label_keys: List[str] = []
-    field_group_keys: List[str] = []
-
-
-class AccessModeCreate(AccessModeItems):
-    key: str
-    label: str
-    description: Optional[str] = None
-    sort_order: int = 0
-
-
 class AccessModeUpdate(BaseModel):
-    """Label, description, order and the guest-default flag.
-
-    `key` is absent deliberately: the seeded modes are read by key in
-    seed_modes.py, and renaming one would silently detach the seeder from the
-    row it maintains.
-    """
+    """The adjustable parts of a mode: its name, description and display
+    order. What it shows is derived from its key's place in
+    seed_modes.MODE_ORDER, so `key` is absent deliberately."""
 
     label: Optional[str] = None
     description: Optional[str] = None
@@ -111,50 +88,32 @@ class AccessModeResponse(BaseModel):
     description: Optional[str] = None
     sort_order: int
     is_system: bool
+    # Derived from the key, never stored: the labels and field groups this mode
+    # shows. Read-only.
     label_keys: List[str]
     field_group_keys: List[str]
     user_count: int
-
-
-class AccessModeCatalogItem(BaseModel):
-    key: str
-    label: str
-    description: Optional[str] = None
-    # How many modes carry this item. Zero on a content label means its
-    # entries are hidden from everybody, which is what the page warns about.
-    mode_count: int
-
-
-class AccessModeCatalogGroup(BaseModel):
-    group: str
-    label: str
-    items: List[AccessModeCatalogItem]
-
-
-class UserAccessModeGrant(BaseModel):
-    """One mode an account holds, with the items it does NOT get from it.
-
-    Denials only SUBTRACT (decision 8). There is no "extra" counterpart and
-    there must not be one: a mode is a ceiling, so an account's reach is
-    always a subset of its mode's, which is what makes a mode name on the user
-    list a trustworthy upper bound.
-    """
-
-    mode_id: UUID
-    is_default: bool = False
-    denied_label_keys: List[str] = []
-    denied_field_group_keys: List[str] = []
+    # Where the mode sits in seed_modes.MODE_ORDER, narrowest first; null for
+    # a mode outside it, which no account's ceiling reaches. Served so the
+    # SPA orders the ceiling and default selects without a copy of the order.
+    rank: Optional[int] = None
 
 
 class UserAccessModes(BaseModel):
-    """Replaces an account's whole set - grants, default and denials.
+    """An account's whole object axis - ceiling, default and denials.
 
-    One payload and one write, matching PUT /roles/{id}/permissions. An empty
-    list is legitimate: an account holding no mode resolves the empty object
-    set, which is fail-closed and a reasonable way to park somebody.
+    `ceiling` and `default` are mode KEYS. Both null parks the account with no
+    mode: it resolves the empty object set, which is fail-closed and a
+    reasonable way to park somebody. Denials only SUBTRACT, and only from what
+    the ceiling shows; they apply in every mode the account uses.
+
+    One payload and one write, matching PUT /roles/{id}/permissions.
     """
 
-    modes: List[UserAccessModeGrant] = []
+    ceiling: Optional[str] = None
+    default: Optional[str] = None
+    denied_label_keys: List[str] = []
+    denied_field_group_keys: List[str] = []
 
 
 class AccessModeSwitch(BaseModel):
@@ -179,17 +138,31 @@ class ManagedUserUpdate(BaseModel):
     username: Optional[str] = None
     password: Optional[str] = None
     role_id: Optional[UUID] = None
+    # `pending` is not settable here: a registration is approved or declined,
+    # not edited. Anything else is a 422.
+    status: Optional[Literal["active", "disabled"]] = None
+    # Null is no limit. Left out of the payload it is untouched - unless the
+    # same save changes the role, which resets it to the new role's default.
+    # Not settable on a super account, which never has one.
+    open_request_limit: Optional[int] = Field(default=None, ge=0)
+    # The per-account feature switches (services/rbac/features.py). Left out
+    # is untouched. Switching one ON for an account that is not `user` or
+    # `super` is a 409; switching one off is always allowed.
+    feature_quotes_memes: Optional[bool] = None
+    feature_favourites: Optional[bool] = None
+    feature_music_status: Optional[bool] = None
+    feature_mod_status: Optional[bool] = None
 
 
-class HeldAccessMode(BaseModel):
-    """One mode an account holds, as the per-account panel needs to render it."""
+class RegistrationApproval(BaseModel):
+    """Body of POST /api/users/{id}/approve. Every field has the approval
+    form's default: role `user`, ceiling and default `normal`. The role is
+    `user` or `super`, and neither mode may be `unrestricted` - that is
+    granted later on /users, per person, never from this form."""
 
-    mode_id: UUID
-    key: str
-    label: str
-    is_default: bool
-    denied_label_keys: List[str] = []
-    denied_field_group_keys: List[str] = []
+    role_id: Optional[UUID] = None
+    ceiling_mode: str = "normal"
+    default_mode: str = "normal"
 
 
 class ManagedUserResponse(BaseModel):
@@ -197,14 +170,25 @@ class ManagedUserResponse(BaseModel):
     username: str
     role_id: Optional[UUID] = None
     role_name: Optional[str] = None
-    # Read-only here. Written only by the account's owner, through
-    # PATCH /api/account/settings.
-    list_is_public: bool = False
+    # active / disabled / pending. Changed through PATCH /api/users/{id}.
+    status: str = "active"
     # The OBJECT axis for this account. Carried on the user response rather
     # than behind a second endpoint because the panel that edits it lives on
     # the users page, and PUT .../access-modes returns this same shape - so
-    # the page never has to reconcile two sources.
-    access_modes: List[HeldAccessMode] = []
+    # the page never has to reconcile two sources. Ceiling and default are
+    # mode keys; both null is no mode.
+    mode_ceiling: Optional[str] = None
+    mode_default: Optional[str] = None
+    denied_label_keys: List[str] = []
+    denied_field_group_keys: List[str] = []
+    # How many open requests the account may hold at once; null is no limit.
+    open_request_limit: Optional[int] = None
+    # The per-account feature switches, as stored. Always false on an account
+    # that is not `user` or `super`.
+    feature_quotes_memes: bool = False
+    feature_favourites: bool = False
+    feature_music_status: bool = False
+    feature_mod_status: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -214,119 +198,45 @@ class ManagedUserResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 class AccountSettingsResponse(BaseModel):
-    """What the caller may see and change about their own account."""
+    """What the caller may see about their own account."""
 
     username: str
     role_name: str
-    list_is_public: bool
 
 
-class AccountSettingsUpdate(BaseModel):
-    """
-    One field, deliberately. There is no username or user id here: the caller
-    is taken from the session, so this payload cannot name somebody else.
-    Pydantic ignores unknown keys by default, so a stray "username" in the body
-    is dropped rather than honoured.
-    """
+class OwnPasswordChange(BaseModel):
+    """Body of PUT /api/account/password. No user id, as everywhere on this
+    router: the account is the session's."""
 
-    list_is_public: bool
-
-
-# ---------------------------------------------------------------------------
-# Public profiles
-# ---------------------------------------------------------------------------
-
-class ProfileEntry(BaseModel):
-    """One row of somebody's list, joined to the catalogue."""
-
-    media_id: UUID
-    media_type: str
-    public_id: int
-    display_name: str
-    cover_image_file: Optional[str] = None
-    cover_image_focus: Optional[str] = None
-    status: str
-    my_rating: Optional[str] = None
-
-
-class ProfileStatusCount(BaseModel):
-    status: str
-    count: int
-
-
-class ProfileResponse(BaseModel):
-    """
-    One user's list. Carries no personal notes and no email or password: a
-    profile says what somebody has watched and what they thought of it, and
-    nothing else about them.
-    """
-
-    username: str
-    list_is_public: bool
-    # True when the caller is looking at their own profile, so the SPA can
-    # offer the visibility toggle rather than guessing from the username.
-    is_self: bool
-    counts: List[ProfileStatusCount] = []
-    entries: List[ProfileEntry] = []
-
-
-# ---------------------------------------------------------------------------
-# Community aggregates
-# ---------------------------------------------------------------------------
-
-class CommunityStatusCount(BaseModel):
-    status: str
-    count: int
-
-
-class CommunityAggregate(BaseModel):
-    """
-    What the public lists say about one entry.
-
-    sample_size is separate from list_count on purpose: a work can be on forty
-    lists and rated by six, and a "6" beside an average is the difference
-    between a figure and a rumour.
-    """
-
-    media_id: UUID
-    # How many public lists hold this entry at all.
-    list_count: int
-    statuses: List[CommunityStatusCount] = []
-    # How many of those carried a rating.
-    sample_size: int
-    # The mean on the 1-8 letter scale, and that mean as the nearest letter.
-    average_points: Optional[float] = None
-    average_rating: Optional[str] = None
+    current_password: str
+    new_password: str
 
 
 # ---------------------------------------------------------------------------
 # Content labels
 # ---------------------------------------------------------------------------
 
-class ContentLabelBase(BaseModel):
+class ContentLabelResponse(BaseModel):
+    """One row of the label reference. Labels are defined in
+    app/services/rbac/labels.py; everything here is read-only."""
+
+    system_id: UUID
     key: str
     label: str
     description: Optional[str] = None
     sort_order: int = 0
-
-
-class ContentLabelCreate(ContentLabelBase):
-    pass
-
-
-class ContentLabelUpdate(BaseModel):
-    label: Optional[str] = None
-    description: Optional[str] = None
-    sort_order: Optional[int] = None
-
-
-class ContentLabelResponse(ContentLabelBase):
-    system_id: UUID
-    # No `permission` field. A label stopped being a permission in Phase B -
-    # it is carried by an access mode now, not granted to a role - and
-    # publishing `label.<key>` would have named something that no longer
-    # exists. `key` is the identifier that still means something, and it is on
-    # ContentLabelBase.
+    # The lowest mode that shows the label, and every mode that does, in
+    # seed_modes.MODE_ORDER. Generated from the rule, never written as prose.
+    lowest_mode: Optional[str] = None
+    modes: List[str] = []
+    # The labels this one requires alongside it: ["nsfw"] for every label but
+    # nsfw itself.
+    also_carries: List[str] = []
+    # How many of each carry it directly - not through a group above.
+    entry_count: int = 0
+    collection_count: int = 0
+    franchise_count: int = 0
+    series_count: int = 0
 
     model_config = ConfigDict(from_attributes=True)
 

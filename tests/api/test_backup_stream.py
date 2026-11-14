@@ -58,9 +58,9 @@ def worker_uses_test_session(db_session, monkeypatch):
 
 
 def test_backup_streams_one_progress_event_per_tab_then_success(
-    admin_client, db_session, written, worker_uses_test_session
+    owner_client, db_session, written, worker_uses_test_session
 ):
-    res = admin_client.post("/api/data-control/backup")
+    res = owner_client.post("/api/data-control/backup")
 
     assert res.status_code == 200
     assert res.headers["content-type"].startswith("text/event-stream")
@@ -74,7 +74,7 @@ def test_backup_streams_one_progress_event_per_tab_then_success(
 
 
 def test_backup_streams_an_error_event_when_a_tab_fails(
-    admin_client, db_session, monkeypatch, worker_uses_test_session
+    owner_client, db_session, monkeypatch, worker_uses_test_session
 ):
     def fail_on_anime(name, matrix):
         if name == "Anime":
@@ -83,16 +83,16 @@ def test_backup_streams_an_error_event_when_a_tab_fails(
 
     monkeypatch.setattr(backup, "bulk_overwrite_sheet", fail_on_anime)
 
-    events = _events(admin_client.post("/api/data-control/backup").text)
+    events = _events(owner_client.post("/api/data-control/backup").text)
 
     assert events[-1] == {"status": "error", "message": "quota"}
     assert [r.status for r in _backup_rows(db_session)] == ["Failed"]
 
 
-def test_a_second_backup_is_refused_while_one_is_running(admin_client, written):
+def test_a_second_backup_is_refused_while_one_is_running(owner_client, written):
     claim = backup.claim_backup()
     try:
-        res = admin_client.post("/api/data-control/backup")
+        res = owner_client.post("/api/data-control/backup")
     finally:
         claim.release()
 
@@ -101,21 +101,21 @@ def test_a_second_backup_is_refused_while_one_is_running(admin_client, written):
     assert written == []
 
 
-def test_the_claim_is_released_after_a_run(admin_client, written, worker_uses_test_session):
-    admin_client.post("/api/data-control/backup")
+def test_the_claim_is_released_after_a_run(owner_client, written, worker_uses_test_session):
+    owner_client.post("/api/data-control/backup")
 
     # Would raise BackupAlreadyRunning if the worker had leaked the claim.
     backup.claim_backup().release()
 
 
 def test_the_claim_is_released_after_a_failed_run(
-    admin_client, monkeypatch, worker_uses_test_session
+    owner_client, monkeypatch, worker_uses_test_session
 ):
     def always_fail(name, matrix):
         raise RuntimeError("down")
 
     monkeypatch.setattr(backup, "bulk_overwrite_sheet", always_fail)
-    admin_client.post("/api/data-control/backup")
+    owner_client.post("/api/data-control/backup")
 
     backup.claim_backup().release()
 
@@ -160,7 +160,7 @@ def test_a_started_backup_finishes_with_nobody_listening(db_session, written):
 
 
 def test_the_stream_sends_keepalives_while_a_tab_is_slow(
-    admin_client, monkeypatch
+    owner_client, monkeypatch
 ):
     """A Sheets 429 pauses one tab for 60-120 s; with no bytes in that window
     the tunnel would 524 the request all over again."""
@@ -179,7 +179,7 @@ def test_the_stream_sends_keepalives_while_a_tab_is_slow(
 
     monkeypatch.setattr(dc, "start_backup", slow_start)
 
-    res = admin_client.post("/api/data-control/backup")
+    res = owner_client.post("/api/data-control/backup")
 
     assert ": keepalive" in res.text
     assert _events(res.text)[-1]["status"] == "success"

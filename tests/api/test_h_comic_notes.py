@@ -1,10 +1,10 @@
 """
-The KR h-comic highlights section, the `names` field type, and the group order.
+The KR h-comic highlights section and the `names` field type. The section is
+personal, so its rows are written by a member (user_client), not the admin.
 
 Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
-import uuid
 
 import pytest
 
@@ -14,8 +14,8 @@ from app.services.rbac.seed_modes import MODE_UNRESTRICTED
 SECTION = "h_comic_highlights"
 
 
-def _entry(admin_client, region):
-    body = admin_client.post(
+def _entry(owner_client, region):
+    body = owner_client.post(
         "/api/h-comic/", json={"h_comic_name_cn": f"Zvornik {region}", "region": region}
     ).json()
     return body
@@ -37,17 +37,17 @@ def _row(entry, **overrides):
 
 
 @pytest.fixture
-def kr(admin_client):
-    return _entry(admin_client, "KR")
+def kr(owner_client):
+    return _entry(owner_client, "KR")
 
 
 @pytest.fixture
-def jp(admin_client):
-    return _entry(admin_client, "JP")
+def jp(owner_client):
+    return _entry(owner_client, "JP")
 
 
-def test_a_kr_highlight_round_trips(admin_client, kr):
-    response = admin_client.post(
+def test_a_kr_highlight_round_trips(user_client, kr):
+    response = user_client.post(
         "/api/notes",
         json=_row(kr, fields={"female_characters": ["Ana", "Bea"], "male_characters": ["Cy"]}),
     )
@@ -60,42 +60,42 @@ def test_a_kr_highlight_round_trips(admin_client, kr):
     assert body["status"] == "實用"
 
 
-def test_female_characters_are_required(admin_client, kr):
-    response = admin_client.post(
+def test_female_characters_are_required(user_client, kr):
+    response = user_client.post(
         "/api/notes", json=_row(kr, fields={"male_characters": ["Cy"]})
     )
     assert response.status_code == 422
 
 
 @pytest.mark.parametrize("names", [[""], ["  "], "Ana", [1]])
-def test_a_names_field_must_be_a_list_of_non_empty_names(admin_client, kr, names):
-    response = admin_client.post(
+def test_a_names_field_must_be_a_list_of_non_empty_names(user_client, kr, names):
+    response = user_client.post(
         "/api/notes", json=_row(kr, fields={"female_characters": names})
     )
     assert response.status_code == 422
 
 
-def test_usefulness_is_a_closed_vocabulary(admin_client, kr):
-    response = admin_client.post("/api/notes", json=_row(kr, status="very"))
+def test_usefulness_is_a_closed_vocabulary(user_client, kr):
+    response = user_client.post("/api/notes", json=_row(kr, status="very"))
     assert response.status_code == 422
 
 
-def test_a_jp_entry_refuses_the_section(admin_client, jp):
-    response = admin_client.post("/api/notes", json=_row(jp))
+def test_a_jp_entry_refuses_the_section(user_client, jp):
+    response = user_client.post("/api/notes", json=_row(jp))
     assert response.status_code == 422
     assert "region" in response.json()["detail"]
 
 
-def test_a_highlight_cannot_be_moved_onto_a_jp_entry(admin_client, kr, jp):
-    created = admin_client.post("/api/notes", json=_row(kr)).json()
-    response = admin_client.patch(
+def test_a_highlight_cannot_be_moved_onto_a_jp_entry(user_client, kr, jp):
+    created = user_client.post("/api/notes", json=_row(kr)).json()
+    response = user_client.patch(
         f"/api/notes/{created['system_id']}", json={"owner_id": jp["system_id"]}
     )
     assert response.status_code == 422
 
 
-def test_the_section_is_offered_to_h_comic_with_its_grouping(admin_client):
-    sections = admin_client.get("/api/notes/sections", params={"owner_type": "h-comic"}).json()
+def test_the_section_is_offered_to_h_comic_with_its_grouping(owner_client):
+    sections = owner_client.get("/api/notes/sections", params={"owner_type": "h-comic"}).json()
     by_key = {s["key"]: s for s in sections}
     section = by_key[SECTION]
     assert section["group_by"] == "female_characters"
@@ -115,28 +115,45 @@ def test_the_section_is_offered_to_h_comic_with_its_grouping(admin_client):
     [
         (
             "h-comic",
-            ["remark", "remark_list", "reviews_and_comments", SECTION, "resources"],
+            [
+                "remark",
+                "remark_list",
+                "public_reviews",
+                "personal_reviews",
+                SECTION,
+                "resources",
+            ],
         ),
-        ("hentai", ["remark", "remark_list", "reviews_and_comments", "resources"]),
+        (
+            "hentai",
+            ["remark", "remark_list", "public_reviews", "personal_reviews", "resources"],
+        ),
     ],
 )
-def test_h_comic_and_hentai_keep_one_list_of_reviews(admin_client, owner_type, expected):
-    """No 評論 card, 解析, Questions or 名言/梗 - one list of reviews instead."""
-    sections = admin_client.get("/api/notes/sections", params={"owner_type": owner_type}).json()
+def test_h_comic_and_hentai_keep_a_reviews_card_of_two(owner_client, owner_type, expected):
+    """No 解析, Questions or 名言/梗 - a 評論 card of public and personal reviews."""
+    sections = owner_client.get("/api/notes/sections", params={"owner_type": owner_type}).json()
     assert [s["key"] for s in sections] == expected
-    reviews = next(s for s in sections if s["key"] == "reviews_and_comments")
-    assert reviews["shape"] == "text_links"
-    assert reviews["scope"] == "personal"
+    by_key = {s["key"]: s for s in sections}
+    assert by_key["public_reviews"]["shape"] == "text_links"
+    assert by_key["public_reviews"]["scope"] == "catalog"
+    assert by_key["personal_reviews"]["shape"] == "text"
+    assert by_key["personal_reviews"]["scope"] == "personal"
+    assert {by_key[k]["group"] for k in ("public_reviews", "personal_reviews")} == {
+        "reviews"
+    }
 
 
-def test_reviews_and_comments_takes_a_row_where_personal_reviews_does_not(
-    admin_client, mode_client, plain_user
+def test_personal_reviews_takes_a_row_where_advantages_does_not(
+    owner_client, mode_client, plain_user
 ):
     """
     Personal sections, so a member in the unrestricted mode writes them - an
-    admin holds no personal notes, and no other mode sees a hentai.
+    admin holds no personal notes, and no other mode sees a hentai. The
+    refused advantages is the mirror: the 201 is the section's, not the
+    member's.
     """
-    hentai = admin_client.post("/api/hentai/", json={"hentai_name_cn": "Zvornik Hentai"}).json()
+    hentai = owner_client.post("/api/hentai/", json={"hentai_name_cn": "Zvornik Hentai"}).json()
     member = mode_client(MODE_UNRESTRICTED, user=plain_user)
 
     def post(section):
@@ -150,9 +167,20 @@ def test_reviews_and_comments_takes_a_row_where_personal_reviews_does_not(
             },
         )
 
-    assert post("personal_reviews").status_code == 422
     assert post("advantages").status_code == 422
-    assert post("reviews_and_comments").status_code == 201
+    # Retired: an unknown section, which the router answers 400.
+    assert post("reviews_and_comments").status_code == 400
+    assert post("personal_reviews").status_code == 201
+    public = owner_client.post(
+        "/api/notes",
+        json={
+            "owner_type": "hentai",
+            "owner_id": hentai["system_id"],
+            "section": "public_reviews",
+            "content": "well liked",
+        },
+    )
+    assert public.status_code == 201, public.text
 
 
 def test_the_section_is_not_offered_to_manga(client):
@@ -163,44 +191,26 @@ def test_the_section_is_not_offered_to_manga(client):
     assert SECTION not in keys
 
 
-def test_a_guest_cannot_read_the_highlights(client, admin_client, kr):
-    admin_client.post("/api/notes", json=_row(kr))
+def test_a_guest_cannot_read_the_highlights(client, user_client, kr):
+    user_client.post("/api/notes", json=_row(kr))
     params = {"owner_type": "h-comic", "owner_id": kr["system_id"]}
     assert client.get("/api/notes", params=params).status_code == 404
-    assert len(admin_client.get("/api/notes", params=params).json()) == 1
+    assert len(user_client.get("/api/notes", params=params).json()) == 1
 
 
 # ---------------------------------------------------------------------------
-# The group order: a KR column written through the entry update
+# The group order is the viewer's own - see test_personal_highlights.py
 # ---------------------------------------------------------------------------
 
 
-def test_the_group_order_is_written_through_the_entry_update(admin_client, kr, db_session):
-    response = admin_client.patch(
-        f"/api/h-comic/{kr['system_id']}",
-        json={"highlight_group_order": ["Bea", "Ana", "Bea"]},
-    )
-    assert response.status_code == 200, response.text
-    assert response.json()["highlight_group_order"] == ["Bea", "Ana"]
-    entry = db_session.get(models.HComic, uuid.UUID(kr["system_id"]))
-    db_session.refresh(entry)
-    assert entry.highlight_group_order == ["Bea", "Ana"]
-
-
-def test_a_malformed_group_order_is_refused(admin_client, kr):
-    response = admin_client.patch(
-        f"/api/h-comic/{kr['system_id']}", json={"highlight_group_order": "Ana"}
-    )
-    assert response.status_code == 422
-    response = admin_client.put(
-        f"/api/h-comic/{kr['system_id']}", json={"highlight_group_order": [1, 2]}
-    )
-    assert response.status_code == 422
-
-
-def test_a_jp_entry_keeps_no_group_order(admin_client, jp):
-    response = admin_client.patch(
-        f"/api/h-comic/{jp['system_id']}", json={"highlight_group_order": ["Ana"]}
-    )
-    assert response.status_code == 200
-    assert response.json()["highlight_group_order"] is None
+def test_the_entry_update_ignores_a_group_order(owner_client, kr, db_session):
+    """An entry write is the catalogue's: a sent order is dropped, never
+    stored for anybody, and the response carries the caller's own (none)."""
+    for write in (owner_client.patch, owner_client.put):
+        response = write(
+            f"/api/h-comic/{kr['system_id']}",
+            json={"highlight_group_order": ["Bea", "Ana"]},
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["highlight_group_order"] is None
+    assert db_session.query(models.UserHighlightGroupOrder).count() == 0

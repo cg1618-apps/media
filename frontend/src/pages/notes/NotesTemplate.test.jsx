@@ -13,6 +13,14 @@ import NotesTemplate from "./NotesTemplate";
 import * as api from "./api";
 
 vi.mock("./api");
+// A catalogue writer: these sections have catalogue scope, so their write
+// controls follow manage.catalog. It also keeps personal values
+// (self.personal_notes), so a song list's own status is a select.
+vi.mock("../../contexts/AuthContext", () => ({
+  useAuth: () => ({
+    has: (p) => p === "manage.catalog" || p === "self.personal_notes",
+  }),
+}));
 
 const SECTIONS = [
   { key: "remark", shape: "text", label: "Remark", kinds: [], singleton: true },
@@ -32,7 +40,7 @@ beforeEach(() => {
 
 const renderTemplate = (props = {}) =>
   render(
-    <NotesTemplate ownerType="anime" ownerId="abc" isAdmin {...props} />,
+    <NotesTemplate ownerType="anime" ownerId="abc" {...props} />,
   );
 
 describe("NotesTemplate hideSections", () => {
@@ -130,7 +138,11 @@ describe("NotesTemplate groups", () => {
     expect(notesCard.textContent).toContain("Overview");
     // Peers under one parent, so the page lays them out with equal weight.
     const groupCard = screen.getByText("音樂 Music").closest("div.bg-surface");
-    expect(groupCard.parentElement).toBe(notesCard.parentElement);
+    // Each card sits in its own contents anchor (TocSection); the anchors are
+    // the siblings.
+    expect(groupCard.closest("[data-toc]").parentElement).toBe(
+      notesCard.closest("[data-toc]").parentElement,
+    );
   });
 });
 
@@ -186,7 +198,9 @@ describe("NotesTemplate standalone sections", () => {
     );
     const notesCard = screen.getByText("Notes").closest("div.bg-surface");
     const solo = screen.getByText("Resources").closest("div.bg-surface");
-    expect(solo.parentElement).toBe(notesCard.parentElement);
+    expect(solo.closest("[data-toc]").parentElement).toBe(
+      notesCard.closest("[data-toc]").parentElement,
+    );
   });
 });
 
@@ -340,13 +354,13 @@ describe("NotesTemplate hidden sections and list statuses", () => {
   });
 
   it("keeps a music card open with no status rows at all", async () => {
-    // A new anime: no songs and no status row yet - each list reads its
-    // default, which is still worth seeing.
+    // No songs and no status row - each list reads its default, which is
+    // still worth seeing. With no row there is nothing to mark, so it is a tag.
     vi.mocked(api.fetchNotes).mockResolvedValue([]);
     renderTemplate();
     await waitFor(() => expect(screen.getByText("音樂 Music")).toBeInTheDocument());
-    expect(screen.getByLabelText("OP status")).toHaveValue("Not Done");
-    expect(screen.getByLabelText("ED status")).toHaveValue("Not Done");
+    expect(screen.queryByLabelText("OP status")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Not Done")).toHaveLength(2);
   });
 
   it("renders no card for the hidden section and gives each list its own status", async () => {
@@ -367,5 +381,43 @@ describe("NotesTemplate hidden sections and list statuses", () => {
     await waitFor(() => expect(api.fetchOptionValues).toHaveBeenCalledTimes(2));
     expect(api.fetchOptionValues).toHaveBeenCalledWith("Song Type", "anime");
     expect(api.fetchOptionValues).toHaveBeenCalledWith("Song Source", "anime");
+  });
+});
+
+// A structured section's suggestions come from its FIELDS, not from the
+// section: 角色 Characters' Group names "Character Group".
+describe("NotesTemplate field suggestion categories", () => {
+  const CHARACTERS = {
+    key: "characters",
+    shape: "structured",
+    label: "角色 Characters",
+    kinds: [],
+    require_any: [],
+    hierarchical: false,
+    groupable_by: null,
+    fields: [
+      {
+        key: "group",
+        label: "Group",
+        type: "select",
+        column: "kind",
+        options: [],
+        option_category: "Character Group",
+      },
+      { key: "name", label: "Name", type: "text", column: "title", options: [], option_category: null },
+    ],
+  };
+
+  beforeEach(() => {
+    vi.mocked(api.fetchSections).mockResolvedValue([CHARACTERS]);
+    vi.mocked(api.fetchNotes).mockResolvedValue([]);
+    vi.mocked(api.fetchOptionValues).mockClear();
+    vi.mocked(api.fetchOptionValues).mockResolvedValue(["Heroes"]);
+  });
+
+  it("fetches a field's option category for this owner type", async () => {
+    renderTemplate({ ownerType: "game" });
+    await waitFor(() => expect(api.fetchOptionValues).toHaveBeenCalledTimes(1));
+    expect(api.fetchOptionValues).toHaveBeenCalledWith("Character Group", "game");
   });
 });

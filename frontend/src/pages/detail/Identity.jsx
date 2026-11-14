@@ -20,6 +20,7 @@
 // Modify editor, and the remark is shown to everyone.
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import ReportProblemButton from "../../components/requests/ReportProblemButton";
 
 import { endpoints } from "../../api/endpoints";
 import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
@@ -36,6 +37,7 @@ import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { Eyebrow, RatingStamp } from "../../components/ui/primitives";
 import LazyImage from "../../components/ui/LazyImage";
 import { useAuth } from "../../contexts/AuthContext";
+import { usePageTitle } from "../../contexts/PageTitleContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
 
@@ -88,6 +90,10 @@ export default function Identity() {
     };
   }, [publicId]);
 
+  // The heading's name, which the browser tab shows too.
+  const name = identity ? identity.display_name || "Unknown Identity" : null;
+  usePageTitle(loading || error ? null : name);
+
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading identity..." />;
   }
@@ -101,7 +107,6 @@ export default function Identity() {
     );
   }
 
-  const name = identity.display_name || "Unknown Identity";
   const characterName = identity.character_display_name || "Unknown Character";
   // Empty when the response carries no character public_id: the name is then
   // shown as plain text rather than a link to nowhere.
@@ -130,31 +135,38 @@ export default function Identity() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-      <nav
-        className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint mb-8 flex items-center gap-3"
-        aria-label="Breadcrumb"
-      >
-        <Link to="/library/character" className="hover:text-brand transition">
-          Characters
-        </Link>
-        <span aria-hidden="true">/</span>
-        {characterPath ? (
-          <Link
-            to={characterPath}
-            className="hover:text-brand transition truncate max-w-xs normal-case tracking-normal"
-          >
-            {characterName}
+      <div className="mb-8 flex items-center justify-between gap-3">
+        <nav
+          className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint min-w-0 flex items-center gap-3"
+          aria-label="Breadcrumb"
+        >
+          <Link to="/library/character" className="hover:text-brand transition">
+            Characters
           </Link>
-        ) : (
-          <span className="truncate max-w-xs normal-case tracking-normal">
-            {characterName}
+          <span aria-hidden="true">/</span>
+          {characterPath ? (
+            <Link
+              to={characterPath}
+              className="hover:text-brand transition truncate max-w-xs normal-case tracking-normal"
+            >
+              {characterName}
+            </Link>
+          ) : (
+            <span className="truncate max-w-xs normal-case tracking-normal">
+              {characterName}
+            </span>
+          )}
+          <span aria-hidden="true">/</span>
+          <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
+            {name}
           </span>
-        )}
-        <span aria-hidden="true">/</span>
-        <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
-          {name}
-        </span>
-      </nav>
+        </nav>
+        <ReportProblemButton
+          targetType="identity"
+          targetId={identity.system_id}
+          targetLabel={name}
+        />
+      </div>
 
       {isAdmin && (
         <AdminToolbar ownerType="identity" systemId={identity.system_id} />

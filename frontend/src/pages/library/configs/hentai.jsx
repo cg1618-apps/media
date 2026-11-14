@@ -64,6 +64,7 @@ const HENTAI_LIBRARY_CONFIG = {
     {
       key: "watchingStatus",
       label: "Watch Status",
+      personal: true,
       type: "set-grouped",
       groupOptions: ["Watching", "Planned", "Completed", "Dropped", "Might Watch"],
       match: (item, active) =>
@@ -72,7 +73,7 @@ const HENTAI_LIBRARY_CONFIG = {
     setFilter("airingStatus", "Airing Status", "airing_status"),
     setFilter("sourceMaterial", "Source Material", "source_material"),
     setFilter("originality", "Originality", "originality"),
-    setFilter("usefulness", "Usefulness", "usefulness"),
+    { ...setFilter("usefulness", "Usefulness", "usefulness"), personal: true },
   ],
 
   sortDefs: [
@@ -109,6 +110,7 @@ const HENTAI_LIBRARY_CONFIG = {
     {
       key: "ep",
       header: "EP",
+      personal: true,
       thClass: "hidden lg:table-cell",
       tdClass: "text-xs text-center font-mono text-text-muted hidden lg:table-cell",
       render: (item) => `${item.ep_fin ?? 0} / ${item.ep_total ?? "?"}`,
@@ -116,6 +118,7 @@ const HENTAI_LIBRARY_CONFIG = {
     {
       key: "usefulness",
       header: "Usefulness",
+      personal: true,
       thClass: "hidden lg:table-cell",
       tdClass: "text-xs text-center text-text-faint hidden lg:table-cell",
       render: (item) => item.usefulness || "-",

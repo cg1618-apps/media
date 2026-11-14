@@ -1,6 +1,6 @@
 # Open items
 
-Last verified: 2026-10-30
+Last verified: 2026-11-14
 
 Known defects, unmade decisions and blocked work. **Everything here is open by
 definition** — there is no status column, no claiming, and no lifecycle. An item
@@ -13,6 +13,22 @@ This is not a work log and not a plan. Whose turn something is, and what a
 session is currently doing, live in the branch and the pull request. Machine
 state — which database is at which revision, where the dumps are — is
 [switching-environments.md](switching-environments.md).
+
+## Per-viewer page detail — first
+
+**Each page's detailed customisation per viewer is undecided, and it is the
+first thing to take up** now that the notes rework and the account and
+authorization rework are built, once the remaining page-level discussions
+have been had.
+
+What is settled now is each page's **general** version per viewer, in
+[viewers.md](viewers.md), "Customised pages": for a library, for instance,
+super and user get essentially the same page, and guests and shared
+accounts get its catalogue parts only. What is not is the detail beyond
+that — which columns, defaults, layout and wording each viewer gets — and
+the designs for it, which come from the owner. The same holds for every
+customised page: its general version is settled in that discussion, and its
+detail waits for this.
 
 ## Deployment
 
@@ -71,11 +87,12 @@ restores every tab on the company machine. Arrival procedure is
 unverified.** That database is now at head, it has the
 `users.is_installation_owner` column, and `cg1618` holds the flag while `admin`
 does not — so the earlier claim that it had "neither the migration nor the
-move" is no longer true of it. What is not established is the *move*: its
-`user_access_mode` rows still split 4 and 4 between `admin` and `cg1618`, and
-nothing here says whether that is the correct end state (both accounts
-legitimately holding four modes) or residue. Compare against home before
-concluding either.
+move" is no longer true of it. What is not established is the *move*:
+before the mode-ceiling migration both `admin` and `cg1618` held all four
+modes, and nothing here says whether that was the correct end state or
+residue. That migration now sets `cg1618` to `unrestricted` / `borderline`
+explicitly, and revision `a1d2minroot45` gives `admin` no mode at all.
+Compare against home before concluding either.
 
 The ordering still matters for any future arrival: `git pull`, then
 `alembic upgrade head`, then Pull All. The migration picks the first non-root
@@ -103,53 +120,46 @@ blank every tab and be invisible from home — or a manual clear in the browser.
 That machine can no longer produce the first of those: it holds the working
 guard, and its database is populated rather than fresh.
 
-**`Note`, `Meme` and `Quote` carry `author_id` as a raw uuid, so authorship does
-not round-trip.** Each installation mints its own `admin`, and the `Users` tab's
-username match keeps the local id, so the other machine's admin rows restore
-under this one's. The durable fix is a `username` column on the three tabs, the
-way `Plan Next` has one. Invisible with one account; needed before a second
-person writes a note. `app/services/pipelines/tabs.py:259/268/269`.
-
 ## Authorization and accounts
 
-Two auth items are open **by choice**, and neither blocks inviting somebody:
-**session lifetime** is a flat 30 days with no refresh and no revocation, and
-there is **no password reset** — an admin sets one at `/users`.
+**Should user and super get Recently added on their dashboard?** It is drawn
+for a shared account only (`view.random_picker` without `self.list`,
+`dashboardSections.js`); a member's dashboard is its own tracker, so user and
+super do not get it. Unmade decision for the owner: add it for them too, and
+if so where it sits among the tracker sections, or keep it a shared
+account's.
 
-**Self-registration by invite code is designed but not built.** The intended
-flow: an admin generates a single-use code that expires after 24 hours and
-hands it over; the invitee submits code, username and password to a public
-register endpoint; the account is created `pending` and cannot log in; an
-approval panel on `/system` lists pending requests, and approving one sets its
-role and access modes (still editable on `/users` afterwards). Admins keep the
-ability to set any user's password. The shape agreed so far:
+**Should a guest and a shared account search by default?** The account
+design gave both Search. `view.search` is a switch on each role, and the
+seed grants it to `user` and `super` only, so on a fresh database neither a
+guest nor a shared account sees the search box until the admin ticks it on
+`/roles`. Unmade decision: seed it on for `guest` and `shared` (a seed
+change and a migration granting it to the existing roles), or keep it off
+and let `viewers.md` say so, as it does now.
 
-- `invite_code` table holding only a **hash** of each code (shown to the admin
-  once), with expiry, used-at/used-by and revoked-at. Consuming the code and
-  creating the account happen in one transaction, so a code cannot be spent
-  twice.
-- `users.status` (`pending` / `active`); accounts created on `/users` stay
-  `active` at once.
-- Invite codes and pending accounts do **not** travel on the Sheets Users tab;
-  the R2 `pg_dump` needs no change, since `hashed_password` is already bcrypt.
-- Hardening that belongs with a public signup form: a password policy (minimum
-  length, reject rather than truncate past bcrypt's 72 bytes), revoking
-  existing sessions when an admin resets a password, and rate limiting on
-  register and login.
+**Four content label descriptions are drafts.** The owner wrote the
+descriptions of `ecchi` and `erotica`; those of `nsfw` (不適合公開場合觀看),
+`hentai` (成人動畫), `h-game` (成人遊戲) and `h-comic` (成人漫畫) were drafted
+for the owner to correct, and the code still holds the drafts. They live in
+`app/services/rbac/labels.py`, are rewritten onto the label rows on every
+start, and say only what a label marks, in Chinese.
 
-Four decisions are still the owner's: what a pending account sees on login
-(recommended: "awaiting approval" only after a correct password), whether
-reject deletes the account or keeps a record (recommended: delete), whether
-approval sets the role as well as access modes (recommended: both), and
-whether the hardening ships with it (recommended: yes). Email/phone and
-forgot-password come after this, and the hashed single-use token is the same
-mechanism a reset link would reuse.
+**Libraries cannot filter by content label.** The franchise library already
+receives each franchise's labels and only draws them as chips; the collection
+and series responses carry their own labels too. A label
+filter is wanted — "only `ecchi`", "without `nsfw`" — and is not designed.
+The shape proposed so far: include and exclude; offer only the labels the
+viewer's mode can see; match inherited labels (a group's label counts for
+everything under it), so the filter agrees with what the mode hides; no filter
+in `safe`, where every labelled entry is hidden. Undecided: every library,
+or the group libraries only.
 
-**The `guest` role has no `media_type.game`**, so a logged-out visitor sees an
-empty Games library. The `role_permission` rows were seeded before games
-existed; the other eight types are granted. This is a permissions decision
-rather than a bug to fix blind — grant it on `/roles` if guests should see
-games.
+**The `guest` role may lack `media_type.game`**, which shows a logged-out
+visitor an empty Games library. `role_permission` rows seeded before games
+existed miss it, and a role is topped up only when it holds nothing; the
+company development database has the grant, so it is a per-database fact.
+Guests are to see games: on `/roles`, check the `guest` role on each
+database and grant `media_type.game` where it is missing.
 
 **Two community-adjacent measurements are unanswered.** Does any endpoint return
 an entry's `system_id` for a type the viewer lacks? And the same for a
@@ -157,8 +167,9 @@ label-hidden entry — that one is demonstrable: the home database carries three
 labels (`nsfw`, `erotica`, `hentai`) across 27 labelled entries, so the case can
 be tested against real rows rather than argued.
 
-`franchise_content_label` is the empty one — no franchise carries a label yet,
-so the franchise cascade has shipped without ever running against real data.
+`collection_content_label` and `series_content_label` are created empty by
+their migration, so the collection and series cascade has not run against
+real data until something is labelled.
 
 **Count these before citing them.** This item asserted **0 rows** and 2 labels
 for a long time and was wrong on both, because each reader inherited the number
@@ -179,6 +190,7 @@ docker exec cg1618-dev-db psql -U postgres -d media -tAc   "SELECT cl.key, count
 | `delete_studio` never calls `delete_cover_image`, so a studio logo leaks; publisher does it correctly | `app/routers/studio.py` |
 | `_STRIPPED` holds a stray backslash. `"\/"` is not an escape in Python, so the backslash survives and `clean_string` strips a character the JS `cleanString` it is kept "character-for-character in step with" does not. Warns today, and is a `SyntaxError` in a future Python | `app/services/domain/search.py:39` |
 | A Pull after a character merge done on the other machine rolls back the `Character Identity` and `Character Casting` tabs: the deferred `fk_casting_identity` fails at commit while the local cast rows still name the old character. Repeat the merge locally before running Pull | `docs/data-actions.md`, Pull All; `app/routers/character.py` merge |
+| A Pull fails with `duplicate key value violates unique constraint "uq_character_casting"` when the sheet's casting for an entry was rebuilt under new row ids while this database still holds the old rows: Pull writes the sheet's rows before removing local ones, so the same character-in-entry exists twice for a moment. Seen pulling production onto the company machine, on a novel whose casting production had re-saved. Until Pull removes the local rows of a re-cast entry first, delete that entry's local casting rows (or rebuild the database from the sheet) before pulling | `app/services/pipelines/pull.py`, the Character Casting tab |
 | A person, character or other public entity created on **both** machines fails Pull at commit with `duplicate key value violates unique constraint "uq_<table>_public_id"`. Each machine mints the row under its own uuid and `public_id`; Pull matches it to the local copy only by uuid or, for a person, by all four names exactly, so a copy whose names differ (one filled in from MAL, one not) restores as a second row carrying the sheet's `public_id`, which a row that exists only here may already hold. Nothing renumbers a local-only row. Until it does, delete or merge the local duplicate before pulling. A copy that does not collide still arrives as a duplicate, which the credit pass then reports as ambiguous | `app/services/pipelines/pull.py`, `_match_by_natural_key`, `resync_public_id_sequence` |
 | A Sheets Pull drops link columns that Backup writes, when the tab's parser does not name them: Pull keeps only the keys a parser emits. Game's `studio`, `publisher`, `director`, `composer`, `game_genre`, `game_theme`, `game_mode`, `combat_mode` and `game_platform`, anime's and anime-movie's `exclusive_source`, and manga's and novel's `serialization_platform` are written to the sheet and never read back. The fix is to add each key to its parser and widen `test_every_parser_reads_back_the_genre_and_label_columns_its_tab_writes` to every link header | `app/utils/formatter.py`, the `parse_*_from_sheet` functions; `app/services/pipelines/pull.py`, the header filter |
 | Entry tabs may still mint entities. `credits.resolve_*` is find-or-create for the Add form too, and whether entry tabs should refuse instead is a policy call | `app/services/domain/credits.py` |
@@ -199,13 +211,64 @@ every machine. That is one tree fewer than it was: the company machine's
 unmigrated `anime_site` tree was deleted on 2026-09-24. So it lands when
 nothing else is in flight, and not before.
 
+**Some vitest tests fail under local load.** Three tests have each failed once
+in a full `npm run test:run` on a development machine that was also running
+other sessions' builds and tests. Each passes alone, and none has failed on CI:
+
+- `src/pages/admin/Add.anime.test.jsx`, "attaches the pending image once the
+  entry is saved";
+- `src/pages/notes/sections/MusicTrackSection.test.jsx`, "sends every field of
+  a song, links as pairs";
+- `src/pages/detail/Anime.test.jsx`, "renders the cast with links to the
+  character and the seiyuu".
+
+Each fails with `Unable to find ...` from a `findBy*` query. Those wait only
+testing-library's default `asyncUtilTimeout` of 1 second, and a heavy page
+rendered by a saturated machine can take longer. This is a class of test, not
+one test's bug, so the remedy is a decision rather than a patch. The options
+are:
+
+- raise the timeout on the slow queries one at a time;
+- set `configure({ asyncUtilTimeout })` once in `src/test-setup.js`, which
+  also lets a genuinely missing element take longer to report;
+- run fewer vitest workers (`poolOptions` / `maxWorkers` in
+  `vitest.config.js`), which makes the whole suite slower but takes load off
+  each test.
+
+It is left until a run on CI goes red on one of them.
+
 ## Frontend
+
+**The controls for each account's own data are plain placeholders, waiting
+for the owner's designs.** They are built from existing controls and the
+design system so the behaviour can be used, and their look is undecided:
+
+- the per-unit rating and remark on the novel page;
+- reordering highlight groups, which is the existing drag;
+- editing a personal value on a catalogue note row (collected, beaten,
+  completion, my value, the music and mod statuses) and the NG reset button;
+- how a personal row sits among the catalogue rows of a mixed section,
+  including its **Mine** chip;
+- the favourite star on quotes and memes.
 
 | Item | Where |
 |---|---|
 | Games and comics are absent from the cover lists | `FranchiseLibrary`, `CollectionLibrary`, `CollectionPage`, `usePlanData` |
-| No Games tab | `FutureReleases.jsx` |
 | `/defaults` shows an inert auto-fill column for Game | `frontend/src/config/formFields/fieldMeta.js` |
 | Invented entities never reach the admin log table — `error_message` renders only on Failed rows, never `details_json` | `Admin.jsx` |
 | The colour-token table holds pre-archive hexes | `docs/frontend/components.md` |
 | Two docs still describe a `ScoreBlock` "Last updated" figure that the component no longer has, one of them as the worked example of withheld fields being absent rather than blanked — so replacing it needs a different example, not a deletion | `docs/authorization.md:423`, `:1163`, `:1191` |
+
+**Statistics has no "Entries by genre" table, and one is to be added back.**
+It is left out until it can be shown well. Adding it needs:
+
+- **which vocabularies it counts.** It would count Genre Main on the eight
+  mainstream types and Game Genre on game, as `media_tag` rows joined to
+  `system_option`, narrowed by `apply_media_visibility`. Whether Genre Sub,
+  and the gated types' own adult genre vocabularies, belong in it is
+  undecided.
+- **a shape for a long list.** There are far more genres than media types, so
+  it needs the season table's treatment - the top few with a Show all - or a
+  chart, rather than one long table.
+- **a media-type selector**, like the rating charts' own, since a genre's
+  count across every type pools things that do not compare.

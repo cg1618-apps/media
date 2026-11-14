@@ -103,17 +103,87 @@ export function groupedIds(groups) {
 }
 
 /**
+ * `items` with the item at `from` moved to `to`, where both index only the
+ * items `movable` accepts: those are taken out and put back in their new
+ * order into the places they held, and every other item keeps its place. In
+ * a mixed section a viewer moves the rows of its own kind and steps over the
+ * rest. With every item movable it is a plain move. An out-of-range move
+ * returns `items` unchanged.
+ */
+export function movedAmong(items, from, to, movable = () => true) {
+  const slots = items.flatMap((item, i) => (movable(item) ? [i] : []));
+  const n = slots.length;
+  if (from < 0 || from >= n || to < 0 || to >= n) return items;
+  const order = slots.map((i) => items[i]);
+  const [moved] = order.splice(from, 1);
+  order.splice(to, 0, moved);
+  const next = [...items];
+  slots.forEach((slot, k) => {
+    next[slot] = order[k];
+  });
+  return next;
+}
+
+/**
  * `groups` with the row at `from` in group `gi` moved to `to` - taken out and
  * put back there, as a drop does, so the rows between shift by one. A row
- * never leaves its group. An out-of-range move returns `groups` unchanged.
+ * never leaves its group. `from` and `to` index the rows `movable` accepts
+ * (movedAmong). An out-of-range move returns `groups` unchanged.
  */
-export function movedRow(groups, gi, from, to) {
+export function movedRow(groups, gi, from, to, movable) {
   return groups.map((g, i) => {
-    const n = g.notes.length;
-    if (i !== gi || from < 0 || from >= n || to < 0 || to >= n) return g;
-    const notes = [...g.notes];
-    const [moved] = notes.splice(from, 1);
-    notes.splice(to, 0, moved);
-    return { ...g, notes };
+    if (i !== gi) return g;
+    const notes = movedAmong(g.notes, from, to, movable);
+    return notes === g.notes ? g : { ...g, notes };
   });
+}
+
+// --- A hierarchical section grouped by a column ---------------------------
+//
+// 地理 Geography is both `hierarchical` and `groupable_by`. Only a top-level
+// row carries a group (the backend refuses one on a child), so it is the ROOTS
+// that are grouped, each drawn with its whole subtree. The functions below take
+// tree nodes, `{ note, children }`, as the component's buildTree makes them.
+
+/** The ids of `nodes` and everything under them, depth-first in drawn order. */
+export function treeIds(nodes) {
+  return nodes.flatMap((node) => [node.note.system_id, ...treeIds(node.children)]);
+}
+
+/**
+ * The roots grouped by `column`'s value, as `[{ name, nodes }]`: first
+ * appearance in the roots' order, and a trailing `name: null` group for roots
+ * with no value, present only when there are such roots.
+ */
+export function groupRoots(roots, column) {
+  const byId = new Map(roots.map((node) => [node.note.system_id, node]));
+  return groupNotes(
+    roots.map((node) => node.note),
+    null,
+    [],
+    column,
+  ).map((g) => ({ name: g.name, nodes: g.notes.map((n) => byId.get(n.system_id)) }));
+}
+
+/**
+ * Every row id of `groups`, depth-first in drawn order, with the node at
+ * `from` among `siblings` moved to `to`. `siblings` is matched by identity: a
+ * group's `nodes` (a root moving within its group) or a node's `children` (a
+ * child moving among its siblings). `from` and `to` index the siblings whose
+ * row `movable` accepts (movedAmong). A row never changes group or parent by
+ * moving. An out-of-range move returns the order unchanged.
+ */
+export function movedTreeIds(groups, siblings, from, to, movable) {
+  const moved = movedAmong(
+    siblings,
+    from,
+    to,
+    movable ? (node) => movable(node.note) : undefined,
+  );
+  const flatten = (nodes) =>
+    (nodes === siblings ? moved : nodes).flatMap((node) => [
+      node.note.system_id,
+      ...flatten(node.children),
+    ]);
+  return groups.flatMap((g) => flatten(g.nodes));
 }

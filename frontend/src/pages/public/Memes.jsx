@@ -10,6 +10,9 @@ import GroupedEntryPage, {
 import { Button, Chip } from "../../components/ui/primitives";
 import { OWNER_TYPE_OPTIONS } from "../../components/forms/MemeOwnerPicker";
 import MemeForm, { emptyMeme, toMemePayload } from "../../components/forms/MemeForm";
+import FavoriteStar, {
+  FAVOURITES_FEATURE,
+} from "../../components/ui/FavoriteStar";
 import LazyImage from "../../components/ui/LazyImage";
 import { useApiQuery } from "../../hooks/useApiQuery";
 import { useAuth } from "../../contexts/AuthContext";
@@ -29,21 +32,6 @@ function MemeRow({ meme, isAdmin, onChanged }) {
   const [busy, setBusy] = useState(false);
 
   const imageUrl = getQuoteImageUrl(meme.image_file);
-
-  const patch = async (body) => {
-    setBusy(true);
-    try {
-      await fetchJson(endpoints.memes.patch(meme.system_id), {
-        method: "PATCH",
-        ...jsonBody(body),
-      });
-      await onChanged();
-    } catch (err) {
-      showToast("error", err.message || "Update failed.");
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const saveEdit = async () => {
     setBusy(true);
@@ -177,18 +165,10 @@ function MemeRow({ meme, isAdmin, onChanged }) {
               <i className="fas fa-image text-xs" />
             </button>
           )}
+          {/* The viewer's own favourite - only with the favourites feature. */}
+          <FavoriteStar kind="meme" item={meme} className="h-7 w-7 hover:bg-surface-2" />
           {isAdmin && (
             <>
-              <button
-                onClick={() => patch({ is_favorite: !meme.is_favorite })}
-                disabled={busy}
-                title="Toggle favorite"
-                className={`h-7 w-7 hover:bg-surface-2 ${
-                  meme.is_favorite ? "text-brand" : "text-text-faint hover:text-brand"
-                }`}
-              >
-                <i className="fas fa-star text-xs" />
-              </button>
               <button
                 onClick={() => {
                   setDraft(emptyMeme(meme));
@@ -216,7 +196,7 @@ function MemeRow({ meme, isAdmin, onChanged }) {
 }
 
 export default function Memes() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, hasFeature } = useAuth();
   const queryClient = useQueryClient();
 
   const [ownerType, setOwnerType] = useState("");
@@ -282,12 +262,15 @@ export default function Memes() {
               ))}
             </optgroup>
           </select>
-          <Toggle
-            active={favoritesOnly}
-            onClick={() => setFavoritesOnly((v) => !v)}
-          >
-            Favorites
-          </Toggle>
+          {/* The viewer's own favourites, so only for an account keeping them. */}
+          {hasFeature(FAVOURITES_FEATURE) && (
+            <Toggle
+              active={favoritesOnly}
+              onClick={() => setFavoritesOnly((v) => !v)}
+            >
+              Favorites
+            </Toggle>
+          )}
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}

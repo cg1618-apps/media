@@ -37,10 +37,9 @@ def _withheld(viewer: Optional[Viewer]):
     request", and blanking their fields would corrupt a pipeline's view of the
     row rather than protect anybody.
 
-    The is_root short-circuit is gone. Field groups left the role axis in
-    Phase B, so holding every capability no longer reaches them - which is
-    what lets the owner's own account sit in a narrow mode and actually be
-    narrowed.
+    No role is exempt. Field groups are the access mode's, so holding a
+    capability does not reach them - which is what lets the owner's own
+    account sit in a narrow mode and actually be narrowed.
     """
     if viewer is None:
         return ()
@@ -123,19 +122,3 @@ def gate(
         schema.model_validate(entry).model_copy(update=blanked) for entry in entries
     ]
     return out if is_list else out[0]
-
-
-def gated_note_sections(viewer: Optional[Viewer]) -> tuple[str, ...]:
-    """
-    note.section values to withhold. Not per media type: a section's owners are
-    declared on the section itself, in note_sections.NOTE_SECTIONS.
-
-    Callers apply this to rows the viewer did NOT author. Personal-scope
-    sections are already filtered by author_id, so this group's remaining job
-    is seeing somebody else's personal notes - on a profile whose list is
-    public - not seeing one's own.
-    """
-    out: list[str] = []
-    for group in _withheld(viewer):
-        out.extend(group.note_sections)
-    return tuple(dict.fromkeys(out))

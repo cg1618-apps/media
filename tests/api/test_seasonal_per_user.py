@@ -22,9 +22,9 @@ def db(db_session):
 
 
 @pytest.fixture
-def owner(admin_user):
-    """The account admin_client acts as (conftest's admin_user)."""
-    return admin_user
+def owner(owner_user):
+    """The account owner_client acts as (conftest's owner_user)."""
+    return owner_user
 
 
 @pytest.fixture

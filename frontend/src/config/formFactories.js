@@ -591,8 +591,6 @@ export const defaultCollection = () => ({
   collection_name_roman: "",
   collection_name_jp: "",
   collection_name_alt: "",
-  my_rating: "",
-  collection_expectation: "",
   remark: "",
 });
 
@@ -605,8 +603,6 @@ export const defaultFranchise = () => ({
   franchise_name_jp: "",
   franchise_name_alt: "",
   franchise_type: "",
-  my_rating: "",
-  franchise_expectation: "",
   remark: "",
 });
 
@@ -618,8 +614,6 @@ export const defaultSeries = () => ({
   series_name_roman: "",
   series_name_jp: "",
   series_name_alt: "",
-  my_rating: "",
-  series_expectation: "Low",
   cover_entry_id: null,
   remark: "",
 });
@@ -634,7 +628,6 @@ export const defaultStudio = () => ({
   name_jp: "",
   name_alt: "",
   display_name_field: "",
-  my_rating: "",
   logo_file: "",
   logo_focus: null,
   pending_image_id: null,
@@ -656,7 +649,6 @@ export const defaultPublisher = () => ({
   name_jp: "",
   name_alt: "",
   display_name_field: "",
-  my_rating: "",
   logo_file: "",
   logo_focus: null,
   pending_image_id: null,
@@ -677,7 +669,6 @@ export const defaultPerson = () => ({
   name_alt: "",
   display_name_field: "",
   gender: "",
-  my_rating: "",
   photo_file: "",
   photo_focus: null,
   pending_image_id: null,
@@ -696,7 +687,6 @@ export const defaultCharacter = () => ({
   display_name_field: "",
   role: "",
   gender: "",
-  my_rating: "",
   photo_file: "",
   photo_focus: null,
   pending_image_id: null,

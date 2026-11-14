@@ -10,34 +10,21 @@
 // `remark` section here is the only editor left for it.
 //
 // `entry` is the row the create returned. It feeds `owner_where` (亮點
-// Highlights is KR h-comics only) and the stored group order, which a drag of
-// a group header rewrites with a PATCH, as the h-comic and h-game detail pages
-// do.
+// Highlights is KR h-comics only) and the group order, which is the viewer's
+// own: a holder of self.personal_notes may drag a group header to save a new
+// one through PUT /api/me/highlight-group-order, as on the h-comic and h-game
+// detail pages. Who may write which section is the notes page's own rule.
 import { useState } from "react";
 
-import { endpoints } from "../../api/endpoints";
-import { useToast } from "../../hooks/useToast";
+import { useHighlightGroupOrderSaver } from "../../api/mutations/useMyHighlightGroupOrder";
+import { useAuth } from "../../contexts/AuthContext";
 import NotesTemplate from "../notes/NotesTemplate";
 
 export default function AddedEntryNotes({ ownerType, entry, name }) {
-  const { showToast } = useToast();
-  const [groupOrder, setGroupOrder] = useState(entry.highlight_group_order);
-
-  async function saveGroupOrder(names) {
-    setGroupOrder(names);
-    try {
-      const res = await fetch(endpoints.resource(ownerType).patch(entry.system_id), {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ highlight_group_order: names }),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Sync failed");
-      showToast("success", "Group order saved");
-    } catch {
-      showToast("error", "Update failed");
-    }
-  }
+  const auth = useAuth();
+  const ownsOrder = Boolean(auth?.has?.("self.personal_notes"));
+  const [row, setRow] = useState(entry);
+  const saveGroupOrder = useHighlightGroupOrderSaver(ownerType, entry.system_id, setRow);
 
   return (
     <section className="mb-6 space-y-2" aria-label={`Notes for ${name}`}>
@@ -48,10 +35,9 @@ export default function AddedEntryNotes({ ownerType, entry, name }) {
         key={entry.system_id}
         ownerType={ownerType}
         ownerId={entry.system_id}
-        isAdmin={true}
         owner={entry}
-        groupOrder={groupOrder}
-        onGroupOrderChange={saveGroupOrder}
+        groupOrder={row.highlight_group_order}
+        onGroupOrderChange={ownsOrder ? saveGroupOrder : undefined}
       />
     </section>
   );

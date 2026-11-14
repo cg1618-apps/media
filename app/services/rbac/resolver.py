@@ -3,8 +3,9 @@ Request -> Viewer.
 
 One function answers "who is asking" for every route, authenticated or not.
 It never raises: a missing, malformed, expired or badly-signed cookie, a user
-row that has since been deleted, and a role that no longer exists all resolve
-to the guest viewer. Failing closed rather than erroring is what lets the same
+row that has since been deleted, an account that is not active, a token whose
+sessions were revoked, and a role that no longer exists all resolve to the
+guest viewer. Failing closed rather than erroring is what lets the same
 call serve /api/auth/me, which three tests require never to raise, and the
 public read routes, which must stay public.
 """
@@ -20,18 +21,26 @@ from sqlalchemy.orm import Session
 
 from app import models
 from app.dependencies import ALGORITHM, SECRET_KEY, get_db
+from app.models.system import USER_STATUS_ACTIVE
 from app.services.rbac import cache
 from app.services.rbac.modes import default_mode_id, resolve_mode
 from app.services.rbac.permissions import (
-    FAMILY_SELF,
     PERM_ADMIN_AUTHZ,
+    PERM_MANAGE_ANNOUNCEMENTS,
     PERM_MANAGE_CATALOG,
+    PERM_MANAGE_IMAGES,
+    PERM_MANAGE_OPTIONS,
     PERM_MANAGE_PIPELINES,
-    PERM_VIEW_ENTITIES,
-    PERM_VIEW_EXTRAS,
-    PERM_VIEW_PERSONAL,
+    PERM_MANAGE_REQUESTS,
+    PERM_MANAGE_RESOURCES,
+    PERM_SELF_REQUESTS,
+    PERM_VIEW_CHARACTER,
+    PERM_VIEW_PERSON,
+    PERM_VIEW_PUBLISHER,
+    PERM_VIEW_RANDOM_PICKER,
     PERM_VIEW_SEARCH,
-    split_perm,
+    PERM_VIEW_STATISTICS,
+    PERM_VIEW_STUDIO,
 )
 
 GUEST_ROLE = "guest"
@@ -52,7 +61,6 @@ class Viewer:
     username: Optional[str]
     role_id: Optional[UUID]
     role_name: str
-    is_root: bool
     permissions: frozenset[str]
     # The resolved user's id, so a request can join their user_media_list row
     # without a second lookup. None for a guest - see user_list.acting_user_id
@@ -96,29 +104,13 @@ class Viewer:
 
     def has(self, permission: str) -> bool:
         """
-        Whether this viewer holds one permission.
-
-        THE ROOT SHORT-CIRCUIT DOES NOT COVER THE `self` FAMILY, and that
-        is the whole of "an admin account holds no user data" (spec:
-        docs/notes/decisions.md ("Admin holds no user data")).
-        `self.list` and `self.personal_notes` are not privileges - they are
-        OWNERSHIP, the right to keep rows of your own. "May do anything to the
-        system" and "has a personal library" are different claims, and
-        conflating them is how every personal row in the first installation
-        came to belong to the `admin` account.
-
-        Expressed here rather than as refusals in the write routes on purpose:
-        a rule spelled out in twenty routers is a rule that will be missing
-        from the twenty-first. The SPA's AuthContext.has() mirrors this -
-        both halves or neither, or the two surfaces disagree about what the
-        admin may see and the nav advertises a page the API refuses.
-
-        Everything else still short-circuits, so a content label or a media
-        type added tomorrow hides nothing from an admin.
+        Whether this viewer holds one permission: a set membership test, for
+        every role. No role short-circuits - the admin holds exactly its
+        fixed set (permissions.ADMIN_FIXED_PERMISSIONS), so a permission or
+        a media type added tomorrow reaches it only by being granted. The
+        SPA's AuthContext.has() is the same test.
         """
-        if split_perm(permission)[0] == FAMILY_SELF:
-            return permission in self.permissions
-        return self.is_root or permission in self.permissions
+        return permission in self.permissions
 
 
 # The object-set fields take their defaults, which are empty - already the
@@ -129,7 +121,6 @@ GUEST_FALLBACK = Viewer(
     username=None,
     role_id=None,
     role_name=GUEST_ROLE,
-    is_root=False,
     permissions=frozenset(),
 )
 
@@ -195,6 +186,25 @@ def role_for_user(db: Session, user: Optional[models.User]) -> Optional[models.R
     return db.query(models.Role).filter(models.Role.name == GUEST_ROLE).first()
 
 
+def session_is_current(user: models.User, payload: dict[str, Any]) -> bool:
+    """
+    Whether a login token still speaks for its account.
+
+    Only an `active` account has sessions, and only a token whose `sv` claim
+    equals users.session_version is one of them - the column is incremented
+    by revoke_sessions() (app/services/domain/accounts.py) to end every
+    session at once. A token with no `sv` predates the claim and reads as 0,
+    every account's starting value, so the deploy that added it signed
+    nobody out. A claim that is not an integer reads as a mismatch.
+    """
+    if user.status != USER_STATUS_ACTIVE:
+        return False
+    try:
+        return int(payload.get("sv", 0)) == (user.session_version or 0)
+    except (TypeError, ValueError):
+        return False
+
+
 def resolve_viewer(request: Request, db: Session) -> Viewer:
     """
     A plain function, not a dependency, so /api/auth/me and the capability
@@ -210,6 +220,8 @@ def resolve_viewer(request: Request, db: Session) -> Viewer:
                 .filter(models.User.username == payload["sub"])
                 .first()
             )
+            if user is not None and not session_is_current(user, payload):
+                user = None
 
         role = role_for_user(db, user)
         if role is None:
@@ -239,7 +251,6 @@ def resolve_viewer(request: Request, db: Session) -> Viewer:
             user_id=user.id if user else None,
             role_id=role.system_id,
             role_name=role.name,
-            is_root=bool(role.is_root),
             permissions=cache.permissions_for(db, role.system_id),
             token_payload=payload,
             mode_id=mode.mode_id,
@@ -286,13 +297,33 @@ require_admin_authz = require_permission(PERM_ADMIN_AUTHZ)
 require_manage_catalog = require_permission(PERM_MANAGE_CATALOG)
 require_manage_pipelines = require_permission(PERM_MANAGE_PIPELINES)
 
+# The admin's own pages, each on its own key rather than manage.catalog, so
+# that reaching them writes no catalogue row. /api/resources asks its key for
+# reads as well as writes: the site-wide Resources page is the admin's and
+# super's alone.
+require_manage_announcements = require_permission(PERM_MANAGE_ANNOUNCEMENTS)
+require_manage_options = require_permission(PERM_MANAGE_OPTIONS)
+require_manage_images = require_permission(PERM_MANAGE_IMAGES)
+require_manage_resources = require_permission(PERM_MANAGE_RESOURCES)
+
 # The view gates: reads a guest does not get. Bound per read route rather than
 # on the router, so that a write on the same router answers to manage.catalog
 # alone and a role holding that is not also required to hold the read.
-require_view_entities = require_permission(PERM_VIEW_ENTITIES)
+# One gate per entity kind. The person gate covers the seiyuu library
+# (/api/person?role=seiyuu) and the character gate covers identities.
+require_view_studio = require_permission(PERM_VIEW_STUDIO)
+require_view_publisher = require_permission(PERM_VIEW_PUBLISHER)
+require_view_person = require_permission(PERM_VIEW_PERSON)
+require_view_character = require_permission(PERM_VIEW_CHARACTER)
 require_view_search = require_permission(PERM_VIEW_SEARCH)
-require_view_extras = require_permission(PERM_VIEW_EXTRAS)
-require_view_personal = require_permission(PERM_VIEW_PERSONAL)
+require_view_random_picker = require_permission(PERM_VIEW_RANDOM_PICKER)
+require_view_statistics = require_permission(PERM_VIEW_STATISTICS)
+
+# Requests and reports: the only two gates /api/requests uses. Filing is a
+# self.* permission, which the admin role has locked off - an administrative
+# account handles requests and files none.
+require_file_requests = require_permission(PERM_SELF_REQUESTS)
+require_handle_requests = require_permission(PERM_MANAGE_REQUESTS)
 
 
 def viewer_user_id(viewer) -> Optional[UUID]:

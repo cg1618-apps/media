@@ -12,7 +12,7 @@ round trip through an older one:
           reference somewhere to read *about* it - a wiki, a database
 
   bucket  main       a vocabulary platform, pointed at by option_id
-          other      free-form, gated by the sources_other field group
+          other      free-form, shown to every viewer
           restricted free-form, gated by sources_restricted
 
 A row carries exactly one target: option_id for a vocabulary platform, name for

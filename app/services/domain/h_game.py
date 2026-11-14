@@ -40,7 +40,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.services.domain.gated_labels import ensure_entry_label
-from app.services.domain.h_comic import check_usefulness, normalize_group_order
+from app.services.domain.h_comic import check_usefulness
 from app.services.domain.hierarchy import check_entry_franchise_family
 from app.utils.constants import (
     GAME_IS_MAIN,
@@ -191,7 +191,6 @@ def _validate_catalog(entry) -> None:
         setattr(
             entry, column, normalize_choice_list(getattr(entry, column), allowed, label)
         )
-    entry.highlight_group_order = normalize_group_order(entry.highlight_group_order)
 
 
 def h_game_progress_hook(db: Session, entry) -> None:

@@ -6,7 +6,7 @@ The picture order is walked one step at a time by removing what the step
 before it would have used, so each assertion can only pass on the step it
 names. The refusal tests make the hidden set non-empty - `hidden_anime`
 carries a label the guest's mode lacks, and the h-comic is stamped with its
-gated label by the API - and read the SAME record back through `admin_client`,
+gated label by the API - and read the SAME record back through `owner_client`,
 whose mode carries every label, so a green proves the gate did the hiding.
 
 Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
@@ -129,46 +129,46 @@ def cast_character(db_session, sample_franchise):
     return {"character": character, "older": older, "coverless": coverless, "newer": newer}
 
 
-def test_step_1_the_characters_own_photo_wins(admin_client, db_session, cast_character):
+def test_step_1_the_characters_own_photo_wins(owner_client, db_session, cast_character):
     c = cast_character
     _set(
         db_session, c["character"],
         photo_file="own.jpg", photo_fallback_entry_id=c["older"].system_id,
     )
-    assert _get(admin_client, "character", c["character"])["display_photo_file"] == "own.jpg"
+    assert _get(owner_client, "character", c["character"])["display_photo_file"] == "own.jpg"
 
 
 def test_step_2_the_chosen_entrys_casting_photo_beats_its_cover(
-    admin_client, db_session, cast_character
+    owner_client, db_session, cast_character
 ):
     # The 2020 anime has both a cover (a.jpg) and a casting photo (cast_a.jpg);
     # how the character looks there wins over the entry's own cover.
     c = cast_character
     _set(db_session, c["character"], photo_fallback_entry_id=c["older"].system_id)
-    body = _get(admin_client, "character", c["character"])
+    body = _get(owner_client, "character", c["character"])
     assert body["display_photo_file"] == "cast_a.jpg"
     assert body["photo_fallback_entry_id"] == str(c["older"].system_id)
 
 
 def test_step_3_a_chosen_entry_without_a_casting_photo_gives_its_cover(
-    admin_client, db_session, cast_character
+    owner_client, db_session, cast_character
 ):
     # Auto would give cast_m.jpg (step 4), so b.jpg can only be the choice.
     c = cast_character
     _set(db_session, c["character"], photo_fallback_entry_id=c["newer"].system_id)
-    assert _get(admin_client, "character", c["character"])["display_photo_file"] == "b.jpg"
+    assert _get(owner_client, "character", c["character"])["display_photo_file"] == "b.jpg"
 
 
-def test_step_4_auto_is_the_newest_casting_photo(admin_client, cast_character):
+def test_step_4_auto_is_the_newest_casting_photo(owner_client, cast_character):
     # cast_a.jpg is first by position and the 2022 anime has a cover; only
     # "newest casting photo, before any cover" gives cast_m.jpg.
-    body = _get(admin_client, "character", cast_character["character"])
+    body = _get(owner_client, "character", cast_character["character"])
     assert body["display_photo_file"] == "cast_m.jpg"
     assert body["photo_fallback_entry_id"] is None
 
 
 def test_step_5_no_casting_photo_anywhere_gives_the_newest_cover(
-    admin_client, db_session, cast_character
+    owner_client, db_session, cast_character
 ):
     db_session.query(models.CharacterCasting).filter_by(
         character_id=cast_character["character"].system_id
@@ -176,46 +176,46 @@ def test_step_5_no_casting_photo_anywhere_gives_the_newest_cover(
     db_session.flush()
     db_session.expire_all()
     # a.jpg is first by position; b.jpg is on the newest entry with a cover.
-    body = _get(admin_client, "character", cast_character["character"])
+    body = _get(owner_client, "character", cast_character["character"])
     assert body["display_photo_file"] == "b.jpg"
 
 
 def test_one_casting_gives_its_photo_then_its_entrys_cover(
-    admin_client, db_session, sample_franchise
+    owner_client, db_session, sample_franchise
 ):
     """A character cast once: the casting photo, and the cover once it is gone."""
     entry = _anime(db_session, sample_franchise, "Only", "2021-01", cover="only.jpg")
     character = _character(db_session)
     _cast(db_session, character, entry, "anime", 0, photo="only_cast.jpg")
-    assert _get(admin_client, "character", character)["display_photo_file"] == "only_cast.jpg"
+    assert _get(owner_client, "character", character)["display_photo_file"] == "only_cast.jpg"
     db_session.query(models.CharacterCasting).filter_by(
         character_id=character.system_id
     ).update({"photo_file": None})
     db_session.flush()
     db_session.expire_all()
-    assert _get(admin_client, "character", character)["display_photo_file"] == "only.jpg"
+    assert _get(owner_client, "character", character)["display_photo_file"] == "only.jpg"
 
 
-def test_step_6_nothing_at_all_is_null(admin_client, db_session, sample_franchise):
+def test_step_6_nothing_at_all_is_null(owner_client, db_session, sample_franchise):
     entry = _anime(db_session, sample_franchise, "Bare", "2021-01")
     character = _character(db_session)
     _cast(db_session, character, entry, "anime", 0)
-    assert _get(admin_client, "character", character)["display_photo_file"] is None
+    assert _get(owner_client, "character", character)["display_photo_file"] is None
 
 
-def test_a_stale_choice_falls_through_to_auto(admin_client, db_session, cast_character):
+def test_a_stale_choice_falls_through_to_auto(owner_client, db_session, cast_character):
     _set(db_session, cast_character["character"], photo_fallback_entry_id=uuid.uuid4())
-    body = _get(admin_client, "character", cast_character["character"])
+    body = _get(owner_client, "character", cast_character["character"])
     assert body["display_photo_file"] == "cast_m.jpg"
     assert body["photo_fallback_entry_id"] is None
 
 
-def test_the_list_resolves_the_same_picture(admin_client, db_session, cast_character):
+def test_the_list_resolves_the_same_picture(owner_client, db_session, cast_character):
     _set(
         db_session, cast_character["character"],
         photo_fallback_entry_id=cast_character["older"].system_id,
     )
-    rows = {r["system_id"]: r for r in admin_client.get("/api/character/").json()}
+    rows = {r["system_id"]: r for r in owner_client.get("/api/character/").json()}
     assert rows[str(cast_character["character"].system_id)]["display_photo_file"] == "cast_a.jpg"
 
 
@@ -240,20 +240,20 @@ def half_hidden_character(db_session, sample_franchise, hidden_anime):
 
 
 def test_auto_never_picks_a_hidden_entrys_casting_photo(
-    guest_reader, admin_client, half_hidden_character
+    guest_reader, owner_client, half_hidden_character
 ):
     c = half_hidden_character
     assert _get(guest_reader, "character", c["character"])["display_photo_file"] == "v.jpg"
     # The mirror, same fixture: the hidden casting photo IS the auto choice
     # for a viewer who can see it, so the guest's v.jpg was the gate refusing.
     assert (
-        _get(admin_client, "character", c["character"])["display_photo_file"]
+        _get(owner_client, "character", c["character"])["display_photo_file"]
         == "hidden_cast.jpg"
     )
 
 
 def test_auto_never_picks_a_hidden_entrys_cover(
-    guest_reader, admin_client, db_session, half_hidden_character
+    guest_reader, owner_client, db_session, half_hidden_character
 ):
     c = half_hidden_character
     db_session.query(models.CharacterCasting).filter_by(
@@ -262,28 +262,28 @@ def test_auto_never_picks_a_hidden_entrys_cover(
     db_session.flush()
     db_session.expire_all()
     assert _get(guest_reader, "character", c["character"])["display_photo_file"] == "v.jpg"
-    assert _get(admin_client, "character", c["character"])["display_photo_file"] == "hidden.jpg"
+    assert _get(owner_client, "character", c["character"])["display_photo_file"] == "hidden.jpg"
 
 
 def test_a_chosen_hidden_entry_is_neither_used_nor_named(
-    guest_reader, admin_client, db_session, half_hidden_character
+    guest_reader, owner_client, db_session, half_hidden_character
 ):
     c = half_hidden_character
     _set(db_session, c["character"], photo_fallback_entry_id=c["hidden"].system_id)
     guest = _get(guest_reader, "character", c["character"])
     assert guest["display_photo_file"] == "v.jpg"
     assert guest["photo_fallback_entry_id"] is None
-    admin = _get(admin_client, "character", c["character"])
+    admin = _get(owner_client, "character", c["character"])
     assert admin["display_photo_file"] == "hidden_cast.jpg"
     assert admin["photo_fallback_entry_id"] == str(c["hidden"].system_id)
 
 
 def test_the_guest_list_does_not_use_the_hidden_picture(
-    guest_reader, admin_client, half_hidden_character
+    guest_reader, owner_client, half_hidden_character
 ):
     key = str(half_hidden_character["character"].system_id)
     guest = {r["system_id"]: r for r in guest_reader.get("/api/character/").json()}
-    admin = {r["system_id"]: r for r in admin_client.get("/api/character/").json()}
+    admin = {r["system_id"]: r for r in owner_client.get("/api/character/").json()}
     assert guest[key]["display_photo_file"] == "v.jpg"
     assert admin[key]["display_photo_file"] == "hidden_cast.jpg"
 
@@ -309,31 +309,31 @@ def credited_person(db_session, sample_franchise):
     return {"person": person, "manga": manga, "anime": anime}
 
 
-def test_person_own_photo_wins(admin_client, db_session, credited_person):
+def test_person_own_photo_wins(owner_client, db_session, credited_person):
     _set(db_session, credited_person["person"], photo_file="own.jpg")
-    assert _get(admin_client, "person", credited_person["person"])["display_photo_file"] == "own.jpg"
+    assert _get(owner_client, "person", credited_person["person"])["display_photo_file"] == "own.jpg"
 
 
-def test_person_chosen_entry_beats_a_newer_one(admin_client, db_session, credited_person):
+def test_person_chosen_entry_beats_a_newer_one(owner_client, db_session, credited_person):
     p = credited_person
     _set(db_session, p["person"], photo_fallback_entry_id=p["manga"].system_id)
-    assert _get(admin_client, "person", p["person"])["display_photo_file"] == "m.jpg"
+    assert _get(owner_client, "person", p["person"])["display_photo_file"] == "m.jpg"
 
 
-def test_person_auto_counts_a_seiyuu_casting(admin_client, credited_person):
+def test_person_auto_counts_a_seiyuu_casting(owner_client, credited_person):
     """The newer entry is reached only through character_casting."""
-    assert _get(admin_client, "person", credited_person["person"])["display_photo_file"] == "a.jpg"
+    assert _get(owner_client, "person", credited_person["person"])["display_photo_file"] == "a.jpg"
 
 
-def test_person_never_uses_a_casting_photo(admin_client, db_session, credited_person):
+def test_person_never_uses_a_casting_photo(owner_client, db_session, credited_person):
     """A casting photo is the character's picture, not the seiyuu's."""
     for key in ("manga", "anime"):
         _set_cover(db_session, credited_person[key], None)
-    assert _get(admin_client, "person", credited_person["person"])["display_photo_file"] is None
+    assert _get(owner_client, "person", credited_person["person"])["display_photo_file"] is None
 
 
 def test_person_auto_never_picks_a_hidden_entrys_cover(
-    guest_reader, admin_client, db_session, credited_person, hidden_anime
+    guest_reader, owner_client, db_session, credited_person, hidden_anime
 ):
     p = credited_person
     _set(db_session, hidden_anime, release_date="2024-01")
@@ -345,7 +345,7 @@ def test_person_auto_never_picks_a_hidden_entrys_cover(
     )
     db_session.flush()
     assert _get(guest_reader, "person", p["person"])["display_photo_file"] == "a.jpg"
-    assert _get(admin_client, "person", p["person"])["display_photo_file"] == "hidden.jpg"
+    assert _get(owner_client, "person", p["person"])["display_photo_file"] == "hidden.jpg"
 
 
 # ---------------------------------------------------------------------------
@@ -353,20 +353,20 @@ def test_person_auto_never_picks_a_hidden_entrys_cover(
 # ---------------------------------------------------------------------------
 
 
-def _h_comic(admin_client, db_session):
-    body = admin_client.post(
+def _h_comic(owner_client, db_session):
+    body = owner_client.post(
         "/api/h-comic/", json={"h_comic_name_cn": "Zvornik Photo H-Comic", "region": "KR"}
     ).json()
     entry_id = uuid.UUID(body["system_id"])
-    assert label_keys_for_entry(db_session, entry_id) == ["h-comic"]
+    assert label_keys_for_entry(db_session, entry_id) == ["h-comic", "nsfw"]
     return entry_id
 
 
 def test_media_types_are_the_visible_ones_and_restricted_follows_them(
-    guest_reader, admin_client, db_session, cast_character
+    guest_reader, owner_client, db_session, cast_character
 ):
     character = cast_character["character"]
-    h_comic_id = _h_comic(admin_client, db_session)
+    h_comic_id = _h_comic(owner_client, db_session)
     db_session.add(
         models.CharacterCasting(
             character_id=character.system_id, media_type="h-comic", entry_id=h_comic_id
@@ -374,7 +374,7 @@ def test_media_types_are_the_visible_ones_and_restricted_follows_them(
     )
     db_session.flush()
 
-    admin = _get(admin_client, "character", character)
+    admin = _get(owner_client, "character", character)
     assert admin["media_types"] == ["anime", "h-comic", "manga"]
     assert admin["restricted"] is True
 
@@ -383,15 +383,15 @@ def test_media_types_are_the_visible_ones_and_restricted_follows_them(
     assert guest["restricted"] is False
 
 
-def test_person_media_types_span_credits_and_castings(admin_client, credited_person):
-    body = _get(admin_client, "person", credited_person["person"])
+def test_person_media_types_span_credits_and_castings(owner_client, credited_person):
+    body = _get(owner_client, "person", credited_person["person"])
     assert body["media_types"] == ["anime", "manga"]
     assert body["restricted"] is False
 
 
-def test_an_unlinked_record_has_no_media_types(admin_client, db_session):
+def test_an_unlinked_record_has_no_media_types(owner_client, db_session):
     character = _character(db_session)
-    body = _get(admin_client, "character", character)
+    body = _get(owner_client, "character", character)
     assert body["media_types"] == []
     assert body["restricted"] is False
     assert body["casting_count"] == 0
@@ -422,7 +422,7 @@ def _count_queries(db_session, client, url):
 
 @pytest.mark.parametrize("kind", ["character", "person"])
 def test_the_list_query_count_does_not_grow_with_the_row_count(
-    admin_client, db_session, sample_franchise, kind
+    owner_client, db_session, sample_franchise, kind
 ):
     def add(start, stop):
         for i in range(start, stop):
@@ -440,10 +440,10 @@ def test_the_list_query_count_does_not_grow_with_the_row_count(
         db_session.commit()
 
     add(0, 2)
-    admin_client.get(f"/api/{kind}/")  # warm the permission cache
-    two, body = _count_queries(db_session, admin_client, f"/api/{kind}/")
+    owner_client.get(f"/api/{kind}/")  # warm the permission cache
+    two, body = _count_queries(db_session, owner_client, f"/api/{kind}/")
     assert len(body) >= 2
     add(2, 5)
-    five, body = _count_queries(db_session, admin_client, f"/api/{kind}/")
+    five, body = _count_queries(db_session, owner_client, f"/api/{kind}/")
     assert len(body) >= 5
     assert five == two, "query count grew with the number of rows"

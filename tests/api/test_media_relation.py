@@ -73,9 +73,9 @@ def test_kinds_lists_the_fifteen_user_facing_choices(client):
 
 
 def test_creating_a_prequel_stores_a_swapped_sequel_row(
-    admin_client, db_session, sample_anime, second_anime
+    owner_client, db_session, sample_anime, second_anime
 ):
-    res = admin_client.post(
+    res = owner_client.post(
         "/api/media-relation/",
         json={
             "from_type": "anime",
@@ -95,9 +95,9 @@ def test_creating_a_prequel_stores_a_swapped_sequel_row(
 
 
 def test_creating_a_cross_media_type_adaptation(
-    admin_client, sample_anime, sample_manga_entry
+    owner_client, sample_anime, sample_manga_entry
 ):
-    res = admin_client.post(
+    res = owner_client.post(
         "/api/media-relation/",
         json={
             "from_type": "anime",
@@ -113,9 +113,9 @@ def test_creating_a_cross_media_type_adaptation(
 
 
 def test_the_same_alternative_entered_from_either_side_is_one_row(
-    admin_client, db_session, sample_anime, second_anime
+    owner_client, db_session, sample_anime, second_anime
 ):
-    first = admin_client.post(
+    first = owner_client.post(
         "/api/media-relation/",
         json={
             "from_type": "anime", "from_id": str(sample_anime.system_id),
@@ -125,7 +125,7 @@ def test_the_same_alternative_entered_from_either_side_is_one_row(
     )
     assert first.status_code == 201
 
-    second = admin_client.post(
+    second = owner_client.post(
         "/api/media-relation/",
         json={
             "from_type": "anime", "from_id": str(second_anime.system_id),
@@ -139,12 +139,12 @@ def test_the_same_alternative_entered_from_either_side_is_one_row(
 
 
 def test_the_same_corresponding_entered_from_either_side_is_one_row(
-    admin_client, db_session, sample_anime, second_anime
+    owner_client, db_session, sample_anime, second_anime
 ):
     # Corresponding is symmetric for the same reason Alternative is, so it has
     # to collapse the same way: three Fate/stay night routes are three rows,
     # and entering one of them from the other end must not make it a fourth.
-    first = admin_client.post(
+    first = owner_client.post(
         "/api/media-relation/",
         json={
             "from_type": "anime", "from_id": str(sample_anime.system_id),
@@ -155,7 +155,7 @@ def test_the_same_corresponding_entered_from_either_side_is_one_row(
     assert first.status_code == 201, first.text
     assert first.json()["relation_type"] == "corresponding"
 
-    second = admin_client.post(
+    second = owner_client.post(
         "/api/media-relation/",
         json={
             "from_type": "anime", "from_id": str(second_anime.system_id),
@@ -169,11 +169,11 @@ def test_the_same_corresponding_entered_from_either_side_is_one_row(
 
 
 def test_the_same_related_entered_from_either_side_is_one_row(
-    admin_client, db_session, sample_anime, second_anime
+    owner_client, db_session, sample_anime, second_anime
 ):
     # Related is symmetric, so it collapses the way Alternative does: the loose
     # link entered from the other end is the same fact, not a second row.
-    first = admin_client.post(
+    first = owner_client.post(
         "/api/media-relation/",
         json={
             "from_type": "anime", "from_id": str(sample_anime.system_id),
@@ -184,7 +184,7 @@ def test_the_same_related_entered_from_either_side_is_one_row(
     assert first.status_code == 201, first.text
     assert first.json()["relation_type"] == "related"
 
-    second = admin_client.post(
+    second = owner_client.post(
         "/api/media-relation/",
         json={
             "from_type": "anime", "from_id": str(second_anime.system_id),
@@ -198,7 +198,7 @@ def test_the_same_related_entered_from_either_side_is_one_row(
 
 
 def test_a_related_chain_does_not_expand_on_the_entry_page(
-    admin_client, client, db_session, sample_franchise, sample_anime, second_anime
+    owner_client, client, db_session, sample_franchise, sample_anime, second_anime
 ):
     # Related claims no sameness, so unlike Corresponding a chain of them
     # implies nothing: the entry page shows the stored neighbour only.
@@ -211,7 +211,7 @@ def test_a_related_chain_does_not_expand_on_the_entry_page(
     db_session.flush()
 
     for left, right in ((sample_anime, second_anime), (second_anime, third)):
-        res = admin_client.post(
+        res = owner_client.post(
             "/api/media-relation/",
             json={
                 "from_type": "anime", "from_id": str(left.system_id),
@@ -232,11 +232,11 @@ def test_a_related_chain_does_not_expand_on_the_entry_page(
 
 
 def test_a_dlc_reads_as_base_game_from_the_other_side(
-    admin_client, client, sample_anime, second_anime
+    owner_client, client, sample_anime, second_anime
 ):
     # Directional: the row stores the DLC as `from`, and the base game's page
     # reads the same row back through the inverse label.
-    res = admin_client.post(
+    res = owner_client.post(
         "/api/media-relation/",
         json={
             "from_type": "anime", "from_id": str(second_anime.system_id),
@@ -260,12 +260,12 @@ def test_a_dlc_reads_as_base_game_from_the_other_side(
 
 
 def test_corresponding_and_alternative_are_separate_rows_on_one_pair(
-    admin_client, db_session, sample_anime, second_anime
+    owner_client, db_session, sample_anime, second_anime
 ):
     # The unique index is over the pair AND the kind, so the two neighbouring
     # equivalence kinds do not shadow each other: a pair may be marked both.
     for kind in ("alternative", "corresponding"):
-        res = admin_client.post(
+        res = owner_client.post(
             "/api/media-relation/",
             json={
                 "from_type": "anime", "from_id": str(sample_anime.system_id),
@@ -278,8 +278,8 @@ def test_corresponding_and_alternative_are_separate_rows_on_one_pair(
     assert db_session.query(models.MediaRelation).count() == 2
 
 
-def test_self_relation_is_refused(admin_client, sample_anime):
-    res = admin_client.post(
+def test_self_relation_is_refused(owner_client, sample_anime):
+    res = owner_client.post(
         "/api/media-relation/",
         json={
             "from_type": "anime", "from_id": str(sample_anime.system_id),
@@ -291,8 +291,8 @@ def test_self_relation_is_refused(admin_client, sample_anime):
     assert "itself" in res.json()["detail"].lower()
 
 
-def test_an_unknown_kind_is_refused(admin_client, sample_anime, second_anime):
-    res = admin_client.post(
+def test_an_unknown_kind_is_refused(owner_client, sample_anime, second_anime):
+    res = owner_client.post(
         "/api/media-relation/",
         json={
             "from_type": "anime", "from_id": str(sample_anime.system_id),
@@ -304,8 +304,8 @@ def test_an_unknown_kind_is_refused(admin_client, sample_anime, second_anime):
     assert "nemesis" in res.json()["detail"]
 
 
-def test_an_unknown_media_type_is_refused(admin_client, sample_anime):
-    res = admin_client.post(
+def test_an_unknown_media_type_is_refused(owner_client, sample_anime):
+    res = owner_client.post(
         "/api/media-relation/",
         json={
             "from_type": "anime", "from_id": str(sample_anime.system_id),
@@ -316,8 +316,8 @@ def test_an_unknown_media_type_is_refused(admin_client, sample_anime):
     assert res.status_code == 400
 
 
-def test_a_nonexistent_entry_is_refused(admin_client, sample_anime):
-    res = admin_client.post(
+def test_a_nonexistent_entry_is_refused(owner_client, sample_anime):
+    res = owner_client.post(
         "/api/media-relation/",
         json={
             "from_type": "anime", "from_id": str(sample_anime.system_id),
@@ -346,9 +346,9 @@ def test_creating_requires_admin(client, sample_anime, second_anime):
 
 
 def test_for_entry_returns_both_directions_with_correct_labels(
-    admin_client, client, sample_anime, second_anime
+    owner_client, client, sample_anime, second_anime
 ):
-    admin_client.post(
+    owner_client.post(
         "/api/media-relation/",
         json={
             "from_type": "anime", "from_id": str(second_anime.system_id),
@@ -382,9 +382,9 @@ def test_for_entry_is_public(client, sample_anime):
 
 
 def test_scope_listing_returns_relations_within_a_franchise(
-    admin_client, client, sample_franchise, sample_anime, second_anime
+    owner_client, client, sample_franchise, sample_anime, second_anime
 ):
-    admin_client.post(
+    owner_client.post(
         "/api/media-relation/",
         json={
             "from_type": "anime", "from_id": str(second_anime.system_id),
@@ -410,9 +410,9 @@ def test_scope_listing_requires_exactly_one_scope(client):
 
 
 def test_patching_the_kind_renormalizes(
-    admin_client, db_session, sample_anime, second_anime
+    owner_client, db_session, sample_anime, second_anime
 ):
-    created = admin_client.post(
+    created = owner_client.post(
         "/api/media-relation/",
         json={
             "from_type": "anime", "from_id": str(second_anime.system_id),
@@ -421,7 +421,7 @@ def test_patching_the_kind_renormalizes(
         },
     ).json()
 
-    res = admin_client.patch(
+    res = owner_client.patch(
         f"/api/media-relation/{created['system_id']}",
         json={"kind": "prequel"},
     )
@@ -436,9 +436,9 @@ def test_patching_the_kind_renormalizes(
 
 
 def test_patching_only_the_remark_leaves_direction_alone(
-    admin_client, db_session, sample_anime, second_anime
+    owner_client, db_session, sample_anime, second_anime
 ):
-    created = admin_client.post(
+    created = owner_client.post(
         "/api/media-relation/",
         json={
             "from_type": "anime", "from_id": str(second_anime.system_id),
@@ -447,7 +447,7 @@ def test_patching_only_the_remark_leaves_direction_alone(
         },
     ).json()
 
-    res = admin_client.patch(
+    res = owner_client.patch(
         f"/api/media-relation/{created['system_id']}",
         json={"remark": "picks up right after"},
     )
@@ -460,11 +460,11 @@ def test_patching_only_the_remark_leaves_direction_alone(
 
 
 def test_swapping_flips_the_stored_endpoints(
-    admin_client, db_session, sample_anime, sample_manga_entry
+    owner_client, db_session, sample_anime, sample_manga_entry
 ):
     # Adaptation has no inverse input kind, so a swap is the only way to say
     # the derivation runs the other way.
-    created = admin_client.post(
+    created = owner_client.post(
         "/api/media-relation/",
         json={
             "from_type": "anime", "from_id": str(sample_anime.system_id),
@@ -473,7 +473,7 @@ def test_swapping_flips_the_stored_endpoints(
         },
     ).json()
 
-    res = admin_client.patch(
+    res = owner_client.patch(
         f"/api/media-relation/{created['system_id']}",
         json={"swap": True},
     )
@@ -487,11 +487,11 @@ def test_swapping_flips_the_stored_endpoints(
 
 
 def test_swapping_a_symmetric_kind_leaves_the_row_alone(
-    admin_client, db_session, sample_anime, second_anime
+    owner_client, db_session, sample_anime, second_anime
 ):
     # Alternative sorts its endpoints, so both directions are the same row.
     # The swap normalizes straight back rather than erroring.
-    created = admin_client.post(
+    created = owner_client.post(
         "/api/media-relation/",
         json={
             "from_type": "anime", "from_id": str(sample_anime.system_id),
@@ -500,7 +500,7 @@ def test_swapping_a_symmetric_kind_leaves_the_row_alone(
         },
     ).json()
 
-    res = admin_client.patch(
+    res = owner_client.patch(
         f"/api/media-relation/{created['system_id']}",
         json={"swap": True},
     )
@@ -513,11 +513,11 @@ def test_swapping_a_symmetric_kind_leaves_the_row_alone(
 
 
 def test_swapping_into_an_existing_relation_is_refused(
-    admin_client, db_session, sample_anime, sample_manga_entry
+    owner_client, db_session, sample_anime, sample_manga_entry
 ):
     # The flipped row would duplicate one already stored, which the unique
     # index would otherwise turn into a 500.
-    kept = admin_client.post(
+    kept = owner_client.post(
         "/api/media-relation/",
         json={
             "from_type": "manga", "from_id": str(sample_manga_entry.system_id),
@@ -525,7 +525,7 @@ def test_swapping_into_an_existing_relation_is_refused(
             "to_type": "anime", "to_id": str(sample_anime.system_id),
         },
     ).json()
-    other = admin_client.post(
+    other = owner_client.post(
         "/api/media-relation/",
         json={
             "from_type": "anime", "from_id": str(sample_anime.system_id),
@@ -534,7 +534,7 @@ def test_swapping_into_an_existing_relation_is_refused(
         },
     ).json()
 
-    res = admin_client.patch(
+    res = owner_client.patch(
         f"/api/media-relation/{other['system_id']}",
         json={"swap": True},
     )
@@ -546,9 +546,9 @@ def test_swapping_into_an_existing_relation_is_refused(
 
 
 def test_swapping_and_changing_the_kind_together(
-    admin_client, db_session, sample_anime, sample_manga_entry
+    owner_client, db_session, sample_anime, sample_manga_entry
 ):
-    created = admin_client.post(
+    created = owner_client.post(
         "/api/media-relation/",
         json={
             "from_type": "anime", "from_id": str(sample_anime.system_id),
@@ -557,7 +557,7 @@ def test_swapping_and_changing_the_kind_together(
         },
     ).json()
 
-    res = admin_client.patch(
+    res = owner_client.patch(
         f"/api/media-relation/{created['system_id']}",
         json={"swap": True, "kind": "side_story"},
     )
@@ -570,9 +570,9 @@ def test_swapping_and_changing_the_kind_together(
 
 
 def test_deleting_removes_the_row(
-    admin_client, db_session, sample_anime, second_anime
+    owner_client, db_session, sample_anime, second_anime
 ):
-    created = admin_client.post(
+    created = owner_client.post(
         "/api/media-relation/",
         json={
             "from_type": "anime", "from_id": str(second_anime.system_id),
@@ -581,13 +581,13 @@ def test_deleting_removes_the_row(
         },
     ).json()
 
-    res = admin_client.delete(f"/api/media-relation/{created['system_id']}")
+    res = owner_client.delete(f"/api/media-relation/{created['system_id']}")
     assert res.status_code == 200
     assert db_session.query(models.MediaRelation).count() == 0
 
 
-def test_deleting_an_unknown_id_is_404(admin_client):
-    assert admin_client.delete(
+def test_deleting_an_unknown_id_is_404(owner_client):
+    assert owner_client.delete(
         f"/api/media-relation/{uuid.uuid4()}"
     ).status_code == 404
 
@@ -616,9 +616,9 @@ def test_graph_lists_every_scope_entry_including_unconnected_ones(
 
 
 def test_graph_edges_carry_both_labels_and_the_family(
-    admin_client, client, sample_franchise, sample_anime, second_anime
+    owner_client, client, sample_franchise, sample_anime, second_anime
 ):
-    admin_client.post(
+    owner_client.post(
         "/api/media-relation/",
         json={
             "from_type": "anime",
@@ -647,7 +647,7 @@ def test_graph_edges_carry_both_labels_and_the_family(
 
 
 def test_graph_adds_a_ghost_node_for_an_out_of_scope_endpoint(
-    admin_client, client, db_session, sample_franchise, sample_anime
+    owner_client, client, db_session, sample_franchise, sample_anime
 ):
     import uuid as _uuid
 
@@ -666,7 +666,7 @@ def test_graph_adds_a_ghost_node_for_an_out_of_scope_endpoint(
     db_session.add(outsider)
     db_session.flush()
 
-    admin_client.post(
+    owner_client.post(
         "/api/media-relation/",
         json={
             "from_type": "anime",
@@ -692,7 +692,7 @@ def test_graph_adds_a_ghost_node_for_an_out_of_scope_endpoint(
 
 
 def test_graph_marks_a_dangling_target_as_missing(
-    admin_client, client, db_session, sample_franchise, sample_anime
+    owner_client, client, db_session, sample_franchise, sample_anime
 ):
     import uuid as _uuid
 
@@ -762,13 +762,13 @@ def test_graph_scope_can_be_a_series(
 
 
 def test_graph_series_scope_ghosts_a_sibling_outside_the_series(
-    admin_client, client, db_session, sample_series, sample_anime, second_anime
+    owner_client, client, db_session, sample_series, sample_anime, second_anime
 ):
     # A relation to an entry in the same franchise but a different series is
     # out of scope here, so it has to arrive as a ghost rather than vanish.
     sample_anime.series_id = sample_series.system_id
     db_session.flush()
-    admin_client.post(
+    owner_client.post(
         "/api/media-relation/",
         json={
             "from_type": "anime",
@@ -822,9 +822,9 @@ def test_graph_is_public(client, sample_franchise):
 
 
 def test_resetting_a_franchise_clears_every_relation_it_draws(
-    admin_client, db_session, sample_franchise, sample_anime, second_anime
+    owner_client, db_session, sample_franchise, sample_anime, second_anime
 ):
-    admin_client.post(
+    owner_client.post(
         "/api/media-relation/",
         json={
             "from_type": "anime",
@@ -835,7 +835,7 @@ def test_resetting_a_franchise_clears_every_relation_it_draws(
         },
     )
 
-    res = admin_client.delete(
+    res = owner_client.delete(
         "/api/media-relation/scope",
         params={"franchise_id": str(sample_franchise.system_id)},
     )
@@ -846,7 +846,7 @@ def test_resetting_a_franchise_clears_every_relation_it_draws(
 
 
 def test_resetting_removes_a_link_reaching_out_of_the_scope(
-    admin_client, db_session, sample_franchise, sample_anime
+    owner_client, db_session, sample_franchise, sample_anime
 ):
     # A cross-franchise link is drawn on this canvas as a ghost, so Reset has
     # to take it too - otherwise the press leaves a line still on screen.
@@ -864,7 +864,7 @@ def test_resetting_removes_a_link_reaching_out_of_the_scope(
     )
     db_session.add(outsider)
     db_session.flush()
-    admin_client.post(
+    owner_client.post(
         "/api/media-relation/",
         json={
             "from_type": "anime",
@@ -875,7 +875,7 @@ def test_resetting_removes_a_link_reaching_out_of_the_scope(
         },
     )
 
-    res = admin_client.delete(
+    res = owner_client.delete(
         "/api/media-relation/scope",
         params={"franchise_id": str(sample_franchise.system_id)},
     )
@@ -885,7 +885,7 @@ def test_resetting_removes_a_link_reaching_out_of_the_scope(
 
 
 def test_resetting_one_scope_leaves_an_unrelated_franchise_alone(
-    admin_client, db_session, sample_franchise, sample_anime, second_anime
+    owner_client, db_session, sample_franchise, sample_anime, second_anime
 ):
     other = models.Franchise(
         system_id=uuid.uuid4(),
@@ -907,7 +907,7 @@ def test_resetting_one_scope_leaves_an_unrelated_franchise_alone(
     db_session.add_all([left, right])
     db_session.flush()
     for pair in ((second_anime, sample_anime), (right, left)):
-        admin_client.post(
+        owner_client.post(
             "/api/media-relation/",
             json={
                 "from_type": "anime",
@@ -918,7 +918,7 @@ def test_resetting_one_scope_leaves_an_unrelated_franchise_alone(
             },
         )
 
-    res = admin_client.delete(
+    res = owner_client.delete(
         "/api/media-relation/scope",
         params={"franchise_id": str(sample_franchise.system_id)},
     )
@@ -930,13 +930,13 @@ def test_resetting_one_scope_leaves_an_unrelated_franchise_alone(
 
 
 def test_resetting_a_series_takes_only_that_series(
-    admin_client, db_session, sample_series, sample_anime, second_anime
+    owner_client, db_session, sample_series, sample_anime, second_anime
 ):
     # second_anime shares the franchise but not the series, so the row is
     # drawn on the series canvas as a ghost link and goes with the reset.
     sample_anime.series_id = sample_series.system_id
     db_session.flush()
-    admin_client.post(
+    owner_client.post(
         "/api/media-relation/",
         json={
             "from_type": "anime",
@@ -947,7 +947,7 @@ def test_resetting_a_series_takes_only_that_series(
         },
     )
 
-    res = admin_client.delete(
+    res = owner_client.delete(
         "/api/media-relation/scope",
         params={"series_id": str(sample_series.system_id)},
     )
@@ -957,7 +957,7 @@ def test_resetting_a_series_takes_only_that_series(
 
 
 def test_resetting_a_collection_covers_its_franchises(
-    admin_client, db_session, sample_collection, sample_collected_franchise
+    owner_client, db_session, sample_collection, sample_collected_franchise
 ):
     first = models.Anime(
         system_id=uuid.uuid4(),
@@ -971,7 +971,7 @@ def test_resetting_a_collection_covers_its_franchises(
     )
     db_session.add_all([first, second])
     db_session.flush()
-    admin_client.post(
+    owner_client.post(
         "/api/media-relation/",
         json={
             "from_type": "anime",
@@ -982,7 +982,7 @@ def test_resetting_a_collection_covers_its_franchises(
         },
     )
 
-    res = admin_client.delete(
+    res = owner_client.delete(
         "/api/media-relation/scope",
         params={"collection_id": str(sample_collection.system_id)},
     )
@@ -991,8 +991,8 @@ def test_resetting_a_collection_covers_its_franchises(
     assert db_session.query(models.MediaRelation).count() == 0
 
 
-def test_resetting_an_empty_scope_is_not_an_error(admin_client, sample_franchise):
-    res = admin_client.delete(
+def test_resetting_an_empty_scope_is_not_an_error(owner_client, sample_franchise):
+    res = owner_client.delete(
         "/api/media-relation/scope",
         params={"franchise_id": str(sample_franchise.system_id)},
     )
@@ -1000,10 +1000,10 @@ def test_resetting_an_empty_scope_is_not_an_error(admin_client, sample_franchise
     assert res.json()["deleted"] == 0
 
 
-def test_reset_requires_exactly_one_scope(admin_client):
-    assert admin_client.delete("/api/media-relation/scope").status_code == 400
+def test_reset_requires_exactly_one_scope(owner_client):
+    assert owner_client.delete("/api/media-relation/scope").status_code == 400
     assert (
-        admin_client.delete(
+        owner_client.delete(
             "/api/media-relation/scope",
             params={
                 "franchise_id": str(uuid.uuid4()),
@@ -1023,7 +1023,7 @@ def test_reset_requires_admin(client, sample_franchise):
 
 
 def test_a_corresponding_chain_expands_on_the_entry_page_but_not_the_graph(
-    admin_client, client, db_session, sample_franchise, sample_anime, second_anime
+    owner_client, client, db_session, sample_franchise, sample_anime, second_anime
 ):
     # The two halves of one rule, pinned together because they only make sense
     # as a pair: a chain of peers reads as a set on an entry's page, while the
@@ -1039,7 +1039,7 @@ def test_a_corresponding_chain_expands_on_the_entry_page_but_not_the_graph(
     db_session.flush()
 
     for left, right in ((sample_anime, second_anime), (second_anime, third)):
-        res = admin_client.post(
+        res = owner_client.post(
             "/api/media-relation/",
             json={
                 "from_type": "anime", "from_id": str(left.system_id),

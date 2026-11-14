@@ -15,6 +15,7 @@ import WatchOrderGuide, {
 } from "../../components/tracker/WatchOrderGuide";
 import { getDisplayName } from "../../utils/media";
 import { Chip, Slip } from "../../components/ui/primitives";
+import { usePageTitle } from "../../contexts/PageTitleContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
 import { ownerKeyOf, watchOrderEditPath } from "../../lib/watchOrderPaths";
@@ -77,6 +78,10 @@ export default function WatchOrderPage() {
       cancelled = true;
     };
   }, [publicId]);
+
+  // The heading's name, which the browser tab shows too.
+  const listName = list ? list.list_name || "Untitled order" : null;
+  usePageTitle(loading || error ? null : listName);
 
   if (loading) {
     return (
@@ -154,7 +159,7 @@ export default function WatchOrderPage() {
         <MediaScopeLine mediaTypes={list.media_types} className="mb-3" />
 
         <h1 className="font-display text-5xl sm:text-6xl font-semibold text-text leading-[0.95] mb-3">
-          {list.list_name || "Untitled order"}
+          {listName}
         </h1>
 
         <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-border">
@@ -168,7 +173,7 @@ export default function WatchOrderPage() {
         </div>
       </header>
 
-      <WatchOrderGuide list={list} roomy />
+      <WatchOrderGuide list={list} roomy colourCoded />
 
       {siblings.length > 0 && (
         <Slip

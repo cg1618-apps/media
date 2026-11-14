@@ -30,7 +30,14 @@ GUIDE_CARDS = {
     # known about it - which is why they share one spec.
     "gear": ["weapons_and_gear", "items", "collectibles"],
     # Who you meet, and the words you meet: the game's own and the players'.
-    "compendium": ["characters_guide", "enemies", "game_terms", "player_terms"],
+    "compendium": [
+        "characters_guide",
+        "enemies",
+        # Where things are, nestable, straight after who you fight there.
+        "geography",
+        "game_terms",
+        "player_terms",
+    ],
     # Things outside the game itself, rendered beside the site-wide Resources
     # card rather than with the 攻略 run.
     "tools": ["mods_and_tools", "guide_resources"],
@@ -176,7 +183,9 @@ def test_a_team_is_a_list_of_members():
 def test_the_four_named_thing_sections_share_one_spec():
     """
     They differ in two flags and nothing else: whether a row can carry a
-    variant, and whether collecting it is tracked. 技能 Skills takes neither.
+    variant, and whether collecting it is tracked (with its total and NG
+    reset, and the personal amount collected). 技能 Skills takes neither. The type's suggestion category is the
+    third parameter, and differs per section.
     """
     assert _keys("skills") == ["type", "name", "description", "links"]
     for key in ("collectibles", "items", "weapons_and_gear"):
@@ -187,6 +196,9 @@ def test_the_four_named_thing_sections_share_one_spec():
             "description",
             "links",
             "collected",
+            "amount_total",
+            "amount_collected",
+            "ng_reset",
         ], key
 
 
@@ -306,7 +318,7 @@ def test_guide_resources_shares_a_card_with_mods_and_tools():
     section = ns.section_by_key("guide_resources")
     assert section.group == "tools"
     assert section.standalone is False
-    assert _keys("guide_resources") == ["name", "description", "links"]
+    assert _keys("guide_resources") == ["group", "name", "description", "links"]
 
 
 def test_guide_resources_and_resources_share_neither_key_nor_label():
@@ -346,17 +358,94 @@ def test_the_three_gear_sections_track_collecting():
             "description",
             "links",
             "collected",
+            "amount_total",
+            "amount_collected",
+            "ng_reset",
         ], key
         field = _field(key, "collected")
         assert field.column == "status", key
         assert field.options == (
             "not collected",
+            "collected",
             "enough collected",
             "fully collected",
             "skip",
             "inapplicable",
         ), key
         assert field.default == "not collected", key
+
+
+def test_the_gear_sections_carry_an_amount_total_and_an_ng_reset():
+    for key in COLLECTED_SECTIONS:
+        total = _field(key, "amount_total")
+        assert (total.label, total.type, total.column) == (
+            "Total",
+            ns.FIELD_TEXT,
+            None,
+        ), key
+        assert total.default is None, key
+        reset = _field(key, "ng_reset")
+        assert (reset.label, reset.type, reset.column) == (
+            "NG Reset",
+            ns.FIELD_SELECT,
+            None,
+        ), key
+        assert reset.options == ("yes", "no"), key
+        assert reset.default == "yes", key
+    for key in ("skills",):
+        assert "amount_total" not in _keys(key)
+        assert "ng_reset" not in _keys(key)
+
+
+def test_guide_resources_is_groupable_by_a_free_text_group():
+    section = ns.section_by_key("guide_resources")
+    assert _keys("guide_resources") == ["group", "name", "description", "links"]
+    group = _field("guide_resources", "group")
+    assert (group.type, group.column, group.options) == (ns.FIELD_SELECT, "kind", ())
+    assert group.option_category is None
+    assert section.groupable_by == "group"
+
+
+def test_geography_is_a_nestable_groupable_catalogue_list():
+    section = ns.section_by_key("geography")
+    assert section.label == "地理 Geography"
+    assert section.shape == ns.SHAPE_STRUCTURED
+    assert section.owners == ns.GAME_OWNERS
+    assert section.scope == ns.SCOPE_CATALOG
+    assert section.group == "compendium"
+    assert section.groups_by_owner == {}
+    assert section.hierarchical is True
+    assert section.groupable_by == "group"
+    assert section.require_any == (("name",),)
+    assert [(f.key, f.type, f.column) for f in section.fields] == [
+        ("group", ns.FIELD_SELECT, "kind"),
+        ("name", ns.FIELD_TEXT, "title"),
+        ("description", ns.FIELD_TEXTAREA, "content"),
+        ("links", ns.FIELD_LINKS, "links"),
+    ]
+    assert _field("geography", "group").option_category == "Geography Group"
+    order = [s.key for s in ns.NOTE_SECTIONS]
+    assert order.index("geography") == order.index("enemies") + 1
+
+
+def test_a_hierarchical_section_groups_only_by_a_column_backed_field():
+    import dataclasses
+
+    import pytest
+
+    geography = ns.section_by_key("geography")
+    ns._check_groupable_by(geography)
+    in_blob = dataclasses.replace(
+        geography,
+        fields=(
+            ns.NoteField(key="group", label="Group", type=ns.FIELD_SELECT),
+            *geography.fields[1:],
+        ),
+    )
+    with pytest.raises(ValueError, match="column"):
+        ns._check_groupable_by(in_blob)
+    # The same field in the blob is fine on a flat section.
+    ns._check_groupable_by(dataclasses.replace(in_blob, hierarchical=False))
 
 
 def test_skills_track_no_collecting():

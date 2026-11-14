@@ -21,18 +21,17 @@ from app.models.user_media_list import UserMediaList
 from app.routers._patching import apply_column_patch
 from app.schemas.image_focus import coerce_image_focus
 from app.services.domain import (
-    apply_list_completion_timestamp,
     attach_remark,
     pop_remark,
     upsert_remark,
 )
-from app.services.domain.completion import reached_total
 from app.services.domain.content_labels import attach_content_labels
 from app.services.domain.credits import attach_link_fields
 from app.services.domain.entry_fields import attach_entry_list_fields
 from app.services.domain.game_copies import attach_own_copies
 from app.services.domain.h_comic import attach_animation_status
 from app.services.domain.hierarchy import check_entry_franchise_family
+from app.services.domain.highlight_group_order import attach_group_orders
 from app.services.domain.plan_next import (
     attach_plan_flag,
     pop_plan_flag,
@@ -44,17 +43,17 @@ from app.services.domain.user_list import (
     LIST_FIELDS,
     STATUS_FIELD,
     acting_user_id,
-    apply_list_payload,
     attach_list_fields,
     attach_unit_ratings,
     ensure_list_row,
+    finish_list_row,
     join_list,
     split_list_payload,
+    write_list_payload,
 )
 from app.services.integrations.image_manager import delete_cover_image
 from app.services.rbac.enforcement import apply_entry_visibility, entry_visible
 from app.services.rbac.field_gate import gate
-from app.services.rbac.personal_gate import strip_personal
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog, viewer_user_id
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.entity_ref import media_entity_ref_filter
@@ -180,15 +179,11 @@ def make_media_router(spec) -> APIRouter:
 
     def _mark_completed(entry, row) -> None:
         """Finish the entry: the work's catalogue half, and the acting user's
-        own row when there is one. Shared by /complete and by a PATCH that
-        carries the progress counter to its total."""
+        own row when there is one. Used by /complete; a PATCH that carries
+        the progress counter to its total finishes through _write_list."""
         spec.mark_completed(entry)
-        if row is None:
-            return
-        spec.mark_completed_list(row, entry)
-        if row.completed_at is None:
-            row.completed_at = get_taipei_now()
-        row.updated_at = get_taipei_now()
+        if row is not None:
+            finish_list_row(row, entry, spec)
 
     def _write_list(
         db: Session, entry, personal: dict, viewer, complete_on_total: bool = False
@@ -199,29 +194,19 @@ def make_media_router(spec) -> APIRouter:
         empty personal half: a brand-new entry needs its default-status row to
         exist so the detail page has something to read and to edit.
 
-        `complete_on_total` is the tracker's rule, and only patch asks for it:
-        a write that carries the progress counter up to its total finishes the
-        entry, exactly as Mark completed would. A payload that names a status
-        of its own is left alone - the writer said what the status is.
+        `complete_on_total` is the tracker's rule (write_list_payload), and
+        only patch asks for it here. When it finishes the row, this is a
+        catalogue write, so the work's catalogue half runs too - which
+        PUT /api/me/list never does.
         """
         user_id = acting_user_id(db, viewer)
         if user_id is None:
             return
         row = ensure_list_row(db, user_id, entry.system_id, spec.owner_type)
-        counter = spec.progress_counter if complete_on_total else None
-        fin_before = counter(row, entry)[0] if counter else None
-        apply_list_payload(row, personal, spec.owner_type)
-        apply_list_completion_timestamp(
-            row, personal.get(STATUS_FIELD[spec.owner_type])
-        )
-        # After the payload, never before: the derivation folds the cursor the
-        # writer just sent through the work's arc widths.
-        if spec.progress_hook_list is not None:
-            spec.progress_hook_list(row, entry)
-        if counter and STATUS_FIELD[spec.owner_type] not in personal:
-            fin_after, total = counter(row, entry)
-            if reached_total(fin_before, fin_after, total):
-                _mark_completed(entry, row)
+        if write_list_payload(
+            row, entry, personal, spec, complete_on_total=complete_on_total
+        ):
+            spec.mark_completed(entry)
 
     def _finish(db: Session, entry, viewer=None):
         user_id = acting_user_id(db, viewer)
@@ -245,12 +230,14 @@ def make_media_router(spec) -> APIRouter:
         # than mapped on the class - see app/models/__init__.py. A path that
         # forgets this call shows no remark, never somebody else's.
         attach_remark(db, spec.owner_type, entry, viewer_user_id(viewer))
+        # The viewer's own highlight group order, the same way. No-op for
+        # every type but h-comic and h-game.
+        attach_group_orders(db, spec.owner_type, entry, viewer_user_id(viewer))
         return entry
 
     def _read_gates(viewer, payload):
-        """The access mode's field groups, then the role's personal fields."""
-        gated = gate(viewer, spec.owner_type, payload, spec.response_schema)
-        return strip_personal(viewer, spec.owner_type, gated, spec.response_schema)
+        """The access mode's field groups."""
+        return gate(viewer, spec.owner_type, payload, spec.response_schema)
 
     def _pop_nested(payload: dict) -> dict:
         """Lift nested collections out of the payload; they are not columns."""

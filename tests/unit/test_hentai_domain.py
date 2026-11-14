@@ -12,19 +12,25 @@ from app.services.domain.hierarchy import (
     franchise_families,
 )
 from app.services.rbac import gated_types
+from app.services.rbac.labels import label_by_key
+from app.services.rbac.seed_modes import MODE_UNRESTRICTED
 from app.utils import constants as c
 
 
 def test_the_label_key_is_the_one_the_gated_type_requires():
     assert gated_types.REQUIRED_LABEL_FOR_TYPE[hentai.MEDIA_TYPE] == hentai.LABEL_KEY
-    assert hentai.LABEL_KEY in gated_labels.SYSTEM_LABELS
+    definition = label_by_key(hentai.LABEL_KEY)
+    assert definition is not None
+    assert definition.gated_type == hentai.MEDIA_TYPE
+    assert definition.lowest_mode == MODE_UNRESTRICTED
 
 
 @pytest.mark.parametrize(
     "check,good,bad",
     [
-        (hentai.check_source_material, "Manga", "Game"),
-        (hentai.check_originality, "原創", "original"),
+        (hentai.check_source_material, "Game", "Comic"),
+        # 原創 is the value before its rename to 原版: a write naming it is refused.
+        (hentai.check_originality, "原版", "原創"),
         (hentai.check_airing_status, "Finished Airing", "Animated"),
         (hentai.check_usefulness, "實用", "useful"),
     ],
@@ -37,8 +43,12 @@ def test_each_vocabulary_accepts_its_values_and_refuses_others(check, good, bad)
         check(bad)
 
 
-def test_source_materials_are_the_three_the_owner_named():
-    assert c.HENTAI_SOURCE_MATERIALS == ("Original", "Manga", "Novel")
+def test_source_materials_are_the_four_the_owner_named():
+    assert c.HENTAI_SOURCE_MATERIALS == ("Original", "Manga", "Novel", "Game")
+
+
+def test_originality_is_the_shared_pair():
+    assert c.H_COMIC_ORIGINALITY == ("原版", "同人")
 
 
 # ---------------------------------------------------------------------------

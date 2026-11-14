@@ -57,7 +57,7 @@ beforeEach(() => {
 
 const renderPage = (props = {}) =>
   render(
-    <NotesProvider ownerType="game" ownerId="abc" isAdmin>
+    <NotesProvider ownerType="game" ownerId="abc">
       <div data-testid="slip">
         <NotesGroup groupKey="todo" />
       </div>
@@ -109,7 +109,7 @@ it("hides a group and a section independently", async () => {
 
 it("renders nothing for a group this owner does not have", async () => {
   render(
-    <NotesProvider ownerType="game" ownerId="abc" isAdmin>
+    <NotesProvider ownerType="game" ownerId="abc">
       <div data-testid="slip">
         <NotesGroup groupKey="music" />
       </div>

@@ -6,7 +6,10 @@
 //
 // `isAdmin` keeps its old shape (a boolean every existing consumer reads to
 // enable or hide a control) but not its old meaning: it now reports whether
-// the viewer holds manage.catalog, not the deleted bare admin permission.
+// the viewer holds manage.catalog, not the deleted bare admin permission. It
+// is "may edit the catalogue", so it is true for super and false for the
+// admin account, which holds no manage.catalog; a control that belongs to the
+// administrator asks the admin's own permission with has() instead.
 //
 // Hiding here is cosmetic. The server already withholds what a viewer may not
 // see, so this only stops the UI drawing empty frames around nothing.
@@ -32,13 +35,16 @@ const ANONYMOUS = {
   isAdmin: false,
   username: null,
   role: "guest",
-  isRoot: false,
   permissions: [],
   // The gated media types this session may see (`visible_gated_types`).
   // Only the seeable ones are named, so a narrow session's list is empty and
   // it is never told a gated type exists. Read through canSeeGatedType
   // (lib/gatedTypes.js), not directly.
   visibleGatedTypes: [],
+  // The account's feature switches by name (`features`), e.g.
+  // "quotes_memes". hasFeature() is a plain membership test. A guest holds
+  // none.
+  features: [],
   // The OBJECT axis. `mode` is the active access mode; `modes` is every mode
   // this account holds, each already carrying `requires_password` - the
   // server computes that subset test so the SPA never models it. A guest
@@ -62,9 +68,9 @@ export function AuthProvider({ children }) {
           isAdmin: data.is_admin,
           username: data.username,
           role: data.role ?? "guest",
-          isRoot: data.is_root ?? false,
           permissions: data.permissions ?? [],
           visibleGatedTypes: data.visible_gated_types ?? [],
+          features: data.features ?? [],
           mode: data.mode ?? null,
           modes: data.modes ?? [],
           loading: false,
@@ -108,26 +114,21 @@ export function AuthProvider({ children }) {
   // A Set so has() stays O(1) on pages that ask about many permissions.
   const held = useMemo(() => new Set(auth.permissions), [auth.permissions]);
 
-  // Mirrors Viewer.has on the server, root short-circuit included, so a
-  // new content label or field group does not have to be granted to the admin.
-  //
-  // The one exception mirrors the server's: the short-circuit does NOT cover
-  // the `self` family. self.list and self.personal_notes are ownership, not
-  // privilege - an admin account administers the site and does not keep a
-  // library of its own. Both halves move together or neither does: with only
-  // the server half, the nav would advertise Plan, Seasonal and Statistics to
-  // an admin and the API would answer 401 on each.
-  const has = useCallback(
-    (permission) =>
-      permission.startsWith("self.")
-        ? held.has(permission)
-        : auth.isRoot || held.has(permission),
-    [auth.isRoot, held],
+  // Mirrors Viewer.has on the server: a plain membership test, for every
+  // role. No role short-circuits - the admin holds exactly its fixed set.
+  const has = useCallback((permission) => held.has(permission), [held]);
+
+  // A feature is a switch on the ACCOUNT, not a permission on its role, so it
+  // is its own question, answered by /me's `features`
+  // (services/rbac/features.py).
+  const hasFeature = useCallback(
+    (feature) => auth.features.includes(feature),
+    [auth.features],
   );
 
   const value = useMemo(
-    () => ({ ...auth, has, refetchAuth: fetchAuth }),
-    [auth, has, fetchAuth],
+    () => ({ ...auth, has, hasFeature, refetchAuth: fetchAuth }),
+    [auth, has, hasFeature, fetchAuth],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

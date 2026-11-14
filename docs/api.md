@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-10-30
+Last verified: 2026-11-14
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -9,10 +9,12 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 ## Authentication
 
 - **Public endpoints** — accessible by any visitor (guest or admin).
-- **Capability-gated endpoints** — require a valid JWT in the `access_token` HTTP-Only cookie plus the capability the route names: `require_manage_catalog`, `require_manage_pipelines` or `require_admin_authz` (`app/services/rbac/resolver.py`). There is no single "is an admin" dependency.
-- **View-gated reads** — an Auth cell naming a `view.*` permission (`view.entities`, `view.search`, `view.extras`, `view.personal`) is a read the `guest` role does not hold, so a logged-out visitor gets **401**; a signed-in `user` holds all four. See [authorization.md](authorization.md#permission-catalog-code).
+- **Capability-gated endpoints** — require a valid JWT in the `access_token` HTTP-Only cookie plus the capability the route names: `require_manage_catalog`, `require_manage_pipelines`, `require_admin_authz`, or one of the admin's page keys — `require_manage_announcements`, `require_manage_options`, `require_manage_images`, `require_manage_resources` (`app/services/rbac/resolver.py`). There is no single "is an admin" dependency, and no role passes every gate: the admin account holds `admin.authz`, `manage.pipelines`, `manage.requests` and the four page keys, and no `manage.catalog`, so every catalogue write — and every catalogue read, since it holds no `media_type.*` and no mode — is refused to it.
+- **View-gated reads** — an Auth cell naming a `view.*` permission (`view.studio`, `view.publisher`, `view.person`, `view.character`, `view.search`, `view.random_picker`) is a read the `guest` role does not hold as seeded, so a logged-out visitor gets **401**. A signed-in `user` holds `view.search` and `view.random_picker` as seeded; the four entity keys are the admin's to switch on per role. See [authorization.md](authorization.md#permission-catalog-code).
+- **"Admin" in an Auth cell means `manage.catalog`** — a catalogue write, which `super` holds — and not the admin account: the `admin` role holds no `manage.catalog`, so every such route answers it **401**. A cell naming another key (`manage.options`, `manage.resources`, …) means that key.
+- **Feature-gated reads** — an Auth cell naming `feature quotes_memes` is a read the caller's **account** must have switched on (`users.feature_quotes_memes`), answered **401** otherwise, the same shape as a permission refusal. See [authorization.md](authorization.md#per-account-feature-switches).
 - Login flow: `POST /api/auth/login` → sets cookie → all subsequent admin requests carry it automatically.
-- A missing or invalid cookie on an admin endpoint is **401**, never 403. Public read endpoints additionally resolve a *viewer* and hide what the viewer's role may not see (as 404) — see [Authorization](#authorization) at the end of this file and `docs/authorization.md`.
+- A missing or invalid cookie on an admin endpoint is **401**, never 403. The one 403 in the app is the login route's, for a pending or disabled account that gave the right password. Public read endpoints additionally resolve a *viewer* and hide what the viewer's role may not see (as 404) — see [Authorization](#authorization) at the end of this file and `docs/authorization.md`.
 
 ## Conventions shared by many routers
 
@@ -22,8 +24,9 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 | `PATCH` with a raw JSON dict | collection, franchise, series, media entries, watch-order lists/items/sections, quote, meme | Handled by `apply_column_patch` (`app/routers/_patching.py`). Any of `system_id`, `id`, `created_at`, `updated_at` in the body → **422**. Keys that are not real columns of the row (relationship names, virtual fields such as `watch_next`, typos) are **silently ignored** and logged at debug level, so an older bundle sending an extra key does not break. |
 | Post-write enrichment hooks | media entries (`POST` / `PUT`) | The per-type write hook (e.g. `execute_replace_single_movie`) runs after the row is committed. If it fails the error is logged and the row is still returned — it must **never** surface as a 500, or the SPA retries and creates duplicates. |
 | Personal fields are the viewer's | all twelve media types: `GET` list and detail, `POST`, `PUT`, `PATCH`, `POST /{id}/complete` | The status, rating and progress fields keep **exactly the names they always had** - `watching_status` / `reading_status` / `playing_status`, `my_rating`, `ep_fin`, `vol_fin`, `ch_fin`, `issue_fin`, `my_watch_day`, `completed_at` and the rest - but they are stored on `user_media_list` and resolved for the **acting user**, not read off the entry. `time_fin` (Paused at, on the six watching types) is personal the same way. A write splits into a catalogue half and a personal half (`split_list_payload`) and creates the acting user's list row if it does not exist. An entry with **no list row** reads back as the type's default status (`Might Watch` / `Might Read` / `Might Play`), `null` for the rest, and `0` for the counters that were `NOT NULL DEFAULT 0` before the move - which is also how a row holding `null` for one of them reads back. Those counters accept `null` on every write (`vol_fin`, `vol_fin_page`, `ch_fin`, `arc_fin`, `issue_fin`, `page_fin` are `Optional[...] = 0` in the manga, novel, comic and h-comic schemas, as `ep_fin` is on the watching types), and the admin forms send a blank one as `null`. A logged-out visitor has **no list**: `acting_user_id` returns None, no personal field is attached, and the status reads back `null` rather than the default, which would be a claim about a person (see [authorization.md](authorization.md), "Which LIST"). A `?watching_status=` filter goes through an OUTER join rather than a column comparison, so it still matches entries that have no list row. |
-| The owner's opinions need `view.personal` | collection, franchise, series, person, studio, publisher, character (list, detail and their search buckets); `/api/novel` units | `my_rating` and the tier's `*_expectation` on a collection, franchise or series, `my_rating` on a person, studio, publisher or character, and `remark` on each novel unit come back **`null`** - the key kept, the value withheld - for a viewer holding neither `view.personal` nor `manage.catalog` (`app/services/rbac/personal_gate.py`). No list endpoint filters or sorts on them. |
-| A novel unit's `my_rating` is the reader's | `/api/novel` | Same idea one level down: served and accepted on each unit, stored in `user_novel_unit_rating`. A `null` rating stores no row. |
+| Ratings and expectations are the viewer's | collection, franchise, series, person, studio, publisher, character (list, detail, the write responses and their search buckets) | `my_rating` and the tier's `*_expectation` on a collection, franchise or series, and `my_rating` on a person, studio, publisher or character, keep their names but are read from the **viewer's own** `user_rating` row (`app/services/domain/user_rating.py`, `attach_ratings`). A logged-out visitor, and an account with no row, reads **`null`** - the key kept. The catalogue `POST` / `PUT` / `PATCH` bodies do not carry them; they are written through [`PUT /api/me/ratings/{owner_type}/{owner_id}`](#my-ratings--apime). No list endpoint filters or sorts on them. |
+| A quote's and a meme's `is_favorite` are the viewer's | quote, meme (list, grouped, detail and the write responses) | `is_favorite` keeps its name but is read from the **viewer's own** `user_favorite` rows (`app/services/domain/user_favorite.py`, `attach_favorites`), and only for an account holding the `favourites` feature: a logged-out visitor, the admin and any account without the switch read **`false`**. The `is_favorite` filter asks the same rows. The catalogue `POST` / `PUT` / `PATCH` bodies do not carry it - a key sent is ignored; it is written through [`PUT /api/me/favorites/{kind}/{id}`](#my-favourites--apime). |
+| A novel unit's `my_rating` and `remark` are the reader's | `/api/novel` | Same idea one level down: served on each unit for the viewer from their own `user_novel_unit_rating` row, `null` for anyone with none. The `units` items of the catalogue `POST` / `PUT` / `PATCH` do not carry them - a client still sending either has the key ignored - and they are written only through [`PUT /api/me/novel-units/{unit_id}`](#my-ratings--apime). A row left holding neither stores nothing. |
 | Delete returning `204` | notes, content labels, users, roles | No body. Every other delete returns a JSON `{status, message}` or the deleted row. |
 | Hidden = missing | every public read | An entry the viewer may not see answers **404** with the router's normal not-found message. |
 | Detail GET takes a `public_id` **or** a UUID | the single-entry GET on all twenty entity endpoints: the twelve media types plus collection, franchise, series, person, studio, publisher, character and `/api/watch-order/lists/{ref}` | One resolver, `find_entity` in `app/utils/entity_ref.py`, decides which form the segment is: a positive decimal integer with no sign or separators is a `public_id`, anything else is parsed as a UUID. **Everything else still takes the UUID** - every write, and the nested `/entries`, credits, relations, sources and cover routes. A reference that parses as neither, or that resolves to no row, is a **404** with the router's normal not-found message - never a 422, because a hand-mangled detail URL is a missing page rather than a bad request. |
@@ -59,6 +62,8 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [Images — `/api/images`](#images--apiimages)
 - [Note — `/api/notes`](#note--apinotes)
 - [Seasonal — `/api/seasonal`](#seasonal--apiseasonal)
+- [Statistics — `/api/statistics`](#statistics--apistatistics)
+- [Dashboard — `/api/dashboard`](#dashboard--apidashboard)
 - [Add-tab picker searches](#add-tab-picker-searches)
 - [Search — `/api/search`](#search--apisearch)
 - [FX Rates — `/api/fx-rates`](#fx-rates--apifx-rates)
@@ -78,9 +83,10 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [System — `/api/system`](#system--apisystem)
 - [Watch Order — Sections](#watch-order--sections)
 - [My List — `/api/me`](#my-list--apime)
+- [My Ratings — `/api/me`](#my-ratings--apime)
+- [My Highlight Group Order — `/api/me`](#my-highlight-group-order--apime)
 - [Account — `/api/account`](#account--apiaccount)
-- [Profile — `/api/profile`](#profile--apiprofile)
-- [Community — `/api/community`](#community--apicommunity)
+- [Requests — `/api/requests`](#requests--apirequests)
 - [Authorization](#authorization) — `/api/roles`, `/api/users`, `/api/content-labels`
 
 ---
@@ -92,8 +98,29 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 | `POST` | `/login`  | Public | Authenticate with username + password (form data). Sets HTTP-Only JWT cookie. Returns `{message, role}`. |
 | `GET`  | `/me`     | Public | The viewer's auth state, from the current cookie. Used by `AuthContext` on app boot. Full shape under [Authorization](#get-apiauthme-extended). |
 | `POST` | `/logout` | Public | Clears the `access_token` cookie.                                                                        |
+| `GET`  | `/reset?code=` | Public | Whose account a reset link is for, without spending it. `{username}`, or **404** for any unusable code. |
+| `POST` | `/reset`  | Public | `{code, password}`: spend a reset link and set the password. `{username}`; clears the login cookie. |
+| `GET`  | `/register?code=` | Public | Whether an invite link can be used, without spending it. `{valid: true}`, or **404** for any unusable code. |
+| `POST` | `/register` | Public | `{code, username, password}`: spend an invite and create the account **`pending`** on the `user` role with no mode. **201** `{username}`; no cookie. **422** for a refused username or password, **409** `That username is taken.`, **404** for an unusable code; each refusal leaves the invite unspent. Reset and register are each limited to 10 requests per address per 15 minutes (**429** + `Retry-After`). |
 
-**Login request:** `OAuth2PasswordRequestForm` — `username` and `password` fields.
+**Login request:** `OAuth2PasswordRequestForm` — `username` and `password` fields. The username is lowercased before the lookup.
+
+| Login answer | When |
+| --- | --- |
+| **200** `{message, role}` + cookie | Right password, `active` account. The token carries `sv` (see [authentication.md](authentication.md#sessions-and-their-revocation)) |
+| **401** `Incorrect username or password` | No such account, or a wrong password - whatever the account's status |
+| **403** `Your account is waiting for the admin's approval.` | Right password, `pending` account. No cookie |
+| **403** `This account is disabled.` | Right password, `disabled` account. No cookie |
+| **429** `Too many attempts. Try again in N minutes.` + `Retry-After` | 5 failed attempts for this username, or 20 from this address, in 15 minutes. A success clears the username's count |
+
+**Reset.** The link is issued by `POST /api/users/{id}/reset-link` or on the box (`python -m app.cli reset-link <username>`); see [authentication.md](authentication.md#reset-links).
+
+| Reset answer | When |
+| --- | --- |
+| **200** `{username}` | `GET`: the code is usable. `POST`: spent - password set, every session of the account ended, this browser's login and mode cookies cleared |
+| **404** `This link is not valid. Ask the admin for a new one.` | The code is unknown, spent, expired, minted for another purpose, or its account is no longer active or is shared. One message for all of them |
+| **422** | `POST` only: the password is empty, or longer than 72 UTF-8 bytes. The code stays unspent |
+| **429** + `Retry-After` | 10 requests (`GET` and `POST` together) from this address in 15 minutes |
 
 ---
 
@@ -110,7 +137,15 @@ The optional umbrella tier above Franchise (e.g. Marvel, Type-Moon).
 | `PATCH`  | `/{system_id}` | Admin  | Partial update (used by inline hub edits). Body: raw JSON dict.                                                                                |
 | `DELETE` | `/{system_id}` | Admin  | Delete a collection. **Member franchises are NOT deleted** — their `collection_id` is set to `NULL` via the DB constraint. Logs to `deleted_record`. |
 
-**Response model:** `CollectionResponse` (`created_at`/`updated_at` are optional, since a Pull can produce rows without them)
+**Response model:** `CollectionResponse` (`created_at`/`updated_at` are optional, since a Pull can produce rows without them). Every response carries `content_labels`, the labels on the collection itself, read-only here: the only writer is `PUT /api/content-labels/collection/{collection_id}` (see [`/api/content-labels`](#apicontent-labels)). `my_rating` and `collection_expectation` are the viewer's own, null without a rating row; `CollectionCreate` / `CollectionUpdate` do not carry them.
+
+**A labelled collection is hidden.** A collection carrying a label the
+viewer's mode lacks is absent from the list, the search and the `collection`
+search bucket, and its detail, `PUT`, `PATCH` and `DELETE` answer **404
+"Collection not found."** (`DELETE` without the full stop), exactly as for a
+collection that does not exist. Its franchises, their series and every entry
+under them are hidden with it, read-time — see
+[authorization.md](authorization.md#content-labels).
 
 To list a collection's members, use `GET /api/franchise/?collection_id=<uuid>`.
 
@@ -124,7 +159,7 @@ To list a collection's members, use `GET /api/franchise/?collection_id=<uuid>`.
 | `GET`    | `/{system_id}` | Public | Get a single franchise by UUID.                                                                                                                                               |
 | `POST`   | `/`            | Admin  | Create a franchise. Body: `FranchiseCreate`.                                                                                                                                  |
 | `PUT`    | `/{system_id}` | Admin  | Full update of a franchise. Body: `FranchiseUpdate`.                                                                                                                          |
-| `PATCH`  | `/{system_id}` | Admin  | Partial update (e.g. inline rating edit). Body: raw JSON dict.                                                                                                                |
+| `PATCH`  | `/{system_id}` | Admin  | Partial update. Body: raw JSON dict. The viewer's rating and expectation are not columns here; they are written through `PUT /api/me/ratings/franchise/{id}`.                    |
 | `DELETE` | `/{system_id}` | Admin  | Delete a franchise. Linked series, anime, movies, TV shows, cartoons, manga, and novels `franchise_id` are set to `NULL` via DB constraint cascade. Logs to `deleted_record`. |
 
 **Franchise families.** A `franchise_type` whose types span two families
@@ -138,7 +173,13 @@ entry it already holds. Both are checked before anything is written. A
 franchise whose types include a gated type's (`H-Comic`, `Hentai`, `H-Game`)
 gains that type's content label on every write.
 
-**Response model:** `FranchiseResponse`
+**Response model:** `FranchiseResponse`. `my_rating` and `franchise_expectation` are the viewer's own, null without a rating row; `FranchiseCreate` / `FranchiseUpdate` do not carry them.
+
+**A franchise is hidden by its own labels and by its collection's.** One
+carrying a label the viewer's mode lacks, or sitting in a collection that
+does, is absent from the list and search, and its detail and writes answer
+404 as for a franchise that does not exist. Its series and entries are hidden
+with it; its collection is not.
 
 **`entry_count`.** The list (`GET /`) sets `entry_count` on every row: how many
 entries in that franchise the viewer may see, counted over `media` through
@@ -156,23 +197,25 @@ it `null`. The series list sets the same field per series.
 | `GET`    | `/`            | Public | List all series. Optional params: `franchise_id` (UUID), `search_query`. Each row carries a viewer-filtered `entry_count`, as the franchise list does. |
 | `GET`    | `/{system_id}` | Public | Get a single series by UUID.                                                       |
 
-**A series is hidden with its franchise.** A series carries no labels of its
-own; one whose franchise carries a label the viewer's mode lacks is absent from
-the list and from search, and its detail, `PUT`, `PATCH` and `DELETE` answer
-**404 "Series not found."**, exactly as for a series that does not exist. The
-join is read-time through `series.franchise_id`, the same cascade entries get.
+**A series is hidden by its own labels and by every group above it.** A
+series carrying a label the viewer's mode lacks, or whose franchise is hidden
+(by the franchise's labels or its collection's), is absent from the list and
+from search, and its detail, `PUT`, `PATCH` and `DELETE` answer **404 "Series
+not found."**, exactly as for a series that does not exist. The join is
+read-time through `series.franchise_id`. A series' labels hide its entries,
+not its franchise or its sibling series.
 | `POST`   | `/`            | Admin  | Create a series. Resolves or auto-creates parent franchise. Body: `SeriesCreate`.  |
 | `PUT`    | `/{system_id}` | Admin  | Full update. Resolves hierarchy changes. Body: `SeriesUpdate`.                     |
-| `PATCH`  | `/{system_id}` | Admin  | Partial update (e.g. inline rating edit). Body: raw JSON dict.                     |
+| `PATCH`  | `/{system_id}` | Admin  | Partial update. Body: raw JSON dict. The viewer's rating and expectation go through `PUT /api/me/ratings/series/{id}`. |
 | `DELETE` | `/{system_id}` | Admin  | Delete a series. Linked `anime.series_id` set to `NULL`. Logs to `deleted_record`. |
 
-**`SeriesCreate` / `SeriesUpdate` body (= `SeriesBase`):** `franchise_id`, `series_name_en`, `series_name_cn`, `series_name_roman`, `series_name_jp`, `series_name_alt`, `my_rating`, `series_expectation` (default `"Low"`), `cover_entry_id`, `remark`. No `to_rewatch` field — `series` has no rewatch column or virtual field at all; a series' rewatch marks are read and written through `POST` / `DELETE /api/plan-next/target` with `scope=series` directly (see Plan Next below).
+**`SeriesCreate` / `SeriesUpdate` body (= `SeriesBase`):** `franchise_id`, `series_name_en`, `series_name_cn`, `series_name_roman`, `series_name_jp`, `series_name_alt`, `cover_entry_id`, `type_slots`, `size_group_derived`, `size_group_manual`, `remark`. No `to_rewatch` field — `series` has no rewatch column or virtual field at all; a series' rewatch marks are read and written through `POST` / `DELETE /api/plan-next/target` with `scope=series` directly (see Plan Next below).
 
-**Response model:** `SeriesResponse` — `SeriesCreate`/`SeriesUpdate` fields above plus `system_id`, `created_at`, `updated_at`.
+**Response model:** `SeriesResponse` — `SeriesCreate`/`SeriesUpdate` fields above plus `system_id`, `created_at`, `updated_at`, `entry_count` (list only), the viewer's own `my_rating` and `series_expectation` (null without a rating row), and `content_labels`, the series' own labels, read-only here: the only writer is `PUT /api/content-labels/series/{series_id}`.
 
 ---
 
-> **Media entry routers.** All twelve media types — `anime`, `anime-movie`, `movies`, `tv-shows`, `cartoon`, `manga`, `novel`, `comic`, `game`, `h-comic`, `h-game`, `hentai` — are generated by `make_media_router` from their `MEDIA_REGISTRY` spec (`app/routers/_factory.py`, `app/registry.py`); a type's router file adds only what the factory does not generate, such as its picker search. Every type uses `/{entry_id}` for single-entry paths and exposes the same shape: list (`limit`/`offset`, `search_query`, plus the type's `list_filters`), get, `POST`, `PUT`, `PATCH`, `POST /{entry_id}/complete`, `DELETE`. Most types add one or two Add-tab picker searches — `/search-mal`, `/search-tmdb` (with `/tmdb-imdb-id`), `/search-openlibrary`, `/search-comicvine`, `/search-igdb` — listed in each type's table and described under [Add-tab picker searches](#add-tab-picker-searches). Lists are ordered `created_at` descending. Every list and detail response carries the plan flags, the link fields (credits/tags) — see Credits below — and a `sources` list (`SourceRef[]`, filtered per viewer's `sources_other`/`sources_restricted` grants). `POST` and `PUT` accept an optional `sources` key in the body (`SourceWrite[]`): omitted means leave the existing set alone, `[]` clears it, present-and-non-empty replaces the whole set in list order — the same `nested_collections` seam `units` uses on `novel`. `PATCH` cannot touch `sources` — like `units`, it is not a real column, so `apply_column_patch` silently ignores the key. See [data-model.md](data-model.md#media_source). Every list and detail response carries `cover_image_focus` beside `cover_image_file` — the cover's focal point, `"X% Y%"` or `null` for centred ([data-model.md](data-model.md#image-focal-points)); `POST`, `PUT` and `PATCH` all accept it (422 on any other shape, `""` stored as `null`; a `PATCH` without the key leaves it alone). `PATCH` writes it explicitly (`_patch_cover_focus`), because it is a `media` column proxied onto the entry and `apply_column_patch` would otherwise ignore it as it ignores `cover_image_file` — and the Modify page saves entries by `PATCH`. `franchise_id` and `series_id` are `media` columns proxied the same way, and `PATCH` writes them explicitly too (`_patch_parent_links`): a body naming either is resolved as `PUT` resolves it — a UUID string is the id, any other string a name — and family-checked first; a body naming neither leaves both alone. `anime-movie` has no series, so `series_id` in its body is ignored. A `PATCH` that carries the acting user's progress counter up to its total (`ep_fin` to `ep_total`, `ch_fin` to `ch_total`, `issue_fin` to `issue_total`, h-comic's region counter) also finishes the entry as `POST /{entry_id}/complete` would, unless the same body sets a status — see [business-rules.md](business-rules.md#reaching-the-total-completes).
+> **Media entry routers.** All twelve media types — `anime`, `anime-movie`, `movies`, `tv-shows`, `cartoon`, `manga`, `novel`, `comic`, `game`, `h-comic`, `h-game`, `hentai` — are generated by `make_media_router` from their `MEDIA_REGISTRY` spec (`app/routers/_factory.py`, `app/registry.py`); a type's router file adds only what the factory does not generate, such as its picker search. Every type uses `/{entry_id}` for single-entry paths and exposes the same shape: list (`limit`/`offset`, `search_query`, plus the type's `list_filters`), get, `POST`, `PUT`, `PATCH`, `POST /{entry_id}/complete`, `DELETE`. Most types add one or two Add-tab picker searches — `/search-mal`, `/search-tmdb` (with `/tmdb-imdb-id`), `/search-openlibrary`, `/search-comicvine`, `/search-igdb` — listed in each type's table and described under [Add-tab picker searches](#add-tab-picker-searches). Lists are ordered `created_at` descending. Every list and detail response carries the plan flags, the link fields (credits/tags) — see Credits below — and a `sources` list (`SourceRef[]`; every viewer gets `main` and `other`, and `restricted` only with the `sources_restricted` field group). `POST` and `PUT` accept an optional `sources` key in the body (`SourceWrite[]`): omitted means leave the existing set alone, `[]` clears it, present-and-non-empty replaces the whole set in list order — the same `nested_collections` seam `units` uses on `novel`. `PATCH` cannot touch `sources` — like `units`, it is not a real column, so `apply_column_patch` silently ignores the key. See [data-model.md](data-model.md#media_source). Every list and detail response carries `cover_image_focus` beside `cover_image_file` — the cover's focal point, `"X% Y%"` or `null` for centred ([data-model.md](data-model.md#image-focal-points)); `POST`, `PUT` and `PATCH` all accept it (422 on any other shape, `""` stored as `null`; a `PATCH` without the key leaves it alone). `PATCH` writes it explicitly (`_patch_cover_focus`), because it is a `media` column proxied onto the entry and `apply_column_patch` would otherwise ignore it as it ignores `cover_image_file` — and the Modify page saves entries by `PATCH`. `franchise_id` and `series_id` are `media` columns proxied the same way, and `PATCH` writes them explicitly too (`_patch_parent_links`): a body naming either is resolved as `PUT` resolves it — a UUID string is the id, any other string a name — and family-checked first; a body naming neither leaves both alone. `anime-movie` has no series, so `series_id` in its body is ignored. A `PATCH` that carries the acting user's progress counter up to its total (`ep_fin` to `ep_total`, `ch_fin` to `ch_total`, `issue_fin` to `issue_total`, h-comic's region counter) also finishes the entry as `POST /{entry_id}/complete` would, unless the same body sets a status — see [business-rules.md](business-rules.md#reaching-the-total-completes).
 
 ## Anime — `/api/anime`
 
@@ -303,10 +346,10 @@ join is read-time through `series.franchise_id`, the same cascade entries get.
 
 **`units` — the `novel_unit` child rows.** `POST`/`PUT` bodies accept an
 optional `units: NovelUnitWrite[]` array (`NovelCreate`/`NovelUpdate`, via
-`NovelBase.units`). A missing `units` key leaves the existing rows
-untouched; an empty array `[]` deletes them all. `PATCH` cannot write
-`units` at all — its body is a raw column dict and `units` is not a real
-column, so it is silently ignored. Each item:
+`NovelBase.units`), and so does `PATCH`: the router lifts `units` out of
+every write body before the row is touched (`MediaTypeSpec.nested_collections`)
+and hands it to `write_novel_units`. A missing `units` key leaves the
+existing rows untouched; an empty array `[]` deletes them all. Each item:
 
 - `system_id` (optional) — present on an item to update that existing row,
   absent to insert a new one. Separately: any **existing** row whose
@@ -314,11 +357,17 @@ column, so it is silently ignored. Each item:
   by the array omitting an id, not by an item lacking the field.
 - `unit_kind` — one of `volume`, `arc`, `story`, `chapter`.
 - `position` (float, required) — order within the novel; not unique.
-- `unit_key`, `name_cn`, `name_en`, `remark` (all optional strings).
+- `unit_key`, `name_cn`, `name_en` (all optional strings).
 - `ch_count` (optional float) — only meaningful on `unit_kind = "arc"`; the
   router (`write_novel_units`) forces it to `null` on any other kind before
   the row is written, regardless of what the client sent, so a re-kinded row
   cannot trip `ck_novel_unit_ch_count_arc_only`.
+
+An item carries **no** `my_rating` or `remark`: a unit's rating and remark
+are each reader's own, written through
+[`PUT /api/me/novel-units/{unit_id}`](#my-ratings--apime). An item that still
+names either has the key ignored, as every catalogue write ignores a personal
+field, so a units save neither files the writer's opinion nor clears anybody's.
 
 The response's `units` array (`NovelUnitResponse[]`) mirrors the same fields
 plus `system_id` and a computed field, **`display_key`**: an explicit
@@ -327,8 +376,7 @@ plus `system_id` and a computed field, **`display_key`**: an explicit
 [options.md](options.md#novel-unit-kinds-apputilsconstantspy)). `display_key`
 is display-time only; it is never stored.
 
-Every write (create, update, and patch — patch bypasses `units` itself since
-`PATCH` takes a raw column dict, but still re-derives) recomputes
+Every write (create, update and patch, whether or not it carries `units`) recomputes
 `arc_total`, `ch_total`, `ch_fin` from the novel's arc rows and normalises
 `arc_fin`/`ch_fin_in_arc` — see the rollover rule in
 [business-rules.md](business-rules.md).
@@ -433,7 +481,7 @@ then E-Hentai (keyed on the gallery in `ehentai_link`), both fill-only
 | `GET`    | `/{entry_id}`          | Public | One entry, by `public_id` or UUID. |
 | `POST`   | `/`                    | Admin  | Create. Body: `HComicCreate`; **`region` is required** (`JP` / `KR`). Auto-runs `execute_replace_single_h_comic`: when the entry has a `mal_link`, `mal_id` is extracted from it and Tenrai's manga record fills what is blank, then the E-Hentai gallery in `ehentai_link` fills the cover and the illustrator credit if they are still blank (see `/replace/h-comic/{entry_id}`); then `run_sync_h_comic` and `run_sync_gated_labels`. |
 | `PUT`    | `/{entry_id}`          | Admin  | Full update. Body: `HComicUpdate`. `region` may be omitted, but not sent as `null` (422). Same write hook. |
-| `PATCH`  | `/{entry_id}`          | Admin  | Partial update, raw JSON dict. The h-comic vocabularies and `highlight_group_order` are checked here too (422), because a PATCH body never passes through the schema. `animation_status` follows the derived-status rule below. |
+| `PATCH`  | `/{entry_id}`          | Admin  | Partial update, raw JSON dict. The h-comic vocabularies are checked here too (422), because a PATCH body never passes through the schema. `animation_status` follows the derived-status rule below. |
 | `POST`   | `/{entry_id}/complete` | Admin  | `reading_status = "Completed"`; `serialization_status` becomes `完結` unless it is `腰斬`; the region's counter reaches its total (`page_fin = page_total` on JP, `ch_fin = ch_total` on KR). |
 | `DELETE` | `/{entry_id}`          | Admin  | Delete. Logs to `deleted_record` under type `H-Comic`. |
 
@@ -441,8 +489,7 @@ then E-Hentai (keyed on the gallery in `ehentai_link`), both fill-only
 `h_comic_name_en` / `_cn` / `_alt` / `_jp` / `_kr`, `region`, `originality`,
 `animation_status`, `series_number`, `serialization_status`, `page_total`,
 `ch_total`, `ch_behind`, `release_date`, `end_date`, `mal_id`, `mal_link`,
-`ehentai_link`, `highlight_group_order`
-(list of strings), the personal `reading_status` (default `Might Read`),
+`ehentai_link`, the personal `reading_status` (default `Might Read`),
 `my_rating`, `page_fin`, `ch_fin`, `usefulness`, `completed_at`, the plan flags
 `read_next` / `to_reread`, `remark`, `cover_image_file`, `cover_image_focus`, and `sources`.
 `region`, `originality`, `animation_status` and `usefulness` are checked
@@ -454,8 +501,9 @@ region, `app/services/domain/gated_labels.py` for the label):
 
 - **Region.** The columns the region does not use are cleared whatever the
   payload says - on KR `originality`, `animation_status`, `series_number`,
-  `page_total` and the reader's `page_fin`; on JP `ch_total`, `ch_behind`,
-  `highlight_group_order` and the reader's `ch_fin`.
+  `page_total` and the reader's `page_fin`; on JP `ch_total`, `ch_behind`
+  and the reader's `ch_fin`, and every account's highlight group order on the
+  entry is deleted.
 - **Label.** The `h-comic` label is attached if missing.
 
 **Franchise.** An h-comic auto-resolves only into a franchise of the
@@ -476,11 +524,13 @@ derived, sending the derived or the stored value changes nothing, and any other
 value is **422**. See
 [entry-types.md](entry-types.md#h-comic-animation-status-attach_animation_status-appservicesdomainh_comicpy).
 
-**`highlight_group_order`** is the order of the KR highlight groups (see
-[systems/notes.md](systems/notes.md#h-comic-highlights-h_comic_highlights)):
-a list of female character names, written whole through `PUT` or `PATCH`,
-deduplicated with blanks dropped (`[]` stores `null`); a non-list, or a list
-holding a non-string, is 422. It is cleared on a JP entry.
+**`highlight_group_order`** is a response field only: the VIEWER'S own order
+of the KR highlight groups (see
+[systems/notes.md](systems/notes.md#h-comic-highlights-h_comic_highlights)),
+a list of female character names, or `null` for nobody signed in, for no
+order, and always on a JP entry. It is written by
+[`PUT /api/me/highlight-group-order/{media_id}`](#my-highlight-group-order--apime);
+an entry write that sends it has the key ignored.
 
 **Response model:** `HComicResponse` — the columns, the personal fields,
 `display_name` (CN → EN → Alt → JP → KR), `public_id`, `content_labels`,
@@ -551,7 +601,7 @@ factory from `MEDIA_REGISTRY["h_game"]`, plus Game's IGDB picker.
 | `GET`    | `/{entry_id}`          | Public | One entry, by `public_id` or UUID. |
 | `POST`   | `/`                    | Admin  | Create. Body: `HGameCreate`. Auto-runs `execute_save_replace_h_game`: Game's Replace in its save form (ids extracted from `igdb_link` and `steam_link`, IGDB fetched fill-only when there is an `igdb_id`, SteamDB row derived, Steam fetched when there is an appid, then the HowLongToBeat search unless it already missed in this process), then `run_sync_game` and `run_sync_gated_labels`. |
 | `PUT`    | `/{entry_id}`          | Admin  | Full update. Body: `HGameUpdate`. Same write hook. |
-| `PATCH`  | `/{entry_id}`          | Admin  | Partial update, raw JSON dict. The vocabularies and `highlight_group_order` are checked here too (422), because a PATCH body never passes through the schema. |
+| `PATCH`  | `/{entry_id}`          | Admin  | Partial update, raw JSON dict. The vocabularies are checked here too (422), because a PATCH body never passes through the schema. |
 | `POST`   | `/{entry_id}/complete` | Admin  | `playing_status = "Completed"`; nothing on the catalogue side, as for game. |
 | `DELETE` | `/{entry_id}`          | Admin  | Delete. Logs to `deleted_record` under type `H-Game`; the entry's `game_copy` rows go with its `media` row. |
 
@@ -563,7 +613,7 @@ factory from `MEDIA_REGISTRY["h_game"]`, plus Game's IGDB picker.
 the six `price_*`, `language_availability`, `dialogue_audio` (list),
 `sound_effect` (list), `h_presentation` (list), `art_style` (list),
 `h_art_style` (list), `platform` (list), `igdb_id` / `igdb_link`, `steam_appid` / `steam_link`,
-`dlsite_link_jp` / `_tw`, `highlight_group_order` (list of strings),
+`dlsite_link_jp` / `_tw`,
 `type_slots`, `cover_image_file`, `cover_image_focus`, the personal `playing_status` (default
 `Might Play`), `my_rating`, `usefulness`, `completed_at`, the plan flags
 `play_next` / `to_replay`, `remark`, `sources` and `copies` (Game's
@@ -587,9 +637,8 @@ auto-creates one of type `H-Game`, labelled. A `franchise_id` naming an
 `H-Comic` or `Hentai` franchise is accepted; one naming a mainstream franchise
 (`Game`, `ACG`, ...) is **422**.
 
-**`highlight_group_order`** is the order of the highlight groups (see
-[systems/notes.md](systems/notes.md)), written whole as on h-comic; every
-h-game keeps it.
+**`highlight_group_order`** is a response field only, the viewer's own order
+of the highlight groups, as on h-comic; every h-game takes one.
 
 **Response model:** `HGameResponse` — the columns, the personal fields,
 `display_name` (CN → EN → Alt → Roman → JP), `public_id`, `base_game`
@@ -609,9 +658,9 @@ per-entry `watch_order` Float column, which has been dropped.
 
 | Method   | Path                          | Auth   | Description                                                                                                                                        |
 | -------- | ----------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/lists`                      | Public | List order summaries (no items). Optional params: `franchise_id`, `collection_id`, `series_id` (owner filters), `search_query`, `auto` (`exclude` hides generated lists, `only` shows just them), `limit` (≤2000), `offset`. Sorted most-recommended, then default, then `sort_index`, then name. |
-| `GET`    | `/lists/{system_id}`          | Public | One order with its items **resolved** to display data.                                                                                             |
-| `GET`    | `/candidates`                 | Public | Every entry an order for this owner may include, flattened across the eight media tables, in the resolver's shape (`display_name`, `cover_image_file`, `cover_image_focus`, `franchise_id`, `status`, `total_episodes`, `ep_special`). Exactly one of `franchise_id` / `collection_id` required. |
+| `GET`    | `/lists`                      | Public | List order summaries (no items). Optional params: `franchise_id`, `collection_id`, `series_id` (owner filters), `search_query`, `auto` (`exclude` hides generated lists, `only` shows just them), `limit` (≤2000), `offset`. Sorted most-recommended, then default, then `sort_index`, then name. An order whose owning collection, franchise or series the viewer's mode hides is left out. |
+| `GET`    | `/lists/{system_id}`          | Public | One order with its items **resolved** to display data. 404 when its owning group is hidden from the viewer, as for a missing order. |
+| `GET`    | `/candidates`                 | Public | Every entry an order for this owner may include, flattened across the eight media tables, in the resolver's shape (`display_name`, `cover_image_file`, `cover_image_focus`, `franchise_id`, `status`, `total_episodes`, `ep_special`). Exactly one of `franchise_id` / `collection_id` required. 404 when the owner is hidden from the viewer; a collection's hidden member franchises are skipped. |
 | `POST`   | `/lists`                      | Admin  | Create an order. Body: `WatchOrderListCreate`. 400 unless exactly one owner is given.                                                               |
 | `POST`   | `/lists/release`              | Admin  | Give one owner a built-in order (`franchise_id`, `collection_id` or `series_id`; `anime_only=true` for the anime variant). Idempotent per kind. 400 below 2 entries in scope, or for a collection that opts out. |
 | `POST`   | `/lists/release/backfill`     | Admin  | Give every franchise, series and collection its built-in orders, skipping owners that already have them, those below 2 entries, and opted-out collections. Safe to re-run; returns `created`, `skipped_too_small` and `skipped_opted_out`. |
@@ -702,7 +751,7 @@ endpoint gets it and `item_count` for every row in one grouped query.
 
 **Item resolution.** `watch_order_item` stores only a `media_id` foreign key
 — `media_type` and `entry_id` are derived from it (see
-[data-model.md](data-model.md#the-six-tables-that-moved-to-media_id)) — so the
+[data-model.md](data-model.md#tables-that-hang-off-an-entry-or-a-group)) — so the
 detail endpoint enriches each item
 with `display_name`, `cover_image_file`, `cover_image_focus`, `franchise_id`, `status`,
 `total_episodes` and `ep_special` via `app/services/domain/watch_order.py`. That runs one query
@@ -722,8 +771,8 @@ admin-only, matching watch orders. Replaces the per-entry `prequel_id` /
 | -------- | ---------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------- |
 | `GET`    | `/kinds`                                 | Public | The relation vocabulary: `key`, `label`, `inverse_label`, `family` (`timeline`, `equivalence`, `branch`, `derivation`), `symmetric`, `stored_as`. Fifteen entries — the fourteen stored kinds (`sequel`, `alternative`, `corresponding`, `renew`, `directors_cut`, `extended`, `remake`, `remaster`, `side_story`, `spin_off`, `setting`, `dlc`, `related`, `adaptation`) plus `prequel`, which is stored as a swapped `sequel`. |
 | `GET`    | `/for-entry?media_type=&entry_id=`       | Public | Every relation touching one entry, from **both** endpoints, each resolved to the far entry's display data and labelled for the side being viewed. |
-| `GET`    | `/?franchise_id=` or `?collection_id=`   | Public | Every relation with at least one endpoint among a scope's entries. Backs the admin page's count badges in one request. Exactly one scope param, else 400. |
-| `GET`    | `/graph?franchise_id=`, `?collection_id=` or `?series_id=` | Public | Everything the `/relations` canvas draws for one scope, in one request: `{nodes, edges}`. Exactly one scope param, else 400. A series scope resolves against `series_id` directly (an anime movie has no `series_id`, so it can only appear as a ghost). **Viewer-filtered**: nodes and edges touching an entry the viewer may not see are dropped. |
+| `GET`    | `/?franchise_id=` or `?collection_id=`   | Public | Every relation with at least one endpoint among a scope's entries. Backs the admin page's count badges in one request. Exactly one scope param, else 400. 404 when the scope is hidden from the viewer; a collection's hidden member franchises are skipped. |
+| `GET`    | `/graph?franchise_id=`, `?collection_id=` or `?series_id=` | Public | Everything the `/relations` canvas draws for one scope, in one request: `{nodes, edges}`. Exactly one scope param, else 400. A series scope resolves against `series_id` directly (an anime movie has no `series_id`, so it can only appear as a ghost). **Viewer-filtered**: nodes and edges touching an entry the viewer may not see are dropped. A hidden scope, at any tier, is 404. |
 | `POST`   | `/`                                      | Admin  | Create. Body is the relation as typed; direction is normalized before writing.                                             |
 | `PATCH`  | `/{system_id}`                           | Admin  | Edit `kind`, `swap` and/or `remark`. Changing the kind re-normalizes, so Sequel → Prequel flips the stored endpoints; `swap: true` trades the endpoints over keeping the kind, which is the only way to turn an Adaptation or a Spin-off around. Swapping a symmetric kind is a no-op, and one that would duplicate an existing row is a 409. |
 | `DELETE` | `/{system_id}`                           | Admin  | Delete. Logs to `deleted_record` as type "Media Relation". The two entries are untouched.                                  |
@@ -796,7 +845,7 @@ Every route needs the game visible to the caller (`require_visible_media`): a
 hidden or unknown game answers **404 "Game not found."**, and a visible entry
 of any type but `game` or `h-game` answers **422**. Graph writes need
 `manage.catalog`; a mark needs a signed-in account holding
-`self.personal_notes`, which the root flag does not grant - so the `admin`
+`self.personal_notes`, which the `admin` role never holds - so the admin
 account cannot write marks and reads none. The tables' `system_id` is sent as
 `id` in every response.
 
@@ -840,17 +889,18 @@ business-rules.md.
 
 ## Quote — `/api/quote`
 
-Memorable lines and memes attached to a media entry. Reads are public; every
-write is admin-only.
+Memorable lines attached to a media entry. Reads need the caller's account to
+have the `quotes_memes` feature switched on, which only a `user` or `super`
+account can hold; every write needs `manage.catalog`.
 
 | Method   | Path            | Auth   | Description                                                                                                                                                                                    |
 | -------- | --------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/`             | `view.extras` | List quotes. Optional params: `media_type`, `entry_id`, `is_general`, `is_favorite`, `needs_review`, `tag`, `search_query`, `limit` (≤2000), `offset`. Newest first.                     |
-| `GET`    | `/grouped`      | `view.extras` | The Quote page feed: quotes bucketed by entry, each bucket carrying its resolved entry header. Same filters minus `entry_id`. Named entries sort first; unresolvable ones sink to the bottom.    |
-| `GET`    | `/{quote_id}`   | `view.extras` | One quote with its entry's display data.                                                                                                                                                        |
+| `GET`    | `/`             | feature `quotes_memes` | List quotes. Optional params: `media_type`, `entry_id`, `is_general`, `is_favorite` (the viewer's own favourites), `needs_review`, `tag`, `search_query`, `limit` (≤2000), `offset`. Newest first.                     |
+| `GET`    | `/grouped`      | feature `quotes_memes` | The Quote page feed: quotes bucketed by entry, each bucket carrying its resolved entry header. Same filters minus `entry_id`. Named entries sort first; unresolvable ones sink to the bottom.    |
+| `GET`    | `/{quote_id}`   | feature `quotes_memes` | One quote with its entry's display data.                                                                                                                                                        |
 | `POST`   | `/`             | Admin  | Create. Body: `QuoteCreate`. 400 on an unknown `media_type`.                                                                                                                                    |
 | `PUT`    | `/{quote_id}`   | Admin  | Full update. Body: `QuoteUpdate`.                                                                                                                                                               |
-| `PATCH`  | `/{quote_id}`   | Admin  | Partial update (inline edits, favorite toggle). Body: raw JSON dict.                                                                                                                            |
+| `PATCH`  | `/{quote_id}`   | Admin  | Partial update (inline edits). Body: raw JSON dict. `is_favorite` is not a column; the viewer's own is written through `PUT /api/me/favorites/quote/{id}`.                                         |
 | `DELETE` | `/{quote_id}`   | Admin  | Delete. Logs to `deleted_record` as type "Quote". `image_file` is left alone — quote images are hand-managed local files.                                                                        |
 
 **Response models:** `QuoteResponse`, `QuoteResolved` (adds `missing`,
@@ -873,16 +923,17 @@ never one per quote. A quote whose entry no longer exists comes back with
 
 Jokes, catchphrases and running gags attached to a media entry. A sibling of
 Quote with its own shape: one text, one image, or one of each.
-Reads are public; every write is admin-only.
+Reads need the `quotes_memes` feature, as Quote's do; every write is
+admin-only.
 
 | Method   | Path           | Auth   | Description                                                                                                                                       |
 | -------- | -------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/`            | `view.extras` | List memes. Optional params: `owner_type`, `owner_id`, `is_favorite`, `search_query` (matches `text`), `limit` (≤2000), `offset`.                   |
-| `GET`    | `/grouped`     | `view.extras` | The Meme page feed: memes bucketed by owner, each bucket carrying its resolved owner header. Named owners sort first; unresolvable ones last.       |
-| `GET`    | `/{meme_id}`   | `view.extras` | One meme with its entry and linked-quote data resolved.                                                                                            |
+| `GET`    | `/`            | feature `quotes_memes` | List memes. Optional params: `owner_type`, `owner_id`, `is_favorite` (the viewer's own favourites), `search_query` (matches `text`), `limit` (≤2000), `offset`.                   |
+| `GET`    | `/grouped`     | feature `quotes_memes` | The Meme page feed: memes bucketed by owner, each bucket carrying its resolved owner header. Named owners sort first; unresolvable ones last.       |
+| `GET`    | `/{meme_id}`   | feature `quotes_memes` | One meme with its entry and linked-quote data resolved.                                                                                            |
 | `POST`   | `/`            | Admin  | Create. Body: `MemeCreate`. 400 on an unknown `owner_type`, an unknown `quote_id`, or a quote already claimed by another meme.                      |
 | `PUT`    | `/{meme_id}`   | Admin  | Full update, same validation.                                                                                                                      |
-| `PATCH`  | `/{meme_id}`   | Admin  | Partial update. Body: raw JSON dict.                                                                                                               |
+| `PATCH`  | `/{meme_id}`   | Admin  | Partial update. Body: raw JSON dict. `is_favorite` is not a column; the viewer's own is written through `PUT /api/me/favorites/meme/{id}`.          |
 | `DELETE` | `/{meme_id}`   | Admin  | Delete. Logs to `deleted_record` as type "Meme". **Linked quotes are not deleted** — a quote stands on its own.                                     |
 
 **Response models:** `MemeResponse`, `MemeResolved` (adds the resolved owner
@@ -906,24 +957,25 @@ the frontend hides the quote-link control in that case.
 
 **Hidden owners.** A meme whose owner is hidden from the viewer is dropped from
 every read, and its `/{meme_id}` and writes answer 404: a label-hidden entry,
-a label-hidden franchise, or a series in one. A collection carries no labels.
+or a collection, franchise or series hidden by its own labels or by a group
+above it.
 
 ---
 
 ## Resources — `/api/resources`
 
 The site-wide Resources page: one tree of groups and items (links, plain text,
-text with inline links). Reads take the same gate as the Quote list -
-`view.extras`, which a guest does not hold; every write needs `manage.catalog`. See
-[systems/resources.md](systems/resources.md).
+text with inline links). Reads and writes alike need `manage.resources`,
+which only the `admin` and `super` roles hold: a guest and a `user` get
+**401** on every route. See [systems/resources.md](systems/resources.md).
 
 | Method   | Path            | Auth             | Description |
 | -------- | --------------- | ---------------- | ----------- |
-| `GET`    | (root)          | `view.extras`           | The whole page as a tree: the top-level nodes, each with `children` nested to any depth, every level sorted by `sort_index` (groups and items interleaved). |
-| `POST`   | (root)          | `manage.catalog` | Create. Body: `{kind, parent_id?, title?, content?}`. **201** with the node (`children: []`), appended after its siblings (`max(sort_index) + 1`). **422** when a group has no title or has content, an item has no content, `kind` is not `group`/`item`, or `parent_id` names no node or an item. |
-| `PATCH`  | `/reorder`      | `manage.catalog` | Body: `{parent_id: uuid\|null, ordered_ids: [uuid, ...]}`. Moves every listed node under `parent_id` and sets its `sort_index` to its position (0.0, 1.0, …), so it both reorders and moves between groups. **422** on a duplicate id, an unknown id, a parent that is missing or an item, a list that leaves out any node already under that parent, or a group moved inside itself or its own descendant. Returns `{"status": "success", "reordered": n}`. |
-| `PATCH`  | `/{system_id}`  | `manage.catalog` | Edit `title` and/or `content`. `kind` and `parent_id` are not editable here (extra keys are ignored); moves go through `/reorder`. Same **422** shape rules as create; **404** on an unknown id. |
-| `DELETE` | `/{system_id}`  | `manage.catalog` | Delete the node and, by the cascading `parent_id` FK, everything under it. Logs to `deleted_record` as type "Resource". Returns `{"status": "success", "message": ...}`. |
+| `GET`    | (root)          | `manage.resources` | The whole page as a tree: the top-level nodes, each with `children` nested to any depth, every level sorted by `sort_index` (groups and items interleaved). |
+| `POST`   | (root)          | `manage.resources` | Create. Body: `{kind, parent_id?, title?, content?}`. **201** with the node (`children: []`), appended after its siblings (`max(sort_index) + 1`). **422** when a group has no title or has content, an item has no content, `kind` is not `group`/`item`, or `parent_id` names no node or an item. |
+| `PATCH`  | `/reorder`      | `manage.resources` | Body: `{parent_id: uuid\|null, ordered_ids: [uuid, ...]}`. Moves every listed node under `parent_id` and sets its `sort_index` to its position (0.0, 1.0, …), so it both reorders and moves between groups. **422** on a duplicate id, an unknown id, a parent that is missing or an item, a list that leaves out any node already under that parent, or a group moved inside itself or its own descendant. Returns `{"status": "success", "reordered": n}`. |
+| `PATCH`  | `/{system_id}`  | `manage.resources` | Edit `title` and/or `content`. `kind` and `parent_id` are not editable here (extra keys are ignored); moves go through `/reorder`. Same **422** shape rules as create; **404** on an unknown id. |
+| `DELETE` | `/{system_id}`  | `manage.resources` | Delete the node and, by the cascading `parent_id` FK, everything under it. Logs to `deleted_record` as type "Resource". Returns `{"status": "success", "message": ...}`. |
 
 **Response model:** `ResourceNodeResponse` - `system_id`, `parent_id`, `kind`,
 `title`, `content`, `sort_index`, `created_at`, `updated_at`, `children`.
@@ -1002,19 +1054,21 @@ never caches a cover.
 ## Images — `/api/images`
 
 Upload an image from the caller's own machine and attach it to anything else
-in the catalogue. Every route is behind `require_manage_catalog` — there is
-no public read.
+in the catalogue. Every route is behind `require_manage_images`
+(`manage.images`, held by the `admin` and `super` roles) — there is no public
+read, and `manage.catalog` alone does not open it. The Auth column's
+"Images" is that key.
 
 | Method   | Path                          | Auth   | Description                                                                                                                                |
 | -------- | ----------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `POST`   | `/`                           | Catalog | Upload one file (`multipart/form-data`, field `file`). Validates, re-encodes to JPEG, stores it, and returns the `image` row. Attaches it to nothing — upload and attach are separate calls. 413 over `MAX_IMAGE_UPLOAD_MB` (default 10), 422 if the bytes are not a PNG/JPEG/WebP image. |
-| `GET`    | `/`                           | Catalog | The library, paginated (`limit` ≤200, `offset`). `?q=` matches `original_filename`; `?unused=true` restricts to images with no attachment and no cast row using them as a photo; `?missing=true` restricts to images whose file is not on this machine; `?duplicates=true` is always empty (checksum is unique) and exists to prove dedup rather than to filter anything. |
-| `POST`   | `/{image_id}/attach`          | Catalog | Body: `{owner_type, owner_id, role}`. Points an owner at this image; re-attaching the same `(owner_type, owner_id, role)` replaces rather than duplicating. 400 on an `owner_type` outside `ATTACHABLE_OWNERS`. |
-| `DELETE` | `/{image_id}/attach/{attachment_id}` | Catalog | Detach. An uploaded image (`uploaded_by` set) stays in the library for reuse. A downloaded one is deleted with its file once its last attachment goes: its file is keyed on the owner it was downloaded for, so the next download for that owner overwrites it, and kept in the library it would alias that owner's live cover. |
-| `DELETE` | `/owners/{owner_type}/{owner_id}/{role}` | Catalog | Clear an owner's image, so it has none — the picker's **Remove**. Clears the attachment if there is one (by the rule detach follows), the mirror column, and — for `role` `cover` on a `COVER_OWNERS` type — the file downloaded for the owner at `covers/<owner_type>/<owner_id>.jpg`, unless an `image` row attached elsewhere still points at it. Keyed on the owner because a cover downloaded after the library was introduced has no `image` row to detach. The next Replace downloads the cover of whatever external id the entry holds then. 204 when there was nothing to clear; 400 on an `owner_type` outside `ATTACHABLE_OWNERS`. |
-| `DELETE` | `/{image_id}`                 | Catalog | Delete the file and its row. 409 while any attachment or cast photo still points at it, unless `?force=true`; a forced delete empties those owners' mirror columns and those cast rows' `photo_file`, and NULLs the focus beside each. |
+| `POST`   | `/`                           | Images | Upload one file (`multipart/form-data`, field `file`). Validates, re-encodes to JPEG, stores it, and returns the `image` row. Attaches it to nothing — upload and attach are separate calls. 413 over `MAX_IMAGE_UPLOAD_MB` (default 10), 422 if the bytes are not a PNG/JPEG/WebP image. |
+| `GET`    | `/`                           | Images | The library, paginated (`limit` ≤200, `offset`). `?q=` matches `original_filename`; `?unused=true` restricts to images with no attachment and no cast row using them as a photo; `?missing=true` restricts to images whose file is not on this machine; `?duplicates=true` is always empty (checksum is unique) and exists to prove dedup rather than to filter anything. |
+| `POST`   | `/{image_id}/attach`          | Images | Body: `{owner_type, owner_id, role}`. Points an owner at this image; re-attaching the same `(owner_type, owner_id, role)` replaces rather than duplicating. 400 on an `owner_type` outside `ATTACHABLE_OWNERS`. |
+| `DELETE` | `/{image_id}/attach/{attachment_id}` | Images | Detach. An uploaded image (`uploaded_by` set) stays in the library for reuse. A downloaded one is deleted with its file once its last attachment goes: its file is keyed on the owner it was downloaded for, so the next download for that owner overwrites it, and kept in the library it would alias that owner's live cover. |
+| `DELETE` | `/owners/{owner_type}/{owner_id}/{role}` | Images | Clear an owner's image, so it has none — the picker's **Remove**. Clears the attachment if there is one (by the rule detach follows), the mirror column, and — for `role` `cover` on a `COVER_OWNERS` type — the file downloaded for the owner at `covers/<owner_type>/<owner_id>.jpg`, unless an `image` row attached elsewhere still points at it. Keyed on the owner because a cover downloaded after the library was introduced has no `image` row to detach. The next Replace downloads the cover of whatever external id the entry holds then. 204 when there was nothing to clear; 400 on an `owner_type` outside `ATTACHABLE_OWNERS`. |
+| `DELETE` | `/{image_id}`                 | Images | Delete the file and its row. 409 while any attachment or cast photo still points at it, unless `?force=true`; a forced delete empties those owners' mirror columns and those cast rows' `photo_file`, and NULLs the focus beside each. |
 
-**The 404 on attach and clear.** `manage.catalog` says nothing about *which* entries a
+**The 404 on attach and clear.** `manage.images` says nothing about *which* entries a
 holder may reach, so attaching to or clearing a media owner (one of `MEDIA_TABLES`) also
 runs `entry_visible` — the same content-label check a detail read applies —
 and answers **404 "Entry not found."** exactly as a genuinely missing entry
@@ -1054,35 +1108,72 @@ whether the file exists on this machine — and `attachments`, the list of
 
 Structured commentary on any owner: one row per bullet, linked resource or
 episode comment. This is the only storage for them — there is no `notes` JSONB column on the
-seven media tables. Reads are public, less what needs `view.personal` (below); every write is admin-only.
+seven media tables. Reads are public. Every write — create, reorder, edit and delete — asks its **section**'s capability, shown as "By scope" below: `manage.catalog` for a catalogue section, `self.personal_notes` for a personal one, where a row is edited and deleted by its author alone and anyone else, whatever the role, gets the 404 a missing note gets ([authorization.md](authorization.md#note-scope)). The admin account holds neither key, so it writes no note.
 
 Like Meme, a note's owner may be a media entry **or** one of the three
 grouping tiers — the same twelve hyphenated `owner_type` values.
 
 A hidden owner answers **404 "Owner not found."** on the read and on every
-write: a label-hidden entry, a label-hidden franchise, or a series in one. The
-tier on a write is resolved from the id, never from the payload's
-`owner_type`. A collection carries no labels and is never refused.
+write: a label-hidden entry, or a collection, franchise or series hidden by
+its own labels or by a group above it. The tier on a write is resolved from
+the id, never from the payload's `owner_type`.
 
 | Method   | Path           | Auth   | Description                                                                                                                                       |
 | -------- | -------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/sections`    | Public | The section registry resolved for one owner type, in display order. Required param: `owner_type`. 400 on an unknown one, and on a gated type the viewer cannot see (`h-comic`, `h-game` or `hentai` outside `unrestricted`). Without `view.personal`, `highlights` and `highlight_episodes` are absent from the list. |
-| `GET`    | `""`           | Public | Every note for one owner, ordered the way the page renders them. Required params: `owner_type`, `owner_id`. Optional `author` (a username) reads that user's personal notes instead of the viewer's own: **401** without `view.personal`, then 404 unless their list is public and the viewer's mode carries `personal_notes`. Without `view.personal`, rows in `highlights` and `highlight_episodes` are omitted. |
-| `POST`   | `""`           | Admin  | Create (201). Body: `NoteCreate`. 422 on a payload the registry rejects, on a second row in a singleton section, or on a second `music_status` row for the same anime and `kind`. `sort_index` defaults to the end.     |
-| `PATCH`  | `/reorder`     | Admin  | Rewrite `sort_index` for one section of one owner. Body: `NoteReorder`. 400 unless `ordered_ids` names exactly that section's notes, each once.                |
-| `PATCH`  | `/{note_id}`   | Admin  | Partial update. Body: `NoteUpdate`, validated as the row *will* be, so a partial update cannot land on an invalid combination.                      |
-| `DELETE` | `/{note_id}`   | Admin  | Delete, **204 No Content**. Logs to `deleted_record` as type "Note", standing a truncated `content` in for the name a note does not have.        |
+| `GET`    | `/sections`    | Public | The section registry resolved for one owner type, in display order. Required param: `owner_type`. 400 on an unknown one, and on a gated type the viewer cannot see (`h-comic`, `h-game` or `hentai` outside `unrestricted`). Each section carries its `scope` (`catalog` or `personal`), which says who may write it, and `mixed` (`true` on the ten catalogue sections that also hold each viewer's own personal rows). |
+| `GET`    | `""`           | Public | Every note for one owner, ordered the way the page renders them. Required params: `owner_type`, `owner_id`. Catalogue sections for everyone; personal sections only the viewer's own rows, and none for a logged-out viewer. There is no parameter that reads another account's personal notes, the admin's included. The six highlight sections are personal, so their rows are the viewer's own too. A mixed section returns its catalogue rows and then the viewer's own personal rows (`personal: true`), each kind by `sort_index`; nobody reads another account's. |
+| `POST`   | `""`           | By scope | Create (201). Body: `NoteCreate`. In a mixed section the server picks the row's kind, never the payload (a `personal` key is ignored): a caller holding `manage.catalog` writes a catalogue row, any other caller holding `self.personal_notes` a personal row. 422 on a payload the registry rejects, on a catalogue row nesting under a personal one or a row nesting under another account's personal row, on a second row in a singleton section, or on a second `music_status` row for the same anime and `kind`. `sort_index` defaults to the end.     |
+| `PATCH`  | `/reorder`     | By scope | Rewrite `sort_index` for one section of one owner. Body: `NoteReorder`. 400 unless `ordered_ids` names exactly that section's notes, each once - in a personal section, exactly the caller's own; in a mixed section exactly its catalogue rows for a `manage.catalog` holder and exactly the caller's own personal rows for anyone else.                |
+| `PATCH`  | `/{note_id}`   | By scope | Partial update. Body: `NoteUpdate`, validated as the row *will* be, so a partial update cannot land on an invalid combination. A PATCH that changes `section` without sending `sort_index` puts the row at the end of its new section. A personal row of a mixed section is edited only by its author, may move only to another mixed section (422 otherwise), and never changes kind. |
+| `DELETE` | `/{note_id}`   | By scope | Delete, **204 No Content**. Asks the author rule and then the section's write capability, as a `PATCH` does; a row in a section the registry no longer knows is deletable by a `manage.catalog` holder. Logs to `deleted_record` as type "Note", standing a truncated `content` in for the name a note does not have. Every account's note marks on the row go with it.        |
+| `PUT`    | `/{note_id}/mark` | `self.personal_notes` | Set or clear the caller's own personal values on one catalogue row. Body `{"values": {key: value \| null}}`: each key is one of the row's personal values (a personal field's key, or `status` for a section-level personal status); a value sets it, `null` or blank clears it, a key not named is left alone. Returns the `NoteResponse` as the caller now reads it. **401** without the permission - the `admin` account included, it keeps no personal data - and for a value granted by a feature the caller lacks; **404** for a missing note or an owner the caller may not see; **422** for a key that is not personal on the row's section, or a value outside its vocabulary. |
+| `POST`   | `/ng-reset`    | `self.personal_notes` | Start a new cycle of one owner for the caller. Body `{"owner_type", "owner_id"}`. Clears, from the caller's own marks only, `collected` and `amount_collected` on every 物品 row whose `ng_reset` is `yes` (a row without one reads `yes`) and `beaten` on every 敵人 row. Returns `{"cleared": n}`, the number of the caller's marks changed. 400 unknown `owner_type`, 401 as above, 404 owner not visible. |
 
-**Response models:** `NoteResponse`, `NoteSectionOut` (one resolved registry
-entry: `key`, `shape`, `label`, `kinds`, `locator_placeholder`,
+**Personal values on catalogue rows.** Some catalogue rows carry values that
+are each viewer's own: `collected` and `amount_collected` on 武器&裝備 / 道具
+/ 收集物, `beaten` on 敵人, `completion` on 結局, `my_value` on 屬性&配點, and
+`status` on the four song lists, `music_status` and 模組&工具 (the last two
+granted by the `music_status` and `mod_status` features). Every
+`NoteResponse` - from the list, a create, a PATCH or a mark - carries the
+**viewer's own** value in the place the field lives (`status`, or
+`fields[key]`), or the field's default (`not collected`, `to beat`, `Not
+Done`) when the viewer has none, else `null` / the key absent. A granted
+value the viewer lacks the feature for is `null` / absent. A catalogue
+`POST` / `PATCH` ignores a personal value it is sent: it is neither stored
+nor checked. The detail is in [systems/notes.md](systems/notes.md).
+
+**By scope** is the section's `scope`: a `catalog` section is written under
+`manage.catalog`, a `personal` one under `self.personal_notes` (which the
+`admin` account does not hold - its creates, edits and reorders there are
+**401**). A personal row is edited, reordered and deleted only by its author;
+another account's row is **404** to everyone, the `admin` account included. A
+**mixed** section is decided by `manage.catalog`: its holders - `super` as
+seeded - write, edit and reorder its catalogue rows (**401** for anyone else,
+the `admin` account included), and every other account holding
+`self.personal_notes` writes its own personal rows, which only it edits,
+deletes, reorders, marks and nests under (**404** to anyone else). Personal sections include the six highlight sections and 下周目目標
+(`ng_goals`) - [catalogue.md](catalogue.md) lists every section's scope.
+
+**Response models:** `NoteResponse` (carries `personal`, true on a personal
+row of a mixed section - always the viewer's own - and false on every other),
+`NoteSectionOut` (one resolved registry
+entry: `key`, `shape`, `scope` (`catalog`, `personal`, or `null` for quotes and
+memes), `mixed`, `label`, `kinds`, `locator_placeholder`,
 `locator_required`, `takes_links` (an `episode_text` section whose rows also
 carry URL-string links - `op_ed_changes`), `singleton`, `desc_required`, and for a structured section
 `fields` - each field's `type` may be `names`, a list of strings stored under
 `fields[key]`, or `choice_node`, the uuid of a node of the owner game's choice
 graph - a block, never a branch - also under `fields[key]` (a value naming
-another game's block, or none, is a 422 on POST and PATCH) - `require_any`, `hierarchical`, `group_by` (the `names` field
+another game's block, or none, is a 422 on POST and PATCH); a free-text
+`select` may carry `option_category`, the option category suggesting its
+values (suggestions only - the value stays free text) - `require_any`, `hierarchical`, `group_by` (the `names` field
 the read view groups by, or `null`), `groupable_by` (the `select` field the
-reader may toggle a one-group-per-value view on, or `null`), `owner_where` (`{owner column:
+reader may toggle a one-group-per-value view on, or `null`; on a
+`hierarchical` section only a top-level row may carry it, and a child
+carrying one is a 422 "Only a top-level row carries a group."),
+`move_targets` (`[{key, label}]`, the sections a row can be moved straight to
+by a PATCH of `section` - the owner's other `quick_move` sections in the same
+card, `[]` elsewhere), `owner_where` (`{owner column:
 [allowed values]}`, `{}` for none), and the music-group fields: `link_pairs`
 (the section's `links` are `{"text", "url"}` pairs rather than URL strings),
 `link_text_category` (the option category suggesting a pair's `text`),
@@ -1092,7 +1183,15 @@ per - Resources),
 `default_status`, `one_per_kind` (one row per owner and `kind`), `hidden` (no
 card of its own), and `type_status_section` / `type_statuses` /
 `type_status_default` (the section holding this list's status row, keyed by
-this section's key as `kind`, with that status's vocabulary and default)).
+this section's key as `kind`, with that status's vocabulary and default);
+and the personal-value keys: each field's `personal` (the value is the
+viewer's own, written through `PUT /{note_id}/mark`) and `granted` (the
+feature it is behind, or `null`), and each section's `personal_status` (its
+row's `status` is the viewer's own, mark key `status`) and `status_granted`.
+A value granted by a feature the viewer lacks is not listed: its field is
+left out, and a personal status's `statuses` and `default_status` are empty,
+as are a song list's `type_status_section` / `type_statuses` /
+`type_status_default`).
 
 `links` on `NoteCreate` / `NoteUpdate` / `NoteResponse` is a list of URL
 strings, or - on a section reporting `link_pairs: true` (the four song
@@ -1131,23 +1230,43 @@ leaves `sort_index` ascending in the order the page draws.
 
 | Method  | Path              | Auth   | Description                                                                                         |
 | ------- | ----------------- | ------ | --------------------------------------------------------------------------------------------------- |
-| `GET`   | `/current-season` | `self.list` | Returns `{current_season}` from `system_configs`. Used by frontend to highlight the current season. |
+| `GET`   | `/current-season` | Public | Returns `{current_season}` from `system_configs` (null when unset). The calendar, not anybody's data, so it answers every viewer. |
+| `GET`   | `/catalogue`      | Public | `SeasonCount[]` — `{season, entry_count}` for every season the viewer's visible anime aired in, newest first. A season is `release_season` plus the year of `release_date`, the pair `?airing_season=` filters on. Narrowed to the viewer's media types and mode. |
 | `GET`   | `/`               | `self.list` | List the CALLER'S OWN seasonal records, ordered by `seasonal` descending.                           |
 | `GET`   | `/{seasonal_id}`  | `self.list` | Get the caller's own record for one season (e.g. `"WIN 2026"`). `404` when they have none.          |
 | `PATCH` | `/{seasonal_id}`  | `self.list` | Update `my_rating` on the caller's own row. Any real account, not just an admin - the rating is theirs. Body: `SeasonalUpdate`. |
 
 **Response model:** `SeasonalResponse` (unchanged).
 
-**Per user, and behind `self.list`.** A seasonal row is keyed
-`(user_id, seasonal)`, its four counters are aggregates over that user's
-`user_media_list` rows, and `my_rating` is their own - so a logged-out visitor
-gets `401` from every route here rather than somebody else's numbers. The admin
-mirror of the season value, `/api/system/config/current_season`, is untouched.
+**Per user, and behind `self.list`, except the two catalogue reads.** A
+seasonal row is keyed `(user_id, seasonal)`, its four counters are aggregates
+over that user's `user_media_list` rows, and `my_rating` is their own - so a
+logged-out visitor gets `401` from `/`, `/{seasonal_id}` and the `PATCH` rather
+than somebody else's numbers. `/current-season` and `/catalogue` are about the
+catalogue, not an account, and sit on a separate router
+(`seasonal.catalogue_router`, included first so `/catalogue` is not taken for a
+`{seasonal_id}`). The Control Center writes the season value through
+`/api/system/config/current_season`, which stays `manage.pipelines`.
+
+## Statistics — `/api/statistics`
+
+| Method | Path | Auth | Description |
+| ------ | ---- | ---- | ----------- |
+| `GET`  | `/catalogue` | `view.statistics` | `CatalogueStatistics` — `by_type` (`{media_type, entry_count, franchise_count}[]`, a type with no visible entry absent; `franchise_count` is the distinct franchises holding at least one visible entry of the type, through `media.franchise_id`), `by_season` (as `/api/seasonal/catalogue`), and `scores` — `mal` and `anilist`, each `{media_type, bucket, entry_count}[]` over every type carrying that column (anime, anime movie, manga, novel). `bucket` is the lower bound: MAL in one-point buckets 0-9, AniList in ten-point buckets 0-90, a perfect score folded into the top one; an unscored entry is in none. Every count is narrowed to the media types the role holds and the labels its mode shows (`services/domain/catalogue_stats.py`). **401** for a guest or the admin. |
 `/api/search` stays public, but its `seasonal` bucket holds the caller's own
 rows and is empty for an anonymous searcher.
 
 ---
 
+
+## Dashboard — `/api/dashboard`
+
+What the dashboard needs beyond the routes it links to (`app/routers/dashboard.py`).
+
+| Method | Path | Auth | Description |
+| ------ | ---- | ---- | ----------- |
+| `GET`  | `/summary` | `manage.requests` | `DashboardSummary` — `{pending_registrations, open_requests}`: how many accounts wait for approval and how many requests and reports are open. Counts only. Any other viewer gets **401**. |
+| `GET`  | `/recent` | Public | `RecentEntry[]` — `{system_id, media_type, public_id, display_name, cover_image_file, cover_image_focus, created_at}`: the newest `per_type` entries **of each** media type the viewer may see, newest first, in one query (a `row_number()` over `media_type`). `per_type` 1–24, default 6. A type the role lacks and an entry its mode hides are left out, and a type with nothing visible has no rows. |
 ## Add-tab picker searches
 
 Each Add tab can identify a new entry against the outside database Fill reads
@@ -1277,13 +1396,26 @@ routes.
 }
 ```
 
-Every bucket key this session may see is present, empty for the types the
-scope did not ask about. A gated type the session cannot see has **no key at
-all** - not an empty bucket, which would still say the type exists - whatever
-the scope and whether or not `q` is empty. So `h-comic` is present only in a
-mode carrying the `h-comic` label, `h-game` only in one carrying `h-game`,
-and `hentai` only in one carrying `hentai`. The SPA reads every bucket as
-`results[type] ?? []`. An h-comic row carries its derived `animation_status`,
+**Which buckets a response carries.** A bucket is present only for a type
+the viewer may see, and a type it may not see has **no key at all** — not an
+empty bucket, which would still say the type exists. This holds whatever the
+scope and whether or not `q` is empty (`_viewer_may_search`,
+`app/services/domain/search.py`; `SearchBuckets`, `app/routers/search.py`):
+
+| Bucket | Present when |
+| --- | --- |
+| `collection`, `franchise`, `series`, `seasonal` | always |
+| each media type (`anime` … `hentai`) | the role holds `media_type.<type>` |
+| a gated type (`h-comic`, `h-game`, `hentai`) | as above, **and** the mode shows the type's label — which is `unrestricted` for all three |
+| `person`, `studio`, `publisher` | the viewer holds `view.person`, `view.studio`, `view.publisher` |
+| `character` | `characters=true` **and** the viewer holds `view.character` |
+
+A present bucket is empty for the types the scope did not ask about. A
+`scope` naming a bucket the viewer may not see is accepted and answers with
+every present bucket empty. The admin account holds no `view.search`, so the
+route answers it **401**, as it does a guest. The SPA reads every bucket as
+`results[type] ?? []`, so an absent bucket draws no section, no tab and no
+count. An h-comic row carries its derived `animation_status`,
 as on its own list. Rows carry the same response schema as that type's own list endpoint —
 plan flags, link fields, RBAC visibility, and field gating all included.
 
@@ -1298,11 +1430,14 @@ the same one-pass resolver its own list uses (`entity_photos.person_media` for
 people, `credits.credit_summaries` for studios and publishers). The rows go through
 the same shared-record rule as their lists
 ([authorization.md](authorization.md#shared-records)), so a person, studio or
-publisher whose every connection is hidden is absent from its bucket, and a
-series in a label-hidden franchise is absent from the `series` bucket.
+publisher whose every connection is hidden is absent from its bucket. The
+`collection`, `franchise` and `series` buckets go through the tier's own
+visibility gate, so a group hidden by its own labels or by a group above it is
+absent, and each row carries its `content_labels`.
 
 **Characters.** With `characters=true` the response carries a `character`
-bucket; without it there is no such key, so the nav dropdown never sees one.
+bucket for a viewer holding `view.character`; without either there is no such
+key, so the nav dropdown never sees one.
 The bucket matches `name_en`, `name_cn`, `name_jp` and `name_alt` with the
 same normalisation and exact-first ordering as every other bucket, and is
 filled at `scope=all` only — at any other scope it is present and empty.
@@ -1383,7 +1518,8 @@ Keys served: `watching_status`, `reading_status`, `airing_status`,
 `hentai_source_material`, `h_game_playstyle`, `h_game_language_availability`,
 `h_game_audio_availability`, `h_game_h_presentation`, `h_game_art_style`,
 `h_game_h_art_style`, `h_game_platform`,
-`person_role`, `media_type`, `option_categories`, `tag_categories`. The
+`person_role`, `media_type`, `option_categories`, `tag_categories`,
+`note_suggestion_categories`, `request_kind`, `request_status`. The
 payload is viewer-scoped on the gated types: a key that serves gated types
 only (`TYPE_ONLY_VOCABULARIES`) is served while at least one of its types is
 seeable - `h_comic_originality` serves h-comic and hentai,
@@ -1394,7 +1530,7 @@ hentai alone, the five `h_game_*` keys h-game alone, the other two
 `hentai` only for a session that can see that type; for anyone else the
 type's person roles (`club`) and the categories serving gated types only (the
 H Genre categories, once no type they serve is seeable) are left out too
-([authorization.md](authorization.md#what-a-narrow-session-is-not-told)). The last four are for
+([authorization.md](authorization.md#what-a-narrow-session-is-not-told)). The last five are for
 the admin forms:
 `person_role` is derived from `CREDIT_ROLES` in `app/utils/credit_roles.py`
 (it replaced a hand-written copy in `OptionsAddTab.jsx`), `media_type` is the
@@ -1408,8 +1544,10 @@ Options form needs the declared names because it otherwise derives its
 category list from the options already stored, and so could not offer a
 category with no values yet — the state every new tag field starts in.
 `tag_categories` is the subset of those categories the Add / Modify / Delete
-pages group under their Tags sub-tab, which is navigation only — both
-sub-tabs write the same rows. `franchise_type`
+pages group under their Tags sub-tab, and `note_suggestion_categories`
+(`NOTE_SUGGESTION_CATEGORIES`) the subset a note field's `option_category`
+names, grouped under their Note Suggestions sub-tab. Both are navigation
+only — every sub-tab writes the same rows. `franchise_type`
 and `anime_airing_type` are served from the `FRANCHISE_TYPES` /
 `ANIME_AIRING_TYPES` tuples rather than the `FranchiseType` / `AnimeAiringType`
 Python `Enum` classes, because the frontend dropdown has diverged from those
@@ -1417,7 +1555,9 @@ enums — see the value-discrepancy note in `docs/options.md`.
 
 ### `GET /api/constants/external-apis`
 
-Admin-only, unlike the enum list above: it is an inventory of the integrations
+Behind `manage.options` (`require_manage_options`), unlike the enum list
+above — the key the Note pages ask, held by the `admin` and `super` roles: it
+is an inventory of the integrations
 rather than a vocabulary a form needs, and it names the environment variable
 behind each service. Read-only in the strong sense — every rule it reports is a
 property of the code in `app/services/domain/autofill.py`, so there is nothing
@@ -1470,9 +1610,10 @@ scoped to no gated type stays. A `?scope=` naming a gated type the viewer
 cannot see answers `[]`, and a visible value's `scopes` omit such types. `PUT`
 and `DELETE` on a hidden value answer 404, and `PUT` keeps the scope rows the
 editor cannot see.
-| `POST`   | `/`            | Admin  | Add a new option. Body: `SystemOptionCreate` (`{category, value, sort_order, remark, scopes: [...], usages: [...], aliases: [{source, value}, ...]}`). 400 if `(category, value)` already exists. |
-| `PUT`    | `/{option_id}` | Admin  | Update an existing option by UUID `system_id`. Body: `SystemOptionCreate`; replaces the option's scope, usage **and alias** rows wholesale — a body omitting a list deletes it. 400 on a duplicate `(category, value)`. |
-| `DELETE` | `/{option_id}` | Admin  | Delete an option by UUID. Cascades its `system_option_scope`, `system_option_alias`, `media_tag` and `character_tag` rows. Logs to `deleted_record`.                  |
+| `GET`    | `/record-counts` | `manage.options` | System Options' Tier 3: `{person_roles: {role: distinct people}, studios: n}`, numbers only. The same tally as `/api/person/role-counts` and the studio list, counted as the viewer may see them (`app/services/domain/credit_counts.py`), behind the page's own key, because the admin reaches `/options` holding neither `view.person` nor `view.studio`. Declared before `/{category}`. |
+| `POST`   | `/`            | `manage.catalog` | Add a new option. Body: `SystemOptionCreate` (`{category, value, sort_order, remark, scopes: [...], usages: [...], aliases: [{source, value}, ...]}`). 400 if `(category, value)` already exists. |
+| `PUT`    | `/{option_id}` | `manage.catalog` | Update an existing option by UUID `system_id`. Body: `SystemOptionCreate`; replaces the option's scope, usage **and alias** rows wholesale — a body omitting a list deletes it. 400 on a duplicate `(category, value)`. |
+| `DELETE` | `/{option_id}` | `manage.catalog` | Delete an option by UUID. Cascades its `system_option_scope`, `system_option_alias`, `media_tag` and `character_tag` rows. Logs to `deleted_record`.                  |
 
 **Response model:** `SystemOptionResponse` (`{system_id, category, value, sort_order, remark, scopes: [str, ...], usages: [str, ...], aliases: [{source, value}, ...]}`)
 
@@ -1503,20 +1644,20 @@ derived from `(role, media_type)`, never stored.
 
 | Method   | Path              | Auth   | Description                                                                          |
 | -------- | ----------------- | ------ | --------------------------------------------------------------------------------------- |
-| `GET`    | `/`                | `view.entities` | List people, sorted by resolved `display_name`. `?role=` filters to those holding a `person_role`; `?scope=` narrows it to one hyphenated media-type key. Both filters are exact — with no unscoped rows left, a query without `scope` means "holds this role in any media type". |
+| `GET`    | `/`                | `view.person` | List people, sorted by resolved `display_name`. `?role=` filters to those holding a `person_role`; `?scope=` narrows it to one hyphenated media-type key. Both filters are exact — with no unscoped rows left, a query without `scope` means "holds this role in any media type". |
 | `GET`    | `/search-mal`      | `manage.catalog` | `?q=`, `limit`. Searches MAL people. Declared before `/{system_id}`, which is a string here and would otherwise take the literal path. Returns `ExternalSearchResult[]` (see [Add-tab picker searches](#add-tab-picker-searches)); 502 with a `detail` when the source fails. |
-| `GET`    | `/role-counts`     | `view.entities` | How many distinct people hold each `person_role`, zeros included. Declared before `/{system_id}` so the UUID route does not 422 on the literal path. Counts people, not `person_role` rows — a director scoped both ways is one person. Read by the `/options` admin page. |
-| `GET`    | `/role-scopes`     | `view.entities` | `{role: [legal media types]}`, derived from the same `CreditRole.media_types` that validates writes, so the admin form cannot offer a pair the API rejects. Declared before `/{system_id}` for the same reason `role-counts` is. |
-| `GET`    | `/{system_id}`     | `view.entities` | Get one person by UUID. 404 if absent or hidden.                                     |
-| `GET`    | `/{system_id}/entries` | `view.entities` | The entries this person is credited on, grouped by `(media_type, role)`. 404 if the person is absent or hidden. |
+| `GET`    | `/role-counts`     | `view.person` | How many distinct people hold each `person_role`, zeros included. Declared before `/{system_id}` so the UUID route does not 422 on the literal path. Counts people, not `person_role` rows — a director scoped both ways is one person. Heads the person list; the `/options` admin page reads the same tally through `/api/options/record-counts`. |
+| `GET`    | `/role-scopes`     | `view.person` | `{role: [legal media types]}`, derived from the same `CreditRole.media_types` that validates writes, so the admin form cannot offer a pair the API rejects. Declared before `/{system_id}` for the same reason `role-counts` is. |
+| `GET`    | `/{system_id}`     | `view.person` | Get one person by UUID. 404 if absent or hidden.                                     |
+| `GET`    | `/{system_id}/entries` | `view.person` | The entries this person is credited on, grouped by `(media_type, role)`. 404 if the person is absent or hidden. |
 | `POST`   | `/`                | Admin  | Create a person, **or return the existing one** under that name — find-or-create, matching `resolve_person`, because `ensureSourceValues.js` POSTs here whenever a typed name is missing from a role-filtered dropdown. Body: `PersonCreate` (`PersonBase` fields + `roles: [{role, scope}]`), carrying either the four labelled name columns or one unslotted `name` that the endpoint places through `name_slot_for`. The lookup is by `name`, else the first of the labelled names - the first fragment of `name_alt` when that is all the body carries, since `name_alt` is a comma-separated list. A body with no name at all is 422, mirroring `ck_person_has_a_name`. Only on the create branch, `mal_id` is derived from `mal_link` and a seiyuu is enriched from MAL (see below). |
 | `PUT`    | `/{system_id}`     | Admin  | Fully update a person, replacing their `person_role` rows wholesale. Body: `PersonUpdate`. A non-null `photo_fallback_entry_id` must name an entry this person is credited on or voices a character in, and that the editor can see — 422 otherwise; a null keeps a stored choice the editor cannot see, as the role rows are kept. `mal_id` is derived from `mal_link`, and a seiyuu is enriched from MAL after the payload is copied (see below). |
-| `PATCH`  | `/{system_id}`     | Admin  | Partially update a person's own columns — the detail page's inline rating and remark edits. Body: any subset of the `PersonBase` columns as a JSON object; only the keys sent change, and `roles` is not a column (edit it through `PUT`). The `PUT` rules are checked before anything is written: `gender` and `my_rating` are their vocabularies (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, at least one name survives the patch, and `photo_fallback_entry_id` follows the `PUT` rule — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. A `mal_link` in the body re-derives `mal_id`; `PATCH` never calls MAL. Returns the full `PersonResponse`. |
+| `PATCH`  | `/{system_id}`     | Admin  | Partially update a person's own columns — the detail page's inline remark edit. Body: any subset of the `PersonBase` columns as a JSON object; only the keys sent change, and `roles` is not a column (edit it through `PUT`). The viewer's rating is not a column either; it is written through `PUT /api/me/ratings/person/{id}`. The `PUT` rules are checked before anything is written: `gender` is its vocabulary (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, at least one name survives the patch, and `photo_fallback_entry_id` follows the `PUT` rule — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. A `mal_link` in the body re-derives `mal_id`; `PATCH` never calls MAL. Returns the full `PersonResponse`. |
 | `DELETE` | `/{system_id}?credits=N` | Admin  | Delete a person. Cascades their `media_credit`, `character_casting_voice` and `person_role` rows — no `deleted_record` entry is logged. The castings they voiced stay, un-voiced by them (Decision H). `credits` is **required**: it is the count the confirmation dialog showed — `media_credit` rows plus voice rows — and a mismatch is a **409**, so the deletion that happens is the one the admin agreed to. |
 | `POST`   | `/{system_id}/merge` | Admin  | Merge `source_id` into this person: repoints every `media_credit` and every `character_casting_voice` row (a voice on a casting the survivor already voices is dropped), unions the `person_role` rows and moves every club membership onto the survivor, then deletes the loser. Every column the survivor leaves blank is then filled from the loser's, and one it holds is never overwritten; the picture (photo or logo) comes with its focus, a downloaded one renamed onto the survivor's own key (`app/services/domain/merge_fill.py`). 409, with nothing changed, if the filled names would equal another record's. Body: `MergeRequest` (`{source_id}`). 400 if merging into self. Returns `credits_moved`, credits and voices together. |
-| `GET`    | `/{system_id}/clubs` | `view.entities` | The clubs this person belongs to, as `List[MembershipRef]`, ordered by name. Hidden clubs are omitted; 404 if the person is absent or hidden. |
+| `GET`    | `/{system_id}/clubs` | `view.person` | The clubs this person belongs to, as `List[MembershipRef]`, ordered by name. Hidden clubs are omitted; 404 if the person is absent or hidden. |
 | `PUT`    | `/{system_id}/clubs` | Admin  | Replace the clubs this person belongs to. Body: `ClubsReplace` (`{club_ids: [uuid, ...]}`). Each must be a person the writer may see (422 `Unknown club(s)` otherwise), hold the `club` role (422) and not be this person (422). A new membership joins the end of that club's member list; memberships of clubs the writer cannot see are kept. Returns the new `List[MembershipRef]`. |
-| `GET`    | `/{system_id}/members` | `view.entities` | A club's members, as `List[MembershipRef]` in the club's order. Hidden members are omitted; `[]` for a person who is not a club; 404 if the club is absent or hidden. |
+| `GET`    | `/{system_id}/members` | `view.person` | A club's members, as `List[MembershipRef]` in the club's order. Hidden members are omitted; `[]` for a person who is not a club; 404 if the club is absent or hidden. |
 | `PUT`    | `/{system_id}/members` | Admin  | Replace a club's members, in display order. Body: `MembersReplace` (`{member_ids: [uuid, ...]}`). 422 if this person does not hold the `club` role, if an id is not a visible person, or if it names the club itself. Members the writer cannot see keep their rows, after the visible ones. Returns the new list. |
 
 **`MembershipRef`**: `{system_id, public_id, display_name, position}` - the
@@ -1525,7 +1666,8 @@ not a connection: it never makes a hidden club or artist visible
 ([authorization.md](authorization.md#shared-records)).
 
 **Response model:** `PersonResponse` — the four name columns,
-`display_name_field`, the resolved `display_name`, `gender`, `my_rating`,
+`display_name_field`, the resolved `display_name`, `gender`, `my_rating` (the
+viewer's own, null without a rating row),
 `photo_file`, `photo_focus`, `photo_fallback_entry_id`, `remark`, `mal_id`, `mal_link`, `system_id`, `roles` (every
 `(role, scope)` the person holds, so the admin form can load the whole set in
 one request) and five fields resolved **for the viewer** from the entries they
@@ -1549,7 +1691,7 @@ may see (`filter_visible_pairs`), none of them stored:
 
 `gender` is one of `男`, `女`, `中性/無性`, `雙性混和`, `其他` or null, and
 `my_rating` one of `S`…`F` or null ([options.md](options.md)); a write outside
-either is a 422. `photo_fallback_entry_id` is reported only while it names a
+either is a 422 (the rating's through `PUT /api/me/ratings`). `photo_fallback_entry_id` is reported only while it names a
 linked entry the viewer can see, and is null otherwise. The list resolves all
 of this for every row in one pass, so its query count does not grow with the
 number of people; `/api/search` answers its `person` bucket the same way.
@@ -1629,19 +1771,19 @@ role/scope filter — studios have no `person_role` concept.
 
 | Method   | Path                  | Auth   | Description                                                                       |
 | -------- | --------------------- | ------ | ------------------------------------------------------------------------------------ |
-| `GET`    | `/`                   | `view.entities` | List all studios, sorted by `display_name` case-insensitively.                   |
-| `GET`    | `/{system_id}`        | `view.entities` | Get one studio by UUID. 404 if absent or hidden.                                 |
-| `GET`    | `/{system_id}/entries`| `view.entities` | The entries this studio is credited on, grouped by media type. 404 if the studio is absent or hidden. |
+| `GET`    | `/`                   | `view.studio` | List all studios, sorted by `display_name` case-insensitively.                   |
+| `GET`    | `/{system_id}`        | `view.studio` | Get one studio by UUID. 404 if absent or hidden.                                 |
+| `GET`    | `/{system_id}/entries`| `view.studio` | The entries this studio is credited on, grouped by media type. 404 if the studio is absent or hidden. |
 | `POST`   | `/`                   | Admin  | Create a studio, **or return the existing one** under that name — find-or-create, because the Add/Modify forms POST here through `ensureSourceValues.js` whenever a typed name is not in the suggestion list. Matching is on the normalized name (`find_studio`), looked up by the body's first name - the first fragment of `name_alt` when that is all it carries, since `name_alt` is a comma-separated list; metadata on an existing row is left untouched. Body: `StudioCreate`. Only on the create branch, a payload carrying `mal_id` is enriched from MAL first (see below). |
 | `PUT`    | `/{system_id}`        | Admin  | Fully update a studio. Every credit points at the row by id, so a rename here changes what every credited entry shows — there is no propagation step. Body: `StudioUpdate`. The MAL enrichment runs after the payload is copied, so your values win. |
-| `PATCH`  | `/{system_id}`        | Admin  | Partially update a studio's own columns — the detail page's inline rating and remark edits. Body: any subset of the `StudioBase` columns as a JSON object. Only the keys sent change. The `PUT` rules are checked before anything is written: `my_rating` is its vocabulary (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, and at least one name survives the patch — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. Same checks as person's `PATCH` (`_entity_patch.prepare_patch`). A `mal_link` in the body re-derives `mal_id`; `PATCH` never calls MAL. Returns the full `StudioResponse`. |
+| `PATCH`  | `/{system_id}`        | Admin  | Partially update a studio's own columns — the detail page's inline remark edit. Body: any subset of the `StudioBase` columns as a JSON object. Only the keys sent change; the viewer's rating is written through `PUT /api/me/ratings/studio/{id}`. The `PUT` rules are checked before anything is written: `display_name_field` is `en`/`cn`/`jp`/`alt`, and at least one name survives the patch — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. Same checks as person's `PATCH` (`_entity_patch.prepare_patch`). A `mal_link` in the body re-derives `mal_id`; `PATCH` never calls MAL. Returns the full `StudioResponse`. |
 | `DELETE` | `/{system_id}`        | Admin  | Delete a studio. Cascades its `media_credit` rows — no `deleted_record` entry is logged. Merge, not delete, is the fix for a duplicate. |
 | `POST`   | `/{system_id}/merge`  | Admin  | Merge `source_id` into this studio: repoints every `media_credit` (dropping one that would duplicate a credit the survivor already holds), then deletes the loser. Every column the survivor leaves blank is then filled from the loser's, and one it holds is never overwritten; the picture (photo or logo) comes with its focus, a downloaded one renamed onto the survivor's own key (`app/services/domain/merge_fill.py`). 409, with nothing changed, if the filled names would equal another record's. Body: `MergeRequest`. 400 if merging into self. |
 
 **Response model:** `StudioResponse` — `StudioBase` fields (the four names,
-`display_name_field`, `my_rating`, `logo_file`, `logo_focus`, `remark`, `founded_date`,
+`display_name_field`, `logo_file`, `logo_focus`, `remark`, `founded_date`,
 `defunct_date`, `country`, `website_url`, `mal_id`, `mal_link`) plus
-`system_id`, the resolved `display_name`, and three fields resolved **for the
+`system_id`, the viewer's own `my_rating`, the resolved `display_name`, and three fields resolved **for the
 viewer** from the entries they may see, none of them stored:
 
 - `credit_count` — how many visible entries the studio is credited on, one
@@ -1744,19 +1886,19 @@ uses. `app/routers/publisher.py` mirrors `/api/studio` endpoint for endpoint,
 
 | Method   | Path                  | Auth   | Description                                                                       |
 | -------- | --------------------- | ------ | ------------------------------------------------------------------------------------ |
-| `GET`    | `/?scope=`            | `view.entities` | List publishers, sorted by `display_name` case-insensitively (in Python — the display name is a per-row choice among four nullable columns). `scope` is a hyphenated media-type key and narrows the list to publishers offered on that type; omitted, it returns **everything, including publishers holding no scope at all** — the admin list page must be able to see a publisher in order to give it one. There is no `/role-scopes` counterpart to person's: one role means `legal_scopes("publisher")` is a constant the frontend holds. |
-| `GET`    | `/{system_id}`        | `view.entities` | Get one publisher by UUID. 404 if absent or hidden.                              |
-| `GET`    | `/{system_id}/entries`| `view.entities` | The entries this publisher is credited on, grouped by media type. 404 if the publisher is absent or hidden. |
+| `GET`    | `/?scope=`            | `view.publisher` | List publishers, sorted by `display_name` case-insensitively (in Python — the display name is a per-row choice among four nullable columns). `scope` is a hyphenated media-type key and narrows the list to publishers offered on that type; omitted, it returns **everything, including publishers holding no scope at all** — the admin list page must be able to see a publisher in order to give it one. There is no `/role-scopes` counterpart to person's: one role means `legal_scopes("publisher")` is a constant the frontend holds. |
+| `GET`    | `/{system_id}`        | `view.publisher` | Get one publisher by UUID. 404 if absent or hidden.                              |
+| `GET`    | `/{system_id}/entries`| `view.publisher` | The entries this publisher is credited on, grouped by media type. 404 if the publisher is absent or hidden. |
 | `POST`   | `/`                   | Admin  | Create a publisher, **or return the existing one** under that name — find-or-create for the same reason as studio: the Add/Modify forms POST here through `ensureSourceValues.js` whenever a typed name is not in the suggestion list, so a second row would split the credits. Matching is on the normalized name (`find_publisher`), looked up by the body's first name - the first fragment of `name_alt` when that is all it carries; metadata on an existing row is left untouched. Body: `PublisherCreate`. |
 | `PUT`    | `/{system_id}`        | Admin  | Fully update a publisher. Every credit points at the row by id, so a rename here changes what every credited entry shows — no propagation step. Body: `PublisherUpdate`. |
-| `PATCH`  | `/{system_id}`        | Admin  | Partially update a publisher's own columns — the detail page's inline rating and remark edits. Body: any subset of the `PublisherBase` columns as a JSON object; `scopes` is not a column (edit it through `PUT`). Only the keys sent change. The `PUT` rules are checked before anything is written: `my_rating` is its vocabulary (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, and at least one name survives the patch — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. Same checks as person's `PATCH` (`_entity_patch.prepare_patch`). Returns the full `PublisherResponse`. |
+| `PATCH`  | `/{system_id}`        | Admin  | Partially update a publisher's own columns — the detail page's inline remark edit. Body: any subset of the `PublisherBase` columns as a JSON object; `scopes` is not a column (edit it through `PUT`). Only the keys sent change; the viewer's rating is written through `PUT /api/me/ratings/publisher/{id}`. The `PUT` rules are checked before anything is written: `display_name_field` is `en`/`cn`/`jp`/`alt`, and at least one name survives the patch — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. Same checks as person's `PATCH` (`_entity_patch.prepare_patch`). Returns the full `PublisherResponse`. |
 | `DELETE` | `/{system_id}`        | Admin  | Delete a publisher. Cascades its `media_credit` rows — no `deleted_record` entry is logged. Merge, not delete, is the fix for a duplicate. **Also deletes the publisher's logo object** (see below). |
 | `POST`   | `/{system_id}/merge`  | Admin  | Merge `source_id` into this publisher: repoints every `media_credit` (dropping one that would duplicate a credit the survivor already holds), then deletes the loser. Every column the survivor leaves blank is then filled from the loser's, and one it holds is never overwritten; the picture (photo or logo) comes with its focus, a downloaded one renamed onto the survivor's own key (`app/services/domain/merge_fill.py`). 409, with nothing changed, if the filled names would equal another record's. Body: `MergeRequest`. 400 if merging into self. Returns `credits_moved`. |
 
 **Response model:** `PublisherResponse` (`app/schemas/publisher.py`) —
-`PublisherBase` fields (the four names, `display_name_field`, `my_rating`,
+`PublisherBase` fields (the four names, `display_name_field`,
 `logo_file`, `logo_focus`, `remark`, `founded_date`, `defunct_date`, `country`,
-`website_url`, `scopes`) plus `system_id`, the resolved `display_name`, and
+`website_url`, `scopes`) plus `system_id`, the viewer's own `my_rating`, the resolved `display_name`, and
 the three viewer-resolved fields `StudioResponse` carries — `credit_count`,
 `media_types` and `restricted` — from the same `credit_summaries` pass.
 `PublisherBase` rejects a payload with no name at all and a
@@ -1820,7 +1962,7 @@ field's values at once.
 | ------ | --------------------------- | ------ | ---------------------------------------------------------------------------------- |
 | `GET`  | `/usage`                    | Public | How many visible entries of each media type use each value: `{media_type: {studio: {id: n}, publisher: {id: n}, person: {role: {id: n}}, option: {id: n}}}`, ids being the `system_id`s the studio, publisher, person and options lists carry. A count is of **entries**, not rows (a studio credited twice on one entry counts once; a vocabulary value counts every `media_tag` field of the entry together); a person is counted per role. A value no visible entry of a type uses has no key under that type. An entry hidden from the viewer by a content label is not counted, and a type the viewer lacks `media_type.<type>` for is absent — the `credit_count` rule. Two `GROUP BY` queries (`media_credit`, `media_tag`, each joined to `media`) plus the hidden-label lookup, whatever the number of values. Only the Add/Modify forms read it, to order their suggestions — see [Admin Pages](frontend/admin-pages.md#suggestion-order); every list endpoint keeps its own order. |
 | `GET`  | `/{media_type}/{entry_id}`  | Public | Returns `{credits: {role: [names...]}, tags: {field: [values...]}}` — only roles/fields with rows are included; a bare entry returns two empty maps. 400 for an unknown `media_type`, 404 if the entry doesn't exist. |
-| `PUT`  | `/{media_type}/{entry_id}`  | Admin  | Replaces the named roles/fields. Body: `{credits: {role: [names...]}, tags: {field: [values...]}}`. A role/field absent from the body is left untouched; one present with an empty list is cleared. Resolves each name to a `person`/`studio`/`publisher`/`system_option` row, creating on miss (dispatched on the role's `target`, which is a three-value axis). 400 for a role/field not valid on this `media_type`. |
+| `PUT`  | `/{media_type}/{entry_id}`  | Admin  | Replaces the named roles/fields. Body: `{credits: {role: [names...]}, tags: {field: [values...]}}`. A role/field absent from the body is left untouched; one present with an empty list is cleared. Resolves each name to a `person`/`studio`/`publisher`/`system_option` row, creating on miss (dispatched on the role's `target`, which is a three-value axis). 400 for a role/field not valid on this `media_type`. `tags.label` also rewrites the entry's content labels to match its NSFW, 輕微色情 and 擦邊肉番 tags (`nsfw`, `ecchi`, `erotica`), applying the `nsfw` rule - so the stored tags may gain NSFW - and **422** when NSFW is dropped while 輕微色情 or 擦邊肉番 stays, before anything is written ([authorization.md](authorization.md), "A label and its 標籤 Label tag"). 404 when the entry is hidden from the caller. |
 
 `media_type` is one of the hyphenated `MEDIA_TABLES` keys (`anime`,
 `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`,
@@ -1891,19 +2033,20 @@ line for line, plus one deliberate departure — see the `POST` row.
 
 | Method   | Path                   | Auth   | Description                                                                          |
 | -------- | ---------------------- | ------ | ------------------------------------------------------------------------------------- |
-| `GET`    | `/`                    | `view.entities` | List characters, sorted by resolved `display_name`. `?name=` does a case-insensitive substring match against all four name columns, so the cast editor's character combobox can offer suggestions without downloading the whole table. `?franchise_id=` / `?series_id=` (UUIDs; both given means both hold) keep only the characters cast on an entry of that franchise or series which the viewer may see (`filter_visible_pairs`), and narrow each character's `identities` to the ones cast on those entries - the franchise and series hubs' Characters tab. `casting_count` keeps its unscoped meaning. |
+| `GET`    | `/`                    | `view.character` | List characters, sorted by resolved `display_name`. `?name=` does a case-insensitive substring match against all four name columns, so the cast editor's character combobox can offer suggestions without downloading the whole table. `?franchise_id=` / `?series_id=` (UUIDs; both given means both hold) keep only the characters cast on an entry of that franchise or series which the viewer may see (`filter_visible_pairs`), and narrow each character's `identities` to the ones cast on those entries - the franchise and series hubs' Characters tab. `casting_count` keeps its unscoped meaning. |
 | `GET`    | `/search-mal`      | `manage.catalog` | `?q=`, `limit`. Searches MAL characters. Returns `ExternalSearchResult[]` (see [Add-tab picker searches](#add-tab-picker-searches)); 502 with a `detail` when the source fails. |
-| `GET`    | `/{system_id}`         | `view.entities` | Get one character by `public_id` or UUID. 404 if absent or hidden. |
-| `GET`    | `/{system_id}/entries` | `view.entities` | The entries this character is cast on, grouped by media type only — a character holds no role, unlike a person. Each entry carries `seiyuu`: everyone who voiced the character there, in voice order, as `[{display_name, system_id, public_id, remark}]` — empty when nobody did. One entry appears **once per identity** the character is cast under in it, so each row also carries `casting_id`, `identity_id`, `identity_name` and `identity_public_id` (null for the main identity), `credited_name`, the name the casting gives the character in that entry (null for none), and `remark`, the casting's own remark (null for none); `casting_id`, not the entry's `system_id`, tells two appearances apart. 404 if the character is absent or hidden; a visible character's castings on label-hidden entries are omitted, group and all. |
+| `GET`    | `/{system_id}`         | `view.character` | Get one character by `public_id` or UUID. 404 if absent or hidden. |
+| `GET`    | `/{system_id}/entries` | `view.character` | The entries this character is cast on, grouped by media type only — a character holds no role, unlike a person. Each entry carries `seiyuu`: everyone who voiced the character there, in voice order, as `[{display_name, system_id, public_id, remark}]` — empty when nobody did. One entry appears **once per identity** the character is cast under in it, so each row also carries `casting_id`, `identity_id`, `identity_name` and `identity_public_id` (null for the main identity), `credited_name`, the name the casting gives the character in that entry (null for none), and `remark`, the casting's own remark (null for none); `casting_id`, not the entry's `system_id`, tells two appearances apart. 404 if the character is absent or hidden; a visible character's castings on label-hidden entries are omitted, group and all. |
 | `POST`   | `/`                    | Admin  | Create a character. **Always a plain create, never find-or-create** — unlike `POST /api/person`, which safely resolves two spellings of one director onto one row. Character names carry no unique constraint (see `docs/data-model.md`): the "Yuki" of one anime and the "Yuki" of another are different characters, and silently returning the first match on a POST would fuse two unrelated casts under one `system_id`. Disambiguation happens in the cast editor's combobox instead, which lists existing matches together with the entries they already appear in and requires an explicit "Create new character named X" choice before minting a row. Body: `CharacterCreate`. A body with no name at all is 422, mirroring `ck_character_has_a_name`. `mal_id` is derived from `mal_link`, and the character is then filled from MAL (see below). `appearance` and `trait` are written once the row exists (see **Tags** below). A null `display_name_field` becomes `cn` when `name_cn` is filled ([business-rules.md](business-rules.md#10a-entity-display-names-modelsstaffpy-modelscharacterpy-libnamingjs)). |
 | `PUT`    | `/{system_id}`         | Admin  | Fully update a character. Body: `CharacterUpdate`. A non-null `photo_fallback_entry_id` must name an entry this character is cast on and the editor can see — 422 otherwise; a null keeps a stored choice the editor cannot see. `mal_id` is derived from `mal_link`, and the character is filled from MAL after the payload is copied (see below). `appearance` and `trait` each replace their list whole; one left out or `null` is unchanged. A null `display_name_field` becomes `cn` when `name_cn` is filled, as on `POST`. |
-| `PATCH`  | `/{system_id}`         | Admin  | Partially update a character — the detail page's inline rating and remark edits. Body: any subset of the `CharacterBase` columns as a JSON object; only the keys sent change. The `PUT` rules are checked before anything is written: `gender`, `my_rating` and `role` are their vocabularies (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, at least one name survives the patch, and `photo_fallback_entry_id` follows the `PUT` rule — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored — except `appearance` and `trait`, which replace their lists as on `PUT` (`null` is unchanged; anything but a list of strings is a 422). A `mal_link` in the body re-derives `mal_id`; `PATCH` never calls MAL. Returns the full `CharacterResponse`. |
+| `PATCH`  | `/{system_id}`         | Admin  | Partially update a character — the detail page's inline remark edit. Body: any subset of the `CharacterBase` columns as a JSON object; only the keys sent change; the viewer's rating is written through `PUT /api/me/ratings/character/{id}`. The `PUT` rules are checked before anything is written: `gender` and `role` are their vocabularies (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, at least one name survives the patch, and `photo_fallback_entry_id` follows the `PUT` rule — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored — except `appearance` and `trait`, which replace their lists as on `PUT` (`null` is unchanged; anything but a list of strings is a 422). A `mal_link` in the body re-derives `mal_id`; `PATCH` never calls MAL. Returns the full `CharacterResponse`. |
 | `DELETE` | `/{system_id}?castings=N` | Admin | Delete a character. Cascades its `character_casting` rows, and their voices with them, and its `character_tag` rows. `castings` is **required**: the count the confirmation dialog showed, and a mismatch is a **409** — the same guard shape as `DELETE /api/person?credits=N`. |
 | `POST`   | `/{system_id}/merge`   | Admin  | Merge `source_id` into this character: repoints every casting, then deletes the loser. The loser's identities move to the survivor, after its own, with their cast rows. Castings are matched per identity: only where the survivor already holds a casting of the **same identity** on the same entry (a main row meeting a main row) is the loser's casting there dropped, its voices the survivor's casting lacks are appended to the survivor's, so no seiyuu is lost, and the survivor's casting fills its blank role, credited name, remark and photo from it. Every column the survivor leaves blank is then filled from the loser's, and one it holds is never overwritten; the picture (photo or logo) comes with its focus, a downloaded one renamed onto the survivor's own key (`app/services/domain/merge_fill.py`). Each tag list ends as the union of both: the survivor's values in their order, then the loser's it lacked. This — not delete — is the fix for a duplicate, since deleting cascades the castings away. Body: `MergeRequest` (`{source_id}`). 400 if merging into self. |
 | `POST`   | `/{system_id}/sync-from-cast` | `manage.catalog` | The character page's **Sync from cast**: one of this character's cast rows replaces the role, remark and photo (with its focus) of the record it casts - the identity it names, else the character; an identity has no role. A value the row does not hold - no role, a blank remark, no photo of its own - leaves the record's alone. A photo that is a library image is attached as well as written to `photo_file`. Body: `{casting_id}`. Returns the `CharacterResponse`. 404 for a cast row that is not this character's or is on an entry the caller cannot see. |
 
 **Response model:** `CharacterResponse` — the four name columns,
-`display_name_field`, the resolved `display_name`, `gender`, `my_rating`,
+`display_name_field`, the resolved `display_name`, `gender`, `my_rating` (the
+viewer's own),
 `photo_file`, `photo_focus`, `photo_fallback_entry_id`, `role`, `remark`, `first_mention`,
 `first_appearance`, `first_encounter`, `mal_id`, `mal_link`, `system_id`, the tag
 lists `appearance` and `trait` (`string[]`, in stored order, `[]` when none —
@@ -1996,7 +2139,7 @@ A character's other identities — an alter ego, a disguise, a civilian name. Th
 `character` row is the main identity; these rows are the rest
 ([data-model.md](data-model.md#character_identity)). Two reads are
 **public** — one identity and the entries it is cast on, for the identity's
-own page (`/identity/<public_id>/<slug>`), behind `view.entities`; both take the identity's
+own page (`/identity/<public_id>/<slug>`), behind `view.character`; both take the identity's
 `public_id` or its UUID, and answer 404 "Identity not found." when the
 identity is absent or its character is hidden from the caller. Listing and
 every write are admin-only (`require_manage_catalog`) and serve the admin tabs
@@ -2006,8 +2149,8 @@ nested in its character, through `GET /api/character`. There is no `PATCH`.
 | Method   | Path             | Auth             | Description |
 | -------- | ---------------- | ---------------- | ----------- |
 | `GET`    | `/`              | `manage.catalog` | List identities, ordered by their character's `display_name` then `position`. `?character_id=` keeps one character's; `?name=` is a case-insensitive substring match on any of the four name columns. Only identities of characters the caller can see. |
-| `GET`    | `/{ref}`         | `view.entities`           | One identity, by `public_id` or UUID. Returns `IdentityDetailResponse`. 404 "Identity not found." when absent, or when its character is hidden from the caller. |
-| `GET`    | `/{ref}/entries` | `view.entities`           | The entries this identity is cast on: the cast rows naming it, none of its character's main-identity rows. The same shape and visibility rule as `GET /api/character/{system_id}/entries` (`casting_entry_groups`, `app/services/domain/casting_entries.py`). 404 as above. |
+| `GET`    | `/{ref}`         | `view.character`           | One identity, by `public_id` or UUID. Returns `IdentityDetailResponse`. 404 "Identity not found." when absent, or when its character is hidden from the caller. |
+| `GET`    | `/{ref}/entries` | `view.character`           | The entries this identity is cast on: the cast rows naming it, none of its character's main-identity rows. The same shape and visibility rule as `GET /api/character/{system_id}/entries` (`casting_entry_groups`, `app/services/domain/casting_entries.py`). 404 as above. |
 | `POST`   | `/`              | `manage.catalog` | Create an identity under an existing character. Body: `IdentityCreate` — the identity's fields (names, `display_name_field`, `gender`, `remark`, `first_mention`, `first_appearance`, `first_encounter`, `photo_file`, `photo_focus`) plus a **required** `character_id`. A plain create (no find-or-create); `position` is the character's highest plus one. 404 "Character not found." for an unknown or hidden `character_id`; 422 with no name, an unknown `display_name_field` or an unknown `gender`. A null `display_name_field` becomes `cn` when `name_cn` is filled, as on a character. |
 | `PUT`    | `/{system_id}`   | `manage.catalog` | Replace the identity's fields. Body: `IdentityUpdate`; a null `position` keeps the current one, and a `character_id` in the body is ignored — an identity never changes character. 404 and 422 as above. A null `display_name_field` becomes `cn` when `name_cn` is filled, as on `POST`. |
 | `DELETE` | `/{system_id}?castings=N` | `manage.catalog` | Delete an identity. Its cast rows are **folded into the main identity**, not deleted: where the character's main identity has no row in that entry the row's `identity_id` becomes null and it keeps its role, photo, credited name, remark and seiyuu; where it has one, the identity's row is absorbed into it (its blanks filled from the identity's, the seiyuu it lacked appended) and deleted. `castings` is **required**: the cast-row count the confirmation showed, and a mismatch is **409**. Returns `{status, castings_folded}`. |
@@ -2077,10 +2220,8 @@ the entry gives it none; the cast slip shows it as the row's name, with
 has no photo of its own - the identity's, else the character's - whether or
 not it has one: the cast editor draws it, dimmed, in an empty photo cell. Both
 read-only pairs are dropped on the way back in.
-Being a credit field it is gated with `studio` in the Credits field group
-(`app/services/rbac/field_groups.py`): a viewer without that permission gets
-neither, and the pages fall back to the plain string when `studio_refs` is
-empty.
+No field group gates a credit field. The pages fall back to the plain string
+when `studio_refs` is empty.
 
 ---
 
@@ -2092,9 +2233,12 @@ Dashboard "Announcement & Notes" board. Each note is one `system_configs` row ke
 | Method   | Path | Auth   | Description                                                                                     |
 | -------- | ---- | ------ | ----------------------------------------------------------------------------------------------- |
 | `GET`    | `/`  | Public | List all announcements in creation order (`system_configs.id`).                                 |
-| `POST`   | `/`  | Admin  | Add a note. Body: `AnnouncementCreate` (`{title, body}`). 409 if the title exists.               |
-| `PUT`    | `/`  | Admin  | Update / rename. Body: `AnnouncementUpdate` (`{original_title, title, body}`). 404 / 409.        |
-| `DELETE` | `/`  | Admin  | Delete by `?title=` query param. 404 if missing.                                                 |
+| `POST`   | `/`  | `manage.announcements` | Add a note. Body: `AnnouncementCreate` (`{title, body}`). 409 if the title exists.               |
+| `PUT`    | `/`  | `manage.announcements` | Update / rename. Body: `AnnouncementUpdate` (`{original_title, title, body}`). 404 / 409.        |
+| `DELETE` | `/`  | `manage.announcements` | Delete by `?title=` query param. 404 if missing.                                                 |
+
+The writes ask `manage.announcements`, held by the `admin` and `super` roles,
+rather than `manage.catalog`.
 
 Titles travel in the body or query string, never the path — free-text titles may contain `/`.
 Empty titles/bodies and titles over 120 chars are rejected with 400.
@@ -2185,7 +2329,7 @@ session that may not see the type, so the endpoint does not say it exists.
 
 | Method   | Path      | Auth           | Description                                                           |
 | -------- | --------- | -------------- | --------------------------------------------------------------------- |
-| `GET`    | `/{mode}` | `view.extras`  | One mode. Unconfigured returns **200 with `filters: {}`, `weighted: true`**, never 404. |
+| `GET`    | `/{mode}` | `view.random_picker` | One mode. Unconfigured returns **200 with `filters: {}`, `weighted: true`**, never 404. |
 | `PUT`    | `/{mode}` | manage.catalog | Full-replacement upsert. Body: `RandomPickerDefaultsPayload`.          |
 | `DELETE` | `/{mode}` | manage.catalog | Delete the row, so the mode opens with no filters, weighted. Idempotent. |
 
@@ -2318,7 +2462,7 @@ see [authorization.md](authorization.md) for why that is accepted.
 | `GET`    | `/check/duplicates`                  | Find and report all duplicate entries across all tables. Returns grouped clusters.          |
 | `GET`    | `/check/alone-groups`                | Every franchise and series holding exactly one media entry (any of the twelve types), less those whose lone entry was marked reviewed: `{franchise: [...], series: [...]}`, each `{system_id, public_id, display_name, entry: {system_id, media_type, public_id, display_name}}`. |
 | `POST`   | `/check/alone-groups/{kind}/{system_id}/reviewed` | `kind` is `franchise` or `series` (422 otherwise). Records the group's current lone entry in `alone_reviewed_media_id`, so the group is listed again once that entry is replaced. Returns `{system_id, alone_reviewed_media_id}`; 404 for an unknown group, 409 when it no longer holds exactly one entry. |
-| `GET`    | `/check/music`                       | Every anime whose music is waiting: a song list or a song on Need, Pending or No Full Version. One row per anime with `system_id`, `public_id`, `anime_name_cn`, `anime_name_en`, `display_name`, the flagged `lists` (`[{kind, status}]`) and the flagged `songs` (`[{section, title, status, locator}]`). Not per caller: the music sections are catalogue notes. |
+| `GET`    | `/check/music`                       | Every anime whose music is waiting: a song list or a song on Need, Pending or No Full Version. One row per anime with `system_id`, `public_id`, `anime_name_cn`, `anime_name_en`, `display_name`, the flagged `lists` (`[{kind, status}]`) and the flagged `songs` (`[{section, title, status, locator}]`). **Per caller**: the songs and lists are catalogue rows, but each status is the caller's own note mark, so only the caller's own statuses list an anime, and a caller without the `music_status` feature is listed nothing. |
 | `GET`    | `/check/remarks`                     | The **caller's own** non-empty remarks (`section = 'remark'` only), one key per media type — all twelve. A remark belongs to its author, so the response carries one per entry. Each row carries `system_id`, `public_id`, its type's name columns and disambiguating columns, the caller's status (`watching_status` / `reading_status` / `playing_status`, read from `user_media_list`) and `remark`; a movie row carries `release_date` (USA, else TW). |
 
 **SSE response format** (streaming endpoints): `text/event-stream` — each event is a JSON string with `{status, current_entry, processed, total}`.
@@ -2416,7 +2560,9 @@ which keys a type owns.
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/api/me/list/{media_id}` | The caller's row. Never creates one: an entry they have never touched reads back the type's default status and `null` for the rest, the same values `attach_list_fields` puts on an untouched entry. 404 on an unknown `media_id`. |
-| PUT | `/api/me/list/{media_id}` | Upsert. A key this media type does not own is **422**, not silently dropped. 404 on an unknown `media_id`. Runs the type's `progress_hook_list` after the payload, as the entry endpoints do: an h-comic's `usefulness` outside its vocabulary is **422** and the counter its region does not use is cleared; a novel's arc cursor is derived. The `time_fin` rules apply here as on the entry endpoints: stripped, a blank stored as `null`, and cleared when `ep_fin` goes up or the status becomes Completed ([business-rules.md](business-rules.md#a-paused-position-is-cleared-by-progress)). |
+| PUT | `/api/me/list/{media_id}` | Upsert. A key this media type does not own is **422**, not silently dropped. 404 on an unknown `media_id`. Runs the type's `progress_hook_list` after the payload, as the entry endpoints do: an h-comic's `usefulness` outside its vocabulary is **422** and the counter its region does not use is cleared; a novel's arc cursor is derived. The `time_fin` rules apply here as on the entry endpoints: stripped, a blank stored as `null`, and cleared when `ep_fin` goes up or the status becomes Completed ([business-rules.md](business-rules.md#a-paused-position-is-cleared-by-progress)). A Completed status stamps `completed_at`, and a write that carries the progress counter up to its total finishes the caller's row as a catalogue `PATCH` does ([business-rules.md](business-rules.md#reaching-the-total-completes)) - the row's half only, never the work's airing or serialization status. |
+| PUT | `/api/me/plan-flags/{media_id}` | The caller's plan flags on one entry, by the type's own keys (`watch_next`, `to_rewatch`, `read_next`, `to_reread`, `play_next`, `to_replay`, as `PLAN_FLAG_FIELDS` gives each type). Body `{key: bool}`; a key left out is untouched, a key the type lacks is **422**. Returns every flag the type has as the caller now holds it. 404 on an unknown or hidden entry. |
+| PUT | `/api/me/remarks/{owner_type}/{owner_id}` | The caller's remark on an entry (`owner_type` a media type) or a group (`collection`, `franchise`, `series`). Body `{"remark": text}`; empty or null clears it. Returns `{remark}`. Another account's remark on the same owner is untouched. 404 when the id is not an owner of that type, or is hidden from the caller; 422 on any other body. |
 
 Neither route takes a user id, so there is no shape of request that writes
 somebody else's list. Catalogue writes are unaffected and stay behind
@@ -2424,72 +2570,114 @@ somebody else's list. Catalogue writes are unaffected and stay behind
 
 ---
 
+## My Ratings — `/api/me`
+
+The caller's own rating of a collection, franchise, series, character,
+person, studio or publisher, the expectation of a collection, franchise or
+series, and the rating of and remark on a novel unit
+(`app/routers/me_ratings.py`). Gated at **router level** on `self.list`, as
+My List is: a logged-out visitor, a viewer without the permission and the
+`admin` account (which holds no `self.*` key) all get **401**.
+
+| Method | Path | Notes |
+|---|---|---|
+| PUT | `/api/me/ratings/{owner_type}/{owner_id}` | `owner_type` is `collection`, `franchise`, `series`, `character`, `person`, `studio` or `publisher`; `owner_id` a `system_id` or `public_id`, as the owner's GET accepts. Body `{my_rating?, expectation?}`, **partial**: only the keys sent change, and `null` or `""` clears one. Returns `{owner_type, owner_id, my_rating, expectation}`. **422** for a rating outside `MY_RATINGS`, an expectation outside `FRANCHISE_EXPECTATIONS`, an expectation on a character, person, studio or publisher, or any other key. **404** for an unknown owner type, and for an owner that does not exist or that the caller's GET would not answer (a hidden franchise or series; an entity without its kind's view key - `view.character`, `view.person`, `view.studio` or `view.publisher` - or hidden by its shared-record visibility), in the owner's own not-found words. |
+| PUT | `/api/me/novel-units/{unit_id}` | Body `{my_rating?, remark?}`, partial as above. Returns `{unit_id, my_rating, remark}`. **422** for a rating outside `MY_RATINGS` or any other key; **404** "Novel unit not found." for a unit that does not exist or whose novel the caller may not see. |
+
+Each route writes one row, the caller's, and takes no user id. A row left
+holding neither value is deleted, so "never rated" and "cleared" are one
+state.
+
+---
+
+## My Favourites — `/api/me`
+
+The caller's own favourite quotes and memes (`app/routers/me_favorites.py`,
+table `user_favorite`). Gated at **router level** on two features:
+`favourites`, and `quotes_memes`, the switch every quote and meme read is
+behind. A logged-out visitor, an account without either switch and the
+`admin` account all get **401**.
+
+| Method | Path | Notes |
+|---|---|---|
+| PUT | `/api/me/favorites/{kind}/{id}` | `kind` is `quote` or `meme`; `id` its `system_id`. Body `{"is_favorite": bool}` - the key is required, any other key is **422**. Idempotent: favouring a favourite, or clearing what is not one, changes nothing. Returns `{kind, item_id, is_favorite}`. **404** for an unknown kind, and for a quote or meme that does not exist or that the caller's GET would not answer (an entry or owner hidden from the caller), in the item's own not-found words. |
+
+The route writes one row, the caller's, and takes no user id. Clearing a
+favourite deletes the row.
+
+---
+
+## My Highlight Group Order — `/api/me`
+
+The caller's own order of the highlight groups on an h-comic or an h-game
+(`app/routers/me_highlights.py`, table `user_highlight_group_order`). Gated at
+**router level** on `self.personal_notes`, the permission the highlight rows
+are written under: a logged-out visitor, a viewer without it and the `admin`
+account all get **401**.
+
+| Method | Path | Notes |
+|---|---|---|
+| PUT | `/api/me/highlight-group-order/{media_id}` | `media_id` is the entry's `system_id`. Body `{"group_order": [names] \| null}` - the key is required. The list is read and written whole, trimmed, with blanks and repeats dropped; `null`, `[]` or a list of blanks clears the order and deletes the row. Returns `{media_id, group_order}`. **422** for a value that is not a list of strings, a missing key or any other key, and for a JP h-comic (it has no highlights section). **404** "Entry not found." for an entry that does not exist, is not an h-comic or h-game, or that the caller's GET would not answer. |
+
+The order is read back as `highlight_group_order` on the h-comic and h-game
+list, detail and search responses - the viewer's own, `null` for anyone else.
+When an h-comic's region becomes JP, every account's order on it is deleted.
+
+---
+
 ## Account — `/api/account`
 
 The caller's own settings. Any signed-in account, acting only on itself — a
 separate router from `/api/users`, which is admin-only and acts on other
-people. No path takes a user id and the update payload carries no identity, so
-a stray `username` in the body is dropped by pydantic rather than honoured.
+people. No path takes a user id, so there is no shape of request that points
+it at another account.
 
 | Method | Path | Auth | Notes |
 |---|---|---|---|
-| GET | `/api/account/settings` | session | `{username, role_name, list_is_public}`. **401** for an anonymous caller. |
-| PATCH | `/api/account/settings` | session | `AccountSettingsUpdate` — `list_is_public` only. Returns the same shape as GET. **401** for an anonymous caller. |
+| GET | `/api/account/settings` | session | `{username, role_name}`. **401** for an anonymous caller. |
+| PUT | `/api/account/password` | `self.password` | `OwnPasswordChange` — `{current_password, new_password}`. **200** `{"message": "Password changed."}`. **400** `Your current password is not right.` (not 401, which the SPA reads as a lost session). **422** for an empty new password or one past 72 UTF-8 bytes. **401** without `self.password` - a guest, and the admin, whose role has it locked off and which sets its own on `/users`. Does not end the account's other sessions. |
+
+There is no public profile and no community aggregate: everything per user —
+the list, personal notes, marks — is private to its account, the admin's
+included.
 
 ---
 
-## Profile — `/api/profile`
+## Requests — `/api/requests`
 
-| Method | Path | Auth | Notes |
+Requests and reports: what a member files about the site or its data, and the
+inbox that handles them. Two gates and no others, both **401** when refused:
+`self.requests` (`require_file_requests`) files a request and reads and edits
+your own; `manage.requests` (`require_handle_requests`) is the inbox. Filing is
+a `self.*` permission, so the **administrative** account handles requests and
+files none. Rules: [systems/requests.md](systems/requests.md).
+
+| Method | Path | Auth | Body / notes |
 |---|---|---|---|
-| GET | `/api/profile/{username}` | `view.personal` | One user's list, every media type in one response. |
+| GET | `/api/requests/mine` | `self.requests` | The caller's own, newest first. `?status=` `open`, `done` or `declined`; omitted, every status. Another account's requests never appear. |
+| POST | `/api/requests` | `self.requests` | `UserRequestCreate` — `kind` (one of `request_kind`), `description` (required, non-empty), and optionally `remark`, `page_path`, and `target_type` + `target_id` (both or neither). **201** with the request. **409** when the caller already holds as many **open** requests as their `open_request_limit`; **422** on an unknown `kind`, an unknown `target_type`, a `target_id` naming no row, or half a target. A target the caller's access mode hides is accepted. |
+| PATCH | `/api/requests/{id}` | `self.requests` | `UserRequestUpdate` — `description` and/or `remark` (null clears the remark); any other key is **422**. Only the author's own: another account's request is **404**. **409** once the request is done or declined. |
+| GET | `/api/requests` | `manage.requests` | The inbox, every account's requests, newest first. `?status=` `open` (the default), `done`, `declined` or `all`; anything else **422**. |
+| GET | `/api/requests/summary` | `manage.requests` | `{open: n}` — the number of open requests. |
+| PUT | `/api/requests/{id}/status` | `manage.requests` | `UserRequestStatusUpdate` — `status` (`open`, `done` or `declined`) and an optional `response`. Closing records `handled_by` and `handled_at`; `open` clears both and makes the request editable by its author again. **404** on an unknown id. |
+| DELETE | `/api/requests/{id}` | `manage.requests` | **204**. A hard delete; the log line is the only record left. **404** on an unknown id. |
 
-Three rules, all enforced in the endpoint:
+**`UserRequestResponse`** (every route but `/summary` and `DELETE`):
+`id`, `kind`, `status`, `description`, `remark`, `page_path`, `target`,
+`author_username`, `response`, `handled_by_username`, `handled_at`,
+`created_at`, `updated_at`, `can_edit`.
 
-- **A private list answers 404, not 403**, to everyone but its owner and an
-  admin — the same rule `entry_visible` follows, so a private profile and a
-  username nobody has are the same answer and a stranger cannot enumerate
-  accounts. `list_is_public` is false by default.
-- **A public list is filtered by the *reader's* permissions, not the owner's.**
-  A row whose media type the reader may not see, or which carries a content
-  label they lack, is absent — `apply_media_visibility` in
-  `app/services/rbac/enforcement.py` applies the same two gates as
-  `apply_entry_visibility`, expressed over the `media` supertable.
-- **Personal notes are not on this response at all.**
-
-Response: `{username, list_is_public, is_self, counts[], entries[]}`. Each
-entry is `{media_id, media_type, public_id, display_name, cover_image_file,
-cover_image_focus, status, my_rating}`, ordered best-rated first — by *rating points*, not by the
-letter, because `my_rating` is a String and `"A+"` sorts before `"A"`
-(`app/services/domain/rating_points.py`). `counts` is tallied from the filtered
-rows rather than by a second `GROUP BY`, or a hidden entry would leak as a
-discrepancy in the totals.
-
----
-
-## Community — `/api/community`
-
-| Method | Path | Auth | Notes |
-|---|---|---|---|
-| GET | `/api/community/{media_id}` | `view.personal` | What the **public** lists say about one entry. `media_id` is the entry's `system_id`. Gated like every per-type route: an entry the viewer may not see and an entry that does not exist both **404**, in the same words. |
-
-Public lists only, which is a correctness rule and not a courtesy: a figure
-that moved when a private list changed would let anyone read a private list one
-bit at a time by watching the number.
-
-An unknown `media_id` **404s** rather than answering an empty aggregate, and
-that is load-bearing rather than tidiness: if a hidden entry 404d while an
-unknown one answered 200, the status code would itself say which ids name real
-entries the caller may not see. The two cases answer identically so that they
-cannot be told apart.
-
-Response: `{media_id, list_count, statuses[], sample_size, average_points,
-average_rating}`. `sample_size` is separate from `list_count` on purpose — a
-work can be on forty lists and rated by six — and the average is computed in
-Python over the letter grades through the same `rating_points` mapping the
-profile ordering uses. An unknown `media_id` answers an **empty aggregate, not
-404**: the detail page's own route already decided whether the entry exists,
-and a 404 here would blank a page that is otherwise fine.
+- `target` is null when the request names none, otherwise `{type, type_label,
+  id, label, nav_path, missing}`. `type` is a key of `REQUEST_TARGET_TABLES`
+  (`app/utils/media_resolver.py`): the twelve media types, `series`,
+  `franchise`, `collection`, `studio`, `publisher`, `person`, `character`,
+  `identity`. `label` is the target's current name, or the name copied when the
+  request was filed once the target is gone (`missing: true`, `nav_path`
+  null). `nav_path` is the SPA detail path (`/anime/<uuid>`), null for a series.
+- `author_username` and `handled_by_username` are null once that account is
+  deleted — the SPA shows "deleted account".
+- `response` is the handler's remark, returned to the author on `/mine` too.
+- `can_edit` is true when the request is the caller's own and still open.
 
 ---
 
@@ -2511,16 +2699,21 @@ that was never there. Admin gates answer **401**, as they always did.
 
 ### `GET /api/auth/me` (extended)
 
-Still never raises, and still carries `is_admin` and `username` unchanged.
-Now also returns:
+Never raises. Returns:
 
 ```json
 { "is_admin": false, "username": null, "role": "guest",
-  "is_root": false,
-  "permissions": ["media_type.anime", "field_group.sources_other", ...],
+  "permissions": ["media_type.anime", "field_group.sources_restricted", ...],
   "visible_gated_types": [],
+  "features": [],
   "mode": { "id": "…uuid…", "key": "safe", "expires_at": null } }
 ```
+
+**`is_admin`** means the viewer holds `manage.catalog` — "may edit the
+catalogue" — so it is true for `super` and **false for the admin account**,
+which holds no `manage.catalog`. Nothing in the response says "holds
+everything": no role does, and `permissions` is the whole of what the role
+holds.
 
 **`mode.expires_at`** is when a switched-to mode ends and the session returns
 to the account's default mode (ISO 8601, UTC), or `null` when there is no
@@ -2530,10 +2723,18 @@ it.
 
 **`visible_gated_types`** is the sorted list of gated media types this session
 may see (`gated_types.visible_gated_types`): `["h-comic", "h-game", "hentai"]`
-in `unrestricted`, only the types whose label a mode carries otherwise, `[]`
-for one carrying none. Only the seeable types are named,
+in `unrestricted`, which shows every label, and `[]` in every other mode,
+none of which shows a gated type's label. Only the seeable types are named,
 so a session that cannot see a gated type is not told it exists. The SPA reads
 it to decide whether to offer a gated type's navigation at all.
+
+**`features`** names the per-account feature switches this account holds, in
+a fixed order (`quotes_memes`, `favourites`, `music_status`, `mod_status`),
+from `features.held_features` — the same function the routes they gate ask,
+so the SPA's `hasFeature(name)` cannot disagree with them. A guest gets `[]`.
+A switch counts only on a `user` or `super` account, whatever the column
+holds, so the admin account gets `[]`
+([authorization.md](authorization.md#per-account-feature-switches)).
 
 This is where the SPA learns what to draw. Hiding in the UI is cosmetic — the
 server has already withheld what the viewer may not see.
@@ -2550,19 +2751,24 @@ anywhere else.
 the browser never needs them, and listing them would tell a narrowed session
 exactly what it is being kept from.
 
-`mode` is the active access mode. `modes` lists every mode this account
-**holds**, each with `{id, key, label, is_active, requires_password}`.
+`mode` is the active access mode. `modes` lists every mode this account may
+switch to - each one ranked at or below its ceiling, narrowest first - each
+with `{id, key, label, is_active, requires_password}`. A shared account is
+offered its modes the same way.
 
 `requires_password` is the subset test computed **server-side**: narrowing is
 free, adding even one content label or field group asks for the password
 again. It is computed here rather than in the browser because two
 implementations of one rule drift, and the one in the SPA would be the one
 nobody tested - the switch endpoint enforces the rule with the *same*
-function that fills this field. A guest holds no modes and gets `[]`.
+function that fills this field. A guest, and an account with no mode — the
+admin account always — get `[]`, and `mode`'s `id` and `key` are null for the
+latter.
 
-Both sides are **effective** sets, after per-account denials: an account
-holding `borderline` minus `nsfw` reaches no more than `normal` does, so
-switching between them is free even though the mode is nominally wider.
+Both sides are **effective** sets, after per-account denials: an account at
+ceiling `borderline` denied `nsfw` reaches no more in `borderline` than in
+`normal`, so switching between them is free even though the mode is
+nominally wider.
 
 ### `POST /api/auth/access-mode`
 
@@ -2577,7 +2783,7 @@ Change the active access mode without logging out.
 | **200** + the `access_mode` cookie set or cleared | narrowing, or widening with the right password |
 | **401** `{detail, requires_password: true}` | widening with no password, so the SPA prompts rather than guessing |
 | **401** | widening with the wrong password |
-| **404** | a mode this account does not hold, *and* a mode that does not exist - identical answers, because which modes exist is not the caller's business. Deliberately **not** flagged `requires_password`: it is not a password problem, and saying so would invite a prompt that cannot help |
+| **404** | a mode above this account's ceiling, *and* a mode that does not exist - identical answers, because which modes exist is not the caller's business. Deliberately **not** flagged `requires_password`: it is not a password problem, and saying so would invite a prompt that cannot help |
 | **401** | a guest: no account, nothing to switch between |
 
 **A switched-to mode is temporary.** Switching to any mode other than the
@@ -2592,106 +2798,134 @@ in the default mode.
 **The login cookie is not reissued.** A switch cannot extend the session:
 minting a fresh month-long login on each switch would make toggling between two
 modes an unlimited session-extension oracle, and the lifetime is flat with no
-refresh flow and no revocation.
+refresh flow - revocation can end a session early, never extend one.
 
 ### `/api/access-modes` — admin (`admin.authz`)
 
 The object axis. A role answers *what may this account do*; an access mode
-answers *which objects can it reach in this session*. Shaped on `/api/roles`
-route for route.
+answers *which objects can it reach in this session*. The four modes, their
+order and what each shows are fixed in code (`app/services/rbac/seed_modes.py`,
+`app/services/rbac/labels.py`), so this router reads them and edits only a
+mode's name, description and display order. There is no route that creates,
+deletes or regrants a mode.
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/api/access-modes/` | Modes with their items and holder counts. |
-| GET | `/api/access-modes/catalog` | Two labelled groups - Content Labels and Field Groups - each item carrying `mode_count`. **Every** content label is listed, including ones no mode carries: a count of zero means that label's entries are hidden from everybody, the owner included, and there is nowhere else to find that out. |
-| GET | `/api/access-modes/{id}` | |
-| POST | `/api/access-modes/` | 409 on a duplicate key; 422 on an unknown label or field group. Created `is_system=False` - that flag marks the four the seeder maintains and is never settable through the API. |
-| PATCH | `/api/access-modes/{id}` | Label, description and sort order. Not `key` — renaming one would detach the seeder from the row it maintains — and nothing about the anonymous policy: a logged-out visitor always resolves the `safe` mode, by key, and no endpoint can move it. |
-| PUT | `/api/access-modes/{id}/grants` | **Replaces both sets**, the same contract as `PUT /roles/{id}/permissions`. **409 for `unrestricted`**, whose sets are derived rather than stored and so cannot be narrowed. |
-| DELETE | `/api/access-modes/{id}` | 409 for a system mode, and 409 for one an account still holds - the FK would cascade the grants away and silently narrow those accounts, possibly to nothing. |
+| GET | `/api/access-modes/` | Every mode as `AccessModeResponse` (`system_id`, `key`, `label`, `description`, `sort_order`, `is_system`, `label_keys`, `field_group_keys`, `user_count`, `rank`), ordered by `sort_order`. `label_keys` and `field_group_keys` are **derived** from the mode's key — the same derivation a session in the mode resolves with — and read-only: `unrestricted` lists every label row, the others the labels whose lowest mode is at or below them. `rank` is the mode's place in `MODE_ORDER`, `safe` 0 to `unrestricted` 3; null for a mode outside it, which no ceiling reaches. `user_count` is the number of accounts whose ceiling reaches the mode. |
+| GET | `/api/access-modes/{id}` | One mode, the same shape. 404 if it does not exist. |
+| PATCH | `/api/access-modes/{id}` | `label`, `description`, `sort_order`. Not `key` — the key is what the derivation, the ceiling and the anonymous policy read — and nothing about the anonymous policy: a logged-out visitor always resolves the `safe` mode, by key, and no endpoint can move it. `is_system` is never settable. |
 
-Every write calls `cache.bump()`; `_MODE_CACHE` is keyed on mode id and this
-router is exactly what it caches.
+`PATCH` calls `cache.bump()`.
 
 ### `PUT /api/users/{id}/access-modes` — admin (`admin.authz`)
 
-Replaces an account's whole set - grants, login default and per-account
-denials - in one payload.
+Replaces an account's whole object axis - ceiling, login default and denials -
+in one payload. `ceiling` and `default` are mode keys.
 
 ```json
-{ "modes": [ { "mode_id": "...", "is_default": true,
-               "denied_label_keys": [], "denied_field_group_keys": [] } ] }
+{ "ceiling": "borderline", "default": "normal",
+  "denied_label_keys": [], "denied_field_group_keys": [] }
 ```
 
-**A denial naming something the mode does not carry is 422.** A mode is a
-ceiling, so such a denial subtracts nothing and storing it would be a no-op
-that reads like a setting. Two defaults is 422 as well, rather than the 500
-`ix_one_default_mode_per_user` would give. An **empty list is allowed**: an
-account holding no mode resolves the empty object set, which is fail-closed
-and a legitimate way to park somebody.
+A shared account's ceiling and default are set here like any account's.
+**409** on the admin account (`The admin account has no mode.`): its ceiling and
+default are NULL, also re-asserted on every boot, because it reads no
+catalogue. **422** for
+an unknown key, for exactly one of `ceiling` / `default` null, and
+for a default ranked above the ceiling. **A denial naming something the
+ceiling does not show is 422**, naming the strays, and asked of the ceiling's
+derived sets: the ceiling is an upper bound, so such a denial subtracts nothing
+in any mode the account can use and storing it would be a no-op that reads
+like a setting. A denial applies in every mode the account uses. **Both null
+is allowed**: an account with no mode resolves the empty object set, which is
+fail-closed and a legitimate way to park somebody. Nothing is written unless
+the whole payload is accepted.
 
-`ManagedUserResponse` carries `access_modes`, so the admin page reads one
+`ManagedUserResponse` carries `mode_ceiling`, `mode_default`,
+`denied_label_keys` and `denied_field_group_keys`, so the admin page reads one
 source and this endpoint returns the same shape.
 
-**A new account holds `safe` and only `safe`** (`POST /api/users/`). An
-invitee starts narrow and is widened deliberately, rather than starting wide
-and being narrowed if somebody remembers.
+**A new account starts at ceiling `normal`, default `normal`**
+(`POST /api/users/`, from the columns' default).
 
 ### `/api/roles` — admin
 
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/api/roles/` | Roles with their grants and user counts. |
-| GET | `/api/roles/catalog` | Every grantable permission, grouped by family — **four of them** (`admin`, `manage`, `media_type`, `self`) with human labels. The role editor is built from this, so its checkboxes cannot drift from what the write path accepts. `field_group` and `label` are deliberately absent: they are the access-mode axis, and a role cannot express "minus this label" because permission resolution is a union. |
+| GET | `/api/roles/catalog` | Every grantable permission, grouped by family — **five of them** (`admin`, `manage`, `media_type`, `self`, `view`) with human labels. The role editor is built from this, so its checkboxes cannot drift from what the write path accepts. `field_group` and `label` are deliberately absent: they are the access-mode axis, and a role cannot express "minus this label" because permission resolution is a union. |
 | GET | `/api/roles/{id}` | |
-| POST | `/api/roles/` | 409 on a duplicate name, 422 on an unknown permission. |
-| PATCH | `/api/roles/{id}` | Label, description, sort order. `name` is not editable — code reads `guest` and `admin` by name. |
-| PUT | `/api/roles/{id}/permissions` | **Replaces the whole set**, the same contract as `PUT /api/credits/...`. 409 on a root role. |
-| DELETE | `/api/roles/{id}` | 409 if `is_system` or still held by users. |
+| PATCH | `/api/roles/{id}` | Label, description, sort order. `name` is not editable — code reads every role by name. |
+| PUT | `/api/roles/{id}/permissions` | **Replaces the whole set**, the same contract as `PUT /api/credits/...`. 422 on an unknown permission; 409 on a payload that disagrees with the role's locks (below). |
 
-Also 409: giving the `guest` role the `admin` permission (anonymous requests
-resolve to guest, so that would make every visitor an administrator).
-`DELETE` answers **204**.
+**There are exactly five roles** — `admin`, `super`, `user`, `guest`,
+`shared` — and no route creates or deletes one: `POST /api/roles/` and
+`DELETE /api/roles/{id}` do not exist. `RoleResponse` carries `name`,
+`label`, `description`, `sort_order`, `system_id`, `permissions`,
+`user_count`, `locked_on` and `locked_off`.
+
+**409**: a `PUT /permissions` payload that holds a locked-off grant or drops
+a locked-on one — anything beyond a read on `guest`, for one, since anonymous
+requests resolve to it. The `admin` role's row is locked in every cell — its
+seven grants on, everything else off — so any change to it is 409, and only
+its own set saves. The table is
+[authorization.md](authorization.md#locked-grants).
 
 ### `/api/users` — admin
 
-No self-registration; accounts are created here only.
+Accounts are created here, or registered through an invite link issued here (`POST /api/auth/register`) and then approved or declined here.
+
+A **new** username passes `validate_new_username` - 3 to 32 of lowercase
+letters, digits, `-` and `_`, and never `admin` or `guest` inside it - and a
+**new** password passes `validate_new_password` - not empty, at most 72 UTF-8
+bytes. A refusal is **422** whose `detail` is the sentence to show. Names
+already stored are not re-checked. Uniqueness ignores case.
 
 | Method | Path | Body / notes |
 |---|---|---|
-| GET | `/api/users/` | Every account as `ManagedUserResponse` (`id`, `username`, `role_id`, `role_name`, `list_is_public`). `list_is_public` is **read-only here** — it is the account holder's decision, written only through `PATCH /api/account/settings`, and deliberately absent from `ManagedUserUpdate`. Passwords never leave the server. |
-| POST | `/api/users/` | `ManagedUserCreate` (`username`, `password`, `role_id`). 201. 409 on a taken username, 422 on an unknown role. |
-| PATCH | `/api/users/{id}` | `ManagedUserUpdate` — any of `username`, `password`, `role_id`. 409 if the new username is taken, or if the change would demote the last account that can still administer the site. |
-| DELETE | `/api/users/{id}` | **204**. 409 if you are deleting yourself, or the last administering account. |
+| GET | `/api/users/` | Optional `status` (`pending` / `active` / `disabled`) narrows the list - `?status=pending` is the pending registrations. Every account (or every one with that status) as `ManagedUserResponse` (`id`, `username`, `role_id`, `role_name`, `status`, `mode_ceiling`, `mode_default`, `denied_label_keys`, `denied_field_group_keys`, `open_request_limit`, `feature_quotes_memes`, `feature_favourites`, `feature_music_status`, `feature_mod_status`). `open_request_limit` is how many open requests the account may hold, null for no limit. The four `feature_*` booleans are the account's feature switches as stored. Passwords never leave the server. |
+| POST | `/api/users/` | `ManagedUserCreate` (`username`, `password`, `role_id`). 201, `status` `active`. The role must be `user` or `super`: any other role is **422** (`An account's role is either user or super.`). The account's `open_request_limit` is its role's default — 15 for `user`, none for `super` (10 for `shared`, which only the seed's shared accounts hold). 409 on a username taken ignoring case, 422 on an unknown role or a username or password the checks refuse. |
+| PATCH | `/api/users/{id}` | `ManagedUserUpdate` — any of `username`, `password`, `role_id`, `status` (`active` / `disabled`; anything else 422), `open_request_limit` (an integer ≥ 0, or null for no limit; negative is 422), `feature_quotes_memes`, `feature_favourites`, `feature_music_status`, `feature_mod_status` (booleans; one left out is untouched). Switching a feature **on** for an account whose role, after this save, is not `user` or `super` — the admin account, a shared account — is **409** `Only a user or super account can have a feature switched on.`; switching one off is always allowed, and a role change between `user` and `super` keeps the switches. Setting a password **ends the account's sessions**, and so does disabling it; enabling does not revive them. A `role_id` change must move the account to `user` or `super` (anything else **422**), and is **409** on an `admin` or `shared` account — the admin's own included — with `The admin account's role is fixed.` / `A shared account's role is fixed.`; it resets the limit to the new role's default unless the same body sets `open_request_limit`. Setting a shared account's password is allowed — it is how the admin hands one out. A non-null limit on a `super` account — or on an account this save moves to `super` — is **422**: super's limit is fixed at none. 409 if the new username is taken, if you disable yourself (`You cannot disable yourself.`), or if the account is `pending` (approved or declined, not edited). |
+| POST | `/api/users/{id}/reset-link` | No body. **200** `{link, expires_at}` - a one-time password reset link, valid 24 hours, returned **once** (only a hash is stored). Issuing one deletes the account's unspent reset links. **409** for an account that is not `active` or whose role is `shared`; 404 for an unknown id. |
+| POST | `/api/users/invites` | No body. **200** `{link, expires_at}` - a one-time invite link (`/register?code=...`), valid 24 hours, returned **once**. Open invites do not void one another. |
+| POST | `/api/users/{id}/approve` | `RegistrationApproval` - `role_id` (optional; `user` or `super`, default `user`), `ceiling_mode` and `default_mode` (default `normal` / `normal`). Makes a `pending` account `active` with the role's request limit; returns `ManagedUserResponse`. **422** for any other role, for `unrestricted` as either mode, or a pair the ceiling rules refuse; **409** for an account that is not `pending`. |
+| POST | `/api/users/{id}/reject` | No body. **204**: deletes a `pending` account; its invite stays spent. **409** for an account that is not `pending`. |
+| DELETE | `/api/users/{id}` | **204**. 409 if you are deleting yourself, the admin account (`The admin account cannot be deleted.`), or a shared account (`A shared account cannot be deleted. Disable it instead.`). |
 
 ### `/api/content-labels`
 
-**Two gates, not one.** The vocabulary is `admin.authz`; assignment is
-`manage.catalog`. Minting or deleting a label changes who may see what across
-the installation; putting an existing one on something is a catalogue edit,
-submitted by the Add and Modify forms along with the rest of the entry. The
-split is what lets the `super` role — locked off `admin.authz` by construction
-— label an entry at all. `GET /` is readable with either, because it is both
-the admin page's table and the Add/Modify picker's checkbox list.
+**Labels are defined in code** (`app/services/rbac/labels.py`), with the
+lowest mode that shows each, so there is no route that creates, renames or
+deletes one. What this router serves is the read-only label reference and the
+assignment of labels to entries and to the three grouping tiers —
+collections, franchises and series. The reference is readable with
+`admin.authz` **or** `manage.catalog` — the admin reads it to see what a mode
+restriction does, `super` because `super` is the one attaching labels, and the
+Add/Modify picker draws from it. Assignment is `manage.catalog`: putting a
+label on something is a catalogue edit, submitted by the Add and Modify forms
+along with the rest of the record.
 
 | Method | Path | Gate | Body / notes |
 |---|---|---|---|
-| GET | `/api/content-labels/` | either | Every label as `ContentLabelResponse` (`system_id`, `key`, `label`, `description`, `sort_order`). |
-| POST | `/api/content-labels/` | `admin.authz` | `ContentLabelCreate` (`key`, `label`, `description`, `sort_order`). 201. 409 if the key exists. Grants the new label to the `unrestricted` mode and to no other, so that tagging an entry with it does not hide that entry from every session in the installation. |
-| PATCH | `/api/content-labels/{id}` | `admin.authz` | `ContentLabelUpdate` — `label`, `description`, `sort_order`. `key` is not editable; it is half of a permission name that grants already hold. |
-| DELETE | `/api/content-labels/{id}` | `admin.authz` | **204**. Cascades every assignment, on entries and franchises alike. **409** for `h-comic`, `h-game` and `hentai`, the labels the gated types require. |
+| GET | `/api/content-labels/` | either | The label reference: every label row as `ContentLabelResponse`, ordered by `sort_order` — `system_id`, `key`, `label`, `description`, `sort_order`; `lowest_mode`, the lowest mode that shows it; `modes`, the keys of every mode that shows it, narrowest first; `also_carries`, `["nsfw"]` for every label but `nsfw` and `[]` for `nsfw`; `entry_count`, `collection_count`, `franchise_count` and `series_count`, how many entries, collections, franchises and series carry it directly (a group's label is not counted again on what it cascades to). `modes` and `also_carries` are generated from the code, not stored. A row the code does not name has `lowest_mode: null` and `modes: ["unrestricted"]`. 401 for a session holding neither gate. |
 | GET | `/api/content-labels/entry/{media_type}/{entry_id}` | `manage.catalog` | The label keys this entry carries. |
 | PUT | `/api/content-labels/entry/{media_type}/{entry_id}` | `manage.catalog` | `{"label_keys": [...]}` — replaces the set. 400 on an unknown media type, 404 on a missing **or hidden** entry, 422 on an unknown label, 422 on a gated entry whose new set lacks its required label - `h-comic` on an h-comic, `h-game` on an h-game (checked before anything is deleted). |
+| GET | `/api/content-labels/collection/{collection_id}` | `manage.catalog` | The label keys this collection carries — its own, sorted. 404 "Collection not found." on a missing or hidden collection. |
+| PUT | `/api/content-labels/collection/{collection_id}` | `manage.catalog` | Same body and same answers as the entry PUT, less the media type and the gated-type rule. A collection's labels hide the collection, **every franchise in it, their series and every entry under them**. |
 | GET | `/api/content-labels/franchise/{franchise_id}` | `manage.catalog` | The label keys this franchise carries. |
-| PUT | `/api/content-labels/franchise/{franchise_id}` | `manage.catalog` | Same body and same answers, one tier up. A franchise's labels hide the franchise **and every entry in it**. 422 on a franchise whose type includes `H-Comic` / `H-Game` when the new set lacks `h-comic` / `h-game`. |
+| PUT | `/api/content-labels/franchise/{franchise_id}` | `manage.catalog` | Same body and same answers, one tier up. A franchise's labels hide the franchise, **its series and every entry in it** — not its collection. 422 on a franchise whose type includes a gated type (`H-Comic`, `Hentai`, `H-Game`) when the new set lacks that type's label. |
+| GET | `/api/content-labels/series/{series_id}` | `manage.catalog` | The label keys this series carries. 404 "Series not found." on a missing or hidden series. |
+| PUT | `/api/content-labels/series/{series_id}` | `manage.catalog` | Same body and same answers as the collection PUT. A series' labels hide the series **and every entry in it** — not its franchise or its sibling series. |
 
-Both assignment surfaces bind to the read: a thing the caller's active mode
+Every assignment surface binds to the read: a thing the caller's active mode
 cannot see answers 404, so a narrowed editor cannot clear the label that is
 hiding it.
 
-A newly created label reaches the `unrestricted` mode and no other, so applying
-it hides the thing from every session except one sitting in that mode until an
-admin grants it on `/access-modes`. That is the safe direction.
+**Every label but `nsfw` is stored with `nsfw`.** A PUT of an entry's or a
+group's labels adds `nsfw` beside any other label, and answers **422**
+when it would drop `nsfw` while another label stays; dropping every label at
+once is allowed. `also_carries` on the reference states the same rule per
+label.
 
 ### What gating touches
 
@@ -2701,8 +2935,9 @@ quote (list/grouped/by-id), meme (list/grouped/by-id), `media_relation`
 (`/for-entry`, the scope listing, and `/graph`), `watch_order` (`/lists/{id}`,
 `/candidates`), `plan_next`, `credits`, `notes`, and the `credit_count` on
 person and studio. Field groups the mode lacks are stripped from a copy of the
-row before serialisation, and so are the owner's ratings, expectations and unit
-remarks for a viewer without `view.personal` (`docs/authorization.md`).
+row before serialisation. Group and entity ratings, tier expectations and
+novel unit ratings and remarks are the viewer's own, attached per request
+(`docs/authorization.md`).
 
 **Accepted residuals**, documented rather than fixed: `seasonal` counts are
 precomputed over all entries and over-count for a restricted viewer;

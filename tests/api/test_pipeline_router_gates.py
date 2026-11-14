@@ -30,8 +30,6 @@ def catalog_only_client(db, client):
         system_id=uuid.uuid4(),
         name="catalog-only",
         label="Catalogue only",
-        is_system=False,
-        is_root=False,
     )
     db.add(role)
     db.flush()
@@ -64,8 +62,8 @@ def test_manage_catalog_alone_does_not_open_the_pipelines(
 
 
 @pytest.mark.parametrize("path", ["/api/system/logs", "/api/data-control/check/duplicates"])
-def test_the_admin_account_still_reaches_the_pipelines(admin_client, path):
-    assert admin_client.get(path).status_code in (200, 404, 405)
+def test_the_admin_account_still_reaches_the_pipelines(owner_client, path):
+    assert owner_client.get(path).status_code in (200, 404, 405)
 
 
 # super_client comes from conftest now. The local copy this file used to

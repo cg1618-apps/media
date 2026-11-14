@@ -1,6 +1,6 @@
 # Media Relations
 
-Last verified: 2026-10-29
+Last verified: 2026-11-14
 
 ## What this is for
 
@@ -87,7 +87,7 @@ Fifteen labels in the dropdown, fourteen kinds in the column: **Prequel is Seque
 - **Transitive peers** (`_transitive_peers`): one query loads every row of a transitive kind, builds an undirected adjacency, and walks a widest-path BFS from the viewed entry, widening the allowed kinds one at a time in `TRANSITIVE_KEYS` order. An entry first reached on the pass for kind K has K as its bottleneck, so a chain A-alternative-B-corresponding-C reports A and C as **Corresponding** (weakest link), never Alternative. Cycles are stopped by the visited set. Pairs already covered by a stored row are skipped; the rest are appended after the stored rows with `derived: true`, `system_id: null`, `remark: null`, and `via` = display name of the neighbour the chain came through.
 - Unknown `relation_type` (a sheet restored from a newer version) shows its raw key rather than blanking the row; family defaults to `derivation` for stored rows.
 - **Dangling target**: `resolve_entries` / `entry_ref_for` (`app/utils/media_resolver.py`) return `missing=True` for any endpoint whose row no longer exists. The relation is still listed and still deletable by id.
-- **Viewer filtering**: for a non-root, `filter_visible_pairs` (`app/services/rbac/enforcement.py`) drops any item whose far end is hidden — removed entirely, not blanked as missing, so nothing confirms the hidden entry exists.
+- **Viewer filtering**: for every viewer, the admin included, `filter_visible_pairs` (`app/services/rbac/enforcement.py`) drops any item whose far end is hidden — removed entirely, not blanked as missing, so nothing confirms the hidden entry exists.
 
 ### Sequel seed — `seed_sequel_relations` in `app/services/domain/media_relation.py`
 
@@ -124,8 +124,8 @@ Router: `app/routers/media_relation.py`, prefix `/api/media-relation`. Reads are
 | --- | --- | --- | --- | --- |
 | `GET /kinds` | public | — | `RelationKindResponse[]`: `key, label, inverse_label, family, symmetric, stored_as`. Fourteen stored kinds plus `prequel` (label "Prequel", `stored_as: "sequel"`) | — |
 | `GET /for-entry` | public, viewer-filtered | query `media_type`, `entry_id` | `MediaRelationResolved[]`: `system_id, relation_type, label, family, direction, remark, other{media_type, entry_id, missing, display_name, label, cover_image_file, cover_image_focus, franchise_id, nav_path}, created_at, updated_at, derived, via` | `400` unknown media type; `404` entry hidden or unknown |
-| `GET /` | public, viewer-filtered | exactly one of `franchise_id`, `collection_id` | `MediaRelationResponse[]` (raw rows) — backs the admin page's per-entry count badges. A row naming any hidden endpoint is dropped whole | `400` if not exactly one scope |
-| `GET /graph` | public, viewer-filtered | exactly one of `franchise_id`, `collection_id`, `series_id` | `RelationGraphResponse` `{nodes, edges}`. Node: `key, media_type, entry_id, in_scope, missing, display_name, search_names, cover_image_file, cover_image_focus, franchise_id, nav_path, type_label`. Edge: `system_id, from, to, relation_type, label, inverse_label, family, remark` (`from`/`to` are node keys) | `400` if not exactly one scope |
+| `GET /` | public, viewer-filtered | exactly one of `franchise_id`, `collection_id` | `MediaRelationResponse[]` (raw rows) — backs the admin page's per-entry count badges. A row naming any hidden endpoint is dropped whole, and a collection's hidden member franchises are skipped (`visible_scope_franchise_ids`) | `400` if not exactly one scope; `404` when the scope's group is hidden from the viewer, worded as for a missing one |
+| `GET /graph` | public, viewer-filtered | exactly one of `franchise_id`, `collection_id`, `series_id` | `RelationGraphResponse` `{nodes, edges}`. Node: `key, media_type, entry_id, in_scope, missing, display_name, search_names, cover_image_file, cover_image_focus, franchise_id, nav_path, type_label`. Edge: `system_id, from, to, relation_type, label, inverse_label, family, remark` (`from`/`to` are node keys). A collection's hidden member franchises are skipped | `400` if not exactly one scope; `404` when the scope's group is hidden from the viewer (`tier_visible`, `visible_scope_franchise_ids`), worded as for a missing one |
 | `POST /` | admin | `MediaRelationCreate`: `from_type, from_id, kind, to_type, to_id, remark?` | `201` `MediaRelationResponse` (normalized row) | `400` bad kind / type / missing entry; `409` self or duplicate; `422` malformed body |
 | `PATCH /{system_id}` | admin | `MediaRelationUpdate`: `kind?, swap=false, remark?` | `MediaRelationResponse` | `404`; `400` bad kind; `409` self/duplicate after normalization |
 | `DELETE /scope` | admin | exactly one of `franchise_id`, `collection_id`, `series_id` | `{status, deleted, message}` — deletes every row `/graph` would draw for that scope (including ghost links with one end outside), all logged to the deleted-record log, one commit. Not undoable on the page | `400` if not exactly one scope |

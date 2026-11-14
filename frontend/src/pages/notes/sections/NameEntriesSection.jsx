@@ -184,7 +184,7 @@ function NameEntriesForm({ section, val, setVal }) {
 export default function NameEntriesSection({
   section,
   notes,
-  isAdmin,
+  canWrite,
   onCreate,
   onUpdate,
   onDelete,
@@ -198,7 +198,7 @@ export default function NameEntriesSection({
   const cap = useEntryCap(notes, {
     keep: (row) => row.system_id === editId,
   });
-  const reorder = useRowReorder({ section, notes, isAdmin, onReorder, reordering, cap });
+  const reorder = useRowReorder({ section, notes, canWrite, onReorder, reordering, cap });
 
   // Matches the server rule: a named list with neither a name nor a single
   // entry is nothing.
@@ -222,7 +222,7 @@ export default function NameEntriesSection({
     <SectionCard
       label={section.label}
       count={notes.length}
-      isAdmin={isAdmin}
+      canWrite={canWrite}
       onAdd={() => setAdding(true)}
     >
       <ReorderList reorder={reorder}>
@@ -268,7 +268,7 @@ export default function NameEntriesSection({
             </div>
             {editId !== n.system_id && (
               <ItemActions
-                isAdmin={isAdmin}
+                canWrite={canWrite}
                 onEdit={() => {
                   setEditId(n.system_id);
                   setEditVal(fromNote(n));

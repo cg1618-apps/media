@@ -5,10 +5,17 @@
 // text suggested from the section's `kind_category`.
 //
 // Above the songs, in the card's header, sits the LIST's own status - "All
-// Done", "Not Done", ... - which lives in the hidden `music_status` section,
-// in the row whose `kind` is this section's key. The provider hands that row
-// in as `typeStatusNote`; a list with none reads as the registry default and
-// gets its row the first time the status is changed.
+// Done", "Not Done", ... - which hangs on the hidden `music_status` section's
+// row whose `kind` is this section's key. The provider hands that row in as
+// `typeStatusNote`; every anime is created with its four rows.
+//
+// Both statuses are the VIEWER's own (`personal_status`): the server reads the
+// viewer's mark into the row's `status`, and they are written through
+// `onMark` with the key "status" by a viewer who may mark (`canMark`), never
+// through the song's form or a catalogue write. A list with no status row
+// reads as the registry default and cannot be marked until it has one. A
+// viewer without the music_status feature is sent no vocabulary, so it sees
+// neither.
 import { useState } from "react";
 
 import SuggestInput from "../../../components/forms/SuggestInput";
@@ -41,7 +48,6 @@ import AutoGrowTextarea from "../../../components/ui/AutoGrowTextarea";
 const empty = (section) => ({
   title: "",
   kind: section.default_kind || "",
-  status: "",
   locator: "",
   links: [],
   content: "",
@@ -50,7 +56,6 @@ const empty = (section) => ({
 const fromNote = (n, section) => ({
   title: n.title || "",
   kind: n.kind || section.default_kind || "",
-  status: n.status || "",
   locator: n.locator || "",
   links: pairsFromLinks(n.links),
   content: n.content || "",
@@ -61,44 +66,37 @@ const fromNote = (n, section) => ({
 const toFields = (val, section) => ({
   title: val.title.trim() || null,
   ...(section.kind_category ? { kind: val.kind.trim() || null } : {}),
-  status: val.status || null,
   locator: val.locator.trim() || null,
   links: pairsToLinks(val.links),
   content: val.content.trim() || null,
 });
 
 // Mirrors validate_note_payload, so the reader sees an inert Save rather than
-// a 422: the row needs a name, status, episode, link or remark - the Song
-// Type is prefilled, so it cannot be what makes a row worth storing - and a
-// link label with no URL holds the save rather than being dropped.
+// a 422: the row needs a name, episode, link or remark - the Song Type is
+// prefilled, so it cannot be what makes a row worth storing, and the status is
+// the viewer's own, not the row's - and a link label with no URL holds the
+// save rather than being dropped.
 const invalid = (val) =>
   pairsIncomplete(val.links) ||
   (!val.title.trim() &&
-    !val.status &&
     !val.locator.trim() &&
     !hasLinkPair(val.links) &&
     !val.content.trim());
 
-const selectCls = inputCls + " bg-surface";
 const statusSelectCls =
   "border border-border-strong bg-surface text-text px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] focus:outline-none focus:ring-2 focus:ring-brand";
 
-// The list's own status, in the card header. Admins get a compact select over
-// the closed vocabulary; everyone else reads it as a tag.
-function TypeStatus({ section, note, isAdmin, onCreate, onUpdate }) {
+// The list's own status, in the card header. A viewer who may mark gets a
+// compact select over the closed vocabulary, marking the list's status row;
+// everyone else - and a list without its row - reads it as a tag.
+function TypeStatus({ section, note, canMark, onMark }) {
   const value = note?.status || section.type_status_default || "";
-  if (!isAdmin) {
+  if (!canMark || !note) {
     return value ? <span className={brandTagCls}>{value}</span> : null;
   }
   const change = (status) => {
     if (!status || status === value) return;
-    if (note) onUpdate(note.system_id, { status });
-    else
-      onCreate({
-        section: section.type_status_section,
-        kind: section.key,
-        status,
-      });
+    onMark(note.system_id, { status });
   };
   return (
     <select
@@ -108,6 +106,29 @@ function TypeStatus({ section, note, isAdmin, onCreate, onUpdate }) {
       className={statusSelectCls}
     >
       {section.type_statuses.map((s) => (
+        <option key={s} value={s}>
+          {s}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+// One song's status, the viewer's own, on its row: a select for a viewer who
+// may mark (blank clears it), a tag for anyone else. Provisional UI.
+function SongStatus({ section, note, canMark, onMark }) {
+  if (!canMark || !section.statuses?.length) {
+    return note.status ? <span className={brandTagCls}>{note.status}</span> : null;
+  }
+  return (
+    <select
+      value={note.status || ""}
+      onChange={(e) => onMark(note.system_id, { status: e.target.value || null })}
+      aria-label={`${note.title || "Song"} status`}
+      className={statusSelectCls}
+    >
+      <option value="">Status…</option>
+      {section.statuses.map((s) => (
         <option key={s} value={s}>
           {s}
         </option>
@@ -140,19 +161,6 @@ function MusicTrackForm({ val, setVal, section, optionValues }) {
             className={inputCls}
           />
         )}
-        <select
-          value={val.status}
-          onChange={(e) => setVal({ ...val, status: e.target.value })}
-          aria-label="Song status"
-          className={selectCls}
-        >
-          <option value="">Status</option>
-          {section.statuses.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
         <input
           value={val.locator}
           onChange={(e) => setVal({ ...val, locator: e.target.value })}
@@ -179,7 +187,7 @@ function MusicTrackForm({ val, setVal, section, optionValues }) {
 export default function MusicTrackSection({
   section,
   notes,
-  isAdmin,
+  canWrite,
   onCreate,
   onUpdate,
   onDelete,
@@ -187,6 +195,8 @@ export default function MusicTrackSection({
   typeStatusNote,
   onReorder,
   reordering,
+  canMark = false,
+  onMark,
 }) {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState(() => empty(section));
@@ -197,7 +207,7 @@ export default function MusicTrackSection({
   });
   // Reorders this list's songs only. The list's own status lives in another
   // section (`music_status`) and is never one of these rows.
-  const reorder = useRowReorder({ section, notes, isAdmin, onReorder, reordering, cap });
+  const reorder = useRowReorder({ section, notes, canWrite, onReorder, reordering, cap });
 
   const commit = () => {
     if (invalid(draft)) return;
@@ -216,7 +226,7 @@ export default function MusicTrackSection({
     <SectionCard
       label={section.label}
       count={notes.length}
-      isAdmin={isAdmin}
+      canWrite={canWrite}
       onAdd={() => setAdding(true)}
       // A list with a status of its own opens even with no songs: the status
       // is the point of looking at it.
@@ -226,9 +236,8 @@ export default function MusicTrackSection({
           <TypeStatus
             section={section}
             note={typeStatusNote}
-            isAdmin={isAdmin}
-            onCreate={onCreate}
-            onUpdate={onUpdate}
+            canMark={canMark}
+            onMark={onMark}
           />
         )
       }
@@ -254,7 +263,12 @@ export default function MusicTrackSection({
                     {n.locator && <span className={tagCls}>{n.locator}</span>}
                     {n.title && <span className="text-sm font-semibold text-text">{n.title}</span>}
                     {n.kind && <span className={tagCls}>{n.kind}</span>}
-                    {n.status && <span className={brandTagCls}>{n.status}</span>}
+                    <SongStatus
+                      section={section}
+                      note={n}
+                      canMark={canMark}
+                      onMark={onMark}
+                    />
                   </div>
                   {n.content && (
                     <p className="text-sm text-text whitespace-pre-wrap">{n.content}</p>
@@ -262,7 +276,7 @@ export default function MusicTrackSection({
                   <LinkPairPills links={n.links} />
                 </div>
                 <ItemActions
-                  isAdmin={isAdmin}
+                  canWrite={canWrite}
                   onEdit={() => {
                     setEditId(n.system_id);
                     setEditVal(fromNote(n, section));

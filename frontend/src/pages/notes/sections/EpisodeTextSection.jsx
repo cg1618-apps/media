@@ -95,7 +95,7 @@ function EpisodeTextForm({ val, setVal, section }) {
 export default function EpisodeTextSection({
   section,
   notes,
-  isAdmin,
+  canWrite,
   onCreate,
   onUpdate,
   onDelete,
@@ -112,7 +112,7 @@ export default function EpisodeTextSection({
   // Dragged rather than sorted by locator: a locator is free text - an
   // episode, but also a chapter, a boss, a scene or a source - so there is no
   // order it could be sorted into.
-  const reorder = useRowReorder({ section, notes, isAdmin, onReorder, reordering, cap });
+  const reorder = useRowReorder({ section, notes, canWrite, onReorder, reordering, cap });
 
   // A locator alone is a legitimate note, and so is text alone - except where
   // the section is only about where it points, and then the locator is the one
@@ -143,7 +143,7 @@ export default function EpisodeTextSection({
     <SectionCard
       label={section.label}
       count={notes.length}
-      isAdmin={isAdmin}
+      canWrite={canWrite}
       onAdd={() => setAdding(true)}
     >
       <ReorderList reorder={reorder}>
@@ -171,7 +171,7 @@ export default function EpisodeTextSection({
                       .map((l, j) => <LinkPill key={j} url={l} />)}
                 </div>
                 <ItemActions
-                  isAdmin={isAdmin}
+                  canWrite={canWrite}
                   onEdit={() => {
                     setEditId(n.system_id);
                     setEditVal(fromNote(n));

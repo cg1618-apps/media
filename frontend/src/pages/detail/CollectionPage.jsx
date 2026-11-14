@@ -11,7 +11,6 @@ import { useParams, Link } from "react-router-dom";
 import { endpoints } from "../../api/endpoints";
 import { buildUrl } from "../../api/client";
 import { useAuth } from "../../contexts/AuthContext";
-import { useToast } from "../../hooks/useToast";
 import {
   getDisplayName,
   getNamingFields,
@@ -49,17 +48,22 @@ import {
 } from "../../components/ui/primitives";
 import FranchiseCard from "../../components/cards/FranchiseCard";
 import RemarkModal from "../../components/modals/RemarkModal";
+import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import WatchOrderSection from "../../components/tracker/WatchOrderSection";
+import ContentLabelChips from "../../components/info/ContentLabelChips";
 import CollectionNotes from "./CollectionNotes";
+import { usePageTitle } from "../../contexts/PageTitleContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
+import { useViewScope } from "../../hooks/useViewScope";
+import { useMyRatingSaver } from "../../api/mutations/useMyRatingMutations";
+import { useMyRemarkSaver } from "../../api/mutations/useMyRemark";
 
 export default function CollectionPage() {
   const { publicId } = useParams();
-  const { isAdmin, has } = useAuth();
-  // The collection's own rating and expectation are personal content, drawn
-  // only for a viewer holding view.personal.
-  const showPersonal = has("view.personal");
-  const { showToast } = useToast();
+  const { isAdmin } = useAuth();
+  // The rating and expectation are the viewer's own, drawn and edited by a
+  // holder of self.list; anyone else has none.
+  const { ownData } = useViewScope();
 
   const [collection, setCollection] = useState(null);
   const [members, setMembers] = useState([]);
@@ -74,6 +78,8 @@ export default function CollectionPage() {
   // Everything past the lookup still speaks UUIDs; only the URL segment
   // changed. Resolved from the fetched row so the two can never disagree.
   const system_id = collection?.system_id;
+  const saveMyRemark = useMyRemarkSaver("collection", system_id, setCollection);
+  const saveMyRating = useMyRatingSaver("collection", system_id, setCollection);
   const remarkRef = useRef(null);
 
   useCanonicalPath("collection", collection);
@@ -189,33 +195,17 @@ export default function CollectionPage() {
     [members],
   );
 
-  async function saveField(field, value) {
-    try {
-      const res = await fetch(
-        endpoints.resource("collection").patch(system_id),
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ [field]: value === "" ? null : value }),
-          credentials: "include",
-        },
-      );
-      if (res.ok) {
-        setCollection(await res.json());
-        showToast("success", "Collection updated successfully");
-      } else {
-        showToast("error", "Save failed");
-      }
-    } catch {
-      showToast("error", "Network error. Reverting.");
-    }
-  }
-
   // Shared by the inline box and the full-view modal, which edit one draft.
   function saveRemark() {
-    if (isAdmin && remarkDraft !== (collection?.remark || ""))
-      saveField("remark", remarkDraft);
+    if (ownData && remarkDraft !== (collection?.remark || ""))
+      saveMyRemark(remarkDraft);
   }
+
+  // The heading's name, which the browser tab shows too.
+  const name = collection
+    ? getDisplayName(collection, "collection") || "Unknown Collection"
+    : null;
+  usePageTitle(loading || error ? null : name);
 
   if (loading) return <HubLoading label="Loading collection..." />;
 
@@ -238,7 +228,6 @@ export default function CollectionPage() {
     allEntriesByFranchise,
   );
 
-  const name = getDisplayName(collection, "collection") || "Unknown Collection";
   const altNames = getNamingFields(collection, "collection").filter(
     (f) => f.value && f.value !== name,
   );
@@ -253,6 +242,13 @@ export default function CollectionPage() {
       <Crumbs
         trail={[{ to: "/library/collection", label: "Collection" }]}
         current={name}
+        action={
+          <ReportProblemButton
+            targetType="collection"
+            targetId={collection.system_id}
+            targetLabel={name}
+          />
+        }
       />
 
       {isAdmin && <AdminStrip editId={collection.system_id} />}
@@ -264,7 +260,7 @@ export default function CollectionPage() {
             cover={cover}
             spine="Collection"
             id={collection.system_id}
-            rating={showPersonal ? collection.my_rating : null}
+            rating={ownData ? collection.my_rating : null}
           />
         </div>
 
@@ -297,22 +293,36 @@ export default function CollectionPage() {
               </div>
             </div>
 
+            {/* A collection's labels hide the collection AND every franchise,
+                series and entry in it, so they are said in their own row, as
+                the Franchise hub says its own. */}
+            <ContentLabelChips
+              labels={collection.content_labels}
+              note="Hides this collection and every franchise, series and entry in it."
+              className="mt-4"
+            />
+
             {/* Same chip vocabulary as the Franchise hub, so an expectation
                 reads the same wherever it turns up. */}
-            {showPersonal && collection.collection_expectation && (
+            {ownData && collection.collection_expectation && (
               <div className="flex flex-wrap gap-2 mt-4">
                 <Chip>Expectation · {collection.collection_expectation}</Chip>
               </div>
             )}
           </header>
 
-          {isAdmin && (
+          {ownData && (
             <Slip title="Curation">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="Overall rating">
                   <select
                     value={collection.my_rating || ""}
-                    onChange={(e) => saveField("my_rating", e.target.value)}
+                    onChange={(e) =>
+                      saveMyRating(
+                        { my_rating: e.target.value || null },
+                        "Rating saved",
+                      )
+                    }
                     className={`${SELECT_CLS} w-full`}
                   >
                     <option value="">Not rated</option>
@@ -327,7 +337,10 @@ export default function CollectionPage() {
                   <select
                     value={collection.collection_expectation || ""}
                     onChange={(e) =>
-                      saveField("collection_expectation", e.target.value)
+                      saveMyRating(
+                        { expectation: e.target.value || null },
+                        "Expectation saved",
+                      )
                     }
                     className={`${SELECT_CLS} w-full`}
                   >
@@ -343,7 +356,7 @@ export default function CollectionPage() {
             </Slip>
           )}
 
-          {(isAdmin || collection.remark) && (
+          {ownData && (
             <Slip
               title="Remark"
               actions={
@@ -362,11 +375,10 @@ export default function CollectionPage() {
               <textarea
                 ref={remarkRef}
                 value={remarkDraft}
-                disabled={!isAdmin}
                 onChange={(e) => setRemarkDraft(e.target.value)}
                 onBlur={() => saveRemark()}
                 rows={3}
-                className={`w-full border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none transition ${isAdmin ? "border-border bg-surface text-text" : "border-border bg-surface-2 text-text-muted cursor-default"}`}
+                className="w-full border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none transition border-border bg-surface text-text"
               />
             </Slip>
           )}
@@ -469,8 +481,7 @@ export default function CollectionPage() {
               hide the duplicate `remark` section wherever that editor renders. */}
           <CollectionNotes
             collection={collection}
-            isAdmin={isAdmin}
-            hideSections={isAdmin || collection.remark ? ["remark"] : []}
+            hideSections={ownData ? ["remark"] : []}
           />
         </Section>
       )}
@@ -478,7 +489,7 @@ export default function CollectionPage() {
       {showRemark && (
         <RemarkModal
           value={remarkDraft}
-          canEdit={has("self.personal_notes")}
+          canEdit={ownData}
           onChange={setRemarkDraft}
           onClose={() => {
             saveRemark();

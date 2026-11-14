@@ -1,6 +1,6 @@
 # Entry types and grouping tiers
 
-Last verified: 2026-10-28
+Last verified: 2026-11-14
 
 ## What this is for
 
@@ -104,7 +104,7 @@ Media-type keys are the hyphenated values in `MEDIA_TABLES` (`app/utils/media_re
 | `game` | `games` | One **purchasable**, not one work: `game_type` is `"Base Game"`, `"DLC"`, `"Expansion"` or `"Bundle"`, and a DLC is a row in this same table with a `base_game_id`. `is_main` is `"Main"`, `"Remake"` or `"Remaster"` (`GAME_IS_MAIN`, not the other types' 本傳 / 外傳 list), a label independent of `game_type` and of the relation kinds. Ownership is not a column - it is derived from the `game_copy` rows. A game also owns a **choice graph** - the blocks (parts) of its branching story and the choices and conditions that lead from one to the next, with each player's own done marks and notes - in three tables of its own ([systems/game-choices.md](systems/game-choices.md)). |
 | `h-comic` | `h_comic` | Adult comics, seen in the `unrestricted` access mode only. One table, two variants keyed on `region` (`"JP"` or `"KR"`, required): the columns a region does not use are cleared on every write path (see "H-Comic regions" below). A **gated type** - every entry carries the `h-comic` content label ([authorization.md](authorization.md)). Its `animation_status` is derived from hentai adaptations when it has any (see "H-Comic animation status" below). |
 | `h-game` | `h_game` | Adult games, seen in the `unrestricted` access mode only: to `game` what `h-comic` is to `manga`. One purchasable per row as for game (`game_type`, `is_main`, a `base_game_id` self-FK for DLC), with Game's fill plus DLsite, purchase records (`game_copy`), the choice graph and note sections. Its own fields: `playstyle`, `all_cg`, `language_availability`, `dialogue_audio`, `sound_effect`, `h_presentation`, `h_art_style`, `platform`, `dlsite_link_jp` / `_tw` (see "H-Game fields" below). A **gated type** - every entry carries the `h-game` content label. |
-| `hentai` | `hentai` | Adult anime, seen in the `unrestricted` access mode only. Tracked like a cartoon - `ep_total` on the entry, `ep_fin` on the viewer's list row, no `ep_previous` or `ep_special` - and a `PATCH` that steps `ep_fin` up to `ep_total` finishes it; watch orders still treat an entry as whole. `source_material` is `"Original"`, `"Manga"` or `"Novel"`; `originality` reuses h-comic's `原創` / `同人`; `airing_status` is anime's vocabulary. A **gated type** - every entry carries the `hentai` content label. Credits anime's studio and director and h-comic's author, so the writer of the h-comic a hentai adapts is one person on both. Cast like anime, seiyuu included. No notes section of its own. |
+| `hentai` | `hentai` | Adult anime, seen in the `unrestricted` access mode only. Tracked like a cartoon - `ep_total` on the entry, `ep_fin` on the viewer's list row, no `ep_previous` or `ep_special` - and a `PATCH` that steps `ep_fin` up to `ep_total` finishes it; watch orders still treat an entry as whole. `source_material` is `"Original"`, `"Manga"`, `"Novel"` or `"Game"`; `originality` reuses h-comic's `原版` / `同人`; `airing_status` is anime's vocabulary. A **gated type** - every entry carries the `hentai` content label. Credits anime's studio and director and h-comic's author, so the writer of the h-comic a hentai adapts is one person on both. Cast like anime, seiyuu included. No notes section of its own. |
 
 All twelve have their own router under `app/routers/` and a detail page in `frontend/src/App.jsx`. H-Comic's, H-Game's and Hentai's library and detail routes are gated: they, their nav rows and every other surface of each type in the SPA are drawn only for a session that can see that type ([frontend/components.md](frontend/components.md#gated-media-types)).
 
@@ -114,7 +114,8 @@ All twelve have their own router under `app/routers/` and a detail page in `fron
 |---|:-:|:-:|
 | `h_comic_name_jp` / `h_comic_name_kr` | the JP name | the KR name (the other region's name is kept, not cleared - a name is harmless) |
 | `originality`, `animation_status`, `series_number`, `page_total` | ✓ | cleared |
-| `ch_total`, `ch_behind`, `highlight_group_order` | cleared | ✓ |
+| `ch_total`, `ch_behind` | cleared | ✓ |
+| every account's highlight group order (`user_highlight_group_order`) | deleted | ✓ |
 | the reader's `page_fin` (`user_media_list`) | ✓ | cleared |
 | the reader's `ch_fin` (`user_media_list`) | cleared | ✓ |
 
@@ -259,11 +260,14 @@ unrecognised type is *not* volume-only: it keeps its chapter pair, on both
 sides. Migration `v1o2l3o4n5l6` cleared the historical values once — it is not
 reversible, since nothing else records what `ch_total` was.
 
-Every unit also carries its own `my_rating`, on the same S..F scale as the
-novel's - a per-volume or per-arc grade, shown as a chip beside the unit on
-the detail page and set from a select in `NovelUnitsEditor`. It is
-independent: nothing derives from it, and the novel's own rating stays
-hand-set.
+Every unit also carries the reader's own `my_rating`, on the same S..F
+scale as the novel's - a per-volume or per-arc grade - and the reader's own
+`remark`, both kept per account in `user_novel_unit_rating` rather than on
+the unit. A holder of `self.list` sets both on the detail page, from a rating
+select and a remark field beside each unit, through
+`PUT /api/me/novel-units/{unit_id}`; the catalogue editor (`NovelUnitsEditor`)
+and the novel's `units` write carry neither. The rating is independent:
+nothing derives from it, and the novel's own rating stays hand-set.
 
 Only `arc` rows are authoritative for derivation; every other kind is
 enrichment shown on the detail page via `display_key` (`unit_display_key` /
@@ -315,8 +319,8 @@ never suggested as an anime distributor. Anime Movie carries a
 `distributor_tw` of its own.
 
 Every type also gets `other` and `restricted` free-form access/reference
-buckets on `media_source`, gated by the `sources_other` / `sources_restricted`
-field groups. Table and column detail: [data-model.md](data-model.md#media_source);
+buckets on `media_source`. Every viewer gets `other`; `restricted` is gated
+by the `sources_restricted` field group. Table and column detail: [data-model.md](data-model.md#media_source);
 authorization: [authorization.md](authorization.md); the rule that decides
 column vs. `media_source` row: [business-rules.md](business-rules.md).
 
@@ -405,7 +409,7 @@ All entry finders except anime skip rows whose `franchise_id` is null. Report ke
 
 ### Notes sections (`app/utils/note_sections.py`)
 
-Sections every owner has (all twelve types plus `series`, `franchise`, `collection`): `remark`, `remark_list`, `resources`. The gated types are left out of the rest of the shared sections: `introduction`, `advantages`, `disadvantages`, `double_edged`, `analysis` and `questions` reach every owner but h-comic and hentai; `public_reviews`, `personal_reviews` and `memes` every owner but h-comic, hentai and h-game; `quotes` every media type but those three. In their place, h-comic, hentai and h-game share `reviews_and_comments` (評論 Reviews and Comments, plain text, personal). Hentai has nothing else, so it appears in none of the columns below. The type-specific sections:
+Sections every owner has (all twelve types plus `series`, `franchise`, `collection`): `remark`, `remark_list`, `public_reviews`, `personal_reviews`, `resources`. The gated types are left out of the rest of the shared sections: `introduction`, `advantages`, `disadvantages`, `double_edged`, `analysis` and `questions` reach every owner but h-comic and hentai; `memes` every owner but h-comic, hentai and h-game; `quotes` every media type but those three. So an h-comic's or a hentai's 評論 card holds only 大眾評價 Public Reviews and 我的評價 Personal Reviews. Hentai has nothing else, so it appears in none of the columns below. The type-specific sections:
 
 | Section key | `anime` | `anime-movie` | `movie` | `tv-show` | `cartoon` | `manga` | `novel` | `comic` | `game` | `h-comic` | `h-game` | series / franchise |
 |---|---|---|---|---|---|---|---|---|---|---| --- |---|
@@ -418,7 +422,7 @@ Sections every owner has (all twelve types plus `series`, `franchise`, `collecti
 | 攻略 group — `beginner`, `trivia` (`text_links`) | | | | | | | | | x | |  | |
 | 養成&流派 group — `stats_and_points`, `classes`, `skills`, `builds_and_styles`, `team_composition` (`structured`) | | | | | | | | | x | | x | |
 | 物品 group — `weapons_and_gear`, `items`, `collectibles` (`structured`) | | | | | | | | | x | | x | |
-| 圖鑑與名詞 group — `characters_guide`, `enemies`, `game_terms` (`structured`) | | | | | | | | | x | | x | |
+| 圖鑑與名詞 group — `characters_guide`, `enemies`, `geography` (nestable), `game_terms` (`structured`) | | | | | | | | | x | | x | |
 | 圖鑑與名詞 group — `player_terms` (`structured`) | | | | | | | | | x | |  | |
 | 資源&工具 group — `mods_and_tools`, `guide_resources` (`structured`) | | | | | | | | | x | | x | |
 | 劇情 group — `main_plot`, `side_plot` (`structured`, chapter optional), `character_arcs` (`text_links`) | | | | | | | | | x | |  | |
@@ -440,4 +444,4 @@ Sections every owner has (all twelve types plus `series`, `franchise`, `collecti
 | `h_comic_highlights` (`structured`, grouped by `female_characters`, KR entries only) | | | | | | | | | | x |  | |
 | `h_game_highlights` (`structured`, grouped by `female_characters`, locator "Route / Scene", audio / H 演出形式 / art style selects) |  |  |  |  |  |  |  |  |  |  | x |  |
 
-Movie and comic get only the shared sections, and H-Comic one of its own, `h_comic_highlights`, which a JP entry refuses (422) through the section's `owner_where`. H-Game takes game's sections less the ones that do not describe how it plays - 大眾評價, 我的評價, 各章評論, 神場景, 新手, 小知識, 玩家術語, the three prose 劇情 strands, 世界觀 and 名言/梗 - with game's labels, placeholders and groups, except that its four Story List strands render in the 劇情 card beside 結局. It adds `reviews_and_comments` and `h_game_highlights`: female and male characters, a locator labelled "Route / Scene", dialogue audio, H 演出形式 and art style (selects over the `h_game` columns' options), label, usefulness and description, with no `owner_where`. Game carries 41 of its own - `highlight_moments` plus the 攻略 (5), 養成&流派 (5), 物品 (3), 圖鑑與名詞 (4), 資源&工具 (2), 劇情 (4), 劇情列表 (4), 世界觀 (5), NG 多周目 (4) and 待辦 (4) groups - beside the shared ones. The guide used to be one card of fifteen sections; five cards, each answering one question, is what it reads as now. It is also the one owner type that reads 解析 Analysis inside 評論 Reviews rather than in a card of its own (`groups_by_owner`), and the one whose 待辦 buckets render inside the detail page's Progress slip rather than as a card. Its guide bookmarks are **`guide_resources`, in the 資源&工具 card immediately before Resources**; the site-wide `resources` section (shape `name_links`, `ALL_OWNERS`, standalone) is a separate section games also inherit, and two keys with two labels is deliberate, because a second card called "Resources" would be unreadable. Shapes, groups and validation: [systems/notes.md](systems/notes.md).
+Movie and comic get only the shared sections, and H-Comic one of its own, `h_comic_highlights`, which a JP entry refuses (422) through the section's `owner_where`. H-Game takes game's sections less the ones that do not describe how it plays - 各章評論, 神場景, 新手, 小知識, 玩家術語, the three prose 劇情 strands, 世界觀 and 名言/梗 - with game's labels, placeholders and groups, except that its four Story List strands render in the 劇情 card beside 結局. It adds `h_game_highlights`: female and male characters, a locator labelled "Route / Scene", dialogue audio, H 演出形式 and art style (selects over the `h_game` columns' options), label, usefulness and description, with no `owner_where`. Game carries 44 of its own - `highlight_moments` plus the 攻略 (5), 養成&流派 (5), 物品 (3), 圖鑑與名詞 (5), 資源&工具 (2), 劇情 (4), 劇情列表 (4), 世界觀 (5), NG 多周目 (5) and 待辦 (5) groups - beside the shared ones. The guide is five cards, each answering one question, rather than one card of twenty sections. It is also the one owner type that reads 解析 Analysis inside 評論 Reviews rather than in a card of its own (`groups_by_owner`), and the one whose 待辦 buckets render inside the detail page's Progress slip rather than as a card. Its guide bookmarks are **`guide_resources`, in the 資源&工具 card immediately before Resources**; the site-wide `resources` section (shape `name_links`, `ALL_OWNERS`, standalone) is a separate section games also inherit, and two keys with two labels is deliberate, because a second card called "Resources" would be unreadable. Shapes, groups and validation: [systems/notes.md](systems/notes.md).

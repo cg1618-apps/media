@@ -15,10 +15,15 @@ export default function Login() {
   // Usernames saved on this browser, most recently used first. Read once:
   // nothing outside this page writes the list while it is open.
   const [savedUsers, setSavedUsers] = useState(readSavedUsers);
-  const [username, setUsername] = useState("");
+  const location = useLocation();
+  // ?username= pre-fills the field: a password reset lands here with the
+  // account it was for, so the only thing left to type is the new password.
+  const [username, setUsername] = useState(
+    () => new URLSearchParams(location.search).get("username") ?? "",
+  );
+  const [showForgot, setShowForgot] = useState(false);
   const passwordRef = useRef(null);
   const { showToast } = useToast();
-  const location = useLocation();
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -38,19 +43,19 @@ export default function Login() {
       if (res.ok) {
         // Only a sign-in that worked earns a slot, so a typo never spends one.
         rememberUser(formData.get("username"));
-        const params = new URLSearchParams(location.search);
-        const next = params.get("next");
-        // Must start with "/" (an absolute URL would be an open redirect) and
-        // must not point back at /login - that lands a signed-in visitor on
-        // this form again with their real destination buried a level deeper.
-        // The negative lookahead keeps a genuine page like /loginary usable.
-        const usable =
-          next && next.startsWith("/") && !/^\/login(?![\w-])/.test(next);
+        // Always the dashboard, never the page the visitor came from: that
+        // page belonged to whoever was signed in before (or to a guest), and
+        // the account signing in now may not be allowed to open it - landing
+        // there would only bounce straight back to this form.
+        //
         // A FULL page load, not a client-side navigate. Everything the SPA
-        // cached up to this moment it cached as a guest, and the destination
+        // cached up to this moment it cached as a guest, and the dashboard
         // would be drawn from that cache.
-        hardNavigate(usable ? next : "/system");
+        hardNavigate("/");
       } else {
+        // The server's detail is shown as it comes: the generic 401, the two
+        // 403s a pending or disabled account earns after the right password,
+        // and the 429 that says how long to wait.
         const data = await res.json();
         setError(data.detail || "Authentication failed.");
         showToast("error", data.detail || "Authentication failed.");
@@ -162,6 +167,29 @@ export default function Login() {
             )}
           </Button>
         </form>
+
+        {/* A note, not a form: the site has no way to reach anyone, so the
+            only way back into an account is a reset link from the admin.
+            No link to /reset either - that page needs a code only the admin
+            can hand out. */}
+        <div className="mt-6 text-sm">
+          <button
+            type="button"
+            aria-expanded={showForgot}
+            aria-controls="login-forgot-note"
+            onClick={() => setShowForgot((open) => !open)}
+            className="text-text-muted underline hover:text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          >
+            Forgot your password or username?
+          </button>
+          {showForgot && (
+            <p id="login-forgot-note" className="mt-2 text-text-muted">
+              Ask the admin for a reset link, outside the site. It works once,
+              for 24 hours. Opening it shows your username and lets you choose
+              a new password.
+            </p>
+          )}
+        </div>
       </Slip>
     </div>
   );

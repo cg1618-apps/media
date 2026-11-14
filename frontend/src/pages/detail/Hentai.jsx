@@ -14,11 +14,11 @@
 // reference links from.
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import ReportProblemButton from "../../components/requests/ReportProblemButton";
 
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
 import { EpisodeStepper, PausedAtInput } from "../../components/tracker/MyTrackerCard";
-import CommunityCard from "../../components/info/CommunityCard";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
 import InfoCard from "../../components/info/InfoCard";
 import NamingCard from "../../components/info/NamingCard";
@@ -26,6 +26,8 @@ import { creditLabel, creditValue } from "../../components/info/PersonLinks";
 import SourcesCard from "../../components/info/SourcesCard";
 import { studioValue } from "../../components/info/StudioLinks";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
+import DetailContents, { TocSection } from "../../components/layout/DetailContents";
+import { usePageTitle } from "../../contexts/PageTitleContext";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import StatusOptions from "../../components/ui/StatusOptions";
 import { Button, Eyebrow, RatingStamp, Slip } from "../../components/ui/primitives";
@@ -38,13 +40,15 @@ import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
 import { useToast } from "../../hooks/useToast";
+import { useOwnTrackerSave } from "../../hooks/useOwnTrackerSave";
 import { entityPath } from "../../lib/entityPath";
-import { progressToast } from "../../lib/progressToast";
 import { FALLBACK_SVG, getCoverUrl, getDisplayName } from "../../utils/media";
 import HentaiNotes from "./HentaiNotes";
 import { focusStyle } from "../../lib/covers";
 import CastSection from "../../components/info/CastSection";
 import LazyImage from "../../components/ui/LazyImage";
+import { useViewScope } from "../../hooks/useViewScope";
+import { useMyRemarkSaver } from "../../api/mutations/useMyRemark";
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
@@ -54,7 +58,10 @@ const lineageLinkCls =
   "text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition";
 
 
-function HentaiTrackerBlock({ hentai, isAdmin, onPatch }) {
+function HentaiTrackerBlock({ hentai, canTrack, onPatch }) {
+  // Every control here is the viewer's own (self.list), saved through /api/me
+  // by the page; without it the slip is not drawn.
+  if (!canTrack) return null;
   const select = (id, label, field, options, { emptyLabel, msg }) => (
     <div className="space-y-1">
       <Eyebrow as="label" htmlFor={id}>
@@ -63,8 +70,7 @@ function HentaiTrackerBlock({ hentai, isAdmin, onPatch }) {
       <select
         id={id}
         value={hentai[field] || ""}
-        disabled={!isAdmin}
-        onChange={(e) => isAdmin && onPatch({ [field]: e.target.value || null }, msg)}
+        onChange={(e) => onPatch({ [field]: e.target.value || null }, msg)}
         className={selectCls}
       >
         <option value="">{emptyLabel}</option>
@@ -80,15 +86,12 @@ function HentaiTrackerBlock({ hentai, isAdmin, onPatch }) {
   const flag = (field, label, onMsg, offMsg) => (
     <div className="space-y-1">
       <Eyebrow>{label}</Eyebrow>
-      <label
-        className={`flex items-center gap-2 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
-      >
+      <label className="flex items-center gap-2 cursor-pointer">
         <input
           type="checkbox"
           checked={!!hentai[field]}
-          disabled={!isAdmin}
           onChange={(e) =>
-            isAdmin && onPatch({ [field]: e.target.checked }, e.target.checked ? onMsg : offMsg)
+            onPatch({ [field]: e.target.checked }, e.target.checked ? onMsg : offMsg)
           }
           className="w-4 h-4 accent-brand"
         />
@@ -103,7 +106,7 @@ function HentaiTrackerBlock({ hentai, isAdmin, onPatch }) {
     <EpisodeStepper
       epFin={hentai.ep_fin ?? 0}
       epTotal={hentai.ep_total ?? "?"}
-      isAdmin={isAdmin}
+      canTrack={canTrack}
       onEpChange={(v) => onPatch({ ep_fin: v }, "Episode progress saved")}
     />
   );
@@ -118,9 +121,8 @@ function HentaiTrackerBlock({ hentai, isAdmin, onPatch }) {
           <select
             id="hentai-watching-status"
             value={hentai.watching_status || ""}
-            disabled={!isAdmin}
             onChange={(e) =>
-              isAdmin && onPatch({ watching_status: e.target.value }, "Status updated")
+              onPatch({ watching_status: e.target.value }, "Status updated")
             }
             className={selectCls}
           >
@@ -138,7 +140,7 @@ function HentaiTrackerBlock({ hentai, isAdmin, onPatch }) {
         })}
         <PausedAtInput
           value={hentai.time_fin}
-          isAdmin={isAdmin}
+          canTrack={canTrack}
           onChange={(v) => onPatch({ time_fin: v }, "Paused position saved")}
           className="space-y-1"
         />
@@ -152,7 +154,7 @@ function HentaiTrackerBlock({ hentai, isAdmin, onPatch }) {
 export default function Hentai() {
   const { publicId } = useParams();
   const navigate = useNavigate();
-  const { isAdmin, isRoot } = useAuth();
+  const { isAdmin, has } = useAuth();
   const { showToast } = useToast();
 
   const [hentai, setHentai] = useState(null);
@@ -163,6 +165,8 @@ export default function Hentai() {
   // Everything past the lookup speaks UUIDs; resolved from the fetched row so
   // the URL segment and the id can never disagree.
   const system_id = itemQuery.data?.system_id;
+  const { ownData } = useViewScope();
+  const saveMyRemark = useMyRemarkSaver("hentai", system_id, setHentai);
   const castingQuery = useCasting("hentai", system_id);
   const cast = castingQuery.data?.cast || [];
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
@@ -191,28 +195,15 @@ export default function Hentai() {
   const error =
     itemQuery.error?.message || franchiseQuery.error?.message || seriesQuery.error?.message || null;
 
-  async function performPatch(payload, msg) {
-    if (!isAdmin) return;
-    setHentai((prev) => ({ ...prev, ...payload }));
-    try {
-      const res = await fetch(endpoints.resource("hentai").patch(system_id), {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Sync failed");
-      const updated = await res.json();
-      // `hentai` is still the pre-write row here: this closure never saw the
-      // optimistic update. A progress step can finish the entry.
-      showToast("success", progressToast(hentai, updated, msg || "Saved"));
-      setHentai(updated);
-      setMediaItem(updated);
-    } catch {
-      showToast("error", "Update failed");
-      fetchMediaItem();
-    }
-  }
+  // The viewer's own values (status, rating, progress, plan flags) go through /api/me;
+  // saveRelease is the toolbar's release step, the work's half through the
+  // catalogue PATCH.
+  const { saveOwn, saveRelease } = useOwnTrackerSave("hentai", {
+    entry: hentai,
+    setEntry: setHentai,
+    setMediaItem,
+    fetchMediaItem,
+  });
 
   async function markCompleted() {
     if (!isAdmin) return;
@@ -251,6 +242,10 @@ export default function Hentai() {
     }
   }
 
+  // The heading's title, which the browser tab shows too.
+  const titleMain = hentai ? getDisplayName(hentai, "hentai") : null;
+  usePageTitle(loading || error ? null : titleMain);
+
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading details..." />;
   }
@@ -261,7 +256,6 @@ export default function Hentai() {
     );
   }
 
-  const titleMain = getDisplayName(hentai, "hentai");
   const titleSub =
     hentai.hentai_name_en && hentai.hentai_name_en !== titleMain ? hentai.hentai_name_en : null;
   const imageUrl = getCoverUrl(hentai.cover_image_file);
@@ -272,19 +266,26 @@ export default function Hentai() {
     .join("  ·  ");
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-      <nav
-        className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint mb-8 flex items-center gap-3"
-        aria-label="Breadcrumb"
-      >
-        <Link to="/library/hentai" className="hover:text-brand transition">
-          Hentai
-        </Link>
-        <span aria-hidden="true">/</span>
-        <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
-          {titleMain}
-        </span>
-      </nav>
+    <DetailContents>
+      <div className="mb-8 flex items-center justify-between gap-3">
+        <nav
+          className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint min-w-0 flex items-center gap-3"
+          aria-label="Breadcrumb"
+        >
+          <Link to="/library/hentai" className="hover:text-brand transition">
+            Hentai
+          </Link>
+          <span aria-hidden="true">/</span>
+          <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
+            {titleMain}
+          </span>
+        </nav>
+        <ReportProblemButton
+          targetType="hentai"
+          targetId={system_id}
+          targetLabel={titleMain}
+        />
+      </div>
 
       {isAdmin && (
         <div className="border border-border-strong border-dashed px-3 py-2 flex flex-wrap gap-3 items-center justify-between mb-8">
@@ -294,7 +295,7 @@ export default function Hentai() {
               Quick edit
             </Button>
             <Button onClick={markCompleted}>Mark completed</Button>
-            <MarkReleaseButton type="hentai" entry={hentai} title={titleMain} onPatch={performPatch} />
+            <MarkReleaseButton type="hentai" entry={hentai} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
             <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
               {autofilling ? "Autofilling…" : "Autofill & update"}
             </Button>
@@ -313,7 +314,7 @@ export default function Hentai() {
               >
                 Hentai{hentai.source_material ? ` · ${hentai.source_material}` : ""}
               </span>
-              {isRoot && (
+              {has("manage.catalog") && (
                 <span
                   className="font-mono text-[9px] tracking-[0.1em] opacity-60 whitespace-nowrap"
                   style={{ writingMode: "vertical-rl" }}
@@ -394,89 +395,103 @@ export default function Hentai() {
           </header>
 
           {/* Where this entry sits in the watch orders the viewer follows. */}
-          <FollowedOrderPanel entryId={hentai.system_id} />
+          <TocSection id="watch-orders" label="Watch orders">
+            <FollowedOrderPanel entryId={hentai.system_id} />
+          </TocSection>
 
-          <HentaiTrackerBlock hentai={hentai} isAdmin={isAdmin} onPatch={performPatch} />
-
-          <CommunityCard mediaId={hentai.system_id} />
+          <TocSection id="tracker" label="My tracker">
+            <HentaiTrackerBlock hentai={hentai} canTrack={ownData} onPatch={saveOwn} />
+          </TocSection>
 
           <div className="space-y-6">
-            <NamingCard type="hentai" item={hentai} />
-            <InfoCard
-              title="Information"
-              fields={[
-                [
-                  { label: "Source Material", value: hentai.source_material },
-                  { label: "Originality", value: hentai.originality },
-                ],
-                [
-                  { label: "Airing Status", value: hentai.airing_status },
-                  { label: "Release Date", value: hentai.release_date || null },
-                ],
-                [
+            <TocSection id="naming" label="Naming">
+              <NamingCard type="hentai" item={hentai} />
+            </TocSection>
+            <TocSection id="information" label="Information">
+              <InfoCard
+                title="Information"
+                fields={[
+                  [
+                    { label: "Source Material", value: hentai.source_material },
+                    { label: "Originality", value: hentai.originality },
+                  ],
+                  [
+                    { label: "Airing Status", value: hentai.airing_status },
+                    { label: "Release Date", value: hentai.release_date || null },
+                  ],
+                  [
+                    {
+                      label: "Episodes",
+                      value: hentai.ep_total != null ? String(hentai.ep_total) : null,
+                    },
+                  ],
+                ]}
+              />
+            </TocSection>
+            <TocSection id="credits" label="Credits">
+              <InfoCard
+                title="Credits"
+                fields={[
+                  [
+                    { label: "Studio", value: studioValue(hentai) },
+                    {
+                      label: creditLabel(hentai, "director", "Director"),
+                      value: creditValue(hentai, "director", hentai.director),
+                    },
+                  ],
                   {
-                    label: "Episodes",
-                    value: hentai.ep_total != null ? String(hentai.ep_total) : null,
+                    label: creditLabel(hentai, "author", "Author"),
+                    value: creditValue(hentai, "author", hentai.author),
                   },
-                ],
-              ]}
-            />
-            <InfoCard
-              title="Credits"
-              fields={[
-                [
-                  { label: "Studio", value: studioValue(hentai) },
-                  {
-                    label: creditLabel(hentai, "director", "Director"),
-                    value: creditValue(hentai, "director", hentai.director),
-                  },
-                ],
-                {
-                  label: creditLabel(hentai, "author", "Author"),
-                  value: creditValue(hentai, "author", hentai.author),
-                },
-              ]}
-            />
-            <CastSection cast={cast} />
-            <InfoCard
-              title="Genres"
-              fields={[
-                { label: "Genre Plot", value: hentai.h_genre_plot },
-                { label: "Genre Appearance", value: hentai.h_genre_appearance },
-                { label: "Genre Relation", value: hentai.h_genre_relation },
-              ]}
-            />
+                ]}
+              />
+            </TocSection>
+            <TocSection id="cast" label="Cast">
+              <CastSection cast={cast} />
+            </TocSection>
+            <TocSection id="genres" label="Genres">
+              <InfoCard
+                title="Genres"
+                fields={[
+                  { label: "Genre Plot", value: hentai.h_genre_plot },
+                  { label: "Genre Appearance", value: hentai.h_genre_appearance },
+                  { label: "Genre Relation", value: hentai.h_genre_relation },
+                ]}
+              />
+            </TocSection>
           </div>
 
-          {hentai.remark && (
-            <Slip title="Remarks">
-              <textarea
-                key={hentai.system_id}
-                defaultValue={hentai.remark || ""}
-                disabled={!isAdmin}
-                onBlur={(e) =>
-                  isAdmin && performPatch({ remark: e.target.value || null }, "Remark saved")
-                }
-                rows={4}
-                placeholder="Add remarks…"
-                className={selectCls}
-              ></textarea>
-            </Slip>
-          )}
+          <TocSection id="remarks" label="Remarks">
+            {ownData && hentai.remark && (
+              <Slip title="Remarks">
+                <textarea
+                  key={hentai.system_id}
+                  defaultValue={hentai.remark || ""}
+                  onBlur={(e) => {
+                    if (e.target.value !== (hentai.remark || ""))
+                      saveMyRemark(e.target.value);
+                  }}
+                  rows={4}
+                  placeholder="Add remarks…"
+                  className={selectCls}
+                ></textarea>
+              </Slip>
+            )}
+          </TocSection>
 
-          {/* The dedicated remark textarea above renders only when a remark
-              exists; hide the notes page's `remark` section exactly then, so
-              the singleton row never has two editors on one screen. */}
+          {/* The dedicated remark textarea above renders only for a holder of
+              self.list who has a remark; hide the notes page's `remark`
+              section exactly then, so the viewer's own row never has two
+              editors on one screen. */}
           <HentaiNotes
             key={hentai.system_id}
             hentai={hentai}
-            isAdmin={isAdmin}
-            hideSections={hentai.remark ? ["remark"] : []}
+            hideSections={ownData && hentai.remark ? ["remark"] : []}
             series={series}
             franchise={franchise}
           />
         </div>
       </div>
-    </div>
+    </DetailContents>
   );
 }

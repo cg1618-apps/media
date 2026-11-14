@@ -26,9 +26,10 @@ class NovelUnitWrite(BaseModel):
     unit_key: Optional[str] = None
     name_cn: Optional[str] = None
     name_en: Optional[str] = None
-    remark: Optional[str] = None
     ch_count: Optional[float] = None
-    my_rating: Optional[str] = None
+    # No my_rating or remark: they are the reader's, not the unit's, and are
+    # written by PUT /api/me/novel-units/{unit_id}. A client still sending
+    # either has the key ignored, like every catalogue write's personal field.
 
 
 class NovelUnitResponse(BaseModel):
@@ -38,8 +39,9 @@ class NovelUnitResponse(BaseModel):
     unit_key: Optional[str] = None
     name_cn: Optional[str] = None
     name_en: Optional[str] = None
-    remark: Optional[str] = None
     ch_count: Optional[float] = None
+    # The viewer's own (user_list.attach_unit_ratings); null for a guest.
+    remark: Optional[str] = None
     my_rating: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)

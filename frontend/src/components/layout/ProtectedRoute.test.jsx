@@ -4,7 +4,7 @@
 // APIs answer 401 to a stranger. The guard is what turns that into a login
 // redirect instead of a screen full of errors.
 import { render, screen } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
 import ProtectedRoute from "./ProtectedRoute";
@@ -28,10 +28,33 @@ function renderAt(path, auth) {
   );
 }
 
+// Prints the URL it was reached at, so a redirect's query string is visible.
+function LoginProbe() {
+  const location = useLocation();
+  return <div data-testid="login-url">{location.pathname + location.search}</div>;
+}
+
 describe("ProtectedRoute requireAuth", () => {
   it("sends a logged-out visitor to login", () => {
     renderAt("/plan", { username: null, has: () => false, loading: false });
     expect(screen.getByText("the login page")).toBeInTheDocument();
+  });
+
+  it("sends a logged-out visitor to a plain /login, with no next", () => {
+    // A login always lands on the dashboard, so the page the visitor wanted
+    // is not carried along.
+    mockAuth.mockReturnValue({ username: null, has: () => false, loading: false });
+    render(
+      <MemoryRouter initialEntries={["/plan?tab=anime"]}>
+        <Routes>
+          <Route element={<ProtectedRoute requireAuth />}>
+            <Route path="/plan" element={<div>the plan page</div>} />
+          </Route>
+          <Route path="/login" element={<LoginProbe />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(screen.getByTestId("login-url").textContent).toBe("/login");
   });
 
   it("lets a logged-in non-admin through", () => {
@@ -66,6 +89,44 @@ describe("ProtectedRoute requireAuth", () => {
   });
 });
 
+describe("ProtectedRoute anyPermission", () => {
+  function renderLabels(has) {
+    mockAuth.mockReturnValue({ username: "kana", has, loading: false });
+    return render(
+      <MemoryRouter initialEntries={["/content-labels"]}>
+        <Routes>
+          <Route
+            element={
+              <ProtectedRoute anyPermission={["admin.authz", "manage.catalog"]} />
+            }
+          >
+            <Route path="/content-labels" element={<div>the label reference</div>} />
+          </Route>
+          <Route path="/login" element={<div>the login page</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+  }
+
+  it("lets through a viewer holding the first permission only", () => {
+    renderLabels((p) => p === "admin.authz");
+    expect(screen.getByText("the label reference")).toBeInTheDocument();
+  });
+
+  it("lets through a viewer holding the second permission only", () => {
+    renderLabels((p) => p === "manage.catalog");
+    expect(screen.getByText("the label reference")).toBeInTheDocument();
+  });
+
+  it("sends a viewer holding neither to login", () => {
+    // The viewer holds an unrelated permission, so the refusal comes from the
+    // list and not from a `has` that refuses everything.
+    renderLabels((p) => p === "manage.pipelines");
+    expect(screen.getByText("the login page")).toBeInTheDocument();
+    expect(screen.queryByText("the label reference")).not.toBeInTheDocument();
+  });
+});
+
 describe("ProtectedRoute gatedType", () => {
   function renderGated(auth) {
     mockAuth.mockReturnValue({ has: () => false, loading: false, ...auth });
@@ -96,6 +157,26 @@ describe("ProtectedRoute gatedType", () => {
   it("sends a signed-out visitor to login", () => {
     renderGated({ username: null, visibleGatedTypes: [] });
     expect(screen.getByText("the login page")).toBeInTheDocument();
+  });
+
+  it("sends a signed-out visitor to a plain /login, with no next", () => {
+    mockAuth.mockReturnValue({
+      has: () => false,
+      loading: false,
+      username: null,
+      visibleGatedTypes: [],
+    });
+    render(
+      <MemoryRouter initialEntries={["/library/h-comic"]}>
+        <Routes>
+          <Route element={<ProtectedRoute gatedType="h-comic" />}>
+            <Route path="/library/h-comic" element={<div>the h-comic library</div>} />
+          </Route>
+          <Route path="/login" element={<LoginProbe />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(screen.getByTestId("login-url").textContent).toBe("/login");
   });
 });
 

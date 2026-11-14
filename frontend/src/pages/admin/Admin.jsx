@@ -6,6 +6,12 @@ import { endpoints } from "../../api/endpoints";
 import { backupToast, runBackup } from "../../api/backup";
 import { postEventStream } from "../../api/client";
 import FxRatesEditor from "./FxRatesEditor";
+import PendingRegistrations from "./PendingRegistrations";
+import AnnouncementBoard from "../../components/info/AnnouncementBoard";
+import AnnouncementEditor, {
+  ANNOUNCEMENTS_QUERY_KEY,
+} from "../../components/dashboard/AnnouncementEditor";
+import { useApiQuery } from "../../hooks/useApiQuery";
 import { useAuth } from "../../contexts/AuthContext";
 import { canSeeGatedType, visibleByType } from "../../lib/gatedTypes";
 import { entityPath } from "../../lib/entityPath";
@@ -893,9 +899,31 @@ function DuplicatesModal({ results, onClose }) {
   );
 }
 
+
+// The Announcement & Notes card: the board the dashboard shows, and the one
+// announcement editor (components/dashboard/AnnouncementEditor), which the
+// admin's own dashboard uses too. Both read the ["announcements"] query, so a
+// write here refreshes every page showing them.
+function AnnouncementsCard() {
+  const query = useApiQuery(ANNOUNCEMENTS_QUERY_KEY, endpoints.announcements.list());
+  const announcements = query.data || [];
+  return (
+    <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
+      <h2 className="text-lg font-black text-text uppercase tracking-widest mb-4 flex items-center border-b border-border pb-2">
+        Announcement &amp; Notes
+      </h2>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        <AnnouncementBoard announcements={announcements} />
+        <AnnouncementEditor announcements={announcements} />
+      </div>
+    </div>
+  );
+}
+
 export default function Admin() {
   const { showToast } = useToast();
   const auth = useAuth();
+  const canManageAnnouncements = auth.has("manage.announcements");
   const canSeeHComic = canSeeGatedType(auth, "h-comic");
   const canSeeHGame = canSeeGatedType(auth, "h-game");
   const canSeeHentai = canSeeGatedType(auth, "hentai");
@@ -943,14 +971,6 @@ export default function Admin() {
   const [freeListPriceZeroing, setFreeListPriceZeroing] = useState(false);
   const [boughtNoListPriceResult, setBoughtNoListPriceResult] = useState(null);
 
-  // Announcement & Notes state
-  const [announcements, setAnnouncements] = useState([]);
-  const [annTitle, setAnnTitle] = useState("");
-  const [annBody, setAnnBody] = useState("");
-  const [annEditing, setAnnEditing] = useState(null); // original title, or null when adding
-  const [annSaving, setAnnSaving] = useState(false);
-  const [annConfirmDelete, setAnnConfirmDelete] = useState(null);
-
   const loadSeason = useCallback(async () => {
     try {
       const res = await fetch("/api/system/config/current_season", {
@@ -974,98 +994,10 @@ export default function Admin() {
     }
   }, []);
 
-  const loadAnnouncements = useCallback(async () => {
-    try {
-      const res = await fetch(endpoints.announcements.list(), {
-        credentials: "include",
-      });
-      if (res.ok) setAnnouncements(await res.json());
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
   useEffect(() => {
     loadSeason();
     loadLogs();
-    loadAnnouncements();
-  }, [loadSeason, loadLogs, loadAnnouncements]);
-
-  function resetAnnouncementForm() {
-    setAnnEditing(null);
-    setAnnTitle("");
-    setAnnBody("");
-  }
-
-  function startEditAnnouncement(item) {
-    setAnnEditing(item.title);
-    setAnnTitle(item.title);
-    setAnnBody(item.body);
-    setAnnConfirmDelete(null);
-  }
-
-  async function handleSaveAnnouncement() {
-    if (!annTitle.trim() || !annBody.trim()) {
-      showToast("warning", "Please fill in both the title and the note.");
-      return;
-    }
-    setAnnSaving(true);
-    try {
-      const editing = annEditing !== null;
-      const res = await fetch(
-        editing ? endpoints.announcements.update() : endpoints.announcements.create(),
-        {
-          method: editing ? "PUT" : "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(
-            editing
-              ? {
-                  original_title: annEditing,
-                  title: annTitle.trim(),
-                  body: annBody.trim(),
-                }
-              : { title: annTitle.trim(), body: annBody.trim() },
-          ),
-          credentials: "include",
-        },
-      );
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.detail || "Failed to save announcement");
-      }
-      resetAnnouncementForm();
-      await loadAnnouncements();
-      showToast("success", editing ? "Announcement updated!" : "Announcement added!");
-    } catch (e) {
-      showToast("error", e.message);
-    } finally {
-      setAnnSaving(false);
-    }
-  }
-
-  async function handleDeleteAnnouncement(title) {
-    // Two-step inline confirmation — the first click arms, the second deletes.
-    if (annConfirmDelete !== title) {
-      setAnnConfirmDelete(title);
-      return;
-    }
-    setAnnConfirmDelete(null);
-    try {
-      const res = await fetch(endpoints.announcements.remove(title), {
-        method: "DELETE",
-        credentials: "include",
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.detail || "Failed to delete announcement");
-      }
-      if (annEditing === title) resetAnnouncementForm();
-      await loadAnnouncements();
-      showToast("success", `Announcement '${title}' deleted.`);
-    } catch (e) {
-      showToast("error", e.message);
-    }
-  }
+  }, [loadSeason, loadLogs]);
 
   async function handleSetSeason() {
     if (!seasonCode || !seasonYear) {
@@ -1491,6 +1423,10 @@ export default function Admin() {
         </div>
       </div>
 
+      {/* Registrations waiting for approval: drawn only for admin.authz,
+          which the panel checks itself. */}
+      <PendingRegistrations />
+
       {/* 2. Top Grid: Season Config & Data Control */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Current Season Block */}
@@ -1903,119 +1839,10 @@ export default function Admin() {
         </div>
       </div>
 
-      {/* 4. Announcement & Notes */}
-      <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
-        <h2 className="text-lg font-black text-text uppercase tracking-widest mb-4 flex items-center border-b border-border pb-2">
-          Announcement &amp;
-          Notes
-        </h2>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Existing notes */}
-          <div className="space-y-3">
-            <p className="text-[10px] font-black text-text-faint uppercase tracking-widest">
-              Posted ({announcements.length})
-            </p>
-            {announcements.length === 0 ? (
-              <div className="flex items-center justify-center py-8 px-4 bg-surface-2 rounded-xl border border-border border-dashed">
-                <p className="text-text-faint font-medium italic text-sm">
-                  No Announcement &amp; Notes
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-                {announcements.map((item) => (
-                  <div
-                    key={item.title}
-                    className={`rounded-xl border px-3 py-2.5 transition ${
-                      annEditing === item.title
-                        ? "border-brand/50 bg-brand-soft"
-                        : "border-border bg-surface-2"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-bold text-text truncate">
-                        {item.title}
-                      </span>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <button
-                          onClick={() => startEditAnnouncement(item)}
-                          className="text-xs font-bold text-text-faint hover:text-brand bg-surface border border-border rounded-lg px-2 py-1 transition"
-                        >
-                          <i className="fas fa-edit"></i>
-                        </button>
-                        <button
-                          onClick={() => handleDeleteAnnouncement(item.title)}
-                          onBlur={() => setAnnConfirmDelete(null)}
-                          className={`text-xs font-bold rounded-lg px-2 py-1 border transition ${
-                            annConfirmDelete === item.title
-                              ? "bg-danger text-white border-danger"
-                              : "bg-surface text-text-faint hover:text-danger border-border"
-                          }`}
-                        >
-                          {annConfirmDelete === item.title ? (
-                            "Confirm?"
-                          ) : (
-                            <i className="fas fa-trash"></i>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                    <p className="text-xs text-text-faint mt-1 line-clamp-2 whitespace-pre-wrap">
-                      {item.body}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Add / edit form */}
-          <div className="space-y-3">
-            <p className="text-[10px] font-black text-text-faint uppercase tracking-widest">
-              {annEditing !== null ? `Editing "${annEditing}"` : "New Note"}
-            </p>
-            <input
-              type="text"
-              value={annTitle}
-              onChange={(e) => setAnnTitle(e.target.value)}
-              placeholder="Title"
-              maxLength={120}
-              className="w-full border border-border-strong rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
-            />
-            <textarea
-              value={annBody}
-              onChange={(e) => setAnnBody(e.target.value)}
-              rows={6}
-              placeholder="Write the announcement or note. Line breaks are preserved."
-              className="w-full border border-border-strong rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
-            />
-            <div className="flex gap-3">
-              <button
-                onClick={handleSaveAnnouncement}
-                disabled={annSaving}
-                className="flex-1 bg-brand hover:bg-brand-hover text-on-brand rounded-lg py-2.5 text-sm font-bold transition disabled:opacity-60"
-              >
-                {annSaving ? (
-                  <i className="fas fa-circle-notch fa-spin"></i>
-                ) : annEditing !== null ? (
-                  "Save Changes"
-                ) : (
-                  "Add Announcement"
-                )}
-              </button>
-              {annEditing !== null && (
-                <button
-                  onClick={resetAnnouncementForm}
-                  className="px-5 bg-surface border border-border-strong rounded-lg py-2.5 text-sm font-bold text-text-muted hover:bg-surface-2 transition"
-                >
-                  Cancel
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* 4. Announcement & Notes. Its own permission, not the
+          page's: manage.announcements is what the announcement writes
+          ask, and the admin and super hold it beside manage.pipelines. */}
+      {canManageAnnouncements && <AnnouncementsCard />}
 
       {/* 5. Data Control Log */}
       <LogsTable

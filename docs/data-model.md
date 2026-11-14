@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-10-28
+Last verified: 2026-11-14
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -20,16 +20,17 @@ Enum values are **not** repeated here: every closed vocabulary lives in
 - [Grouping tiers](#grouping-tiers): collection, franchise, series
 - [Media entries](#media-entries): anime, anime_movies, movies, tv_shows, cartoons, manga, novel, novel_unit, comic, games, game_copy, game_choice_node, game_choice_edge, game_choice_mark, h_comic, h_game, hentai
 - [Virtual fields on media entries](#virtual-fields-on-media-entries)
-- [Personal data](#personal-data): user_media_list, user_novel_unit_rating
+- [Personal data](#personal-data): user_media_list, user_novel_unit_rating, user_rating, user_favorite
 - [People, studios and links](#people-studios-and-links): person, person_role, person_membership, studio, publisher, publisher_scope, character, character_tag, character_casting, character_casting_voice, media_credit, media_tag
 - [Where an entry can be watched or read](#media_source): media_source
-- [Notes, quotes and memes](#notes-quotes-and-memes): note, quote, meme
+- [Notes, quotes and memes](#notes-quotes-and-memes): note, note_mark, quote, meme
 - [Resources page](#resources-page): resource_node
 - [Image library](#image-library): image, image_attachment
 - [Relations and watch orders](#relations-and-watch-orders): media_relation, watch_order_list, watch_order_section, watch_order_item, watch_order_follow
 - [Planning](#planning): plan_next
+- [Requests and reports](#requests-and-reports): user_request
 - [Vocabulary and configuration](#vocabulary-and-configuration): system_option, system_option_scope, system_option_usage, system_option_alias, system_configs, seasonal
-- [Access control](#access-control): role, role_permission, users, content_label, media_content_label, franchise_content_label, access_mode, access_mode_label, access_mode_field_group, user_access_mode, user_access_mode_denial
+- [Access control](#access-control): role, role_permission, users, content_label, media_content_label, franchise_content_label, collection_content_label, series_content_label, access_mode, user_access_mode_denial
 - [Logs](#logs): data_control_logs, deleted_record
 - [The `media` supertable](#the-media-supertable)
 - [Cross-table references without foreign keys](#cross-table-references-without-foreign-keys)
@@ -165,14 +166,14 @@ stats. Model: `Collection` (`app/models/collection.py`).
 | `collection_name_roman` | String | yes | | |
 | `collection_name_jp` | String | yes | | |
 | `collection_name_alt` | String | yes | | |
-| `my_rating` | String | yes | | One of MY_RATINGS |
-| `collection_expectation` | String | yes | `"Low"` | One of FRANCHISE_EXPECTATIONS |
 | `cover_franchise_id` | UUID | yes | | FK `franchise.system_id` ON DELETE SET NULL. The cover is chosen by pointing at one member franchise; the image is resolved through that franchise's cover logic. Declared with `use_alter` (constraint `fk_collection_cover_franchise_id`) to break the collection ↔ franchise FK cycle. |
 | `no_built_in_orders` | Boolean | yes | `False` | Suppresses the generated Release Order for umbrellas like 迪士尼 that group unrelated standalone works. |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 Relationships: `franchises` (Franchise.collection_id), `cover_franchise`.
-Virtual: `remark`, `display_name`.
+Virtual: `remark`, `display_name`, `content_labels` (its own rows in
+[`collection_content_label`](#collection_content_label)), and the viewer's own `my_rating` and
+`collection_expectation` (from [`user_rating`](#user_rating)).
 
 ### `franchise`
 
@@ -184,8 +185,6 @@ missing). Model: `Franchise` (`app/models/franchise.py`).
 | `system_id` | UUID | no | uuid4 | PK |
 | `franchise_type` | String | yes | | One of FRANCHISE_TYPES / `FranchiseType` (the two lists differ - see [options.md](options.md#franchise-type)). May hold a comma-separated list; duplicate detection buckets under each token. Every type in the list must belong to one family (`FRANCHISE_FAMILY_FOR_TYPE`: `H-Comic`, `Hentai` and `H-Game` are the `restricted` family, everything else is mainstream; the family is code, never stored) - a mixed list is refused (422) by the franchise endpoints. See [entry-types.md](entry-types.md#franchise-families-franchise_family_for_type-apputilsconstantspy). |
 | `franchise_name_en` / `_cn` / `_roman` / `_jp` / `_alt` | String | yes | | Name variants; CN leads `display_name`. |
-| `my_rating` | String | yes | | MY_RATINGS |
-| `franchise_expectation` | String | yes | `"Low"` | FRANCHISE_EXPECTATIONS |
 | `collection_id` | UUID | yes | | FK `collection.system_id` ON DELETE SET NULL, indexed. Declared here (not at the end) so it lands as sheet column J. |
 | `cover_entry_id` | UUID | yes | | Any entry UUID of any type; no FK (six tables). |
 | `type_covers` | JSONB | yes | | Per-media-type cover choice (dict). |
@@ -196,7 +195,9 @@ missing). Model: `Franchise` (`app/models/franchise.py`).
 | `alone_reviewed_media_id` | UUID | yes | | The `media.system_id` of the lone entry that was reviewed and kept on the review queue's single-entry check. The franchise is listed again whenever its one entry is any other id. No FK, like `cover_entry_id`: a stale id matches nothing (see [notes/decisions.md](notes/decisions.md)). |
 
 Relationships: `series`, `collection`, `animes`. Virtual: `remark`,
-`display_name`.
+`display_name`, `content_labels` (its own rows in
+[`franchise_content_label`](#franchise_content_label)), and the viewer's own `my_rating` and `franchise_expectation`
+(from [`user_rating`](#user_rating)).
 
 ### `series`
 
@@ -210,8 +211,6 @@ deliberate grouping). Model: `Series` (`app/models/franchise.py`).
 | `system_id` | UUID | no | uuid4 | PK |
 | `franchise_id` | UUID | yes | | FK `franchise.system_id` ON DELETE SET NULL |
 | `series_name_en` / `_cn` / `_roman` / `_jp` / `_alt` | String | yes | | The hierarchy resolver looks a series up by `en`, `cn` and `alt` only (`SERIES_NAME_COLUMNS`). |
-| `my_rating` | String | yes | | MY_RATINGS |
-| `series_expectation` | String | yes | `"Low"` | FRANCHISE_EXPECTATIONS |
 | `cover_entry_id` | UUID | yes | | Any entry UUID, any type; no FK. |
 | `type_slots` | JSONB | yes | | Which favourite 3×3 grid slot this row holds, as `{gridKey: 1..9}` - see [frontend/pages.md](frontend/pages.md#statistics--statistics--completions--completions). One grid is keyed here, Comic. There is no `type_covers` beside it: a series has no types, so `cover_entry_id` says everything a per-type map would. |
 | `size_group_derived` / `size_group_manual` | JSONB | yes | | As on franchise. |
@@ -219,7 +218,9 @@ deliberate grouping). Model: `Series` (`app/models/franchise.py`).
 | `alone_reviewed_media_id` | UUID | yes | | As on franchise: the reviewed lone entry of a single-entry series. No FK. |
 
 Relationships: `franchise`, `animes`. Virtual: `remark`, `display_name`,
-`names_dict`.
+`names_dict`, `content_labels` (its own rows in
+[`series_content_label`](#series_content_label)), and the viewer's own `my_rating` and `series_expectation` (from
+[`user_rating`](#user_rating)).
 
 ---
 
@@ -503,16 +504,14 @@ languages. CHECKs: `ck_novel_unit_kind` (`unit_kind` in
 | `position` | Float | no | | Order within the novel. **Not unique** - the editor renumbers every row after a drag, and a unique constraint could fire mid-save while two rows briefly share a value |
 | `unit_key` | String | yes | | Explicit label (e.g. a volume subtitle's short code). When blank, the display key falls back to `"{prefix} {position}"` (`unit_display_key` / `unitDisplayKey`) |
 | `name_cn` / `name_en` | String | yes | | |
-| `remark` | String | yes | | |
 | `ch_count` | Float | yes | | Chapters in this arc. Meaningful only on `unit_kind = 'arc'` rows (guarded by the CHECK); the sole source of `novel.ch_total` and `novel.ch_fin` |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
-Written through `POST`/`PUT /api/novel` via the `units` payload key (popped
-out before the row is built, see `MediaTypeSpec.nested_collections`);
+Written through `POST`/`PUT`/`PATCH /api/novel` via the `units` payload key
+(popped out before the row is touched, see `MediaTypeSpec.nested_collections`);
 reconciled by `write_novel_units` (rows with a `system_id` are updated, rows
-without are inserted, rows the payload omits are deleted). `PATCH` cannot
-touch `units` - it is not a real column, so `apply_column_patch` silently
-ignores it. Every create/update/patch write runs `derive_novel_progress`,
+without are inserted, rows the payload omits are deleted). Every
+create/update/patch write runs `derive_novel_progress`,
 which recomputes `arc_total`/`ch_total`/`ch_fin` from the arc rows and
 normalises `arc_fin`/`ch_fin_in_arc` - see business-rules.md.
 
@@ -527,10 +526,11 @@ the historical values once and deleted any non-`volume` `novel_unit` rows
 belonging to these types; its downgrade is a deliberate no-op, because nothing
 else in the schema records what those values were.
 
-A unit's `my_rating` is NOT a column here: it is one reader's grade of
-one volume or arc and lives in
-[`user_novel_unit_rating`](#user_novel_unit_rating). It is still served
-and accepted as `my_rating` on each unit of a novel's response.
+A unit's `my_rating` and `remark` are NOT columns here: they are one
+reader's grade of and note on one volume or arc and live in
+[`user_novel_unit_rating`](#user_novel_unit_rating). They are still served
+as `my_rating` and `remark` on each unit of a novel's response, filled with
+the viewer's own; the `units` write does not carry them.
 
 ### `comic`
 
@@ -769,7 +769,7 @@ write path; see [authorization.md](authorization.md#gated-types).
 | `h_comic_name_jp` | String | yes | | The JP name |
 | `h_comic_name_kr` | String | yes | | The KR name |
 | `region` | String | yes | | H_COMIC_REGIONS (JP / KR). Required by the write schemas and checked again by the tracker PATCH (422); nullable here so a Pull row with a blank cell restores rather than fails the tab |
-| `originality` | String | yes | | **JP.** H_COMIC_ORIGINALITY (原創 / 同人) |
+| `originality` | String | yes | | **JP.** H_COMIC_ORIGINALITY (原版 / 同人) |
 | `animation_status` | String | yes | | **JP.** H_COMIC_ANIMATION_STATUSES (Not Animated / Announced / Animated), the hand-set value. While the entry has `adaptation` relations from hentai entries, the API serves a **derived** value instead and this column keeps the hand-set one ([entry-types.md](entry-types.md#h-comic-animation-status-attach_animation_status-appservicesdomainh_comicpy)) |
 | `series_number` | Integer | yes | | **JP.** The entry's position in its series, like a volume number |
 | `serialization_status` | String | yes | | Both. MANGA_SERIALIZATION_STATUSES |
@@ -780,7 +780,6 @@ write path; see [authorization.md](authorization.md#gated-types).
 | `mal_id` | Integer | yes | | Both. Extracted from `mal_link` by the write hook and every pipeline (`apply_extract_mal_id_manga_novel`); the key Tenrai is fetched on |
 | `mal_link` | String | yes | | Both. The MyAnimeList manga URL, typed by hand |
 | `ehentai_link` | String | yes | | Both. The E-Hentai gallery URL (`https://e-hentai.org/g/<gid>/<token>/`, an `exhentai.org` one accepted), typed by hand. No id column: the E-Hentai fill reads the gallery id and token out of it, and fills the cover and the illustrator credit after Tenrai ([external-apis.md](external-apis.md#e-hentai)) |
-| `highlight_group_order` | JSONB | yes | | **KR.** The owner's order of the `h_comic_highlights` groups: a list of distinct, non-blank female character names, read and written whole through the entry update. Names absent from it render after it, in first-appearance order |
 
 Constraints and wiring, as for every entry table: composite FK `fk_h_comic_media`
 (`system_id`, `media_type`) -> `media` (deferrable, ON DELETE CASCADE), CHECK
@@ -835,7 +834,6 @@ CHECK, matching `games`; they are checked on every write path
 | `igdb_id` / `igdb_link` | Integer / String | yes | | As on `games` |
 | `steam_appid` / `steam_link` | Integer / String | yes | | As on `games`; the SteamDB reference row is derived from the appid |
 | `dlsite_link_jp` / `dlsite_link_tw` | String | yes | | The two DLsite store pages. No id column: the DLsite fill reads the product id (`RJ`/`VJ`/`BJ` + digits) out of the JP link, else the TW link - the same product either way |
-| `highlight_group_order` | JSONB | yes | | The owner's order of the `h_game_highlights` groups, as `h_comic`'s |
 | `type_slots` | JSONB | yes | | Favourite-grid slot per grid key, as on `games` |
 
 Constraints and wiring, as for every entry table: composite FK `fk_h_game_media`
@@ -865,8 +863,8 @@ write path; see [authorization.md](authorization.md#gated-types).
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `hentai_name_en` / `_cn` / `_roman` / `_jp` / `_alt` | String | yes | | Anime's five. `display_name` order CN -> EN -> Alt -> roman -> JP |
-| `source_material` | String | yes | | HENTAI_SOURCE_MATERIALS (Original / Manga / Novel): what the entry adapts |
-| `originality` | String | yes | | H_COMIC_ORIGINALITY (原創 / 同人) |
+| `source_material` | String | yes | | HENTAI_SOURCE_MATERIALS (Original / Manga / Novel / Game): what the entry adapts |
+| `originality` | String | yes | | H_COMIC_ORIGINALITY (原版 / 同人) |
 | `series_number` | Integer | yes | | The entry's position in its series |
 | `airing_status` | String | yes | | AiringStatus, anime's vocabulary. Filled by Tenrai when blank, then by AniDB (derived from its dates) |
 | `release_date` | String | yes | | Truncated ISO-8601, CHECK `ck_hentai_release_date_iso`. Filled by Tenrai when blank, then by AniDB's `startdate` |
@@ -906,9 +904,9 @@ are not columns on the entry tables.
 | `watch_next` / `read_next` / `play_next` | Boolean over `plan_next` (`kind = next`, `scope = entry`). The row's existence is the flag. | all entries |
 | `to_rewatch` / `to_reread` / `to_replay` | Boolean over `plan_next` (`kind = rewatch`, `scope = entry`). Only types with an entry-level rewatch scope have it: **not** anime, **not** cartoon (they rewatch at franchise scope). Mapping: `PLAN_FLAG_FIELDS` in `app/utils/plan_next_kinds.py`. Note that a virtual flag also has to be **declared on the response schema** - the router factory sets it, but pydantic drops an undeclared field silently, which is why `GameBase` names `play_next` / `to_replay` outright. | anime_movies, movies, tv_shows, manga, novel, comic, games, h_comic, h_game |
 | Credit / tag link fields (`studio`, `director`, `producer`, `music`, `genre_main`, `genre_sub`, `label`, `distributor_tw`, `source_official` **or** `original_source`, `author_plot`, ...) | Attached at read time by `services.domain.credits.attach_link_fields` from `media_credit` / `media_tag`; the attribute names are the legacy sheet headers in `LEGACY_SHEET_COLUMN` (`app/utils/credit_roles.py`). | per media type - see `TAG_FIELDS` / `CREDIT_ROLES` |
-| `studio_refs` | Attached by the same `attach_link_fields` pass, from the same studio credit rows as the `studio` string beside it - `{system_id, display_name}` per studio, so a page can link where the comma-joined string cannot. Gated with `studio` in the Credits field group (`app/services/rbac/field_groups.py`). | anime, anime_movies, games, h_game |
-| `publisher_refs` | Attached by the same `attach_link_fields` pass from the entry's `publisher` credit rows - `{system_id, display_name, label}` per publisher, the `studio_refs` idea for the third entity target plus `credit_refs`'s label, because one publisher role reads a different word per media type (`label` carries `credit_label("publisher", media_type)` - 台灣代理商, 台灣出版商, 出版商 or 發行商). Attached only for media types whose `credit_roles_for()` includes `publisher`, derived rather than hand-listed. Gated with `publisher` in the Credits field group. | anime, anime_movies, manga, novel, comic, games |
-| `sources` | List of `SourceRef` (`app/schemas/sources.py`), attached at read time from `media_source` by `services.domain.sources.attach_sources`. Bucket-filtered per viewer (`sources_other` / `sources_restricted`) before the response is built - see [authorization.md](authorization.md). | all entries |
+| `studio_refs` | Attached by the same `attach_link_fields` pass, from the same studio credit rows as the `studio` string beside it - `{system_id, display_name}` per studio, so a page can link where the comma-joined string cannot. Ungated, like every credit field. | anime, anime_movies, games, h_game |
+| `publisher_refs` | Attached by the same `attach_link_fields` pass from the entry's `publisher` credit rows - `{system_id, display_name, label}` per publisher, the `studio_refs` idea for the third entity target plus `credit_refs`'s label, because one publisher role reads a different word per media type (`label` carries `credit_label("publisher", media_type)` - 台灣代理商, 台灣出版商, 出版商 or 發行商). Attached only for media types whose `credit_roles_for()` includes `publisher`, derived rather than hand-listed. Ungated, like every credit field. | anime, anime_movies, manga, novel, comic, games |
+| `sources` | List of `SourceRef` (`app/schemas/sources.py`), attached at read time from `media_source` by `services.domain.sources.attach_sources`. Bucket-filtered per viewer before the response is built: every viewer gets `main` and `other`, and `restricted` needs the `sources_restricted` field group - see [authorization.md](authorization.md). | all entries |
 | `User.role` | `column_property` over `role.name` via `users.role_id` (read-only). | users |
 
 **A tag field's response attribute is not always its field key - and the rule
@@ -949,6 +947,10 @@ carries `ch_fin_in_arc` as NULL forever. It is cheaper than the alternative.
 `user_novel_unit_rating` exists because a novel *unit* is not a media entry.
 `user_media_list` is keyed by `media_id`, so a per-unit rating has nowhere to
 sit on it; a two-column join table is the smallest thing that is correct.
+
+`user_rating` holds the same kind of opinion for the rows that are not media
+entries either: the grouping tiers and the four entities. `user_favorite`
+holds which quotes and memes an account favours.
 
 ### `user_media_list`
 
@@ -1001,9 +1003,35 @@ deliberately excluded from the read-back-as-`0` rule: it was nullable on
 and hentai reads it the same way. Its schemas already declared it
 `Optional[int] = 0`, and a blank one is sent as `null` too.
 
+### `user_highlight_group_order`
+
+One account's order of the highlight groups on one h-comic or h-game - the
+groups `h_comic_highlights` / `h_game_highlights` draw, one per female
+character name. Model: `UserHighlightGroupOrder`
+(`app/models/user_highlight_group_order.py`). Keyed by `(user_id, media_id)` -
+`uq_user_highlight_group_order`.
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `user_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE, indexed |
+| `media_id` | UUID | **no** | | FK `media.system_id` ON DELETE CASCADE, indexed - the h-comic's or h-game's `system_id`, which is its `media` row's |
+| `group_order` | JSONB | **no** | | A list of distinct, non-blank female character names, read and written whole. Names absent from it render after it, in first-appearance order |
+| `created_at` / `updated_at` | DateTime | yes | now | |
+
+An empty or cleared order is **not stored**: `write_group_order`
+(`app/services/domain/highlight_group_order.py`, used by
+`PUT /api/me/highlight-group-order/{media_id}` and the old-sheet carry in
+`legacy_personal.py`) deletes the row. `attach_group_orders` puts the
+viewer's order back on each h-comic and h-game as `highlight_group_order`, a
+plain class attribute defaulted to `None` (`app/models/__init__.py`), one
+query per page. When an h-comic's region becomes JP every account's row for
+it is deleted (`drop_jp_group_orders`, in the write hook and in
+`enforce_h_comic_invariants`).
+
 ### `user_novel_unit_rating`
 
-One reader's grade of one novel unit. Model: `UserNovelUnitRating`
+One reader's grade of, and remark on, one novel unit. Model: `UserNovelUnitRating`
 (`app/models/user_novel_unit_rating.py`). Keyed by `(user_id, unit_id)` -
 `uq_user_novel_unit`.
 
@@ -1013,12 +1041,76 @@ One reader's grade of one novel unit. Model: `UserNovelUnitRating`
 | `user_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE |
 | `unit_id` | UUID | **no** | | FK `novel_unit.system_id` ON DELETE CASCADE |
 | `my_rating` | String | yes | | MY_RATINGS |
+| `remark` | Text | yes | | The reader's own note on the unit |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
-A null rating stores **no row**: `write_novel_units` deletes an existing one
-rather than keeping it holding None, so "never graded" and "graded, then
-cleared" do not become two different states. `attach_unit_ratings` puts the
-value back on each unit for the reader, one query per page.
+A row holding neither a rating nor a remark is **not stored**:
+`write_unit_rating` (`app/services/domain/novel_unit_writer.py`, used by
+`PUT /api/me/novel-units/{unit_id}` and the old-sheet carry in
+`legacy_personal.py`) deletes an
+existing one rather than keeping it holding None, so "never graded" and
+"graded, then cleared" do not become two different states.
+`attach_unit_ratings` puts both values back on each unit for the reader, one
+query per page.
+
+### `user_rating`
+
+One account's rating of one collection, franchise, series, character,
+person, studio or publisher, and for a tier its expectation. Model:
+`UserRating` (`app/models/user_rating.py`).
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `user_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE, indexed |
+| `collection_id` / `franchise_id` / `series_id` / `character_id` / `person_id` / `studio_id` / `publisher_id` | UUID | yes | | The owner: one FK per owning table, each to its `system_id` ON DELETE CASCADE and indexed. Exactly one is set |
+| `my_rating` | String | yes | | MY_RATINGS |
+| `expectation` | String | yes | | FRANCHISE_EXPECTATIONS; tiers only |
+| `created_at` / `updated_at` | DateTime | yes | now | |
+
+Constraints: `ck_user_rating_one_owner` (`num_nonnulls` of the seven owner
+columns `= 1`); `ck_user_rating_expectation_on_tier` (an `expectation` only
+when the owner is a collection, franchise or series);
+`uq_user_rating_owner` UNIQUE (`user_id`, the seven owner columns) **NULLS
+NOT DISTINCT**, since six of the seven are NULL on every row.
+
+A row holding neither value is **not stored**: `write_rating`
+(`app/services/domain/user_rating.py`) deletes it, as
+`user_novel_unit_rating` does. `attach_ratings` puts the viewer's values back
+on each row as `my_rating` and the tier's `collection_expectation` /
+`franchise_expectation` / `series_expectation`, one query per page; they are
+plain class attributes defaulted to `None` (`app/models/__init__.py`), not
+columns, so they cannot be filtered or sorted on in SQL. A merge of two
+characters, people, studios or publishers moves the loser's rows to the
+survivor for every account that has none there (`merge_user_ratings`); the
+survivor's own rating wins.
+
+### `user_favorite`
+
+One account's favourite quote or meme. Model: `UserFavorite`
+(`app/models/user_favorite.py`).
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `user_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE, indexed |
+| `quote_id` | UUID | yes | | FK `quote.system_id` ON DELETE CASCADE, indexed |
+| `meme_id` | UUID | yes | | FK `meme.system_id` ON DELETE CASCADE, indexed |
+| `created_at` / `updated_at` | DateTime | yes | now | |
+
+Constraints: `ck_user_favorite_one_item` (`num_nonnulls(quote_id, meme_id)
+= 1`); `uq_user_favorite_quote` UNIQUE (`user_id`, `quote_id`) and
+`uq_user_favorite_meme` UNIQUE (`user_id`, `meme_id`) - the NULL in the
+other column keeps a quote row and a meme row from colliding.
+
+A row exists only while the item is a favourite: `write_favorite`
+(`app/services/domain/user_favorite.py`) deletes it on clearing.
+`attach_favorites` puts the viewer's answer back on each quote and meme as
+`is_favorite`, one query per page, and only for an account holding the
+`favourites` feature; it is a plain class attribute defaulted to `False`
+(`app/models/__init__.py`), not a column. The `is_favorite` list filter is
+a subquery on this table for the viewer. Deleting the quote, the meme or the
+account deletes the row.
 
 ## People, studios and links
 
@@ -1036,7 +1128,6 @@ One human credited on a media entry (Tier 3 entity - see
 | `name_alt` | String | yes | | The slot for names that are none of the other three: a comma-separated list, each fragment a name of its own when a name is matched. Never chosen automatically. |
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain |
 | `gender` | String | yes | | GENDERS (`男` / `女` / `中性/無性` / `雙性混和` / `其他`), or NULL for not set. On the base table, not a seiyuu extension: a fact about the person, not the role. |
-| `my_rating` | String | yes | | MY_RATINGS, or NULL |
 | `photo_file` | String | yes | | Storage key under `static/covers/`, `staff/<system_id>.jpg`. Filled from MAL's people photo for a seiyuu with a `mal_id` — see [external-apis.md](external-apis.md#mapping-for-person-seiyuu--map_tenrai_to_person_data) |
 | `photo_focus` | String | yes | | `photo_file`'s focal point, `"X% Y%"`; NULL centres it. Reset to NULL when the photo changes — see [image focal points](#image-focal-points) |
 | `photo_fallback_entry_id` | UUID | yes | | A `media.system_id` whose cover stands in when `photo_file` is NULL; must be an entry the person is credited on or voices a character in. No FK, like `franchise.cover_entry_id`: a stale id falls through to the automatic choice ([systems/credits-and-tags.md](systems/credits-and-tags.md#photo-fallback)). |
@@ -1126,7 +1217,6 @@ every type it applies to is not wrong in the way a distributor list offering
 | `name_en` | String | yes | | Indexed |
 | `name_cn` / `name_jp` / `name_alt` | String | yes | | |
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain |
-| `my_rating` | String | yes | | MY_RATINGS |
 | `logo_file` | String | yes | | Storage key under `static/covers/`, `studio/<system_id>.jpg`. Filled from MAL's producer logo when `mal_id` is set — see [external-apis.md](external-apis.md#mapping-for-studio--map_tenrai_to_studio_data) |
 | `logo_focus` | String | yes | | `logo_file`'s focal point, `"X% Y%"`; NULL centres it. Reset to NULL when the logo changes — see [image focal points](#image-focal-points) |
 | `remark` | Text | yes | | |
@@ -1185,7 +1275,6 @@ mean something vaguer than it does.
 | `name_en` | String | yes | | Indexed |
 | `name_cn` / `name_jp` / `name_alt` | String | yes | | |
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain |
-| `my_rating` | String | yes | | MY_RATINGS |
 | `logo_file` | String | yes | | Storage key under `static/covers/`, `publisher/<system_id>.jpg`. Never autofilled - there is no MAL producer record for a games publisher or a TW distributor |
 | `logo_focus` | String | yes | | `logo_file`'s focal point, `"X% Y%"`; NULL centres it. Reset to NULL when the logo changes — see [image focal points](#image-focal-points) |
 | `remark` | Text | yes | | |
@@ -1282,7 +1371,6 @@ with one intentional deviation - see the constraints note below.
 | `name_alt` | String | yes | | |
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain. NULL becomes `cn` on save and in Calculate All while `name_cn` is filled ([business-rules.md](business-rules.md) §10a) |
 | `gender` | String | yes | | GENDERS, or NULL for not set - the same vocabulary as `person.gender` |
-| `my_rating` | String | yes | | MY_RATINGS, or NULL |
 | `photo_file` | String | yes | | Storage key under `static/covers/`, `character/<system_id>.jpg`; the canonical portrait. A casting may override it with its own `photo_file` for how the character looked in that entry. Filled from MAL's character picture for a character with a `mal_id` — see [external-apis.md](external-apis.md#mapping-for-character--map_tenrai_to_character_data) |
 | `photo_focus` | String | yes | | `photo_file`'s focal point, `"X% Y%"`; NULL centres it. Reset to NULL when the photo changes — see [image focal points](#image-focal-points) |
 | `role` | String | yes | | Optional: one of `CHARACTER_ROLES`, or NULL - what the character is to their story overall. While NULL it is filled from the highest-ranked `character_casting.role` (`CHARACTER_ROLES` order) on each cast save and by Calculate All; a set value is never overwritten |
@@ -1507,7 +1595,7 @@ is set.
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
-| `media_id` | UUID | no | | FK `media.system_id` ON DELETE CASCADE - see [The six tables that moved to `media_id`](#the-six-tables-that-moved-to-media_id) |
+| `media_id` | UUID | no | | FK `media.system_id` ON DELETE CASCADE - see [Tables that hang off an entry or a group](#tables-that-hang-off-an-entry-or-a-group) |
 | `role` | String | no | | One of CREDIT_ROLE_KEYS, indexed |
 | `person_id` | UUID | yes | | FK `person.system_id` ON DELETE CASCADE |
 | `studio_id` | UUID | yes | | FK `studio.system_id` ON DELETE CASCADE |
@@ -1534,7 +1622,7 @@ rather than category because one category can back several fields.
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
-| `media_id` | UUID | no | | FK `media.system_id` ON DELETE CASCADE - see [The six tables that moved to `media_id`](#the-six-tables-that-moved-to-media_id) |
+| `media_id` | UUID | no | | FK `media.system_id` ON DELETE CASCADE - see [Tables that hang off an entry or a group](#tables-that-hang-off-an-entry-or-a-group) |
 | `field` | String | no | | One of TAG_FIELD_KEYS, indexed |
 | `option_id` | UUID | no | | FK `system_option.system_id` ON DELETE CASCADE, indexed |
 | `position` | Integer | no | `0` | |
@@ -1548,15 +1636,15 @@ index `ix_media_tag_entry` (`media_id`).
 Where one entry can be watched, read, or looked up. Shaped like
 `media_credit`: one row per named thing attached to an entry, through a real
 `media_id` foreign key (see
-[The six tables that moved to `media_id`](#the-six-tables-that-moved-to-media_id)).
+[Tables that hang off an entry or a group](#tables-that-hang-off-an-entry-or-a-group)).
 Model: `MediaSource` (`app/models/media_source.py`).
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK, indexed |
-| `media_id` | UUID | no | | FK `media.system_id` ON DELETE CASCADE - see [The six tables that moved to `media_id`](#the-six-tables-that-moved-to-media_id) |
+| `media_id` | UUID | no | | FK `media.system_id` ON DELETE CASCADE - see [Tables that hang off an entry or a group](#tables-that-hang-off-an-entry-or-a-group) |
 | `kind` | String | no | | `access` (somewhere to watch/read) or `reference` (somewhere to read *about* it — a wiki, a database), indexed |
-| `bucket` | String | no | | `main` (vocabulary platform, via `option_id`), `other` (free-form, gated by field group `sources_other`), or `restricted` (free-form, gated by `sources_restricted`), indexed |
+| `bucket` | String | no | | `main` (vocabulary platform, via `option_id`), `other` (free-form, shown to every viewer), or `restricted` (free-form, gated by field group `sources_restricted`), indexed |
 | `option_id` | UUID | yes | | FK `system_option.system_id` ON DELETE CASCADE, indexed. Set on `main` rows only |
 | `name` | String | yes | | Free text. Set on `other` / `restricted` rows only |
 | `available` | Boolean | yes | | Tristate — `True` available, `False` not, NULL unknown. Meaningful only on `main` `access` rows; NULL on every `reference` row and every free-form row |
@@ -1625,16 +1713,17 @@ its section's *shape* in `app/utils/note_sections.py`
 | `collection_id` / `franchise_id` / `series_id` | UUID | yes | | FK to the matching tier table, ON DELETE CASCADE, indexed - set when the owner is a grouping tier |
 | `author_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE, indexed. Who wrote the row - see [`note`, `quote` and `meme`: who wrote it](#note-quote-and-meme-who-wrote-it) |
 | `section` | String | yes | | Key in NOTE_SECTIONS, indexed |
-| `parent_id` | UUID | yes | | FK `note.system_id` ON DELETE CASCADE, indexed. The row this one nests under, for a section the registry marks `hierarchical`; unbounded depth. A child is kept in its parent's owner and section by the router, not by the database - a CHECK cannot read another row. |
+| `personal` | Boolean | **no** | false (server default) | A personal row of a mixed section (`NoteSection.mixed`): one account's own, read and written by its `author_id` alone, beside the section's catalogue rows. False on a catalogue row and on a row of a personal-scope section, which is personal by its section. Set by the server on create from `manage.catalog`; nothing changes it after. A catalogue row may not nest under a personal one (the router refuses it) |
+| `parent_id` | UUID | yes | | FK `note.system_id` ON DELETE CASCADE, indexed. The row this one nests under, for a section the registry marks `hierarchical`; unbounded depth. In a mixed section, deleting a catalogue row first moves members' personal rows under it to the top level, so the CASCADE takes only catalogue rows. A child is kept in its parent's owner and section by the router, not by the database - a CHECK cannot read another row. |
 | `locator` | String | yes | | Where in the work: episode, chapter, scene, timestamp, or a question's source. The section supplies the label and whether it is required. |
 | `kind` | String | yes | | Only where the section declares `kinds`, a `kind_category` (free text - an OP or ED's Song Type) or `kind_is_group` (free text - a Resources row's group). On a `music_status` row, the song list it is about (`op`, `ed`, `insert_songs`, `ost`) |
-| `status` | String | yes | | Music tracking status: one of `MUSIC_STATUSES` (Need/Pending/No Full Version/Done) on a `music_track` song, one of `MUSIC_TYPE_STATUSES` on a `music_status` row; music sections only |
+| `status` | String | yes | | The second dropdown's column. On every section whose status is a viewer's own - the song lists, `music_status`, and the structured `collected` / `beaten` / `completion` / mods `status` - it is never stored and stays null: the value lives in [`note_mark`](#note_mark) and each read fills the column with the viewer's own |
 | `title` | String | yes | | Name half of `name_links` / song name of a `music_track` row |
 | `content` | Text | yes | | Body |
 | `links` | JSONB | yes | | List of URL strings; on the four song lists (`note_sections.uses_link_pairs`), a list of `{"text": str or null, "url": str}` pairs instead. Which shape is decided by the section, never per row |
 | `entries` | JSONB | yes | | The `name_entries` shape's ordered items - each `{"type": "text" or "link", "value": str, "label": str or null}`. Deliberately not folded into `links`: one column meaning two things is how subtle bugs start. |
 | `fields` | JSONB | yes | | The `structured` shape's registry-declared fields, keyed by `NoteField.key`, plus any nested list. Only what the section's spec does not map onto a column - a structured name is `title` and its description `content` - so this holds the leftovers and the nested lists. Validated against the spec; an unknown key is a 422. |
-| `sort_index` | Float | yes | | Ordering within (owner, section) |
+| `sort_index` | Float | yes | | Ordering within (owner, section) - in a mixed section within one kind: the catalogue rows, and each account's personal rows after them |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 `ck_note_one_owner` CHECKs `num_nonnulls(media_id, collection_id,
@@ -1655,8 +1744,9 @@ notes page's only read path; **`ix_note_one_remark_per_owner`** - partial
 UNIQUE over the four owner columns **plus `author_id`**, **NULLS NOT
 DISTINCT**, `WHERE section = 'remark'`; **`ix_note_one_music_status_per_kind`**
 - partial UNIQUE over `(media_id, kind)`, `WHERE section = 'music_status'`,
-because each song list of an anime has one status row (and `music_status` is
-anime-only, so `media_id` is the whole owner).
+because each song list of an anime has one row for its status to hang on
+(and `music_status` is anime-only, so `media_id` is the whole owner). The
+status itself is each viewer's own note mark.
 
 The second is keyed per owner **per author**, because `remark` is a
 personal-scope section: two accounts may each hold one on the same entry and
@@ -1670,6 +1760,31 @@ always NULL - and `author_id` is NULL on rows written before accounts existed
 - so without it Postgres treats every such row as unique and the index
 enforces nothing.
 
+### `note_mark`
+
+One account's personal values on one catalogue note row: collected and the
+amount collected on the three 物品 sections, beaten on 敵人, completion on 結局,
+my value on 屬性&配點, and the status of the song lists, `music_status` and
+模組&工具. The row is catalogue; these values on it are each reader's own, and
+the registry names them (`personal_values` in `app/utils/note_sections.py`,
+see [systems/notes.md](systems/notes.md#personal-values-on-catalogue-rows-note-marks)).
+Model: `NoteMark` (`app/models/note_mark.py`). Keyed by `(user_id, note_id)` -
+`uq_note_mark_user_note`.
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `user_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE, indexed |
+| `note_id` | UUID | **no** | | FK `note.system_id` ON DELETE CASCADE, indexed |
+| `values` | JSONB | **no** | | `{key: value}`, each a non-blank string, keyed by the registry's personal-value key (`collected`, `amount_collected`, `beaten`, `completion`, `my_value`, or `status`) |
+| `created_at` / `updated_at` | DateTime | yes | now | |
+
+A mark with no value left is **not stored**: `write_mark`
+(`app/services/domain/note_marks.py`, used by `PUT /api/notes/{id}/mark`, the
+NG reset and the old-sheet carry in `legacy_personal.py`) merges a write into
+the row and deletes it once it is empty. `notes_out` puts the viewer's values
+back onto each `NoteResponse` where the field lives, one query per page.
+
 ### `quote`
 
 One memorable line from a single media entry (entry-only: a quote is said in
@@ -1678,7 +1793,7 @@ a specific work). Model: `Quote`.
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
-| `media_id` | UUID | yes | | FK `media.system_id` ON DELETE SET NULL - see [The six tables that moved to `media_id`](#the-six-tables-that-moved-to-media_id) |
+| `media_id` | UUID | yes | | FK `media.system_id` ON DELETE SET NULL - see [Tables that hang off an entry or a group](#tables-that-hang-off-an-entry-or-a-group) |
 | `author_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE, indexed - see [`note`, `quote` and `meme`: who wrote it](#note-quote-and-meme-who-wrote-it) |
 | `text` | Text | yes | | |
 | `translation` | Text | yes | | |
@@ -1690,7 +1805,6 @@ a specific work). Model: `Quote`.
 | `image_file` | String | yes | | Bare filename under `static/quotes/` - a flat directory of its own, not the owner-typed `static/covers/` layout |
 | `tags` | JSONB | yes | | |
 | `is_general` | Boolean | yes | `False` | Works in any conversation ("hi") - meant to be sent as a message |
-| `is_favorite` | Boolean | yes | `False` | |
 | `needs_review` | Boolean | yes | `False` | Set on rows imported from the old `notes.quotes_memes` lists |
 | `sort_index` | Float | yes | | |
 | `remark` | Text | yes | | Real column |
@@ -1719,7 +1833,6 @@ gag often spans a franchise). Sibling of Quote, not a variant of it. Model: `Mem
 | `quote_id` | UUID | yes | | FK `quote.system_id` ON DELETE SET NULL, **UNIQUE** (a quote belongs to at most one meme; many NULLs allowed), indexed |
 | `episode` | String | yes | | |
 | `link` | String | yes | | |
-| `is_favorite` | Boolean | yes | `False` | |
 | `sort_index` | Float | yes | | |
 | `remark` | Text | yes | | |
 | `created_at` / `updated_at` | DateTime | yes | now | |
@@ -1934,7 +2047,7 @@ that is how a split run (A ep 1-10 → B → A ep 11-12) is expressed.
 | `system_id` | UUID | no | uuid4 | PK |
 | `list_id` | UUID | no | | FK `watch_order_list` ON DELETE CASCADE, indexed |
 | `position` | Float | yes | | Float so a step can be slotted between two others |
-| `media_id` | UUID | yes | | FK `media.system_id` ON DELETE CASCADE, indexed - see [The six tables that moved to `media_id`](#the-six-tables-that-moved-to-media_id). `media_type` and `entry_id` are still served by the API, derived from this |
+| `media_id` | UUID | yes | | FK `media.system_id` ON DELETE CASCADE, indexed - see [Tables that hang off an entry or a group](#tables-that-hang-off-an-entry-or-a-group). `media_type` and `entry_id` are still served by the API, derived from this |
 | `section_id` | UUID | yes | | FK `watch_order_section` ON DELETE **SET NULL** - deleting a part leaves its steps unsectioned |
 | `ep_start` / `ep_end` | Integer | yes | | Both NULL = the whole entry. Unit depends on type (Ep / Ch / issue #) - see [entry-types.md](entry-types.md) |
 | `importance` | String | yes | `"Normal"` | ITEM_IMPORTANCE: Essential / Recommended / Normal / Optional |
@@ -2000,6 +2113,44 @@ every owner, and the user, cascades in the database.
 `scope` and `target_id` are gone from the table (`m3a2plandrop`) and survive as
 read-only properties on the model, derived from whichever owner column is set.
 They remain the API's wire format and the Google Sheets tab's headers.
+
+---
+
+## Requests and reports
+
+### `user_request`
+
+One request or report a member files - a missing entry, wrong or incomplete
+data, a bug, anything else - and where the inbox has got with it. Model:
+`UserRequest` (`app/models/user_request.py`). Named `user_request` because
+`fastapi.Request` is imported across the routers. The rules are in
+[systems/requests.md](systems/requests.md).
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK, indexed |
+| `author_id` | UUID | yes | | FK `users.id` ON DELETE **SET NULL** (`fk_user_request_author`). Null once the account is deleted: its requests stay in the inbox as from a deleted account |
+| `kind` | String | no | | `new_entry`, `data_error`, `incomplete_data`, `bug` or `other` (`REQUEST_KINDS`); `ck_user_request_kind` |
+| `target_type` | String | yes | | A `REQUEST_TARGET_TABLES` key: a media type, a grouping tier, or `studio` / `publisher` / `person` / `character` / `identity` |
+| `target_id` | UUID | yes | | The target's `system_id`. No FK - see [Cross-table references without foreign keys](#cross-table-references-without-foreign-keys) |
+| `target_label` | String | yes | | The target's name when the request was filed, so a request whose target was deleted still says what it was about |
+| `page_path` | String | yes | | The SPA path it was filed from; a bug report's page address |
+| `description` | Text | no | | The filer's |
+| `remark` | Text | yes | | The filer's optional remark |
+| `status` | String | no | `open` (server default) | `open`, `done` or `declined` (`REQUEST_STATUSES`); `ck_user_request_status` |
+| `response` | Text | yes | | The handler's remark on closing it |
+| `handled_by_id` | UUID | yes | | FK `users.id` ON DELETE SET NULL (`fk_user_request_handled_by`). Who closed it; null while open |
+| `handled_at` | DateTime | yes | | When it was closed; null while open |
+| `created_at` / `updated_at` | DateTime | yes | now | |
+
+Constraints: `ck_user_request_target_pair` - `target_type` and `target_id` are
+both set or both null. Indexes: `ix_user_request_author_status` on
+`(author_id, status)` (the limit count and My requests) and
+`ix_user_request_status_created` on `(status, created_at)` (the inbox).
+
+**Not on the Sheets backup.** No tab carries it, so neither Backup nor Pull
+touches it: the requests live on the box, inside its own database dumps, and a
+development database has none.
 
 ---
 
@@ -2125,7 +2276,7 @@ sheet tab, which is what lets a rate entered on one machine reach the other.
 One user's view of one airing season: their rating and their four counters,
 rebuilt by `run_sync_anime` (`app/services/domain/seasonal.py`) from **that
 user's** `user_media_list` rows. Model: `Seasonal`. Per user
-(`m3b1seasonal`); every `/api/seasonal` route requires an account.
+(`m3b1seasonal`); every `/api/seasonal` route that reads or writes these rows requires an account.
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
@@ -2154,11 +2305,9 @@ A named bundle of permissions. Permissions themselves are Python constants
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
-| `name` | String | no | | UNIQUE, indexed. `guest` and `admin` are read by name (`app/services/rbac/seed.py`). |
+| `name` | String | no | | UNIQUE, indexed. Exactly five rows — `admin`, `super`, `user`, `guest`, `shared` (`permissions.ROLE_NAMES`) — each read by name; no route creates, renames or deletes one. |
 | `label` | String | no | | |
 | `description` | Text | yes | | |
-| `is_system` | Boolean | no | `False` (server default) | `guest` / `admin`: cannot be renamed or deleted through the API |
-| `is_root` | Boolean | no | `False` (server default) | Implies every permission, including labels and field groups created later |
 | `sort_order` | Integer | no | `0` (server default) | |
 | `created_at` / `updated_at` | DateTime | yes | now | Yes, roles have timestamps. |
 
@@ -2171,7 +2320,7 @@ against the computed catalog on write (`permissions.catalog(db)`).
 |---|---|:-:|---|---|
 | `id` | Integer | no | autoincrement | PK |
 | `role_id` | UUID | no | | FK `role` ON DELETE CASCADE, indexed |
-| `permission` | String | no | | `admin`, `media_type.<key>`, `field_group.<key>`, `label.<key>` |
+| `permission` | String | no | | `<family>.<key>` for a family in `PERMISSION_FAMILIES` — `admin.authz`, `manage.<key>`, `media_type.<key>`, `self.<key>`, `view.<key>`. Content labels and field groups are not permissions |
 | `created_at` | DateTime | yes | now | |
 
 Constraint: `uq_role_permission` UNIQUE (`role_id`, `permission`).
@@ -2185,24 +2334,82 @@ over `role.name` so login can still return it and mint it as a JWT claim.
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `id` | UUID | no | uuid4 | PK (named `id`, not `system_id`) |
-| `username` | String | no | | UNIQUE, indexed |
-| `hashed_password` | String | no | | |
+| `username` | String | no | | UNIQUE, indexed. Also unique **ignoring case**: `uq_users_username_lower` is a unique index over `lower(username)`, so `Kai` and `kai` cannot both exist, and it is the index login's lowercased lookup uses. A new name passes `validate_new_username` (lowercase `[a-z0-9_-]{3,32}`, no `admin` or `guest` inside it); stored names are not re-checked |
+| `hashed_password` | String | no | | bcrypt. Never travels on Sheets |
 | `role_id` | UUID | **no** | | FK `role.system_id` ON DELETE **RESTRICT**, indexed |
-| `list_is_public` | Boolean | **no** | `false` (server default) | Whether anyone may read this account's list at `/user/<username>`. **Private by default**, and written only by its owner through `PATCH /api/account/settings` - an admin sees the flag on the Users page but does not set it, because whose list is visible is the account holder's decision and not the inviter's. NOT NULL so that no reader has to decide what a NULL would mean. |
-| `is_installation_owner` | Boolean | **no** | `false` (server default) | Whose rows a Sheets restore and the Calculate pipeline file under when nobody is logged in - `installation_owner_id()`. **Not a permission** and not on any request path. Partial unique index `ix_one_installation_owner` over a constant, so at most one account in the table holds it and any number hold false. It is data rather than a name in code so that moving the collection to another account is a row edit, and so the answer travels between the two machines on the Sheets `Users` tab - `parse_user_from_sheet` names it explicitly, because that parser is a projection and not a column sweep. |
+| `is_installation_owner` | Boolean | **no** | `false` (server default) | Whose rows a Sheets restore and the Calculate pipeline file under when nobody is logged in - `installation_owner_id()`. **Not a permission** and not on any request path. Partial unique index `ix_one_installation_owner` over a constant, so at most one account in the table holds it and any number hold false. It is data rather than a name in code so that moving the collection to another account is a row edit, and so the answer travels between the two machines on the Sheets `Users` tab - `parse_user_from_sheet` names it explicitly, because that parser is a projection and not a column sweep. **Never true on an admin-role account**: `/api/users` cannot produce one, Pull restores an admin row without it, boot clears it (`ensure_no_admin_installation_owner`), and `installation_owner_id()` passes such a holder over - see [authorization.md](authorization.md#the-admin-account-holds-no-user-data). |
+| `status` | String | **no** | `active` (server default) | `pending` / `active` / `disabled`, CHECK `ck_users_status`. Only `active` can sign in or hold a session: login answers 403 for the other two after a correct password, and `resolve_viewer` reads their tokens as the guest. `pending` is a registration awaiting approval; `disabled` is set and cleared on `/users`. Travels on the Sheets `Users` tab for `active` and `disabled` |
+| `session_version` | Integer | **no** | `0` (server default) | The revocation counter. A login token carries it as `sv`, and a token whose `sv` differs resolves as the guest - so incrementing it, always through `revoke_sessions()`, ends every session the account holds. A reset spent, disabling, and the admin setting the password increment it. **Never travels** on Sheets: it is this machine's count |
+| `open_request_limit` | Integer | yes | | How many **open** requests the account may hold at once; NULL is no limit. CHECK `ck_users_open_request_limit_non_negative` (≥ 0). Set to the role's default when the account is created or changes role (15 for `user`, 10 for `shared`, NULL otherwise) and adjustable on the Users page; never enforced, and never settable, for `super`. Travels on the Sheets `Users` tab (`parse_user_from_sheet` names it); a sheet with no header for it leaves the local value alone. |
+| `mode_ceiling` | String | yes | `normal` (server default) | The widest access mode the account may use: a mode **key**, ranked by `seed_modes.MODE_ORDER` (`safe < normal < borderline < unrestricted`). NULL together with `mode_default` is no mode - the account resolves the empty object set; an `admin`-role account is always NULL / NULL, re-asserted on every boot (`seed.ensure_admin_accounts_modeless`). Written by `services/rbac/modes.py::set_mode_ceiling`. A key rather than an `access_mode` id: the order is defined on keys, and a key survives a Pull where a per-database uuid does not. |
+| `mode_default` | String | yes | `normal` (server default) | The mode a login lands in; at or below the ceiling. |
+| `feature_quotes_memes` | Boolean | **no** | `false` (server default) | The account's **quotes and memes** switch: the quote and meme reads, and the Quotes and Memes sections of a detail page, ask it (`services/rbac/features.py`). Counts only on a `user` or `super` account; no role holds the feature without it. |
+| `feature_favourites` | Boolean | **no** | `false` (server default) | The favourites switch: whether the account keeps favourite quotes and memes ([`user_favorite`](#user_favorite)). |
+| `feature_music_status` | Boolean | **no** | `false` (server default) | The music status switch: whether the account sees and sets the music statuses on note rows. |
+| `feature_mod_status` | Boolean | **no** | `false` (server default) | The mod status switch: whether the account sees and sets a mod's status on note rows. |
 
-No timestamps. Relationship `role_ref` (joined load). Virtual `role`.
+The mode pair is held by three CHECK constraints, so a hand edit or a Pull
+cannot break it: `ck_users_mode_keys` (each NULL or one of the four keys),
+`ck_users_mode_pair` (both NULL or both set) and
+`ck_users_mode_default_within_ceiling` (the default's `array_position` in the
+order is at most the ceiling's). Both travel on the Sheets `Users` tab
+(`parse_user_from_sheet` names them): a sheet with neither header leaves the
+local pair alone on an update and gives an inserted account `normal` /
+`normal`, and a pair the constraints would refuse is skipped and reported
+rather than rolling back the tab.
 
-**Four** roles are seeded and read by name - `guest`, `user`, `super`,
-`admin`; see [authorization.md](authorization.md#roles). An account on the
-`user` role holds guest's reads plus `self.list` and `self.personal_notes`;
-`super` adds both `manage.*` and is deliberately **not** `is_root`.
+The four `feature_*` columns are the **per-account feature switches**
+(`USER_FEATURE_NAMES` in `app/models/system.py`). Only a `user` or `super`
+account may hold one: `PATCH /api/users/{id}` refuses switching one on
+anywhere else with 409, and `held_features` asks the role as well as the
+column, so a value a Pull stores on a shared account opens nothing. They are
+columns rather than a table so they travel on the Sheets `Users` tab beside the
+mode pair and the request limit (`parse_user_from_sheet` names them): a blank
+cell is false, a sheet with no header for one leaves the local value alone on
+an update, and an inserted account gets false.
+
+No timestamps. Relationship `role_ref` (joined load). Virtual `role`. There
+is no visibility flag: everything per user is private to its account.
+
+**Five** roles exist and are read by name - `guest`, `shared`, `user`,
+`super`, `admin`; see [authorization.md](authorization.md#roles). An account on the
+`user` role holds guest's reads, the `view.*` family, and `self.list`,
+`self.personal_notes`, `self.requests` and `self.password`; `super` adds
+every `manage.*` — everything but `admin.authz`; `admin` holds exactly
+`admin.authz`, `manage.pipelines`, `manage.requests`, `manage.announcements`,
+`manage.options`, `manage.images` and `manage.resources`, as grant rows like
+every role, and no role is root; `shared` holds guest's reads and
+`self.requests`, and only the two shared accounts the lifespan seeds
+(`shared-normal`, `shared-borderline`) hold it.
+
+### `account_code`
+
+The one-time codes behind password reset links and invite links. Model: `AccountCode` (`app/models/account_code.py`); minted and
+spent only through `app/services/domain/account_codes.py`. See
+[authentication.md](authentication.md#reset-links) and
+[authentication.md](authentication.md#invite-links-and-registration).
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `purpose` | String | no | | `invite` / `reset`, CHECK `ck_account_code_purpose` |
+| `code_hash` | String | no | | UNIQUE. **SHA-256** hex of the code, which is 32 random bytes (`secrets.token_urlsafe(32)`) and is never stored. A fast hash, because the code is high-entropy; it is the column a code is looked up by |
+| `user_id` | UUID | yes | | FK `users.id` ON DELETE **CASCADE** (`fk_account_code_user`), indexed. The account a reset link resets - CHECK `ck_account_code_reset_has_user` requires it on a `reset` row |
+| `created_by_id` | UUID | yes | | FK `users.id` ON DELETE **SET NULL** (`fk_account_code_created_by`). Who issued it; null from the CLI |
+| `created_user_id` | UUID | yes | | FK `users.id` ON DELETE **SET NULL** (`fk_account_code_created_user`). The account a spent invite created. Its own column because it needs the opposite rule to `user_id`: declining a registration deletes the account, and the invite must survive it still spent |
+| `created_at` | DateTime (tz) | no | | |
+| `expires_at` | DateTime (tz) | no | | `created_at` + 24 hours |
+| `spent_at` | DateTime (tz) | yes | | Null until spent |
+
+Issuing a reset link deletes the account's **unspent** reset rows in the same
+transaction, so a newer link stops an older one working. Spent and expired
+rows are kept. No Sheets tab: a code means nothing on the other machine.
 
 ### `content_label`
 
-One admin-managed reason an entry or a franchise might be restricted (e.g.
-`nsfw`). Anything carrying a label the viewer's active **access mode** does not
-carry disappears for that viewer. It is **not** a role permission: object scoping lives on the
+The row for one content label — a reason an entry, a collection, a
+franchise or a series might be restricted (e.g. `nsfw`). Anything carrying a label the viewer's active
+**access mode** does not show disappears for that viewer. It is **not** a role permission: object scoping lives on the
 mode axis, because a role cannot express "minus this label" — permission
 resolution is a union. Kept out of
 `system_option` because the Fill pipeline writes that table. Model:
@@ -2217,11 +2424,18 @@ resolution is a union. Kept out of
 | `sort_order` | Integer | no | `0` (server default) | |
 | `created_at` / `updated_at` | DateTime | yes | now | Yes, labels have timestamps. |
 
-Three rows are **system labels**: `h-comic`, `h-game` and `hentai`, the
-labels the gated h-comic, h-game and hentai types require. Each is created by its type's migration and
-by the lifespan seed (`ensure_system_labels` in
-`app/services/domain/gated_labels.py`), granted to `unrestricted` alone, and
-refused deletion (409) by the label API.
+**The labels are defined in code**, not here: `CONTENT_LABELS` in
+`app/services/rbac/labels.py` names six — `nsfw`, `ecchi`, `erotica`,
+`hentai`, `h-game`, `h-comic` — each with a name, a description and the lowest
+access mode that shows it, and `hentai`, `h-game` and `h-comic` with the gated
+type that requires them. The rows exist because `media_content_label`, the
+three group join tables (`collection_content_label`,
+`franchise_content_label`, `series_content_label`) and
+`user_access_mode_denial` cite labels by id.
+`gated_labels.ensure_labels` keeps them a mirror of the code on every start:
+it inserts a missing label and rewrites `label`, `description` and
+`sort_order` (the label's position in `CONTENT_LABELS`) to the code's. It never
+deletes a row. No route creates, renames or deletes one.
 
 ### `media_content_label`
 
@@ -2231,7 +2445,7 @@ One content label on one media entry. Deliberately **not** stored in
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
-| `media_id` | UUID | no | | FK `media.system_id` ON DELETE CASCADE - see [The six tables that moved to `media_id`](#the-six-tables-that-moved-to-media_id) |
+| `media_id` | UUID | no | | FK `media.system_id` ON DELETE CASCADE - see [Tables that hang off an entry or a group](#tables-that-hang-off-an-entry-or-a-group) |
 | `label_id` | UUID | no | | FK `content_label` ON DELETE CASCADE, indexed |
 | `position` | Integer | no | `0` (server default) | |
 | `created_at` | DateTime | yes | now | |
@@ -2239,14 +2453,22 @@ One content label on one media entry. Deliberately **not** stored in
 Constraints: `uq_media_content_label_row` UNIQUE (`media_id`, `label_id`);
 index `ix_media_content_label_entry` (`media_id`).
 
+**An entry carrying any label but `nsfw` also has an `nsfw` row.** No
+constraint states it; every write path does, through
+`app/services/domain/label_rules.py` — see
+[authorization.md](authorization.md). The same holds for each of the three
+group join tables below.
+
 ### `franchise_content_label`
 
 One content label on one franchise. The label **cascades down**: a franchise
-carrying a label the viewer's mode lacks hides the franchise and every entry
-whose `media.franchise_id` points at it. Nothing is copied onto those entries —
-the cascade is a read-time join in
+carrying a label the viewer's mode lacks hides the franchise, every series
+whose `series.franchise_id` points at it, and every entry whose
+`media.franchise_id` points at it or whose series is one of those. It does not
+hide the franchise's collection. Nothing is copied onto anything below — the
+cascade is a read-time join in
 [`enforcement.py`](authorization.md#visibility-enforcement-enforcementpy) — so
-moving an entry out of the franchise reveals it at once.
+moving an entry or a series out of the franchise reveals it at once.
 
 A second table rather than a nullable owner pair on `media_content_label`,
 whose `media_id` is a real FK up to the `media` supertable that a franchise has
@@ -2263,6 +2485,53 @@ and no constraint in the database would say which was meant.
 
 Constraints: `uq_franchise_content_label_row` UNIQUE (`franchise_id`,
 `label_id`); index `ix_franchise_content_label_franchise` (`franchise_id`).
+
+### `collection_content_label`
+
+One content label on one collection, with `franchise_content_label`'s shape
+one tier up, in a table of its own for the same reason. Model:
+`CollectionContentLabel`. The label cascades through the whole tree below: a
+collection carrying a label the viewer's mode lacks hides the collection,
+every franchise whose `franchise.collection_id` points at it, those
+franchises' series, and every entry under them. Read-time, nothing copied, so
+moving a franchise out of the collection reveals it and everything under it.
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `collection_id` | UUID | no | | FK `collection.system_id` ON DELETE CASCADE |
+| `label_id` | UUID | no | | FK `content_label` ON DELETE CASCADE, indexed |
+| `position` | Integer | no | `0` (server default) | |
+| `created_at` | DateTime | yes | now | |
+
+Constraints: `uq_collection_content_label_row` UNIQUE (`collection_id`,
+`label_id`); index `ix_collection_content_label_collection`
+(`collection_id`).
+
+### `series_content_label`
+
+One content label on one series, the same shape again. Model:
+`SeriesContentLabel`. A series carrying a label the viewer's mode lacks hides
+the series and every entry whose `media.series_id` points at it — not its
+franchise and not its sibling series. A series is also hidden by its
+franchise's labels and that franchise's collection's, but those are not
+stored here either.
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `series_id` | UUID | no | | FK `series.system_id` ON DELETE CASCADE |
+| `label_id` | UUID | no | | FK `content_label` ON DELETE CASCADE, indexed |
+| `position` | Integer | no | `0` (server default) | |
+| `created_at` | DateTime | yes | now | |
+
+Constraints: `uq_series_content_label_row` UNIQUE (`series_id`, `label_id`);
+index `ix_series_content_label_series` (`series_id`).
+
+A collection or a series has **no required label**: the gated-type rule
+(a type's label kept on every entry of it and on a franchise whose type list
+names it) has no type to read on either. No group has a 標籤 `Label` tag
+field either — that vocabulary is on the entry tables only.
 
 ---
 
@@ -2287,8 +2556,8 @@ One named ceiling on what a session may reach.
 | `key` | String | no | | UNIQUE, indexed |
 | `label` | String | no | | |
 | `description` | Text | yes | | |
-| `sort_order` | Integer | no | `0` | **UI only.** Enforcement never ranks modes - with per-account denials they are genuinely not a total order |
-| `is_system` | Boolean | no | `false` | Cannot be deleted |
+| `sort_order` | Integer | no | `0` | **UI only** — orders the API's list and nothing else. What a mode shows, and the order a ceiling ranks modes by, follow its key's place in `seed_modes.MODE_ORDER`, defined on the four keys in code |
+| `is_system` | Boolean | no | `false` | Marks the four modes the seeder maintains |
 | *(no column)* | — | — | — | What a logged-out visitor resolves to is **not stored**: it is the `safe` mode, looked up by key in `resolve_mode`. Data here could be moved to a wider mode by a restore or a hand-edit, which publishes every labelled entry to the internet while looking like an ordinary edit |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
@@ -2297,67 +2566,41 @@ logged-out visitor resolves `safe` by key
 (`services/rbac/modes.py::resolve_mode`), and a missing `safe` row gives them
 the empty set rather than everything.
 
-Four modes are seeded (`unrestricted`, `borderline`, `normal`, `safe`), all
-`is_system`. `unrestricted`'s rows are written but not
-read: its sets are derived from every `content_label` and every field group at
-resolution time, so a label minted later cannot narrow it. `safe` is seeded
-from whatever the **guest role actually holds**, not from a constant - see
-[authorization.md](authorization.md#what-a-guest-sees) for the defect that
-distinction prevented.
+Four modes exist (`safe`, `normal`, `borderline`, `unrestricted`), all
+`is_system`; `ensure_access_mode_seed` creates a missing one and nothing else
+creates or deletes one. The rows exist because accounts hold modes by id.
 
-#### `access_mode_label` / `access_mode_field_group`
-
-What a mode CARRIES - i.e. does not hide.
-
-Two **typed** link tables rather than one generic
-`access_mode_grant(permission text)`, on purpose: neither has a column in
-which `manage.catalog` could be stored, so "a mode scopes objects, it never
-grants powers" is a property of the schema rather than a rule a reviewer has
-to remember.
-
-| Table | Columns | Constraints |
-|---|---|---|
-| `access_mode_label` | `system_id`, `mode_id`, `label_id`, `created_at` | FKs to `access_mode` and `content_label`, both CASCADE; UNIQUE `(mode_id, label_id)` |
-| `access_mode_field_group` | `system_id`, `mode_id`, `field_group_key`, `created_at` | FK CASCADE; UNIQUE `(mode_id, field_group_key)`. `field_group_key` is a plain string validated against `FIELD_GROUP_KEYS` - **not** an FK, because field groups are code and not rows |
-
-#### `user_access_mode`
-
-One mode an account holds.
-
-| Column | Type | Null | Default | Description |
-|---|---|:-:|---|---|
-| `system_id` | UUID | no | uuid4 | PK |
-| `user_id` | UUID | no | | FK `users.id` CASCADE |
-| `mode_id` | UUID | no | | FK `access_mode.system_id` CASCADE |
-| `is_default` | Boolean | no | `false` | The mode a session is in unless it has switched (a switch lasts at most an hour) |
-| `created_at` | DateTime | yes | now | |
-
-UNIQUE `(user_id, mode_id)`, plus `ix_one_default_mode_per_user` — partial
-UNIQUE on `user_id` WHERE `is_default`. `is_default` lives here rather than on
-`users` so an account's landing mode is necessarily one it holds; it cannot
-drift out of the granted set.
+**What a mode shows is not stored.** `cache.mode_sets` derives its content
+labels and field groups from the mode's key: `MODE_ORDER` in
+`app/services/rbac/seed_modes.py` orders the four, each label and field group
+names the lowest mode that shows it, and a mode shows everything at or below
+it. `unrestricted` shows every `content_label` row. So there is no table in
+which `manage.catalog` could be stored against a mode, and "a mode scopes
+objects, it never grants powers" is a property of the schema rather than a
+rule a reviewer has to remember. See
+[authorization.md](authorization.md#access-modes--which-objects-those-operations-reach).
 
 #### `user_access_mode_denial`
 
-One item this account does NOT get from that mode.
+One item this account does NOT get, in any mode it uses.
 
 | Column | Type | Null | Description |
 |---|---|:-:|---|
 | `system_id` | UUID | no | PK |
-| `user_access_mode_id` | UUID | no | FK `user_access_mode.system_id` CASCADE |
+| `user_id` | UUID | no | FK `users.id` CASCADE |
 | `label_id` | UUID | yes | FK `content_label.system_id` CASCADE |
 | `field_group_key` | String | yes | |
 
 `ck_denial_names_one_thing` — exactly one of `label_id` / `field_group_key` is
 set, mirroring the constraint already on `note`'s four owner columns. Plus
-UNIQUE `(user_access_mode_id, label_id)` and
-`(user_access_mode_id, field_group_key)`.
+UNIQUE `(user_id, label_id)` and `(user_id, field_group_key)`.
 
 **Subtraction only.** There is no grant counterpart and there must not be one:
-a mode is a ceiling, so an account's reach is always a subset of its mode's,
-which is what makes a mode name on the user list a trustworthy upper bound.
-Denials hang off the GRANT row rather than the user, so revoking a mode takes
-that account's adjustments to it away with it.
+the ceiling is an upper bound, so an account's reach is always a subset of its
+active mode's, which is what makes the ceiling on the user list a trustworthy
+upper bound. A denial hangs off the account, so it applies in every mode the
+account switches to, and only something the ceiling shows can be denied:
+`set_mode_ceiling` deletes the denials a lowered ceiling no longer shows.
 
 
 ### `data_control_logs`
@@ -2486,34 +2729,38 @@ from whichever column is set, so the API shape is the pair even though the
 storage is not; being properties rather than columns, they are absent from the
 Google Sheets row.
 
-What still stores a **(type, id) pair** with no FK are the two tables that
-point at entries on both ends. They resolve at read time through
+What still stores a **(type, id) pair** with no FK are the tables that point
+at entries on both ends, and `user_request`, whose target may be an entry, a
+tier or an entity. They resolve at read time through
 `app/utils/media_resolver.py`:
 
 | Registry | Keys | Still used by |
 |---|---|---|
 | `MEDIA_TABLES` | `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, `game` (hyphenated - **not** the underscore keys of `app/registry.py`, which name router configs) | `media_relation` (both ends), `character_casting` and `character_casting_voice` (`CASTING_MEDIA_TYPES` only) |
 | `OWNER_TABLES` = `MEDIA_TABLES` + `TIER_TABLES` (`series`, `franchise`, `collection`) | | Nothing stores a pair here. `note` and `meme` read it to **resolve a row's display data** and to translate the API's `owner_type` / `owner_id` parameters onto their four owner columns; `plan_next` does the same over its three. |
+| `REQUEST_TARGET_TABLES` = `OWNER_TABLES` + `ENTITY_TABLES` (`studio`, `publisher`, `person`, `character`, `identity`) | | `user_request` (`target_type`, `target_id`). A deleted target resolves `missing`, and the request falls back to its stored `target_label`. |
 
 `resolve_entries()` issues at most one query per involved table. A pair whose
 row does not exist resolves to `missing=True` rather than vanishing, so a
 dangling reference stays visible and fixable in the admin pages. Consequence:
 **deleting an entry does not cascade** to `media_relation`,
-`character_casting` or `character_casting_voice`. Every other table listed below cascades in the database.
+`character_casting`, `character_casting_voice` or `user_request`. Every other table listed below cascades in the database.
 
 ### `note`, `quote` and `meme`: who wrote it
 
 All three carry a `NOT NULL author_id` referencing `users(id) ON DELETE
 CASCADE` (`fk_note_author`, `fk_quote_author`, `fk_meme_author`). It is always
 set — a catalogue note has an author too, and recording it is the only
-provenance the catalogue has. What a section's **scope** changes is who a row
-is *filtered* for, not whether somebody wrote it; quotes and memes are
+provenance the catalogue has. What a section's **scope** - and, in a mixed
+section, a row's `personal` - changes is who a row is *filtered* for, not
+whether somebody wrote it; quotes and memes are
 universal and nothing filters on their author at all. See
 [authorization.md](authorization.md) for the read and write rules.
 
-### The six tables keyed on `media_id`
+### Tables that hang off an entry or a group
 
-Each has a real FK to `media.system_id`, so the database cleans up after a
+Each has a real FK to its owner (`media.system_id`, or a group's
+`system_id` for the group label tables), so the database cleans up after a
 delete and no service call is involved. The rules differ on purpose:
 
 | Table | On delete | Why |
@@ -2523,6 +2770,8 @@ delete and no service call is involved. The rules differ on purpose:
 | `media_tag` | CASCADE | Same |
 | `media_content_label` | CASCADE | A label on a deleted entry means nothing |
 | `franchise_content_label` | CASCADE | A label on a deleted franchise means nothing |
+| `collection_content_label` | CASCADE | Same, for a deleted collection |
+| `series_content_label` | CASCADE | Same, for a deleted series |
 | `quote` | **SET NULL** | A quote carries its own text, translation, speaker and episode. Deleting an entry must never destroy hand-written content, so the quote survives, unattached. Not confused with a deliberately general quote - that is its own flag, `is_general` |
 | `watch_order_item` | CASCADE | A step is almost pure pointer: `ep_start`, `ep_end`, `position` and `section_id` only mean something relative to an entry |
 

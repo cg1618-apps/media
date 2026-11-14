@@ -1,11 +1,12 @@
 // Frontend: tests for the `music_track` shape - OP, ED, 插入曲 and OST.
 //
 // What these pin: one row shape for every list (name, Song Type on OP and ED
-// only, per-song status, episode, text-and-URL link pairs, remark); the
-// not-empty rule the server enforces, including that the prefilled Song Type
-// cannot make a row worth saving; and the list's own status in the header,
-// read from the music_status row and written back to it - POSTed the first
-// time, PATCHed after.
+// only, episode, text-and-URL link pairs, remark); the not-empty rule the
+// server enforces, including that the prefilled Song Type cannot make a row
+// worth saving; and the two statuses - each song's and the list's own in the
+// header - which are the viewer's own: never in the song's form, marked
+// through `onMark` under the key "status" by a viewer who may mark, and read
+// as tags by anyone else.
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -45,7 +46,7 @@ const renderSection = (props = {}) =>
     <MusicTrackSection
       section={OP}
       notes={[]}
-      isAdmin
+      canWrite
       onCreate={() => {}}
       onUpdate={() => {}}
       onDelete={() => {}}
@@ -102,7 +103,6 @@ it("sends every field of a song, links as pairs", async () => {
   const type = screen.getByLabelText("Song type");
   await userEvent.clear(type);
   await userEvent.type(type, "TV size");
-  await userEvent.selectOptions(screen.getByLabelText("Song status"), "Pending");
   await userEvent.type(screen.getByLabelText("Episode"), "ep 1");
   await userEvent.type(screen.getByLabelText("Link text"), "YouTube");
   await userEvent.type(screen.getByLabelText("Link URL"), "https://youtu.be/abc");
@@ -115,7 +115,6 @@ it("sends every field of a song, links as pairs", async () => {
     section: "op",
     title: "紅蓮華",
     kind: "TV size",
-    status: "Pending",
     locator: "ep 1",
     content: "Full version.",
     links: [
@@ -155,24 +154,18 @@ it("offers no Song Type on a list without one, and sends no kind", async () => {
   expect(onCreate).toHaveBeenCalledWith({
     section: "ost",
     title: "Battle",
-    status: null,
     locator: null,
     content: null,
     links: [],
   });
 });
 
-it("saves a song that carries only a status", async () => {
-  const onCreate = vi.fn();
-  renderSection({ onCreate });
+it("asks no status in the song's form: the status is the viewer's own", async () => {
+  renderSection({ canMark: true, onMark: () => {} });
 
   await openDraft();
-  await userEvent.selectOptions(screen.getByLabelText("Song status"), "Need");
-  await userEvent.click(screen.getByRole("button", { name: "Save" }));
-
-  expect(onCreate).toHaveBeenCalledWith(
-    expect.objectContaining({ section: "op", kind: "normal", status: "Need" }),
-  );
+  expect(screen.queryByLabelText("Song status")).not.toBeInTheDocument();
+  expect(screen.getByLabelText("Episode")).toBeInTheDocument();
 });
 
 it("saves a song that carries only an episode", async () => {
@@ -240,46 +233,68 @@ it("reads a stored song back into the form, pairs included", async () => {
 
 // --- the list's own status ------------------------------------------------
 
-it("reads a list with no status row as the default", () => {
-  renderSection();
-  expect(screen.getByLabelText("OP status")).toHaveValue("Not Done");
-});
+const STATUS_ROW = { system_id: "s1", section: "music_status", kind: "op", status: "Need" };
 
-it("creates the status row the first time the status changes", async () => {
+it("marks the list's status row under the key status", async () => {
+  const onMark = vi.fn();
   const onCreate = vi.fn();
   const onUpdate = vi.fn();
-  renderSection({ onCreate, onUpdate });
-
-  await userEvent.selectOptions(screen.getByLabelText("OP status"), "All Done");
-
-  expect(onCreate).toHaveBeenCalledWith({
-    section: "music_status",
-    kind: "op",
-    status: "All Done",
-  });
-  expect(onUpdate).not.toHaveBeenCalled();
-});
-
-it("patches the status row once it exists", async () => {
-  const onCreate = vi.fn();
-  const onUpdate = vi.fn();
-  renderSection({
-    onCreate,
-    onUpdate,
-    typeStatusNote: { system_id: "s1", section: "music_status", kind: "op", status: "Need" },
-  });
+  renderSection({ canMark: true, onMark, onCreate, onUpdate, typeStatusNote: STATUS_ROW });
 
   const select = screen.getByLabelText("OP status");
   expect(select).toHaveValue("Need");
   await userEvent.selectOptions(select, "Done");
 
-  expect(onUpdate).toHaveBeenCalledWith("s1", { status: "Done" });
+  expect(onMark).toHaveBeenCalledWith("s1", { status: "Done" });
+  expect(onUpdate).not.toHaveBeenCalled();
   expect(onCreate).not.toHaveBeenCalled();
+});
+
+it("reads a list with no status row as the default, with nothing to mark", () => {
+  renderSection({ canMark: true, onMark: () => {} });
+  expect(screen.queryByLabelText("OP status")).not.toBeInTheDocument();
+  expect(screen.getByText("Not Done")).toBeInTheDocument();
+});
+
+it("gives a catalogue writer who may not mark the list status as a tag", () => {
+  // canWrite alone: the catalogue is not where the status lives.
+  renderSection({ canWrite: true, canMark: false, typeStatusNote: STATUS_ROW });
+  expect(screen.queryByLabelText("OP status")).not.toBeInTheDocument();
+  expect(screen.getByText("Need")).toBeInTheDocument();
+});
+
+it("marks a song's own status, and clears it with the blank option", async () => {
+  const onMark = vi.fn();
+  const onUpdate = vi.fn();
+  renderSection({
+    canWrite: false,
+    canMark: true,
+    onMark,
+    onUpdate,
+    notes: [{ system_id: "n1", title: "紅蓮華", status: "Need", links: [] }],
+  });
+
+  const select = screen.getByLabelText("紅蓮華 status");
+  expect(select).toHaveValue("Need");
+  await userEvent.selectOptions(select, "Done");
+  expect(onMark).toHaveBeenLastCalledWith("n1", { status: "Done" });
+  await userEvent.selectOptions(select, "");
+  expect(onMark).toHaveBeenLastCalledWith("n1", { status: null });
+  expect(onUpdate).not.toHaveBeenCalled();
+});
+
+it("shows a song's status as a tag to a viewer who may not mark", () => {
+  renderSection({
+    canMark: false,
+    notes: [{ system_id: "n1", title: "紅蓮華", status: "Pending", links: [] }],
+  });
+  expect(screen.queryByLabelText("紅蓮華 status")).not.toBeInTheDocument();
+  expect(screen.getByText("Pending")).toBeInTheDocument();
 });
 
 it("shows the status as a tag to a reader who cannot edit", () => {
   renderSection({
-    isAdmin: false,
+    canWrite: false,
     typeStatusNote: { system_id: "s1", kind: "op", status: "Pending" },
   });
   expect(screen.queryByLabelText("OP status")).not.toBeInTheDocument();
@@ -289,7 +304,7 @@ it("shows the status as a tag to a reader who cannot edit", () => {
 it("opens an empty list, because it carries a status", () => {
   // Other empty sections open collapsed; a song list has its own status, so a
   // new anime's four "Not Done" lists open and say so.
-  renderSection({ isAdmin: false });
+  renderSection({ canWrite: false });
   expect(screen.getByText("No entries.")).toBeInTheDocument();
   expect(screen.getByText("Not Done")).toBeInTheDocument();
 });
@@ -298,6 +313,6 @@ it("still collapses an empty list that carries no status", () => {
   // The mirror case: the same empty list without type_status_section keeps
   // the ordinary collapse-when-empty default, so the test above is the status
   // doing the opening.
-  renderSection({ isAdmin: false, section: songList("op", { type_status_section: null }) });
+  renderSection({ canWrite: false, section: songList("op", { type_status_section: null }) });
   expect(screen.queryByText("No entries.")).not.toBeInTheDocument();
 });

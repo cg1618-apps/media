@@ -11,13 +11,17 @@ media_relation.py::/kinds and note.py::/sections exist.
 Permissions are replaced as a whole set, never added incrementally, matching
 credits.py::replace_credits. An admin unticking a box means "not this", and an
 append-only API could not express it.
+
+The roles themselves are fixed - permissions.ROLE_NAMES - so there is no route
+that creates or deletes one. An admin edits a role's label, description and
+its free grants; everything else is code.
 """
 
 import logging
 from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app import models, schemas
@@ -58,7 +62,7 @@ router = APIRouter(
 
 
 def _to_response(db: Session, role: models.Role) -> schemas.RoleResponse:
-    locked_on, locked_off = locked_permissions(role.name, bool(role.is_root))
+    locked_on, locked_off = locked_permissions(role.name)
     granted = [
         row.permission
         for row in db.query(models.RolePermission.permission).filter(
@@ -74,8 +78,6 @@ def _to_response(db: Session, role: models.Role) -> schemas.RoleResponse:
         label=role.label,
         description=role.description,
         sort_order=role.sort_order,
-        is_system=role.is_system,
-        is_root=role.is_root,
         permissions=sorted(granted),
         user_count=user_count,
         locked_on=sorted(locked_on),
@@ -209,7 +211,7 @@ def _enforce_locks(role: models.Role, requested: set[str]) -> None:
     decides, and the half the editor reads is served from the same table, so
     the two cannot drift.
     """
-    locked_on, locked_off = locked_permissions(role.name, bool(role.is_root))
+    locked_on, locked_off = locked_permissions(role.name)
     forbidden = sorted(locked_off & requested)
     if forbidden:
         raise HTTPException(
@@ -228,37 +230,6 @@ def _enforce_locks(role: models.Role, requested: set[str]) -> None:
         )
 
 
-@router.post(
-    "/", response_model=schemas.RoleResponse, status_code=201, summary="Create Role"
-)
-def create_role(payload: schemas.RoleCreate, db: Session = Depends(get_db)):
-    if db.query(models.Role).filter(models.Role.name == payload.name).first():
-        raise HTTPException(status_code=409, detail="A role with that name exists.")
-    _validate(db, payload.permissions)
-    # A new role is never guest, super or a root role, so its locks are the
-    # custom-role row: admin.authz and manage.pipelines refused, nothing forced.
-    _enforce_locks(
-        models.Role(name=payload.name, label=payload.label, is_root=False),
-        set(payload.permissions),
-    )
-
-    role = models.Role(
-        name=payload.name,
-        label=payload.label,
-        description=payload.description,
-        sort_order=payload.sort_order,
-        is_system=False,
-        is_root=False,
-    )
-    db.add(role)
-    db.flush()
-    for permission in sorted(set(payload.permissions)):
-        db.add(models.RolePermission(role_id=role.system_id, permission=permission))
-    db.commit()
-    cache.bump()
-    return _to_response(db, role)
-
-
 @router.patch(
     "/{role_id}", response_model=schemas.RoleResponse, summary="Update Role"
 )
@@ -266,8 +237,8 @@ def update_role(
     role_id: UUID, payload: schemas.RoleUpdate, db: Session = Depends(get_db)
 ):
     role = _get_or_404(db, role_id)
-    # The app reads guest and admin by name, so those two cannot be renamed.
-    # Their label and description are free.
+    # The app reads every role by name, so none can be renamed. The label
+    # and description are free.
     for field in ("label", "description", "sort_order"):
         value = getattr(payload, field)
         if value is not None:
@@ -288,11 +259,6 @@ def replace_permissions(
     db: Session = Depends(get_db),
 ):
     role = _get_or_404(db, role_id)
-    if role.is_root:
-        raise HTTPException(
-            status_code=409,
-            detail="A root role role holds every permission; grants do not apply.",
-        )
     _validate(db, payload.permissions)
     _enforce_locks(role, set(payload.permissions))
 
@@ -305,22 +271,3 @@ def replace_permissions(
     # Without this the change would not be felt until the process restarted.
     cache.bump()
     return _to_response(db, role)
-
-
-@router.delete("/{role_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_role(role_id: UUID, db: Session = Depends(get_db)):
-    role = _get_or_404(db, role_id)
-    if role.is_system:
-        raise HTTPException(
-            status_code=409, detail="The guest and admin roles cannot be deleted."
-        )
-    holders = db.query(models.User).filter(models.User.role_id == role.system_id).count()
-    if holders:
-        raise HTTPException(
-            status_code=409,
-            detail=f"{holders} user(s) still hold this role.",
-        )
-    db.delete(role)
-    db.commit()
-    cache.bump()
-    return None

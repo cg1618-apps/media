@@ -185,6 +185,8 @@ it("PUTs the edited record to the publisher endpoint", async () => {
   expect(lastPut.body.name_jp).toBe("バンダイナムコ");
   // A publisher has no MAL record; the form must not invent those columns.
   expect(lastPut.body).not.toHaveProperty("mal_id");
+  // My rating is the viewer's own, written through /api/me/ratings.
+  expect(lastPut.body).not.toHaveProperty("my_rating");
   expect(lastPut.body).not.toHaveProperty("mal_link");
 });
 

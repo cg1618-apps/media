@@ -55,10 +55,10 @@ def two_users(db):
     a = db.query(models.User).filter(models.User.username == "admin").first()
     if a is None:
         a = models.User(username="admin", hashed_password="!",
-                        role_id=admin_role.system_id, list_is_public=False)
+                        role_id=admin_role.system_id)
         db.add(a)
     b = models.User(username="kana", hashed_password="!",
-                    role_id=user_role.system_id, list_is_public=True)
+                    role_id=user_role.system_id)
     db.add(b)
     db.flush()
     return a, b

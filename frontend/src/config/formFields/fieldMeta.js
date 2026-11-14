@@ -29,7 +29,6 @@ import {
   CARTOON_AIRING_TYPES,
   COMIC_TYPES,
   COMPLETION_LEVELS,
-  FRANCHISE_EXPECTATIONS,
   FRANCHISE_TYPES,
   IS_MAIN,
   MANGA_REGIONS,
@@ -1115,8 +1114,8 @@ export const TYPE_FIELD_META = {
       group: "Classification",
     },
     // Derived from mal_link by the write hook; the form shows it read-only.
+    // Copying the link copies the id with it, since the hook derives one.
     mal_id: { hidden: true },
-    mal_link: { autofillable: false },
     // No id column beside it: the E-Hentai fill reads the gallery id and
     // token out of the link itself.
     ehentai_link: {
@@ -1412,11 +1411,11 @@ export const TYPE_FIELD_META = {
       group: "Classification",
     },
     // Derived from mal_link by the write hook; the form never shows it.
+    // Copying the link copies the id with it, since the hook derives one.
     mal_id: { hidden: true },
-    mal_link: { autofillable: false },
     // Derived from anidb_link by the write hook, as mal_id is.
     anidb_id: { hidden: true },
-    anidb_link: { label: "AniDB Link", control: "url", group: "Links", autofillable: false },
+    anidb_link: { label: "AniDB Link", control: "url", group: "Links" },
   },
 
   collection: {
@@ -1425,12 +1424,6 @@ export const TYPE_FIELD_META = {
     collection_name_roman: { label: "Name (Romaji)", group: "Names" },
     collection_name_jp: { label: "Name (JP)", group: "Names" },
     collection_name_alt: { label: "Name (Alt)", group: "Names" },
-    collection_expectation: {
-      label: "Expectation",
-      control: "select",
-      options: FRANCHISE_EXPECTATIONS,
-      group: "Status",
-    },
   },
 
   franchise: {
@@ -1445,12 +1438,6 @@ export const TYPE_FIELD_META = {
       control: "tags",
       options: FRANCHISE_TYPES,
       group: "Classification",
-    },
-    franchise_expectation: {
-      label: "Expectation",
-      control: "select",
-      options: FRANCHISE_EXPECTATIONS,
-      group: "Status",
     },
   },
 
@@ -1479,7 +1466,6 @@ export const TYPE_FIELD_META = {
       group: "Names",
       autofillable: false,
     },
-    my_rating: { autofillable: false },
     country: { label: "Country", group: "Classification", autofillable: false },
     logo_file: {
       label: "Logo File",
@@ -1534,7 +1520,6 @@ export const TYPE_FIELD_META = {
       group: "Names",
       autofillable: false,
     },
-    my_rating: { autofillable: false },
     country: { label: "Country", group: "Classification", autofillable: false },
     logo_file: {
       label: "Logo File",
@@ -1592,7 +1577,6 @@ export const TYPE_FIELD_META = {
       group: "Classification",
       autofillable: false,
     },
-    my_rating: { autofillable: false },
     photo_file: {
       label: "Photo File",
       control: "none",
@@ -1652,7 +1636,6 @@ export const TYPE_FIELD_META = {
       group: "Classification",
       autofillable: false,
     },
-    my_rating: { autofillable: false },
     photo_file: {
       label: "Photo File",
       control: "none",
@@ -1882,6 +1865,7 @@ export const BUILTIN_AUTOFILL = {
     "originality",
     "club",
     "illustrator",
+    "mal_link",
   ],
   "h-game": [
     "h_game_name_cn",
@@ -1909,6 +1893,8 @@ export const BUILTIN_AUTOFILL = {
     "source_material",
     "originality",
     "studio",
+    "mal_link",
+    "anidb_link",
   ],
   franchise: [],
   series: [],

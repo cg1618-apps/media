@@ -153,6 +153,13 @@ class SystemOptionCreate(SystemOptionBase):
         return unique
 
 
+class OptionRecordCounts(BaseModel):
+    """System Options' Tier 3: the records that replaced option categories."""
+
+    person_roles: dict[str, int]
+    studios: int
+
+
 class SystemOptionResponse(SystemOptionBase):
     system_id: UUID
     scopes: list[str] = []
@@ -499,5 +506,66 @@ class DeletedRecordResponse(BaseModel):
     series_cn: Optional[str] = None
     category: Optional[str] = None
     timestamp: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SeasonCount(BaseModel):
+    """One season in the catalogue and how many visible anime aired in it."""
+
+    season: str
+    entry_count: int
+
+
+class TypeCount(BaseModel):
+    """One media type: its visible entries, and the distinct franchises
+    holding at least one of them."""
+
+    media_type: str
+    entry_count: int
+    franchise_count: int
+
+
+class ScoreBucketCount(BaseModel):
+    """Visible entries of one media type whose score falls in one bucket.
+    `bucket` is the lower bound: 8 is 8.0-8.99 on MAL, 80 is 80-89 on AniList."""
+
+    media_type: str
+    bucket: int
+    entry_count: int
+
+
+class ScoreDistributions(BaseModel):
+    mal: List[ScoreBucketCount]
+    anilist: List[ScoreBucketCount]
+
+
+class CatalogueStatistics(BaseModel):
+    """GET /api/statistics/catalogue. Every count is over what the viewer may
+    see; a media type with no visible entry is absent from `by_type`."""
+
+    by_type: List[TypeCount]
+    by_season: List[SeasonCount]
+    scores: ScoreDistributions
+
+
+class DashboardSummary(BaseModel):
+    """GET /api/dashboard/summary: what waits for whoever handles it."""
+
+    pending_registrations: int
+    open_requests: int
+
+
+class RecentEntry(BaseModel):
+    """One recently added entry, as much as a dashboard card needs: what it
+    is, where it lives (`/<media_type>/<public_id>`) and its cover."""
+
+    system_id: UUID
+    media_type: str
+    public_id: int
+    display_name: str
+    cover_image_file: Optional[str] = None
+    cover_image_focus: Optional[str] = None
+    created_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)

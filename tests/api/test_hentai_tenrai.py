@@ -194,11 +194,11 @@ def test_fill_eligibility_follows_the_four_fields(db_session):
 
 
 def test_the_write_hook_fetches_from_the_link_and_keeps_the_label(
-    admin_client, db_session, tenrai
+    owner_client, db_session, tenrai
 ):
     """Create with only a MAL link: the id is extracted, the four fields are
     filled by the single-entry hook, and the sync keeps the label on."""
-    response = admin_client.post(
+    response = owner_client.post(
         "/api/hentai/",
         json={
             "hentai_name_cn": "Zvornik Hooked",
@@ -212,4 +212,4 @@ def test_the_write_hook_fetches_from_the_link_and_keeps_the_label(
     assert body["airing_status"] == "Finished Airing"
     assert body["release_date"] == "1998-09-25"
     entry_id = uuid.UUID(body["system_id"])
-    assert label_keys_for_entry(db_session, entry_id) == ["hentai"]
+    assert label_keys_for_entry(db_session, entry_id) == ["hentai", "nsfw"]

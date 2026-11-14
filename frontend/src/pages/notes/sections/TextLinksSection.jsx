@@ -17,6 +17,7 @@ import {
   brandTagCls,
   draftCls,
   inputCls,
+  noteLabel,
   rowCls,
   useEntryCap,
   useRowReorder,
@@ -68,10 +69,37 @@ function TextLinksForm({ val, setVal, section }) {
   );
 }
 
+// The "Move to…" list beside a row's Edit and Delete, on a section whose
+// registry entry names `move_targets` - the 待辦 buckets, each offering the
+// owner's others. Picking one rewrites the row's `section`, and the backend
+// appends it to the end of that section. Shown to whoever may edit the row,
+// as Edit and Delete are; the ResourceTree's native select is the pattern.
+function MoveToSection({ canWrite, note, targets, onMove }) {
+  if (!canWrite || !targets?.length) return null;
+  return (
+    <select
+      value=""
+      onChange={(e) => {
+        if (e.target.value) onMove(e.target.value);
+      }}
+      aria-label={`Move ${noteLabel(note)} to`}
+      title="Move to another list"
+      className="h-6 max-w-[9rem] shrink-0 px-1 text-xs border border-border-strong bg-surface text-text-muted focus:outline-none focus:ring-2 focus:ring-brand"
+    >
+      <option value="">Move to…</option>
+      {targets.map((t) => (
+        <option key={t.key} value={t.key}>
+          {t.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 export default function TextLinksSection({
   section,
   notes,
-  isAdmin,
+  canWrite,
   onCreate,
   onUpdate,
   onDelete,
@@ -85,7 +113,7 @@ export default function TextLinksSection({
   const cap = useEntryCap(notes, {
     keep: (row) => row.system_id === editId,
   });
-  const reorder = useRowReorder({ section, notes, isAdmin, onReorder, reordering, cap });
+  const reorder = useRowReorder({ section, notes, canWrite, onReorder, reordering, cap });
 
   // An empty row is never worth storing, and some sections demand a body.
   const invalid = (val) => {
@@ -114,7 +142,7 @@ export default function TextLinksSection({
     <SectionCard
       label={section.label}
       count={notes.length}
-      isAdmin={isAdmin}
+      canWrite={canWrite}
       onAdd={() => setAdding(true)}
     >
       <ReorderList reorder={reorder}>
@@ -140,8 +168,14 @@ export default function TextLinksSection({
                     <span className="text-xs text-text-faint">(empty)</span>
                   )}
                 </div>
+                <MoveToSection
+                  canWrite={canWrite}
+                  note={n}
+                  targets={section.move_targets}
+                  onMove={(key) => onUpdate(n.system_id, { section: key })}
+                />
                 <ItemActions
-                  isAdmin={isAdmin}
+                  canWrite={canWrite}
                   onEdit={() => {
                     setEditId(n.system_id);
                     setEditVal(fromNote(n));

@@ -1,4 +1,5 @@
-// MyTrackerCard's "Paused at" field, and the PausedAtInput it renders.
+// MyTrackerCard's "Paused at" field, and the PausedAtInput it renders; the
+// card's own controls and its self.list gate (`canTrack`).
 //
 // Saved on blur (and Enter), only when the text changed, a blank as null.
 // The server clears the position when ep_fin goes up or the entry becomes
@@ -21,7 +22,7 @@ function card(props = {}) {
       epTotal={12}
       watchingStatus="Active Watching"
       myRating=""
-      isAdmin
+      canTrack
       onEpChange={() => {}}
       onStatusChange={() => {}}
       onRatingChange={() => {}}
@@ -39,7 +40,7 @@ describe("PausedAtInput", () => {
 
   it("saves the trimmed text on blur", () => {
     const onChange = vi.fn();
-    render(<PausedAtInput value={null} isAdmin onChange={onChange} />);
+    render(<PausedAtInput value={null} canTrack onChange={onChange} />);
     const input = screen.getByLabelText("Paused at");
     fireEvent.change(input, { target: { value: "  14:35 " } });
     fireEvent.blur(input);
@@ -48,7 +49,7 @@ describe("PausedAtInput", () => {
 
   it("saves on Enter", () => {
     const onChange = vi.fn();
-    render(<PausedAtInput value={null} isAdmin onChange={onChange} />);
+    render(<PausedAtInput value={null} canTrack onChange={onChange} />);
     const input = screen.getByLabelText("Paused at");
     input.focus();
     fireEvent.change(input, { target: { value: "1:10:00" } });
@@ -58,14 +59,14 @@ describe("PausedAtInput", () => {
 
   it("writes nothing when the text did not change", () => {
     const onChange = vi.fn();
-    render(<PausedAtInput value="14:35" isAdmin onChange={onChange} />);
+    render(<PausedAtInput value="14:35" canTrack onChange={onChange} />);
     fireEvent.blur(screen.getByLabelText("Paused at"));
     expect(onChange).not.toHaveBeenCalled();
   });
 
   it("clears to null", () => {
     const onChange = vi.fn();
-    render(<PausedAtInput value="14:35" isAdmin onChange={onChange} />);
+    render(<PausedAtInput value="14:35" canTrack onChange={onChange} />);
     const input = screen.getByLabelText("Paused at");
     fireEvent.change(input, { target: { value: "   " } });
     fireEvent.blur(input);
@@ -74,17 +75,19 @@ describe("PausedAtInput", () => {
 
   it("shows a position the server cleared", () => {
     const { rerender } = render(
-      <PausedAtInput value="14:35" isAdmin onChange={() => {}} />,
+      <PausedAtInput value="14:35" canTrack onChange={() => {}} />,
     );
     expect(screen.getByLabelText("Paused at")).toHaveValue("14:35");
-    rerender(<PausedAtInput value={null} isAdmin onChange={() => {}} />);
+    rerender(<PausedAtInput value={null} canTrack onChange={() => {}} />);
     expect(screen.getByLabelText("Paused at")).toHaveValue("");
   });
 
-  it("is read-only text for a viewer who cannot write", () => {
-    render(<PausedAtInput value="14:35" isAdmin={false} onChange={() => {}} />);
+  it("is absent for a viewer without self.list", () => {
+    const { container } = render(
+      <PausedAtInput value="14:35" canTrack={false} onChange={() => {}} />,
+    );
     expect(screen.queryByRole("textbox")).toBeNull();
-    expect(screen.getByText("14:35")).toBeInTheDocument();
+    expect(container).toBeEmptyDOMElement();
   });
 });
 
@@ -106,5 +109,44 @@ describe("MyTrackerCard's Paused at field", () => {
   it("is absent for a type that passes none", () => {
     render(card());
     expect(screen.queryByLabelText("Paused at")).toBeNull();
+  });
+});
+
+describe("MyTrackerCard's controls", () => {
+  beforeEach(() => {
+    mockAuth.username = "member";
+  });
+
+  it("are enabled for a holder of self.list, and write through the handlers", async () => {
+    const onStatusChange = vi.fn();
+    const onWatchNextChange = vi.fn();
+    const onToRewatchChange = vi.fn();
+    render(
+      card({
+        statusOptions: ["Active Watching", "Completed"],
+        onStatusChange,
+        watchNext: false,
+        onWatchNextChange,
+        toRewatch: true,
+        onToRewatchChange,
+      }),
+    );
+    const status = screen.getByRole("combobox", { name: "Watching status" });
+    expect(status).toBeEnabled();
+    fireEvent.change(status, { target: { value: "Completed" } });
+    expect(onStatusChange).toHaveBeenCalledWith("Completed");
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Watch next" }));
+    expect(onWatchNextChange).toHaveBeenCalledWith(true);
+    fireEvent.click(screen.getByRole("checkbox", { name: "To rewatch" }));
+    expect(onToRewatchChange).toHaveBeenCalledWith(false);
+    expect(screen.getByRole("button", { name: "Next episode" })).toBeEnabled();
+  });
+
+  it("are absent - the whole card - without self.list", () => {
+    const { container } = render(
+      card({ canTrack: false, onWatchNextChange: () => {}, onTimeFinChange: () => {} }),
+    );
+    expect(container).toBeEmptyDOMElement();
   });
 });

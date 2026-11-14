@@ -24,6 +24,7 @@ function stub(name) {
 }
 vi.mock("./pages/public/Index", () => stub("dashboard"));
 vi.mock("./pages/public/Login", () => stub("login"));
+vi.mock("./pages/public/Register", () => stub("register"));
 vi.mock("./pages/public/Search", () => stub("search"));
 vi.mock("./pages/library/Library", () => stub("media library"));
 vi.mock("./pages/library/FranchiseLibrary", () => stub("franchise library"));
@@ -40,27 +41,37 @@ vi.mock("./pages/detail/Person", () => stub("person"));
 vi.mock("./pages/detail/Character", () => stub("character"));
 vi.mock("./pages/detail/Identity", () => stub("identity"));
 vi.mock("./pages/public/FutureReleases", () => stub("future releases"));
+vi.mock("./pages/public/SeasonalOverall", () => stub("seasonal"));
+vi.mock("./pages/public/SeasonalDetail", () => stub("seasonal detail"));
+vi.mock("./pages/public/Statistics", () => stub("statistics"));
 vi.mock("./pages/public/Completions", () => stub("completions"));
 vi.mock("./pages/public/RandomPicker", () => stub("random picker"));
 vi.mock("./pages/public/Quotes", () => stub("quotes"));
 vi.mock("./pages/public/Memes", () => stub("memes"));
 vi.mock("./pages/public/Resources", () => stub("resources"));
-vi.mock("./pages/public/Profile", () => stub("profile"));
+vi.mock("./pages/admin/SystemOptions", () => stub("system options"));
+vi.mock("./pages/admin/Aliases", () => stub("aliases"));
+vi.mock("./pages/admin/ExternalApis", () => stub("external apis"));
+vi.mock("./pages/admin/Images", () => stub("images"));
 
 import App from "./App";
 
-const MEMBER_KEYS = ["self.list", "view.entities", "view.search", "view.extras", "view.personal"];
+const MEMBER_KEYS = ["self.list", "view.studio", "view.publisher", "view.person", "view.character", "view.search", "view.random_picker"];
 
-function session(permissions, username) {
+function session(permissions, username, features = []) {
   auth.current = {
     loading: false,
     username,
     has: (p) => permissions.includes(p),
+    hasFeature: (f) => features.includes(f),
     visibleGatedTypes: ["h-comic", "h-game", "hentai"],
   };
 }
 const asGuest = () => session([], null);
-const asMember = () => session(MEMBER_KEYS, "reader");
+const asMember = () => session(MEMBER_KEYS, "reader", ["quotes_memes"]);
+// A member whose account does not have the quotes-and-memes switch on: every
+// permission asMember holds.
+const asMemberWithoutQuotes = () => session(MEMBER_KEYS, "reader");
 
 async function visit(path) {
   window.history.pushState({}, "", path);
@@ -91,7 +102,6 @@ const CLOSED = {
   "/character/1": "character",
   "/identity/1": "identity",
   "/search": "search",
-  "/future-releases": "future releases",
   "/completions": "completions",
   "/random": "random picker",
   "/random/anime": "random picker",
@@ -100,8 +110,6 @@ const CLOSED = {
   "/random/hentai": "random picker",
   "/quote": "quotes",
   "/meme": "memes",
-  "/resources": "resources",
-  "/user/bob": "profile",
 };
 
 describe("a member-only route", () => {
@@ -111,11 +119,121 @@ describe("a member-only route", () => {
       await visit(path);
       expect(await screen.findByText("login page")).toBeInTheDocument();
       expect(screen.queryByText(`${page} page`)).toBeNull();
-      expect(window.location.search).toBe(`?next=${encodeURIComponent(path)}`);
+      expect(window.location.pathname).toBe("/login");
+      expect(window.location.search).toBe("");
     });
 
     it(`opens ${path} for a member`, async () => {
       asMember();
+      await visit(path);
+      expect(await screen.findByText(`${page} page`)).toBeInTheDocument();
+    });
+  }
+});
+
+describe("the catalogue Explore routes", () => {
+  // Future Releases and Seasonal read the catalogue, so each asks for any
+  // ordinary media type - a guest's nine keys open it, with no list - and a
+  // session holding none (the admin's shape) is sent to log in.
+  for (const [path, page] of [
+    ["/future-releases", "future releases"],
+    ["/seasonal", "seasonal"],
+    [`/seasonal/${encodeURIComponent("SPR 2026")}`, "seasonal detail"],
+  ]) {
+    it(`opens ${path} for a reader of one ordinary media type, without a list`, async () => {
+      session(["media_type.anime"], null);
+      await visit(path);
+      expect(await screen.findByText(`${page} page`)).toBeInTheDocument();
+    });
+
+    it(`sends a session holding no media type from ${path} to log in`, async () => {
+      // A list alone is not enough: the pages read the catalogue.
+      session(["self.list"], "listonly");
+      await visit(path);
+      expect(await screen.findByText("login page")).toBeInTheDocument();
+      expect(screen.queryByText(`${page} page`)).toBeNull();
+    });
+  }
+});
+
+describe("the statistics route", () => {
+  // view.statistics alone: super, user and shared hold it, a guest never does.
+  it("sends a catalogue reader without the key to log in", async () => {
+    // The guest's shape: an ordinary media type and no view.statistics.
+    session(["media_type.anime"], null);
+    await visit("/statistics");
+    expect(await screen.findByText("login page")).toBeInTheDocument();
+    expect(screen.queryByText("statistics page")).toBeNull();
+  });
+
+  it("opens it for the same reader once it holds the key", async () => {
+    session(["media_type.anime", "view.statistics"], "shared");
+    await visit("/statistics");
+    expect(await screen.findByText("statistics page")).toBeInTheDocument();
+  });
+});
+
+describe("the quotes and memes routes", () => {
+  for (const [path, page] of [
+    ["/quote", "quotes"],
+    ["/meme", "memes"],
+  ]) {
+    it(`send a member without the switch from ${path} to log in`, async () => {
+      asMemberWithoutQuotes();
+      await visit(path);
+      expect(await screen.findByText("login page")).toBeInTheDocument();
+      expect(screen.queryByText(`${page} page`)).toBeNull();
+    });
+  }
+
+});
+
+// The admin's own pages. The admin holds its fixed set and no catalogue key;
+// a member holds a non-empty set with none of these keys in it, so its
+// redirect is the gate's doing, and the admin opening the same path is the
+// mirror.
+const ADMIN_KEYS = [
+  "admin.authz",
+  "manage.pipelines",
+  "manage.requests",
+  "manage.announcements",
+  "manage.options",
+  "manage.images",
+  "manage.resources",
+];
+const asAdmin = () => session(ADMIN_KEYS, "admin");
+// Super holds every key but admin.authz; the ones these routes ask suffice.
+const asSuper = () =>
+  session(
+    [...MEMBER_KEYS, "manage.catalog", "manage.options", "manage.images", "manage.resources"],
+    "cg1618",
+    ["quotes_memes"],
+  );
+
+describe("the admin's own pages", () => {
+  const ADMIN_PAGES = {
+    "/resources": "resources",
+    "/options": "system options",
+    "/aliases": "aliases",
+    "/external-apis": "external apis",
+    "/images": "images",
+  };
+  for (const [path, page] of Object.entries(ADMIN_PAGES)) {
+    it(`sends a member from ${path} to log in`, async () => {
+      asMember();
+      await visit(path);
+      expect(await screen.findByText("login page")).toBeInTheDocument();
+      expect(screen.queryByText(`${page} page`)).toBeNull();
+    });
+
+    it(`opens ${path} for the admin, who holds no manage.catalog`, async () => {
+      asAdmin();
+      await visit(path);
+      expect(await screen.findByText(`${page} page`)).toBeInTheDocument();
+    });
+
+    it(`opens ${path} for super`, async () => {
+      asSuper();
       await visit(path);
       expect(await screen.findByText(`${page} page`)).toBeInTheDocument();
     });
@@ -130,6 +248,8 @@ describe("a guest's open routes", () => {
     "/library/collection": "collection library",
     "/franchise/1": "franchise",
     "/anime/1": "anime",
+    // In no menu, but open: an invite link is used before any account exists.
+    "/register?code=abc": "register",
   };
   for (const [path, page] of Object.entries(OPEN)) {
     it(`lets a guest into ${path}`, async () => {

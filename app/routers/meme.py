@@ -32,12 +32,17 @@ from app import models, schemas
 from app.database import get_taipei_now
 from app.dependencies import get_db
 from app.routers._patching import apply_column_patch
+from app.services.domain.user_favorite import (
+    attach_favorites,
+    favorite_filter,
+    favorite_owner,
+)
 from app.services.rbac.enforcement import drop_hidden_rows, require_visible_owner
+from app.services.rbac.features import require_feature_quotes_memes
 from app.services.rbac.resolver import (
     Viewer,
     get_viewer,
     require_manage_catalog,
-    require_view_extras,
 )
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.media_resolver import (
@@ -152,13 +157,18 @@ def _apply_filters(
     owner_id: Optional[str],
     is_favorite: Optional[bool],
     search_query: Optional[str],
+    favorite_user_id=None,
 ):
-    """Shared filter chain for the list and grouped endpoints."""
+    """Shared filter chain for the list and grouped endpoints.
+
+    `is_favorite` asks the viewer's own favourites, `favorite_user_id` -
+    favorite_owner's answer, None for anyone without the feature.
+    """
     owner_clauses = _owner_filters(owner_type, owner_id)
     if owner_clauses:
         query = query.filter(*owner_clauses)
     if is_favorite is not None:
-        query = query.filter(models.Meme.is_favorite.is_(is_favorite))
+        query = query.filter(favorite_filter("meme", is_favorite, favorite_user_id))
     if search_query:
         query = query.filter(models.Meme.text.ilike(f"%{search_query}%"))
     return query
@@ -238,21 +248,29 @@ def get_all_memes(
     limit: int = Query(default=500, ge=1, le=2000),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(require_view_extras),
+    viewer: Viewer = Depends(require_feature_quotes_memes),
 ):
     """
     Retrieves Memes, optionally filtered.
     Each row carries its owner's display data and, when the text is also a
     quote, that quote's speaker and translation - all resolved server-side.
+    `is_favorite` on each row, and the filter, are the viewer's own.
     """
+    favorite_user_id = favorite_owner(db, viewer)
     query = _apply_filters(
-        db.query(models.Meme), owner_type, owner_id, is_favorite, search_query
+        db.query(models.Meme),
+        owner_type,
+        owner_id,
+        is_favorite,
+        search_query,
+        favorite_user_id,
     )
     memes = (
         query.order_by(models.Meme.created_at.desc()).limit(limit).offset(offset).all()
     )
     # The caption is the leak, so a meme on a hidden entry goes entirely.
     memes = drop_hidden_rows(db, viewer, memes, "owner_type", "owner_id")
+    attach_favorites(db, "meme", memes, favorite_user_id)
 
     owner_refs = resolve_entries(
         db, [(m.owner_type, m.owner_id) for m in memes], OWNER_TABLES
@@ -272,7 +290,7 @@ def get_memes_grouped(
     search_query: Optional[str] = None,
     limit: int = Query(default=2000, ge=1, le=5000),
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(require_view_extras),
+    viewer: Viewer = Depends(require_feature_quotes_memes),
 ):
     """
     The Meme page's primary feed: memes bucketed by the owner they belong to.
@@ -281,8 +299,14 @@ def get_memes_grouped(
     resolved owner header per bucket, and only the server can turn an
     (owner_type, owner_id) pair into a name, label and cover.
     """
+    favorite_user_id = favorite_owner(db, viewer)
     query = _apply_filters(
-        db.query(models.Meme), owner_type, None, is_favorite, search_query
+        db.query(models.Meme),
+        owner_type,
+        None,
+        is_favorite,
+        search_query,
+        favorite_user_id,
     )
     memes = (
         # Ordered by the four owner columns rather than the old pair, so
@@ -300,6 +324,7 @@ def get_memes_grouped(
         .all()
     )
     memes = drop_hidden_rows(db, viewer, memes, "owner_type", "owner_id")
+    attach_favorites(db, "meme", memes, favorite_user_id)
 
     owner_refs = resolve_entries(
         db, [(m.owner_type, m.owner_id) for m in memes], OWNER_TABLES
@@ -331,12 +356,13 @@ def get_memes_grouped(
 def get_meme(
     meme_id: str,
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(require_view_extras),
+    viewer: Viewer = Depends(require_feature_quotes_memes),
 ):
     """Retrieves a single Meme with its owner and linked-quote data resolved."""
     db_meme = _get_or_404(db, meme_id)
     if not drop_hidden_rows(db, viewer, [db_meme], "owner_type", "owner_id"):
         raise HTTPException(status_code=404, detail="Meme not found.")
+    attach_favorites(db, "meme", [db_meme], favorite_owner(db, viewer))
     owner_refs = resolve_entries(
         db, [(db_meme.owner_type, db_meme.owner_id)], OWNER_TABLES
     )
@@ -377,6 +403,7 @@ def create_meme(
         db.add(db_meme)
         db.commit()
         db.refresh(db_meme)
+        attach_favorites(db, "meme", [db_meme], favorite_owner(db, viewer))
         return db_meme
     except HTTPException:
         raise
@@ -424,6 +451,7 @@ def update_meme(
         db_meme.updated_at = get_taipei_now()
         db.commit()
         db.refresh(db_meme)
+        attach_favorites(db, "meme", [db_meme], favorite_owner(db, admin))
         return db_meme
     except HTTPException:
         raise
@@ -471,6 +499,7 @@ def patch_meme(
         db_meme.updated_at = get_taipei_now()
         db.commit()
         db.refresh(db_meme)
+        attach_favorites(db, "meme", [db_meme], favorite_owner(db, admin))
         return db_meme
     except HTTPException:
         raise

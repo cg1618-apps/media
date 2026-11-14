@@ -283,7 +283,7 @@ export const GAME_ACHIEVEMENT_HINT = "Fully: hidden ones too · Yes: all but hid
 // these fallbacks are simply never overwritten - and never rendered, since
 // no h-comic form is offered to that session.
 export const H_COMIC_REGIONS = ["JP", "KR"];
-export const H_COMIC_ORIGINALITY = ["原創", "同人"];
+export const H_COMIC_ORIGINALITY = ["原版", "同人"];
 export const H_COMIC_ANIMATION_STATUSES = ["Not Animated", "Announced", "Animated"];
 export const H_COMIC_USEFULNESS = ["非常實用", "實用", "特定情況實用", "不實用"];
 
@@ -323,7 +323,7 @@ export const H_GAME_PLATFORMS = ["Steam", "DLsite", "Nintendo", "Other"];
 // The hentai vocabulary of its own (HENTAI_SOURCE_MATERIALS). A hentai also
 // reads H_COMIC_ORIGINALITY and H_COMIC_USEFULNESS above, served for it as
 // for h-comic, and anime's AIRING_STATUSES. Gated the same way.
-export const HENTAI_SOURCE_MATERIALS = ["Original", "Manga", "Novel"];
+export const HENTAI_SOURCE_MATERIALS = ["Original", "Manga", "Novel", "Game"];
 
 export const MUSIC_STATUSES = ["Need", "Pending", "No Full Version", "Done"];
 // The status of a whole song list (an anime's OPs, EDs, insert songs or OST).
@@ -408,12 +408,41 @@ export const OPTION_CATEGORIES = [
   "Character Appearance",
   "Character Trait",
   "Franchise for Filter",
+  // The note sections' field suggestions (NOTE_SUGGESTION_CATEGORIES below).
+  "Character Group",
+  "Collectible Type",
+  "Item Type",
+  "Geography Group",
 ];
 
 // The subset of OPTION_CATEGORIES the admin pages group under their "Tags"
 // sub-tab (TAG_CATEGORIES in app/utils/credit_roles.py). Navigation only -
 // both sub-tabs are the same form over the same system_option rows.
 export const TAG_CATEGORIES = ["Genre Main", "Genre Sub", "Label"];
+
+// The subset of OPTION_CATEGORIES the admin pages group under their "Note
+// Suggestions" sub-tab: the categories a note section's free-text field
+// suggests from (`option_category` on a field of GET /api/notes/sections).
+// Navigation only, like TAG_CATEGORIES.
+export const NOTE_SUGGESTION_CATEGORIES = [
+  "Character Group",
+  "Collectible Type",
+  "Item Type",
+  "Geography Group",
+];
+
+// What a request or report is about, and where it stands (REQUEST_KINDS and
+// REQUEST_STATUSES in app/utils/constants.py). Their human labels are in
+// lib/requests.js.
+export const REQUEST_KINDS = [
+  "new_entry",
+  "data_error",
+  "incomplete_data",
+  "bug",
+  "other",
+];
+
+export const REQUEST_STATUSES = ["open", "done", "declined"];
 
 // Shape-matched to GET /api/constants. Rendered only until the fetch resolves.
 export const CONSTANTS_FALLBACK = {
@@ -466,6 +495,9 @@ export const CONSTANTS_FALLBACK = {
   media_type: MEDIA_TYPES,
   option_categories: OPTION_CATEGORIES,
   tag_categories: TAG_CATEGORIES,
+  note_suggestion_categories: NOTE_SUGGESTION_CATEGORIES,
+  request_kind: REQUEST_KINDS,
+  request_status: REQUEST_STATUSES,
 };
 
 // Every Add/Modify tab imports the arrays above (e.g. `AIRING_STATUSES`) and

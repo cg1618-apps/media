@@ -275,10 +275,8 @@ class TestPermission:
         )
 
     def test_admin_without_self_list_is_refused(self, admin_client, split_run):
-        # The admin is root and holds every non-self permission.
-        assert admin_client.get(
-            f"/api/watch-order/lists/{split_run.system_id}"
-        ).status_code == 200
+        # The admin holds no self.* permission: it follows nothing. The run
+        # is THERE (split_run), so the 401 is the gate's.
         assert _follow(admin_client, split_run).status_code == 401
         assert admin_client.get("/api/watch-order/follows").status_code == 401
 
@@ -303,25 +301,25 @@ class TestOwnerIsImmutable:
     """The copy of the owner on each follow is only sound if this holds."""
 
     def test_patch_cannot_move_an_order(
-        self, admin_client, split_run, sample_collection
+        self, owner_client, split_run, sample_collection
     ):
-        response = admin_client.patch(
+        response = owner_client.patch(
             f"/api/watch-order/lists/{split_run.system_id}",
             json={"franchise_id": None, "collection_id": str(sample_collection.system_id)},
         )
         assert response.status_code == 400
 
-    def test_put_cannot_move_an_order(self, admin_client, split_run, sample_collection):
-        response = admin_client.put(
+    def test_put_cannot_move_an_order(self, owner_client, split_run, sample_collection):
+        response = owner_client.put(
             f"/api/watch-order/lists/{split_run.system_id}",
             json={"franchise_id": None, "collection_id": str(sample_collection.system_id)},
         )
         assert response.status_code == 400
 
     def test_restating_the_same_owner_is_allowed(
-        self, admin_client, split_run, sample_franchise
+        self, owner_client, split_run, sample_franchise
     ):
-        response = admin_client.put(
+        response = owner_client.put(
             f"/api/watch-order/lists/{split_run.system_id}",
             json={"franchise_id": str(sample_franchise.system_id), "list_name": "X"},
         )
@@ -427,11 +425,11 @@ class TestProgress:
         assert (row["done"], row["total"], row["up_next"]) == (1, 1, None)
 
     def test_progress_is_read_from_the_followers_own_rows(
-        self, user_client, db_session, admin_user, sample_franchise
+        self, user_client, db_session, owner_user, sample_franchise
     ):
         """The admin's Completed row says nothing about the member's progress."""
         a = _entry(db_session, models.Anime, sample_franchise, anime_name_en="X")
-        _own(db_session, admin_user.id, a, "Completed")
+        _own(db_session, owner_user.id, a, "Completed")
         lst = _list(db_session, sample_franchise, "Theirs")
         _step(db_session, lst, a, 1)
 

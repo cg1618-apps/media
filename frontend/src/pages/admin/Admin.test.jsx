@@ -8,16 +8,31 @@
 // checks: Free Games With a List Price opens all ticked and zeroes only what
 // is still ticked, Bought Copies Without a List Price only lists, and both
 // leave out an h-game row for a session that may not see the type.
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { fireEvent, render as rtlRender, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import Admin from "./Admin";
 
+// The Announcement & Notes card reads the ["announcements"] query, so every
+// render needs a client; a fresh one per render keeps tests independent.
+function render(ui) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return rtlRender(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+}
+
 const showToast = vi.fn();
 vi.mock("../../hooks/useToast", () => ({ useToast: () => ({ showToast }) }));
+// The pending-registrations panel has its own test and needs a query client.
+vi.mock("./PendingRegistrations", () => ({ default: () => null }));
+// Every permission by default; a test narrows `held` to drop one.
+const session = vi.hoisted(() => ({ held: null }));
 vi.mock("../../contexts/AuthContext", () => ({
-  useAuth: () => ({ has: () => true, visibleGatedTypes: [] }),
+  useAuth: () => ({
+    has: (p) => (session.held ? session.held.includes(p) : true),
+    visibleGatedTypes: [],
+  }),
 }));
 
 const SYNC_CAST = "/api/data-control/calculate/sync-cast";
@@ -133,6 +148,37 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  session.held = null;
+});
+
+describe("Control Center announcements", () => {
+  // The editor asks manage.announcements, not the page's manage.pipelines.
+  // The refusal holds manage.pipelines (the page is drawn: Sync Cast is
+  // there), so the missing editor is its own gate's doing; the admin's set,
+  // which holds both, is the mirror.
+  it("draws no announcement editor without manage.announcements", async () => {
+    session.held = ["manage.pipelines"];
+    render(
+      <MemoryRouter>
+        <Admin />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole("button", { name: /Sync Cast/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add announcement" })).toBeNull();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+  });
+
+  it("draws it for the admin, who holds manage.announcements", async () => {
+    session.held = ["admin.authz", "manage.pipelines", "manage.announcements"];
+    render(
+      <MemoryRouter>
+        <Admin />
+      </MemoryRouter>,
+    );
+    expect(
+      await screen.findByRole("button", { name: "Add announcement" }),
+    ).toBeInTheDocument();
+  });
 });
 
 describe("Control Center Sync Cast", () => {

@@ -26,7 +26,7 @@ const renderSection = (props = {}) =>
     <TextLinksSection
       section={EASTER_EGGS}
       notes={[]}
-      isAdmin
+      canWrite
       onCreate={() => {}}
       onUpdate={() => {}}
       onDelete={() => {}}
@@ -91,4 +91,56 @@ it("sends an episode, a description and several URL strings", async () => {
     content: "The poster.",
     links: ["https://b23.tv/x", "https://a.example/y"],
   });
+});
+
+// --- Quick move between the 待辦 buckets ----------------------------------
+
+// A todo bucket as /api/notes/sections serves it: `move_targets` names the
+// owner's other buckets.
+const TODO_NOW = {
+  key: "todo_now",
+  shape: "text_links",
+  label: "現在 Now",
+  locator_placeholder: null,
+  locator_required: false,
+  desc_required: true,
+  link_pairs: false,
+  fields: [],
+  move_targets: [
+    { key: "todo_next", label: "下一步 Next" },
+    { key: "todo_later", label: "之後 Later" },
+  ],
+};
+
+const TODO_ROW = { system_id: "t1", locator: null, content: "Beat Margit", links: [] };
+
+it("moves a row to another bucket from its own select", async () => {
+  const onUpdate = vi.fn();
+  renderSection({ section: TODO_NOW, notes: [TODO_ROW], onUpdate });
+  const move = screen.getByRole("combobox", { name: "Move Beat Margit to" });
+  expect([...move.options].map((o) => o.textContent)).toEqual([
+    "Move to…",
+    "下一步 Next",
+    "之後 Later",
+  ]);
+  await userEvent.selectOptions(move, "todo_later");
+  expect(onUpdate).toHaveBeenCalledWith("t1", { section: "todo_later" });
+});
+
+it("offers no move on a section without targets", () => {
+  renderSection({ section: { ...TODO_NOW, move_targets: [] }, notes: [TODO_ROW] });
+  expect(screen.queryByRole("combobox", { name: /^Move / })).toBeNull();
+  // Mirror: the row is still editable, so absence is the missing targets.
+  expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
+});
+
+it("offers no move to a reader who cannot edit", () => {
+  renderSection({ section: TODO_NOW, notes: [TODO_ROW], canWrite: false });
+  expect(screen.queryByRole("combobox", { name: /^Move / })).toBeNull();
+});
+
+it("hides the move while the row is being edited", async () => {
+  renderSection({ section: TODO_NOW, notes: [TODO_ROW] });
+  await userEvent.click(screen.getByRole("button", { name: "Edit" }));
+  expect(screen.queryByRole("combobox", { name: /^Move / })).toBeNull();
 });

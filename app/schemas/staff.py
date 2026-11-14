@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 from app.schemas.image_focus import ImageFocus
 from app.utils.credit_roles import PERSON_ROLES, legal_scopes
-from app.utils.entity_vocab import check_gender, check_my_rating
+from app.utils.entity_vocab import check_gender
 
 
 class PersonRoleIn(BaseModel):
@@ -68,7 +68,6 @@ class PersonBase(BaseModel):
     name_alt: Optional[str] = None
     display_name_field: Optional[str] = None
     gender: Optional[str] = None
-    my_rating: Optional[str] = None
     photo_file: Optional[str] = None
     photo_focus: ImageFocus = None
     # The entry whose cover stands in when photo_file is NULL; see
@@ -89,8 +88,8 @@ class PersonBase(BaseModel):
 
 class PersonWrite(PersonBase):
     """
-    What Create and Update share: gender and my_rating are closed
-    vocabularies (app/utils/entity_vocab.py), "" meaning NULL.
+    What Create and Update share: gender is a closed
+    vocabulary (app/utils/entity_vocab.py), "" meaning NULL.
 
     Not on PersonBase, which PersonResponse also extends: a response reports
     what is stored and has no business refusing it.
@@ -100,11 +99,6 @@ class PersonWrite(PersonBase):
     @classmethod
     def _known_gender(cls, v):
         return check_gender(v)
-
-    @field_validator("my_rating")
-    @classmethod
-    def _known_rating(cls, v):
-        return check_my_rating(v)
 
 
 def _has_a_name(payload: PersonBase) -> bool:
@@ -152,6 +146,10 @@ class PersonUpdate(PersonWrite):
 
 class PersonResponse(PersonBase):
     system_id: UUID
+    # The VIEWER'S own rating, from user_rating (services.domain.user_rating
+    # .attach_ratings); null for a guest. Not on the Base: a catalogue write
+    # does not carry it - PUT /api/me/ratings/... does.
+    my_rating: Optional[str] = None
     # The id the SPA puts in the URL. Never gated: a viewer allowed to see the
     # entry must be able to link to it.
     public_id: int
@@ -183,7 +181,6 @@ class StudioBase(BaseModel):
     name_jp: Optional[str] = None
     name_alt: Optional[str] = None
     display_name_field: Optional[str] = None
-    my_rating: Optional[str] = None
     logo_file: Optional[str] = None
     logo_focus: ImageFocus = None
     remark: Optional[str] = None
@@ -219,6 +216,10 @@ class StudioUpdate(StudioBase):
 
 class StudioResponse(StudioBase):
     system_id: UUID
+    # The VIEWER'S own rating, from user_rating (services.domain.user_rating
+    # .attach_ratings); null for a guest. Not on the Base: a catalogue write
+    # does not carry it - PUT /api/me/ratings/... does.
+    my_rating: Optional[str] = None
     # The id the SPA puts in the URL. Never gated: a viewer allowed to see the
     # entry must be able to link to it.
     public_id: int

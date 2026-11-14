@@ -1,6 +1,6 @@
 # Design decisions
 
-Last verified: 2026-10-30
+Last verified: 2026-11-14
 
 ## What this is for
 
@@ -3750,3 +3750,1379 @@ and not by `guest`, rather than as checks for "is anybody logged in".
   holding nothing, so an established `user` role would never have received
   the keys and every member would have lost the entity pages on deploy.
   `super` needs no rows from it: the lock reconciliation adds them on start.
+
+## 2026-11
+
+### Recently added per type, and the shared account's one picker (2026-11-14)
+
+- **`/api/dashboard/recent` cuts per type, not overall.** The dashboard draws
+  one section per type, and newest-overall lets one busy type crowd every
+  other off the page. It takes `per_type` (1–24, default 6) instead of
+  `limit`, and answers in one query: the visible entries numbered newest
+  first within their type by `row_number()` and cut there, `system_id`
+  breaking a `created_at` tie. The response stays a flat `RecentEntry[]`, so
+  the schema did not change; the page groups it. Anime's second row is the
+  page's to ask for (`per_type=12`, keeping six of every other type) rather
+  than a server rule about one type.
+- **A row is the grid's column count at that width**, 2 / 3 / 4 / 6, not a
+  fixed number of cards. A fixed count leaves a ragged last row at every
+  width but the one it was picked for. The page fetches enough for the widest
+  grid and hides the cards past the last full row at the narrower ones.
+- **"Shared account" on the picker is `view.random_picker` without
+  `self.list`**, the pair `dashboardSections.js` already reads for Recently
+  added, rather than "no list" alone. A session without the picker key never
+  reaches the page in the app, so for it the list-less full picker stays as
+  it was.
+- **Release decade needed no new derivation.** The full picker already had
+  it, from `RELEASE_PRIORITY`, and its per-type columns were checked against
+  the models: `release_date` everywhere except anime movie (`_jp` then `_tw`)
+  and movie (`_tw` then `_usa`). The shared picker reuses that def.
+
+### Requests and reports: two permissions, and the owner's seven answers (2026-11-13)
+
+Requests and reports were built before the `shared` role and before the admin
+stopped being root. They sit behind two permission names, so the role rework
+changes only grants and nothing in the feature itself.
+
+- **Filing is `self.requests`.** It is ownership of your own rows, so it
+  belongs in the `self.*` family. `Viewer.has()` does not short-circuit that
+  family for the root role, and the guest lock table locks it off, so "not
+  guests, not the admin" holds by construction rather than by a check in
+  every route. **Handling is `manage.requests`**, a capability like
+  `manage.catalog`. When the role rework lands, `shared` is granted
+  `self.requests`, and the admin's fixed set has to include
+  `manage.requests`. `test_admin_handles_requests` fails if it does not.
+- **The table is `user_request`, not `request`**, because `fastapi.Request`
+  is imported across the routers.
+- **The target is an FK-less `(type, id)` pair**, the convention `quote` and
+  `meme` use, with the name stored at filing time. A deleted entry still
+  reads as what it was. The author is `ON DELETE SET NULL`, because nothing
+  is removed automatically.
+- **The owner's answers**, each kept in one place:
+  1. Requests do not travel on Sheets. They are messages to the production
+     site; the box's dump holds them, and a Pull would otherwise overwrite
+     the box's inbox with a development machine's.
+  2. A role change on `/users` resets the limit to the new role's default,
+     unless the same save sets the limit.
+  3. Super's "no limit" is fixed. It is never stored and never enforced.
+  4. The handler's response is optional when marking a request done or
+     declined.
+  5. "Report a problem" sits at the right-hand end of the breadcrumb row.
+     That is provisional, pending the owner's design. The end of the header
+     action row was asked for, but that row is drawn only for
+     `manage.catalog`, so a `user` would never have seen the button.
+  6. A handler can reopen a closed request, which lets the filer edit it
+     again: a request closed by mistake should not be stuck.
+  7. The filer sees the handler's response, not only the status, because
+     a decline with no reason reads as a brush-off. This is one switch,
+     `SHOW_RESPONSE_TO_FILER` in `MyRequests.jsx`.
+- **The open-request limit does travel on the Users tab.** It is an account
+  setting like `disabled`, and a Pull must not reset it. A blank cell means
+  no limit, and an older sheet without the column leaves the local value
+  alone.
+
+### An account has a mode ceiling and a default, not a held mode set (2026-11-13)
+
+- **An account has a ceiling and a default, not a set of modes.** The four
+  modes are ordered `safe < normal < borderline < unrestricted`
+  (`seed_modes.MODE_ORDER`, compared with `mode_rank`). An account may use
+  every mode at or below `users.mode_ceiling` and lands in
+  `users.mode_default`. A held set could express a gap (`safe` and
+  `borderline` without `normal`) that nobody had a use for, and it needed a
+  partial unique index to keep the default inside it; the ceiling needs one
+  CHECK constraint.
+- **Keys, not `access_mode` ids.** The order is defined on keys in code, the
+  four keys are fixed, and a key means the same on both machines, so the
+  pair travels on the Sheets `Users` tab without being resolved. An id is
+  minted per database and would need the same name-resolution step the role
+  needs.
+- **Denials hang off the account and apply in every mode.** Re-keying the
+  denial from the grant row to the account was the only shape left once
+  there is no grant row. The migration takes the union of an account's
+  denials across its grants, which is a narrowing, never a widening.
+  `set_mode_ceiling` deletes the denials a lowered ceiling no longer shows,
+  so a denial always names something the account could otherwise reach.
+- **The switch's password test stays the subset test on effective sets.**
+  With uniform denials it agrees with a rank comparison everywhere except
+  from the empty set, where a rank says "widening" and the subset test
+  correctly says moving to `safe` with its labels denied adds nothing.
+  Which modes are *available* is the rank comparison; what a switch *costs*
+  is the subset test.
+- **A mode above the ceiling resolves the empty set**, exactly as a revoked
+  grant did. Falling back to the default or to the ceiling would let a
+  lowered ceiling leave a session somewhere it was never put.
+- **A new account starts at `normal` / `normal`** (the spec's settled
+  default for the approval form and for `/users`), from the columns'
+  default rather than from handler code, so a Pull from a sheet that
+  predates the columns lands there too.
+- **The fresh `admin` account is seeded at `unrestricted` / `unrestricted`**,
+  the faithful mapping of the root role, which sees everything. The
+  account-system design gives `admin` no mode at all; that lands with the
+  change that removes its user data, not here.
+- **The migration's owner case.** `cg1618` is set to `unrestricted` /
+  `borderline` whatever it held, as the owner settled. Every other account
+  gets the widest mode it held as its ceiling, filling any gap below it; the
+  migration logs each account whose held set had one, so a gap filled on the
+  box shows in the deploy log. The downgrade recreates one grant per mode up
+  to the ceiling with the default flagged, and copies each denial onto every
+  grant; the only thing it cannot restore is a gap the upgrade filled.
+- **A pair the constraints would refuse is skipped on Pull, not allowed to
+  roll the tab back.** `ck_users_mode_*` would raise at the tab's commit and
+  take every account with it, the failure shape the Users tab already guards
+  against for roles. The row lands; its pair stays local and is reported.
+- **`GET /api/access-modes` serves each mode's `rank`**, so the Users page
+  orders its ceiling and default selects without keeping a second copy of
+  the order. A mode an admin creates has no rank and no ceiling reaches it.
+
+### Notes rework, catalogue half (spec: 2026-11-12 notes-rework-design)
+
+The half of the notes rework that needs nothing from the account work, in one
+revision, `n1o2tesrwk3`. The personal half - the amount collected, the NG
+reset button, 下周目目標 - came with the account rework: 下周目目標 under
+"Highlights are each account's own", the amount collected and the NG reset
+under "note marks", both below.
+
+- **地理 Geography sits in 圖鑑與名詞 Compendium & Terms, for game and h-game
+  alike.** It is declared straight after 敵人 Enemies, because "where is it"
+  is the next question after "what is it". 世界觀 Worldbuilding was the other
+  candidate, but it is game-only; filing 地理 there would have needed a
+  `groups_by_owner` override for h-game, while a card both types share needs
+  none. Confirmed by the owner.
+- **Only a top-level 地理 row carries a group.** The section both nests and
+  groups, and a child already belongs to its root's group by being under it,
+  so a child's own group would be a value nothing reads. The backend refuses
+  one (422), the grouped view groups the roots and draws each subtree under
+  its root, and `_check_groupable_by` now accepts a hierarchical section only
+  when the field it groups by is column-backed.
+- **Suggestions are field-level, `NoteField.option_category`.** The guide
+  sections' free-text group and type fields wanted suggestions without
+  becoming closed lists, and the existing `kind_category` names one category
+  for a whole section, where a structured section has several free-text
+  fields. Only a free-text `select` may name one, checked at import.
+- **Only four categories: Character Group, Collectible Type, Item Type,
+  Geography Group.** Adding a fifth is a registry edit, not an admin action.
+  攻略資源 Guide Resources gained a group but no category: the spec named
+  none.
+- **The admin sub-tab is "Note Suggestions"**, a third beside Options and
+  Tags on `/add`, `/modify` and `/delete`. The categories are the same
+  `system_option` structure as everything under Options, and the split is
+  navigation only, but they serve the notes rather than the entry forms, so
+  they get their own tab rather than lengthening Options. Song Type and Song
+  Source, named by a section rather than a field, stay under Options.
+  Confirmed by the owner.
+- **The seeds carry no scope rows**, so both game and h-game are offered
+  them; 可攻略 is not scoped to h-game.
+- **The amount total is text**, like the stat values. There is no number
+  field type, and adding one was not this work.
+- **NG Reset defaults to yes**, the commoner answer. The revision backfills
+  `yes` on every existing row of the three 物品 sections, and a row with no
+  key at all (an older sheet row) is read as yes rather than refused.
+- **`collected` joins the collect statuses** after `not collected`, for a
+  one-off thing that is simply had; "enough" and "fully" stay for a thing
+  collected in quantity.
+- **The gated types drop 評論 Reviews and Comments** for 大眾評價 Public
+  Reviews and 我的評價 Personal Reviews, like every other type. Every
+  `reviews_and_comments` row moved to `public_reviews` with its `author_id`
+  kept as provenance - a personal section's rows becoming a catalogue
+  section's. A sheet backed up before the move still names the old key, and
+  Pull files those rows the same way; a POST naming it is a 400 like any
+  unknown section.
+- **The 待辦 buckets quick-move.** A "Move to…" select beside Edit and Delete,
+  the pattern ResourceTree already uses, so no new layout. A PATCH that
+  changes `section` without a `sort_index` now appends the row to the end of
+  its new section; it used to keep an index that ordered it among rows it
+  had left.
+- **The downgrade puts back what the older registry can say, and clears what
+  its validator would refuse.** `public_reviews` and `personal_reviews` rows
+  on an h-comic, hentai or h-game go back to `reviews_and_comments` - exact
+  for the moved rows, and the nearest home for a personal review written
+  since. `collected` becomes `fully collected`, the old vocabulary's nearest
+  truthful value. `ng_reset` and `amount_total` leave `fields`, and a guide
+  resource's group is cleared. 地理 rows are left in place, untouched by the
+  older code, and the option seeds stay. Not marked `irreversible`: every row
+  the upgrade rewrote comes back with the same content.
+
+### Labels and modes are code, and what a mode shows is derived (2026-11-13)
+
+The six content labels (`app/services/rbac/labels.py`) and the four access
+modes (`MODE_ORDER` in `app/services/rbac/seed_modes.py`) are defined in
+code. Each label and each field group names the lowest mode that shows it,
+and a mode shows everything at or below it. `cache.mode_sets` derives both
+sets from the mode's key; `access_mode_label` and `access_mode_field_group`
+were dropped by `l1a2belcode3`. Only a mode's name, description and display
+order stay adjustable, and the label rows remain only as the foreign-key
+target of the assignment tables, rewritten from the code on every start.
+
+- **A ceiling needs each mode to contain the one below it.** Stored sets
+  could not guarantee that: any edit could leave `normal` showing something
+  `borderline` hides, and nothing would notice. Deriving every set from one order makes
+  the containment true by construction.
+- **Every database shows the same.** `access_mode_label` did not travel on the
+  sheet, so each database's modes showed whatever had been ticked on that
+  machine, and two databases could silently disagree about who sees an entry.
+  With the rule in code, the answer is the same on every machine and in
+  production.
+- **`unrestricted` shows every label row**, not just the six the code names.
+  A row nobody expected then stays reachable in the widest mode and hidden in
+  every other: fail-closed everywhere but the one mode that means
+  "everything".
+- **Unknown labels are refused, not guessed at.** The migration deletes one
+  nothing cites, and otherwise stops and names it. Deleting a cited label
+  would silently publish its entries; keeping it would leave a label no code
+  knows. A Pull skips a sheet row whose key the code does not name, and
+  reports it.
+- **Unknown modes are deleted outright.** The revision runs after the mode
+  ceiling (`m1c2eiling345`), whose `ck_users_mode_keys` already keeps every
+  account's ceiling and default to the four keys, so no account can be using
+  any other mode and there is nothing to stop for. With the sets derived, the
+  mode create, delete and regrant routes went too, which retires the ceiling
+  entry's "a mode an admin creates has no rank": there is no such mode any
+  more.
+- **Rejected: keep the stored sets and validate monotonicity on write.** It
+  would still be per-database and still absent from the sheet, so the
+  databases would keep disagreeing; it would only stop one kind of bad edit.
+
+### Every other label is stored with `nsfw`, not implied (2026-11-13)
+
+`app/services/domain/label_rules.py` attaches `nsfw` beside any other label
+on every write path, and refuses (422) a write that drops it while another
+label stays. Revision `n1s2fwrule34` backfilled the rows written before the
+rule: on the company database, 249 entries and 233 franchises, almost all of
+them gated types that carried only their own label.
+
+- **Stored, so a reader never needs the rule.** Implying `nsfw` would mean
+  every query asking "is this nsfw" also knowing which labels imply it — the
+  label filter, the reference counts, the sheet a human reads. A stored row
+  answers by itself.
+- **Refused, not silently re-added, when `nsfw` is dropped.** A PUT that keeps
+  `erotica` and drops `nsfw` is a contradiction, and quietly putting `nsfw`
+  back would make the form lie about what was saved. A first label, by
+  contrast, brings `nsfw` with it, since that write states no contradiction.
+- **No constraint enforces it.** A CHECK cannot see across rows; a trigger
+  could, but every write path already goes through one function, and the
+  invariant pass after a Pull and in Calculate catches anything written
+  straight to the tables.
+
+### A label and its 標籤 Label tag in step (2026-11-13)
+
+`nsfw`, `ecchi` and `erotica` each have a 標籤 Label tag (NSFW, 輕微色情,
+擦邊肉番 - 肉番 renamed, 輕微色情 new), and on an entry the two are kept in
+step both ways, as the spec's "Content labels" section settled. Decisions
+made while building it:
+
+- **The tag is a field on the label definition** (`labels.py`, `tag`), not a
+  second table: a label has at most one tag, and the mapping is a rule.
+- **Each write path converts at the route**, inside its own transaction: the
+  label PUT rewrites the tags after the label rows, the credits PUT resolves
+  `tags.label` into labels before any write so a refused NSFW removal leaves
+  nothing half-applied. `replace_tags` itself stays a plain writer, because
+  Pull calls it and Pull must not 422.
+- **Pull reconciles with the label winning**, as the spec says; it runs after
+  the Label-field entry tabs and `Media Content Label`, and at the end of the
+  gated invariant pass, so Calculate repairs drift too.
+- **The one-time backfill (`t1a2gsync345`) is the UNION of the two sides,
+  not label-wins.** Label-wins would have deleted tags the owner typed; a
+  tag-wins pass would have deleted labels. The union deletes nothing and can
+  only hide - a tag becoming a label never reveals anything. On the home
+  development database it added tags only: no entry carried NSFW or 肉番, and
+  26 carried `nsfw` or `erotica` without the tag.
+- **The three tags are scoped to all nine Label-field types**, since a scoped
+  option is offered only where it is scoped, and they had been scoped to
+  anime alone.
+- **The form keeps the two controls in step live**, so the order Add and
+  Modify save in - tags, then labels - cannot silently revert an edit made in
+  only one of them.
+
+### Content labels on collections and series (2026-11-13)
+
+Collections and series carry content labels of their own, as entries and
+franchises already did, and a group's labels cascade down the tree: a
+collection hides itself, its franchises, their series and every entry under
+them; a franchise hides itself, its series and its entries; a series hides
+itself and its entries. Revision `g1r2plabels3` creates both tables empty, so
+nothing became hidden on upgrade. This reverses the earlier choice, recorded
+above under the franchise cascade, to leave series out: a group's label is now
+a thing the owner can set at every tier, rather than only at the franchise.
+
+- **One join table per tier, not a polymorphic owner.**
+  `collection_content_label` and `series_content_label` copy
+  `franchise_content_label`'s shape exactly. A single table with an
+  `(owner_type, owner_id)` pair could not carry a real foreign key, so a
+  deleted group would leave its label rows behind and nothing in the database
+  would say which table an id meant; a nullable column per tier could name two
+  owners or none. Three small tables keep a real `ON DELETE CASCADE` each, and
+  the code that treats them alike is one map, `GROUP_LABEL_TABLES`.
+- **Read-time cascade, nothing copied.** As with the franchise cascade, no
+  label row is written onto anything below a labelled group. Each tier's
+  condition in `enforcement.py` is built from the one above it
+  (`_collection_hidden` → `_franchise_hidden` → `_series_hidden` →
+  `_hidden_by_label`), so moving a franchise out of a labelled collection, or
+  clearing the collection's labels, reveals everything under it at once.
+- **An entry is hidden by its series in full as well as by its own
+  franchise.** An entry records both `media.franchise_id` and
+  `media.series_id`, and its series records `series.franchise_id`. They
+  normally name the same franchise, but nothing forces it. Asking only the
+  entry's franchise would let a hidden series' franchise chain miss the entry;
+  asking only the series would miss an entry with no series. Hiding on either
+  is the direction that cannot leak, so `_hidden_by_label` asks both.
+- **Nothing cascades up or sideways.** A series' label does not hide its
+  franchise or its sibling series, and a franchise's does not hide its
+  collection: a label marks what is inside the thing labelled, not the
+  umbrella around it.
+- **Groups have no 標籤 Label tag and no gated-type required label.** The
+  Label tag is a vocabulary field on the entry tables only, and the gated-type
+  rule needs a type, which a collection and a series do not have; the
+  franchise keeps its own rule because its type list names gated types. The
+  `nsfw` rule does apply to every tier: `add_missing_nsfw` covers all four
+  join tables.
+- **Labels travel on two more `admin.authz` tabs.** `Collection Content Label`
+  and `Series Content Label` are derived-identity tabs like `Franchise Content
+  Label`, so Pull's authorization tabs became six. Each fails open, as the
+  others do: a Pull without the tab restores every collection or series
+  unlabelled.
+
+### Account lifecycle, first half: status, revocation, reset links (2026-11-13)
+
+Accounts can be disabled, have their sessions ended, and be recovered by a
+link the admin hands over. Invite links and approval are the second half,
+below.
+
+- **Revocation is a counter, not a session table.** Each login token carries
+  `sv`, the account's `users.session_version` when it was minted. A token
+  whose `sv` differs resolves as the guest. One increment ends every session
+  at once, with no token list to keep. A token without `sv` reads as 0, so the
+  deploy that added the claim signed nobody out. Every increment goes through
+  `revoke_sessions()`, so grepping that name answers "what signs an account
+  out".
+- **What ends sessions, as the owner decided:**
+  - **A spent reset link and disabling.**
+  - **The admin setting a password on `/users`**, as the spec's hardening says
+    and the owner confirmed. A new password is worthless against a leaked
+    shared login if the old sessions carry on.
+  - **Not changing your own password**, since you are the one holding the
+    session.
+- **When the admin sets its own password**, every session still ends, and the
+  browser that made the change is given a fresh cookie at the new counter
+  (the owner's decision). Without it, the admin would sign itself out
+  whenever it used `/users`, its only way to change its password (the root
+  role does not hold `self.password`). Django's `update_session_auth_hash`
+  does the same. **The fresh cookie keeps the original deadline**: logins
+  are a flat 30 days with no refresh, so a reissue minting a new month would
+  let any password change extend a session without end.
+- **No password policy**, by the owner's decision. There is no minimum length
+  and no composition rule. Two technical checks remain:
+  - **An empty password is refused**, since it is no credential at all.
+  - **Past 72 UTF-8 bytes is refused rather than truncated.** bcrypt reads only
+    72, so truncating would accept a different password that matches up to
+    byte 72. `verify_password` still slices to 72, so an account set before
+    the check still signs in.
+- **Codes are hashed with SHA-256, not bcrypt.** They are 32 random bytes,
+  and that much entropy needs no slow hash. A fast one lets the row be found
+  by its hash. Spending locks the row (`FOR UPDATE`), so two requests racing
+  with one link cannot both use it. A failed password check rolls the spend
+  back, so a typo does not burn the link.
+- **Rate limiting is an in-process counter, not slowapi.** The box runs one
+  uvicorn process, and login needs a per-username key, which slowapi's
+  per-route keys do not give. A second worker process would need a shared
+  store. **The per-username limit is checked before the password**, so five
+  wrong guesses lock that name for 15 minutes even for its real owner. That
+  is the standard price of brute-force protection, accepted. Letting a
+  correct password through the lock would undo the protection.
+- **`disabled` travels on the Sheets Users tab, `session_version` never
+  does.** A Pull must not re-activate a disabled account on the other machine.
+  The counter, though, is a count of this machine's logins.
+- **A shared account may be disabled** (the owner's decision). Disabling is
+  reversible, unlike the deletion the spec forbids, and it is the fastest way
+  to stop a leaked shared login while its new password is handed out.
+- **Usernames are unique ignoring case**, by a `lower(username)` index. The
+  `[a-z0-9_-]{3,32}` and no-`admin`/`guest` rules apply to new names only,
+  so the `admin` account keeps its name.
+
+### Ratings, expectations and the unit remark are each account's own (2026-11-13)
+
+The rating of a collection, franchise, series, character, person, studio or
+publisher, the expectation of the three tiers, and a novel unit's remark were
+columns on the shared rows: one person's opinion, shown to everybody, nulled
+for a viewer without `view.personal` by a `personal_gate` module. They moved
+to per-account rows (revision `u1r2atings3`), so `personal_gate` had nothing
+left to gate and was deleted, and `view.personal` now gates only the
+highlight note sections. That retires the "null, not absent" and
+`manage.catalog` exemption bullets of the `view` family entry above.
+
+- **One `user_rating` table, not seven.** The seven ratings and three
+  expectations are one concept, read one way (`attach_ratings`, one query
+  per page) and written one way (`PUT /api/me/ratings/{owner_type}/{owner_id}`).
+  Seven tables would be seven models, seven Sheets tabs and seven copies of
+  the same delete-when-empty rule. The owner is one FK column per owning
+  table with a `num_nonnulls(...) = 1` CHECK - the shape `note` and
+  `watch_order_follow` already use - rather than an `(owner_type, owner_id)`
+  pair, because a real foreign key cascades: deleting the franchise or the
+  account takes the rating with it, where an FK-less pair leaves orphans for
+  somebody to sweep. The expectation is one `expectation` column with a CHECK
+  that it sits only on a tier; the responses keep their old per-tier field
+  names, so the frontend's sorts, filters and statistics did not change.
+- **The unit remark sits beside the unit rating**, on
+  `user_novel_unit_rating`. It is the same kind of thing one level down - a
+  reader's note on one volume - and that table already existed per reader,
+  so a second unit table would have been a second row to join for one
+  reader's view of one unit.
+- **The migration's owner query is frozen, and never reads `role.is_root`
+  nor picks `guest` or `shared`.** The existing values were one person's, so
+  they move to the installation owner: the flag holder, else the first
+  active account by username whose role is none of `admin`, `guest` and
+  `shared` - a pending registrant or a disabled account never receives them,
+  and `'active'` is a literal for the same reason the role names are; with
+  values to move and no such account it raises rather than guesses. The
+  query is a literal in the revision, not an import of
+  `installation_owner_id`, because a migration must keep meaning what it
+  meant when it ran, and that function's fallback reads `role.is_root`,
+  which the account rework is to drop, so a revision reading it would stop
+  running once that lands. Production may lack the flag, and the runtime
+  fallback ("first non-root") would happily name a `guest` or `shared`
+  account - handing the owner's ratings to a login anyone may use. Downgrade
+  restores only the owner's values, since the old columns hold one person's;
+  every other account's rows are lost, said in the docstring, and the
+  revision is not marked `irreversible` because the owner's data, all the
+  old shape could hold, comes back whole.
+- **Old-sheet headers are handled in `legacy_personal.py`, not `pull.py`.**
+  A backup taken before the revision carries `my_rating`, the
+  `*_expectation` columns and the unit `remark` on its catalogue tabs, and
+  Pull files them under the installation owner rather than dropping them.
+  `tests/services/test_pipelines_write_no_personal_columns.py` forbids every
+  pipeline module from naming a personal column, `my_rating` among them, so
+  `pull.py` cannot spell those headers. Adding `my_rating` to the guard's
+  `ALLOWED` would have exempted it in every pipeline file, including the
+  ones that must never write a list row's rating. A domain module that owns
+  the header names, pops the values and writes them keeps the guard whole:
+  Pull asks it which headers are legacy and never writes a personal row
+  itself.
+- **Writes sit under `self.list`**, the permission every other piece of an
+  account's own data is written under, so the admin - which the root
+  short-circuit does not give the `self` family - keeps no ratings. The
+  catalogue create and update schemas dropped the fields, so a
+  `manage.catalog` write cannot make one account's opinion everybody's.
+- **A merge moves ratings to the survivor** where that account has none
+  there, and drops the loser's otherwise - the survivor's own rating wins,
+  as its columns do in `merge_fill`.
+
+### Highlights are each account's own, and so is their group order (2026-11-13)
+
+The six highlight sections - `highlights`, `highlight_episodes`,
+`highlight_passages`, `highlight_moments`, `h_comic_highlights`,
+`h_game_highlights` - are an opinion of the work, and became personal note
+sections. Revision `h1i2ghlights3` re-authors their rows to the installation
+owner (the frozen `OWNER` rule `u1r2atings3` uses), so the person they were
+written for still reads them. 下周目目標 (`ng_goals`) arrived as a personal
+`text_links` section in NG 多周目 at the same time - a plan for one's next run
+is one person's, like the 待辦 buckets it sits before.
+
+- **The group order is a table, not a hidden note section.** An h-comic's or
+  h-game's highlight group order was a JSONB column on the entry; once the
+  rows are per account, the order of their groups has to be too.
+  `user_highlight_group_order (user_id, media_id, group_order)` is the
+  `user_rating` shape: one row per account per entry, read and written
+  whole, deleted when cleared, cascading with either end, and attached to the
+  entry under the old field name so the page reads `highlight_group_order` as
+  before. A hidden personal note section would have reused the note router's
+  author rules for free, but it would be a section the registry has to
+  exclude from every listing, a singleton rule to enforce per author, and a
+  JSON list stored in a column (`fields`) designed for one row's named
+  fields - and its Sheets travel would be by note uuid rather than by the
+  natural key (`media_type`, `public_id`, `username`) every per-user tab
+  uses. The write is `PUT /api/me/highlight-group-order/{media_id}` under
+  `self.personal_notes`, the permission the highlight rows are written under,
+  rather than `self.list`, because the order is part of those notes. A JP
+  h-comic has no highlights section, so turning one JP deletes every
+  account's order on it, as the column used to be cleared.
+- **No per-row `mine` flag on `NoteResponse`.** The plan offered either the
+  user id on `/me` or a `mine` flag on each note so the page could tell its
+  own rows from others'. Neither is needed: `GET /api/notes` returns a
+  personal section's rows only when the viewer wrote them, so every personal
+  row a viewer is served is its own, and `NoteSectionOut.scope` already
+  tells the page who may write a section (catalogue → `manage.catalog`,
+  personal → `self.personal_notes`). A flag would restate the read rule on
+  every row and widen nothing.
+- **`view.personal` is removed, not left empty.** It existed only to withhold
+  `highlights` and `highlight_episodes` - catalogue rows that read as
+  opinion - from guests. Once those sections are personal a guest has none to
+  read, so the key gated nothing; a permission that gates nothing still
+  draws a checkbox on the role editor that appears to mean something. It
+  left `VIEW_PERMISSION_KEYS`, and with it the seeds and the lock
+  reconciliation, which derive from that tuple; the revision deletes the
+  stored grants, and its downgrade does not restore them because which roles
+  held it is recorded nowhere.
+
+### Some values on a catalogue note row are each account's own: note marks (2026-11-13)
+
+The account spec splits eleven catalogue sections: the row - the item, the
+enemy, the ending, the stat, the song, the mod - stays catalogue, and
+`collected` (with the new amount collected), `beaten`, `completion`,
+`my_value`, and the music and mod `status` become each reader's own. The
+registry marks them (`NoteField.personal`, and `NoteSection.personal_status`
+for the two shapes with no field spec); revision `n1o2temarks3` moves today's
+values into the installation owner's marks and clears them from `note`.
+
+- **One JSONB mark per account per row, the `game_choice_mark` shape.**
+  `note_mark (user_id, note_id, values)`, unique per pair, cascading with
+  either end. One row per value would give the same answer with a row per
+  key and a key column the registry already names; a typed column per value
+  would be a migration for every personal field added, which the registry
+  exists to avoid (adding a section, or a field, is "one entry and no
+  migration"). The values are a handful of short strings per row, never
+  queried across rows except the review queue's one `values->>'status'`
+  filter, so JSONB costs nothing here. Its keys are the registry's field
+  keys, `"status"` for a section-level status, checked on write.
+- **Overlay in place, not a parallel structure.** Every `NoteResponse` puts
+  the viewer's value where the field lives - the `status` column, or
+  `fields[key]` - so the response shape is the one the page, its quick edit
+  and its status bars already read, and the sections listing says what is
+  personal (`personal`, `granted`, `personal_status`, `status_granted`)
+  rather than moving it. A separate `marks` object on each row would have
+  made every reader of a row learn two places for one value. The cost is
+  that a row's own `status` / `fields` now never mean the stored value for
+  those keys; the overlay overwrites them always, so a stale value left on a
+  row cannot leak, and a catalogue write drops them, so none is stored.
+- **An unmarked value reads its default, else null.** The spec says a user
+  with no mark sees "the field's empty value". The registry already declares
+  what a field reads before anyone sets it (`collected` → not collected,
+  `beaten` → to beat, the list status → Not Done), and the page drafts new
+  rows from it, so that default IS the empty value; a field declaring none
+  (`completion`, `my_value`, a song's status) reads null. Storing a default
+  would make every unmarked account look like it had answered.
+- **A catalogue write ignores a personal key rather than refusing it.** The
+  page sends a row back whole, drawn with the viewer's values; refusing
+  those keys would fail every edit. They are dropped before validation, so a
+  row whose only content was a personal value is empty in the catalogue - and
+  a PATCH of a row that was already empty (the migrated status-only songs)
+  is allowed to stay so, while a PATCH still cannot empty a row that says
+  something.
+- **Granted features through one stand-in.** The music and mod statuses are
+  behind per-account switches that another branch builds. Every check asks
+  `has_feature(db, viewer, name)` in `app/services/rbac/features.py`, which
+  today answers true for an account holding `self.personal_notes`. That
+  branch's own `features.py` replaces the module wholesale - reading
+  `users.feature_<name>` - and no caller changes. The stub's answer means
+  that until then every member sees the statuses and the admin none, which
+  matches "today only the owner uses them" on an installation whose only
+  member is the owner. P3g's per-account switches have since replaced the
+  stand-in: `has_feature` reads `users.feature_<name>`.
+- **The review queue reads the caller's own music statuses** (decided with
+  the owner). The rows are shared, but "waiting on something" is a fact
+  about one person's tracking, so the queue is per caller, like the remarks
+  block beside it.
+- **The NG reset is registry-driven.** `NoteField.ng_resets` marks what a new
+  cycle clears; a section with an `ng_reset` field reaches only its rows
+  marked yes (missing reads as the default, yes), and 敵人, having none,
+  reaches every row. It clears the caller's own marks and nothing else.
+- **Sheets: a Note Mark tab by `username` and the note's uuid**, like the
+  other per-user tabs, with the note translated through the Note tab when
+  this database holds the row under its own uuid - a `music_status` row is
+  minted per database, and the music status is the mark most worth keeping.
+  An old backup's Note tab still carrying the values is read exactly: on
+  these sections the status column (or `fields.my_value`) only ever held the
+  personal value, so Pull takes it off the row before matching and files it
+  under the installation owner.
+
+### Catalogue rows and each account's own rows in one section: mixed sections (2026-11-13)
+
+The account spec makes ten catalogue sections mixed - 武器&裝備, 道具,
+收集物, 敵人, 角色, 地理, 配裝&流派, 隊伍組成, 攻略資源 and Resources: a
+viewer reads the catalogue rows plus its own personal rows, in the same
+groups. The registry marks them (`NoteSection.mixed`); revision
+`m1i2xedrows3` adds `note.personal`.
+
+- **A row-level boolean, because the section cannot say.** Everywhere else a
+  row's kind is its section's `scope`, and the read filter, the write gate
+  and Pull all key on that. A mixed section holds both kinds, so the kind
+  has to live on the row. One boolean, NOT NULL with a false default, makes
+  every row that existed before it catalogue with nothing to move, and
+  leaves `scope` meaning what it meant. A second section per mixed section
+  (`items` and `items_personal`) was the alternative: it would have split
+  one card's rows across two sections, two orders and two group lists, the
+  thing the spec's "in the same groups" rules out. `personal` stays false on
+  a personal-scope section's rows: those are personal by their section, and
+  a second source of the same answer is one that can disagree.
+- **The server picks the kind, from `manage.catalog`.** The spec fixes which
+  kind an account writes by whether it writes the catalogue, never both in
+  one section, and there is no "only me" switch. So the payload carries no
+  kind: a `personal` key is ignored like `author_id`, and `_authorize_write`
+  decides - catalogue for a `manage.catalog` holder (`super`, the admin, any
+  catalogue editor), personal for anyone else holding `self.personal_notes`.
+  Taking it from the payload would have needed refusing the wrong one per
+  account, which is the same rule written twice. The admin writes catalogue
+  rows and keeps none of its own, as everywhere: a personal row is 404 to it
+  like to anyone not its author, with no root short-circuit.
+- **Reorder is per kind.** The two kinds never share an order - a user's
+  rows sit after the catalogue's - so a reorder renumbers one: a
+  `manage.catalog` holder sends exactly the catalogue rows, anyone else
+  exactly its own. One list naming both would mean an order the read never
+  draws, and a catalogue order written by a member would be a catalogue
+  write by someone who may not make one.
+- **A user's rows sort after the catalogue's within each group.** Sharing the
+  catalogue's order would mean a per-user copy of it, which the spec rules
+  out. Sorting by kind before `sort_index` in one flat response is enough:
+  the page groups by first appearance and nests by `parent_id`, keeping the
+  response order inside every group and under every parent, so no grouping
+  has to know about kinds. Geography's tree takes the same rule one way: a
+  personal row may sit under a catalogue row, but a catalogue row may not
+  sit under a personal one, which every other reader would see as a child
+  with no parent.
+- **Never promoted.** A personal row is never turned into a catalogue row:
+  no write changes `personal`, and a PATCH may move a personal row only to
+  another mixed section. Adding one to the catalogue is a request, written
+  by whoever writes the catalogue - the spec's rule, and the reason a row
+  never changes hands between an account and everyone.
+- **Personal values work on both kinds through marks.** A personal row's
+  collected and beaten are its author's marks exactly as on a catalogue
+  row, so the page, the mark route and the NG reset have one path, and the
+  NG reset reaches the personal rows with no change.
+- **Sheets: the column travels, and twins are catalogue only.** The Note tab
+  carries `personal`; the row restores under its author by `username` like
+  every Note row. An older backup has no header and restores catalogue rows,
+  which is all it can hold. The content twin match - for rows each database
+  minted under its own uuid - reads catalogue rows only, on both sides: a
+  personal row is never minted per database, and matching one by content
+  would hand a catalogue row to one account.
+- **Downgrade deletes the personal rows.** The older code cannot tell one
+  from a catalogue row and would show it to everyone; dropping it is the only
+  safe reading. The catalogue survives, so the revision is not marked
+  irreversible.
+- **Deleting a catalogue row re-homes members' rows under it** (decided by
+  the owner). In 地理 Geography a member may nest its own rows under a
+  catalogue region, and the `parent_id` CASCADE would delete them with the
+  region: a catalogue edit destroying data that is not the catalogue's. So the
+  delete route moves every member's row under the deleted subtree to the
+  section's top level first - with its own subtree, after that member's
+  top-level rows, keeping their relative order - and the CASCADE then takes
+  only catalogue rows. It lives in the route, not the foreign key, because an
+  ON DELETE rule cannot tell a personal child from a catalogue one; catalogue
+  children still go with their parent, as everywhere else.
+
+### Favourite quotes and memes are each account's own (2026-11-14)
+
+The account spec makes a quote's and a meme's `is_favorite` each user's own
+and a granted feature (`favourites`). Revision `f1a2vourites3` adds
+`user_favorite` and moves every flagged quote and meme to the installation
+owner, by the frozen rule `u1r2atings3` uses.
+
+- **One table, two FK columns.** `quote_id` or `meme_id`, exactly one set,
+  each CASCADE - the owner-column shape `user_rating` and `note` use, so a
+  deleted quote, meme or account takes its favourites with it and no merge
+  code is needed: quotes and memes are never merged, and moving one to
+  another entry keeps its id.
+- **Presence is the value.** A row exists only while the item is a
+  favourite; clearing deletes it. There is no `is_favorite` column on the
+  row to disagree with its existence, and the PUT is idempotent by
+  construction.
+- **The switch hides, it does not delete.** An account whose `favourites`
+  switch is off reads false everywhere and its filter finds nothing, but its
+  rows stay: switching it back on brings them back, as a mode change does
+  not destroy a list. Deleting on switch-off would make a misclick on
+  `/users` lose data.
+- **The write asks both switches, 401 for either.** Favouring a quote means
+  reading it, and the quote reads are behind `quotes_memes`, which answer
+  401 without it. The favourite route answers the same 401, rather than the
+  404 a hidden item gets, because a caller without the read switch is not
+  being told about one item - it holds no quote reads at all, and the read
+  route already says so in those words.
+- **An old backup's flag clears as well as sets.** On a Quote or Meme tab
+  that still carries `is_favorite`, false or blank clears the installation
+  owner's favourite of that row, as a blank rating cell clears a rating: the
+  old sheet held exactly the owner's view, so it is applied whole.
+
+### Account lifecycle, second half: invite links and registration (2026-11-13)
+
+Strangers reach an account only through a link the admin hands over, and
+only after the admin approves what arrived.
+
+- **No invite, no registration.** There is no open sign-up and no register
+  link on the sign-in page. The spec makes accounts invite-only, so the
+  register routes refuse every request that does not carry an unspent,
+  unexpired invite code, with the same 404 a reset link's refusals give.
+- **A registration arrives `pending`, on `user`, with no mode.** Nothing the
+  registrant typed decides what it can see: the admin chooses the role,
+  ceiling and default at approval. With no mode, a pending account would
+  resolve the empty object set even if a route forgot to check its status.
+- **The approval form never hands out `unrestricted`.** The spec: a
+  registered user can hold it, but only by the admin granting it later on
+  `/users`, per person. The form's own refusal sits before
+  `set_mode_ceiling`, which accepts `unrestricted` for the callers that may.
+- **Invites get their own column, `created_user_id`, `ON DELETE SET NULL`.**
+  `user_id` is a reset link's target and is `CASCADE`, so a code for a
+  deleted account disappears. An invite needs the opposite: declining a
+  registration deletes the account, and the invite must survive it as spent,
+  or the declined person could register again with the same link. One
+  foreign key cannot carry both rules.
+- **Open invites do not void each other**, unlike reset links. A newer reset
+  link replaces an older one because both are for the same account. Each
+  invite is for a different person.
+- **A refused or taken name rolls the spend back**, as a refused password
+  does on reset, so a typo does not burn the link. A taken name is a 409
+  like `/users` create's, which says that the name exists. That is
+  acceptable on a route that already requires a valid invite.
+- **A pending account does not travel and is never the installation
+  owner.** Backup writes no `Users` row for it, because a registration is
+  approved on the machine it arrived on. The owner fallbacks consider only
+  `active` accounts, so a registrant whose name sorts first cannot have the
+  owner's collection filed under it.
+
+### Exactly five fixed roles, and the shared accounts (spec: 2026-11-03 account-system-design)
+
+- **Custom roles are abandoned.** The roles are `admin`, `super`, `user`,
+  `guest` and `shared` (`permissions.ROLE_NAMES`), and `POST` and `DELETE` on
+  `/api/roles`, `RoleCreate`, the create form and delete button on `/roles`,
+  and the "every custom role" branch of `locked_permissions` are gone. The
+  spec's reason: with five fixed roles plus per-role and per-account
+  switches, a custom role adds nothing but something more to secure. Every
+  rule that had to say "and a custom role decides this freely" was a hole in
+  a lock table, and the lock table was the thing being secured.
+- **A name outside the five gets everything locked off**, not the old custom
+  row's free choices. No such role can exist after the migration, but a lock
+  table must not hand a stranger anything.
+- **`role.is_system` is dropped.** Every role is a system role, so the column
+  said nothing. `is_root` stays, on `admin`, until the admin stops being a
+  root role.
+- **The migration refuses rather than reassigns.** `f1i2veroles45` deletes
+  every role outside the five that holds no account (its grants cascade). A
+  role outside the five that **holds** an account makes the upgrade raise,
+  naming the role and how many accounts hold it, and nothing changes. Which
+  role those accounts should move to is a decision about people — `user` and
+  `super` differ in whether they write the catalogue — and a deploy has no
+  business guessing it.
+- **So the deploy refuses if production has a custom role holding accounts.**
+  The fix is to move those accounts to another role at `/users` first, then
+  deploy again. **Production holds only `admin`, `super` and `guest`,
+  checked by the owner**, so the refusal does not fire on this release; a
+  user-less custom role, if any, is simply deleted. The refusal stays in the
+  code for any other database. The downgrade re-adds `is_system` (true for
+  every remaining role) and does not restore deleted roles, which held
+  nothing.
+- **The `shared` role and accounts come from the lifespan seed, not the
+  migration**, as the other roles do, because the API tests build their
+  schema with `create_all` and never run Alembic.
+- **The shared accounts are re-asserted on every boot.** `ensure_shared_accounts`
+  creates `shared-normal` and `shared-borderline` if missing, and on every run
+  sets the role back to `shared` and the ceiling and default back to the
+  account's own mode. "Fixed" has to survive what the API cannot stop: a Pull
+  restores the Users tab as the sheet says, and a hand edit in the database
+  goes round `/users` entirely. The password, status and request limit are
+  the admin's, so the seed leaves them alone.
+- **No shared password in `.env` or the code** (owner decision). A new shared
+  account gets `UNUSABLE_PASSWORD_HASH`, which nothing verifies against, and
+  the admin sets the password on `/users` when handing the account out.
+- **`view.extras` is locked off for `shared` now**, because it is what opens
+  quotes and memes, and a shared account never gets them, not even by
+  switch. The same permission gates the random picker, future releases and
+  completions, so until the switches split it a shared account reads what a
+  guest reads, plus requests — its customised Random Picker and Future
+  Releases wait for that split. Locking it now rather than later keeps
+  "never quotes or memes" true from the day the role exists.
+- **`user` loses `manage.catalog`**, locked off with the boot reconciliation
+  dropping a stored grant. The owner: a user will never be given catalogue
+  writing — writing the catalogue is what makes an account `super`.
+- **`/users` refuses each fixed thing explicitly**, rather than leaving it to
+  the last-admin guard: an account is created in or moved to `user` or
+  `super` only (422); the admin account's role and a shared account's role
+  are 409 with a sentence naming which; a shared account cannot be deleted
+  (disabling is allowed) and its access modes cannot be edited (409). The
+  last-admin guard is unchanged, and goes when the admin stops being root.
+- **The shared request limit is 10** (`DEFAULT_REQUEST_LIMITS`), adjustable
+  per account like `user`'s 15.
+
+### Per-role and per-account switches (spec: 2026-11-03 account-system-design, "Fixed and adjustable settings")
+
+`view.entities` became four role permissions - `view.studio`,
+`view.publisher`, `view.person` and `view.character` - the three gated media
+types became locked grants, and four per-account feature switches arrived as
+columns on `users`. Migration `s1w2itches345` carries all of it.
+
+- **Four entity keys, one per kind.** The owner wants each kind of entity
+  page opened or closed on its own. `person` covers the seiyuu library too,
+  because a seiyuu opens a person page, and `character` covers identities,
+  which are pages of a character; a fifth and sixth key for those would be
+  switches whose only sensible setting is "same as the other one".
+- **The migration carries `view.entities` onto all four, rather than starting
+  them off** (owner, settled in review). Every role that held the old key gets
+  the four new ones, and the old rows are deleted, so the release changes
+  nothing anybody sees. "Off by default" is the seed's rule for a database
+  built from now on: a fresh database (the company machine's, say) seeds
+  `user`, `guest` and `shared` with entity pages off until an admin ticks
+  them on. Switching every member's entity pages off on deploy would have
+  been a behaviour change smuggled into a refactor of the permission's shape.
+- **The gated types are locked, not free.** A gated type is the one place a
+  role grant and a content label say the same thing, and the label is what
+  actually hides it: a guest or shared session in `safe`, `normal` or
+  `borderline` never sees one whatever its role holds. Leaving the grant free
+  made the role editor offer a box whose ticking did nothing visible on a
+  guest - until somebody widened a mode. Locking it on for `user` and `super`
+  and off for `guest` and `shared` makes the grant state what is meant: a
+  member may see the type in a mode that carries its label, an anonymous
+  visitor or a shared login never. The nine ordinary types stay free.
+- **The migration grants any missing ordinary type once** to `guest`, `user`,
+  `shared` and `super`. The owner: the nine usual types are for everyone but
+  the admin. A role missing one is a seed accident, not a decision - the guest
+  role on production was seeded before `game` existed, and the seed tops up
+  only a role holding nothing, so its Games library was empty for a guest.
+  Never the gated types, which the locks decide. Idempotent.
+- **Columns, not a feature table.** A feature is a setting on one account,
+  like the mode ceiling and the open-request limit, and those travel on the
+  Sheets Users tab; a separate table would need a tab of its own keyed by
+  username, and a Pull that skipped or reset it would silently switch every
+  feature off on the arriving machine. As columns they ride the Users tab
+  with the rest, and a sheet that predates them leaves the local values alone
+  rather than resetting them. Four booleans is a small enough set that a
+  table's generality buys nothing.
+- **The role is asked as well as the column.** `PATCH /api/users/{id}` refuses
+  switching a feature on for anything but a `user` or `super` account, but a
+  Pull restores whatever the sheet says, so a hand-edited Users tab could
+  store one on a shared account. `held_features` therefore counts a column
+  only on a `user` or `super` account: a shared account never gets quotes or
+  memes, not even by a stored switch.
+- **The root admin keeps `quotes_memes` without the switch.** The quote and
+  meme reads were `view.extras`, which the root short-circuit gave the admin,
+  and the admin account can never be switched on - so without the exception
+  it would write quotes and memes it could not read. Only that feature: the
+  other three name personal data, which the root role does not hold.
+- **Only `quotes_memes` gates anything yet.** Favourites, music status and mod
+  status are storage and a switch on `/users` until the personal-data work
+  gives them teeth; adding the columns now means that work changes no schema
+  for them.
+- **`cg1618` gets all four on; every other account starts off.** That removes
+  quotes and memes from every other member until the admin switches them on,
+  which is the spec's intent: they are granted per account, not per role.
+- **`view.extras` narrows to resources, the random picker, future releases and
+  completions, and stays locked off for `shared`.** Splitting it further, so
+  a shared account gets its own Random Picker and Future Releases, is its own
+  change with the per-viewer pages (owner, settled in review).
+- **A shared account cannot switch modes at all.** Its ceiling and default are
+  both its own mode, but the switch rule let any account move to a mode at or
+  below its ceiling, so `shared-normal` could drop to `safe` and the switcher
+  appeared for it - one person narrowing the login for everyone signed in.
+  `POST /api/auth/access-mode` now answers 409 for it, and `held_modes` offers
+  it its own mode alone, so the switcher, which needs two, does not render.
+- **Search drops a bucket's key rather than send it empty.** An empty list
+  still says the type exists - it reads as "nothing matched", which is only
+  true of a type the viewer may see - and it was already how a gated type's
+  bucket behaved, so every switch now answers the same way: a media type the
+  role does not hold, or an entity kind without its `view.*` key, has no key
+  in `results`. `SearchBuckets` defaults each such bucket to `None` and drops
+  it on serialising, so a type added later cannot put its key back by having
+  a default of `[]`. The groups and seasonal are always present, because no
+  switch hides them. The SPA already read every bucket as `?? []`, and the
+  nav search offers only the scopes whose bucket would come back.
+
+### The admin's pages get their own `manage.*` keys, not `manage.catalog` (spec: 2026-11-03 account-system-design, "The named accounts")
+
+The admin keeps announcements, the Note pages (System Options, Alias
+Conversion, External APIs), `/images` and `/resources`, and every one of them
+was gated on `manage.catalog` — `/resources`' reads on `view.extras`. Four
+keys replace that: `manage.announcements`, `manage.options`, `manage.images`
+and `manage.resources` (`ADMIN_PAGE_PERMISSIONS`).
+
+- **`manage.catalog` is catalogue WRITE, and the admin writes no catalogue
+  row.** Granting it would have handed the admin every entry, group, person,
+  credit and catalogue note write — creating an entry needs no visibility, so
+  even the empty object set would not have stopped it. The spec says the admin
+  never writes the catalogue; a page it needs cannot be the price of that.
+- **`manage.catalog` also drives `/me`'s `is_admin`**, which about 86 SPA
+  files read as "may edit the catalogue" and draw edit controls on. Granting it
+  would have made `is_admin` true for the admin account and lit those controls
+  on pages it cannot use. Keeping the key off keeps `is_admin` meaning exactly
+  what its readers think: true for `super`, false for the admin.
+- **`manage.resources` gates reads as well as writes.** The owner: the
+  site-wide Resources page is strictly the admin's and super's. So `user`
+  loses `/resources` with this change, and `view.extras` stops naming it.
+- **Form defaults and picker defaults stay on `manage.catalog`.** They shape
+  how catalogue rows are written, so they are catalogue-editing tools rather
+  than Note pages, and the admin has no use for them.
+- **`super` holds all four by lock; `user`, `guest` and `shared` never do.**
+  `super` already locks on everything but `admin.authz`, so the four reach it
+  on the first boot through the reconciliation, with no seed change.
+
+### No role is root, and the object axis applies to every viewer (spec: 2026-11-03 account-system-design, "The named accounts")
+
+`role.is_root` is dropped, and with it every place that let the admin past a
+check: the short-circuit in `Viewer.has()` and `AuthContext.has()`, the
+`ROOT_FEATURES` exception, the exemptions in `media_relation.py` and
+`watch_order.py`, the author check on personal notes, and `/me`'s `is_root`.
+The admin role now stores its seven grants as rows, its whole row locked.
+Migration `a1d2minroot45` carries it.
+
+- **A permission minted later reaches nobody until it is granted.** The
+  short-circuit's defence was that a new content label or media type would
+  never hide anything from the administrator. That was its danger too: every
+  new capability reached the most powerful login by default, without anyone
+  deciding it should. With a fixed set, a later feature reaches the admin only
+  by an edit to `ADMIN_FIXED_PERMISSIONS`. The cost the short-circuit avoided —
+  re-granting the admin every new label — is gone anyway, because labels left
+  the role axis for the access mode.
+- **The admin holds no catalogue, so there is nothing left to exempt.** It
+  holds no `media_type.*`, no `view.*` and no mode: ceiling and default NULL,
+  so it resolves the empty object set. An exemption from the object axis —
+  relations and watch orders skipped `filter_visible_pairs` /
+  `drop_hidden_rows` for root — would now exempt a viewer that sees nothing
+  from the filter that says so, which is a leak waiting for its first bug.
+  Applying the axis to every viewer removes the special case instead of
+  keeping it correct by accident.
+- **No mode is enforced at boot, not just at migration.**
+  `seed.ensure_admin_accounts_modeless` re-asserts NULL on every admin-role
+  account on every start, the way `ensure_shared_accounts` re-asserts the
+  shared modes: a Pull restores the Users tab as the sheet says, and a sheet
+  written before this change carries the admin at `unrestricted`. The
+  lifespan's INSERT cannot write NULL — the columns' Python-side default fires
+  on None — so the account is parked with an UPDATE afterwards.
+- **"Holds no user data" stops being a carve-out.** It was the one condition
+  where the short-circuit did not reach (`self.*`). With no short-circuit the
+  rule is simply the admin's locked row, and the explicit-grant escape hatch
+  ("a grant beats the carve-out") has nothing left to escape.
+- **Nobody edits another account's personal note**, the admin included. The
+  root admin could still delete a member's personal-scope note, because the
+  `DELETE` route never asked the section's write capability and the edit
+  check let root through. Both are closed: `DELETE` asks what a `PATCH` asks.
+- **The last-admin guard goes; deleting the admin account is a 409.** The
+  guard counted accounts that could administer, which with fixed roles is
+  only ever the one `admin` account — whose role is already fixed. An explicit
+  refusal says what is protected instead of deriving it from a count.
+- **The installation owner is never the admin.** Without the flag, the owner
+  is the first `active` account by username whose role is not `admin`,
+  `guest` or `shared`, and otherwise nobody. The old last resort, "the first
+  account of any kind", existed so that a sheet could restore onto a fresh
+  machine before a second account existed; it is what filed the first
+  installation's collection under `admin`. A restore with no owner now skips
+  the owner-dependent rows and names them (`no installation owner: N row(s)
+  skipped`) rather than filing someone's library under an account that keeps
+  none, and Pull restores the Users tab first so the sheet's owner is in place
+  before any row needs it.
+- **What the admin gives up.** It cannot see what a restriction does by
+  looking; the label reference's counts cover that, and a "preview as an
+  account or mode" feature is the remedy if that is ever not enough. Its own
+  dashboard is not built yet, so `/` shows it the guest's dashboard.
+
+### No admin-role account is the installation owner (2026-11-14)
+
+Decided by the owner. The installation owner is whose collection a restore
+or a pipeline files rows under, and the admin keeps no personal data, so the
+flag and the admin role never meet on one account.
+
+- **Guarded where they are written, not with a constraint.** A CHECK across
+  `users` and `role` needs a trigger or a denormalised role name, and either
+  is a migration for a state only a hand edit or an old sheet can produce.
+  The writers are few: `/api/users`, Pull's Users tab and boot.
+- **`/api/users` needed no new refusal.** It writes no flag, and every route
+  that sets a role (create, approve, `PATCH`) already takes `user` or `super`
+  only (422), with the admin account's own role fixed (409). Tests now pin
+  both with a flagged account present, so a later change that widens either
+  is caught.
+- **Pull drops the flag from an admin row and restores the rest**, reported
+  in `unresolved_refs`, rather than skipping the row. A skipped row would
+  leave the account's other columns stale for a fault in one cell; this is
+  how a bad mode pair is already handled. The drop happens before the
+  clearing step, so the local holder keeps its flag.
+- **Boot clears a flag a hand edit left on an admin account**
+  (`ensure_no_admin_installation_owner`), the way `ensure_admin_accounts_modeless`
+  removes the admin's mode.
+- **`installation_owner_id()` also passes an admin flag holder over.** The
+  guards make that state unreachable through the application, but the
+  function is the one place every restore and pipeline asks, and "never the
+  admin" is its contract; on a hand-edited database the rows then go to the
+  fallback account rather than to one that keeps no personal data. The
+  frozen owner query in the revisions that moved personal data
+  (`u1r2atings3` onward) is left as it shipped: a revision keeps meaning
+  what it meant when it ran, and no guarded database reaches it with an
+  admin flag holder.
+- **Found on the way: Pull un-owned the owner.** The clearing step that
+  makes room for the sheet's flag holder also cleared the row's own account
+  when it already held the flag - the ordinary Backup-then-Pull case - and
+  the row's update then saw no change and wrote nothing, so every Pull left
+  the collection with no flag holder (the fallback then answered). The
+  clearing step now spares the row's own account, by username.
+
+### A personal list write never finishes the work (2026-11-14)
+
+`PUT /api/me/list` applies the tracker's rule that reaching the total
+completes, because the SPA's steppers move onto it from the catalogue `PATCH`
+and a `user` would otherwise press `+` on 11 / 12 and stay Watching. It runs
+only the row's half, though. `mark_completed` also writes the work's
+catalogue half - an anime becomes Finished Airing, a manga 完結 - and one
+member reaching the last episode it has seen says nothing about whether the
+work has ended. On the catalogue `PATCH` that edit is an editor's; on the
+list route it would be a catalogue write by an account without
+`manage.catalog`. So an editor who wants the catalogue half still gets it from
+Mark completed or a `PATCH`, and the two paths share `write_list_payload` so
+the row's half is the same on both.
+
+### The Random Picker gets its own key, `view.random_picker` (2026-11-14)
+
+viewers.md gives the picker to `super`, `user` and `shared` and never to the
+guest. No existing key drew that line: `view.extras` also opens Resources and
+Completions, which are not a shared account's, and `self.list` is exactly what
+a shared account lacks. So the picker has a key of its own, locked on for the
+three and off for the guest, which leaves no cell of it a free choice - the
+line is the design's, not an admin's. The plan-marks read inside the picker
+asks `self.list` rather than "signed in", because a shared account is signed
+in, keeps no plan, and would get a 401.
+
+`view.extras` goes with it. Once Resources answered to `manage.resources`,
+the key gated three pages, and each has a better question of its own: the
+picker this key; Future Releases any ordinary media type, because it reads
+nothing but the catalogue lists (the same test the Library tab asks, so a
+guest has it and the admin, which reads no catalogue, does not); Completions
+`self.list`, because it is built from the viewer's own completions. A key
+naming three unrelated pages was a key nobody could reason about. Future
+Releases reads the open `/api/seasonal/current-season`, not the Control
+Center's `manage.pipelines` route, which every member was refused.
+
+The admin needs no lock code for the new key: its lock is its fixed set and
+every other permission in the catalogue, so a key minted later is locked off
+for it already. A test asserts it.
+
+### Personal writes leave the catalogue PATCH (2026-11-14)
+
+The SPA wrote every status, progress count and plan flag through
+`PATCH /api/<type>/{id}`, which asks `manage.catalog`, while the controls were
+drawn on `self.list` in one place and `isAdmin` in others. So a `user` was
+shown a status button that answered 401, and could not keep its own list at
+all. Those writes now go to `/api/me` - the list row and the plan flags - and
+every control that writes them asks `self.list` (`ownData`), which is what
+the write route asks.
+
+- **One hook routes by key, with a small explicit split.** `useStatusToggle`
+  sends the six plan-flag names to `/api/me/plan-flags` and everything else
+  personal to `/api/me/list`. The SPA does not mirror the server's full
+  `LIST_FIELDS` table: a second copy would drift, and the routes already
+  refuse a key a type does not hold (422), so a wrong key fails loudly.
+- **A control that edits the work as well says so.** MediaCard's bolt marks
+  the work released (a catalogue fact) and may also move the viewer's status.
+  It passes the catalogue half as `catalogue`, which alone goes to the PATCH,
+  and it is drawn for an editor only; the status half is sent only by an
+  account that keeps a list.
+- **The answer is the cached entry with the row folded in**, because the
+  list route answers the row, not the entry, and the callers replace their
+  row with what comes back.
+- **`isAdmin` became `canTrack` on the dashboard cards.** The prop gated the
+  steppers only, and a name that says "editor" on a control that writes the
+  viewer's own progress is how the two gates drifted apart.
+
+### The Explore pages draw two versions, chosen once at the top (2026-11-14)
+
+Seasonal, Statistics, Future Releases and the Random Picker each ask
+`useViewScope().ownData` (`self.list`) once, in the page's default export,
+and draw either the viewer's own version or the catalogue's. The two are
+separate components rather than one component full of `ownData` checks.
+
+- **Why separate components.** The list version reads per-user routes
+  (`/api/seasonal/`, `/api/plan-next/`, the full lists Statistics counts)
+  that refuse a viewer without a list. A component that branches inside
+  would still mount those queries, or need a guard on each, and one missed
+  guard is an error banner for a guest. A catalogue component simply never
+  names them, and a test asserts each is never fetched.
+- **The list version is unchanged.** With a list each page is the page it
+  was, so the change cannot regress a member's view.
+- **Seasonal and Statistics ask what Future Releases asks.** They left the
+  `self.list` route block for `anyPermission={LIBRARY_MEDIA_TYPE_PERMISSIONS}`,
+  on the route and the nav row together: what decides whether the page
+  opens is whether the viewer reads the catalogue, and what it shows is
+  decided by the list. The admin reads no catalogue and opens none of them.
+- **Future Releases' markers sit under the card, not in it.** The On your
+  list and Planned chips are drawn by the page around `MediaCard` from fields
+  every list response carries, so the shared card is unchanged for every
+  other page. Without a list the groups are in release-date order
+  (`primaryReleaseValue` + `releaseScore`), the only order that does not
+  need an opinion.
+- **The picker's personal filters and weights are flagged, not listed per
+  call.** A FilterDef carries `personal: true` and a weight input is marked
+  personal in `WEIGHT_INPUTS`; `filterDefsForMode` and `entryFactors` apply
+  one rule to every mode. A type's own library filters keep the flag their
+  library config gives them, so the picker and the library drop the same
+  filters.
+- **External score is a catalogue filter.** It reads the stored MAL or IMDb
+  score, which every viewer is shown on the card, so it is offered with and
+  without a list. So is genre, read from the joined `genre_main` or
+  `game_genre` field every list response carries; the adult genre fields are
+  left out, as the catalogue statistics leave them out, and the franchise
+  mode offers neither, since a franchise has no genre or score of its own.
+
+### The dashboard is chosen per viewer, on permissions (2026-11-14)
+
+`/` became five dashboards (viewers.md, "Dashboard") without becoming five
+pages: one `Index` picks its parts in `components/dashboard/dashboardSections.js`,
+and every pick is a permission, never a role name, so a role edited on
+`/roles` gets the dashboard its permissions describe.
+
+- **The admin is "admin.authz and no library media type", not "admin.authz".**
+  What makes the admin's page necessary is that it reads no catalogue; the
+  catalogue dashboard would only fetch lists the admin is refused. A role
+  holding both would be shown the catalogue dashboard, since it can read it.
+  "Reads the catalogue" is asked as `LIBRARY_MEDIA_TYPE_PERMISSIONS.some(has)`,
+  the question the Library tab and Future Releases already ask, so the
+  dashboard and the header cannot disagree about it.
+- **Nothing is chosen before `/me` answers.** Until then every viewer looks
+  like a guest, and the admin would fire catalogue reads that answer 401. The
+  page shows its loading state instead; the cost is one round trip that the
+  rest of the page waited on anyway.
+- **The library links are the nav's rows, not a second list.** They come
+  from `visibleSections` with Nav's arguments, filtered to the Library and
+  Restricted sections, so a library the header hides is never linked from
+  the dashboard and a new library row appears on both at once.
+- **Super's pending-registrations line is not a link.** Only `admin.authz`
+  approves a registration, in `/system`'s panel, which is not drawn for
+  super; linking super there would send it to a page that does not show what
+  the line promised. The line says who approves instead, and the open
+  requests line, which super handles itself, links to the inbox.
+- **The pipeline runs link to `/system`, not `/data-history`.** The data
+  control log (`/api/system/logs`) is drawn on `/system`; `/data-history`
+  shows recent and deleted records, not pipeline runs.
+- **One announcement editor, on both pages.** `AnnouncementEditor` is what
+  the admin's dashboard and `/system`'s Announcement & Notes card both draw,
+  over the one `["announcements"]` query. `/system` had its own hand-written
+  editor for the same routes; two editors would drift, so the card now
+  renders the component and its inline state, handlers and form are gone.
+
+### Everything an account keeps is private to it, the admin included (2026-11-14)
+
+No account reads another's list, ratings, plan, copies, choice marks, notes
+or marks, and the admin reads none of them either. Three things went with
+the list-visibility setting (`users.list_is_public` and its Settings card)
+rather than being kept behind it, because each could only ever be empty:
+the public profile (`/user/<username>`), reading personal notes by author
+(`?author=`, now ignored), and the community card with `/api/community/`.
+`field_group.personal_notes` went for the same reason - it only decided
+whether a mode could read *another* account's personal notes - and
+`field_group.sources_other` went because every viewer gets the other
+sources, which leaves `sources_restricted` the one field group.
+
+- **User data is private from the admin too.** `admin.authz` used to open
+  any profile whatever its setting; that override went with the profile,
+  and nothing in the app shows the admin an account's list, ratings or
+  notes. The admin keeps no personal data of its own either.
+- **Requests and reports are not an account's data in this sense.** They
+  are addressed to whoever handles them, who reads them in the inbox; the
+  filer's own copy is My requests.
+
+### Catalogue or account: the test for anything added later (2026-11-14)
+
+The account rework sorted every stored value into the catalogue (one copy
+everyone shares) or an account (one copy each), and the rule it settled for
+anything added later is: **if two people could disagree about it and both
+be right, it belongs to an account; if it is a fact about the work, it
+belongs to the catalogue.** The present-tense split is
+[catalogue.md](../catalogue.md).
+
+- **Every personal rating is an account's, and only external scores are
+  catalogue.** `mal_rating` and `mal_rank`, `anilist_rating`, `imdb_rating`
+  and `imdb_series_rating`, `metacritic_score` and `metacritic_user_score`
+  are scores someone else published, so they are facts about the work. Every
+  `my_rating` and every expectation is an opinion.
+- **`remark` on entities, credits, relations, watch orders and options stays
+  catalogue.** Those are editorial annotations on the shared record, not one
+  reader's view of the work.
+- **`usefulness` is the account's own, and its meaning is too.** It is used
+  mainly on restricted media, where few accounts other than the owner's
+  will see it, but any account can keep its own. Nothing documents or
+  derives what a value means.
+- **Of the note sections, only the six highlights changed scope.** Others
+  split instead: the row stays catalogue and named fields on it become each
+  account's (note marks, above). OP/ED 變動 does not split, and stays
+  catalogue as it is.
+- **很多福利 stays an ordinary Label tag.** It is not the `ecchi` label's
+  tag, so it decides nothing about who sees an entry.
+
+### A mixed section has no "only me" switch (2026-11-14)
+
+**Not built: letting a `manage.catalog` holder keep personal rows in a
+mixed section.** Which kind of row an account writes follows from whether
+it writes the catalogue (mixed sections, above), and there is no switch to
+make a `super`'s row its own. The reason is who the feature is for: the
+owner is the one creating catalogue data, and personal rows exist for the
+other accounts, whose catalogue is far from complete. A `super` that needs
+rows of its own is dealt with if it ever happens.
+
+### Recovery goes through the admin, and nothing signs out everywhere (2026-11-14)
+
+What the account rework deliberately did not build around signing in:
+
+- **No email address or phone number on an account**, and so no
+  self-service recovery: the site has no way to reach anyone. Recovery is a
+  link the admin issues and hands over, and it recovers a forgotten
+  username as well as a password, because the page it opens says which
+  account it is for.
+- **No in-app "forgot my password" request.** A signed-out form identifies
+  nobody - anyone can type a username - and the link it would ask for still
+  has to be handed over outside the app, so the request would save no
+  step. The sign-in page's "Forgot your password or
+  username?" opens a note saying to ask the admin, and nothing else links
+  to `/reset`.
+- **No public way to the register page.** Nothing links to `/register`, so
+  nobody reaches it only to find they cannot register without an invite.
+- **No "sign out everywhere" and no admin force-logout.** Sessions end on a
+  spent reset link, the admin setting a password, and disabling the account,
+  and those cover the cases: someone else knows my password (a reset), a
+  leaked shared login (the admin sets a new password), an account to cut
+  off (disable it).
+- **No sliding refresh.** A login lasts 30 days from sign-in, used or not.
+
+### `shared` is its own role and not a reserved word; a new account starts at `normal` (2026-11-14)
+
+- **The shared accounts are not on the `guest` role.** A guest is the
+  signed-out visitor and nobody else; a shared account is signed in. Giving
+  them their own role lets what visitors read and what shared logins read
+  be tuned separately on `/roles`.
+- **Only `admin` and `guest` are reserved in usernames.** `shared` is not,
+  because the shared accounts are seeded, never registered, so no
+  registrant can collide with them. The test is a substring of the
+  lowercased name, not a similarity test: `admin1` and `qadminqe` are
+  refused, `adamin` and `adm1in` allowed.
+- **A new account starts at `normal` / `normal`, not `safe`.** That replaced
+  an earlier rule that every new account starts in `safe`: an account can
+  switch up to its ceiling at once, so starting lower protects nothing.
+
+### One test decides a page's catalogue version: `self.list` (2026-11-14)
+
+Every page that differs for a viewer without a list - libraries, cards,
+detail pages, Seasonal, Statistics, the Random Picker, Future Releases, the
+dashboard - asks the same question, `has("self.list")`
+(`useViewScope().ownData`), and nothing else. Guest and shared both lack it,
+and so does the admin, which holds no `self.*` key. The alternative, a test
+per page on role names or on a mixture of keys, is how the SPA drifted
+before: one control asked `isAdmin`, the next `self.list`, and a `user` was
+shown buttons that answered 401.
+
+- **Whether a page opens is a different question.** Seasonal, Statistics
+  and Future Releases open for any viewer that reads the catalogue (an
+  ordinary `media_type.*`); what they show inside is decided by the list.
+- **Statistics' catalogue counts are computed server-side**
+  (`GET /api/statistics/catalogue`). They are aggregates over the viewer's
+  visible object set, so a viewer without a list does not download every
+  list to count it, and a mode never learns from a total what it hides.
+- **What P7 opens to more viewers follows the owning group's visibility.**
+  Watch orders and the relations graph used to filter only the entries
+  inside them, so an order owned by a hidden group still listed by name.
+  They answer a hidden owner as missing, so the guest's and shared
+  account's watch-order pages and the dashboard's followed orders leak
+  nothing.
+
+
+### The tab title is the page's name, and a detail page's contents are read from the page (2026-11-14)
+
+- **One writer of `document.title`.** `PageTitleProvider` in `Layout` owns it;
+  pages only name themselves, through `usePageTitle`. Rejected: a
+  `document.title =` effect in each page, which nothing keeps consistent, and
+  a title field on every `<Route>` in `App.jsx`, which cannot know a record's
+  name and would be a third list of pages beside the routes and the nav.
+- **Ordinary pages take the nav's label**, read from `navigation.js`, so the
+  tab and the menu cannot disagree. A library row adds "Library" ("Anime
+  Library"), because the bare label would read as an entry page.
+- **No site suffix.** The tab shows only the page's name, as the owner
+  asked; `SITE_NAME` survives only as the title of a path nothing names.
+- **The loading and error fallback is the nav row the path lights up** -
+  "Anime" on `/anime/12`, "Franchise" on `/series/4`. Rejected: "Loading…"
+  and "Not found" titles, which say nothing about where the tab is, and the
+  site name, which makes every half-loaded tab look the same. A failed load
+  is not told apart from a slow one in the tab; the page itself says which.
+- **The detail-page contents are discovered, not declared.** Which sections a
+  detail page renders turns on the viewer (`self.list`), the data (an empty
+  cast) and the notes registry, which arrives after the entry. Writing those
+  conditions again as a list per page would let the list and the page
+  disagree, so `DetailContents` reads `data-toc` anchors off the rendered
+  tree (with a `MutationObserver` for the notes) and skips one that rendered
+  nothing. The dashboard keeps its declared list: it has sub-rows and
+  already computes which divisions it draws.
+- **On the right, xl+ only, with the page widened to make room.** The left
+  column is the cover, sources and relations; a second column there would
+  stack two sticky things in one place. Widening the container to `88rem` on
+  xl keeps the cover column near its usual width instead of handing it the
+  contents' 12rem; below xl the contents are not drawn at all.
+
+### Originality 原創 is renamed 原版, and the h-comic and hentai links auto-fill (2026-11-14)
+
+- **One rename covers both types**, because `hentai.originality` reads
+  h-comic's `H_COMIC_ORIGINALITY`. Revision `o1r2iginal35` rewrites both
+  tables and any stored Add-form default naming `原創`. A Sheets Pull reads an
+  older backup's `原創` as `原版` (`_LEGACY_ORIGINALITY` in
+  `app/utils/formatter.py`), in the same way as the storefront rename
+  `Physical` → `Physical Store`. A write naming `原創` is refused like any other
+  value outside the vocabulary.
+- **`mal_link` (h-comic, hentai) and `anidb_link` (hentai) are auto-fillable
+  and in `BUILTIN_AUTOFILL`.** Entries of one franchise often share a MAL or
+  AniDB page, so copying is the useful default, and /defaults can switch it
+  off. The hidden ids are not copied: the write hook derives them from the
+  links again.
+- **A stored auto-fill list gains the links in the same revision.** The stored
+  list is used verbatim, and /defaults saves it whole, so a type configured
+  before this change would otherwise never copy the links. Alternatives
+  rejected: leaving stored lists alone makes the new default reach only
+  unconfigured types, and nothing on /defaults would explain why. Treating
+  absent keys as "on" would mean an admin who unticked a field cannot be told
+  apart from one who never saw it. A list saved earlier could not have
+  chosen the links, because /defaults did not offer them, so adding them
+  overrides no decision. A null list already means the built-in set and is
+  left as it is. The downgrade removes the links, because the earlier code
+  cannot copy them.
+- **Hentai source material gains `Game`**, with no MAL or AniDB mapping:
+  neither records a source material, and no fill has ever written the
+  column. The completions statistics grouped by a hard-coded copy of the list,
+  which would have put a Game hentai under Unrecorded. The grouping moved to
+  `pages/statistics/hentaiCompletions.js` and reads the shared vocabulary.
+
+### A shared account's mode is a ceiling and a default; a login lands on the dashboard (2026-11-14)
+
+- **The shared account's mode stopped being fixed.** It was fixed on the
+  reasoning that one person narrowing would be "one person's choice made for
+  everyone signed in". That was wrong: a switched mode is the `access_mode`
+  cookie of one browser, so it never reaches the others on the same login.
+  The real consequence of letting it switch is the opposite one: anyone with
+  the shared password can widen to the ceiling, for up to an hour at a time.
+  So the ceiling is what the admin hands out with the password, and it is
+  set on `/users` like any account's. The shared ROLE stays fixed.
+- **The seed stops re-asserting the mode.** It still creates each shared
+  account at its own mode, and puts back a mode only on an account left with
+  none. No migration: every existing shared account already holds its seeded
+  mode as both ceiling and default, which is the state the new rule starts
+  from.
+- **A login always lands on `/`, and `?next=` is gone.** Sending a login to
+  the page the previous visitor was on breaks whenever the new account may
+  not open it - logging out of a member page and in as the admin left the
+  admin on `/login?next=/statistics`. The dashboard is the one page every
+  account can open. A mode switch is not a login and still reloads the page
+  it is on.
+- **The Users page edits in one dialog.** The Access column was the only
+  place where a tick saved at once; it is now a summary, and the switches,
+  ceiling, default and denials sit in the Edit dialog beside role, password
+  and limit, saved together. The PATCH and the PUT are sent only for what
+  changed.
+
+### Statistics asks its own key, view.statistics, and its catalogue sections are everyone's (2026-11-14)
+
+- **A key of its own, locked per role like `view.random_picker`.** The page
+  used to open on any ordinary `media_type.*`, which reached the guest; no
+  existing key draws the line "super, user and shared, never guest". The
+  route, `App.jsx` and `navigation.js` all ask it, and `/api/statistics/catalogue`
+  refuses a guest with 401 like the other view gates. Revision `s1t2atistics3`
+  grants it to the three holders.
+- **The catalogue sections show for every holder**, not only a viewer
+  without a list. A member sees them after its personal sections, so the
+  page reads the same for the shared account and for a member, plus the
+  member's own blocks.
+- **Franchises per type come from the entries, not from the franchise.**
+  `COUNT(DISTINCT media.franchise_id)` over the same visible entries the
+  entry count uses, in one grouped query. `franchise.franchise_type` was
+  rejected: it is a free comma-joined string with its own vocabulary (ACG,
+  "TV, Movie") which does not map onto the twelve media types, and it knows
+  nothing about visibility.
+- **The score distributions are bucketed by the server, per media type, and
+  pooled by the page.** One request answers both the pooled chart and any
+  single type. The scored types are read off the models (`hasattr`) rather
+  than listed, so the four that carry `mal_rating` and `anilist_rating`
+  today - anime, anime movie, manga, novel - are not a list to keep in step.
+  A perfect score folds into the top bucket rather than getting a bucket of
+  one value.
+- **The catalogue chart is headed "Rating distribution" with the Catalogue
+  eyebrow, and its sidebar entry is "Catalogue ratings"**, because a member's
+  page already has a personal "Rating distribution" and two sidebar entries
+  of one name would be ambiguous.
+- **"Entries by genre" was removed**, to be added back; what it needs is in
+  open-items.md.
+- **No shared modal component exists**, so `SeasonCountsModal` follows the
+  modal chrome `ConfirmModal` and `RemarkModal` share. Its grid is CSS
+  columns rather than a CSS grid, so seasons read down each column, newest
+  first, as the table above it does.

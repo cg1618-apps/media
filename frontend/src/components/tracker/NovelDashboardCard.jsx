@@ -16,6 +16,7 @@ import {
 import { entityPath } from "../../lib/entityPath";
 import { EntryRow } from "./DashboardTable";
 import LazyImage from "../ui/LazyImage";
+import ProgressInput from "./ProgressInput";
 import { focusStyle, thumbUrl } from "../../lib/covers";
 
 const STEPPER_INPUT =
@@ -33,7 +34,7 @@ function StepButton({ onClick, label, children }) {
 export default function NovelDashboardCard({
   novel,
   franchise,
-  isAdmin,
+  canTrack,
   onProgressChange,
   view = "card",
 }) {
@@ -178,7 +179,7 @@ export default function NovelDashboardCard({
           : (novel.vol_total_original ?? "?");
       const unit = pd === "vol_tw" ? "vol tw" : "vol";
 
-      if (isAdmin) {
+      if (canTrack) {
         return (
           <div className="flex items-center justify-between gap-2 relative z-20">
             <StepButton
@@ -188,13 +189,12 @@ export default function NovelDashboardCard({
               <i className="fas fa-minus text-[10px]"></i>
             </StepButton>
             <div className="font-mono text-[13px] flex items-baseline justify-center select-none flex-1 whitespace-nowrap">
-              <input
-                type="number"
+              <ProgressInput
+                decimal
                 className={`${STEPPER_INPUT} w-16`}
                 value={fin}
-                onChange={(e) =>
-                  handleVolChange(parseFloat(e.target.value) || 0)
-                }
+                onCommit={handleVolChange}
+                aria-label="Volumes read"
               />
               <span className="text-text-faint mx-1 text-xs">/</span>
               <span className="text-text-faint w-12 text-center">{total}</span>
@@ -225,7 +225,7 @@ export default function NovelDashboardCard({
       const arcTotal = novel.arc_total ?? arcs.length ?? "?";
       const chInArcTotal = arcView.arc?.ch_count ?? "?";
 
-      if (isAdmin) {
+      if (canTrack) {
         return (
           <div className="flex items-center justify-between gap-2 relative z-20">
             <StepButton
@@ -236,26 +236,22 @@ export default function NovelDashboardCard({
             </StepButton>
             <div className="font-mono text-[11px] flex items-baseline justify-center select-none flex-1 whitespace-nowrap gap-1">
               <span className={UNIT}>arc</span>
-              <input
-                type="number"
+              <ProgressInput
+                decimal
                 className={`${STEPPER_INPUT} w-10 text-[11px]`}
                 value={arcView.arcNumber}
                 aria-label="Arc being read"
-                onChange={(e) =>
-                  handleArcInput(parseFloat(e.target.value) || 0)
-                }
+                onCommit={handleArcInput}
               />
               <span className="text-text-faint text-[9px]">/{arcTotal}</span>
               <span className="text-text-faint mx-0.5">·</span>
               <span className={UNIT}>ch</span>
-              <input
-                type="number"
+              <ProgressInput
+                decimal
                 className={`${STEPPER_INPUT} w-10 text-[11px]`}
                 value={arcView.chInArc}
                 aria-label="Chapters read in this arc"
-                onChange={(e) =>
-                  handleChInArcInput(parseFloat(e.target.value) || 0)
-                }
+                onCommit={handleChInArcInput}
               />
               <span className="text-text-faint text-[9px]">/{chInArcTotal}</span>
             </div>
@@ -289,7 +285,7 @@ export default function NovelDashboardCard({
       const fin = novel.ch_fin ?? 0;
       const total = novel.ch_total ?? "?";
 
-      if (isAdmin) {
+      if (canTrack) {
         return (
           <div className="flex items-center justify-between gap-2 relative z-20">
             <StepButton
@@ -299,13 +295,12 @@ export default function NovelDashboardCard({
               <i className="fas fa-minus text-[10px]"></i>
             </StepButton>
             <div className="font-mono text-[13px] flex items-baseline justify-center select-none flex-1 whitespace-nowrap">
-              <input
-                type="number"
+              <ProgressInput
+                decimal
                 className={`${STEPPER_INPUT} w-16`}
                 value={fin}
-                onChange={(e) =>
-                  handleChChange(parseFloat(e.target.value) || 0)
-                }
+                onCommit={handleChChange}
+                aria-label="Chapters read"
               />
               <span className="text-text-faint mx-1 text-xs">/</span>
               <span className="text-text-faint w-12 text-center">{total}</span>

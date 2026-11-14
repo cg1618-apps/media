@@ -27,7 +27,7 @@ def test_search_requires_admin(client, path, _):
 
 
 @pytest.mark.parametrize("path,func", ROUTES)
-def test_search_returns_the_shared_shape(admin_client, monkeypatch, path, func):
+def test_search_returns_the_shared_shape(owner_client, monkeypatch, path, func):
     calls = []
 
     def fake(q, limit):
@@ -35,7 +35,7 @@ def test_search_returns_the_shared_shape(admin_client, monkeypatch, path, func):
         return [ROW]
 
     monkeypatch.setattr(novel, func, fake)
-    response = admin_client.get(f"{path}?q=sapiens&limit=5")
+    response = owner_client.get(f"{path}?q=sapiens&limit=5")
     assert response.status_code == 200
     assert response.json() == [ROW]
     # Reaching the fake proves the literal path is not swallowed by /{entry_id}.
@@ -43,16 +43,16 @@ def test_search_returns_the_shared_shape(admin_client, monkeypatch, path, func):
 
 
 @pytest.mark.parametrize("path,_", ROUTES)
-def test_an_empty_query_is_a_422(admin_client, path, _):
-    assert admin_client.get(f"{path}?q=").status_code == 422
+def test_an_empty_query_is_a_422(owner_client, path, _):
+    assert owner_client.get(f"{path}?q=").status_code == 422
 
 
 @pytest.mark.parametrize("path,func", ROUTES)
-def test_an_upstream_failure_is_a_502(admin_client, monkeypatch, path, func):
+def test_an_upstream_failure_is_a_502(owner_client, monkeypatch, path, func):
     def fail(q, limit):
         raise ExternalSearchError("Open Library did not answer.")
 
     monkeypatch.setattr(novel, func, fail)
-    response = admin_client.get(f"{path}?q=sapiens")
+    response = owner_client.get(f"{path}?q=sapiens")
     assert response.status_code == 502
     assert response.json()["detail"] == "Open Library did not answer."

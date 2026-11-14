@@ -13,9 +13,11 @@ import uuid
 
 from app import models
 from app.services.rbac.permissions import (
+    ADMIN_FIXED_PERMISSIONS,
     PERM_ADMIN_AUTHZ,
     PERM_MANAGE_CATALOG,
     PERM_MANAGE_PIPELINES,
+    gated_type_permissions,
     media_type_perm,
 )
 from app.services.rbac.seed import ensure_rbac_seed
@@ -46,7 +48,6 @@ def test_seed_creates_the_two_system_roles(db_session):
     for name in ("guest", "admin"):
         role = _role(db_session, name)
         assert role is not None, f"{name} role not seeded"
-        assert role.is_system is True
 
 
 def test_seed_is_idempotent(db_session):
@@ -58,14 +59,20 @@ def test_seed_is_idempotent(db_session):
     assert db_session.query(models.Role).filter(models.Role.name == "guest").count() == 1
 
 
-def test_admin_is_a_root_role_and_needs_no_grants(db_session):
+def test_the_admin_role_stores_exactly_its_fixed_set(db_session):
+    """No role is root: the admin holds its fixed set as grant rows, like
+    any other role, and the column that made it root is gone."""
     ensure_rbac_seed(db_session)
-    admin = _role(db_session, "admin")
-    assert admin.is_root is True
+    assert not hasattr(models.Role, "is_root")
+    assert _grants(db_session, "admin") == set(ADMIN_FIXED_PERMISSIONS)
+    # The mirror: the catalogue is not in it, so the equality above is not
+    # an accident of a set that holds everything.
+    assert PERM_MANAGE_CATALOG not in _grants(db_session, "admin")
 
 
-def test_guest_is_granted_every_media_type_and_no_field_group(db_session):
-    """Day one must be behaviour-identical: guest sees what it saw before.
+def test_guest_is_granted_every_ordinary_media_type_and_no_field_group(db_session):
+    """A guest reads every ordinary type and never a gated one: the three
+    gated types are locked off for the role.
 
     Field groups left the role axis in Phase B, so a seeded guest holds none
     of them - what a logged-out visitor may see of a reachable entry is the
@@ -73,8 +80,11 @@ def test_guest_is_granted_every_media_type_and_no_field_group(db_session):
     """
     ensure_rbac_seed(db_session)
     grants = _grants(db_session, "guest")
+    gated = gated_type_permissions()
+    assert gated
     for media_type in MEDIA_TYPE_KEYS:
-        assert media_type_perm(media_type) in grants
+        permission = media_type_perm(media_type)
+        assert (permission in grants) is (permission not in gated), permission
     assert not any(p.startswith("field_group.") for p in grants)
 
 
@@ -95,15 +105,26 @@ def test_me_reports_the_guest_role_for_an_anonymous_caller(client):
     assert body["is_admin"] is False
     assert body["username"] is None
     assert body["role"] == "guest"
-    assert body["is_root"] is False
+    assert "is_root" not in body
     assert media_type_perm("anime") in body["permissions"]
 
 
-def test_me_reports_root_for_an_admin(admin_client):
+def test_me_reports_the_admin_fixed_set(admin_client):
+    """The admin may not edit the catalogue (is_admin false), sits in no
+    mode, and holds exactly its fixed set - no field group either, since
+    those come from a mode."""
     body = admin_client.get("/api/auth/me").json()
-    assert body["is_admin"] is True
+    assert body["is_admin"] is False
     assert body["username"] == "aaa_testadmin"
-    assert body["is_root"] is True
+    assert "is_root" not in body
+    assert set(body["permissions"]) == set(ADMIN_FIXED_PERMISSIONS)
+
+
+def test_me_reports_a_catalogue_editor_for_the_owner(owner_client):
+    """The mirror: the owner (super) may edit the catalogue."""
+    body = owner_client.get("/api/auth/me").json()
+    assert body["is_admin"] is True
+    assert body["username"] == "aaa_testowner"
 
 
 def test_me_survives_a_garbage_cookie(client):

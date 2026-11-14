@@ -9,13 +9,15 @@
 // media type. A seiyuu group is the exception in what it shows: its cards
 // lead with the part voiced (VoicedPartCard), the entry beneath it.
 //
-// Like Studio.jsx it reads the API with plain fetch. An admin can set my
-// rating and the remark in place and jump to the full editor, the same
-// controls Character.jsx has (components/info/EntityProfileControls.jsx):
-// PATCH, then the response becomes the page's state. Club membership
+// Like Studio.jsx it reads the API with plain fetch. An admin can write the
+// remark in place and jump to the full editor, the same controls
+// Character.jsx has (components/info/EntityProfileControls.jsx): PATCH, then
+// the response becomes the page's state. My rating is the viewer's own, set
+// by a holder of self.list through PUT /api/me/ratings. Club membership
 // (ClubMembership) is editable here too, through its own endpoints.
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import ReportProblemButton from "../../components/requests/ReportProblemButton";
 
 import { endpoints } from "../../api/endpoints";
 import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
@@ -36,7 +38,10 @@ import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { Eyebrow, RatingStamp } from "../../components/ui/primitives";
 import LazyImage from "../../components/ui/LazyImage";
 import { useAuth } from "../../contexts/AuthContext";
+import { usePageTitle } from "../../contexts/PageTitleContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
+import { useViewScope } from "../../hooks/useViewScope";
+import { useMyRatingSaver } from "../../api/mutations/useMyRatingMutations";
 
 // A role key to the name the admin sub-tabs give it ("composer" ->
 // "Music / Composer"), so the Types row reads as the library's Type filter does.
@@ -52,6 +57,9 @@ export default function Person() {
   const [error, setError] = useState(null);
   const { isAdmin } = useAuth();
   const patch = useEntityPatch("person", person?.system_id, setPerson);
+  // My rating is the viewer's own (self.list), saved through /api/me/ratings.
+  const { ownData: canRate } = useViewScope();
+  const saveMyRating = useMyRatingSaver("person", person?.system_id, setPerson);
 
   useCanonicalPath("person", person);
 
@@ -92,6 +100,10 @@ export default function Person() {
     };
   }, [publicId]);
 
+  // The heading's name, which the browser tab shows too.
+  const name = person ? person.display_name || "Unknown Person" : null;
+  usePageTitle(loading || error ? null : name);
+
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading person..." />;
   }
@@ -105,7 +117,6 @@ export default function Person() {
     );
   }
 
-  const name = person.display_name || "Unknown Person";
   // The server resolves the fallback: the chosen entry's cover, then the
   // newest visible one.
   const photoUrl = getCoverUrl(person.display_photo_file ?? person.photo_file);
@@ -118,18 +129,25 @@ export default function Person() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-      <nav
-        className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint mb-8 flex items-center gap-3"
-        aria-label="Breadcrumb"
-      >
-        <Link to="/library/person" className="hover:text-brand transition">
-          People
-        </Link>
-        <span aria-hidden="true">/</span>
-        <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
-          {name}
-        </span>
-      </nav>
+      <div className="mb-8 flex items-center justify-between gap-3">
+        <nav
+          className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint min-w-0 flex items-center gap-3"
+          aria-label="Breadcrumb"
+        >
+          <Link to="/library/person" className="hover:text-brand transition">
+            People
+          </Link>
+          <span aria-hidden="true">/</span>
+          <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
+            {name}
+          </span>
+        </nav>
+        <ReportProblemButton
+          targetType="person"
+          targetId={person.system_id}
+          targetLabel={name}
+        />
+      </div>
 
       {isAdmin && <AdminToolbar ownerType="person" systemId={person.system_id} />}
 
@@ -166,10 +184,10 @@ export default function Person() {
             </div>
           </div>
 
-          {isAdmin && (
+          {canRate && (
             <RatingSelect
               rating={person.my_rating}
-              onChange={(v) => patch({ my_rating: v }, "Rating saved")}
+              onChange={(v) => saveMyRating({ my_rating: v }, "Rating saved")}
             />
           )}
 

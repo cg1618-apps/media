@@ -157,11 +157,11 @@ def test_fill_eligibility_follows_the_filled_columns(db_session):
 
 
 def test_the_write_hook_fetches_from_the_link_and_keeps_the_label(
-    admin_client, db_session, tenrai
+    owner_client, db_session, tenrai
 ):
     """Create with only a MAL link: the id is extracted, the columns are
     filled by the single-entry hook, and the sync keeps the label on."""
-    response = admin_client.post(
+    response = owner_client.post(
         "/api/h-comic/",
         json={
             "h_comic_name_cn": "Zvornik Hooked",
@@ -177,4 +177,4 @@ def test_the_write_hook_fetches_from_the_link_and_keeps_the_label(
     assert body["serialization_status"] == "完結"
     assert body["ch_total"] == 88
     entry_id = uuid.UUID(body["system_id"])
-    assert label_keys_for_entry(db_session, entry_id) == ["h-comic"]
+    assert label_keys_for_entry(db_session, entry_id) == ["h-comic", "nsfw"]

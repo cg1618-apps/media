@@ -26,9 +26,9 @@ def _list_row(db, media_id):
 
 
 def test_create_writes_the_personal_fields_to_a_list_row(
-    admin_client, db, admin_user
+    owner_client, db, owner_user
 ):
-    response = admin_client.post(
+    response = owner_client.post(
         "/api/anime/",
         json={
             "anime_name_en": "Created Sentinel",
@@ -50,11 +50,11 @@ def test_create_writes_the_personal_fields_to_a_list_row(
     assert row.status == "Active Watching"
     assert row.my_rating == "8"
     assert row.ep_fin == 6
-    assert row.user_id == admin_user.id
+    assert row.user_id == owner_user.id
 
 
-def test_create_with_no_personal_fields_still_makes_a_default_row(admin_client, db):
-    response = admin_client.post(
+def test_create_with_no_personal_fields_still_makes_a_default_row(owner_client, db):
+    response = owner_client.post(
         "/api/anime/", json={"anime_name_en": "Bare Sentinel", "airing_type": "TV"}
     )
     assert response.status_code == 201, response.text
@@ -63,8 +63,8 @@ def test_create_with_no_personal_fields_still_makes_a_default_row(admin_client, 
     assert row.status == "Might Watch"
 
 
-def test_the_catalogue_columns_still_land_on_the_detail_table(admin_client, db):
-    response = admin_client.post(
+def test_the_catalogue_columns_still_land_on_the_detail_table(owner_client, db):
+    response = owner_client.post(
         "/api/anime/",
         json={
             "anime_name_en": "Split Sentinel",
@@ -78,11 +78,11 @@ def test_the_catalogue_columns_still_land_on_the_detail_table(admin_client, db):
     assert entry.anime_name_en == "Split Sentinel"
 
 
-def test_patch_updates_the_list_row_not_the_entry(admin_client, db):
-    created = admin_client.post(
+def test_patch_updates_the_list_row_not_the_entry(owner_client, db):
+    created = owner_client.post(
         "/api/anime/", json={"anime_name_en": "Patched Sentinel", "airing_type": "TV"}
     ).json()
-    response = admin_client.patch(
+    response = owner_client.patch(
         f"/api/anime/{created['system_id']}", json={"my_rating": "6", "ep_fin": 3}
     )
     assert response.status_code == 200, response.text
@@ -93,11 +93,11 @@ def test_patch_updates_the_list_row_not_the_entry(admin_client, db):
     assert row.ep_fin == 3
 
 
-def test_put_updates_the_list_row(admin_client, db):
-    created = admin_client.post(
+def test_put_updates_the_list_row(owner_client, db):
+    created = owner_client.post(
         "/api/anime/", json={"anime_name_en": "Put Sentinel", "airing_type": "TV"}
     ).json()
-    response = admin_client.put(
+    response = owner_client.put(
         f"/api/anime/{created['system_id']}",
         json={
             "anime_name_en": "Put Sentinel",
@@ -112,11 +112,11 @@ def test_put_updates_the_list_row(admin_client, db):
     assert row.my_rating == "10"
 
 
-def test_reaching_completed_stamps_completed_at_on_the_list_row(admin_client, db):
-    created = admin_client.post(
+def test_reaching_completed_stamps_completed_at_on_the_list_row(owner_client, db):
+    created = owner_client.post(
         "/api/anime/", json={"anime_name_en": "Stamp Sentinel", "airing_type": "TV"}
     ).json()
-    admin_client.patch(
+    owner_client.patch(
         f"/api/anime/{created['system_id']}", json={"watching_status": "Completed"}
     )
     row = _list_row(db, uuid.UUID(created["system_id"]))
@@ -124,15 +124,15 @@ def test_reaching_completed_stamps_completed_at_on_the_list_row(admin_client, db
     assert row.completed_at is not None
 
 
-def test_completed_at_is_stamped_once_and_not_refreshed(admin_client, db):
-    created = admin_client.post(
+def test_completed_at_is_stamped_once_and_not_refreshed(owner_client, db):
+    created = owner_client.post(
         "/api/anime/", json={"anime_name_en": "Once Sentinel", "airing_type": "TV"}
     ).json()
-    admin_client.patch(
+    owner_client.patch(
         f"/api/anime/{created['system_id']}", json={"watching_status": "Completed"}
     )
     first = _list_row(db, uuid.UUID(created["system_id"])).completed_at
-    admin_client.patch(
+    owner_client.patch(
         f"/api/anime/{created['system_id']}", json={"watching_status": "Completed"}
     )
     assert _list_row(db, uuid.UUID(created["system_id"])).completed_at == first

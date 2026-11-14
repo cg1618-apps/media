@@ -2,9 +2,13 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import { putMyListRow } from "../../api/myList";
+import { useViewScope } from "../../hooks/useViewScope";
 import { useToast } from "../../hooks/useToast";
 import { getRatingWeight } from "../../utils/media";
+import { endpoints } from "../../api/endpoints";
 import DashboardCard from "../../components/tracker/DashboardCard";
+import CatalogueSeasonGrid from "../../components/seasonal/CatalogueSeasonGrid";
 import { progressToast } from "../../lib/progressToast";
 import RatingDistributionBlock from "../../components/info/RatingDistributionBlock";
 import { Chip, Eyebrow, ProgressRule, RatingStamp, Slip } from "../../components/ui/primitives";
@@ -128,7 +132,7 @@ function SeasonalBlock({
   seasonal,
   animeData,
   franchiseMap,
-  isAdmin,
+  canTrack,
   onEpChange,
   onRatingChange,
   sections = SECTIONS,
@@ -191,7 +195,7 @@ function SeasonalBlock({
             )}
           </div>
 
-          {isAdmin && seasonal && (
+          {canTrack && seasonal && (
             <div className="shrink-0">
               <Eyebrow as="label" className="block mb-1.5">
                 Seasonal rating
@@ -255,7 +259,7 @@ function SeasonalBlock({
                       key={anime.system_id}
                       anime={anime}
                       franchise={franchiseMap[anime.franchise_id]}
-                      isAdmin={isAdmin}
+                      canTrack={canTrack}
                       onEpChange={onEpChange}
                     />
                   ))}
@@ -269,10 +273,13 @@ function SeasonalBlock({
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// ─── With a list ──────────────────────────────────────────────────────────────
 
-export default function SeasonalOverall() {
+function SeasonalOverallWithList() {
   const { isAdmin } = useAuth();
+  // The season's rating and the episode steppers are the viewer's own, so
+  // they ask for a list; isAdmin is kept for the editor's hint only.
+  const { ownData: canTrack } = useViewScope();
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState("current");
 
@@ -379,14 +386,7 @@ export default function SeasonalOverall() {
         ),
       );
       try {
-        const res = await fetch(`/api/anime/${sysId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ep_fin: newVal }),
-          credentials: "include",
-        });
-        if (!res.ok) throw new Error();
-        const saved = await res.json().catch(() => null);
+        const saved = await putMyListRow(sysId, { ep_fin: newVal });
         if (saved) {
           setter((prev) =>
             prev.map((a) => (a.system_id === sysId ? { ...a, ...saved } : a)),
@@ -488,7 +488,7 @@ export default function SeasonalOverall() {
               seasonal={seasonalMap[currentSeason]}
               animeData={thisAnime}
               franchiseMap={franchiseMap}
-              isAdmin={isAdmin}
+              canTrack={canTrack}
               onEpChange={handleEpChange(thisAnime, setThisAnime)}
               onRatingChange={handleRatingChange}
               showRatingDistribution
@@ -518,7 +518,7 @@ export default function SeasonalOverall() {
               seasonal={seasonalMap[nextSeason]}
               animeData={nextAnime}
               franchiseMap={franchiseMap}
-              isAdmin={isAdmin}
+              canTrack={canTrack}
               onEpChange={handleEpChange(nextAnime, setNextAnime)}
               onRatingChange={handleRatingChange}
               sections={NEXT_SECTIONS}
@@ -609,3 +609,232 @@ export default function SeasonalOverall() {
   );
 }
 
+// ─── Without a list ───────────────────────────────────────────────────────────
+//
+// A viewer without a list has no statuses, no seasonal rows and no season
+// rating, so it gets the catalogue version: each season's anime with no
+// status split, and an All Seasons table built from the catalogue
+// (/api/seasonal/catalogue) rather than from the viewer's own seasonal rows.
+
+function CatalogueSeasonBlock({ blockTitle, seasonalId, anime }) {
+  return (
+    <div className="space-y-6">
+      <Slip title={blockTitle}>
+        <div className="flex items-center gap-3 flex-wrap">
+          <h2 className="font-display text-3xl font-semibold text-text leading-none">
+            {seasonalId}
+          </h2>
+          <Link
+            to={`/seasonal/${encodeURIComponent(seasonalId)}`}
+            className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-muted hover:text-brand transition"
+          >
+            View detail →
+          </Link>
+        </div>
+        <div className="flex flex-wrap gap-x-6 gap-y-3 mt-4">
+          <StatFigure label="Total" value={anime.length} />
+        </div>
+      </Slip>
+      <CatalogueSeasonGrid anime={anime} />
+    </div>
+  );
+}
+
+async function fetchJsonOr(url, fallback) {
+  const res = await fetch(url, { credentials: "include" });
+  if (!res.ok) return fallback;
+  return res.json();
+}
+
+function SeasonalOverallCatalogue() {
+  const [activeTab, setActiveTab] = useState("current");
+  const [currentSeason, setCurrentSeason] = useState(null);
+  const [seasonCounts, setSeasonCounts] = useState([]);
+  const [thisAnime, setThisAnime] = useState([]);
+  const [nextAnime, setNextAnime] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [csRes, countsRes] = await Promise.all([
+          fetch(endpoints.seasonal.currentSeason(), { credentials: "include" }),
+          fetch(endpoints.seasonal.catalogue(), { credentials: "include" }),
+        ]);
+        if (!csRes.ok || !countsRes.ok) throw new Error("Failed to load seasonal data.");
+        const [csData, counts] = await Promise.all([csRes.json(), countsRes.json()]);
+        const cs = csData.current_season;
+        const next = getNextSeason(cs);
+        setCurrentSeason(cs);
+        setSeasonCounts(counts);
+        const [thisList, nextList] = await Promise.all([
+          cs ? fetchJsonOr(`/api/anime/?airing_season=${encodeURIComponent(cs)}`, []) : [],
+          next ? fetchJsonOr(`/api/anime/?airing_season=${encodeURIComponent(next)}`, []) : [],
+        ]);
+        setThisAnime(thisList);
+        setNextAnime(nextList);
+      } catch (e) {
+        setError(e.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  const nextSeason = getNextSeason(currentSeason);
+  const countBySeason = Object.fromEntries(
+    seasonCounts.map((row) => [row.season, row.entry_count]),
+  );
+  const allYears = [...new Set(seasonCounts.map((row) => row.season.split(" ")[1]))].sort(
+    (a, b) => parseInt(b, 10) - parseInt(a, 10),
+  );
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <div className="text-center">
+          <i className="fas fa-spinner fa-spin text-brand text-3xl mb-3"></i>
+          <p className="text-text-faint text-sm">Loading seasonal overview...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-12">
+        <div className="text-center border border-danger text-danger p-6">
+          <p className="font-bold">Error loading seasonal overview.</p>
+          <p className="text-sm mt-1">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <header>
+        <Eyebrow className="mb-2">Calendar</Eyebrow>
+        <h1 className="font-display text-4xl sm:text-5xl font-semibold text-text leading-none">
+          Seasonal
+        </h1>
+        {currentSeason && (
+          <p className="text-sm text-text-muted mt-2">
+            Current season <span className="font-mono text-text">{currentSeason}</span>
+          </p>
+        )}
+      </header>
+
+      <nav className="flex flex-wrap gap-2">
+        {[
+          { key: "current", label: "Current season" },
+          { key: "next", label: "Next season" },
+          { key: "all", label: "All seasons" },
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`px-3 py-1.5 border text-sm font-medium transition ${
+              activeTab === tab.key
+                ? "bg-brand text-on-brand border-brand"
+                : "bg-surface text-text-muted border-border-strong hover:border-text"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </nav>
+
+      {activeTab === "current" &&
+        (currentSeason ? (
+          <CatalogueSeasonBlock
+            blockTitle="This Season"
+            seasonalId={currentSeason}
+            anime={thisAnime}
+          />
+        ) : (
+          <div className="flex flex-col items-center justify-center py-16 border border-dashed border-border-strong">
+            <p className="text-text-faint text-sm">No current season configured.</p>
+          </div>
+        ))}
+
+      {activeTab === "next" &&
+        (nextSeason ? (
+          <CatalogueSeasonBlock blockTitle="Next Season" seasonalId={nextSeason} anime={nextAnime} />
+        ) : (
+          <div className="flex flex-col items-center justify-center py-16 border border-dashed border-border-strong">
+            <p className="text-text-faint text-sm">Could not determine next season.</p>
+          </div>
+        ))}
+
+      {activeTab === "all" && (
+        <Slip title="All seasons" padded={false}>
+          {allYears.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16">
+              <p className="text-text-faint text-sm">No seasons in the catalogue.</p>
+            </div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="px-6 py-3 text-left font-mono text-[10px] font-normal text-text-faint uppercase tracking-[0.14em] w-20">
+                    Year
+                  </th>
+                  {SEASONS.map((s) => (
+                    <th
+                      key={s}
+                      className="px-4 py-3 text-center font-mono text-[10px] font-normal text-text-faint uppercase tracking-[0.14em]"
+                    >
+                      {SEASON_LABELS[s]}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {allYears.map((year) => (
+                  <tr key={year} className="hover:bg-surface-2 transition-colors">
+                    <td className="px-6 py-4 font-display text-xl text-text">{year}</td>
+                    {SEASONS.map((season) => {
+                      const id = `${season} ${year}`;
+                      const count = countBySeason[id];
+                      return (
+                        <td key={season} className="px-4 py-4 text-center">
+                          {count ? (
+                            <Link
+                              to={`/seasonal/${encodeURIComponent(id)}`}
+                              className={`inline-flex items-center gap-2 px-3 py-1.5 border font-mono text-[11px] uppercase tracking-[0.12em] transition ${
+                                id === currentSeason
+                                  ? "bg-brand text-on-brand border-brand"
+                                  : "bg-surface text-text-muted border-border-strong hover:border-text"
+                              }`}
+                            >
+                              {id}
+                              <span className="tabular-nums">{count}</span>
+                            </Link>
+                          ) : (
+                            <Chip tone="muted" className="border-dashed">{id}</Chip>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Slip>
+      )}
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+// With a list, the viewer's own season: statuses, counters, ratings and the
+// episode steppers. Without one, the catalogue's season (above).
+export default function SeasonalOverall() {
+  const { ownData } = useViewScope();
+  return ownData ? <SeasonalOverallWithList /> : <SeasonalOverallCatalogue />;
+}

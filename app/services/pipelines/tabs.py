@@ -22,6 +22,12 @@ The chains that must hold, all pinned by tests/api/test_sheet_restore_order.py:
     Watch Order List -> Section -> Item
     Person / Studio / Publisher / Character / Content Label -> the media tabs
     Character -> Character Identity -> Character Casting
+    Users, the three tiers, Character / Person / Studio / Publisher
+                     -> User Rating
+    Users, Novel Unit -> User Novel Unit Rating
+    Users, H-Comic, H-Game -> User Highlight Group Order
+    Users, Note      -> Note Mark
+    Users, Quote, Meme -> User Favorite
 
 Users is first because nothing points at it and Plan Next, Seasonal and Game
 Copy all carry a NOT NULL user_id.
@@ -33,6 +39,7 @@ from typing import Any, Callable, Optional
 from sqlalchemy.orm import Session
 
 from app import models
+from app.models.system import USER_STATUS_PENDING
 from app.utils import formatter as f
 
 
@@ -67,6 +74,17 @@ class SheetTab:
     # headed by the field key, after the plain and extra columns. The entry
     # tabs' credit/tag columns are the same idea, keyed by media_type instead.
     character_tags: bool = False
+    # Narrows which rows Backup writes, given the model's query. None is
+    # every row. Used by Users: a pending registration is not an account yet
+    # and belongs to this machine's approval queue, not to the other machine.
+    row_filter: Optional[Callable[[Any], Any]] = None
+
+    def rows(self, db: Session) -> list:
+        """The rows Backup writes for this tab."""
+        query = db.query(self.model)
+        if self.row_filter is not None:
+            query = self.row_filter(query)
+        return query.all()
 
 
 def _resolved_option(row: Any, db: Session) -> Optional["models.SystemOption"]:
@@ -143,6 +161,26 @@ def _row_username(row: Any, db: Session) -> Optional[str]:
     return user.username if user else None
 
 
+def _row_author_username(row: Any, db: Session) -> Optional[str]:
+    """
+    Who wrote this note, meme or quote, by name.
+
+    _row_username for the three tables whose user column is author_id: the
+    uuid is minted per database for the same reason users.id is, so it would
+    name nobody on the other machine.
+    """
+    if getattr(row, "author_id", None) is None:
+        return None
+    user = db.get(models.User, row.author_id)
+    return user.username if user else None
+
+
+AUTHOR_BY_USERNAME: dict[str, Any] = {
+    "drop_columns": ("author_id",),
+    "extra_columns": (("username", _row_author_username),),
+}
+
+
 def _user_role_name(row: Any, db: Session) -> Optional[str]:
     """
     The NAME of the role a user holds.
@@ -182,9 +220,15 @@ SHEET_TABS: tuple[SheetTab, ...] = (
         "Users",
         models.User,
         f.parse_user_from_sheet,
-        drop_columns=("hashed_password", "role_id"),
+        # session_version is this machine's revocation counter: carried to
+        # the other machine it would sign people out there for nothing, or
+        # roll a counter back and revive a token revoked here.
+        drop_columns=("hashed_password", "role_id", "session_version"),
         extra_columns=(("role", _user_role_name),),
         requires_authz=True,
+        row_filter=lambda query: query.filter(
+            models.User.status != USER_STATUS_PENDING
+        ),
     ),
     # Vocabulary next; scopes point at options via option_id.
     SheetTab("System Options", models.SystemOption, f.parse_system_option_from_sheet),
@@ -241,6 +285,18 @@ SHEET_TABS: tuple[SheetTab, ...] = (
     SheetTab("Collection", models.Collection, f.parse_collection_from_sheet),
     SheetTab("Franchise", models.Franchise, f.parse_franchise_from_sheet),
     SheetTab("Series", models.Series, f.parse_series_from_sheet),
+    # Per-user, like Watch Order Follow: user_id is dropped for `username`.
+    # After the three tiers and the four entities its owner columns name -
+    # person_id, studio_id and publisher_id are translated through their own
+    # tabs (DERIVED_IDENTITY_PARENTS in pull.py), since those uuids are
+    # minted per database; the tiers' and characters' travel.
+    SheetTab(
+        "User Rating",
+        models.UserRating,
+        f.parse_user_rating_from_sheet,
+        drop_columns=("user_id",),
+        extra_columns=(("username", _row_username),),
+    ),
     # Before every media tab: each entry table FKs (system_id, media_type) up
     # to `media`. The constraint is deferred, but Pull commits tab by tab, so
     # an entry tab restored before Media would fail at its own commit. This tab
@@ -257,6 +313,15 @@ SHEET_TABS: tuple[SheetTab, ...] = (
     SheetTab("Novel", models.Novel, f.parse_novel_from_sheet, "novel", drop_columns=MEDIA_TYPE_ONLY, extra_columns=DISPLAY_NAME_EXTRA),
     # After Novel: novel_id is a real FK, so the parent rows must exist first.
     SheetTab("Novel Unit", models.NovelUnit, f.parse_novel_unit_from_sheet),
+    # A reader's rating of and remark on a unit, per user. After Novel Unit,
+    # whose uuid unit_id names and which travels unchanged.
+    SheetTab(
+        "User Novel Unit Rating",
+        models.UserNovelUnitRating,
+        f.parse_user_novel_unit_rating_from_sheet,
+        drop_columns=("user_id",),
+        extra_columns=(("username", _row_username),),
+    ),
     SheetTab("Comic", models.Comic, f.parse_comic_from_sheet, "comic", drop_columns=MEDIA_TYPE_ONLY, extra_columns=DISPLAY_NAME_EXTRA),
     SheetTab("Game", models.Game, f.parse_game_from_sheet, "game", drop_columns=MEDIA_TYPE_ONLY, extra_columns=DISPLAY_NAME_EXTRA),
     # After Game. game_id is a real FK onto `media` - a copy may belong to a
@@ -286,6 +351,20 @@ SHEET_TABS: tuple[SheetTab, ...] = (
         "User Media List",
         models.UserMediaList,
         f.parse_user_media_list_from_sheet,
+        drop_columns=("system_id", "user_id", "media_id"),
+        extra_columns=(
+            ("media_type", _list_row_media_type),
+            ("public_id", _list_row_public_id),
+            ("username", _row_username),
+        ),
+    ),
+    # One account's order of the highlight groups on an h-comic or h-game.
+    # After Users and every media tab (H-Comic and H-Game above all), keyed
+    # naturally exactly as User Media List is.
+    SheetTab(
+        "User Highlight Group Order",
+        models.UserHighlightGroupOrder,
+        f.parse_user_highlight_group_order_from_sheet,
         drop_columns=("system_id", "user_id", "media_id"),
         extra_columns=(
             ("media_type", _list_row_media_type),
@@ -326,7 +405,9 @@ SHEET_TABS: tuple[SheetTab, ...] = (
             ("username", _row_username),
         ),
     ),
-    SheetTab("Quote", models.Quote, f.parse_quote_from_sheet),
+    # author_id is dropped for `username`, the way the per-user tabs drop
+    # user_id; Pull resolves it back (pull.py). Same for Meme and Note.
+    SheetTab("Quote", models.Quote, f.parse_quote_from_sheet, **AUTHOR_BY_USERNAME),
     # After every media tab: a casting reaches its entry by the FK-less
     # (media_type, entry_id) pair, so each entry must already exist.
     SheetTab(
@@ -341,8 +422,31 @@ SHEET_TABS: tuple[SheetTab, ...] = (
         f.parse_character_casting_voice_from_sheet,
     ),
     # Memes name quotes, so after them.
-    SheetTab("Meme", models.Meme, f.parse_meme_from_sheet),
-    SheetTab("Note", models.Note, f.parse_note_from_sheet),
+    SheetTab("Meme", models.Meme, f.parse_meme_from_sheet, **AUTHOR_BY_USERNAME),
+    # One account's favourite quote or meme. After Users, Quote and Meme:
+    # user_id is dropped for `username`, the way every per-user tab drops it,
+    # and quote_id / meme_id name the Quote and Meme tabs' rows by the uuid
+    # those tabs carry.
+    SheetTab(
+        "User Favorite",
+        models.UserFavorite,
+        f.parse_user_favorite_from_sheet,
+        drop_columns=("user_id",),
+        extra_columns=(("username", _row_username),),
+    ),
+    SheetTab("Note", models.Note, f.parse_note_from_sheet, **AUTHOR_BY_USERNAME),
+    # One account's personal values on one catalogue note row. After Users
+    # and Note: user_id is dropped for `username`, the way every per-user tab
+    # drops it, and note_id names the Note tab's row by its uuid - translated
+    # through that tab when this database holds the row under its own (a
+    # music_status row, minted per database).
+    SheetTab(
+        "Note Mark",
+        models.NoteMark,
+        f.parse_note_mark_from_sheet,
+        drop_columns=("user_id",),
+        extra_columns=(("username", _row_username),),
+    ),
     # The Resources page. Cites nothing outside itself; its only reference is
     # its own parent_id, which is DEFERRABLE, so a child row may precede its
     # parent on the tab and still restore.
@@ -379,6 +483,21 @@ SHEET_TABS: tuple[SheetTab, ...] = (
         "Franchise Content Label",
         models.FranchiseContentLabel,
         f.parse_franchise_content_label_from_sheet,
+        requires_authz=True,
+    ),
+    # The same row for the other two grouping tiers, after Collection and
+    # Series, and failing open the same way: a Pull without the tab restores
+    # every collection or series unlabelled.
+    SheetTab(
+        "Collection Content Label",
+        models.CollectionContentLabel,
+        f.parse_collection_content_label_from_sheet,
+        requires_authz=True,
+    ),
+    SheetTab(
+        "Series Content Label",
+        models.SeriesContentLabel,
+        f.parse_series_content_label_from_sheet,
         requires_authz=True,
     ),
     # user_id is dropped for `username` for the same reason the Plan Next tab

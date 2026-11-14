@@ -10,9 +10,9 @@ import LazyImage from "../ui/LazyImage";
 // `cover` is the resolved { url, focus } from lib/covers.js.
 export default function FranchiseCard({ franchise, cover }) {
   const name = getDisplayName(franchise, "franchise") || "Unknown Franchise";
-  // The franchise's own rating and expectation are personal content: drawn only
-  // for a viewer holding view.personal (the server strips them otherwise).
-  const { personal: showPersonal } = useViewScope();
+  // The rating and expectation are the viewer's own: drawn only for a viewer
+  // holding self.list (anyone else has none, and the server answers null).
+  const { ownData: showPersonal } = useViewScope();
 
   // Empty when the row carries no public_id: there is no URL to link to, so
   // the card renders as plain markup rather than a link to nowhere.

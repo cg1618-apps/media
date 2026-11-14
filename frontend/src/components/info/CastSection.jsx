@@ -47,7 +47,7 @@ function IdentityToggle({ showIdentities, hideableCount, onToggle }) {
 }
 
 // A name that links to its entity's page when there is one to go to, and is
-// plain text when there is not - a viewer without view.entities, or a row
+// plain text when there is not - a viewer without that kind's key, or a row
 // without a public_id.
 function EntityName({ to, className, children }) {
   return to ? (
@@ -62,7 +62,7 @@ function EntityName({ to, className, children }) {
 // An identity row is drawn as one, not only named: a dashed frame on its
 // thumbnail and a dashed "Identity" tag, the dashed line the cast editor
 // gives its identity rows. A main row stays solid. Character, identity and
-// seiyuu names link only for a viewer holding view.entities (useEntityHref).
+// seiyuu names link only for a viewer holding view.person (useEntityHref).
 function CastRow({ row }) {
   const entityHref = useEntityHref();
   const asIdentity = Boolean(row.identity_id);

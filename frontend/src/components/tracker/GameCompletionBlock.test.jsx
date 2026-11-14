@@ -9,7 +9,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import GameCompletionBlock from "./GameCompletionBlock";
+import GameCompletionBlock, { H_GAME_COMPLETION_AXES } from "./GameCompletionBlock";
 
 const mockAuth = vi.hoisted(() => ({ username: "someone" }));
 
@@ -94,5 +94,58 @@ describe("GameCompletionBlock", () => {
       <GameCompletionBlock game={GAME} isAdmin={false} onChange={() => {}} />,
     );
     expect(container).toBeEmptyDOMElement();
+  });
+});
+
+// H-Game's block adds usefulness, the viewer's own value (a list field): it
+// follows self.list (`canTrack`) and its own handler, while the three
+// completion axes stay the work's, an editor's to change.
+describe("GameCompletionBlock over H-Game's axes", () => {
+  const H_GAME = {
+    completion_level: "Main Story",
+    all_endings: "Yes",
+    all_cg: "No",
+    usefulness: "實用",
+  };
+
+  function renderHGame(props) {
+    return render(
+      <GameCompletionBlock
+        game={H_GAME}
+        axes={H_GAME_COMPLETION_AXES}
+        idPrefix="h-game"
+        onChange={() => {}}
+        onOwnChange={() => {}}
+        {...props}
+      />,
+    );
+  }
+
+  it("lets a holder of self.list who is not an editor set usefulness, through onOwnChange", async () => {
+    mockAuth.username = "member";
+    const onChange = vi.fn();
+    const onOwnChange = vi.fn();
+    renderHGame({ isAdmin: false, canTrack: true, onChange, onOwnChange });
+
+    // The work's axes are read, not edited.
+    expect(screen.queryByLabelText("All CG")).not.toBeInTheDocument();
+    const usefulness = screen.getByLabelText("Usefulness");
+    expect(usefulness).toBeEnabled();
+    await userEvent.selectOptions(usefulness, "");
+    expect(onOwnChange).toHaveBeenCalledWith({ usefulness: null });
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("gives an editor without self.list the work's axes and no usefulness", async () => {
+    mockAuth.username = "admin";
+    const onChange = vi.fn();
+    const onOwnChange = vi.fn();
+    renderHGame({ isAdmin: true, canTrack: false, onChange, onOwnChange });
+
+    expect(screen.queryByLabelText("Usefulness")).not.toBeInTheDocument();
+    expect(screen.queryByText("實用")).not.toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText("All CG"), "Yes");
+    expect(onChange).toHaveBeenCalledWith({ all_cg: "Yes" });
+    expect(onOwnChange).not.toHaveBeenCalled();
   });
 });

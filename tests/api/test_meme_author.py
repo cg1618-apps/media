@@ -26,9 +26,9 @@ def test_meme_has_no_scope_column(db):
 
 
 def test_a_meme_created_through_the_api_records_its_author(
-    db, admin_client, sample_anime, admin_user
+    db, owner_client, sample_anime, owner_user
 ):
-    r = admin_client.post(
+    r = owner_client.post(
         "/api/meme/",
         json={
             "owner_type": "anime",
@@ -39,14 +39,14 @@ def test_a_meme_created_through_the_api_records_its_author(
     # These two routes return 200, not 201 - matching them as they are.
     assert r.status_code == 200
     meme = db.query(models.Meme).filter_by(system_id=r.json()["system_id"]).one()
-    assert meme.author_id == admin_user.id
+    assert meme.author_id == owner_user.id
 
 
 def test_a_meme_created_through_the_api_ignores_a_claimed_author(
-    db, admin_client, sample_anime, admin_user
+    db, owner_client, sample_anime, owner_user
 ):
     """The author is who is asking, never who the payload says."""
-    r = admin_client.post(
+    r = owner_client.post(
         "/api/meme/",
         json={
             "owner_type": "anime",
@@ -58,7 +58,7 @@ def test_a_meme_created_through_the_api_ignores_a_claimed_author(
     # These two routes return 200, not 201 - matching them as they are.
     assert r.status_code == 200
     meme = db.query(models.Meme).filter_by(system_id=r.json()["system_id"]).one()
-    assert meme.author_id == admin_user.id
+    assert meme.author_id == owner_user.id
 
 
 def test_a_meme_without_an_author_is_rejected(db):

@@ -21,7 +21,7 @@ import Index from "./Index";
 function respond(url) {
   // A member: the tracker divisions are drawn only for self.list holders.
   if (url.startsWith("/api/auth/me")) {
-    return { is_admin: false, username: "reader", role: "user", is_root: false, permissions: ["self.list"] };
+    return { is_admin: false, username: "reader", role: "user", permissions: ["self.list"] };
   }
   if (url.startsWith("/api/anime/"))
     return [

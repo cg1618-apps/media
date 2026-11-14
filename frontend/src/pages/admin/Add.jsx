@@ -60,10 +60,12 @@ import { endpoints } from "../../api/endpoints";
 import { useEntryLists, GROUP_LIST_TYPES } from "../../hooks/useEntryLists";
 import { ADD_TAB_LISTS, listsForTab } from "../../config/adminEntryLists";
 import ContentLabelPicker, {
-  FRANCHISE_SCOPE_NOTE,
+  GROUP_SCOPE_NOTES,
   LABELLABLE_TABS,
+  saveCollectionLabels,
   saveEntryLabels,
   saveFranchiseLabels,
+  saveSeriesLabels,
 } from "../../components/forms/ContentLabelPicker";
 import { fetchJson, jsonBody } from "../../api/client";
 import { ensureSourceValues as ensureSourceValuesLib } from "../../lib/ensureSourceValues";
@@ -117,6 +119,7 @@ import { fetchAllSources } from "../../lib/sources";
 import { withMediaType } from "../../lib/suggestionOrder";
 import { characterTagsPayload, firstsPayload } from "../../lib/characterForm";
 import { enrichEntry } from "../../lib/enrich";
+import useLabelTagSync from "../../hooks/useLabelTagSync";
 
 export default function Add() {
   const { showToast } = useToast();
@@ -244,18 +247,57 @@ export default function Add() {
   const upubf = (k, v) => setPublisherForm((p) => ({ ...p, [k]: v }));
   const ucf = (k, v) => setCharacterForm((p) => ({ ...p, [k]: v }));
 
-  const ua = (k, v) => setAf((p) => ({ ...p, [k]: v }));
+  // The 標籤 Label field and the content-label picker, kept in step on every
+  // type with that field (hooks/useLabelTagSync.js). A tab switch or a reset
+  // after a create brings the labels to the open form's tags, so the picker
+  // shows what this tab will save.
+  const { editLabels, syncUpdater } = useLabelTagSync({
+    mediaType: activeTab,
+    forms: {
+      anime: [af, setAf],
+      "anime-movie": [amf, setAmf],
+      movie: [mf, setMf],
+      "tv-show": [tvf, setTvf],
+      cartoon: [cf, setCf],
+      manga: [mgf, setMgf],
+      novel: [nvf, setNvf],
+      comic: [cmf, setCmf],
+      game: [gmf, setGmf],
+    },
+    labels: contentLabels,
+    setLabels: setContentLabels,
+    onRefused: (message) => showToast("warning", message),
+    reconcileOnChange: true,
+  });
+
+  const ua = syncUpdater("anime", (k, v) => setAf((p) => ({ ...p, [k]: v })));
   const ucol = (k, v) => setColf((p) => ({ ...p, [k]: v }));
   const uf = (k, v) => setFf((p) => ({ ...p, [k]: v }));
   const us = (k, v) => setSf((p) => ({ ...p, [k]: v }));
-  const uam = (k, v) => setAmf((p) => ({ ...p, [k]: v }));
-  const umf = (k, v) => setMf((p) => ({ ...p, [k]: v }));
-  const utf = (k, v) => setTvf((p) => ({ ...p, [k]: v }));
-  const uc = (k, v) => setCf((p) => ({ ...p, [k]: v }));
-  const umg = (k, v) => setMgf((p) => ({ ...p, [k]: v }));
-  const unv = (k, v) => setNvf((p) => ({ ...p, [k]: v }));
-  const ucm = (k, v) => setCmf((p) => ({ ...p, [k]: v }));
-  const ugm = (k, v) => setGmf((p) => ({ ...p, [k]: v }));
+  const uam = syncUpdater("anime-movie", (k, v) =>
+    setAmf((p) => ({ ...p, [k]: v })),
+  );
+  const umf = syncUpdater("movie", (k, v) =>
+    setMf((p) => ({ ...p, [k]: v })),
+  );
+  const utf = syncUpdater("tv-show", (k, v) =>
+    setTvf((p) => ({ ...p, [k]: v })),
+  );
+  const uc = syncUpdater("cartoon", (k, v) =>
+    setCf((p) => ({ ...p, [k]: v })),
+  );
+  const umg = syncUpdater("manga", (k, v) =>
+    setMgf((p) => ({ ...p, [k]: v })),
+  );
+  const unv = syncUpdater("novel", (k, v) =>
+    setNvf((p) => ({ ...p, [k]: v })),
+  );
+  const ucm = syncUpdater("comic", (k, v) =>
+    setCmf((p) => ({ ...p, [k]: v })),
+  );
+  const ugm = syncUpdater("game", (k, v) =>
+    setGmf((p) => ({ ...p, [k]: v })),
+  );
   const uhc = (k, v) => setHcf((p) => ({ ...p, [k]: v }));
   const uhg = (k, v) => setHgf((p) => ({ ...p, [k]: v }));
   const uht = (k, v) => setHtf((p) => ({ ...p, [k]: v }));
@@ -633,9 +675,9 @@ export default function Add() {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
           franchiseType: "ACG",
-          onConfirm: (expectation, remark) => {
+          onConfirm: (remark) => {
             setFranchiseCreateModal(null);
-            resolve({ confirmed: true, expectation, remark });
+            resolve({ confirmed: true, remark });
           },
           onCancel: () => {
             setFranchiseCreateModal(null);
@@ -654,7 +696,6 @@ export default function Add() {
           franchise_name_jp: af.anime_name_jp || null,
           franchise_name_alt: af.anime_name_alt || null,
           franchise_type: "ACG",
-          franchise_expectation: result.expectation,
           remark: result.remark || null,
         }),
         credentials: "include",
@@ -769,8 +810,6 @@ export default function Add() {
         collection_name_roman: colf.collection_name_roman || null,
         collection_name_jp: colf.collection_name_jp || null,
         collection_name_alt: colf.collection_name_alt || null,
-        my_rating: colf.my_rating || null,
-        collection_expectation: colf.collection_expectation || null,
         remark: colf.remark || null,
       }),
       credentials: "include",
@@ -784,6 +823,17 @@ export default function Add() {
           created.collection_name_en ||
           "New Collection",
       );
+      try {
+        await saveCollectionLabels(created.system_id, contentLabels);
+      } catch {
+        // The collection saved; only its visibility did not. Say so rather
+        // than letting the admin believe a collection is restricted when it
+        // and everything under it is not.
+        showToast(
+          "error",
+          "Collection saved, but its content labels failed to save.",
+        );
+      }
       setColf(freshForm("collection"));
       setContentLabels([]);
       setAllCollections((prev) => [...prev, created]);
@@ -814,8 +864,6 @@ export default function Add() {
         franchise_name_alt: ff.franchise_name_alt || null,
         franchise_type: ff.franchise_type || null,
         collection_id: ff.collection_id || null,
-        my_rating: ff.my_rating || null,
-        franchise_expectation: ff.franchise_expectation || null,
         remark: ff.remark || null,
       }),
       credentials: "include",
@@ -878,8 +926,6 @@ export default function Add() {
         series_name_roman: sf.series_name_roman || null,
         series_name_jp: sf.series_name_jp || null,
         series_name_alt: sf.series_name_alt || null,
-        my_rating: sf.my_rating || null,
-        series_expectation: sf.series_expectation || null,
         remark: sf.remark || null,
       }),
       credentials: "include",
@@ -891,6 +937,17 @@ export default function Add() {
       setLastAdded(
         created.series_name_cn || created.series_name_en || "New Series",
       );
+      try {
+        await saveSeriesLabels(created.system_id, contentLabels);
+      } catch {
+        // The series saved; only its visibility did not. Say so rather than
+        // letting the admin believe a series is restricted when it and its
+        // entries are not.
+        showToast(
+          "error",
+          "Series saved, but its content labels failed to save.",
+        );
+      }
       setSf(freshForm("series"));
       setContentLabels([]);
       setAllSeries((prev) => [...prev, created]);
@@ -1064,7 +1121,6 @@ export default function Add() {
         name_alt: personForm.name_alt.trim() || null,
         display_name_field: personForm.display_name_field || null,
         gender: personForm.gender || null,
-        my_rating: personForm.my_rating || null,
         photo_file: personForm.photo_file || null,
         photo_focus: personForm.photo_focus || null,
         mal_link: personForm.mal_link?.trim() || null,
@@ -1114,7 +1170,6 @@ export default function Add() {
         display_name_field: characterForm.display_name_field || null,
         role: characterForm.role || null,
         gender: characterForm.gender || null,
-        my_rating: characterForm.my_rating || null,
         photo_file: characterForm.photo_file || null,
         photo_focus: characterForm.photo_focus || null,
         mal_link: characterForm.mal_link?.trim() || null,
@@ -1161,7 +1216,6 @@ export default function Add() {
         name_jp: studioForm.name_jp.trim() || null,
         name_alt: studioForm.name_alt.trim() || null,
         display_name_field: studioForm.display_name_field || null,
-        my_rating: studioForm.my_rating || null,
         logo_file: studioForm.logo_file || null,
         logo_focus: studioForm.logo_focus || null,
         country: studioForm.country || null,
@@ -1211,7 +1265,6 @@ export default function Add() {
         name_jp: publisherForm.name_jp.trim() || null,
         name_alt: publisherForm.name_alt.trim() || null,
         display_name_field: publisherForm.display_name_field || null,
-        my_rating: publisherForm.my_rating || null,
         logo_file: publisherForm.logo_file || null,
         logo_focus: publisherForm.logo_focus || null,
         country: publisherForm.country || null,
@@ -1285,9 +1338,9 @@ export default function Add() {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
           franchiseType: "ACG",
-          onConfirm: (expectation, remark) => {
+          onConfirm: (remark) => {
             setFranchiseCreateModal(null);
-            resolve({ confirmed: true, expectation, remark });
+            resolve({ confirmed: true, remark });
           },
           onCancel: () => {
             setFranchiseCreateModal(null);
@@ -1306,7 +1359,6 @@ export default function Add() {
           franchise_name_jp: amf.anime_movie_name_jp || null,
           franchise_name_alt: amf.anime_movie_name_alt || null,
           franchise_type: "ACG",
-          franchise_expectation: result.expectation,
           remark: result.remark || null,
         }),
         credentials: "include",
@@ -1398,9 +1450,9 @@ export default function Add() {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
           franchiseType: "Movie",
-          onConfirm: (expectation, remark) => {
+          onConfirm: (remark) => {
             setFranchiseCreateModal(null);
-            resolve({ confirmed: true, expectation, remark });
+            resolve({ confirmed: true, remark });
           },
           onCancel: () => {
             setFranchiseCreateModal(null);
@@ -1417,7 +1469,6 @@ export default function Add() {
           franchise_name_cn: mf.movie_name_cn || null,
           franchise_name_alt: mf.movie_name_alt || null,
           franchise_type: "Movie",
-          franchise_expectation: result.expectation,
           remark: result.remark || null,
         }),
         credentials: "include",
@@ -1543,9 +1594,9 @@ export default function Add() {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
           franchiseType: "TV",
-          onConfirm: (expectation, remark) => {
+          onConfirm: (remark) => {
             setFranchiseCreateModal(null);
-            resolve({ confirmed: true, expectation, remark });
+            resolve({ confirmed: true, remark });
           },
           onCancel: () => {
             setFranchiseCreateModal(null);
@@ -1562,7 +1613,6 @@ export default function Add() {
           franchise_name_cn: tvf.tv_name_cn || null,
           franchise_name_alt: tvf.tv_name_alt || null,
           franchise_type: "TV",
-          franchise_expectation: result.expectation,
           remark: result.remark || null,
         }),
         credentials: "include",
@@ -1669,9 +1719,9 @@ export default function Add() {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
           franchiseType: "Cartoon",
-          onConfirm: (expectation, remark) => {
+          onConfirm: (remark) => {
             setFranchiseCreateModal(null);
-            resolve({ confirmed: true, expectation, remark });
+            resolve({ confirmed: true, remark });
           },
           onCancel: () => {
             setFranchiseCreateModal(null);
@@ -1688,7 +1738,6 @@ export default function Add() {
           franchise_name_cn: cf.cartoon_name_cn || null,
           franchise_name_alt: cf.cartoon_name_alt || null,
           franchise_type: "Cartoon",
-          franchise_expectation: result.expectation,
           remark: result.remark || null,
         }),
         credentials: "include",
@@ -1797,9 +1846,9 @@ export default function Add() {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
           franchiseType: "ACG",
-          onConfirm: (expectation, remark) => {
+          onConfirm: (remark) => {
             setFranchiseCreateModal(null);
-            resolve({ confirmed: true, expectation, remark });
+            resolve({ confirmed: true, remark });
           },
           onCancel: () => {
             setFranchiseCreateModal(null);
@@ -1818,7 +1867,6 @@ export default function Add() {
           franchise_name_jp: mgf.manga_name_jp || null,
           franchise_name_alt: mgf.manga_name_alt || null,
           franchise_type: "ACG",
-          franchise_expectation: result.expectation,
           remark: result.remark || null,
         }),
         credentials: "include",
@@ -1926,9 +1974,9 @@ export default function Add() {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
           franchiseType: "Novel",
-          onConfirm: (expectation, remark) => {
+          onConfirm: (remark) => {
             setFranchiseCreateModal(null);
-            resolve({ confirmed: true, expectation, remark });
+            resolve({ confirmed: true, remark });
           },
           onCancel: () => {
             setFranchiseCreateModal(null);
@@ -1947,7 +1995,6 @@ export default function Add() {
           franchise_name_jp: nvf.novel_name_jp || null,
           franchise_name_alt: nvf.novel_name_alt || null,
           franchise_type: "Novel",
-          franchise_expectation: result.expectation,
           remark: result.remark || null,
         }),
         credentials: "include",
@@ -2071,9 +2118,9 @@ export default function Add() {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
           franchiseType: "Comic",
-          onConfirm: (expectation, remark) => {
+          onConfirm: (remark) => {
             setFranchiseCreateModal(null);
-            resolve({ confirmed: true, expectation, remark });
+            resolve({ confirmed: true, remark });
           },
           onCancel: () => {
             setFranchiseCreateModal(null);
@@ -2090,7 +2137,6 @@ export default function Add() {
           franchise_name_cn: cmf.comic_name_cn || null,
           franchise_name_alt: cmf.comic_name_alt || null,
           franchise_type: "Comic",
-          franchise_expectation: result.expectation,
           remark: result.remark || null,
         }),
         credentials: "include",
@@ -2229,9 +2275,9 @@ export default function Add() {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
           franchiseType: "Game",
-          onConfirm: (expectation, remark) => {
+          onConfirm: (remark) => {
             setFranchiseCreateModal(null);
-            resolve({ confirmed: true, expectation, remark });
+            resolve({ confirmed: true, remark });
           },
           onCancel: () => {
             setFranchiseCreateModal(null);
@@ -2250,7 +2296,6 @@ export default function Add() {
           franchise_name_jp: gmf.game_name_jp || null,
           franchise_name_alt: gmf.game_name_alt || null,
           franchise_type: "Game",
-          franchise_expectation: result.expectation,
           remark: result.remark || null,
         }),
         credentials: "include",
@@ -2401,9 +2446,9 @@ export default function Add() {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
           franchiseType: H_COMIC_FRANCHISE_TYPE,
-          onConfirm: (expectation, remark) => {
+          onConfirm: (remark) => {
             setFranchiseCreateModal(null);
-            resolve({ confirmed: true, expectation, remark });
+            resolve({ confirmed: true, remark });
           },
           onCancel: () => {
             setFranchiseCreateModal(null);
@@ -2421,7 +2466,6 @@ export default function Add() {
           franchise_name_jp: hcf.h_comic_name_jp || null,
           franchise_name_alt: hcf.h_comic_name_alt || null,
           franchise_type: H_COMIC_FRANCHISE_TYPE,
-          franchise_expectation: result.expectation,
           remark: result.remark || null,
         }),
         credentials: "include",
@@ -2535,9 +2579,9 @@ export default function Add() {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
           franchiseType: H_GAME_FRANCHISE_TYPE,
-          onConfirm: (expectation, remark) => {
+          onConfirm: (remark) => {
             setFranchiseCreateModal(null);
-            resolve({ confirmed: true, expectation, remark });
+            resolve({ confirmed: true, remark });
           },
           onCancel: () => {
             setFranchiseCreateModal(null);
@@ -2556,7 +2600,6 @@ export default function Add() {
           franchise_name_jp: hgf.h_game_name_jp || null,
           franchise_name_alt: hgf.h_game_name_alt || null,
           franchise_type: H_GAME_FRANCHISE_TYPE,
-          franchise_expectation: result.expectation,
           remark: result.remark || null,
         }),
         credentials: "include",
@@ -2665,9 +2708,9 @@ export default function Add() {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
           franchiseType: HENTAI_FRANCHISE_TYPE,
-          onConfirm: (expectation, remark) => {
+          onConfirm: (remark) => {
             setFranchiseCreateModal(null);
-            resolve({ confirmed: true, expectation, remark });
+            resolve({ confirmed: true, remark });
           },
           onCancel: () => {
             setFranchiseCreateModal(null);
@@ -2686,7 +2729,6 @@ export default function Add() {
           franchise_name_jp: htf.hentai_name_jp || null,
           franchise_name_alt: htf.hentai_name_alt || null,
           franchise_type: HENTAI_FRANCHISE_TYPE,
-          franchise_expectation: result.expectation,
           remark: result.remark || null,
         }),
         credentials: "include",
@@ -3306,7 +3348,9 @@ export default function Add() {
         {activeTab === "identity" && <IdentityAddTab />}
 
         {/* Content labels - one control for every media tab, and for the
-            franchise tab, whose labels cascade to the entries under it.
+            collection, franchise and series tabs, whose labels cascade to
+            everything under them. Only a franchise has required labels (its
+            gated franchise type's); a collection or series has none.
             "game" belongs here: submitGame writes labels like every other
             type, and leaving the tab out of this list meant a game could
             never be labelled on the way in. */}
@@ -3315,14 +3359,13 @@ export default function Add() {
             <ContentLabelPicker
               value={contentLabels}
               onChange={setContentLabels}
+              onEdit={editLabels}
               required={
                 activeTab === "franchise"
                   ? requiredLabelsForFranchiseType(ff.franchise_type)
                   : requiredLabelsForType(activeTab)
               }
-              scopeNote={
-                activeTab === "franchise" ? FRANCHISE_SCOPE_NOTE : undefined
-              }
+              scopeNote={GROUP_SCOPE_NOTES[activeTab]}
             />
           </div>
         )}

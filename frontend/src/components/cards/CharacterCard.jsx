@@ -24,7 +24,7 @@ export default function CharacterCard({ character }) {
   const castingCount = character.casting_count ?? 0;
   const entityHref = useEntityHref();
   // Empty when the row carries no public_id, or the viewer lacks
-  // view.entities: there is no page to go to, so the card renders as plain
+  // view.character: there is no page to go to, so the card renders as plain
   // markup rather than a link to nowhere.
   const isIdentity = character.card_kind === "identity";
   // An identity card carries the identity's own public_id and opens its page.

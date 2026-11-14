@@ -1,6 +1,6 @@
 # Switching between development environments
 
-Last verified: 2026-10-14
+Last verified: 2026-11-14
 
 ## What this is for
 
@@ -18,7 +18,7 @@ Backup and Pull actions themselves are [data-actions.md](data-actions.md).
 
 ## 1. The two environments
 
-| | **Company** | **Home** |
+| | **Company** | `v1i2ewperms34` — head, as of 2026-11-13 | **Rebuilt from production.** The database was dropped, rebuilt by `alembic upgrade head`, seeded by one app start, and filled by Pull All from the production sheet (`GOOGLE_PULL_SHEET_ID`), every tab restoring, so its rows are production's as of that sheet. Mode grants do not travel, so `admin`'s and `cg1618`'s were re-inserted by hand: all four modes each, defaults `unrestricted` and `borderline`. `cg1618` was created by Pull with no usable password and needs one set at `/users`. The recovery dump of the database before the rebuild is `C:\Users\q601513\media_company_pre_pull_20261113.sql` |
 |---|---|---|
 | Project path | `C:\Users\q601513\Documents\personal\cg1618\media` | `C:\Users\cgent\Documents\cg1618\media` |
 | OS | Windows 11 Pro (10.0.26200) | Windows 11 Home (10.0.26200) |
@@ -148,7 +148,7 @@ below.
 
 | | Revision | Notes |
 |---|---|---|
-| **Home** | `i1d2p3ubid45` — one behind head (`f1i2r3stsee4`), as of 2026-10-06 | Moved off native PostgreSQL 17.6 into the container on 2026-09-08 by dump and restore, all 43 non-empty tables verified row-for-row. Two of the revisions it now holds declare `irreversible = True`, so it cannot be downgraded past them — going back before the notes rework means restoring a dump |
+| **Home** | `s1t2atistics3` — head, as of 2026-11-14 | Upgraded from `i1m2dbseason34` through the account rework's revisions, the originality rename and `view.statistics`, after a dump (below). The installation owner is `cg1618`; 2,342 `media` rows. Moved off native PostgreSQL 17.6 into the container on 2026-09-08 by dump and restore, all 43 non-empty tables verified row-for-row. Two earlier revisions declare `irreversible = True`, so going back before the notes rework means restoring a dump |
 | **Company** | `c1r2e3dited4` — head, as of 2026-10-14 | Upgraded from `h1c2o3m4i5c6` to `g1i2smain34` on 2026-09-30, then on to `h1c2i3dentty`, `i1d2p3ubid45` and `f1i2r3stsee4`; five revisions in the first range and two in the second (`a1n2imeacg3`, `g2c3hbranch4`) declare `irreversible = True`, and the dumps taken before them have since been deleted, so there is no going back on this machine. Volume-copied out of the pre-migration `anime_site_postgres_anime_data` on 2026-09-24, renamed `anime_site_db` → `media`, then upgraded from `s1e2asonalix`. **Pull All ran here on 2026-10-14** and restored every tab, so its rows are now the sheet's plus its own two anime movies: 2,336 `media` rows, 862 `anime`, 2 accounts. Before it, 14 people and 41 characters this machine alone had minted on 2026-10-08 - empty duplicates of rows home also has, holding no credits or castings - were deleted, because their `public_id`s collided with the sheet's (see `open-items.md`). One duplicate person, 山本崇一朗 (#376 beside #418), is still to be merged |
 
 Read it from the machine rather than from memory:
@@ -208,6 +208,7 @@ have nothing beyond the Google Sheet.
 
 | Dump | Machine | Taken before |
 |---|---|---|
+| `C:\Users\cgent\Documents\cg1618-dumps\media-before-rework-upgrade-20261114-1811.dump` (`pg_dump -Fc`) | home | the upgrade from `i1m2dbseason34` to `o1r2iginal35`: the account rework's data moves and the originality rename |
 | `~/anime_site_pre_owner_flag_20260912.sql` | home | `o1a1ownerflag` moved every user row off `admin` |
 | `~/anime_site_home_pre_step1_20260909.sql` | home | the `m0a*`..`m1b1anime` run, which deleted 2 orphaned `media_credit` and 10 orphaned `media_tag` rows by design |
 | `~/anime_site_home_pre_docker_20260908.sql` | home | the move from native PostgreSQL 17.6 into the container |
@@ -239,7 +240,7 @@ its fixture runs `DROP SCHEMA public CASCADE`.
 | `venv/`, `node_modules/`, `frontend_dist/` | **nothing** | rebuilt locally on each machine |
 | Cover images (`static/covers/`) | **nothing** | Local disk is the only cover storage there is, and the folder is gitignored, so each machine holds its own copy (a few hundred MB). They are not in the sheet either. Rebuild them where they are missing with `/system` → Calculate → **download missing covers**, which re-runs the autofills for every row whose file is gone |
 | Accounts and everybody's list rows | Google Sheets | the `Users` and `User Media List` tabs. **Passwords do not travel** — an account restored here needs a password set at `/users` before it can be logged into |
-| Roles and their grants | **nothing** | `ensure_rbac_seed` recreates guest, user and admin anywhere; a role added or a grant removed by hand is per-machine. Content *labels* do travel — see [data-actions.md](data-actions.md#2-sheet-tab-registry-tabspy) |
+| Roles and their grants | **nothing** | `ensure_rbac_seed` recreates the five roles anywhere, and `ensure_shared_accounts` the two shared accounts; a grant removed by hand is per-machine. Content labels are code, and which entries, collections, franchises and series carry them does travel — see [data-actions.md](data-actions.md#2-sheet-tab-registry-tabspy) |
 
 ### The one hard rule
 

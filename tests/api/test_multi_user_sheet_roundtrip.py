@@ -49,9 +49,9 @@ def two_users_with_lists(db):
     admin_role = db.query(models.Role).filter(models.Role.name == "admin").one()
     user_role = db.query(models.Role).filter(models.Role.name == "user").one()
     cg = models.User(username="cg1618", hashed_password="$2b$12$x" * 4,
-                     role_id=admin_role.system_id, list_is_public=False)
+                     role_id=admin_role.system_id)
     kana = models.User(username="kana", hashed_password="$2b$12$y" * 4,
-                       role_id=user_role.system_id, list_is_public=True)
+                       role_id=user_role.system_id)
     frieren = models.Anime(anime_name_cn="葬送的芙莉蓮", anime_name_en="Frieren")
     csm = models.Manga(manga_name_cn="鏈鋸人", manga_name_en="Chainsaw Man")
     hk = models.Game(game_name_en="Hollow Knight")
@@ -79,7 +79,7 @@ def two_users_with_lists(db):
 def _snapshot(db):
     """The data this step is responsible for, as comparable plain values."""
     users = {
-        u.username: (u.role_ref.name, u.list_is_public)
+        u.username: u.role_ref.name
         for u in db.query(models.User).all()
     }
     lists = {}

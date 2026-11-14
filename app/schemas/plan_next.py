@@ -40,7 +40,8 @@ class PlanNextRead(PlanNextBase):
     cover_image_file: Optional[str] = None
     cover_image_focus: Optional[str] = None
     nav_path: Optional[str] = None
-    # Whichever expectation column the target carries. Resolved here rather
-    # than re-derived in the browser, because the Plan page sorts by it and the
-    # column is named differently on each of the three tiers.
+    # The caller's own expectation of a franchise or series target, from
+    # user_rating; null for an entry, or when the caller has set none.
+    # Resolved here rather than fetched by the browser, because the Plan page
+    # sorts by it.
     expectation: Optional[str] = None

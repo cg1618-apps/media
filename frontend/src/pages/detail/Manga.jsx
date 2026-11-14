@@ -1,13 +1,14 @@
 // Frontend: page component file for Manga.
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
 import { useAuth } from "../../contexts/AuthContext";
 import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
 import { useToast } from "../../hooks/useToast";
+import { useOwnTrackerSave } from "../../hooks/useOwnTrackerSave";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
-import CommunityCard from "../../components/info/CommunityCard";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import InfoCard from "../../components/info/InfoCard";
 import GenresCard from "../../components/info/GenresCard";
@@ -21,6 +22,8 @@ import SourcesCard from "../../components/info/SourcesCard";
 import ScoreBlock from "../../components/info/ScoreBlock";
 import MangaNotes from "./MangaNotes";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
+import DetailContents, { TocSection } from "../../components/layout/DetailContents";
+import { usePageTitle } from "../../contexts/PageTitleContext";
 import {
   Button,
   Eyebrow,
@@ -37,10 +40,12 @@ import { useCasting } from "../../hooks/useCasting";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
-import { progressToast } from "../../lib/progressToast";
 import { focusStyle } from "../../lib/covers";
 import CastSection from "../../components/info/CastSection";
 import LazyImage from "../../components/ui/LazyImage";
+import { useViewScope } from "../../hooks/useViewScope";
+import ProgressInput from "../../components/tracker/ProgressInput";
+import { useMyRemarkSaver } from "../../api/mutations/useMyRemark";
 
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
@@ -56,7 +61,7 @@ const counterInputCls =
 
 function MangaTrackerBlock({
   manga,
-  isAdmin,
+  canTrack,
   onChChange,
   onVolChange,
   onPageChange,
@@ -70,9 +75,11 @@ function MangaTrackerBlock({
   const volFin = manga.vol_fin ?? 0;
   const volTotal = manga.vol_total != null ? manga.vol_total : null;
   const volFinPage = manga.vol_fin_page ?? 0;
+  // Every field here is the viewer's own (self.list): without it the slip is
+  // not drawn at all.
+  if (!canTrack) return null;
 
   function stepCh(delta) {
-    if (!isAdmin) return;
     let next = (chFin || 0) + delta;
     if (chTotal !== null && next > chTotal) next = chTotal;
     if (next < 0) next = 0;
@@ -81,7 +88,6 @@ function MangaTrackerBlock({
   }
 
   function stepVol(delta) {
-    if (!isAdmin) return;
     let next = (volFin || 0) + delta;
     if (volTotal !== null && next > volTotal) next = volTotal;
     if (next < 0) next = 0;
@@ -98,20 +104,16 @@ function MangaTrackerBlock({
           <div className="flex items-center border border-border-strong w-fit">
             <button
               onClick={() => stepCh(-1)}
-              disabled={!isAdmin}
               aria-label="Previous chapter"
               className={stepBtnCls}
             >
               <i className="fas fa-minus text-xs"></i>
             </button>
             <div className="font-mono text-sm flex items-baseline justify-center px-2 min-w-[90px] whitespace-nowrap border-l border-r border-border">
-              <input
-                type="number"
+              <ProgressInput
                 value={chFin}
-                disabled={!isAdmin}
-                onChange={(e) => {
-                  if (!isAdmin) return;
-                  const v = parseInt(e.target.value, 10) || 0;
+                aria-label="Chapters read"
+                onCommit={(v) => {
                   if (chTotal !== null && v > chTotal) return;
                   onChChange(Math.max(0, v));
                 }}
@@ -127,7 +129,6 @@ function MangaTrackerBlock({
             </div>
             <button
               onClick={() => stepCh(1)}
-              disabled={!isAdmin}
               aria-label="Next chapter"
               className={`${stepBtnCls} text-brand`}
             >
@@ -143,20 +144,16 @@ function MangaTrackerBlock({
             <div className="flex items-center border border-border-strong">
               <button
                 onClick={() => stepVol(-1)}
-                disabled={!isAdmin}
                 aria-label="Previous volume"
                 className={stepBtnCls}
               >
                 <i className="fas fa-minus text-xs"></i>
               </button>
               <div className="font-mono text-sm flex items-baseline justify-center px-2 min-w-[90px] whitespace-nowrap border-l border-r border-border">
-                <input
-                  type="number"
+                <ProgressInput
                   value={volFin}
-                  disabled={!isAdmin}
-                  onChange={(e) => {
-                    if (!isAdmin) return;
-                    const v = parseInt(e.target.value, 10) || 0;
+                  aria-label="Volumes read"
+                  onCommit={(v) => {
                     if (volTotal !== null && v > volTotal) return;
                     onVolChange(Math.max(0, v));
                   }}
@@ -172,7 +169,6 @@ function MangaTrackerBlock({
               </div>
               <button
                 onClick={() => stepVol(1)}
-                disabled={!isAdmin}
                 aria-label="Next volume"
                 className={`${stepBtnCls} text-brand`}
               >
@@ -182,13 +178,10 @@ function MangaTrackerBlock({
             {/* Pages input */}
             <div className="flex items-center gap-1.5 border border-border-strong px-3 py-2">
               <Eyebrow>Page</Eyebrow>
-              <input
-                type="number"
+              <ProgressInput
                 value={volFinPage}
-                disabled={!isAdmin}
-                onChange={(e) => {
-                  if (!isAdmin) return;
-                  const v = parseInt(e.target.value, 10) || 0;
+                aria-label="Page of the volume"
+                onCommit={(v) => {
                   onPageChange(Math.max(0, v));
                 }}
                 className="w-14 text-right font-mono text-sm text-text bg-transparent border-b border-transparent hover:border-border-strong focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0 leading-none disabled:opacity-60"
@@ -210,8 +203,7 @@ function MangaTrackerBlock({
             <Eyebrow as="label">Reading status</Eyebrow>
             <select
               value={manga.reading_status || ""}
-              disabled={!isAdmin}
-              onChange={(e) => isAdmin && onStatusChange(e.target.value)}
+              onChange={(e) => onStatusChange(e.target.value)}
               className={selectCls}
             >
               <StatusOptions statuses={READING_STATUSES} />
@@ -222,8 +214,7 @@ function MangaTrackerBlock({
             <Eyebrow as="label">Rating</Eyebrow>
             <select
               value={manga.my_rating || ""}
-              disabled={!isAdmin}
-              onChange={(e) => isAdmin && onRatingChange(e.target.value)}
+              onChange={(e) => onRatingChange(e.target.value)}
               className={selectCls}
             >
               <option value="">Unrated</option>
@@ -237,15 +228,11 @@ function MangaTrackerBlock({
           {/* Read Next */}
           <div className="space-y-1">
             <Eyebrow>Read next</Eyebrow>
-            <label
-              className={`flex items-center gap-2 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
-            >
+            <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={!!manga.read_next}
-                disabled={!isAdmin}
                 onChange={(e) =>
-                  isAdmin &&
                   onWatchNextChange(
                     e.target.checked,
                     e.target.checked
@@ -261,15 +248,11 @@ function MangaTrackerBlock({
           {/* To Reread */}
           <div className="space-y-1">
             <Eyebrow>To reread</Eyebrow>
-            <label
-              className={`flex items-center gap-2 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
-            >
+            <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={!!manga.to_reread}
-                disabled={!isAdmin}
                 onChange={(e) =>
-                  isAdmin &&
                   onToRewatchChange(
                     e.target.checked,
                     e.target.checked
@@ -292,7 +275,7 @@ const LIST_OPTIONS = { params: { limit: 2000 } };
 export default function Manga() {
   const { publicId } = useParams();
   const navigate = useNavigate();
-  const { isAdmin, has, isRoot } = useAuth();
+  const { isAdmin, has } = useAuth();
   const { showToast } = useToast();
 
   const [manga, setManga] = useState(null);
@@ -303,6 +286,8 @@ export default function Manga() {
   // Everything past the lookup still speaks UUIDs; only the URL segment
   // changed. Resolved from the fetched row so the two can never disagree.
   const system_id = mangaQuery.data?.system_id;
+  const { ownData } = useViewScope();
+  const saveMyRemark = useMyRemarkSaver("manga", system_id, setManga);
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const allMangaQuery = useMediaList("manga", LIST_OPTIONS);
@@ -338,28 +323,15 @@ export default function Manga() {
     seriesQuery.error?.message ||
     null;
 
-  async function performPatch(payload, msg) {
-    if (!isAdmin) return;
-    setManga((prev) => ({ ...prev, ...payload }));
-    try {
-      const res = await fetch(endpoints.resource("manga").patch(system_id), {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Sync failed");
-      const updated = await res.json();
-      // `manga` is still the pre-write row here: this closure never saw the
-      // optimistic update. A progress step can finish the entry.
-      showToast("success", progressToast(manga, updated, msg || "Saved"));
-      setManga(updated);
-      setMediaItem(updated);
-    } catch {
-      showToast("error", "Update failed");
-      fetchMediaItem();
-    }
-  }
+  // The viewer's own values (status, rating, progress, plan flags) go through /api/me;
+  // saveRelease is the toolbar's release step, the work's half through the
+  // catalogue PATCH.
+  const { saveOwn, saveRelease } = useOwnTrackerSave("manga", {
+    entry: manga,
+    setEntry: setManga,
+    setMediaItem,
+    fetchMediaItem,
+  });
 
   async function handleAutofill() {
     setAutofilling(true);
@@ -380,6 +352,17 @@ export default function Manga() {
     }
   }
 
+  // The heading's title, which the browser tab shows too.
+  const titleMain = manga
+    ? manga.manga_name_cn ||
+      manga.manga_name_en ||
+      manga.manga_name_roman ||
+      manga.manga_name_jp ||
+      manga.manga_name_alt ||
+      "Unknown"
+    : null;
+  usePageTitle(loading || error ? null : titleMain);
+
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading details..." />;
   }
@@ -393,13 +376,6 @@ export default function Manga() {
     );
   }
 
-  const titleMain =
-    manga.manga_name_cn ||
-    manga.manga_name_en ||
-    manga.manga_name_roman ||
-    manga.manga_name_jp ||
-    manga.manga_name_alt ||
-    "Unknown";
   const titleSub =
     manga.manga_name_en && manga.manga_name_en !== titleMain
       ? manga.manga_name_en
@@ -428,20 +404,27 @@ export default function Manga() {
     .join("  ·  ");
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+    <DetailContents>
       {/* Breadcrumb: a catalogue path, set in mono */}
-      <nav
-        className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint mb-8 flex items-center gap-3"
-        aria-label="Breadcrumb"
-      >
-        <Link to="/library/manga" className="hover:text-brand transition">
-          Manga
-        </Link>
-        <span aria-hidden="true">/</span>
-        <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
-          {titleMain}
-        </span>
-      </nav>
+      <div className="mb-8 flex items-center justify-between gap-3">
+        <nav
+          className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint min-w-0 flex items-center gap-3"
+          aria-label="Breadcrumb"
+        >
+          <Link to="/library/manga" className="hover:text-brand transition">
+            Manga
+          </Link>
+          <span aria-hidden="true">/</span>
+          <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
+            {titleMain}
+          </span>
+        </nav>
+        <ReportProblemButton
+          targetType="manga"
+          targetId={system_id}
+          targetLabel={titleMain}
+        />
+      </div>
 
       {/* Admin toolbar: a plain instrument strip */}
       {isAdmin && (
@@ -472,7 +455,7 @@ export default function Manga() {
             >
               Mark completed
             </Button>
-            <MarkReleaseButton type="manga" entry={manga} title={titleMain} onPatch={performPatch} />
+            <MarkReleaseButton type="manga" entry={manga} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
             <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
               {autofilling ? "Autofilling…" : "Autofill & update"}
             </Button>
@@ -494,11 +477,9 @@ export default function Manga() {
                 Manga{manga.region ? ` · ${manga.region}` : ""}
               </span>
               {/* Cosmetic only: the id is this page's own URL, so hiding it
-                  tidies the spine rather than concealing the value. Gated on
-                  is_root rather than a permission - `super` is
-                  deliberately NOT a root role, and this is the one thing in
-                  the app only the owner's own account sees. */}
-              {isRoot && (
+                  tidies the spine rather than concealing the value. Shown to
+                  a catalogue editor (manage.catalog). */}
+              {has("manage.catalog") && (
                 <span
                   className="font-mono text-[9px] tracking-[0.1em] opacity-60 whitespace-nowrap"
                   style={{ writingMode: "vertical-rl" }}
@@ -608,176 +589,184 @@ export default function Manga() {
           </header>
 
           {/* Where this entry sits in the watch orders the viewer follows. */}
-          <FollowedOrderPanel entryId={manga.system_id} />
+          <TocSection id="watch-orders" label="Watch orders">
+            <FollowedOrderPanel entryId={manga.system_id} />
+          </TocSection>
 
           {/* My Tracker Block */}
-          <MangaTrackerBlock
-            manga={manga}
-            isAdmin={isAdmin}
-            onChChange={(v) =>
-              performPatch({ ch_fin: v }, "Chapter progress saved")
-            }
-            onVolChange={(v) =>
-              performPatch({ vol_fin: v }, "Volume progress saved")
-            }
-            onPageChange={(v) =>
-              performPatch({ vol_fin_page: v }, "Page saved")
-            }
-            onStatusChange={(v) =>
-              performPatch({ reading_status: v }, "Status updated")
-            }
-            onRatingChange={(v) =>
-              performPatch({ my_rating: v || null }, "Rating saved")
-            }
-            onWatchNextChange={(v, msg) => performPatch({ read_next: v }, msg)}
-            onToRewatchChange={(v, msg) => performPatch({ to_reread: v }, msg)}
-          />
-
-          {/* What every public list says about it, beside what I say.
-              Renders nothing when no public list holds this entry. */}
-          <CommunityCard mediaId={manga.system_id} />
+          <TocSection id="tracker" label="My tracker">
+            <MangaTrackerBlock
+              manga={manga}
+              canTrack={ownData}
+              onChChange={(v) =>
+                saveOwn({ ch_fin: v }, "Chapter progress saved")
+              }
+              onVolChange={(v) =>
+                saveOwn({ vol_fin: v }, "Volume progress saved")
+              }
+              onPageChange={(v) =>
+                saveOwn({ vol_fin_page: v }, "Page saved")
+              }
+              onStatusChange={(v) =>
+                saveOwn({ reading_status: v }, "Status updated")
+              }
+              onRatingChange={(v) =>
+                saveOwn({ my_rating: v || null }, "Rating saved")
+              }
+              onWatchNextChange={(v, msg) => saveOwn({ read_next: v }, msg)}
+              onToRewatchChange={(v, msg) => saveOwn({ to_reread: v }, msg)}
+            />
+          </TocSection>
 
           {/* Detail Cards */}
           <div className="space-y-6">
-            <NamingCard type="manga" item={manga} />
-            <InfoCard
-              title="Information"
-              fields={[
-                [
-                  { label: "Region", value: manga.region },
-                  { label: "本傳 / 外傳", value: manga.is_main },
-                ],
-                [
-                  {
-                    label: "Serialization Status",
-                    value: manga.serialization_status,
-                  },
-                ],
-                [
-                  {
-                    label: "Release Date",
-                    value: manga.release_date || null,
-                  },
-                  {
-                    label: "End Date",
-                    value: manga.end_date || null,
-                  },
-                ],
-                [
-                  {
-                    label: "Volume Total",
-                    value:
-                      manga.vol_total != null ? String(manga.vol_total) : null,
-                  },
-                  {
-                    label: "Chapter Total",
-                    value:
-                      manga.ch_total != null ? String(manga.ch_total) : null,
-                  },
-                ],
-              ]}
-            />
-            <GenresCard item={manga} />
-            {/* Production Card */}
-            {(manga.author_plot ||
-              manga.author_draw ||
-              manga.anime_studio ||
-              manga.publisher_tw ||
-              manga.publisher_refs?.length > 0) && (
+            <TocSection id="naming" label="Naming">
+              <NamingCard type="manga" item={manga} />
+            </TocSection>
+            <TocSection id="information" label="Information">
               <InfoCard
-                title="Production"
+                title="Information"
                 fields={[
-                  ...(authorSame
-                    ? [
-                        {
-                          label: "作者",
-                          value: creditValue(
-                            manga,
-                            "author",
-                            manga.author_plot,
-                          ),
-                        },
-                      ]
-                    : [
-                        ...(manga.author_plot
-                          ? [
-                              {
-                                label: creditLabel(manga, "author", "原作"),
-                                value: creditValue(
-                                  manga,
-                                  "author",
-                                  manga.author_plot,
-                                ),
-                              },
-                            ]
-                          : []),
-                        ...(manga.author_draw
-                          ? [
-                              {
-                                label: creditLabel(
-                                  manga,
-                                  "illustrator",
-                                  "作畫",
-                                ),
-                                value: creditValue(
-                                  manga,
-                                  "illustrator",
-                                  manga.author_draw,
-                                ),
-                              },
-                            ]
-                          : []),
-                      ]),
+                  [
+                    { label: "Region", value: manga.region },
+                    { label: "本傳 / 外傳", value: manga.is_main },
+                  ],
                   [
                     {
-                      label: publisherLabel(manga, "台灣出版商"),
-                      value: publisherValue(manga),
+                      label: "Serialization Status",
+                      value: manga.serialization_status,
                     },
-                    { label: "Anime Studio", value: manga.anime_studio },
+                  ],
+                  [
+                    {
+                      label: "Release Date",
+                      value: manga.release_date || null,
+                    },
+                    {
+                      label: "End Date",
+                      value: manga.end_date || null,
+                    },
+                  ],
+                  [
+                    {
+                      label: "Volume Total",
+                      value:
+                        manga.vol_total != null ? String(manga.vol_total) : null,
+                    },
+                    {
+                      label: "Chapter Total",
+                      value:
+                        manga.ch_total != null ? String(manga.ch_total) : null,
+                    },
                   ],
                 ]}
               />
-            )}
+            </TocSection>
+            <TocSection id="genres" label="Genres">
+              <GenresCard item={manga} />
+            </TocSection>
+            {/* Production Card */}
+            <TocSection id="production" label="Production">
+              {(manga.author_plot ||
+                manga.author_draw ||
+                manga.anime_studio ||
+                manga.publisher_tw ||
+                manga.publisher_refs?.length > 0) && (
+                <InfoCard
+                  title="Production"
+                  fields={[
+                    ...(authorSame
+                      ? [
+                          {
+                            label: "作者",
+                            value: creditValue(
+                              manga,
+                              "author",
+                              manga.author_plot,
+                            ),
+                          },
+                        ]
+                      : [
+                          ...(manga.author_plot
+                            ? [
+                                {
+                                  label: creditLabel(manga, "author", "原作"),
+                                  value: creditValue(
+                                    manga,
+                                    "author",
+                                    manga.author_plot,
+                                  ),
+                                },
+                              ]
+                            : []),
+                          ...(manga.author_draw
+                            ? [
+                                {
+                                  label: creditLabel(
+                                    manga,
+                                    "illustrator",
+                                    "作畫",
+                                  ),
+                                  value: creditValue(
+                                    manga,
+                                    "illustrator",
+                                    manga.author_draw,
+                                  ),
+                                },
+                              ]
+                            : []),
+                        ]),
+                    [
+                      {
+                        label: publisherLabel(manga, "台灣出版商"),
+                        value: publisherValue(manga),
+                      },
+                      { label: "Anime Studio", value: manga.anime_studio },
+                    ],
+                  ]}
+                />
+              )}
+            </TocSection>
           </div>
 
           {/* Cast */}
-          <CastSection cast={cast} />
+          <TocSection id="cast" label="Cast">
+            <CastSection cast={cast} />
+          </TocSection>
 
           {/* Remarks */}
-          {(manga.remark || isAdmin) && manga.remark && (
-            <Slip title="Remarks">
-              <textarea
-                key={manga.system_id}
-                defaultValue={manga.remark || ""}
-                disabled={!isAdmin}
-                onBlur={(e) =>
-                  isAdmin &&
-                  performPatch(
-                    { remark: e.target.value || null },
-                    "Remark saved",
-                  )
-                }
-                rows={4}
-                placeholder="Add remarks…"
-                className={selectCls}
-              ></textarea>
-            </Slip>
-          )}
+          <TocSection id="remarks" label="Remarks">
+            {ownData && manga.remark && (
+              <Slip title="Remarks">
+                <textarea
+                  key={manga.system_id}
+                  defaultValue={manga.remark || ""}
+                  onBlur={(e) => {
+                    if (e.target.value !== (manga.remark || ""))
+                      saveMyRemark(e.target.value);
+                  }}
+                  rows={4}
+                  placeholder="Add remarks…"
+                  className={selectCls}
+                ></textarea>
+              </Slip>
+            )}
+          </TocSection>
 
           {/* Structured Notes */}
-          {/* The dedicated remark textarea above renders only when a remark
-              exists; hide the notes page's `remark` section exactly then, so
-              the singleton row never has two editors on one screen. */}
+          {/* The dedicated remark textarea above renders only for a holder of
+              self.list who has a remark; hide the notes page's `remark`
+              section exactly then, so the viewer's own row never has two
+              editors on one screen. */}
           <MangaNotes
             key={manga.system_id}
             manga={manga}
-            isAdmin={isAdmin}
-            hideSections={manga.remark ? ["remark"] : []}
+            hideSections={ownData && manga.remark ? ["remark"] : []}
             series={series}
             franchise={franchise}
           />
         </div>
       </div>
-    </div>
+    </DetailContents>
   );
 }

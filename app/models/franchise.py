@@ -65,8 +65,6 @@ class Franchise(Base, NameFallbackMixin):
     franchise_name_jp = Column(String, nullable=True)
     franchise_name_alt = Column(String, nullable=True)
 
-    my_rating = Column(String, nullable=True)
-    franchise_expectation = Column(String, default="Low")
     # Optional umbrella tier. SET NULL keeps deleting a Collection non-destructive:
     # member franchises survive and simply become uncollected.
     # Declared here (not at the end) because format_model_for_sheet iterates
@@ -173,8 +171,6 @@ class Series(Base, NameFallbackMixin):
     series_name_jp = Column(String, nullable=True)
     series_name_alt = Column(String, nullable=True)
 
-    my_rating = Column(String, nullable=True)
-    series_expectation = Column(String, default="Low")
     # Any entry UUID, any type. No FK: no single constraint can span the six
     # entry tables a series may hold. Mirrors Franchise.cover_entry_id.
     cover_entry_id = Column(UUID(as_uuid=True), nullable=True)

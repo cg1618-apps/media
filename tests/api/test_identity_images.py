@@ -48,7 +48,7 @@ def test_unrecorded_identity_cover_is_should_use_not_orphan(db_session, identity
 
 
 def test_identity_cover_is_hidden_with_its_character(
-    client, admin_client, db_session, character, identity, hidden_anime, tmp_path, monkeypatch
+    client, owner_client, db_session, character, identity, hidden_anime, tmp_path, monkeypatch
 ):
     # The character's only casting is on a label-hidden entry: the guest
     # cannot see the character, so must not get its identity's picture.
@@ -64,7 +64,7 @@ def test_identity_cover_is_hidden_with_its_character(
     monkeypatch.setattr("app.routers.covers.COVER_DIR", str(tmp_path))
     url = f"/api/covers/character-identity/{identity.system_id}.jpg"
     assert client.get(url).status_code == 404
-    assert admin_client.get(url).status_code == 200
+    assert owner_client.get(url).status_code == 200
 
 
 def test_identity_cover_of_a_visible_character_is_served_to_a_guest(

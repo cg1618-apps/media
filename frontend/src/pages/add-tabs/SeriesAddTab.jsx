@@ -5,12 +5,7 @@ import {
   Field,
   SectionHeader,
   inputCls,
-  selectCls,
 } from "../../components/forms/FormField";
-import {
-  MY_RATINGS,
-  FRANCHISE_EXPECTATIONS,
-} from "../../config/fieldOptions";
 
 export { defaultSeries } from "../../config/formFactories";
 
@@ -85,36 +80,6 @@ export default function SeriesAddTab({
         </Field>
       </div>
       <SectionHeader icon="fa-info-circle" title="Other Information" />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="My Rating">
-          <select
-            className={selectCls}
-            value={sf.my_rating}
-            onChange={(e) => us("my_rating", e.target.value)}
-          >
-            <option value="">—</option>
-            {MY_RATINGS.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Expectation">
-          <select
-            className={selectCls}
-            value={sf.series_expectation}
-            onChange={(e) => us("series_expectation", e.target.value)}
-          >
-            <option value="">—</option>
-            {FRANCHISE_EXPECTATIONS.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
-      </div>
       {/*
         No Main Cover control here: a series that does not exist yet has no
         entries to choose from. It lives on the Modify tab only, exactly as

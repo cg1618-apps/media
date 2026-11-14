@@ -8,20 +8,36 @@ import Nav from "./Nav";
 
 // Nav pulls the session from context and fires search requests on typing;
 // neither is what these tests are about.
-// Nav now asks has(permission) rather than reading isAdmin directly, so the
-// mock answers from the same flag the tests already toggle: isAdmin true
-// holds every admin capability (admin.authz, manage.catalog,
-// manage.pipelines) the way an is_root account would, isAdmin false
-// holds none of them — except the member keys (self.list and the view.*
-// family), which most of these tests don't exercise and so hold by default.
-// `auth.member = false` makes the session a real guest that holds nothing,
-// which is what the guest-scope tests below set up.
+// Nav asks has(permission) rather than reading isAdmin directly, so the mock
+// answers from the same flag the tests already toggle: isAdmin true holds
+// every permission there is, isAdmin false holds none of the manage.* or
+// admin.* keys - only the member keys (the media types, self.list and the
+// view.* family), which most of these tests don't exercise and so hold by
+// default. `auth.member = false` makes the session a real guest, holding the
+// nine ordinary media types and nothing else, which is what the guest-scope
+// tests below set up. `auth.held`, when a test sets it, replaces all of that
+// with an exact list - the shape /me's `permissions` has.
+const MEDIA_TYPE_KEYS = [
+  "media_type.anime",
+  "media_type.anime-movie",
+  "media_type.manga",
+  "media_type.novel",
+  "media_type.game",
+  "media_type.tv-show",
+  "media_type.movie",
+  "media_type.cartoon",
+  "media_type.comic",
+];
+const GUEST_KEYS = new Set(MEDIA_TYPE_KEYS);
 const MEMBER_KEYS = new Set([
+  ...MEDIA_TYPE_KEYS,
   "self.list",
-  "view.entities",
+  "view.studio",
+  "view.publisher",
+  "view.person",
+  "view.character",
   "view.search",
-  "view.extras",
-  "view.personal",
+  "view.random_picker",
 ]);
 const auth = {
   isAdmin: false,
@@ -30,8 +46,18 @@ const auth = {
   // The chip names the ROLE. isAdmin is has(manage.catalog), which `super`
   // holds too, so a chip driven by isAdmin alone cannot tell them apart.
   role: "guest",
+  // self.requests is held only when a test says so, so the Requests link's
+  // refusal case still holds every other member key.
+  filesRequests: false,
   has: (permission) =>
-    auth.isAdmin || (auth.member && MEMBER_KEYS.has(permission)),
+    auth.held
+      ? auth.held.includes(permission)
+      : permission === "self.requests"
+        ? auth.filesRequests
+        : auth.isAdmin ||
+          GUEST_KEYS.has(permission) ||
+          (auth.member && MEMBER_KEYS.has(permission)),
+  hasFeature: (feature) => (auth.features ?? []).includes(feature),
   refetchAuth: vi.fn(),
 };
 vi.mock("../../contexts/AuthContext", () => ({ useAuth: () => auth }));
@@ -46,6 +72,9 @@ beforeEach(() => {
   auth.member = true;
   auth.username = null;
   auth.role = "guest";
+  auth.filesRequests = false;
+  delete auth.held;
+  delete auth.features;
   delete auth.visibleGatedTypes;
   hardNavigate.mockClear();
   vi.stubGlobal(
@@ -72,7 +101,9 @@ describe("the role chip names the role", () => {
   });
 
   it("still reads ADMIN for the admin account", async () => {
-    auth.isAdmin = true;
+    // The admin's real /me: its fixed set, and isAdmin false - it holds no
+    // manage.catalog - so the chip has to be drawn on admin.authz.
+    auth.held = [...ADMIN_PERMISSIONS];
     auth.username = "admin";
     auth.role = "admin";
     renderNav("/");
@@ -80,6 +111,28 @@ describe("the role chip names the role", () => {
     expect(chips[0]).toHaveTextContent(/^admin$/i);
   });
 });
+
+// The admin role's fixed set (ADMIN_FIXED_PERMISSIONS in
+// app/services/rbac/permissions.py), as /me's `permissions` carries it.
+const ADMIN_PERMISSIONS = [
+  "admin.authz",
+  "manage.pipelines",
+  "manage.requests",
+  "manage.announcements",
+  "manage.options",
+  "manage.images",
+  "manage.resources",
+];
+// A `user` as seeded (default_user_permissions): no manage.* key at all.
+const USER_PERMISSIONS = [
+  ...MEDIA_TYPE_KEYS,
+  "view.search",
+  "view.personal",
+  "self.list",
+  "self.personal_notes",
+  "self.requests",
+  "self.password",
+];
 
 function renderNav(route = "/") {
   return render(
@@ -113,7 +166,7 @@ describe("Nav tabs", () => {
 
   it("marks no tab on routes outside every section", () => {
     renderNav("/");
-    for (const label of ["library", "track", "insights"]) {
+    for (const label of ["library", "track", "explore"]) {
       expect(tab(label)).not.toHaveAttribute("aria-current");
     }
   });
@@ -137,12 +190,12 @@ describe("Nav panels", () => {
     const user = userEvent.setup();
     renderNav("/");
 
-    await user.click(tab("insights"));
-    expect(tab("insights")).toHaveAttribute("aria-expanded", "true");
+    await user.click(tab("explore"));
+    expect(tab("explore")).toHaveAttribute("aria-expanded", "true");
 
     await user.keyboard("{Escape}");
-    expect(tab("insights")).toHaveAttribute("aria-expanded", "false");
-    expect(tab("insights")).toHaveFocus();
+    expect(tab("explore")).toHaveAttribute("aria-expanded", "false");
+    expect(tab("explore")).toHaveFocus();
   });
 
   it("groups Collection and Franchise away from ACG and Reality", async () => {
@@ -270,7 +323,9 @@ describe("Nav admin gating", () => {
     const user = userEvent.setup();
     renderNav("/");
 
-    for (const label of ["library", "track", "insights"]) {
+    // The member holds no quotes_memes switch and no manage.resources, so
+    // Extras has nothing for it and is not drawn.
+    for (const label of ["library", "track", "explore"]) {
       await user.click(tab(label));
       expect(
         screen.queryByRole("link", { name: /watch orders/i }),
@@ -280,31 +335,21 @@ describe("Nav admin gating", () => {
   });
 });
 
-// The header "Log in" button builds its next= from wherever the visitor
-// currently is. On /login that used to nest the login page inside its own
-// next - /login?next=%2Flogin%3Fnext%3D%252Fstatistics - so a visitor who was
-// bounced to /login from a protected page and then clicked this button
-// instead of filling in the form had their real destination buried one level
-// down, and Login.jsx would navigate them straight back to the login form.
-describe("Nav - the log in link's next", () => {
-  it("carries the page the visitor actually wanted", () => {
+// The header "Log in" button is a plain link to /login wherever the visitor
+// is: a login always lands on the dashboard, so there is no destination to
+// carry along.
+describe("Nav - the log in link", () => {
+  it("is a plain /login from an ordinary page", () => {
     renderNav("/statistics");
-    for (const link of screen.getAllByRole("link", { name: /log in/i })) {
-      expect(link).toHaveAttribute("href", "/login?next=%2Fstatistics");
+    const links = screen.getAllByRole("link", { name: /log in/i });
+    expect(links.length).toBeGreaterThan(0);
+    for (const link of links) {
+      expect(link).toHaveAttribute("href", "/login");
     }
   });
 
-  it("does not nest /login inside its own next when already on /login", () => {
+  it("is a plain /login on the login page, whatever its query string", () => {
     renderNav("/login?next=%2Fstatistics");
-    for (const link of screen.getAllByRole("link", { name: /log in/i })) {
-      // The next ProtectedRoute already put there is preserved, not rebuilt
-      // around the login page itself.
-      expect(link).toHaveAttribute("href", "/login?next=%2Fstatistics");
-    }
-  });
-
-  it("leaves a bare /login alone rather than pointing next at it", () => {
-    renderNav("/login");
     for (const link of screen.getAllByRole("link", { name: /log in/i })) {
       expect(link).toHaveAttribute("href", "/login");
     }
@@ -367,6 +412,94 @@ describe("Nav - who the strip says you are", () => {
   });
 });
 
+describe("Nav - the Requests link", () => {
+  // The refusal case is a signed-in member holding every other key, and an
+  // admin-like session at that: only self.requests is missing, so a link that
+  // disappears proves the link asked for it.
+  it("is not offered without self.requests, whatever else is held", () => {
+    auth.username = "bob";
+    auth.isAdmin = true;
+    renderNav("/");
+    expect(screen.queryByRole("link", { name: /^requests$/i })).toBeNull();
+  });
+
+  it("is offered beside log out to a holder of self.requests", () => {
+    auth.username = "bob";
+    auth.filesRequests = true;
+    renderNav("/");
+    expect(screen.getByRole("link", { name: /^requests$/i })).toHaveAttribute(
+      "href",
+      "/requests",
+    );
+  });
+
+  it("is in the phone drawer too", async () => {
+    auth.username = "bob";
+    auth.filesRequests = true;
+    const user = userEvent.setup();
+    renderNav("/");
+    await user.click(screen.getByRole("button", { name: /toggle navigation/i }));
+    expect(
+      within(drawer()).getByRole("link", { name: /^requests$/i }),
+    ).toHaveAttribute("href", "/requests");
+  });
+});
+
+describe("Nav - the System tab", () => {
+  it("is labelled System for a holder of manage.pipelines", () => {
+    auth.isAdmin = true; // holds manage.pipelines in this mock
+    renderNav("/");
+    expect(screen.getByRole("button", { name: /^system$/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^pipelines$/i })).toBeNull();
+  });
+
+  it("is not drawn without manage.pipelines", () => {
+    renderNav("/");
+    expect(screen.queryByRole("button", { name: /^system$/i })).toBeNull();
+  });
+});
+
+describe("Nav - the Settings link", () => {
+  // Settings sits with the account, not in a tab. self.list is the key
+  // App.jsx's /settings route asks; the refusal case is a session holding
+  // everything else, so a missing link is self.list's doing.
+  it("is offered in the strip and the drawer to a holder of self.list", async () => {
+    auth.username = "bob";
+    const user = userEvent.setup();
+    renderNav("/");
+    expect(screen.getByRole("link", { name: /^settings$/i })).toHaveAttribute(
+      "href",
+      "/settings",
+    );
+    await user.click(screen.getByRole("button", { name: /toggle navigation/i }));
+    expect(
+      within(drawer()).getByRole("link", { name: /^settings$/i }),
+    ).toHaveAttribute("href", "/settings");
+  });
+
+  it("is not offered without self.list, whatever else is held", async () => {
+    auth.username = "admin";
+    auth.isAdmin = true;
+    auth.member = false;
+    auth.filesRequests = true;
+    // isAdmin answers yes to every key in this mock, self.list included, so
+    // take self.list alone away.
+    const has = auth.has;
+    auth.has = (p) => (p === "self.list" ? false : has(p));
+    try {
+      const user = userEvent.setup();
+      renderNav("/");
+      expect(screen.queryByRole("link", { name: /^settings$/i })).toBeNull();
+      // The strip was drawn: Requests, its neighbour, is there.
+      expect(screen.getByRole("link", { name: /^requests$/i })).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: /toggle navigation/i }));
+      expect(within(drawer()).queryByRole("link", { name: /^settings$/i })).toBeNull();
+    } finally {
+      auth.has = has;
+    }
+  });
+});
+
 describe("Nav - the phone drawer", () => {
   async function openDrawer(user) {
     await user.click(screen.getByRole("button", { name: /toggle navigation/i }));
@@ -374,7 +507,7 @@ describe("Nav - the phone drawer", () => {
   }
 
   // The drawer used to print every section's every link at once, so Track
-  // and Insights sat several screens below Library on a phone. Both halves
+  // and the tabs after it sat several screens below Library on a phone. Both halves
   // are asserted: the current section open alone would pass for a drawer
   // that opens everything.
   it("opens with only the current section unfolded", async () => {
@@ -479,12 +612,25 @@ describe("Nav - what a guest is shown", () => {
     expect(screen.getByRole("button", { name: /^search$/i })).toBeInTheDocument();
   });
 
-  it("leaves a guest the Library tab alone: no Track, no Insights", () => {
+  it("leaves a guest Library and Explore: no Track or Extras", () => {
+    // Explore holds Future Releases, which reads the catalogue lists a guest
+    // reads; everything else there and in Track and Extras is a member's.
     guest();
     renderNav("/");
     expect(tab("library")).toBeInTheDocument();
+    expect(tab("^explore$")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^track$/i })).toBeNull();
-    expect(screen.queryByRole("button", { name: /^insights$/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^extras$/i })).toBeNull();
+  });
+
+  it("draws Track, Explore and Extras for a member", () => {
+    // The mirror of the guest case: the same render with the member keys,
+    // and the quotes_memes switch that draws Extras for a member.
+    auth.features = ["quotes_memes"];
+    renderNav("/");
+    expect(tab("^track$")).toBeInTheDocument();
+    expect(tab("^explore$")).toBeInTheDocument();
+    expect(tab("^extras$")).toBeInTheDocument();
   });
 
   it("keeps Groups and the media types in a guest's Library, not Entities", async () => {
@@ -507,7 +653,103 @@ describe("Nav - what a guest is shown", () => {
     const panel = document.querySelector("[data-nav-panel]");
     expect(within(panel).getByText("Entities")).toBeInTheDocument();
     expect(within(panel).getByRole("link", { name: /studio/i })).toBeInTheDocument();
-    await user.click(tab("track"));
+    await user.click(tab("explore"));
     expect(screen.getByRole("link", { name: /random picker/i })).toBeInTheDocument();
+  });
+});
+
+describe("Nav - the admin, who is not root", () => {
+  // The admin holds exactly its fixed set and isAdmin is false. Its header
+  // carries its own pages; a `user` is the mirror, holding a non-empty set
+  // with none of the admin's keys in it.
+  const NOTE_ROWS = [/content labels/i, /system options/i, /alias conversion/i, /external apis/i];
+
+  function asAdmin() {
+    auth.held = [...ADMIN_PERMISSIONS];
+    auth.username = "admin";
+    auth.role = "admin";
+  }
+  function asUser() {
+    auth.held = [...USER_PERMISSIONS];
+    auth.username = "bob";
+    auth.role = "user";
+  }
+
+  it("shows the admin Content Labels and the three Note pages under Note", async () => {
+    asAdmin();
+    const user = userEvent.setup();
+    renderNav("/");
+    await user.click(tab("note"));
+    const panel = document.querySelector("[data-nav-panel]");
+    for (const name of NOTE_ROWS) {
+      expect(within(panel).getByRole("link", { name })).toBeInTheDocument();
+    }
+  });
+
+  it("shows the admin no library, no search and no Plan", () => {
+    asAdmin();
+    renderNav("/");
+    expect(screen.queryByRole("button", { name: /^library$/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^track$/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /^plan$/i })).toBeNull();
+    expect(
+      screen.queryByRole("textbox", { name: /search the collection/i }),
+    ).toBeNull();
+    expect(screen.queryByRole("button", { name: /^search$/i })).toBeNull();
+    // Its own tabs are drawn, so the header is not simply empty.
+    expect(tab("admin")).toBeInTheDocument();
+    expect(tab("system")).toBeInTheDocument();
+  });
+
+  it("offers the admin the Back up button, a pipeline", () => {
+    asAdmin();
+    renderNav("/");
+    expect(screen.getByRole("button", { name: /back up/i })).toBeInTheDocument();
+  });
+
+  it("shows a user no Note tab and none of its four pages", async () => {
+    asUser();
+    const user = userEvent.setup();
+    renderNav("/");
+    // The user's header is drawn: Library and Track are there.
+    expect(tab("library")).toBeInTheDocument();
+    expect(tab("track")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^note$/i })).toBeNull();
+    for (const label of ["library", "track", "explore"]) {
+      await user.click(tab(label));
+      for (const name of NOTE_ROWS) {
+        expect(screen.queryByRole("link", { name })).toBeNull();
+      }
+      await user.click(tab(label));
+    }
+  });
+});
+
+describe("Nav - the Resources link", () => {
+  it("is not offered to a user", async () => {
+    auth.held = [...USER_PERMISSIONS];
+    auth.features = ["quotes_memes"];
+    auth.username = "bob";
+    const user = userEvent.setup();
+    renderNav("/");
+    // Extras is drawn (Quotes), so the missing row is its own gate's.
+    await user.click(tab("extras"));
+    expect(screen.getByRole("link", { name: /quotes/i })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^resources$/i })).toBeNull();
+  });
+
+  it("is offered to super", async () => {
+    // Super holds every key but admin.authz.
+    auth.isAdmin = true;
+    auth.held = [...USER_PERMISSIONS, "manage.catalog", "manage.resources"];
+    auth.username = "cg1618";
+    auth.role = "super";
+    const user = userEvent.setup();
+    renderNav("/");
+    await user.click(tab("extras"));
+    expect(screen.getByRole("link", { name: /^resources$/i })).toHaveAttribute(
+      "href",
+      "/resources",
+    );
   });
 });

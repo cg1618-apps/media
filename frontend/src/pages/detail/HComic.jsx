@@ -11,16 +11,19 @@
 // 亮點 Highlights notes section.
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import ReportProblemButton from "../../components/requests/ReportProblemButton";
 
 import { endpoints } from "../../api/endpoints";
+import { useHighlightGroupOrderSaver } from "../../api/mutations/useMyHighlightGroupOrder";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
-import CommunityCard from "../../components/info/CommunityCard";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
 import InfoCard from "../../components/info/InfoCard";
 import NamingCard from "../../components/info/NamingCard";
 import { creditLabel, creditValue } from "../../components/info/PersonLinks";
 import SourcesCard from "../../components/info/SourcesCard";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
+import DetailContents, { TocSection } from "../../components/layout/DetailContents";
+import { usePageTitle } from "../../contexts/PageTitleContext";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import StatusOptions from "../../components/ui/StatusOptions";
 import {
@@ -39,15 +42,18 @@ import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
 import { useToast } from "../../hooks/useToast";
+import { useOwnTrackerSave } from "../../hooks/useOwnTrackerSave";
 import { entityPath } from "../../lib/entityPath";
 import { adaptingHentai, isDerivedAnimationStatus } from "../../lib/hComicAnimation";
 import { progressFor, showsField } from "../../lib/hComicRegion";
 import { FALLBACK_SVG, getCoverUrl, getDisplayName } from "../../utils/media";
 import HComicNotes from "./HComicNotes";
-import { progressToast } from "../../lib/progressToast";
 import { focusStyle } from "../../lib/covers";
 import CastSection from "../../components/info/CastSection";
 import LazyImage from "../../components/ui/LazyImage";
+import { useViewScope } from "../../hooks/useViewScope";
+import ProgressInput from "../../components/tracker/ProgressInput";
+import { useMyRemarkSaver } from "../../api/mutations/useMyRemark";
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
@@ -91,11 +97,10 @@ function DerivedAnimationStatus({ hComic, adaptations }) {
 
 
 // The counter: pages on JP, chapters on KR, whichever the region reads in.
-function ProgressStepper({ progress, isAdmin, onChange }) {
+function ProgressStepper({ progress, onChange }) {
   const { fin, total, unit, label } = progress;
 
   function step(delta) {
-    if (!isAdmin) return;
     let next = (fin || 0) + delta;
     if (total !== null && next > total) next = total;
     if (next < 0) next = 0;
@@ -109,21 +114,16 @@ function ProgressStepper({ progress, isAdmin, onChange }) {
       <div className="flex items-center border border-border-strong w-fit">
         <button
           onClick={() => step(-1)}
-          disabled={!isAdmin}
           aria-label={`Previous ${unit === "ch" ? "chapter" : "page"}`}
           className={stepBtnCls}
         >
           <i className="fas fa-minus text-xs"></i>
         </button>
         <div className="font-mono text-sm flex items-baseline justify-center px-2 min-w-[90px] whitespace-nowrap border-l border-r border-border">
-          <input
-            type="number"
+          <ProgressInput
             aria-label={`${label} read`}
             value={fin}
-            disabled={!isAdmin}
-            onChange={(e) => {
-              if (!isAdmin) return;
-              const v = parseInt(e.target.value, 10) || 0;
+            onCommit={(v) => {
               if (total !== null && v > total) return;
               onChange(Math.max(0, v));
             }}
@@ -135,7 +135,6 @@ function ProgressStepper({ progress, isAdmin, onChange }) {
         </div>
         <button
           onClick={() => step(1)}
-          disabled={!isAdmin}
           aria-label={`Next ${unit === "ch" ? "chapter" : "page"}`}
           className={`${stepBtnCls} text-brand`}
         >
@@ -146,22 +145,23 @@ function ProgressStepper({ progress, isAdmin, onChange }) {
   );
 }
 
-function HComicTrackerBlock({ hComic, isAdmin, onPatch }) {
+function HComicTrackerBlock({ hComic, canTrack, onPatch }) {
+  // Every control here is the viewer's own (self.list), saved through /api/me
+  // by the page; without it the slip is not drawn. Behind official is the
+  // work's, and the Information card shows it to everyone.
+  if (!canTrack) return null;
   const progress = progressFor(hComic);
   const behind = showsField(hComic.region, "ch_behind") ? hComic.ch_behind : null;
 
   const flag = (field, label, onMsg, offMsg) => (
     <div className="space-y-1">
       <Eyebrow>{label}</Eyebrow>
-      <label
-        className={`flex items-center gap-2 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
-      >
+      <label className="flex items-center gap-2 cursor-pointer">
         <input
           type="checkbox"
           checked={!!hComic[field]}
-          disabled={!isAdmin}
           onChange={(e) =>
-            isAdmin && onPatch({ [field]: e.target.checked }, e.target.checked ? onMsg : offMsg)
+            onPatch({ [field]: e.target.checked }, e.target.checked ? onMsg : offMsg)
           }
           className="w-4 h-4 accent-brand"
         />
@@ -177,7 +177,6 @@ function HComicTrackerBlock({ hComic, isAdmin, onPatch }) {
           <div className="flex flex-wrap items-end gap-6">
             <ProgressStepper
               progress={progress}
-              isAdmin={isAdmin}
               onChange={(v) => onPatch({ [progress.finField]: v }, `${progress.label} saved`)}
             />
             {/* Hand-set by the owner, not derived (spec D8). */}
@@ -201,9 +200,8 @@ function HComicTrackerBlock({ hComic, isAdmin, onPatch }) {
             <select
               id="h-comic-reading-status"
               value={hComic.reading_status || ""}
-              disabled={!isAdmin}
               onChange={(e) =>
-                isAdmin && onPatch({ reading_status: e.target.value }, "Status updated")
+                onPatch({ reading_status: e.target.value }, "Status updated")
               }
               className={selectCls}
             >
@@ -217,9 +215,8 @@ function HComicTrackerBlock({ hComic, isAdmin, onPatch }) {
             <select
               id="h-comic-rating"
               value={hComic.my_rating || ""}
-              disabled={!isAdmin}
               onChange={(e) =>
-                isAdmin && onPatch({ my_rating: e.target.value || null }, "Rating saved")
+                onPatch({ my_rating: e.target.value || null }, "Rating saved")
               }
               className={selectCls}
             >
@@ -239,9 +236,8 @@ function HComicTrackerBlock({ hComic, isAdmin, onPatch }) {
             <select
               id="h-comic-usefulness"
               value={hComic.usefulness || ""}
-              disabled={!isAdmin}
               onChange={(e) =>
-                isAdmin && onPatch({ usefulness: e.target.value || null }, "Usefulness saved")
+                onPatch({ usefulness: e.target.value || null }, "Usefulness saved")
               }
               className={selectCls}
             >
@@ -264,7 +260,7 @@ function HComicTrackerBlock({ hComic, isAdmin, onPatch }) {
 export default function HComic() {
   const { publicId } = useParams();
   const navigate = useNavigate();
-  const { isAdmin, isRoot } = useAuth();
+  const { isAdmin, has } = useAuth();
   const { showToast } = useToast();
 
   const [hComic, setHComic] = useState(null);
@@ -277,6 +273,10 @@ export default function HComic() {
   // Everything past the lookup speaks UUIDs; resolved from the fetched row so
   // the URL segment and the id can never disagree.
   const system_id = itemQuery.data?.system_id;
+  const { ownData } = useViewScope();
+  const saveMyRemark = useMyRemarkSaver("h-comic", system_id, setHComic);
+  // The highlight group order is the viewer's own (self.personal_notes).
+  const saveGroupOrder = useHighlightGroupOrderSaver("h-comic", system_id, setHComic);
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const { setMediaItem, fetchMediaItem, invalidateMedia } = useMediaCacheUpdate(
@@ -310,28 +310,15 @@ export default function HComic() {
   const error =
     itemQuery.error?.message || franchiseQuery.error?.message || seriesQuery.error?.message || null;
 
-  async function performPatch(payload, msg) {
-    if (!isAdmin) return;
-    setHComic((prev) => ({ ...prev, ...payload }));
-    try {
-      const res = await fetch(endpoints.resource("h-comic").patch(system_id), {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Sync failed");
-      const updated = await res.json();
-      // `hComic` is still the pre-write row here: this closure never saw the
-      // optimistic update. A progress step can finish the entry.
-      showToast("success", progressToast(hComic, updated, msg || "Saved"));
-      setHComic(updated);
-      setMediaItem(updated);
-    } catch {
-      showToast("error", "Update failed");
-      fetchMediaItem();
-    }
-  }
+  // The viewer's own values (status, rating, progress, plan flags) go through /api/me;
+  // saveRelease is the toolbar's release step, the work's half through the
+  // catalogue PATCH.
+  const { saveOwn, saveRelease } = useOwnTrackerSave("h-comic", {
+    entry: hComic,
+    setEntry: setHComic,
+    setMediaItem,
+    fetchMediaItem,
+  });
 
   async function markCompleted() {
     if (!isAdmin) return;
@@ -370,6 +357,10 @@ export default function HComic() {
     }
   }
 
+  // The heading's title, which the browser tab shows too.
+  const titleMain = hComic ? getDisplayName(hComic, "h-comic") : null;
+  usePageTitle(loading || error ? null : titleMain);
+
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading details..." />;
   }
@@ -382,7 +373,6 @@ export default function HComic() {
 
   const region = hComic.region;
   const shows = (field) => showsField(region, field);
-  const titleMain = getDisplayName(hComic, "h-comic");
   const titleSub =
     hComic.h_comic_name_en && hComic.h_comic_name_en !== titleMain ? hComic.h_comic_name_en : null;
   const imageUrl = getCoverUrl(hComic.cover_image_file);
@@ -405,19 +395,26 @@ export default function HComic() {
   const num = (v) => (v != null ? String(v) : null);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-      <nav
-        className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint mb-8 flex items-center gap-3"
-        aria-label="Breadcrumb"
-      >
-        <Link to="/library/h-comic" className="hover:text-brand transition">
-          H-Comic
-        </Link>
-        <span aria-hidden="true">/</span>
-        <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
-          {titleMain}
-        </span>
-      </nav>
+    <DetailContents>
+      <div className="mb-8 flex items-center justify-between gap-3">
+        <nav
+          className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint min-w-0 flex items-center gap-3"
+          aria-label="Breadcrumb"
+        >
+          <Link to="/library/h-comic" className="hover:text-brand transition">
+            H-Comic
+          </Link>
+          <span aria-hidden="true">/</span>
+          <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
+            {titleMain}
+          </span>
+        </nav>
+        <ReportProblemButton
+          targetType="h-comic"
+          targetId={system_id}
+          targetLabel={titleMain}
+        />
+      </div>
 
       {isAdmin && (
         <div className="border border-border-strong border-dashed px-3 py-2 flex flex-wrap gap-3 items-center justify-between mb-8">
@@ -427,7 +424,7 @@ export default function HComic() {
               Quick edit
             </Button>
             <Button onClick={markCompleted}>Mark completed</Button>
-            <MarkReleaseButton type="h-comic" entry={hComic} title={titleMain} onPatch={performPatch} />
+            <MarkReleaseButton type="h-comic" entry={hComic} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
             <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
               {autofilling ? "Autofilling…" : "Autofill & update"}
             </Button>
@@ -446,7 +443,7 @@ export default function HComic() {
               >
                 H-Comic{region ? ` · ${region}` : ""}
               </span>
-              {isRoot && (
+              {has("manage.catalog") && (
                 <span
                   className="font-mono text-[9px] tracking-[0.1em] opacity-60 whitespace-nowrap"
                   style={{ writingMode: "vertical-rl" }}
@@ -542,123 +539,135 @@ export default function HComic() {
           </header>
 
           {/* Where this entry sits in the watch orders the viewer follows. */}
-          <FollowedOrderPanel entryId={hComic.system_id} />
+          <TocSection id="watch-orders" label="Watch orders">
+            <FollowedOrderPanel entryId={hComic.system_id} />
+          </TocSection>
 
-          <HComicTrackerBlock hComic={hComic} isAdmin={isAdmin} onPatch={performPatch} />
-
-          <CommunityCard mediaId={hComic.system_id} />
+          <TocSection id="tracker" label="My tracker">
+            <HComicTrackerBlock hComic={hComic} canTrack={ownData} onPatch={saveOwn} />
+          </TocSection>
 
           <div className="space-y-6">
-            <NamingCard type="h-comic" item={hComic} />
-            <InfoCard
-              title="Information"
-              fields={[
-                [
-                  { label: "Region", value: region },
-                  { label: "Serialization Status", value: hComic.serialization_status },
-                ],
-                ...(region === "JP"
-                  ? [
-                      [
-                        { label: "Originality", value: hComic.originality },
+            <TocSection id="naming" label="Naming">
+              <NamingCard type="h-comic" item={hComic} />
+            </TocSection>
+            <TocSection id="information" label="Information">
+              <InfoCard
+                title="Information"
+                fields={[
+                  [
+                    { label: "Region", value: region },
+                    { label: "Serialization Status", value: hComic.serialization_status },
+                  ],
+                  ...(region === "JP"
+                    ? [
+                        [
+                          { label: "Originality", value: hComic.originality },
+                          {
+                            label: "Animation Status",
+                            value: isDerivedAnimationStatus(hComic) ? (
+                              <DerivedAnimationStatus hComic={hComic} adaptations={adaptations} />
+                            ) : (
+                              hComic.animation_status
+                            ),
+                          },
+                        ],
+                        [
+                          { label: "Series Number", value: num(hComic.series_number) },
+                          { label: "Page Total", value: num(hComic.page_total) },
+                        ],
+                      ]
+                    : []),
+                  ...(region === "KR"
+                    ? [
+                        [
+                          { label: "Chapter Total", value: num(hComic.ch_total) },
+                          { label: "Chapters Behind Official", value: num(hComic.ch_behind) },
+                        ],
+                        { label: "Official Source", value: hComic.original_source },
+                      ]
+                    : []),
+                  [
+                    { label: "Release Date", value: hComic.release_date || null },
+                    { label: "End Date", value: hComic.end_date || null },
+                  ],
+                ]}
+              />
+            </TocSection>
+            <TocSection id="credits" label="Credits">
+              <InfoCard
+                title="Credits"
+                fields={[
+                  [
+                    {
+                      label: creditLabel(hComic, "illustrator", "繪師"),
+                      value: creditValue(hComic, "illustrator", hComic.illustrator),
+                    },
+                    {
+                      label: creditLabel(hComic, "club", "Club"),
+                      value: creditValue(hComic, "club", hComic.club),
+                    },
+                  ],
+                  ...(shows("author")
+                    ? [
                         {
-                          label: "Animation Status",
-                          value: isDerivedAnimationStatus(hComic) ? (
-                            <DerivedAnimationStatus hComic={hComic} adaptations={adaptations} />
-                          ) : (
-                            hComic.animation_status
-                          ),
+                          label: creditLabel(hComic, "author", "Author"),
+                          value: creditValue(hComic, "author", hComic.author),
                         },
-                      ],
-                      [
-                        { label: "Series Number", value: num(hComic.series_number) },
-                        { label: "Page Total", value: num(hComic.page_total) },
-                      ],
-                    ]
-                  : []),
-                ...(region === "KR"
-                  ? [
-                      [
-                        { label: "Chapter Total", value: num(hComic.ch_total) },
-                        { label: "Chapters Behind Official", value: num(hComic.ch_behind) },
-                      ],
-                      { label: "Official Source", value: hComic.original_source },
-                    ]
-                  : []),
-                [
-                  { label: "Release Date", value: hComic.release_date || null },
-                  { label: "End Date", value: hComic.end_date || null },
-                ],
-              ]}
-            />
-            <InfoCard
-              title="Credits"
-              fields={[
-                [
-                  {
-                    label: creditLabel(hComic, "illustrator", "繪師"),
-                    value: creditValue(hComic, "illustrator", hComic.illustrator),
-                  },
-                  {
-                    label: creditLabel(hComic, "club", "Club"),
-                    value: creditValue(hComic, "club", hComic.club),
-                  },
-                ],
-                ...(shows("author")
-                  ? [
-                      {
-                        label: creditLabel(hComic, "author", "Author"),
-                        value: creditValue(hComic, "author", hComic.author),
-                      },
-                    ]
-                  : []),
-              ]}
-            />
-            <InfoCard
-              title="Genres"
-              fields={[
-                { label: "Genre Plot", value: hComic.h_genre_plot },
-                { label: "Genre Appearance", value: hComic.h_genre_appearance },
-                { label: "Genre Relation", value: hComic.h_genre_relation },
-              ]}
-            />
+                      ]
+                    : []),
+                ]}
+              />
+            </TocSection>
+            <TocSection id="genres" label="Genres">
+              <InfoCard
+                title="Genres"
+                fields={[
+                  { label: "Genre Plot", value: hComic.h_genre_plot },
+                  { label: "Genre Appearance", value: hComic.h_genre_appearance },
+                  { label: "Genre Relation", value: hComic.h_genre_relation },
+                ]}
+              />
+            </TocSection>
           </div>
 
-          <CastSection cast={cast} />
+          <TocSection id="cast" label="Cast">
+            <CastSection cast={cast} />
+          </TocSection>
 
-          {hComic.remark && (
-            <Slip title="Remarks">
-              <textarea
-                key={hComic.system_id}
-                defaultValue={hComic.remark || ""}
-                disabled={!isAdmin}
-                onBlur={(e) =>
-                  isAdmin && performPatch({ remark: e.target.value || null }, "Remark saved")
-                }
-                rows={4}
-                placeholder="Add remarks…"
-                className={selectCls}
-              ></textarea>
-            </Slip>
-          )}
+          <TocSection id="remarks" label="Remarks">
+            {ownData && hComic.remark && (
+              <Slip title="Remarks">
+                <textarea
+                  key={hComic.system_id}
+                  defaultValue={hComic.remark || ""}
+                  onBlur={(e) => {
+                    if (e.target.value !== (hComic.remark || ""))
+                      saveMyRemark(e.target.value);
+                  }}
+                  rows={4}
+                  placeholder="Add remarks…"
+                  className={selectCls}
+                ></textarea>
+              </Slip>
+            )}
+          </TocSection>
 
-          {/* The dedicated remark textarea above renders only when a remark
-              exists; hide the notes page's `remark` section exactly then, so
-              the singleton row never has two editors on one screen. */}
+          {/* The dedicated remark textarea above renders only for a holder of
+              self.list who has a remark; hide the notes page's `remark`
+              section exactly then, so the viewer's own row never has two
+              editors on one screen. */}
           <HComicNotes
             key={hComic.system_id}
             hComic={hComic}
-            isAdmin={isAdmin}
-            hideSections={hComic.remark ? ["remark"] : []}
+            hideSections={ownData && hComic.remark ? ["remark"] : []}
             series={series}
             franchise={franchise}
             nameSuggestions={castNames}
-            onGroupOrderChange={(names) =>
-              performPatch({ highlight_group_order: names }, "Group order saved")
-            }
+            onGroupOrderChange={has("self.personal_notes") ? saveGroupOrder : undefined}
           />
         </div>
       </div>
-    </div>
+    </DetailContents>
   );
 }

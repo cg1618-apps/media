@@ -76,6 +76,7 @@ const ANIME_MOVIE_LIBRARY_CONFIG = {
     {
       key: "watchingStatus",
       label: "Watch Status",
+      personal: true,
       type: "set-grouped",
       groupOptions: ["Watching", "Planned", "Completed", "Dropped", "Might Watch"],
       match: (item, active) =>

@@ -7,7 +7,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.schemas.novel import NovelBase, NovelUnitResponse, NovelUnitWrite
-from app.utils.constants import MY_RATINGS, NOVEL_UNIT_KINDS
+from app.utils.constants import NOVEL_UNIT_KINDS
 
 
 def test_write_accepts_a_new_unit_without_system_id():
@@ -76,23 +76,23 @@ def test_unit_kind_literal_matches_the_constant():
     assert get_args(annotation) == NOVEL_UNIT_KINDS
 
 
-# --- my_rating --------------------------------------------------------------
-# Each unit carries its own grade, on the same S..F scale as novel.my_rating.
-# Nothing derives from it: the novel's own rating stays hand-set.
+# --- my_rating and remark ---------------------------------------------------
+# They are the reader's, not the unit's: the write schema does not carry them
+# (PUT /api/me/novel-units/{unit_id} does), and a client still sending either
+# has the key ignored, like every catalogue write's personal field. The
+# response carries the viewer's own.
 
 
-def test_write_accepts_a_rating():
-    unit = NovelUnitWrite(unit_kind="volume", position=1, my_rating="A+")
-    assert unit.my_rating == "A+"
+@pytest.mark.parametrize("field", ["my_rating", "remark"])
+def test_write_does_not_carry_a_personal_field(field):
+    assert field not in NovelUnitWrite.model_fields
 
 
-def test_write_defaults_the_rating_to_none():
-    assert NovelUnitWrite(unit_kind="volume", position=1).my_rating is None
-
-
-def test_write_accepts_every_grade():
-    for grade in MY_RATINGS:
-        assert NovelUnitWrite(unit_kind="volume", position=1, my_rating=grade).my_rating == grade
+def test_write_ignores_a_personal_field_an_old_client_sends():
+    unit = NovelUnitWrite(unit_kind="volume", position=1, my_rating="A+", remark="x")
+    dumped = unit.model_dump()
+    assert "my_rating" not in dumped
+    assert "remark" not in dumped
 
 
 def test_response_carries_the_rating():

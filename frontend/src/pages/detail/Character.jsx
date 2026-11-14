@@ -10,12 +10,14 @@
 // character in that entry, since (unlike a person's own credits) knowing who
 // played the part is the point of looking a character up.
 //
-// Like Person.jsx it reads the API with plain fetch. An admin can set my
-// rating and the remark in place, and jump to the full editor; both go
-// through PATCH (components/info/EntityProfileControls.jsx) and the page
-// takes the response as its new state.
+// Like Person.jsx it reads the API with plain fetch. An admin can write the
+// remark in place and jump to the full editor; the remark goes through PATCH
+// (components/info/EntityProfileControls.jsx) and the page takes the response
+// as its new state. My rating is the viewer's own: a holder of self.list sets
+// it through PUT /api/me/ratings (api/mutations/useMyRatingMutations.js).
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import ReportProblemButton from "../../components/requests/ReportProblemButton";
 
 import { endpoints } from "../../api/endpoints";
 import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
@@ -37,7 +39,10 @@ import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { Eyebrow, RatingStamp } from "../../components/ui/primitives";
 import LazyImage from "../../components/ui/LazyImage";
 import { useAuth } from "../../contexts/AuthContext";
+import { usePageTitle } from "../../contexts/PageTitleContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
+import { useViewScope } from "../../hooks/useViewScope";
+import { useMyRatingSaver } from "../../api/mutations/useMyRatingMutations";
 
 export default function Character() {
   const { publicId } = useParams();
@@ -47,6 +52,9 @@ export default function Character() {
   const [error, setError] = useState(null);
   const { isAdmin } = useAuth();
   const patch = useEntityPatch("character", character?.system_id, setCharacter);
+  // My rating is the viewer's own (self.list), saved through /api/me/ratings.
+  const { ownData: canRate } = useViewScope();
+  const saveMyRating = useMyRatingSaver("character", character?.system_id, setCharacter);
 
   useCanonicalPath("character", character);
 
@@ -87,6 +95,10 @@ export default function Character() {
     };
   }, [publicId]);
 
+  // The heading's name, which the browser tab shows too.
+  const name = character ? character.display_name || "Unknown Character" : null;
+  usePageTitle(loading || error ? null : name);
+
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading character..." />;
   }
@@ -100,7 +112,6 @@ export default function Character() {
     );
   }
 
-  const name = character.display_name || "Unknown Character";
   // The server resolves the fallback: the chosen entry's casting photo, then
   // its cover, then the newest visible casting photo, then the newest cover.
   const photoUrl = getCoverUrl(character.display_photo_file ?? character.photo_file);
@@ -110,18 +121,25 @@ export default function Character() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-      <nav
-        className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint mb-8 flex items-center gap-3"
-        aria-label="Breadcrumb"
-      >
-        <Link to="/library/character" className="hover:text-brand transition">
-          Characters
-        </Link>
-        <span aria-hidden="true">/</span>
-        <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
-          {name}
-        </span>
-      </nav>
+      <div className="mb-8 flex items-center justify-between gap-3">
+        <nav
+          className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint min-w-0 flex items-center gap-3"
+          aria-label="Breadcrumb"
+        >
+          <Link to="/library/character" className="hover:text-brand transition">
+            Characters
+          </Link>
+          <span aria-hidden="true">/</span>
+          <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
+            {name}
+          </span>
+        </nav>
+        <ReportProblemButton
+          targetType="character"
+          targetId={character.system_id}
+          targetLabel={name}
+        />
+      </div>
 
       {isAdmin && (
         <AdminToolbar ownerType="character" systemId={character.system_id} />
@@ -160,10 +178,10 @@ export default function Character() {
             </div>
           </div>
 
-          {isAdmin && (
+          {canRate && (
             <RatingSelect
               rating={character.my_rating}
-              onChange={(v) => patch({ my_rating: v }, "Rating saved")}
+              onChange={(v) => saveMyRating({ my_rating: v }, "Rating saved")}
             />
           )}
 

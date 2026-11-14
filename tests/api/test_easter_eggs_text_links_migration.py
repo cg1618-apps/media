@@ -60,11 +60,11 @@ def _reload(db, row):
     return db.query(models.Note).filter_by(system_id=row.system_id).one()
 
 
-def test_an_easter_eggs_pairs_become_urls(db_session, revision, sample_anime, admin_user):
+def test_an_easter_eggs_pairs_become_urls(db_session, revision, sample_anime, owner_user):
     row = _row(
         db_session,
         sample_anime,
-        admin_user.id,
+        owner_user.id,
         "easter_eggs",
         locator="ep 3",
         content="The poster is the ep 12 villain.",
@@ -98,9 +98,9 @@ def test_an_easter_eggs_pairs_become_urls(db_session, revision, sample_anime, ad
     )
 
 
-def test_no_links_becomes_an_empty_list(db_session, revision, sample_anime, admin_user):
-    sql_null = _row(db_session, sample_anime, admin_user.id, "easter_eggs", content="a")
-    json_null = _row(db_session, sample_anime, admin_user.id, "easter_eggs", content="b")
+def test_no_links_becomes_an_empty_list(db_session, revision, sample_anime, owner_user):
+    sql_null = _row(db_session, sample_anime, owner_user.id, "easter_eggs", content="a")
+    json_null = _row(db_session, sample_anime, owner_user.id, "easter_eggs", content="b")
     db_session.execute(
         text("UPDATE note SET links = 'null'::jsonb WHERE system_id = :id"),
         {"id": json_null.system_id},
@@ -111,33 +111,33 @@ def test_no_links_becomes_an_empty_list(db_session, revision, sample_anime, admi
         assert _reload(db_session, row).links == []
 
 
-def test_the_song_lists_keep_their_pairs(db_session, revision, sample_anime, admin_user):
+def test_the_song_lists_keep_their_pairs(db_session, revision, sample_anime, owner_user):
     """The mirror: a reshape over every section would pass the tests above."""
     pairs = [{"text": "YouTube", "url": "https://youtu.be/a"}]
-    row = _row(db_session, sample_anime, admin_user.id, "op", title="紅蓮華", links=pairs)
+    row = _row(db_session, sample_anime, owner_user.id, "op", title="紅蓮華", links=pairs)
     _run(db_session, revision.reshape)
 
     assert _reload(db_session, row).links == pairs
 
 
 def test_the_downgrade_turns_urls_back_into_pairs(
-    db_session, revision, sample_anime, admin_user
+    db_session, revision, sample_anime, owner_user
 ):
     row = _row(
         db_session,
         sample_anime,
-        admin_user.id,
+        owner_user.id,
         "easter_eggs",
         content="The poster is the ep 12 villain.",
         links=["https://b23.tv/x", "https://youtu.be/y"],
     )
     empty = _row(
-        db_session, sample_anime, admin_user.id, "easter_eggs", content="x", links=[]
+        db_session, sample_anime, owner_user.id, "easter_eggs", content="x", links=[]
     )
     song = _row(
         db_session,
         sample_anime,
-        admin_user.id,
+        owner_user.id,
         "op",
         title="紅蓮華",
         links=[{"text": "YouTube", "url": "https://youtu.be/a"}],
@@ -154,11 +154,11 @@ def test_the_downgrade_turns_urls_back_into_pairs(
     ]
 
 
-def test_up_then_down_then_up_is_stable(db_session, revision, sample_anime, admin_user):
+def test_up_then_down_then_up_is_stable(db_session, revision, sample_anime, owner_user):
     row = _row(
         db_session,
         sample_anime,
-        admin_user.id,
+        owner_user.id,
         "easter_eggs",
         content="x",
         links=[{"text": "a", "url": "https://a.example"}],
@@ -171,12 +171,12 @@ def test_up_then_down_then_up_is_stable(db_session, revision, sample_anime, admi
 
 
 def test_a_merged_patch_of_a_reshaped_row_validates(
-    db_session, revision, sample_anime, admin_user
+    db_session, revision, sample_anime, owner_user
 ):
     row = _row(
         db_session,
         sample_anime,
-        admin_user.id,
+        owner_user.id,
         "easter_eggs",
         content="x",
         links=[{"text": "a", "url": "https://a.example"}],

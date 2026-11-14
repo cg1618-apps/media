@@ -12,17 +12,40 @@
 //   dev      true for placeholders that route to /under-development
 //   divider  true for a rule between item groups (admin menu only)
 //   requires the permission a viewer must hold to see this one row, for the
-//            admin-only pages that sit inside a tab everyone may open
+//            admin-only pages that sit inside a tab everyone may open. A
+//            list means ANY of them, the same as <ProtectedRoute
+//            anyPermission> in App.jsx
+//   feature  the account feature switch this row needs (hasFeature in
+//            AuthContext), the same one App.jsx's <ProtectedRoute feature>
+//            asks. Checked in place of `requires`, not beside it
 //   gatedType the gated media type this row belongs to. The row is drawn only
 //            for a session that may see that type (canSeeGatedType in
 //            lib/gatedTypes.js), the same question App.jsx's route asks
 //
 // Sections either carry `items` (a single list) or `columns` (a mega-panel).
 
+// The nine ordinary media types' keys. A role holding none of them reads no
+// library at all - the admin, whose role holds no media_type.* - so the
+// Library tab asks for any one of them, and so do Future Releases' row and
+// route (App.jsx), which read the same lists. The gated three have their own
+// Restricted tab.
+export const LIBRARY_MEDIA_TYPE_PERMISSIONS = [
+  "media_type.anime",
+  "media_type.anime-movie",
+  "media_type.manga",
+  "media_type.novel",
+  "media_type.game",
+  "media_type.tv-show",
+  "media_type.movie",
+  "media_type.cartoon",
+  "media_type.comic",
+];
+
 export const NAV_SECTIONS = [
   {
     key: "library",
     label: "Library",
+    requires: LIBRARY_MEDIA_TYPE_PERMISSIONS,
     columns: [
       {
         heading: "Groups",
@@ -45,42 +68,43 @@ export const NAV_SECTIONS = [
         heading: "Entities",
         // The credited entities are a member's view of the catalogue: a guest
         // browses the media and the groups, and reads entity names as plain
-        // text on those pages (useEntityHref in lib/entityPath.js). Every row
-        // asks view.entities, as App.jsx's entity routes do.
+        // text on those pages (useEntityHref in lib/entityPath.js). Each row
+        // asks its own kind's key, as App.jsx's entity routes do; Seiyuu is a
+        // person list and asks view.person.
         items: [
           {
             label: "Studio",
             icon: "fas fa-building",
             to: "/library/studio",
             matches: ["/studio"],
-            requires: "view.entities",
+            requires: "view.studio",
           },
           {
             label: "Publisher",
             icon: "fas fa-copyright",
             to: "/library/publisher",
             matches: ["/publisher"],
-            requires: "view.entities",
+            requires: "view.publisher",
           },
           {
             label: "Person",
             icon: "fas fa-user",
             to: "/library/person",
             matches: ["/person"],
-            requires: "view.entities",
+            requires: "view.person",
           },
           {
             label: "Character",
             icon: "fas fa-masks-theater",
             to: "/library/character",
             matches: ["/character", "/identity"],
-            requires: "view.entities",
+            requires: "view.character",
           },
           {
             label: "Seiyuu",
             icon: "fas fa-microphone",
             to: "/library/seiyuu",
-            requires: "view.entities",
+            requires: "view.person",
           },
         ],
       },
@@ -189,45 +213,81 @@ export const NAV_SECTIONS = [
   {
     key: "track",
     label: "Track",
+    // The account's own progress: what it plans to watch and what it has
+    // finished.
     items: [
-      // Plan and Seasonal are per-user pages: their APIs answer 401 to a
-      // stranger and their routes redirect to login (App.jsx, ProtectedRoute
-      // requireAuth), so showing the rows logged out would only bounce people.
-      // self.list is the nav's spelling of "a signed-in member" - the guest
-      // role does not hold it and both user and admin do, which is why the
-      // Settings row below is gated the same way.
+      // Plan is a per-user page: its API answers 401 to a stranger and its
+      // route redirects to login (App.jsx, ProtectedRoute permission="self.list"), so
+      // showing the row logged out would only bounce people. self.list is the
+      // nav's spelling of "a signed-in member with a library of their own" -
+      // user and super hold it; guest and admin do not, since neither role
+      // holds any self.* key. Settings, in the account strip, is gated the
+      // same way.
       { label: "Plan", icon: "fas fa-clipboard-list", to: "/plan", requires: "self.list" },
-      { label: "Seasonal", icon: "fas fa-leaf", to: "/seasonal", requires: "self.list" },
-      // Future Releases, Completions and the Random Picker are the extras a
-      // member gets on top of browsing: view.extras, the same key App.jsx's
-      // routes ask. /random/<type> lights the Random Picker row up too.
+      // Completions is built from the account's own completions, so it asks
+      // self.list as Plan does.
+      { label: "Completions", icon: "fas fa-history", to: "/completions", requires: "self.list" },
+    ],
+  },
+  {
+    key: "explore",
+    label: "Explore",
+    // The browsing pages: ways into the collection by season, by release
+    // date, by chance and by the numbers.
+    items: [
+      // Seasonal and Future Releases read the catalogue, so each asks for any
+      // ordinary media type, as the Library tab does: every viewer that reads
+      // the catalogue has it, the admin does not. With a list the page is the
+      // viewer's own; without one, the catalogue's. The Random Picker and
+      // Statistics each ask their own key - view.random_picker and
+      // view.statistics, super, user and shared, never guest. Each is what
+      // App.jsx's routes ask.
+      // /random/<type> lights the Random Picker row up too.
+      {
+        label: "Seasonal",
+        icon: "fas fa-leaf",
+        to: "/seasonal",
+        requires: LIBRARY_MEDIA_TYPE_PERMISSIONS,
+      },
       {
         label: "Future Releases",
         icon: "fas fa-calendar-plus",
         to: "/future-releases",
-        requires: "view.extras",
+        requires: LIBRARY_MEDIA_TYPE_PERMISSIONS,
       },
       {
-        label: "Completions",
-        icon: "fas fa-history",
-        to: "/completions",
-        requires: "view.extras",
+        label: "Random Picker",
+        icon: "fas fa-dice",
+        to: "/random",
+        requires: "view.random_picker",
       },
-      { label: "Random Picker", icon: "fas fa-dice", to: "/random", requires: "view.extras" },
+      {
+        label: "Statistics",
+        icon: "fas fa-chart-bar",
+        to: "/statistics",
+        requires: "view.statistics",
+      },
     ],
   },
   {
-    key: "insights",
-    label: "Insights",
+    key: "extras",
+    label: "Extras",
+    // Quotes, memes and resources, then the catalogue editors' relations and
+    // watch orders.
     items: [
-      // Per-user, like Plan and Seasonal above: the page is built from the
-      // caller's own seasonal rows.
-      { label: "Statistics", icon: "fas fa-chart-bar", to: "/statistics", requires: "self.list" },
-      // Quotes, Memes and Resources are extras too (view.extras), read-only
-      // for a member; their edit controls ask manage.catalog inside the page.
-      { label: "Quotes", icon: "fas fa-quote-left", to: "/quote", requires: "view.extras" },
-      { label: "Memes", icon: "fas fa-face-grin-squint", to: "/meme", requires: "view.extras" },
-      { label: "Resources", icon: "fas fa-bookmark", to: "/resources", requires: "view.extras" },
+      // Quotes and Memes follow the account's quotes_memes feature switch,
+      // the one App.jsx's routes ask. Both are read-only for a member; their
+      // edit controls ask manage.catalog inside the page. Resources is the
+      // admin's and super's alone - manage.resources, the key App.jsx's route
+      // and /api/resources ask, for reading as well as editing.
+      { label: "Quotes", icon: "fas fa-quote-left", to: "/quote", feature: "quotes_memes" },
+      { label: "Memes", icon: "fas fa-face-grin-squint", to: "/meme", feature: "quotes_memes" },
+      {
+        label: "Resources",
+        icon: "fas fa-bookmark",
+        to: "/resources",
+        requires: "manage.resources",
+      },
       // Relations and Watch Orders are ways of reading the collection, so they
       // belong here rather than in Admin — but both pages write through
       // catalogue endpoints (mediaRelation/watchOrder + resource CRUD), so the
@@ -245,64 +305,89 @@ export const NAV_SECTIONS = [
         to: "/watch-orders",
         requires: "manage.catalog",
       },
-      // The account's own settings. Not in Admin or Pipelines: those
-      // sections require admin.authz / manage.pipelines, and this is the one
-      // page a member who holds neither has of their own.
-      { divider: true, requires: "self.list" },
-      {
-        label: "Settings",
-        icon: "fas fa-sliders-h",
-        to: "/settings",
-        requires: "self.list",
-      },
     ],
   },
+  // The account's own settings are not a section row: they sit with the
+  // account in Nav.jsx's strip, beside Requests and log out.
   {
     key: "entry",
     label: "Entry",
     // Add/Modify/Delete/Form Defaults all write catalogue rows through
     // catalogue CRUD endpoints (resource(...).create/update/remove, etc.);
     // Picker Defaults writes /api/random-picker-defaults, also manage.catalog.
-    requires: "manage.catalog",
+    // Images is the image library, manage.images - held by the admin, who
+    // holds no manage.catalog, so the tab asks for either and each row for
+    // its own.
+    requires: ["manage.catalog", "manage.images"],
     items: [
-      { label: "Add Entry", icon: "fas fa-plus-circle", to: "/add" },
-      { label: "Modify Entry", icon: "fas fa-edit", to: "/modify" },
-      { label: "Delete Entry", icon: "fas fa-trash-alt", to: "/delete" },
-      { label: "Form Defaults", icon: "fas fa-sliders-h", to: "/defaults" },
-      { label: "Picker Defaults", icon: "fas fa-dice", to: "/random-defaults" },
-      { label: "Images", icon: "fas fa-images", to: "/images" },
+      { label: "Add Entry", icon: "fas fa-plus-circle", to: "/add", requires: "manage.catalog" },
+      { label: "Modify Entry", icon: "fas fa-edit", to: "/modify", requires: "manage.catalog" },
+      {
+        label: "Delete Entry",
+        icon: "fas fa-trash-alt",
+        to: "/delete",
+        requires: "manage.catalog",
+      },
+      {
+        label: "Form Defaults",
+        icon: "fas fa-sliders-h",
+        to: "/defaults",
+        requires: "manage.catalog",
+      },
+      {
+        label: "Picker Defaults",
+        icon: "fas fa-dice",
+        to: "/random-defaults",
+        requires: "manage.catalog",
+      },
+      { label: "Images", icon: "fas fa-images", to: "/images", requires: "manage.images" },
     ],
   },
   {
     key: "note",
     label: "Note",
-    // System Options, Aliases and External APIs all read catalogue vocabulary
-    // via options.list()/person.roleCounts()/studio.list()/constants — the
-    // same manage.catalog surface as Entry; editing lives on Add/Modify.
-    requires: "manage.catalog",
+    // Each row asks its own key, so the tab asks for any of them: the admin
+    // holds manage.options, admin.authz and manage.pipelines but not
+    // manage.catalog, and still sees the whole section.
+    requires: ["manage.options", "admin.authz", "manage.catalog", "manage.pipelines"],
     // The three read-only inventories of how the data is described: the
     // vocabulary, its translations, and which columns each external API
-    // writes. Editing lives on Add/Modify under System.
+    // writes. manage.options, the key App.jsx's routes,
+    // /api/options/record-counts and /api/constants/external-apis ask; an
+    // option itself is written on the forms, under manage.catalog.
     items: [
       {
         label: "System Options",
         icon: "fas fa-list-check",
         to: "/options",
+        requires: "manage.options",
       },
       {
         label: "Alias Conversion",
         icon: "fas fa-right-left",
         to: "/aliases",
+        requires: "manage.options",
       },
       {
         label: "External APIs",
         icon: "fas fa-cloud-arrow-down",
         to: "/external-apis",
+        requires: "manage.options",
+      },
+      // The label reference: every content label, which modes show it and
+      // how many entries and franchises carry it. Read by super, who attaches
+      // the labels, and by the admin, to see what a mode restriction does -
+      // so it sits here, where both see it, rather than in Admin, which super
+      // never opens. The row asks the same either-of App.jsx's route asks.
+      {
+        label: "Content Labels",
+        icon: "fas fa-tags",
+        to: "/content-labels",
+        requires: ["admin.authz", "manage.catalog"],
       },
       // What the pipelines change, step by step. It explains the Control
-      // Center's actions, so it takes their gate rather than the section's:
-      // super holds manage.pipelines by grant, admin by the root flag, and
-      // nobody else - a catalogue editor sees the three rows above only.
+      // Center's actions, so it takes their gate: super and admin hold
+      // manage.pipelines, and nobody else.
       // App.jsx's /business-logic route asks the same.
       {
         label: "Business Logic",
@@ -313,8 +398,8 @@ export const NAV_SECTIONS = [
     ],
   },
   {
-    key: "pipelines",
-    label: "Pipelines",
+    key: "system",
+    label: "System",
     // Control Center, Data History and Review Queue call only
     // /api/system/* and /api/data-control/*, which require manage.pipelines
     // — not the same capability as the catalogue CRUD pages above, and not
@@ -325,23 +410,27 @@ export const NAV_SECTIONS = [
       { label: "Data History", icon: "fas fa-history", to: "/data-history" },
       { label: "Review Queue", icon: "fas fa-tasks", to: "/review-queue" },
       { label: "Clean Orphans", icon: "fas fa-broom", to: "/clean-orphans" },
+      // The request inbox asks its own permission rather than the section's:
+      // App.jsx's /request-inbox route gates on manage.requests. Super and
+      // the admin hold both today, so the row shows wherever the tab does.
+      {
+        label: "Inbox",
+        icon: "fas fa-inbox",
+        to: "/request-inbox",
+        requires: "manage.requests",
+      },
     ],
   },
   {
     key: "admin",
     label: "Admin",
-    // Users, Roles and Content Labels are the accounts/authz surface —
+    // Users, Roles and Access Modes are the accounts/authz surface —
     // admin.authz, not manage.catalog or manage.pipelines. `adminOnly` is
     // still read as a legacy synonym for requires: "admin.authz".
     requires: "admin.authz",
     items: [
       { label: "Users", icon: "fas fa-users", to: "/users" },
       { label: "Roles", icon: "fas fa-user-shield", to: "/roles" },
-      {
-        label: "Content Labels",
-        icon: "fas fa-tags",
-        to: "/content-labels",
-      },
       // No `requires` of its own: the section already declares admin.authz
       // and the link inherits it. Declaring it again would be a second place
       // to keep in step with App.jsx's route gate.
@@ -393,31 +482,49 @@ export function sectionRequirement(section) {
   return section.requires ?? (section.adminOnly ? "admin.authz" : null);
 }
 
-// The permission a single row needs, or null when anyone may see it.
+// The permission a single row needs, or null when anyone may see it. A list
+// is any-of.
 export function itemRequirement(item) {
   return item.requires ?? (item.adminOnly ? "admin.authz" : null);
 }
 
+// Whether a viewer meets a requirement: one permission, or any of a list.
+export function meets(has, needed) {
+  if (!needed) return true;
+  return Array.isArray(needed) ? needed.some((p) => has(p)) : has(needed);
+}
+
 // Nobody is shown a gated row unless the caller says they may see it.
 const SEES_NO_GATED_TYPE = () => false;
+// Nor a feature row unless the caller says the account holds the feature.
+const HOLDS_NO_FEATURE = () => false;
 
 // The rows of one list a viewer may see. `canSeeType(type)` answers for rows
-// carrying a `gatedType`; left out, every such row is hidden.
-export function visibleItems(items, has, canSeeType = SEES_NO_GATED_TYPE) {
+// carrying a `gatedType`, and `hasFeature(name)` for rows carrying a
+// `feature`; left out, every such row is hidden.
+export function visibleItems(
+  items,
+  has,
+  canSeeType = SEES_NO_GATED_TYPE,
+  hasFeature = HOLDS_NO_FEATURE,
+) {
   return items.filter((item) => {
     if (item.gatedType && !canSeeType(item.gatedType)) return false;
-    const needed = itemRequirement(item);
-    return !needed || has(needed);
+    if (item.feature) return hasFeature(item.feature);
+    return meets(has, itemRequirement(item));
   });
 }
 
 // The same section with the rows this viewer may not see removed. Returns the
 // section itself when nothing was dropped, and always hands back the original
 // item objects — Nav marks the current row by identity.
-function withVisibleItems(section, has, canSeeType) {
+function withVisibleItems(section, has, canSeeType, hasFeature) {
   if (section.columns) {
     const columns = section.columns
-      .map((col) => ({ ...col, items: visibleItems(col.items, has, canSeeType) }))
+      .map((col) => ({
+        ...col,
+        items: visibleItems(col.items, has, canSeeType, hasFeature),
+      }))
       .filter((col) => col.items.length > 0);
     const kept = columns.reduce((n, col) => n + col.items.length, 0);
     return kept === sectionItems(section).length
@@ -425,20 +532,23 @@ function withVisibleItems(section, has, canSeeType) {
       : { ...section, columns };
   }
   if (!section.items) return section;
-  const items = visibleItems(section.items, has, canSeeType);
+  const items = visibleItems(section.items, has, canSeeType, hasFeature);
   return items.length === section.items.length ? section : { ...section, items };
 }
 
 // The sections a viewer may see, each trimmed to the rows they may see. A
 // section left with nothing but dividers is dropped along with them.
-// `canSeeType` is the gated-type question (see visibleItems).
-export function visibleSections(sections, has, canSeeType = SEES_NO_GATED_TYPE) {
+// `canSeeType` and `hasFeature` are the gated-type and feature questions
+// (see visibleItems).
+export function visibleSections(
+  sections,
+  has,
+  canSeeType = SEES_NO_GATED_TYPE,
+  hasFeature = HOLDS_NO_FEATURE,
+) {
   return sections
-    .filter((section) => {
-      const needed = sectionRequirement(section);
-      return !needed || has(needed);
-    })
-    .map((section) => withVisibleItems(section, has, canSeeType))
+    .filter((section) => meets(has, sectionRequirement(section)))
+    .map((section) => withVisibleItems(section, has, canSeeType, hasFeature))
     .filter(
       (section) =>
         !(section.items || section.columns) ||

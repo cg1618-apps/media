@@ -21,7 +21,24 @@ from sqlalchemy.orm import Session
 
 from app import models
 from app.database import get_taipei_now
+from app.models.system import USER_STATUS_ACTIVE
+from app.services.domain.completion import (
+    apply_list_completion_timestamp,
+    reached_total,
+)
+from app.services.rbac.permissions import (
+    ADMIN_ROLE_NAME,
+    GUEST_ROLE_NAME,
+    SHARED_ROLE_NAME,
+)
 from app.utils.constants import COMPLETED_WATCH_STATUSES
+
+# Roles whose accounts are never the installation owner by fallback: the admin
+# keeps no personal data, a shared login is several people's, and a guest-role
+# account is nobody's.
+NEVER_OWNER_ROLE_NAMES: frozenset[str] = frozenset(
+    {ADMIN_ROLE_NAME, SHARED_ROLE_NAME, GUEST_ROLE_NAME}
+)
 
 # Which payload key carries the status, per hyphenated media type.
 STATUS_FIELD: dict[str, str] = {
@@ -158,40 +175,64 @@ def installation_owner_id(db: Session) -> Optional[UUID]:
     else's ratings.
 
     The answer is DATA: `users.is_installation_owner`, a partial-unique flag
-    so at most one account holds it. It used to be the account named `admin`,
-    which is how every personal row in the first installation came to belong
-    to an administrative account (revision o1a1ownerflag moved them). An admin
-    administers; it does not carry a library, and the two questions are not
-    the same one.
+    so at most one account holds it. Its holder is the owner whatever its
+    status - the flag is a deliberate choice, and a disabled owner's rows are
+    still theirs - unless its role is `admin`: no admin account is ever the
+    owner, and an admin flag holder is passed over for the fallback.
 
-    The two fallbacks are for a database where nobody holds the flag - a fresh
-    install, or a restore from a sheet backed up before the column existed:
-    the alphabetically-first NON-root account, then the
-    alphabetically-first account of any kind. Never None while any account
-    exists, because `user_media_list.user_id` is NOT NULL and a restore has to
-    file its rows somewhere. The second fallback can therefore still name an
-    admin, on a database that has no other account - which is right: a sheet
-    must restore onto a fresh machine before a second account exists on it.
+    With nobody holding the flag - a fresh install, or a restore from a sheet
+    backed up before the column existed - the owner is the first `active`
+    account, by username, whose role is not `admin`, `guest` or `shared`
+    (NEVER_OWNER_ROLE_NAMES, by role name). The admin keeps no personal data;
+    a shared account is several people's, and the seed creates two on every
+    boot; a pending registrant is a stranger until approved, and a disabled
+    account cannot sign in to see what was filed under it.
+
+    Otherwise None - never the admin. Every caller treats None as "nobody to
+    file under" and skips: Pull counts the owner-dependent rows it could not
+    restore and says so in its report, and Calculate derives nothing.
 
     Nothing on a request path may call this. If a route needs to know who is
     asking, the answer is acting_user_id() and it is allowed to be None.
     """
+    # An admin-role flag holder is passed over: no admin account may be the
+    # owner. Pull and boot never leave the flag on one (pull.py's Users tab,
+    # seed.ensure_no_admin_installation_owner), so this only matters for a
+    # hand-edited database - whose rows then go to the fallback below rather
+    # than to an account that keeps no personal data.
     owner = (
         db.query(models.User)
-        .filter(models.User.is_installation_owner)
+        .join(models.Role, models.User.role_id == models.Role.system_id)
+        .filter(
+            models.User.is_installation_owner,
+            models.Role.name != ADMIN_ROLE_NAME,
+        )
         .first()
     )
-    if owner is None:
-        owner = (
-            db.query(models.User)
-            .join(models.Role, models.User.role_id == models.Role.system_id)
-            .filter(~models.Role.is_root)
-            .order_by(models.User.username)
-            .first()
+    if owner is not None:
+        return owner.id
+
+    owner = (
+        db.query(models.User)
+        .join(models.Role, models.User.role_id == models.Role.system_id)
+        .filter(
+            models.Role.name.notin_(NEVER_OWNER_ROLE_NAMES),
+            models.User.status == USER_STATUS_ACTIVE,
         )
-    if owner is None:
-        owner = db.query(models.User).order_by(models.User.username).first()
+        .order_by(models.User.username)
+        .first()
+    )
     return owner.id if owner is not None else None
+
+
+def no_owner_message(skipped: int) -> str:
+    """
+    The report line for rows a pipeline could not file because
+    installation_owner_id() answered None. Pull and Calculate both use it, so
+    the "nobody to file under" case reads the same wherever it surfaces and is
+    never folded into a generic skip count.
+    """
+    return f"no installation owner: {skipped} row(s) skipped"
 
 
 def list_row(db: Session, user_id: Optional[UUID], media_id: UUID):
@@ -290,12 +331,13 @@ def attach_list_fields(db: Session, media_type: str, entries, user_id) -> None:
 
 
 def attach_unit_ratings(db: Session, media_type: str, entries, user_id) -> None:
-    """Put the reader's per-unit rating back on each of a novel's units.
+    """Put the reader's per-unit rating and remark back on a novel's units.
 
-    Task 20 moved novel_unit.my_rating to user_novel_unit_rating, but
-    NovelUnitResponse still declares my_rating and reads it off the ORM object
-    - so without this every unit serialises as None. The same trick
-    attach_list_fields uses, one level down.
+    Both live on user_novel_unit_rating, one row per reader, but
+    NovelUnitResponse still declares my_rating and remark and reads them off
+    the ORM object - so without this every unit serialises them as None. The
+    same trick attach_list_fields uses, one level down. A guest (user_id
+    None) reads None for both.
 
     Novel-only, and one query for every unit of every entry passed, not one
     per unit.
@@ -313,7 +355,7 @@ def attach_unit_ratings(db: Session, media_type: str, entries, user_id) -> None:
     rows = {}
     if user_id is not None:
         rows = {
-            r.unit_id: r.my_rating
+            r.unit_id: r
             for r in db.query(models.UserNovelUnitRating)
             .filter(
                 models.UserNovelUnitRating.user_id == user_id,
@@ -322,7 +364,9 @@ def attach_unit_ratings(db: Session, media_type: str, entries, user_id) -> None:
             .all()
         }
     for unit in units:
-        unit.my_rating = rows.get(unit.system_id)
+        row = rows.get(unit.system_id)
+        unit.my_rating = row.my_rating if row is not None else None
+        unit.remark = row.remark if row is not None else None
 
 
 def split_list_payload(media_type: str, payload: dict) -> tuple[dict, dict]:
@@ -399,6 +443,51 @@ def clear_stale_time_fin(
     )
     if not sent_new:
         row.time_fin = None
+
+
+def finish_list_row(row, entry, spec) -> None:
+    """
+    The personal half of finishing an entry: the type's mark_completed_list,
+    and completed_at the first time. The catalogue half (spec.mark_completed)
+    is the caller's to run, and only a catalogue write runs it.
+    """
+    spec.mark_completed_list(row, entry)
+    if row.completed_at is None:
+        row.completed_at = get_taipei_now()
+    row.updated_at = get_taipei_now()
+
+
+def write_list_payload(row, entry, personal: dict, spec, *, complete_on_total: bool) -> bool:
+    """
+    Apply a personal payload to one account's row with the tracker's rules,
+    for every path that writes a list row: the entry endpoints and
+    PUT /api/me/list.
+
+    The payload goes through apply_list_payload, a Completed status stamps
+    completed_at, and the type's progress_hook_list runs after the payload,
+    never before, because the derivation folds the cursor the writer just
+    sent. With `complete_on_total`, a write that carries the progress counter
+    up to its total finishes the row, exactly as Mark completed would; a
+    payload naming a status of its own is left alone - the writer said what
+    the status is.
+
+    Returns True when this write finished the row, so a catalogue write can
+    run the work's catalogue half as well. `spec` is the type's MediaSpec.
+    """
+    media_type = spec.owner_type
+    status_field = STATUS_FIELD[media_type]
+    counter = spec.progress_counter if complete_on_total else None
+    fin_before = counter(row, entry)[0] if counter else None
+    apply_list_payload(row, personal, media_type)
+    apply_list_completion_timestamp(row, personal.get(status_field))
+    if spec.progress_hook_list is not None:
+        spec.progress_hook_list(row, entry)
+    if counter and status_field not in personal:
+        fin_after, total = counter(row, entry)
+        if reached_total(fin_before, fin_after, total):
+            finish_list_row(row, entry, spec)
+            return True
+    return False
 
 
 def apply_list_payload(row, personal: dict, media_type: str) -> None:

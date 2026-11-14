@@ -6,12 +6,14 @@
 // studio is credited on, grouped by media type exactly as
 // GET /api/studio/{id}/entries returns them.
 //
-// Like Person.jsx it reads the API with plain fetch. An admin can set my
-// rating and the remark in place and jump to the full editor, the controls
-// Person.jsx and Character.jsx have (components/info/EntityProfileControls.jsx):
-// PATCH, then the response becomes the page's state.
+// Like Person.jsx it reads the API with plain fetch. An admin can write the
+// remark in place and jump to the full editor, the controls Person.jsx and
+// Character.jsx have (components/info/EntityProfileControls.jsx): PATCH, then
+// the response becomes the page's state. My rating is the viewer's own, set
+// by a holder of self.list through PUT /api/me/ratings.
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import { endpoints } from "../../api/endpoints";
 import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
 import { releaseYear } from "../../lib/releaseDate";
@@ -28,7 +30,10 @@ import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { Eyebrow, RatingStamp } from "../../components/ui/primitives";
 import LazyImage from "../../components/ui/LazyImage";
 import { useAuth } from "../../contexts/AuthContext";
+import { usePageTitle } from "../../contexts/PageTitleContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
+import { useViewScope } from "../../hooks/useViewScope";
+import { useMyRatingSaver } from "../../api/mutations/useMyRatingMutations";
 
 // "founded – defunct", or "Since founded" while the studio is still working.
 // Both empty means the row is dropped entirely rather than shown as a dash.
@@ -48,6 +53,9 @@ export default function Studio() {
   const [error, setError] = useState(null);
   const { isAdmin } = useAuth();
   const patch = useEntityPatch("studio", studio?.system_id, setStudio);
+  // My rating is the viewer's own (self.list), saved through /api/me/ratings.
+  const { ownData: canRate } = useViewScope();
+  const saveMyRating = useMyRatingSaver("studio", studio?.system_id, setStudio);
 
   useCanonicalPath("studio", studio);
 
@@ -88,6 +96,10 @@ export default function Studio() {
     };
   }, [publicId]);
 
+  // The heading's name, which the browser tab shows too.
+  const name = studio ? studio.display_name || "Unknown Studio" : null;
+  usePageTitle(loading || error ? null : name);
+
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading studio..." />;
   }
@@ -101,7 +113,6 @@ export default function Studio() {
     );
   }
 
-  const name = studio.display_name || "Unknown Studio";
   const logoUrl = getCoverUrl(studio.logo_file);
   const span = lifespan(studio);
   const creditTotal = groups.reduce((sum, g) => sum + g.entries.length, 0);
@@ -109,18 +120,25 @@ export default function Studio() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
       {/* Breadcrumb: a catalogue path, set in mono */}
-      <nav
-        className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint mb-8 flex items-center gap-3"
-        aria-label="Breadcrumb"
-      >
-        <Link to="/library/studio" className="hover:text-brand transition">
-          Studios
-        </Link>
-        <span aria-hidden="true">/</span>
-        <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
-          {name}
-        </span>
-      </nav>
+      <div className="mb-8 flex items-center justify-between gap-3">
+        <nav
+          className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint min-w-0 flex items-center gap-3"
+          aria-label="Breadcrumb"
+        >
+          <Link to="/library/studio" className="hover:text-brand transition">
+            Studios
+          </Link>
+          <span aria-hidden="true">/</span>
+          <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
+            {name}
+          </span>
+        </nav>
+        <ReportProblemButton
+          targetType="studio"
+          targetId={studio.system_id}
+          targetLabel={name}
+        />
+      </div>
 
       {isAdmin && <AdminToolbar ownerType="studio" systemId={studio.system_id} />}
 
@@ -157,10 +175,10 @@ export default function Studio() {
             </div>
           </div>
 
-          {isAdmin && (
+          {canRate && (
             <RatingSelect
               rating={studio.my_rating}
-              onChange={(v) => patch({ my_rating: v }, "Rating saved")}
+              onChange={(v) => saveMyRating({ my_rating: v }, "Rating saved")}
             />
           )}
 

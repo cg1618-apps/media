@@ -68,6 +68,23 @@ def test_the_parser_types_every_column():
     assert parsed["author"] == "Author A, Author B"
 
 
+def test_pull_reads_an_old_backups_originality_as_its_new_name(monkeypatch, db_session):
+    """hentai reads h-comic's vocabulary, so it shares the rename: an older
+    backup's 原創 arrives as 原版, and 同人 is left as it is."""
+    _pull(
+        monkeypatch,
+        db_session,
+        "Hentai",
+        ["hentai_name_cn", "originality", "source_material"],
+        [["Old Original", "原創", "Game"], ["Old Doujin", "同人", "Manga"]],
+    )
+    rows = {
+        e.hentai_name_cn: (e.originality, e.source_material)
+        for e in db_session.query(models.Hentai).all()
+    }
+    assert rows == {"Old Original": ("原版", "Game"), "Old Doujin": ("同人", "Manga")}
+
+
 def test_pull_stamps_the_label_on_every_row_and_franchise(monkeypatch, db_session):
     _pull(
         monkeypatch,
@@ -77,10 +94,10 @@ def test_pull_stamps_the_label_on_every_row_and_franchise(monkeypatch, db_sessio
         [["Zvornik Pulled", "Zvornik Pulled Franchise"]],
     )
     entry = db_session.query(models.Hentai).filter_by(hentai_name_cn="Zvornik Pulled").one()
-    assert label_keys_for_entry(db_session, entry.system_id) == ["hentai"]
+    assert label_keys_for_entry(db_session, entry.system_id) == ["hentai", "nsfw"]
     franchise = db_session.get(models.Franchise, entry.franchise_id)
     assert franchise.franchise_type == "Hentai"
-    assert label_keys_for_franchise(db_session, franchise.system_id) == ["hentai"]
+    assert label_keys_for_franchise(db_session, franchise.system_id) == ["hentai", "nsfw"]
 
 
 def test_pull_restores_credits_and_tags(monkeypatch, db_session):
@@ -130,7 +147,7 @@ def test_a_label_tab_restore_repairs_a_missing_label(monkeypatch, db_session):
         db_session, "Content Label", log_action=False, may_restore_authz=True
     )
     assert result["status"] == "success", result
-    assert label_keys_for_entry(db_session, entry.system_id) == ["hentai"]
+    assert label_keys_for_entry(db_session, entry.system_id) == ["hentai", "nsfw"]
 
 
 def test_calculate_repairs_a_missing_label(db_session):
@@ -142,4 +159,4 @@ def test_calculate_repairs_a_missing_label(db_session):
     db_session.flush()
     assert label_keys_for_entry(db_session, entry.system_id) == []
     run_sync_gated_labels(db_session)
-    assert label_keys_for_entry(db_session, entry.system_id) == ["hentai"]
+    assert label_keys_for_entry(db_session, entry.system_id) == ["hentai", "nsfw"]

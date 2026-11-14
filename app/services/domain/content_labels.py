@@ -65,36 +65,60 @@ def attach_content_labels(db: Session, entries) -> None:
         row.content_labels = by_owner.get(row.system_id, [])
 
 
-def attach_franchise_content_labels(db: Session, franchises) -> None:
-    """Set `franchise.content_labels` on ORM franchises in place."""
-    if franchises is None:
-        return
-    rows = list(franchises) if isinstance(franchises, (list, tuple)) else [franchises]
-    if not rows:
-        return
-    by_owner = _labels_by_owner(
-        db,
+# The join table and its owner column, per grouping tier.
+GROUP_LABEL_TABLES = {
+    "collection": (
+        models.CollectionContentLabel,
+        models.CollectionContentLabel.collection_id,
+    ),
+    "franchise": (
         models.FranchiseContentLabel,
         models.FranchiseContentLabel.franchise_id,
-        [row.system_id for row in rows],
+    ),
+    "series": (models.SeriesContentLabel, models.SeriesContentLabel.series_id),
+}
+
+
+def attach_group_content_labels(db: Session, tier: str, groups) -> None:
+    """
+    Set `group.content_labels` on ORM collections, franchises or series in
+    place. The group's OWN labels only - a series does not show its
+    franchise's, for the reason attach_content_labels gives.
+    """
+    if groups is None:
+        return
+    rows = list(groups) if isinstance(groups, (list, tuple)) else [groups]
+    if not rows:
+        return
+    join_model, owner_column = GROUP_LABEL_TABLES[tier]
+    by_owner = _labels_by_owner(
+        db, join_model, owner_column, [row.system_id for row in rows]
     )
     for row in rows:
         row.content_labels = by_owner.get(row.system_id, [])
 
 
-def label_keys_for_franchise(db: Session, franchise_id: UUID) -> list[str]:
-    """The label keys one franchise carries, sorted - the write path's read."""
+def attach_franchise_content_labels(db: Session, franchises) -> None:
+    """Set `franchise.content_labels` on ORM franchises in place."""
+    attach_group_content_labels(db, "franchise", franchises)
+
+
+def label_keys_for_group(db: Session, tier: str, group_id: UUID) -> list[str]:
+    """The label keys one collection, franchise or series carries, sorted -
+    the write path's read."""
+    join_model, owner_column = GROUP_LABEL_TABLES[tier]
     rows = (
         db.query(models.ContentLabel.key)
-        .join(
-            models.FranchiseContentLabel,
-            models.FranchiseContentLabel.label_id
-            == models.ContentLabel.system_id,
-        )
-        .filter(models.FranchiseContentLabel.franchise_id == franchise_id)
+        .join(join_model, join_model.label_id == models.ContentLabel.system_id)
+        .filter(owner_column == group_id)
         .all()
     )
     return sorted(key for (key,) in rows)
+
+
+def label_keys_for_franchise(db: Session, franchise_id: UUID) -> list[str]:
+    """The label keys one franchise carries, sorted."""
+    return label_keys_for_group(db, "franchise", franchise_id)
 
 
 def label_keys_for_entry(db: Session, entry_id: UUID) -> list[str]:
@@ -112,8 +136,11 @@ def label_keys_for_entry(db: Session, entry_id: UUID) -> list[str]:
 
 
 __all__ = [
+    "GROUP_LABEL_TABLES",
     "attach_content_labels",
     "attach_franchise_content_labels",
+    "attach_group_content_labels",
     "label_keys_for_entry",
     "label_keys_for_franchise",
+    "label_keys_for_group",
 ]

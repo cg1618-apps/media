@@ -1,6 +1,6 @@
 # Design system — "the archive"
 
-Last verified: 2026-10-28
+Last verified: 2026-11-14
 
 The UI is styled as a physical media archive: paper, ink, index slips,
 spine labels and a rating stamp. It replaced the generic dashboard look
@@ -44,8 +44,9 @@ counts). `h1` is display by default.
    nav tab, primary button, rating stamp, focused ring, links on hover.
    Never use Tailwind palette colours (`blue-500`, `emerald-100`, …) for
    categories, statuses or decoration. `danger` marks destructive or
-   critical state; `success`/`warning`/`info` may tint a toast or a
-   pipeline status, tinted with opacity (`bg-success/15`).
+   critical state; `success`/`warning`/`info` may tint a toast, a
+   pipeline status or the watch order page's state chips (rule 5), tinted
+   with opacity (`bg-success/15`).
 2. **Structure is mono.** Labels, section titles, breadcrumbs, ids, dates
    and counts are set in `font-mono`, small, uppercase, letter-spaced
    (`Eyebrow`). Values are in the body face. Titles are `font-display`.
@@ -57,9 +58,10 @@ counts). `h1` is display by default.
    not get an icon.
 5. **Colour never encodes a category.** Media type, airing status,
    expectation and the like are text (`Chip`, tone `ink`). The exceptions
-   are the rating stamp (brand), destructive states (danger) and two
+   are the rating stamp (brand), destructive states (danger), two
    type-coloured chips, both drawn from `config/scopeColors.js` and the
-   `--color-scope-*` tokens in all three palettes:
+   `--color-scope-*` tokens in all three palettes, and the watch order
+   page's state chips (below):
 
    - The **scope chips** (`scopeChip`), on the System Options page and the
      admin pages that list the same scope keys (Aliases, External APIs). The
@@ -82,8 +84,36 @@ counts). `h1` is display by default.
    never the only signal. Both are scoped on purpose: every other surface keeps
    the ink chip — `config/mediaTypeColors.js` gives every media type the same
    one on the relations canvas, and the full `/search` results page labels its
-   rows in ink too — and a third colour-coded category needs the same argument
-   made again, not these cited.
+   rows in ink too — and a further colour-coded category needs the same
+   argument made again, not these cited.
+
+   - The **watch order page's status and importance chips**
+     (`config/watchOrderColors.js`), on `/watch-order/:publicId` only —
+     `WatchOrderPage` passes `colourCoded` to `WatchOrderGuide`, and the
+     franchise and collection tab draws the same guide in ink. That page is
+     read as a checklist down a column of steps: "how far through this am I,
+     and which of what is left matters" is a scan for the gaps, not a
+     reading of each row, and a run of green with one amber and one blank is
+     the answer before any chip is read. The viewer's status sits at the far
+     right of the row, drawn only for a holder of `self.list`: Completed and
+     Completed (解說) in `success`; the Active and Passive statuses and Play
+     Anytime in `warning`; Paused and Temp Dropped in `info`, Temp Dropped
+     read as set aside to come back to rather than given up, although the
+     library filters group it with Dropped; Dropped and the Won't statuses in
+     `danger`; Plan to, Watch When Airs,
+     Play When Released and the Might statuses in muted grey. A step not on
+     the list has no chip, and a status this build has no tone for keeps the
+     ink chip. Importance: Essential is the brand fill (`bg-brand
+     text-on-brand`), Recommended the brand tint (`bg-brand-soft
+     text-brand`), Optional muted grey, Normal no chip. The text stays in
+     every chip. The fills are the fixed state hues tinted (`bg-success/12`);
+     the text is `--c-state-success` / `-warning` / `-info` / `-danger`, a
+     theme-aware token in all three palettes, because the fixed hues fall
+     under AA as 10 px text on bone paper. Each clears 4.5:1 against its own
+     tint over `--c-surface` — floors 4.98 light, 5.64 dark — and muted grey
+     is `text-text-muted`, since the `muted` tone's `text-faint` is under 3:1.
+     `config/watchOrderColors.test.js` checks that every status in the three
+     vocabularies has a tone and that each token is in all three palettes.
    Adding a type means adding its `--c-scope-*` hue to `:root`,
    `[data-theme="dark"]` **and** the `prefers-color-scheme` block
    (`config/scopeColors.test.js` checks all three), at WCAG AA 4.5:1 against
@@ -226,7 +256,7 @@ the same `Reorder <name>` label and the same keys.
 Detail page (`pages/detail/*.jsx`):
 
 ```
-ANIME  /  <title>                                  ← Eyebrow breadcrumb
+ANIME  /  <title>                REPORT A PROBLEM  ← Eyebrow breadcrumb; the report link for self.requests (provisional)
 [ ADMIN .... Quick edit  Mark completed  Mark airing  Autofill ]   ← dashed strip, admin only
 ┌spine┬─────────┐  ANIME · TV · FINISHED AIRING · SPR 2021    ← Eyebrow line
 │ANIME│  cover  │  <Title in display face>
@@ -234,10 +264,17 @@ ANIME  /  <title>                                  ← Eyebrow breadcrumb
 │ id  │─────────│  ───────────────────────────────
 │     │ progress│  FRANCHISE <link>   SERIES <link>
 └─────┴─────────┘  8.35 │ #274 │ 85 │ #74 │ #364   ← ScoreBlock
- Sources           My tracker (Slip)
- Relations         Naming / Information / Production (InfoCard)
-                   Notes
+ Sources           My tracker (Slip)                          CONTENTS        ← xl+ only, sticky,
+ Relations         Naming / Information / Production (InfoCard)  My tracker     right of the page
+                   Notes                                          Naming …
 ```
+
+The contents column (`DetailContents`) goes on the right because the left
+column is already the cover, the sources and the relations; it is drawn on
+`xl:` and up only, and the page container widens there (`max-w-7xl` →
+`88rem`) by about the column's width so the cover column is not squeezed.
+Rows are display-face text with a 2 px left rule, `brand` on the current
+row - the same `TableOfContents` the dashboard uses on its left.
 
 Cards (`components/cards/*.jsx`): cover with a thin ink spine on the left
 carrying the media type; the rating stamp top-right; title in display

@@ -100,7 +100,7 @@ describe("capEntries", () => {
 describe.each(SHAPES)("%s", (_name, Component, sec) => {
   it("shows the first three rows and folds the rest", async () => {
     const user = userEvent.setup();
-    render(<Component section={sec} notes={notes(5)} isAdmin {...handlers()} />);
+    render(<Component section={sec} notes={notes(5)} canWrite {...handlers()} />);
 
     expect(editButtons()).toHaveLength(3);
     const toggle = screen.getByRole("button", { name: "Show all (5)" });
@@ -113,7 +113,7 @@ describe.each(SHAPES)("%s", (_name, Component, sec) => {
   });
 
   it("offers no toggle at three rows or fewer", () => {
-    render(<Component section={sec} notes={notes(3)} isAdmin {...handlers()} />);
+    render(<Component section={sec} notes={notes(3)} canWrite {...handlers()} />);
     expect(editButtons()).toHaveLength(3);
     expect(screen.queryByRole("button", { name: /show all/i })).toBeNull();
   });
@@ -122,7 +122,7 @@ describe.each(SHAPES)("%s", (_name, Component, sec) => {
 describe("a folded section never hides what is being written", () => {
   it("keeps a row being edited when the section folds", async () => {
     const user = userEvent.setup();
-    render(<TextSection section={section("text")} notes={notes(5)} isAdmin {...handlers()} />);
+    render(<TextSection section={section("text")} notes={notes(5)} canWrite {...handlers()} />);
 
     await user.click(screen.getByRole("button", { name: "Show all (5)" }));
     await user.click(editButtons()[4]);
@@ -136,7 +136,7 @@ describe("a folded section never hides what is being written", () => {
 
   it("shows the draft row of a folded section", async () => {
     const user = userEvent.setup();
-    render(<TextSection section={section("text")} notes={notes(5)} isAdmin {...handlers()} />);
+    render(<TextSection section={section("text")} notes={notes(5)} canWrite {...handlers()} />);
 
     await user.click(screen.getByRole("button", { name: "Add" }));
     expect(screen.getByPlaceholderText("Add item...")).toBeInTheDocument();
@@ -149,7 +149,7 @@ describe("StructuredSection and the cap", () => {
 
   it("reorders the rows it shows by their place in the whole section", () => {
     const h = handlers();
-    render(<StructuredSection section={sec} notes={notes(5)} isAdmin {...h} />);
+    render(<StructuredSection section={sec} notes={notes(5)} canWrite {...h} />);
 
     // One handle per row shown.
     expect(screen.getAllByRole("button", { name: /^Reorder / })).toHaveLength(3);
@@ -160,7 +160,7 @@ describe("StructuredSection and the cap", () => {
 
   it("unfolds when a move carries a row past the cap", () => {
     const h = handlers();
-    render(<StructuredSection section={sec} notes={notes(5)} isAdmin {...h} />);
+    render(<StructuredSection section={sec} notes={notes(5)} canWrite {...h} />);
 
     // The third row is not the last row of the section, so it can move down.
     fireEvent.keyDown(screen.getByLabelText("Reorder row-3"), { key: "ArrowDown" });
@@ -176,7 +176,7 @@ describe("StructuredSection and the cap", () => {
       ...[2, 3, 4, 5].map((i) => note(i, { parent_id: "n1" })),
       note(6),
     ];
-    render(<StructuredSection section={tree} notes={rows} isAdmin {...handlers()} />);
+    render(<StructuredSection section={tree} notes={rows} canWrite {...handlers()} />);
     expect(editButtons()).toHaveLength(6);
     expect(screen.queryByRole("button", { name: /show all/i })).toBeNull();
   });
@@ -198,7 +198,7 @@ describe("a grouped StructuredSection caps each group", () => {
       <StructuredSection
         section={grouped}
         notes={[row(1, ["A"]), row(2, ["A"]), row(3, ["A"]), row(4, ["A"]), row(5, ["B"])]}
-        isAdmin
+        canWrite
         {...handlers()}
       />,
     );

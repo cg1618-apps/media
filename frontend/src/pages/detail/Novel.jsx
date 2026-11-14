@@ -1,13 +1,14 @@
 // Frontend: page component file for Novel.
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
 import { useAuth } from "../../contexts/AuthContext";
 import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
 import { useToast } from "../../hooks/useToast";
+import { useOwnTrackerSave } from "../../hooks/useOwnTrackerSave";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
-import CommunityCard from "../../components/info/CommunityCard";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import InfoCard from "../../components/info/InfoCard";
 import GenresCard from "../../components/info/GenresCard";
@@ -23,6 +24,8 @@ import ScoreBlock from "../../components/info/ScoreBlock";
 import NovelNotes from "./NovelNotes";
 import NovelUnitsEditor from "../../components/forms/NovelUnitsEditor";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
+import DetailContents, { TocSection } from "../../components/layout/DetailContents";
+import { usePageTitle } from "../../contexts/PageTitleContext";
 import { effectiveProgressDisplay } from "../../lib/novelUnits";
 import {
   Button,
@@ -44,6 +47,11 @@ import { focusStyle } from "../../lib/covers";
 import CastSection from "../../components/info/CastSection";
 import LazyImage from "../../components/ui/LazyImage";
 import { useViewScope } from "../../hooks/useViewScope";
+import { useSaveMyNovelUnit } from "../../api/mutations/useMyRatingMutations";
+import { SELECT_CLS } from "../../components/hub/HubChrome";
+import { MY_RATINGS } from "../../config/fieldOptions";
+import { novelUnitPayload } from "../../lib/payloads";
+import { useMyRemarkSaver } from "../../api/mutations/useMyRemark";
 
 const textareaCls =
   "block w-full border border-border-strong bg-surface text-text px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand disabled:bg-surface-2 disabled:text-text-faint disabled:cursor-not-allowed";
@@ -51,15 +59,68 @@ const lineageLinkCls =
   "text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition";
 
 
-// BelongingNovelsCard (CN/EN per-volume title editor) used to live here; it
-// read novel_name_each_cn/_en, which the backend replaced with the `units`
-// relationship (see app/models/novel.py NovelUnit). NovelUnitsCard below is
-// its replacement: same read-only/editor split, but backed by `units` and
-// each row's server-computed `display_key` instead of a bare `{key, name}`.
+// The viewer's own rating of and remark on one unit, saved through
+// PUT /api/me/novel-units/{unit_id} (self.list): the rating as soon as it is
+// picked, the remark when the field loses focus. Neither is the unit's, so the
+// catalogue editor has no control for either.
+function UnitPersonalControls({ unit, novelPublicId }) {
+  const { mutateAsync } = useSaveMyNovelUnit(novelPublicId);
+  const { showToast } = useToast();
+  const [rating, setRating] = useState(unit.my_rating || "");
+  const [remark, setRemark] = useState(unit.remark || "");
+  // What the server holds, so a blur with nothing new to say sends nothing.
+  // A refetched unit with other values remounts this (see its key).
+  const [savedRemark, setSavedRemark] = useState(unit.remark || "");
+
+  async function save(data, message) {
+    try {
+      const saved = await mutateAsync({ unitId: unit.system_id, data });
+      if ("remark" in data) setSavedRemark(saved?.remark || "");
+      showToast("success", message);
+    } catch (err) {
+      showToast("error", err.message || "Save failed");
+    }
+  }
+
+  return (
+    <>
+      <select
+        className={`${SELECT_CLS} w-20 shrink-0`}
+        value={rating}
+        aria-label={`My rating for ${unit.display_key}`}
+        onChange={(e) => {
+          setRating(e.target.value);
+          save({ my_rating: e.target.value || null }, "Rating saved");
+        }}
+      >
+        <option value="">—</option>
+        {MY_RATINGS.map((r) => (
+          <option key={r} value={r}>
+            {r}
+          </option>
+        ))}
+      </select>
+      <input
+        className={`${SELECT_CLS} flex-1 min-w-0`}
+        value={remark}
+        placeholder="Remark"
+        aria-label={`My remark for ${unit.display_key}`}
+        onChange={(e) => setRemark(e.target.value)}
+        onBlur={() => {
+          if (remark !== savedRemark)
+            save({ remark: remark || null }, "Remark saved");
+        }}
+      />
+    </>
+  );
+}
+
+// The novel's units: the catalogue editor for a manage.catalog holder, and
+// the list of units for everyone else. A self.list holder's list carries a
+// rating and a remark control on each unit, so an account holding both keys
+// gets the editor and that list.
 function NovelUnitsCard({ novel, isAdmin, onSave }) {
-  // A unit's remark is personal content (view.personal); the server strips
-  // it for a viewer without the key, and the row does not leave room for it.
-  const { personal: showRemark } = useViewScope();
+  const { ownData } = useViewScope();
   const [items, setItems] = useState(novel.units || []);
   const [dirty, setDirty] = useState(false);
 
@@ -69,14 +130,7 @@ function NovelUnitsCard({ novel, isAdmin, onSave }) {
   }, [novel.units]);
 
   function handleSave() {
-    onSave({
-      units: items.map((u, i) => ({
-        ...u,
-        position: i + 1,
-        ch_count:
-          u.ch_count === "" || u.ch_count == null ? null : Number(u.ch_count),
-      })),
-    });
+    onSave({ units: items.map(novelUnitPayload) });
     setDirty(false);
   }
 
@@ -91,11 +145,12 @@ function NovelUnitsCard({ novel, isAdmin, onSave }) {
   // the editor (with its own "+ Add" control) so they can create the first
   // one.
   if (!isAdmin && !hasUnits) return null;
+  const showList = hasUnits && (!isAdmin || ownData);
 
   return (
     <Slip title="Units">
       <div className="space-y-4">
-        {isAdmin ? (
+        {isAdmin && (
           <>
             <NovelUnitsEditor
               items={items}
@@ -116,8 +171,12 @@ function NovelUnitsCard({ novel, isAdmin, onSave }) {
               </div>
             )}
           </>
-        ) : (
-          <div className="space-y-1.5">
+        )}
+        {showList && (
+          <div
+            className={`space-y-1.5${isAdmin ? " pt-3 border-t border-border" : ""}`}
+          >
+            {isAdmin && <Eyebrow>My ratings</Eyebrow>}
             {(novel.units || []).map((u) => (
               <div key={u.system_id} className="flex items-center gap-2">
                 <Chip className="shrink-0">{u.display_key}</Chip>
@@ -131,11 +190,12 @@ function NovelUnitsCard({ novel, isAdmin, onSave }) {
                     {u.ch_count} ch
                   </span>
                 )}
-                {u.my_rating && (
-                  <Chip className="shrink-0">{u.my_rating}</Chip>
-                )}
-                {showRemark && u.remark && (
-                  <span className="text-xs text-text-faint">{u.remark}</span>
+                {ownData && (
+                  <UnitPersonalControls
+                    key={`${u.my_rating ?? ""}|${u.remark ?? ""}`}
+                    unit={u}
+                    novelPublicId={novel.public_id}
+                  />
                 )}
               </div>
             ))}
@@ -150,7 +210,7 @@ const LIST_OPTIONS = { params: { limit: 2000 } };
 export default function Novel() {
   const { publicId } = useParams();
   const navigate = useNavigate();
-  const { isAdmin, has, isRoot } = useAuth();
+  const { isAdmin, has } = useAuth();
   const { showToast } = useToast();
 
   const [novel, setNovel] = useState(null);
@@ -161,6 +221,8 @@ export default function Novel() {
   // Everything past the lookup still speaks UUIDs; only the URL segment
   // changed. Resolved from the fetched row so the two can never disagree.
   const system_id = novelQuery.data?.system_id;
+  const { ownData } = useViewScope();
+  const saveMyRemark = useMyRemarkSaver("novel", system_id, setNovel);
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const allNovelsQuery = useMediaList("novel", LIST_OPTIONS);
@@ -196,6 +258,16 @@ export default function Novel() {
     franchiseQuery.error?.message ||
     seriesQuery.error?.message ||
     null;
+
+  // The viewer's own values (status, rating, progress, plan flags) go through /api/me;
+  // saveRelease is the toolbar's release step, the work's half through the
+  // catalogue PATCH. performPatch below is that PATCH, for the units editor.
+  const { saveOwn, saveRelease } = useOwnTrackerSave("novel", {
+    entry: novel,
+    setEntry: setNovel,
+    setMediaItem,
+    fetchMediaItem,
+  });
 
   async function performPatch(payload, msg) {
     if (!isAdmin) return;
@@ -242,6 +314,17 @@ export default function Novel() {
     }
   }
 
+  // The heading's title, which the browser tab shows too.
+  const titleMain = novel
+    ? novel.novel_name_cn ||
+      novel.novel_name_en ||
+      novel.novel_name_roman ||
+      novel.novel_name_jp ||
+      novel.novel_name_alt ||
+      "Unknown"
+    : null;
+  usePageTitle(loading || error ? null : titleMain);
+
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading details..." />;
   }
@@ -255,13 +338,6 @@ export default function Novel() {
     );
   }
 
-  const titleMain =
-    novel.novel_name_cn ||
-    novel.novel_name_en ||
-    novel.novel_name_roman ||
-    novel.novel_name_jp ||
-    novel.novel_name_alt ||
-    "Unknown";
   const titleSub =
     novel.novel_name_en && novel.novel_name_en !== titleMain
       ? novel.novel_name_en
@@ -302,20 +378,27 @@ export default function Novel() {
     .join("  ·  ");
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+    <DetailContents>
       {/* Breadcrumb: a catalogue path, set in mono */}
-      <nav
-        className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint mb-8 flex items-center gap-3"
-        aria-label="Breadcrumb"
-      >
-        <Link to="/library/novel" className="hover:text-brand transition">
-          Novel
-        </Link>
-        <span aria-hidden="true">/</span>
-        <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
-          {titleMain}
-        </span>
-      </nav>
+      <div className="mb-8 flex items-center justify-between gap-3">
+        <nav
+          className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint min-w-0 flex items-center gap-3"
+          aria-label="Breadcrumb"
+        >
+          <Link to="/library/novel" className="hover:text-brand transition">
+            Novel
+          </Link>
+          <span aria-hidden="true">/</span>
+          <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
+            {titleMain}
+          </span>
+        </nav>
+        <ReportProblemButton
+          targetType="novel"
+          targetId={system_id}
+          targetLabel={titleMain}
+        />
+      </div>
 
       {/* Admin toolbar: a plain instrument strip */}
       {isAdmin && (
@@ -346,7 +429,7 @@ export default function Novel() {
             >
               Mark completed
             </Button>
-            <MarkReleaseButton type="novel" entry={novel} title={titleMain} onPatch={performPatch} />
+            <MarkReleaseButton type="novel" entry={novel} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
             <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
               {autofilling ? "Autofilling…" : "Autofill & update"}
             </Button>
@@ -368,11 +451,9 @@ export default function Novel() {
                 Novel{novel.type ? ` · ${novel.type}` : ""}
               </span>
               {/* Cosmetic only: the id is this page's own URL, so hiding it
-                  tidies the spine rather than concealing the value. Gated on
-                  is_root rather than a permission - `super` is
-                  deliberately NOT a root role, and this is the one thing in
-                  the app only the owner's own account sees. */}
-              {isRoot && (
+                  tidies the spine rather than concealing the value. Shown to
+                  a catalogue editor (manage.catalog). */}
+              {has("manage.catalog") && (
                 <span
                   className="font-mono text-[9px] tracking-[0.1em] opacity-60 whitespace-nowrap"
                   style={{ writingMode: "vertical-rl" }}
@@ -482,187 +563,197 @@ export default function Novel() {
           </header>
 
           {/* Where this entry sits in the watch orders the viewer follows. */}
-          <FollowedOrderPanel entryId={novel.system_id} />
+          <TocSection id="watch-orders" label="Watch orders">
+            <FollowedOrderPanel entryId={novel.system_id} />
+          </TocSection>
 
           {/* My Tracker Block */}
-          <NovelTrackerBlock
-            novel={novel}
-            isAdmin={isAdmin}
-            onChChange={(v) =>
-              performPatch({ ch_fin: v }, "Chapter progress saved")
-            }
-            onVolChange={(v) =>
-              performPatch({ vol_fin: v }, "Volume progress saved")
-            }
-            onArcProgressChange={(next) =>
-              performPatch(next, "Arc progress saved")
-            }
-            onStatusChange={(v) =>
-              performPatch({ reading_status: v }, "Status updated")
-            }
-            onRatingChange={(v) =>
-              performPatch({ my_rating: v || null }, "Rating saved")
-            }
-            onReadNextChange={(v, msg) => performPatch({ read_next: v }, msg)}
-            onToRerereadChange={(v, msg) => performPatch({ to_reread: v }, msg)}
-            onProgressDisplayChange={(v) =>
-              performPatch({ progress_display: v || null }, "Progress display updated")
-            }
-          />
-
-          {/* What every public list says about it, beside what I say.
-              Renders nothing when no public list holds this entry. */}
-          <CommunityCard mediaId={novel.system_id} />
+          <TocSection id="tracker" label="My tracker">
+            <NovelTrackerBlock
+              novel={novel}
+              canTrack={ownData}
+              onChChange={(v) =>
+                saveOwn({ ch_fin: v }, "Chapter progress saved")
+              }
+              onVolChange={(v) =>
+                saveOwn({ vol_fin: v }, "Volume progress saved")
+              }
+              onArcProgressChange={(next) =>
+                saveOwn(next, "Arc progress saved")
+              }
+              onStatusChange={(v) =>
+                saveOwn({ reading_status: v }, "Status updated")
+              }
+              onRatingChange={(v) =>
+                saveOwn({ my_rating: v || null }, "Rating saved")
+              }
+              onReadNextChange={(v, msg) => saveOwn({ read_next: v }, msg)}
+              onToRerereadChange={(v, msg) => saveOwn({ to_reread: v }, msg)}
+              onProgressDisplayChange={(v) =>
+                saveOwn({ progress_display: v || null }, "Progress display updated")
+              }
+            />
+          </TocSection>
 
           {/* Detail Cards */}
           <div className="space-y-6">
-            <NamingCard type="novel" item={novel} />
-            <InfoCard
-              title="Information"
-              fields={[
-                [
-                  { label: "Region", value: novel.region },
-                  { label: "Type", value: novel.type },
-                  { label: "Version", value: novel.version },
-                ],
-                [
-                  { label: "本傳 / 外傳", value: novel.is_main },
-                  {
-                    label: "Serialization Status",
-                    value: novel.serialization_status,
-                  },
-                ],
-                [
-                  {
-                    label: "Release Date",
-                    value: novel.release_date || null,
-                  },
-                  {
-                    label: "End Date",
-                    value: novel.end_date || null,
-                  },
-                ],
-                [
-                  {
-                    label: "Total Volumes (JP/KR)",
-                    value:
-                      novel.vol_total_original != null
-                        ? String(novel.vol_total_original)
-                        : null,
-                  },
-                  {
-                    label: "Vol Total (TW)",
-                    value:
-                      novel.vol_total_tw != null
-                        ? String(novel.vol_total_tw)
-                        : null,
-                  },
-                ],
-                [
-                  {
-                    label: "Arc Total",
-                    value:
-                      novel.arc_total != null ? String(novel.arc_total) : null,
-                  },
-                  {
-                    label: "Chapter Total",
-                    value:
-                      novel.ch_total != null ? String(novel.ch_total) : null,
-                  },
-                ],
-              ]}
-            />
-            <GenresCard item={novel} />
-            {/* Production Card */}
-            {(novel.author ||
-              novel.illustrator ||
-              novel.publisher_tw ||
-              novel.publisher_refs?.length > 0) && (
+            <TocSection id="naming" label="Naming">
+              <NamingCard type="novel" item={novel} />
+            </TocSection>
+            <TocSection id="information" label="Information">
               <InfoCard
-                title="Production"
+                title="Information"
                 fields={[
-                  ...(novel.author
-                    ? [
-                        {
-                          label: creditLabel(novel, "author", "Author"),
-                          value: creditValue(novel, "author", novel.author),
-                        },
-                      ]
-                    : []),
-                  ...(novel.illustrator
-                    ? [
-                        {
-                          label: creditLabel(
-                            novel,
-                            "illustrator",
-                            "Illustrator",
-                          ),
-                          value: creditValue(
-                            novel,
-                            "illustrator",
-                            novel.illustrator,
-                          ),
-                        },
-                      ]
-                    : []),
-                  ...(novel.publisher_tw || novel.publisher_refs?.length
-                    ? [
-                        {
-                          label: publisherLabel(novel, "台灣出版商"),
-                          value: publisherValue(novel),
-                        },
-                      ]
-                    : []),
+                  [
+                    { label: "Region", value: novel.region },
+                    { label: "Type", value: novel.type },
+                    { label: "Version", value: novel.version },
+                  ],
+                  [
+                    { label: "本傳 / 外傳", value: novel.is_main },
+                    {
+                      label: "Serialization Status",
+                      value: novel.serialization_status,
+                    },
+                  ],
+                  [
+                    {
+                      label: "Release Date",
+                      value: novel.release_date || null,
+                    },
+                    {
+                      label: "End Date",
+                      value: novel.end_date || null,
+                    },
+                  ],
+                  [
+                    {
+                      label: "Total Volumes (JP/KR)",
+                      value:
+                        novel.vol_total_original != null
+                          ? String(novel.vol_total_original)
+                          : null,
+                    },
+                    {
+                      label: "Vol Total (TW)",
+                      value:
+                        novel.vol_total_tw != null
+                          ? String(novel.vol_total_tw)
+                          : null,
+                    },
+                  ],
+                  [
+                    {
+                      label: "Arc Total",
+                      value:
+                        novel.arc_total != null ? String(novel.arc_total) : null,
+                    },
+                    {
+                      label: "Chapter Total",
+                      value:
+                        novel.ch_total != null ? String(novel.ch_total) : null,
+                    },
+                  ],
                 ]}
               />
-            )}
+            </TocSection>
+            <TocSection id="genres" label="Genres">
+              <GenresCard item={novel} />
+            </TocSection>
+            {/* Production Card */}
+            <TocSection id="production" label="Production">
+              {(novel.author ||
+                novel.illustrator ||
+                novel.publisher_tw ||
+                novel.publisher_refs?.length > 0) && (
+                <InfoCard
+                  title="Production"
+                  fields={[
+                    ...(novel.author
+                      ? [
+                          {
+                            label: creditLabel(novel, "author", "Author"),
+                            value: creditValue(novel, "author", novel.author),
+                          },
+                        ]
+                      : []),
+                    ...(novel.illustrator
+                      ? [
+                          {
+                            label: creditLabel(
+                              novel,
+                              "illustrator",
+                              "Illustrator",
+                            ),
+                            value: creditValue(
+                              novel,
+                              "illustrator",
+                              novel.illustrator,
+                            ),
+                          },
+                        ]
+                      : []),
+                    ...(novel.publisher_tw || novel.publisher_refs?.length
+                      ? [
+                          {
+                            label: publisherLabel(novel, "台灣出版商"),
+                            value: publisherValue(novel),
+                          },
+                        ]
+                      : []),
+                  ]}
+                />
+              )}
+            </TocSection>
           </div>
 
           {/* Cast */}
-          <CastSection cast={cast} />
+          <TocSection id="cast" label="Cast">
+            <CastSection cast={cast} />
+          </TocSection>
 
           {/* Remarks */}
-          {novel.remark && (
-            <Slip title="Remarks">
-              <textarea
-                key={novel.system_id}
-                defaultValue={novel.remark || ""}
-                disabled={!isAdmin}
-                onBlur={(e) =>
-                  isAdmin &&
-                  performPatch(
-                    { remark: e.target.value || null },
-                    "Remark saved",
-                  )
-                }
-                rows={4}
-                placeholder="Add remarks…"
-                className={textareaCls}
-              ></textarea>
-            </Slip>
-          )}
+          <TocSection id="remarks" label="Remarks">
+            {ownData && novel.remark && (
+              <Slip title="Remarks">
+                <textarea
+                  key={novel.system_id}
+                  defaultValue={novel.remark || ""}
+                  onBlur={(e) => {
+                    if (e.target.value !== (novel.remark || ""))
+                      saveMyRemark(e.target.value);
+                  }}
+                  rows={4}
+                  placeholder="Add remarks…"
+                  className={textareaCls}
+                ></textarea>
+              </Slip>
+            )}
+          </TocSection>
 
           {/* Units */}
-          <NovelUnitsCard
-            novel={novel}
-            isAdmin={isAdmin}
-            onSave={(payload) => performPatch(payload, "Units saved")}
-          />
+          <TocSection id="units" label="Units">
+            <NovelUnitsCard
+              novel={novel}
+              isAdmin={isAdmin}
+              onSave={(payload) => performPatch(payload, "Units saved")}
+            />
+          </TocSection>
 
           {/* Structured Notes */}
-          {/* The dedicated remark textarea above renders only when a remark
-              exists; hide the notes page's `remark` section exactly then, so
-              the singleton row never has two editors on one screen. */}
+          {/* The dedicated remark textarea above renders only for a holder of
+              self.list who has a remark; hide the notes page's `remark`
+              section exactly then, so the viewer's own row never has two
+              editors on one screen. */}
           <NovelNotes
             key={novel.system_id}
             novel={novel}
-            isAdmin={isAdmin}
-            hideSections={novel.remark ? ["remark"] : []}
+            hideSections={ownData && novel.remark ? ["remark"] : []}
             series={series}
             franchise={franchise}
           />
         </div>
       </div>
-    </div>
+    </DetailContents>
   );
 }

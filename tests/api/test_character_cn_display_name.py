@@ -16,31 +16,31 @@ IDENTITY = "/api/character-identity/"
 # -- the form saves -----------------------------------------------------------
 
 
-def test_creating_a_character_with_a_cn_name_defaults_to_cn(admin_client):
-    r = admin_client.post(CHARACTER, json={"name_en": "Ichika", "name_cn": "一花"})
+def test_creating_a_character_with_a_cn_name_defaults_to_cn(owner_client):
+    r = owner_client.post(CHARACTER, json={"name_en": "Ichika", "name_cn": "一花"})
     assert r.status_code == 200, r.text
     assert r.json()["display_name_field"] == "cn"
     assert r.json()["display_name"] == "一花"
 
 
-def test_an_explicit_display_name_is_kept_beside_a_cn_name(admin_client):
+def test_an_explicit_display_name_is_kept_beside_a_cn_name(owner_client):
     # The mirror case: CN is filled here too, so the rule had something to
     # act on and chose not to.
-    r = admin_client.post(
+    r = owner_client.post(
         CHARACTER,
         json={"name_en": "Ichika", "name_cn": "一花", "display_name_field": "en"},
     )
     assert r.json()["display_name_field"] == "en"
 
 
-def test_a_character_without_a_cn_name_stays_on_the_default(admin_client):
-    r = admin_client.post(CHARACTER, json={"name_en": "Ichika", "name_cn": "  "})
+def test_a_character_without_a_cn_name_stays_on_the_default(owner_client):
+    r = owner_client.post(CHARACTER, json={"name_en": "Ichika", "name_cn": "  "})
     assert r.json()["display_name_field"] is None
 
 
-def test_updating_a_character_to_add_a_cn_name_switches_to_cn(admin_client, character):
+def test_updating_a_character_to_add_a_cn_name_switches_to_cn(owner_client, character):
     assert character.display_name_field is None
-    r = admin_client.put(
+    r = owner_client.put(
         f"{CHARACTER}{character.system_id}",
         json={"name_en": "Ichika", "name_cn": "一花", "display_name_field": None},
     )
@@ -48,8 +48,8 @@ def test_updating_a_character_to_add_a_cn_name_switches_to_cn(admin_client, char
     assert r.json()["display_name_field"] == "cn"
 
 
-def test_creating_an_identity_with_a_cn_name_defaults_to_cn(admin_client, character):
-    r = admin_client.post(
+def test_creating_an_identity_with_a_cn_name_defaults_to_cn(owner_client, character):
+    r = owner_client.post(
         IDENTITY,
         json={"character_id": str(character.system_id), "name_en": "Conan", "name_cn": "柯南"},
     )
@@ -58,21 +58,21 @@ def test_creating_an_identity_with_a_cn_name_defaults_to_cn(admin_client, charac
 
 
 def test_updating_an_identity_keeps_an_explicit_choice_and_fills_a_default(
-    admin_client, character
+    owner_client, character
 ):
-    created = admin_client.post(
+    created = owner_client.post(
         IDENTITY,
         json={"character_id": str(character.system_id), "name_en": "Conan"},
     ).json()
     assert created["display_name_field"] is None
 
     url = f"{IDENTITY}{created['system_id']}"
-    kept = admin_client.put(
+    kept = owner_client.put(
         url, json={"name_en": "Conan", "name_cn": "柯南", "display_name_field": "jp", "name_jp": "コナン"}
     )
     assert kept.json()["display_name_field"] == "jp"
 
-    filled = admin_client.put(url, json={"name_en": "Conan", "name_cn": "柯南"})
+    filled = owner_client.put(url, json={"name_en": "Conan", "name_cn": "柯南"})
     assert filled.json()["display_name_field"] == "cn"
 
 
@@ -102,12 +102,12 @@ def test_calculate_points_default_rows_with_a_cn_name_at_it(db_session, characte
     assert character.display_name_field is None
 
 
-def test_the_control_center_endpoint_runs_the_step(admin_client, db_session):
+def test_the_control_center_endpoint_runs_the_step(owner_client, db_session):
     row = models.Character(system_id=uuid.uuid4(), name_cn="雪")
     db_session.add(row)
     db_session.flush()
 
-    r = admin_client.post("/api/data-control/calculate/sync-display-names")
+    r = owner_client.post("/api/data-control/calculate/sync-display-names")
 
     assert r.status_code == 200, r.text
     assert r.json()["counts"] == {"character": 1, "identity": 0}

@@ -15,7 +15,8 @@ import { Chip } from "../ui/primitives";
 
 export default function ContentLabelChips({
   labels,
-  // What a franchise's chips say they cover. The default reads for an entry.
+  // What a group's chips say they cover - a collection, franchise or
+  // series hides everything under it. The default reads for an entry.
   note,
   className = "",
 }) {

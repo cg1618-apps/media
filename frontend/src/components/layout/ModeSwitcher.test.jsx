@@ -77,8 +77,8 @@ describe("ModeSwitcher visibility", () => {
   });
 
   it("renders nothing when no mode is held", () => {
-    // A guest, or an account nobody has granted one. Same green as the case
-    // above and for a different reason - which is why neither of these is the
+    // A guest, or an account nobody has granted one. Same green as the one-mode
+    // case and for a different reason - which is why neither of these is the
     // test that protects the feature.
     const { container } = setup([]);
     expect(container.firstChild).toBeNull();
@@ -111,6 +111,19 @@ describe("ModeSwitcher - what happens after the switch lands", () => {
     await waitFor(() =>
       expect(hardNavigate).toHaveBeenCalledWith("/library/anime?sort=name"),
     );
+  });
+
+  it("stays on the page it is on rather than landing on the dashboard", async () => {
+    // A switch is not a login: it reloads where the viewer stands, and the
+    // only navigation it makes is that one reload.
+    const user = userEvent.setup();
+    setup(MODES, "/statistics?tab=anime");
+
+    await user.selectOptions(screen.getByLabelText("Access mode"), "b");
+
+    await waitFor(() => expect(hardNavigate).toHaveBeenCalledTimes(1));
+    expect(hardNavigate).toHaveBeenCalledWith("/statistics?tab=anime");
+    expect(hardNavigate).not.toHaveBeenCalledWith("/");
   });
 
   it("does not reload when the switch is refused", async () => {

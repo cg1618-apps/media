@@ -1,13 +1,14 @@
 // Frontend: page component file for Cartoon.
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
 import { useAuth } from "../../contexts/AuthContext";
 import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
 import { useToast } from "../../hooks/useToast";
+import { useOwnTrackerSave } from "../../hooks/useOwnTrackerSave";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
-import CommunityCard from "../../components/info/CommunityCard";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import InfoCard from "../../components/info/InfoCard";
 import GenresCard from "../../components/info/GenresCard";
@@ -16,6 +17,8 @@ import SourcesCard from "../../components/info/SourcesCard";
 import MyTrackerCard from "../../components/tracker/MyTrackerCard";
 import CartoonNotes from "./CartoonNotes";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
+import DetailContents, { TocSection } from "../../components/layout/DetailContents";
+import { usePageTitle } from "../../contexts/PageTitleContext";
 import {
   Button,
   Eyebrow,
@@ -31,8 +34,9 @@ import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
 import LazyImage from "../../components/ui/LazyImage";
-import { progressToast } from "../../lib/progressToast";
 import { focusStyle } from "../../lib/covers";
+import { useViewScope } from "../../hooks/useViewScope";
+import { useMyRemarkSaver } from "../../api/mutations/useMyRemark";
 
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 const LIST_OPTIONS = { params: { limit: 2000 } };
@@ -45,7 +49,7 @@ const lineageLinkCls =
 export default function Cartoon() {
   const { publicId } = useParams();
   const navigate = useNavigate();
-  const { isAdmin, has, isRoot } = useAuth();
+  const { isAdmin, has } = useAuth();
   const { showToast } = useToast();
 
   const [cartoon, setCartoon] = useState(null);
@@ -56,6 +60,8 @@ export default function Cartoon() {
   // Everything past the lookup still speaks UUIDs; only the URL segment
   // changed. Resolved from the fetched row so the two can never disagree.
   const system_id = cartoonQuery.data?.system_id;
+  const { ownData } = useViewScope();
+  const saveMyRemark = useMyRemarkSaver("cartoon", system_id, setCartoon);
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const allCartoonsQuery = useMediaList("cartoon", LIST_OPTIONS);
@@ -89,28 +95,15 @@ export default function Cartoon() {
     seriesQuery.error?.message ||
     null;
 
-  async function performPatch(payload, msg) {
-    if (!isAdmin) return;
-    setCartoon((prev) => ({ ...prev, ...payload }));
-    try {
-      const res = await fetch(endpoints.resource("cartoon").patch(system_id), {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Sync failed");
-      const updated = await res.json();
-      // `cartoon` is still the pre-write row here: this closure never saw the
-      // optimistic update. A progress step can finish the entry.
-      showToast("success", progressToast(cartoon, updated, msg || "Saved"));
-      setCartoon(updated);
-      setMediaItem(updated);
-    } catch {
-      showToast("error", "Update failed");
-      fetchMediaItem();
-    }
-  }
+  // The viewer's own values (status, rating, progress, plan flags) go through /api/me;
+  // saveRelease is the toolbar's release step, the work's half through the
+  // catalogue PATCH.
+  const { saveOwn, saveRelease } = useOwnTrackerSave("cartoon", {
+    entry: cartoon,
+    setEntry: setCartoon,
+    setMediaItem,
+    fetchMediaItem,
+  });
 
   async function handleAutofill() {
     setAutofilling(true);
@@ -131,6 +124,15 @@ export default function Cartoon() {
     }
   }
 
+  // The heading's title, which the browser tab shows too.
+  const titleMain = cartoon
+    ? cartoon.cartoon_name_cn ||
+      cartoon.cartoon_name_en ||
+      cartoon.cartoon_name_alt ||
+      "Unknown"
+    : null;
+  usePageTitle(loading || error ? null : titleMain);
+
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading details..." />;
   }
@@ -144,11 +146,6 @@ export default function Cartoon() {
     );
   }
 
-  const titleMain =
-    cartoon.cartoon_name_cn ||
-    cartoon.cartoon_name_en ||
-    cartoon.cartoon_name_alt ||
-    "Unknown";
   const titleSub =
     cartoon.cartoon_name_en && cartoon.cartoon_name_en !== titleMain
       ? cartoon.cartoon_name_en
@@ -189,20 +186,27 @@ export default function Cartoon() {
       : null;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+    <DetailContents>
       {/* Breadcrumb: a catalogue path, set in mono */}
-      <nav
-        className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint mb-8 flex items-center gap-3"
-        aria-label="Breadcrumb"
-      >
-        <Link to="/library/cartoon" className="hover:text-brand transition">
-          Cartoons
-        </Link>
-        <span aria-hidden="true">/</span>
-        <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
-          {titleMain}
-        </span>
-      </nav>
+      <div className="mb-8 flex items-center justify-between gap-3">
+        <nav
+          className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint min-w-0 flex items-center gap-3"
+          aria-label="Breadcrumb"
+        >
+          <Link to="/library/cartoon" className="hover:text-brand transition">
+            Cartoons
+          </Link>
+          <span aria-hidden="true">/</span>
+          <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
+            {titleMain}
+          </span>
+        </nav>
+        <ReportProblemButton
+          targetType="cartoon"
+          targetId={system_id}
+          targetLabel={titleMain}
+        />
+      </div>
 
       {/* Admin toolbar: a plain instrument strip */}
       {isAdmin && (
@@ -236,7 +240,7 @@ export default function Cartoon() {
             >
               Mark completed
             </Button>
-            <MarkReleaseButton type="cartoon" entry={cartoon} title={titleMain} onPatch={performPatch} />
+            <MarkReleaseButton type="cartoon" entry={cartoon} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
             <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
               {autofilling ? "Autofilling…" : "Autofill & update"}
             </Button>
@@ -258,11 +262,9 @@ export default function Cartoon() {
                 Cartoon{cartoon.airing_type ? ` · ${cartoon.airing_type}` : ""}
               </span>
               {/* Cosmetic only: the id is this page's own URL, so hiding it
-                  tidies the spine rather than concealing the value. Gated on
-                  is_root rather than a permission - `super` is
-                  deliberately NOT a root role, and this is the one thing in
-                  the app only the owner's own account sees. */}
-              {isRoot && (
+                  tidies the spine rather than concealing the value. Shown to
+                  a catalogue editor (manage.catalog). */}
+              {has("manage.catalog") && (
                 <span
                   className="font-mono text-[9px] tracking-[0.1em] opacity-60 whitespace-nowrap"
                   style={{ writingMode: "vertical-rl" }}
@@ -392,113 +394,120 @@ export default function Cartoon() {
           </header>
 
           {/* Where this entry sits in the watch orders the viewer follows. */}
-          <FollowedOrderPanel entryId={cartoon.system_id} />
+          <TocSection id="watch-orders" label="Watch orders">
+            <FollowedOrderPanel entryId={cartoon.system_id} />
+          </TocSection>
 
           {/* My Tracker Block */}
-          <MyTrackerCard
-            epFin={epFin}
-            epTotal={epTotal ?? "?"}
-            watchingStatus={cartoon.watching_status}
-            myRating={cartoon.my_rating}
-            timeFin={cartoon.time_fin}
-            watchNext={cartoon.watch_next}
-            isAdmin={isAdmin}
-            onEpChange={(v) =>
-              performPatch({ ep_fin: v }, "Episode progress saved")
-            }
-            onStatusChange={(v) =>
-              performPatch({ watching_status: v }, "Status updated")
-            }
-            onRatingChange={(v) =>
-              performPatch({ my_rating: v }, "Rating saved")
-            }
-            onTimeFinChange={(v) =>
-              performPatch({ time_fin: v }, "Paused position saved")
-            }
-            onWatchNextChange={(v) =>
-              performPatch(
-                { watch_next: v },
-                v ? "Added to Watch Next" : "Removed from Watch Next",
-              )
-            }
-            statusOptions={WATCHING_STATUSES}
-            ratingOptions={MY_RATINGS}
-          />
-
-          {/* What every public list says about it, beside what I say.
-              Renders nothing when no public list holds this entry. */}
-          <CommunityCard mediaId={cartoon.system_id} />
+          <TocSection id="tracker" label="My tracker">
+            <MyTrackerCard
+              epFin={epFin}
+              epTotal={epTotal ?? "?"}
+              watchingStatus={cartoon.watching_status}
+              myRating={cartoon.my_rating}
+              timeFin={cartoon.time_fin}
+              watchNext={cartoon.watch_next}
+              canTrack={ownData}
+              onEpChange={(v) =>
+                saveOwn({ ep_fin: v }, "Episode progress saved")
+              }
+              onStatusChange={(v) =>
+                saveOwn({ watching_status: v }, "Status updated")
+              }
+              onRatingChange={(v) =>
+                saveOwn({ my_rating: v }, "Rating saved")
+              }
+              onTimeFinChange={(v) =>
+                saveOwn({ time_fin: v }, "Paused position saved")
+              }
+              onWatchNextChange={(v) =>
+                saveOwn(
+                  { watch_next: v },
+                  v ? "Added to Watch Next" : "Removed from Watch Next",
+                )
+              }
+              statusOptions={WATCHING_STATUSES}
+              ratingOptions={MY_RATINGS}
+            />
+          </TocSection>
 
           {/* Detail Cards */}
           <div className="space-y-6">
-            <NamingCard type="cartoon" item={cartoon} />
-            <InfoCard
-              title="Information"
-              fields={[
-                [
-                  { label: "本傳 / 外傳", value: cartoon.is_main },
-                  { label: "Season", value: cartoon.season_part },
-                ],
-                [
-                  { label: "Airing Type", value: cartoon.airing_type },
-                  { label: "Airing Status", value: cartoon.airing_status },
-                ],
-                [
-                  {
-                    label: "Length Per Ep (min)",
-                    value:
-                      cartoon.length_ep_min != null
-                        ? String(cartoon.length_ep_min)
-                        : null,
-                  },
-                ],
-                [
-                  { label: "Release Date", value: cartoon.release_date },
-                  {
-                    label: "Total Ep",
-                    value:
-                      cartoon.ep_total != null
-                        ? String(cartoon.ep_total)
-                        : null,
-                  },
-                ],
-              ]}
-            />
-            <GenresCard item={cartoon} />
+            <TocSection id="naming" label="Naming">
+              <NamingCard type="cartoon" item={cartoon} />
+            </TocSection>
+            <TocSection id="information" label="Information">
+              <InfoCard
+                title="Information"
+                fields={[
+                  [
+                    { label: "本傳 / 外傳", value: cartoon.is_main },
+                    { label: "Season", value: cartoon.season_part },
+                  ],
+                  [
+                    { label: "Airing Type", value: cartoon.airing_type },
+                    { label: "Airing Status", value: cartoon.airing_status },
+                  ],
+                  [
+                    {
+                      label: "Length Per Ep (min)",
+                      value:
+                        cartoon.length_ep_min != null
+                          ? String(cartoon.length_ep_min)
+                          : null,
+                    },
+                  ],
+                  [
+                    { label: "Release Date", value: cartoon.release_date },
+                    {
+                      label: "Total Ep",
+                      value:
+                        cartoon.ep_total != null
+                          ? String(cartoon.ep_total)
+                          : null,
+                    },
+                  ],
+                ]}
+              />
+            </TocSection>
+            <TocSection id="genres" label="Genres">
+              <GenresCard item={cartoon} />
+            </TocSection>
           </div>
 
           {/* Remarks */}
-          {cartoon.remark && (
-            <Slip title="Remarks">
-              <textarea
-                key={cartoon.system_id}
-                defaultValue={cartoon.remark || ""}
-                disabled={!isAdmin}
-                onBlur={(e) =>
-                  isAdmin &&
-                  performPatch({ remark: e.target.value }, "Remark saved")
-                }
-                rows={4}
-                placeholder="Add remarks…"
-                className={textareaCls}
-              ></textarea>
-            </Slip>
-          )}
+          <TocSection id="remarks" label="Remarks">
+            {ownData && cartoon.remark && (
+              <Slip title="Remarks">
+                <textarea
+                  key={cartoon.system_id}
+                  defaultValue={cartoon.remark || ""}
+                  onBlur={(e) => {
+                    if (e.target.value !== (cartoon.remark || ""))
+                      saveMyRemark(e.target.value);
+                  }}
+                  rows={4}
+                  placeholder="Add remarks…"
+                  className={textareaCls}
+                ></textarea>
+              </Slip>
+            )}
+          </TocSection>
 
           {/* Structured Notes */}
-          {/* The dedicated remark textarea above renders only when a remark
-              exists; hide the notes page's `remark` section exactly then, so
-              the singleton row never has two editors on one screen. */}
+          {/* The dedicated remark textarea above renders only for a holder of
+              self.list who has a remark; hide the notes page's `remark`
+              section exactly then, so the viewer's own row never has two
+              editors on one screen. */}
           <CartoonNotes
             key={cartoon.system_id}
             cartoon={cartoon}
-            isAdmin={isAdmin}
-            hideSections={cartoon.remark ? ["remark"] : []}
+            hideSections={ownData && cartoon.remark ? ["remark"] : []}
             series={series}
             franchise={franchise}
           />
         </div>
       </div>
-    </div>
+    </DetailContents>
   );
 }

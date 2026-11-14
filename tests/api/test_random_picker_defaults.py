@@ -58,9 +58,9 @@ def test_a_member_without_manage_catalog_cannot_save(user_client):
 # ---------------------------------------------------------------------------
 
 
-def test_save_then_everyone_reads_it(admin_client, guest_reader, db_session):
+def test_save_then_everyone_reads_it(owner_client, guest_reader, db_session):
     filters = {"airingType": ["TV", "OVA"], "bahaOnly": True}
-    res = admin_client.put(f"{ROUTE}/anime", json={"filters": filters})
+    res = owner_client.put(f"{ROUTE}/anime", json={"filters": filters})
     assert res.status_code == 200, res.text
     assert _row(db_session, "anime") is not None
 
@@ -69,13 +69,13 @@ def test_save_then_everyone_reads_it(admin_client, guest_reader, db_session):
     assert guest_reader.get(f"{ROUTE}/anime").json()["filters"] == filters
 
 
-def test_save_replaces_wholesale(admin_client):
-    admin_client.put(f"{ROUTE}/all", json={"filters": {"myRating": ["S"], "decade": ["2010s"]}})
-    admin_client.put(f"{ROUTE}/all", json={"filters": {"myRating": ["A"]}})
-    assert admin_client.get(f"{ROUTE}/all").json()["filters"] == {"myRating": ["A"]}
+def test_save_replaces_wholesale(owner_client):
+    owner_client.put(f"{ROUTE}/all", json={"filters": {"myRating": ["S"], "decade": ["2010s"]}})
+    owner_client.put(f"{ROUTE}/all", json={"filters": {"myRating": ["A"]}})
+    assert owner_client.get(f"{ROUTE}/all").json()["filters"] == {"myRating": ["A"]}
 
 
-def test_weighting_is_on_unless_saved_off(admin_client, guest_reader, db_session):
+def test_weighting_is_on_unless_saved_off(owner_client, guest_reader, db_session):
     # A row saved before the flag existed carries no "weighted" key, and
     # reads as weighted, like a mode with nothing saved.
     db_session.add(
@@ -86,26 +86,26 @@ def test_weighting_is_on_unless_saved_off(admin_client, guest_reader, db_session
     db_session.commit()
     assert guest_reader.get(f"{ROUTE}/novel").json()["weighted"] is True
 
-    admin_client.put(f"{ROUTE}/anime", json={"filters": {}, "weighted": False})
+    owner_client.put(f"{ROUTE}/anime", json={"filters": {}, "weighted": False})
     assert guest_reader.get(f"{ROUTE}/anime").json()["weighted"] is False
     assert guest_reader.get(f"{ROUTE}/all").json()["weighted"] is True
 
 
-def test_reset_deletes_the_row_and_is_idempotent(admin_client, db_session):
-    admin_client.put(f"{ROUTE}/manga", json={"filters": {"region": ["JP"]}})
-    assert admin_client.delete(f"{ROUTE}/manga").status_code == 200
+def test_reset_deletes_the_row_and_is_idempotent(owner_client, db_session):
+    owner_client.put(f"{ROUTE}/manga", json={"filters": {"region": ["JP"]}})
+    assert owner_client.delete(f"{ROUTE}/manga").status_code == 200
     assert _row(db_session, "manga") is None
-    assert admin_client.get(f"{ROUTE}/manga").json()["filters"] == {}
-    assert admin_client.delete(f"{ROUTE}/manga").status_code == 200
+    assert owner_client.get(f"{ROUTE}/manga").json()["filters"] == {}
+    assert owner_client.delete(f"{ROUTE}/manga").status_code == 200
 
 
-def test_modes_are_stored_apart(admin_client):
-    admin_client.put(f"{ROUTE}/anime", json={"filters": {"airingType": ["TV"]}})
-    assert admin_client.get(f"{ROUTE}/all").json()["filters"] == {}
+def test_modes_are_stored_apart(owner_client):
+    owner_client.put(f"{ROUTE}/anime", json={"filters": {"airingType": ["TV"]}})
+    assert owner_client.get(f"{ROUTE}/all").json()["filters"] == {}
 
 
-def test_the_franchise_mode_saves_like_any_other(admin_client, guest_reader):
-    res = admin_client.put(f"{ROUTE}/franchise", json={"filters": {"expectation": ["High"]}})
+def test_the_franchise_mode_saves_like_any_other(owner_client, guest_reader):
+    res = owner_client.put(f"{ROUTE}/franchise", json={"filters": {"expectation": ["High"]}})
     assert res.status_code == 200
     assert guest_reader.get(f"{ROUTE}/franchise").json()["filters"] == {"expectation": ["High"]}
 
@@ -115,9 +115,9 @@ def test_the_franchise_mode_saves_like_any_other(admin_client, guest_reader):
 # ---------------------------------------------------------------------------
 
 
-def test_an_unknown_mode_is_400(admin_client):
-    assert admin_client.get(f"{ROUTE}/hologram").status_code == 400
-    assert admin_client.put(f"{ROUTE}/hologram", json={"filters": {}}).status_code == 400
+def test_an_unknown_mode_is_400(owner_client):
+    assert owner_client.get(f"{ROUTE}/hologram").status_code == 400
+    assert owner_client.put(f"{ROUTE}/hologram", json={"filters": {}}).status_code == 400
 
 
 @pytest.mark.parametrize(
@@ -130,23 +130,23 @@ def test_an_unknown_mode_is_400(admin_client):
         {f"k{i}": True for i in range(51)},
     ],
 )
-def test_malformed_filters_are_422(admin_client, filters):
-    assert admin_client.put(f"{ROUTE}/anime", json={"filters": filters}).status_code == 422
+def test_malformed_filters_are_422(owner_client, filters):
+    assert owner_client.put(f"{ROUTE}/anime", json={"filters": filters}).status_code == 422
 
 
-def test_unreadable_stored_json_reads_as_no_filters(admin_client, db_session):
+def test_unreadable_stored_json_reads_as_no_filters(owner_client, db_session):
     db_session.add(
         models.SystemConfigs(config_key=f"{PICKER_DEFAULTS_PREFIX}game", config_value="{nope")
     )
     db_session.flush()
-    assert admin_client.get(f"{ROUTE}/game").json()["filters"] == {}
+    assert owner_client.get(f"{ROUTE}/game").json()["filters"] == {}
 
 
-def test_picker_defaults_do_not_leak_into_announcements(admin_client):
+def test_picker_defaults_do_not_leak_into_announcements(owner_client):
     """Both features share system_configs; their key namespaces must not mix."""
-    admin_client.post("/api/announcements/", json={"title": "Notice", "body": "Hello"})
-    admin_client.put(f"{ROUTE}/all", json={"filters": {"myRating": ["S"]}})
-    announcements = admin_client.get("/api/announcements/").json()
+    owner_client.post("/api/announcements/", json={"title": "Notice", "body": "Hello"})
+    owner_client.put(f"{ROUTE}/all", json={"filters": {"myRating": ["S"]}})
+    announcements = owner_client.get("/api/announcements/").json()
     assert [a["title"] for a in announcements] == ["Notice"]
 
 
@@ -156,20 +156,20 @@ def test_picker_defaults_do_not_leak_into_announcements(admin_client):
 
 
 @pytest.fixture
-def hentai_label_exists(admin_client, db_session):
+def hentai_label_exists(owner_client, db_session):
     """An entry carrying the hentai label, so the gate has a label to hide."""
-    res = admin_client.post("/api/hentai/", json={"hentai_name_cn": "Picker Gate"})
+    res = owner_client.post("/api/hentai/", json={"hentai_name_cn": "Picker Gate"})
     assert res.status_code == 201, res.text
-    assert label_keys_for_entry(db_session, uuid.UUID(res.json()["system_id"])) == ["hentai"]
+    assert label_keys_for_entry(db_session, uuid.UUID(res.json()["system_id"])) == ["hentai", "nsfw"]
 
 
 def test_a_safe_mode_reader_is_not_told_a_gated_mode_exists(guest_reader, hentai_label_exists):
     assert guest_reader.get(f"{ROUTE}/hentai").status_code == 404
 
 
-def test_an_unrestricted_session_reads_the_gated_mode(admin_client, hentai_label_exists):
+def test_an_unrestricted_session_reads_the_gated_mode(owner_client, hentai_label_exists):
     """The mirror, with the same label in place."""
-    admin_client.put(f"{ROUTE}/hentai", json={"filters": {"watchingStatus": ["Planned"]}})
-    res = admin_client.get(f"{ROUTE}/hentai")
+    owner_client.put(f"{ROUTE}/hentai", json={"filters": {"watchingStatus": ["Planned"]}})
+    res = owner_client.get(f"{ROUTE}/hentai")
     assert res.status_code == 200
     assert res.json()["filters"] == {"watchingStatus": ["Planned"]}

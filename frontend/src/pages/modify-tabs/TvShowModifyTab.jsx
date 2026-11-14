@@ -36,7 +36,6 @@ export default function TvShowModifyTab({
       <TVShowNotes
         key={editingItem?.system_id}
         show={editingItem ?? {}}
-        isAdmin={true}
         hideSections={["remark"]}
       />
     </>

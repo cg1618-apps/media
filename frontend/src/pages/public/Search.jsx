@@ -11,15 +11,17 @@ import {
 } from "../../components/cards/StaffCard";
 import { HubTabs } from "../../components/hub/HubChrome";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
+import { canSearchScope } from "../../components/layout/NavSearch";
 import { useApiQuery } from "../../hooks/useApiQuery";
 import CollapsibleCardGrid from "../../components/layout/CollapsibleCardGrid";
 import CollapsiblePillRow from "../../components/layout/CollapsiblePillRow";
 import { Chip, Eyebrow } from "../../components/ui/primitives";
-import { entityPath } from "../../lib/entityPath";
+import { useEntityHref } from "../../lib/entityPath";
 
 // The scopes the page can be narrowed to, in the order NavSearch offers them.
-// Exported so a test can assert the page and the API agree on the bucket keys
-// without rendering the whole page.
+// NavSearch offers only the scopes the viewer may see (canSearchScope); this
+// table only labels the chip. Exported so a test can assert the page and the
+// API agree on the bucket keys without rendering the whole page.
 export const SCOPE_LABELS = {
   all: "All",
   collection: "Collection",
@@ -34,8 +36,6 @@ export const SCOPE_LABELS = {
   novel: "Novel",
   comic: "Comic",
   game: "Game",
-  // Gated. The server leaves the bucket out for a session that cannot see
-  // the type (read as empty below), and NavSearch never offers the scope.
   "h-comic": "H-Comic",
   "h-game": "H-Game",
   hentai: "Hentai",
@@ -133,7 +133,9 @@ export default function Search() {
   const scope = searchParams.get("scope") || "all";
   const requestedTab = searchParams.get("tab");
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const auth = useAuth();
+  const { isAdmin } = auth;
+  const entityHref = useEntityHref();
 
   const hasQuery = !!query.trim();
 
@@ -215,9 +217,11 @@ export default function Search() {
       setMatchedCharacters([]);
       return;
     }
-    // `?? []` on every bucket: the API adding a searchable type without a
-    // matching SearchBuckets field once made this page crash outright on
-    // `undefined.length`. A missing bucket should render as empty instead.
+    // `?? []` on every bucket. The server leaves a bucket out - no key at
+    // all - for every type the viewer cannot see: a media type the role does
+    // not hold, a gated type the mode hides, an entity kind without its
+    // view.* key. An absent bucket reads as empty, so it draws no section,
+    // no count and no tab.
     setMatchedCollections(results.collection ?? []);
     setMatchedSeasonal(results.seasonal ?? []);
     setMatchedFranchises(results.franchise ?? []);
@@ -447,7 +451,9 @@ export default function Search() {
           “{query}”
         </h1>
         <p className="font-mono text-xs text-text-muted mt-2 flex items-center flex-wrap gap-x-1">
-          {scope !== "all" && (
+          {/* The chip names the type, so it follows NavSearch's scope rule:
+              a hand-typed scope this viewer cannot search names nothing. */}
+          {scope !== "all" && canSearchScope(auth, scope) && (
             <Chip className="mr-2">{SCOPE_LABELS[scope]}</Chip>
           )}
           {summaryCounts.length === 0 ? (
@@ -501,7 +507,7 @@ export default function Search() {
                   label="Collection"
                   titles={getCollectionTitles(c)}
                   onClick={() => {
-                    const path = entityPath("collection", c);
+                    const path = entityHref("collection", c);
                     if (path) navigate(path);
                   }}
                 />
@@ -571,7 +577,7 @@ export default function Search() {
                   }
                   titles={getFranchiseTitles(f)}
                   onClick={() => {
-                    const path = entityPath("franchise", f);
+                    const path = entityHref("franchise", f);
                     if (path) navigate(path);
                   }}
                 />
@@ -592,7 +598,7 @@ export default function Search() {
                   label="Series"
                   titles={getSeriesTitles(s)}
                   onClick={() => {
-                    const path = entityPath("series", s);
+                    const path = entityHref("series", s);
                     if (path) navigate(path);
                   }}
                 />

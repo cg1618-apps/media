@@ -6,6 +6,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { ToastProvider } from "./hooks/useToast";
 import Layout from "./components/layout/Layout";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
+import { LIBRARY_MEDIA_TYPE_PERMISSIONS } from "./config/navigation";
 import { useConstants } from "./config/useConstants";
 
 import Index from "./pages/public/Index";
@@ -62,7 +63,9 @@ const Quotes = lazy(() => import("./pages/public/Quotes"));
 const Memes = lazy(() => import("./pages/public/Memes"));
 const Resources = lazy(() => import("./pages/public/Resources"));
 const Settings = lazy(() => import("./pages/public/Settings"));
-const Profile = lazy(() => import("./pages/public/Profile"));
+const ResetPassword = lazy(() => import("./pages/public/ResetPassword"));
+const Register = lazy(() => import("./pages/public/Register"));
+const MyRequests = lazy(() => import("./pages/public/MyRequests"));
 const Admin = lazy(() => import("./pages/admin/Admin"));
 const Add = lazy(() => import("./pages/admin/Add"));
 const Modify = lazy(() => import("./pages/admin/Modify"));
@@ -71,6 +74,7 @@ const FormDefaults = lazy(() => import("./pages/admin/FormDefaults"));
 const PickerDefaults = lazy(() => import("./pages/admin/PickerDefaults"));
 const DataHistory = lazy(() => import("./pages/admin/DataHistory"));
 const ReviewQueue = lazy(() => import("./pages/admin/ReviewQueue"));
+const RequestInbox = lazy(() => import("./pages/admin/RequestInbox"));
 const CleanOrphans = lazy(() => import("./pages/admin/CleanOrphans"));
 const WatchOrders = lazy(() => import("./pages/admin/WatchOrders"));
 const Relations = lazy(() => import("./pages/admin/Relations"));
@@ -112,6 +116,12 @@ export default function App() {
                     media and group libraries and their detail pages. */}
                 <Route path="/" element={<Index />} />
                 <Route path="/login" element={<Login />} />
+                {/* In no menu: reached only by a reset link the admin
+                    hands out, which carries its own ?code=. */}
+                <Route path="/reset" element={<ResetPassword />} />
+                {/* In no menu either: reached only by an invite link the
+                    admin hands out, which carries its own ?code=. */}
+                <Route path="/register" element={<Register />} />
                 <Route
                   path="/library/collection"
                   element={<CollectionLibrary />}
@@ -130,9 +140,9 @@ export default function App() {
                     path="/library/h-comic"
                     element={<Library type="h-comic" />}
                   />
-                  {/* The picker is an extra as well: the type's gate and
-                      view.extras, both asked. */}
-                  <Route element={<ProtectedRoute permission="view.extras" />}>
+                  {/* The picker has its own key: the type's gate and
+                      view.random_picker, both asked. */}
+                  <Route element={<ProtectedRoute permission="view.random_picker" />}>
                     <Route
                       path="/random/h-comic"
                       element={<RandomPicker type="h-comic" />}
@@ -149,9 +159,9 @@ export default function App() {
                     path="/library/h-game"
                     element={<Library type="h-game" />}
                   />
-                  {/* The picker is an extra as well: the type's gate and
-                      view.extras, both asked. */}
-                  <Route element={<ProtectedRoute permission="view.extras" />}>
+                  {/* The picker has its own key: the type's gate and
+                      view.random_picker, both asked. */}
+                  <Route element={<ProtectedRoute permission="view.random_picker" />}>
                     <Route
                       path="/random/h-game"
                       element={<RandomPicker type="h-game" />}
@@ -168,9 +178,9 @@ export default function App() {
                     path="/library/hentai"
                     element={<Library type="hentai" />}
                   />
-                  {/* The picker is an extra as well: the type's gate and
-                      view.extras, both asked. */}
-                  <Route element={<ProtectedRoute permission="view.extras" />}>
+                  {/* The picker has its own key: the type's gate and
+                      view.random_picker, both asked. */}
+                  <Route element={<ProtectedRoute permission="view.random_picker" />}>
                     <Route
                       path="/random/hentai"
                       element={<RandomPicker type="hentai" />}
@@ -208,27 +218,36 @@ export default function App() {
                     navigation.js asks for the rows that link here - the two
                     permission surfaces have to agree. */}
 
-                {/* The credited entities: their libraries and detail pages.
-                    Entity names on the open pages render as plain text
-                    without this key (useEntityHref). */}
-                <Route element={<ProtectedRoute permission="view.entities" />}>
+                {/* The credited entities: their libraries and detail pages,
+                    one key per kind. Entity names on the open pages render
+                    as plain text without that kind's key (useEntityHref). */}
+                <Route element={<ProtectedRoute permission="view.studio" />}>
                   <Route path="/library/studio" element={<StudioLibrary />} />
+                  <Route path="/studio/:publicId/:slug?" element={<Studio />} />
+                </Route>
+                <Route element={<ProtectedRoute permission="view.publisher" />}>
                   <Route
                     path="/library/publisher"
                     element={<PublisherLibrary />}
                   />
+                  <Route path="/publisher/:publicId/:slug?" element={<Publisher />} />
+                </Route>
+                {/* A seiyuu is a person, so the seiyuu library asks
+                    view.person too. */}
+                <Route element={<ProtectedRoute permission="view.person" />}>
                   <Route path="/library/person" element={<PersonLibrary />} />
                   <Route
                     path="/library/seiyuu"
                     element={<PersonLibrary role="seiyuu" />}
                   />
+                  <Route path="/person/:publicId/:slug?" element={<Person />} />
+                </Route>
+                {/* An identity is a page of a character. */}
+                <Route element={<ProtectedRoute permission="view.character" />}>
                   <Route
                     path="/library/character"
                     element={<CharacterLibrary />}
                   />
-                  <Route path="/studio/:publicId/:slug?" element={<Studio />} />
-                  <Route path="/publisher/:publicId/:slug?" element={<Publisher />} />
-                  <Route path="/person/:publicId/:slug?" element={<Person />} />
                   <Route path="/character/:publicId/:slug?" element={<Character />} />
                   <Route path="/identity/:publicId/:slug?" element={<Identity />} />
                 </Route>
@@ -239,26 +258,46 @@ export default function App() {
                   <Route path="/search" element={<Search />} />
                 </Route>
 
-                {/* The extras. Resources is read-only here; its edit controls
-                    ask for manage.catalog themselves. The gated
-                    /random/h-* routes above ask this key too. */}
-                <Route element={<ProtectedRoute permission="view.extras" />}>
-                  <Route path="/future-releases" element={<FutureReleases />} />
+                {/* The Random Picker asks its own key, as the gated
+                    /random/h-* routes above do. */}
+                <Route element={<ProtectedRoute permission="view.random_picker" />}>
                   <Route path="/random" element={<RandomPicker />} />
                   <Route path="/random/:type" element={<RandomPicker />} />
-                  <Route path="/completions" element={<Completions />} />
-                  <Route path="/quote" element={<Quotes />} />
-                  <Route path="/meme" element={<Memes />} />
+                </Route>
+                {/* Future Releases and Seasonal read the catalogue: any
+                    viewer that reads one ordinary media type opens them, the
+                    same list navigation.js asks for their rows and the Library
+                    tab. Each page draws the viewer's own version with a list
+                    (self.list) and the catalogue's without one. */}
+                <Route
+                  element={<ProtectedRoute anyPermission={LIBRARY_MEDIA_TYPE_PERMISSIONS} />}
+                >
+                  <Route path="/future-releases" element={<FutureReleases />} />
+                  <Route path="/seasonal" element={<SeasonalOverall />} />
+                  <Route
+                    path="/seasonal/:seasonal_id"
+                    element={<SeasonalDetail />}
+                  />
+                </Route>
+                {/* Statistics asks its own key, view.statistics - super, user
+                    and shared, never guest - as /api/statistics/catalogue
+                    and navigation.js's row do. */}
+                <Route element={<ProtectedRoute permission="view.statistics" />}>
+                  <Route path="/statistics" element={<Statistics />} />
+                </Route>
+                {/* The site-wide Resources page is the admin's and super's
+                    alone: manage.resources gates /api/resources reads and
+                    writes both, so a member is not shown it at all. */}
+                <Route element={<ProtectedRoute permission="manage.resources" />}>
                   <Route path="/resources" element={<Resources />} />
                 </Route>
-
-                {/* Public profiles are personal content. The server also
-                    answers 404 for a list the caller may not read. */}
-                <Route element={<ProtectedRoute permission="view.personal" />}>
-                  <Route path="/user/:username" element={<Profile />} />
+                <Route element={<ProtectedRoute feature="quotes_memes" />}>
+                  <Route path="/quote" element={<Quotes />} />
+                  <Route path="/meme" element={<Memes />} />
                 </Route>
-                {/* Per-user pages: a plan queue and a season's counters belong
-                    to one account, and their APIs 401 a stranger.
+
+                {/* Per-user pages: a plan queue and a list's completions
+                    belong to one account, and their APIs 401 a stranger.
 
                     `permission="self.list"`, not `requireAuth`. These asked
                     two different questions until 2026-09-12: the route let in
@@ -270,21 +309,30 @@ export default function App() {
                     the same question; self.list is the right one, since every
                     control on these pages writes the viewer's own rows. */}
                 <Route element={<ProtectedRoute permission="self.list" />}>
-                  <Route path="/seasonal" element={<SeasonalOverall />} />
-                  <Route
-                    path="/seasonal/:seasonal_id"
-                    element={<SeasonalDetail />}
-                  />
-                  <Route path="/statistics" element={<Statistics />} />
+                  <Route path="/completions" element={<Completions />} />
                   <Route path="/plan" element={<Plan />} />
                 </Route>
 
-                {/* Any signed-in member, not an admin: ProtectedRoute's
-                    default permission ("admin") no longer exists, so this
-                    block asks for self.list explicitly - an admin still
-                    passes because is_root short-circuits every check. */}
+                {/* Any signed-in member, not an admin: this block asks for
+                    self.list explicitly. The admin does not pass - its role
+                    holds no self.* key, since an admin keeps no library of
+                    its own. */}
                 <Route element={<ProtectedRoute permission="self.list" />}>
                   <Route path="/settings" element={<Settings />} />
+                </Route>
+
+                {/* The filer's own requests. self.requests, the key the
+                    header's Requests link asks: user and super, never the
+                    admin account (its role holds no self.* key). */}
+                <Route element={<ProtectedRoute permission="self.requests" />}>
+                  <Route path="/requests" element={<MyRequests />} />
+                </Route>
+
+                {/* The handler's inbox: its own permission, not the
+                    pipelines', though navigation.js lists it under the
+                    System tab. */}
+                <Route element={<ProtectedRoute permission="manage.requests" />}>
+                  <Route path="/request-inbox" element={<RequestInbox />} />
                 </Route>
 
                 {/* Catalogue work. manage.catalog is what the SPA's isAdmin
@@ -298,9 +346,22 @@ export default function App() {
                   <Route path="/random-defaults" element={<PickerDefaults />} />
                   <Route path="/watch-orders" element={<WatchOrders />} />
                   <Route path="/relations" element={<Relations />} />
+                </Route>
+
+                {/* The Note pages - the vocabulary, its translations and which
+                    columns each external API writes. manage.options, the key
+                    /api/options/record-counts and /api/constants/external-apis
+                    ask: the admin's and super's. Read-only for both - an
+                    option is written on the forms, under manage.catalog. */}
+                <Route element={<ProtectedRoute permission="manage.options" />}>
                   <Route path="/options" element={<SystemOptions />} />
                   <Route path="/aliases" element={<Aliases />} />
                   <Route path="/external-apis" element={<ExternalApis />} />
+                </Route>
+
+                {/* The image library: manage.images, the key /api/images
+                    asks. */}
+                <Route element={<ProtectedRoute permission="manage.images" />}>
                   <Route path="/images" element={<Images />} />
                 </Route>
 
@@ -317,11 +378,22 @@ export default function App() {
                   <Route path="/business-logic" element={<BusinessLogic />} />
                 </Route>
 
+                {/* The label reference. Read by the admin, to see what each
+                    mode shows, and by super, who attaches the labels - the
+                    same either-of the server's GET /api/content-labels/ asks,
+                    and the same list navigation.js asks for the row. */}
+                <Route
+                  element={
+                    <ProtectedRoute anyPermission={["admin.authz", "manage.catalog"]} />
+                  }
+                >
+                  <Route path="/content-labels" element={<ContentLabels />} />
+                </Route>
+
                 {/* Changing who may do what. Admin only. */}
                 <Route element={<ProtectedRoute permission="admin.authz" />}>
                   <Route path="/roles" element={<Roles />} />
                   <Route path="/users" element={<Users />} />
-                  <Route path="/content-labels" element={<ContentLabels />} />
                   {/* Same gate as its neighbours, and the same one
                       navigation.js asks for this link - a route gate and its
                       nav entry must ask the same question. */}

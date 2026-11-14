@@ -5,14 +5,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import CharacterLibrary from "./CharacterLibrary";
 
 // A session that may see every gated type, so the Restricted chip is drawn.
+// The page asks view.character, so its viewer holds the key, and
+// its cards link to the character pages. self.list (the viewer's own rating)
+// is held unless a test takes it away.
+const held = new Set();
 vi.mock("../../contexts/AuthContext", () => ({
-  // The page is a member's (view.entities), so its viewer holds the key,
-  // and its cards link to the character pages.
   useAuth: () => ({
     visibleGatedTypes: ["h-comic", "h-game", "hentai"],
-    has: (p) => p === "view.entities",
+    has: (p) => held.has(p),
   }),
 }));
+beforeEach(() => {
+  held.clear();
+  held.add("view.character").add("self.list");
+});
 
 const CHARACTERS = [
   {
@@ -366,5 +372,25 @@ describe("CharacterLibrary", () => {
       expect(screen.getByRole("heading", { name: "Kudo Shinichi" })).toBeInTheDocument();
       expect(screen.getByRole("heading", { name: "Edogawa Conan" })).toBeInTheDocument();
     });
+  });
+});
+
+// My rating is the viewer's own (self.list). Without the key the library
+// offers no rating sort or filter at all - not empty ones; the same rows with
+// the key offer both, so the absence is the permission's doing.
+describe("CharacterLibrary and the viewer's own rating", () => {
+  it("offers no My rating sort or filter without self.list", async () => {
+    held.delete("self.list");
+    renderLibrary();
+    await screen.findByText("Yuki Nagato");
+    expect(screen.queryByRole("option", { name: "My rating" })).not.toBeInTheDocument();
+    expect(screen.queryByText("My Rating")).not.toBeInTheDocument();
+  });
+
+  it("offers both with self.list", async () => {
+    renderLibrary();
+    await screen.findByText("Yuki Nagato");
+    expect(screen.getByRole("option", { name: "My rating" })).toBeInTheDocument();
+    expect(screen.getByText("My Rating")).toBeInTheDocument();
   });
 });

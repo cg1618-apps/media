@@ -8,7 +8,7 @@ otherwise confirm an entry exists and name the people on it.
 
 import pytest
 
-from app.services.rbac.permissions import media_type_perm
+from app.services.rbac.permissions import media_type_perm, static_catalog
 from app.services.rbac.seed import default_guest_permissions
 from app.utils.media_resolver import MEDIA_TYPE_KEYS
 from tests.api.test_visibility import make_viewer
@@ -44,11 +44,11 @@ def test_another_type_is_unaffected(no_anime_client, sample_comic):
     assert str(sample_comic.system_id) in response.text
 
 
-def test_admin_is_unaffected(admin_client, sample_anime):
-    assert str(sample_anime.system_id) in admin_client.get("/api/anime/").text
+def test_admin_is_unaffected(owner_client, sample_anime):
+    assert str(sample_anime.system_id) in owner_client.get("/api/anime/").text
 
 
 @pytest.mark.parametrize("media_type", sorted(MEDIA_TYPE_KEYS))
 def test_every_media_type_has_a_permission_a_role_can_hold(media_type):
     """A type with no permission could never be blocked - and none may be missed."""
-    assert media_type_perm(media_type) in default_guest_permissions()
+    assert media_type_perm(media_type) in static_catalog()

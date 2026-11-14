@@ -9,6 +9,7 @@ sequence of edits may leave the site with nobody who can administer it.
 import uuid
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 from app import models
 from app.services.rbac.permissions import (
@@ -67,33 +68,39 @@ def test_catalog_serves_the_self_family(admin_client):
     assert "self" in families
 
     names = {p["permission"] for p in families["self"]["permissions"]}
-    assert names == {"self.list", "self.personal_notes"}
+    assert names == {
+        "self.list",
+        "self.personal_notes",
+        "self.requests",
+        "self.password",
+    }
 
 
 def test_a_self_permission_can_be_granted_to_a_role(admin_client):
-    role_id = admin_client.post(
-        ROLES,
-        json={"name": "listers", "label": "Listers", "permissions": []},
-    ).json()["system_id"]
+    user = next(r for r in admin_client.get(ROLES).json() if r["name"] == "user")
+    without = sorted(set(user["permissions"]) - {"self.list"})
 
     r = admin_client.put(
-        f"/api/roles/{role_id}/permissions",
-        json={"permissions": ["self.list"]},
+        f"/api/roles/{user['system_id']}/permissions",
+        json={"permissions": without},
+    )
+    assert r.status_code == 200
+    assert "self.list" not in r.json()["permissions"]
+
+    r = admin_client.put(
+        f"/api/roles/{user['system_id']}/permissions",
+        json={"permissions": without + ["self.list"]},
     )
     assert r.status_code == 200
     assert "self.list" in r.json()["permissions"]
 
 
-def test_a_new_label_never_appears_in_the_role_catalog(admin_client):
-    """It used to, and must not any more.
-
-    A content label scopes which ENTRIES a session reaches, which is the
+def test_no_label_appears_in_the_role_catalog(admin_client, nsfw_label):
+    """A content label scopes which ENTRIES a session reaches, which is the
     access mode's axis. The role editor serving it would be offering a grant
-    that cannot be narrowed.
+    that cannot be narrowed. `nsfw_label` is what makes this non-vacuous:
+    labels exist, and still none reaches the catalog.
     """
-    admin_client.post(
-        LABELS, json={"key": "spoiler", "label": "Spoiler", "sort_order": 0}
-    )
     catalog = admin_client.get("/api/roles/catalog").json()
     assert not any(f["family"] == "label" for f in catalog)
     every_permission = {
@@ -106,38 +113,23 @@ def test_a_new_label_never_appears_in_the_role_catalog(admin_client):
 # Roles
 # ---------------------------------------------------------------------------
 
-def test_creating_a_role_stores_its_grants(admin_client):
-    response = admin_client.post(
-        ROLES,
-        json={
-            "name": "friend",
-            "label": "Friend",
-            "permissions": [media_type_perm("anime")],
-        },
-    )
-    assert response.status_code == 201
-    assert response.json()["permissions"] == [media_type_perm("anime")]
-
-
 def test_an_unknown_permission_is_rejected(admin_client):
     """A grant naming nothing would be stored and silently do nothing."""
-    response = admin_client.post(
-        ROLES,
-        json={"name": "bogus", "label": "Bogus", "permissions": ["media_type.hologram"]},
+    guest = _role_id(admin_client, "guest")
+    response = admin_client.put(
+        f"/api/roles/{guest}/permissions",
+        json={"permissions": ["media_type.hologram"]},
     )
     assert response.status_code == 422
     assert "hologram" in response.text
 
 
 def test_permissions_are_replaced_not_appended(admin_client):
-    role_id = admin_client.post(
-        ROLES,
-        json={
-            "name": "replaceme",
-            "label": "Replace",
-            "permissions": [media_type_perm("anime"), media_type_perm("manga")],
-        },
-    ).json()["system_id"]
+    role_id = _role_id(admin_client, "guest")
+    admin_client.put(
+        f"/api/roles/{role_id}/permissions",
+        json={"permissions": [media_type_perm("anime"), media_type_perm("manga")]},
+    )
 
     response = admin_client.put(
         f"/api/roles/{role_id}/permissions",
@@ -145,30 +137,6 @@ def test_permissions_are_replaced_not_appended(admin_client):
     )
     assert response.status_code == 200
     assert response.json()["permissions"] == [media_type_perm("manga")]
-
-
-def test_a_system_role_cannot_be_deleted(admin_client):
-    guest = _role_id(admin_client, "guest")
-    response = admin_client.delete(f"/api/roles/{guest}")
-    assert response.status_code == 409
-
-
-def test_a_role_users_still_hold_cannot_be_deleted(admin_client):
-    role_id = admin_client.post(
-        ROLES, json={"name": "held", "label": "Held", "permissions": []}
-    ).json()["system_id"]
-    admin_client.post(
-        USERS, json={"username": "holder", "password": "x", "role_id": role_id}
-    )
-    response = admin_client.delete(f"/api/roles/{role_id}")
-    assert response.status_code == 409
-
-
-def test_an_unheld_role_can_be_deleted(admin_client):
-    role_id = admin_client.post(
-        ROLES, json={"name": "spare", "label": "Spare", "permissions": []}
-    ).json()["system_id"]
-    assert admin_client.delete(f"/api/roles/{role_id}").status_code == 204
 
 
 # ---------------------------------------------------------------------------
@@ -184,23 +152,22 @@ def test_revoking_a_permission_is_felt_without_re_login(
     """
     from app.services.security import create_access_token
 
-    role_id = admin_client.post(
-        ROLES,
-        json={
-            "name": "watcher",
-            "label": "Watcher",
-            "permissions": [media_type_perm("anime")],
-        },
-    ).json()["system_id"]
+    role_id = _role_id(admin_client, "user")
     admin_client.post(
         USERS, json={"username": "watcher1", "password": "x", "role_id": role_id}
     )
 
-    token = create_access_token({"sub": "watcher1", "role": "watcher"})
+    token = create_access_token({"sub": "watcher1", "role": "user"})
     client.cookies.set("access_token", f"Bearer {token}")
     assert str(sample_anime.system_id) in client.get("/api/anime/").text
 
-    admin_client.put(f"/api/roles/{role_id}/permissions", json={"permissions": []})
+    # Down to what the role must hold, which is no ordinary media type.
+    locked_on = admin_client.get(f"/api/roles/{role_id}").json()["locked_on"]
+    assert "media_type.anime" not in locked_on
+    saved = admin_client.put(
+        f"/api/roles/{role_id}/permissions", json={"permissions": locked_on}
+    )
+    assert saved.status_code == 200, saved.text
 
     # Same cookie, no re-login.
     assert client.get("/api/anime/").json() == []
@@ -211,17 +178,17 @@ def test_revoking_a_permission_is_felt_without_re_login(
 # ---------------------------------------------------------------------------
 
 def test_creating_a_user_assigns_the_role(admin_client):
-    guest = _role_id(admin_client, "guest")
+    user = _role_id(admin_client, "user")
     response = admin_client.post(
-        USERS, json={"username": "newbie", "password": "pw", "role_id": guest}
+        USERS, json={"username": "newbie", "password": "pw", "role_id": user}
     )
     assert response.status_code == 201
-    assert response.json()["role_name"] == "guest"
+    assert response.json()["role_name"] == "user"
 
 
 def test_a_duplicate_username_is_rejected(admin_client):
-    guest = _role_id(admin_client, "guest")
-    body = {"username": "twice", "password": "pw", "role_id": guest}
+    user = _role_id(admin_client, "user")
+    body = {"username": "twice", "password": "pw", "role_id": user}
     assert admin_client.post(USERS, json=body).status_code == 201
     assert admin_client.post(USERS, json=body).status_code == 409
 
@@ -242,82 +209,122 @@ def test_you_cannot_delete_yourself(admin_client, db_session):
     assert response.status_code == 409
 
 
-def test_the_last_administrator_cannot_be_demoted(admin_client, db_session):
-    """Otherwise one PATCH locks everyone out of their own site."""
-    guest = _role_id(admin_client, "guest")
-    me = db_session.query(models.User).filter(
-        models.User.username == "aaa_testadmin"
-    ).first()
+# ---------------------------------------------------------------------------
+# The open-request limit
+# ---------------------------------------------------------------------------
 
-    # The lifespan seeds a real "admin" account into the test database, so
-    # demote every other administrator first to actually reach the last one.
-    for user in db_session.query(models.User).all():
-        if user.id != me.id:
-            admin_client.patch(f"/api/users/{user.id}", json={"role_id": guest})
-
-    response = admin_client.patch(f"/api/users/{me.id}", json={"role_id": guest})
-    assert response.status_code == 409
-    assert "last account" in response.text
-
-
-def test_demotion_is_allowed_while_another_admin_remains(admin_client, db_session):
-    admin_role = _role_id(admin_client, "admin")
-    guest = _role_id(admin_client, "guest")
-    admin_client.post(
-        USERS, json={"username": "second", "password": "pw", "role_id": admin_role}
+def _create(admin_client, username, role_name):
+    response = admin_client.post(
+        USERS,
+        json={
+            "username": username,
+            "password": "pw",
+            "role_id": _role_id(admin_client, role_name),
+        },
     )
+    assert response.status_code == 201, response.text
+    return response.json()
 
-    me = db_session.query(models.User).filter(
-        models.User.username == "aaa_testadmin"
-    ).first()
-    response = admin_client.patch(f"/api/users/{me.id}", json={"role_id": guest})
-    assert response.status_code == 200
+
+def test_a_new_account_takes_its_roles_request_limit(admin_client):
+    assert _create(admin_client, "limited", "user")["open_request_limit"] == 15
+    assert _create(admin_client, "unlimited", "super")["open_request_limit"] is None
+
+
+def test_the_limit_can_be_set_and_cleared(admin_client):
+    user = _create(admin_client, "tuned", "user")
+    path = f"{USERS}{user['id']}"
+    set_ = admin_client.patch(path, json={"open_request_limit": 3})
+    assert set_.status_code == 200
+    assert set_.json()["open_request_limit"] == 3
+    # An unrelated edit leaves it alone.
+    assert admin_client.patch(path, json={"password": "pw2"}).json()[
+        "open_request_limit"
+    ] == 3
+    cleared = admin_client.patch(path, json={"open_request_limit": None})
+    assert cleared.json()["open_request_limit"] is None
+
+
+def test_a_negative_limit_is_422(admin_client):
+    user = _create(admin_client, "negative", "user")
+    path = f"{USERS}{user['id']}"
+    assert admin_client.patch(path, json={"open_request_limit": -1}).status_code == 422
+    assert admin_client.patch(path, json={"open_request_limit": 0}).status_code == 200
+
+
+def test_a_role_change_resets_the_limit_to_the_new_roles_default(admin_client):
+    user = _create(admin_client, "promoted", "user")
+    path = f"{USERS}{user['id']}"
+    admin_client.patch(path, json={"open_request_limit": 4})
+
+    to_super = admin_client.patch(path, json={"role_id": _role_id(admin_client, "super")})
+    assert to_super.json()["open_request_limit"] is None
+    back = admin_client.patch(path, json={"role_id": _role_id(admin_client, "user")})
+    assert back.json()["open_request_limit"] == 15
+
+
+def test_a_role_change_keeps_a_limit_set_in_the_same_save(admin_client):
+    user = _create(admin_client, "both", "super")
+    response = admin_client.patch(
+        f"{USERS}{user['id']}",
+        json={"role_id": _role_id(admin_client, "user"), "open_request_limit": 7},
+    )
+    assert response.json()["open_request_limit"] == 7
+
+
+def test_a_super_account_has_no_editable_limit(admin_client):
+    user = _create(admin_client, "boss", "super")
+    path = f"{USERS}{user['id']}"
+    assert admin_client.patch(path, json={"open_request_limit": 5}).status_code == 422
+    # The mirror: clearing it, which is what it already is, is accepted.
+    assert admin_client.patch(path, json={"open_request_limit": None}).status_code == 200
 
 
 # ---------------------------------------------------------------------------
 # Content labels
 # ---------------------------------------------------------------------------
 
-def test_a_label_key_is_unique(admin_client):
-    body = {"key": "nsfw", "label": "NSFW"}
-    assert admin_client.post(LABELS, json=body).status_code == 201
-    assert admin_client.post(LABELS, json=body).status_code == 409
+def test_a_label_key_is_unique(db_session, nsfw_label):
+    """The key is the identity a Pull and every assignment translate by, so a
+    second row under it is refused by the database itself."""
+    savepoint = db_session.begin_nested()
+    db_session.add(models.ContentLabel(key=nsfw_label.key, label="Again"))
+    with pytest.raises(IntegrityError):
+        db_session.flush()
+    savepoint.rollback()
+    assert db_session.query(models.ContentLabel).filter_by(key=nsfw_label.key).count() == 1
 
 
-def test_labels_are_assigned_to_an_entry_as_a_whole_set(admin_client, sample_anime):
-    admin_client.post(LABELS, json={"key": "nsfw", "label": "NSFW"})
-    admin_client.post(LABELS, json={"key": "spoiler", "label": "Spoiler"})
-
+def test_labels_are_assigned_to_an_entry_as_a_whole_set(owner_client, sample_anime):
     url = f"/api/content-labels/entry/anime/{sample_anime.system_id}"
-    assert admin_client.put(url, json={"label_keys": ["nsfw", "spoiler"]}).json() == [
+    assert owner_client.put(url, json={"label_keys": ["nsfw", "erotica"]}).json() == [
+        "erotica",
         "nsfw",
-        "spoiler",
     ]
-    assert admin_client.put(url, json={"label_keys": ["nsfw"]}).json() == ["nsfw"]
-    assert admin_client.get(url).json() == ["nsfw"]
+    assert owner_client.put(url, json={"label_keys": ["nsfw"]}).json() == ["nsfw"]
+    assert owner_client.get(url).json() == ["nsfw"]
 
 
-def test_an_unknown_label_key_is_rejected(admin_client, sample_anime):
-    response = admin_client.put(
+def test_an_unknown_label_key_is_rejected(owner_client, sample_anime):
+    response = owner_client.put(
         f"/api/content-labels/entry/anime/{sample_anime.system_id}",
         json={"label_keys": ["nope"]},
     )
     assert response.status_code == 422
 
 
-def test_an_unknown_media_type_is_a_400(admin_client, sample_anime):
-    response = admin_client.get(
+def test_an_unknown_media_type_is_a_400(owner_client, sample_anime):
+    response = owner_client.get(
         f"/api/content-labels/entry/hologram/{sample_anime.system_id}"
     )
     assert response.status_code == 400
 
 
-def test_labelling_an_entry_hides_it_from_a_guest(admin_client, client, sample_anime):
+def test_labelling_an_entry_hides_it_from_a_guest(owner_client, client, sample_anime):
     """End to end: the admin API and the enforcement path agree."""
     assert str(sample_anime.system_id) in client.get("/api/anime/").text
 
-    admin_client.post(LABELS, json={"key": "nsfw", "label": "NSFW"})
-    admin_client.put(
+    owner_client.put(
         f"/api/content-labels/entry/anime/{sample_anime.system_id}",
         json={"label_keys": ["nsfw"]},
     )

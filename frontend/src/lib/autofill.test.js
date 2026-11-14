@@ -369,7 +369,7 @@ describe("buildAutofillPatch — link-backed fields", () => {
 });
 
 describe("buildAutofillPatch — the gated types", () => {
-  it("copies the h-comic field set, credits included", () => {
+  it("copies the h-comic field set, credits and the MAL link included", () => {
     const source = {
       region: "JP",
       h_comic_name_cn: "中文名",
@@ -382,6 +382,7 @@ describe("buildAutofillPatch — the gated types", () => {
       originality: "Original",
       club: "Club A",
       illustrator: "Artist B",
+      mal_link: "https://myanimelist.net/manga/777",
     };
     expect(patchFor(source, "h-comic")).toEqual({
       ...source,
@@ -398,6 +399,24 @@ describe("buildAutofillPatch — the gated types", () => {
     expect(patch.hentai_name_cn).toBe("中文");
     expect(patch.source_material).toBe("Comic");
     expect(patch.studio).toBe("Studio X");
+  });
+
+  it("copies a hentai's MAL and AniDB links by default", () => {
+    const patch = patchFor(
+      { mal_link: "https://myanimelist.net/anime/1", anidb_link: "https://anidb.net/anime/1" },
+      "hentai",
+    );
+    expect(patch.mal_link).toBe("https://myanimelist.net/anime/1");
+    expect(patch.anidb_link).toBe("https://anidb.net/anime/1");
+  });
+
+  it("copies neither hentai link once they are switched off on /defaults", () => {
+    const patch = buildAutofillPatch(
+      { studio: "Studio X", mal_link: "https://myanimelist.net/anime/1" },
+      "hentai",
+      ["studio"],
+    );
+    expect(patch).toEqual({ studio: "Studio X" });
   });
 
   it("keeps a null-blank field null rather than turning it into a string", () => {

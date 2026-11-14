@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 from app.schemas.image_focus import ImageFocus
 from app.utils.character_roles import check_character_role
-from app.utils.entity_vocab import check_gender, check_my_rating
+from app.utils.entity_vocab import check_gender
 
 # MergeRequest is not redefined here - schemas.MergeRequest (app/schemas/staff.py)
 # is the one shape {"source_id": UUID} and the character router reuses it.
@@ -20,7 +20,6 @@ class CharacterBase(BaseModel):
     name_alt: Optional[str] = None
     display_name_field: Optional[str] = None
     gender: Optional[str] = None
-    my_rating: Optional[str] = None
     photo_file: Optional[str] = None
     photo_focus: ImageFocus = None
     # The entry whose picture stands in when photo_file is NULL; see
@@ -49,7 +48,7 @@ class CharacterBase(BaseModel):
 
 class CharacterWrite(CharacterBase):
     """
-    What Create and Update share: gender, my_rating and role are closed
+    What Create and Update share: gender and role are closed
     vocabularies (app/utils/entity_vocab.py, app/utils/character_roles.py),
     "" meaning NULL.
 
@@ -69,11 +68,6 @@ class CharacterWrite(CharacterBase):
     @classmethod
     def _known_gender(cls, v):
         return check_gender(v)
-
-    @field_validator("my_rating")
-    @classmethod
-    def _known_rating(cls, v):
-        return check_my_rating(v)
 
     @field_validator("role")
     @classmethod
@@ -197,6 +191,10 @@ class IdentityAdminResponse(IdentityResponse):
 
 class CharacterResponse(CharacterBase):
     system_id: UUID
+    # The VIEWER'S own rating, from user_rating (services.domain.user_rating
+    # .attach_ratings); null for a guest. Not on the Base: a catalogue write
+    # does not carry it - PUT /api/me/ratings/... does.
+    my_rating: Optional[str] = None
     # The id the SPA puts in the URL. Never gated: a viewer allowed to see the
     # entry must be able to link to it.
     public_id: int

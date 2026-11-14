@@ -21,8 +21,8 @@ def db(db_session):
 
 
 @pytest.fixture
-def admin_id(admin_user):
-    return admin_user.id
+def admin_id(owner_user):
+    return owner_user.id
 
 
 def test_exactly_one_owner_column_may_be_set(
@@ -116,7 +116,7 @@ def test_owner_type_and_owner_id_are_derived(db, sample_franchise, admin_id):
 
 
 def test_the_notes_endpoint_still_takes_owner_type_and_owner_id(
-    db, admin_client, sample_anime, admin_id
+    db, owner_client, sample_anime, admin_id
 ):
     """The API shape does not change - only the storage does."""
     db.add(
@@ -130,7 +130,7 @@ def test_the_notes_endpoint_still_takes_owner_type_and_owner_id(
     )
     db.commit()
 
-    r = admin_client.get(
+    r = owner_client.get(
         "/api/notes",
         params={"owner_type": "anime", "owner_id": str(sample_anime.system_id)},
     )

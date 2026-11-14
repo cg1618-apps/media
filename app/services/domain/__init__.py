@@ -177,11 +177,6 @@ from app.services.domain.post_processing import (
     manga_post_processing,
     tv_show_post_processing,
 )
-from app.services.domain.rating_points import (
-    points_to_letter,
-    rating_points,
-    rating_rank_case,
-)
 from app.services.domain.remark_field import (
     REMARK_SECTION,
     attach_remark,
@@ -207,6 +202,7 @@ from app.services.domain.user_list import (
     installation_owner_id,
     join_list,
     list_row,
+    no_owner_message,
     split_list_payload,
 )
 from app.services.domain.watch_order import (
@@ -222,9 +218,6 @@ from app.services.domain.watch_order import (
 
 __all__ = [
     "compute_display_name",
-    "rating_points",
-    "points_to_letter",
-    "rating_rank_case",
     "casting_rows",
     "replace_casting",
     "fill_character_roles",
@@ -391,6 +384,7 @@ __all__ = [
     "LIST_FIELDS",
     "acting_user_id",
     "installation_owner_id",
+    "no_owner_message",
     "list_row",
     "ensure_list_row",
     "attach_list_fields",

@@ -5,12 +5,11 @@
 // Todo in the Progress slip and everything else at the bottom.
 import NotesTemplate from "../notes/NotesTemplate";
 
-export default function GameNotes({ game, isAdmin, hideSections }) {
+export default function GameNotes({ game, hideSections }) {
   return (
     <NotesTemplate
       ownerType="game"
       ownerId={game.system_id}
-      isAdmin={isAdmin}
       hideSections={hideSections}
     />
   );

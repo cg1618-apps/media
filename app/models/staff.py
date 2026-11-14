@@ -98,8 +98,6 @@ class Person(Base, NameFallbackMixin):
     # One of "en" | "cn" | "jp" | "alt", or NULL for the fallback chain.
     display_name_field = Column(String, nullable=True)
     gender = Column(String, nullable=True)
-    # One of constants.MY_RATINGS.
-    my_rating = Column(String, nullable=True)
     # Storage key under static/covers/, same convention as the media tables'
     # cover_image_file.
     photo_file = Column(String, nullable=True)
@@ -329,7 +327,6 @@ class Studio(Base, NameFallbackMixin):
     name_alt = Column(String, nullable=True)
     # One of "en" | "cn" | "jp" | "alt", or NULL for the fallback chain.
     display_name_field = Column(String, nullable=True)
-    my_rating = Column(String, nullable=True)
     logo_file = Column(String, nullable=True)
     # logo_file's focal point, "X% Y%"; NULL centres it. Reset whenever the
     # logo changes - see media.cover_image_focus.
@@ -466,7 +463,6 @@ class Publisher(Base, NameFallbackMixin):
     name_alt = Column(String, nullable=True)
     # One of "en" | "cn" | "jp" | "alt", or NULL for the fallback chain.
     display_name_field = Column(String, nullable=True)
-    my_rating = Column(String, nullable=True)
     logo_file = Column(String, nullable=True)
     # logo_file's focal point, "X% Y%"; NULL centres it. Reset whenever the
     # logo changes - see media.cover_image_focus.

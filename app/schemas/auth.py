@@ -1,5 +1,6 @@
 """Authentication and user schemas."""
 
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -29,3 +30,54 @@ class UserOut(UserBase):
     role: str
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class PasswordReset(BaseModel):
+    """Body of POST /api/auth/reset: the code from the link and the new password."""
+
+    code: str
+    password: str
+
+
+class ResetCodeInfo(BaseModel):
+    """Who a reset link (or a spent one) is for, so the page can say so and
+    the sign-in form can be pre-filled."""
+
+    username: str
+
+
+class ResetLinkResponse(BaseModel):
+    """A new reset link. The code inside it is not stored, so this is the only
+    time it can be shown."""
+
+    link: str
+    expires_at: datetime
+
+
+class InviteLinkResponse(BaseModel):
+    """A new invite link. As with a reset link, the code inside it is not
+    stored, so this is the only time it can be shown."""
+
+    link: str
+    expires_at: datetime
+
+
+class InviteCodeInfo(BaseModel):
+    """GET /api/auth/register: the invite can be used. An unusable one is the
+    generic 404, so there is nothing else to say."""
+
+    valid: bool
+
+
+class Registration(BaseModel):
+    """Body of POST /api/auth/register."""
+
+    code: str
+    username: str
+    password: str
+
+
+class RegisteredAccount(BaseModel):
+    """The account a registration created, now waiting for approval."""
+
+    username: str

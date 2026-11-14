@@ -4,6 +4,7 @@ On-demand bulk calculate and fix operations.
 Wraps single-entry logic from services.domain for bulk application across the DB.
 """
 
+import json
 from typing import Optional
 
 from sqlalchemy.orm import Session, selectinload
@@ -67,7 +68,11 @@ from app.services.domain.gated_labels import enforce_gated_label_invariants
 from app.services.domain.h_comic import enforce_h_comic_invariants
 from app.services.domain.media_relation import seed_sequel_relations
 from app.services.domain.plan_next import derive_size_groups
-from app.services.domain.user_list import installation_owner_id, list_row
+from app.services.domain.user_list import (
+    installation_owner_id,
+    list_row,
+    no_owner_message,
+)
 from app.services.integrations.image_library import uploaded_image_ids
 from app.services.integrations.image_manager import (
     cover_image_exists,
@@ -605,7 +610,7 @@ def run_sync(db: Session) -> dict:
     run_sync_tv_show(db)
     run_sync_cartoon(db)
     run_sync_manga(db)
-    run_sync_novel(db)
+    novel = run_sync_novel(db)
     run_sync_comic(db)
     run_sync_h_comic(db)
     run_sync_hentai(db)
@@ -613,9 +618,14 @@ def run_sync(db: Session) -> dict:
     run_sync_size_groups(db)
     run_sync_cast(db)
     run_sync_character_display_names(db)
+    owner_missing = novel["owner_missing"]
+    message = "All synchronization tasks completed."
+    if owner_missing:
+        message += f" {no_owner_message(owner_missing)} (novel list rows)."
     return {
         "status": "success",
-        "message": "All synchronization tasks completed.",
+        "message": message,
+        "owner_missing": owner_missing,
     }
 
 
@@ -727,20 +737,31 @@ def run_sync_novel(db: Session) -> dict:
     # Re-derive from the unit rows so a Sheets restore, which writes rows
     # straight to the tables without going through the router, lands with
     # consistent totals.
+    #
+    # The reader's half only exists if they have a list row; Calculate must
+    # not mint one for an entry nobody has touched. Whose row: the
+    # installation's owner, because Calculate is a pipeline with no viewer
+    # rather than a request - acting_user_id would answer None here. With no
+    # owner at all, no reader's half is derived, and the result says so by
+    # name rather than reporting a clean sync.
+    owner = installation_owner_id(db)
+    owner_missing = 0
     for entry in db.query(Novel).options(selectinload(Novel.units)).all():
         derive_novel_catalog(entry)
-        # The reader's half only exists if they have a list row; Calculate
-        # must not mint one for an entry nobody has touched. Whose row: the
-        # installation's owner, because Calculate is a pipeline with no viewer
-        # rather than a request - acting_user_id would answer None here and
-        # silently derive nothing.
-        row = list_row(db, installation_owner_id(db), entry.system_id)
+        if owner is None:
+            owner_missing += 1
+            continue
+        row = list_row(db, owner, entry.system_id)
         if row is not None:
             derive_novel_list(row, entry)
     db.commit()
+    message = "Novel sync completed."
+    if owner_missing:
+        message += f" {no_owner_message(owner_missing)}."
     return {
         "status": "success",
-        "message": "Novel sync completed.",
+        "message": message,
+        "owner_missing": owner_missing,
     }
 
 
@@ -820,18 +841,35 @@ def run_calculate_all(db: Session) -> dict:
         run_post_processing(db)
         run_derive_ep_previous(db)
         seeded = run_seed_sequel_relations(db)
-        run_sync(db)
+        synced = run_sync(db)
         bulk_check_cover_image(db)
-        log_data_control(db, "Calculate", "Calculate All", "Manual", "Success")
+        message = (
+            "Full calculation complete. "
+            f"Created {seeded['relations_created']} sequel relation(s) "
+            f"in {seeded['franchises_seeded']} franchise(s); "
+            f"{seeded['groups_skipped_tied']} group(s) skipped "
+            "(tied season/part)."
+        )
+        owner_missing = synced["owner_missing"]
+        if owner_missing:
+            # The run still succeeded, but part of it derived nothing; the
+            # audit row carries the same named line the response does.
+            note = f"{no_owner_message(owner_missing)} (novel list rows)."
+            message += f" {note}"
+            log_data_control(
+                db,
+                "Calculate",
+                "Calculate All",
+                "Manual",
+                "Success",
+                details_json=json.dumps({"no_installation_owner": note}),
+            )
+        else:
+            log_data_control(db, "Calculate", "Calculate All", "Manual", "Success")
         return {
             "status": "success",
-            "message": (
-                "Full calculation complete. "
-                f"Created {seeded['relations_created']} sequel relation(s) "
-                f"in {seeded['franchises_seeded']} franchise(s); "
-                f"{seeded['groups_skipped_tied']} group(s) skipped "
-                "(tied season/part)."
-            ),
+            "message": message,
+            "owner_missing": owner_missing,
         }
     except Exception as e:
         log_data_control(

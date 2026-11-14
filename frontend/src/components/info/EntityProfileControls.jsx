@@ -2,11 +2,12 @@
 // person, studio and publisher.
 //
 // The four pages are hand-built (see the comments on Character.jsx,
-// Person.jsx, Studio.jsx and Publisher.jsx), and each lets an admin do three
-// things without leaving the page: jump to the full editor, set my rating,
-// and write the remark. The rating and remark go through
-// PATCH /api/{character|person|studio|publisher}/{system_id} with a partial
-// body, and the page takes its state from the response.
+// Person.jsx, Studio.jsx and Publisher.jsx). Each lets an admin jump to the
+// full editor and write the remark without leaving the page - the remark goes
+// through PATCH /api/{character|person|studio|publisher}/{system_id} with a
+// partial body, and the page takes its state from the response - and lets a
+// holder of self.list set its own rating, which the page saves through
+// PUT /api/me/ratings (api/mutations/useMyRatingMutations.js).
 import { useNavigate } from "react-router-dom";
 
 import { endpoints } from "../../api/endpoints";
@@ -53,7 +54,7 @@ export function AdminToolbar({ ownerType, systemId }) {
   );
 }
 
-/** My rating as a select that saves on change. Admin only. */
+/** The viewer's own rating as a select that saves on change. */
 export function RatingSelect({ rating, onChange }) {
   return (
     <div className="space-y-1">

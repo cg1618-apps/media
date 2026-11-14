@@ -12,21 +12,26 @@ import { AuthProvider } from "../../contexts/AuthContext";
 import { ToastProvider } from "../../hooks/useToast";
 import MediaCard from "./MediaCard";
 
-function mockAuthFetch() {
+// `permissions` is what /me answers; every other request answers `{}`, and
+// each request is recorded so a test can say which route a write took.
+function mockAuthFetch(permissions = []) {
   vi.stubGlobal(
     "fetch",
-    vi.fn(() =>
+    vi.fn((url) =>
       Promise.resolve({
         ok: true,
         status: 200,
         json: () =>
-          Promise.resolve({
-            is_admin: false,
-            username: null,
-            role: "guest",
-            is_root: false,
-            permissions: [],
-          }),
+          Promise.resolve(
+            String(url).startsWith("/api/auth/me")
+              ? {
+                  is_admin: false,
+                  username: permissions.length ? "reader" : null,
+                  role: permissions.length ? "user" : "guest",
+                  permissions,
+                }
+              : {},
+          ),
       }),
     ),
   );
@@ -199,10 +204,11 @@ describe("MediaCard - the card is a link", () => {
     expect(cardLink.contains(baha)).toBe(false);
   });
 
-  it("does not nest the admin status button inside the card anchor", async () => {
-    mockAuthFetch();
-    mount(base, "anime", true);
+  it("does not nest the status button inside the card anchor", async () => {
+    mockAuthFetch(["self.list"]);
+    mount(base, "anime");
     const cardLink = await screen.findByRole("link", { name: /Test Anime/ });
+    expect(await screen.findByTitle(/Active Watching →/)).toBeInTheDocument();
     expect(cardLink.querySelector("button")).toBeNull();
   });
 });
@@ -222,8 +228,8 @@ describe("MediaCard - the future variant on a game", () => {
   };
 
   it("offers the playing statuses, not the watching ones", async () => {
-    mockAuthFetch();
-    mount(game, "game", true, "future");
+    mockAuthFetch(["self.list"]);
+    mount(game, "game", false, "future");
     await screen.findByText("Test Game");
     const select = screen.getByRole("combobox");
     expect(
@@ -236,6 +242,22 @@ describe("MediaCard - the future variant on a game", () => {
     mount(game, "game", true, "future");
     await screen.findByText("Test Game");
     expect(screen.getByTitle("Mark as Released")).toBeInTheDocument();
+  });
+
+  it("gives an editor without a list the bolt and no status select", async () => {
+    // Marking the work released is a catalogue edit; the status is a list's.
+    mockAuthFetch();
+    mount(game, "game", true, "future");
+    await screen.findByText("Test Game");
+    expect(screen.getByTitle("Mark as Released")).toBeInTheDocument();
+    expect(screen.queryByRole("combobox")).toBeNull();
+  });
+
+  it("gives a member with a list the status select and no bolt", async () => {
+    mockAuthFetch(["self.list"]);
+    mount(game, "game", false, "future");
+    expect(await screen.findByRole("combobox")).toBeInTheDocument();
+    expect(screen.queryByTitle("Mark as Released")).toBeNull();
   });
 
   it("shows the release date on the meta line", async () => {
@@ -343,5 +365,45 @@ describe("MediaCard — hentai progress", () => {
     );
     await screen.findByText("名");
     expect(container.textContent).toMatch(/1\s*\/\s*2\s*ep/i);
+  });
+});
+
+// The status control writes the viewer's own list, so it follows self.list
+// (useViewScope().ownData), not manage.catalog, and goes to /api/me/list.
+describe("MediaCard - the status control is the viewer's own", () => {
+  const movie = {
+    system_id: "m1",
+    public_id: 5,
+    movie_name_en: "Test Movie",
+    watching_status: "Plan to Watch",
+  };
+
+  it("draws the status button for a holder of self.list, movies included", async () => {
+    mockAuthFetch(["self.list"]);
+    mount(movie, "movie");
+    expect(await screen.findByTitle(/Plan to Watch →/)).toBeInTheDocument();
+  });
+
+  it("draws no status at all for an editor without a list", async () => {
+    // The mirror: same card, a catalogue editor's flag, no self.list.
+    mockAuthFetch();
+    mount(movie, "movie", true);
+    await screen.findByText("Test Movie");
+    expect(screen.queryByTitle(/Plan to Watch/)).toBeNull();
+    expect(screen.queryByText("Plan to Watch")).toBeNull();
+  });
+
+  it("writes the status through /api/me/list, not the catalogue PATCH", async () => {
+    mockAuthFetch(["self.list"]);
+    mount(movie, "movie");
+    const button = await screen.findByTitle(/Plan to Watch →/);
+    button.click();
+    await vi.waitFor(() =>
+      expect(fetch.mock.calls.some(([url]) => url === "/api/me/list/m1")).toBe(true),
+    );
+    const [, options] = fetch.mock.calls.find(([url]) => url === "/api/me/list/m1");
+    expect(options.method).toBe("PUT");
+    expect(Object.keys(JSON.parse(options.body))).toEqual(["watching_status"]);
+    expect(fetch.mock.calls.some(([, o]) => o?.method === "PATCH")).toBe(false);
   });
 });

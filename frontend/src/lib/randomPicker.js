@@ -4,14 +4,26 @@
 // The picker works on ENTRIES, `{ type, item }`, so one pool can mix media
 // types. It has three kinds of mode:
 //   general   every visible type at once, filtered by what all types share:
-//             media type, status group, my rating, release decade
+//             media type, status group, my rating, release decade, genre,
+//             external score
 //   one type  that type's own library filterDefs (LIBRARY_CONFIGS), plus my
-//             rating and release decade
+//             rating, release decade and, where the type has them, genre
+//             and external score
 //   franchise draws a franchise rather than an entry: `{ type: "franchise",
 //             item, cover, heldTypes, statusGroups }`, filtered by franchise
 //             type, expectation, my rating, and what its entries are
 // Every def here is an ordinary FilterDef (hooks/useLibraryState.js), so
 // FilterPanel and useFilterState render and hold them unchanged.
+//
+// A def that reads the viewer's own list - a status, my rating, an
+// expectation, ownership, usefulness - carries `personal: true`, the key the
+// franchise library puts on its personal columns. A viewer without self.list
+// has none of those values, so filterDefsForMode drops every flagged def for
+// them and keeps the catalogue ones.
+//
+// A shared account (view.random_picker without self.list) gets less again:
+// the general mode only, with exactly two filters, media type and release
+// decade (sharedFilterDefs). The page offers it no other mode.
 import { FRANCHISE_EXPECTATIONS, FRANCHISE_TYPES, MY_RATINGS } from "../config/fieldOptions";
 import { MEDIA_CONFIG } from "../config/mediaRegistry";
 import {
@@ -106,6 +118,7 @@ function sortDecades(decades) {
 
 const ratingDef = {
   key: "myRating",
+  personal: true,
   label: "My Rating",
   type: "set",
   options: [...MY_RATINGS, UNRATED],
@@ -123,30 +136,141 @@ const decadeDef = {
 
 const statusGroupDef = {
   key: "statusGroup",
+  personal: true,
   label: "Status",
   type: "set",
   options: STATUS_GROUPS,
   match: (entry, active) => active.has(statusGroupOf(entry.type, entry.item)),
 };
 
+// Each type's external score, on a 0-10 scale: MAL's for the MAL-sourced
+// types, IMDb's for the OMDb-sourced ones (on a TV show or cartoon, the
+// season's own). A type not listed has no external score.
+export const EXTERNAL_SCORE_FIELD = {
+  anime: "mal_rating",
+  "anime-movie": "mal_rating",
+  manga: "mal_rating",
+  novel: "mal_rating",
+  movie: "imdb_rating",
+  "tv-show": "imdb_rating",
+  cartoon: "imdb_rating",
+};
+
+const EXTERNAL_SCORE_LABEL = { mal_rating: "MAL Score", imdb_rating: "IMDb Score" };
+
+export const NO_SCORE = "No score";
+
+// Minimum-score chips. Chips OR, so two on together keep the lower minimum.
+const SCORE_MINIMUMS = [9, 8, 7, 6];
+const minimumLabel = (min) => `${min}+`;
+
+/**
+ * An entry's external score as a number, or null when its type has none or
+ * the entry is unscored (OMDb's "N/A" included).
+ */
+export function externalScoreOf(type, item) {
+  const field = EXTERNAL_SCORE_FIELD[type];
+  const score = field ? parseFloat(item[field]) : NaN;
+  return Number.isNaN(score) ? null : score;
+}
+
+/**
+ * The external-score filter over `types`, or null when none of them has an
+ * external score. Its label names the source when the types share one.
+ */
+export function externalScoreDef(types) {
+  const fields = new Set(types.map((t) => EXTERNAL_SCORE_FIELD[t]).filter(Boolean));
+  if (fields.size === 0) return null;
+  return {
+    key: "externalScore",
+    label: fields.size === 1 ? EXTERNAL_SCORE_LABEL[[...fields][0]] : "External Score",
+    type: "set",
+    options: [...SCORE_MINIMUMS.map(minimumLabel), NO_SCORE],
+    match: (entry, active) => {
+      const score = externalScoreOf(entry.type, entry.item);
+      if (score === null) return active.has(NO_SCORE);
+      return SCORE_MINIMUMS.some((min) => score >= min && active.has(minimumLabel(min)));
+    },
+  };
+}
+
+// Each type's genre field, a ", "-joined string on every list response: the
+// mainstream vocabulary (Genre Main) on the eight types that have it, Game
+// Genre on game and h-game. The adult genre fields of h-comic, hentai and
+// h-game are left out on purpose, as /api/statistics/catalogue leaves them
+// out: a filter offered to every viewer does not mix them in. A type not
+// listed has no genre.
+export const GENRE_FIELD = {
+  anime: "genre_main",
+  "anime-movie": "genre_main",
+  movie: "genre_main",
+  "tv-show": "genre_main",
+  cartoon: "genre_main",
+  manga: "genre_main",
+  novel: "genre_main",
+  comic: "genre_main",
+  game: "game_genre",
+  "h-game": "game_genre",
+};
+
+/** An entry's genres as trimmed values; [] when its type has none or it is untagged. */
+export function genresOf(type, item) {
+  const field = GENRE_FIELD[type];
+  const raw = field ? item[field] : null;
+  if (!raw) return [];
+  return String(raw)
+    .split(",")
+    .map((g) => g.trim())
+    .filter(Boolean);
+}
+
+/**
+ * The genre filter over `types`, or null when none of them has a genre. A
+ * catalogue filter: the genres are the work's, so it is offered with and
+ * without a list. Its chips are the genres the pool holds; an entry matches
+ * when any of its genres is on.
+ */
+export function genreDef(types) {
+  if (!types.some((t) => GENRE_FIELD[t])) return null;
+  return {
+    key: "genre",
+    label: "Genre",
+    type: "set-dynamic",
+    deriveOptions: (entries) =>
+      [...new Set(entries.flatMap((e) => genresOf(e.type, e.item)))].sort((a, b) =>
+        a.localeCompare(b),
+      ),
+    match: (entry, active) => genresOf(entry.type, entry.item).some((g) => active.has(g)),
+  };
+}
+
+/** The media-type filter, offering only `types` as chips. */
+function mediaTypeDef(types) {
+  return {
+    key: "mediaType",
+    label: "Media Type",
+    type: "set",
+    options: types,
+    optionLabel: pickerTypeLabel,
+    match: (entry, active) => active.has(entry.type),
+  };
+}
+
 /** The general mode's defs, offering only `types` as media-type chips. */
 export function generalFilterDefs(types) {
   return [
-    {
-      key: "mediaType",
-      label: "Media Type",
-      type: "set",
-      options: types,
-      optionLabel: pickerTypeLabel,
-      match: (entry, active) => active.has(entry.type),
-    },
+    mediaTypeDef(types),
     statusGroupDef,
     ratingDef,
     decadeDef,
-  ];
+    genreDef(types),
+    externalScoreDef(types),
+  ].filter(Boolean);
 }
 
-// A library def reads a raw item; the picker hands it the entry's item.
+// A library def reads a raw item; the picker hands it the entry's item. Its
+// `personal` flag is the library config's own, so the picker drops exactly
+// what the library drops.
 function forEntries(fd) {
   return {
     ...fd,
@@ -158,10 +282,19 @@ function forEntries(fd) {
   };
 }
 
-/** One type's defs: its library filters, then my rating and release decade. */
+/**
+ * One type's defs: its library filters, then my rating, release decade and,
+ * where the type has them, genre and external score.
+ */
 export function typeFilterDefs(type) {
   const libraryDefs = LIBRARY_CONFIGS[type]?.filterDefs ?? [];
-  return [...libraryDefs.map(forEntries), ratingDef, decadeDef];
+  return [
+    ...libraryDefs.map(forEntries),
+    ratingDef,
+    decadeDef,
+    genreDef([type]),
+    externalScoreDef([type]),
+  ].filter(Boolean);
 }
 
 /** Wrap one type's list as picker entries. */
@@ -178,14 +311,31 @@ export function entryKey(entry) {
 export const PICKER_MODES = ["all", ...PICKER_TYPES.map((t) => t.type), FRANCHISE_MODE];
 
 /**
- * A mode's defs: the general ones for "all", the franchise ones, else that
- * type's. `personal` is whether the viewer holds view.personal (see
- * franchiseFilterDefs).
+ * A shared account's defs: media type and release decade, nothing else. The
+ * decade is each entry's primary release date (lib/releaseDate.js
+ * RELEASE_PRIORITY - release_date on most types, release_date_jp then _tw on
+ * an anime movie, release_date_tw then _usa on a movie), offered as the
+ * decades the pool holds, plus Unknown when an entry has no date.
  */
-export function filterDefsForMode(mode, types, { personal = true } = {}) {
-  if (mode === "all") return generalFilterDefs(types);
-  if (mode === FRANCHISE_MODE) return franchiseFilterDefs(types, { personal });
-  return typeFilterDefs(mode);
+export function sharedFilterDefs(types) {
+  return [mediaTypeDef(types), decadeDef];
+}
+
+/**
+ * A mode's defs: the general ones for "all", the franchise ones, else that
+ * type's. `personal` is whether the viewer holds self.list; without it every
+ * def flagged `personal: true` is dropped. `shared` is the shared account's
+ * picker, which has the general mode only and sharedFilterDefs there.
+ */
+export function filterDefsForMode(mode, types, { personal = true, shared = false } = {}) {
+  if (shared) return mode === "all" ? sharedFilterDefs(types) : [];
+  const defs =
+    mode === "all"
+      ? generalFilterDefs(types)
+      : mode === FRANCHISE_MODE
+        ? franchiseFilterDefs(types)
+        : typeFilterDefs(mode);
+  return personal ? defs : defs.filter((fd) => !fd.personal);
 }
 
 /**
@@ -208,15 +358,12 @@ function sortFranchiseTypes(values) {
 
 /**
  * The franchise mode's defs. `types` are the media types this session may
- * see, offered as "holds an entry of" chips.
- *
- * A franchise's expectation and rating are the catalogue's own judgements,
- * personal content: without view.personal (`personal: false`) the server
- * sends neither, so neither filter is offered - every franchise would read
- * as unrated and no expectation chip could match.
+ * see, offered as "holds an entry of" chips. A franchise's expectation and
+ * rating, and the statuses of the entries it holds, are the viewer's own, so
+ * those three defs are personal.
  */
-export function franchiseFilterDefs(types, { personal = true } = {}) {
-  const defs = [
+export function franchiseFilterDefs(types) {
+  return [
     {
       key: "franchiseType",
       label: "Franchise Type",
@@ -235,6 +382,7 @@ export function franchiseFilterDefs(types, { personal = true } = {}) {
     },
     {
       key: "entryStatus",
+      personal: true,
       label: "Holds an Entry That Is",
       type: "set",
       options: STATUS_GROUPS,
@@ -242,6 +390,7 @@ export function franchiseFilterDefs(types, { personal = true } = {}) {
     },
     {
       key: "expectation",
+      personal: true,
       label: "Expectation",
       type: "set",
       options: FRANCHISE_EXPECTATIONS,
@@ -249,9 +398,6 @@ export function franchiseFilterDefs(types, { personal = true } = {}) {
     },
     ratingDef,
   ];
-  return personal
-    ? defs
-    : defs.filter((fd) => fd.key !== "expectation" && fd !== ratingDef);
 }
 
 /**

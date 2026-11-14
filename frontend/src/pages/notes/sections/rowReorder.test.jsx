@@ -54,7 +54,7 @@ function renderShape(Component, shape, props = {}) {
     <Component
       section={section(shape)}
       notes={notes(4)}
-      isAdmin
+      canWrite
       onCreate={vi.fn()}
       onUpdate={vi.fn()}
       onDelete={vi.fn()}
@@ -84,7 +84,7 @@ describe.each(SHAPES)("%s", (shape, Component) => {
   });
 
   it("gives a reader no grips", () => {
-    renderShape(Component, shape, { isAdmin: false });
+    renderShape(Component, shape, { canWrite: false });
     expect(grips()).toHaveLength(0);
   });
 

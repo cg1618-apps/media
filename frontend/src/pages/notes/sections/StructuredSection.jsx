@@ -24,8 +24,33 @@
 //   - a section naming `groupable_by` (a `select` field) gets a toggle that
 //     reads it one group per value. Nothing extra is stored for it: the
 //     groups follow the rows' `sort_index`, so moving a group or a row within
-//     one saves the whole section's row order through `onReorder`.
+//     one saves the whole section's row order through `onReorder`. On a
+//     `hierarchical` section only a top-level row carries the value, so the
+//     ROOTS are grouped, each drawn with its subtree, and a child's form does
+//     not ask for one;
+//   - a free-text `select` naming an `option_category` suggests that
+//     category's values (`optionValues`, fetched by NotesContext) as it is
+//     typed in. It stays free text.
 // None of them names a section: any section declaring them gets them.
+//
+// A field marked `personal` (an item's collected, an enemy's beaten, a stat's
+// "Mine", a mod's status) is the VIEWER's own value, not the row's: the row is
+// catalogue, the value lives in the viewer's note mark. So it is never part of
+// the row's form or its catalogue save (`catalogueFields`), and is drawn on
+// the read view as its own inline control instead (`PersonalValue`), written
+// through `onMark` by a viewer who may mark (`canMark`) - whether or not it
+// may write the catalogue section. A section with a value a new cycle resets
+// carries the NG reset button (`NgResetButton`). Both are provisional UI.
+//
+// A `mixed` section holds catalogue rows and the viewer's own personal rows
+// (`note.personal`). Who may edit, move or add under each row is the
+// provider's (NotesContext's rowAccessFor), handed in as `canEditRow`,
+// `canMoveRow` and `canAddUnder`; each defaults to `canWrite`, which is what
+// every other section means by them. A move sends the ids of the rows the
+// viewer may move and no others, and steps over the rest (movedAmong); a
+// group moves only when every row of the section is the viewer's to move,
+// since a group move renumbers them all. A personal row carries a "Mine"
+// chip. Provisional UI.
 //
 // And one field type points outside the notes: a `choice_node` field (a save's
 // "At node") names a point in the owner game's choice graph. It is edited as a
@@ -45,20 +70,26 @@ import {
   ChoiceNodeName,
   ChoiceNodeSelect,
 } from "../../../components/game-choices/ChoiceNodeField";
+import SuggestInput from "../../../components/forms/SuggestInput";
 import NamesInput from "./NamesInput";
 import {
   groupNotes,
+  groupRoots,
   groupedIds,
   movedGroupOrder,
   movedRow,
+  movedTreeIds,
   namesOf,
+  treeIds,
 } from "./groupedRows";
 
+import { Button } from "../../../components/ui/primitives";
 import {
   EmptyHint,
   ItemActions,
   LinkPill,
   LinksEditor,
+  MineChip,
   SaveCancel,
   SectionCard,
   ShowAllToggle,
@@ -75,6 +106,9 @@ import AutoGrowTextarea from "../../../components/ui/AutoGrowTextarea";
 
 // The owner's id, for a `choice_node` field: the game whose points it offers.
 const OwnerIdContext = createContext(null);
+// The values of every suggestion category the page fetched, by category name,
+// for a free-text select naming an `option_category`.
+const OptionValuesContext = createContext({});
 
 const isBlank = (v) =>
   v == null ||
@@ -91,14 +125,18 @@ const ARRAY_TYPES = new Set(["links", "list", "names"]);
 const emptyValue = (field) =>
   ARRAY_TYPES.has(field.type) ? [] : field.default || "";
 
+// The fields a row's form edits and its catalogue save sends: every field but
+// a personal one, which is the viewer's own and written through its mark.
+const catalogueFields = (section) => section.fields.filter((f) => !f.personal);
+
 const emptyDraft = (section) =>
-  Object.fromEntries(section.fields.map((f) => [f.key, emptyValue(f)]));
+  Object.fromEntries(catalogueFields(section).map((f) => [f.key, emptyValue(f)]));
 
 // One saved row as form state. A column-backed field comes from the column,
 // everything else from the `fields` blob.
 const fromNote = (section, note) =>
   Object.fromEntries(
-    section.fields.map((f) => {
+    catalogueFields(section).map((f) => {
       const raw = f.column ? note[f.column] : (note.fields || {})[f.key];
       if (ARRAY_TYPES.has(f.type)) return [f.key, raw || []];
       return [f.key, raw == null ? "" : String(raw)];
@@ -111,7 +149,7 @@ const fromNote = (section, note) =>
 const toPayload = (section, val) => {
   const payload = {};
   const fields = {};
-  for (const f of section.fields) {
+  for (const f of catalogueFields(section)) {
     const raw = val[f.key];
     let out;
     if (f.type === "links") {
@@ -138,20 +176,36 @@ const toPayload = (section, val) => {
   return payload;
 };
 
+// The section as the form for one row sees it: without the field `omitKey`
+// names, if any. A child row of a hierarchical `groupable_by` section is the
+// case - only a top-level row carries a group, so its form does not ask.
+const withoutField = (section, omitKey) =>
+  omitKey
+    ? { ...section, fields: section.fields.filter((f) => f.key !== omitKey) }
+    : section;
+
+// toPayload for a form that left `omitKey` out. A column-backed omitted field
+// is sent as null, which clears a stray value rather than leaving it for the
+// backend to refuse; a blob-backed one simply drops out of `fields`.
+const payloadWithout = (section, val, omitKey) => {
+  const payload = toPayload(withoutField(section, omitKey), val);
+  const omitted = omitKey && section.fields.find((f) => f.key === omitKey);
+  if (omitted?.column) payload[omitted.column] = null;
+  return payload;
+};
+
 // The row has to say something, and may have to say specific things. Mirrors
 // _validate_structured in app/schemas/note.py so Save is disabled rather than
 // returning a 422 - including the rule that a DEFAULTED field cannot be what
 // makes a row worth storing, or an untouched draft would save itself on the
 // strength of a status nobody chose.
+// A personal field never counts: it is not part of the row.
 const invalid = (section, val) => {
-  const carrying = section.fields.filter((f) => !f.default);
-  if (
-    (carrying.length ? carrying : section.fields).every((f) =>
-      isBlank(val[f.key]),
-    )
-  )
+  const own = catalogueFields(section);
+  const carrying = own.filter((f) => !f.default);
+  if ((carrying.length ? carrying : own).every((f) => isBlank(val[f.key])))
     return true;
-  if (section.fields.some((f) => f.required && isBlank(val[f.key])))
+  if (own.some((f) => f.required && isBlank(val[f.key])))
     return true;
   return (section.require_any || []).some((group) =>
     group.every((key) => isBlank(val[key])),
@@ -248,6 +302,19 @@ function ListEditor({ field, rows, onChange }) {
 // the same columns a closed one would use.
 function ScalarInput({ field, value, onChange, ariaLabel }) {
   const label = ariaLabel || field.label;
+  const optionValues = useContext(OptionValuesContext);
+  if (field.type === "select" && !field.options.length && field.option_category) {
+    return (
+      <SuggestInput
+        value={value}
+        onChange={onChange}
+        options={optionValues?.[field.option_category] || []}
+        aria-label={label}
+        placeholder={field.placeholder || field.label}
+        className={inputCls}
+      />
+    );
+  }
   if (field.type === "select" && field.options.length) {
     return (
       <select
@@ -303,7 +370,7 @@ function ChoiceNodeInput({ field, value, onChange }) {
 function StructuredForm({ section, val, setVal, nameSuggestions }) {
   return (
     <div className="space-y-2">
-      {section.fields.map((field) => {
+      {catalogueFields(section).map((field) => {
         const set = (v) => setVal({ ...val, [field.key]: v });
         if (field.type === "names") {
           return (
@@ -420,9 +487,29 @@ function ListView({ field, rows }) {
 // The one field a reader edits without opening the row: a stat's own value,
 // which changes while playing rather than while writing the guide. Saves on
 // blur, like the remark box on the detail pages.
-function QuickEdit({ field, note, isAdmin, onUpdate }) {
-  const value = readValue(field, note);
-  if (!isAdmin) {
+function QuickEdit({ field, note, canWrite, onUpdate }) {
+  const save = (out) =>
+    onUpdate(
+      note.system_id,
+      field.column
+        ? { [field.column]: out }
+        : { fields: { ...(note.fields || {}), [field.key]: out } },
+    );
+  return (
+    <InlineText
+      field={field}
+      value={readValue(field, note)}
+      editable={canWrite}
+      onSave={save}
+    />
+  );
+}
+
+// A short free-text value edited in place and saved on blur, or read as a
+// labelled tag. `onSave` gets the trimmed value, null for blank, and is not
+// called when nothing changed.
+function InlineText({ field, value, editable, onSave }) {
+  if (!editable) {
     return isBlank(value) ? null : (
       <span className={brandTagCls}>
         {field.label} {value}
@@ -431,13 +518,7 @@ function QuickEdit({ field, note, isAdmin, onUpdate }) {
   }
   const save = (next) => {
     if (String(next) === String(value ?? "")) return;
-    const out = next.trim() || null;
-    onUpdate(
-      note.system_id,
-      field.column
-        ? { [field.column]: out }
-        : { fields: { ...(note.fields || {}), [field.key]: out } },
-    );
+    onSave(next.trim() || null);
   };
   return (
     <label className="inline-flex items-center gap-1">
@@ -452,6 +533,83 @@ function QuickEdit({ field, note, isAdmin, onUpdate }) {
         className="w-16 border border-border-strong bg-surface text-text px-1.5 py-0.5 text-xs font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-brand"
       />
     </label>
+  );
+}
+
+const markSelectCls =
+  "border border-border-strong bg-surface text-text px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] focus:outline-none focus:ring-2 focus:ring-brand";
+
+// One personal value on a saved row - the viewer's own, read from the row
+// (the server puts the viewer's mark, or the default, where the field lives).
+// A viewer who may mark edits it in place: a closed select changes on pick,
+// free text saves on blur, and each writes only this key through `onMark`.
+// Anyone else reads it: a select's value as a tag, free text with its label.
+// Provisional UI.
+function PersonalValue({ field, note, canMark, onMark }) {
+  const value = readValue(field, note);
+  const mark = (out) => onMark(note.system_id, { [field.key]: out });
+  if (field.type === "select" && field.options.length) {
+    if (!canMark) {
+      return isBlank(value) ? null : <span className={tagCls}>{value}</span>;
+    }
+    return (
+      <select
+        value={value ?? ""}
+        aria-label={field.label}
+        onChange={(e) => mark(e.target.value || null)}
+        className={markSelectCls}
+      >
+        <option value="">{field.label}…</option>
+        {field.options.map((o) => (
+          <option key={o} value={o}>
+            {o}
+          </option>
+        ))}
+      </select>
+    );
+  }
+  return <InlineText field={field} value={value} editable={canMark} onSave={mark} />;
+}
+
+// The personal values a new cycle of a game clears (POST /api/notes/ng-reset).
+// The registry's `ng_resets` is not served, so the keys are named here: a
+// section carrying one of them gets the NG reset button.
+const NG_RESET_KEYS = new Set(["collected", "amount_collected", "beaten"]);
+const resetsOnNewCycle = (section) =>
+  section.fields.some((f) => f.personal && NG_RESET_KEYS.has(f.key));
+
+// "NG reset", confirmed in place rather than in a browser dialog. The reset
+// covers the whole owner - every item section and the enemies - not just this
+// card, and clears only the viewer's own values. Provisional UI.
+function NgResetButton({ onNgReset }) {
+  const [confirming, setConfirming] = useState(false);
+  if (!confirming) {
+    return (
+      <Button type="button" size="sm" onClick={() => setConfirming(true)}>
+        NG reset
+      </Button>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-muted">
+        Clear my collected and beaten for this game?
+      </span>
+      <Button
+        type="button"
+        kind="danger"
+        size="sm"
+        onClick={() => {
+          setConfirming(false);
+          onNgReset();
+        }}
+      >
+        Reset
+      </Button>
+      <Button type="button" size="sm" onClick={() => setConfirming(false)}>
+        Cancel
+      </Button>
+    </span>
   );
 }
 
@@ -483,8 +641,18 @@ function NamesView({ field, note, omit }) {
 }
 
 // `groupedBy` is the key of the field the row is drawn grouped by, if any: its
-// value is the group header, so the row does not repeat it.
-function StructuredRow({ section, note, isAdmin, onUpdate, groupName, groupedBy }) {
+// value is the group header, so the row does not repeat it. `canWrite` is
+// whether the viewer may write THIS row, which is all a quick edit asks.
+function StructuredRow({
+  section,
+  note,
+  canWrite,
+  onUpdate,
+  canMark = false,
+  onMark,
+  groupName,
+  groupedBy,
+}) {
   const heading = rowHeading(section, note);
   const headingKey = heading?.field.key;
   const namesFields = section.fields.filter((f) => f.type === "names");
@@ -496,13 +664,15 @@ function StructuredRow({ section, note, isAdmin, onUpdate, groupName, groupedBy 
       f.key !== headingKey &&
       f.key !== groupedBy &&
       !f.quick_edit &&
+      !f.personal &&
       (f.type === "text" || f.type === "select") &&
       !isBlank(readValue(f, note)),
   );
   const bodies = section.fields.filter(
     (f) => f.type === "textarea" && !isBlank(readValue(f, note)),
   );
-  const quick = section.fields.filter((f) => f.quick_edit);
+  const quick = section.fields.filter((f) => f.quick_edit && !f.personal);
+  const personal = section.fields.filter((f) => f.personal);
   const choiceNodes = section.fields.filter(
     (f) => f.type === "choice_node" && !isBlank(readValue(f, note)),
   );
@@ -511,13 +681,19 @@ function StructuredRow({ section, note, isAdmin, onUpdate, groupName, groupedBy 
   return (
     <div className="flex-1 min-w-0 space-y-1">
       {/* Booleans, not lengths: `0 && ...` renders the 0. */}
-      {(heading || tags.length > 0 || quick.length > 0 || choiceNodes.length > 0) && (
+      {(heading ||
+        note.personal ||
+        tags.length > 0 ||
+        quick.length > 0 ||
+        personal.length > 0 ||
+        choiceNodes.length > 0) && (
         <div className="flex flex-wrap items-center gap-1.5">
           {heading && (
             <span className="text-sm text-text font-medium">
               {heading.value}
             </span>
           )}
+          {note.personal && <MineChip />}
           {tags.map((f) => (
             <span key={f.key} className={tagCls}>
               {readValue(f, note)}
@@ -528,8 +704,17 @@ function StructuredRow({ section, note, isAdmin, onUpdate, groupName, groupedBy 
               key={f.key}
               field={f}
               note={note}
-              isAdmin={isAdmin}
+              canWrite={canWrite}
               onUpdate={onUpdate}
+            />
+          ))}
+          {personal.map((f) => (
+            <PersonalValue
+              key={f.key}
+              field={f}
+              note={note}
+              canMark={canMark}
+              onMark={onMark}
             />
           ))}
           {choiceNodes.map((f) => (
@@ -605,6 +790,40 @@ function buildTree(notes, hierarchical) {
 
 // --- Grouped read view ----------------------------------------------------
 
+// One group of a grouped view: its header - a drag handle when `movable`, the
+// name (or `noName` for the trailing nameless group), the row count - and its
+// rows indented under it. A named group is a sortable item, movable or not:
+// the handle is what makes it draggable, and only a movable group draws one.
+// The caller sets the `key`.
+function GroupBlock({ name, noName, count, movable, children }) {
+  const body = (
+    <>
+      <div data-testid="group-header" className="flex items-center gap-2 mb-1.5">
+        {movable && <DragHandle label={`group ${name}`} />}
+        <h5 className="text-sm font-medium text-text">
+          {name ?? <span className="text-text-faint">{noName}</span>}
+        </h5>
+        <span className="font-mono text-[10px] text-text-faint tabular-nums">
+          {count}
+        </span>
+        <span className="flex-1 border-t border-dotted border-border-strong/60" />
+      </div>
+      <div className="ml-3 pl-3 border-l border-border space-y-2">{children}</div>
+    </>
+  );
+  const sectionProps = {
+    "aria-label": name ?? noName,
+    className: "border-t border-border pt-2 first:border-t-0 first:pt-0",
+  };
+  return name !== null ? (
+    <SortableItem id={name} as="section" {...sectionProps}>
+      {body}
+    </SortableItem>
+  ) : (
+    <section {...sectionProps}>{body}</section>
+  );
+}
+
 // The rows of a `group_by` section, one group per name (groupedRows.js).
 //
 // A group is what moves: dragged by the handle on its header (or stepped with
@@ -628,10 +847,17 @@ function buildTree(notes, hierarchical) {
 // get handles too, a row moves only within its own group, and a group move
 // and a row move both save the section's whole row order in grouped order -
 // which is what the groups' order is. `busy` is that save being in flight.
+//
+// `canEditRow` and `canMoveRow` are the section's per-row rules (see the top
+// of this file): a row takes a handle only when the viewer may move it, the
+// rows a move steps over keep their places, and a group moves only when
+// every row is movable.
 function GroupedRows({
   section,
   notes,
-  isAdmin,
+  canWrite,
+  canEditRow = () => canWrite,
+  canMoveRow = () => canWrite,
   groupBy = section.group_by,
   groupOrder,
   onGroupOrderChange,
@@ -639,6 +865,8 @@ function GroupedRows({
   busy = false,
   onUpdate,
   onDelete,
+  canMark,
+  onMark,
   nameSuggestions,
 }) {
   const [editKey, setEditKey] = useState(null);
@@ -662,7 +890,8 @@ function GroupedRows({
   const named = groups.filter((g) => g.name !== null);
   const unnamed = groups.filter((g) => g.name === null);
   const saveOrder = onRowsReorder || onGroupOrderChange;
-  const canMove = isAdmin && Boolean(saveOrder) && named.length > 1;
+  const canMove =
+    canWrite && Boolean(saveOrder) && named.length > 1 && notes.every(canMoveRow);
   const locked = busy || savingOrder;
   const noName = `No ${(groupField?.label || "name").toLowerCase()}`;
 
@@ -693,7 +922,7 @@ function GroupedRows({
   const moveRow = (gi, from, to) => {
     // A row moved past its group's cap would fold out of sight.
     if (to >= VISIBLE_ENTRIES) unfold(groups[gi].name ?? "");
-    onRowsReorder(groupedIds(movedRow(groups, gi, from, to)));
+    onRowsReorder(groupedIds(movedRow(groups, gi, from, to, canMoveRow)));
   };
 
   const renderGroup = (group, gi) => {
@@ -711,12 +940,14 @@ function GroupedRows({
         if (!next.delete(foldKey)) next.add(foldKey);
         return next;
       });
-    const rowsMove = isAdmin && Boolean(onRowsReorder) && group.notes.length > 1;
+    const movableIds = group.notes.filter(canMoveRow).map((n) => n.system_id);
+    const rowsMove = Boolean(onRowsReorder) && movableIds.length > 1;
 
     const renderRow = (n) => {
       const key = `${group.name}|${n.system_id}`;
-      const Row = rowsMove ? SortableItem : "div";
-      const rowProps = rowsMove ? { id: n.system_id } : {};
+      const sortable = rowsMove && canMoveRow(n);
+      const Row = sortable ? SortableItem : "div";
+      const rowProps = sortable ? { id: n.system_id } : {};
       if (editKey === key) {
         return (
           <Row key={key} {...rowProps}>
@@ -739,17 +970,19 @@ function GroupedRows({
       }
       return (
         <Row key={key} {...rowProps} className="flex gap-2 items-start">
-          {rowsMove && <DragHandle label={rowLabel(section, n)} className="pt-1" />}
+          {sortable && <DragHandle label={rowLabel(section, n)} className="pt-1" />}
           <StructuredRow
             section={section}
             note={n}
-            isAdmin={isAdmin}
+            canWrite={canEditRow(n)}
             onUpdate={onUpdate}
+            canMark={canMark}
+            onMark={onMark}
             groupName={group.name}
             groupedBy={groupBy}
           />
           <ItemActions
-            isAdmin={isAdmin}
+            canWrite={canEditRow(n)}
             onEdit={() => {
               setEditKey(key);
               setEditVal(fromNote(section, n));
@@ -760,55 +993,34 @@ function GroupedRows({
       );
     };
 
-    const body = (
-      <>
-        <div data-testid="group-header" className="flex items-center gap-2 mb-1.5">
-          {movable && <DragHandle label={`group ${group.name}`} />}
-          <h5 className="text-sm font-medium text-text">
-            {group.name ?? <span className="text-text-faint">{noName}</span>}
-          </h5>
-          <span className="font-mono text-[10px] text-text-faint tabular-nums">
-            {group.notes.length}
-          </span>
-          <span className="flex-1 border-t border-dotted border-border-strong/60" />
-        </div>
-        <div className="ml-3 pl-3 border-l border-border space-y-2">
-          {rowsMove ? (
-            // Every row of the group is in the list, folded or not, so a
-            // row's place is its place in the whole group and the last row
-            // shown can still be moved down past the fold.
-            <SortableList
-              ids={group.notes.map((n) => n.system_id)}
-              onMove={(from, to) => moveRow(gi, from, to)}
-              disabled={locked}
-            >
-              {rows.map(renderRow)}
-            </SortableList>
-          ) : (
-            rows.map(renderRow)
-          )}
-          <ShowAllToggle
-            total={group.notes.length}
-            expanded={expanded}
-            onToggle={toggleFold}
-          />
-        </div>
-      </>
-    );
-    const sectionProps = {
-      "aria-label": group.name ?? noName,
-      className: "border-t border-border pt-2 first:border-t-0 first:pt-0",
-    };
-    // Every named group is a sortable item, movable or not - the handle is
-    // what makes it draggable, and only a movable group draws one.
-    return group.name !== null ? (
-      <SortableItem key={group.name} id={group.name} as="section" {...sectionProps}>
-        {body}
-      </SortableItem>
-    ) : (
-      <section key="__unnamed__" {...sectionProps}>
-        {body}
-      </section>
+    return (
+      <GroupBlock
+        key={group.name ?? "__unnamed__"}
+        name={group.name}
+        noName={noName}
+        count={group.notes.length}
+        movable={movable}
+      >
+        {rowsMove ? (
+          // Every row of the group is in the list, folded or not, so a
+          // row's place is its place in the whole group and the last row
+          // shown can still be moved down past the fold.
+          <SortableList
+            ids={movableIds}
+            onMove={(from, to) => moveRow(gi, from, to)}
+            disabled={locked}
+          >
+            {rows.map(renderRow)}
+          </SortableList>
+        ) : (
+          rows.map(renderRow)
+        )}
+        <ShowAllToggle
+          total={group.notes.length}
+          expanded={expanded}
+          onToggle={toggleFold}
+        />
+      </GroupBlock>
     );
   };
 
@@ -848,11 +1060,20 @@ function useGroupToggle(sectionKey) {
   return [on, set];
 }
 
-// `ownerId` is the owner row's id, which only a `choice_node` field reads.
-export default function StructuredSection({ ownerId = null, ...props }) {
+const EMPTY_OPTION_VALUES = {};
+
+// `ownerId` is the owner row's id, which only a `choice_node` field reads;
+// `optionValues` is what a field naming an `option_category` suggests.
+export default function StructuredSection({
+  ownerId = null,
+  optionValues = EMPTY_OPTION_VALUES,
+  ...props
+}) {
   return (
     <OwnerIdContext.Provider value={ownerId}>
-      <StructuredSectionBody {...props} />
+      <OptionValuesContext.Provider value={optionValues}>
+        <StructuredSectionBody {...props} />
+      </OptionValuesContext.Provider>
     </OwnerIdContext.Provider>
   );
 }
@@ -860,11 +1081,17 @@ export default function StructuredSection({ ownerId = null, ...props }) {
 function StructuredSectionBody({
   section,
   notes,
-  isAdmin,
+  canWrite,
+  canEditRow = () => canWrite,
+  canMoveRow = () => canWrite,
+  canAddUnder = () => canWrite,
   onCreate,
   onUpdate,
   onDelete,
   onReorder,
+  canMark = false,
+  onMark,
+  onNgReset,
   nameSuggestions = [],
   groupOrder = null,
   onGroupOrderChange,
@@ -876,11 +1103,25 @@ function StructuredSectionBody({
   const [draft, setDraft] = useState(() => emptyDraft(section));
   const [editId, setEditId] = useState(null);
   const [editVal, setEditVal] = useState({});
-  const groupableField =
-    section.groupable_by && !section.hierarchical
-      ? section.fields.find((f) => f.key === section.groupable_by)
-      : null;
+  // The field a `groupable_by` section groups by: on a flat section, read
+  // through GroupedRows; on a hierarchical one, by grouping the tree's roots.
+  const groupableBy = section.groupable_by
+    ? section.fields.find((f) => f.key === section.groupable_by) || null
+    : null;
+  const groupableField = section.hierarchical ? null : groupableBy;
+  const treeGroupField = section.hierarchical ? groupableBy : null;
   const [groupedByField, setGroupedByField] = useGroupToggle(section.key);
+  // The tree's groups unfolded past the cap, by name ("" for the nameless one).
+  const [unfolded, setUnfolded] = useState(() => new Set());
+
+  // Only a top-level row carries the group of a hierarchical section, so the
+  // form leaves it out for a child: a draft under a row, or an edited row
+  // that sits under one.
+  const childOmit = treeGroupField?.key ?? null;
+  const draftOmit = addingUnder ? childOmit : null;
+  const editOmit = notes.find((n) => n.system_id === editId)?.parent_id
+    ? childOmit
+    : null;
 
   const closeDraft = () => {
     setDraft(emptyDraft(section));
@@ -888,22 +1129,29 @@ function StructuredSectionBody({
   };
 
   const commit = () => {
-    if (invalid(section, draft)) return;
+    if (invalid(withoutField(section, draftOmit), draft)) return;
     onCreate({
       section: section.key,
-      ...toPayload(section, draft),
+      ...payloadWithout(section, draft, draftOmit),
       ...(addingUnder ? { parent_id: addingUnder } : {}),
     });
     closeDraft();
   };
 
   const saveEdit = () => {
-    if (invalid(section, editVal)) return;
-    onUpdate(editId, toPayload(section, editVal));
+    if (invalid(withoutField(section, editOmit), editVal)) return;
+    onUpdate(editId, payloadWithout(section, editVal, editOmit));
     setEditId(null);
   };
 
   const tree = buildTree(notes, section.hierarchical);
+  // Drawn as groups of roots: a hierarchical `groupable_by` section with the
+  // toggle on. Otherwise the whole tree is one group, which is what a move
+  // flattens.
+  const groupedTree = Boolean(treeGroupField) && groupedByField;
+  const rootGroups = groupedTree
+    ? groupRoots(tree, treeGroupField.column)
+    : [{ name: null, nodes: tree }];
 
   // The entry cap counts top-level rows only; a shown row shows all of its
   // children. A row stays on screen while it, or anything under it, is being
@@ -926,28 +1174,43 @@ function StructuredSectionBody({
   // better answer anyway - `sort_index` ends up ascending in the order the
   // page actually draws, so a reader of the raw rows sees the tree's order too.
   //
-  // `parent` is the node whose children are being reordered, or null for the
-  // roots. The moved array is substituted by identity while flattening,
-  // which is safe because these arrays are stable for the render.
-  const move = (parent, from, to) => {
-    const siblings = parent ? parent.children : tree;
+  // `siblings` is the array being reordered: the roots (or one group's
+  // roots), or a node's children. It is substituted by identity while
+  // flattening (movedTreeIds), which is safe because these arrays are stable
+  // for the render. Grouped, the flattening runs group after group, so the
+  // groups' order - which is their first appearance - is kept.
+  //
+  // In a mixed section only the rows the viewer may move are sent (the server
+  // renumbers that kind alone), and `from` and `to` index those among the
+  // siblings.
+  const movable = new Set(notes.filter(canMoveRow).map((n) => n.system_id));
+  const sendOrder = (ids) => onReorder(section.key, ids.filter((id) => movable.has(id)));
+  const unfold = (foldKey) => setUnfolded((prev) => new Set(prev).add(foldKey));
+  const move = (siblings, from, to) => {
     if (from === to || !onReorder) return;
     // A top-level row moved past the cap would fold out of sight.
-    if (!parent && to >= VISIBLE_ENTRIES) cap.expand();
+    if (to >= VISIBLE_ENTRIES) {
+      if (siblings === tree) cap.expand();
+      const group = groupedTree && rootGroups.find((g) => g.nodes === siblings);
+      if (group) unfold(group.name ?? "");
+    }
+    sendOrder(movedTreeIds(rootGroups, siblings, from, to, canMoveRow));
+  };
 
-    const moved = arrayMove(siblings, from, to);
-    const flatten = (nodes) =>
-      (nodes === siblings ? moved : nodes).flatMap((node) => [
-        node.note.system_id,
-        ...flatten(node.children),
-      ]);
-    onReorder(section.key, flatten(tree));
+  // A group of roots moved: every row, depth-first, in the new group order,
+  // with the nameless group still last.
+  const moveGroup = (from, to) => {
+    if (from === to || !onReorder) return;
+    const byName = new Map(rootGroups.map((g) => [g.name, g]));
+    const unnamed = rootGroups.filter((g) => g.name === null);
+    const next = movedGroupOrder(rootGroups, from, to).map((n) => byName.get(n));
+    sendOrder([...next, ...unnamed].flatMap((g) => treeIds(g.nodes)));
   };
 
   const renderDraft = () => (
     <div className={draftCls}>
       <StructuredForm
-        section={section}
+        section={withoutField(section, draftOmit)}
         val={draft}
         setVal={setDraft}
         nameSuggestions={nameSuggestions}
@@ -961,13 +1224,18 @@ function StructuredSectionBody({
   // the move it makes is right, and the last row shown can still be moved
   // down past the fold (which unfolds the section). While a reorder of this
   // section is being saved (`reordering`) every handle is disabled.
-  const renderNodes = (siblings, depth, parent = null) => {
-    const sortable = isAdmin && Boolean(onReorder) && siblings.length > 1;
-    const rows = (depth === 0 ? cap.visible : siblings).map((node) => {
+  //
+  // `shown` is which of `siblings` to draw: the top level passes its folded
+  // rows, and every level below draws all of its children.
+  const renderNodes = (siblings, depth, shown = siblings) => {
+    const movableSiblings = siblings.filter((node) => canMoveRow(node.note));
+    const sortable = Boolean(onReorder) && movableSiblings.length > 1;
+    const rows = shown.map((node) => {
       const n = node.note;
       const editing = editId === n.system_id;
-      const Row = sortable ? SortableItem : "div";
-      const rowProps = sortable ? { id: n.system_id } : {};
+      const handled = sortable && canMoveRow(n);
+      const Row = handled ? SortableItem : "div";
+      const rowProps = handled ? { id: n.system_id } : {};
       return (
         <Row
           key={n.system_id}
@@ -977,7 +1245,7 @@ function StructuredSectionBody({
           {editing ? (
             <div>
               <StructuredForm
-                section={section}
+                section={withoutField(section, editOmit)}
                 val={editVal}
                 setVal={setEditVal}
                 nameSuggestions={nameSuggestions}
@@ -986,16 +1254,23 @@ function StructuredSectionBody({
             </div>
           ) : (
             <div className="flex gap-2 items-start">
-              {sortable && (
+              {handled && (
                 <DragHandle label={rowLabel(section, n)} className="pt-0.5" />
               )}
+              {/* A child never shows a group, and a grouped root's group
+                  is its header. */}
               <StructuredRow
                 section={section}
                 note={n}
-                isAdmin={isAdmin}
+                canWrite={canEditRow(n)}
                 onUpdate={onUpdate}
+                canMark={canMark}
+                onMark={onMark}
+                groupedBy={
+                  childOmit && (depth > 0 || groupedTree) ? childOmit : undefined
+                }
               />
-              {isAdmin && section.hierarchical && (
+              {canWrite && section.hierarchical && canAddUnder(n) && (
                 <button
                   type="button"
                   onClick={() => {
@@ -1010,7 +1285,7 @@ function StructuredSectionBody({
                 </button>
               )}
               <ItemActions
-                isAdmin={isAdmin}
+                canWrite={canEditRow(n)}
                 onEdit={() => {
                   setEditId(n.system_id);
                   setEditVal(fromNote(section, n));
@@ -1024,7 +1299,7 @@ function StructuredSectionBody({
               indent on its own stops reading as nesting. */}
           {(node.children.length > 0 || addingUnder === n.system_id) && (
             <div className="ml-3 pl-3 border-l border-border mt-2 space-y-2">
-              {renderNodes(node.children, depth + 1, node)}
+              {renderNodes(node.children, depth + 1)}
               {addingUnder === n.system_id && renderDraft()}
             </div>
           )}
@@ -1034,8 +1309,8 @@ function StructuredSectionBody({
     if (!sortable) return rows;
     return (
       <SortableList
-        ids={siblings.map((node) => node.note.system_id)}
-        onMove={(from, to) => move(parent, from, to)}
+        ids={movableSiblings.map((node) => node.note.system_id)}
+        onMove={(from, to) => move(siblings, from, to)}
         disabled={reordering}
       >
         {rows}
@@ -1068,31 +1343,123 @@ function StructuredSectionBody({
       </button>
     );
 
+  // The header's controls: the NG reset button where this section holds a
+  // value a new cycle clears and the viewer may mark, then any view toggle.
+  const ngReset = canMark && onNgReset && resetsOnNewCycle(section) && (
+    <NgResetButton onNgReset={onNgReset} />
+  );
+  const headerActions = (toggle) =>
+    ngReset || toggle ? (
+      <>
+        {ngReset}
+        {toggle}
+      </>
+    ) : undefined;
+
+  // A hierarchical `groupable_by` section, grouped: one block per group of
+  // roots, each root drawn with its subtree. The cap applies per group, to its
+  // roots, as GroupedRows caps each of its groups.
+  const renderGroupedTree = () => {
+    const named = rootGroups.filter((g) => g.name !== null);
+    const unnamed = rootGroups.filter((g) => g.name === null);
+    const canMove =
+      canWrite && Boolean(onReorder) && named.length > 1 && notes.every(canMoveRow);
+    const noName = `No ${(treeGroupField.label || "group").toLowerCase()}`;
+    const keep = (node) =>
+      (editId !== null && holds(node, editId)) ||
+      (addingUnder && holds(node, addingUnder));
+    const renderGroup = (group) => {
+      const foldKey = group.name ?? "";
+      const expanded = unfolded.has(foldKey);
+      const toggleFold = () =>
+        setUnfolded((prev) => {
+          const next = new Set(prev);
+          if (!next.delete(foldKey)) next.add(foldKey);
+          return next;
+        });
+      return (
+        <GroupBlock
+          key={group.name ?? "__unnamed__"}
+          name={group.name}
+          noName={noName}
+          count={group.nodes.length}
+          movable={canMove && group.name !== null}
+        >
+          {renderNodes(group.nodes, 0, capEntries(group.nodes, expanded, keep))}
+          <ShowAllToggle
+            total={group.nodes.length}
+            expanded={expanded}
+            onToggle={toggleFold}
+          />
+        </GroupBlock>
+      );
+    };
+    return (
+      <div className="space-y-3">
+        <SortableList
+          ids={named.map((g) => g.name)}
+          onMove={moveGroup}
+          disabled={reordering}
+        >
+          {named.map(renderGroup)}
+        </SortableList>
+        {unnamed.map(renderGroup)}
+      </div>
+    );
+  };
+
+  if (treeGroupField) {
+    return (
+      <SectionCard
+        label={section.label}
+        count={notes.length}
+        canWrite={canWrite}
+        onAdd={openDraft}
+        actions={headerActions(groupToggle(treeGroupField))}
+      >
+        {groupedTree ? (
+          renderGroupedTree()
+        ) : (
+          <>
+            {renderNodes(tree, 0, cap.visible)}
+            <ShowAllToggle {...cap.toggle} />
+          </>
+        )}
+        {addingUnder === null && renderDraft()}
+        {!notes.length && addingUnder === false && <EmptyHint />}
+      </SectionCard>
+    );
+  }
+
   if (groupableField) {
     const on = groupedByField;
     return (
       <SectionCard
         label={section.label}
         count={notes.length}
-        isAdmin={isAdmin}
+        canWrite={canWrite}
         onAdd={openDraft}
-        actions={groupToggle(groupableField)}
+        actions={headerActions(groupToggle(groupableField))}
       >
         {on ? (
           <GroupedRows
             section={section}
             notes={notes}
-            isAdmin={isAdmin}
+            canWrite={canWrite}
+            canEditRow={canEditRow}
+            canMoveRow={canMoveRow}
             groupBy={section.groupable_by}
-            onRowsReorder={onReorder ? (ids) => onReorder(section.key, ids) : undefined}
+            onRowsReorder={onReorder ? sendOrder : undefined}
             busy={reordering}
             onUpdate={onUpdate}
             onDelete={onDelete}
+            canMark={canMark}
+            onMark={onMark}
             nameSuggestions={nameSuggestions}
           />
         ) : (
           <>
-            {renderNodes(tree, 0)}
+            {renderNodes(tree, 0, cap.visible)}
             <ShowAllToggle {...cap.toggle} />
           </>
         )}
@@ -1113,24 +1480,30 @@ function StructuredSectionBody({
       <SectionCard
         label={section.label}
         count={notes.length}
-        isAdmin={isAdmin}
+        canWrite={canWrite}
         onAdd={openDraft}
-        actions={groupToggle(section.fields.find((f) => f.key === section.group_by))}
+        actions={headerActions(
+          groupToggle(section.fields.find((f) => f.key === section.group_by)),
+        )}
       >
         {on ? (
           <GroupedRows
             section={section}
             notes={notes}
-            isAdmin={isAdmin}
+            canWrite={canWrite}
+            canEditRow={canEditRow}
+            canMoveRow={canMoveRow}
             groupOrder={groupOrder}
             onGroupOrderChange={onGroupOrderChange}
             onUpdate={onUpdate}
             onDelete={onDelete}
+            canMark={canMark}
+            onMark={onMark}
             nameSuggestions={nameSuggestions}
           />
         ) : (
           <>
-            {renderNodes(tree, 0)}
+            {renderNodes(tree, 0, cap.visible)}
             <ShowAllToggle {...cap.toggle} />
           </>
         )}
@@ -1144,10 +1517,11 @@ function StructuredSectionBody({
     <SectionCard
       label={section.label}
       count={notes.length}
-      isAdmin={isAdmin}
+      canWrite={canWrite}
       onAdd={openDraft}
+      actions={headerActions(null)}
     >
-      {renderNodes(tree, 0)}
+      {renderNodes(tree, 0, cap.visible)}
       <ShowAllToggle {...cap.toggle} />
       {addingUnder === null && renderDraft()}
       {!notes.length && addingUnder === false && <EmptyHint />}

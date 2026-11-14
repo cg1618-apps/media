@@ -1,6 +1,6 @@
 # Quotes and memes
 
-Last verified: 2026-10-30
+Last verified: 2026-11-14
 
 ## What this is for
 
@@ -37,7 +37,6 @@ declaration order is also the Google Sheets column order
 | `image_file` | text | file name under `static/quotes/` |
 | `tags` | JSONB list | |
 | `is_general` | bool | quote is not tied to a specific entry |
-| `is_favorite` | bool | |
 | `needs_review` | bool | |
 | `sort_index` | float | manual order inside one entry's bucket |
 | `remark` | text | |
@@ -55,7 +54,6 @@ declaration order is also the Google Sheets column order
 | `image_file` | text | file name under `static/quotes/` (shared folder) |
 | `quote_id` | UUID FK → `quote.system_id`, `ON DELETE SET NULL`, **unique** | set when the meme's text *is* a quote |
 | `episode`, `link` | text | |
-| `is_favorite` | bool | |
 | `sort_index` | float | |
 | `remark` | text | |
 | `created_at` / `updated_at` | datetime | |
@@ -111,14 +109,21 @@ and `MemeForm` hides the quote control for tier owners.
 ## Endpoints
 
 Routers: `app/routers/quote.py` (`/api/quote`) and `app/routers/meme.py`
-(`/api/meme`). Reads need `view.extras`, which a guest does not hold; writes
-need `manage.catalog`.
+(`/api/meme`). Reads need the caller's account to have the `quotes_memes`
+feature switched on (`require_feature_quotes_memes`,
+`app/services/rbac/features.py`) — a per-account switch on the Users page
+that only a `user` or `super` account can hold. A guest, a shared account
+and the admin account never read them. Writes
+need `manage.catalog`. The SPA asks the same feature through `hasFeature`
+for the `/quote` and `/meme` routes, their nav rows, and the Quotes and
+Memes sections of a detail page
+([authorization.md](../authorization.md#per-account-feature-switches)).
 
 ### Quotes
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/api/quote/` | filters `media_type`, `entry_id`, `is_general`, `is_favorite`, `needs_review`, `tag`, `search_query` (text, translation, speaker, original_source); `limit` ≤ 2000 (default 500), `offset`; newest first; returns `QuoteResolved[]` |
+| GET | `/api/quote/` | filters `media_type`, `entry_id`, `is_general`, `is_favorite` (the viewer's own), `needs_review`, `tag`, `search_query` (text, translation, speaker, original_source); `limit` ≤ 2000 (default 500), `offset`; newest first; returns `QuoteResolved[]` |
 | GET | `/api/quote/grouped` | same filters minus `entry_id`; `limit` ≤ 5000 (default 2000); ordered by media_type, entry_id, `sort_index` NULLS LAST, created_at; returns `QuoteGroup[]` — one bucket per entry with the resolved header |
 | GET | `/api/quote/{quote_id}` | 404 if the row is missing **or** its entry is hidden from the viewer |
 | POST | `/api/quote/` | admin; `media_type` validated against `MEDIA_TABLES` → 400 on unknown |
@@ -134,7 +139,7 @@ is no second copy to keep in sync.
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/api/meme/` | filters `owner_type`, `owner_id`, `is_favorite`, `search_query`; `limit`/`offset` as quotes; returns `MemeResolved[]` |
+| GET | `/api/meme/` | filters `owner_type`, `owner_id`, `is_favorite` (the viewer's own), `search_query`; `limit`/`offset` as quotes; returns `MemeResolved[]` |
 | GET | `/api/meme/grouped` | one `MemeGroup` per `(owner_type, owner_id)` with resolved owner header |
 | GET | `/api/meme/{meme_id}` | 404 if missing or owner hidden |
 | POST | `/api/meme/` | admin; `owner_type` validated against `OWNER_TABLES` → 400; `quote_id` already owned by another meme → 400 with the other meme's id (`_quote_conflict`); an IntegrityError (quote missing / already linked) → 400 |
@@ -149,6 +154,22 @@ linked quote plus `owner_display_name`, `owner_label` (`"Anime"`,
 Grouping is done server-side because only the server can turn a
 `(type, id)` pair into a name and cover.
 
+### Favourites
+
+Whether a quote or a meme is a favourite is **each account's own**, in
+`user_favorite`, and a granted feature (`favourites`). Every response's
+`is_favorite` is the viewer's own (`services/domain/user_favorite.py`,
+`attach_favorites`) and false for anyone without the feature - a guest, the
+admin, an account with the switch off. The `is_favorite` filter asks the
+same rows. The catalogue writes do not carry the field (a key sent is
+ignored); the one write is
+
+| Method | Path | Notes |
+|---|---|---|
+| PUT | `/api/me/favorites/{kind}/{id}` | `kind` `quote` or `meme`; body `{"is_favorite": bool}`; idempotent; behind the `favourites` and `quotes_memes` features (401 without either); 404 for a missing item or one whose entry or owner the caller cannot see |
+
+Deleting the quote, the meme or the account deletes the favourite with it.
+
 ## Visibility
 
 Quotes and memes carry their own text, so hiding the referenced entry is not
@@ -156,7 +177,8 @@ enough — the row itself is the leak. Every list, grouped and detail read calls
 `drop_hidden_rows(db, viewer, rows, type_attr, id_attr)` from
 `app/services/rbac/enforcement.py`:
 
-- Root roles (and a `None` viewer) get everything.
+- A `None` viewer — an internal caller, not a request — gets everything. No
+  role is exempt.
 - Otherwise the distinct `(type, id)` pairs are checked with
   `filter_visible_pairs` and rows whose pair is hidden are **dropped**, not
   degraded to `missing: true` (the UI reads `missing` as "dangling reference,
@@ -178,8 +200,11 @@ in their row component and filter bar. Filters are applied server-side (media
 type / owner type, general-only, favourites-only, needs-review, search) so the
 grouped shape and entry headers stay intact; the React Query keys are
 `["quotes-grouped"]` and `["memes-grouped"]`. When an admin is logged in each
-row offers inline edit (PATCH), favourite toggle (PATCH) and delete, all via
-`endpoints.quotes.*` / `endpoints.memes.*` in `frontend/src/api/endpoints.js`.
+row offers inline edit (PATCH) and delete, via `endpoints.quotes.*` /
+`endpoints.memes.*` in `frontend/src/api/endpoints.js`. The favourites-only
+filter and each row's star - on these pages and in the notes page's Quotes
+and Memes sections - show only for an account holding the `favourites`
+feature (`components/ui/FavoriteStar.jsx`); see [Favourites](#favourites).
 
 ## Admin UI
 
@@ -244,11 +269,21 @@ its own to match on — so re-importing the same sheet updates rather than
 duplicates. The **tab headers are unchanged**: the sheet still carries the
 `(media_type, entry_id)` and `(owner_type, owner_id)` pair a human reads during
 an environment switch, and the parser translates it onto the columns (a Meme
-row's pair is renamed to `_legacy_*` on the way in). `author_id` is NOT NULL,
-so a row from a sheet that carries no author falls back to the installation
-owner rather than failing. Blank timestamp
+row's pair is renamed to `_legacy_*` on the way in). The author travels as
+`username` in place of `author_id`, whose uuid is minted per database, and Pull
+resolves it back to the local account. `author_id` is NOT NULL, so a row whose
+author is unknown here, blank, or absent falls back to the installation owner
+rather than failing — and with no owner either is skipped and reported as
+`no installation owner` ([data-actions.md](../data-actions.md#the-installation-owner));
+a sheet written before the column existed is resolved by
+its `author_id` uuid first. Blank timestamp
 cells parse to `None`, which is why `created_at`/`updated_at` are optional in
 the response schemas.
+
+Favourites travel on their own **User Favorite** tab, after Meme, by
+`username` - see [data-actions.md](../data-actions.md). An old backup's
+`is_favorite` column on the Quote and Meme tabs is filed as the installation
+owner's favourites.
 
 ## Related
 

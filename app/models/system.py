@@ -4,6 +4,7 @@ import uuid
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     ForeignKey,
@@ -12,6 +13,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    func,
     text,
 )
 from sqlalchemy.dialects.postgresql import UUID
@@ -205,9 +207,8 @@ class Role(Base):
     media type or a field group, so a stored name with no code behind it would
     be inert. Only the grants that bind a permission to a role are data.
 
-    `is_root` is not a shortcut. Without it the admin role would need an
-    explicit grant for every content label and field group, and creating one
-    would hide content from the admin until someone remembered to re-grant it.
+    No role is root: every role, `admin` included, holds exactly its grant
+    rows (permissions.locked_permissions fixes the admin's whole row).
     """
 
     __tablename__ = "role"
@@ -224,12 +225,8 @@ class Role(Base):
     name = Column(String, nullable=False, unique=True, index=True)
     label = Column(String, nullable=False)
     description = Column(Text, nullable=True)
-    # guest and admin: the app reads them by name, so they cannot be renamed
-    # or deleted through the API.
-    is_system = Column(Boolean, nullable=False, default=False, server_default="false")
-    is_root = Column(
-        Boolean, nullable=False, default=False, server_default="false"
-    )
+    # The five roles are fixed (permissions.ROLE_NAMES) and read by name, so
+    # none can be created, renamed or deleted through the API.
     sort_order = Column(Integer, nullable=False, default=0, server_default="0")
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
@@ -269,6 +266,39 @@ class RolePermission(Base):
     role = relationship("Role", back_populates="permissions")
 
 
+# seed_modes.MODE_ORDER as SQL, for users' mode constraints below.
+MODE_KEYS_SQL = "('safe', 'normal', 'borderline', 'unrestricted')"
+MODE_ARRAY_SQL = "ARRAY['safe', 'normal', 'borderline', 'unrestricted']::varchar[]"
+
+
+# An account's lifecycle. `pending` is a registration awaiting the admin's
+# approval; `disabled` is an account the admin has switched off, reversibly.
+# Only `active` can sign in or hold a session - resolve_viewer reads anything
+# else as the guest, and login answers 403 after a correct password.
+USER_STATUS_PENDING = "pending"
+USER_STATUS_ACTIVE = "active"
+USER_STATUS_DISABLED = "disabled"
+USER_STATUSES: tuple[str, ...] = (
+    USER_STATUS_PENDING,
+    USER_STATUS_ACTIVE,
+    USER_STATUS_DISABLED,
+)
+
+
+# The per-account feature switches, by name, and the `users` column holding
+# each. services/rbac/features.py is what they mean; this is where they are
+# stored, and the one list the Users tab parser reads.
+USER_FEATURE_NAMES: tuple[str, ...] = (
+    "quotes_memes",
+    "favourites",
+    "music_status",
+    "mod_status",
+)
+USER_FEATURE_COLUMNS: tuple[str, ...] = tuple(
+    f"feature_{name}" for name in USER_FEATURE_NAMES
+)
+
+
 class User(Base):
     """Administrative user accounts for access control."""
 
@@ -286,13 +316,6 @@ class User(Base):
         nullable=False,
         index=True,
     )
-    # Private by default, and only its owner can change it (PATCH
-    # /api/account/settings). An admin may see the flag on the Users page but
-    # does not set it: whose list is visible is the account holder's decision,
-    # not the inviter's.
-    list_is_public = Column(
-        Boolean, nullable=False, default=False, server_default="false"
-    )
     # Whose rows a restore or the Calculate pipeline files under. NOT a
     # permission and not on any request path - see
     # services/domain/user_list.py::installation_owner_id for what it answers
@@ -304,8 +327,83 @@ class User(Base):
     is_installation_owner = Column(
         Boolean, nullable=False, default=False, server_default="false"
     )
+    # USER_STATUSES above. Travels on the Sheets Users tab for active and
+    # disabled, so a Pull does not re-activate an account disabled elsewhere.
+    status = Column(
+        String,
+        nullable=False,
+        default=USER_STATUS_ACTIVE,
+        server_default=USER_STATUS_ACTIVE,
+    )
+    # The revocation counter. A login token carries it as the `sv` claim, and
+    # a token whose `sv` differs resolves as the guest - so incrementing it
+    # (app/services/domain/accounts.py::revoke_sessions) ends every session
+    # the account holds. Never travels on Sheets: it is this machine's count.
+    session_version = Column(Integer, nullable=False, default=0, server_default="0")
+    # How many OPEN requests this account may hold at once; NULL is no limit.
+    # Set to the role's default when the account is created or changes role
+    # (services/domain/requests.py::default_request_limit), and adjustable on
+    # the Users page. Never enforced for the super role, whatever is stored.
+    open_request_limit = Column(Integer, nullable=True)
+    # The widest access mode this account may use, and the one a login lands
+    # in - both mode KEYS, ranked by seed_modes.MODE_ORDER. Keys rather than
+    # access_mode ids: the order is defined on keys in code, the four keys are
+    # fixed, and a key survives a Pull where a per-database uuid does not.
+    # Both NULL is no mode at all: the account resolves the empty object set.
+    # Written through services/rbac/modes.py::set_mode_ceiling; the three
+    # constraints below are what keep a hand edit or a Pull honest.
+    mode_ceiling = Column(
+        String, nullable=True, default="normal", server_default="normal"
+    )
+    mode_default = Column(
+        String, nullable=True, default="normal", server_default="normal"
+    )
+    # Per-account feature switches (services/rbac/features.py). Only a `user`
+    # or `super` account may hold one - PATCH /api/users/{id} refuses the
+    # rest with 409. Columns rather than a table so they travel on the Sheets
+    # Users tab beside the mode pair and the request limit. What each one
+    # gates is in features.py's docstring.
+    feature_quotes_memes = Column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    feature_favourites = Column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    feature_music_status = Column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    feature_mod_status = Column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
 
     __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending', 'active', 'disabled')", name="ck_users_status"
+        ),
+        CheckConstraint(
+            "open_request_limit IS NULL OR open_request_limit >= 0",
+            name="ck_users_open_request_limit_non_negative",
+        ),
+        # The SQL spelling of MODE_ORDER. The database cannot call mode_rank,
+        # so the order is written out here; test_access_mode_models.py fails
+        # if the two disagree.
+        CheckConstraint(
+            f"(mode_ceiling IS NULL OR mode_ceiling IN {MODE_KEYS_SQL}) AND "
+            f"(mode_default IS NULL OR mode_default IN {MODE_KEYS_SQL})",
+            name="ck_users_mode_keys",
+        ),
+        CheckConstraint(
+            "(mode_ceiling IS NULL) = (mode_default IS NULL)",
+            name="ck_users_mode_pair",
+        ),
+        CheckConstraint(
+            f"array_position({MODE_ARRAY_SQL}, mode_default) <= "
+            f"array_position({MODE_ARRAY_SQL}, mode_ceiling)",
+            name="ck_users_mode_default_within_ceiling",
+        ),
+        # Usernames are unique WITHOUT regard to case, so `Kai` and `kai`
+        # cannot both exist and the lowercased name login looks up is one row.
+        Index("uq_users_username_lower", func.lower(username), unique=True),
         Index(
             "ix_one_installation_owner",
             # The indexed expression is a constant, not the column: this is a

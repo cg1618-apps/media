@@ -27,7 +27,7 @@ def db(db_session):
 
 
 @pytest.fixture
-def rated_anime(db, admin_user, sample_franchise):
+def rated_anime(db, owner_user, sample_franchise):
     """An anime the admin has Completed and rated."""
     entry = models.Anime(
         system_id=uuid.uuid4(),
@@ -41,7 +41,7 @@ def rated_anime(db, admin_user, sample_franchise):
     db.add(
         models.UserMediaList(
             system_id=uuid.uuid4(),
-            user_id=admin_user.id,
+            user_id=owner_user.id,
             media_id=entry.system_id,
             status="Completed",
             my_rating="S",
@@ -84,9 +84,9 @@ def test_a_guest_does_not_see_the_default_status_either(client, rated_anime):
     assert body["watching_status"] != "Might Watch"
 
 
-def test_the_owner_still_sees_their_own_list(admin_client, rated_anime):
+def test_the_owner_still_sees_their_own_list(owner_client, rated_anime):
     """The change is invisible to anybody signed in."""
-    body = admin_client.get(f"/api/anime/{rated_anime.system_id}").json()
+    body = owner_client.get(f"/api/anime/{rated_anime.system_id}").json()
     assert body["watching_status"] == "Completed"
     assert body["my_rating"] == "S"
 
@@ -116,17 +116,17 @@ def test_acting_user_id_no_longer_falls_back(db):
     assert acting_user_id(db, _Guest()) is None
 
 
-def test_acting_user_id_still_answers_for_a_real_viewer(db, admin_user):
+def test_acting_user_id_still_answers_for_a_real_viewer(db, owner_user):
     class _Viewer:
-        user_id = admin_user.id
+        user_id = owner_user.id
 
-    assert acting_user_id(db, _Viewer()) == admin_user.id
+    assert acting_user_id(db, _Viewer()) == owner_user.id
 
 
 # --- the owner rule that survives ----------------------------------------
 
 
-def test_installation_owner_id_falls_back_to_the_only_account(db, admin_user):
+def test_installation_owner_id_falls_back_to_the_only_account(db, owner_user):
     """
     Not a visibility rule. A Sheets restore and the Calculate pipeline both
     have to file rows under somebody, and neither is answering "what may this
@@ -139,57 +139,58 @@ def test_installation_owner_id_falls_back_to_the_only_account(db, admin_user):
     yet. It is not a claim that the admin owns the collection - the next two
     tests are.
     """
-    assert installation_owner_id(db) == admin_user.id
+    assert installation_owner_id(db) == owner_user.id
 
 
-def test_the_flag_beats_every_fallback(db, admin_user, plain_user):
+def test_the_flag_beats_every_fallback(db, owner_user, plain_user):
     """
     The rule since 2026-09-12: whose rows a pipeline writes is DATA on the
     user row, not the string 'admin' in a query. Set it on the account that
     would LOSE both fallbacks - an admin sorts before `plainuser`, so a green
     here cannot be the alphabetical tiebreak answering by accident.
     """
-    admin_user.is_installation_owner = True
+    owner_user.is_installation_owner = True
     db.flush()
-    assert installation_owner_id(db) == admin_user.id
+    assert installation_owner_id(db) == owner_user.id
 
 
-def test_without_the_flag_a_non_root_wins(db, admin_user, plain_user):
+def test_without_the_flag_a_member_wins_over_the_admin(db, admin_user, plain_user):
     """
-    The first fallback, and the one that matters on a real installation: an
-    administrative account does not own the collection just because it sorts
-    first. `aaa_testadmin` sorts before `plainuser` and still loses.
+    The fallback, and the one that matters on a real installation: an
+    administrative account never owns the collection, even sorting first.
+    `aaa_testadmin` sorts before `plainuser` and still loses.
     """
+    assert admin_user.username < plain_user.username
     assert installation_owner_id(db) == plain_user.id
 
 
-def test_at_most_one_account_can_hold_the_flag(db, admin_user, plain_user):
+def test_at_most_one_account_can_hold_the_flag(db, owner_user, plain_user):
     """
     ix_one_installation_owner is a PARTIAL unique index over a constant, so
     it constrains the whole table rather than one row per something. Without
     it the flag would be ambiguous and installation_owner_id() would answer by
     insertion order.
     """
-    admin_user.is_installation_owner = True
+    owner_user.is_installation_owner = True
     plain_user.is_installation_owner = True
     with pytest.raises(IntegrityError):
         db.flush()
 
 
-def test_the_two_are_not_the_same_function(db):
+def test_the_two_are_not_the_same_function(db, plain_user):
     """
     The whole point of the split: the pipeline rule answers, the visibility
     rule does not.
     """
     assert acting_user_id(db, None) is None
-    assert installation_owner_id(db) is not None
+    assert installation_owner_id(db) == plain_user.id
 
 
 # --- the bug the split uncovered ------------------------------------------
 
 
 def test_complete_writes_to_the_caller_not_the_first_admin(
-    db, admin_client, admin_user, sample_franchise
+    db, owner_client, owner_user, sample_franchise
 ):
     """
     `POST /{type}/{id}/complete` called acting_user_id(db, None) - passing no
@@ -202,7 +203,7 @@ def test_complete_writes_to_the_caller_not_the_first_admin(
         id=uuid.uuid4(),
         username="aaa_earlier_admin",  # sorts before the acting admin
         hashed_password="x",
-        role_id=admin_user.role_id,
+        role_id=owner_user.role_id,
     )
     db.add(other)
 
@@ -216,7 +217,7 @@ def test_complete_writes_to_the_caller_not_the_first_admin(
     db.add(entry)
     db.commit()
 
-    r = admin_client.post(f"/api/anime/{entry.system_id}/complete")
+    r = owner_client.post(f"/api/anime/{entry.system_id}/complete")
     assert r.status_code == 200
 
     rows = (
@@ -224,14 +225,14 @@ def test_complete_writes_to_the_caller_not_the_first_admin(
         .filter(models.UserMediaList.media_id == entry.system_id)
         .all()
     )
-    assert [row.user_id for row in rows] == [admin_user.id]
+    assert [row.user_id for row in rows] == [owner_user.id]
 
 
 # --- the leak the split uncovered -----------------------------------------
 
 
 def test_a_guest_filtering_by_status_matches_nothing(
-    db, client, rated_anime, admin_user
+    db, client, rated_anime, owner_user
 ):
     """
     `join_list` returns the query untouched when there is no acting user, so a
@@ -245,7 +246,7 @@ def test_a_guest_filtering_by_status_matches_nothing(
     assert r.json() == []
 
 
-def test_the_same_filter_still_works_for_its_owner(admin_client, rated_anime):
-    r = admin_client.get("/api/anime/", params={"watching_status": "Completed"})
+def test_the_same_filter_still_works_for_its_owner(owner_client, rated_anime):
+    r = owner_client.get("/api/anime/", params={"watching_status": "Completed"})
     assert r.status_code == 200
     assert [e["system_id"] for e in r.json()] == [str(rated_anime.system_id)]

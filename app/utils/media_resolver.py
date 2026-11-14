@@ -2,12 +2,14 @@
 Shared resolution for tables that reference a row across several tables by a
 (type, id) pair rather than a foreign key.
 
-Two maps are exported. MEDIA_TABLES covers the nine media entry tables and is
+Three maps are exported. MEDIA_TABLES covers the media entry tables and is
 what `quote` and `watch_order_item` resolve against. OWNER_TABLES adds the
 three grouping tiers (series, franchise, collection) and is what `meme`
 resolves against, since a meme can belong to a franchise rather than to one
-entry. Passing the map in keeps the wider set from leaking into the tables that
-must stay entry-only.
+entry. REQUEST_TARGET_TABLES adds the five entity tables (studio, publisher,
+person, character, identity) to that, and only `user_request` resolves
+against it. Passing the map in keeps the wider set from leaking into the
+tables that must stay entry-only.
 
 `app/registry.py` deliberately covers only the six uniform media types, and
 each table has its own `system_id` space, so a bare UUID is ambiguous — a
@@ -82,6 +84,23 @@ TIER_TABLES: dict[str, MediaRef] = {
 OWNER_TABLES: dict[str, MediaRef] = {**MEDIA_TABLES, **TIER_TABLES}
 
 OWNER_TYPE_KEYS: tuple[str, ...] = tuple(OWNER_TABLES.keys())
+
+# The five entity tables, each with a detail page of its own. Not owners: no
+# meme, quote or note hangs off one through this module, so they are kept out
+# of OWNER_TABLES and joined in only where a request names its target.
+ENTITY_TABLES: dict[str, MediaRef] = {
+    "studio": MediaRef("studio", "Studio", models.Studio, "/studio"),
+    "publisher": MediaRef("publisher", "Publisher", models.Publisher, "/publisher"),
+    "person": MediaRef("person", "Person", models.Person, "/person"),
+    "character": MediaRef("character", "Character", models.Character, "/character"),
+    "identity": MediaRef(
+        "identity", "Identity", models.CharacterIdentity, "/identity"
+    ),
+}
+
+# What a request or report may be about: an entry, a grouping tier or an
+# entity. Used by app/services/domain/requests.py and nothing else.
+REQUEST_TARGET_TABLES: dict[str, MediaRef] = {**OWNER_TABLES, **ENTITY_TABLES}
 
 
 @dataclass

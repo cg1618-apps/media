@@ -161,10 +161,17 @@ describe("identity", () => {
 });
 
 describe("useEntityHref", () => {
-  // Entity pages are a member's (view.entities). Without the key an entity
-  // type gets "" - which every link component reads as plain text - and
-  // every other type keeps its path, so a guest still reaches entries and
-  // groups.
+  // Each kind of entity page has its own key. Without it that kind gets "" -
+  // which every link component reads as plain text - and every other type
+  // keeps its path, so a guest still reaches entries and groups.
+  const KEY_FOR = {
+    studio: "view.studio",
+    publisher: "view.publisher",
+    person: "view.person",
+    character: "view.character",
+    identity: "view.character",
+  };
+  const ALL_ENTITY_KEYS = [...new Set(Object.values(KEY_FOR))];
   function hrefFor(permissions, type, entity) {
     authValue.current = { has: (p) => permissions.includes(p) };
     const { result } = renderHook(() => useEntityHref());
@@ -173,14 +180,25 @@ describe("useEntityHref", () => {
 
   const person = { public_id: 5, name_en: "Yamada Naoko" };
 
-  it("returns no path to an entity for a viewer without view.entities", () => {
-    for (const type of ["studio", "publisher", "person", "character", "identity"]) {
+  it("returns no path to an entity for a viewer without any entity key", () => {
+    for (const type of Object.keys(KEY_FOR)) {
       expect(hrefFor([], type, person), type).toBe("");
     }
   });
 
-  it("returns the entity's path for a member", () => {
-    expect(hrefFor(["view.entities"], "person", person)).toBe("/person/5/yamada-naoko");
+  it("links each kind on its own key and no other kind's", () => {
+    for (const [type, key] of Object.entries(KEY_FOR)) {
+      // Every key but this kind's: the refusal has the other three to
+      // fall back on, so a "" is this kind's key missing and nothing else.
+      const others = ALL_ENTITY_KEYS.filter((k) => k !== key);
+      expect(hrefFor(others, type, person), type).toBe("");
+      // Mirror: this kind's key alone links it.
+      expect(hrefFor([key], type, person), type).toBe(`/${type}/5/yamada-naoko`);
+    }
+  });
+
+  it("does not accept the retired view.entities key", () => {
+    expect(hrefFor(["view.entities"], "person", person)).toBe("");
   });
 
   it("keeps a guest's links to entries and groups", () => {

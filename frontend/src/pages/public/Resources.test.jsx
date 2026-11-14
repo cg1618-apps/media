@@ -1,5 +1,5 @@
-// The Resources page: a nested tree everyone reads, and the controls a
-// manage.catalog holder edits it with. The move tests assert the exact reorder
+// The Resources page: a nested tree, and the controls a manage.resources
+// holder edits it with. The move tests assert the exact reorder
 // body, because the endpoint rejects anything but the complete child list.
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -194,9 +194,11 @@ describe("Resources - reading", () => {
     expect(screen.queryByText("Docs")).not.toBeInTheDocument();
   });
 
-  it("shows no editing controls without manage.catalog", async () => {
+  it("shows no editing controls without manage.resources", async () => {
     // The mirror of the next test: same tree, same page, only the permission
-    // differs - so the absence is the gate's doing.
+    // differs - so the absence is the gate's doing. manage.catalog is held,
+    // and no longer edits Resources.
+    auth.permissions = ["manage.catalog"];
     renderPage();
     await screen.findByText("Docs");
     expect(screen.queryByRole("button", { name: "Add group" })).toBeNull();
@@ -210,10 +212,10 @@ describe("Resources - reading", () => {
 
 describe("Resources - editing", () => {
   beforeEach(() => {
-    auth.permissions = ["manage.catalog"];
+    auth.permissions = ["manage.resources"];
   });
 
-  it("shows the editing controls with manage.catalog", async () => {
+  it("shows the editing controls with manage.resources", async () => {
     renderPage();
     await screen.findByText("Docs");
     expect(screen.getByRole("button", { name: "Add group" })).toBeInTheDocument();

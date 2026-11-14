@@ -50,31 +50,31 @@ def _backed_up(db, monkeypatch):
 # ---- character ------------------------------------------------------------
 
 
-def test_a_character_is_created_and_read_with_its_firsts(admin_client):
-    created = admin_client.post("/api/character/", json={"name_en": "Orsted", **FIRSTS})
+def test_a_character_is_created_and_read_with_its_firsts(owner_client):
+    created = owner_client.post("/api/character/", json={"name_en": "Orsted", **FIRSTS})
     assert created.status_code == 200, created.text
     assert _firsts(created.json()) == FIRSTS
-    read = admin_client.get(f"/api/character/{created.json()['public_id']}")
+    read = owner_client.get(f"/api/character/{created.json()['public_id']}")
     assert _firsts(read.json()) == FIRSTS
 
 
-def test_a_character_without_firsts_reads_them_as_null(admin_client):
-    created = admin_client.post("/api/character/", json={"name_en": "Orsted"}).json()
+def test_a_character_without_firsts_reads_them_as_null(owner_client):
+    created = owner_client.post("/api/character/", json={"name_en": "Orsted"}).json()
     assert _firsts(created) == NONE
 
 
-def test_put_replaces_a_characters_firsts(admin_client, character):
-    r = admin_client.put(
+def test_put_replaces_a_characters_firsts(owner_client, character):
+    r = owner_client.put(
         f"/api/character/{character.system_id}", json={"name_en": "Ichika", **FIRSTS}
     )
     assert r.status_code == 200, r.text
     assert _firsts(r.json()) == FIRSTS
 
 
-def test_patch_changes_only_the_first_sent(admin_client, db_session, character):
+def test_patch_changes_only_the_first_sent(owner_client, db_session, character):
     character.first_mention = "1-2"
     db_session.flush()
-    r = admin_client.patch(
+    r = owner_client.patch(
         f"/api/character/{character.system_id}", json={"first_encounter": "S2 ep 1"}
     )
     assert r.status_code == 200, r.text
@@ -84,13 +84,13 @@ def test_patch_changes_only_the_first_sent(admin_client, db_session, character):
 
 
 def test_merge_fills_a_blank_first_from_the_loser(
-    admin_client, db_session, character, second_character
+    owner_client, db_session, character, second_character
 ):
     character.first_mention = "kept"
     second_character.first_mention = "lost"
     second_character.first_encounter = "S1 ep 8"
     db_session.flush()
-    r = admin_client.post(
+    r = owner_client.post(
         f"/api/character/{character.system_id}/merge",
         json={"source_id": str(second_character.system_id)},
     )
@@ -102,15 +102,15 @@ def test_merge_fills_a_blank_first_from_the_loser(
 # ---- identity -------------------------------------------------------------
 
 
-def test_an_identity_is_created_updated_and_read_with_its_firsts(admin_client, character):
-    created = admin_client.post(
+def test_an_identity_is_created_updated_and_read_with_its_firsts(owner_client, character):
+    created = owner_client.post(
         IDENTITY_BASE,
         json={"character_id": str(character.system_id), "name_en": "Conan", **FIRSTS},
     )
     assert created.status_code == 200, created.text
     assert _firsts(created.json()) == FIRSTS
 
-    updated = admin_client.put(
+    updated = owner_client.put(
         f"{IDENTITY_BASE}{created.json()['system_id']}",
         json={"name_en": "Conan", "first_mention": "2-1"},
     )
@@ -118,35 +118,35 @@ def test_an_identity_is_created_updated_and_read_with_its_firsts(admin_client, c
     # PUT replaces: the two left out are cleared.
     assert _firsts(updated.json()) == {**NONE, "first_mention": "2-1"}
 
-    page = admin_client.get(f"{IDENTITY_BASE}{created.json()['public_id']}")
+    page = owner_client.get(f"{IDENTITY_BASE}{created.json()['public_id']}")
     assert _firsts(page.json()) == {**NONE, "first_mention": "2-1"}
 
 
 def test_an_identity_never_takes_its_characters_firsts(
-    admin_client, db_session, character
+    owner_client, db_session, character
 ):
     # The character's values are set so an inheriting read would have
     # something to inherit; the identity's stay null.
     for key, value in FIRSTS.items():
         setattr(character, key, value)
     db_session.flush()
-    created = admin_client.post(
+    created = owner_client.post(
         IDENTITY_BASE, json={"character_id": str(character.system_id), "name_en": "Conan"}
     ).json()
     assert _firsts(created) == NONE
-    page = admin_client.get(f"{IDENTITY_BASE}{created['public_id']}").json()
+    page = owner_client.get(f"{IDENTITY_BASE}{created['public_id']}").json()
     assert _firsts(page) == NONE
-    nested = admin_client.get(f"/api/character/{character.public_id}").json()
+    nested = owner_client.get(f"/api/character/{character.public_id}").json()
     assert _firsts(nested["identities"][0]) == NONE
     assert _firsts(nested) == FIRSTS
 
 
-def test_a_characters_firsts_are_not_its_identitys(admin_client, character):
-    admin_client.post(
+def test_a_characters_firsts_are_not_its_identitys(owner_client, character):
+    owner_client.post(
         IDENTITY_BASE,
         json={"character_id": str(character.system_id), "name_en": "Conan", **FIRSTS},
     )
-    body = admin_client.get(f"/api/character/{character.public_id}").json()
+    body = owner_client.get(f"/api/character/{character.public_id}").json()
     assert _firsts(body) == NONE
     assert _firsts(body["identities"][0]) == FIRSTS
 

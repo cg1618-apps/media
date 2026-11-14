@@ -119,7 +119,7 @@ def test_a_warm_cover_request_resolves_no_viewer(
     who,
     warm_count,
     client,
-    admin_client,
+    owner_client,
     catalog_writer,
     sample_anime,
     hidden_anime,
@@ -129,7 +129,7 @@ def test_a_warm_cover_request_resolves_no_viewer(
     session = {
         "anonymous": lambda: client,
         "narrowed": lambda: catalog_writer(),
-        "admin": lambda: admin_client,
+        "admin": lambda: owner_client,
     }[who]()
     url = cover_on_disk("anime", sample_anime.system_id)
 
@@ -168,14 +168,14 @@ def test_a_warm_shared_record_cover_skips_the_gated_type_lookup_too(
 
 
 def test_a_session_warming_the_cache_lends_nothing_to_another(
-    client, admin_client, catalog_writer, hidden_anime, cover_on_disk
+    client, owner_client, catalog_writer, hidden_anime, cover_on_disk
 ):
     url = cover_on_disk("anime", hidden_anime.system_id)
 
     # Warm it with the session that MAY see the entry, twice so the second is
     # a hit.
-    assert admin_client.get(url).status_code == 200
-    assert admin_client.get(url).status_code == 200
+    assert owner_client.get(url).status_code == 200
+    assert owner_client.get(url).status_code == 200
 
     assert client.get(url).status_code == 404
     narrowed = catalog_writer()
@@ -183,34 +183,32 @@ def test_a_session_warming_the_cache_lends_nothing_to_another(
     assert narrowed.get(url).status_code == 404
 
     # The mirror: the allowed session is still served after the refusals.
-    assert admin_client.get(url).status_code == 200
+    assert owner_client.get(url).status_code == 200
 
 
-def test_a_new_label_hides_a_cover_on_the_next_request(
-    admin_client, catalog_writer, sample_anime, cover_on_disk
+def test_labelling_an_entry_hides_its_cover_on_the_next_request(
+    owner_client, catalog_writer, sample_anime, cover_on_disk
 ):
     """
-    The narrowed session's cached hidden set predates the label. Without the
-    bump create_label already sends, it would keep the old set, the probe
-    would ask about the wrong labels, and the cover would still be served.
+    The narrowed session's viewer is cached and was resolved while the entry
+    carried no label. The cache holds who the viewer is, never what an entry
+    carries, so the first request after the label goes on must be refused.
+    Labels are code, so the narrowing here is an assignment, not a new label.
     """
     url = cover_on_disk("anime", sample_anime.system_id)
     narrowed = catalog_writer()
     assert narrowed.get(url).status_code == 200
+    assert narrowed.get(url).status_code == 200
 
-    created = admin_client.post(
-        "/api/content-labels/", json={"key": "spoiler", "label": "Spoiler"}
-    )
-    assert created.status_code == 201
-    assigned = admin_client.put(
+    assigned = owner_client.put(
         f"/api/content-labels/entry/anime/{sample_anime.system_id}",
-        json={"label_keys": ["spoiler"]},
+        json={"label_keys": ["nsfw"]},
     )
     assert assigned.status_code == 200
 
     assert narrowed.get(url).status_code == 404
-    # The mirror: unrestricted carries every label, so admin still sees it.
-    assert admin_client.get(url).status_code == 200
+    # The mirror: unrestricted shows every label, so admin still sees it.
+    assert owner_client.get(url).status_code == 200
 
 
 def _user_named(db_session, username):
@@ -229,21 +227,12 @@ def test_a_new_denial_hides_a_cover_on_the_next_request(
     assert session.get(url).status_code == 200
 
     user = _user_named(db_session, "catwriter")
-    grant = (
-        db_session.query(models.UserAccessMode)
-        .filter(models.UserAccessMode.user_id == user.id)
-        .one()
-    )
     replaced = admin_client.put(
         f"/api/users/{user.id}/access-modes",
         json={
-            "modes": [
-                {
-                    "mode_id": str(grant.mode_id),
-                    "is_default": True,
-                    "denied_label_keys": ["nsfw"],
-                }
-            ]
+            "ceiling": user.mode_ceiling,
+            "default": user.mode_default,
+            "denied_label_keys": ["nsfw"],
         },
     )
     assert replaced.status_code == 200
@@ -270,7 +259,7 @@ def test_an_entry_expires_on_its_ttl_when_nothing_bumps(
     db_session, catalog_writer, hidden_anime, cover_on_disk, clock
 ):
     """
-    A change no bump reaches - here a grant deleted straight from the table,
+    A change no bump reaches - here a ceiling cleared straight in the table,
     as psql or another worker process would - is served stale until the TTL
     and not a moment after.
     """
@@ -279,9 +268,8 @@ def test_an_entry_expires_on_its_ttl_when_nothing_bumps(
     assert session.get(url).status_code == 200
 
     user = _user_named(db_session, "catwriter")
-    db_session.query(models.UserAccessMode).filter(
-        models.UserAccessMode.user_id == user.id
-    ).delete()
+    user.mode_ceiling = None
+    user.mode_default = None
     db_session.flush()
 
     clock[0] += cover_viewer.COVER_VIEWER_TTL_SECONDS - 0.5
@@ -301,7 +289,6 @@ def _viewer(**fields):
         username="u",
         role_id=uuid.uuid4(),
         role_name="user",
-        is_root=False,
         permissions=frozenset(),
         **fields,
     )

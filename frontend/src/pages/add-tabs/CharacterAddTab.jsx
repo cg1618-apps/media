@@ -19,7 +19,7 @@ import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
 import CharacterFirstsFields from "../../components/forms/CharacterFirstsFields";
 import { endpoints } from "../../api/endpoints";
 import {
-  GenderRatingFields,
+  GenderField,
   PhotoFallbackField,
 } from "../../components/forms/EntityProfileFields";
 import { PERSON_NAME_FIELDS } from "../../lib/naming";
@@ -94,7 +94,7 @@ export function CharacterFields({ characterForm, ucf, ownerId, sources }) {
           onChange={(v) => ucf("role", v)}
         />
       </Field>
-      <GenderRatingFields form={characterForm} update={ucf} />
+      <GenderField form={characterForm} update={ucf} />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {CHARACTER_TAG_FIELDS.map(({ field, label, category }) => (
           <Field key={field} label={label}>

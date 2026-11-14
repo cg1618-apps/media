@@ -86,7 +86,7 @@ router = APIRouter(
     # There used to be a second gate requiring an unscoped mode (Decision 14),
     # on the grounds that a narrowed session would write a PARTIAL sheet over
     # the complete one. No pipeline is viewer-aware, so it never could:
-    # execute_backup reads db.query(tab.model).all(), runner.py reads
+    # execute_backup reads every row of each tab (SheetTab.rows), runner.py reads
     # db.query(spec.model).all(), and calculation.py says outright that
     # Calculate "is a pipeline with no viewer". entry_visible and
     # hidden_label_ids are called only from the entry routers. The gate
@@ -509,11 +509,15 @@ def check_remarks(
 
 
 @router.get("/check/music", response_model=list[MusicReviewRow])
-def check_music(db: Session = Depends(get_db)):
-    # Every anime with a song list or a song on Need, Pending or No Full
-    # Version. Not per caller: the music sections are catalogue notes, one
-    # shared set of rows per anime (music_review.py).
-    return find_flagged_music(db)
+def check_music(
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(require_manage_pipelines),
+):
+    # Every anime with a song list or a song the CALLER has on Need, Pending
+    # or No Full Version. Per caller: the songs and lists are catalogue rows,
+    # but each status on them is the caller's own note mark (music_review.py),
+    # so the queue is the caller's own, like the remarks block above.
+    return find_flagged_music(db, viewer)
 
 
 @router.get("/check/alone-groups", response_model=AloneGroupsReport)

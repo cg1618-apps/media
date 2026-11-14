@@ -12,6 +12,11 @@ anime already holds for that list, as it does for the `remark` singleton.
 backup taken while OST was one row per anime still carries that row - a type
 and a status, no song - and Pull folds it into the anime's OST status.
 
+A status on these rows is somebody's own note mark, not the row's. A sheet
+row carrying one is a backup from before the statuses moved, so the status is
+filed under the installation owner's mark for the row it folded onto, and the
+row itself stores none (`_status` reads it back).
+
 Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
@@ -62,6 +67,19 @@ def sheet(monkeypatch):
     return _install
 
 
+def _status(db_session, note_id):
+    """The status a mark holds for this note - the installation owner's, the
+    only account a legacy status can be filed under."""
+    db_session.expire_all()
+    marks = (
+        db_session.query(models.NoteMark)
+        .filter(models.NoteMark.note_id == note_id)
+        .all()
+    )
+    assert len(marks) <= 1
+    return marks[0].values.get("status") if marks else None
+
+
 def _rows(db_session, owner_id, section):
     return (
         db_session.query(models.Note)
@@ -72,16 +90,15 @@ def _rows(db_session, owner_id, section):
 
 
 @pytest.fixture
-def local_statuses(db_session, sample_anime, admin_user):
+def local_statuses(db_session, sample_anime, owner_user):
     """The four rows the migration minted here, under this database's uuids."""
     rows = []
     for i, kind in enumerate(("op", "ed", "insert_songs", "ost")):
         row = models.Note(
-            author_id=admin_user.id,
+            author_id=owner_user.id,
             media_id=sample_anime.system_id,
             section="music_status",
             kind=kind,
-            status="Not Done",
             sort_index=float(i),
         )
         db_session.add(row)
@@ -102,9 +119,10 @@ def test_a_status_minted_on_another_machine_folds_onto_the_local_row(
     rows = {r.kind: r for r in _rows(db_session, owner_id, "music_status")}
     assert len(rows) == 4
     assert rows["op"].system_id == local_statuses["op"]
-    assert rows["op"].status == "All Done"
+    assert rows["op"].status is None
+    assert _status(db_session, local_statuses["op"]) == "All Done"
     # Only the list the sheet named moved.
-    assert rows["ed"].status == "Not Done"
+    assert _status(db_session, local_statuses["ed"]) is None
 
 
 def test_each_list_folds_onto_its_own_row(
@@ -129,7 +147,7 @@ def test_each_list_folds_onto_its_own_row(
 
     assert result["status"] == "success", result
     rows = {r.kind: r for r in _rows(db_session, owner_id, "music_status")}
-    assert {k: (r.system_id, r.status) for k, r in rows.items()} == {
+    assert {k: (r.system_id, _status(db_session, r.system_id)) for k, r in rows.items()} == {
         "op": (local_statuses["op"], "Done"),
         "ed": (local_statuses["ed"], "Need"),
         "insert_songs": (local_statuses["insert_songs"], "Pending"),
@@ -146,7 +164,8 @@ def test_a_status_with_no_local_twin_is_inserted(db_session, sample_anime, sheet
 
     assert result["status"] == "success", result
     rows = _rows(db_session, owner_id, "music_status")
-    assert [(r.system_id, r.kind, r.status) for r in rows] == [(sheet_id, "ed", "Done")]
+    assert [(r.system_id, r.kind, r.status) for r in rows] == [(sheet_id, "ed", None)]
+    assert _status(db_session, sheet_id) == "Done"
 
 
 def test_two_ost_songs_stay_two(db_session, sample_anime, sheet):
@@ -183,7 +202,7 @@ def test_a_one_row_ost_from_an_old_backup_becomes_the_ost_status(
     assert _rows(db_session, owner_id, "ost") == []
     rows = {r.kind: r for r in _rows(db_session, owner_id, "music_status")}
     assert rows["ost"].system_id == local_statuses["ost"]
-    assert rows["ost"].status == "Pending"
+    assert _status(db_session, local_statuses["ost"]) == "Pending"
 
 
 def test_url_string_links_from_an_old_backup_become_pairs(

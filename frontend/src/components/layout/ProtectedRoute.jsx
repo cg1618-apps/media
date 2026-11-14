@@ -1,16 +1,18 @@
 // Frontend: layout component file for ProtectedRoute.
 //
-// Guards a route on one permission. It defaults to "admin", a permission no
-// role holds any more (Phase A split it into admin.authz, manage.catalog and
-// manage.pipelines) - a bare <Route element={<ProtectedRoute />}> now denies
-// everyone but a root role (is_root short-circuits every check), not
-// "everyone who used to pass". Every call site below passes requireAuth or an
-// explicit permission, so nothing currently relies on the default; a new bare
-// use should pick the permission it actually needs rather than lean on this.
+// Guards a route on one permission. With none of the options below, the
+// route is open: a bare <Route element={<ProtectedRoute />}> lets everyone
+// through, so a page that needs a capability names the permission it needs.
 //
 // `requireAuth` asks the weaker question instead - "is anyone logged in?" -
 // mirroring the server's get_current_user_id. The per-user pages (Plan,
 // Seasonal, Statistics) need an account, not a role.
+//
+// `anyPermission` takes a list and passes a viewer holding ANY one of them -
+// for a page two capabilities read for different reasons, as the label
+// reference is read by admin.authz (to see what a mode shows) and by
+// manage.catalog (the one attaching labels). It mirrors a server dependency
+// that spells the same disjunction out, rather than picking the wider key.
 //
 // `gatedType` asks the third question - "may this session see this gated
 // media type?" - through canSeeGatedType, the same helper navigation.js asks
@@ -21,21 +23,26 @@
 // composes with `permission`/`requireAuth` only when one is passed explicitly;
 // on its own it asks nothing else.
 //
+// `feature` asks the fourth - "does this ACCOUNT have this feature switched
+// on?" - through hasFeature, the same question navigation.js's `feature` rows
+// ask. It replaces `permission` rather than composing with it.
+//
 // This is a redirect, not a security boundary: the API refuses the request on
 // its own. The point is to send someone to the login page instead of showing
 // them a screen that will only fill with errors.
-import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { canSeeGatedType } from "../../lib/gatedTypes";
 
 export default function ProtectedRoute({
   permission,
+  anyPermission,
   requireAuth = false,
   gatedType,
+  feature,
 }) {
   const auth = useAuth();
-  const { has, username, loading } = auth;
-  const location = useLocation();
+  const { has, hasFeature, username, loading } = auth;
 
   if (loading) {
     return (
@@ -52,31 +59,24 @@ export default function ProtectedRoute({
     return username ? (
       <Navigate to="/" replace />
     ) : (
-      <Navigate
-        to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`}
-        replace
-      />
+      <Navigate to="/login" replace />
     );
   }
 
   // requireAuth gates on "is anyone logged in" rather than on a permission.
-  // With neither, a gated-type route asks nothing more; any other bare use
-  // keeps the old default of "admin", a permission no role holds.
-  const allowed = requireAuth
+  // With none of the options, the route is open.
+  const allowed = feature
+    ? hasFeature(feature)
+    : requireAuth
     ? Boolean(username)
     : permission
       ? has(permission)
-      : gatedType
-        ? true
-        : has("admin");
+      : anyPermission
+        ? anyPermission.some((p) => has(p))
+        : true;
 
-  // Without it, send them to login and preserve the page they wanted.
-  return allowed ? (
-    <Outlet />
-  ) : (
-    <Navigate
-      to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`}
-      replace
-    />
-  );
+  // Without it, send them to login. The page they wanted is not carried
+  // along: a successful login always lands on the dashboard, because the
+  // account that signs in may not be one that can open this page.
+  return allowed ? <Outlet /> : <Navigate to="/login" replace />;
 }

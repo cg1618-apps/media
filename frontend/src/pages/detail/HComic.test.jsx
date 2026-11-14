@@ -6,7 +6,7 @@
 // registry entry is KR-only (`owner_where`), so the page must not draw the
 // card on a JP entry even though /api/notes/sections lists it for the type.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -17,6 +17,7 @@ import HComic from "./HComic";
 const HIGHLIGHTS = {
   key: "h_comic_highlights",
   shape: "structured",
+  scope: "personal",
   label: "亮點 Highlights",
   require_any: [],
   hierarchical: false,
@@ -47,10 +48,8 @@ const HIGHLIGHT_ROW = {
   fields: { female_characters: ["Ahri"] },
 };
 
-function mockFetch(entry, notes = [], relations = []) {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn((url) => {
+function mockFetch(entry, notes = [], relations = [], permissions = []) {
+  const fetchMock = vi.fn((url) => {
       const u = String(url);
       let body = [];
       if (u.startsWith("/api/auth/me")) {
@@ -58,8 +57,7 @@ function mockFetch(entry, notes = [], relations = []) {
           is_admin: false,
           username: "cg1618",
           role: "user",
-          is_root: false,
-          permissions: [],
+          permissions,
           visible_gated_types: ["h-comic"],
         };
       } else if (u.startsWith(`/api/h-comic/${entry.system_id}`)) {
@@ -74,8 +72,9 @@ function mockFetch(entry, notes = [], relations = []) {
         body = relations;
       }
       return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
-    })
-  );
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
 }
 
 afterEach(() => vi.unstubAllGlobals());
@@ -118,7 +117,10 @@ describe("HComic detail page", () => {
         page_total: 20,
         originality: "同人",
       },
-      [HIGHLIGHT_ROW]
+      [HIGHLIGHT_ROW],
+      [],
+      // The counter is the viewer's own progress, drawn for self.list.
+      ["self.list"]
     );
     mount({ system_id: "jp1" });
     await screen.findByRole("heading", { name: "Jay Pee" });
@@ -143,7 +145,10 @@ describe("HComic detail page", () => {
         ch_behind: 3,
         highlight_group_order: [],
       },
-      [HIGHLIGHT_ROW]
+      [HIGHLIGHT_ROW],
+      [],
+      // The counter is the viewer's own progress, drawn for self.list.
+      ["self.list"]
     );
     mount({ system_id: "kr1" });
     await screen.findByRole("heading", { name: "Kay Are" });
@@ -153,6 +158,34 @@ describe("HComic detail page", () => {
     expect(await screen.findByText("亮點 Highlights")).toBeInTheDocument();
     // Grouped by female character.
     expect(screen.getByRole("heading", { name: "Ahri" })).toBeInTheDocument();
+  });
+
+  // The group order is the viewer's own: a holder of self.personal_notes
+  // moves a group and the order goes to /api/me, not the entry PATCH.
+  it("saves a group move to the viewer's own order", async () => {
+    const fetchMock = mockFetch(
+      {
+        ...BASE,
+        system_id: "kr2",
+        region: "KR",
+        h_comic_name_en: "Kay Are Two",
+        highlight_group_order: ["Ahri", "Bora"],
+      },
+      [HIGHLIGHT_ROW, { ...HIGHLIGHT_ROW, system_id: "n2", fields: { female_characters: ["Bora"] } }],
+      [],
+      ["self.list", "self.personal_notes"]
+    );
+    mount({ system_id: "kr2" });
+    fireEvent.keyDown(await screen.findByLabelText("Reorder group Bora"), { key: "ArrowUp" });
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.find(
+          ([url, options]) =>
+            String(url) === "/api/me/highlight-group-order/kr2" && options?.method === "PUT"
+        )
+      ).toBeDefined()
+    );
+    expect(fetchMock.mock.calls.some(([, options]) => options?.method === "PATCH")).toBe(false);
   });
 });
 

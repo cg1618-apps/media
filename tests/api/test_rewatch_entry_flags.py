@@ -46,8 +46,8 @@ def seeded_cartoon(db_session, sample_franchise):
     return c.system_id
 
 
-def test_setting_to_rewatch_creates_one_rewatch_row(admin_client, db, seeded_movie):
-    res = admin_client.patch(
+def test_setting_to_rewatch_creates_one_rewatch_row(owner_client, db, seeded_movie):
+    res = owner_client.patch(
         f"/api/movies/{seeded_movie}", json={"to_rewatch": True}
     )
     assert res.status_code == 200
@@ -62,30 +62,30 @@ def test_setting_to_rewatch_creates_one_rewatch_row(admin_client, db, seeded_mov
     )
 
 
-def test_clearing_to_rewatch_deletes_the_row(admin_client, db, seeded_movie):
-    admin_client.patch(f"/api/movies/{seeded_movie}", json={"to_rewatch": True})
-    admin_client.patch(f"/api/movies/{seeded_movie}", json={"to_rewatch": False})
+def test_clearing_to_rewatch_deletes_the_row(owner_client, db, seeded_movie):
+    owner_client.patch(f"/api/movies/{seeded_movie}", json={"to_rewatch": True})
+    owner_client.patch(f"/api/movies/{seeded_movie}", json={"to_rewatch": False})
 
     assert db.query(models.PlanNext).filter_by(media_id=seeded_movie).count() == 0
 
 
-def test_watch_next_and_to_rewatch_are_independent(admin_client, db, seeded_movie):
+def test_watch_next_and_to_rewatch_are_independent(owner_client, db, seeded_movie):
     # Two kinds, one target: setting one must not disturb the other.
-    admin_client.patch(f"/api/movies/{seeded_movie}", json={"watch_next": True})
-    admin_client.patch(f"/api/movies/{seeded_movie}", json={"to_rewatch": True})
+    owner_client.patch(f"/api/movies/{seeded_movie}", json={"watch_next": True})
+    owner_client.patch(f"/api/movies/{seeded_movie}", json={"to_rewatch": True})
 
-    body = admin_client.get(f"/api/movies/{seeded_movie}").json()
+    body = owner_client.get(f"/api/movies/{seeded_movie}").json()
     assert body["watch_next"] is True
     assert body["to_rewatch"] is True
 
-    admin_client.patch(f"/api/movies/{seeded_movie}", json={"to_rewatch": False})
-    body = admin_client.get(f"/api/movies/{seeded_movie}").json()
+    owner_client.patch(f"/api/movies/{seeded_movie}", json={"to_rewatch": False})
+    body = owner_client.get(f"/api/movies/{seeded_movie}").json()
     assert body["watch_next"] is True
     assert body["to_rewatch"] is False
 
 
-def test_comic_uses_to_reread(admin_client, db, seeded_comic):
-    res = admin_client.patch(f"/api/comic/{seeded_comic}", json={"to_reread": True})
+def test_comic_uses_to_reread(owner_client, db, seeded_comic):
+    res = owner_client.patch(f"/api/comic/{seeded_comic}", json={"to_reread": True})
     assert res.status_code == 200
     assert res.json()["to_reread"] is True
 
@@ -93,9 +93,9 @@ def test_comic_uses_to_reread(admin_client, db, seeded_comic):
     assert (row.kind, row.media_type) == ("rewatch", "comic")
 
 
-def test_cartoon_has_no_rewatch_field(admin_client, seeded_cartoon):
+def test_cartoon_has_no_rewatch_field(owner_client, seeded_cartoon):
     # Cartoon rewatches at franchise scope only.
-    body = admin_client.get(f"/api/cartoon/{seeded_cartoon}").json()
+    body = owner_client.get(f"/api/cartoon/{seeded_cartoon}").json()
     assert "to_rewatch" not in body
 
 

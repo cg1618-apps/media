@@ -23,6 +23,7 @@ import pytest
 
 from app import models
 from app.services.pipelines import pull
+from tests.api.conftest import role_id_for
 
 OPTION_HEADERS = ["system_id", "category", "value", "sort_order", "remark"]
 PERSON_HEADERS = [
@@ -110,8 +111,18 @@ def test_person_with_a_foreign_uuid_updates_the_local_row(db_session, sheets):
 
 
 def test_studio_with_a_foreign_uuid_updates_the_local_row(db_session, sheets):
+    # The sheet's my_rating is filed under the installation owner, so one has
+    # to exist: without it the rating is reported unresolved and the
+    # assertion below would depend on some earlier test having left an
+    # account committed.
+    owner = models.User(
+        username="sheet-owner",
+        hashed_password="!",
+        role_id=role_id_for(db_session, "super"),
+        is_installation_owner=True,
+    )
     local = models.Studio(system_id=uuid.uuid4(), name_en="シャフト")
-    db_session.add(local)
+    db_session.add_all([owner, local])
     db_session.flush()
     local_id = local.system_id
 
@@ -130,7 +141,11 @@ def test_studio_with_a_foreign_uuid_updates_the_local_row(db_session, sheets):
     rows = db_session.query(models.Studio).filter_by(name_en="シャフト").all()
     assert len(rows) == 1
     assert rows[0].system_id == local_id
-    assert rows[0].my_rating == "A"
+    # my_rating is not a column any more: an old sheet's value becomes the
+    # installation owner's rating of the LOCAL studio (u1r2atings3).
+    rating = db_session.query(models.UserRating).filter_by(studio_id=local_id).one()
+    assert rating.my_rating == "A"
+    assert rating.user_id == owner.id
 
 
 def test_a_different_name_cn_is_a_different_studio(db_session, sheets):
@@ -391,17 +406,20 @@ PLAN_HEADERS = ["system_id", "kind", "media_type", "scope", "target_id", "remark
 
 
 def _plan_owner(db):
-    """The account pull._restore_owner_id will stamp: `admin`, created if absent."""
-    owner = db.query(models.User).filter_by(username="admin").first()
+    """The account pull._restore_owner_id will stamp: the flag holder,
+    created if absent. Never an admin-role account - the admin keeps no
+    personal data and is never the installation owner."""
+    owner = db.query(models.User).filter_by(is_installation_owner=True).first()
     if owner is None:
         from app.services.security import get_password_hash
         from tests.api.conftest import role_id_for
 
         owner = models.User(
             id=uuid.uuid4(),
-            username="admin",
+            username="plan_owner",
             hashed_password=get_password_hash("x"),
-            role_id=role_id_for(db, "admin"),
+            role_id=role_id_for(db, "super"),
+            is_installation_owner=True,
         )
         db.add(owner)
         db.flush()
@@ -564,7 +582,7 @@ GAME_COPY_HEADERS = [
 
 
 def test_game_copy_with_a_foreign_uuid_updates_the_local_row(
-    db_session, sheets, admin_user
+    db_session, sheets, owner_user
 ):
     """`game_copy` mints its uuid per database, exactly like the tabs above.
 
@@ -579,10 +597,10 @@ def test_game_copy_with_a_foreign_uuid_updates_the_local_row(
     db_session.flush()
 
     # The owner is part of the natural key since Task 19, and the pull assigns
-    # every restored row to the acting user - which is admin_user here.
+    # every restored row to the acting user - which is owner_user here.
     local = models.GameCopy(
         system_id=uuid.uuid4(),
-        user_id=admin_user.id,
+        user_id=owner_user.id,
         game_id=game.system_id,
         storefront="Steam",
         copy_format="Digital",
@@ -621,3 +639,25 @@ def test_game_copy_with_a_foreign_uuid_updates_the_local_row(
     assert len(rows) == 1, "the sheet's row must update the local one, not insert"
     assert rows[0].system_id == local_id, "the LOCAL uuid must survive"
     assert rows[0].acquisition == "Bought"
+
+
+def test_with_no_installation_owner_pull_names_the_skipped_rows(db_session, sheets):
+    """Only the seeded admin and the shared accounts exist, so there is no
+    owner to file a plan row under. Pull skips it and says why by name, not
+    as an ordinary bad row."""
+    target = _plan_movie(db_session).system_id
+    row = [str(uuid.uuid4()), "next", "movie", "entry", str(target), ""]
+    sheets({"Plan Next": [PLAN_HEADERS, row]})
+
+    result = pull.execute_pull_specific(db_session, "Plan Next", log_action=False)
+
+    assert result["owner_missing"] == 1
+    assert "Plan Next: no installation owner: 1 row(s) skipped" in result["unresolved_refs"]
+    assert db_session.query(models.PlanNext).count() == 0
+
+    # The mirror: once an owner exists, the same sheet restores the row and
+    # reports nothing missing.
+    owner = _plan_owner(db_session)
+    result = pull.execute_pull_specific(db_session, "Plan Next", log_action=False)
+    assert result["owner_missing"] == 0
+    assert [r.user_id for r in db_session.query(models.PlanNext).all()] == [owner.id]

@@ -13,37 +13,37 @@ import uuid
 from app import models
 
 
-def _put(admin_client, anime, rows):
-    return admin_client.put(f"/api/casting/anime/{anime.system_id}", json={"cast": rows})
+def _put(owner_client, anime, rows):
+    return owner_client.put(f"/api/casting/anime/{anime.system_id}", json={"cast": rows})
 
 
 def _entries(payload):
     return [entry for group in payload["groups"] for entry in group["entries"]]
 
 
-def test_the_entry_cast_carries_each_row_s_remark(client, admin_client, anime, character):
-    _put(admin_client, anime, [{"character_id": str(character.system_id), "remark": "flashback only"}])
+def test_the_entry_cast_carries_each_row_s_remark(client, owner_client, anime, character):
+    _put(owner_client, anime, [{"character_id": str(character.system_id), "remark": "flashback only"}])
     cast = client.get(f"/api/casting/anime/{anime.system_id}").json()["cast"]
     assert [row["remark"] for row in cast] == ["flashback only"]
 
 
 def test_the_character_page_carries_each_appearance_s_remark(
-    guest_reader, admin_client, anime, character
+    guest_reader, owner_client, anime, character
 ):
-    _put(admin_client, anime, [{"character_id": str(character.system_id), "remark": "flashback only"}])
+    _put(owner_client, anime, [{"character_id": str(character.system_id), "remark": "flashback only"}])
     entries = _entries(guest_reader.get(f"/api/character/{character.system_id}/entries").json())
     assert [e["remark"] for e in entries] == ["flashback only"]
 
 
 def test_the_identity_page_carries_each_appearance_s_remark(
-    guest_reader, admin_client, db_session, anime, character
+    guest_reader, owner_client, db_session, anime, character
 ):
     identity = models.CharacterIdentity(
         system_id=uuid.uuid4(), character_id=character.system_id, name_en="Conan"
     )
     db_session.add(identity)
     db_session.flush()
-    _put(admin_client, anime, [
+    _put(owner_client, anime, [
         {
             "character_id": str(character.system_id),
             "identity_id": str(identity.system_id),

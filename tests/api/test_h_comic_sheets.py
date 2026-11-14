@@ -78,8 +78,8 @@ def test_pull_clears_the_columns_the_region_does_not_use(monkeypatch, db_session
         "H-Comic",
         headers,
         [
-            ["Zvornik KR", "KR", "原創", "30", "2", "40", "3"],
-            ["Zvornik JP", "JP", "原創", "30", "2", "40", "3"],
+            ["Zvornik KR", "KR", "原版", "30", "2", "40", "3"],
+            ["Zvornik JP", "JP", "原版", "30", "2", "40", "3"],
         ],
     )
     kr = db_session.query(models.HComic).filter_by(h_comic_name_cn="Zvornik KR").one()
@@ -89,7 +89,24 @@ def test_pull_clears_the_columns_the_region_does_not_use(monkeypatch, db_session
     assert (kr.originality, kr.page_total, kr.series_number) == (None, None, None)
     assert (kr.ch_total, kr.ch_behind) == (40, 3)
     assert (jp.ch_total, jp.ch_behind) == (None, None)
-    assert (jp.originality, jp.page_total, jp.series_number) == ("原創", 30, 2)
+    assert (jp.originality, jp.page_total, jp.series_number) == ("原版", 30, 2)
+
+
+def test_pull_reads_an_old_backups_originality_as_its_new_name(monkeypatch, db_session):
+    """A backup taken before 原創 was renamed 原版 still says 原創. 同人 beside
+    it proves only the one value is translated."""
+    _pull(
+        monkeypatch,
+        db_session,
+        "H-Comic",
+        ["h_comic_name_cn", "region", "originality"],
+        [["Old Original", "JP", "原創"], ["Old Doujin", "JP", "同人"]],
+    )
+    rows = {
+        e.h_comic_name_cn: e.originality
+        for e in db_session.query(models.HComic).all()
+    }
+    assert rows == {"Old Original": "原版", "Old Doujin": "同人"}
 
 
 def test_pull_stamps_the_label_on_every_row_and_franchise(monkeypatch, db_session):
@@ -101,10 +118,10 @@ def test_pull_stamps_the_label_on_every_row_and_franchise(monkeypatch, db_sessio
         [["Zvornik Pulled", "JP", "Zvornik Pulled Franchise"]],
     )
     entry = db_session.query(models.HComic).filter_by(h_comic_name_cn="Zvornik Pulled").one()
-    assert label_keys_for_entry(db_session, entry.system_id) == ["h-comic"]
+    assert label_keys_for_entry(db_session, entry.system_id) == ["h-comic", "nsfw"]
     franchise = db_session.get(models.Franchise, entry.franchise_id)
     assert franchise.franchise_type == "H-Comic"
-    assert label_keys_for_franchise(db_session, franchise.system_id) == ["h-comic"]
+    assert label_keys_for_franchise(db_session, franchise.system_id) == ["h-comic", "nsfw"]
 
 
 def test_pull_restores_credits_and_tags(monkeypatch, db_session):
@@ -138,11 +155,11 @@ def test_a_label_tab_restore_repairs_a_missing_label(monkeypatch, db_session):
         db_session, "Content Label", log_action=False, may_restore_authz=True
     )
     assert result["status"] == "success", result
-    assert label_keys_for_entry(db_session, entry.system_id) == ["h-comic"]
+    assert label_keys_for_entry(db_session, entry.system_id) == ["h-comic", "nsfw"]
 
 
 def test_pull_of_the_list_tab_clears_the_counter_the_region_does_not_use(
-    monkeypatch, db_session, admin_user
+    monkeypatch, db_session, owner_user
 ):
     entry = models.HComic(h_comic_name_cn="Zvornik Listed", region="KR")
     db_session.add(entry)
@@ -153,11 +170,11 @@ def test_pull_of_the_list_tab_clears_the_counter_the_region_does_not_use(
         db_session,
         "User Media List",
         ["media_type", "public_id", "username", "status", "page_fin", "ch_fin", "usefulness"],
-        [["h-comic", str(entry.public_id), admin_user.username, "Active Reading", "9", "4", "實用"]],
+        [["h-comic", str(entry.public_id), owner_user.username, "Active Reading", "9", "4", "實用"]],
     )
     row = (
         db_session.query(models.UserMediaList)
-        .filter_by(user_id=admin_user.id, media_id=entry.system_id)
+        .filter_by(user_id=owner_user.id, media_id=entry.system_id)
         .one()
     )
     assert row.page_fin is None

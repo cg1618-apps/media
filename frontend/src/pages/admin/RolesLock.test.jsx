@@ -25,8 +25,6 @@ const ROLES = [
     name: "user",
     label: "User",
     description: "A signed-in member.",
-    is_system: true,
-    is_root: false,
     permissions: ["media_type.anime", "self.list"],
     user_count: 1,
     locked_on: [],
@@ -37,8 +35,6 @@ const ROLES = [
     name: "super",
     label: "Super",
     description: "Everything but authorization.",
-    is_system: true,
-    is_root: false,
     permissions: EVERY.filter((p) => p !== "admin.authz"),
     user_count: 0,
     locked_on: EVERY.filter((p) => p !== "admin.authz"),
@@ -48,13 +44,13 @@ const ROLES = [
     system_id: "a",
     name: "admin",
     label: "Admin",
-    description: "Full access.",
-    is_system: true,
-    is_root: true,
-    permissions: [],
+    description: "Runs the installation; reads no catalogue.",
+    // Its fixed set, stored as rows like any other role's. Every cell is
+    // locked: the fixed set on, everything else off.
+    permissions: ["admin.authz", "manage.pipelines"],
     user_count: 1,
-    locked_on: EVERY.filter((p) => !p.startsWith("self.")),
-    locked_off: ["self.list"],
+    locked_on: ["admin.authz", "manage.pipelines"],
+    locked_off: EVERY.filter((p) => p !== "admin.authz" && p !== "manage.pipelines"),
   },
 ];
 
@@ -144,28 +140,41 @@ describe("the Super role", () => {
 describe("the Admin role", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("shows every management point ticked and unchangeable", async () => {
+  it("draws every box disabled - nothing about it is a choice", async () => {
     await selectRole("Admin");
     await waitFor(() => {
-      for (const name of [
-        "Manage Authorization",
-        "Manage Catalogue",
-        "Run Pipelines",
-      ]) {
+      const boxes = screen.getAllByRole("checkbox");
+      expect(boxes.length).toBe(EVERY.length);
+      expect(boxes.every((b) => b.disabled)).toBe(true);
+    });
+  });
+
+  it("shows its own keys ticked and unchangeable", async () => {
+    await selectRole("Admin");
+    await waitFor(() => {
+      for (const name of ["Manage Authorization", "Run Pipelines"]) {
         expect(boxFor(name).checked).toBe(true);
         expect(boxFor(name).disabled).toBe(true);
       }
     });
   });
 
-  it("shows Own Rows clear, because an admin account holds none", async () => {
-    // Viewer.has() does not short-circuit the self family, so a ticked box
-    // here would state the opposite of what the resolver does.
+  it("shows the catalogue and Own Rows clear, because the admin holds neither", async () => {
+    // Viewer.has() is plain membership: the admin holds no manage.catalog
+    // and no self.*, so a ticked box here would state the opposite of what
+    // the resolver does. The ticked boxes above are the mirror.
     await selectRole("Admin");
     await waitFor(() => {
+      expect(boxFor("Manage Catalogue").checked).toBe(false);
+      expect(boxFor("Manage Catalogue").disabled).toBe(true);
       expect(boxFor("Own List").checked).toBe(false);
       expect(boxFor("Own List").disabled).toBe(true);
     });
+  });
+
+  it("offers no Save button", async () => {
+    await selectRole("Admin");
+    await waitFor(() => expect(screen.queryByText("Save")).toBeNull());
   });
 });
 

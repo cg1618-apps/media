@@ -4,15 +4,12 @@ import {
   Field,
   SectionHeader,
   inputCls,
-  selectCls,
 } from "../../components/forms/FormField";
 import ComboBox from "../../components/forms/ComboBox";
 import { useAuth } from "../../contexts/AuthContext";
 import { visibleFranchiseTypes } from "../../lib/gatedTypes";
 import {
-  FRANCHISE_EXPECTATIONS,
   FRANCHISE_TYPES,
-  MY_RATINGS,
 } from "../../config/fieldOptions";
 
 export { defaultFranchise } from "../../config/formFactories";
@@ -112,34 +109,6 @@ export default function FranchiseAddTab({ ff, uf, collectionItems }) {
               },
             )}
           </div>
-        </Field>
-        <Field label="My Rating">
-          <select
-            className={selectCls}
-            value={ff.my_rating}
-            onChange={(e) => uf("my_rating", e.target.value)}
-          >
-            <option value="">—</option>
-            {MY_RATINGS.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Expectation">
-          <select
-            className={selectCls}
-            value={ff.franchise_expectation}
-            onChange={(e) => uf("franchise_expectation", e.target.value)}
-          >
-            <option value="">—</option>
-            {FRANCHISE_EXPECTATIONS.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
         </Field>
       </div>
       <Field label="Remark">

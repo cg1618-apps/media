@@ -106,8 +106,8 @@ def _counts(db):
     return (db.query(models.Studio).count(), db.query(models.Person).count())
 
 
-def test_anime(admin_client, tenrai):
-    response = admin_client.get(f"{PATHS['anime']}/52991")
+def test_anime(owner_client, tenrai):
+    response = owner_client.get(f"{PATHS['anime']}/52991")
     assert response.status_code == 200
     assert response.json() == {
         "anime_name_en": "Frieren: Beyond Journey's End",
@@ -125,8 +125,8 @@ def test_anime(admin_client, tenrai):
     assert tenrai == [("anime", 52991)]
 
 
-def test_anime_movie_takes_only_what_its_autofill_writes(admin_client, tenrai):
-    response = admin_client.get(f"{PATHS['anime-movie']}/52991")
+def test_anime_movie_takes_only_what_its_autofill_writes(owner_client, tenrai):
+    response = owner_client.get(f"{PATHS['anime-movie']}/52991")
     assert response.status_code == 200
     assert response.json() == {
         "anime_movie_name_en": "Frieren: Beyond Journey's End",
@@ -140,8 +140,8 @@ def test_anime_movie_takes_only_what_its_autofill_writes(admin_client, tenrai):
     }
 
 
-def test_manga(admin_client, tenrai):
-    response = admin_client.get(f"{PATHS['manga']}/21")
+def test_manga(owner_client, tenrai):
+    response = owner_client.get(f"{PATHS['manga']}/21")
     assert response.status_code == 200
     assert response.json() == {
         "manga_name_en": "Death Note",
@@ -160,8 +160,8 @@ def test_manga(admin_client, tenrai):
     assert tenrai == [("manga", 21)]
 
 
-def test_novel(admin_client, tenrai):
-    response = admin_client.get(f"{PATHS['novel']}/21")
+def test_novel(owner_client, tenrai):
+    response = owner_client.get(f"{PATHS['novel']}/21")
     assert response.status_code == 200
     assert response.json() == {
         "novel_name_en": "Death Note",
@@ -179,34 +179,34 @@ def test_novel(admin_client, tenrai):
     }
 
 
-def test_totals_only_once_the_serialization_is_finished(admin_client, monkeypatch):
+def test_totals_only_once_the_serialization_is_finished(owner_client, monkeypatch):
     publishing = {**MANGA_RAW, "status": "Publishing"}
     monkeypatch.setattr(prefill_module, "lookup_mal_manga", lambda mal_id: publishing)
     for media_type, totals in (("manga", ("vol_total", "ch_total")),
                                ("novel", ("vol_total_original", "ch_total"))):
-        body = admin_client.get(f"{PATHS[media_type]}/21").json()
+        body = owner_client.get(f"{PATHS[media_type]}/21").json()
         assert body["serialization_status"] == "連載中"
         for field in totals:
             assert field not in body
 
 
-def test_nulls_are_omitted(admin_client, monkeypatch):
+def test_nulls_are_omitted(owner_client, monkeypatch):
     bare = {"title": "Bare", "studios": []}
     monkeypatch.setattr(prefill_module, "lookup_mal_anime", lambda mal_id: bare)
-    assert admin_client.get(f"{PATHS['anime']}/1").json() == {}
+    assert owner_client.get(f"{PATHS['anime']}/1").json() == {}
 
 
-def test_a_matched_studio_is_named_as_the_row_knows_itself(admin_client, db_session, tenrai):
+def test_a_matched_studio_is_named_as_the_row_knows_itself(owner_client, db_session, tenrai):
     # `impostor` holds MAL's name; the MAL id is what decides, so the form
     # gets `linked`'s own name - which resolves back to `linked` on save.
     db_session.add(models.Studio(name_en="Madhouse", name_jp="ニセ"))
     db_session.add(models.Studio(name_en="Madhouse Inc.", mal_id=11))
     db_session.flush()
 
-    assert admin_client.get(f"{PATHS['anime']}/52991").json()["studio"] == "Madhouse Inc."
+    assert owner_client.get(f"{PATHS['anime']}/52991").json()["studio"] == "Madhouse Inc."
 
 
-def test_a_matched_name_that_would_resolve_elsewhere_is_not_used(admin_client, db_session, tenrai):
+def test_a_matched_name_that_would_resolve_elsewhere_is_not_used(owner_client, db_session, tenrai):
     # `linked` shows "MH", but "MH" is also another studio's name, so saving
     # "MH" would be ambiguous. Its other name resolves back to it alone.
     db_session.add(models.Studio(name_en="MH"))
@@ -215,30 +215,30 @@ def test_a_matched_name_that_would_resolve_elsewhere_is_not_used(admin_client, d
     )
     db_session.flush()
 
-    assert admin_client.get(f"{PATHS['anime']}/52991").json()["studio"] == "Madhouse Ltd"
+    assert owner_client.get(f"{PATHS['anime']}/52991").json()["studio"] == "Madhouse Ltd"
 
 
-def test_a_matched_person_is_named_as_the_row_knows_itself(admin_client, db_session, tenrai):
+def test_a_matched_person_is_named_as_the_row_knows_itself(owner_client, db_session, tenrai):
     db_session.add(models.Person(name_jp="大場つぐみ", mal_id=2619))
     db_session.add(models.Person(name_en="Tsugumi Ohba", name_cn="同名"))
     db_session.flush()
 
-    body = admin_client.get(f"{PATHS['manga']}/21").json()
+    body = owner_client.get(f"{PATHS['manga']}/21").json()
     assert body["author_plot"] == "大場つぐみ"
     assert body["author_draw"] == "Takeshi Obata"
 
 
-def test_an_ambiguous_name_falls_back_to_mals_name(admin_client, db_session, tenrai):
+def test_an_ambiguous_name_falls_back_to_mals_name(owner_client, db_session, tenrai):
     db_session.add(models.Studio(name_en="Madhouse"))
     db_session.add(models.Studio(name_jp="Madhouse"))
     db_session.flush()
 
-    response = admin_client.get(f"{PATHS['anime']}/52991")
+    response = owner_client.get(f"{PATHS['anime']}/52991")
     assert response.status_code == 200
     assert response.json()["studio"] == "Madhouse"
 
 
-def test_the_prefill_writes_nothing(admin_client, db_session, tenrai):
+def test_the_prefill_writes_nothing(owner_client, db_session, tenrai):
     # Rows that WOULD be linked or created by the save path, so a prefill
     # that wrote would show here.
     studio = models.Studio(name_en="Madhouse")
@@ -248,7 +248,7 @@ def test_the_prefill_writes_nothing(admin_client, db_session, tenrai):
     before = _counts(db_session)
 
     for media_type in PATHS:
-        assert admin_client.get(f"{PATHS[media_type]}/21").status_code == 200
+        assert owner_client.get(f"{PATHS[media_type]}/21").status_code == 200
 
     # No expire_all: it would discard an unflushed write, which is exactly
     # what this has to see. The request shares this session.
@@ -259,20 +259,20 @@ def test_the_prefill_writes_nothing(admin_client, db_session, tenrai):
 
 
 @pytest.mark.parametrize("media_type", list(PATHS))
-def test_an_unknown_id_is_a_404(admin_client, monkeypatch, media_type):
+def test_an_unknown_id_is_a_404(owner_client, monkeypatch, media_type):
     monkeypatch.setattr(prefill_module, "lookup_mal_anime", lambda mal_id: None)
     monkeypatch.setattr(prefill_module, "lookup_mal_manga", lambda mal_id: None)
-    assert admin_client.get(f"{PATHS[media_type]}/999999").status_code == 404
+    assert owner_client.get(f"{PATHS[media_type]}/999999").status_code == 404
 
 
 @pytest.mark.parametrize("media_type", list(PATHS))
-def test_tenrai_unreachable_is_a_502(admin_client, monkeypatch, media_type):
+def test_tenrai_unreachable_is_a_502(owner_client, monkeypatch, media_type):
     def failing(mal_id):
         raise ExternalSearchError("MyAnimeList (Tenrai) is unreachable.")
 
     monkeypatch.setattr(prefill_module, "lookup_mal_anime", failing)
     monkeypatch.setattr(prefill_module, "lookup_mal_manga", failing)
-    response = admin_client.get(f"{PATHS[media_type]}/1")
+    response = owner_client.get(f"{PATHS[media_type]}/1")
     assert response.status_code == 502
     assert response.json()["detail"] == "MyAnimeList (Tenrai) is unreachable."
 
@@ -285,8 +285,8 @@ def test_a_user_without_manage_catalog_is_refused(user_client, tenrai, media_typ
 
 
 @pytest.mark.parametrize("media_type", list(PATHS))
-def test_the_path_is_not_swallowed_by_the_id_route(admin_client, tenrai, media_type):
-    assert admin_client.get(f"{PATHS[media_type]}/1").status_code == 200
+def test_the_path_is_not_swallowed_by_the_id_route(owner_client, tenrai, media_type):
+    assert owner_client.get(f"{PATHS[media_type]}/1").status_code == 200
     module = MODULES[media_type]
     path = f"{PATHS[media_type]}/{{mal_id}}"
     literal = next(

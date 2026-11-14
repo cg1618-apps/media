@@ -17,6 +17,8 @@ personal lookups are counted separately in `personal_queries`.
 import uuid
 from types import SimpleNamespace
 
+import pytest
+
 from app import models
 from app.services.domain.user_list import LIST_FIELDS
 from app.services.domain.watch_order import (
@@ -25,12 +27,24 @@ from app.services.domain.watch_order import (
     release_sort_key,
     resolve_items,
 )
+from app.services.rbac import enforcement
 from app.services.rbac.resolver import Viewer
 
 # One admin, named explicitly by the tests below. acting_user_id used to find
 # it by falling back for a viewer-less call; it does not any more, so a caller
 # that wants somebody's statuses has to say whose.
 FAKE_ADMIN = SimpleNamespace(id=uuid.uuid4())
+
+
+@pytest.fixture(autouse=True)
+def _every_entry_is_visible(monkeypatch):
+    """No viewer is exempt from the visibility filter, and the stubbed
+    Session cannot answer its query. This file is about resolution, so the
+    filter passes every row through; which steps a viewer sees is
+    tests/api/test_watch_order.py's."""
+    monkeypatch.setattr(
+        enforcement, "drop_hidden_rows", lambda db, viewer, rows, *_: list(rows)
+    )
 
 
 class FakeQuery:
@@ -103,14 +117,13 @@ def make_list_row(media_id, media_type="anime", **fields):
 def _viewer(user_id):
     """
     The real Viewer, not a stub: resolve_items passes it to drop_hidden_rows,
-    which reads is_root and permissions, so a hand-rolled double has to
+    which reads permissions and the object sets, so a hand-rolled double has to
     grow an attribute every time that path changes.
     """
     return Viewer(
-        username="fake-admin",
+        username="fake-owner",
         role_id=None,
-        role_name="admin",
-        is_root=True,
+        role_name="super",
         permissions=frozenset(),
         user_id=user_id,
     )
