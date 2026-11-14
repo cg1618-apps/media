@@ -15,64 +15,6 @@ register and recover an account is [account.md](account.md); what is the
 catalogue and what is an account's own data is
 [catalogue.md](catalogue.md).
 
-> **Not available yet.** Everything on this page below this note is the
-> decided design of the account and authorization rework
-> ([to-do-next.md](to-do-next.md), item 1), not today's behaviour, except
-> what is listed as built here. The five viewers exist — `admin`, `super`,
-> `user`, the signed-out guest, and the two shared accounts — and what each
-> role can do today is [authorization.md](authorization.md), "What each role
-> can DO". Each remaining part of this page becomes true when the change that
-> builds it lands, and that change rewrites it in the present tense.
->
-> **Built:** [Removed](#removed), under "Customised pages";
-> [Requests and reports](#requests-and-reports), and every row of
-> [My requests, the inbox, and pending registrations](#my-requests-the-inbox-and-pending-registrations);
-> [Entity pages, shown per kind](#entity-pages-shown-per-kind); and, in
-> "At a glance", the rows for the nine ordinary media types, H-Comic, H-Game
-> and Hentai, the entity pages, and quotes and memes for `super` and `user`.
-> Requests and reports work for `admin`, `super`, `user` and the shared
-> accounts. Quotes and memes follow a per-account switch on the Users page,
-> held only by `user` and `super` accounts ([authorization.md](authorization.md),
-> "Per-account feature switches"); favourites, music status and mod status
-> are switches there too, and each account's favourite quotes and memes and
-> its music and mod statuses appear only with its own switch on. Until the header rework, the inbox sits under Pipelines for both
-> admin and super, and pending registrations are a panel on `/system`, shown
-> only to the admin. Invite links are issued on `/users`. A `user` never writes the catalogue (`manage.catalog` is
-> locked off for the role). The shared accounts, `shared-normal` and
-> `shared-borderline`, each fixed at its own mode, keep no data of their own,
-> and only the admin sets their password
-> ([authorization.md](authorization.md), "Shared accounts").
-> Ratings and expectations: each account keeps its own rating of every
-> collection, franchise, series, character, person, studio and publisher,
-> its own expectation of every collection, franchise and series, and its own
-> rating of and remark on every novel unit; a guest has none and the admin
-> keeps none ([authorization.md](authorization.md), "Ratings and
-> expectations"). That is the rating and expectation part of the rows below.
->
-> **Built:** the read-only label reference, for `admin` and `super` — the
-> "Label reference" row of [At a glance](#at-a-glance) and its bullets under
-> [Admin](#admin) and [Super](#super). `/content-labels` lists every label,
-> which modes show it and how many entries, collections, franchises and series
-> carry it, and sits
-> under the Note section of the nav. Also built: the access modes' adjustable
-> settings are a name and a description, and nothing else, because the modes
-> and what each shows are code. The rest of those two sections is not built.
->
-> **Built:** every account has a mode ceiling and a default, set on the Users
-> page, and switches among the modes up to its ceiling
-> ([authorization.md](authorization.md), "Access modes"). A shared account's
-> mode is fixed for switching too, so the mode switcher does not appear for
-> it, and the admin account has no mode at all — the "Content (modes)" row of
-> [At a glance](#at-a-glance) is true as a whole.
->
-> **Built:** [Admin](#admin), in full, and the whole admin column of
-> [At a glance](#at-a-glance). The admin is an ordinary role with a fixed
-> set of permissions; it reads no library, entry, group, entity or search
-> page, no quotes or memes, keeps no personal data, and has no mode
-> switcher. Its header carries only its own pages.
-> **`/resources` is the admin's and super's alone**: a `user` does not
-> reach it.
-
 ## At a glance
 
 The sections below are the detail; this table summarises them.
@@ -85,7 +27,8 @@ it; "per account" is a per-account feature switch, off by default.
 | The nine ordinary media types | — | ✓ | switch, on | switch, on | switch, on |
 | H-Comic, H-Game, Hentai | — | in `unrestricted` | in `unrestricted` | never | never |
 | Studio, publisher, person, character pages | — | ✓ | switch, off | switch, off | switch, off |
-| Search, Future Releases | — | ✓ | ✓ | ✓ | ✓ |
+| Search | — | ✓ | switch, on | switch, off | switch, off |
+| Future Releases | — | ✓ | ✓ | ✓ | ✓ |
 | Seasonal, Statistics | — | ✓ | ✓ | ✓ ² | ✓ ² |
 | Random Picker | — | ✓ | ✓ | — | ✓ ¹ |
 | Plan, Completions | — | ✓ | ✓ | — | — |
@@ -200,7 +143,7 @@ Super without the catalogue work.
 
 | Page | guest | shared | user | super |
 | --- | --- | --- | --- | --- |
-| Search | ✓ | ✓ | ✓ | ✓ |
+| Search | switch, off | switch, off | switch, on | ✓ |
 | Future Releases | ✓ | ✓ | ✓ | ✓ |
 | Seasonal | ✓ | ✓ | ✓ | ✓ |
 | Statistics | ✓ | ✓ | ✓ | ✓ |
@@ -208,7 +151,9 @@ Super without the catalogue work.
 | Plan | — | — | ✓ | ✓ |
 | Completions | — | — | ✓ | ✓ |
 
-The admin has none of them: it reads no catalogue. Seasonal, Statistics and
+The admin has none of them: it reads no catalogue. Search asks
+`view.search`, a switch on each role: fixed on for super, seeded on for
+user and seeded off for guest and shared. Seasonal, Statistics and
 Future Releases ask for any ordinary media type, so every viewer that reads
 the catalogue has them; a viewer without a list — guest and shared — gets
 each in its catalogue version. The Random Picker asks `view.random_picker`,
@@ -223,9 +168,10 @@ ask `self.list`.
 The logged-out visitor.
 
 - **Reads** the libraries, entry and group pages, watch orders, the
-  dashboard's announcements, broadcast schedule and library links, Search,
-  Future Releases, Seasonal and Statistics (each in its catalogue version,
-  without personal data), and the entity kinds its role's switches open.
+  dashboard's announcements, broadcast schedule and library links, Future
+  Releases, Seasonal and Statistics (each in its catalogue version, without
+  personal data), and Search and the entity kinds where its role's switches
+  open them (Search is seeded off).
 - **The nine ordinary media types, games included**, in `safe` — each a
   switch on the role, seeded on. Never H-Comic, H-Game or Hentai: those are
   fixed off for a guest.

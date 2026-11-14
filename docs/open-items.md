@@ -122,6 +122,14 @@ guard, and its database is populated rather than fresh.
 
 ## Authorization and accounts
 
+**Should a guest and a shared account search by default?** The account
+design gave both Search. `view.search` is a switch on each role, and the
+seed grants it to `user` and `super` only, so on a fresh database neither a
+guest nor a shared account sees the search box until the admin ticks it on
+`/roles`. Unmade decision: seed it on for `guest` and `shared` (a seed
+change and a migration granting it to the existing roles), or keep it off
+and let `viewers.md` say so, as it does now.
+
 **Four content label descriptions are drafts.** The owner wrote the
 descriptions of `ecchi` and `erotica`; those of `nsfw` (不適合公開場合觀看),
 `hentai` (成人動畫), `h-game` (成人遊戲) and `h-comic` (成人漫畫) were drafted
@@ -239,7 +247,6 @@ design system so the behaviour can be used, and their look is undecided:
 | Item | Where |
 |---|---|
 | Games and comics are absent from the cover lists | `FranchiseLibrary`, `CollectionLibrary`, `CollectionPage`, `usePlanData` |
-| No Games tab | `FutureReleases.jsx` |
 | `/defaults` shows an inert auto-fill column for Game | `frontend/src/config/formFields/fieldMeta.js` |
 | Invented entities never reach the admin log table — `error_message` renders only on Failed rows, never `details_json` | `Admin.jsx` |
 | The colour-token table holds pre-archive hexes | `docs/frontend/components.md` |

@@ -4950,3 +4950,29 @@ What the account rework deliberately did not build around signing in:
 - **A new account starts at `normal` / `normal`, not `safe`.** That replaced
   an earlier rule that every new account starts in `safe`: an account can
   switch up to its ceiling at once, so starting lower protects nothing.
+
+### One test decides a page's catalogue version: `self.list` (2026-11-14)
+
+Every page that differs for a viewer without a list - libraries, cards,
+detail pages, Seasonal, Statistics, the Random Picker, Future Releases, the
+dashboard - asks the same question, `has("self.list")`
+(`useViewScope().ownData`), and nothing else. Guest and shared both lack it,
+and so does the admin, which holds no `self.*` key. The alternative, a test
+per page on role names or on a mixture of keys, is how the SPA drifted
+before: one control asked `isAdmin`, the next `self.list`, and a `user` was
+shown buttons that answered 401.
+
+- **Whether a page opens is a different question.** Seasonal, Statistics
+  and Future Releases open for any viewer that reads the catalogue (an
+  ordinary `media_type.*`); what they show inside is decided by the list.
+- **Statistics' catalogue counts are computed server-side**
+  (`GET /api/statistics/catalogue`). They are aggregates over the viewer's
+  visible object set, so a viewer without a list does not download every
+  list to count it, and a mode never learns from a total what it hides.
+- **What P7 opens to more viewers follows the owning group's visibility.**
+  Watch orders and the relations graph used to filter only the entries
+  inside them, so an order owned by a hidden group still listed by name.
+  They answer a hidden owner as missing, so the guest's and shared
+  account's watch-order pages and the dashboard's followed orders leak
+  nothing.
+
