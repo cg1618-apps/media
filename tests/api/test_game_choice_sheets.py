@@ -71,7 +71,7 @@ def test_nodes_and_edges_are_plain_uuid_identity():
 
 
 def test_the_graph_round_trips_and_a_save_still_resolves(
-    db, sheets, monkeypatch, a_game, admin_user
+    db, sheets, monkeypatch, a_game, owner_user
 ):
     start = models.GameChoiceNode(
         system_id=uuid.uuid4(), game_id=a_game.system_id, kind="start",
@@ -100,7 +100,7 @@ def test_the_graph_round_trips_and_a_save_still_resolves(
     db.add_all([edge, open_branch, link])
     save = models.Note(
         system_id=uuid.uuid4(), media_id=a_game.system_id,
-        author_id=admin_user.id, section="saves", locator="1", kind="regular",
+        author_id=owner_user.id, section="saves", locator="1", kind="regular",
         fields={"choice_node": str(end.system_id)},
     )
     db.add(save)

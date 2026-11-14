@@ -78,12 +78,12 @@ def _reload(db, row):
 
 
 def test_guide_note_links_move_into_the_description(
-    db_session, revision, game, admin_user
+    db_session, revision, game, owner_user
 ):
     row = _row(
         db_session,
         game,
-        admin_user.id,
+        owner_user.id,
         "guide_notes",
         content="Parry everything",
         links=["https://example.com/a", " ", "https://example.com/b"],
@@ -96,10 +96,10 @@ def test_guide_note_links_move_into_the_description(
 
 
 def test_a_links_only_guide_note_keeps_them_as_its_description(
-    db_session, revision, game, admin_user
+    db_session, revision, game, owner_user
 ):
     row = _row(
-        db_session, game, admin_user.id, "guide_notes", links=["https://example.com/only"]
+        db_session, game, owner_user.id, "guide_notes", links=["https://example.com/only"]
     )
     _reshape(db_session, revision)
 
@@ -108,12 +108,12 @@ def test_a_links_only_guide_note_keeps_them_as_its_description(
     assert row.content == "https://example.com/only"
 
 
-def test_other_sections_keep_their_links(db_session, revision, game, admin_user):
+def test_other_sections_keep_their_links(db_session, revision, game, owner_user):
     """The mirror: a reshape clearing links everywhere would pass the above."""
     row = _row(
         db_session,
         game,
-        admin_user.id,
+        owner_user.id,
         "controls",
         title="L2",
         content="Guard",
@@ -127,12 +127,12 @@ def test_other_sections_keep_their_links(db_session, revision, game, admin_user)
 
 
 def test_a_highlight_location_moves_into_the_description(
-    db_session, revision, h_game, admin_user
+    db_session, revision, h_game, owner_user
 ):
     row = _row(
         db_session,
         h_game,
-        admin_user.id,
+        owner_user.id,
         "h_game_highlights",
         content="what happens",
         fields={"female_characters": ["Ana"], "location": "classroom"},
@@ -145,12 +145,12 @@ def test_a_highlight_location_moves_into_the_description(
 
 
 def test_a_blank_location_is_dropped_without_a_line(
-    db_session, revision, h_game, admin_user
+    db_session, revision, h_game, owner_user
 ):
     row = _row(
         db_session,
         h_game,
-        admin_user.id,
+        owner_user.id,
         "h_game_highlights",
         content="what happens",
         fields={"female_characters": ["Ana"], "location": "  "},
@@ -163,7 +163,7 @@ def test_a_blank_location_is_dropped_without_a_line(
 
 
 def test_an_h_comic_highlight_keeps_its_location(
-    db_session, revision, admin_user
+    db_session, revision, owner_user
 ):
     """The mirror: h-comic still declares `location`, and must keep it."""
     comic = models.HComic(h_comic_name_cn="Zvornik KR", region="KR")
@@ -172,7 +172,7 @@ def test_an_h_comic_highlight_keeps_its_location(
     row = _row(
         db_session,
         comic,
-        admin_user.id,
+        owner_user.id,
         "h_comic_highlights",
         content="what happens",
         fields={"female_characters": ["Ana"], "location": "classroom"},
@@ -185,12 +185,12 @@ def test_an_h_comic_highlight_keeps_its_location(
 
 
 def test_a_migrated_highlight_validates_against_the_new_spec(
-    db_session, revision, h_game, admin_user
+    db_session, revision, h_game, owner_user
 ):
     row = _row(
         db_session,
         h_game,
-        admin_user.id,
+        owner_user.id,
         "h_game_highlights",
         fields={"female_characters": ["Ana"], "location": "classroom"},
     )

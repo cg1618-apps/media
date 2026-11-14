@@ -82,36 +82,36 @@ def paused_movie(db, sample_franchise, list_row):
 
 @pytest.mark.parametrize("route, model, name_col", WATCHING)
 def test_create_writes_time_fin_to_the_list_row_stripped(
-    admin_client, db, admin_user, route, model, name_col
+    owner_client, db, owner_user, route, model, name_col
 ):
-    response = admin_client.post(
+    response = owner_client.post(
         f"/api/{route}/", json={name_col: f"{route} time", "time_fin": "  14:35 "}
     )
     assert response.status_code == 201, response.text
     body = response.json()
     assert body["time_fin"] == "14:35"
-    row = _row_for(db, uuid.UUID(body["system_id"]), admin_user.id)
+    row = _row_for(db, uuid.UUID(body["system_id"]), owner_user.id)
     assert row.time_fin == "14:35"
 
 
 @pytest.mark.parametrize("route, model, name_col", WATCHING)
 def test_patch_writes_time_fin_and_get_reads_it_back(
-    admin_client, db, route, model, name_col
+    owner_client, db, route, model, name_col
 ):
-    created = admin_client.post(
+    created = owner_client.post(
         f"/api/{route}/", json={name_col: f"{route} patched"}
     ).json()
-    response = admin_client.patch(
+    response = owner_client.patch(
         f"/api/{route}/{created['system_id']}", json={"time_fin": "1:10:00"}
     )
     assert response.status_code == 200, response.text
     assert response.json()["time_fin"] == "1:10:00"
-    fetched = admin_client.get(f"/api/{route}/{created['public_id']}").json()
+    fetched = owner_client.get(f"/api/{route}/{created['public_id']}").json()
     assert fetched["time_fin"] == "1:10:00"
 
 
-def test_a_blank_patch_stores_null(admin_client, db, paused_movie):
-    response = admin_client.patch(
+def test_a_blank_patch_stores_null(owner_client, db, paused_movie):
+    response = owner_client.patch(
         f"/api/movies/{paused_movie.system_id}", json={"time_fin": "  "}
     )
     assert response.status_code == 200, response.text
@@ -140,8 +140,8 @@ def test_a_type_without_a_paused_position_refuses_it_on_me_list(
 # ---------------------------------------------------------------------------
 
 
-def test_patching_ep_fin_up_clears_it(admin_client, db, episodic):
-    response = admin_client.patch(
+def test_patching_ep_fin_up_clears_it(owner_client, db, episodic):
+    response = owner_client.patch(
         f"/api/anime/{episodic.system_id}", json={"ep_fin": 4}
     )
     assert response.status_code == 200, response.text
@@ -149,8 +149,8 @@ def test_patching_ep_fin_up_clears_it(admin_client, db, episodic):
     assert _row_for(db, episodic.system_id).time_fin is None
 
 
-def test_a_new_position_in_the_same_patch_wins(admin_client, db, episodic):
-    response = admin_client.patch(
+def test_a_new_position_in_the_same_patch_wins(owner_client, db, episodic):
+    response = owner_client.patch(
         f"/api/anime/{episodic.system_id}", json={"ep_fin": 4, "time_fin": "02:10"}
     )
     assert response.status_code == 200, response.text
@@ -159,19 +159,19 @@ def test_a_new_position_in_the_same_patch_wins(admin_client, db, episodic):
     assert row.time_fin == "02:10"
 
 
-def test_a_patch_that_does_not_move_ep_fin_leaves_it(admin_client, db, episodic):
+def test_a_patch_that_does_not_move_ep_fin_leaves_it(owner_client, db, episodic):
     """The mirror of the clear: same fixture, a write that is not progress."""
-    response = admin_client.patch(
+    response = owner_client.patch(
         f"/api/anime/{episodic.system_id}", json={"my_rating": "A"}
     )
     assert response.status_code == 200, response.text
     assert _row_for(db, episodic.system_id).time_fin == "14:35"
 
 
-def test_the_modify_forms_put_clears_an_echoed_position(admin_client, db, episodic):
+def test_the_modify_forms_put_clears_an_echoed_position(owner_client, db, episodic):
     """The Modify form PUTs every field, time_fin included as it was loaded.
     Bumping the episode there is progress, and the echo is not a new value."""
-    response = admin_client.put(
+    response = owner_client.put(
         f"/api/anime/{episodic.system_id}",
         json={
             "anime_name_en": "Paused Sentinel",
@@ -186,8 +186,8 @@ def test_the_modify_forms_put_clears_an_echoed_position(admin_client, db, episod
     assert _row_for(db, episodic.system_id).time_fin is None
 
 
-def test_a_put_that_keeps_ep_fin_keeps_it(admin_client, db, episodic):
-    response = admin_client.put(
+def test_a_put_that_keeps_ep_fin_keeps_it(owner_client, db, episodic):
+    response = owner_client.put(
         f"/api/anime/{episodic.system_id}",
         json={
             "anime_name_en": "Paused Sentinel",
@@ -202,8 +202,8 @@ def test_a_put_that_keeps_ep_fin_keeps_it(admin_client, db, episodic):
     assert _row_for(db, episodic.system_id).time_fin == "14:35"
 
 
-def test_patching_ep_fin_to_the_total_finishes_and_clears(admin_client, db, episodic):
-    response = admin_client.patch(
+def test_patching_ep_fin_to_the_total_finishes_and_clears(owner_client, db, episodic):
+    response = owner_client.patch(
         f"/api/anime/{episodic.system_id}", json={"ep_fin": 10, "time_fin": "20:00"}
     )
     assert response.status_code == 200, response.text
@@ -217,8 +217,8 @@ def test_patching_ep_fin_to_the_total_finishes_and_clears(admin_client, db, epis
 # ---------------------------------------------------------------------------
 
 
-def test_patching_status_to_completed_clears_it(admin_client, db, paused_movie):
-    response = admin_client.patch(
+def test_patching_status_to_completed_clears_it(owner_client, db, paused_movie):
+    response = owner_client.patch(
         f"/api/movies/{paused_movie.system_id}",
         json={"watching_status": "Completed"},
     )
@@ -226,23 +226,23 @@ def test_patching_status_to_completed_clears_it(admin_client, db, paused_movie):
     assert _row_for(db, paused_movie.system_id).time_fin is None
 
 
-def test_patching_another_status_leaves_it(admin_client, db, paused_movie):
-    response = admin_client.patch(
+def test_patching_another_status_leaves_it(owner_client, db, paused_movie):
+    response = owner_client.patch(
         f"/api/movies/{paused_movie.system_id}", json={"watching_status": "Paused"}
     )
     assert response.status_code == 200, response.text
     assert _row_for(db, paused_movie.system_id).time_fin == "1:10:00"
 
 
-def test_complete_endpoint_clears_it_for_a_movie(admin_client, db, paused_movie):
-    response = admin_client.post(f"/api/movies/{paused_movie.system_id}/complete")
+def test_complete_endpoint_clears_it_for_a_movie(owner_client, db, paused_movie):
+    response = owner_client.post(f"/api/movies/{paused_movie.system_id}/complete")
     assert response.status_code == 200, response.text
     assert response.json()["time_fin"] is None
     assert _row_for(db, paused_movie.system_id).time_fin is None
 
 
-def test_complete_endpoint_clears_it_for_an_anime(admin_client, db, episodic):
-    response = admin_client.post(f"/api/anime/{episodic.system_id}/complete")
+def test_complete_endpoint_clears_it_for_an_anime(owner_client, db, episodic):
+    response = owner_client.post(f"/api/anime/{episodic.system_id}/complete")
     assert response.status_code == 200, response.text
     assert _row_for(db, episodic.system_id).time_fin is None
 

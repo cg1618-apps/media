@@ -103,10 +103,10 @@ def test_me_reports_the_guest_role_for_an_anonymous_caller(client):
     assert media_type_perm("anime") in body["permissions"]
 
 
-def test_me_reports_root_for_an_admin(admin_client):
-    body = admin_client.get("/api/auth/me").json()
+def test_me_reports_root_for_an_admin(owner_client):
+    body = owner_client.get("/api/auth/me").json()
     assert body["is_admin"] is True
-    assert body["username"] == "aaa_testadmin"
+    assert body["username"] == "aaa_testowner"
     assert body["is_root"] is True
 
 

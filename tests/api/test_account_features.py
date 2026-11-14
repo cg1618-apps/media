@@ -19,13 +19,13 @@ from tests.api.conftest import role_id_for
 
 
 @pytest.fixture
-def quote_and_meme(db_session, admin_client, sample_anime):
+def quote_and_meme(db_session, owner_client, sample_anime):
     """One quote and one meme, and the URLs that read them. Load-bearing for
     every refusal below: without rows a refused list and an empty one could
     not be told apart."""
-    quote = admin_client.post("/api/quote/", json={"text": "名台詞"})
+    quote = owner_client.post("/api/quote/", json={"text": "名台詞"})
     assert quote.status_code == 200, quote.text
-    meme = admin_client.post(
+    meme = owner_client.post(
         "/api/meme/",
         json={
             "owner_type": "anime",
@@ -89,13 +89,13 @@ def test_an_anonymous_visitor_is_refused(client, quote_and_meme):
 
 
 def test_the_admin_reads_them_without_the_switch(
-    db_session, admin_client, admin_user, quote_and_meme
+    db_session, owner_client, owner_user, quote_and_meme
 ):
     """The root role holds quotes_memes by short-circuit, as it held
     view.extras: the admin writes quotes and must read them back."""
-    assert admin_user.feature_quotes_memes is False
+    assert owner_user.feature_quotes_memes is False
     for url in quote_and_meme["urls"]:
-        assert admin_client.get(url).status_code == 200, url
+        assert owner_client.get(url).status_code == 200, url
 
 
 def test_view_extras_still_opens_resources(
@@ -127,8 +127,8 @@ def test_me_gives_a_guest_no_features(client):
     assert client.get("/api/auth/me").json()["features"] == []
 
 
-def test_me_gives_the_admin_quotes_memes_only(admin_client):
-    assert admin_client.get("/api/auth/me").json()["features"] == ["quotes_memes"]
+def test_me_gives_the_admin_quotes_memes_only(owner_client):
+    assert owner_client.get("/api/auth/me").json()["features"] == ["quotes_memes"]
 
 
 # ---------------------------------------------------------------------------

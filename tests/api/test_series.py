@@ -40,7 +40,7 @@ class TestGetSeriesById:
 
 
 class TestCreateSeries:
-    def test_admin_can_create_with_new_fields(self, admin_client, sample_franchise):
+    def test_admin_can_create_with_new_fields(self, owner_client, sample_franchise):
         payload = {
             "franchise_id": str(sample_franchise.system_id),
             "series_name_en": "New Series",
@@ -52,7 +52,7 @@ class TestCreateSeries:
             "series_expectation": "High",
             "remark": "a remark",
         }
-        response = admin_client.post("/api/series/", json=payload)
+        response = owner_client.post("/api/series/", json=payload)
         assert response.status_code in (200, 201)
         data = response.json()
         assert data["series_name_roman"] == "Shin Series"
@@ -61,21 +61,21 @@ class TestCreateSeries:
         assert data["series_expectation"] == "High"
         assert data["remark"] == "a remark"
 
-    def test_expectation_defaults_to_low(self, admin_client, sample_franchise):
+    def test_expectation_defaults_to_low(self, owner_client, sample_franchise):
         payload = {
             "franchise_id": str(sample_franchise.system_id),
             "series_name_en": "Defaulted",
         }
-        response = admin_client.post("/api/series/", json=payload)
+        response = owner_client.post("/api/series/", json=payload)
         assert response.json()["series_expectation"] == "Low"
 
-    def test_cover_entry_id_round_trips(self, admin_client, sample_franchise, sample_anime):
+    def test_cover_entry_id_round_trips(self, owner_client, sample_franchise, sample_anime):
         payload = {
             "franchise_id": str(sample_franchise.system_id),
             "series_name_en": "Covered",
             "cover_entry_id": str(sample_anime.system_id),
         }
-        response = admin_client.post("/api/series/", json=payload)
+        response = owner_client.post("/api/series/", json=payload)
         assert response.json()["cover_entry_id"] == str(sample_anime.system_id)
 
     def test_guest_cannot_create(self, client, sample_franchise):
@@ -88,18 +88,18 @@ class TestCreateSeries:
 
 
 class TestPatchSeries:
-    def test_admin_can_patch_single_field(self, admin_client, sample_series):
-        response = admin_client.patch(
+    def test_admin_can_patch_single_field(self, owner_client, sample_series):
+        response = owner_client.patch(
             f"/api/series/{sample_series.system_id}", json={"my_rating": "S"}
         )
         assert response.status_code == 200
         assert response.json()["my_rating"] == "S"
 
-    def test_patch_leaves_other_fields_intact(self, admin_client, sample_series):
-        admin_client.patch(
+    def test_patch_leaves_other_fields_intact(self, owner_client, sample_series):
+        owner_client.patch(
             f"/api/series/{sample_series.system_id}", json={"my_rating": "S"}
         )
-        data = admin_client.get(f"/api/series/{sample_series.system_id}").json()
+        data = owner_client.get(f"/api/series/{sample_series.system_id}").json()
         assert data["series_name_en"] == "Test Series"
 
     def test_guest_cannot_patch(self, client, sample_series):

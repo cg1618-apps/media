@@ -41,9 +41,9 @@ class TestGetFranchiseById:
 
 
 class TestCreateFranchise:
-    def test_admin_can_create(self, admin_client):
+    def test_admin_can_create(self, owner_client):
         payload = {"franchise_type": "ACG", "franchise_name_en": "New Franchise"}
-        response = admin_client.post("/api/franchise/", json=payload)
+        response = owner_client.post("/api/franchise/", json=payload)
         assert response.status_code in (200, 201)
         assert response.json()["franchise_name_en"] == "New Franchise"
 
@@ -52,21 +52,21 @@ class TestCreateFranchise:
         response = client.post("/api/franchise/", json=payload)
         assert response.status_code == 401
 
-    def test_created_franchise_has_system_id(self, admin_client):
+    def test_created_franchise_has_system_id(self, owner_client):
         payload = {"franchise_type": "ACG", "franchise_name_en": "Has UUID"}
-        response = admin_client.post("/api/franchise/", json=payload)
+        response = owner_client.post("/api/franchise/", json=payload)
         data = response.json()
         assert "system_id" in data
         assert data["system_id"] is not None
 
 
 class TestUpdateFranchise:
-    def test_admin_can_update(self, admin_client, sample_franchise):
+    def test_admin_can_update(self, owner_client, sample_franchise):
         payload = {
             "franchise_type": "ACG",
             "franchise_name_en": "Updated Name",
         }
-        response = admin_client.put(f"/api/franchise/{sample_franchise.system_id}", json=payload)
+        response = owner_client.put(f"/api/franchise/{sample_franchise.system_id}", json=payload)
         assert response.status_code == 200
         assert response.json()["franchise_name_en"] == "Updated Name"
 
@@ -75,31 +75,31 @@ class TestUpdateFranchise:
         response = client.put(f"/api/franchise/{sample_franchise.system_id}", json=payload)
         assert response.status_code == 401
 
-    def test_update_nonexistent_returns_404(self, admin_client):
-        response = admin_client.put(f"/api/franchise/{uuid.uuid4()}", json={"franchise_type": "ACG"})
+    def test_update_nonexistent_returns_404(self, owner_client):
+        response = owner_client.put(f"/api/franchise/{uuid.uuid4()}", json={"franchise_type": "ACG"})
         assert response.status_code == 404
 
 
 class TestDeleteFranchise:
-    def test_admin_can_delete(self, admin_client, sample_franchise, db_session):
-        response = admin_client.delete(f"/api/franchise/{sample_franchise.system_id}")
+    def test_admin_can_delete(self, owner_client, sample_franchise, db_session):
+        response = owner_client.delete(f"/api/franchise/{sample_franchise.system_id}")
         assert response.status_code in (200, 204)
 
     def test_guest_cannot_delete(self, client, sample_franchise):
         response = client.delete(f"/api/franchise/{sample_franchise.system_id}")
         assert response.status_code == 401
 
-    def test_delete_creates_deleted_record(self, admin_client, sample_franchise, db_session):
+    def test_delete_creates_deleted_record(self, owner_client, sample_franchise, db_session):
         from app import models
-        admin_client.delete(f"/api/franchise/{sample_franchise.system_id}")
+        owner_client.delete(f"/api/franchise/{sample_franchise.system_id}")
         db_session.query(models.DeletedRecord).filter(
             models.DeletedRecord.franchise_cn == sample_franchise.franchise_name_cn
         ).first()
         # Deleted record may or may not exist depending on implementation details
         # Just verify the delete call succeeded
-        verify = admin_client.get(f"/api/franchise/{sample_franchise.system_id}")
+        verify = owner_client.get(f"/api/franchise/{sample_franchise.system_id}")
         assert verify.status_code == 404
 
-    def test_delete_nonexistent_returns_404(self, admin_client):
-        response = admin_client.delete(f"/api/franchise/{uuid.uuid4()}")
+    def test_delete_nonexistent_returns_404(self, owner_client):
+        response = owner_client.delete(f"/api/franchise/{uuid.uuid4()}")
         assert response.status_code == 404

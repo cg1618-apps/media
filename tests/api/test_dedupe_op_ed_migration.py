@@ -54,21 +54,21 @@ def _rows(db, anime, section):
     )
 
 
-def test_twins_fold_into_the_earliest(db_session, sample_anime, admin_user, revision):
+def test_twins_fold_into_the_earliest(db_session, sample_anime, owner_user, revision):
     first = _row(
-        db_session, sample_anime, admin_user.id, "op", datetime(2026, 1, 1),
+        db_session, sample_anime, owner_user.id, "op", datetime(2026, 1, 1),
         kind="normal", status="Done",
     )
     _row(
-        db_session, sample_anime, admin_user.id, "op", datetime(2026, 2, 1),
+        db_session, sample_anime, owner_user.id, "op", datetime(2026, 2, 1),
         kind="normal", status="Done",
     )
     _row(
-        db_session, sample_anime, admin_user.id, "ed", datetime(2026, 1, 1),
+        db_session, sample_anime, owner_user.id, "ed", datetime(2026, 1, 1),
         kind="normal", status="Done",
     )
     _row(
-        db_session, sample_anime, admin_user.id, "ed", datetime(2026, 2, 1),
+        db_session, sample_anime, owner_user.id, "ed", datetime(2026, 2, 1),
         kind="normal", status="Done",
     )
 
@@ -81,19 +81,19 @@ def test_twins_fold_into_the_earliest(db_session, sample_anime, admin_user, revi
     assert len(_rows(db_session, sample_anime, "ed")) == 1
 
 
-def test_rows_that_differ_all_survive(db_session, sample_anime, admin_user, revision):
+def test_rows_that_differ_all_survive(db_session, sample_anime, owner_user, revision):
     # The mirror of the fold above, with rows on the same owner and section,
     # so a green here proves the partition did the keeping.
     _row(
-        db_session, sample_anime, admin_user.id, "op", datetime(2026, 1, 1),
+        db_session, sample_anime, owner_user.id, "op", datetime(2026, 1, 1),
         kind="normal", status="Done", title="Opening A",
     )
     _row(
-        db_session, sample_anime, admin_user.id, "op", datetime(2026, 2, 1),
+        db_session, sample_anime, owner_user.id, "op", datetime(2026, 2, 1),
         kind="normal", status="Done", title="Opening B",
     )
     _row(
-        db_session, sample_anime, admin_user.id, "op", datetime(2026, 3, 1),
+        db_session, sample_anime, owner_user.id, "op", datetime(2026, 3, 1),
         kind="normal", status="Need", title="Opening A",
     )
 

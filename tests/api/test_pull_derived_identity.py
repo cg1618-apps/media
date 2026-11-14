@@ -564,7 +564,7 @@ GAME_COPY_HEADERS = [
 
 
 def test_game_copy_with_a_foreign_uuid_updates_the_local_row(
-    db_session, sheets, admin_user
+    db_session, sheets, owner_user
 ):
     """`game_copy` mints its uuid per database, exactly like the tabs above.
 
@@ -579,10 +579,10 @@ def test_game_copy_with_a_foreign_uuid_updates_the_local_row(
     db_session.flush()
 
     # The owner is part of the natural key since Task 19, and the pull assigns
-    # every restored row to the acting user - which is admin_user here.
+    # every restored row to the acting user - which is owner_user here.
     local = models.GameCopy(
         system_id=uuid.uuid4(),
-        user_id=admin_user.id,
+        user_id=owner_user.id,
         game_id=game.system_id,
         storefront="Steam",
         copy_format="Digital",

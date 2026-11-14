@@ -111,7 +111,7 @@ def gated(db_session):
 
 
 def test_reviews_and_comments_become_public_reviews_and_go_back(
-    db_session, gated, admin_user, super_user, revision
+    db_session, gated, owner_user, super_user, revision
 ):
     rows = {
         media_type: _note(
@@ -128,7 +128,7 @@ def test_reviews_and_comments_become_public_reviews_and_go_back(
     # A game's public review is not a gated type's, so downgrade leaves it.
     game = _add(db_session, models.Game(game_name_en="Zvornik Ring"))
     game_review = _note(
-        db_session, game, admin_user.id, "public_reviews", content="liked"
+        db_session, game, owner_user.id, "public_reviews", content="liked"
     )
 
     conn = db_session.connection()
@@ -164,24 +164,24 @@ def test_reviews_and_comments_become_public_reviews_and_go_back(
 
 
 def test_ng_reset_is_backfilled_on_the_three_gear_sections(
-    db_session, admin_user, revision
+    db_session, owner_user, revision
 ):
     game = _add(db_session, models.Game(game_name_en="Zvornik Ring"))
     with_fields = _note(
-        db_session, game, admin_user.id, "items", title="Flask",
+        db_session, game, owner_user.id, "items", title="Flask",
         fields={"variant": "+3"},
     )
     # links=None on a JSONB column stores JSON null, not SQL NULL; fields
     # the same - the shape most rows carry, and one `||` would turn into an
     # array.
-    json_null = _note(db_session, game, admin_user.id, "collectibles", title="Seed")
+    json_null = _note(db_session, game, owner_user.id, "collectibles", title="Seed")
     already = _note(
-        db_session, game, admin_user.id, "weapons_and_gear", title="Sword",
+        db_session, game, owner_user.id, "weapons_and_gear", title="Sword",
         fields={"ng_reset": "no"},
     )
     # Not a gear section: left alone, so the backfill is section-bound.
     other = _note(
-        db_session, game, admin_user.id, "skills", title="Parry",
+        db_session, game, owner_user.id, "skills", title="Parry",
         fields={"variant": "x"},
     )
 
@@ -208,19 +208,19 @@ def test_ng_reset_is_backfilled_on_the_three_gear_sections(
 
 
 def test_collected_falls_back_to_fully_collected_on_downgrade(
-    db_session, admin_user, revision
+    db_session, owner_user, revision
 ):
     game = _add(db_session, models.Game(game_name_en="Zvornik Ring"))
     collected = _note(
-        db_session, game, admin_user.id, "items", title="Flask", status="collected"
+        db_session, game, owner_user.id, "items", title="Flask", status="collected"
     )
     enough = _note(
-        db_session, game, admin_user.id, "items", title="Seed",
+        db_session, game, owner_user.id, "items", title="Seed",
         status="enough collected",
     )
     # A status of the same spelling on another section is not this vocabulary.
     elsewhere = _note(
-        db_session, game, admin_user.id, "mods_and_tools", title="Mod",
+        db_session, game, owner_user.id, "mods_and_tools", title="Mod",
         status="collected",
     )
 
@@ -232,15 +232,15 @@ def test_collected_falls_back_to_fully_collected_on_downgrade(
 
 
 def test_guide_resource_groups_are_cleared_on_downgrade(
-    db_session, admin_user, revision
+    db_session, owner_user, revision
 ):
     game = _add(db_session, models.Game(game_name_en="Zvornik Ring"))
     grouped = _note(
-        db_session, game, admin_user.id, "guide_resources", title="Wiki", kind="Wikis"
+        db_session, game, owner_user.id, "guide_resources", title="Wiki", kind="Wikis"
     )
     # `kind` on another section is that section's own column.
     controls = _note(
-        db_session, game, admin_user.id, "controls", title="L2", kind="Combat"
+        db_session, game, owner_user.id, "controls", title="L2", kind="Combat"
     )
 
     revision.clear_guide_resource_groups(db_session.connection())

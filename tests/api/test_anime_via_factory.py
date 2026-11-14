@@ -26,14 +26,14 @@ def test_anime_list_filters_by_airing_season(client, db_session, sample_franchis
     assert "Winter One" not in body
 
 
-def test_anime_create_derives_ep_previous_from_the_earlier_season(admin_client, db_session, sample_franchise):
+def test_anime_create_derives_ep_previous_from_the_earlier_season(owner_client, db_session, sample_franchise):
     fid = str(sample_franchise.system_id)
-    first = admin_client.post("/api/anime/", json={
+    first = owner_client.post("/api/anime/", json={
         "anime_name_en": "Frieren", "franchise_id": fid, "airing_type": "TV",
         "season_part": "Season 1", "ep_total": 28,
     })
     assert first.status_code == 201, first.text
-    second = admin_client.post("/api/anime/", json={
+    second = owner_client.post("/api/anime/", json={
         "anime_name_en": "Frieren Season 2", "franchise_id": fid, "airing_type": "TV",
         "season_part": "Season 2", "ep_total": 12,
     })
@@ -41,8 +41,8 @@ def test_anime_create_derives_ep_previous_from_the_earlier_season(admin_client, 
     assert second.json()["ep_previous"] == 28
 
 
-def test_anime_movie_create_has_no_series(admin_client, sample_franchise):
-    response = admin_client.post("/api/anime-movie/", json={
+def test_anime_movie_create_has_no_series(owner_client, sample_franchise):
+    response = owner_client.post("/api/anime-movie/", json={
         "anime_movie_name_en": "Your Name", "franchise_id": str(sample_franchise.system_id),
     })
     assert response.status_code == 201, response.text
@@ -51,21 +51,21 @@ def test_anime_movie_create_has_no_series(admin_client, sample_franchise):
     assert body["franchise_id"] == str(sample_franchise.system_id)
 
 
-def test_anime_movie_create_without_a_franchise_creates_one_from_its_titles(admin_client, db_session):
-    response = admin_client.post("/api/anime-movie/", json={"anime_movie_name_en": "Your Name"})
+def test_anime_movie_create_without_a_franchise_creates_one_from_its_titles(owner_client, db_session):
+    response = owner_client.post("/api/anime-movie/", json={"anime_movie_name_en": "Your Name"})
     assert response.status_code == 201, response.text
     fran = db_session.get(models.Franchise, response.json()["franchise_id"])
     assert fran.franchise_name_en == "Your Name"
 
 
 def test_anime_movie_list_filters_by_watching_status(
-    admin_client, db_session, sample_franchise, list_row
+    owner_client, db_session, sample_franchise, list_row
 ):
     """The filter joins user_media_list since step 1, rather than reading a
     column on anime_movies. "Unseen" gets no list row at all, which is what an
     untouched entry looks like and still reads back as Might Watch.
 
-    `admin_client`, because `list_row` hangs its row on admin_user and a
+    `owner_client`, because `list_row` hangs its row on owner_user and a
     personal filter is answered from the caller's own list. A logged-out
     visitor gets an empty result instead - see test_guest_has_no_list.py."""
     fid = sample_franchise.system_id
@@ -80,7 +80,7 @@ def test_anime_movie_list_filters_by_watching_status(
     ])
     db_session.flush()
     list_row(seen, status="Completed")
-    body = admin_client.get(
+    body = owner_client.get(
         "/api/anime-movie/", params={"watching_status": "Completed"}
     ).text
     assert "Seen" in body and "Unseen" not in body

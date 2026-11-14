@@ -301,6 +301,54 @@ def admin_client(db_session, admin_user):
 
 
 @pytest.fixture(scope="function")
+def owner_user(db_session):
+    """
+    The installation's owner: a `super`-role account, at ceiling and default
+    `unrestricted` (set by owner_client). The account owner_client's requests
+    act as, so a test that seeds a personal row (list_row, sample_anime)
+    hangs it on the same user the request resolves to.
+
+    `super`, because that is the role that reads and writes the whole
+    catalogue; the admin role does neither. It holds no
+    is_installation_owner flag - the flag is unique, and tests that are about
+    it set it on an account of their own - and is the owner by the fallback:
+    the first active member account by username.
+    """
+    user = models.User(
+        id=uuid.uuid4(),
+        username="aaa_testowner",
+        hashed_password=get_password_hash("testpass"),
+        role_id=role_id_for(db_session, "super"),
+    )
+    db_session.add(user)
+    db_session.flush()
+    return user
+
+
+@pytest.fixture(scope="function")
+def owner_client(db_session, owner_user):
+    """Authenticated client for the installation owner (a `super` account
+    in mode `unrestricted`): every catalogue read and write, every personal
+    feature, everything but admin.authz."""
+
+    def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    mode_id = seed_modes_and_grant(db_session, owner_user)
+    token = create_access_token(
+        {"sub": owner_user.username, "role": "super", "mode": str(mode_id or "")}
+    )
+
+    with TestClient(app) as c:
+        c.cookies.set("access_token", f"Bearer {token}")
+        yield c
+
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture(scope="function")
 def plain_user(db_session):
     """A signed-in member on the `user` role: guest reads plus the two self.*."""
     user = models.User(
@@ -475,7 +523,7 @@ def grant_mode(db_session, mode):
 
 
 @pytest.fixture
-def mode_client(db_session, admin_user, grant_mode):
+def mode_client(db_session, owner_user, grant_mode):
     """A client sitting in one named mode.
 
     The mode travels in the access_mode override cookie exactly as it does
@@ -485,7 +533,7 @@ def mode_client(db_session, admin_user, grant_mode):
     """
 
     def _client(mode_key, user=None, denials=()):
-        user = user or admin_user
+        user = user or owner_user
         target = grant_mode(user, mode_key, denials=denials)
 
         def override_get_db():
@@ -830,14 +878,14 @@ def sample_series(db_session, sample_franchise):
 
 
 @pytest.fixture
-def list_row(db_session, admin_user):
+def list_row(db_session, owner_user):
     """Give an entry the acting user's `user_media_list` row.
 
     Step 1 moved the personal fields off the detail tables, so a test that
     needs an entry to be Completed (or rated, or part-watched) writes them
     here instead of as constructor kwargs.
 
-    `admin_user`, because that is the account `admin_client` acts as, and a
+    `owner_user`, because that is the account `owner_client` acts as, and a
     personal read is answered from the caller's own list. It used to matter
     for a second reason - the lifespan seeds an admin named "admin" that sorts
     first and would have won `acting_user_id`'s fallback - and that fallback
@@ -850,7 +898,7 @@ def list_row(db_session, admin_user):
     def _make(entry, **fields):
         row = models.UserMediaList(
             system_id=uuid.uuid4(),
-            user_id=admin_user.id,
+            user_id=owner_user.id,
             media_id=entry.system_id,
             **fields,
         )
@@ -862,14 +910,14 @@ def list_row(db_session, admin_user):
 
 
 @pytest.fixture
-def sample_anime(db_session, admin_user, sample_franchise):
+def sample_anime(db_session, owner_user, sample_franchise):
     """
     A finished anime, watched to the end.
 
     The status and the episode count moved to user_media_list in step 1, so
     they are written as the acting user's list row rather than as columns.
-    `admin_user` and not `acting_user_id(db, None)`: a request through
-    admin_client resolves to that account, and a row hung on any other user
+    `owner_user` and not `acting_user_id(db, None)`: a request through
+    owner_client resolves to that account, and a row hung on any other user
     would read back as the type's default.
     """
     a = models.Anime(
@@ -885,7 +933,7 @@ def sample_anime(db_session, admin_user, sample_franchise):
     db_session.add(
         models.UserMediaList(
             system_id=uuid.uuid4(),
-            user_id=admin_user.id,
+            user_id=owner_user.id,
             media_id=a.system_id,
             status="Completed",
             ep_fin=12,

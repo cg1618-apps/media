@@ -69,11 +69,11 @@ def _reload(db, row):
     return db.query(models.Note).filter_by(system_id=row.system_id).one()
 
 
-def test_a_url_in_a_public_review_moves_into_its_links(db_session, revision, movie, admin_user):
+def test_a_url_in_a_public_review_moves_into_its_links(db_session, revision, movie, owner_user):
     row = _row(
         db_session,
         movie,
-        admin_user.id,
+        owner_user.id,
         "public_reviews",
         content=f"【制作六年评价却两极分化？】 {BILIBILI}",
         links=[],
@@ -95,11 +95,11 @@ def test_a_url_in_a_public_review_moves_into_its_links(db_session, revision, mov
     )
 
 
-def test_urls_join_the_links_already_there_once_each(db_session, revision, movie, admin_user):
+def test_urls_join_the_links_already_there_once_each(db_session, revision, movie, owner_user):
     row = _row(
         db_session,
         movie,
-        admin_user.id,
+        owner_user.id,
         "public_reviews",
         content="Two takes:\nhttps://a.example/1\nsee https://b.example/2.",
         links=["https://a.example/1"],
@@ -112,8 +112,8 @@ def test_urls_join_the_links_already_there_once_each(db_session, revision, movie
     assert row.links == ["https://a.example/1", "https://b.example/2"]
 
 
-def test_a_body_that_was_only_a_url_becomes_a_link(db_session, revision, movie, admin_user):
-    row = _row(db_session, movie, admin_user.id, "advantages", content="https://a.example/x")
+def test_a_body_that_was_only_a_url_becomes_a_link(db_session, revision, movie, owner_user):
+    row = _row(db_session, movie, owner_user.id, "advantages", content="https://a.example/x")
     _reshape(db_session, revision)
 
     row = _reload(db_session, row)
@@ -122,9 +122,9 @@ def test_a_body_that_was_only_a_url_becomes_a_link(db_session, revision, movie, 
 
 
 @pytest.mark.parametrize("section", ["advantages", "disadvantages", "double_edged"])
-def test_no_links_is_stored_as_an_empty_list(db_session, revision, movie, admin_user, section):
-    sql_null = _row(db_session, movie, admin_user.id, section, content="好看")
-    json_null = _row(db_session, movie, admin_user.id, section, content="節奏慢")
+def test_no_links_is_stored_as_an_empty_list(db_session, revision, movie, owner_user, section):
+    sql_null = _row(db_session, movie, owner_user.id, section, content="好看")
+    json_null = _row(db_session, movie, owner_user.id, section, content="節奏慢")
     db_session.execute(
         text("UPDATE note SET links = 'null'::jsonb WHERE system_id = :id"),
         {"id": json_null.system_id},
@@ -137,12 +137,12 @@ def test_no_links_is_stored_as_an_empty_list(db_session, revision, movie, admin_
         assert row.content in ("好看", "節奏慢")
 
 
-def test_personal_reviews_is_left_alone(db_session, revision, movie, admin_user):
+def test_personal_reviews_is_left_alone(db_session, revision, movie, owner_user):
     """The mirror: a reshape over every section would pass the tests above."""
     row = _row(
         db_session,
         movie,
-        admin_user.id,
+        owner_user.id,
         "personal_reviews",
         content="My verdict https://a.example/mine",
     )

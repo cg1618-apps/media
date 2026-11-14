@@ -68,11 +68,11 @@ def _with_old_cover(db_session, covers_dir, anime):
 
 
 def test_clear_then_a_new_mal_id_downloads_the_new_cover(
-    admin_client, db_session, sample_anime, covers_dir, mal
+    owner_client, db_session, sample_anime, covers_dir, mal
 ):
     path = _with_old_cover(db_session, covers_dir, sample_anime)
 
-    cleared = admin_client.delete(
+    cleared = owner_client.delete(
         f"/api/images/owners/anime/{sample_anime.system_id}/cover"
     )
     assert cleared.status_code == 204

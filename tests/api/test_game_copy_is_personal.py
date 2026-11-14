@@ -21,8 +21,8 @@ def db(db_session):
 
 
 @pytest.fixture
-def a_game(db, admin_client):
-    response = admin_client.post("/api/game/", json={"game_name_en": "Copy Sentinel"})
+def a_game(db, owner_client):
+    response = owner_client.post("/api/game/", json={"game_name_en": "Copy Sentinel"})
     assert response.status_code == 201, response.text
     return uuid.UUID(response.json()["system_id"])
 
@@ -40,7 +40,7 @@ def test_a_copy_written_through_the_router_belongs_to_the_acting_user(
     assert copy.user_id == super_user.id
 
 
-def test_two_people_can_own_the_same_edition(db, admin_client, a_game, admin_user):
+def test_two_people_can_own_the_same_edition(db, owner_client, a_game, owner_user):
     """The old uq_game_copy_row was UNIQUE (game_id, storefront, copy_format),
     which is exactly the row two owners both need."""
     other = models.User(
@@ -52,7 +52,7 @@ def test_two_people_can_own_the_same_edition(db, admin_client, a_game, admin_use
     db.add(other)
     db.flush()
 
-    for user_id in (admin_user.id, other.id):
+    for user_id in (owner_user.id, other.id):
         db.add(
             models.GameCopy(
                 system_id=uuid.uuid4(),
@@ -70,7 +70,7 @@ def test_two_people_can_own_the_same_edition(db, admin_client, a_game, admin_use
 
 
 def test_the_ownership_filter_sees_only_the_acting_users_copies(
-    db, admin_client, a_game
+    db, owner_client, a_game
 ):
     other = models.User(
         id=uuid.uuid4(),
@@ -92,5 +92,5 @@ def test_the_ownership_filter_sees_only_the_acting_users_copies(
     )
     db.flush()
 
-    rows = admin_client.get("/api/game/?ownership=Owned&limit=2000").json()
+    rows = owner_client.get("/api/game/?ownership=Owned&limit=2000").json()
     assert str(a_game) not in {r["system_id"] for r in rows}

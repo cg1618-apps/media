@@ -74,20 +74,20 @@ def _put_entry(client, anime, keys):
 
 
 def test_attaching_a_label_attaches_nsfw_in_the_same_write(
-    admin_client, db_session, sample_anime
+    owner_client, db_session, sample_anime
 ):
-    r = _put_entry(admin_client, sample_anime, ["erotica"])
+    r = _put_entry(owner_client, sample_anime, ["erotica"])
 
     assert r.status_code == 200, r.text
     assert _entry_keys(db_session, sample_anime.system_id) == {"erotica", NSFW}
 
 
 def test_dropping_nsfw_while_another_label_stays_is_refused(
-    admin_client, db_session, sample_anime
+    owner_client, db_session, sample_anime
 ):
-    assert _put_entry(admin_client, sample_anime, ["erotica", NSFW]).status_code == 200
+    assert _put_entry(owner_client, sample_anime, ["erotica", NSFW]).status_code == 200
 
-    r = _put_entry(admin_client, sample_anime, ["erotica"])
+    r = _put_entry(owner_client, sample_anime, ["erotica"])
 
     assert r.status_code == 422
     assert "erotica" in r.json()["detail"]
@@ -95,22 +95,22 @@ def test_dropping_nsfw_while_another_label_stays_is_refused(
     assert _entry_keys(db_session, sample_anime.system_id) == {"erotica", NSFW}
 
 
-def test_dropping_every_label_at_once_is_allowed(admin_client, db_session, sample_anime):
+def test_dropping_every_label_at_once_is_allowed(owner_client, db_session, sample_anime):
     """The mirror: removing nsfw is refused only while something requires it."""
-    _put_entry(admin_client, sample_anime, ["erotica", NSFW])
+    _put_entry(owner_client, sample_anime, ["erotica", NSFW])
 
-    r = _put_entry(admin_client, sample_anime, [])
+    r = _put_entry(owner_client, sample_anime, [])
 
     assert r.status_code == 200
     assert _entry_keys(db_session, sample_anime.system_id) == set()
 
 
-def test_a_franchise_follows_the_same_rule(admin_client, db_session, sample_franchise):
+def test_a_franchise_follows_the_same_rule(owner_client, db_session, sample_franchise):
     url = f"/api/content-labels/franchise/{sample_franchise.system_id}"
-    assert admin_client.put(url, json={"label_keys": ["ecchi"]}).status_code == 200
+    assert owner_client.put(url, json={"label_keys": ["ecchi"]}).status_code == 200
     assert _franchise_keys(db_session, sample_franchise.system_id) == {"ecchi", NSFW}
 
-    assert admin_client.put(url, json={"label_keys": ["ecchi"]}).status_code == 422
+    assert owner_client.put(url, json={"label_keys": ["ecchi"]}).status_code == 422
 
 
 # --- The gated auto-label ----------------------------------------------------

@@ -45,8 +45,8 @@ def _upload(client, data=None, filename="cover.png", content_type="image/png"):
 # Upload
 # ---------------------------------------------------------------------------
 
-def test_upload_stores_the_image_and_returns_the_row(admin_client, db_session):
-    response = _upload(admin_client)
+def test_upload_stores_the_image_and_returns_the_row(owner_client, db_session):
+    response = _upload(owner_client)
 
     assert response.status_code == 201
     body = response.json()
@@ -56,40 +56,40 @@ def test_upload_stores_the_image_and_returns_the_row(admin_client, db_session):
     assert db_session.query(models.Image).count() == 1
 
 
-def test_upload_attaches_nothing_on_its_own(admin_client, db_session):
-    _upload(admin_client)
+def test_upload_attaches_nothing_on_its_own(owner_client, db_session):
+    _upload(owner_client)
 
     assert db_session.query(models.ImageAttachment).count() == 0
 
 
-def test_uploading_the_same_picture_twice_makes_one_row(admin_client, db_session):
-    first = _upload(admin_client).json()
-    second = _upload(admin_client).json()
+def test_uploading_the_same_picture_twice_makes_one_row(owner_client, db_session):
+    first = _upload(owner_client).json()
+    second = _upload(owner_client).json()
 
     assert first["system_id"] == second["system_id"]
     assert db_session.query(models.Image).count() == 1
 
 
-def test_upload_records_who_uploaded_it(admin_client, db_session, admin_user):
-    _upload(admin_client)
+def test_upload_records_who_uploaded_it(owner_client, db_session, owner_user):
+    _upload(owner_client)
 
     image = db_session.query(models.Image).one()
-    assert image.uploaded_by == admin_user.id
+    assert image.uploaded_by == owner_user.id
 
 
-def test_upload_rejects_a_file_that_is_not_an_image(admin_client):
-    response = _upload(admin_client, data=b"PK\x03\x04 nope", filename="cover.jpg")
+def test_upload_rejects_a_file_that_is_not_an_image(owner_client):
+    response = _upload(owner_client, data=b"PK\x03\x04 nope", filename="cover.jpg")
 
     assert response.status_code == 422
     assert "image" in response.json()["detail"].lower()
 
 
-def test_upload_rejects_a_file_over_the_cap(admin_client, monkeypatch):
+def test_upload_rejects_a_file_over_the_cap(owner_client, monkeypatch):
     from app.routers import images as images_router
 
     monkeypatch.setattr(images_router, "MAX_UPLOAD_BYTES", 100)
 
-    response = _upload(admin_client, data=_png(width=400, height=400))
+    response = _upload(owner_client, data=_png(width=400, height=400))
 
     assert response.status_code == 413
 
@@ -106,10 +106,10 @@ def test_upload_is_refused_to_a_signed_in_member(user_client):
 # Attach
 # ---------------------------------------------------------------------------
 
-def test_attach_links_the_image_to_an_entry(admin_client, db_session, sample_anime):
-    image = _upload(admin_client).json()
+def test_attach_links_the_image_to_an_entry(owner_client, db_session, sample_anime):
+    image = _upload(owner_client).json()
 
-    response = admin_client.post(
+    response = owner_client.post(
         f"/api/images/{image['system_id']}/attach",
         json={
             "owner_type": "anime",
@@ -125,27 +125,27 @@ def test_attach_links_the_image_to_an_entry(admin_client, db_session, sample_ani
 
 
 def test_attaching_again_replaces_rather_than_duplicating(
-    admin_client, db_session, sample_anime
+    owner_client, db_session, sample_anime
 ):
-    first = _upload(admin_client).json()
-    second = _upload(admin_client, data=_png(color=(30, 30, 200))).json()
+    first = _upload(owner_client).json()
+    second = _upload(owner_client, data=_png(color=(30, 30, 200))).json()
     body = {
         "owner_type": "anime",
         "owner_id": str(sample_anime.system_id),
         "role": "cover",
     }
 
-    admin_client.post(f"/api/images/{first['system_id']}/attach", json=body)
-    admin_client.post(f"/api/images/{second['system_id']}/attach", json=body)
+    owner_client.post(f"/api/images/{first['system_id']}/attach", json=body)
+    owner_client.post(f"/api/images/{second['system_id']}/attach", json=body)
 
     attachment = db_session.query(models.ImageAttachment).one()
     assert str(attachment.image_id) == second["system_id"]
 
 
-def test_attach_rejects_an_unknown_owner_type(admin_client, sample_anime):
-    image = _upload(admin_client).json()
+def test_attach_rejects_an_unknown_owner_type(owner_client, sample_anime):
+    image = _upload(owner_client).json()
 
-    response = admin_client.post(
+    response = owner_client.post(
         f"/api/images/{image['system_id']}/attach",
         json={
             "owner_type": "not-a-table",
@@ -157,8 +157,8 @@ def test_attach_rejects_an_unknown_owner_type(admin_client, sample_anime):
     assert response.status_code == 400
 
 
-def test_attach_404s_on_a_missing_image(admin_client, sample_anime):
-    response = admin_client.post(
+def test_attach_404s_on_a_missing_image(owner_client, sample_anime):
+    response = owner_client.post(
         f"/api/images/{uuid.uuid4()}/attach",
         json={
             "owner_type": "anime",
@@ -226,19 +226,19 @@ def test_attach_succeeds_for_a_writer_who_holds_the_label(
 # List, detach, delete
 # ---------------------------------------------------------------------------
 
-def test_list_returns_the_library(admin_client):
-    _upload(admin_client)
+def test_list_returns_the_library(owner_client):
+    _upload(owner_client)
 
-    response = admin_client.get("/api/images")
+    response = owner_client.get("/api/images")
 
     assert response.status_code == 200
     assert len(response.json()["images"]) == 1
 
 
-def test_list_unused_filters_to_unattached_images(admin_client, sample_anime):
-    attached = _upload(admin_client).json()
-    _upload(admin_client, data=_png(color=(30, 30, 200)))
-    admin_client.post(
+def test_list_unused_filters_to_unattached_images(owner_client, sample_anime):
+    attached = _upload(owner_client).json()
+    _upload(owner_client, data=_png(color=(30, 30, 200)))
+    owner_client.post(
         f"/api/images/{attached['system_id']}/attach",
         json={
             "owner_type": "anime",
@@ -247,32 +247,32 @@ def test_list_unused_filters_to_unattached_images(admin_client, sample_anime):
         },
     )
 
-    response = admin_client.get("/api/images?unused=true")
+    response = owner_client.get("/api/images?unused=true")
 
     assert len(response.json()["images"]) == 1
     assert response.json()["images"][0]["system_id"] != attached["system_id"]
 
 
 def test_list_missing_reports_a_reference_with_no_file(
-    admin_client, db_session, tmp_path
+    owner_client, db_session, tmp_path
 ):
     # The normal state after a machine switch: uploaded images never travel
     # through Backup or Pull, so the row is live and the bytes are elsewhere.
-    image = _upload(admin_client).json()
+    image = _upload(owner_client).json()
     (tmp_path / "library" / f"{image['checksum']}.jpg").unlink()
 
-    response = admin_client.get("/api/images?missing=true")
+    response = owner_client.get("/api/images?missing=true")
 
     assert len(response.json()["images"]) == 1
     assert response.json()["images"][0]["missing"] is True
 
 
 def test_list_owner_type_filters_to_images_attached_to_that_owner(
-    admin_client, sample_anime
+    owner_client, sample_anime
 ):
-    attached = _upload(admin_client).json()
-    _upload(admin_client, data=_png(color=(30, 30, 200)))
-    admin_client.post(
+    attached = _upload(owner_client).json()
+    _upload(owner_client, data=_png(color=(30, 30, 200)))
+    owner_client.post(
         f"/api/images/{attached['system_id']}/attach",
         json={
             "owner_type": "anime",
@@ -281,7 +281,7 @@ def test_list_owner_type_filters_to_images_attached_to_that_owner(
         },
     )
 
-    response = admin_client.get("/api/images?owner_type=anime")
+    response = owner_client.get("/api/images?owner_type=anime")
 
     assert response.status_code == 200
     images = response.json()["images"]
@@ -289,21 +289,21 @@ def test_list_owner_type_filters_to_images_attached_to_that_owner(
     assert images[0]["system_id"] == attached["system_id"]
 
 
-def test_list_owner_type_rejects_an_unknown_value(admin_client):
-    response = admin_client.get("/api/images?owner_type=not-a-table")
+def test_list_owner_type_rejects_an_unknown_value(owner_client):
+    response = owner_client.get("/api/images?owner_type=not-a-table")
 
     assert response.status_code == 400
 
 
-def test_list_unused_wins_over_owner_type(admin_client, sample_anime):
+def test_list_unused_wins_over_owner_type(owner_client, sample_anime):
     # unused (no attachments at all) and owner_type (has an attachment of a
     # given type) can never both be true of the same image. Rather than 400
     # on a picker request that wires both chips together, unused wins and
     # the result is the unused set - not an owner_type-filtered empty page
     # that would look like a bug rather than a deliberate no-op.
-    attached = _upload(admin_client).json()
-    unused_image = _upload(admin_client, data=_png(color=(30, 30, 200))).json()
-    admin_client.post(
+    attached = _upload(owner_client).json()
+    unused_image = _upload(owner_client, data=_png(color=(30, 30, 200))).json()
+    owner_client.post(
         f"/api/images/{attached['system_id']}/attach",
         json={
             "owner_type": "anime",
@@ -312,7 +312,7 @@ def test_list_unused_wins_over_owner_type(admin_client, sample_anime):
         },
     )
 
-    response = admin_client.get("/api/images?unused=true&owner_type=anime")
+    response = owner_client.get("/api/images?unused=true&owner_type=anime")
 
     assert response.status_code == 200
     images = response.json()["images"]
@@ -320,23 +320,23 @@ def test_list_unused_wins_over_owner_type(admin_client, sample_anime):
     assert images[0]["system_id"] == unused_image["system_id"]
 
 
-def test_list_pagination_reports_the_full_total_but_a_short_page(admin_client):
+def test_list_pagination_reports_the_full_total_but_a_short_page(owner_client):
     for i in range(5):
-        _upload(admin_client, data=_png(color=(i, i, i)))
+        _upload(owner_client, data=_png(color=(i, i, i)))
 
-    response = admin_client.get("/api/images?limit=2&offset=0")
+    response = owner_client.get("/api/images?limit=2&offset=0")
 
     body = response.json()
     assert body["total"] == 5
     assert len(body["images"]) == 2
 
 
-def test_list_pagination_offset_advances_the_page(admin_client):
+def test_list_pagination_offset_advances_the_page(owner_client):
     for i in range(5):
-        _upload(admin_client, data=_png(color=(i, i, i)))
+        _upload(owner_client, data=_png(color=(i, i, i)))
 
-    first = admin_client.get("/api/images?limit=2&offset=0").json()
-    second = admin_client.get("/api/images?limit=2&offset=2").json()
+    first = owner_client.get("/api/images?limit=2&offset=0").json()
+    second = owner_client.get("/api/images?limit=2&offset=2").json()
 
     first_ids = {row["system_id"] for row in first["images"]}
     second_ids = {row["system_id"] for row in second["images"]}
@@ -344,15 +344,15 @@ def test_list_pagination_offset_advances_the_page(admin_client):
 
 
 def test_list_missing_pagination_reports_the_full_filtered_total(
-    admin_client, tmp_path
+    owner_client, tmp_path
 ):
-    images = [_upload(admin_client, data=_png(color=(i, i, i))).json() for i in range(3)]
+    images = [_upload(owner_client, data=_png(color=(i, i, i))).json() for i in range(3)]
     for image in images:
         (tmp_path / "library" / f"{image['checksum']}.jpg").unlink()
     # One present image that should not count toward the missing total.
-    _upload(admin_client, data=_png(color=(9, 9, 9)))
+    _upload(owner_client, data=_png(color=(9, 9, 9)))
 
-    response = admin_client.get("/api/images?missing=true&limit=2&offset=0")
+    response = owner_client.get("/api/images?missing=true&limit=2&offset=0")
 
     body = response.json()
     assert body["total"] == 3
@@ -360,10 +360,10 @@ def test_list_missing_pagination_reports_the_full_filtered_total(
 
 
 def test_detach_leaves_the_image_in_the_library(
-    admin_client, db_session, sample_anime
+    owner_client, db_session, sample_anime
 ):
-    image = _upload(admin_client).json()
-    attach = admin_client.post(
+    image = _upload(owner_client).json()
+    attach = owner_client.post(
         f"/api/images/{image['system_id']}/attach",
         json={
             "owner_type": "anime",
@@ -372,7 +372,7 @@ def test_detach_leaves_the_image_in_the_library(
         },
     ).json()
 
-    response = admin_client.delete(
+    response = owner_client.delete(
         f"/api/images/{image['system_id']}/attach/{attach['system_id']}"
     )
 
@@ -381,9 +381,9 @@ def test_detach_leaves_the_image_in_the_library(
     assert db_session.query(models.Image).count() == 1
 
 
-def test_delete_refuses_while_attached(admin_client, sample_anime):
-    image = _upload(admin_client).json()
-    admin_client.post(
+def test_delete_refuses_while_attached(owner_client, sample_anime):
+    image = _upload(owner_client).json()
+    owner_client.post(
         f"/api/images/{image['system_id']}/attach",
         json={
             "owner_type": "anime",
@@ -392,16 +392,16 @@ def test_delete_refuses_while_attached(admin_client, sample_anime):
         },
     )
 
-    response = admin_client.delete(f"/api/images/{image['system_id']}")
+    response = owner_client.delete(f"/api/images/{image['system_id']}")
 
     assert response.status_code == 409
 
 
 def test_delete_force_removes_the_image_and_its_attachments(
-    admin_client, db_session, sample_anime
+    owner_client, db_session, sample_anime
 ):
-    image = _upload(admin_client).json()
-    admin_client.post(
+    image = _upload(owner_client).json()
+    owner_client.post(
         f"/api/images/{image['system_id']}/attach",
         json={
             "owner_type": "anime",
@@ -410,7 +410,7 @@ def test_delete_force_removes_the_image_and_its_attachments(
         },
     )
 
-    response = admin_client.delete(f"/api/images/{image['system_id']}?force=true")
+    response = owner_client.delete(f"/api/images/{image['system_id']}?force=true")
 
     assert response.status_code == 204
     assert db_session.query(models.Image).count() == 0
@@ -418,14 +418,14 @@ def test_delete_force_removes_the_image_and_its_attachments(
 
 
 def test_delete_force_clears_the_owner_mirror_column(
-    admin_client, db_session, sample_anime
+    owner_client, db_session, sample_anime
 ):
     # A forced delete removes the attachment row, but that row's mirror
     # column (cover_image_file here) is a plain string, not a foreign key -
     # it does not cascade on its own. Left alone it would still name a file
     # that no longer exists.
-    image = _upload(admin_client).json()
-    admin_client.post(
+    image = _upload(owner_client).json()
+    owner_client.post(
         f"/api/images/{image['system_id']}/attach",
         json={
             "owner_type": "anime",
@@ -436,7 +436,7 @@ def test_delete_force_clears_the_owner_mirror_column(
     db_session.refresh(sample_anime)
     assert sample_anime.cover_image_file == image["storage_key"]
 
-    response = admin_client.delete(f"/api/images/{image['system_id']}?force=true")
+    response = owner_client.delete(f"/api/images/{image['system_id']}?force=true")
 
     assert response.status_code == 204
     db_session.refresh(sample_anime)
@@ -469,13 +469,13 @@ def _cast_with_photo(db_session, sample_anime, storage_key):
 
 
 def test_list_unused_excludes_an_image_used_as_a_cast_photo(
-    admin_client, db_session, sample_anime
+    owner_client, db_session, sample_anime
 ):
-    cast_photo = _upload(admin_client).json()
-    loose = _upload(admin_client, data=_png(color=(30, 30, 200))).json()
+    cast_photo = _upload(owner_client).json()
+    loose = _upload(owner_client, data=_png(color=(30, 30, 200))).json()
     _cast_with_photo(db_session, sample_anime, cast_photo["storage_key"])
 
-    response = admin_client.get("/api/images?unused=true")
+    response = owner_client.get("/api/images?unused=true")
 
     # The loose image proves the filter still lists unused images, so the
     # cast photo's absence is the filter's doing.
@@ -484,37 +484,37 @@ def test_list_unused_excludes_an_image_used_as_a_cast_photo(
 
 
 def test_list_reports_how_many_cast_rows_use_an_image(
-    admin_client, db_session, sample_anime
+    owner_client, db_session, sample_anime
 ):
-    cast_photo = _upload(admin_client).json()
-    loose = _upload(admin_client, data=_png(color=(30, 30, 200))).json()
+    cast_photo = _upload(owner_client).json()
+    loose = _upload(owner_client, data=_png(color=(30, 30, 200))).json()
     _cast_with_photo(db_session, sample_anime, cast_photo["storage_key"])
 
-    response = admin_client.get("/api/images")
+    response = owner_client.get("/api/images")
 
     counts = {i["system_id"]: i["cast_photo_count"] for i in response.json()["images"]}
     assert counts == {cast_photo["system_id"]: 1, loose["system_id"]: 0}
 
 
 def test_delete_refuses_while_used_as_a_cast_photo(
-    admin_client, db_session, sample_anime
+    owner_client, db_session, sample_anime
 ):
-    cast_photo = _upload(admin_client).json()
-    loose = _upload(admin_client, data=_png(color=(30, 30, 200))).json()
+    cast_photo = _upload(owner_client).json()
+    loose = _upload(owner_client, data=_png(color=(30, 30, 200))).json()
     _cast_with_photo(db_session, sample_anime, cast_photo["storage_key"])
 
-    refused = admin_client.delete(f"/api/images/{cast_photo['system_id']}")
-    allowed = admin_client.delete(f"/api/images/{loose['system_id']}")
+    refused = owner_client.delete(f"/api/images/{cast_photo['system_id']}")
+    allowed = owner_client.delete(f"/api/images/{loose['system_id']}")
 
     assert refused.status_code == 409
     assert allowed.status_code == 204
 
 
-def test_delete_force_clears_the_cast_photo(admin_client, db_session, sample_anime):
-    cast_photo = _upload(admin_client).json()
+def test_delete_force_clears_the_cast_photo(owner_client, db_session, sample_anime):
+    cast_photo = _upload(owner_client).json()
     casting = _cast_with_photo(db_session, sample_anime, cast_photo["storage_key"])
 
-    response = admin_client.delete(f"/api/images/{cast_photo['system_id']}?force=true")
+    response = owner_client.delete(f"/api/images/{cast_photo['system_id']}?force=true")
 
     assert response.status_code == 204
     db_session.refresh(casting)
@@ -532,12 +532,12 @@ def test_delete_force_clears_the_cast_photo(admin_client, db_session, sample_ani
 # ---------------------------------------------------------------------------
 
 def test_download_missing_covers_skips_an_uploaded_image(
-    admin_client, db_session, sample_anime, tmp_path
+    owner_client, db_session, sample_anime, tmp_path
 ):
     from app.services import calculation
 
-    image = _upload(admin_client).json()
-    admin_client.post(
+    image = _upload(owner_client).json()
+    owner_client.post(
         f"/api/images/{image['system_id']}/attach",
         json={
             "owner_type": "anime",
@@ -619,13 +619,13 @@ def _clear(client, owner_type, owner_id, role="cover"):
 
 
 def test_clear_removes_a_download_that_has_no_image_row(
-    admin_client, db_session, sample_anime, covers_dir
+    owner_client, db_session, sample_anime, covers_dir
 ):
     path = _downloaded_file(covers_dir, "anime", sample_anime.system_id)
     sample_anime.cover_image_file = f"anime/{sample_anime.system_id}.jpg"
     db_session.flush()
 
-    response = _clear(admin_client, "anime", sample_anime.system_id)
+    response = _clear(owner_client, "anime", sample_anime.system_id)
 
     assert response.status_code == 204
     db_session.refresh(sample_anime)
@@ -634,14 +634,14 @@ def test_clear_removes_a_download_that_has_no_image_row(
 
 
 def test_clear_deletes_a_backfilled_download_with_its_row_and_file(
-    admin_client, db_session, sample_anime, covers_dir
+    owner_client, db_session, sample_anime, covers_dir
 ):
     path = _downloaded_file(covers_dir, "anime", sample_anime.system_id)
     _backfilled_image(db_session, "anime", sample_anime.system_id)
     sample_anime.cover_image_file = f"anime/{sample_anime.system_id}.jpg"
     db_session.flush()
 
-    response = _clear(admin_client, "anime", sample_anime.system_id)
+    response = _clear(owner_client, "anime", sample_anime.system_id)
 
     assert response.status_code == 204
     db_session.refresh(sample_anime)
@@ -653,10 +653,10 @@ def test_clear_deletes_a_backfilled_download_with_its_row_and_file(
 
 
 def test_clear_keeps_an_uploaded_image_in_the_library(
-    admin_client, db_session, sample_anime, covers_dir, tmp_path
+    owner_client, db_session, sample_anime, covers_dir, tmp_path
 ):
-    image = _upload(admin_client).json()
-    admin_client.post(
+    image = _upload(owner_client).json()
+    owner_client.post(
         f"/api/images/{image['system_id']}/attach",
         json={
             "owner_type": "anime",
@@ -665,7 +665,7 @@ def test_clear_keeps_an_uploaded_image_in_the_library(
         },
     )
 
-    response = _clear(admin_client, "anime", sample_anime.system_id)
+    response = _clear(owner_client, "anime", sample_anime.system_id)
 
     assert response.status_code == 204
     db_session.refresh(sample_anime)
@@ -676,7 +676,7 @@ def test_clear_keeps_an_uploaded_image_in_the_library(
 
 
 def test_clear_keeps_a_download_still_attached_to_another_owner(
-    admin_client, db_session, sample_anime, covers_dir
+    owner_client, db_session, sample_anime, covers_dir
 ):
     # A backfilled image chosen from the library for a second entry: its file
     # is this entry's download, but the other entry still shows it.
@@ -686,7 +686,7 @@ def test_clear_keeps_a_download_still_attached_to_another_owner(
         db_session, "anime", sample_anime.system_id, attach_to=[("anime", other)]
     )
 
-    response = _clear(admin_client, "anime", sample_anime.system_id)
+    response = _clear(owner_client, "anime", sample_anime.system_id)
 
     assert response.status_code == 204
     assert db_session.query(models.Image).count() == 1
@@ -696,17 +696,17 @@ def test_clear_keeps_a_download_still_attached_to_another_owner(
 
 
 def test_clear_is_a_no_op_on_an_owner_with_no_image(
-    admin_client, db_session, sample_anime, covers_dir
+    owner_client, db_session, sample_anime, covers_dir
 ):
-    response = _clear(admin_client, "anime", sample_anime.system_id)
+    response = _clear(owner_client, "anime", sample_anime.system_id)
 
     assert response.status_code == 204
     db_session.refresh(sample_anime)
     assert sample_anime.cover_image_file is None
 
 
-def test_clear_rejects_an_unknown_owner_type(admin_client, sample_anime):
-    assert _clear(admin_client, "animes", sample_anime.system_id).status_code == 400
+def test_clear_rejects_an_unknown_owner_type(owner_client, sample_anime):
+    assert _clear(owner_client, "animes", sample_anime.system_id).status_code == 400
 
 
 def test_clear_requires_manage_catalog(client, sample_anime):
@@ -751,7 +751,7 @@ def test_clear_succeeds_for_a_writer_who_holds_the_label(
 
 
 def test_detaching_a_backfilled_download_deletes_it(
-    admin_client, db_session, sample_anime, covers_dir
+    owner_client, db_session, sample_anime, covers_dir
 ):
     # Detach leaves an UPLOAD in the library (test above). A download goes:
     # kept, it would alias the entry's next download, and deleting it from
@@ -760,7 +760,7 @@ def test_detaching_a_backfilled_download_deletes_it(
     image = _backfilled_image(db_session, "anime", sample_anime.system_id)
     attachment = db_session.query(models.ImageAttachment).one()
 
-    response = admin_client.delete(
+    response = owner_client.delete(
         f"/api/images/{image.system_id}/attach/{attachment.system_id}"
     )
 

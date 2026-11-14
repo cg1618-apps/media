@@ -142,11 +142,11 @@ class TestGetWatchOrderDetail:
         assert [i["position"] for i in data["items"]] == [1.0, 2.0, 3.0]
 
     def test_items_are_resolved_to_display_data(
-        self, admin_client, sample_list, sample_items, sample_anime
+        self, owner_client, sample_list, sample_items, sample_anime
     ):
-        # admin_client: `status` comes off the caller's own list row, and a
+        # owner_client: `status` comes off the caller's own list row, and a
         # logged-out visitor has no list to read it from.
-        data = admin_client.get(
+        data = owner_client.get(
             f"/api/watch-order/lists/{sample_list.system_id}"
         ).json()
         first = data["items"][0]
@@ -337,12 +337,12 @@ class TestMediaScope:
         assert detail["item_count"] == listed["item_count"]
 
     def test_removing_the_last_item_of_a_type_narrows_the_scope(
-        self, admin_client, sample_list, sample_items
+        self, owner_client, sample_list, sample_items
     ):
         movie_step = next(i for i in sample_items if i.media_type == "anime-movie")
-        admin_client.delete(f"/api/watch-order/items/{movie_step.system_id}")
+        owner_client.delete(f"/api/watch-order/items/{movie_step.system_id}")
 
-        rows = admin_client.get("/api/watch-order/lists").json()
+        rows = owner_client.get("/api/watch-order/lists").json()
         assert rows[0]["media_types"] == ["anime"]
 
 
@@ -353,19 +353,19 @@ class TestReleaseOrder:
     their own and nothing may be written against them.
     """
 
-    def _create(self, admin_client, franchise):
-        return admin_client.post(
+    def _create(self, owner_client, franchise):
+        return owner_client.post(
             f"/api/watch-order/lists/release?franchise_id={franchise.system_id}"
         ).json()
 
-    def test_created_list_is_marked_generated(self, admin_client, orderable_franchise):
-        data = self._create(admin_client, orderable_franchise)
+    def test_created_list_is_marked_generated(self, owner_client, orderable_franchise):
+        data = self._create(owner_client, orderable_franchise)
         assert data["auto_source"] == "release"
         assert data["list_type"] == "Release"
 
-    def test_creation_is_idempotent(self, admin_client, orderable_franchise):
-        first = self._create(admin_client, orderable_franchise)
-        second = self._create(admin_client, orderable_franchise)
+    def test_creation_is_idempotent(self, owner_client, orderable_franchise):
+        first = self._create(owner_client, orderable_franchise)
+        second = self._create(owner_client, orderable_franchise)
         assert first["system_id"] == second["system_id"]
 
     def test_guest_cannot_create(self, client, sample_franchise):
@@ -375,10 +375,10 @@ class TestReleaseOrder:
         assert response.status_code == 401
 
     def test_steps_are_generated_without_stored_items(
-        self, admin_client, db_session, orderable_franchise
+        self, owner_client, db_session, orderable_franchise
     ):
-        created = self._create(admin_client, orderable_franchise)
-        detail = admin_client.get(
+        created = self._create(owner_client, orderable_franchise)
+        detail = owner_client.get(
             f"/api/watch-order/lists/{created['system_id']}"
         ).json()
 
@@ -393,10 +393,10 @@ class TestReleaseOrder:
         )
 
     def test_a_later_entry_appears_on_its_own(
-        self, admin_client, db_session, orderable_franchise
+        self, owner_client, db_session, orderable_franchise
     ):
-        created = self._create(admin_client, orderable_franchise)
-        before = admin_client.get(
+        created = self._create(owner_client, orderable_franchise)
+        before = owner_client.get(
             f"/api/watch-order/lists/{created['system_id']}"
         ).json()["item_count"]
 
@@ -411,14 +411,14 @@ class TestReleaseOrder:
         )
         db_session.flush()
 
-        after = admin_client.get(
+        after = owner_client.get(
             f"/api/watch-order/lists/{created['system_id']}"
         ).json()
         assert after["item_count"] == before + 1
         assert any(i["display_name"] == "Added Later" for i in after["items"])
 
     def test_steps_are_ordered_by_release_date(
-        self, admin_client, db_session, sample_franchise
+        self, owner_client, db_session, sample_franchise
     ):
         for name, date in [
             ("Third", "2020-03"),
@@ -436,14 +436,14 @@ class TestReleaseOrder:
             )
         db_session.flush()
 
-        created = self._create(admin_client, sample_franchise)
-        items = admin_client.get(
+        created = self._create(owner_client, sample_franchise)
+        items = owner_client.get(
             f"/api/watch-order/lists/{created['system_id']}"
         ).json()["items"]
         assert [i["display_name"] for i in items] == ["First", "Second", "Third"]
 
     def test_undated_entries_sink_to_the_bottom(
-        self, admin_client, db_session, sample_franchise
+        self, owner_client, db_session, sample_franchise
     ):
         db_session.add_all(
             [
@@ -464,24 +464,24 @@ class TestReleaseOrder:
         )
         db_session.flush()
 
-        created = self._create(admin_client, sample_franchise)
+        created = self._create(owner_client, sample_franchise)
         names = [
             i["display_name"]
-            for i in admin_client.get(
+            for i in owner_client.get(
                 f"/api/watch-order/lists/{created['system_id']}"
             ).json()["items"]
         ]
         assert names.index("Dated") < names.index("No date")
 
     def test_listing_reports_the_generated_step_count(
-        self, admin_client, client, orderable_franchise
+        self, owner_client, client, orderable_franchise
     ):
         """
         Regression: the listing counted stored items, so a generated list showed
         "0 steps" in the selector while its steps rendered fine below.
         """
-        created = self._create(admin_client, orderable_franchise)
-        detail = admin_client.get(
+        created = self._create(owner_client, orderable_franchise)
+        detail = owner_client.get(
             f"/api/watch-order/lists/{created['system_id']}"
         ).json()
 
@@ -495,17 +495,17 @@ class TestReleaseOrder:
         assert listed["media_types"] == detail["media_types"]
 
     def test_create_response_already_reports_the_count(
-        self, admin_client, orderable_franchise
+        self, owner_client, orderable_franchise
     ):
-        created = self._create(admin_client, orderable_franchise)
+        created = self._create(owner_client, orderable_franchise)
         assert created["item_count"] > 0
         assert created["media_types"] == ["anime"]
 
     def test_positions_are_renumbered_from_one(
-        self, admin_client, orderable_franchise
+        self, owner_client, orderable_franchise
     ):
-        created = self._create(admin_client, orderable_franchise)
-        items = admin_client.get(
+        created = self._create(owner_client, orderable_franchise)
+        items = owner_client.get(
             f"/api/watch-order/lists/{created['system_id']}"
         ).json()["items"]
         assert [i["position"] for i in items] == [
@@ -517,28 +517,28 @@ class TestGeneratedListIsReadOnly:
     """Steps are generated, so every item write must be refused."""
 
     @pytest.fixture
-    def release_list(self, admin_client, orderable_franchise):
-        return admin_client.post(
+    def release_list(self, owner_client, orderable_franchise):
+        return owner_client.post(
             f"/api/watch-order/lists/release?franchise_id={orderable_franchise.system_id}"
         ).json()
 
-    def test_cannot_add_a_step(self, admin_client, release_list, sample_anime):
-        response = admin_client.post(
+    def test_cannot_add_a_step(self, owner_client, release_list, sample_anime):
+        response = owner_client.post(
             f"/api/watch-order/lists/{release_list['system_id']}/items",
             json={"media_type": "anime", "entry_id": str(sample_anime.system_id)},
         )
         assert response.status_code == 400
 
-    def test_cannot_reorder(self, admin_client, release_list):
-        response = admin_client.put(
+    def test_cannot_reorder(self, owner_client, release_list):
+        response = owner_client.put(
             f"/api/watch-order/lists/{release_list['system_id']}/reorder",
             json={"item_ids": []},
         )
         assert response.status_code == 400
 
-    def test_note_and_flags_remain_editable(self, admin_client, release_list):
+    def test_note_and_flags_remain_editable(self, owner_client, release_list):
         """These are what the admin actually edits; only steps are off limits."""
-        response = admin_client.patch(
+        response = owner_client.patch(
             f"/api/watch-order/lists/{release_list['system_id']}",
             json={"remark": "the canonical order", "is_most_recommended": True},
         )
@@ -546,8 +546,8 @@ class TestGeneratedListIsReadOnly:
         assert response.json()["remark"] == "the canonical order"
         assert response.json()["is_most_recommended"] is True
 
-    def test_can_be_deleted(self, admin_client, release_list):
-        response = admin_client.delete(
+    def test_can_be_deleted(self, owner_client, release_list):
+        response = owner_client.delete(
             f"/api/watch-order/lists/{release_list['system_id']}"
         )
         assert response.status_code == 200
@@ -557,8 +557,8 @@ class TestAutoFilter:
     """Generated lists must not bury hand-built ones in cross-owner views."""
 
     @pytest.fixture
-    def both(self, admin_client, orderable_franchise, sample_list):
-        admin_client.post(
+    def both(self, owner_client, orderable_franchise, sample_list):
+        owner_client.post(
             f"/api/watch-order/lists/release?franchise_id={orderable_franchise.system_id}"
         )
         return True
@@ -582,15 +582,15 @@ class TestSingleWorkFranchisesGetNoOrder:
     """
 
     def test_single_entry_franchise_is_refused(
-        self, admin_client, sample_franchise, sample_anime
+        self, owner_client, sample_franchise, sample_anime
     ):
-        response = admin_client.post(
+        response = owner_client.post(
             f"/api/watch-order/lists/release?franchise_id={sample_franchise.system_id}"
         )
         assert response.status_code == 400
         assert "at least" in response.json()["detail"]
 
-    def test_empty_franchise_is_refused(self, admin_client, db_session):
+    def test_empty_franchise_is_refused(self, owner_client, db_session):
         bare = models.Franchise(
             system_id=uuid.uuid4(),
             franchise_type="Movie",
@@ -599,35 +599,35 @@ class TestSingleWorkFranchisesGetNoOrder:
         db_session.add(bare)
         db_session.flush()
 
-        response = admin_client.post(
+        response = owner_client.post(
             f"/api/watch-order/lists/release?franchise_id={bare.system_id}"
         )
         assert response.status_code == 400
 
-    def test_two_entries_are_enough(self, admin_client, orderable_franchise):
-        response = admin_client.post(
+    def test_two_entries_are_enough(self, owner_client, orderable_franchise):
+        response = owner_client.post(
             f"/api/watch-order/lists/release?franchise_id={orderable_franchise.system_id}"
         )
         assert response.status_code in (200, 201)
 
     def test_backfill_skips_them_and_reports_it(
-        self, admin_client, sample_franchise, sample_anime
+        self, owner_client, sample_franchise, sample_anime
     ):
-        data = admin_client.post("/api/watch-order/lists/release/backfill").json()
+        data = owner_client.post("/api/watch-order/lists/release/backfill").json()
         assert data["skipped_too_small"] >= 1
 
     def test_backfill_creates_for_big_enough_owners(
-        self, admin_client, client, orderable_franchise
+        self, owner_client, client, orderable_franchise
     ):
-        admin_client.post("/api/watch-order/lists/release/backfill")
+        owner_client.post("/api/watch-order/lists/release/backfill")
         rows = client.get("/api/watch-order/lists?auto=only").json()
         assert any(
             r["franchise_id"] == str(orderable_franchise.system_id) for r in rows
         )
 
-    def test_backfill_is_repeatable(self, admin_client, orderable_franchise):
-        first = admin_client.post("/api/watch-order/lists/release/backfill").json()
-        second = admin_client.post("/api/watch-order/lists/release/backfill").json()
+    def test_backfill_is_repeatable(self, owner_client, orderable_franchise):
+        first = owner_client.post("/api/watch-order/lists/release/backfill").json()
+        second = owner_client.post("/api/watch-order/lists/release/backfill").json()
         assert first["created"] >= 1
         assert second["created"] == 0
 
@@ -658,11 +658,11 @@ class TestAnimeOnlyBuiltIn:
         db_session.flush()
         return sample_franchise
 
-    def test_both_kinds_can_coexist(self, admin_client, mixed_franchise):
-        cross = admin_client.post(
+    def test_both_kinds_can_coexist(self, owner_client, mixed_franchise):
+        cross = owner_client.post(
             f"/api/watch-order/lists/release?franchise_id={mixed_franchise.system_id}"
         ).json()
-        anime = admin_client.post(
+        anime = owner_client.post(
             "/api/watch-order/lists/release"
             f"?franchise_id={mixed_franchise.system_id}&anime_only=true"
         ).json()
@@ -671,34 +671,34 @@ class TestAnimeOnlyBuiltIn:
         assert cross["auto_source"] == "release"
         assert anime["auto_source"] == "release-anime"
 
-    def test_anime_only_excludes_other_types(self, admin_client, mixed_franchise):
-        created = admin_client.post(
+    def test_anime_only_excludes_other_types(self, owner_client, mixed_franchise):
+        created = owner_client.post(
             "/api/watch-order/lists/release"
             f"?franchise_id={mixed_franchise.system_id}&anime_only=true"
         ).json()
-        detail = admin_client.get(
+        detail = owner_client.get(
             f"/api/watch-order/lists/{created['system_id']}"
         ).json()
 
         assert detail["media_types"] == ["anime"]
         assert {i["media_type"] for i in detail["items"]} == {"anime"}
 
-    def test_cross_type_keeps_everything(self, admin_client, mixed_franchise):
-        created = admin_client.post(
+    def test_cross_type_keeps_everything(self, owner_client, mixed_franchise):
+        created = owner_client.post(
             f"/api/watch-order/lists/release?franchise_id={mixed_franchise.system_id}"
         ).json()
-        detail = admin_client.get(
+        detail = owner_client.get(
             f"/api/watch-order/lists/{created['system_id']}"
         ).json()
         assert set(detail["media_types"]) == {"anime", "manga"}
 
     def test_listing_counts_each_kind_separately(
-        self, admin_client, client, mixed_franchise
+        self, owner_client, client, mixed_franchise
     ):
-        admin_client.post(
+        owner_client.post(
             f"/api/watch-order/lists/release?franchise_id={mixed_franchise.system_id}"
         )
-        admin_client.post(
+        owner_client.post(
             "/api/watch-order/lists/release"
             f"?franchise_id={mixed_franchise.system_id}&anime_only=true"
         )
@@ -708,7 +708,7 @@ class TestAnimeOnlyBuiltIn:
         assert by_source["release-anime"]["item_count"] == 2
 
     def test_anime_only_refused_without_enough_anime(
-        self, admin_client, db_session, sample_franchise, sample_anime
+        self, owner_client, db_session, sample_franchise, sample_anime
     ):
         """One anime plus two manga is enough cross-type, not anime-only."""
         db_session.add_all(
@@ -724,13 +724,13 @@ class TestAnimeOnlyBuiltIn:
         db_session.flush()
 
         assert (
-            admin_client.post(
+            owner_client.post(
                 f"/api/watch-order/lists/release?franchise_id={sample_franchise.system_id}"
             ).status_code
             in (200, 201)
         )
         assert (
-            admin_client.post(
+            owner_client.post(
                 "/api/watch-order/lists/release"
                 f"?franchise_id={sample_franchise.system_id}&anime_only=true"
             ).status_code
@@ -759,8 +759,8 @@ class TestSeriesOwnedBuiltIn:
         db_session.flush()
         return sample_series
 
-    def test_series_can_own_an_order(self, admin_client, stocked_series):
-        created = admin_client.post(
+    def test_series_can_own_an_order(self, owner_client, stocked_series):
+        created = owner_client.post(
             f"/api/watch-order/lists/release?series_id={stocked_series.system_id}"
         ).json()
         assert created["series_id"] == str(stocked_series.system_id)
@@ -768,7 +768,7 @@ class TestSeriesOwnedBuiltIn:
         assert created["collection_id"] is None
 
     def test_steps_are_scoped_to_the_series(
-        self, admin_client, db_session, sample_franchise, stocked_series
+        self, owner_client, db_session, sample_franchise, stocked_series
     ):
         """An entry in the same franchise but no series must not appear."""
         db_session.add(
@@ -782,10 +782,10 @@ class TestSeriesOwnedBuiltIn:
         )
         db_session.flush()
 
-        created = admin_client.post(
+        created = owner_client.post(
             f"/api/watch-order/lists/release?series_id={stocked_series.system_id}"
         ).json()
-        detail = admin_client.get(
+        detail = owner_client.get(
             f"/api/watch-order/lists/{created['system_id']}"
         ).json()
 
@@ -793,8 +793,8 @@ class TestSeriesOwnedBuiltIn:
         assert "Outside The Series" not in names
         assert len(names) == 2
 
-    def test_listing_filters_by_series(self, admin_client, client, stocked_series):
-        admin_client.post(
+    def test_listing_filters_by_series(self, owner_client, client, stocked_series):
+        owner_client.post(
             f"/api/watch-order/lists/release?series_id={stocked_series.system_id}"
         )
         rows = client.get(
@@ -803,17 +803,17 @@ class TestSeriesOwnedBuiltIn:
         assert len(rows) == 1
 
     def test_two_owners_still_rejected(
-        self, admin_client, sample_franchise, stocked_series
+        self, owner_client, sample_franchise, stocked_series
     ):
-        response = admin_client.post(
+        response = owner_client.post(
             "/api/watch-order/lists/release"
             f"?franchise_id={sample_franchise.system_id}"
             f"&series_id={stocked_series.system_id}"
         )
         assert response.status_code == 400
 
-    def test_series_anime_only_variant(self, admin_client, stocked_series):
-        created = admin_client.post(
+    def test_series_anime_only_variant(self, owner_client, stocked_series):
+        created = owner_client.post(
             "/api/watch-order/lists/release"
             f"?series_id={stocked_series.system_id}&anime_only=true"
         ).json()
@@ -842,26 +842,26 @@ class TestCollectionOptOut:
         db_session.flush()
         return sample_collected_franchise
 
-    def test_member_franchise_is_refused(self, admin_client, opted_out):
-        response = admin_client.post(
+    def test_member_franchise_is_refused(self, owner_client, opted_out):
+        response = owner_client.post(
             f"/api/watch-order/lists/release?franchise_id={opted_out.system_id}"
         )
         assert response.status_code == 400
         assert "opts out" in response.json()["detail"]
 
-    def test_backfill_skips_and_reports_them(self, admin_client, opted_out):
-        data = admin_client.post("/api/watch-order/lists/release/backfill").json()
+    def test_backfill_skips_and_reports_them(self, owner_client, opted_out):
+        data = owner_client.post("/api/watch-order/lists/release/backfill").json()
         assert data["skipped_opted_out"] >= 1
 
     def test_backfill_creates_nothing_for_that_franchise(
-        self, admin_client, client, opted_out
+        self, owner_client, client, opted_out
     ):
-        admin_client.post("/api/watch-order/lists/release/backfill")
+        owner_client.post("/api/watch-order/lists/release/backfill")
         rows = client.get("/api/watch-order/lists?auto=only").json()
         assert all(r["franchise_id"] != str(opted_out.system_id) for r in rows)
 
     def test_a_normal_collection_still_gets_one(
-        self, admin_client, client, db_session, sample_collection,
+        self, owner_client, client, db_session, sample_collection,
         sample_collected_franchise,
     ):
         sample_collection.no_built_in_orders = False
@@ -878,7 +878,7 @@ class TestCollectionOptOut:
         )
         db_session.flush()
 
-        admin_client.post("/api/watch-order/lists/release/backfill")
+        owner_client.post("/api/watch-order/lists/release/backfill")
         rows = client.get("/api/watch-order/lists?auto=only").json()
         assert any(r["collection_id"] == str(sample_collection.system_id) for r in rows)
 
@@ -914,14 +914,14 @@ class TestCandidates:
         assert [c["display_name"] for c in data] == ["Collected Anime"]
 
     def test_candidate_carries_the_fields_a_row_needs(
-        self, admin_client, sample_franchise, sample_anime
+        self, owner_client, sample_franchise, sample_anime
     ):
         """
         The editor appends a picked candidate straight into its local list, so
         the payload must match the resolver's shape - a missing field would
         render the new row blank until a reload.
         """
-        data = admin_client.get(
+        data = owner_client.get(
             f"/api/watch-order/candidates?franchise_id={sample_franchise.system_id}"
         ).json()
         anime = next(c for c in data if c["media_type"] == "anime")
@@ -978,8 +978,8 @@ class TestCandidates:
 
 
 class TestCreateWatchOrderList:
-    def test_admin_can_create(self, admin_client, sample_franchise):
-        response = admin_client.post(
+    def test_admin_can_create(self, owner_client, sample_franchise):
+        response = owner_client.post(
             "/api/watch-order/lists",
             json={
                 "franchise_id": str(sample_franchise.system_id),
@@ -999,8 +999,8 @@ class TestCreateWatchOrderList:
         )
         assert response.status_code == 401
 
-    def test_collection_owned_list_is_allowed(self, admin_client, sample_collection):
-        response = admin_client.post(
+    def test_collection_owned_list_is_allowed(self, owner_client, sample_collection):
+        response = owner_client.post(
             "/api/watch-order/lists",
             json={
                 "collection_id": str(sample_collection.system_id),
@@ -1009,16 +1009,16 @@ class TestCreateWatchOrderList:
         )
         assert response.status_code in (200, 201)
 
-    def test_no_owner_is_rejected(self, admin_client):
-        response = admin_client.post(
+    def test_no_owner_is_rejected(self, owner_client):
+        response = owner_client.post(
             "/api/watch-order/lists", json={"list_name": "Ownerless"}
         )
         assert response.status_code == 400
 
     def test_two_owners_is_rejected(
-        self, admin_client, sample_franchise, sample_collection
+        self, owner_client, sample_franchise, sample_collection
     ):
-        response = admin_client.post(
+        response = owner_client.post(
             "/api/watch-order/lists",
             json={
                 "franchise_id": str(sample_franchise.system_id),
@@ -1028,9 +1028,9 @@ class TestCreateWatchOrderList:
         )
         assert response.status_code == 400
 
-    def test_type_chosen_at_creation_is_kept(self, admin_client, sample_franchise):
+    def test_type_chosen_at_creation_is_kept(self, owner_client, sample_franchise):
         """The create form now picks the type up front, not only the editor."""
-        data = admin_client.post(
+        data = owner_client.post(
             "/api/watch-order/lists",
             json={
                 "franchise_id": str(sample_franchise.system_id),
@@ -1040,8 +1040,8 @@ class TestCreateWatchOrderList:
         ).json()
         assert data["list_type"] == "Release"
 
-    def test_type_defaults_to_custom(self, admin_client, sample_franchise):
-        data = admin_client.post(
+    def test_type_defaults_to_custom(self, owner_client, sample_franchise):
+        data = owner_client.post(
             "/api/watch-order/lists",
             json={
                 "franchise_id": str(sample_franchise.system_id),
@@ -1050,7 +1050,7 @@ class TestCreateWatchOrderList:
         ).json()
         assert data["list_type"] == "Custom"
 
-    def test_create_persists_every_field(self, admin_client, sample_franchise):
+    def test_create_persists_every_field(self, owner_client, sample_franchise):
         payload = {
             "franchise_id": str(sample_franchise.system_id),
             "list_name": "Everything",
@@ -1059,15 +1059,15 @@ class TestCreateWatchOrderList:
             "sort_index": 2.5,
             "remark": "start here",
         }
-        data = admin_client.post("/api/watch-order/lists", json=payload).json()
+        data = owner_client.post("/api/watch-order/lists", json=payload).json()
         for key, expected in payload.items():
             assert data[key] == expected
 
     def test_new_default_clears_the_previous_default(
-        self, admin_client, client, sample_list, sample_franchise
+        self, owner_client, client, sample_list, sample_franchise
     ):
         """Only one list per owner may be the default."""
-        admin_client.post(
+        owner_client.post(
             "/api/watch-order/lists",
             json={
                 "franchise_id": str(sample_franchise.system_id),
@@ -1087,8 +1087,8 @@ class TestMostRecommended:
     marks the single one to follow.
     """
 
-    def _make(self, admin_client, franchise, name, **flags):
-        return admin_client.post(
+    def _make(self, owner_client, franchise, name, **flags):
+        return owner_client.post(
             "/api/watch-order/lists",
             json={
                 "franchise_id": str(franchise.system_id),
@@ -1097,19 +1097,19 @@ class TestMostRecommended:
             },
         ).json()
 
-    def test_flag_persists(self, admin_client, sample_franchise):
+    def test_flag_persists(self, owner_client, sample_franchise):
         data = self._make(
-            admin_client, sample_franchise, "Chrono", is_most_recommended=True
+            owner_client, sample_franchise, "Chrono", is_most_recommended=True
         )
         assert data["is_most_recommended"] is True
 
-    def test_defaults_to_false(self, admin_client, sample_franchise):
-        data = self._make(admin_client, sample_franchise, "Plain")
+    def test_defaults_to_false(self, owner_client, sample_franchise):
+        data = self._make(owner_client, sample_franchise, "Plain")
         assert data["is_most_recommended"] is False
 
-    def test_only_one_per_owner(self, admin_client, client, sample_franchise):
-        self._make(admin_client, sample_franchise, "First", is_most_recommended=True)
-        self._make(admin_client, sample_franchise, "Second", is_most_recommended=True)
+    def test_only_one_per_owner(self, owner_client, client, sample_franchise):
+        self._make(owner_client, sample_franchise, "First", is_most_recommended=True)
+        self._make(owner_client, sample_franchise, "Second", is_most_recommended=True)
 
         rows = client.get(
             f"/api/watch-order/lists?franchise_id={sample_franchise.system_id}"
@@ -1119,11 +1119,11 @@ class TestMostRecommended:
         assert winners[0]["list_name"] == "Second"
 
     def test_another_owner_keeps_its_own(
-        self, admin_client, client, sample_franchise, sample_collection
+        self, owner_client, client, sample_franchise, sample_collection
     ):
         """The rule is per owner, not global."""
-        self._make(admin_client, sample_franchise, "Franchise one", is_most_recommended=True)
-        admin_client.post(
+        self._make(owner_client, sample_franchise, "Franchise one", is_most_recommended=True)
+        owner_client.post(
             "/api/watch-order/lists",
             json={
                 "collection_id": str(sample_collection.system_id),
@@ -1135,12 +1135,12 @@ class TestMostRecommended:
         assert len([r for r in rows if r["is_most_recommended"]]) == 2
 
     def test_independent_of_is_default(
-        self, admin_client, client, sample_franchise
+        self, owner_client, client, sample_franchise
     ):
         """Release opens first while Chronological is the endorsed one."""
-        self._make(admin_client, sample_franchise, "Release", is_default=True)
+        self._make(owner_client, sample_franchise, "Release", is_default=True)
         self._make(
-            admin_client, sample_franchise, "Chronological", is_most_recommended=True
+            owner_client, sample_franchise, "Chronological", is_most_recommended=True
         )
 
         rows = client.get(
@@ -1153,11 +1153,11 @@ class TestMostRecommended:
         assert by_name["Chronological"]["is_default"] is False
 
     def test_most_recommended_sorts_ahead_of_default(
-        self, admin_client, client, sample_franchise
+        self, owner_client, client, sample_franchise
     ):
-        self._make(admin_client, sample_franchise, "Release", is_default=True)
+        self._make(owner_client, sample_franchise, "Release", is_default=True)
         self._make(
-            admin_client, sample_franchise, "Chronological", is_most_recommended=True
+            owner_client, sample_franchise, "Chronological", is_most_recommended=True
         )
 
         rows = client.get(
@@ -1166,14 +1166,14 @@ class TestMostRecommended:
         assert rows[0]["list_name"] == "Chronological"
 
     def test_patch_can_move_the_flag(
-        self, admin_client, client, sample_franchise
+        self, owner_client, client, sample_franchise
     ):
         first = self._make(
-            admin_client, sample_franchise, "First", is_most_recommended=True
+            owner_client, sample_franchise, "First", is_most_recommended=True
         )
-        second = self._make(admin_client, sample_franchise, "Second")
+        second = self._make(owner_client, sample_franchise, "Second")
 
-        admin_client.patch(
+        owner_client.patch(
             f"/api/watch-order/lists/{second['system_id']}",
             json={"is_most_recommended": True},
         )
@@ -1187,8 +1187,8 @@ class TestMostRecommended:
 
 
 class TestUpdateWatchOrderList:
-    def test_admin_can_patch(self, admin_client, sample_list):
-        response = admin_client.patch(
+    def test_admin_can_patch(self, owner_client, sample_list):
+        response = owner_client.patch(
             f"/api/watch-order/lists/{sample_list.system_id}",
             json={"remark": "watch the movie last"},
         )
@@ -1201,8 +1201,8 @@ class TestUpdateWatchOrderList:
         )
         assert response.status_code == 401
 
-    def test_put_updates_name(self, admin_client, sample_list, sample_franchise):
-        response = admin_client.put(
+    def test_put_updates_name(self, owner_client, sample_list, sample_franchise):
+        response = owner_client.put(
             f"/api/watch-order/lists/{sample_list.system_id}",
             json={
                 "franchise_id": str(sample_franchise.system_id),
@@ -1211,16 +1211,16 @@ class TestUpdateWatchOrderList:
         )
         assert response.json()["list_name"] == "Renamed"
 
-    def test_nonexistent_returns_404(self, admin_client):
-        response = admin_client.patch(
+    def test_nonexistent_returns_404(self, owner_client):
+        response = owner_client.patch(
             f"/api/watch-order/lists/{uuid.uuid4()}", json={"remark": "x"}
         )
         assert response.status_code == 404
 
 
 class TestDeleteWatchOrderList:
-    def test_admin_can_delete(self, admin_client, sample_list):
-        response = admin_client.delete(
+    def test_admin_can_delete(self, owner_client, sample_list):
+        response = owner_client.delete(
             f"/api/watch-order/lists/{sample_list.system_id}"
         )
         assert response.status_code == 200
@@ -1232,9 +1232,9 @@ class TestDeleteWatchOrderList:
         )
 
     def test_delete_cascades_to_items(
-        self, admin_client, db_session, sample_list, sample_items
+        self, owner_client, db_session, sample_list, sample_items
     ):
-        admin_client.delete(f"/api/watch-order/lists/{sample_list.system_id}")
+        owner_client.delete(f"/api/watch-order/lists/{sample_list.system_id}")
         remaining = (
             db_session.query(models.WatchOrderItem)
             .filter(models.WatchOrderItem.list_id == sample_list.system_id)
@@ -1243,9 +1243,9 @@ class TestDeleteWatchOrderList:
         assert remaining == 0
 
     def test_delete_leaves_the_media_entry_alone(
-        self, admin_client, db_session, sample_list, sample_items, sample_anime
+        self, owner_client, db_session, sample_list, sample_items, sample_anime
     ):
-        admin_client.delete(f"/api/watch-order/lists/{sample_list.system_id}")
+        owner_client.delete(f"/api/watch-order/lists/{sample_list.system_id}")
         assert (
             db_session.query(models.Anime)
             .filter(models.Anime.system_id == sample_anime.system_id)
@@ -1260,8 +1260,8 @@ class TestDeleteWatchOrderList:
 
 
 class TestCreateWatchOrderItem:
-    def test_admin_can_add_item(self, admin_client, sample_list, sample_anime):
-        response = admin_client.post(
+    def test_admin_can_add_item(self, owner_client, sample_list, sample_anime):
+        response = owner_client.post(
             f"/api/watch-order/lists/{sample_list.system_id}/items",
             json={"media_type": "anime", "entry_id": str(sample_anime.system_id)},
         )
@@ -1276,19 +1276,19 @@ class TestCreateWatchOrderItem:
         assert response.status_code == 401
 
     def test_item_appends_past_the_highest_position(
-        self, admin_client, sample_list, sample_items, sample_anime
+        self, owner_client, sample_list, sample_items, sample_anime
     ):
-        response = admin_client.post(
+        response = owner_client.post(
             f"/api/watch-order/lists/{sample_list.system_id}/items",
             json={"media_type": "anime", "entry_id": str(sample_anime.system_id)},
         )
         assert response.json()["position"] == 4.0
 
     def test_explicit_position_slots_between_items(
-        self, admin_client, sample_list, sample_items, sample_anime
+        self, owner_client, sample_list, sample_items, sample_anime
     ):
         """Float positions let an item be inserted without renumbering."""
-        response = admin_client.post(
+        response = owner_client.post(
             f"/api/watch-order/lists/{sample_list.system_id}/items",
             json={
                 "media_type": "anime",
@@ -1299,23 +1299,23 @@ class TestCreateWatchOrderItem:
         assert response.json()["position"] == 1.5
 
     def test_unknown_media_type_is_rejected(
-        self, admin_client, sample_list, sample_anime
+        self, owner_client, sample_list, sample_anime
     ):
-        response = admin_client.post(
+        response = owner_client.post(
             f"/api/watch-order/lists/{sample_list.system_id}/items",
             json={"media_type": "podcast", "entry_id": str(sample_anime.system_id)},
         )
         assert response.status_code == 400
 
-    def test_nonexistent_entry_is_rejected(self, admin_client, sample_list):
-        response = admin_client.post(
+    def test_nonexistent_entry_is_rejected(self, owner_client, sample_list):
+        response = owner_client.post(
             f"/api/watch-order/lists/{sample_list.system_id}/items",
             json={"media_type": "anime", "entry_id": str(uuid.uuid4())},
         )
         assert response.status_code == 400
 
-    def test_unknown_list_returns_404(self, admin_client, sample_anime):
-        response = admin_client.post(
+    def test_unknown_list_returns_404(self, owner_client, sample_anime):
+        response = owner_client.post(
             f"/api/watch-order/lists/{uuid.uuid4()}/items",
             json={"media_type": "anime", "entry_id": str(sample_anime.system_id)},
         )
@@ -1323,35 +1323,35 @@ class TestCreateWatchOrderItem:
 
 
 class TestUpdateWatchOrderItem:
-    def test_patch_updates_episode_range(self, admin_client, sample_items):
+    def test_patch_updates_episode_range(self, owner_client, sample_items):
         item = sample_items[0]
-        response = admin_client.patch(
+        response = owner_client.patch(
             f"/api/watch-order/items/{item.system_id}",
             json={"ep_start": 1, "ep_end": 8},
         )
         assert response.status_code == 200
         assert (response.json()["ep_start"], response.json()["ep_end"]) == (1, 8)
 
-    def test_patch_sets_importance(self, admin_client, sample_items):
-        response = admin_client.patch(
+    def test_patch_sets_importance(self, owner_client, sample_items):
+        response = owner_client.patch(
             f"/api/watch-order/items/{sample_items[0].system_id}",
             json={"importance": "Essential"},
         )
         assert response.json()["importance"] == "Essential"
 
-    def test_patch_accepts_every_rung(self, admin_client, sample_items):
+    def test_patch_accepts_every_rung(self, owner_client, sample_items):
         """Every value the editor offers must survive a round trip."""
         for rung in ("Essential", "Recommended", "Normal", "Optional"):
-            response = admin_client.patch(
+            response = owner_client.patch(
                 f"/api/watch-order/items/{sample_items[0].system_id}",
                 json={"importance": rung},
             )
             assert response.status_code == 200
             assert response.json()["importance"] == rung
 
-    def test_patch_rejects_unknown_importance(self, admin_client, sample_items):
+    def test_patch_rejects_unknown_importance(self, owner_client, sample_items):
         """The API refuses junk where the Sheets parser would coerce it."""
-        response = admin_client.patch(
+        response = owner_client.patch(
             f"/api/watch-order/items/{sample_items[0].system_id}",
             json={"importance": "Critical"},
         )
@@ -1364,17 +1364,17 @@ class TestUpdateWatchOrderItem:
         )
         assert response.status_code == 401
 
-    def test_nonexistent_item_returns_404(self, admin_client):
-        response = admin_client.patch(
+    def test_nonexistent_item_returns_404(self, owner_client):
+        response = owner_client.patch(
             f"/api/watch-order/items/{uuid.uuid4()}", json={"note": "x"}
         )
         assert response.status_code == 404
 
 
 class TestDeleteWatchOrderItem:
-    def test_admin_can_delete_item(self, admin_client, sample_list, sample_items):
-        admin_client.delete(f"/api/watch-order/items/{sample_items[1].system_id}")
-        data = admin_client.get(
+    def test_admin_can_delete_item(self, owner_client, sample_list, sample_items):
+        owner_client.delete(f"/api/watch-order/items/{sample_items[1].system_id}")
+        data = owner_client.get(
             f"/api/watch-order/lists/{sample_list.system_id}"
         ).json()
         assert len(data["items"]) == 2
@@ -1388,10 +1388,10 @@ class TestDeleteWatchOrderItem:
 
 class TestReorder:
     def test_renumbers_positions_to_1_to_n(
-        self, admin_client, sample_list, sample_items
+        self, owner_client, sample_list, sample_items
     ):
         reversed_ids = [str(i.system_id) for i in reversed(sample_items)]
-        response = admin_client.put(
+        response = owner_client.put(
             f"/api/watch-order/lists/{sample_list.system_id}/reorder",
             json={"item_ids": reversed_ids},
         )
@@ -1401,25 +1401,25 @@ class TestReorder:
         assert [i["system_id"] for i in items] == reversed_ids
 
     def test_partial_payload_is_rejected(
-        self, admin_client, sample_list, sample_items
+        self, owner_client, sample_list, sample_items
     ):
         """A partial payload would silently leave stale positions behind."""
-        response = admin_client.put(
+        response = owner_client.put(
             f"/api/watch-order/lists/{sample_list.system_id}/reorder",
             json={"item_ids": [str(sample_items[0].system_id)]},
         )
         assert response.status_code == 400
 
-    def test_duplicate_ids_are_rejected(self, admin_client, sample_list, sample_items):
+    def test_duplicate_ids_are_rejected(self, owner_client, sample_list, sample_items):
         dupe = str(sample_items[0].system_id)
-        response = admin_client.put(
+        response = owner_client.put(
             f"/api/watch-order/lists/{sample_list.system_id}/reorder",
             json={"item_ids": [dupe, dupe, str(sample_items[1].system_id)]},
         )
         assert response.status_code == 400
 
-    def test_foreign_item_is_rejected(self, admin_client, sample_list, sample_items):
-        response = admin_client.put(
+    def test_foreign_item_is_rejected(self, owner_client, sample_list, sample_items):
+        response = owner_client.put(
             f"/api/watch-order/lists/{sample_list.system_id}/reorder",
             json={"item_ids": [str(uuid.uuid4()) for _ in sample_items]},
         )
@@ -1460,9 +1460,9 @@ def sample_parts(db_session, sample_list):
     return parts
 
 
-def _file(admin_client, list_id, pairs):
+def _file(owner_client, list_id, pairs):
     """Commits an order and its part assignments in one reorder call."""
-    return admin_client.put(
+    return owner_client.put(
         f"/api/watch-order/lists/{list_id}/reorder",
         json={
             "item_ids": [str(item_id) for item_id, _ in pairs],
@@ -1475,11 +1475,11 @@ def _file(admin_client, list_id, pairs):
 
 class TestReorderFilesSteps:
     def test_order_and_part_are_committed_together(
-        self, admin_client, sample_list, sample_items, sample_parts
+        self, owner_client, sample_list, sample_items, sample_parts
     ):
         one = sample_parts[0].system_id
         response = _file(
-            admin_client,
+            owner_client,
             sample_list.system_id,
             [
                 (sample_items[0].system_id, one),
@@ -1493,16 +1493,16 @@ class TestReorderFilesSteps:
         assert [i["position"] for i in items] == [1.0, 2.0, 3.0]
 
     def test_omitting_section_ids_leaves_every_step_filed_where_it_was(
-        self, admin_client, sample_list, sample_items, sample_parts
+        self, owner_client, sample_list, sample_items, sample_parts
     ):
         one = sample_parts[0].system_id
         _file(
-            admin_client,
+            owner_client,
             sample_list.system_id,
             [(item.system_id, one) for item in sample_items],
         )
         # A pure reorder: same ids, no section_ids key at all.
-        response = admin_client.put(
+        response = owner_client.put(
             f"/api/watch-order/lists/{sample_list.system_id}/reorder",
             json={"item_ids": [str(i.system_id) for i in reversed(sample_items)]},
         )
@@ -1510,16 +1510,16 @@ class TestReorderFilesSteps:
         assert all(i["section_id"] == str(one) for i in response.json()["items"])
 
     def test_a_step_is_unfiled_by_naming_no_part(
-        self, admin_client, sample_list, sample_items, sample_parts
+        self, owner_client, sample_list, sample_items, sample_parts
     ):
         one = sample_parts[0].system_id
         _file(
-            admin_client,
+            owner_client,
             sample_list.system_id,
             [(item.system_id, one) for item in sample_items],
         )
         response = _file(
-            admin_client,
+            owner_client,
             sample_list.system_id,
             [
                 (sample_items[0].system_id, one),
@@ -1530,9 +1530,9 @@ class TestReorderFilesSteps:
         assert response.json()["items"][2]["section_id"] is None
 
     def test_a_mismatched_section_ids_length_is_rejected(
-        self, admin_client, sample_list, sample_items, sample_parts
+        self, owner_client, sample_list, sample_items, sample_parts
     ):
-        response = admin_client.put(
+        response = owner_client.put(
             f"/api/watch-order/lists/{sample_list.system_id}/reorder",
             json={
                 "item_ids": [str(i.system_id) for i in sample_items],
@@ -1542,7 +1542,7 @@ class TestReorderFilesSteps:
         assert response.status_code == 400
 
     def test_another_lists_part_is_rejected(
-        self, admin_client, db_session, sample_list, sample_items, sample_franchise
+        self, owner_client, db_session, sample_list, sample_items, sample_franchise
     ):
         other_list = models.WatchOrderList(
             system_id=uuid.uuid4(),
@@ -1561,16 +1561,16 @@ class TestReorderFilesSteps:
         db_session.flush()
 
         response = _file(
-            admin_client,
+            owner_client,
             sample_list.system_id,
             [(item.system_id, foreign.system_id) for item in sample_items],
         )
         assert response.status_code == 400
 
 
-def _reorder_with_parts(admin_client, list_id, item_ids, section_positions):
+def _reorder_with_parts(owner_client, list_id, item_ids, section_positions):
     """One reorder that also places every part - what moving a part commits."""
-    return admin_client.put(
+    return owner_client.put(
         f"/api/watch-order/lists/{list_id}/reorder",
         json={
             "item_ids": [str(i) for i in item_ids],
@@ -1582,21 +1582,21 @@ def _reorder_with_parts(admin_client, list_id, item_ids, section_positions):
     )
 
 
-def _section_positions(admin_client, list_id):
-    sections = admin_client.get(f"/api/watch-order/lists/{list_id}").json()[
+def _section_positions(owner_client, list_id):
+    sections = owner_client.get(f"/api/watch-order/lists/{list_id}").json()[
         "sections"
     ]
     return {s["system_id"]: s["position"] for s in sections}
 
 
 def test_parts_have_no_reorder_route_of_their_own(
-    admin_client, sample_list, sample_parts
+    owner_client, sample_list, sample_parts
 ):
     # Parts are placed by `section_positions` on the step reorder. A 1..N
     # renumbering of part ids cannot express an empty part sitting between
     # two steps, so the route that did that is gone rather than kept as a
     # second, wrong way to move a part.
-    response = admin_client.put(
+    response = owner_client.put(
         f"/api/watch-order/lists/{sample_list.system_id}/sections/reorder",
         json={"section_ids": [str(p.system_id) for p in reversed(sample_parts)]},
     )
@@ -1613,12 +1613,12 @@ class TestReorderPlacesParts:
     """
 
     def test_parts_and_steps_move_in_one_request(
-        self, admin_client, sample_list, sample_items, sample_parts
+        self, owner_client, sample_list, sample_items, sample_parts
     ):
         one, two = sample_parts[0].system_id, sample_parts[1].system_id
         reversed_ids = [i.system_id for i in reversed(sample_items)]
         response = _reorder_with_parts(
-            admin_client,
+            owner_client,
             sample_list.system_id,
             reversed_ids,
             [(two, 0.5), (one, 3.5)],
@@ -1630,40 +1630,40 @@ class TestReorderPlacesParts:
         assert [s["position"] for s in body["sections"]] == [0.5, 3.5]
 
     def test_omitting_section_positions_leaves_every_part_where_it_was(
-        self, admin_client, sample_list, sample_items, sample_parts
+        self, owner_client, sample_list, sample_items, sample_parts
     ):
-        response = admin_client.put(
+        response = owner_client.put(
             f"/api/watch-order/lists/{sample_list.system_id}/reorder",
             json={"item_ids": [str(i.system_id) for i in reversed(sample_items)]},
         )
         assert response.status_code == 200
-        assert _section_positions(admin_client, sample_list.system_id) == {
+        assert _section_positions(owner_client, sample_list.system_id) == {
             str(sample_parts[0].system_id): 10.0,
             str(sample_parts[1].system_id): 11.0,
         }
 
     def test_a_duplicate_part_is_rejected(
-        self, admin_client, sample_list, sample_items, sample_parts
+        self, owner_client, sample_list, sample_items, sample_parts
     ):
         """Names every part, so only the duplicate check can refuse it."""
         one, two = sample_parts[0].system_id, sample_parts[1].system_id
         response = _reorder_with_parts(
-            admin_client,
+            owner_client,
             sample_list.system_id,
             [i.system_id for i in sample_items],
             [(one, 0.5), (two, 1.5), (one, 2.5)],
         )
         assert response.status_code == 400
-        assert _section_positions(admin_client, sample_list.system_id) == {
+        assert _section_positions(owner_client, sample_list.system_id) == {
             str(one): 10.0,
             str(two): 11.0,
         }
 
     def test_a_missing_part_is_rejected(
-        self, admin_client, sample_list, sample_items, sample_parts
+        self, owner_client, sample_list, sample_items, sample_parts
     ):
         response = _reorder_with_parts(
-            admin_client,
+            owner_client,
             sample_list.system_id,
             [i.system_id for i in sample_items],
             [(sample_parts[0].system_id, 0.5)],
@@ -1671,10 +1671,10 @@ class TestReorderPlacesParts:
         assert response.status_code == 400
 
     def test_an_empty_list_of_parts_is_rejected_when_the_list_has_parts(
-        self, admin_client, sample_list, sample_items, sample_parts
+        self, owner_client, sample_list, sample_items, sample_parts
     ):
         response = _reorder_with_parts(
-            admin_client,
+            owner_client,
             sample_list.system_id,
             [i.system_id for i in sample_items],
             [],
@@ -1682,7 +1682,7 @@ class TestReorderPlacesParts:
         assert response.status_code == 400
 
     def test_another_lists_part_is_rejected(
-        self, admin_client, db_session, sample_list, sample_items, sample_parts,
+        self, owner_client, db_session, sample_list, sample_items, sample_parts,
         sample_franchise,
     ):
         other_list = models.WatchOrderList(
@@ -1702,7 +1702,7 @@ class TestReorderPlacesParts:
         db_session.flush()
 
         response = _reorder_with_parts(
-            admin_client,
+            owner_client,
             sample_list.system_id,
             [i.system_id for i in sample_items],
             [
@@ -1715,11 +1715,11 @@ class TestReorderPlacesParts:
         assert foreign.position == 1.0
 
     def test_a_rejected_step_order_leaves_the_parts_untouched(
-        self, admin_client, sample_list, sample_items, sample_parts
+        self, owner_client, sample_list, sample_items, sample_parts
     ):
         """The parts are valid; the steps split a part. Neither is written."""
         one, two = sample_parts[0].system_id, sample_parts[1].system_id
-        response = admin_client.put(
+        response = owner_client.put(
             f"/api/watch-order/lists/{sample_list.system_id}/reorder",
             json={
                 "item_ids": [str(i.system_id) for i in sample_items],
@@ -1731,7 +1731,7 @@ class TestReorderPlacesParts:
             },
         )
         assert response.status_code == 400
-        assert _section_positions(admin_client, sample_list.system_id) == {
+        assert _section_positions(owner_client, sample_list.system_id) == {
             str(one): 10.0,
             str(two): 11.0,
         }
@@ -1739,12 +1739,12 @@ class TestReorderPlacesParts:
 
 class TestPartsStayContiguous:
     def test_an_unfiled_step_between_two_parts_is_allowed(
-        self, admin_client, sample_list, sample_items, sample_parts
+        self, owner_client, sample_list, sample_items, sample_parts
     ):
         """The position the tier was rewritten to express."""
         one, two = sample_parts[0].system_id, sample_parts[1].system_id
         response = _file(
-            admin_client,
+            owner_client,
             sample_list.system_id,
             [
                 (sample_items[0].system_id, one),
@@ -1755,11 +1755,11 @@ class TestPartsStayContiguous:
         assert response.status_code == 200
 
     def test_a_part_split_by_an_unfiled_step_is_rejected(
-        self, admin_client, sample_list, sample_items, sample_parts
+        self, owner_client, sample_list, sample_items, sample_parts
     ):
         one = sample_parts[0].system_id
         response = _file(
-            admin_client,
+            owner_client,
             sample_list.system_id,
             [
                 (sample_items[0].system_id, one),
@@ -1770,11 +1770,11 @@ class TestPartsStayContiguous:
         assert response.status_code == 400
 
     def test_a_part_split_by_another_part_is_rejected(
-        self, admin_client, sample_list, sample_items, sample_parts
+        self, owner_client, sample_list, sample_items, sample_parts
     ):
         one, two = sample_parts[0].system_id, sample_parts[1].system_id
         response = _file(
-            admin_client,
+            owner_client,
             sample_list.system_id,
             [
                 (sample_items[0].system_id, one),
@@ -1785,11 +1785,11 @@ class TestPartsStayContiguous:
         assert response.status_code == 400
 
     def test_a_rejected_split_leaves_the_stored_order_untouched(
-        self, admin_client, sample_list, sample_items, sample_parts
+        self, owner_client, sample_list, sample_items, sample_parts
     ):
         one = sample_parts[0].system_id
         _file(
-            admin_client,
+            owner_client,
             sample_list.system_id,
             [
                 (sample_items[0].system_id, one),
@@ -1797,7 +1797,7 @@ class TestPartsStayContiguous:
                 (sample_items[2].system_id, None),
             ],
         )
-        admin_client.put(
+        owner_client.put(
             f"/api/watch-order/lists/{sample_list.system_id}/reorder",
             json={
                 "item_ids": [
@@ -1808,7 +1808,7 @@ class TestPartsStayContiguous:
                 "section_ids": [str(one), None, str(one)],
             },
         )
-        after = admin_client.get(
+        after = owner_client.get(
             f"/api/watch-order/lists/{sample_list.system_id}"
         ).json()["items"]
         assert [i["system_id"] for i in after] == [
@@ -1821,7 +1821,7 @@ class TestPartsStayContiguous:
 
 class TestPartsDoNotSortTheGuide:
     def test_reading_order_is_position_alone(
-        self, admin_client, sample_list, sample_items, sample_parts
+        self, owner_client, sample_list, sample_items, sample_parts
     ):
         """
         The retired rule read every unfiled step ahead of every part, so this
@@ -1830,7 +1830,7 @@ class TestPartsDoNotSortTheGuide:
         """
         one, two = sample_parts[0].system_id, sample_parts[1].system_id
         _file(
-            admin_client,
+            owner_client,
             sample_list.system_id,
             [
                 (sample_items[0].system_id, one),
@@ -1838,18 +1838,18 @@ class TestPartsDoNotSortTheGuide:
                 (sample_items[2].system_id, two),
             ],
         )
-        items = admin_client.get(
+        items = owner_client.get(
             f"/api/watch-order/lists/{sample_list.system_id}"
         ).json()["items"]
         assert [i["section_id"] for i in items] == [str(one), None, str(two)]
 
     def test_a_part_reads_where_its_steps_read_not_where_its_position_says(
-        self, admin_client, sample_list, sample_items, sample_parts
+        self, owner_client, sample_list, sample_items, sample_parts
     ):
         # Part 2 carries the later section position, but its step reads first.
         one, two = sample_parts[0].system_id, sample_parts[1].system_id
         _file(
-            admin_client,
+            owner_client,
             sample_list.system_id,
             [
                 (sample_items[0].system_id, two),
@@ -1857,7 +1857,7 @@ class TestPartsDoNotSortTheGuide:
                 (sample_items[2].system_id, one),
             ],
         )
-        items = admin_client.get(
+        items = owner_client.get(
             f"/api/watch-order/lists/{sample_list.system_id}"
         ).json()["items"]
         assert [i["section_id"] for i in items] == [str(two), str(one), str(one)]
@@ -1865,7 +1865,7 @@ class TestPartsDoNotSortTheGuide:
 
 class TestAddingAStepToAPart:
     def test_a_step_added_to_a_part_lands_at_the_end_of_that_part(
-        self, admin_client, sample_list, sample_items, sample_parts, sample_anime
+        self, owner_client, sample_list, sample_items, sample_parts, sample_anime
     ):
         """
         Appending to the end of the *list* would split every part the new step
@@ -1873,7 +1873,7 @@ class TestAddingAStepToAPart:
         """
         one = sample_parts[0].system_id
         _file(
-            admin_client,
+            owner_client,
             sample_list.system_id,
             [
                 (sample_items[0].system_id, one),
@@ -1881,7 +1881,7 @@ class TestAddingAStepToAPart:
                 (sample_items[2].system_id, None),
             ],
         )
-        response = admin_client.post(
+        response = owner_client.post(
             f"/api/watch-order/lists/{sample_list.system_id}/items",
             json={
                 "media_type": "anime",
@@ -1891,17 +1891,17 @@ class TestAddingAStepToAPart:
         )
         assert response.status_code == 200
 
-        items = admin_client.get(
+        items = owner_client.get(
             f"/api/watch-order/lists/{sample_list.system_id}"
         ).json()["items"]
         assert [i["section_id"] for i in items] == [str(one), str(one), str(one), None]
 
     def test_an_unfiled_step_still_appends_to_the_end_of_the_list(
-        self, admin_client, sample_list, sample_items, sample_parts, sample_anime
+        self, owner_client, sample_list, sample_items, sample_parts, sample_anime
     ):
         one = sample_parts[0].system_id
         _file(
-            admin_client,
+            owner_client,
             sample_list.system_id,
             [
                 (sample_items[0].system_id, one),
@@ -1909,20 +1909,20 @@ class TestAddingAStepToAPart:
                 (sample_items[2].system_id, None),
             ],
         )
-        admin_client.post(
+        owner_client.post(
             f"/api/watch-order/lists/{sample_list.system_id}/items",
             json={"media_type": "anime", "entry_id": str(sample_anime.system_id)},
         )
-        items = admin_client.get(
+        items = owner_client.get(
             f"/api/watch-order/lists/{sample_list.system_id}"
         ).json()["items"]
         assert [i["section_id"] for i in items] == [str(one), str(one), None, None]
 
     def test_the_first_step_of_an_empty_part_appends_to_the_list(
-        self, admin_client, sample_list, sample_items, sample_parts, sample_anime
+        self, owner_client, sample_list, sample_items, sample_parts, sample_anime
     ):
         two = sample_parts[1].system_id
-        admin_client.post(
+        owner_client.post(
             f"/api/watch-order/lists/{sample_list.system_id}/items",
             json={
                 "media_type": "anime",
@@ -1930,7 +1930,7 @@ class TestAddingAStepToAPart:
                 "section_id": str(two),
             },
         )
-        items = admin_client.get(
+        items = owner_client.get(
             f"/api/watch-order/lists/{sample_list.system_id}"
         ).json()["items"]
         assert [i["section_id"] for i in items] == [None, None, None, str(two)]
@@ -1945,8 +1945,8 @@ class TestDuplicateWatchOrderList:
     """A copy the admin can edit without disturbing the original."""
 
     @pytest.fixture
-    def copy_of_sample(self, admin_client, sample_list, sample_items):
-        response = admin_client.post(
+    def copy_of_sample(self, owner_client, sample_list, sample_items):
+        response = owner_client.post(
             f"/api/watch-order/lists/{sample_list.system_id}/duplicate"
         )
         assert response.status_code == 200
@@ -1971,14 +1971,14 @@ class TestDuplicateWatchOrderList:
         assert copy_of_sample["is_default"] is False
         assert copy_of_sample["is_most_recommended"] is False
 
-    def test_every_step_is_copied(self, admin_client, copy_of_sample, sample_items):
-        steps = admin_client.get(
+    def test_every_step_is_copied(self, owner_client, copy_of_sample, sample_items):
+        steps = owner_client.get(
             f"/api/watch-order/lists/{copy_of_sample['system_id']}"
         ).json()["items"]
         assert len(steps) == len(sample_items)
 
-    def test_step_fields_survive_the_copy(self, admin_client, copy_of_sample):
-        steps = admin_client.get(
+    def test_step_fields_survive_the_copy(self, owner_client, copy_of_sample):
+        steps = owner_client.get(
             f"/api/watch-order/lists/{copy_of_sample['system_id']}"
         ).json()["items"]
         assert [(s["ep_start"], s["ep_end"]) for s in steps] == [
@@ -1991,31 +1991,31 @@ class TestDuplicateWatchOrderList:
         assert [s["position"] for s in steps] == [1.0, 2.0, 3.0]
 
     def test_copied_steps_are_new_rows(
-        self, admin_client, copy_of_sample, sample_items
+        self, owner_client, copy_of_sample, sample_items
     ):
         """Sharing item rows would make an edit to the copy hit the original."""
-        steps = admin_client.get(
+        steps = owner_client.get(
             f"/api/watch-order/lists/{copy_of_sample['system_id']}"
         ).json()["items"]
         original_ids = {str(i.system_id) for i in sample_items}
         assert original_ids.isdisjoint({s["system_id"] for s in steps})
 
-    def test_source_keeps_its_own_steps(self, admin_client, copy_of_sample, sample_list):
-        steps = admin_client.get(
+    def test_source_keeps_its_own_steps(self, owner_client, copy_of_sample, sample_list):
+        steps = owner_client.get(
             f"/api/watch-order/lists/{sample_list.system_id}"
         ).json()["items"]
         assert len(steps) == 3
 
     def test_editing_the_copy_leaves_the_source_alone(
-        self, admin_client, copy_of_sample, sample_list
+        self, owner_client, copy_of_sample, sample_list
     ):
-        steps = admin_client.get(
+        steps = owner_client.get(
             f"/api/watch-order/lists/{copy_of_sample['system_id']}"
         ).json()["items"]
-        admin_client.patch(
+        owner_client.patch(
             f"/api/watch-order/items/{steps[0]['system_id']}", json={"ep_end": 4}
         )
-        source = admin_client.get(
+        source = owner_client.get(
             f"/api/watch-order/lists/{sample_list.system_id}"
         ).json()["items"]
         assert source[0]["ep_end"] == 10
@@ -2023,8 +2023,8 @@ class TestDuplicateWatchOrderList:
     def test_item_count_is_reported(self, copy_of_sample, sample_items):
         assert copy_of_sample["item_count"] == len(sample_items)
 
-    def test_nonexistent_id_returns_404(self, admin_client):
-        response = admin_client.post(
+    def test_nonexistent_id_returns_404(self, owner_client):
+        response = owner_client.post(
             f"/api/watch-order/lists/{uuid.uuid4()}/duplicate"
         )
         assert response.status_code == 404
@@ -2043,14 +2043,14 @@ class TestDuplicateGeneratedList:
     """
 
     @pytest.fixture
-    def release_list(self, admin_client, orderable_franchise):
-        return admin_client.post(
+    def release_list(self, owner_client, orderable_franchise):
+        return owner_client.post(
             f"/api/watch-order/lists/release?franchise_id={orderable_franchise.system_id}"
         ).json()
 
     @pytest.fixture
-    def copy_of_release(self, admin_client, release_list):
-        response = admin_client.post(
+    def copy_of_release(self, owner_client, release_list):
+        response = owner_client.post(
             f"/api/watch-order/lists/{release_list['system_id']}/duplicate"
         )
         assert response.status_code == 200
@@ -2060,12 +2060,12 @@ class TestDuplicateGeneratedList:
         assert copy_of_release["auto_source"] is None
 
     def test_generated_steps_become_real_rows(
-        self, admin_client, release_list, copy_of_release
+        self, owner_client, release_list, copy_of_release
     ):
-        generated = admin_client.get(
+        generated = owner_client.get(
             f"/api/watch-order/lists/{release_list['system_id']}"
         ).json()["items"]
-        copied = admin_client.get(
+        copied = owner_client.get(
             f"/api/watch-order/lists/{copy_of_release['system_id']}"
         ).json()["items"]
         assert len(generated) > 0
@@ -2075,17 +2075,17 @@ class TestDuplicateGeneratedList:
         ]
 
     def test_copy_accepts_a_new_step(
-        self, admin_client, copy_of_release, sample_anime
+        self, owner_client, copy_of_release, sample_anime
     ):
         """The whole point: the source refuses this, the copy must not."""
-        response = admin_client.post(
+        response = owner_client.post(
             f"/api/watch-order/lists/{copy_of_release['system_id']}/items",
             json={"media_type": "anime", "entry_id": str(sample_anime.system_id)},
         )
         assert response.status_code == 200
 
-    def test_source_stays_generated(self, admin_client, release_list, copy_of_release):
-        row = admin_client.get(
+    def test_source_stays_generated(self, owner_client, release_list, copy_of_release):
+        row = owner_client.get(
             f"/api/watch-order/lists/{release_list['system_id']}"
         ).json()
         assert row["auto_source"] == "release"

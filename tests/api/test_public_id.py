@@ -201,7 +201,7 @@ _MEDIA_ROUTES = [
     "prefix, model, kwargs", _MEDIA_ROUTES, ids=[r[0] for r in _MEDIA_ROUTES]
 )
 def test_every_media_route_resolves_both_id_forms(
-    admin_client, db_session, prefix, model, kwargs
+    owner_client, db_session, prefix, model, kwargs
 ):
     """
     The highest-risk half of moving public_id: _get_or_404 builds its clause
@@ -212,17 +212,17 @@ def test_every_media_route_resolves_both_id_forms(
     db_session.add(entry)
     db_session.commit()
 
-    by_uuid = admin_client.get(f"{prefix}/{entry.system_id}")
+    by_uuid = owner_client.get(f"{prefix}/{entry.system_id}")
     assert by_uuid.status_code == 200, by_uuid.text
     assert by_uuid.json()["system_id"] == str(entry.system_id)
 
-    by_public = admin_client.get(f"{prefix}/{entry.public_id}")
+    by_public = owner_client.get(f"{prefix}/{entry.public_id}")
     assert by_public.status_code == 200, by_public.text
     assert by_public.json()["system_id"] == str(entry.system_id)
 
 
 def test_a_non_media_route_still_resolves_by_its_own_public_id(
-    admin_client, db_session
+    owner_client, db_session
 ):
     """
     The eight non-media entities keep public_id on their own table and keep
@@ -233,7 +233,7 @@ def test_a_non_media_route_still_resolves_by_its_own_public_id(
     db_session.add(person)
     db_session.commit()
 
-    response = admin_client.get(f"/api/person/{person.public_id}")
+    response = owner_client.get(f"/api/person/{person.public_id}")
     assert response.status_code == 200, response.text
     assert response.json()["system_id"] == str(person.system_id)
 

@@ -74,8 +74,8 @@ def _ids(nodes):
 # --- Read ------------------------------------------------------------------
 
 
-def test_the_page_reads_as_a_nested_tree_in_sort_order(admin_client, tree):
-    r = admin_client.get(URL)
+def test_the_page_reads_as_a_nested_tree_in_sort_order(owner_client, tree):
+    r = owner_client.get(URL)
     assert r.status_code == 200
     top = r.json()
     assert _ids(top) == [str(tree["tools"].system_id), str(tree["reading"].system_id)]
@@ -119,8 +119,8 @@ def test_a_member_without_manage_catalog_can_read_the_page(user_client, tree):
 # --- Create ----------------------------------------------------------------
 
 
-def test_create_a_top_level_group(admin_client):
-    r = admin_client.post(URL, json={"kind": "group", "title": "Links"})
+def test_create_a_top_level_group(owner_client):
+    r = owner_client.post(URL, json={"kind": "group", "title": "Links"})
     assert r.status_code == 201
     body = r.json()
     assert body["kind"] == "group"
@@ -131,8 +131,8 @@ def test_create_a_top_level_group(admin_client):
     assert body["sort_index"] == 0.0
 
 
-def test_a_new_node_appends_after_its_siblings(admin_client, tree):
-    r = admin_client.post(
+def test_a_new_node_appends_after_its_siblings(owner_client, tree):
+    r = owner_client.post(
         URL,
         json={
             "kind": "item",
@@ -145,12 +145,12 @@ def test_a_new_node_appends_after_its_siblings(admin_client, tree):
     assert r.json()["sort_index"] == 2.0
     assert r.json()["title"] == "Heading"
 
-    tools = admin_client.get(URL).json()[0]
+    tools = owner_client.get(URL).json()[0]
     assert tools["children"][-1]["system_id"] == r.json()["system_id"]
 
 
-def test_a_new_top_level_node_appends_after_the_top_level(admin_client, tree):
-    r = admin_client.post(URL, json={"kind": "item", "content": "loose note"})
+def test_a_new_top_level_node_appends_after_the_top_level(owner_client, tree):
+    r = owner_client.post(URL, json={"kind": "item", "content": "loose note"})
     assert r.status_code == 201
     assert r.json()["sort_index"] == 2.0
 
@@ -167,14 +167,14 @@ def test_a_new_top_level_node_appends_after_the_top_level(admin_client, tree):
         {"kind": "folder", "title": "not a kind"},
     ],
 )
-def test_create_refuses_a_malformed_node(admin_client, db, payload):
-    r = admin_client.post(URL, json=payload)
+def test_create_refuses_a_malformed_node(owner_client, db, payload):
+    r = owner_client.post(URL, json=payload)
     assert r.status_code == 422
     assert db.query(models.ResourceNode).count() == 0
 
 
-def test_create_refuses_a_parent_that_is_an_item(admin_client, tree):
-    r = admin_client.post(
+def test_create_refuses_a_parent_that_is_an_item(owner_client, tree):
+    r = owner_client.post(
         URL,
         json={
             "kind": "item",
@@ -185,8 +185,8 @@ def test_create_refuses_a_parent_that_is_an_item(admin_client, tree):
     assert r.status_code == 422
 
 
-def test_create_refuses_a_parent_that_does_not_exist(admin_client):
-    r = admin_client.post(
+def test_create_refuses_a_parent_that_does_not_exist(owner_client):
+    r = owner_client.post(
         URL, json={"kind": "item", "parent_id": str(uuid.uuid4()), "content": "x"}
     )
     assert r.status_code == 422
@@ -195,9 +195,9 @@ def test_create_refuses_a_parent_that_does_not_exist(admin_client):
 # --- Update ----------------------------------------------------------------
 
 
-def test_patch_edits_title_and_content(admin_client, db, tree):
+def test_patch_edits_title_and_content(owner_client, db, tree):
     node_id = tree["plain"].system_id
-    r = admin_client.patch(
+    r = owner_client.patch(
         f"{URL}/{node_id}", json={"title": "Heading", "content": "new body"}
     )
     assert r.status_code == 200
@@ -206,9 +206,9 @@ def test_patch_edits_title_and_content(admin_client, db, tree):
     assert r.json()["parent_id"] == str(tree["tools"].system_id)
 
 
-def test_patch_ignores_kind_and_parent(admin_client, db, tree):
+def test_patch_ignores_kind_and_parent(owner_client, db, tree):
     node_id = tree["plain"].system_id
-    r = admin_client.patch(
+    r = owner_client.patch(
         f"{URL}/{node_id}",
         json={"kind": "group", "parent_id": None, "content": "still an item"},
     )
@@ -229,21 +229,21 @@ def test_patch_ignores_kind_and_parent(admin_client, db, tree):
         ("plain", {"content": None}),
     ],
 )
-def test_patch_refuses_a_malformed_result(admin_client, tree, node_key, payload):
-    r = admin_client.patch(f"{URL}/{tree[node_key].system_id}", json=payload)
+def test_patch_refuses_a_malformed_result(owner_client, tree, node_key, payload):
+    r = owner_client.patch(f"{URL}/{tree[node_key].system_id}", json=payload)
     assert r.status_code == 422
 
 
-def test_patch_an_unknown_node_is_404(admin_client):
-    r = admin_client.patch(f"{URL}/{uuid.uuid4()}", json={"title": "x"})
+def test_patch_an_unknown_node_is_404(owner_client):
+    r = owner_client.patch(f"{URL}/{uuid.uuid4()}", json={"title": "x"})
     assert r.status_code == 404
 
 
 # --- Delete ----------------------------------------------------------------
 
 
-def test_deleting_a_group_takes_its_whole_subtree(admin_client, db, tree):
-    r = admin_client.delete(f"{URL}/{tree['tools'].system_id}")
+def test_deleting_a_group_takes_its_whole_subtree(owner_client, db, tree):
+    r = owner_client.delete(f"{URL}/{tree['tools'].system_id}")
     assert r.status_code == 200
     assert r.json()["status"] == "success"
 
@@ -254,75 +254,75 @@ def test_deleting_a_group_takes_its_whole_subtree(admin_client, db, tree):
     assert remaining == {tree["reading"].system_id}
 
 
-def test_deleting_an_item_leaves_its_siblings(admin_client, db, tree):
-    r = admin_client.delete(f"{URL}/{tree['plain'].system_id}")
+def test_deleting_an_item_leaves_its_siblings(owner_client, db, tree):
+    r = owner_client.delete(f"{URL}/{tree['plain'].system_id}")
     assert r.status_code == 200
-    tools = admin_client.get(URL).json()[0]
+    tools = owner_client.get(URL).json()[0]
     assert _ids(tools["children"]) == [str(tree["docs"].system_id)]
 
 
-def test_delete_an_unknown_node_is_404(admin_client):
-    assert admin_client.delete(f"{URL}/{uuid.uuid4()}").status_code == 404
+def test_delete_an_unknown_node_is_404(owner_client):
+    assert owner_client.delete(f"{URL}/{uuid.uuid4()}").status_code == 404
 
 
 # --- Reorder and move --------------------------------------------------------
 
 
-def test_reorder_rewrites_sibling_order(admin_client, tree):
+def test_reorder_rewrites_sibling_order(owner_client, tree):
     tools_id = str(tree["tools"].system_id)
     new_order = [str(tree["plain"].system_id), str(tree["docs"].system_id)]
-    r = admin_client.patch(
+    r = owner_client.patch(
         f"{URL}/reorder", json={"parent_id": tools_id, "ordered_ids": new_order}
     )
     assert r.status_code == 200
     assert r.json() == {"status": "success", "reordered": 2}
 
-    tools = admin_client.get(URL).json()[0]
+    tools = owner_client.get(URL).json()[0]
     assert _ids(tools["children"]) == new_order
     assert [c["sort_index"] for c in tools["children"]] == [0.0, 1.0]
 
 
-def test_reorder_the_top_level(admin_client, tree):
+def test_reorder_the_top_level(owner_client, tree):
     new_order = [str(tree["reading"].system_id), str(tree["tools"].system_id)]
-    r = admin_client.patch(
+    r = owner_client.patch(
         f"{URL}/reorder", json={"parent_id": None, "ordered_ids": new_order}
     )
     assert r.status_code == 200
-    assert _ids(admin_client.get(URL).json()) == new_order
+    assert _ids(owner_client.get(URL).json()) == new_order
 
 
-def test_reorder_moves_a_node_into_another_group(admin_client, tree):
+def test_reorder_moves_a_node_into_another_group(owner_client, tree):
     """The move: the list names the target's children plus the arrival."""
     reading_id = str(tree["reading"].system_id)
     plain_id = str(tree["plain"].system_id)
-    r = admin_client.patch(
+    r = owner_client.patch(
         f"{URL}/reorder", json={"parent_id": reading_id, "ordered_ids": [plain_id]}
     )
     assert r.status_code == 200
 
-    tools, reading = admin_client.get(URL).json()
+    tools, reading = owner_client.get(URL).json()
     assert _ids(reading["children"]) == [plain_id]
     assert reading["children"][0]["parent_id"] == reading_id
     assert _ids(tools["children"]) == [str(tree["docs"].system_id)]
 
 
-def test_reorder_moves_a_group_to_the_top_level(admin_client, tree):
+def test_reorder_moves_a_group_to_the_top_level(owner_client, tree):
     order = [
         str(tree["tools"].system_id),
         str(tree["docs"].system_id),
         str(tree["reading"].system_id),
     ]
-    r = admin_client.patch(f"{URL}/reorder", json={"parent_id": None, "ordered_ids": order})
+    r = owner_client.patch(f"{URL}/reorder", json={"parent_id": None, "ordered_ids": order})
     assert r.status_code == 200
-    top = admin_client.get(URL).json()
+    top = owner_client.get(URL).json()
     assert _ids(top) == order
     # It moved with its own children.
     assert _ids(top[1]["children"]) == [str(tree["mdn"].system_id)]
 
 
-def test_reorder_refuses_a_partial_list(admin_client, db, tree):
+def test_reorder_refuses_a_partial_list(owner_client, db, tree):
     tools_id = str(tree["tools"].system_id)
-    r = admin_client.patch(
+    r = owner_client.patch(
         f"{URL}/reorder",
         json={"parent_id": tools_id, "ordered_ids": [str(tree["plain"].system_id)]},
     )
@@ -332,10 +332,10 @@ def test_reorder_refuses_a_partial_list(admin_client, db, tree):
     assert db.get(models.ResourceNode, tree["plain"].system_id).sort_index == 1.0
 
 
-def test_reorder_refuses_duplicates(admin_client, tree):
+def test_reorder_refuses_duplicates(owner_client, tree):
     tools_id = str(tree["tools"].system_id)
     docs_id = str(tree["docs"].system_id)
-    r = admin_client.patch(
+    r = owner_client.patch(
         f"{URL}/reorder",
         json={
             "parent_id": tools_id,
@@ -345,9 +345,9 @@ def test_reorder_refuses_duplicates(admin_client, tree):
     assert r.status_code == 422
 
 
-def test_reorder_refuses_an_unknown_id(admin_client, tree):
+def test_reorder_refuses_an_unknown_id(owner_client, tree):
     tools_id = str(tree["tools"].system_id)
-    r = admin_client.patch(
+    r = owner_client.patch(
         f"{URL}/reorder",
         json={
             "parent_id": tools_id,
@@ -361,8 +361,8 @@ def test_reorder_refuses_an_unknown_id(admin_client, tree):
     assert r.status_code == 422
 
 
-def test_reorder_refuses_a_parent_that_is_an_item(admin_client, tree):
-    r = admin_client.patch(
+def test_reorder_refuses_a_parent_that_is_an_item(owner_client, tree):
+    r = owner_client.patch(
         f"{URL}/reorder",
         json={
             "parent_id": str(tree["plain"].system_id),
@@ -372,8 +372,8 @@ def test_reorder_refuses_a_parent_that_is_an_item(admin_client, tree):
     assert r.status_code == 422
 
 
-def test_reorder_refuses_a_parent_that_does_not_exist(admin_client, tree):
-    r = admin_client.patch(
+def test_reorder_refuses_a_parent_that_does_not_exist(owner_client, tree):
+    r = owner_client.patch(
         f"{URL}/reorder",
         json={
             "parent_id": str(uuid.uuid4()),
@@ -383,9 +383,9 @@ def test_reorder_refuses_a_parent_that_does_not_exist(admin_client, tree):
     assert r.status_code == 422
 
 
-def test_reorder_refuses_moving_a_group_into_itself(admin_client, db, tree):
+def test_reorder_refuses_moving_a_group_into_itself(owner_client, db, tree):
     tools_id = str(tree["tools"].system_id)
-    r = admin_client.patch(
+    r = owner_client.patch(
         f"{URL}/reorder",
         json={
             "parent_id": tools_id,
@@ -402,10 +402,10 @@ def test_reorder_refuses_moving_a_group_into_itself(admin_client, db, tree):
 
 
 def test_reorder_refuses_moving_a_group_under_its_own_descendant(
-    admin_client, db, tree
+    owner_client, db, tree
 ):
     # Docs is a child of Tools; Tools cannot move under Docs.
-    r = admin_client.patch(
+    r = owner_client.patch(
         f"{URL}/reorder",
         json={
             "parent_id": str(tree["docs"].system_id),
@@ -469,7 +469,7 @@ def test_a_member_without_manage_catalog_is_refused_every_write(
     assert db.get(models.ResourceNode, tree["plain"].system_id).content == "plain text"
 
 
-@pytest.mark.parametrize("client_fixture", ["super_client", "admin_client"])
+@pytest.mark.parametrize("client_fixture", ["super_client", "owner_client"])
 def test_a_manage_catalog_holder_may_make_every_write(
     request, db, tree, client_fixture
 ):

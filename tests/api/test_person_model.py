@@ -61,8 +61,8 @@ def test_a_person_needs_at_least_one_name(db_session):
     db_session.rollback()
 
 
-def test_api_rejects_a_nameless_person(admin_client):
-    r = admin_client.post("/api/person/", json={"roles": []})
+def test_api_rejects_a_nameless_person(owner_client):
+    r = owner_client.post("/api/person/", json={"roles": []})
     assert r.status_code == 422
 
 

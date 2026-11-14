@@ -73,13 +73,13 @@ def ayane(db_session):
 
 
 def test_originals_carry_the_characters_role_but_never_its_remark(
-    admin_client, db_session, seasons, character
+    owner_client, db_session, seasons, character
 ):
     character.role = "Main"
     character.remark = "The lead."
     db_session.flush()
 
-    r = admin_client.post("/api/casting/originals", json={
+    r = owner_client.post("/api/casting/originals", json={
         "media_type": "anime",
         "entry_id": str(seasons[0].system_id),
         "rows": [{"character_id": str(character.system_id)}],
@@ -95,7 +95,7 @@ def test_originals_carry_the_characters_role_but_never_its_remark(
 
 
 def test_an_identity_rows_original_is_the_identity_with_the_characters_role(
-    admin_client, db_session, seasons, character
+    owner_client, db_session, seasons, character
 ):
     character.role = "Main"
     character.remark = "The character's remark."
@@ -105,7 +105,7 @@ def test_an_identity_rows_original_is_the_identity_with_the_characters_role(
     db_session.add(identity)
     db_session.flush()
 
-    r = admin_client.post("/api/casting/originals", json={
+    r = owner_client.post("/api/casting/originals", json={
         "media_type": "anime",
         "rows": [{
             "character_id": str(character.system_id),
@@ -121,7 +121,7 @@ def test_an_identity_rows_original_is_the_identity_with_the_characters_role(
 
 
 def test_an_identity_rows_fallback_photo_is_the_identitys_own(
-    admin_client, db_session, seasons, character
+    owner_client, db_session, seasons, character
 ):
     identity = models.CharacterIdentity(
         character_id=character.system_id, name_en="Masked",
@@ -130,7 +130,7 @@ def test_an_identity_rows_fallback_photo_is_the_identitys_own(
     db_session.add(identity)
     db_session.flush()
 
-    r = admin_client.post("/api/casting/originals", json={
+    r = owner_client.post("/api/casting/originals", json={
         "media_type": "anime",
         "rows": [{
             "character_id": str(character.system_id),
@@ -144,7 +144,7 @@ def test_an_identity_rows_fallback_photo_is_the_identitys_own(
 
 
 def test_original_seiyuu_are_the_most_used_voice_list_on_other_entries(
-    admin_client, db_session, seasons, character, kana, ayane
+    owner_client, db_session, seasons, character, kana, ayane
 ):
     _cast(db_session, seasons[0], character, people=[ayane], age_days=0)
     _cast(db_session, seasons[1], character, people=[kana], age_days=1)
@@ -153,7 +153,7 @@ def test_original_seiyuu_are_the_most_used_voice_list_on_other_entries(
     # three times over would win.
     _cast(db_session, seasons[3], character, people=[ayane], age_days=3)
 
-    r = admin_client.post("/api/casting/originals", json={
+    r = owner_client.post("/api/casting/originals", json={
         "media_type": "anime",
         "entry_id": str(seasons[3].system_id),
         "rows": [{"character_id": str(character.system_id)}],
@@ -165,12 +165,12 @@ def test_original_seiyuu_are_the_most_used_voice_list_on_other_entries(
 
 
 def test_a_tie_between_voice_lists_goes_to_the_oldest_cast_row(
-    admin_client, db_session, seasons, character, kana, ayane
+    owner_client, db_session, seasons, character, kana, ayane
 ):
     _cast(db_session, seasons[0], character, people=[kana], age_days=5)
     _cast(db_session, seasons[1], character, people=[ayane], age_days=1)
 
-    r = admin_client.post("/api/casting/originals", json={
+    r = owner_client.post("/api/casting/originals", json={
         "media_type": "anime",
         "rows": [{"character_id": str(character.system_id)}],
     })
@@ -180,11 +180,11 @@ def test_a_tie_between_voice_lists_goes_to_the_oldest_cast_row(
 
 
 def test_an_unvoiced_type_gets_no_original_seiyuu(
-    admin_client, db_session, seasons, character, kana
+    owner_client, db_session, seasons, character, kana
 ):
     _cast(db_session, seasons[0], character, people=[kana])
 
-    r = admin_client.post("/api/casting/originals", json={
+    r = owner_client.post("/api/casting/originals", json={
         "media_type": "manga",
         "rows": [{"character_id": str(character.system_id)}],
     })
@@ -215,8 +215,8 @@ def test_a_seiyuu_on_a_hidden_entry_does_not_surface_as_an_original(
     assert [v["person_id"] for v in original["voices"]] == [str(kana.system_id)]
 
 
-def test_originals_refuse_a_type_nobody_casts(admin_client, character):
-    r = admin_client.post("/api/casting/originals", json={
+def test_originals_refuse_a_type_nobody_casts(owner_client, character):
+    r = owner_client.post("/api/casting/originals", json={
         "media_type": "movie",
         "rows": [{"character_id": str(character.system_id)}],
     })
@@ -235,7 +235,7 @@ def test_originals_need_manage_catalog(client, character):
 
 
 def test_sync_from_cast_replaces_role_remark_and_photo(
-    admin_client, db_session, seasons, character
+    owner_client, db_session, seasons, character
 ):
     character.role = "Supporting"
     character.remark = "Old remark."
@@ -245,7 +245,7 @@ def test_sync_from_cast_replaces_role_remark_and_photo(
         photo_focus="20% 30%",
     )
 
-    r = admin_client.post(
+    r = owner_client.post(
         f"/api/character/{character.system_id}/sync-from-cast",
         json={"casting_id": str(casting.system_id)},
     )
@@ -259,13 +259,13 @@ def test_sync_from_cast_replaces_role_remark_and_photo(
 
 
 def test_sync_from_cast_keeps_what_the_cast_row_does_not_hold(
-    admin_client, db_session, seasons, character
+    owner_client, db_session, seasons, character
 ):
     character.role = "Supporting"
     character.remark = "Kept."
     casting = _cast(db_session, seasons[0], character)
 
-    r = admin_client.post(
+    r = owner_client.post(
         f"/api/character/{character.system_id}/sync-from-cast",
         json={"casting_id": str(casting.system_id)},
     )
@@ -278,7 +278,7 @@ def test_sync_from_cast_keeps_what_the_cast_row_does_not_hold(
 
 
 def test_sync_from_an_identity_row_writes_the_identity(
-    admin_client, db_session, seasons, character
+    owner_client, db_session, seasons, character
 ):
     character.remark = "The character's."
     identity = models.CharacterIdentity(character_id=character.system_id, name_en="Masked")
@@ -289,7 +289,7 @@ def test_sync_from_an_identity_row_writes_the_identity(
         remark="Behind the mask.",
     )
 
-    admin_client.post(
+    owner_client.post(
         f"/api/character/{character.system_id}/sync-from-cast",
         json={"casting_id": str(casting.system_id)},
     )
@@ -301,11 +301,11 @@ def test_sync_from_an_identity_row_writes_the_identity(
 
 
 def test_sync_from_another_characters_cast_row_is_404(
-    admin_client, db_session, seasons, character, second_character
+    owner_client, db_session, seasons, character, second_character
 ):
     casting = _cast(db_session, seasons[0], second_character, remark="Not yours.")
 
-    r = admin_client.post(
+    r = owner_client.post(
         f"/api/character/{character.system_id}/sync-from-cast",
         json={"casting_id": str(casting.system_id)},
     )
@@ -432,13 +432,13 @@ def test_fill_leaves_unvoiced_rows_without_seiyuu(
 
 
 def test_calculate_sync_cast_endpoint_runs_the_fill(
-    admin_client, db_session, seasons, character
+    owner_client, db_session, seasons, character
 ):
     character.role = "Main"
     character.remark = "The lead."
     empty = _cast(db_session, seasons[0], character)
 
-    r = admin_client.post("/api/data-control/calculate/sync-cast")
+    r = owner_client.post("/api/data-control/calculate/sync-cast")
 
     assert r.status_code == 200
     assert r.json()["counts"]["cast_role"] == 1

@@ -10,8 +10,8 @@ from app.services.domain import (
 from app.services.rbac.permissions import PERM_SELF_LIST
 
 
-def test_an_auto_created_franchise_is_stamped_game(admin_client, db_session):
-    admin_client.post(
+def test_an_auto_created_franchise_is_stamped_game(owner_client, db_session):
+    owner_client.post(
         "/api/game/",
         json={"game_name_en": "Hollow Knight", "franchise_text": "Hollow Knight"},
     )
@@ -63,13 +63,13 @@ class _Viewer:
         return permission == PERM_SELF_LIST and self._can_own
 
 
-def test_write_game_copies_inserts_updates_and_deletes(db_session, admin_user):
+def test_write_game_copies_inserts_updates_and_deletes(db_session, owner_user):
     game = models.Game(game_name_en="Hades")
     db_session.add(game)
     db_session.flush()
 
     write_game_copies(
-        db_session, game, [{"storefront": "Steam", "ownership": "Owned"}], _Viewer(admin_user.id)
+        db_session, game, [{"storefront": "Steam", "ownership": "Owned"}], _Viewer(owner_user.id)
     )
     db_session.flush()
     row = db_session.query(models.GameCopy).one()
@@ -79,17 +79,17 @@ def test_write_game_copies_inserts_updates_and_deletes(db_session, admin_user):
         db_session,
         game,
         [{"system_id": row.system_id, "storefront": "Steam", "ownership": "Wishlist"}],
-        _Viewer(admin_user.id),
+        _Viewer(owner_user.id),
     )
     db_session.flush()
     assert db_session.query(models.GameCopy).one().ownership == "Wishlist"
 
-    write_game_copies(db_session, game, [], _Viewer(admin_user.id))
+    write_game_copies(db_session, game, [], _Viewer(owner_user.id))
     db_session.flush()
     assert db_session.query(models.GameCopy).count() == 0
 
 
-def test_a_viewer_who_may_not_own_rows_writes_no_copies(db_session, admin_user):
+def test_a_viewer_who_may_not_own_rows_writes_no_copies(db_session, owner_user):
     """
     A copy is personal ownership written through a CATALOGUE route, so the
     gate on the Game write (manage.catalog) is the wrong question and
@@ -107,14 +107,14 @@ def test_a_viewer_who_may_not_own_rows_writes_no_copies(db_session, admin_user):
         db_session,
         game,
         [{"storefront": "Steam", "ownership": "Owned"}],
-        _Viewer(admin_user.id, can_own=False),
+        _Viewer(owner_user.id, can_own=False),
     )
     db_session.flush()
     assert db_session.query(models.GameCopy).count() == 0
 
 
 def test_the_same_payload_from_a_viewer_who_may_own_rows_lands(
-    db_session, admin_user
+    db_session, owner_user
 ):
     """
     The mirror, same payload and same entry, so the green above proves the
@@ -129,24 +129,24 @@ def test_the_same_payload_from_a_viewer_who_may_own_rows_lands(
         db_session,
         game,
         [{"storefront": "Steam", "ownership": "Owned"}],
-        _Viewer(admin_user.id, can_own=True),
+        _Viewer(owner_user.id, can_own=True),
     )
     db_session.flush()
     assert db_session.query(models.GameCopy).count() == 1
 
 
-def test_none_means_not_supplied_and_leaves_copies_alone(db_session, admin_user):
+def test_none_means_not_supplied_and_leaves_copies_alone(db_session, owner_user):
     game = models.Game(game_name_en="Hades")
     db_session.add(game)
     db_session.flush()
-    write_game_copies(db_session, game, [{"storefront": "GOG"}], _Viewer(admin_user.id))
+    write_game_copies(db_session, game, [{"storefront": "GOG"}], _Viewer(owner_user.id))
     db_session.flush()
-    write_game_copies(db_session, game, None, _Viewer(admin_user.id))
+    write_game_copies(db_session, game, None, _Viewer(owner_user.id))
     db_session.flush()
     assert db_session.query(models.GameCopy).count() == 1
 
 
-def test_ownership_is_owned_when_any_copy_is(db_session, admin_user):
+def test_ownership_is_owned_when_any_copy_is(db_session, owner_user):
     game = models.Game(game_name_en="Multi")
     db_session.add(game)
     db_session.flush()
@@ -157,7 +157,7 @@ def test_ownership_is_owned_when_any_copy_is(db_session, admin_user):
             {"storefront": "Nintendo eShop", "ownership": "Wishlist"},
             {"storefront": "Steam", "ownership": "Owned"},
         ],
-        _Viewer(admin_user.id),
+        _Viewer(owner_user.id),
     )
     db_session.flush()
     db_session.refresh(game)
@@ -171,7 +171,7 @@ def test_ownership_is_none_without_copies(db_session):
     assert derive_game_ownership(game) is None
 
 
-# super_client, not admin_client, in the two tests below: `copies` is a
+# super_client, not owner_client, in the two tests below: `copies` is a
 # personal-ownership payload, and since 2026-09-12 the server skips one sent
 # by an account that holds no self.* grant. An administrative account edits
 # the game without acquiring a copy of it, so posting copies as the admin
@@ -198,15 +198,15 @@ def test_the_list_endpoint_filters_on_derived_ownership(super_client):
     assert len(ids) == 1
 
 
-def test_a_listed_game_carries_its_plan_flags(admin_client):
+def test_a_listed_game_carries_its_plan_flags(owner_client):
     """
     PLAN_FLAG_FIELDS["game"] names play_next/to_replay and the router factory
     setattrs both onto every listed entry - but a response schema that does not
     declare them drops them silently, which is exactly the sort of blanking the
     link-field tripwire exists for.
     """
-    admin_client.post("/api/game/", json={"game_name_en": "Flagged"})
-    entry = admin_client.get("/api/game/").json()[0]
+    owner_client.post("/api/game/", json={"game_name_en": "Flagged"})
+    entry = owner_client.get("/api/game/").json()[0]
     assert entry["play_next"] is False
     assert entry["to_replay"] is False
 
@@ -236,10 +236,10 @@ def test_reads_carry_the_derived_ownership(super_client):
     assert listed[created["system_id"]]["ownership"] == "Owned"
 
 
-def test_a_game_without_copies_reads_null_ownership(admin_client):
-    created = admin_client.post("/api/game/", json={"game_name_en": "No Copies"}).json()
+def test_a_game_without_copies_reads_null_ownership(owner_client):
+    created = owner_client.post("/api/game/", json={"game_name_en": "No Copies"}).json()
     assert created["ownership"] is None
-    detail = admin_client.get(f"/api/game/{created['system_id']}").json()
+    detail = owner_client.get(f"/api/game/{created['system_id']}").json()
     assert detail["ownership"] is None
 
 
@@ -251,12 +251,12 @@ def test_the_duplicate_report_covers_games(db_session):
     assert "game" in find_all_duplicates(db_session)
 
 
-def test_the_three_completion_flags_round_trip(admin_client):
+def test_the_three_completion_flags_round_trip(owner_client):
     """All Endings / All Achievements / All Collected are independent axes.
 
     Nothing derives them from each other or from the achievement counts.
     """
-    created = admin_client.post(
+    created = owner_client.post(
         "/api/game/",
         json={
             "game_name_en": "Nier Automata",
@@ -269,7 +269,7 @@ def test_the_three_completion_flags_round_trip(admin_client):
     assert created["all_achievements"] == "No"
     assert created["all_collected"] is None
 
-    patched = admin_client.patch(
+    patched = owner_client.patch(
         f"/api/game/{created['system_id']}",
         json={"all_collected": "Yes", "achievements_earned": 3, "achievements_total": 50},
     ).json()
@@ -279,7 +279,7 @@ def test_the_three_completion_flags_round_trip(admin_client):
     assert patched["all_achievements"] == "No"
 
 
-def test_an_axis_the_game_does_not_have_is_inapplicable(admin_client):
+def test_an_axis_the_game_does_not_have_is_inapplicable(owner_client):
     """The fourth state, and the reason these are not booleans.
 
     A racing game has no endings to see. "No" would claim they were missed and
@@ -287,7 +287,7 @@ def test_an_axis_the_game_does_not_have_is_inapplicable(admin_client):
     is a recorded answer about the game and must survive the round trip
     distinctly from both.
     """
-    created = admin_client.post(
+    created = owner_client.post(
         "/api/game/",
         json={
             "game_name_en": "Forza Horizon 5",
@@ -301,22 +301,22 @@ def test_an_axis_the_game_does_not_have_is_inapplicable(admin_client):
     assert created["all_collected"] is None
 
 
-def test_steam_progress_sync_is_not_a_completion_axis(admin_client):
+def test_steam_progress_sync_is_not_a_completion_axis(owner_client):
     """It kept its boolean when the three axes became a vocabulary: it says
     whether Steam may write, not what happened in the game."""
-    created = admin_client.post(
+    created = owner_client.post(
         "/api/game/",
         json={"game_name_en": "Hades", "steam_progress_sync": False},
     ).json()
     assert created["steam_progress_sync"] is False
 
 
-def test_the_metacritic_scores_round_trip_and_are_independent(admin_client):
+def test_the_metacritic_scores_round_trip_and_are_independent(owner_client):
     """
     Two separate figures on two separate scales - critics out of 100, users
     out of 10. Neither is derived from the other or from my_rating.
     """
-    created = admin_client.post(
+    created = owner_client.post(
         "/api/game/",
         json={
             "game_name_en": "Disco Elysium",
@@ -327,7 +327,7 @@ def test_the_metacritic_scores_round_trip_and_are_independent(admin_client):
     assert created["metacritic_score"] == 91
     assert created["metacritic_user_score"] == 8.6
 
-    patched = admin_client.patch(
+    patched = owner_client.patch(
         f"/api/game/{created['system_id']}",
         json={"metacritic_user_score": 7.9},
     ).json()

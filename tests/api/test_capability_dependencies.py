@@ -52,12 +52,12 @@ def test_an_anonymous_caller_is_refused_by_all_three(probe_app):
         assert response.headers["WWW-Authenticate"] == "Bearer"
 
 
-def test_the_admin_account_passes_all_three(probe_app, admin_user, db):
+def test_the_admin_account_passes_all_three(probe_app, owner_user, db):
     """is_root short-circuits, so Phase A changes nothing for the owner."""
     from app.services.security import create_access_token
 
     client = TestClient(probe_app)
-    token = create_access_token({"sub": admin_user.username, "role": "admin"})
+    token = create_access_token({"sub": owner_user.username, "role": "admin"})
     client.cookies.set("access_token", f"Bearer {token}")
     for path in ("/authz", "/catalog", "/pipelines"):
         assert client.get(path).status_code == 200, path

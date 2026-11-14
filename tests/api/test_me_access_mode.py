@@ -97,9 +97,9 @@ def test_a_guest_gets_the_guest_default_modes_groups(client, access_modes):
 # is how they drift.
 
 
-def test_me_lists_the_modes_up_to_the_ceiling(admin_user, mode_client, grant_mode):
+def test_me_lists_the_modes_up_to_the_ceiling(owner_user, mode_client, grant_mode):
     c = mode_client(MODE_NORMAL)
-    grant_mode(admin_user, MODE_SAFE)
+    grant_mode(owner_user, MODE_SAFE)
 
     body = c.get("/api/auth/me").json()
 
@@ -110,14 +110,14 @@ def test_me_lists_the_modes_up_to_the_ceiling(admin_user, mode_client, grant_mod
 
 
 def test_narrowing_is_free_and_widening_needs_the_password(
-    admin_user, mode_client, grant_mode, nsfw_label
+    owner_user, mode_client, grant_mode, nsfw_label
 ):
     """The subset test from spec decision 3, computed here rather than in the
     browser. `safe` carries fewer field groups than `normal`, so it is a
     narrowing; `borderline` adds a content label, so it is a widening."""
     c = mode_client(MODE_NORMAL)
-    grant_mode(admin_user, MODE_SAFE)
-    grant_mode(admin_user, MODE_BORDERLINE)
+    grant_mode(owner_user, MODE_SAFE)
+    grant_mode(owner_user, MODE_BORDERLINE)
 
     by_key = {m["key"]: m for m in c.get("/api/auth/me").json()["modes"]}
 
@@ -134,7 +134,7 @@ def test_the_active_mode_never_requires_a_password(mode_client):
 
 
 def test_a_denial_makes_a_mode_narrower_for_this_account(
-    admin_user, mode_client, grant_mode
+    owner_user, mode_client, grant_mode
 ):
     """The cost is computed against the EFFECTIVE set, not the mode's own. An
     account at ceiling `borderline` denied erotica - the one label borderline
@@ -142,7 +142,7 @@ def test_a_denial_makes_a_mode_narrower_for_this_account(
     it must not ask for a password. The undenied ceiling asking for one is
     test_narrowing_is_free_and_widening_needs_the_password."""
     c = mode_client(MODE_NORMAL)
-    grant_mode(admin_user, MODE_BORDERLINE, denials=("erotica",))
+    grant_mode(owner_user, MODE_BORDERLINE, denials=("erotica",))
 
     by_key = {m["key"]: m for m in c.get("/api/auth/me").json()["modes"]}
 
@@ -154,7 +154,7 @@ def test_a_guest_holds_no_modes(client, access_modes):
 
 
 def test_borderline_is_wider_than_normal_on_every_database(
-    admin_user, mode_client, grant_mode
+    owner_user, mode_client, grant_mode
 ):
     """No fixture label here, deliberately. The six labels are code and exist
     in every database, so `borderline` always shows one label `normal` hides
@@ -162,7 +162,7 @@ def test_borderline_is_wider_than_normal_on_every_database(
     label set on which the two modes collapse into one.
     """
     c = mode_client(MODE_NORMAL)
-    grant_mode(admin_user, MODE_BORDERLINE)
+    grant_mode(owner_user, MODE_BORDERLINE)
 
     by_key = {m["key"]: m for m in c.get("/api/auth/me").json()["modes"]}
 

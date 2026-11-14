@@ -142,7 +142,7 @@ def test_a_label_tab_restore_repairs_a_missing_label(monkeypatch, db_session):
 
 
 def test_pull_of_the_list_tab_clears_the_counter_the_region_does_not_use(
-    monkeypatch, db_session, admin_user
+    monkeypatch, db_session, owner_user
 ):
     entry = models.HComic(h_comic_name_cn="Zvornik Listed", region="KR")
     db_session.add(entry)
@@ -153,11 +153,11 @@ def test_pull_of_the_list_tab_clears_the_counter_the_region_does_not_use(
         db_session,
         "User Media List",
         ["media_type", "public_id", "username", "status", "page_fin", "ch_fin", "usefulness"],
-        [["h-comic", str(entry.public_id), admin_user.username, "Active Reading", "9", "4", "實用"]],
+        [["h-comic", str(entry.public_id), owner_user.username, "Active Reading", "9", "4", "實用"]],
     )
     row = (
         db_session.query(models.UserMediaList)
-        .filter_by(user_id=admin_user.id, media_id=entry.system_id)
+        .filter_by(user_id=owner_user.id, media_id=entry.system_id)
         .one()
     )
     assert row.page_fin is None

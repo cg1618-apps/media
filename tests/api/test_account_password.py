@@ -61,9 +61,9 @@ def test_super_holds_it(super_client):
     assert change(super_client, "testpass", "newpass").status_code == 200
 
 
-def test_the_root_admin_does_not(admin_client):
+def test_the_root_admin_does_not(owner_client):
     """The mirror of the two above: the same request from a root account."""
-    assert change(admin_client, "testpass", "newpass").status_code == 401
+    assert change(owner_client, "testpass", "newpass").status_code == 401
 
 
 def test_a_guest_does_not(client):

@@ -129,7 +129,7 @@ def test_super_holds_the_family_by_lock_and_the_entity_keys_are_free_below_it():
 
 
 @pytest.fixture
-def gated_reads(db, admin_client, person, character, anime_with_studio, sample_anime):
+def gated_reads(db, owner_client, person, character, anime_with_studio, sample_anime):
     """
     One readable thing behind every gated read, and the URL that reads it.
 
@@ -144,7 +144,7 @@ def gated_reads(db, admin_client, person, character, anime_with_studio, sample_a
     )
     db.add_all([publisher, identity])
     db.flush()
-    resource = admin_client.post(
+    resource = owner_client.post(
         "/api/resources", json={"kind": "group", "title": "Links"}
     )
     assert resource.status_code in (200, 201), resource.text
@@ -263,7 +263,7 @@ def _notes(c, anime, **params):
 
 
 @pytest.fixture
-def highlight(db, sample_anime, admin_user):
+def highlight(db, sample_anime, owner_user):
     """A catalogue highlight on the anime - the row a guest must not see."""
     db.add(
         models.Note(
@@ -271,7 +271,7 @@ def highlight(db, sample_anime, admin_user):
             media_id=sample_anime.system_id,
             section="highlights",
             content="第六話",
-            author_id=admin_user.id,
+            author_id=owner_user.id,
         )
     )
     db.flush()

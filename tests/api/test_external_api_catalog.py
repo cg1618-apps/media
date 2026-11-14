@@ -190,15 +190,15 @@ def test_endpoint_requires_admin(client):
     assert client.get("/api/constants/external-apis").status_code == 401
 
 
-def test_endpoint_serves_the_catalog(admin_client):
-    body = admin_client.get("/api/constants/external-apis").json()
+def test_endpoint_serves_the_catalog(owner_client):
+    body = owner_client.get("/api/constants/external-apis").json()
     assert {e["key"] for e in body["media"]} == set(PIPELINES)
     assert body["services"]
     assert body["rules"]
 
 
-def test_endpoint_payload_is_json_serialisable(admin_client):
-    body = admin_client.get("/api/constants/external-apis").json()
+def test_endpoint_payload_is_json_serialisable(owner_client):
+    body = owner_client.get("/api/constants/external-apis").json()
     anime = next(e for e in body["media"] if e["key"] == "anime")
     tenrai = next(b for b in anime["sources"] if b["source"] == "tenrai")
     fields = {w["field"]: w["rule"] for w in tenrai["writes"]}
@@ -225,8 +225,8 @@ def test_a_catalogue_editor_who_cannot_see_h_comic_is_not_told_it_exists(
     assert {"anime", "game", "studio"} <= keys
 
 
-def test_unrestricted_is_told_about_h_comic(admin_client):
-    body = admin_client.get("/api/constants/external-apis").json()
+def test_unrestricted_is_told_about_h_comic(owner_client):
+    body = owner_client.get("/api/constants/external-apis").json()
     assert "h-comic" in {e["key"] for e in body["media"]}
 
 
@@ -255,8 +255,8 @@ def test_a_narrow_catalogue_editor_is_not_told_through_the_services_either(
     assert "igdb" in services
 
 
-def test_unrestricted_is_told_about_the_gated_services(admin_client):
-    body = admin_client.get("/api/constants/external-apis").json()
+def test_unrestricted_is_told_about_the_gated_services(owner_client):
+    body = owner_client.get("/api/constants/external-apis").json()
     services = {s["key"]: s for s in body["services"]}
     assert services["ehentai"]["feeds"] == ["h-comic"]
     assert services["dlsite"]["feeds"] == ["h-game"]
@@ -284,10 +284,10 @@ def test_a_catalogue_editor_who_cannot_see_hentai_is_not_told_it_exists(
     assert {"anime", "game", "studio"} <= keys
 
 
-def test_unrestricted_is_told_about_hentai_and_its_tenrai_writes(admin_client):
+def test_unrestricted_is_told_about_hentai_and_its_tenrai_writes(owner_client):
     """The mirror, and what the row says: four fill-only fields and the two
     reference links from Tenrai."""
-    body = admin_client.get("/api/constants/external-apis").json()
+    body = owner_client.get("/api/constants/external-apis").json()
     hentai = next(e for e in body["media"] if e["key"] == "hentai")
     tenrai = next(s for s in hentai["sources"] if s["source"] == "tenrai")
     written = {w["field"]: w["rule"] for w in tenrai["writes"] if w["rule"] != "never"}

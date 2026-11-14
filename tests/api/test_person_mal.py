@@ -127,34 +127,34 @@ def test_the_sheet_carries_the_mal_columns():
 # ---------------------------------------------------------------------------
 
 
-def test_create_derives_the_mal_id_from_the_link(admin_client, tenrai_calls):
-    body = admin_client.post(
+def test_create_derives_the_mal_id_from_the_link(owner_client, tenrai_calls):
+    body = owner_client.post(
         "/api/person/", json={"name_en": "Kana Hanazawa", "mal_link": KANA_LINK}
     ).json()
     assert body["mal_id"] == 185
     assert body["mal_link"] == KANA_LINK
 
 
-def test_update_derives_the_mal_id_from_the_link(admin_client, tenrai_calls):
-    created = admin_client.post("/api/person/", json={"name_en": "Kana Hanazawa"}).json()
-    body = admin_client.put(
+def test_update_derives_the_mal_id_from_the_link(owner_client, tenrai_calls):
+    created = owner_client.post("/api/person/", json={"name_en": "Kana Hanazawa"}).json()
+    body = owner_client.put(
         f"/api/person/{created['system_id']}",
         json={"name_en": "Kana Hanazawa", "mal_link": KANA_LINK},
     ).json()
     assert body["mal_id"] == 185
 
 
-def test_patch_derives_the_mal_id_from_the_link(admin_client, tenrai_calls):
-    created = admin_client.post("/api/person/", json={"name_en": "Kana Hanazawa"}).json()
-    r = admin_client.patch(
+def test_patch_derives_the_mal_id_from_the_link(owner_client, tenrai_calls):
+    created = owner_client.post("/api/person/", json={"name_en": "Kana Hanazawa"}).json()
+    r = owner_client.patch(
         f"/api/person/{created['system_id']}", json={"mal_link": KANA_LINK}
     )
     assert r.status_code == 200, r.text
     assert r.json()["mal_id"] == 185
 
 
-def test_saving_a_seiyuu_with_a_mal_id_fills_it(admin_client, tenrai_calls):
-    body = admin_client.post(
+def test_saving_a_seiyuu_with_a_mal_id_fills_it(owner_client, tenrai_calls):
+    body = owner_client.post(
         "/api/person/",
         json={
             "name_en": "Kana Hanazawa",
@@ -170,8 +170,8 @@ def test_saving_a_seiyuu_with_a_mal_id_fills_it(admin_client, tenrai_calls):
     assert body["name_en"] == "Kana Hanazawa"
 
 
-def test_saving_a_non_seiyuu_with_a_mal_id_fetches_nothing(admin_client, tenrai_calls):
-    body = admin_client.post(
+def test_saving_a_non_seiyuu_with_a_mal_id_fetches_nothing(owner_client, tenrai_calls):
+    body = owner_client.post(
         "/api/person/",
         json={
             "name_en": "Some Director",
@@ -184,13 +184,13 @@ def test_saving_a_non_seiyuu_with_a_mal_id_fetches_nothing(admin_client, tenrai_
     assert body["name_jp"] is None
 
 
-def test_put_fills_a_seiyuu_when_the_link_is_added(admin_client, tenrai_calls):
+def test_put_fills_a_seiyuu_when_the_link_is_added(owner_client, tenrai_calls):
     roles = [{"role": "seiyuu", "scope": "anime"}]
-    created = admin_client.post(
+    created = owner_client.post(
         "/api/person/", json={"name_en": "Kana Hanazawa", "roles": roles}
     ).json()
     assert tenrai_calls == []
-    body = admin_client.put(
+    body = owner_client.put(
         f"/api/person/{created['system_id']}",
         json={"name_en": "Kana Hanazawa", "mal_link": KANA_LINK, "roles": roles},
     ).json()
@@ -346,13 +346,13 @@ def test_a_filled_seiyuu_is_no_longer_eligible(db_session):
     assert PIPELINES["seiyuu"].fill_eligible(db_session, person) is False
 
 
-def test_the_pipeline_fills_seiyuu_only(admin_client, db_session, tenrai_calls):
+def test_the_pipeline_fills_seiyuu_only(owner_client, db_session, tenrai_calls):
     seiyuu = _seiyuu(db_session, name_en="Kana Hanazawa", mal_link=KANA_LINK)
     director = _director(db_session, name_en="Director", mal_link=KANA_LINK)
     db_session.commit()
     seiyuu_id, director_id = seiyuu.system_id, director.system_id
 
-    response = admin_client.post("/api/data-control/fill/seiyuu")
+    response = owner_client.post("/api/data-control/fill/seiyuu")
     assert response.status_code == 200
     assert "success" in response.text
 

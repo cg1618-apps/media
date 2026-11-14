@@ -170,8 +170,8 @@ def test_the_sheet_carries_the_mal_columns():
 # --- the character router -----------------------------------------------------
 
 
-def test_create_with_a_link_fills_the_blank_columns(admin_client, character_calls):
-    r = admin_client.post(
+def test_create_with_a_link_fills_the_blank_columns(owner_client, character_calls):
+    r = owner_client.post(
         "/api/character/", json={"name_en": "Ed", "mal_link": EDWARD_LINK}
     )
     assert r.status_code == 200, r.text
@@ -185,10 +185,10 @@ def test_create_with_a_link_fills_the_blank_columns(admin_client, character_call
     assert body["photo_file"] == f"character/{body['system_id']}.jpg"
 
 
-def test_update_adding_a_link_fills_the_character(admin_client, character_calls):
-    created = admin_client.post("/api/character/", json={"name_en": "Ed"}).json()
+def test_update_adding_a_link_fills_the_character(owner_client, character_calls):
+    created = owner_client.post("/api/character/", json={"name_en": "Ed"}).json()
     assert character_calls == []
-    body = admin_client.put(
+    body = owner_client.put(
         f"/api/character/{created['system_id']}",
         json={"name_en": "Ed", "mal_link": EDWARD_LINK},
     ).json()
@@ -196,9 +196,9 @@ def test_update_adding_a_link_fills_the_character(admin_client, character_calls)
     assert body["name_jp"] == "エドワード・エルリック"
 
 
-def test_patch_derives_the_id_without_fetching(admin_client, character_calls):
-    created = admin_client.post("/api/character/", json={"name_en": "Ed"}).json()
-    r = admin_client.patch(
+def test_patch_derives_the_id_without_fetching(owner_client, character_calls):
+    created = owner_client.post("/api/character/", json={"name_en": "Ed"}).json()
+    r = owner_client.patch(
         f"/api/character/{created['system_id']}", json={"mal_link": EDWARD_LINK}
     )
     assert r.status_code == 200, r.text
@@ -260,13 +260,13 @@ def test_a_filled_character_is_no_longer_eligible(db_session):
     assert PIPELINES["character"].fill_eligible(db_session, character) is False
 
 
-def test_the_pipeline_fills_linked_characters_only(admin_client, db_session, character_calls):
+def test_the_pipeline_fills_linked_characters_only(owner_client, db_session, character_calls):
     linked = _character(db_session, name_en="Ed", mal_link=EDWARD_LINK)
     unlinked = _character(db_session, name_en="Al")
     db_session.commit()
     linked_id, unlinked_id = linked.system_id, unlinked.system_id
 
-    response = admin_client.post("/api/data-control/fill/character")
+    response = owner_client.post("/api/data-control/fill/character")
     assert response.status_code == 200
     assert "success" in response.text
 
@@ -290,7 +290,7 @@ def _import(client, media_type="anime", link=FMA_LINK):
 
 
 def test_a_mal_cast_creates_what_is_missing_and_reuses_what_is_not(
-    admin_client, db_session, cast_calls, downloaded
+    owner_client, db_session, cast_calls, downloaded
 ):
     # Edward already exists, linked to MAL; Rie Kugimiya exists by name only.
     edward = models.Character(system_id=uuid.uuid4(), name_en="Ed", mal_id=11)
@@ -298,7 +298,7 @@ def test_a_mal_cast_creates_what_is_missing_and_reuses_what_is_not(
     db_session.add_all([edward, rie])
     db_session.commit()
 
-    r = _import(admin_client)
+    r = _import(owner_client)
     assert r.status_code == 200, r.text
     body = r.json()
     assert cast_calls == [("anime", 5114)]
@@ -332,19 +332,19 @@ def test_a_mal_cast_creates_what_is_missing_and_reuses_what_is_not(
     assert db_session.query(models.CharacterCasting).count() == 0
 
 
-def test_a_second_import_creates_nothing(admin_client, cast_calls):
-    _import(admin_client)
-    body = _import(admin_client).json()
+def test_a_second_import_creates_nothing(owner_client, cast_calls):
+    _import(owner_client)
+    body = _import(owner_client).json()
     assert body["created_characters"] == 0
     assert body["created_people"] == 0
 
 
 def test_a_main_only_import_creates_nothing_for_the_side_cast(
-    admin_client, db_session, cast_calls
+    owner_client, db_session, cast_calls
 ):
     # FMA_CAST holds a Supporting character with a seiyuu of his own, so the
     # filter has someone to leave out; the unfiltered import above takes him.
-    r = admin_client.post(
+    r = owner_client.post(
         "/api/casting/mal",
         json={"media_type": "anime", "mal_link": FMA_LINK, "main_only": True},
     )
@@ -362,23 +362,23 @@ def test_a_main_only_import_creates_nothing_for_the_side_cast(
     assert db_session.query(models.Person).filter_by(mal_id=89).count() == 0
 
 
-def test_a_manga_cast_carries_no_voices(admin_client, cast_calls):
+def test_a_manga_cast_carries_no_voices(owner_client, cast_calls):
     body = _import(
-        admin_client, "manga", "https://myanimelist.net/manga/25/Fullmetal_Alchemist"
+        owner_client, "manga", "https://myanimelist.net/manga/25/Fullmetal_Alchemist"
     ).json()
     assert cast_calls == [("manga", 25)]
     assert all(row["voices"] == [] for row in body["cast"])
     assert body["created_people"] == 0
 
 
-def test_a_link_of_the_wrong_kind_is_a_422(admin_client, cast_calls):
-    assert _import(admin_client, "manga", FMA_LINK).status_code == 422
+def test_a_link_of_the_wrong_kind_is_a_422(owner_client, cast_calls):
+    assert _import(owner_client, "manga", FMA_LINK).status_code == 422
     assert cast_calls == []
 
 
-def test_mal_answering_nothing_is_a_502(admin_client, monkeypatch, no_downloads):
+def test_mal_answering_nothing_is_a_502(owner_client, monkeypatch, no_downloads):
     monkeypatch.setattr(mal_cast_module, "fetch_tenrai_cast", lambda resource, mal_id: None)
-    assert _import(admin_client).status_code == 502
+    assert _import(owner_client).status_code == 502
 
 
 def test_a_guest_cannot_import(client, cast_calls):
@@ -416,11 +416,11 @@ def _with_mal_id(db_session, mal_id):
 
 
 def test_a_held_character_without_a_mal_id_is_reused_by_name(
-    admin_client, db_session, cast_calls
+    owner_client, db_session, cast_calls
 ):
     edward = _character(db_session, name_en="Edward Elric")
 
-    r = _import_holding(admin_client, edward)
+    r = _import_holding(owner_client, edward)
     assert r.status_code == 200, r.text
     body = r.json()
 
@@ -447,19 +447,19 @@ def test_a_held_character_without_a_mal_id_is_reused_by_name(
     ids=["case-and-spacing", "full-width", "mal-order", "family-first", "jp", "cn", "alt"],
 )
 def test_the_name_match_is_normalised_across_every_name_column(
-    admin_client, db_session, cast_calls, columns
+    owner_client, db_session, cast_calls, columns
 ):
     edward = _character(db_session, **columns)
-    body = _import_holding(admin_client, edward).json()
+    body = _import_holding(owner_client, edward).json()
     assert body["cast"][0]["character_id"] == str(edward.system_id)
 
 
 def test_a_name_match_outside_the_cast_still_creates_a_new_character(
-    admin_client, db_session, cast_calls
+    owner_client, db_session, cast_calls
 ):
     edward = _character(db_session, name_en="Edward Elric")
 
-    body = _import_holding(admin_client).json()  # holds nothing
+    body = _import_holding(owner_client).json()  # holds nothing
 
     assert body["cast"][0]["character_id"] != str(edward.system_id)
     assert body["created_characters"] == 3
@@ -468,22 +468,22 @@ def test_a_name_match_outside_the_cast_still_creates_a_new_character(
 
 
 def test_a_request_without_character_ids_matches_no_name(
-    admin_client, db_session, cast_calls
+    owner_client, db_session, cast_calls
 ):
     edward = _character(db_session, name_en="Edward Elric")
 
-    body = _import(admin_client).json()
+    body = _import(owner_client).json()
 
     assert body["cast"][0]["character_id"] != str(edward.system_id)
     assert body["created_characters"] == 3
 
 
 def test_a_held_character_with_another_mal_id_is_not_matched_by_name(
-    admin_client, db_session, cast_calls
+    owner_client, db_session, cast_calls
 ):
     other = _character(db_session, name_en="Edward Elric", mal_id=999)
 
-    body = _import_holding(admin_client, other).json()
+    body = _import_holding(owner_client, other).json()
 
     assert body["cast"][0]["character_id"] != str(other.system_id)
     assert body["created_characters"] == 3
@@ -492,12 +492,12 @@ def test_a_held_character_with_another_mal_id_is_not_matched_by_name(
 
 
 def test_two_held_characters_with_the_name_are_not_guessed_between(
-    admin_client, db_session, cast_calls
+    owner_client, db_session, cast_calls
 ):
     first = _character(db_session, name_en="Edward Elric")
     second = _character(db_session, name_jp="Edward Elric")
 
-    body = _import_holding(admin_client, first, second).json()
+    body = _import_holding(owner_client, first, second).json()
 
     assert [row["character_name"] for row in body["cast"]] == [
         "Alphonse Elric", "Roy Mustang",
@@ -509,12 +509,12 @@ def test_two_held_characters_with_the_name_are_not_guessed_between(
 
 
 def test_a_reused_characters_set_mal_link_is_kept(
-    admin_client, db_session, cast_calls
+    owner_client, db_session, cast_calls
 ):
     kept = "https://myanimelist.net/character/11/Edward_Elric"
     edward = _character(db_session, name_en="Edward Elric", mal_link=kept)
 
-    body = _import_holding(admin_client, edward).json()
+    body = _import_holding(owner_client, edward).json()
 
     assert body["cast"][0]["character_id"] == str(edward.system_id)
     db_session.expire_all()
@@ -524,7 +524,7 @@ def test_a_reused_characters_set_mal_link_is_kept(
 
 
 def test_a_mal_import_leaves_a_saved_credited_name_alone(
-    admin_client, db_session, cast_calls, anime
+    owner_client, db_session, cast_calls, anime
 ):
     # Edward is already cast here under the name this entry gives him. The
     # import matches him on mal_id, so it has his row to clobber if it would.
@@ -538,7 +538,7 @@ def test_a_mal_import_leaves_a_saved_credited_name_alone(
     db_session.add(casting)
     db_session.commit()
 
-    r = _import_holding(admin_client, edward)
+    r = _import_holding(owner_client, edward)
     assert r.status_code == 200, r.text
     ed_row = next(row for row in r.json()["cast"] if row["character_id"] == str(edward.system_id))
     # MAL knows no per-entry name, so its row offers none.

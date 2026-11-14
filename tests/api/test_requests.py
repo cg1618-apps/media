@@ -178,18 +178,18 @@ def test_a_user_is_refused_every_inbox_route(user_client, super_client):
     assert super_client.delete(f"{REQUESTS}/{rid}").status_code == 204
 
 
-def test_admin_handles_requests(admin_client, user_client):
+def test_admin_handles_requests(owner_client, user_client):
     """Passes through root today. It is the test that fails if the admin's
     fixed permission set ever forgets manage.requests."""
     filed = _file(user_client)
-    inbox = admin_client.get(REQUESTS)
+    inbox = owner_client.get(REQUESTS)
     assert inbox.status_code == 200
     assert [r["id"] for r in inbox.json()] == [filed["id"]]
-    handled = admin_client.put(
+    handled = owner_client.put(
         f"{REQUESTS}/{filed['id']}/status", json={"status": "done"}
     )
     assert handled.status_code == 200
-    assert handled.json()["handled_by_username"] == "aaa_testadmin"
+    assert handled.json()["handled_by_username"] == "aaa_testowner"
 
 
 # ---------------------------------------------------------------------------

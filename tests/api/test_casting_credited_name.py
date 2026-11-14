@@ -28,8 +28,8 @@ def identity(db_session, character):
     return i
 
 
-def _put(admin_client, anime, rows):
-    return admin_client.put(f"/api/casting/anime/{anime.system_id}", json={"cast": rows})
+def _put(owner_client, anime, rows):
+    return owner_client.put(f"/api/casting/anime/{anime.system_id}", json={"cast": rows})
 
 
 def _cast(client, anime):
@@ -40,50 +40,50 @@ def _entries(payload):
     return [entry for group in payload["groups"] for entry in group["entries"]]
 
 
-def test_a_credited_name_round_trips_through_the_cast_editor(admin_client, anime, character):
-    r = _put(admin_client, anime, [
+def test_a_credited_name_round_trips_through_the_cast_editor(owner_client, anime, character):
+    r = _put(owner_client, anime, [
         {"character_id": str(character.system_id), "credited_name": "AAA"},
     ])
     assert r.status_code == 200, r.text
-    assert [row["credited_name"] for row in _cast(admin_client, anime)] == ["AAA"]
+    assert [row["credited_name"] for row in _cast(owner_client, anime)] == ["AAA"]
 
 
-def test_a_blank_credited_name_saves_as_none(admin_client, db_session, anime, character):
-    assert _put(admin_client, anime, [
+def test_a_blank_credited_name_saves_as_none(owner_client, db_session, anime, character):
+    assert _put(owner_client, anime, [
         {"character_id": str(character.system_id), "credited_name": "   "},
     ]).status_code == 200
-    assert [row["credited_name"] for row in _cast(admin_client, anime)] == [None]
+    assert [row["credited_name"] for row in _cast(owner_client, anime)] == [None]
     db_session.expire_all()
     casting = db_session.query(models.CharacterCasting).filter_by(entry_id=anime.system_id).one()
     assert casting.credited_name is None
 
 
-def test_a_credited_name_is_trimmed(admin_client, anime, character):
-    assert _put(admin_client, anime, [
+def test_a_credited_name_is_trimmed(owner_client, anime, character):
+    assert _put(owner_client, anime, [
         {"character_id": str(character.system_id), "credited_name": "  AAA "},
     ]).status_code == 200
-    assert [row["credited_name"] for row in _cast(admin_client, anime)] == ["AAA"]
+    assert [row["credited_name"] for row in _cast(owner_client, anime)] == ["AAA"]
 
 
-def test_a_second_save_without_it_clears_it(admin_client, anime, character):
+def test_a_second_save_without_it_clears_it(owner_client, anime, character):
     """The PUT replaces the whole cast: a row sent with no credited_name has none."""
-    _put(admin_client, anime, [{"character_id": str(character.system_id), "credited_name": "AAA"}])
-    _put(admin_client, anime, [{"character_id": str(character.system_id)}])
-    assert [row["credited_name"] for row in _cast(admin_client, anime)] == [None]
+    _put(owner_client, anime, [{"character_id": str(character.system_id), "credited_name": "AAA"}])
+    _put(owner_client, anime, [{"character_id": str(character.system_id)}])
+    assert [row["credited_name"] for row in _cast(owner_client, anime)] == [None]
 
 
 def test_the_character_page_carries_each_appearance_s_credited_name(
-    guest_reader, admin_client, anime, character
+    guest_reader, owner_client, anime, character
 ):
-    _put(admin_client, anime, [{"character_id": str(character.system_id), "credited_name": "AAA"}])
+    _put(owner_client, anime, [{"character_id": str(character.system_id), "credited_name": "AAA"}])
     entries = _entries(guest_reader.get(f"/api/character/{character.system_id}/entries").json())
     assert [e["credited_name"] for e in entries] == ["AAA"]
 
 
 def test_the_identity_page_carries_each_appearance_s_credited_name(
-    guest_reader, admin_client, anime, character, identity
+    guest_reader, owner_client, anime, character, identity
 ):
-    _put(admin_client, anime, [
+    _put(owner_client, anime, [
         {"character_id": str(character.system_id)},
         {
             "character_id": str(character.system_id),
@@ -149,8 +149,8 @@ def test_calculate_never_clears_a_credited_name(db_session, character, anime):
     assert db_session.get(models.CharacterCasting, casting.system_id).credited_name == "AAA"
 
 
-def _merge(admin_client, keep, drop):
-    r = admin_client.post(
+def _merge(owner_client, keep, drop):
+    r = owner_client.post(
         f"/api/character/{keep.system_id}/merge", json={"source_id": str(drop.system_id)}
     )
     assert r.status_code == 200, r.text
@@ -164,7 +164,7 @@ def _character(db_session, name):
 
 
 def test_a_merge_carries_the_loser_s_credited_name_onto_its_own_casting(
-    admin_client, db_session, anime
+    owner_client, db_session, anime
 ):
     keep = _character(db_session, "A")
     drop = _character(db_session, "B")
@@ -173,7 +173,7 @@ def test_a_merge_carries_the_loser_s_credited_name_onto_its_own_casting(
         entry_id=anime.system_id, credited_name="AAA",
     ))
     db_session.commit()
-    _merge(admin_client, keep, drop)
+    _merge(owner_client, keep, drop)
 
     db_session.expire_all()
     casting = db_session.query(models.CharacterCasting).filter_by(character_id=keep.system_id).one()
@@ -181,7 +181,7 @@ def test_a_merge_carries_the_loser_s_credited_name_onto_its_own_casting(
 
 
 def test_a_merge_fills_a_blank_credited_name_and_keeps_a_held_one(
-    admin_client, db_session, anime, manga_entry
+    owner_client, db_session, anime, manga_entry
 ):
     keep = _character(db_session, "A")
     drop = _character(db_session, "B")
@@ -198,7 +198,7 @@ def test_a_merge_fills_a_blank_credited_name_and_keeps_a_held_one(
             entry_id=entry.system_id, credited_name=name,
         ))
     db_session.commit()
-    _merge(admin_client, keep, drop)
+    _merge(owner_client, keep, drop)
 
     db_session.expire_all()
     names = {
@@ -220,7 +220,7 @@ def manga_entry(db_session, sample_franchise):
     return m
 
 
-def test_an_identity_fold_keeps_the_credited_name(admin_client, db_session, character, anime, identity):
+def test_an_identity_fold_keeps_the_credited_name(owner_client, db_session, character, anime, identity):
     row = models.CharacterCasting(
         character_id=character.system_id, identity_id=identity.system_id,
         media_type="anime", entry_id=anime.system_id, credited_name="Edogawa",
@@ -228,7 +228,7 @@ def test_an_identity_fold_keeps_the_credited_name(admin_client, db_session, char
     db_session.add(row)
     db_session.flush()
     row_id = row.system_id
-    r = admin_client.delete(f"/api/character-identity/{identity.system_id}?castings=1")
+    r = owner_client.delete(f"/api/character-identity/{identity.system_id}?castings=1")
     assert r.status_code == 200, r.text
     db_session.expire_all()
     folded = db_session.get(models.CharacterCasting, row_id)

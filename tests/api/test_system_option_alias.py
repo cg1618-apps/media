@@ -72,8 +72,8 @@ def test_deleting_the_option_deletes_its_aliases(db_session, genre_option):
     assert db_session.query(models.SystemOptionAlias).count() == 0
 
 
-def test_aliases_round_trip_through_the_options_api(admin_client, db_session):
-    created = admin_client.post(
+def test_aliases_round_trip_through_the_options_api(owner_client, db_session):
+    created = owner_client.post(
         "/api/options/",
         json={
             "category": "Game Mode",
@@ -84,7 +84,7 @@ def test_aliases_round_trip_through_the_options_api(admin_client, db_session):
     ).json()
     assert created["aliases"] == [{"source": "igdb", "value": "Single player"}]
 
-    updated = admin_client.put(
+    updated = owner_client.put(
         f"/api/options/{created['system_id']}",
         json={
             "category": "Game Mode",
@@ -96,13 +96,13 @@ def test_aliases_round_trip_through_the_options_api(admin_client, db_session):
     assert updated["aliases"] == [{"source": "igdb", "value": "Singleplayer"}]
 
 
-def test_an_unknown_alias_source_is_rejected(admin_client):
+def test_an_unknown_alias_source_is_rejected(owner_client):
     """
     A typo'd source is the one alias mistake nothing else catches: the row
     saves, and then resolve_option_alias never matches it because Fill asks
     for "igdb". Validated for the same reason scopes and usages are.
     """
-    response = admin_client.post(
+    response = owner_client.post(
         "/api/options/",
         json={
             "category": "Game Mode",
@@ -115,12 +115,12 @@ def test_an_unknown_alias_source_is_rejected(admin_client):
     assert "IGDB" in response.text
 
 
-def test_duplicate_alias_rows_in_one_payload_are_dropped(admin_client):
+def test_duplicate_alias_rows_in_one_payload_are_dropped(owner_client):
     """
     uq_system_option_alias would 500 the whole save. Scopes and usages drop
     their duplicates in the validator; aliases do the same, on the pair.
     """
-    created = admin_client.post(
+    created = owner_client.post(
         "/api/options/",
         json={
             "category": "Game Theme",
@@ -135,7 +135,7 @@ def test_duplicate_alias_rows_in_one_payload_are_dropped(admin_client):
     assert created["aliases"] == [{"source": "igdb", "value": "Fantasy"}]
 
 
-def test_an_alias_on_an_unlisted_category_is_rejected(admin_client):
+def test_an_alias_on_an_unlisted_category_is_rejected(owner_client):
     """
     Only the categories a pipeline actually reads may carry aliases.
 
@@ -144,7 +144,7 @@ def test_an_alias_on_an_unlisted_category_is_rejected(admin_client):
     means teaching a pipeline to read it, which is a code change - hence
     ALIAS_CATEGORIES rather than an admin setting.
     """
-    response = admin_client.post(
+    response = owner_client.post(
         "/api/options/",
         json={
             "category": "Genre Main",
@@ -156,9 +156,9 @@ def test_an_alias_on_an_unlisted_category_is_rejected(admin_client):
     assert "Genre Main" in response.text
 
 
-def test_an_unlisted_category_may_still_be_saved_without_aliases(admin_client):
+def test_an_unlisted_category_may_still_be_saved_without_aliases(owner_client):
     """The restriction is on the alias rows, not on the category itself."""
-    response = admin_client.post(
+    response = owner_client.post(
         "/api/options/",
         json={"category": "Genre Main", "value": "懸疑", "aliases": []},
     )
@@ -166,13 +166,13 @@ def test_an_unlisted_category_may_still_be_saved_without_aliases(admin_client):
     assert response.json()["aliases"] == []
 
 
-def test_game_platform_takes_several_aliases_for_one_value(admin_client):
+def test_game_platform_takes_several_aliases_for_one_value(owner_client):
     """
     Platform is the many-to-one category: a whole console generation folds
     into one brand name, which is exactly why it must be editable - a new
     console should not need a code change.
     """
-    created = admin_client.post(
+    created = owner_client.post(
         "/api/options/",
         json={
             "category": "Game Platform",
@@ -190,9 +190,9 @@ def test_game_platform_takes_several_aliases_for_one_value(admin_client):
     ]
 
 
-def test_combat_mode_carries_no_aliases(admin_client):
+def test_combat_mode_carries_no_aliases(owner_client):
     """PvE/PvP is hand-made; IGDB has no field for it."""
-    response = admin_client.post(
+    response = owner_client.post(
         "/api/options/",
         json={
             "category": "Combat Mode",
