@@ -206,7 +206,7 @@ def test_a_mark_restores_onto_the_installation_owner(
 
 
 def test_a_mark_under_a_foreign_uuid_updates_the_local_one(
-    db, sheets, monkeypatch, a_game
+    db, sheets, monkeypatch, a_game, owner_user
 ):
     """The same person marks the same node on both machines, under two uuids.
     Inserting the sheet's would collide with the one-mark-per-node index and
@@ -218,6 +218,7 @@ def test_a_mark_under_a_foreign_uuid_updates_the_local_one(
     db.add(node)
     db.flush()
     owner = installation_owner_id(db)
+    assert owner == owner_user.id  # a mark belongs to somebody
     local = models.GameChoiceMark(
         system_id=uuid.uuid4(), user_id=owner, game_id=a_game.system_id,
         node_id=node.system_id, done=False, note="local",

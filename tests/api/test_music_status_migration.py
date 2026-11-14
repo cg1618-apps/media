@@ -15,6 +15,7 @@ import uuid
 from pathlib import Path
 
 import pytest
+from sqlalchemy import text
 
 from app import models
 
@@ -22,6 +23,17 @@ ROOT = Path(__file__).resolve().parents[2]
 REVISION = (
     ROOT / "alembic" / "versions" / "m1s2ongstat3_music_status_and_song_rows.py"
 )
+
+
+@pytest.fixture(autouse=True)
+def _role_is_root(db_session):
+    """The schema this revision was written against. Its frozen AUTHOR query
+    orders by role.is_root, which a later revision (a1d2minroot45) drops and
+    create_all's schema therefore lacks. Added inside the test's transaction,
+    so the teardown rollback takes it away again."""
+    db_session.execute(
+        text("ALTER TABLE role ADD COLUMN is_root boolean NOT NULL DEFAULT false")
+    )
 
 
 @pytest.fixture(scope="module")

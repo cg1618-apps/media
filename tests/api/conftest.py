@@ -309,6 +309,12 @@ def owner_user(db_session):
         username="aaa_testowner",
         hashed_password=get_password_hash("testpass"),
         role_id=role_id_for(db_session, "super"),
+        # Every account switch on: the owner's own account reads its quotes
+        # and memes, and no role holds a feature without its switch.
+        feature_quotes_memes=True,
+        feature_favourites=True,
+        feature_music_status=True,
+        feature_mod_status=True,
     )
     db_session.add(user)
     db_session.flush()

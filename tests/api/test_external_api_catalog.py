@@ -22,6 +22,7 @@ from app.services.integrations.catalog import (
     catalog_payload,
 )
 from app.services.pipelines.specs import PIPELINES
+from app.services.rbac.permissions import PERM_MANAGE_OPTIONS
 
 
 def _writes(coverage):
@@ -217,7 +218,7 @@ def test_a_catalogue_editor_who_cannot_see_h_comic_is_not_told_it_exists(
     from app import models
 
     assert db_session.query(models.ContentLabel).filter_by(key="h-comic").count() == 1
-    narrow = catalog_writer()
+    narrow = catalog_writer(extra={PERM_MANAGE_OPTIONS})
     body = narrow.get("/api/constants/external-apis").json()
     keys = {e["key"] for e in body["media"]}
     assert "h-comic" not in keys
@@ -244,7 +245,11 @@ def test_a_narrow_catalogue_editor_is_not_told_through_the_services_either(
     assert db_session.query(models.ContentLabel).filter(
         models.ContentLabel.key.in_(["h-comic", "h-game", "hentai"])
     ).count() == 3
-    body = catalog_writer().get("/api/constants/external-apis").json()
+    body = (
+        catalog_writer(extra={PERM_MANAGE_OPTIONS})
+        .get("/api/constants/external-apis")
+        .json()
+    )
     services = {s["key"]: s for s in body["services"]}
     assert "ehentai" not in services
     assert "dlsite" not in services
@@ -278,7 +283,7 @@ def test_a_catalogue_editor_who_cannot_see_hentai_is_not_told_it_exists(
     from app import models
 
     assert db_session.query(models.ContentLabel).filter_by(key="hentai").count() == 1
-    narrow = catalog_writer()
+    narrow = catalog_writer(extra={PERM_MANAGE_OPTIONS})
     keys = {e["key"] for e in narrow.get("/api/constants/external-apis").json()["media"]}
     assert "hentai" not in keys
     assert {"anime", "game", "studio"} <= keys

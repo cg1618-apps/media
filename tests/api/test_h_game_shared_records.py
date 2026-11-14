@@ -16,6 +16,7 @@ import pytest
 from app import models
 from app.services.domain import credits as credits_service
 from app.services.domain.content_labels import label_keys_for_entry
+from app.services.rbac.permissions import PERM_MANAGE_OPTIONS
 
 
 @pytest.fixture
@@ -110,7 +111,7 @@ def test_the_external_api_catalogue_omits_h_game_for_a_narrow_editor(
     catalog_writer, owner_client, db_session
 ):
     assert db_session.query(models.ContentLabel).filter_by(key="h-game").count() == 1
-    narrow = catalog_writer().get("/api/constants/external-apis")
+    narrow = catalog_writer(extra={PERM_MANAGE_OPTIONS}).get("/api/constants/external-apis")
     assert narrow.status_code == 200, narrow.text
     assert "h-game" not in {row["key"] for row in narrow.json()["media"]}
     wide = owner_client.get("/api/constants/external-apis").json()
