@@ -7,6 +7,7 @@ import {
   FALLBACK_SVG,
   COMPLETED_STATUSES,
 } from "../../utils/media";
+import hentaiCompletionGroups from "./hentaiCompletions";
 import { useAuth } from "../../contexts/AuthContext";
 import { visibleByType } from "../../lib/gatedTypes";
 
@@ -136,24 +137,6 @@ function GroupedCompletions({ type, groups, pages, setPages, franchiseMap, extra
       })}
     </div>
   );
-}
-
-// A hentai's completions, grouped by what it adapts (HENTAI_SOURCE_MATERIALS),
-// with the unrecorded ones last.
-const HENTAI_SOURCE_GROUPS = ["Original", "Manga", "Novel"];
-
-function hentaiCompletionGroups(allHentai) {
-  const completed = (allHentai || [])
-    .filter((h) => COMPLETED_STATUSES.includes(h.watching_status) && h.completed_at)
-    .sort((a, b) => new Date(b.completed_at) - new Date(a.completed_at));
-  const bySource = {};
-  for (const h of completed) {
-    const key = HENTAI_SOURCE_GROUPS.includes(h.source_material) ? h.source_material : "Unrecorded";
-    (bySource[key] ||= []).push(h);
-  }
-  return [...HENTAI_SOURCE_GROUPS, "Unrecorded"]
-    .filter((key) => bySource[key]?.length)
-    .map((key) => ({ key, label: key, items: bySource[key] }));
 }
 
 export default function StatsCompletions({

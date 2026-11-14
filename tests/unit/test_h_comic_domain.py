@@ -22,7 +22,7 @@ from app.utils.constants import (
 def _entry(region, **columns):
     base = {
         "region": region,
-        "originality": "原創",
+        "originality": "原版",
         "animation_status": "Animated",
         "series_number": 1,
         "page_total": 20,

@@ -5007,3 +5007,34 @@ shown buttons that answered 401.
   stack two sticky things in one place. Widening the container to `88rem` on
   xl keeps the cover column near its usual width instead of handing it the
   contents' 12rem; below xl the contents are not drawn at all.
+
+### Originality 原創 is renamed 原版, and the h-comic and hentai links auto-fill (2026-11-14)
+
+- **One rename covers both types**, because `hentai.originality` reads
+  h-comic's `H_COMIC_ORIGINALITY`. Revision `o1r2iginal35` rewrites both
+  tables and any stored Add-form default naming `原創`. A Sheets Pull reads an
+  older backup's `原創` as `原版` (`_LEGACY_ORIGINALITY` in
+  `app/utils/formatter.py`), in the same way as the storefront rename
+  `Physical` → `Physical Store`. A write naming `原創` is refused like any other
+  value outside the vocabulary.
+- **`mal_link` (h-comic, hentai) and `anidb_link` (hentai) are auto-fillable
+  and in `BUILTIN_AUTOFILL`.** Entries of one franchise often share a MAL or
+  AniDB page, so copying is the useful default, and /defaults can switch it
+  off. The hidden ids are not copied: the write hook derives them from the
+  links again.
+- **A stored auto-fill list gains the links in the same revision.** The stored
+  list is used verbatim, and /defaults saves it whole, so a type configured
+  before this change would otherwise never copy the links. Alternatives
+  rejected: leaving stored lists alone makes the new default reach only
+  unconfigured types, and nothing on /defaults would explain why. Treating
+  absent keys as "on" would mean an admin who unticked a field cannot be told
+  apart from one who never saw it. A list saved earlier could not have
+  chosen the links, because /defaults did not offer them, so adding them
+  overrides no decision. A null list already means the built-in set and is
+  left as it is. The downgrade removes the links, because the earlier code
+  cannot copy them.
+- **Hentai source material gains `Game`**, with no MAL or AniDB mapping:
+  neither records a source material, and no fill has ever written the
+  column. The completions statistics grouped by a hard-coded copy of the list,
+  which would have put a Game hentai under Unrecorded. The grouping moved to
+  `pages/statistics/hentaiCompletions.js` and reads the shared vocabulary.
