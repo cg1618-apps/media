@@ -344,3 +344,35 @@ describe("genre", () => {
 function keysOf(defs) {
   return defs.map((fd) => fd.key);
 }
+
+describe("the shared account's picker", () => {
+  const types = ["anime", "manga", "movie"];
+
+  it("has exactly media type and release decade in the general mode", () => {
+    const keys = (defs) => defs.map((fd) => fd.key);
+    expect(keys(filterDefsForMode("all", types, { personal: false, shared: true }))).toEqual([
+      "mediaType",
+      "decade",
+    ]);
+    // The mirror: a member's general mode keeps the rest.
+    expect(keys(filterDefsForMode("all", types))).toEqual(
+      expect.arrayContaining(["mediaType", "decade", "statusGroup", "myRating", "genre", "externalScore"]),
+    );
+  });
+
+  it("has no other mode", () => {
+    expect(filterDefsForMode("anime", types, { personal: false, shared: true })).toEqual([]);
+    expect(filterDefsForMode("franchise", types, { personal: false, shared: true })).toEqual([]);
+  });
+
+  it("dates each type by its own release field", () => {
+    const decade = filterDefsForMode("all", types, { personal: false, shared: true })[1];
+    const entries = [
+      { type: "anime", item: { release_date: "2014-04-01" } },
+      { type: "movie", item: { release_date_tw: "1999-12-24", release_date_usa: "2001-01-01" } },
+      { type: "movie", item: { release_date_usa: "2021-05-05" } },
+      { type: "manga", item: {} },
+    ];
+    expect(decade.deriveOptions(entries)).toEqual(["2020s", "2010s", "1990s", "Unknown"]);
+  });
+});

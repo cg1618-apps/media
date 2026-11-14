@@ -100,6 +100,47 @@ def test_recently_added_leaves_out_a_type_the_viewer_lacks(
     assert str(newer.system_id) in ids
 
 
-def test_recently_added_honours_the_limit(client, two_entries):
-    assert len(client.get(RECENT, params={"limit": 1}).json()) == 1
-    assert client.get(RECENT, params={"limit": 0}).status_code == 422
+@pytest.fixture
+def busy_anime(db_session, sample_franchise, two_entries):
+    """Three anime all newer than the one manga: newest overall, the manga
+    would be crowded out by any cut below four. The per-type cut must keep it."""
+    now = get_taipei_now()
+    made = []
+    for i in range(3):
+        anime = models.Anime(
+            system_id=uuid.uuid4(),
+            franchise_id=sample_franchise.system_id,
+            anime_name_en=f"Busy Anime {i}",
+            airing_type="TV",
+        )
+        db_session.add(anime)
+        db_session.flush()
+        db_session.query(models.Media).filter(
+            models.Media.system_id == anime.system_id
+        ).update({models.Media.created_at: now + timedelta(hours=i + 1)})
+        made.append(anime)
+    db_session.flush()
+    return made
+
+
+def test_recently_added_is_the_newest_of_each_type(client, two_entries, busy_anime):
+    _older, newer_manga = two_entries
+    rows = client.get(RECENT, params={"per_type": 2}).json()
+    by_type = {}
+    for row in rows:
+        by_type.setdefault(row["media_type"], []).append(row["system_id"])
+    # Each type is cut on its own: two anime, the newest two, and the manga
+    # survives although every anime is newer than it.
+    assert by_type["anime"] == [str(busy_anime[2].system_id), str(busy_anime[1].system_id)]
+    assert by_type["manga"] == [str(newer_manga.system_id)]
+
+
+def test_recently_added_skips_a_type_with_nothing(client, two_entries):
+    types = {row["media_type"] for row in client.get(RECENT).json()}
+    assert types == {"anime", "manga"}
+
+
+def test_recently_added_bounds_per_type(client, two_entries):
+    assert len(client.get(RECENT, params={"per_type": 1}).json()) == 2
+    assert client.get(RECENT, params={"per_type": 0}).status_code == 422
+    assert client.get(RECENT, params={"per_type": 25}).status_code == 422

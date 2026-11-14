@@ -1266,7 +1266,7 @@ What the dashboard needs beyond the routes it links to (`app/routers/dashboard.p
 | Method | Path | Auth | Description |
 | ------ | ---- | ---- | ----------- |
 | `GET`  | `/summary` | `manage.requests` | `DashboardSummary` — `{pending_registrations, open_requests}`: how many accounts wait for approval and how many requests and reports are open. Counts only. Any other viewer gets **401**. |
-| `GET`  | `/recent` | Public | `RecentEntry[]` — `{system_id, media_type, public_id, display_name, cover_image_file, cover_image_focus, created_at}`, newest first across every media type the viewer may see. `limit` 1–50, default 12. A type the role lacks and an entry its mode hides are left out. |
+| `GET`  | `/recent` | Public | `RecentEntry[]` — `{system_id, media_type, public_id, display_name, cover_image_file, cover_image_focus, created_at}`: the newest `per_type` entries **of each** media type the viewer may see, newest first, in one query (a `row_number()` over `media_type`). `per_type` 1–24, default 6. A type the role lacks and an entry its mode hides are left out, and a type with nothing visible has no rows. |
 ## Add-tab picker searches
 
 Each Add tab can identify a new entry against the outside database Fill reads
