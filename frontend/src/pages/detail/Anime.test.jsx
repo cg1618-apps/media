@@ -37,10 +37,9 @@ function respond(url, isAdmin) {
       // admin role does not hold.
       username: isAdmin ? "cg1618" : "reader",
       role: isAdmin ? "super" : "user",
-      // A member's view.* keys: entity names link (the four entity keys) and a
-      // unit's remark is shown (view.personal). The guest view of both is
-      // pinned in CastSection.test, StudioLinks.test and Novel's own guest
-      // case below.
+      // A member's keys: entity names link (the four entity keys). The guest
+      // view is pinned in CastSection.test, StudioLinks.test and Novel's own
+      // guest case below.
       permissions: [
         "view.studio",
         "view.publisher",
@@ -48,7 +47,6 @@ function respond(url, isAdmin) {
         "view.character",
         "view.search",
         "view.extras",
-        "view.personal",
         ...(isAdmin ? ["manage.catalog"] : []),
       ],
     };

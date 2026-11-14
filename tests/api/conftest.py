@@ -1287,3 +1287,25 @@ def labelled_hidden_anime(db_session, sample_franchise):
     )
     db_session.flush()
     return {"public_id": entry.public_id, "system_id": str(entry.system_id)}
+
+
+@pytest.fixture
+def features_follow_personal_notes(monkeypatch):
+    """Every feature for a signed-in viewer holding self.personal_notes.
+
+    The real gate (app/services/rbac/features.py) grants a feature only to a
+    `user` or `super` account whose switch is on, and make_viewer's accounts
+    are on bespoke roles. Tests about what a granted value DOES - marks, the
+    music statuses, the review queue - pin this rule instead, so a refusal in
+    them is the behaviour under test and not the switch; the gate itself is
+    tested in test_account_features.py.
+    """
+    from app.services.rbac import features
+    from app.services.rbac.permissions import PERM_SELF_PERSONAL_NOTES
+
+    def has_feature(db, viewer, name):
+        if name not in features.FEATURE_NAMES:
+            raise ValueError(f"Unknown feature {name!r}")
+        return viewer.user_id is not None and viewer.has(PERM_SELF_PERSONAL_NOTES)
+
+    monkeypatch.setattr(features, "has_feature", has_feature)

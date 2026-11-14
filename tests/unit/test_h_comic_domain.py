@@ -28,7 +28,6 @@ def _entry(region, **columns):
         "page_total": 20,
         "ch_total": 30,
         "ch_behind": 2,
-        "highlight_group_order": ["Ana"],
     }
     base.update(columns)
     return SimpleNamespace(**base)
@@ -47,13 +46,13 @@ def test_kr_clears_the_jp_only_columns():
     assert (entry.originality, entry.animation_status, entry.series_number, entry.page_total) == (
         None, None, None, None,
     )
-    assert (entry.ch_total, entry.ch_behind, entry.highlight_group_order) == (30, 2, ["Ana"])
+    assert (entry.ch_total, entry.ch_behind) == (30, 2)
 
 
 def test_jp_clears_the_kr_only_columns():
     entry = _entry("JP")
     h_comic.clear_h_comic_catalog(entry)
-    assert (entry.ch_total, entry.ch_behind, entry.highlight_group_order) == (None, None, None)
+    assert (entry.ch_total, entry.ch_behind) == (None, None)
     assert entry.page_total == 20
 
 
@@ -119,7 +118,7 @@ def _highlight(**fields):
 def test_the_section_is_registered_with_its_grouping():
     section = ns.section_by_key("h_comic_highlights")
     assert section.owners == ("h-comic",)
-    assert section.scope == ns.SCOPE_CATALOG
+    assert section.scope == ns.SCOPE_PERSONAL
     assert section.group_by == "female_characters"
     assert section.owner_where == {"region": ("KR",)}
     names = [f for f in section.fields if f.type == ns.FIELD_NAMES]

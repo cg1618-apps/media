@@ -225,12 +225,14 @@ it("opens the editor for initialId without a search", async () => {
   ).not.toBeInTheDocument();
 });
 
-it("saves gender, rating and the photo fallback from their selects", async () => {
+// My rating is the viewer's own, set on the character's page through
+// /api/me/ratings: the catalogue form neither offers it nor sends it.
+it("saves gender and the photo fallback from their selects, and no rating", async () => {
   vi.stubGlobal("scrollTo", vi.fn());
   const user = userEvent.setup();
   mount({ initialId: "c1" });
   await user.selectOptions(await screen.findByLabelText("Gender"), "男");
-  await user.selectOptions(screen.getByLabelText("My Rating"), "A+");
+  expect(screen.queryByLabelText("My Rating")).not.toBeInTheDocument();
   const picker = screen.getByLabelText("Photo fallback");
   await waitFor(() => expect(picker.options).toHaveLength(2));
   expect(picker.options[1].textContent).toBe("Cowboy Bebop (1998) [anime]");
@@ -247,9 +249,9 @@ it("saves gender, rating and the photo fallback from their selects", async () =>
   const [, init] = fetch.mock.calls.find(([, o]) => o?.method === "PUT");
   expect(JSON.parse(init.body)).toMatchObject({
     gender: "男",
-    my_rating: "A+",
     photo_fallback_entry_id: "a1",
   });
+  expect(JSON.parse(init.body)).not.toHaveProperty("my_rating");
 });
 
 // An unsaved character has no entries, so the Add form has no fallback picker.

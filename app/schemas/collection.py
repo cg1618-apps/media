@@ -15,8 +15,6 @@ class CollectionBase(BaseModel):
     collection_name_roman: Optional[str] = None
     collection_name_jp: Optional[str] = None
     collection_name_alt: Optional[str] = None
-    my_rating: Optional[str] = None
-    collection_expectation: Optional[str] = "Low"
     cover_franchise_id: Optional[UUID] = None
     no_built_in_orders: Optional[bool] = False
     remark: Optional[str] = None
@@ -32,6 +30,11 @@ class CollectionUpdate(CollectionBase):
 
 class CollectionResponse(CollectionBase):
     system_id: UUID
+    # The VIEWER'S own rating, from user_rating (services.domain.user_rating
+    # .attach_ratings); null for a guest. Not on the Base: a catalogue write
+    # does not carry it - PUT /api/me/ratings/... does.
+    my_rating: Optional[str] = None
+    collection_expectation: Optional[str] = None
     # Set by attach_group_content_labels; read-only, as on FranchiseResponse.
     # The only writer is PUT /api/content-labels/collection/{collection_id}.
     content_labels: list[ContentLabelRef] = []

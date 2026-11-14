@@ -19,8 +19,7 @@ and the present-tense pages take over once it ships.
 ## 1. Account and authorization rework
 
 Users, roles, access modes, content labels and authentication together,
-including what becomes personal: per-user ratings, expectations,
-highlights, personal fields on catalogue rows, mixed sections, granted
+including what becomes personal: highlights, personal fields on catalogue rows, mixed sections, granted
 features, and the personal half of the notes rework — the amount
 collected, the NG reset button, 下周目目標 — whose design is
 [superpowers/specs/2026-11-12-notes-rework-design.md](superpowers/specs/2026-11-12-notes-rework-design.md).

@@ -36,7 +36,6 @@ export default function MovieModifyTab({
       <MovieNotes
         key={editingItem?.system_id}
         movie={editingItem ?? {}}
-        isAdmin={true}
         hideSections={["remark"]}
       />
     </>

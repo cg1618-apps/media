@@ -5,10 +5,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import PublisherLibrary from "./PublisherLibrary";
 
 // The page is behind view.publisher, so its viewer holds it and the cards
-// link (useEntityHref).
+// link (useEntityHref). self.list (the viewer's own rating) is held unless a
+// test takes it away.
+const held = new Set();
 vi.mock("../../contexts/AuthContext", () => ({
-  useAuth: () => ({ has: (p) => p === "view.publisher" }),
+  useAuth: () => ({
+    visibleGatedTypes: ["h-comic", "h-game", "hentai"],
+    has: (p) => held.has(p),
+  }),
 }));
+beforeEach(() => {
+  held.clear();
+  held.add("view.publisher").add("self.list");
+});
 
 const PUBLISHERS = [
   {
@@ -123,5 +132,25 @@ describe("PublisherLibrary", () => {
     await user.click(within(country).getByRole("button", { name: "Not set" }));
     expect(screen.getAllByRole("link")).toHaveLength(2);
     expect(screen.queryByText("Bandai Namco")).not.toBeInTheDocument();
+  });
+});
+
+// My rating is the viewer's own (self.list). Without the key the library
+// offers no rating sort or filter at all - not empty ones; the same rows with
+// the key offer both, so the absence is the permission's doing.
+describe("PublisherLibrary and the viewer's own rating", () => {
+  it("offers no My rating sort or filter without self.list", async () => {
+    held.delete("self.list");
+    renderPage();
+    await screen.findByText("木棉花");
+    expect(screen.queryByRole("option", { name: "My rating" })).not.toBeInTheDocument();
+    expect(screen.queryByText("My Rating")).not.toBeInTheDocument();
+  });
+
+  it("offers both with self.list", async () => {
+    renderPage();
+    await screen.findByText("木棉花");
+    expect(screen.getByRole("option", { name: "My rating" })).toBeInTheDocument();
+    expect(screen.getByText("My Rating")).toBeInTheDocument();
   });
 });

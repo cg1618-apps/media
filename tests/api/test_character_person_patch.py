@@ -1,6 +1,6 @@
 """
 PATCH /api/character/{id} and PATCH /api/person/{id}, and the rules PUT and
-PATCH share: the gender / my_rating vocabularies and photo_fallback_entry_id
+PATCH share: the gender vocabulary and photo_fallback_entry_id
 naming an entry the record is linked to.
 
 Fixtures `anime`, `character`, `character_with_castings`,
@@ -41,10 +41,10 @@ def _patch(client, kind, entity, body):
 @pytest.mark.parametrize("kind", KINDS)
 def test_patch_changes_only_the_keys_sent(owner_client, record, kind):
     entity = record[kind]
-    r = _patch(owner_client, kind, entity, {"my_rating": "A", "remark": "Kept note"})
+    r = _patch(owner_client, kind, entity, {"gender": "女", "remark": "Kept note"})
     assert r.status_code == 200, r.text
     body = r.json()
-    assert body["my_rating"] == "A"
+    assert body["gender"] == "女"
     assert body["remark"] == "Kept note"
     assert body["name_cn"] in ("一花", "測試")
     assert body["name_en"] == entity.name_en
@@ -62,7 +62,6 @@ def test_patch_returns_the_full_response(owner_client, record, kind):
     "body",
     [
         {"gender": "Male"},
-        {"my_rating": "a+"},
         {"display_name_field": "zh"},
         {"photo_fallback_entry_id": "not-a-uuid"},
     ],
@@ -74,11 +73,20 @@ def test_patch_refuses_a_value_the_schemas_refuse(owner_client, record, kind, bo
 @pytest.mark.parametrize("kind", KINDS)
 def test_patch_takes_an_empty_string_as_null(owner_client, db_session, record, kind):
     entity = record[kind]
-    entity.gender, entity.my_rating = "女", "S"
+    entity.gender = "女"
     db_session.flush()
-    body = _patch(owner_client, kind, entity, {"gender": "", "my_rating": ""}).json()
+    body = _patch(owner_client, kind, entity, {"gender": ""}).json()
     assert body["gender"] is None
-    assert body["my_rating"] is None
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_patch_ignores_a_rating(owner_client, db_session, record, kind):
+    """A rating is the viewer's own (PUT /api/me/ratings) and not a column:
+    PATCH ignores it like any other non-column key, whatever its value."""
+    body = _patch(owner_client, kind, record[kind], {"my_rating": "a+"})
+    assert body.status_code == 200
+    assert body.json()["my_rating"] is None
+    assert db_session.query(models.UserRating).count() == 0
 
 
 @pytest.mark.parametrize("kind", KINDS)
@@ -145,10 +153,10 @@ def test_put_refuses_an_old_free_text_gender(owner_client, record, kind):
 def test_post_accepts_the_vocabularies(owner_client, kind):
     r = owner_client.post(
         f"/api/{kind}/",
-        json={"name_en": f"Zvornik Vocab {kind}", "gender": "中性/無性", "my_rating": "A+"},
+        json={"name_en": f"Zvornik Vocab {kind}", "gender": "中性/無性"},
     )
     assert r.status_code == 200, r.text
-    assert (r.json()["gender"], r.json()["my_rating"]) == ("中性/無性", "A+")
+    assert r.json()["gender"] == "中性/無性"
 
 
 # ---------------------------------------------------------------------------

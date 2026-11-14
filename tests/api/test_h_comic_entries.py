@@ -92,14 +92,11 @@ def test_a_kr_entry_round_trips(owner_client):
         h_comic_name_kr="한국어 제목",
         ch_total=40,
         ch_behind=5,
-        highlight_group_order=["Ana", "Bea", "Ana", " "],
     )
     fetched = owner_client.get(f"{ROUTE}/{body['public_id']}").json()
     assert fetched["region"] == "KR"
     assert fetched["ch_total"] == 40
     assert fetched["ch_behind"] == 5
-    # Deduplicated, blanks dropped, order kept.
-    assert fetched["highlight_group_order"] == ["Ana", "Bea"]
 
 
 def test_display_name_falls_back_to_the_kr_name(owner_client):
@@ -173,7 +170,7 @@ JP_ONLY = {
     "series_number": 2,
     "page_total": 30,
 }
-KR_ONLY = {"ch_total": 50, "ch_behind": 3, "highlight_group_order": ["Ana"]}
+KR_ONLY = {"ch_total": 50, "ch_behind": 3}
 
 
 def test_create_kr_clears_the_jp_only_columns(owner_client):

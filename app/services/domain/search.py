@@ -26,6 +26,7 @@ from app.services.domain.content_labels import attach_group_content_labels
 from app.services.domain.credits import credit_summaries
 from app.services.domain.entity_photos import person_media
 from app.services.domain.entry_fields import attach_entry_list_fields
+from app.services.domain.user_rating import OWNER_COLUMNS, attach_ratings
 from app.services.rbac.enforcement import (
     apply_collection_visibility,
     apply_entry_visibility,
@@ -41,7 +42,6 @@ from app.services.rbac.permissions import (
     PERM_VIEW_STUDIO,
     media_type_perm,
 )
-from app.services.rbac.personal_gate import strip_personal
 from app.services.rbac.resolver import viewer_user_id
 from app.services.rbac.shared_visibility import CONNECTIONS, apply_shared_visibility
 from app.utils.media_resolver import MEDIA_TYPE_KEYS
@@ -369,15 +369,15 @@ def _person_results(db: Session, viewer, entries: list) -> list:
 def _decorate(db: Session, viewer, spec: SearchableType, entries: list):
     """
     The bucket as its own list endpoint answers it: the non-column fields
-    attached, then the mode's field groups and the role's personal fields
-    withheld.
+    attached - the viewer's own rating among them - then the mode's field
+    groups withheld.
     """
-    return strip_personal(
-        viewer,
-        spec.owner_type or spec.key,
-        _attach(db, viewer, spec, entries),
-        spec.response_schema,
-    )
+    if spec.key in OWNER_COLUMNS and spec.key != CHARACTER_SEARCH.key:
+        # Before _attach: the person bucket is copied into schema instances
+        # there, and the copy reads my_rating off the row. Characters attach
+        # their own inside character_responses.
+        attach_ratings(db, spec.key, entries, viewer_user_id(viewer))
+    return _attach(db, viewer, spec, entries)
 
 
 def _attach(db: Session, viewer, spec: SearchableType, entries: list):
@@ -517,12 +517,8 @@ def search(
             criteria = and_(criteria, models.Seasonal.user_id == searcher_id)
         raw[spec.key] = _run(db, viewer, spec, criteria, q_clean, limit)
 
-    related = strip_personal(
-        viewer,
-        "franchise",
-        _related_franchises(db, raw.get("anime", []), limit),
-        schemas.FranchiseResponse,
-    )
+    related = _related_franchises(db, raw.get("anime", []), limit)
+    attach_ratings(db, "franchise", related, viewer_user_id(viewer))
     for spec in active:
         buckets[spec.key] = _decorate(db, viewer, spec, raw[spec.key])
     return buckets, related

@@ -499,7 +499,6 @@ export default function AnimeMovie() {
           <AnimeMovieNotes
             key={movie.system_id}
             movie={movie}
-            isAdmin={isAdmin}
             hideSections={movie.remark ? ["remark"] : []}
             franchise={franchise}
           />

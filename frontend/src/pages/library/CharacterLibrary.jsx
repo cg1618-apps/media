@@ -18,6 +18,7 @@ import CharacterCard from "../../components/cards/CharacterCard";
 import { Eyebrow } from "../../components/ui/primitives";
 import FilterPanel, { FilterToggleButton } from "../../components/layout/FilterPanel";
 import { useAuth } from "../../contexts/AuthContext";
+import { useViewScope } from "../../hooks/useViewScope";
 import { useEntityFilterState } from "../../hooks/useFilterState";
 import { useIncrementalList } from "../../hooks/useIncrementalList";
 import { applyFilterDefs } from "../../lib/libraryFilters";
@@ -35,7 +36,11 @@ export default function CharacterLibrary() {
   const cards = useMemo(() => characterCards(allCharacters), [allCharacters]);
 
   const auth = useAuth();
-  const filterDefs = useMemo(() => characterFilterDefs(auth), [auth]);
+  // My rating is the viewer's own (self.list): without the key there is no
+  // rating sort or filter at all, and a rating sort reads as Name.
+  const { ownData } = useViewScope();
+  const sort = ownData || currentSort !== "my_rating" ? currentSort : "name";
+  const filterDefs = useMemo(() => characterFilterDefs(auth, { ownData }), [auth, ownData]);
   const {
     filters,
     toggleFilter,
@@ -77,10 +82,10 @@ export default function CharacterLibrary() {
     const result = applyFilterDefs(searched, filterDefs, filters);
 
     result.sort((a, b) => {
-      if (currentSort === "casting_count") {
+      if (sort === "casting_count") {
         const diff = (b.casting_count ?? 0) - (a.casting_count ?? 0);
         if (diff !== 0) return diff;
-      } else if (currentSort === "my_rating") {
+      } else if (sort === "my_rating") {
         const diff = getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating);
         if (diff !== 0) return diff;
       }
@@ -88,7 +93,7 @@ export default function CharacterLibrary() {
     });
 
     return result;
-  }, [cards, searchQuery, currentSort, filterDefs, filters]);
+  }, [cards, searchQuery, sort, filterDefs, filters]);
 
   // Search, filter and sort see every item; the grid draws them a batch at a
   // time, so a long library does not mount every card - and its cover - at once.
@@ -165,13 +170,13 @@ export default function CharacterLibrary() {
               <label className="flex items-center gap-2">
                 <Eyebrow>Sort</Eyebrow>
                 <select
-                  value={currentSort}
+                  value={sort}
                   onChange={(e) => setCurrentSort(e.target.value)}
                   className="bg-surface border border-border-strong px-3 py-1.5 text-sm text-text focus:outline-none focus:ring-2 focus:ring-brand transition"
                 >
                   <option value="name">Name</option>
                   <option value="casting_count">Appearances</option>
-                  <option value="my_rating">My rating</option>
+                  {ownData && <option value="my_rating">My rating</option>}
                 </select>
               </label>
 

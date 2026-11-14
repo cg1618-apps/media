@@ -16,10 +16,6 @@ import PlanKindToggles, {
   applicableTypes,
 } from "../../components/plan/PlanKindToggles";
 import { scopesFor } from "../../config/planNextGroups";
-import {
-  MY_RATINGS,
-  FRANCHISE_EXPECTATIONS,
-} from "../../config/fieldOptions";
 
 function getEntryYear(e) {
   const d =
@@ -268,36 +264,6 @@ export default function SeriesModifyTab({
         </Field>
       </div>
       <SectionHeader icon="fa-info-circle" title="Other Information" />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="My Rating">
-          <select
-            className={selectCls}
-            value={sf.my_rating}
-            onChange={(e) => us("my_rating", e.target.value)}
-          >
-            <option value="">—</option>
-            {MY_RATINGS.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Expectation">
-          <select
-            className={selectCls}
-            value={sf.series_expectation}
-            onChange={(e) => us("series_expectation", e.target.value)}
-          >
-            <option value="">—</option>
-            {FRANCHISE_EXPECTATIONS.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
-      </div>
       <SectionHeader icon="fa-image" title="Cover Images" />
       <Field
         label="Main Cover"

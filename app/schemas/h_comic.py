@@ -22,7 +22,6 @@ from app.services.domain.h_comic import (
     check_originality,
     check_region,
     check_usefulness,
-    normalize_group_order,
 )
 
 
@@ -52,9 +51,10 @@ class HComicBase(BaseModel):
     mal_link: Optional[str] = None
     ehentai_link: Optional[str] = None
 
-    # KR only; cleared on JP. The group order of the highlights section, read
-    # and written whole: a list of female character names.
-    highlight_group_order: Optional[List[str]] = None
+    # No highlight_group_order: the order of the highlight groups is the
+    # viewer's own, written by PUT /api/me/highlight-group-order/{media_id}.
+    # A client still sending it has the key ignored, like every catalogue
+    # write's personal field.
 
     # Personal - split off onto user_media_list by the router.
     reading_status: str = "Might Read"
@@ -105,11 +105,6 @@ class _WriteChecks(BaseModel):
     def _usefulness(cls, v):
         return check_usefulness(v)
 
-    @field_validator("highlight_group_order", mode="before", check_fields=False)
-    @classmethod
-    def _group_order(cls, v):
-        return normalize_group_order(v)
-
 
 class HComicCreate(_WriteChecks, HComicBase, SourceWriteFields):
     region: str
@@ -129,6 +124,12 @@ class HComicResponse(HComicBase, HComicLinkFields):
     public_id: int
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+
+    # The VIEWER'S order of the KR highlight groups (a list of female
+    # character names), from user_highlight_group_order via
+    # highlight_group_order.attach_group_orders. Null for nobody signed in,
+    # for no order, and always on a JP entry.
+    highlight_group_order: Optional[List[str]] = None
 
     # "derived" when the served animation_status comes from adaptation
     # relations to hentai entries, "manual" when it is the stored hand-set

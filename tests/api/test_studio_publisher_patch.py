@@ -32,10 +32,10 @@ def _patch(client, kind, entity, body):
 
 @pytest.mark.parametrize("kind", KINDS)
 def test_patch_changes_only_the_keys_sent(owner_client, record, kind):
-    r = _patch(owner_client, kind, record[kind], {"my_rating": "A", "remark": "Kept"})
+    r = _patch(owner_client, kind, record[kind], {"country": "Japan", "remark": "Kept"})
     assert r.status_code == 200, r.text
     body = r.json()
-    assert body["my_rating"] == "A"
+    assert body["country"] == "Japan"
     assert body["remark"] == "Kept"
     assert body["name_en"] == record[kind].name_en
 
@@ -53,18 +53,18 @@ def test_publisher_patch_keeps_its_scopes(owner_client, record):
 
 
 @pytest.mark.parametrize("kind", KINDS)
-def test_an_empty_rating_is_null(owner_client, db_session, record, kind):
-    record[kind].my_rating = "S"
-    db_session.flush()
-    body = _patch(owner_client, kind, record[kind], {"my_rating": ""}).json()
-    assert body["my_rating"] is None
+def test_patch_ignores_a_rating(owner_client, db_session, record, kind):
+    """A rating is the viewer's own (PUT /api/me/ratings), not a column."""
+    r = _patch(owner_client, kind, record[kind], {"my_rating": "a+"})
+    assert r.status_code == 200
+    assert r.json()["my_rating"] is None
+    assert db_session.query(models.UserRating).count() == 0
 
 
 @pytest.mark.parametrize("kind", KINDS)
 @pytest.mark.parametrize(
     "body",
     [
-        {"my_rating": "a+"},
         {"display_name_field": "zh"},
         {"name_en": None},
         {"public_id": 5},

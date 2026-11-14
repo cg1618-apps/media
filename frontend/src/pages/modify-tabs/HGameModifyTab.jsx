@@ -42,7 +42,6 @@ export default function HGameModifyTab({
           other on Save Changes. */}
       <HGameNotes
         hGame={editingItem ?? {}}
-        isAdmin={true}
         hideSections={["remark"]}
       />
     </>

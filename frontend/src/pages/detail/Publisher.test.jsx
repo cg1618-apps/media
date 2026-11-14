@@ -2,6 +2,7 @@
 // is offered on), and the admin controls it shares with Person.jsx.
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Publisher from "./Publisher";
@@ -32,6 +33,20 @@ const PUBLISHER = {
 
 function mockFetch(publisher = PUBLISHER) {
   global.fetch = vi.fn((url, init = {}) => {
+    if (init.method === "PUT") {
+      const body = JSON.parse(init.body);
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            owner_type: "publisher",
+            owner_id: "pb1",
+            my_rating: body.my_rating ?? null,
+            expectation: null,
+          }),
+      });
+    }
     if (init.method === "PATCH") {
       return Promise.resolve({
         ok: true,
@@ -53,6 +68,7 @@ function WhereAmI() {
 
 function renderPage() {
   return render(
+    <QueryClientProvider client={new QueryClient()}>
     <ToastProvider>
       <MemoryRouter initialEntries={["/publisher/3"]}>
         <Routes>
@@ -60,7 +76,8 @@ function renderPage() {
           <Route path="/modify" element={<WhereAmI />} />
         </Routes>
       </MemoryRouter>
-    </ToastProvider>,
+    </ToastProvider>
+    </QueryClientProvider>,
   );
 }
 
@@ -68,8 +85,12 @@ function patchCalls() {
   return fetch.mock.calls.filter(([, init]) => init?.method === "PATCH");
 }
 
+function putCalls() {
+  return fetch.mock.calls.filter(([, init]) => init?.method === "PUT");
+}
+
 beforeEach(() => {
-  auth = { isAdmin: false };
+  auth = { isAdmin: false, has: () => false };
   mockFetch();
 });
 
@@ -103,9 +124,37 @@ describe("Publisher detail page", () => {
     expect(screen.getByText(PUBLISHER.remark)).toBeInTheDocument();
   });
 
-  describe("as an admin", () => {
+  describe("as a member holding self.list", () => {
+    // The guest test renders the same publisher; only the permission differs, so
+    // the select's presence here is self.list's doing.
     beforeEach(() => {
-      auth = { isAdmin: true };
+      auth = { isAdmin: false, has: (p) => p === "self.list" };
+    });
+
+    it("edits its own rating, with no admin controls", async () => {
+      const user = userEvent.setup();
+      renderPage();
+      await user.selectOptions(await screen.findByLabelText("My rating"), "B");
+      await waitFor(() => expect(putCalls()).toHaveLength(1));
+      expect(putCalls()[0][0]).toBe("/api/me/ratings/publisher/pb1");
+      expect(JSON.parse(putCalls()[0][1].body)).toEqual({ my_rating: "B" });
+      expect(patchCalls()).toHaveLength(0);
+      expect(screen.queryByRole("button", { name: "Quick edit" })).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("Remark")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("as an admin", () => {
+    // Root holds every key but the self.* family, as AuthContext's has() does:
+    // an admin keeps no personal data, so it has no rating of its own.
+    beforeEach(() => {
+      auth = { isAdmin: true, has: (p) => !p.startsWith("self.") };
+    });
+
+    it("draws no rating editor", async () => {
+      renderPage();
+      await screen.findByRole("button", { name: "Quick edit" });
+      expect(screen.queryByLabelText("My rating")).not.toBeInTheDocument();
     });
 
     it("links Quick edit to this publisher's Modify editor", async () => {
@@ -115,20 +164,15 @@ describe("Publisher detail page", () => {
       expect(await screen.findByText("at /modify?id=pb1&type=publisher")).toBeInTheDocument();
     });
 
-    it("PATCHes my rating on change and the remark on blur", async () => {
+    it("PATCHes the remark on blur", async () => {
       const user = userEvent.setup();
       renderPage();
-      await user.selectOptions(await screen.findByLabelText("My rating"), "B");
-      await waitFor(() => expect(patchCalls()).toHaveLength(1));
-      expect(patchCalls()[0][0]).toBe("/api/publisher/pb1");
-      expect(JSON.parse(patchCalls()[0][1].body)).toEqual({ my_rating: "B" });
-
-      const box = screen.getByLabelText("Remark");
+      const box = await screen.findByLabelText("Remark");
       await user.clear(box);
       fireEvent.blur(box);
-      await waitFor(() => expect(patchCalls()).toHaveLength(2));
+      await waitFor(() => expect(patchCalls()).toHaveLength(1));
       // An emptied remark saves as null.
-      expect(JSON.parse(patchCalls()[1][1].body)).toEqual({ remark: null });
+      expect(JSON.parse(patchCalls()[0][1].body)).toEqual({ remark: null });
     });
   });
 });

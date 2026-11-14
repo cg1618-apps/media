@@ -103,18 +103,38 @@ export function groupedIds(groups) {
 }
 
 /**
+ * `items` with the item at `from` moved to `to`, where both index only the
+ * items `movable` accepts: those are taken out and put back in their new
+ * order into the places they held, and every other item keeps its place. In
+ * a mixed section a viewer moves the rows of its own kind and steps over the
+ * rest. With every item movable it is a plain move. An out-of-range move
+ * returns `items` unchanged.
+ */
+export function movedAmong(items, from, to, movable = () => true) {
+  const slots = items.flatMap((item, i) => (movable(item) ? [i] : []));
+  const n = slots.length;
+  if (from < 0 || from >= n || to < 0 || to >= n) return items;
+  const order = slots.map((i) => items[i]);
+  const [moved] = order.splice(from, 1);
+  order.splice(to, 0, moved);
+  const next = [...items];
+  slots.forEach((slot, k) => {
+    next[slot] = order[k];
+  });
+  return next;
+}
+
+/**
  * `groups` with the row at `from` in group `gi` moved to `to` - taken out and
  * put back there, as a drop does, so the rows between shift by one. A row
- * never leaves its group. An out-of-range move returns `groups` unchanged.
+ * never leaves its group. `from` and `to` index the rows `movable` accepts
+ * (movedAmong). An out-of-range move returns `groups` unchanged.
  */
-export function movedRow(groups, gi, from, to) {
+export function movedRow(groups, gi, from, to, movable) {
   return groups.map((g, i) => {
-    const n = g.notes.length;
-    if (i !== gi || from < 0 || from >= n || to < 0 || to >= n) return g;
-    const notes = [...g.notes];
-    const [moved] = notes.splice(from, 1);
-    notes.splice(to, 0, moved);
-    return { ...g, notes };
+    if (i !== gi) return g;
+    const notes = movedAmong(g.notes, from, to, movable);
+    return notes === g.notes ? g : { ...g, notes };
   });
 }
 
@@ -149,17 +169,17 @@ export function groupRoots(roots, column) {
  * Every row id of `groups`, depth-first in drawn order, with the node at
  * `from` among `siblings` moved to `to`. `siblings` is matched by identity: a
  * group's `nodes` (a root moving within its group) or a node's `children` (a
- * child moving among its siblings). A row never changes group or parent by
+ * child moving among its siblings). `from` and `to` index the siblings whose
+ * row `movable` accepts (movedAmong). A row never changes group or parent by
  * moving. An out-of-range move returns the order unchanged.
  */
-export function movedTreeIds(groups, siblings, from, to) {
-  const n = siblings.length;
-  let moved = siblings;
-  if (from >= 0 && from < n && to >= 0 && to < n) {
-    moved = [...siblings];
-    const [node] = moved.splice(from, 1);
-    moved.splice(to, 0, node);
-  }
+export function movedTreeIds(groups, siblings, from, to, movable) {
+  const moved = movedAmong(
+    siblings,
+    from,
+    to,
+    movable ? (node) => movable(node.note) : undefined,
+  );
   const flatten = (nodes) =>
     (nodes === siblings ? moved : nodes).flatMap((node) => [
       node.note.system_id,

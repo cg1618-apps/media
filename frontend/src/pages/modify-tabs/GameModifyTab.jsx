@@ -42,7 +42,6 @@ export default function GameModifyTab({
           other on Save Changes. */}
       <GameNotes
         game={editingItem ?? {}}
-        isAdmin={true}
         hideSections={["remark"]}
       />
     </>

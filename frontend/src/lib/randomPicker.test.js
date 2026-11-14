@@ -189,9 +189,9 @@ describe("franchise mode", () => {
   });
 });
 
-describe("franchiseFilterDefs without view.personal", () => {
-  // A franchise's expectation and rating are personal content; a viewer who
-  // cannot read them is not offered a filter on them. The member mirror
+describe("franchiseFilterDefs without self.list", () => {
+  // A franchise's expectation and rating are the viewer's own; a viewer
+  // without self.list has neither and is not offered a filter on them. The member mirror
   // offers both from the same call.
   it("drops the expectation and rating filters", () => {
     const keys = franchiseFilterDefs(["anime"], { personal: false }).map((fd) => fd.key);

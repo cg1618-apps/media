@@ -3,12 +3,7 @@ import {
   Field,
   SectionHeader,
   inputCls,
-  selectCls,
 } from "../../components/forms/FormField";
-import {
-  FRANCHISE_EXPECTATIONS,
-  MY_RATINGS,
-} from "../../config/fieldOptions";
 
 export { defaultCollection } from "../../config/formFactories";
 
@@ -56,36 +51,6 @@ export default function CollectionAddTab({ cf, uf }) {
       </div>
 
       <SectionHeader icon="fa-info-circle" title="Other Information" />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="My Rating">
-          <select
-            className={selectCls}
-            value={cf.my_rating}
-            onChange={(e) => uf("my_rating", e.target.value)}
-          >
-            <option value="">—</option>
-            {MY_RATINGS.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Expectation">
-          <select
-            className={selectCls}
-            value={cf.collection_expectation}
-            onChange={(e) => uf("collection_expectation", e.target.value)}
-          >
-            <option value="">—</option>
-            {FRANCHISE_EXPECTATIONS.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
-      </div>
       <Field label="Remark">
         <textarea
           className={inputCls}

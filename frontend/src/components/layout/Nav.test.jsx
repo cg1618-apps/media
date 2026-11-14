@@ -38,7 +38,6 @@ const MEMBER_KEYS = new Set([
   "view.character",
   "view.search",
   "view.extras",
-  "view.personal",
 ]);
 const auth = {
   isAdmin: false,

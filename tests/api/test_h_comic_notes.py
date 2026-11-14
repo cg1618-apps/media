@@ -1,10 +1,10 @@
 """
-The KR h-comic highlights section, the `names` field type, and the group order.
+The KR h-comic highlights section and the `names` field type. The section is
+personal, so its rows are written by a member (user_client), not the admin.
 
 Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
-import uuid
 
 import pytest
 
@@ -46,8 +46,8 @@ def jp(owner_client):
     return _entry(owner_client, "JP")
 
 
-def test_a_kr_highlight_round_trips(owner_client, kr):
-    response = owner_client.post(
+def test_a_kr_highlight_round_trips(user_client, kr):
+    response = user_client.post(
         "/api/notes",
         json=_row(kr, fields={"female_characters": ["Ana", "Bea"], "male_characters": ["Cy"]}),
     )
@@ -60,35 +60,35 @@ def test_a_kr_highlight_round_trips(owner_client, kr):
     assert body["status"] == "實用"
 
 
-def test_female_characters_are_required(owner_client, kr):
-    response = owner_client.post(
+def test_female_characters_are_required(user_client, kr):
+    response = user_client.post(
         "/api/notes", json=_row(kr, fields={"male_characters": ["Cy"]})
     )
     assert response.status_code == 422
 
 
 @pytest.mark.parametrize("names", [[""], ["  "], "Ana", [1]])
-def test_a_names_field_must_be_a_list_of_non_empty_names(owner_client, kr, names):
-    response = owner_client.post(
+def test_a_names_field_must_be_a_list_of_non_empty_names(user_client, kr, names):
+    response = user_client.post(
         "/api/notes", json=_row(kr, fields={"female_characters": names})
     )
     assert response.status_code == 422
 
 
-def test_usefulness_is_a_closed_vocabulary(owner_client, kr):
-    response = owner_client.post("/api/notes", json=_row(kr, status="very"))
+def test_usefulness_is_a_closed_vocabulary(user_client, kr):
+    response = user_client.post("/api/notes", json=_row(kr, status="very"))
     assert response.status_code == 422
 
 
-def test_a_jp_entry_refuses_the_section(owner_client, jp):
-    response = owner_client.post("/api/notes", json=_row(jp))
+def test_a_jp_entry_refuses_the_section(user_client, jp):
+    response = user_client.post("/api/notes", json=_row(jp))
     assert response.status_code == 422
     assert "region" in response.json()["detail"]
 
 
-def test_a_highlight_cannot_be_moved_onto_a_jp_entry(owner_client, kr, jp):
-    created = owner_client.post("/api/notes", json=_row(kr)).json()
-    response = owner_client.patch(
+def test_a_highlight_cannot_be_moved_onto_a_jp_entry(user_client, kr, jp):
+    created = user_client.post("/api/notes", json=_row(kr)).json()
+    response = user_client.patch(
         f"/api/notes/{created['system_id']}", json={"owner_id": jp["system_id"]}
     )
     assert response.status_code == 422
@@ -191,44 +191,26 @@ def test_the_section_is_not_offered_to_manga(client):
     assert SECTION not in keys
 
 
-def test_a_guest_cannot_read_the_highlights(client, owner_client, kr):
-    owner_client.post("/api/notes", json=_row(kr))
+def test_a_guest_cannot_read_the_highlights(client, user_client, kr):
+    user_client.post("/api/notes", json=_row(kr))
     params = {"owner_type": "h-comic", "owner_id": kr["system_id"]}
     assert client.get("/api/notes", params=params).status_code == 404
-    assert len(owner_client.get("/api/notes", params=params).json()) == 1
+    assert len(user_client.get("/api/notes", params=params).json()) == 1
 
 
 # ---------------------------------------------------------------------------
-# The group order: a KR column written through the entry update
+# The group order is the viewer's own - see test_personal_highlights.py
 # ---------------------------------------------------------------------------
 
 
-def test_the_group_order_is_written_through_the_entry_update(owner_client, kr, db_session):
-    response = owner_client.patch(
-        f"/api/h-comic/{kr['system_id']}",
-        json={"highlight_group_order": ["Bea", "Ana", "Bea"]},
-    )
-    assert response.status_code == 200, response.text
-    assert response.json()["highlight_group_order"] == ["Bea", "Ana"]
-    entry = db_session.get(models.HComic, uuid.UUID(kr["system_id"]))
-    db_session.refresh(entry)
-    assert entry.highlight_group_order == ["Bea", "Ana"]
-
-
-def test_a_malformed_group_order_is_refused(owner_client, kr):
-    response = owner_client.patch(
-        f"/api/h-comic/{kr['system_id']}", json={"highlight_group_order": "Ana"}
-    )
-    assert response.status_code == 422
-    response = owner_client.put(
-        f"/api/h-comic/{kr['system_id']}", json={"highlight_group_order": [1, 2]}
-    )
-    assert response.status_code == 422
-
-
-def test_a_jp_entry_keeps_no_group_order(owner_client, jp):
-    response = owner_client.patch(
-        f"/api/h-comic/{jp['system_id']}", json={"highlight_group_order": ["Ana"]}
-    )
-    assert response.status_code == 200
-    assert response.json()["highlight_group_order"] is None
+def test_the_entry_update_ignores_a_group_order(owner_client, kr, db_session):
+    """An entry write is the catalogue's: a sent order is dropped, never
+    stored for anybody, and the response carries the caller's own (none)."""
+    for write in (owner_client.patch, owner_client.put):
+        response = write(
+            f"/api/h-comic/{kr['system_id']}",
+            json={"highlight_group_order": ["Bea", "Ana"]},
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["highlight_group_order"] is None
+    assert db_session.query(models.UserHighlightGroupOrder).count() == 0

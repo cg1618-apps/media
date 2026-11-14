@@ -38,7 +38,7 @@ it("moves an entry with its drag handle and saves the new order", async () => {
     <NameEntriesSection
       section={SECTION}
       notes={[NOTE]}
-      isAdmin
+      canWrite
       onCreate={vi.fn()}
       onUpdate={onUpdate}
       onDelete={vi.fn()}

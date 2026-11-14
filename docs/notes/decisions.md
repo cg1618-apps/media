@@ -4111,6 +4111,298 @@ below.
   `[a-z0-9_-]{3,32}` and no-`admin`/`guest` rules apply to new names only,
   so the `admin` account keeps its name.
 
+### Ratings, expectations and the unit remark are each account's own (2026-11-13)
+
+The rating of a collection, franchise, series, character, person, studio or
+publisher, the expectation of the three tiers, and a novel unit's remark were
+columns on the shared rows: one person's opinion, shown to everybody, nulled
+for a viewer without `view.personal` by a `personal_gate` module. They moved
+to per-account rows (revision `u1r2atings3`), so `personal_gate` had nothing
+left to gate and was deleted, and `view.personal` now gates only the
+highlight note sections. That retires the "null, not absent" and
+`manage.catalog` exemption bullets of the `view` family entry above.
+
+- **One `user_rating` table, not seven.** The seven ratings and three
+  expectations are one concept, read one way (`attach_ratings`, one query
+  per page) and written one way (`PUT /api/me/ratings/{owner_type}/{owner_id}`).
+  Seven tables would be seven models, seven Sheets tabs and seven copies of
+  the same delete-when-empty rule. The owner is one FK column per owning
+  table with a `num_nonnulls(...) = 1` CHECK - the shape `note` and
+  `watch_order_follow` already use - rather than an `(owner_type, owner_id)`
+  pair, because a real foreign key cascades: deleting the franchise or the
+  account takes the rating with it, where an FK-less pair leaves orphans for
+  somebody to sweep. The expectation is one `expectation` column with a CHECK
+  that it sits only on a tier; the responses keep their old per-tier field
+  names, so the frontend's sorts, filters and statistics did not change.
+- **The unit remark sits beside the unit rating**, on
+  `user_novel_unit_rating`. It is the same kind of thing one level down - a
+  reader's note on one volume - and that table already existed per reader,
+  so a second unit table would have been a second row to join for one
+  reader's view of one unit.
+- **The migration's owner query is frozen, and never reads `role.is_root`
+  nor picks `guest` or `shared`.** The existing values were one person's, so
+  they move to the installation owner: the flag holder, else the first
+  active account by username whose role is none of `admin`, `guest` and
+  `shared` - a pending registrant or a disabled account never receives them,
+  and `'active'` is a literal for the same reason the role names are; with
+  values to move and no such account it raises rather than guesses. The
+  query is a literal in the revision, not an import of
+  `installation_owner_id`, because a migration must keep meaning what it
+  meant when it ran, and that function's fallback reads `role.is_root`,
+  which the account rework is to drop, so a revision reading it would stop
+  running once that lands. Production may lack the flag, and the runtime
+  fallback ("first non-root") would happily name a `guest` or `shared`
+  account - handing the owner's ratings to a login anyone may use. Downgrade
+  restores only the owner's values, since the old columns hold one person's;
+  every other account's rows are lost, said in the docstring, and the
+  revision is not marked `irreversible` because the owner's data, all the
+  old shape could hold, comes back whole.
+- **Old-sheet headers are handled in `legacy_personal.py`, not `pull.py`.**
+  A backup taken before the revision carries `my_rating`, the
+  `*_expectation` columns and the unit `remark` on its catalogue tabs, and
+  Pull files them under the installation owner rather than dropping them.
+  `tests/services/test_pipelines_write_no_personal_columns.py` forbids every
+  pipeline module from naming a personal column, `my_rating` among them, so
+  `pull.py` cannot spell those headers. Adding `my_rating` to the guard's
+  `ALLOWED` would have exempted it in every pipeline file, including the
+  ones that must never write a list row's rating. A domain module that owns
+  the header names, pops the values and writes them keeps the guard whole:
+  Pull asks it which headers are legacy and never writes a personal row
+  itself.
+- **Writes sit under `self.list`**, the permission every other piece of an
+  account's own data is written under, so the admin - which the root
+  short-circuit does not give the `self` family - keeps no ratings. The
+  catalogue create and update schemas dropped the fields, so a
+  `manage.catalog` write cannot make one account's opinion everybody's.
+- **A merge moves ratings to the survivor** where that account has none
+  there, and drops the loser's otherwise - the survivor's own rating wins,
+  as its columns do in `merge_fill`.
+
+### Highlights are each account's own, and so is their group order (2026-11-13)
+
+The six highlight sections - `highlights`, `highlight_episodes`,
+`highlight_passages`, `highlight_moments`, `h_comic_highlights`,
+`h_game_highlights` - are an opinion of the work, and became personal note
+sections. Revision `h1i2ghlights3` re-authors their rows to the installation
+owner (the frozen `OWNER` rule `u1r2atings3` uses), so the person they were
+written for still reads them. 下周目目標 (`ng_goals`) arrived as a personal
+`text_links` section in NG 多周目 at the same time - a plan for one's next run
+is one person's, like the 待辦 buckets it sits before.
+
+- **The group order is a table, not a hidden note section.** An h-comic's or
+  h-game's highlight group order was a JSONB column on the entry; once the
+  rows are per account, the order of their groups has to be too.
+  `user_highlight_group_order (user_id, media_id, group_order)` is the
+  `user_rating` shape: one row per account per entry, read and written
+  whole, deleted when cleared, cascading with either end, and attached to the
+  entry under the old field name so the page reads `highlight_group_order` as
+  before. A hidden personal note section would have reused the note router's
+  author rules for free, but it would be a section the registry has to
+  exclude from every listing, a singleton rule to enforce per author, and a
+  JSON list stored in a column (`fields`) designed for one row's named
+  fields - and its Sheets travel would be by note uuid rather than by the
+  natural key (`media_type`, `public_id`, `username`) every per-user tab
+  uses. The write is `PUT /api/me/highlight-group-order/{media_id}` under
+  `self.personal_notes`, the permission the highlight rows are written under,
+  rather than `self.list`, because the order is part of those notes. A JP
+  h-comic has no highlights section, so turning one JP deletes every
+  account's order on it, as the column used to be cleared.
+- **No per-row `mine` flag on `NoteResponse`.** The plan offered either the
+  user id on `/me` or a `mine` flag on each note so the page could tell its
+  own rows from others'. Neither is needed: `GET /api/notes` returns a
+  personal section's rows only when the viewer wrote them, so every personal
+  row a viewer is served is its own, and `NoteSectionOut.scope` already
+  tells the page who may write a section (catalogue → `manage.catalog`,
+  personal → `self.personal_notes`). A flag would restate the read rule on
+  every row and widen nothing.
+- **`view.personal` is removed, not left empty.** It existed only to withhold
+  `highlights` and `highlight_episodes` - catalogue rows that read as
+  opinion - from guests. Once those sections are personal a guest has none to
+  read, so the key gated nothing; a permission that gates nothing still
+  draws a checkbox on the role editor that appears to mean something. It
+  left `VIEW_PERMISSION_KEYS`, and with it the seeds and the lock
+  reconciliation, which derive from that tuple; the revision deletes the
+  stored grants, and its downgrade does not restore them because which roles
+  held it is recorded nowhere.
+
+### Some values on a catalogue note row are each account's own: note marks (2026-11-13)
+
+The account spec splits eleven catalogue sections: the row - the item, the
+enemy, the ending, the stat, the song, the mod - stays catalogue, and
+`collected` (with the new amount collected), `beaten`, `completion`,
+`my_value`, and the music and mod `status` become each reader's own. The
+registry marks them (`NoteField.personal`, and `NoteSection.personal_status`
+for the two shapes with no field spec); revision `n1o2temarks3` moves today's
+values into the installation owner's marks and clears them from `note`.
+
+- **One JSONB mark per account per row, the `game_choice_mark` shape.**
+  `note_mark (user_id, note_id, values)`, unique per pair, cascading with
+  either end. One row per value would give the same answer with a row per
+  key and a key column the registry already names; a typed column per value
+  would be a migration for every personal field added, which the registry
+  exists to avoid (adding a section, or a field, is "one entry and no
+  migration"). The values are a handful of short strings per row, never
+  queried across rows except the review queue's one `values->>'status'`
+  filter, so JSONB costs nothing here. Its keys are the registry's field
+  keys, `"status"` for a section-level status, checked on write.
+- **Overlay in place, not a parallel structure.** Every `NoteResponse` puts
+  the viewer's value where the field lives - the `status` column, or
+  `fields[key]` - so the response shape is the one the page, its quick edit
+  and its status bars already read, and the sections listing says what is
+  personal (`personal`, `granted`, `personal_status`, `status_granted`)
+  rather than moving it. A separate `marks` object on each row would have
+  made every reader of a row learn two places for one value. The cost is
+  that a row's own `status` / `fields` now never mean the stored value for
+  those keys; the overlay overwrites them always, so a stale value left on a
+  row cannot leak, and a catalogue write drops them, so none is stored.
+- **An unmarked value reads its default, else null.** The spec says a user
+  with no mark sees "the field's empty value". The registry already declares
+  what a field reads before anyone sets it (`collected` → not collected,
+  `beaten` → to beat, the list status → Not Done), and the page drafts new
+  rows from it, so that default IS the empty value; a field declaring none
+  (`completion`, `my_value`, a song's status) reads null. Storing a default
+  would make every unmarked account look like it had answered.
+- **A catalogue write ignores a personal key rather than refusing it.** The
+  page sends a row back whole, drawn with the viewer's values; refusing
+  those keys would fail every edit. They are dropped before validation, so a
+  row whose only content was a personal value is empty in the catalogue - and
+  a PATCH of a row that was already empty (the migrated status-only songs)
+  is allowed to stay so, while a PATCH still cannot empty a row that says
+  something.
+- **Granted features through one stand-in.** The music and mod statuses are
+  behind per-account switches that another branch builds. Every check asks
+  `has_feature(db, viewer, name)` in `app/services/rbac/features.py`, which
+  today answers true for an account holding `self.personal_notes`. That
+  branch's own `features.py` replaces the module wholesale - reading
+  `users.feature_<name>` - and no caller changes. The stub's answer means
+  that until then every member sees the statuses and the admin none, which
+  matches "today only the owner uses them" on an installation whose only
+  member is the owner. P3g's per-account switches have since replaced the
+  stand-in: `has_feature` reads `users.feature_<name>`.
+- **The review queue reads the caller's own music statuses** (decided with
+  the owner). The rows are shared, but "waiting on something" is a fact
+  about one person's tracking, so the queue is per caller, like the remarks
+  block beside it.
+- **The NG reset is registry-driven.** `NoteField.ng_resets` marks what a new
+  cycle clears; a section with an `ng_reset` field reaches only its rows
+  marked yes (missing reads as the default, yes), and 敵人, having none,
+  reaches every row. It clears the caller's own marks and nothing else.
+- **Sheets: a Note Mark tab by `username` and the note's uuid**, like the
+  other per-user tabs, with the note translated through the Note tab when
+  this database holds the row under its own uuid - a `music_status` row is
+  minted per database, and the music status is the mark most worth keeping.
+  An old backup's Note tab still carrying the values is read exactly: on
+  these sections the status column (or `fields.my_value`) only ever held the
+  personal value, so Pull takes it off the row before matching and files it
+  under the installation owner.
+
+### Catalogue rows and each account's own rows in one section: mixed sections (2026-11-13)
+
+The account spec makes ten catalogue sections mixed - 武器&裝備, 道具,
+收集物, 敵人, 角色, 地理, 配裝&流派, 隊伍組成, 攻略資源 and Resources: a
+viewer reads the catalogue rows plus its own personal rows, in the same
+groups. The registry marks them (`NoteSection.mixed`); revision
+`m1i2xedrows3` adds `note.personal`.
+
+- **A row-level boolean, because the section cannot say.** Everywhere else a
+  row's kind is its section's `scope`, and the read filter, the write gate
+  and Pull all key on that. A mixed section holds both kinds, so the kind
+  has to live on the row. One boolean, NOT NULL with a false default, makes
+  every row that existed before it catalogue with nothing to move, and
+  leaves `scope` meaning what it meant. A second section per mixed section
+  (`items` and `items_personal`) was the alternative: it would have split
+  one card's rows across two sections, two orders and two group lists, the
+  thing the spec's "in the same groups" rules out. `personal` stays false on
+  a personal-scope section's rows: those are personal by their section, and
+  a second source of the same answer is one that can disagree.
+- **The server picks the kind, from `manage.catalog`.** The spec fixes which
+  kind an account writes by whether it writes the catalogue, never both in
+  one section, and there is no "only me" switch. So the payload carries no
+  kind: a `personal` key is ignored like `author_id`, and `_authorize_write`
+  decides - catalogue for a `manage.catalog` holder (`super`, the admin, any
+  catalogue editor), personal for anyone else holding `self.personal_notes`.
+  Taking it from the payload would have needed refusing the wrong one per
+  account, which is the same rule written twice. The admin writes catalogue
+  rows and keeps none of its own, as everywhere: a personal row is 404 to it
+  like to anyone not its author, with no root short-circuit.
+- **Reorder is per kind.** The two kinds never share an order - a user's
+  rows sit after the catalogue's - so a reorder renumbers one: a
+  `manage.catalog` holder sends exactly the catalogue rows, anyone else
+  exactly its own. One list naming both would mean an order the read never
+  draws, and a catalogue order written by a member would be a catalogue
+  write by someone who may not make one.
+- **A user's rows sort after the catalogue's within each group.** Sharing the
+  catalogue's order would mean a per-user copy of it, which the spec rules
+  out. Sorting by kind before `sort_index` in one flat response is enough:
+  the page groups by first appearance and nests by `parent_id`, keeping the
+  response order inside every group and under every parent, so no grouping
+  has to know about kinds. Geography's tree takes the same rule one way: a
+  personal row may sit under a catalogue row, but a catalogue row may not
+  sit under a personal one, which every other reader would see as a child
+  with no parent.
+- **Never promoted.** A personal row is never turned into a catalogue row:
+  no write changes `personal`, and a PATCH may move a personal row only to
+  another mixed section. Adding one to the catalogue is a request, written
+  by whoever writes the catalogue - the spec's rule, and the reason a row
+  never changes hands between an account and everyone.
+- **Personal values work on both kinds through marks.** A personal row's
+  collected and beaten are its author's marks exactly as on a catalogue
+  row, so the page, the mark route and the NG reset have one path, and the
+  NG reset reaches the personal rows with no change.
+- **Sheets: the column travels, and twins are catalogue only.** The Note tab
+  carries `personal`; the row restores under its author by `username` like
+  every Note row. An older backup has no header and restores catalogue rows,
+  which is all it can hold. The content twin match - for rows each database
+  minted under its own uuid - reads catalogue rows only, on both sides: a
+  personal row is never minted per database, and matching one by content
+  would hand a catalogue row to one account.
+- **Downgrade deletes the personal rows.** The older code cannot tell one
+  from a catalogue row and would show it to everyone; dropping it is the only
+  safe reading. The catalogue survives, so the revision is not marked
+  irreversible.
+- **Deleting a catalogue row re-homes members' rows under it** (decided by
+  the owner). In 地理 Geography a member may nest its own rows under a
+  catalogue region, and the `parent_id` CASCADE would delete them with the
+  region: a catalogue edit destroying data that is not the catalogue's. So the
+  delete route moves every member's row under the deleted subtree to the
+  section's top level first - with its own subtree, after that member's
+  top-level rows, keeping their relative order - and the CASCADE then takes
+  only catalogue rows. It lives in the route, not the foreign key, because an
+  ON DELETE rule cannot tell a personal child from a catalogue one; catalogue
+  children still go with their parent, as everywhere else.
+
+### Favourite quotes and memes are each account's own (2026-11-14)
+
+The account spec makes a quote's and a meme's `is_favorite` each user's own
+and a granted feature (`favourites`). Revision `f1a2vourites3` adds
+`user_favorite` and moves every flagged quote and meme to the installation
+owner, by the frozen rule `u1r2atings3` uses.
+
+- **One table, two FK columns.** `quote_id` or `meme_id`, exactly one set,
+  each CASCADE - the owner-column shape `user_rating` and `note` use, so a
+  deleted quote, meme or account takes its favourites with it and no merge
+  code is needed: quotes and memes are never merged, and moving one to
+  another entry keeps its id.
+- **Presence is the value.** A row exists only while the item is a
+  favourite; clearing deletes it. There is no `is_favorite` column on the
+  row to disagree with its existence, and the PUT is idempotent by
+  construction.
+- **The switch hides, it does not delete.** An account whose `favourites`
+  switch is off reads false everywhere and its filter finds nothing, but its
+  rows stay: switching it back on brings them back, as a mode change does
+  not destroy a list. Deleting on switch-off would make a misclick on
+  `/users` lose data.
+- **The write asks both switches, 401 for either.** Favouring a quote means
+  reading it, and the quote reads are behind `quotes_memes`, which answer
+  401 without it. The favourite route answers the same 401, rather than the
+  404 a hidden item gets, because a caller without the read switch is not
+  being told about one item - it holds no quote reads at all, and the read
+  route already says so in those words.
+- **An old backup's flag clears as well as sets.** On a Quote or Meme tab
+  that still carries `is_favorite`, false or blank clears the installation
+  owner's favourite of that row, as a blank rating cell clears a rating: the
+  old sheet held exactly the owner's view, so it is applied whole.
+
 ### Account lifecycle, second half: invite links and registration (2026-11-13)
 
 Strangers reach an account only through a link the admin hands over, and

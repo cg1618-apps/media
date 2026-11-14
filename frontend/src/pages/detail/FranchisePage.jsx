@@ -58,6 +58,8 @@ import PlanKindToggles, {
 import { SIZE_GROUPS, scopesFor } from "../../config/planNextGroups";
 import { effectiveBucket } from "../../utils/planNext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
+import { useViewScope } from "../../hooks/useViewScope";
+import { useMyRatingSaver } from "../../api/mutations/useMyRatingMutations";
 import { entityPath } from "../../lib/entityPath";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
 
@@ -110,11 +112,11 @@ export default function FranchisePage() {
   const { publicId } = useParams();
   const { isAdmin, has } = useAuth();
   const { showToast } = useToast();
-  // A guest's view of a hub (the view.* keys, held by members): without
-  // view.personal the franchise's own rating and expectation and the "my rating"
-  // sorts are not drawn; without view.character there is no Characters tab,
-  // and HubCharacters never asks /api/character/ for one.
-  const showPersonal = has("view.personal");
+  // A guest's view of a hub (the keys members hold): without self.list the
+  // viewer has no rating or expectation of the franchise and no "my rating"
+  // to sort by, so neither is drawn; without view.character there is no
+  // Characters tab, and HubCharacters never asks /api/character/ for one.
+  const { ownData } = useViewScope();
   const showCharacters = has("view.character");
 
   // ── data ──────────────────────────────────────────────────────────────────
@@ -219,6 +221,7 @@ export default function FranchisePage() {
   // Everything past the lookup still speaks UUIDs; only the URL segment
   // changed. Resolved from the fetched row so the two can never disagree.
   const system_id = franchise?.system_id;
+  const saveMyRating = useMyRatingSaver("franchise", system_id, setFranchise);
 
   useCanonicalPath("franchise", franchise);
 
@@ -1347,7 +1350,7 @@ export default function FranchisePage() {
             cover={cover}
             spine={`Franchise · ${franchise.franchise_type || "—"}`}
             id={franchise.system_id}
-            rating={showPersonal ? franchise.my_rating : null}
+            rating={ownData ? franchise.my_rating : null}
             done={completedCount}
             total={totalEntries}
             pct={completionPct}
@@ -1406,11 +1409,11 @@ export default function FranchisePage() {
               className="mt-4"
             />
 
-            {((showPersonal && franchise.franchise_expectation) ||
+            {((ownData && franchise.franchise_expectation) ||
               plannedTypes.size > 0 ||
               rewatchMarked.size > 0) && (
               <div className="flex flex-wrap gap-2 mt-4">
-                {showPersonal && franchise.franchise_expectation && (
+                {ownData && franchise.franchise_expectation && (
                   <Chip>Expectation · {franchise.franchise_expectation}</Chip>
                 )}
                 {Array.from(plannedTypes).map((mediaType) => {
@@ -1439,66 +1442,82 @@ export default function FranchisePage() {
             )}
           </header>
 
-          {isAdmin && (
+          {/* The rating and expectation are the viewer's own (self.list);
+              the plan and rewatch controls stay the catalogue manager's. */}
+          {(ownData || isAdmin) && (
             <Slip title="Curation">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Overall rating">
-                  <select
-                    value={rating}
-                    onChange={(e) => {
-                      setRating(e.target.value);
-                      saveField("my_rating", e.target.value);
-                    }}
-                    className={`${SELECT_CLS} w-full`}
-                  >
-                    <option value="">Not rated</option>
-                    {["S", "A+", "A", "B", "C", "D", "E", "F"].map((r) => (
-                      <option key={r} value={r}>
-                        {r}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Expectation">
-                  <select
-                    value={expectation}
-                    onChange={(e) => {
-                      setExpectation(e.target.value);
-                      saveField("franchise_expectation", e.target.value);
-                    }}
-                    className={`${SELECT_CLS} w-full`}
-                  >
-                    <option value="">None</option>
-                    {["Highest", "High", "Medium", "Low"].map((r) => (
-                      <option key={r} value={r}>
-                        {r}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Plan next" className="sm:col-span-2">
-                  <SizeGroupControls
-                    mediaTypes={sizeGroupMediaTypes}
-                    planned={plannedTypes}
-                    derived={franchise.size_group_derived}
-                    manual={franchise.size_group_manual}
-                    onTogglePlan={handleTogglePlan}
-                    onOverride={handleOverride}
-                  />
-                </Field>
-                {franchiseApplicableRewatchTypes.length > 0 && (
-                  <Field
-                    label={kindLabel("rewatch", franchiseApplicableRewatchTypes)}
-                    className="sm:col-span-2"
-                  >
-                    <PlanKindToggles
-                      kind="rewatch"
-                      scope="franchise"
-                      mediaTypes={franchiseMediaTypes}
-                      marked={rewatchMarked}
-                      onToggle={handleRewatchToggle}
-                    />
-                  </Field>
+                {ownData && (
+                  <>
+                    <Field label="Overall rating">
+                      <select
+                        value={rating}
+                        onChange={(e) => {
+                          setRating(e.target.value);
+                          saveMyRating(
+                            { my_rating: e.target.value || null },
+                            "Rating saved",
+                          );
+                        }}
+                        className={`${SELECT_CLS} w-full`}
+                      >
+                        <option value="">Not rated</option>
+                        {["S", "A+", "A", "B", "C", "D", "E", "F"].map((r) => (
+                          <option key={r} value={r}>
+                            {r}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Expectation">
+                      <select
+                        value={expectation}
+                        onChange={(e) => {
+                          setExpectation(e.target.value);
+                          saveMyRating(
+                            { expectation: e.target.value || null },
+                            "Expectation saved",
+                          );
+                        }}
+                        className={`${SELECT_CLS} w-full`}
+                      >
+                        <option value="">None</option>
+                        {["Highest", "High", "Medium", "Low"].map((r) => (
+                          <option key={r} value={r}>
+                            {r}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                  </>
+                )}
+                {isAdmin && (
+                  <>
+                    <Field label="Plan next" className="sm:col-span-2">
+                      <SizeGroupControls
+                        mediaTypes={sizeGroupMediaTypes}
+                        planned={plannedTypes}
+                        derived={franchise.size_group_derived}
+                        manual={franchise.size_group_manual}
+                        onTogglePlan={handleTogglePlan}
+                        onOverride={handleOverride}
+                      />
+                    </Field>
+                    {franchiseApplicableRewatchTypes.length > 0 && (
+                      <Field
+                        label={kindLabel("rewatch", franchiseApplicableRewatchTypes)}
+                        className="sm:col-span-2"
+                      >
+                        <PlanKindToggles
+                          kind="rewatch"
+                          scope="franchise"
+                          mediaTypes={franchiseMediaTypes}
+                          marked={rewatchMarked}
+                          onToggle={handleRewatchToggle}
+                        />
+                      </Field>
+                    )}
+                  </>
                 )}
               </div>
             </Slip>
@@ -1598,7 +1617,7 @@ export default function FranchisePage() {
               >
                 <option value="title">Sort: title</option>
                 <option value="release_date">Sort: release date</option>
-                {showPersonal && (
+                {ownData && (
                   <option value="my_rating">Sort: my rating</option>
                 )}
                 <option value="mal_rating">Sort: MAL rating</option>
@@ -1748,7 +1767,7 @@ export default function FranchisePage() {
               >
                 <option value="release_date">Sort: release date</option>
                 <option value="title">Sort: title</option>
-                {showPersonal && (
+                {ownData && (
                   <option value="my_rating">Sort: my rating</option>
                 )}
                 <option value="mal_rating">Sort: MAL rating</option>
@@ -1784,7 +1803,7 @@ export default function FranchisePage() {
                 className={SELECT_CLS}
               >
                 <option value="title">Sort: title</option>
-                {showPersonal && (
+                {ownData && (
                   <option value="my_rating">Sort: my rating</option>
                 )}
                 <option value="mal_rating">Sort: MAL rating</option>
@@ -1910,7 +1929,7 @@ export default function FranchisePage() {
                 className={SELECT_CLS}
               >
                 <option value="title">Sort: title</option>
-                {showPersonal && (
+                {ownData && (
                   <option value="my_rating">Sort: my rating</option>
                 )}
                 <option value="mal_rating">Sort: MAL rating</option>
@@ -2034,7 +2053,7 @@ export default function FranchisePage() {
             >
               <option value="release_date">Sort: release date</option>
               <option value="title">Sort: title</option>
-              {showPersonal && (
+              {ownData && (
                 <option value="my_rating">Sort: my rating</option>
               )}
             </select>
@@ -2264,7 +2283,7 @@ export default function FranchisePage() {
               >
                 <option value="release_date">Sort: release date</option>
                 <option value="title">Sort: title</option>
-                {showPersonal && (
+                {ownData && (
                   <option value="my_rating">Sort: my rating</option>
                 )}
                 <option value="imdb_rating">Sort: IMDb rating</option>
@@ -2384,7 +2403,7 @@ export default function FranchisePage() {
               >
                 <option value="release_date">Sort: release date</option>
                 <option value="title">Sort: title</option>
-                {showPersonal && (
+                {ownData && (
                   <option value="my_rating">Sort: my rating</option>
                 )}
                 <option value="imdb_rating">Sort: IMDb rating</option>
@@ -2507,7 +2526,7 @@ export default function FranchisePage() {
               >
                 <option value="release_date">Sort: release date</option>
                 <option value="title">Sort: title</option>
-                {showPersonal && (
+                {ownData && (
                   <option value="my_rating">Sort: my rating</option>
                 )}
                 <option value="imdb_rating">Sort: IMDb rating</option>
@@ -2682,7 +2701,6 @@ export default function FranchisePage() {
               hide the duplicate `remark` section wherever that editor renders. */}
           <FranchiseNotes
             franchise={franchise}
-            isAdmin={isAdmin}
             hideSections={isAdmin || franchise.remark ? ["remark"] : []}
           />
         </Section>

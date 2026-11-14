@@ -1,5 +1,7 @@
-// Frontend: the profile inputs a character and a person share - gender, my
-// rating, and (on Modify) which entry lends its cover when there is no photo.
+// Frontend: the profile inputs a character and a person share - gender and
+// (on Modify) which entry lends its cover when there is no photo. My rating is
+// not here: it is the viewer's own, set on the detail page, and the catalogue
+// write does not carry it.
 //
 // CharacterFields and PersonFields both render these, so the two forms offer
 // the same closed vocabularies and the same fallback picker rather than two
@@ -10,7 +12,7 @@ import { Field, selectCls } from "./FormField";
 import QuickPicks from "./QuickPicks";
 import { endpoints } from "../../api/endpoints";
 import { fetchJson } from "../../api/client";
-import { GENDERS, MY_RATINGS } from "../../config/fieldOptions";
+import { GENDERS } from "../../config/fieldOptions";
 import { releaseYear } from "../../lib/releaseDate";
 
 // The genders offered as one-click chips beside the Gender select - the two
@@ -20,10 +22,10 @@ import { releaseYear } from "../../lib/releaseDate";
 const GENDER_QUICK_PICKS = ["男", "女"];
 
 /**
- * Gender (quick-pick chips beside a select) and My Rating (a select). Both
- * store "" for unset; the savers send null.
+ * Gender: quick-pick chips beside a select. Stores "" for unset; the savers
+ * send null.
  */
-export function GenderRatingFields({ form, update }) {
+export function GenderField({ form, update }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <Field label="Gender">
@@ -51,21 +53,6 @@ export function GenderRatingFields({ form, update }) {
             </select>
           </div>
         </div>
-      </Field>
-      <Field label="My Rating">
-        <select
-          aria-label="My Rating"
-          className={selectCls}
-          value={form.my_rating ?? ""}
-          onChange={(e) => update("my_rating", e.target.value)}
-        >
-          <option value="">Unrated</option>
-          {MY_RATINGS.map((r) => (
-            <option key={r} value={r}>
-              {r}
-            </option>
-          ))}
-        </select>
       </Field>
     </div>
   );

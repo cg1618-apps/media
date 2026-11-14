@@ -475,7 +475,6 @@ export default function Hentai() {
           <HentaiNotes
             key={hentai.system_id}
             hentai={hentai}
-            isAdmin={isAdmin}
             hideSections={hentai.remark ? ["remark"] : []}
             series={series}
             franchise={franchise}

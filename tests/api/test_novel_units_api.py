@@ -182,9 +182,12 @@ def test_listing_novels_does_not_n_plus_one(owner_client, test_engine):
 
 
 # --- per-unit rating --------------------------------------------------------
+# A unit's rating is the reader's own (user_novel_unit_rating), written by
+# PUT /api/me/novel-units/{unit_id}; the catalogue units write ignores it.
+# tests/api/test_novel_unit_rating_is_personal.py holds the rest.
 
 
-def test_create_persists_a_unit_rating(owner_client):
+def test_a_units_save_ignores_a_unit_rating(owner_client):
     resp = owner_client.post(
         "/api/novel/",
         json=_novel_payload(
@@ -196,82 +199,33 @@ def test_create_persists_a_unit_rating(owner_client):
     )
     assert resp.status_code == 201
     units = resp.json()["units"]
-    assert units[0]["my_rating"] == "S"
-    assert units[1]["my_rating"] is None
+    assert [u["my_rating"] for u in units] == [None, None]
 
 
-def test_a_unit_rating_does_not_touch_the_novels_own_rating(owner_client):
-    body = owner_client.post(
-        "/api/novel/",
-        json=_novel_payload(
-            my_rating="C",
-            units=[
-                {"unit_kind": "arc", "position": 1, "unit_key": "arc 1", "ch_count": 100, "my_rating": "S"},
-            ],
-        ),
-    ).json()
-    assert body["my_rating"] == "C"
+def test_a_readers_unit_rating_does_not_touch_the_novels_own_rating(
+    owner_client, user_client
+):
+    created = owner_client.post("/api/novel/", json=_novel_payload()).json()
+    unit_id = created["units"][0]["system_id"]
+    r = user_client.put(f"/api/me/novel-units/{unit_id}", json={"my_rating": "S"})
+    assert r.status_code == 200, r.text
+
+    body = user_client.get(f"/api/novel/{created['system_id']}").json()
     assert body["units"][0]["my_rating"] == "S"
+    assert body["my_rating"] is None
 
 
-def test_update_changes_and_clears_a_unit_rating(owner_client):
+def test_a_volume_row_can_be_rated_too(owner_client, user_client):
     created = owner_client.post(
         "/api/novel/",
         json=_novel_payload(
-            units=[
-                {"unit_kind": "arc", "position": 1, "unit_key": "arc 1", "ch_count": 100, "my_rating": "B"},
-            ]
-        ),
-    ).json()
-    unit = created["units"][0]
-
-    changed = owner_client.put(
-        f"/api/novel/{created['system_id']}",
-        json={
-            "novel_name_cn": "測試小說",
-            "type": "Web",
-            "units": [
-                {
-                    "system_id": unit["system_id"],
-                    "unit_kind": "arc",
-                    "position": 1,
-                    "unit_key": "arc 1",
-                    "ch_count": 100,
-                    "my_rating": "A",
-                }
-            ],
-        },
-    ).json()
-    assert changed["units"][0]["my_rating"] == "A"
-
-    cleared = owner_client.put(
-        f"/api/novel/{created['system_id']}",
-        json={
-            "novel_name_cn": "測試小說",
-            "type": "Web",
-            "units": [
-                {
-                    "system_id": unit["system_id"],
-                    "unit_kind": "arc",
-                    "position": 1,
-                    "unit_key": "arc 1",
-                    "ch_count": 100,
-                }
-            ],
-        },
-    ).json()
-    assert cleared["units"][0]["my_rating"] is None
-
-
-def test_a_volume_row_can_be_rated_too(owner_client):
-    body = owner_client.post(
-        "/api/novel/",
-        json=_novel_payload(
             type="Light Novel",
-            units=[
-                {"unit_kind": "volume", "position": 1, "name_cn": "第一卷", "my_rating": "A+"},
-            ],
+            units=[{"unit_kind": "volume", "position": 1, "name_cn": "第一卷"}],
         ),
     ).json()
+    unit_id = created["units"][0]["system_id"]
+    user_client.put(f"/api/me/novel-units/{unit_id}", json={"my_rating": "A+"})
+
+    body = user_client.get(f"/api/novel/{created['system_id']}").json()
     assert body["units"][0]["my_rating"] == "A+"
     assert body["units"][0]["display_key"] == "Vol 1"

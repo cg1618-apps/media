@@ -291,7 +291,6 @@ export default function Game() {
       key={game.system_id}
       ownerType="game"
       ownerId={game.system_id}
-      isAdmin={isAdmin}
       series={series}
       franchise={franchise}
     >

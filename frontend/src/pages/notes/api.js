@@ -55,5 +55,20 @@ export const reorderNotes = (ownerType, ownerId, section, orderedIds) =>
     }),
   });
 
+// The caller's own personal values on one catalogue row - `values` is
+// {key: value | null}, each key a personal field's key or "status" for a
+// section-level personal status. A null clears that value; a key not named is
+// left alone. Answers the row as the caller now reads it.
+export const markNote = (id, values) =>
+  fetchJson(`${BASE}/${id}/mark`, { method: "PUT", ...jsonBody({ values }) });
+
+// A new cycle of one owner for the caller: clears its own collected values on
+// the rows that reset and every beaten. Answers {cleared: n}.
+export const ngReset = (ownerType, ownerId) =>
+  fetchJson(`${BASE}/ng-reset`, {
+    method: "POST",
+    ...jsonBody({ owner_type: ownerType, owner_id: ownerId }),
+  });
+
 export const deleteNote = (id) =>
   fetchNoContent(`${BASE}/${id}`, { method: "DELETE" });

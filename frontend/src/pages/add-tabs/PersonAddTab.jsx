@@ -16,7 +16,7 @@ import { PERSON_SUB_TABS } from "../../components/forms/PersonSubTabBar";
 import ImagePicker from "../../components/forms/ImagePicker";
 import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
 import {
-  GenderRatingFields,
+  GenderField,
   PhotoFallbackField,
 } from "../../components/forms/EntityProfileFields";
 import { endpoints } from "../../api/endpoints";
@@ -178,7 +178,7 @@ export function PersonFields({ personForm, upf, roles, setRoles, legalScopes, ow
       />
 
       <SectionHeader icon="fa-id-card" title="Profile" />
-      <GenderRatingFields form={personForm} update={upf} />
+      <GenderField form={personForm} update={upf} />
       <Field
         label="MAL Link"
         hint="The person's myanimelist.net/people/<id> page; the MAL id is read from it."

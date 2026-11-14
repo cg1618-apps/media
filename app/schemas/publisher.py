@@ -20,7 +20,6 @@ class PublisherBase(BaseModel):
     name_jp: Optional[str] = None
     name_alt: Optional[str] = None
     display_name_field: Optional[str] = None
-    my_rating: Optional[str] = None
     logo_file: Optional[str] = None
     logo_focus: ImageFocus = None
     remark: Optional[str] = None
@@ -77,6 +76,10 @@ class PublisherUpdate(PublisherBase):
 
 class PublisherResponse(PublisherBase):
     system_id: UUID
+    # The VIEWER'S own rating, from user_rating (services.domain.user_rating
+    # .attach_ratings); null for a guest. Not on the Base: a catalogue write
+    # does not carry it - PUT /api/me/ratings/... does.
+    my_rating: Optional[str] = None
     # The id the SPA puts in the URL. Never gated: a viewer allowed to see the
     # entry must be able to link to it.
     public_id: int

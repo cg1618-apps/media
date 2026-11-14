@@ -493,7 +493,6 @@ export default function Cartoon() {
           <CartoonNotes
             key={cartoon.system_id}
             cartoon={cartoon}
-            isAdmin={isAdmin}
             hideSections={cartoon.remark ? ["remark"] : []}
             series={series}
             franchise={franchise}

@@ -91,7 +91,8 @@ class Quote(Base):
     # True when the line works in any conversation ("hi") rather than fitting
     # only a specific scenario - the quote is meant to be sent as a message.
     is_general = Column(Boolean, default=False, nullable=True)
-    is_favorite = Column(Boolean, default=False, nullable=True)
+    # Whether a quote is a favourite is each account's own, in user_favorite;
+    # the response's `is_favorite` is the viewer's (models/__init__.py).
     # Set on every row imported from the old notes.quotes_memes lists, which
     # carried no speaker or episode to import.
     needs_review = Column(Boolean, default=False, nullable=True)

@@ -8,9 +8,10 @@ use. This module owns what happens to that list.
 """
 
 import uuid
+from typing import Optional
 
+from app.database import get_taipei_now
 from app.models import NovelUnit, UserNovelUnitRating
-from app.services.domain.user_list import acting_user_id
 
 
 def write_novel_units(db, entry, units, viewer=None) -> None:
@@ -20,6 +21,13 @@ def write_novel_units(db, entry, units, viewer=None) -> None:
     Rows carrying a system_id are updated, rows without one are inserted, and
     rows the payload omits are deleted. Passing None means "not supplied" and
     leaves the existing rows alone; passing [] clears them.
+
+    Only the unit's own columns are written. A reader's rating of and remark
+    on a unit are theirs, not the catalogue's, and are written only through
+    PUT /api/me/novel-units/{unit_id} (write_unit_rating below); a units item
+    naming either key has it ignored here, so a catalogue save neither files
+    the editor's opinion nor clears anybody's. `viewer` is unused: it is the
+    signature every MediaTypeSpec.nested_collections writer shares.
     """
     if units is None:
         return
@@ -29,9 +37,6 @@ def write_novel_units(db, entry, units, viewer=None) -> None:
         for u in db.query(NovelUnit).filter(NovelUnit.novel_id == entry.system_id).all()
     }
     seen = set()
-    # (rating, row) pairs, filled as each unit is built. The row is only
-    # known after the loop body, so the rating is parked first.
-    pending_ratings: list = []
 
     for item in units:
         data = item if isinstance(item, dict) else item.model_dump()
@@ -52,15 +57,11 @@ def write_novel_units(db, entry, units, viewer=None) -> None:
             "unit_key": data.get("unit_key"),
             "name_cn": data.get("name_cn"),
             "name_en": data.get("name_en"),
-            "remark": data.get("remark"),
             # Guarded by ck_novel_unit_ch_count_arc_only; normalise here so a
             # client that leaves a stale count on a re-kinded row cannot trip
             # the constraint.
             "ch_count": data.get("ch_count") if data.get("unit_kind") == "arc" else None,
         }
-        # my_rating is the reader's, not the unit's: held aside here and
-        # written to their own row once the unit has an id to point at.
-        pending_ratings.append((data.get("my_rating"), None))
 
         row = existing.get(unit_id) if unit_id else None
         if row is None:
@@ -70,7 +71,6 @@ def write_novel_units(db, entry, units, viewer=None) -> None:
             for key, value in fields.items():
                 setattr(row, key, value)
         seen.add(row.system_id)
-        pending_ratings[-1] = (pending_ratings[-1][0], row)
 
     for unit_id, row in existing.items():
         if unit_id not in seen:
@@ -79,44 +79,57 @@ def write_novel_units(db, entry, units, viewer=None) -> None:
             db.delete(row)
 
     db.flush()
-    _write_unit_ratings(db, pending_ratings, viewer)
-    db.flush()
     db.refresh(entry)
 
 
-def _write_unit_ratings(db, pending, viewer) -> None:
-    """Upsert the acting user's rating for each unit the payload carried.
+def _blank_to_none(value) -> Optional[str]:
+    if value is None:
+        return None
+    if isinstance(value, str) and not value.strip():
+        return None
+    return value
 
-    A null rating is nothing to record: an existing row is deleted rather
-    than kept holding None, so "never graded" and "graded, then cleared"
-    do not become two different states in the table.
+
+def write_unit_rating(
+    db, user_id, unit_id, changes: dict
+) -> Optional[UserNovelUnitRating]:
     """
-    user_id = acting_user_id(db, viewer)
-    if user_id is None:
-        return
-    for rating, unit in pending:
-        if unit is None:
-            continue
-        existing = (
-            db.query(UserNovelUnitRating)
-            .filter(
-                UserNovelUnitRating.user_id == user_id,
-                UserNovelUnitRating.unit_id == unit.system_id,
-            )
-            .first()
+    Apply `my_rating` and/or `remark` - only the keys present - to one
+    reader's row for one unit. "" counts as clearing.
+
+    A row left holding neither is deleted rather than kept holding None, so
+    "never touched" and "cleared" do not become two different states in the
+    table. Returns the row, or None when there is none afterwards. Not
+    committed: the caller owns the transaction.
+    """
+    existing = (
+        db.query(UserNovelUnitRating)
+        .filter(
+            UserNovelUnitRating.user_id == user_id,
+            UserNovelUnitRating.unit_id == unit_id,
         )
-        if rating in (None, ""):
-            if existing is not None:
-                db.delete(existing)
-            continue
-        if existing is None:
-            db.add(
-                UserNovelUnitRating(
-                    system_id=uuid.uuid4(),
-                    user_id=user_id,
-                    unit_id=unit.system_id,
-                    my_rating=rating,
-                )
-            )
-        else:
-            existing.my_rating = rating
+        .first()
+    )
+    rating = _blank_to_none(
+        changes["my_rating"] if "my_rating" in changes
+        else (existing.my_rating if existing else None)
+    )
+    remark = _blank_to_none(
+        changes["remark"] if "remark" in changes
+        else (existing.remark if existing else None)
+    )
+    if rating is None and remark is None:
+        if existing is not None:
+            db.delete(existing)
+            db.flush()
+        return None
+    if existing is None:
+        existing = UserNovelUnitRating(
+            system_id=uuid.uuid4(), user_id=user_id, unit_id=unit_id
+        )
+        db.add(existing)
+    existing.my_rating = rating
+    existing.remark = remark
+    existing.updated_at = get_taipei_now()
+    db.flush()
+    return existing

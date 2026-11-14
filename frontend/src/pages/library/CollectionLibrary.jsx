@@ -25,11 +25,11 @@ export default function CollectionLibrary() {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentSort, setCurrentSort] = useState("my_rating");
-  // A collection's rating and expectation are personal content
-  // (view.personal). Without it neither sort is offered and the library
-  // sorts by title - the chosen sort, my rating by default, would order by
-  // values the server never sends.
-  const { personal: showPersonal } = useViewScope();
+  // A collection's rating and expectation are the viewer's own (self.list).
+  // Without the key neither sort is offered and the library sorts by title -
+  // the chosen sort, my rating by default, would order by values the server
+  // never sends.
+  const { ownData: showPersonal } = useViewScope();
   const sort = showPersonal ? currentSort : "title";
 
   useEffect(() => {

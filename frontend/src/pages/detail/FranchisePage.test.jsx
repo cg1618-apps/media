@@ -2,7 +2,7 @@
 //
 // Every media tab carries the number of entries it lists. A tab whose label
 // had no count showed "Game 0" beside a full list of games.
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -58,9 +58,18 @@ beforeEach(() => {
   me = [];
   vi.stubGlobal(
     "fetch",
-    vi.fn((url) => {
+    vi.fn((url, init = {}) => {
       const u = String(url);
       if (u.startsWith("/api/auth/me")) return jsonRes(me);
+      if (init.method === "PUT" && u.startsWith("/api/me/ratings/")) {
+        const body = JSON.parse(init.body);
+        return jsonRes({
+          owner_type: "franchise",
+          owner_id: "FR001",
+          my_rating: body.my_rating ?? franchise.my_rating ?? null,
+          expectation: body.expectation ?? franchise.franchise_expectation ?? null,
+        });
+      }
       if (u.startsWith("/api/franchise/FR001")) return jsonRes(franchise);
       if (u.startsWith("/api/game/")) return jsonRes(GAMES);
       if (u.startsWith("/api/h-game/")) return jsonRes(H_GAMES);
@@ -160,14 +169,19 @@ describe("FranchisePage relations link", () => {
 
 // A guest's hub: the franchise carries a rating and an expectation, and the
 // member mirror draws both and offers the Characters tab, so their absence
-// for a guest is the view.* keys' doing.
+// for a guest is the permissions' doing - self.list for the viewer's own
+// rating and expectation, view.character for the Characters tab.
 describe("FranchisePage for a guest", () => {
   const GUEST = { username: null, role: "guest", permissions: [] };
   const MEMBER = {
     username: "reader",
     role: "user",
-    permissions: ["view.studio", "view.publisher", "view.person", "view.character", "view.search", "view.extras", "view.personal"],
+    permissions: ["view.studio", "view.publisher", "view.person", "view.character", "view.search", "view.extras", "self.list"],
   };
+  // The member without self.list: every view.* key, the same franchise.
+  const READER = { ...MEMBER, permissions: MEMBER.permissions.filter((p) => p !== "self.list") };
+  const ratingSelect = () => screen.queryByRole("option", { name: "Not rated" })?.closest("select");
+  const putCalls = () => fetch.mock.calls.filter(([, init]) => init?.method === "PUT");
   const rated = { ...FRANCHISE, my_rating: "S", franchise_expectation: "High" };
   const characterFetched = () =>
     fetch.mock.calls.some(([url]) => String(url).startsWith("/api/character/"));
@@ -190,5 +204,35 @@ describe("FranchisePage for a guest", () => {
     expect(await screen.findByRole("button", { name: /^Characters/ })).toBeInTheDocument();
     expect(screen.getByLabelText("Rating S")).toBeInTheDocument();
     expect(screen.getByText(/Expectation · High/)).toBeInTheDocument();
+  });
+
+  it("lets a member holding self.list save its own rating and expectation", async () => {
+    franchise = rated;
+    me = MEMBER;
+    renderPage();
+    await screen.findByRole("button", { name: /^Characters/ });
+    // The plan controls stay the catalogue manager's.
+    expect(screen.queryByText("Plan next")).toBeNull();
+
+    await userEvent.selectOptions(ratingSelect(), "A");
+    await waitFor(() => expect(putCalls()).toHaveLength(1));
+    expect(putCalls()[0][0]).toBe("/api/me/ratings/franchise/FR001");
+    expect(JSON.parse(putCalls()[0][1].body)).toEqual({ my_rating: "A" });
+    expect(await screen.findByLabelText("Rating A")).toBeInTheDocument();
+
+    const expectationSelect = screen.getByRole("option", { name: "None" }).closest("select");
+    await userEvent.selectOptions(expectationSelect, "");
+    await waitFor(() => expect(putCalls()).toHaveLength(2));
+    expect(JSON.parse(putCalls()[1][1].body)).toEqual({ expectation: null });
+  });
+
+  it("offers no editor, and draws no rating, without self.list", async () => {
+    franchise = rated;
+    me = READER;
+    renderPage();
+    expect(await screen.findByRole("button", { name: /^Characters/ })).toBeInTheDocument();
+    expect(ratingSelect()).toBeFalsy();
+    expect(screen.queryByLabelText("Rating S")).toBeNull();
+    expect(screen.queryByText(/Expectation · High/)).toBeNull();
   });
 });

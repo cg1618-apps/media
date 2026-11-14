@@ -729,6 +729,16 @@ PERSONAL_KEYS = {
     "episode_comments",
     "questions",
     "personal_reviews",
+    # The six highlight sections: which episode or scene was the best is one
+    # person's opinion of the work.
+    "highlights",
+    "highlight_episodes",
+    "highlight_passages",
+    "highlight_moments",
+    "h_comic_highlights",
+    "h_game_highlights",
+    # 下周目目標: what I mean to do on my next run.
+    "ng_goals",
     # The 待辦 buckets. Four sections rather than one with a kind, because
     # sort_index orders rows within one (owner, section) pair.
     "todo_now",
@@ -752,12 +762,6 @@ CATALOG_KEYS = {
     "adaptation",
     "resources",
     "public_reviews",
-    "highlights",
-    "highlight_episodes",
-    "highlight_passages",
-    "highlight_moments",
-    "h_comic_highlights",
-    "h_game_highlights",
     "analysis",
     "cinematography",
     "craft",
@@ -836,7 +840,7 @@ def test_external_sections_carry_no_scope():
         assert sec.scope is None
 
 
-def test_the_personal_sections_are_exactly_these_thirteen():
+def test_the_personal_sections_are_exactly_these_twenty():
     assert {s.key for s in ns.NOTE_SECTIONS if s.scope == ns.SCOPE_PERSONAL} == (
         PERSONAL_KEYS
     )
@@ -852,7 +856,7 @@ def test_the_catalog_sections_are_exactly_these():
 
 def test_the_two_scopes_partition_every_stored_section():
     stored = {s.key for s in ns.NOTE_SECTIONS if s.shape in ns.STORED_SHAPES}
-    assert len(stored) == 74
+    assert len(stored) == 75
     assert ns.PERSONAL_SECTIONS | ns.CATALOG_SECTIONS == stored
     assert not (ns.PERSONAL_SECTIONS & ns.CATALOG_SECTIONS)
 
@@ -867,6 +871,14 @@ def test_sections_by_scope_returns_registry_order():
         "double_edged",
         "personal_reviews",
         "episode_comments",
+        "highlights",
+        "highlight_episodes",
+        "highlight_passages",
+        "highlight_moments",
+        "h_comic_highlights",
+        "h_game_highlights",
+        # The last of NG 多周目, right before 待辦.
+        "ng_goals",
         # The 待辦 run sits after `symmetry` and before the music group.
         "todo_now",
         "todo_next",
@@ -875,3 +887,82 @@ def test_sections_by_scope_returns_registry_order():
         "saves",
         "questions",
     ]
+
+
+# --- mixed sections ----------------------------------------------------------
+# A mixed section holds catalogue rows and each account's own personal rows
+# together. The ten are the account spec's list, by key.
+
+MIXED = {
+    "weapons_and_gear",
+    "items",
+    "collectibles",
+    "enemies",
+    "characters_guide",
+    "geography",
+    "builds_and_styles",
+    "team_composition",
+    "guide_resources",
+    "resources",
+}
+
+
+def test_the_mixed_sections_are_exactly_these_ten():
+    assert {s.key for s in ns.NOTE_SECTIONS if s.mixed} == MIXED
+    assert ns.MIXED_SECTIONS == frozenset(MIXED)
+
+
+def test_mixed_defaults_to_false():
+    field = {f.name: f for f in dataclasses.fields(ns.NoteSection)}["mixed"]
+    assert field.default is False
+
+
+def test_every_mixed_section_is_catalogue_and_never_a_singleton():
+    # A singleton's one row per owner has no room for a second kind, and the
+    # unique indexes on `note` are per owner (remark) or per kind
+    # (music_status), neither of which is one of these.
+    for key in MIXED:
+        sec = ns.section_by_key(key)
+        assert sec.scope == ns.SCOPE_CATALOG, key
+        assert not sec.singleton and not sec.one_per_kind, key
+
+
+def test_mixed_is_refused_off_a_catalogue_section():
+    for scope in (ns.SCOPE_PERSONAL, None):
+        bad = ns.NoteSection(
+            key="bad", shape=ns.SHAPE_TEXT, label="Bad", owners=("anime",),
+            scope=scope, mixed=True,
+        )
+        try:
+            ns._check_mixed(bad)
+        except ValueError:
+            continue
+        raise AssertionError(f"mixed on scope {scope!r} was accepted")
+    # The mirror: the same section on the catalogue passes.
+    ns._check_mixed(
+        ns.NoteSection(
+            key="ok", shape=ns.SHAPE_TEXT, label="Ok", owners=("anime",),
+            scope=ns.SCOPE_CATALOG, mixed=True,
+        )
+    )
+
+
+def test_a_mixed_singleton_is_refused():
+    bad = ns.NoteSection(
+        key="bad", shape=ns.SHAPE_TEXT, label="Bad", owners=("anime",),
+        scope=ns.SCOPE_CATALOG, mixed=True, singleton=True,
+    )
+    try:
+        ns._check_mixed(bad)
+    except ValueError:
+        return
+    raise AssertionError("a mixed singleton was accepted")
+
+
+def test_the_sections_listing_carries_mixed():
+    from app.schemas.note import sections_out
+
+    out = {s.key: s for s in sections_out("game")}
+    assert out["items"].mixed is True
+    assert out["skills"].mixed is False
+    assert {s.key: s for s in sections_out("anime")}["resources"].mixed is True

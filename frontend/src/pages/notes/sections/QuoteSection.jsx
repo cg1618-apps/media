@@ -28,13 +28,14 @@ import {
   tagCls,
   useEntryCap,
 } from "./ui";
+import FavoriteStar from "../../../components/ui/FavoriteStar";
 import LazyImage from "../../../components/ui/LazyImage";
 
 export default function QuoteSection({
   label,
   mediaType,
   entryId,
-  isAdmin,
+  canWrite,
   onCount,
 }) {
   const { showToast } = useToast();
@@ -138,7 +139,7 @@ export default function QuoteSection({
     <SectionCard
       label={label}
       count={isLoading ? null : items.length}
-      isAdmin={isAdmin}
+      canWrite={canWrite}
       onAdd={() => setAdding(true)}
     >
       {cap.visible.map((item) => {
@@ -180,9 +181,8 @@ export default function QuoteSection({
                     {item.is_general && (
                       <span className={brandTagCls}>general</span>
                     )}
-                    {item.is_favorite && (
-                      <span className={tagCls}>favourite</span>
-                    )}
+                    {/* The viewer's own favourite - only with the feature. */}
+                    <FavoriteStar kind="quote" item={item} className="px-0.5" />
                     {item.needs_review && (
                       <span className={tagCls}>needs review</span>
                     )}
@@ -208,7 +208,7 @@ export default function QuoteSection({
                   {item.link && <LinkPill url={item.link} />}
                 </div>
                 <ItemActions
-                  isAdmin={isAdmin}
+                  canWrite={canWrite}
                   onEdit={() => {
                     setEditId(item.system_id);
                     setEditVal(emptyQuote(item));

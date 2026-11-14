@@ -33,6 +33,7 @@ from app.services.domain.entry_fields import attach_entry_list_fields
 from app.services.domain.game_copies import attach_own_copies
 from app.services.domain.h_comic import attach_animation_status
 from app.services.domain.hierarchy import check_entry_franchise_family
+from app.services.domain.highlight_group_order import attach_group_orders
 from app.services.domain.plan_next import (
     attach_plan_flag,
     pop_plan_flag,
@@ -54,7 +55,6 @@ from app.services.domain.user_list import (
 from app.services.integrations.image_manager import delete_cover_image
 from app.services.rbac.enforcement import apply_entry_visibility, entry_visible
 from app.services.rbac.field_gate import gate
-from app.services.rbac.personal_gate import strip_personal
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog, viewer_user_id
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.entity_ref import media_entity_ref_filter
@@ -245,12 +245,14 @@ def make_media_router(spec) -> APIRouter:
         # than mapped on the class - see app/models/__init__.py. A path that
         # forgets this call shows no remark, never somebody else's.
         attach_remark(db, spec.owner_type, entry, viewer_user_id(viewer))
+        # The viewer's own highlight group order, the same way. No-op for
+        # every type but h-comic and h-game.
+        attach_group_orders(db, spec.owner_type, entry, viewer_user_id(viewer))
         return entry
 
     def _read_gates(viewer, payload):
-        """The access mode's field groups, then the role's personal fields."""
-        gated = gate(viewer, spec.owner_type, payload, spec.response_schema)
-        return strip_personal(viewer, spec.owner_type, gated, spec.response_schema)
+        """The access mode's field groups."""
+        return gate(viewer, spec.owner_type, payload, spec.response_schema)
 
     def _pop_nested(payload: dict) -> dict:
         """Lift nested collections out of the payload; they are not columns."""

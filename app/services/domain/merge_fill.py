@@ -24,6 +24,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app import models
+from app.services.domain.user_rating import merge_user_ratings
 from app.services.integrations import image_manager
 
 # Never copied: identity and bookkeeping, not facts about the thing.
@@ -164,8 +165,10 @@ def rename_cover_file(rename: Optional[tuple[str, str]]) -> None:
 
 def finish_merge(db: Session, owner_type: str, keep, drop) -> None:
     """
-    The end of every merge, once the links are repointed: delete the loser,
-    fill the survivor's blanks from it, commit, and rename a carried picture.
+    The end of every merge, once the links are repointed: move the accounts'
+    ratings of the loser onto the survivor (user_rating.merge_user_ratings -
+    the delete would cascade them away), delete the loser, fill the
+    survivor's blanks from it, commit, and rename a carried picture.
 
     The loser is deleted and FLUSHED before the fill. Person, studio and
     publisher are unique on their four names together, and filling the
@@ -177,6 +180,7 @@ def finish_merge(db: Session, owner_type: str, keep, drop) -> None:
     A fill that gives the survivor the names of some THIRD record is a real
     clash, and a 409 naming it, with nothing changed.
     """
+    merge_user_ratings(db, owner_type, keep.system_id, drop.system_id)
     db.delete(drop)
     db.flush()
     rename = merge_fill(db, owner_type, keep, drop)

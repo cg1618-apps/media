@@ -81,14 +81,18 @@ class TestSeriesNewColumns:
         for name in (
             "series_name_roman",
             "series_name_jp",
-            "my_rating",
-            "series_expectation",
             "cover_entry_id",
             "type_slots",
             "created_at",
             "updated_at",
         ):
             assert name in cols
+
+    def test_the_rating_and_expectation_are_not_columns(self):
+        """They are each account's own, on user_rating."""
+        cols = set(Series.__table__.columns.keys())
+        assert "my_rating" not in cols
+        assert "series_expectation" not in cols
 
     def test_excluded_franchise_columns_are_absent(self):
         cols = set(Series.__table__.columns.keys())
@@ -111,8 +115,6 @@ class TestSeriesNewColumns:
             "series_name_roman",
             "series_name_jp",
             "series_name_alt",
-            "my_rating",
-            "series_expectation",
             "cover_entry_id",
             "type_slots",
             "size_group_derived",

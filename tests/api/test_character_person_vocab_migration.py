@@ -7,6 +7,11 @@ against the test session - the suite has no Alembic harness. Rows are stored
 straight through the ORM, because the write schemas would refuse the free
 text a row from before the revision holds.
 
+my_rating is no longer a column of either table (revision u1r2atings3 moved
+it to user_rating), so the `old_rating_columns` fixture puts it back inside
+the test's transaction for the revision to work on, and the rating test
+reads and writes it with SQL.
+
 Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
@@ -15,6 +20,7 @@ import uuid
 from pathlib import Path
 
 import pytest
+from sqlalchemy import text
 
 from app import models
 
@@ -47,6 +53,13 @@ def revision():
     return module
 
 
+@pytest.fixture(autouse=True)
+def old_rating_columns(db_session):
+    """The column c3p4photofb5 folded, back for the length of one test."""
+    for table in ("character", "person"):
+        db_session.execute(text(f'ALTER TABLE "{table}" ADD COLUMN my_rating VARCHAR'))
+
+
 def _rows(db_session, model, column, values):
     rows = []
     for i, value in enumerate(values):
@@ -71,9 +84,22 @@ def test_gender_is_folded_and_the_rest_dropped(db_session, revision, model):
 
 @pytest.mark.parametrize("model", [models.Character, models.Person])
 def test_my_rating_is_folded_and_the_rest_dropped(db_session, revision, model):
-    rows = _rows(db_session, model, "my_rating", [raw for raw, _ in RATING_CASES])
+    table = model.__tablename__
+    rows = _rows(db_session, model, "name_cn", [None for _ in RATING_CASES])
+    for row, (raw, _expected) in zip(rows, RATING_CASES):
+        db_session.execute(
+            text(f'UPDATE "{table}" SET my_rating = :v WHERE system_id = :id'),
+            {"v": raw, "id": row.system_id},
+        )
     revision.normalize(db_session)
-    assert _reload(db_session, model, rows, "my_rating") == [e for _, e in RATING_CASES]
+    stored = [
+        db_session.execute(
+            text(f'SELECT my_rating FROM "{table}" WHERE system_id = :id'),
+            {"id": row.system_id},
+        ).scalar()
+        for row in rows
+    ]
+    assert stored == [e for _, e in RATING_CASES]
 
 
 def test_normalize_is_idempotent(db_session, revision):

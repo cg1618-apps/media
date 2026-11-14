@@ -44,6 +44,10 @@ import { focusStyle } from "../../lib/covers";
 import CastSection from "../../components/info/CastSection";
 import LazyImage from "../../components/ui/LazyImage";
 import { useViewScope } from "../../hooks/useViewScope";
+import { useSaveMyNovelUnit } from "../../api/mutations/useMyRatingMutations";
+import { SELECT_CLS } from "../../components/hub/HubChrome";
+import { MY_RATINGS } from "../../config/fieldOptions";
+import { novelUnitPayload } from "../../lib/payloads";
 
 const textareaCls =
   "block w-full border border-border-strong bg-surface text-text px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand disabled:bg-surface-2 disabled:text-text-faint disabled:cursor-not-allowed";
@@ -51,15 +55,68 @@ const lineageLinkCls =
   "text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition";
 
 
-// BelongingNovelsCard (CN/EN per-volume title editor) used to live here; it
-// read novel_name_each_cn/_en, which the backend replaced with the `units`
-// relationship (see app/models/novel.py NovelUnit). NovelUnitsCard below is
-// its replacement: same read-only/editor split, but backed by `units` and
-// each row's server-computed `display_key` instead of a bare `{key, name}`.
+// The viewer's own rating of and remark on one unit, saved through
+// PUT /api/me/novel-units/{unit_id} (self.list): the rating as soon as it is
+// picked, the remark when the field loses focus. Neither is the unit's, so the
+// catalogue editor has no control for either.
+function UnitPersonalControls({ unit, novelPublicId }) {
+  const { mutateAsync } = useSaveMyNovelUnit(novelPublicId);
+  const { showToast } = useToast();
+  const [rating, setRating] = useState(unit.my_rating || "");
+  const [remark, setRemark] = useState(unit.remark || "");
+  // What the server holds, so a blur with nothing new to say sends nothing.
+  // A refetched unit with other values remounts this (see its key).
+  const [savedRemark, setSavedRemark] = useState(unit.remark || "");
+
+  async function save(data, message) {
+    try {
+      const saved = await mutateAsync({ unitId: unit.system_id, data });
+      if ("remark" in data) setSavedRemark(saved?.remark || "");
+      showToast("success", message);
+    } catch (err) {
+      showToast("error", err.message || "Save failed");
+    }
+  }
+
+  return (
+    <>
+      <select
+        className={`${SELECT_CLS} w-20 shrink-0`}
+        value={rating}
+        aria-label={`My rating for ${unit.display_key}`}
+        onChange={(e) => {
+          setRating(e.target.value);
+          save({ my_rating: e.target.value || null }, "Rating saved");
+        }}
+      >
+        <option value="">—</option>
+        {MY_RATINGS.map((r) => (
+          <option key={r} value={r}>
+            {r}
+          </option>
+        ))}
+      </select>
+      <input
+        className={`${SELECT_CLS} flex-1 min-w-0`}
+        value={remark}
+        placeholder="Remark"
+        aria-label={`My remark for ${unit.display_key}`}
+        onChange={(e) => setRemark(e.target.value)}
+        onBlur={() => {
+          if (remark !== savedRemark)
+            save({ remark: remark || null }, "Remark saved");
+        }}
+      />
+    </>
+  );
+}
+
+// The novel's units: the catalogue editor for a manage.catalog holder, and
+// the list of units for everyone else. A self.list holder's list carries a
+// rating and a remark control on each unit, so an account holding both keys
+// gets the editor and that list.
 function NovelUnitsCard({ novel, isAdmin, onSave }) {
-  // A unit's remark is personal content (view.personal); the server strips
-  // it for a viewer without the key, and the row does not leave room for it.
-  const { personal: showRemark } = useViewScope();
+  const { ownData } = useViewScope();
   const [items, setItems] = useState(novel.units || []);
   const [dirty, setDirty] = useState(false);
 
@@ -69,14 +126,7 @@ function NovelUnitsCard({ novel, isAdmin, onSave }) {
   }, [novel.units]);
 
   function handleSave() {
-    onSave({
-      units: items.map((u, i) => ({
-        ...u,
-        position: i + 1,
-        ch_count:
-          u.ch_count === "" || u.ch_count == null ? null : Number(u.ch_count),
-      })),
-    });
+    onSave({ units: items.map(novelUnitPayload) });
     setDirty(false);
   }
 
@@ -91,11 +141,12 @@ function NovelUnitsCard({ novel, isAdmin, onSave }) {
   // the editor (with its own "+ Add" control) so they can create the first
   // one.
   if (!isAdmin && !hasUnits) return null;
+  const showList = hasUnits && (!isAdmin || ownData);
 
   return (
     <Slip title="Units">
       <div className="space-y-4">
-        {isAdmin ? (
+        {isAdmin && (
           <>
             <NovelUnitsEditor
               items={items}
@@ -116,8 +167,12 @@ function NovelUnitsCard({ novel, isAdmin, onSave }) {
               </div>
             )}
           </>
-        ) : (
-          <div className="space-y-1.5">
+        )}
+        {showList && (
+          <div
+            className={`space-y-1.5${isAdmin ? " pt-3 border-t border-border" : ""}`}
+          >
+            {isAdmin && <Eyebrow>My ratings</Eyebrow>}
             {(novel.units || []).map((u) => (
               <div key={u.system_id} className="flex items-center gap-2">
                 <Chip className="shrink-0">{u.display_key}</Chip>
@@ -131,11 +186,12 @@ function NovelUnitsCard({ novel, isAdmin, onSave }) {
                     {u.ch_count} ch
                   </span>
                 )}
-                {u.my_rating && (
-                  <Chip className="shrink-0">{u.my_rating}</Chip>
-                )}
-                {showRemark && u.remark && (
-                  <span className="text-xs text-text-faint">{u.remark}</span>
+                {ownData && (
+                  <UnitPersonalControls
+                    key={`${u.my_rating ?? ""}|${u.remark ?? ""}`}
+                    unit={u}
+                    novelPublicId={novel.public_id}
+                  />
                 )}
               </div>
             ))}
@@ -657,7 +713,6 @@ export default function Novel() {
           <NovelNotes
             key={novel.system_id}
             novel={novel}
-            isAdmin={isAdmin}
             hideSections={novel.remark ? ["remark"] : []}
             series={series}
             franchise={franchise}

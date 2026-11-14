@@ -20,7 +20,8 @@ from app.services.domain.character_identities import (
 )
 from app.services.domain.character_tags import character_tag_values
 from app.services.domain.entity_photos import EntityMedia, character_media
-from app.services.rbac.personal_gate import strip_personal
+from app.services.domain.user_rating import ratings_by_owner
+from app.services.rbac.resolver import viewer_user_id
 
 
 def character_response(
@@ -30,22 +31,29 @@ def character_response(
     media: Optional[EntityMedia] = None,
     tags: Optional[dict[str, list[str]]] = None,
     identities: Optional[list] = None,
+    ratings: Optional[dict] = None,
 ) -> schemas.CharacterResponse:
     # casting_count, the picture and the media types all count only castings
     # on entries the viewer may see, exactly as person._to_response counts
     # credit_count - a number is a smaller leak than a title, but "cast in 3
     # things, you can see 2" is still one.
     #
-    # `media`, `tags` and `identities` are passed in by character_responses,
-    # which resolves a whole page in one pass each; a single-entity route
-    # leaves them None and pays for one.
+    # `media`, `tags`, `identities` and `ratings` (the viewer's own
+    # user_rating rows) are passed in by character_responses, which resolves
+    # a whole page in one pass each; a single-entity route leaves them None
+    # and pays for one.
     if media is None:
         media = character_media(db, viewer, [character])[character.system_id]
     if tags is None:
         tags = character_tag_values(db, [character.system_id])[character.system_id]
     if identities is None:
         identities = identities_by_character(db, [character.system_id])[character.system_id]
-    response = schemas.CharacterResponse(
+    if ratings is None:
+        ratings = ratings_by_owner(
+            db, "character", [character.system_id], viewer_user_id(viewer)
+        )
+    own = ratings.get(character.system_id)
+    return schemas.CharacterResponse(
         system_id=character.system_id,
         public_id=character.public_id,
         name_en=character.name_en,
@@ -55,7 +63,7 @@ def character_response(
         display_name_field=character.display_name_field,
         display_name=character.display_name,
         gender=character.gender,
-        my_rating=character.my_rating,
+        my_rating=own.my_rating if own is not None else None,
         photo_file=character.photo_file,
         photo_focus=character.photo_focus,
         photo_fallback_entry_id=media.photo_fallback_entry_id,
@@ -75,7 +83,6 @@ def character_response(
         trait=tags["trait"],
         identities=[identity_response(i, character, media) for i in identities],
     )
-    return strip_personal(viewer, "character", response)
 
 
 def character_responses(
@@ -85,9 +92,9 @@ def character_responses(
     only_identities: Optional[Iterable[UUID]] = None,
 ) -> list[schemas.CharacterResponse]:
     """
-    A page of characters, in the order given, in three queries however long
-    the page is: the castings (entity_photos.character_media), the tags, and
-    the identities.
+    A page of characters, in the order given, in four queries however long
+    the page is: the castings (entity_photos.character_media), the tags, the
+    identities, and the viewer's own ratings.
 
     `only_identities`, when given, narrows each character's `identities` to
     those ids - the franchise and series hubs list only the identities cast
@@ -97,6 +104,7 @@ def character_responses(
     media = character_media(db, viewer, characters)
     tags = character_tag_values(db, ids)
     identities = identities_by_character(db, ids)
+    ratings = ratings_by_owner(db, "character", ids, viewer_user_id(viewer))
     if only_identities is not None:
         keep = set(only_identities)
         identities = {
@@ -111,6 +119,7 @@ def character_responses(
             media[character.system_id],
             tags[character.system_id],
             identities[character.system_id],
+            ratings,
         )
         for character in characters
     ]

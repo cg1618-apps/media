@@ -214,6 +214,40 @@ class NoteField:
     # declaring no `options`, where there is nothing closed to suggest over;
     # checked at import.
     option_category: str | None = None
+    # A PERSONAL field on a catalogue row: the row is shared, this value is
+    # each viewer's own. It is never stored on the row - a catalogue write
+    # drops it - but in the viewer's `note_mark` for the row, and every read
+    # puts the viewer's value back where the field lives (its column, or
+    # `fields[key]`), so a row reads the same shape as before. A viewer with
+    # no mark reads `default`, else null. See app/services/domain/note_marks.py.
+    personal: bool = False
+    # The granted feature (app/services/rbac/features.FEATURE_NAMES) a
+    # personal field is behind. A viewer without it does not see the field at
+    # all: it is left out of the sections listing and off every row.
+    granted: str | None = None
+    # Cleared by the NG reset (POST /api/notes/ng-reset), which starts a new
+    # cycle of a game: on a section that has an `ng_reset` field, only on the
+    # rows whose ng_reset is yes; elsewhere on every row.
+    ng_resets: bool = False
+
+
+@dataclass(frozen=True)
+class PersonalValue:
+    """
+    One personal value a row of a section carries, wherever the registry
+    declares it: a personal NoteField of a structured section, or the
+    section-level `status` of a section with `personal_status`.
+
+    `key` is what a mark stores it under and what PUT /api/notes/{id}/mark
+    names; `column` is where it sits on a row (None means `fields[key]`).
+    """
+
+    key: str
+    column: str | None
+    options: tuple[str, ...]
+    default: str | None
+    granted: str | None
+    ng_resets: bool
 
 
 @dataclass(frozen=True)
@@ -379,8 +413,9 @@ class NoteSection:
     # The key of a `names` field the read view groups rows by: one group per
     # name, and a row naming two appears under both. Display-only - rows are
     # stored and ordered exactly as in any structured section. The order of
-    # the GROUPS is the owner entry's, not this registry's (for h-comic and
-    # h-game, `highlight_group_order` on the entry). Checked at import.
+    # the GROUPS is the viewer's, not this registry's (for h-comic and
+    # h-game, the viewer's user_highlight_group_order row, served as the
+    # entry's `highlight_group_order`). Checked at import.
     group_by: str | None = None
     # The key of a `select` field the reader MAY group rows by: the card gets a
     # toggle, and turned on it draws one group per value of that field, in the
@@ -427,6 +462,21 @@ class NoteSection:
     # targets per owner (NoteSectionOut.move_targets); the move itself is a
     # PATCH of `section`, which appends the row to the end of its new section.
     quick_move: bool = False
+    # The row's `status` is PERSONAL: each viewer's own, kept in its
+    # note_mark under the key "status" and put back on the row on every read
+    # - NoteField.personal for the shapes that have no field spec (the song
+    # lists and music_status). Its vocabulary stays `statuses` and an
+    # unmarked viewer reads `default_status`, else null.
+    personal_status: bool = False
+    # The granted feature that personal status is behind, as
+    # NoteField.granted.
+    status_granted: str | None = None
+    # A catalogue section that also holds personal rows: each account's own,
+    # beside the catalogue rows and in the same groups (`note.personal`). A
+    # viewer reads the catalogue plus its own; who writes which kind is fixed
+    # by manage.catalog (routers/note.py). Catalogue sections only, never a
+    # singleton; checked at import.
+    mixed: bool = False
 
 
 OP_ED_KINDS = ("變化OP", "變化ED", "無OP", "無ED", "特殊OP", "特殊ED")
@@ -457,6 +507,10 @@ _SONG_LIST = dict(
     locator_placeholder="Episode(s), e.g. ep 3",
     link_text_category=SONG_SOURCE_CATEGORY,
     type_status_section=MUSIC_STATUS_SECTION,
+    # The song is catalogue; how far MY tracking of it has got is mine, and
+    # only for an account granted the music status feature.
+    personal_status=True,
+    status_granted="music_status",
 )
 
 # How far a boss or an enemy has got. Closed, unlike the tier beside it: a
@@ -567,8 +621,19 @@ def _named_thing_fields(
                     column="status",
                     options=COLLECT_STATUSES,
                     default="not collected",
+                    personal=True,
+                    ng_resets=True,
                 ),
                 NoteField(key="amount_total", label="Total"),
+                # How many of them I have, beside how many there are. Free
+                # text like the total, and personal like `collected`: never
+                # stored on the row, only in a mark, so it has no column.
+                NoteField(
+                    key="amount_collected",
+                    label="Collected amount",
+                    personal=True,
+                    ng_resets=True,
+                ),
                 NoteField(
                     key="ng_reset",
                     label="NG Reset",
@@ -851,7 +916,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_EPISODE_TEXT,
         label="神回/神片段 Highlights",
         owners=("anime",),
-        scope=SCOPE_CATALOG,
+        scope=SCOPE_PERSONAL,
         locator_placeholder="Episode(s), e.g. ep 6",
         # The stored data distinguishes a great episode from a great moment or
         # arc, so the section keeps a dropdown even though its siblings do not.
@@ -863,7 +928,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_EPISODE_TEXT,
         label="神回/神片段",
         owners=("tv-show", "cartoon", "manga"),
-        scope=SCOPE_CATALOG,
+        scope=SCOPE_PERSONAL,
         labels={"manga": "神回"},
         # TV shows and cartoons draw the same distinction anime does. Manga
         # does not, so it keeps the plain field.
@@ -876,7 +941,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_TEXT,
         label="神片段",
         owners=("novel",),
-        scope=SCOPE_CATALOG,
+        scope=SCOPE_PERSONAL,
     ),
     NoteSection(
         key="highlight_moments",
@@ -885,19 +950,20 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="神場景 Highlights",
         # Not h-game: its highlights are h_game_highlights.
         owners=("game",),
-        scope=SCOPE_CATALOG,
+        scope=SCOPE_PERSONAL,
         locator_placeholder="Chapter / Boss, e.g. Ch 3",
     ),
     NoteSection(
         # A KR h-comic's standout scenes, grouped by the female characters in
         # them. KR only: a JP entry is refused a row (owner_where) and renders
-        # no card. The group order is a column on the entry,
-        # h_comic.highlight_group_order, written through the entry update.
+        # no card. Personal, like every highlight section. The group order is
+        # each account's own, in user_highlight_group_order, written through
+        # PUT /api/me/highlight-group-order/{media_id}.
         key="h_comic_highlights",
         shape=SHAPE_STRUCTURED,
         label="亮點 Highlights",
         owners=("h-comic",),
-        scope=SCOPE_CATALOG,
+        scope=SCOPE_PERSONAL,
         group_by="female_characters",
         owner_where={"region": ("KR",)},
         fields=(
@@ -945,13 +1011,12 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         # the same thing. Single-choice where the entry's are multi-choice -
         # the entry says what the game has anywhere, a row says what one scene
         # is. Every h-game takes it, so there is no owner_where. The group
-        # order is h_game.highlight_group_order, written through the entry
-        # update.
+        # order is each account's own, as for h_comic_highlights.
         key="h_game_highlights",
         shape=SHAPE_STRUCTURED,
         label="亮點 Highlights",
         owners=("h-game",),
-        scope=SCOPE_CATALOG,
+        scope=SCOPE_PERSONAL,
         group_by="female_characters",
         fields=(
             NoteField(
@@ -1247,7 +1312,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
             NoteField(key="min_value", label="Min"),
             NoteField(key="rec_value", label="Rec"),
             NoteField(key="softmax_value", label="Soft cap"),
-            NoteField(key="my_value", label="Mine", quick_edit=True),
+            NoteField(key="my_value", label="Mine", quick_edit=True, personal=True),
             NoteField(
                 key="description",
                 label="Description",
@@ -1306,6 +1371,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="配裝&流派 Builds & Styles",
         owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
+        mixed=True,
         group="builds",
         fields=(
             # Not in the request, and kept anyway: every existing row has one,
@@ -1381,6 +1447,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="隊伍組成 Team Composition",
         owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
+        mixed=True,
         group="builds",
         fields=(
             NoteField(key="name", label="Team", column="title"),
@@ -1413,6 +1480,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="武器&裝備 Weapons & Gear",
         owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
+        mixed=True,
         group="gear",
         fields=_named_thing_fields(variant=True, collected=True),
         groupable_by="type",
@@ -1423,6 +1491,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="道具 Items",
         owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
+        mixed=True,
         group="gear",
         fields=_named_thing_fields(
             variant=True, collected=True, type_category=ITEM_TYPE_CATEGORY
@@ -1435,6 +1504,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="收集物 Collectibles",
         owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
+        mixed=True,
         group="gear",
         fields=_named_thing_fields(
             variant=True, collected=True, type_category=COLLECTIBLE_TYPE_CATEGORY
@@ -1458,6 +1528,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="角色 Characters",
         owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
+        mixed=True,
         group="compendium",
         fields=(
             # `group` is what a character belongs TO - a faction, a party, a
@@ -1488,6 +1559,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="敵人 Enemies",
         owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
+        mixed=True,
         group="compendium",
         fields=(
             # Free text: "boss", "small boss", "elite", "trash" are one game's
@@ -1511,8 +1583,11 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
                 column="status",
                 options=ENEMY_STATUSES,
                 # Every enemy worth a row is one I have not beaten yet when I
-                # write it down, so that is where a new row starts.
+                # write it down, so that is where a viewer with no mark reads.
                 default="to beat",
+                personal=True,
+                # Every enemy resets: 敵人 has no ng_reset field to say no.
+                ng_resets=True,
             ),
         ),
         # Bosses apart from the trash, without a second section for each.
@@ -1532,6 +1607,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="地理 Geography",
         owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
+        mixed=True,
         group="compendium",
         hierarchical=True,
         groupable_by="group",
@@ -1660,6 +1736,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
                 type=FIELD_SELECT,
                 column="status",
                 options=ENDING_STATUSES,
+                personal=True,
             ),
             NoteField(
                 key="description",
@@ -1764,6 +1841,17 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         group="ng_plus",
         fields=_ng_plus_fields(),
         groupable_by="type",
+    ),
+    # What I mean to do on my next playthrough. Personal, like the todo
+    # buckets: a plan is one person's. text_links so a goal can carry the
+    # guide link it came from.
+    NoteSection(
+        key="ng_goals",
+        shape=SHAPE_TEXT_LINKS,
+        label="下周目目標 NG+ Goals",
+        owners=GAME_OWNERS,
+        scope=SCOPE_PERSONAL,
+        group="ng_plus",
     ),
     # --- 待辦 Todo --------------------------------------------------------
     # Four sections rather than one section with a kind, because ordering is
@@ -1884,6 +1972,10 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         default_status=MUSIC_TYPE_STATUS_DEFAULT,
         one_per_kind=True,
         hidden=True,
+        # The row - which list - is catalogue, one per anime per list; how
+        # far MY tracking of the list has got is mine (see _SONG_LIST).
+        personal_status=True,
+        status_granted="music_status",
     ),
     NoteSection(
         key="op",
@@ -1991,6 +2083,8 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
                 type=FIELD_SELECT,
                 column="status",
                 options=MOD_STATUSES,
+                personal=True,
+                granted="mod_status",
             ),
         ),
         groupable_by="type",
@@ -2014,6 +2108,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="攻略資源 Guide Resources",
         owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
+        mixed=True,
         group="tools",
         # An optional group - "wikis", "videos", "one person's guides" - the
         # reader may toggle a grouped view on. Free text, with no category to
@@ -2037,6 +2132,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="Resources",
         owners=ALL_OWNERS,
         scope=SCOPE_CATALOG,
+        mixed=True,
         standalone=True,
         # An optional Group per row; the card draws one heading per group.
         kind_is_group=True,
@@ -2161,12 +2257,101 @@ def _check_type_status(section: NoteSection) -> None:
         )
 
 
+PERSONAL_STATUS_KEY = "status"
+
+
+def personal_values(section: NoteSection) -> tuple[PersonalValue, ...]:
+    """
+    Every personal value a row of `section` carries, in field order and the
+    section-level status last. Empty for a section that is catalogue through
+    and through - which is every section but the eleven the account spec
+    splits, and every personal-scope section (its rows are already one
+    account's).
+    """
+    found = [
+        PersonalValue(
+            key=f.key,
+            column=f.column,
+            options=f.options,
+            default=f.default,
+            granted=f.granted,
+            ng_resets=f.ng_resets,
+        )
+        for f in section.fields
+        if f.personal
+    ]
+    if section.personal_status:
+        found.append(
+            PersonalValue(
+                key=PERSONAL_STATUS_KEY,
+                column="status",
+                options=section.statuses,
+                default=section.default_status,
+                granted=section.status_granted,
+                ng_resets=False,
+            )
+        )
+    return tuple(found)
+
+
+def _check_personal(section: NoteSection) -> None:
+    """
+    A personal value is only ever a plain value on a catalogue row: never
+    required (a catalogue write cannot carry it), never what the row is
+    grouped or keyed by, never inside a nested list, and a section-level
+    personal status needs a status vocabulary and no field spec claiming the
+    same column. `granted` and `ng_resets` mean nothing off a personal field.
+    """
+    def refuse(what: str):
+        raise ValueError(f"Section '{section.key}': {what}.")
+
+    for f in section.fields:
+        if (f.granted or f.ng_resets) and not f.personal:
+            refuse(f"field '{f.key}' is granted or NG-reset but not personal")
+        for item in f.item_fields:
+            if item.personal or item.granted or item.ng_resets:
+                refuse(f"a nested field of '{f.key}' cannot be personal")
+        if not f.personal:
+            continue
+        if f.required:
+            refuse(f"personal field '{f.key}' cannot be required")
+        if f.type not in (FIELD_TEXT, FIELD_SELECT):
+            refuse(f"personal field '{f.key}' must be text or a select")
+        if f.key in (section.group_by, section.groupable_by) or any(
+            f.key in group for group in section.require_any
+        ):
+            refuse(f"personal field '{f.key}' cannot group or carry a row")
+    if section.status_granted and not section.personal_status:
+        refuse("status_granted without personal_status")
+    if section.personal_status and (not section.statuses or section.fields):
+        refuse("a personal status needs `statuses` and no field spec")
+    if personal_values(section) and section.scope != SCOPE_CATALOG:
+        refuse("personal values sit on catalogue rows only")
+
+
+def _check_mixed(section: NoteSection) -> None:
+    """
+    `mixed` sits on catalogue sections only - a personal section's rows are
+    already one account's, and an external one stores no `note` row - and
+    never on a singleton or a `one_per_kind` section, whose one row per owner
+    (per kind) has no room for a second kind of row.
+    """
+    if not section.mixed:
+        return
+    if section.scope != SCOPE_CATALOG:
+        raise ValueError(f"Section '{section.key}' is mixed but not catalogue.")
+    if section.singleton or section.one_per_kind:
+        raise ValueError(f"Section '{section.key}' is mixed and holds one row.")
+
+
 for _section in NOTE_SECTIONS:
     _check_group_by(_section)
+    _check_mixed(_section)
     _check_groupable_by(_section)
     _check_option_categories(_section)
     _check_kind_category(_section)
     _check_type_status(_section)
+    _check_personal(_section)
 
 # The music_status kinds and the lists pointing at it must be the same set:
 # a list with no status row would show no bar, a status with no list a stray.
@@ -2258,16 +2443,8 @@ PERSONAL_SECTIONS: frozenset[str] = frozenset(
 CATALOG_SECTIONS: frozenset[str] = frozenset(
     s.key for s in NOTE_SECTIONS if s.scope == SCOPE_CATALOG
 )
-
-# Catalogue sections that read as somebody's opinion of the work rather than
-# a fact about it, and so are withheld - from the rows AND from the section
-# listing - from a viewer without view.personal. Named here rather than
-# flagged on NoteSection because they are a policy choice about two sections,
-# not a property of the shape.
-VIEW_PERSONAL_SECTIONS: frozenset[str] = frozenset(
-    {"highlights", "highlight_episodes"}
-)
-
+# The catalogue sections that also hold personal rows (`mixed`).
+MIXED_SECTIONS: frozenset[str] = frozenset(s.key for s in NOTE_SECTIONS if s.mixed)
 
 def sections_by_scope(scope: str) -> list[NoteSection]:
     """Every section of one scope, in display order."""

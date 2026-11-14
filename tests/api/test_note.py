@@ -496,7 +496,7 @@ def _create_music(owner_client, sample_anime, **kw):
         owner_id=str(sample_anime.system_id),
         section="op",
         kind="normal",
-        status="Need",
+        locator="ep 1",
     )
     body.update(kw)
     r = owner_client.post("/api/notes", json=body)
@@ -504,23 +504,25 @@ def _create_music(owner_client, sample_anime, **kw):
     return r.json()
 
 
-def test_admin_edits_a_song_that_carries_only_a_status(
-    owner_client, sample_anime
+def test_admin_edits_a_song_that_carries_nothing_of_the_catalogues(
+    owner_client, db_session, sample_anime, owner_user
 ):
-    # The rows revision m1u2s3i4c5t6 migrated look exactly like this: a status
-    # and the default type, no name yet. Editing one must not 422.
-    note = _create_music(owner_client, sample_anime)
+    # The rows revision m1u2s3i4c5t6 migrated were a status and the default
+    # type, no name; n1o2temarks3 moved the status to a mark, leaving the row
+    # with nothing of its own. Editing one must not 422 for that.
+    row = models.Note(author_id=owner_user.id, media_id=sample_anime.system_id,
+                      section="op", kind="normal")
+    db_session.add(row)
+    db_session.flush()
     r = owner_client.patch(
-        f"/api/notes/{note['system_id']}",
-        json={"status": "Done", "title": None, "content": None, "links": []},
+        f"/api/notes/{row.system_id}",
+        json={"kind": "TV size", "title": None, "content": None, "links": []},
     )
     assert r.status_code == 200, r.text
-    assert r.json()["status"] == "Done"
+    assert r.json()["kind"] == "TV size"
 
 
-def test_admin_names_a_song_while_clearing_its_status(
-    owner_client, sample_anime
-):
+def test_admin_names_a_song(owner_client, sample_anime):
     note = _create_music(owner_client, sample_anime)
     r = owner_client.patch(
         f"/api/notes/{note['system_id']}",
@@ -530,19 +532,24 @@ def test_admin_names_a_song_while_clearing_its_status(
     assert r.json()["title"] == "紅蓮華" and r.json()["status"] is None
 
 
-def test_patch_rejects_an_unknown_status(owner_client, sample_anime):
+def test_a_patchs_status_is_ignored_not_stored(owner_client, db_session, sample_anime):
+    """A song's status is each viewer's own mark, so a catalogue PATCH naming
+    one - even outside the vocabulary - stores nothing and is not refused."""
     note = _create_music(owner_client, sample_anime)
     r = owner_client.patch(
         f"/api/notes/{note['system_id']}", json={"status": "Someday"}
     )
-    assert r.status_code == 422
+    assert r.status_code == 200, r.text
+    db_session.expire_all()
+    assert db_session.get(models.Note, uuid.UUID(note["system_id"])).status is None
 
 
 def test_patch_that_empties_a_music_row_is_rejected(owner_client, sample_anime):
     note = _create_music(owner_client, sample_anime, title="紅蓮華")
     r = owner_client.patch(
         f"/api/notes/{note['system_id']}",
-        json={"status": None, "title": None, "content": None, "links": []},
+        json={"status": None, "title": None, "content": None, "links": [],
+              "locator": None},
     )
     assert r.status_code == 422
 

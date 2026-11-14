@@ -53,7 +53,7 @@ vi.mock("./pages/admin/Images", () => stub("images"));
 
 import App from "./App";
 
-const MEMBER_KEYS = ["self.list", "view.studio", "view.publisher", "view.person", "view.character", "view.search", "view.extras", "view.personal"];
+const MEMBER_KEYS = ["self.list", "view.studio", "view.publisher", "view.person", "view.character", "view.search", "view.extras"];
 
 function session(permissions, username, features = []) {
   auth.current = {

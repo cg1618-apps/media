@@ -204,6 +204,67 @@ describe("SeriesPage restricted family", () => {
   });
 });
 
+// The series's rating and expectation are the viewer's own: a holder of
+// self.list sees and edits them; a member with every view.* key but not
+// self.list, on the same series, gets neither the editor nor the values.
+describe("SeriesPage own rating and expectation", () => {
+  const MEMBER = {
+    username: "reader",
+    role: "user",
+    permissions: ["view.studio", "view.publisher", "view.person", "view.character", "view.search", "view.extras", "self.list"],
+  };
+  const READER = { ...MEMBER, permissions: MEMBER.permissions.filter((p) => p !== "self.list") };
+  const rated = { ...SERIES, my_rating: "S", series_expectation: "High" };
+  const ratingSelect = () =>
+    screen.queryByRole("option", { name: "Not rated" })?.closest("select");
+  const putCalls = () => fetch.mock.calls.filter(([, init]) => init?.method === "PUT");
+
+  function stubAs(me) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url, init = {}) => {
+        const u = String(url);
+        if (u.startsWith("/api/auth/me")) return jsonRes(me);
+        if (init.method === "PUT" && u.startsWith("/api/me/ratings/")) {
+          const body = JSON.parse(init.body);
+          return jsonRes({
+            owner_type: "series",
+            owner_id: "SR001",
+            my_rating: "my_rating" in body ? body.my_rating : rated.my_rating,
+            expectation: "expectation" in body ? body.expectation : rated.series_expectation,
+          });
+        }
+        if (u.startsWith("/api/series/")) return jsonRes(rated);
+        if (u.startsWith("/api/game/")) return jsonRes(GAMES);
+        return jsonRes([]);
+      }),
+    );
+  }
+
+  it("lets a holder of self.list save its own expectation", async () => {
+    stubAs(MEMBER);
+    renderPage();
+    expect(await screen.findByText(/Expectation · High/)).toBeInTheDocument();
+    expect(ratingSelect()).toBeTruthy();
+
+    const expectationSelect = screen.getByRole("option", { name: "None" }).closest("select");
+    await userEvent.selectOptions(expectationSelect, "Low");
+    await waitFor(() => expect(putCalls()).toHaveLength(1));
+    expect(putCalls()[0][0]).toBe("/api/me/ratings/series/SR001");
+    expect(JSON.parse(putCalls()[0][1].body)).toEqual({ expectation: "Low" });
+    expect(await screen.findByText(/Expectation · Low/)).toBeInTheDocument();
+  });
+
+  it("offers no editor, and draws no expectation, without self.list", async () => {
+    stubAs(READER);
+    renderPage();
+    // The Characters tab is view.character's: its arrival says /me has loaded.
+    expect(await screen.findByRole("button", { name: /^Characters/ })).toBeInTheDocument();
+    expect(screen.queryByText(/Expectation · High/)).toBeNull();
+    expect(ratingSelect()).toBeFalsy();
+  });
+});
+
 // A series carries content labels of its own, which hide the series and every
 // entry in it. The hub shows them in their own row, as the franchise hub does.
 describe("SeriesPage content labels", () => {

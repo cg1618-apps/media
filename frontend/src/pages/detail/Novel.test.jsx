@@ -2,7 +2,7 @@
 // instead of the retired novel_name_each_cn/_en parallel lists, using each
 // unit's server-computed display_key.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -38,7 +38,7 @@ const BASE_NOVEL = {
   units: [],
 };
 
-const MEMBER_VIEW = ["view.studio", "view.publisher", "view.person", "view.character", "view.search", "view.extras", "view.personal"];
+const MEMBER_VIEW = ["view.studio", "view.publisher", "view.person", "view.character", "view.search", "view.extras", "self.list"];
 // What /api/auth/me grants the non-admin viewer; a guest case sets [].
 let viewPermissions = MEMBER_VIEW;
 
@@ -51,8 +51,8 @@ function respond(url, isAdmin) {
       // admin role does not hold.
       username: isAdmin ? "cg1618" : "reader",
       role: isAdmin ? "super" : "user",
-      // A member's view.* keys by default: entity names link (the four entity keys)
-      // and a unit's remark is shown (view.personal). The guest view of the
+      // A member's keys by default: entity names link (the four entity keys)
+      // and a unit's remark, the viewer's own, is shown (self.list). The guest view of the
       // links is pinned in CastSection.test and StudioLinks.test, and of the
       // remark below.
       permissions: isAdmin ? [...viewPermissions, "manage.catalog"] : viewPermissions,
@@ -61,11 +61,21 @@ function respond(url, isAdmin) {
   return [];
 }
 
-function mockFetch(novel, { isAdmin = false, onPatch } = {}) {
+function mockFetch(novel, { isAdmin = false, onPatch, onUnitPut } = {}) {
   vi.stubGlobal(
     "fetch",
     vi.fn((url, options) => {
       const u = String(url);
+      if (u.startsWith("/api/me/novel-units/") && options?.method === "PUT") {
+        const body = JSON.parse(options.body);
+        const unitId = u.slice("/api/me/novel-units/".length);
+        onUnitPut?.(unitId, body);
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ unit_id: unitId, my_rating: null, remark: null, ...body }),
+        });
+      }
       if (u.startsWith("/api/novel/n1")) {
         if (options?.method === "PATCH") {
           const body = JSON.parse(options.body);
@@ -136,7 +146,7 @@ describe("Novel detail page — units", () => {
     expect(screen.getByText("100 ch")).toBeInTheDocument();
   });
 
-  it("renders a named unit's key alongside its title and remark", async () => {
+  it("renders a named unit's key alongside its title and the viewer's own rating and remark", async () => {
     mockFetch({
       ...BASE_NOVEL,
       type: "Light Novel",
@@ -149,6 +159,7 @@ describe("Novel detail page — units", () => {
           name_cn: "第一卷",
           name_en: "Volume One",
           remark: "Limited edition",
+          my_rating: "A",
           ch_count: null,
           display_key: "Vol.1",
         },
@@ -157,14 +168,91 @@ describe("Novel detail page — units", () => {
     mount();
     expect(await screen.findByText("Vol.1")).toBeInTheDocument();
     expect(screen.getByText("第一卷 / Volume One")).toBeInTheDocument();
-    expect(screen.getByText("Limited edition")).toBeInTheDocument();
+    expect(await screen.findByLabelText("My remark for Vol.1")).toHaveValue("Limited edition");
+    expect(screen.getByLabelText("My rating for Vol.1")).toHaveValue("A");
   });
 
-  it("leaves a unit's remark out for a viewer without view.personal", async () => {
-    // The same unit, remark and all, that the case above draws for a member:
-    // the server strips the remark for such a viewer, and the row must not
-    // draw it even if one arrives.
-    viewPermissions = [];
+  it("saves a member's unit rating on change and remark on blur through /api/me", async () => {
+    const puts = [];
+    let patched = false;
+    mockFetch(
+      {
+        ...BASE_NOVEL,
+        units: [
+          {
+            system_id: "u1",
+            unit_kind: "arc",
+            position: 1,
+            unit_key: null,
+            name_cn: null,
+            name_en: null,
+            remark: null,
+            my_rating: null,
+            ch_count: 10,
+            display_key: "Arc 1",
+          },
+        ],
+      },
+      { onUnitPut: (id, body) => puts.push([id, body]), onPatch: () => (patched = true) },
+    );
+    const user = userEvent.setup();
+    mount();
+
+    await user.selectOptions(await screen.findByLabelText("My rating for Arc 1"), "A+");
+    await waitFor(() => expect(puts).toEqual([["u1", { my_rating: "A+" }]]));
+
+    const remark = screen.getByLabelText("My remark for Arc 1");
+    await user.type(remark, "best arc");
+    expect(puts).toHaveLength(1);
+    await user.tab();
+    await waitFor(() =>
+      expect(puts).toEqual([
+        ["u1", { my_rating: "A+" }],
+        ["u1", { remark: "best arc" }],
+      ]),
+    );
+    // A blur with nothing changed sends nothing.
+    await user.click(remark);
+    await user.tab();
+    expect(puts).toHaveLength(2);
+    // Nothing of it goes through the catalogue write.
+    expect(patched).toBe(false);
+  });
+
+  it("gives an editor holding self.list the catalogue editor and its own controls", async () => {
+    // manage.catalog and self.list together: the super role's shape.
+    mockFetch(
+      {
+        ...BASE_NOVEL,
+        units: [
+          {
+            system_id: "u1",
+            unit_kind: "arc",
+            position: 1,
+            unit_key: null,
+            name_cn: null,
+            name_en: "Arc Name",
+            remark: "mine",
+            my_rating: "B",
+            ch_count: 10,
+            display_key: "Arc 1",
+          },
+        ],
+      },
+      { isAdmin: true },
+    );
+    mount();
+    expect(await screen.findByText(/\+ Add arc/)).toBeInTheDocument();
+    expect(await screen.findByText("My ratings")).toBeInTheDocument();
+    expect(await screen.findByLabelText("My rating for Arc 1")).toHaveValue("B");
+    expect(screen.getByLabelText("My remark for Arc 1")).toHaveValue("mine");
+  });
+
+  it("leaves a unit's remark out for a viewer without self.list", async () => {
+    // The same unit, remark and all, that the case above draws for a member,
+    // and every view.* key: only self.list is missing. Such a viewer has no
+    // remark of its own, and the row must not draw one even if it arrives.
+    viewPermissions = MEMBER_VIEW.filter((p) => p !== "self.list");
     mockFetch({
       ...BASE_NOVEL,
       type: "Light Novel",
@@ -184,7 +272,15 @@ describe("Novel detail page — units", () => {
     });
     mount();
     expect(await screen.findByText("第一卷 / Volume One")).toBeInTheDocument();
+    // Let /api/auth/me land, so the absence is the permission's doing.
+    await waitFor(() =>
+      expect(fetch.mock.calls.some(([u]) => String(u).startsWith("/api/auth/me"))).toBe(true),
+    );
+    await act(async () => {});
     expect(screen.queryByText("Limited edition")).toBeNull();
+    expect(screen.queryByDisplayValue("Limited edition")).toBeNull();
+    expect(screen.queryByLabelText("My rating for Vol.1")).toBeNull();
+    expect(screen.queryByLabelText("My remark for Vol.1")).toBeNull();
   });
 
   it("does not render an empty Units card for a novel with no units", async () => {
@@ -219,7 +315,7 @@ describe("Novel detail page — units", () => {
     );
   });
 
-  it("admin editing a unit and saving PATCHes the full units array and applies the server response", async () => {
+  it("admin editing a unit and saving PATCHes the units' own fields only and applies the server response", async () => {
     let patchedBody = null;
     mockFetch(
       {
@@ -233,7 +329,10 @@ describe("Novel detail page — units", () => {
             unit_key: "Vol.1",
             name_cn: "第一卷",
             name_en: "Volume One",
-            remark: "",
+            // A read row carries the viewer's own values; the save must not
+            // send them back through the catalogue write.
+            remark: "someone's",
+            my_rating: "S",
             ch_count: null,
             display_key: "Vol.1",
           },
@@ -241,11 +340,17 @@ describe("Novel detail page — units", () => {
       },
       { isAdmin: true, onPatch: (body) => (patchedBody = body) },
     );
+    // The root flag does not reach the self family: an admin holds no
+    // self.list, and keeps no rating or remark of its own.
+    viewPermissions = [];
     const user = userEvent.setup();
     mount();
 
-    const remarkInput = await screen.findByPlaceholderText("Remark");
-    await user.type(remarkInput, "Limited edition");
+    const nameInput = await screen.findByDisplayValue("Volume One");
+    await user.type(nameInput, " Revised");
+    // The admin holds no self.list, so it has no personal control at all.
+    expect(screen.queryByPlaceholderText("Remark")).toBeNull();
+    expect(screen.queryByLabelText(/^My rating for /)).toBeNull();
 
     const saveButton = await screen.findByRole("button", { name: "Save" });
     await user.click(saveButton);
@@ -254,8 +359,10 @@ describe("Novel detail page — units", () => {
     expect(patchedBody.units).toHaveLength(1);
     expect(patchedBody.units[0]).toMatchObject({
       system_id: "u1",
-      remark: "Limited edition",
+      name_en: "Volume One Revised",
     });
+    expect(patchedBody.units[0]).not.toHaveProperty("my_rating");
+    expect(patchedBody.units[0]).not.toHaveProperty("remark");
 
     // The Save/Cancel controls disappear once the edit round-trips —
     // proof the page applied the server's response rather than the toast

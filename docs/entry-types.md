@@ -114,7 +114,8 @@ All twelve have their own router under `app/routers/` and a detail page in `fron
 |---|:-:|:-:|
 | `h_comic_name_jp` / `h_comic_name_kr` | the JP name | the KR name (the other region's name is kept, not cleared - a name is harmless) |
 | `originality`, `animation_status`, `series_number`, `page_total` | ✓ | cleared |
-| `ch_total`, `ch_behind`, `highlight_group_order` | cleared | ✓ |
+| `ch_total`, `ch_behind` | cleared | ✓ |
+| every account's highlight group order (`user_highlight_group_order`) | deleted | ✓ |
 | the reader's `page_fin` (`user_media_list`) | ✓ | cleared |
 | the reader's `ch_fin` (`user_media_list`) | cleared | ✓ |
 
@@ -259,11 +260,14 @@ unrecognised type is *not* volume-only: it keeps its chapter pair, on both
 sides. Migration `v1o2l3o4n5l6` cleared the historical values once — it is not
 reversible, since nothing else records what `ch_total` was.
 
-Every unit also carries its own `my_rating`, on the same S..F scale as the
-novel's - a per-volume or per-arc grade, shown as a chip beside the unit on
-the detail page and set from a select in `NovelUnitsEditor`. It is
-independent: nothing derives from it, and the novel's own rating stays
-hand-set.
+Every unit also carries the reader's own `my_rating`, on the same S..F
+scale as the novel's - a per-volume or per-arc grade - and the reader's own
+`remark`, both kept per account in `user_novel_unit_rating` rather than on
+the unit. A holder of `self.list` sets both on the detail page, from a rating
+select and a remark field beside each unit, through
+`PUT /api/me/novel-units/{unit_id}`; the catalogue editor (`NovelUnitsEditor`)
+and the novel's `units` write carry neither. The rating is independent:
+nothing derives from it, and the novel's own rating stays hand-set.
 
 Only `arc` rows are authoritative for derivation; every other kind is
 enrichment shown on the detail page via `display_key` (`unit_display_key` /
@@ -440,4 +444,4 @@ Sections every owner has (all twelve types plus `series`, `franchise`, `collecti
 | `h_comic_highlights` (`structured`, grouped by `female_characters`, KR entries only) | | | | | | | | | | x |  | |
 | `h_game_highlights` (`structured`, grouped by `female_characters`, locator "Route / Scene", audio / H 演出形式 / art style selects) |  |  |  |  |  |  |  |  |  |  | x |  |
 
-Movie and comic get only the shared sections, and H-Comic one of its own, `h_comic_highlights`, which a JP entry refuses (422) through the section's `owner_where`. H-Game takes game's sections less the ones that do not describe how it plays - 各章評論, 神場景, 新手, 小知識, 玩家術語, the three prose 劇情 strands, 世界觀 and 名言/梗 - with game's labels, placeholders and groups, except that its four Story List strands render in the 劇情 card beside 結局. It adds `h_game_highlights`: female and male characters, a locator labelled "Route / Scene", dialogue audio, H 演出形式 and art style (selects over the `h_game` columns' options), label, usefulness and description, with no `owner_where`. Game carries 43 of its own - `highlight_moments` plus the 攻略 (5), 養成&流派 (5), 物品 (3), 圖鑑與名詞 (5), 資源&工具 (2), 劇情 (4), 劇情列表 (4), 世界觀 (5), NG 多周目 (4) and 待辦 (5) groups - beside the shared ones. The guide is five cards, each answering one question, rather than one card of twenty sections. It is also the one owner type that reads 解析 Analysis inside 評論 Reviews rather than in a card of its own (`groups_by_owner`), and the one whose 待辦 buckets render inside the detail page's Progress slip rather than as a card. Its guide bookmarks are **`guide_resources`, in the 資源&工具 card immediately before Resources**; the site-wide `resources` section (shape `name_links`, `ALL_OWNERS`, standalone) is a separate section games also inherit, and two keys with two labels is deliberate, because a second card called "Resources" would be unreadable. Shapes, groups and validation: [systems/notes.md](systems/notes.md).
+Movie and comic get only the shared sections, and H-Comic one of its own, `h_comic_highlights`, which a JP entry refuses (422) through the section's `owner_where`. H-Game takes game's sections less the ones that do not describe how it plays - 各章評論, 神場景, 新手, 小知識, 玩家術語, the three prose 劇情 strands, 世界觀 and 名言/梗 - with game's labels, placeholders and groups, except that its four Story List strands render in the 劇情 card beside 結局. It adds `h_game_highlights`: female and male characters, a locator labelled "Route / Scene", dialogue audio, H 演出形式 and art style (selects over the `h_game` columns' options), label, usefulness and description, with no `owner_where`. Game carries 44 of its own - `highlight_moments` plus the 攻略 (5), 養成&流派 (5), 物品 (3), 圖鑑與名詞 (5), 資源&工具 (2), 劇情 (4), 劇情列表 (4), 世界觀 (5), NG 多周目 (5) and 待辦 (5) groups - beside the shared ones. The guide is five cards, each answering one question, rather than one card of twenty sections. It is also the one owner type that reads 解析 Analysis inside 評論 Reviews rather than in a card of its own (`groups_by_owner`), and the one whose 待辦 buckets render inside the detail page's Progress slip rather than as a card. Its guide bookmarks are **`guide_resources`, in the 資源&工具 card immediately before Resources**; the site-wide `resources` section (shape `name_links`, `ALL_OWNERS`, standalone) is a separate section games also inherit, and two keys with two labels is deliberate, because a second card called "Resources" would be unreadable. Shapes, groups and validation: [systems/notes.md](systems/notes.md).

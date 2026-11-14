@@ -441,8 +441,11 @@ Once a media submit succeeds, the page keeps the created row beside the
 section that type has is listed and each saves on its own. It hides nothing,
 `remark` included — the form has already reset to a blank entry, so its Remark
 field no longer edits this row. For h-comic and h-game the created row feeds
-`owner_where` and the 亮點 Highlights group order, which a header drag saves
-with a `PATCH`. The panel shows only on the tab the entry was added from, is
+`owner_where`, and the viewer's own 亮點 Highlights group order, which a
+holder of `self.personal_notes` saves by a header drag through
+`PUT /api/me/highlight-group-order/{system_id}`. Each section's write
+controls follow its scope, as on the detail pages: an admin adding an entry
+writes the catalogue sections and reads the personal ones. The panel shows only on the tab the entry was added from, is
 replaced by the next media add, and goes when the banner is dismissed or a
 non-media row (collection, person, …) is added.
 
@@ -625,7 +628,8 @@ link - and the **E-Hentai Link**, the gallery URL the second fill source reads
 E-Hentai Link is sent as `null` (`hComicFieldsPayload`). The
 content-label picker shows the `h-comic` label checked and locked: every entry
 carries it, and the save adds it back. The form never sends
-`highlight_group_order` - the detail page's drag owns it.
+`highlight_group_order` - it is each viewer's own, written through
+`PUT /api/me/highlight-group-order`.
 
 **H-Game tab.** `HGameAddTab.jsx`, gated like the H-Comic tab. It is the Game
 tab reshaped for `h_game`: the same two boxes at the top (`EntryAutofillSearch`
@@ -697,12 +701,13 @@ entry's Ownership is derived from these rows, not typed.
 `PersonSubTabBar` here — the
 bar filters a list, and Add has no list; the role × scope matrix inside the
 form already says which types a new person holds. `PersonFields` holds the four name fields with a
-"Display name" select, the **role × scope matrix**, then gender and rating
-(`GenderRatingFields` from `components/forms/EntityProfileFields.jsx`: Gender
-is **男** and **女** as `QuickPicks` chips beside a closed select of "—" plus
-every `GENDERS` value — one click picks, clicking the pressed chip clears, and
-the select follows either way and is how the other genders are picked; My
-Rating is a select of "Unrated" plus `MY_RATINGS`; unset saves as null), a **MAL Link** (`mal_link`; the server reads the MAL id from
+"Display name" select, the **role × scope matrix**, then gender
+(`GenderField` from `components/forms/EntityProfileFields.jsx`: **男** and
+**女** as `QuickPicks` chips beside a closed select of "—" plus every
+`GENDERS` value — one click picks, clicking the pressed chip clears, and the
+select follows either way and is how the other genders are picked; unset
+saves as null). There is no rating field: a rating is the viewer's own, set on
+the person's page. Then a **MAL Link** (`mal_link`; the server reads the MAL id from
 its `myanimelist.net/people/<id>` path, so there is no id field), the photo
 and the remark. Ticking a type selects its first legal media type, because a
 scopeless role is a 422; the legal types per role come from
@@ -719,7 +724,7 @@ person form without the role × scope matrix: the four name fields, the
 "Display name" select, a **Role** as `QuickPicks` chips — one per
 `CHARACTER_ROLES` value, Main, Core, Important Supporting, Supporting, Other, with no select beside
 them since all four fit at any width; clicking the pressed chip clears it to
-none — the same Gender and My Rating fields, **Appearance** and **Trait**
+none — the same Gender field (no rating, as on the person form), **Appearance** and **Trait**
 (`MultiSelect`s suggesting from the `Character Appearance` and `Character
 Trait` option categories — one vocabulary each, for every character, no
 scope; `lib/characterForm.js` turns the comma-joined form strings into the
@@ -834,10 +839,10 @@ sub-tab and the Note Suggestions sub-tab, whose categories are each one group
 
 **Studio tab (Entity).** `StudioAddTab.jsx`. Four name fields (English,
 Chinese, Japanese, Alternative) with a "Display name" select naming which one
-to show, plus a rating select over the shared `MY_RATINGS` vocabulary
-(S…F, the same one entries use), logo key, country, founded/defunct dates
+to show, plus logo key, country, founded/defunct dates
 (`ReleaseDateInput`, so partial precision is allowed), website, MAL id/link
-and remark. Submit is blocked client-side until at least one name is filled,
+and remark — no rating, which is the viewer's own and set on the studio's
+page. Submit is blocked client-side until at least one name is filled,
 matching `ck_studio_has_a_name` and the schema's 422. `POST /api/studio/` is
 find-or-create: posting a name that already exists returns the existing
 studio rather than splitting its credits, and leaves its metadata untouched.
@@ -849,7 +854,7 @@ studio tab and split the same way (`PublisherFields` exported beside the page
 wrapper, so `PublisherModifyTab` renders the identical inputs). Same four name
 fields with the "Display name" select — it is the third consumer of the shared
 `STUDIO_NAME_FIELDS` list in `lib/naming.js`, after studio and person — plus
-rating, logo key, country, founded/defunct `ReleaseDateInput`s, website and
+logo key, country, founded/defunct `ReleaseDateInput`s, website and
 remark. **MAL ID and MAL Link are deliberately absent**: the `publisher` table
 carries no MAL columns, because MAL has no record of a games publisher or a
 Taiwanese distributor. Submit is blocked until at least one name is filled,

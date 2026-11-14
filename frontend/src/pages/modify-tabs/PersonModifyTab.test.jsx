@@ -304,16 +304,15 @@ it("opens the editor for initialId without a pick", async () => {
   expect(fetch).toHaveBeenCalledWith("/api/person/p1", expect.anything());
 });
 
-it("offers gender and rating as closed selects", async () => {
+// My rating is the viewer's own, set on the person's page: the catalogue form
+// does not offer it.
+it("offers gender as a closed select, and no rating", async () => {
   mount({ initialId: "p1" });
   const gender = await screen.findByLabelText("Gender");
   expect([...gender.options].map((o) => o.value)).toEqual([
     "", "男", "女", "中性/無性", "雙性混和", "其他",
   ]);
-  const rating = screen.getByLabelText("My Rating");
-  expect([...rating.options].map((o) => o.textContent)).toEqual([
-    "Unrated", "S", "A+", "A", "B", "C", "D", "E", "F",
-  ]);
+  expect(screen.queryByLabelText("My Rating")).not.toBeInTheDocument();
 });
 
 it("picks a photo fallback from the person's entries, once each, and saves it", async () => {
@@ -339,6 +338,7 @@ it("picks a photo fallback from the person's entries, once each, and saves it", 
   );
   const [, init] = fetch.mock.calls.find(([, o]) => o?.method === "PUT");
   expect(JSON.parse(init.body)).toMatchObject({ photo_fallback_entry_id: "m2" });
+  expect(JSON.parse(init.body)).not.toHaveProperty("my_rating");
 });
 
 it("loads the MAL link and sends the edited one on save", async () => {

@@ -98,8 +98,8 @@ type it serves is seeable.
 | `FranchiseType` (Enum) | `Movie`, `TV`, `Cartoon`, `Comic`, `ACG`, `Novel`, `Game`, `H-Comic`, `H-Game`, `Hentai` | backend-internal only | not served |
 | `FRANCHISE_TYPES` | `ACG`, `Anime Movie`, `TV`, `Movie`, `Cartoon`, `Comic`, `Novel`, `Game`, `H-Comic`, `H-Game`, `Hentai` | `franchise.franchise_type` dropdown. `H-Comic`, `H-Game` and `Hentai` are the types code branches on: a franchise carrying one carries that gated type's label and only entries of its family resolve into it ([entry-types.md](entry-types.md#franchise_type-values)) | `franchise_type` |
 | `FRANCHISE_FAMILY_FOR_TYPE` | `H-Comic`, `Hentai` and `H-Game` -> `restricted` (`RESTRICTED_FAMILY`); any other type is `mainstream` (`MAINSTREAM_FAMILY`) | which franchise types may share a franchise, and which franchises an entry may sit in. A franchise type list spanning two families is refused (422) | not served |
-| `FRANCHISE_EXPECTATIONS` | `Highest`, `High`, `Medium`, `Low` | `franchise.franchise_expectation` | `franchise_expectation` |
-| `MY_RATINGS` | `S`, `A+`, `A`, `B`, `C`, `D`, `E`, `F` | `my_rating` on entries, franchise, seasonal, person, character, studio. **Enforced** on `person` and `character`: a write naming anything else is a 422 and `""` is NULL (`app/utils/entity_vocab.py`) | `my_rating` |
+| `FRANCHISE_EXPECTATIONS` | `Highest`, `High`, `Medium`, `Low` | `user_rating.expectation`, the viewer's own expectation of a collection, franchise or series (served as `collection_expectation` / `franchise_expectation` / `series_expectation`). **Enforced** by `PUT /api/me/ratings`: anything else is a 422 | `franchise_expectation` |
+| `MY_RATINGS` | `S`, `A+`, `A`, `B`, `C`, `D`, `E`, `F` | `my_rating` on `user_media_list` (entries), `seasonal`, `user_novel_unit_rating` and `user_rating` (collection, franchise, series, person, character, studio, publisher). **Enforced** on every `user_rating` and unit write through `PUT /api/me/ratings` and `PUT /api/me/novel-units`: a write naming anything else is a 422 and `""` is NULL (`check_my_rating`, `app/utils/entity_vocab.py`) | `my_rating` |
 | `GENDERS` | `男`, `女`, `中性/無性`, `雙性混和`, `其他` | `gender` on `person` and `character`. NULL means not set and is not a sixth value. **Enforced**: a write naming anything else is a 422 and `""` is NULL. A Sheets Pull folds an old free-text cell instead of refusing it - `male` -> `男`, `female` -> `女` (trimmed, any case), anything else unreadable -> NULL - and folds `my_rating` by trimming and upper-casing, the same rules the revision that closed both vocabularies applied to the stored rows | `gender` |
 | `IS_MAIN` | `本傳`, `外傳`, `前傳`, `後傳`, `總集篇` | `is_main` on anime, movies, tv_shows, cartoons, manga, novel (formerly the `Main / Spinoff` system-option category; comic has no `is_main`; games read `GAME_IS_MAIN`) | `is_main` |
 | `MOVIE_TYPES` | `Reality`, `Animation` | movie type | `movie_type` |
@@ -121,8 +121,8 @@ type it serves is seeable.
 | `MANGA_SERIALIZATION_STATUSES` | `連載中`, `停更`, `腰斬`, `完結` | `manga.serialization_status`, `h_comic.serialization_status` | `manga_serialization_status` |
 | `NOVEL_SERIALIZATION_STATUSES` | `連載中`, `連載中 (不穩定)`, `連載中 (有生之年)`, `停更`, `完結`, `腰斬`, `可能更多`, `未出` | `novel.serialization_status`; `完結` gates the volume/chapter checks | `novel_serialization_status` |
 | `WEEKDAYS` | `Monday`, `Tuesday`, `Wednesday`, `Thursday`, `Friday`, `Saturday`, `Sunday` | `anime.broadcast_day`, `anime.my_watch_day` (plain strings, no validator) | `day_of_week` |
-| `MUSIC_STATUSES` | `Need`, `Pending`, `No Full Version`, `Done` | `note.status` on a song of the `op`, `ed`, `insert_songs`, `ost` sections. `No Full Version` is a song whose full-length cut is not released yet. The note registry imports this tuple; it is not restated there | `music_status` |
-| `MUSIC_TYPE_STATUSES` | `All Done`, `Done`, `Need`, `Pending`, `No Full Version`, `Not Done` | `note.status` on a `music_status` row: how far one whole song list of an anime has got. Every anime starts each list on `Not Done` (`MUSIC_TYPE_STATUS_DEFAULT`) | `music_type_status` |
+| `MUSIC_STATUSES` | `Need`, `Pending`, `No Full Version`, `Done` | A song's status on the `op`, `ed`, `insert_songs`, `ost` sections - each viewer's own, in its `note_mark`, read into `note.status`. `No Full Version` is a song whose full-length cut is not released yet. The note registry imports this tuple; it is not restated there | `music_status` |
+| `MUSIC_TYPE_STATUSES` | `All Done`, `Done`, `Need`, `Pending`, `No Full Version`, `Not Done` | A song list's status, on its `music_status` row - each viewer's own, in its `note_mark`, read into `note.status`: how far one whole song list of an anime has got. A viewer who has not set one reads `Not Done` (`MUSIC_TYPE_STATUS_DEFAULT`) | `music_type_status` |
 | `REQUEST_KINDS` | `new_entry`, `data_error`, `incomplete_data`, `bug`, `other` | `user_request.kind`, CHECK-constrained (`ck_user_request_kind`), so a new kind needs a migration too ([systems/requests.md](systems/requests.md)) | `request_kind` |
 | `REQUEST_STATUSES` | `open`, `done`, `declined` | `user_request.status`, CHECK-constrained (`ck_user_request_status`); only `open` counts against the open-request limit and only `open` is editable by the author | `request_status` |
 | `CHARACTER_ROLES` (`app/utils/character_roles.py`) | `Main`, `Core`, `Important Supporting`, `Supporting`, `Other` | Two independent columns: `character_casting.role` (what the character is in one entry) and `character.role` (what the character is overall). A NULL `character.role` is filled from the highest-ranked casting role (this order) on each cast save and by Calculate All; a set one is never overwritten, and nothing flows from it to a casting. Both are optional - blank or `""` is NULL - and a write naming anything else is a 422; a Sheets Pull restores a value outside the list as blank | `character_role` |
@@ -309,23 +309,23 @@ out. What the three gated types keep is in
 | `controls` | structured | 操作 Controls | game, h-game | guides | Fields: type (`kind`, free text), control (`title`), description (`content`), links; groupable by type |
 | `guide_notes` | text | 攻略筆記 Guide Notes | game, h-game | guides | no links |
 | `trivia` | text_links | 小知識 Trivia | game | guides | |
-| `stats_and_points` | structured | 屬性&配點 Stats & Points | game, h-game | builds | name, min/rec/soft-cap, my value (quick-edit), description |
+| `stats_and_points` | structured | 屬性&配點 Stats & Points | game, h-game | builds | name, min/rec/soft-cap, my value (quick-edit; personal), description |
 | `classes` | structured | 職業 Classes | game, h-game | builds | type, name, 定位 role, 解鎖條件 unlock, 核心屬性 key stats, description, links; groupable by type |
 | `skills` | structured | 技能 Skills | game, h-game | builds | type, name, description, links; groupable by type |
 | `builds_and_styles` | structured | 配裝&流派 Builds & Styles | game, h-game | builds | name, five nested lists, description, links |
 | `team_composition` | structured | 隊伍組成 Team Composition | game, h-game | builds | name, members list (name, 定位, build, notes), description, links |
-| `weapons_and_gear` | structured | 武器&裝備 Weapons & Gear | game, h-game | gear | type, name, variant, description, links, collect status (default `not collected`), total, NG reset (`yes` / `no`, default `yes`); groupable by type |
-| `items` | structured | 道具 Items | game, h-game | gear | type (suggested from `Item Type`), name, variant, description, links, collect status (default `not collected`), total, NG reset (`yes` / `no`, default `yes`); groupable by type |
-| `collectibles` | structured | 收集物 Collectibles | game, h-game | gear | type (suggested from `Collectible Type`), name, variant, description, links, collect status (default `not collected`), total, NG reset (`yes` / `no`, default `yes`); groupable by type |
+| `weapons_and_gear` | structured | 武器&裝備 Weapons & Gear | game, h-game | gear | type, name, variant, description, links, collect status (default `not collected`; personal), total, collected amount (personal), NG reset (`yes` / `no`, default `yes`); groupable by type |
+| `items` | structured | 道具 Items | game, h-game | gear | type (suggested from `Item Type`), name, variant, description, links, collect status (default `not collected`; personal), total, collected amount (personal), NG reset (`yes` / `no`, default `yes`); groupable by type |
+| `collectibles` | structured | 收集物 Collectibles | game, h-game | gear | type (suggested from `Collectible Type`), name, variant, description, links, collect status (default `not collected`; personal), total, collected amount (personal), NG reset (`yes` / `no`, default `yes`); groupable by type |
 | `characters_guide` | structured | 角色 Characters | game, h-game | compendium | group (suggested from `Character Group`), name, alias, description; groupable by group |
-| `enemies` | structured | 敵人 Enemies | game, h-game | compendium | tier, region, name, alias, description, beaten status (default `to beat`); groupable by tier |
+| `enemies` | structured | 敵人 Enemies | game, h-game | compendium | tier, region, name, alias, description, beaten status (default `to beat`; personal); groupable by tier |
 | `geography` | structured | 地理 Geography | game, h-game | compendium | group (suggested from `Geography Group`, top-level rows only), name, description, links; nestable; groupable by group |
 | `game_terms` | structured | 遊戲名詞 Game Terms | game, h-game | compendium | name (CN), alt name, description |
 | `player_terms` | structured | 玩家術語 Player Terms | game | compendium | name (CN), alt name, description |
 | `main_plot` | structured | 主線劇情 Main Plot | game | story | chapter (`locator`, optional), description, links |
 | `side_plot` | structured | 支線劇情 Side Stories | game | story | chapter (`locator`, optional), description, links |
 | `character_arcs` | text_links | 角色劇情 Character Arcs | game | story | |
-| `endings` | structured | 結局 Endings | game, h-game | story | name, completion status, description, links |
+| `endings` | structured | 結局 Endings | game, h-game | story | name, completion status (personal), description, links |
 | `story_list_main` | structured | 主線 Main | game, h-game | story_list; **story** for h-game | order, name, description, links; nestable |
 | `story_list_side` | structured | 支線 Side | game, h-game | story_list; **story** for h-game | order, name, description, links; nestable |
 | `story_list_character` | structured | 角色 Character | game, h-game | story_list; **story** for h-game | order, name, description, links; nestable |
@@ -344,15 +344,15 @@ out. What the three gated types keep is in
 | `todo_later` | text_links | 未來 To do in the future | game, h-game | todo | personal scope; quick move |
 | `todo_maybe` | text_links | 可能 Might do | game, h-game | todo | personal scope; quick move |
 | `saves` | structured | 存檔 Saves | game, h-game | todo | personal scope; number, name, checkpoint (`regular` / `main`, default `regular`), note, based on slot, at node (a block of the game's choice graph, [systems/game-choices.md](systems/game-choices.md)) |
-| `music_status` | music_status | 音樂狀態 Music Status | anime | music (hidden) | kinds `MUSIC_TYPE_KEYS` (`op`, `ed`, `insert_songs`, `ost`), one row each; statuses `MUSIC_TYPE_STATUSES`, default `Not Done` |
-| `op` | music_track | OP | anime | music | Song Type free text from category `Song Type`, default `normal`; statuses `MUSIC_STATUSES`; link text from category `Song Source` |
+| `music_status` | music_status | 音樂狀態 Music Status | anime | music (hidden) | kinds `MUSIC_TYPE_KEYS` (`op`, `ed`, `insert_songs`, `ost`), one row each; statuses `MUSIC_TYPE_STATUSES` (personal, behind the `music_status` feature), default `Not Done` |
+| `op` | music_track | OP | anime | music | Song Type free text from category `Song Type`, default `normal`; statuses `MUSIC_STATUSES` (personal, behind the `music_status` feature); link text from category `Song Source` |
 | `ed` | music_track | ED | anime | music | same as `op` |
-| `insert_songs` | music_track | 插入曲 Insert Song | anime | music | statuses `MUSIC_STATUSES`; no Song Type; link text from `Song Source` |
+| `insert_songs` | music_track | 插入曲 Insert Song | anime | music | statuses `MUSIC_STATUSES` (personal, behind the `music_status` feature); no Song Type; link text from `Song Source` |
 | `ost` | music_track | OST | anime | music | same as `insert_songs` |
 | `op_ed_changes` | episode_text | OP/ED 變動 | anime, tv-show, cartoon | music | kinds `OP_ED_KINDS`; `takes_links` (URL-string links) |
 | `extended_episodes` | episode_text | 加長 | anime, tv-show, cartoon | | |
 | `adaptation` | text_links | 改編 Adaptation | anime, anime-movie, tv-show, cartoon, novel, series, franchise | | description required on anime, anime-movie, novel |
-| `mods_and_tools` | structured | 模組&工具 Mods & Tools | game, h-game | tools | type `Mod`/`Tool`, name, developer, description, status; groupable by type |
+| `mods_and_tools` | structured | 模組&工具 Mods & Tools | game, h-game | tools | type `Mod`/`Tool`, name, developer, description, status (personal, behind the `mod_status` feature); groupable by type |
 | `guide_resources` | structured | 攻略資源 Guide Resources | game, h-game | tools | group (free text, no suggestions), name, description, links; groupable by group |
 | `resources` | name_links | Resources | All | standalone | optional free-text Group in `kind` (`kind_is_group`) |
 | `questions` | episode_text | Questions | All but h-comic, hentai | standalone | description required everywhere |
@@ -979,9 +979,9 @@ comment asks that the two be kept in step. Seven rows: five person roles plus
 | `Manga Author` · `Novel Author` · `Comic Writer` | `person`, role `author` | one role, three labels: 原作 on a manga, Author on a novel, Writer on a comic |
 | `Manga Author` · `Novel Illustrator` · `Comic Artist` | `person`, role `illustrator` | 作畫 on a manga, Illustrator on a novel, Artist on a comic. `Manga Author` covered this half too, before the split |
 
-`person.my_rating`, `studio.my_rating` and `publisher.my_rating` reuse
-`MY_RATINGS`, and so does `character.my_rating`; on `person` and `character`
-it is enforced, together with `gender` against `GENDERS`
+A rating of a person, studio, publisher or character is the viewer's own
+`user_rating` row, on `MY_RATINGS` and enforced on every write; `gender` is
+enforced against `GENDERS` on `person` and `character`
 ([above](#apputilsconstantspy)). A `character` / `character_voice` shape was once
 designed but not built (see the old "Deferred" note this replaced in
 [systems/credits-and-tags.md](systems/credits-and-tags.md)); the feature that

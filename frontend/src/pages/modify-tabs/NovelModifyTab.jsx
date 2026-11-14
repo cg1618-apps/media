@@ -39,7 +39,6 @@ export default function NovelModifyTab({
           other on Save Changes. */}
       <NovelNotes
         novel={editingItem ?? {}}
-        isAdmin={true}
         hideSections={["remark"]}
       />
     </>

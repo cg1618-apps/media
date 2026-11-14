@@ -196,6 +196,15 @@ describe("named endpoint groups", () => {
     expect(endpoints.gameChoice.markEdge("X")).toBe("/api/game-choice/edges/X/mark");
   });
 
+  it("me: the caller's own ratings, novel-unit opinions and highlight group order", () => {
+    expect(endpoints.me.rating("franchise", "F1")).toBe("/api/me/ratings/franchise/F1");
+    expect(endpoints.me.rating("studio", "S1")).toBe("/api/me/ratings/studio/S1");
+    expect(endpoints.me.novelUnit("U1")).toBe("/api/me/novel-units/U1");
+    expect(endpoints.me.highlightGroupOrder("H1")).toBe("/api/me/highlight-group-order/H1");
+    expect(endpoints.me.favorite("quote", "Q1")).toBe("/api/me/favorites/quote/Q1");
+    expect(endpoints.me.favorite("meme", "M1")).toBe("/api/me/favorites/meme/M1");
+  });
+
   it("studio and publisher take a partial PATCH, like person and character", () => {
     expect(endpoints.studio.patch("X")).toBe("/api/studio/X");
     expect(endpoints.publisher.patch("X")).toBe("/api/publisher/X");

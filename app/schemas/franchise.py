@@ -16,8 +16,6 @@ class FranchiseBase(BaseModel):
     franchise_name_roman: Optional[str] = None
     franchise_name_jp: Optional[str] = None
     franchise_name_alt: Optional[str] = None
-    my_rating: Optional[str] = None
-    franchise_expectation: Optional[str] = "Low"
     cover_entry_id: Optional[UUID] = None
     type_covers: Optional[dict] = None
     type_slots: Optional[dict] = None
@@ -40,6 +38,11 @@ class FranchiseUpdate(FranchiseBase):
 
 class FranchiseResponse(FranchiseBase):
     system_id: UUID
+    # The VIEWER'S own rating, from user_rating (services.domain.user_rating
+    # .attach_ratings); null for a guest. Not on the Base: a catalogue write
+    # does not carry it - PUT /api/me/ratings/... does.
+    my_rating: Optional[str] = None
+    franchise_expectation: Optional[str] = None
     # Set by services.domain.content_labels.attach_franchise_content_labels.
     # Read-only and absent from FranchiseBase deliberately: the only writer is
     # PUT /api/content-labels/franchise/{franchise_id}, so naming one on a
@@ -69,8 +72,6 @@ class SeriesBase(BaseModel):
     series_name_roman: Optional[str] = None
     series_name_jp: Optional[str] = None
     series_name_alt: Optional[str] = None
-    my_rating: Optional[str] = None
-    series_expectation: Optional[str] = "Low"
     cover_entry_id: Optional[UUID] = None
     type_slots: Optional[dict] = None
     size_group_derived: Optional[dict] = None
@@ -88,6 +89,11 @@ class SeriesUpdate(SeriesBase):
 
 class SeriesResponse(SeriesBase):
     system_id: UUID
+    # The VIEWER'S own rating, from user_rating (services.domain.user_rating
+    # .attach_ratings); null for a guest. Not on the Base: a catalogue write
+    # does not carry it - PUT /api/me/ratings/... does.
+    my_rating: Optional[str] = None
+    series_expectation: Optional[str] = None
     # Set by attach_group_content_labels; read-only, as on FranchiseResponse.
     # The only writer is PUT /api/content-labels/series/{series_id}.
     content_labels: list[ContentLabelRef] = []

@@ -9,10 +9,11 @@
 // media type. A seiyuu group is the exception in what it shows: its cards
 // lead with the part voiced (VoicedPartCard), the entry beneath it.
 //
-// Like Studio.jsx it reads the API with plain fetch. An admin can set my
-// rating and the remark in place and jump to the full editor, the same
-// controls Character.jsx has (components/info/EntityProfileControls.jsx):
-// PATCH, then the response becomes the page's state. Club membership
+// Like Studio.jsx it reads the API with plain fetch. An admin can write the
+// remark in place and jump to the full editor, the same controls
+// Character.jsx has (components/info/EntityProfileControls.jsx): PATCH, then
+// the response becomes the page's state. My rating is the viewer's own, set
+// by a holder of self.list through PUT /api/me/ratings. Club membership
 // (ClubMembership) is editable here too, through its own endpoints.
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -38,6 +39,8 @@ import { Eyebrow, RatingStamp } from "../../components/ui/primitives";
 import LazyImage from "../../components/ui/LazyImage";
 import { useAuth } from "../../contexts/AuthContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
+import { useViewScope } from "../../hooks/useViewScope";
+import { useMyRatingSaver } from "../../api/mutations/useMyRatingMutations";
 
 // A role key to the name the admin sub-tabs give it ("composer" ->
 // "Music / Composer"), so the Types row reads as the library's Type filter does.
@@ -53,6 +56,9 @@ export default function Person() {
   const [error, setError] = useState(null);
   const { isAdmin } = useAuth();
   const patch = useEntityPatch("person", person?.system_id, setPerson);
+  // My rating is the viewer's own (self.list), saved through /api/me/ratings.
+  const { ownData: canRate } = useViewScope();
+  const saveMyRating = useMyRatingSaver("person", person?.system_id, setPerson);
 
   useCanonicalPath("person", person);
 
@@ -174,10 +180,10 @@ export default function Person() {
             </div>
           </div>
 
-          {isAdmin && (
+          {canRate && (
             <RatingSelect
               rating={person.my_rating}
-              onChange={(v) => patch({ my_rating: v }, "Rating saved")}
+              onChange={(v) => saveMyRating({ my_rating: v }, "Rating saved")}
             />
           )}
 

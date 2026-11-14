@@ -481,7 +481,6 @@ export default function Anime() {
           <AnimeNotes
             key={anime.system_id}
             anime={anime}
-            isAdmin={isAdmin}
             series={series}
             franchise={franchise}
           />

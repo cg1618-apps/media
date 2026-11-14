@@ -112,7 +112,6 @@ const EVERY_KEY = [
   "view.character",
   "view.search",
   "view.extras",
-  "view.personal",
 ];
 
 // What the stubbed /api/search/ answers, and the keys the stubbed

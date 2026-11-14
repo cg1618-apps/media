@@ -47,7 +47,10 @@ from app.routers import (
     hentai,
     images,
     manga,
+    me_favorites,
+    me_highlights,
     me_list,
+    me_ratings,
     media_relation,
     meme,
     movie,
@@ -329,6 +332,9 @@ app.include_router(access_modes.router)
 app.include_router(users.router)
 app.include_router(account.router)
 app.include_router(me_list.router)
+app.include_router(me_ratings.router)
+app.include_router(me_favorites.router)
+app.include_router(me_highlights.router)
 app.include_router(content_labels.router)
 app.include_router(requests.router)
 

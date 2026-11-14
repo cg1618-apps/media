@@ -4,14 +4,14 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import FranchiseLibrary from "./FranchiseLibrary";
 
-// The viewer's view.* scope. A member (every flag on) unless a test says
-// otherwise; `scope.<flag> = false` makes the guest case.
+// The viewer's scope. A member (every flag on) unless a test says otherwise;
+// `scope.<flag> = false` makes the guest case.
 const { scope } = vi.hoisted(() => ({
-  scope: { studio: true, publisher: true, person: true, character: true, search: true, extras: true, personal: true },
+  scope: { studio: true, publisher: true, person: true, character: true, search: true, extras: true, ownData: true },
 }));
 vi.mock("../../hooks/useViewScope", () => ({ useViewScope: () => scope }));
 beforeEach(() => {
-  Object.assign(scope, { studio: true, publisher: true, person: true, character: true, search: true, extras: true, personal: true });
+  Object.assign(scope, { studio: true, publisher: true, person: true, character: true, search: true, extras: true, ownData: true });
 });
 
 const COLLECTIONS = [
@@ -127,11 +127,12 @@ describe("FranchiseLibrary table view", () => {
   });
 });
 
-describe("FranchiseLibrary without view.personal", () => {
+describe("FranchiseLibrary without self.list", () => {
   // FRANCHISES carry a rating and an expectation each, which a member reads
-  // in the table and sorts by (the first describe). A guest gets neither.
+  // in the table and sorts by (the first describe). A viewer without
+  // self.list - every other key held - has neither of its own.
   it("drops the Expectation and My columns from the table", async () => {
-    scope.personal = false;
+    scope.ownData = false;
     const table = await renderTableView();
     expect(
       within(table)
@@ -141,7 +142,7 @@ describe("FranchiseLibrary without view.personal", () => {
   });
 
   it("offers only the title sort", async () => {
-    scope.personal = false;
+    scope.ownData = false;
     await renderTableView();
     const sort = screen.getByRole("combobox");
     expect(within(sort).getAllByRole("option").map((o) => o.value)).toEqual(["title"]);

@@ -29,13 +29,15 @@ NOTE_HEADERS = [
     "owner_id",
     "section",
     "kind",
-    "status",
+    "title",
     "sort_index",
 ]
 
 
-def _row(system_id, owner_id, section, kind, status):
-    return [str(system_id), "anime", str(owner_id), section, kind, status, "0"]
+# The rows differ by title: a song's status is each viewer's own note mark,
+# never part of the catalogue row a twin is matched on.
+def _row(system_id, owner_id, section, kind, title):
+    return [str(system_id), "anime", str(owner_id), section, kind, title, "0"]
 
 
 @pytest.fixture
@@ -52,13 +54,13 @@ def sheet(monkeypatch):
 
 @pytest.fixture
 def local_op(db_session, sample_anime, owner_user):
-    """One OP row, normal and Done, under this database's own uuid."""
+    """One OP row, normal and named, under this database's own uuid."""
     note = models.Note(
         author_id=owner_user.id,
         media_id=sample_anime.system_id,
         section="op",
         kind="normal",
-        status="Done",
+        title="Gurenge",
         sort_index=0,
     )
     db_session.add(note)
@@ -79,7 +81,7 @@ def test_pull_retargets_a_twin_under_another_uuid(
 ):
     owner_id = sample_anime.system_id
     local_id = local_op.system_id
-    sheet([_row(uuid.uuid4(), owner_id, "op", "normal", "Done")])
+    sheet([_row(uuid.uuid4(), owner_id, "op", "normal", "Gurenge")])
 
     result = pull.execute_pull_specific(db_session, "Note", log_action=False)
 
@@ -96,8 +98,8 @@ def test_pull_keeps_a_second_identical_row_when_the_local_one_is_in_the_sheet(
     owner_id = sample_anime.system_id
     sheet(
         [
-            _row(local_op.system_id, owner_id, "op", "normal", "Done"),
-            _row(uuid.uuid4(), owner_id, "op", "normal", "Done"),
+            _row(local_op.system_id, owner_id, "op", "normal", "Gurenge"),
+            _row(uuid.uuid4(), owner_id, "op", "normal", "Gurenge"),
         ]
     )
 
@@ -113,8 +115,8 @@ def test_pull_claims_a_local_twin_only_once(
     owner_id = sample_anime.system_id
     sheet(
         [
-            _row(uuid.uuid4(), owner_id, "op", "normal", "Done"),
-            _row(uuid.uuid4(), owner_id, "op", "normal", "Done"),
+            _row(uuid.uuid4(), owner_id, "op", "normal", "Gurenge"),
+            _row(uuid.uuid4(), owner_id, "op", "normal", "Gurenge"),
         ]
     )
 
@@ -128,9 +130,9 @@ def test_pull_inserts_an_unknown_row_whose_content_differs(
     db_session, sample_anime, local_op, sheet
 ):
     owner_id = sample_anime.system_id
-    sheet([_row(uuid.uuid4(), owner_id, "op", "normal", "Need")])
+    sheet([_row(uuid.uuid4(), owner_id, "op", "normal", "Homura")])
 
     result = pull.execute_pull_specific(db_session, "Note", log_action=False)
 
     assert result["status"] == "success"
-    assert sorted(r.status for r in _ops(db_session, owner_id)) == ["Done", "Need"]
+    assert sorted(r.title for r in _ops(db_session, owner_id)) == ["Gurenge", "Homura"]

@@ -41,7 +41,7 @@ beforeEach(() => {
 });
 
 const renderTemplate = () =>
-  render(<NotesTemplate ownerType="anime" ownerId="abc" isAdmin={false} />);
+  render(<NotesTemplate ownerType="anime" ownerId="abc" />);
 
 describe("NotesTemplate quotes and memes", () => {
   it("leaves both out for an account without the switch", async () => {
