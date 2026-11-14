@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-11-13
+Last verified: 2026-11-14
 
 ## What this is for
 
@@ -290,7 +290,7 @@ All.
 | `GET /api/credits/{media_type}/{entry_id}` | public (viewer) | `{"credits": {role: [names]}, "tags": {field: [values]}}`, only keys with rows. Unknown type → 400; missing **or hidden** entry → 404 (`entry_visible`). |
 | `PUT /api/credits/{media_type}/{entry_id}` | admin | Body `{credits: {role: [..]}, tags: {field: [..]}}`. Touches only the named roles/fields; an absent key is left alone, an empty list clears. Role/field not valid for the type → 400. |
 | `GET /api/person/?role=&scope=` | `view.person` | Sorted by resolved `display_name`; both filters are exact, and a query without `scope` means "holds this role in any media type". `credit_count`, `display_photo_file`, `media_types` and `restricted` are resolved from only the entries the viewer may see (`filter_visible_pairs`), for the whole list in one pass - see [Photo fallback](#photo-fallback). Each row carries every `(role, scope)` the person holds, so the admin form can load the whole set in one request. |
-| `GET /api/person/role-counts` | `view.person` | `{person_role: distinct people}` incl. zeros; declared before `/{system_id}`. |
+| `GET /api/person/role-counts` | `view.person` | `{person_role: distinct people}` incl. zeros; declared before `/{system_id}`. System Options reads the same tally, with the studio count, from `GET /api/options/record-counts` (`manage.options`). |
 | `GET /api/person/role-scopes` | `view.person` | `{role: [legal media types]}`, derived from the same `CreditRole.media_types` that validates writes, so the admin form and the validator cannot drift. Declared before `/{system_id}`. |
 | `GET /api/person/{id}/entries` | `view.person` | The entries this person is credited on, grouped by `(media_type, role)` with the derived label, filtered through the same `filter_visible_pairs` as `credit_count`. 404 when the person is hidden — every connection hidden, see [authorization.md](../authorization.md#shared-records); a visible person's credits on label-hidden entries are omitted, group and all. |
 | `GET /api/person/{id}` | `view.person` | 404 if absent or hidden. |

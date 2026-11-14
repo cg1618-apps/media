@@ -343,8 +343,9 @@ export const NAV_SECTIONS = [
     requires: ["manage.options", "admin.authz", "manage.catalog", "manage.pipelines"],
     // The three read-only inventories of how the data is described: the
     // vocabulary, its translations, and which columns each external API
-    // writes. Editing lives on Add/Modify under Entry. manage.options, the
-    // key App.jsx's routes, /api/options and /api/constants/external-apis ask.
+    // writes. manage.options, the key App.jsx's routes,
+    // /api/options/record-counts and /api/constants/external-apis ask; an
+    // option itself is written on the forms, under manage.catalog.
     items: [
       {
         label: "System Options",

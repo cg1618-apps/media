@@ -901,17 +901,17 @@ viewer cannot see is dropped from a visible value's `scopes`, and a
 `?scope=` naming one answers `[]`.
 
 **Writes.** `POST /api/options/`, `PUT /api/options/{id}`,
-`DELETE /api/options/{id}` need `manage.options` (`require_manage_options`),
-the key the Note pages ask, which the `admin` and `super` roles hold.
-Add and update reject an exact
+`DELETE /api/options/{id}` need `manage.catalog` (`require_manage_catalog`),
+the key of the Add and Modify forms where an option is written, which `super`
+holds and the admin does not. `manage.options`, the Note pages' key, opens
+only reads. Add and update reject an exact
 `(category, value)` duplicate (`uq_system_option_value`); update replaces the
 scope, usage and alias lists wholesale with the ones in the payload; delete logs a tombstone to
 `deleted_record` under type `System Options` and cascades to the scope rows.
 Scopes are edited under System → System Option on Add / Modify
 (`frontend/src/components/forms/ScopePicker.jsx`, used by `OptionsAddTab.jsx`),
 alongside `UsagePicker.jsx` and `AliasPicker.jsx`. Those pages ask
-`manage.catalog`, so in practice it is `super` that edits options there; the
-admin holds `manage.options` but no `manage.catalog`, and its Note pages are
+`manage.catalog`, the same key the writes do; the admin's Note pages are
 read-only.
 
 **Scopes are admin data, never derived from usage.** Saving a tag no longer

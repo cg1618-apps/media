@@ -1610,9 +1610,10 @@ scoped to no gated type stays. A `?scope=` naming a gated type the viewer
 cannot see answers `[]`, and a visible value's `scopes` omit such types. `PUT`
 and `DELETE` on a hidden value answer 404, and `PUT` keeps the scope rows the
 editor cannot see.
-| `POST`   | `/`            | `manage.options` | Add a new option. Body: `SystemOptionCreate` (`{category, value, sort_order, remark, scopes: [...], usages: [...], aliases: [{source, value}, ...]}`). 400 if `(category, value)` already exists. |
-| `PUT`    | `/{option_id}` | `manage.options` | Update an existing option by UUID `system_id`. Body: `SystemOptionCreate`; replaces the option's scope, usage **and alias** rows wholesale — a body omitting a list deletes it. 400 on a duplicate `(category, value)`. |
-| `DELETE` | `/{option_id}` | `manage.options` | Delete an option by UUID. Cascades its `system_option_scope`, `system_option_alias`, `media_tag` and `character_tag` rows. Logs to `deleted_record`.                  |
+| `GET`    | `/record-counts` | `manage.options` | System Options' Tier 3: `{person_roles: {role: distinct people}, studios: n}`, numbers only. The same tally as `/api/person/role-counts` and the studio list, counted as the viewer may see them (`app/services/domain/credit_counts.py`), behind the page's own key, because the admin reaches `/options` holding neither `view.person` nor `view.studio`. Declared before `/{category}`. |
+| `POST`   | `/`            | `manage.catalog` | Add a new option. Body: `SystemOptionCreate` (`{category, value, sort_order, remark, scopes: [...], usages: [...], aliases: [{source, value}, ...]}`). 400 if `(category, value)` already exists. |
+| `PUT`    | `/{option_id}` | `manage.catalog` | Update an existing option by UUID `system_id`. Body: `SystemOptionCreate`; replaces the option's scope, usage **and alias** rows wholesale — a body omitting a list deletes it. 400 on a duplicate `(category, value)`. |
+| `DELETE` | `/{option_id}` | `manage.catalog` | Delete an option by UUID. Cascades its `system_option_scope`, `system_option_alias`, `media_tag` and `character_tag` rows. Logs to `deleted_record`.                  |
 
 **Response model:** `SystemOptionResponse` (`{system_id, category, value, sort_order, remark, scopes: [str, ...], usages: [str, ...], aliases: [{source, value}, ...]}`)
 
@@ -1645,7 +1646,7 @@ derived from `(role, media_type)`, never stored.
 | -------- | ----------------- | ------ | --------------------------------------------------------------------------------------- |
 | `GET`    | `/`                | `view.person` | List people, sorted by resolved `display_name`. `?role=` filters to those holding a `person_role`; `?scope=` narrows it to one hyphenated media-type key. Both filters are exact — with no unscoped rows left, a query without `scope` means "holds this role in any media type". |
 | `GET`    | `/search-mal`      | `manage.catalog` | `?q=`, `limit`. Searches MAL people. Declared before `/{system_id}`, which is a string here and would otherwise take the literal path. Returns `ExternalSearchResult[]` (see [Add-tab picker searches](#add-tab-picker-searches)); 502 with a `detail` when the source fails. |
-| `GET`    | `/role-counts`     | `view.person` | How many distinct people hold each `person_role`, zeros included. Declared before `/{system_id}` so the UUID route does not 422 on the literal path. Counts people, not `person_role` rows — a director scoped both ways is one person. Read by the `/options` admin page. |
+| `GET`    | `/role-counts`     | `view.person` | How many distinct people hold each `person_role`, zeros included. Declared before `/{system_id}` so the UUID route does not 422 on the literal path. Counts people, not `person_role` rows — a director scoped both ways is one person. Heads the person list; the `/options` admin page reads the same tally through `/api/options/record-counts`. |
 | `GET`    | `/role-scopes`     | `view.person` | `{role: [legal media types]}`, derived from the same `CreditRole.media_types` that validates writes, so the admin form cannot offer a pair the API rejects. Declared before `/{system_id}` for the same reason `role-counts` is. |
 | `GET`    | `/{system_id}`     | `view.person` | Get one person by UUID. 404 if absent or hidden.                                     |
 | `GET`    | `/{system_id}/entries` | `view.person` | The entries this person is credited on, grouped by `(media_type, role)`. 404 if the person is absent or hidden. |

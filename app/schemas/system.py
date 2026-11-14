@@ -153,6 +153,13 @@ class SystemOptionCreate(SystemOptionBase):
         return unique
 
 
+class OptionRecordCounts(BaseModel):
+    """System Options' Tier 3: the records that replaced option categories."""
+
+    person_roles: dict[str, int]
+    studios: int
+
+
 class SystemOptionResponse(SystemOptionBase):
     system_id: UUID
     scopes: list[str] = []
