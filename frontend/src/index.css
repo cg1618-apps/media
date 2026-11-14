@@ -89,6 +89,17 @@
   --color-warning: #f59e0b;
   --color-info: #0ea5e9;
 
+  /* State text, theme-aware. The fixed hues above are fills, tinted with
+     opacity; as 10px chip text they fall under WCAG AA on bone paper. These
+     are the text the watch order page's status chips are set in
+     (config/watchOrderColors.js), measured at 4.5:1 or better against the
+     hue's own /12 tint over --c-surface in every palette: floors 4.98
+     light, 5.64 dark. */
+  --color-state-success: var(--c-state-success);
+  --color-state-warning: var(--c-state-warning);
+  --color-state-info: var(--c-state-info);
+  --color-state-danger: var(--c-state-danger);
+
   /* Typography. Noto Sans TC + Roboto are loaded in index.html; without this
      override `font-sans` resolved to Tailwind's default stack and they were
      never used. */
@@ -145,6 +156,10 @@
   --c-scope-person: hsl(220 18% 40%);
   --c-scope-studio: hsl(30 20% 38%);
   --c-scope-publisher: hsl(280 14% 42%);
+  --c-state-success: hsl(160 70% 26%);
+  --c-state-warning: hsl(30 85% 32%);
+  --c-state-info: hsl(205 75% 34%);
+  --c-state-danger: hsl(0 65% 42%);
 }
 
 /* Dark palette. Applied by the attribute, and by the OS preference when no
@@ -185,6 +200,10 @@
   --c-scope-person: hsl(220 18% 70%);
   --c-scope-studio: hsl(30 22% 66%);
   --c-scope-publisher: hsl(280 16% 70%);
+  --c-state-success: hsl(155 50% 58%);
+  --c-state-warning: hsl(38 80% 60%);
+  --c-state-info: hsl(200 70% 66%);
+  --c-state-danger: hsl(0 75% 72%);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
@@ -224,6 +243,10 @@
     --c-scope-person: hsl(220 18% 70%);
     --c-scope-studio: hsl(30 22% 66%);
     --c-scope-publisher: hsl(280 16% 70%);
+    --c-state-success: hsl(155 50% 58%);
+    --c-state-warning: hsl(38 80% 60%);
+    --c-state-info: hsl(200 70% 66%);
+    --c-state-danger: hsl(0 75% 72%);
   }
 }
 

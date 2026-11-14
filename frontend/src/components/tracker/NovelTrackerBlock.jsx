@@ -3,6 +3,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { Button, Eyebrow, Slip } from "../ui/primitives";
 import { SELECT_CLS, STEP_INPUT_CLS } from "./MyTrackerCard";
 import StatusOptions from "../ui/StatusOptions";
+import ProgressInput from "./ProgressInput";
 import {
   READING_STATUSES,
   withLegacyProgressDisplay,
@@ -22,10 +23,6 @@ import {
 
 // A typed number: an empty or unparseable box reads as 0, as the volume and
 // chapter boxes always have.
-function typedNumber(e) {
-  return parseFloat(e.target.value) || 0;
-}
-
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
 function stepUp(v) {
@@ -214,12 +211,11 @@ export default function NovelTrackerBlock({
           <div className="flex items-center gap-1.5 w-fit">
             <StepButton onClick={() => handleVolStep(-1)} label="Previous volume">−</StepButton>
             <div className="font-mono text-sm flex items-center gap-1 whitespace-nowrap">
-              <input
-                type="number"
+              <ProgressInput
+                decimal
                 value={volFin}
                 step="1"
-                onChange={(e) => {
-                  const v = parseFloat(e.target.value) || 0;
+                onCommit={(v) => {
                   if (primaryVolTotal !== null && v > primaryVolTotal) return;
                   onVolChange(Math.max(0, v));
                 }}
@@ -266,12 +262,12 @@ export default function NovelTrackerBlock({
             <div className="flex items-center gap-2">
               <span className="font-mono text-sm flex items-center gap-1 whitespace-nowrap">
                 arc
-                <input
-                  type="number"
+                <ProgressInput
+                  decimal
                   value={view.arcNumber}
                   step="1"
-                  onChange={(e) =>
-                    handleArcCursorInput(arcCursorFromView(arcs, typedNumber(e), 0))
+                  onCommit={(v) =>
+                    handleArcCursorInput(arcCursorFromView(arcs, v, 0))
                   }
                   className={STEP_INPUT_CLS}
                   aria-label="Arc being read"
@@ -283,13 +279,13 @@ export default function NovelTrackerBlock({
                   −
                 </StepButton>
               <span className="font-mono text-sm flex items-center gap-1 whitespace-nowrap">
-                <input
-                  type="number"
+                <ProgressInput
+                  decimal
                   value={view.chInArc}
                   step="1"
-                  onChange={(e) =>
+                  onCommit={(v) =>
                     handleArcCursorInput(
-                      arcCursorFromView(arcs, view.arcNumber, typedNumber(e)),
+                      arcCursorFromView(arcs, view.arcNumber, v),
                     )
                   }
                   className={STEP_INPUT_CLS}
@@ -313,12 +309,12 @@ export default function NovelTrackerBlock({
                 </StepButton>
               <span className="font-mono text-sm whitespace-nowrap flex items-center gap-1">
                 arc
-                <input
-                  type="number"
+                <ProgressInput
+                  decimal
                   value={view.arcNumber}
                   step="1"
-                  onChange={(e) =>
-                    handleArcCursorInput(arcCursorFromView(arcs, typedNumber(e), 0))
+                  onCommit={(v) =>
+                    handleArcCursorInput(arcCursorFromView(arcs, v, 0))
                   }
                   className={STEP_INPUT_CLS}
                   aria-label="Arc being read"
@@ -347,12 +343,11 @@ export default function NovelTrackerBlock({
             <div className="flex items-center gap-1.5 w-fit">
               <StepButton onClick={() => handleArcChapterStep(-1)} label="Previous chapter">−</StepButton>
               <div className="font-mono text-sm flex items-center gap-1 whitespace-nowrap">
-                <input
-                  type="number"
+                <ProgressInput
+                  decimal
                   value={chFin}
                   step="1"
-                  onChange={(e) => {
-                    const v = typedNumber(e);
+                  onCommit={(v) => {
                     if (chTotal !== null && v > chTotal) return;
                     handleArcCursorInput(arcCursorForChapters(arcs, v));
                   }}
@@ -373,12 +368,11 @@ export default function NovelTrackerBlock({
             <div className="flex items-center gap-1.5 w-fit">
               <StepButton onClick={() => handleChStep(-1)} label="Previous chapter">−</StepButton>
               <div className="font-mono text-sm flex items-center gap-1 whitespace-nowrap">
-                <input
-                  type="number"
+                <ProgressInput
+                  decimal
                   value={chFin}
                   step="1"
-                  onChange={(e) => {
-                    const v = parseFloat(e.target.value) || 0;
+                  onCommit={(v) => {
                     if (chTotal !== null && v > chTotal) return;
                     onChChange(Math.max(0, v));
                   }}

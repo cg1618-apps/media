@@ -11,6 +11,7 @@ import { EntryRow } from "./DashboardTable";
 import { entityPath } from "../../lib/entityPath";
 import PlatformIcons from "../cards/PlatformIcons";
 import LazyImage from "../ui/LazyImage";
+import ProgressInput from "./ProgressInput";
 import { focusStyle, thumbUrl } from "../../lib/covers";
 
 const STEPPER_INPUT =
@@ -200,13 +201,11 @@ export default function DashboardCard({
               <i className="fas fa-minus text-[10px]"></i>
             </Button>
             <div className="font-mono text-[13px] flex items-baseline justify-center select-none flex-1 whitespace-nowrap">
-              <input
-                type="number"
+              <ProgressInput
                 className={STEPPER_INPUT}
                 value={localFin}
-                onChange={(e) =>
-                  handleEpChange(parseInt(e.target.value, 10) || 0)
-                }
+                onCommit={handleEpChange}
+                aria-label="Progress"
               />
               <span className="text-text-faint mx-1 text-xs">/</span>
               <span className="text-text-faint w-10 text-center">
