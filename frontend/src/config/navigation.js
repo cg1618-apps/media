@@ -217,7 +217,7 @@ export const NAV_SECTIONS = [
     // finished.
     items: [
       // Plan is a per-user page: its API answers 401 to a stranger and its
-      // route redirects to login (App.jsx, ProtectedRoute requireAuth), so
+      // route redirects to login (App.jsx, ProtectedRoute permission="self.list"), so
       // showing the row logged out would only bounce people. self.list is the
       // nav's spelling of "a signed-in member with a library of their own" -
       // user and super hold it; guest and admin do not, since neither role
