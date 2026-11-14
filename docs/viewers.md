@@ -349,8 +349,8 @@ Every page listed below is settled in its general version.
 - **super, user:** essentially the same page — every filter, sort and
   column, the personal ones holding the viewer's own status, progress,
   rating, usefulness and ownership. The status button and the plan-flag
-  checkboxes work for both, since they write the viewer's own list; today
-  they are gated on being the admin.
+  checkboxes work for both, since they write the viewer's own list
+  (`/api/me`).
 - **guest, shared:** **the catalogue parts only.** No personal filter, sort
   or column at all — not empty ones. Cards show the external score.
 - **admin:** no libraries.

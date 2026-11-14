@@ -99,6 +99,15 @@ export const endpoints = {
   // (self.personal_notes): a PUT of `{group_order: [names] | null}` for the
   // entry's system_id, served back as the entry's `highlight_group_order`.
   me: {
+    // The caller's own list row for one entry (status, progress, my_rating):
+    // a PUT of the type's own keys; a foreign key is 422.
+    list: (mediaId) => `/api/me/list/${mediaId}`,
+    // The caller's own plan flags on one entry: a PUT of `{watch_next: bool}`
+    // and the type's other spellings; answers every flag the type has.
+    planFlags: (mediaId) => `/api/me/plan-flags/${mediaId}`,
+    // The caller's own remark on an entry or a group: a PUT of
+    // `{remark: text | null}`.
+    remark: (ownerType, ownerId) => `/api/me/remarks/${ownerType}/${ownerId}`,
     rating: (ownerType, ownerId) => `/api/me/ratings/${ownerType}/${ownerId}`,
     novelUnit: (unitId) => `/api/me/novel-units/${unitId}`,
     highlightGroupOrder: (mediaId) => `/api/me/highlight-group-order/${mediaId}`,

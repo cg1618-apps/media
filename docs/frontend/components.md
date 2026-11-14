@@ -42,7 +42,8 @@ src/
 | `hooks/useMediaList(type, {params})` | List query keyed `["media-list", type, params]`; `LIST_OPTIONS = { params: { limit: 2000 } }` is the full-table convention. |
 | `hooks/useMediaItem(type, id)` | Detail query keyed by `mediaItemQueryKey`. |
 | `hooks/useMediaCacheUpdate(type, id)` | `setMediaItem`, `fetchMediaItem`, `invalidateMedia` for optimistic detail updates. |
-| `hooks/useStatusToggle(type)` | PATCHes one field and writes through to both the item and every `["media-list", type]` cache entry (it maps over lists, which is why the plan-next query must live under its own key). |
+| `hooks/useStatusToggle(type)` | The caller's own status, progress and plan flags on one entry. A plan flag (`PLAN_FLAG_KEYS`: `watch_next`, `to_rewatch` and each type's spelling) goes to `PUT /api/me/plan-flags/{id}`, every other key to `PUT /api/me/list/{id}` (`putMyListRow`), and only an explicit `catalogue` payload - MediaCard's bolt, which marks the work released - to the entry `PATCH`. Answers the cached entry with the saved values folded in, and writes through to both the item and every `["media-list", type]` cache entry (it maps over lists, which is why the plan-next query must live under its own key). |
+| `api/myList.js` → `putMyListRow(mediaId, fields)` | `PUT /api/me/list/{id}`, answering the saved row as the entry's own keys without the `media_id` / `media_type` envelope. The dashboard's and Seasonal's steppers use it. |
 | `hooks/useIncrementalList(items, batch = 60)` | Draws a long list a batch at a time: `visible` is the first `batch` items and grows by `batch` whenever `sentinelRef` - an empty element rendered after the grid - comes within 800px of the screen; `hasMore` says whether it can still grow. A list with different items starts again from one batch. Without an `IntersectionObserver` every item is visible. Used by the library grids. |
 | `hooks/useLibraryState` | Search/filter/sort/view state for `LibraryLayout`; nothing is persisted. |
 | `hooks/useFilterState(filterDefs, data, initial?)` | The chip/toggle values for a list of FilterDefs, opened on `initial` (else empty), plus `toggleFilter`, `clearFilters` (all empty), `resetFilters` (back to `initial`), `activeFilterCount` and the derived options of `set-dynamic` defs. Shared by `useLibraryState`, the random picker and Picker Defaults; the defs and `initial` are read once, so a caller whose defs change remounts. `useEntityFilterState(filterDefs, data)` beside it is the entity libraries' (character, person, studio, publisher) form: `initial` is `defaultEntityFilters(filterDefs)`, and it adds `isDefault` (`sameFilters` against that default) so the page hands `FilterPanel` its `resetFilters` only once the state has moved off it. |
@@ -212,8 +213,9 @@ not drawn. The character, person and studio libraries use it for
   the archive look. `HeroCover` takes `cover`, the `{ url, focus }` a group
   resolver in `lib/covers.js` returns.
 - **`components/cards`** — `MediaCard` (one card for all twelve types,
-  `variant="future"`; its status button comes from `getCardStatusConfig(type,
-  status)`, which dispatches on the watch / read / **play** axis, and its
+  `variant="future"`; its status button - drawn for a holder of `self.list`
+  (`useViewScope().ownData`), movies included, and absent without a list,
+  chip and all - comes from `getCardStatusConfig(type, status)`, which dispatches on the watch / read / **play** axis, and its
   progress line for a game is `hours_played` against `hltb_main`, rendered
   only when at least one of the two exists; for an h-comic it is
   `progressFor(entry)` - pages on JP, chapters on KR, nothing without a

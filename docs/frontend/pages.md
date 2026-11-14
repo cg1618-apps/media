@@ -406,21 +406,23 @@ types are not shown on the dashboard. The selection lives in
 `lib/comingNext.js`. Guests never see the section: statuses are the viewer's
 own, so a guest's would always be empty.
 
-**Admin-only controls** (cards read `isAdmin`): a "Quick Edit" pencil
-(`/modify?id=…&type=…`; anime omits `type`) and −/input/+ progress steppers.
-Guests see a read-only counter.
+**The steppers are the viewer's own** (cards read `canTrack`, which is
+`has("self.list")`, not `isAdmin`): −/input/+ progress steppers. A viewer
+without a list sees a read-only counter.
 
-**Optimistic PATCH handlers.** Each handler patches every
-`["media-list", type]` cache with `queryClient.setQueriesData`, fires a raw
-`fetch` PATCH, and on failure restores the previous value and toasts
-"Network error. Progress reverted.":
+**Optimistic handlers.** Each handler patches every `["media-list", type]`
+cache with `queryClient.setQueriesData`, writes the caller's own row through
+`putMyListRow` (`api/myList.js`, `PUT /api/me/list/{id}`), folds the saved row
+back in - its status may have moved, since reaching the total finishes it -
+and on failure restores the previous value and toasts "Network error.
+Progress reverted.":
 
-| Handler | Endpoint | Body |
-|---|---|---|
-| `handleEpChange` | `/api/anime/{id}` (also recomputes `cum_ep_fin = ep_previous + ep_fin` locally), `/api/tv-shows/{id}`, `/api/cartoon/{id}` | `{ ep_fin }` |
-| `handleChChange` | `/api/manga/{id}` | `{ ch_fin }` |
-| `handleNovelProgressChange` | `/api/novel/{id}` | any of `{ vol_fin | ch_fin | arc_fin }` (the card picks by `progress_display`: `vol_tw`, `vol_original`, `arc_ch`, `ch`) |
-| `handleComicProgressChange` | `/api/comic/{id}` | `{ issue_fin }` |
+| Handler | Body to `PUT /api/me/list/{id}` |
+|---|---|
+| `handleEpChange` (anime, TV show, cartoon; anime also recomputes `cum_ep_fin = ep_previous + ep_fin` locally) | `{ ep_fin }` |
+| `handleChChange` (manga) | `{ ch_fin }` |
+| `handleNovelProgressChange` | any of `{ vol_fin | ch_fin | arc_fin }` (the card picks by `progress_display`: `vol_tw`, `vol_original`, `arc_ch`, `ch`) |
+| `handleComicProgressChange` | `{ issue_fin }` |
 
 Cards cap at the total and toast "Cannot exceed total episodes/volumes/…".
 
@@ -541,11 +543,14 @@ select, Filters button with an active-count badge, grid/table toggle, result
 count. Table rows link to `${config.navPath}/${id}`; table cells receive
 `{ franchiseDict, seriesDict, isAdmin, handleStatusToggle }`, and
 `handleStatusToggle` goes through `useStatusToggle(type)` with toasts
-("Added to Watch/Read Next", "Marked for rewatch/reread", "Status → X").
+("Added to Watch/Read Next", "Marked for rewatch/reread", "Status → X"); the
+hook writes a status to `/api/me/list` and a plan flag to
+`/api/me/plan-flags`.
 
-**Admin-only** in tables: the watch/read status button advances the status on
-click (`watchButtonColumn` / `readButtonColumn`, guests see text), and the
-plan-flag checkboxes (`planFlagColumn`) are disabled for guests.
+**The viewer's own** in tables (`canTrack = has("self.list")`): the
+watch/read status button advances the status on click (`watchButtonColumn` /
+`readButtonColumn`), and the plan-flag checkboxes (`planFlagColumn`) work;
+without a list they are not offered.
 
 | Type | Series? | Filters (key: type) | Sorts | Table columns |
 |---|---|---|---|---|
@@ -1465,10 +1470,12 @@ with prev/next season arrows, a `RatingDistributionBlock`, and sections
 Completed / Watching / Watch When Airs / Plan to Watch / Might Watch /
 Dropped. The hero's **Planned** figure is `entry_planned`, which still counts
 both of the two planned statuses together. Both render `DashboardCard`s with the same
-optimistic `PATCH /api/anime/{id} { ep_fin }`. **Admin-only**: a "Seasonal
-Rating" select → `PATCH /api/seasonal/{id} { my_rating }`, plus the hint to
-set the current season under Admin → System Config when none is set.
-Detail's hero also carries `components/tracker/SeasonBulkActions.jsx`, two
+optimistic `PUT /api/me/list/{id} { ep_fin }` (`putMyListRow`). **The
+viewer's own** (`useViewScope().ownData`): a "Seasonal Rating" select →
+`PATCH /api/seasonal/{id} { my_rating }`, the account's own season row, and
+the steppers. **An editor's** (`isAdmin`): the hint to set the current season
+under Admin → System Config when none is set, and, on Detail,
+`components/tracker/SeasonBulkActions.jsx`, two
 buttons that act on the whole season, each behind a `ConfirmModal` and each
 reloading the page when done: **Autofill & update** runs the anime detail
 page's own Autofill & update (`POST /api/data-control/replace/anime/{id}`)
@@ -1583,8 +1590,9 @@ Anime keeps `Not Yet Aired` from the current season onward, grouped
 year; TV also includes "Airing". Games keep `release_status` of `Rumored` or
 `Unreleased` — `Early Access` is already out and `Cancelled` is never coming —
 grouped by the year of `release_date` with TBD last, and sorted inside a year
-by that date, so a full date precedes a bare year. Cards are `MediaCard` with
-`isAdmin`; `onUpdated` patches the `["media-list", type]` caches.
+by that date, so a full date precedes a bare year. Cards are `MediaCard`: the status select
+is drawn for a holder of `self.list` and the release bolt for an editor
+(`isAdmin`); `onUpdated` patches the `["media-list", type]` caches.
 
 ### RandomPicker — `/random` · `/random/:type`
 

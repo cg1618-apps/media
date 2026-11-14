@@ -574,8 +574,6 @@ const HAS_PROGRESS = new Set([
   "hentai",
   "h-game",
 ]);
-const ADMIN_ONLY_STATUS = new Set(["movie", "anime-movie"]);
-
 // The status a card shows when the entry has none yet, per status axis.
 const FALLBACK_STATUS = {
   watch: "Might Watch",
@@ -592,8 +590,13 @@ export default function MediaCard({
   onUpdated,
   scoreField = "mal_rating",
 }) {
+  // Two different questions. The status controls write the viewer's own list
+  // (/api/me), so they ask for a list (ownData, self.list). The bolt also
+  // marks the work released, a catalogue edit, so it asks manage.catalog
+  // (isAdmin); a caller may pass that in.
   const { isAdmin: authAdmin } = useAuth();
-  const showAdmin = isAdminProp !== undefined ? isAdminProp : authAdmin;
+  const canEditCatalogue = isAdminProp !== undefined ? isAdminProp : authAdmin;
+  const { ownData } = useViewScope();
   const { showToast } = useToast();
   const [showVol, setShowVol] = useState(false);
   const [showAiringPrompt, setShowAiringPrompt] = useState(false);
@@ -644,12 +647,14 @@ export default function MediaCard({
 
   async function applyBoltAction(watchingStatus) {
     const airingStatus = boltRelease?.value;
-    const fields = { [boltRelease.field]: airingStatus };
-    if (watchingStatus) fields[statusField] = watchingStatus;
+    // The release is the catalogue's; the watching status is the viewer's own,
+    // and is only sent by an account that keeps a list.
+    const personal = watchingStatus && ownData ? { [statusField]: watchingStatus } : {};
     try {
       const updated = await statusMutation.mutateAsync({
         id: data.system_id,
-        fields,
+        fields: personal,
+        catalogue: { [boltRelease.field]: airingStatus },
       });
       onUpdated?.(updated);
       showToast(
@@ -687,7 +692,8 @@ export default function MediaCard({
 
   // The status button is an ink outline: the status is in the tooltip and
   // the symbol, not in a colour.
-  const statusBtn = showAdmin ? (
+  // No list, no status: a viewer without self.list has none to show or change.
+  const statusBtn = ownData ? (
     <button
       onClick={handleStatusToggle}
       className="w-6 h-6 flex items-center justify-center border border-border-strong bg-surface text-text-muted hover:border-text hover:text-text transition-colors font-mono text-[13px] leading-none"
@@ -695,10 +701,6 @@ export default function MediaCard({
     >
       {btnConfig.symbol}
     </button>
-  ) : !ADMIN_ONLY_STATUS.has(type) && currentStatus ? (
-    <Chip className="min-w-0 truncate" title={currentStatus}>
-      {currentStatus}
-    </Chip>
   ) : null;
 
   return (
@@ -762,33 +764,33 @@ export default function MediaCard({
           <>
             <FutureMeta type={type} data={data} />
             <div className="relative z-10 mt-auto flex items-center gap-1 border-t border-border pt-2.5">
-              {showAdmin && (
-                <>
-                  <select
-                    value={currentStatus}
-                    onChange={handleStatusChange}
-                    className="font-mono text-[10px] border border-border-strong px-1 py-0.5 bg-surface text-text-muted cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand w-full"
-                    title={statusType === "play" ? "Playing status" : "Watching status"}
-                  >
-                    {needsExtra && (
-                      <option value={currentStatus} disabled>
-                        {currentStatus}
-                      </option>
-                    )}
-                    {futureOptions.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={handleBoltAction}
-                    className="w-6 h-6 flex items-center justify-center border border-border-strong bg-surface text-text-muted hover:border-brand hover:text-brand transition-colors text-[10px] shrink-0"
-                    title={`Mark as ${boltRelease?.value}`}
-                  >
-                    <i className="fas fa-bolt"></i>
-                  </button>
-                </>
+              {ownData && (
+                <select
+                  value={currentStatus}
+                  onChange={handleStatusChange}
+                  className="font-mono text-[10px] border border-border-strong px-1 py-0.5 bg-surface text-text-muted cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand w-full"
+                  title={statusType === "play" ? "Playing status" : "Watching status"}
+                >
+                  {needsExtra && (
+                    <option value={currentStatus} disabled>
+                      {currentStatus}
+                    </option>
+                  )}
+                  {futureOptions.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {canEditCatalogue && (
+                <button
+                  onClick={handleBoltAction}
+                  className="w-6 h-6 flex items-center justify-center border border-border-strong bg-surface text-text-muted hover:border-brand hover:text-brand transition-colors text-[10px] shrink-0"
+                  title={`Mark as ${boltRelease?.value}`}
+                >
+                  <i className="fas fa-bolt"></i>
+                </button>
               )}
             </div>
           </>

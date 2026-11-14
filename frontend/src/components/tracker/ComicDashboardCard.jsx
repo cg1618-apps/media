@@ -19,7 +19,7 @@ const UNIT = "font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint"
 export default function ComicDashboardCard({
   comic,
   franchise,
-  isAdmin,
+  canTrack,
   onProgressChange,
   view = "card",
 }) {
@@ -175,7 +175,7 @@ export default function ComicDashboardCard({
           className="mb-3"
         />
 
-        {isAdmin ? (
+        {canTrack ? (
           <div className="flex items-center justify-between gap-2 relative z-20">
             <Button
               kind="outline"

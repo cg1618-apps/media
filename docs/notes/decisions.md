@@ -4709,3 +4709,30 @@ Center's `manage.pipelines` route, which every member was refused.
 The admin needs no lock code for the new key: its lock is its fixed set and
 every other permission in the catalogue, so a key minted later is locked off
 for it already. A test asserts it.
+
+### Personal writes leave the catalogue PATCH (2026-11-14)
+
+The SPA wrote every status, progress count and plan flag through
+`PATCH /api/<type>/{id}`, which asks `manage.catalog`, while the controls were
+drawn on `self.list` in one place and `isAdmin` in others. So a `user` was
+shown a status button that answered 401, and could not keep its own list at
+all. Those writes now go to `/api/me` - the list row and the plan flags - and
+every control that writes them asks `self.list` (`ownData`), which is what
+the write route asks.
+
+- **One hook routes by key, with a small explicit split.** `useStatusToggle`
+  sends the six plan-flag names to `/api/me/plan-flags` and everything else
+  personal to `/api/me/list`. The SPA does not mirror the server's full
+  `LIST_FIELDS` table: a second copy would drift, and the routes already
+  refuse a key a type does not hold (422), so a wrong key fails loudly.
+- **A control that edits the work as well says so.** MediaCard's bolt marks
+  the work released (a catalogue fact) and may also move the viewer's status.
+  It passes the catalogue half as `catalogue`, which alone goes to the PATCH,
+  and it is drawn for an editor only; the status half is sent only by an
+  account that keeps a list.
+- **The answer is the cached entry with the row folded in**, because the
+  list route answers the row, not the entry, and the callers replace their
+  row with what comes back.
+- **`isAdmin` became `canTrack` on the dashboard cards.** The prop gated the
+  steppers only, and a name that says "editor" on a control that writes the
+  viewer's own progress is how the two gates drifted apart.

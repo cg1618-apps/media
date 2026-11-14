@@ -2,6 +2,8 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import { putMyListRow } from "../../api/myList";
+import { useViewScope } from "../../hooks/useViewScope";
 import { useToast } from "../../hooks/useToast";
 import { getRatingWeight } from "../../utils/media";
 import DashboardCard from "../../components/tracker/DashboardCard";
@@ -128,7 +130,7 @@ function SeasonalBlock({
   seasonal,
   animeData,
   franchiseMap,
-  isAdmin,
+  canTrack,
   onEpChange,
   onRatingChange,
   sections = SECTIONS,
@@ -191,7 +193,7 @@ function SeasonalBlock({
             )}
           </div>
 
-          {isAdmin && seasonal && (
+          {canTrack && seasonal && (
             <div className="shrink-0">
               <Eyebrow as="label" className="block mb-1.5">
                 Seasonal rating
@@ -255,7 +257,7 @@ function SeasonalBlock({
                       key={anime.system_id}
                       anime={anime}
                       franchise={franchiseMap[anime.franchise_id]}
-                      isAdmin={isAdmin}
+                      canTrack={canTrack}
                       onEpChange={onEpChange}
                     />
                   ))}
@@ -273,6 +275,9 @@ function SeasonalBlock({
 
 export default function SeasonalOverall() {
   const { isAdmin } = useAuth();
+  // The season's rating and the episode steppers are the viewer's own, so
+  // they ask for a list; isAdmin is kept for the editor's hint only.
+  const { ownData: canTrack } = useViewScope();
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState("current");
 
@@ -379,14 +384,7 @@ export default function SeasonalOverall() {
         ),
       );
       try {
-        const res = await fetch(`/api/anime/${sysId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ep_fin: newVal }),
-          credentials: "include",
-        });
-        if (!res.ok) throw new Error();
-        const saved = await res.json().catch(() => null);
+        const saved = await putMyListRow(sysId, { ep_fin: newVal });
         if (saved) {
           setter((prev) =>
             prev.map((a) => (a.system_id === sysId ? { ...a, ...saved } : a)),
@@ -488,7 +486,7 @@ export default function SeasonalOverall() {
               seasonal={seasonalMap[currentSeason]}
               animeData={thisAnime}
               franchiseMap={franchiseMap}
-              isAdmin={isAdmin}
+              canTrack={canTrack}
               onEpChange={handleEpChange(thisAnime, setThisAnime)}
               onRatingChange={handleRatingChange}
               showRatingDistribution
@@ -518,7 +516,7 @@ export default function SeasonalOverall() {
               seasonal={seasonalMap[nextSeason]}
               animeData={nextAnime}
               franchiseMap={franchiseMap}
-              isAdmin={isAdmin}
+              canTrack={canTrack}
               onEpChange={handleEpChange(nextAnime, setNextAnime)}
               onRatingChange={handleRatingChange}
               sections={NEXT_SECTIONS}

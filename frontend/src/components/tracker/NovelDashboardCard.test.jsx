@@ -17,7 +17,7 @@ function renderCard(novel, onProgressChange = vi.fn()) {
   render(
     <MemoryRouter>
       <ToastProvider>
-        <NovelDashboardCard novel={novel} isAdmin onProgressChange={onProgressChange} />
+        <NovelDashboardCard novel={novel} canTrack onProgressChange={onProgressChange} />
       </ToastProvider>
     </MemoryRouter>,
   );

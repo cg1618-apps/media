@@ -22,6 +22,7 @@ import AnnouncementBoard from "../../components/info/AnnouncementBoard";
 import { useMediaList } from "../../hooks/useMediaList";
 import { useApiQuery } from "../../hooks/useApiQuery";
 import { endpoints } from "../../api/endpoints";
+import { putMyListRow } from "../../api/myList";
 import { Eyebrow } from "../../components/ui/primitives";
 import { parseSeason, seasonAfter, seasonOfDate } from "../../lib/comingNext";
 import { progressToast } from "../../lib/progressToast";
@@ -249,7 +250,7 @@ function Section({
   count,
   items,
   franchiseData,
-  isAdmin,
+  canTrack,
   onEpChange,
   headerTop,
   view,
@@ -294,7 +295,7 @@ function Section({
                 franchise={franchiseData.find(
                   (f) => f.system_id === anime.franchise_id,
                 )}
-                isAdmin={isAdmin}
+                canTrack={canTrack}
                 onEpChange={onEpChange}
                 view="list"
               />
@@ -327,7 +328,7 @@ function Section({
                       franchise={franchiseData.find(
                         (f) => f.system_id === anime.franchise_id,
                       )}
-                      isAdmin={isAdmin}
+                      canTrack={canTrack}
                       onEpChange={onEpChange}
                     />
                   ))}
@@ -347,7 +348,7 @@ function ReadingSection({
   count,
   items,
   franchiseData,
-  isAdmin,
+  canTrack,
   onChChange,
   onNovelProgressChange,
   onComicProgressChange,
@@ -385,7 +386,7 @@ function ReadingSection({
                     key={item.system_id}
                     comic={item}
                     franchise={franchise}
-                    isAdmin={isAdmin}
+                    canTrack={canTrack}
                     onProgressChange={onComicProgressChange}
                     view="list"
                   />
@@ -397,7 +398,7 @@ function ReadingSection({
                     key={item.system_id}
                     novel={item}
                     franchise={franchise}
-                    isAdmin={isAdmin}
+                    canTrack={canTrack}
                     onProgressChange={onNovelProgressChange}
                     view="list"
                   />
@@ -408,7 +409,7 @@ function ReadingSection({
                   key={item.system_id}
                   anime={item}
                   franchise={franchise}
-                  isAdmin={isAdmin}
+                  canTrack={canTrack}
                   onEpChange={onChChange}
                   view="list"
                 />
@@ -445,7 +446,7 @@ function ReadingSection({
                         franchise={franchiseData.find(
                           (f) => f.system_id === item.franchise_id,
                         )}
-                        isAdmin={isAdmin}
+                        canTrack={canTrack}
                         onProgressChange={onComicProgressChange}
                       />
                     ) : item._ui_type === "Novel" ? (
@@ -455,7 +456,7 @@ function ReadingSection({
                         franchise={franchiseData.find(
                           (f) => f.system_id === item.franchise_id,
                         )}
-                        isAdmin={isAdmin}
+                        canTrack={canTrack}
                         onProgressChange={onNovelProgressChange}
                       />
                     ) : (
@@ -465,7 +466,7 @@ function ReadingSection({
                         franchise={franchiseData.find(
                           (f) => f.system_id === item.franchise_id,
                         )}
-                        isAdmin={isAdmin}
+                        canTrack={canTrack}
                         onEpChange={onChChange}
                       />
                     ),
@@ -547,7 +548,7 @@ function PlayingSection({
 }
 
 export default function Index() {
-  const { isAdmin, has } = useAuth();
+  const { has } = useAuth();
   const { showToast } = useToast();
   const queryClient = useQueryClient();
   // Who the dashboard is for. Everything below Announcements and the
@@ -561,6 +562,9 @@ export default function Index() {
   // view.* keys open catalogue reads; nothing in this part of the dashboard
   // is catalogue - it is the viewer's own list.
   const isMember = has("self.list");
+  // The steppers write the viewer's own progress (/api/me/list), so they ask
+  // for a list, not for manage.catalog.
+  const canTrack = isMember;
   const animeQuery = useMediaList("anime", LIST_OPTIONS);
   // Only the tracker divisions read the other lists. A guest is shown none
   // of them, so they are not fetched for one: the Broadcast schedule needs
@@ -651,9 +655,8 @@ export default function Index() {
   // its total), so the saved row replaces the optimistic one: its status is
   // the part the stepper could not have guessed. `list` is the pre-write
   // data, read for the status the entry had before.
-  async function settleProgress(type, list, sysId, res, savedMessage) {
+  function settleProgress(type, list, sysId, saved, savedMessage) {
     const before = list.find((x) => x.system_id === sysId);
-    const saved = await res.json().catch(() => null);
     if (saved) {
       updateCachedList(type, (x) =>
         x.system_id === sysId ? { ...x, ...saved } : x,
@@ -697,14 +700,8 @@ export default function Index() {
         t.system_id === sysId ? { ...t, ep_fin: newVal } : t,
       );
       try {
-        const res = await fetch(`/api/tv-shows/${sysId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ep_fin: newVal }),
-          credentials: "include",
-        });
-        if (!res.ok) throw new Error("Failed to sync");
-        await settleProgress("tv-show", tvData, sysId, res, "Episodes updated!");
+        const saved = await putMyListRow(sysId, { ep_fin: newVal });
+        settleProgress("tv-show", tvData, sysId, saved, "Episodes updated!");
       } catch {
         updateCachedList("tv-show", (t) =>
           t.system_id === sysId ? { ...t, ep_fin: prevVal } : t,
@@ -716,14 +713,8 @@ export default function Index() {
         c.system_id === sysId ? { ...c, ep_fin: newVal } : c,
       );
       try {
-        const res = await fetch(`/api/cartoon/${sysId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ep_fin: newVal }),
-          credentials: "include",
-        });
-        if (!res.ok) throw new Error("Failed to sync");
-        await settleProgress("cartoon", cartoonData, sysId, res, "Episodes updated!");
+        const saved = await putMyListRow(sysId, { ep_fin: newVal });
+        settleProgress("cartoon", cartoonData, sysId, saved, "Episodes updated!");
       } catch {
         updateCachedList("cartoon", (c) =>
           c.system_id === sysId ? { ...c, ep_fin: prevVal } : c,
@@ -741,14 +732,8 @@ export default function Index() {
           : a,
       );
       try {
-        const res = await fetch(`/api/anime/${sysId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ep_fin: newVal }),
-          credentials: "include",
-        });
-        if (!res.ok) throw new Error("Failed to sync");
-        await settleProgress("anime", animeData, sysId, res, "Episodes updated!");
+        const saved = await putMyListRow(sysId, { ep_fin: newVal });
+        settleProgress("anime", animeData, sysId, saved, "Episodes updated!");
       } catch {
         updateCachedList("anime", (a) =>
           a.system_id === sysId
@@ -782,14 +767,8 @@ export default function Index() {
       m.system_id === sysId ? { ...m, ch_fin: newVal } : m,
     );
     try {
-      const res = await fetch(`/api/manga/${sysId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ch_fin: newVal }),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to sync");
-      await settleProgress("manga", mangaData, sysId, res, "Chapters updated!");
+      const saved = await putMyListRow(sysId, { ch_fin: newVal });
+      settleProgress("manga", mangaData, sysId, saved, "Chapters updated!");
     } catch {
       updateCachedList("manga", (m) =>
         m.system_id === sysId ? { ...m, ch_fin: prevVal } : m,
@@ -807,14 +786,8 @@ export default function Index() {
       n.system_id === sysId ? { ...n, ...fieldUpdates } : n,
     );
     try {
-      const res = await fetch(`/api/novel/${sysId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(fieldUpdates),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to sync");
-      await settleProgress("novel", novelData, sysId, res, "Progress updated!");
+      const saved = await putMyListRow(sysId, fieldUpdates);
+      settleProgress("novel", novelData, sysId, saved, "Progress updated!");
     } catch {
       updateCachedList("novel", (n) =>
         n.system_id === sysId ? { ...n, ...prevFieldUpdates } : n,
@@ -832,14 +805,8 @@ export default function Index() {
       c.system_id === sysId ? { ...c, ...fieldUpdates } : c,
     );
     try {
-      const res = await fetch(`/api/comic/${sysId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(fieldUpdates),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to sync");
-      await settleProgress("comic", comicData, sysId, res, "Progress updated!");
+      const saved = await putMyListRow(sysId, fieldUpdates);
+      settleProgress("comic", comicData, sysId, saved, "Progress updated!");
     } catch {
       updateCachedList("comic", (c) =>
         c.system_id === sysId ? { ...c, ...prevFieldUpdates } : c,
@@ -1088,7 +1055,7 @@ export default function Index() {
                       franchiseData={franchiseData}
                       headerTop={subHeaderTop}
                       view={view}
-                      isAdmin={isAdmin}
+                      canTrack={canTrack}
                       onEpChange={handleEpChange}
                     />
                     <Section
@@ -1099,7 +1066,7 @@ export default function Index() {
                       franchiseData={franchiseData}
                       headerTop={subHeaderTop}
                       view={view}
-                      isAdmin={isAdmin}
+                      canTrack={canTrack}
                       onEpChange={handleEpChange}
                     />
                     <Section
@@ -1110,7 +1077,7 @@ export default function Index() {
                       franchiseData={franchiseData}
                       headerTop={subHeaderTop}
                       view={view}
-                      isAdmin={isAdmin}
+                      canTrack={canTrack}
                       onEpChange={handleEpChange}
                     />
                   </div>
@@ -1144,7 +1111,7 @@ export default function Index() {
                       franchiseData={franchiseData}
                       headerTop={subHeaderTop}
                       view={view}
-                      isAdmin={isAdmin}
+                      canTrack={canTrack}
                       onChChange={handleChChange}
                       onNovelProgressChange={handleNovelProgressChange}
                       onComicProgressChange={handleComicProgressChange}
@@ -1157,7 +1124,7 @@ export default function Index() {
                       franchiseData={franchiseData}
                       headerTop={subHeaderTop}
                       view={view}
-                      isAdmin={isAdmin}
+                      canTrack={canTrack}
                       onChChange={handleChChange}
                       onNovelProgressChange={handleNovelProgressChange}
                       onComicProgressChange={handleComicProgressChange}
@@ -1170,7 +1137,7 @@ export default function Index() {
                       franchiseData={franchiseData}
                       headerTop={subHeaderTop}
                       view={view}
-                      isAdmin={isAdmin}
+                      canTrack={canTrack}
                       onChChange={handleChChange}
                       onNovelProgressChange={handleNovelProgressChange}
                       onComicProgressChange={handleComicProgressChange}

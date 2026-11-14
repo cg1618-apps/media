@@ -2,6 +2,8 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import { putMyListRow } from "../../api/myList";
+import { useViewScope } from "../../hooks/useViewScope";
 import { useToast } from "../../hooks/useToast";
 import { getRatingWeight } from "../../utils/media";
 import DashboardCard from "../../components/tracker/DashboardCard";
@@ -95,7 +97,10 @@ export default function SeasonalDetail() {
   const { seasonal_id } = useParams();
   const seasonalId = decodeURIComponent(seasonal_id);
   const navigate = useNavigate();
+  // The season's rating and the episode steppers are the viewer's own (a
+  // list); the bulk actions write the catalogue (manage.catalog).
   const { isAdmin } = useAuth();
+  const { ownData: canTrack } = useViewScope();
   const { showToast } = useToast();
 
   const prevSeason = getAdjacentSeason(seasonalId, "prev");
@@ -180,14 +185,7 @@ export default function SeasonalDetail() {
       ),
     );
     try {
-      const res = await fetch(`/api/anime/${sysId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ep_fin: newVal }),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to sync");
-      const saved = await res.json().catch(() => null);
+      const saved = await putMyListRow(sysId, { ep_fin: newVal });
       if (saved) {
         setAnimeData((prev) =>
           prev.map((a) => (a.system_id === sysId ? { ...a, ...saved } : a)),
@@ -291,34 +289,40 @@ export default function SeasonalDetail() {
             </div>
           </div>
 
-          {/* Right: admin rating control and season-wide actions */}
-          {isAdmin && (
+          {/* Right: the viewer's own rating, and the editor's season-wide actions */}
+          {(canTrack || isAdmin) && (
             <div className="shrink-0 space-y-4">
-              <Eyebrow as="label" className="block mb-1.5">
-                Seasonal rating
-              </Eyebrow>
-              <div className="flex items-center gap-2">
-                <select
-                  value={seasonal?.my_rating || ""}
-                  onChange={(e) => handleRatingChange(e.target.value)}
-                  disabled={savingRating}
-                  className="bg-surface border border-border-strong text-text text-sm px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand disabled:opacity-50"
-                >
-                  <option value="">—</option>
-                  {RATING_OPTIONS.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
-                </select>
-                {savingRating && (
-                  <i className="fas fa-spinner fa-spin text-brand text-sm"></i>
-                )}
-              </div>
-              <SeasonBulkActions
-                anime={animeData}
-                onDone={() => setReloadKey((k) => k + 1)}
-              />
+              {canTrack && (
+                <>
+                  <Eyebrow as="label" className="block mb-1.5">
+                    Seasonal rating
+                  </Eyebrow>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={seasonal?.my_rating || ""}
+                      onChange={(e) => handleRatingChange(e.target.value)}
+                      disabled={savingRating}
+                      className="bg-surface border border-border-strong text-text text-sm px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand disabled:opacity-50"
+                    >
+                      <option value="">—</option>
+                      {RATING_OPTIONS.map((r) => (
+                        <option key={r} value={r}>
+                          {r}
+                        </option>
+                      ))}
+                    </select>
+                    {savingRating && (
+                      <i className="fas fa-spinner fa-spin text-brand text-sm"></i>
+                    )}
+                  </div>
+                </>
+              )}
+              {isAdmin && (
+                <SeasonBulkActions
+                  anime={animeData}
+                  onDone={() => setReloadKey((k) => k + 1)}
+                />
+              )}
             </div>
           )}
         </div>
@@ -352,7 +356,7 @@ export default function SeasonalDetail() {
                     key={anime.system_id}
                     anime={anime}
                     franchise={franchiseMap[anime.franchise_id]}
-                    isAdmin={isAdmin}
+                    canTrack={canTrack}
                     onEpChange={handleEpChange}
                   />
                 ))}
