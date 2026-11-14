@@ -97,9 +97,10 @@ counts). `h1` is display by default.
      the answer before any chip is read. The viewer's status sits at the far
      right of the row, drawn only for a holder of `self.list`: Completed and
      Completed (解說) in `success`; the Active and Passive statuses and Play
-     Anytime in `warning`; Paused, the one on-hold value every vocabulary
-     has, in `info`; Temp Dropped, Dropped and the Won't statuses in `danger`,
-     grouped as the library filters group them; Plan to, Watch When Airs,
+     Anytime in `warning`; Paused and Temp Dropped in `info`, Temp Dropped
+     read as set aside to come back to rather than given up, although the
+     library filters group it with Dropped; Dropped and the Won't statuses in
+     `danger`; Plan to, Watch When Airs,
      Play When Released and the Might statuses in muted grey. A step not on
      the list has no chip, and a status this build has no tone for keeps the
      ink chip. Importance: Essential is the brand fill (`bg-brand

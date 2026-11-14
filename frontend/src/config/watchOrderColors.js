@@ -27,10 +27,10 @@ const STATE_CHIPS = {
  * - success: finished, the summary-video variant included.
  * - warning: in progress, actively or passively ("Play Anytime" is a game
  *   being played whenever, so it is in progress too).
- * - info: on hold - "Paused" is the one on-hold value every vocabulary has.
- * - danger: stopped - "Temp Dropped" with the dropped and won't statuses, as
- *   the library filters group it (WATCHING_STATUS_GROUP) and as the follow
- *   progress counts it.
+ * - info: on hold - "Paused", and "Temp Dropped", which is set aside to come
+ *   back to rather than given up. The library filters group Temp Dropped with
+ *   Dropped (WATCHING_STATUS_GROUP); this page reads it as a pause instead.
+ * - danger: stopped - Dropped and the won't statuses.
  * - muted: not started - planned, waiting for a release, or might.
  */
 const STATUS_TONE_LISTS = {
@@ -44,9 +44,8 @@ const STATUS_TONE_LISTS = {
     "Passive Playing",
     "Play Anytime",
   ],
-  info: ["Paused"],
+  info: ["Paused", "Temp Dropped"],
   danger: [
-    "Temp Dropped",
     "Dropped",
     "Won't Watch",
     "Won't Read",
