@@ -1666,8 +1666,8 @@ everything below. Without one - a shared account - the catalogue version:
 every FilterDef flagged `personal: true` is dropped
 (`filterDefsForMode(mode, types, { personal })`, one rule for every mode:
 the status groups, my rating, the franchise mode's entry status and
-expectation, and a type's own status, ownership and usefulness filters,
-which the picker flags through `PERSONAL_LIBRARY_FILTERS`), the draw is
+expectation, and every library filter its config flags, such as a type's own
+status, ownership and usefulness), the draw is
 uniform, the Weights tab and the **Weighted** checkbox are not drawn (a
 `?tab=weights` link opens the picker), a saved default naming a personal
 filter is ignored, and `/api/plan-next/` is never asked. What is left is

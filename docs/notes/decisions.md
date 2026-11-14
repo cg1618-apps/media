@@ -4805,9 +4805,9 @@ separate components rather than one component full of `ownData` checks.
 - **The picker's personal filters and weights are flagged, not listed per
   call.** A FilterDef carries `personal: true` and a weight input is marked
   personal in `WEIGHT_INPUTS`; `filterDefsForMode` and `entryFactors` apply
-  one rule to every mode. The library configs do not carry the flag yet, so
-  the picker names their personal keys once (`PERSONAL_LIBRARY_FILTERS`)
-  until they do.
+  one rule to every mode. A type's own library filters keep the flag their
+  library config gives them, so the picker and the library drop the same
+  filters.
 - **External score is a catalogue filter.** It reads the stored MAL or IMDb
   score, which every viewer is shown on the card, so it is offered with and
   without a list. Genre is not a picker filter in either version yet; adding

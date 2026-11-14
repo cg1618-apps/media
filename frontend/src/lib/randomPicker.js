@@ -208,21 +208,12 @@ export function generalFilterDefs(types) {
   ].filter(Boolean);
 }
 
-// The library filters that read the viewer's own list. A library def that
-// carries `personal: true` itself counts as well.
-const PERSONAL_LIBRARY_FILTERS = new Set([
-  "watchingStatus",
-  "readingStatus",
-  "playingStatus",
-  "ownership",
-  "usefulness",
-]);
-
-// A library def reads a raw item; the picker hands it the entry's item.
+// A library def reads a raw item; the picker hands it the entry's item. Its
+// `personal` flag is the library config's own, so the picker drops exactly
+// what the library drops.
 function forEntries(fd) {
   return {
     ...fd,
-    personal: Boolean(fd.personal) || PERSONAL_LIBRARY_FILTERS.has(fd.key),
     match: (entry, active, franchiseDict, seriesDict) =>
       fd.match(entry.item, active, franchiseDict, seriesDict),
     ...(fd.deriveOptions && {
