@@ -31,7 +31,9 @@ describe("watch order status colours", () => {
     expect(STATUS_TONES["Passive Reading"]).toBe("warning");
     expect(STATUS_TONES["Paused"]).toBe("info");
     expect(STATUS_TONES["Dropped"]).toBe("danger");
-    expect(STATUS_TONES["Temp Dropped"]).toBe("danger");
+    // Set aside, not given up: blue like Paused, though the library filters
+    // group it with Dropped.
+    expect(STATUS_TONES["Temp Dropped"]).toBe("info");
     expect(STATUS_TONES["Won't Play"]).toBe("danger");
     expect(STATUS_TONES["Plan to Watch"]).toBe("muted");
     expect(STATUS_TONES["Might Read"]).toBe("muted");
