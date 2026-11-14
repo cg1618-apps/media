@@ -33,13 +33,22 @@ function respond(url, isAdmin) {
   if (u.startsWith("/api/auth/me")) {
     return {
       is_admin: isAdmin,
-      username: isAdmin ? "admin" : "reader",
-      role: isAdmin ? "admin" : "user",
-      is_root: isAdmin,
+      // The catalogue editor is super: is_admin is manage.catalog, which the
+      // admin role does not hold.
+      username: isAdmin ? "cg1618" : "reader",
+      role: isAdmin ? "super" : "user",
       // A member's keys: entity names link (the four entity keys). The guest
       // view is pinned in CastSection.test, StudioLinks.test and Novel's own
       // guest case below.
-      permissions: ["view.studio", "view.publisher", "view.person", "view.character", "view.search", "view.extras"],
+      permissions: [
+        "view.studio",
+        "view.publisher",
+        "view.person",
+        "view.character",
+        "view.search",
+        "view.extras",
+        ...(isAdmin ? ["manage.catalog"] : []),
+      ],
     };
   }
   return [];

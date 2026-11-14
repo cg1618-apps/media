@@ -3,9 +3,8 @@
 // The view.* keys open what a guest is not shown: the credited entities, one
 // key per kind (studio, publisher, person - which covers seiyuu - and
 // character, which covers identities), search, the Random Picker and the
-// extras (Future Releases, Completions, Resources). super
-// holds them all; user holds what its role grants; guest holds none; admin
-// passes through the root flag.
+// extras (Future Releases, Completions). super holds them all; user holds
+// what its role grants; guest and admin hold none.
 // A personal note section needs no key: every viewer is served it, holding
 // only its own rows.
 //

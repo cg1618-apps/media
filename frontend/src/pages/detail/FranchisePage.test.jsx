@@ -150,8 +150,9 @@ describe("FranchisePage restricted family", () => {
 // The hub's graph is read-only; an admin reaches the editor through a link
 // already scoped to this franchise, which /relations reads from ?owner=.
 describe("FranchisePage relations link", () => {
-  it("links an admin to /relations scoped to this franchise", async () => {
-    me = { is_admin: true, is_root: true, username: "admin", role: "admin" };
+  it("links a catalogue editor to /relations scoped to this franchise", async () => {
+    // Super: is_admin is manage.catalog, which the admin role does not hold.
+    me = { is_admin: true, username: "cg1618", role: "super", permissions: ["manage.catalog"] };
     renderPage();
     await userEvent.click(await screen.findByRole("button", { name: "Relations" }));
     expect(
@@ -171,11 +172,10 @@ describe("FranchisePage relations link", () => {
 // for a guest is the permissions' doing - self.list for the viewer's own
 // rating and expectation, view.character for the Characters tab.
 describe("FranchisePage for a guest", () => {
-  const GUEST = { username: null, role: "guest", is_root: false, permissions: [] };
+  const GUEST = { username: null, role: "guest", permissions: [] };
   const MEMBER = {
     username: "reader",
     role: "user",
-    is_root: false,
     permissions: ["view.studio", "view.publisher", "view.person", "view.character", "view.search", "view.extras", "self.list"],
   };
   // The member without self.list: every view.* key, the same franchise.

@@ -77,12 +77,12 @@ def test_the_entry_column_is_cleared_and_its_neighbours_kept(
 
 
 def test_a_highlight_loses_only_its_h_presentation(
-    db_session, revision, h_game, admin_user
+    db_session, revision, h_game, owner_user
 ):
     note = _note(
         db_session,
         h_game,
-        admin_user.id,
+        owner_user.id,
         "h_game_highlights",
         {"female_characters": ["Ana"], "h_presentation": "靜圖", "audio": "H場景"},
     )
@@ -94,13 +94,13 @@ def test_a_highlight_loses_only_its_h_presentation(
 
 
 def test_another_sections_h_presentation_key_is_left_alone(
-    db_session, revision, h_game, admin_user
+    db_session, revision, h_game, owner_user
 ):
     """The mirror: only the highlights section offers the h_game options."""
     note = _note(
         db_session,
         h_game,
-        admin_user.id,
+        owner_user.id,
         "gameplay_systems",
         {"h_presentation": "kept"},
     )

@@ -897,6 +897,7 @@ function DuplicatesModal({ results, onClose }) {
 export default function Admin() {
   const { showToast } = useToast();
   const auth = useAuth();
+  const canManageAnnouncements = auth.has("manage.announcements");
   const canSeeHComic = canSeeGatedType(auth, "h-comic");
   const canSeeHGame = canSeeGatedType(auth, "h-game");
   const canSeeHentai = canSeeGatedType(auth, "hentai");
@@ -1908,119 +1909,123 @@ export default function Admin() {
         </div>
       </div>
 
-      {/* 4. Announcement & Notes */}
-      <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
-        <h2 className="text-lg font-black text-text uppercase tracking-widest mb-4 flex items-center border-b border-border pb-2">
-          Announcement &amp;
-          Notes
-        </h2>
+      {/* 4. Announcement & Notes. Its own permission, not the
+          page's: manage.announcements is what the announcement writes
+          ask, and the admin and super hold it beside manage.pipelines. */}
+      {canManageAnnouncements && (
+        <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
+          <h2 className="text-lg font-black text-text uppercase tracking-widest mb-4 flex items-center border-b border-border pb-2">
+            Announcement &amp;
+            Notes
+          </h2>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Existing notes */}
-          <div className="space-y-3">
-            <p className="text-[10px] font-black text-text-faint uppercase tracking-widest">
-              Posted ({announcements.length})
-            </p>
-            {announcements.length === 0 ? (
-              <div className="flex items-center justify-center py-8 px-4 bg-surface-2 rounded-xl border border-border border-dashed">
-                <p className="text-text-faint font-medium italic text-sm">
-                  No Announcement &amp; Notes
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-                {announcements.map((item) => (
-                  <div
-                    key={item.title}
-                    className={`rounded-xl border px-3 py-2.5 transition ${
-                      annEditing === item.title
-                        ? "border-brand/50 bg-brand-soft"
-                        : "border-border bg-surface-2"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-bold text-text truncate">
-                        {item.title}
-                      </span>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <button
-                          onClick={() => startEditAnnouncement(item)}
-                          className="text-xs font-bold text-text-faint hover:text-brand bg-surface border border-border rounded-lg px-2 py-1 transition"
-                        >
-                          <i className="fas fa-edit"></i>
-                        </button>
-                        <button
-                          onClick={() => handleDeleteAnnouncement(item.title)}
-                          onBlur={() => setAnnConfirmDelete(null)}
-                          className={`text-xs font-bold rounded-lg px-2 py-1 border transition ${
-                            annConfirmDelete === item.title
-                              ? "bg-danger text-white border-danger"
-                              : "bg-surface text-text-faint hover:text-danger border-border"
-                          }`}
-                        >
-                          {annConfirmDelete === item.title ? (
-                            "Confirm?"
-                          ) : (
-                            <i className="fas fa-trash"></i>
-                          )}
-                        </button>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Existing notes */}
+            <div className="space-y-3">
+              <p className="text-[10px] font-black text-text-faint uppercase tracking-widest">
+                Posted ({announcements.length})
+              </p>
+              {announcements.length === 0 ? (
+                <div className="flex items-center justify-center py-8 px-4 bg-surface-2 rounded-xl border border-border border-dashed">
+                  <p className="text-text-faint font-medium italic text-sm">
+                    No Announcement &amp; Notes
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                  {announcements.map((item) => (
+                    <div
+                      key={item.title}
+                      className={`rounded-xl border px-3 py-2.5 transition ${
+                        annEditing === item.title
+                          ? "border-brand/50 bg-brand-soft"
+                          : "border-border bg-surface-2"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-bold text-text truncate">
+                          {item.title}
+                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            onClick={() => startEditAnnouncement(item)}
+                            className="text-xs font-bold text-text-faint hover:text-brand bg-surface border border-border rounded-lg px-2 py-1 transition"
+                          >
+                            <i className="fas fa-edit"></i>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteAnnouncement(item.title)}
+                            onBlur={() => setAnnConfirmDelete(null)}
+                            className={`text-xs font-bold rounded-lg px-2 py-1 border transition ${
+                              annConfirmDelete === item.title
+                                ? "bg-danger text-white border-danger"
+                                : "bg-surface text-text-faint hover:text-danger border-border"
+                            }`}
+                          >
+                            {annConfirmDelete === item.title ? (
+                              "Confirm?"
+                            ) : (
+                              <i className="fas fa-trash"></i>
+                            )}
+                          </button>
+                        </div>
                       </div>
+                      <p className="text-xs text-text-faint mt-1 line-clamp-2 whitespace-pre-wrap">
+                        {item.body}
+                      </p>
                     </div>
-                    <p className="text-xs text-text-faint mt-1 line-clamp-2 whitespace-pre-wrap">
-                      {item.body}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Add / edit form */}
-          <div className="space-y-3">
-            <p className="text-[10px] font-black text-text-faint uppercase tracking-widest">
-              {annEditing !== null ? `Editing "${annEditing}"` : "New Note"}
-            </p>
-            <input
-              type="text"
-              value={annTitle}
-              onChange={(e) => setAnnTitle(e.target.value)}
-              placeholder="Title"
-              maxLength={120}
-              className="w-full border border-border-strong rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
-            />
-            <textarea
-              value={annBody}
-              onChange={(e) => setAnnBody(e.target.value)}
-              rows={6}
-              placeholder="Write the announcement or note. Line breaks are preserved."
-              className="w-full border border-border-strong rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
-            />
-            <div className="flex gap-3">
-              <button
-                onClick={handleSaveAnnouncement}
-                disabled={annSaving}
-                className="flex-1 bg-brand hover:bg-brand-hover text-on-brand rounded-lg py-2.5 text-sm font-bold transition disabled:opacity-60"
-              >
-                {annSaving ? (
-                  <i className="fas fa-circle-notch fa-spin"></i>
-                ) : annEditing !== null ? (
-                  "Save Changes"
-                ) : (
-                  "Add Announcement"
-                )}
-              </button>
-              {annEditing !== null && (
-                <button
-                  onClick={resetAnnouncementForm}
-                  className="px-5 bg-surface border border-border-strong rounded-lg py-2.5 text-sm font-bold text-text-muted hover:bg-surface-2 transition"
-                >
-                  Cancel
-                </button>
+                  ))}
+                </div>
               )}
+            </div>
+
+            {/* Add / edit form */}
+            <div className="space-y-3">
+              <p className="text-[10px] font-black text-text-faint uppercase tracking-widest">
+                {annEditing !== null ? `Editing "${annEditing}"` : "New Note"}
+              </p>
+              <input
+                type="text"
+                value={annTitle}
+                onChange={(e) => setAnnTitle(e.target.value)}
+                placeholder="Title"
+                maxLength={120}
+                className="w-full border border-border-strong rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
+              />
+              <textarea
+                value={annBody}
+                onChange={(e) => setAnnBody(e.target.value)}
+                rows={6}
+                placeholder="Write the announcement or note. Line breaks are preserved."
+                className="w-full border border-border-strong rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
+              />
+              <div className="flex gap-3">
+                <button
+                  onClick={handleSaveAnnouncement}
+                  disabled={annSaving}
+                  className="flex-1 bg-brand hover:bg-brand-hover text-on-brand rounded-lg py-2.5 text-sm font-bold transition disabled:opacity-60"
+                >
+                  {annSaving ? (
+                    <i className="fas fa-circle-notch fa-spin"></i>
+                  ) : annEditing !== null ? (
+                    "Save Changes"
+                  ) : (
+                    "Add Announcement"
+                  )}
+                </button>
+                {annEditing !== null && (
+                  <button
+                    onClick={resetAnnouncementForm}
+                    className="px-5 bg-surface border border-border-strong rounded-lg py-2.5 text-sm font-bold text-text-muted hover:bg-surface-2 transition"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* 5. Data Control Log */}
       <LogsTable

@@ -270,6 +270,11 @@ export default function App() {
                 <Route element={<ProtectedRoute permission="view.extras" />}>
                   <Route path="/future-releases" element={<FutureReleases />} />
                   <Route path="/completions" element={<Completions />} />
+                </Route>
+                {/* The site-wide Resources page is the admin's and super's
+                    alone: manage.resources gates /api/resources reads and
+                    writes both, so a member is not shown it at all. */}
+                <Route element={<ProtectedRoute permission="manage.resources" />}>
                   <Route path="/resources" element={<Resources />} />
                 </Route>
                 <Route element={<ProtectedRoute feature="quotes_memes" />}>
@@ -299,19 +304,17 @@ export default function App() {
                   <Route path="/plan" element={<Plan />} />
                 </Route>
 
-                {/* Any signed-in member, not an admin: ProtectedRoute's
-                    default permission ("admin") no longer exists, so this
-                    block asks for self.list explicitly. The admin does not
-                    pass - the root short-circuit never covers the self.*
-                    family (AuthContext.has), and an admin keeps no library
-                    of its own. */}
+                {/* Any signed-in member, not an admin: this block asks for
+                    self.list explicitly. The admin does not pass - its role
+                    holds no self.* key, since an admin keeps no library of
+                    its own. */}
                 <Route element={<ProtectedRoute permission="self.list" />}>
                   <Route path="/settings" element={<Settings />} />
                 </Route>
 
                 {/* The filer's own requests. self.requests, the key the
                     header's Requests link asks: user and super, never the
-                    admin account (self.* is not short-circuited by root). */}
+                    admin account (its role holds no self.* key). */}
                 <Route element={<ProtectedRoute permission="self.requests" />}>
                   <Route path="/requests" element={<MyRequests />} />
                 </Route>
@@ -334,9 +337,21 @@ export default function App() {
                   <Route path="/random-defaults" element={<PickerDefaults />} />
                   <Route path="/watch-orders" element={<WatchOrders />} />
                   <Route path="/relations" element={<Relations />} />
+                </Route>
+
+                {/* The Note pages - the vocabulary, its translations and which
+                    columns each external API writes. manage.options, the key
+                    /api/options and /api/constants/external-apis ask: the
+                    admin's and super's, not a catalogue write. */}
+                <Route element={<ProtectedRoute permission="manage.options" />}>
                   <Route path="/options" element={<SystemOptions />} />
                   <Route path="/aliases" element={<Aliases />} />
                   <Route path="/external-apis" element={<ExternalApis />} />
+                </Route>
+
+                {/* The image library: manage.images, the key /api/images
+                    asks. */}
+                <Route element={<ProtectedRoute permission="manage.images" />}>
                   <Route path="/images" element={<Images />} />
                 </Route>
 

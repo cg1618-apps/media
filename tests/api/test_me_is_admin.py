@@ -48,8 +48,8 @@ def test_a_super_account_reads_as_is_admin(db, client):
     assert PERM_ADMIN_AUTHZ not in body["permissions"]
 
 
-def test_the_owner_account_still_reads_as_is_admin(admin_client):
-    assert admin_client.get("/api/auth/me").json()["is_admin"] is True
+def test_the_owner_account_still_reads_as_is_admin(owner_client):
+    assert owner_client.get("/api/auth/me").json()["is_admin"] is True
 
 
 def test_a_guest_does_not(client):

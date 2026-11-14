@@ -81,10 +81,11 @@ from app.services.domain.gated_labels import ensure_labels
 from app.services.integrations.image_manager import COVER_DIR, COVER_OWNERS
 from app.services.rbac.seed import (
     ADMIN_ROLE,
+    ensure_admin_accounts_modeless,
     ensure_rbac_seed,
     ensure_shared_accounts,
 )
-from app.services.rbac.seed_modes import MODE_UNRESTRICTED, ensure_access_mode_seed
+from app.services.rbac.seed_modes import ensure_access_mode_seed
 from app.services.security import get_password_hash
 
 # Before anything in this module can log. `ensure_schema` below, and every
@@ -166,21 +167,25 @@ async def lifespan(app: FastAPI):
             logger.info("[System] No admin detected. Seeding master account...")
 
             hashed_pwd = get_password_hash(admin_pass)
-            # Ceiling and default `unrestricted`: the faithful mapping of the
-            # root role, which sees everything. Not the column's `normal`
-            # default, which is what an invited account starts with.
+            # The admin has no mode, but it cannot be created without one:
+            # the INSERT takes the columns' `normal` default even when None is
+            # passed, because a Python-side default fires on None.
+            # ensure_admin_accounts_modeless below parks it - an UPDATE, which
+            # fires no default.
             new_admin = models.User(
                 username="admin",
                 hashed_password=hashed_pwd,
                 role_id=admin_role.system_id,
-                mode_ceiling=MODE_UNRESTRICTED,
-                mode_default=MODE_UNRESTRICTED,
             )
             db.add(new_admin)
             db.commit()
             logger.info("[System] Admin user 'admin' created successfully.")
         else:
             logger.info("[System] Admin account verified.")
+        # Whatever a Pull or a hand edit left, an admin-role account has no
+        # mode - the way ensure_shared_accounts re-asserts the shared modes.
+        ensure_admin_accounts_modeless(db)
+        db.commit()
 
     except Exception as e:
         # `logging` never lets an emit failure propagate (it routes through

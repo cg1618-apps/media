@@ -152,7 +152,7 @@ function HentaiTrackerBlock({ hentai, isAdmin, onPatch }) {
 export default function Hentai() {
   const { publicId } = useParams();
   const navigate = useNavigate();
-  const { isAdmin, isRoot } = useAuth();
+  const { isAdmin, has } = useAuth();
   const { showToast } = useToast();
 
   const [hentai, setHentai] = useState(null);
@@ -320,7 +320,7 @@ export default function Hentai() {
               >
                 Hentai{hentai.source_material ? ` · ${hentai.source_material}` : ""}
               </span>
-              {isRoot && (
+              {has("manage.catalog") && (
                 <span
                   className="font-mono text-[9px] tracking-[0.1em] opacity-60 whitespace-nowrap"
                   style={{ writingMode: "vertical-rl" }}

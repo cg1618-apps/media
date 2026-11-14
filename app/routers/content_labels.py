@@ -122,8 +122,8 @@ def require_label_reader(viewer: Viewer = Depends(get_viewer)) -> Viewer:
     The list is two different screens: the admin page that administers the
     labels (admin.authz) and the checkbox picker on the Add/Modify forms
     (manage.catalog). Spelling the disjunction out rather than picking the
-    wider of the two keeps it true if locked_permissions ever stops implying
-    that an admin.authz holder is root.
+    wider of the two keeps both screens reachable: the admin holds
+    admin.authz and not manage.catalog, super the reverse.
     """
     if viewer.has(PERM_ADMIN_AUTHZ) or viewer.has(PERM_MANAGE_CATALOG):
         return viewer

@@ -13,8 +13,8 @@ reaches, which is the access-mode axis (app/services/rbac/modes.py), and they
 had to leave this one because permission resolution is a union and a union can
 only add - a role holding field_group.sources_restricted could never have it
 taken away by a mode. label_perm() and field_group_perm() were deleted rather
-than left unused, so that any call site still asking has(field_group.<key>) -
-which would silently answer True for a root role - is an ImportError instead.
+than left unused, so that any call site still asking has(field_group.<key>)
+is an ImportError instead.
 
 A name is always `<family>.<key>`. The bare `admin` that used to be the
 exception was removed in Phase A of the authorization redesign; it is now
@@ -55,7 +55,15 @@ PERMISSION_FAMILIES: tuple[str, ...] = (
 )
 
 ADMIN_PERMISSION_KEYS: tuple[str, ...] = ("authz",)
-MANAGE_PERMISSION_KEYS: tuple[str, ...] = ("catalog", "pipelines", "requests")
+MANAGE_PERMISSION_KEYS: tuple[str, ...] = (
+    "catalog",
+    "pipelines",
+    "requests",
+    "announcements",
+    "options",
+    "images",
+    "resources",
+)
 
 ADMIN_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
     "authz": (
@@ -85,6 +93,22 @@ MANAGE_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
         "The request inbox: read every member's requests and reports, mark "
         "them done or declined with a response, reopen them, and delete them.",
     ),
+    "announcements": (
+        "Manage Announcements",
+        "Write, edit and remove the site announcements.",
+    ),
+    "options": (
+        "Manage Options",
+        "The Note pages: System Options, Alias Conversion and External APIs.",
+    ),
+    "images": (
+        "Manage Images",
+        "The image library: upload, crop, attach and remove images.",
+    ),
+    "resources": (
+        "Manage Resources",
+        "Read and edit the site-wide Resources page.",
+    ),
 }
 
 
@@ -102,6 +126,20 @@ PERM_ADMIN_AUTHZ = admin_perm("authz")
 PERM_MANAGE_CATALOG = manage_perm("catalog")
 PERM_MANAGE_PIPELINES = manage_perm("pipelines")
 PERM_MANAGE_REQUESTS = manage_perm("requests")
+# The admin's own pages beyond accounts and pipelines. Separate from
+# manage.catalog so that holding them writes no catalogue row.
+PERM_MANAGE_ANNOUNCEMENTS = manage_perm("announcements")
+PERM_MANAGE_OPTIONS = manage_perm("options")
+PERM_MANAGE_IMAGES = manage_perm("images")
+PERM_MANAGE_RESOURCES = manage_perm("resources")
+ADMIN_PAGE_PERMISSIONS: frozenset[str] = frozenset(
+    {
+        PERM_MANAGE_ANNOUNCEMENTS,
+        PERM_MANAGE_OPTIONS,
+        PERM_MANAGE_IMAGES,
+        PERM_MANAGE_RESOURCES,
+    }
+)
 
 # Declared here rather than derived from a table: like every other permission
 # these name code (a router dependency), so a row with no code behind it would
@@ -185,8 +223,8 @@ VIEW_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
     ),
     "extras": (
         "View Extras",
-        "Resources, future releases and completions. Quotes and memes are a "
-        "per-account switch on Users instead.",
+        "Future releases and completions. Quotes and memes are a per-account "
+        "switch on Users instead.",
     ),
 }
 
@@ -269,8 +307,8 @@ def is_valid(db: "Session", permission: str) -> bool:
 # Some cells of the role grid are not an admin's to decide. `admin.authz` is
 # the clearest: it is the permission to change who may do what, so handing it
 # out through the very page it governs is how an installation loses control of
-# itself. It is now grantable to NOTHING - the root short-circuit is the
-# only way to hold it.
+# itself. It is grantable to nothing: only the `admin` role holds it, locked
+# on, and the admin role's whole row is fixed.
 #
 # The rest follow from what each system role IS, rather than from what it
 # happens to have been seeded with. `super` means "everything except changing
@@ -326,19 +364,24 @@ def gated_type_permissions() -> frozenset[str]:
     return frozenset(media_type_perm(media_type) for media_type in gated_types())
 
 
-def locked_permissions(
-    role_name: str, is_root: bool
-) -> tuple[frozenset[str], frozenset[str]]:
+# The admin role's whole row. It runs the installation - accounts, roles,
+# access modes, pipelines, the request inbox and its own pages - and reads
+# and writes no catalogue: manage.catalog, every media_type.*, every view.*
+# and every self.* are locked off, so nothing on its row is a free choice.
+ADMIN_FIXED_PERMISSIONS: frozenset[str] = frozenset(
+    {PERM_ADMIN_AUTHZ, PERM_MANAGE_PIPELINES, PERM_MANAGE_REQUESTS}
+    | ADMIN_PAGE_PERMISSIONS
+)
+
+
+def locked_permissions(role_name: str) -> tuple[frozenset[str], frozenset[str]]:
     """
     (locked_on, locked_off) for one role: what it must hold and what it may
     never hold. Disjoint by construction - a permission in neither set is the
     admin's free choice.
 
-    A root role's locked_on is everything EXCEPT the self family, and its
-    locked_off is that family, because Viewer.has() deliberately does not
-    short-circuit self.* (resolver.py): an administrative account keeps no
-    list and no personal notes, so drawing those boxes ticked would state the
-    opposite of what the code does.
+    The admin role's two sets cover the whole vocabulary: it holds exactly
+    ADMIN_FIXED_PERMISSIONS and nothing else, so no cell on its row is free.
     """
     every = static_catalog()
     own = _self_family()
@@ -349,8 +392,8 @@ def locked_permissions(
     # `unrestricted`. The nine ordinary types stay free for all three.
     gated = gated_type_permissions()
 
-    if is_root:
-        return frozenset(every - own), own
+    if role_name == ADMIN_ROLE_NAME:
+        return ADMIN_FIXED_PERMISSIONS, frozenset(every - ADMIN_FIXED_PERMISSIONS)
     if role_name == GUEST_ROLE_NAME:
         # Every anonymous request resolves to this role, so anything beyond a
         # read would be handed to every visitor on the internet.
@@ -372,10 +415,13 @@ def locked_permissions(
         # Handling requests is not a member's: the inbox reads every
         # account's requests. Writing the catalogue is what makes an account
         # `super`, so a member never holds it.
+        # The admin's own pages are not a member's either.
         return frozenset(
             {PERM_SELF_REQUESTS, PERM_SELF_PASSWORD, PERM_VIEW_RANDOM_PICKER} | gated
         ), frozenset(
-            refused | {PERM_MANAGE_CATALOG, PERM_MANAGE_REQUESTS}
+            refused
+            | {PERM_MANAGE_CATALOG, PERM_MANAGE_REQUESTS}
+            | ADMIN_PAGE_PERMISSIONS
         )
     if role_name == SHARED_ROLE_NAME:
         # Several people sign in to one shared account. It files requests and

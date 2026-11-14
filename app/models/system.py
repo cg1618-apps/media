@@ -207,9 +207,8 @@ class Role(Base):
     media type or a field group, so a stored name with no code behind it would
     be inert. Only the grants that bind a permission to a role are data.
 
-    `is_root` is not a shortcut. Without it the admin role would need an
-    explicit grant for every content label and field group, and creating one
-    would hide content from the admin until someone remembered to re-grant it.
+    No role is root: every role, `admin` included, holds exactly its grant
+    rows (permissions.locked_permissions fixes the admin's whole row).
     """
 
     __tablename__ = "role"
@@ -228,9 +227,6 @@ class Role(Base):
     description = Column(Text, nullable=True)
     # The five roles are fixed (permissions.ROLE_NAMES) and read by name, so
     # none can be created, renamed or deleted through the API.
-    is_root = Column(
-        Boolean, nullable=False, default=False, server_default="false"
-    )
     sort_order = Column(Integer, nullable=False, default=0, server_default="0")
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)

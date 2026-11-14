@@ -76,18 +76,18 @@ def test_a_different_english_name_is_still_a_different_person(db_session):
 
 
 def test_posting_an_existing_person_adds_the_role_instead_of_a_second_row(
-    admin_client, db_session
+    owner_client, db_session
 ):
     """
     ensureSourceValues.js POSTs here whenever a typed name is missing from a
     ROLE-FILTERED list, so typing a known producer into the Director field
     arrives as a create for someone who already exists.
     """
-    first = admin_client.post(
+    first = owner_client.post(
         "/api/person/",
         json={"name": "新海誠", "roles": [{"role": "producer", "scope": "anime"}]},
     ).json()
-    second = admin_client.post(
+    second = owner_client.post(
         "/api/person/",
         json={"name": "新海誠", "roles": [{"role": "director", "scope": "anime"}]},
     )
@@ -103,40 +103,40 @@ def test_posting_an_existing_person_adds_the_role_instead_of_a_second_row(
     assert held == {("producer", "anime"), ("director", "anime")}
 
 
-def test_posting_an_existing_studio_returns_it(admin_client, db_session):
-    first = admin_client.post("/api/studio/", json={"name_en": "MAPPA"}).json()
-    second = admin_client.post("/api/studio/", json={"name_en": " mappa "})
+def test_posting_an_existing_studio_returns_it(owner_client, db_session):
+    first = owner_client.post("/api/studio/", json={"name_en": "MAPPA"}).json()
+    second = owner_client.post("/api/studio/", json={"name_en": " mappa "})
     assert second.status_code == 200
     assert second.json()["system_id"] == first["system_id"]
     assert db_session.query(models.Studio).count() == 1
 
 
-def test_posting_only_an_alt_list_finds_the_studio_holding_it(admin_client, db_session):
+def test_posting_only_an_alt_list_finds_the_studio_holding_it(owner_client, db_session):
     """name_alt is a comma-separated list, so the lookup is by its first name,
     not by the whole value - which is no longer one of any studio's names."""
-    first = admin_client.post(
+    first = owner_client.post(
         "/api/studio/", json={"name_en": "Studio 1", "name_alt": "S1, Studio One"}
     ).json()
-    second = admin_client.post("/api/studio/", json={"name_alt": "S1, Studio One"})
+    second = owner_client.post("/api/studio/", json={"name_alt": "S1, Studio One"})
     assert second.status_code == 200
     assert second.json()["system_id"] == first["system_id"]
     assert db_session.query(models.Studio).count() == 1
 
 
-def test_posting_an_alt_list_no_studio_holds_creates_one(admin_client, db_session):
-    first = admin_client.post(
+def test_posting_an_alt_list_no_studio_holds_creates_one(owner_client, db_session):
+    first = owner_client.post(
         "/api/studio/", json={"name_en": "Studio 1", "name_alt": "S1, Studio One"}
     ).json()
-    second = admin_client.post("/api/studio/", json={"name_alt": "S2, Studio Two"})
+    second = owner_client.post("/api/studio/", json={"name_alt": "S2, Studio Two"})
     assert second.json()["system_id"] != first["system_id"]
     assert db_session.query(models.Studio).count() == 2
 
 
-def test_posting_only_an_alt_list_finds_the_person_holding_it(admin_client, db_session):
-    first = admin_client.post(
+def test_posting_only_an_alt_list_finds_the_person_holding_it(owner_client, db_session):
+    first = owner_client.post(
         "/api/person/", json={"name_en": "Taro Tanaka", "name_alt": "Tanaka T., タナカ"}
     ).json()
-    second = admin_client.post("/api/person/", json={"name_alt": "Tanaka T., タナカ"})
+    second = owner_client.post("/api/person/", json={"name_alt": "Tanaka T., タナカ"})
     assert second.status_code == 200
     assert second.json()["system_id"] == first["system_id"]
     assert db_session.query(models.Person).count() == 1

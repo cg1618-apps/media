@@ -1,7 +1,8 @@
 // Frontend: page component file for Resources - one site-wide page of notes:
 // links, plain text and text with links inline, in groups that nest to any
-// depth. Everyone who can open Quotes reads it; a manage.catalog holder also
-// gets the controls to add, edit, delete and reorder (see ResourceTree).
+// depth. The admin's and super's alone: manage.resources gates the route and
+// /api/resources reads and writes, and its holder gets the controls to add,
+// edit, delete and reorder (see ResourceTree).
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import ResourceTree from "../../components/resources/ResourceTree";
 import { RESOURCES_QUERY_KEY } from "../../api/mutations/useResourceMutations";
@@ -11,7 +12,7 @@ import { endpoints } from "../../api/endpoints";
 
 export default function Resources() {
   const { has } = useAuth();
-  const canEdit = has("manage.catalog");
+  const canEdit = has("manage.resources");
 
   const { data, isLoading, error } = useApiQuery(
     RESOURCES_QUERY_KEY,

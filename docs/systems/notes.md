@@ -560,7 +560,7 @@ Who may write, and whose rows a read returns, follow from it — the router read
 | Scope | Write (`_authorize_write` / `_authorize_edit`) | Read |
 | --- | --- | --- |
 | `catalog` | `manage.catalog` | everyone, unfiltered |
-| `personal` | any signed-in account holding `self.personal_notes`, own rows only (a root role may also edit another's) | `WHERE author_id = viewer`; a logged-out visitor has no id and sees none |
+| `personal` | any signed-in account holding `self.personal_notes`, own rows only: a row is edited and deleted by its author alone, whatever anyone else's role, and anyone else gets the 404 a missing note gets | `WHERE author_id = viewer`; a logged-out visitor has no id and sees none |
 
 A catalogue row may still carry **personal values** — see the next section — and ten catalogue sections also hold each account's own **personal rows** beside the catalogue's — see [Mixed sections](#mixed-sections).
 
@@ -647,7 +647,7 @@ response returns carries it (`NoteResponse.personal`).
 | | Catalogue row | Personal row |
 | --- | --- | --- |
 | Read by | everyone, a logged-out visitor included | its author alone — not another member, not a catalogue editor, not the admin |
-| Written (`POST`) by | a viewer holding `manage.catalog`: `super`, the admin, any catalogue editor | any other signed-in viewer holding `self.personal_notes` |
+| Written (`POST`) by | a viewer holding `manage.catalog`: `super`, any catalogue editor - never the admin, which holds no `manage.catalog` | any other signed-in viewer holding `self.personal_notes` |
 | Edited and deleted by | `manage.catalog` (401 otherwise) | its author (404 to anyone else) |
 | Reordered by | `manage.catalog`, the section's catalogue rows exactly | its author, its own personal rows exactly |
 | Nests under | a catalogue row | a catalogue row, or its author's own personal row |
@@ -658,7 +658,8 @@ response returns carries it (`NoteResponse.personal`).
 the kind of a stored row. A personal row is never promoted into the
 catalogue. A PATCH may move it only to another mixed section (422 "A personal
 note may move only to a section that takes them."). The admin writes
-catalogue rows and holds none of its own.
+no row of either kind: it holds neither `manage.catalog` nor
+`self.personal_notes`.
 
 **Order.** Within a section the catalogue rows come first, by `sort_index`,
 then the viewer's personal rows, by `sort_index` (`_ordered`). The page draws

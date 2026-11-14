@@ -5,7 +5,7 @@ Ten catalogue sections (NoteSection.mixed) also hold personal rows, told
 apart by `note.personal`. A viewer reads the catalogue rows plus its OWN
 personal rows - nobody else's, the admin included; a guest reads the
 catalogue. Which kind a write makes is the server's call, from
-manage.catalog: its holders (super, the admin) write catalogue rows, every
+manage.catalog: its holders (super) write catalogue rows, every
 other account holding self.personal_notes writes personal rows, and a
 `personal` key in the payload is ignored either way. A personal row is
 edited, deleted, reordered and nested under only by its author.
@@ -96,9 +96,9 @@ def _titles(rows):
 
 
 def test_each_user_reads_the_catalogue_and_its_own_rows(
-    db, accounts, admin_client, admin_user, game
+    db, accounts, owner_client, owner_user, game
 ):
-    _catalogue(db, admin_user, game, "items", title="Flask", sort_index=0)
+    _catalogue(db, owner_user, game, "items", title="Flask", sort_index=0)
     a = accounts
     assert _post(a.as_("alice"), game, title="Alice's").status_code == 201
     assert _post(a.as_("bob"), game, title="Bob's").status_code == 201
@@ -107,17 +107,17 @@ def test_each_user_reads_the_catalogue_and_its_own_rows(
     assert _titles(alice) == ["Flask", "Alice's"]
     assert [n["personal"] for n in alice] == [False, True]
     assert _titles(_listed(a.as_("bob"), game, "items")) == ["Flask", "Bob's"]
-    # Nobody else's: not the catalogue editor, not the admin, not a guest.
+    # Nobody else's: not the catalogue editor, not the owner, not a guest.
     assert _titles(_listed(a.as_("carol"), game, "items")) == ["Flask"]
-    assert _titles(_listed(admin_client, game, "items")) == ["Flask"]
+    assert _titles(_listed(owner_client, game, "items")) == ["Flask"]
     assert _titles(_listed(a.anonymous(), game, "items")) == ["Flask"]
 
 
 def test_a_users_rows_sort_after_the_catalogues_within_the_section(
-    db, accounts, admin_user, game
+    db, accounts, owner_user, game
 ):
     a = accounts
-    _catalogue(db, admin_user, game, "items", title="C1", kind="Potion", sort_index=0)
+    _catalogue(db, owner_user, game, "items", title="C1", kind="Potion", sort_index=0)
     assert _post(a.as_("alice"), game, title="P1", kind="Potion").status_code == 201
     assert _post(a.as_("alice"), game, title="P2", kind="Key").status_code == 201
     # A catalogue row written AFTER the user's still reads before them.
@@ -132,10 +132,10 @@ def test_a_users_rows_sort_after_the_catalogues_within_the_section(
 
 
 def test_a_users_children_sort_after_the_catalogues_under_one_parent(
-    db, accounts, admin_user, game
+    db, accounts, owner_user, game
 ):
     a = accounts
-    region = _catalogue(db, admin_user, game, "geography", title="Limgrave", sort_index=0)
+    region = _catalogue(db, owner_user, game, "geography", title="Limgrave", sort_index=0)
     r = _post(a.as_("alice"), game, "geography", title="My cave", parent_id=str(region.system_id))
     assert r.status_code == 201, r.text
     r = _post(a.as_("carol"), game, "geography", title="Stormveil", parent_id=str(region.system_id))
@@ -154,12 +154,12 @@ def test_a_users_children_sort_after_the_catalogues_under_one_parent(
 
 
 def test_the_server_picks_the_kind_and_ignores_the_payloads(
-    db, accounts, super_client, super_user, admin_client, admin_user, game
+    db, accounts, super_client, super_user, owner_client, owner_user, game
 ):
     r = _post(super_client, game, title="Super's", personal=True)
     assert r.status_code == 201, r.text
     assert r.json()["personal"] is False
-    r = _post(admin_client, game, title="Admin's", personal=True)
+    r = _post(owner_client, game, title="Owner's", personal=True)
     assert r.status_code == 201, r.text
     assert r.json()["personal"] is False
     r = _post(accounts.as_("carol"), game, title="Carol's", personal=True)
@@ -203,10 +203,10 @@ def alices_row(accounts, game):
 
 
 def test_only_the_author_edits_or_deletes_a_personal_row(
-    db, accounts, super_client, admin_client, alices_row
+    db, accounts, super_client, owner_client, alices_row
 ):
     url = f"/api/notes/{alices_row}"
-    for c in (accounts.as_("bob"), accounts.as_("carol"), super_client, admin_client):
+    for c in (accounts.as_("bob"), accounts.as_("carol"), super_client, owner_client):
         assert c.patch(url, json={"title": "Taken"}).status_code == 404
         assert c.delete(url).status_code == 404
     db.expire_all()
@@ -220,8 +220,28 @@ def test_only_the_author_edits_or_deletes_a_personal_row(
     assert db.get(models.Note, uuid.UUID(alices_row)) is None
 
 
-def test_a_member_may_not_edit_a_catalogue_row(db, accounts, admin_user, game):
-    row = _catalogue(db, admin_user, game, "items", title="Flask", sort_index=0)
+def test_the_admin_may_not_edit_or_delete_a_personal_row(
+    db, accounts, admin_client, owner_user, game, alices_row
+):
+    """No role is exempt from a personal row's author check, the admin
+    included: 404, as for any other account. The catalogue row beside it
+    answers the admin 401 (it holds no manage.catalog), so the 404 is the
+    personal-row branch refusing, not the capability check."""
+    url = f"/api/notes/{alices_row}"
+    assert admin_client.patch(url, json={"title": "Taken"}).status_code == 404
+    assert admin_client.delete(url).status_code == 404
+    row = _catalogue(db, owner_user, game, "items", title="Flask", sort_index=0)
+    r = admin_client.patch(f"/api/notes/{row.system_id}", json={"title": "Taken"})
+    assert r.status_code == 401
+    db.expire_all()
+    assert db.get(models.Note, uuid.UUID(alices_row)).title == "Alice's"
+    # The mirror: the author reaches the same row.
+    r = accounts.as_("alice").patch(url, json={"title": "Renamed"})
+    assert r.status_code == 200, r.text
+
+
+def test_a_member_may_not_edit_a_catalogue_row(db, accounts, owner_user, game):
+    row = _catalogue(db, owner_user, game, "items", title="Flask", sort_index=0)
     url = f"/api/notes/{row.system_id}"
     assert accounts.as_("alice").patch(url, json={"title": "Mine"}).status_code == 401
     assert accounts.as_("alice").delete(url).status_code == 401
@@ -230,10 +250,10 @@ def test_a_member_may_not_edit_a_catalogue_row(db, accounts, admin_user, game):
     assert r.json()["personal"] is False
 
 
-def test_a_write_never_flips_the_kind(db, accounts, admin_user, game, alices_row):
+def test_a_write_never_flips_the_kind(db, accounts, owner_user, game, alices_row):
     r = accounts.as_("alice").patch(f"/api/notes/{alices_row}", json={"personal": False})
     assert r.status_code == 200 and r.json()["personal"] is True
-    row = _catalogue(db, admin_user, game, "items", title="Flask", sort_index=0)
+    row = _catalogue(db, owner_user, game, "items", title="Flask", sort_index=0)
     r = accounts.as_("carol").patch(f"/api/notes/{row.system_id}", json={"personal": True})
     assert r.status_code == 200 and r.json()["personal"] is False
     db.expire_all()
@@ -267,10 +287,10 @@ def _reorder(c, game, ids, section="items"):
     )
 
 
-def test_reorder_renumbers_one_kind(db, accounts, admin_user, game):
+def test_reorder_renumbers_one_kind(db, accounts, owner_user, game):
     a = accounts
-    c1 = _catalogue(db, admin_user, game, "items", title="C1", sort_index=0).system_id
-    c2 = _catalogue(db, admin_user, game, "items", title="C2", sort_index=1).system_id
+    c1 = _catalogue(db, owner_user, game, "items", title="C1", sort_index=0).system_id
+    c2 = _catalogue(db, owner_user, game, "items", title="C2", sort_index=1).system_id
     p1 = _post(a.as_("alice"), game, title="P1").json()["system_id"]
     p2 = _post(a.as_("alice"), game, title="P2").json()["system_id"]
     b1 = _post(a.as_("bob"), game, title="B1").json()["system_id"]
@@ -294,11 +314,11 @@ def test_reorder_renumbers_one_kind(db, accounts, admin_user, game):
 
 
 def test_a_catalogue_row_may_not_nest_under_a_personal_row(
-    db, accounts, admin_user, game
+    db, accounts, owner_user, game
 ):
     a = accounts
     mine = _post(a.as_("alice"), game, "geography", title="My region").json()["system_id"]
-    region = _catalogue(db, admin_user, game, "geography", title="Limgrave", sort_index=0)
+    region = _catalogue(db, owner_user, game, "geography", title="Limgrave", sort_index=0)
 
     r = _post(a.as_("carol"), game, "geography", title="Stormveil", parent_id=mine)
     assert r.status_code == 422, r.text
@@ -356,7 +376,7 @@ def _by_title(rows):
 
 
 def test_deleting_a_catalogue_parent_moves_members_rows_under_it_to_the_top(
-    db, accounts, admin_user, game
+    db, accounts, owner_user, game
 ):
     """
     A member's rows nested anywhere under a deleted catalogue row survive at
@@ -366,9 +386,9 @@ def test_deleting_a_catalogue_parent_moves_members_rows_under_it_to_the_top(
     delete would pass by deleting nothing personal.
     """
     a = accounts
-    region = _catalogue(db, admin_user, game, "geography", title="Limgrave", sort_index=0)
+    region = _catalogue(db, owner_user, game, "geography", title="Limgrave", sort_index=0)
     sub = _catalogue(
-        db, admin_user, game, "geography", title="Weeping", sort_index=0,
+        db, owner_user, game, "geography", title="Weeping", sort_index=0,
         parent_id=region.system_id,
     )
     alice = a.as_("alice")
@@ -398,17 +418,17 @@ def test_deleting_a_catalogue_parent_moves_members_rows_under_it_to_the_top(
 
 
 def test_deleting_a_catalogue_parent_still_deletes_its_catalogue_children(
-    db, accounts, admin_user, game
+    db, accounts, owner_user, game
 ):
     """The mirror: catalogue rows under a deleted catalogue row go with it, as
     before - only members' rows are re-homed."""
     a = accounts
-    region = _catalogue(db, admin_user, game, "geography", title="Limgrave", sort_index=0)
+    region = _catalogue(db, owner_user, game, "geography", title="Limgrave", sort_index=0)
     _catalogue(
-        db, admin_user, game, "geography", title="Weeping", sort_index=0,
+        db, owner_user, game, "geography", title="Weeping", sort_index=0,
         parent_id=region.system_id,
     )
-    other = _catalogue(db, admin_user, game, "geography", title="Caelid", sort_index=1)
+    other = _catalogue(db, owner_user, game, "geography", title="Caelid", sort_index=1)
 
     assert a.as_("carol").delete(f"/api/notes/{region.system_id}").status_code == 204
 

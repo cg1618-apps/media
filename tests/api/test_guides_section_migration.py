@@ -65,20 +65,20 @@ def _reload(db, row):
 
 
 @pytest.fixture
-def legacy_rows(db_session, game, admin_user):
+def legacy_rows(db_session, game, owner_user):
     rows = {
-        "guide": _note(db_session, game, "guides", None, "walkthrough", admin_user.id),
+        "guide": _note(db_session, game, "guides", None, "walkthrough", owner_user.id),
         "build": _note(
-            db_session, game, "builds_and_mods", "Build", "bleed", admin_user.id
+            db_session, game, "builds_and_mods", "Build", "bleed", owner_user.id
         ),
         "mod": _note(
-            db_session, game, "builds_and_mods", "Mod", "co-op", admin_user.id
+            db_session, game, "builds_and_mods", "Mod", "co-op", owner_user.id
         ),
         "tool": _note(
-            db_session, game, "builds_and_mods", "Tool", "save editor", admin_user.id
+            db_session, game, "builds_and_mods", "Tool", "save editor", owner_user.id
         ),
         "kindless": _note(
-            db_session, game, "builds_and_mods", None, "no kind chosen", admin_user.id
+            db_session, game, "builds_and_mods", None, "no kind chosen", owner_user.id
         ),
     }
     db_session.commit()
@@ -171,7 +171,7 @@ def test_downgrade_puts_every_row_back(db_session, revision, legacy_rows):
 
 
 def test_the_migration_touches_no_other_section(
-    db_session, revision, game, admin_user, legacy_rows
+    db_session, revision, game, owner_user, legacy_rows
 ):
     """
     A refusal test needs something to refuse. `highlight_moments` is a game
@@ -179,8 +179,8 @@ def test_the_migration_touches_no_other_section(
     section whose key `builds_and_mods` was named around - if either moved, the
     WHERE clauses are too wide.
     """
-    _note(db_session, game, "highlight_moments", None, "Ch 3 boss", admin_user.id)
-    _note(db_session, game, "resources", None, "wiki", admin_user.id)
+    _note(db_session, game, "highlight_moments", None, "Ch 3 boss", owner_user.id)
+    _note(db_session, game, "resources", None, "wiki", owner_user.id)
     db_session.commit()
 
     _run(db_session, revision.UPGRADE_STATEMENTS)

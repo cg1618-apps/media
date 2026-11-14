@@ -7,8 +7,8 @@
 // sees it) - is provisional, pending the owner's design.
 //
 // Drawn only for a viewer holding self.requests: user and super. Never the
-// guest, and never the admin account, which files nothing (has() does not
-// short-circuit the self.* family for the root role).
+// guest, and never the admin account, which files nothing (its role holds
+// no self.* key).
 import { useState } from "react";
 import { useLocation } from "react-router-dom";
 

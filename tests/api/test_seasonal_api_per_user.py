@@ -6,7 +6,7 @@ the rating are one account's own, so a logged-out visitor gets 401 rather than
 a page of somebody else's numbers. Requires PostgreSQL. See
 tests/api/conftest.py.
 
-The client here is `super_client`, not `admin_client`: since 2026-09-12 an
+The client here is `super_client`, not `owner_client`: since 2026-09-12 an
 administrative account holds no `self.*` grant and every route in this prefix
 answers it 401. The `super` role is the account shape that legitimately keeps
 a library - it holds both self.* grants and manage.catalog, so the catalogue

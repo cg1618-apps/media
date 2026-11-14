@@ -15,8 +15,8 @@ def identity(db_session, character):
     return i
 
 
-def _put(admin_client, anime, rows):
-    return admin_client.put(f"/api/casting/anime/{anime.system_id}", json={"cast": rows})
+def _put(owner_client, anime, rows):
+    return owner_client.put(f"/api/casting/anime/{anime.system_id}", json={"cast": rows})
 
 
 def _row(character, identity=None, **extra):
@@ -26,40 +26,40 @@ def _row(character, identity=None, **extra):
     return row
 
 
-def test_main_and_identity_rows_round_trip(admin_client, anime, character, identity):
-    assert _put(admin_client, anime, [_row(character), _row(character, identity)]).status_code == 200
-    cast = admin_client.get(f"/api/casting/anime/{anime.system_id}").json()["cast"]
+def test_main_and_identity_rows_round_trip(owner_client, anime, character, identity):
+    assert _put(owner_client, anime, [_row(character), _row(character, identity)]).status_code == 200
+    cast = owner_client.get(f"/api/casting/anime/{anime.system_id}").json()["cast"]
     assert [(r["identity_id"], r["identity_name"]) for r in cast] == [
         (None, None),
         (str(identity.system_id), "Conan"),
     ]
 
 
-def test_put_rejects_an_identity_of_another_character(admin_client, db_session, anime, character, second_character):
+def test_put_rejects_an_identity_of_another_character(owner_client, db_session, anime, character, second_character):
     stranger = models.CharacterIdentity(system_id=uuid.uuid4(), character_id=second_character.system_id, name_en="Kid")
     db_session.add(stranger)
     db_session.flush()
-    r = _put(admin_client, anime, [_row(character, stranger)])
+    r = _put(owner_client, anime, [_row(character, stranger)])
     assert r.status_code == 422
     assert "does not belong" in r.json()["detail"]
 
 
-def test_put_rejects_an_unknown_identity(admin_client, anime, character):
-    r = _put(admin_client, anime, [{"character_id": str(character.system_id), "identity_id": str(uuid.uuid4())}])
+def test_put_rejects_an_unknown_identity(owner_client, anime, character):
+    r = _put(owner_client, anime, [{"character_id": str(character.system_id), "identity_id": str(uuid.uuid4())}])
     assert r.status_code == 422
 
 
-def test_put_rejects_one_identity_twice(admin_client, anime, character, identity):
-    r = _put(admin_client, anime, [_row(character, identity), _row(character, identity)])
+def test_put_rejects_one_identity_twice(owner_client, anime, character, identity):
+    r = _put(owner_client, anime, [_row(character, identity), _row(character, identity)])
     assert r.status_code == 422
 
 
-def test_put_still_rejects_the_main_identity_twice(admin_client, anime, character):
-    assert _put(admin_client, anime, [_row(character), _row(character)]).status_code == 422
+def test_put_still_rejects_the_main_identity_twice(owner_client, anime, character):
+    assert _put(owner_client, anime, [_row(character), _row(character)]).status_code == 422
 
 
 def test_photo_file_is_the_rows_own_and_display_photo_is_resolved(
-    admin_client, db_session, anime, character, identity
+    owner_client, db_session, anime, character, identity
 ):
     identity.photo_file = "character-identity/conan.jpg"
     identity.photo_focus = "10% 20%"
@@ -68,8 +68,8 @@ def test_photo_file_is_the_rows_own_and_display_photo_is_resolved(
         _row(character),
         _row(character, identity),
     ]
-    assert _put(admin_client, anime, rows).status_code == 200
-    cast = admin_client.get(f"/api/casting/anime/{anime.system_id}").json()["cast"]
+    assert _put(owner_client, anime, rows).status_code == 200
+    cast = owner_client.get(f"/api/casting/anime/{anime.system_id}").json()["cast"]
     # No own photo: photo_file stays empty, display is identity's, else character's.
     assert cast[0]["photo_file"] is None
     assert cast[0]["photo_focus"] is None
@@ -80,8 +80,8 @@ def test_photo_file_is_the_rows_own_and_display_photo_is_resolved(
     assert cast[1]["display_photo_focus"] == "10% 20%"
     rows[1]["photo_file"] = "character/own.jpg"
     rows[1]["photo_focus"] = "1% 2%"
-    assert _put(admin_client, anime, rows).status_code == 200
-    cast = admin_client.get(f"/api/casting/anime/{anime.system_id}").json()["cast"]
+    assert _put(owner_client, anime, rows).status_code == 200
+    cast = owner_client.get(f"/api/casting/anime/{anime.system_id}").json()["cast"]
     assert cast[1]["photo_file"] == "character/own.jpg"
     assert cast[1]["photo_focus"] == "1% 2%"
     assert cast[1]["display_photo_file"] == "character/own.jpg"
@@ -92,8 +92,8 @@ def test_photo_file_is_the_rows_own_and_display_photo_is_resolved(
     assert cast[1]["fallback_photo_focus"] == "10% 20%"
 
 
-def test_entries_lists_each_identity_appearance(admin_client, guest_reader, anime, character, identity):
-    assert _put(admin_client, anime, [_row(character), _row(character, identity)]).status_code == 200
+def test_entries_lists_each_identity_appearance(owner_client, guest_reader, anime, character, identity):
+    assert _put(owner_client, anime, [_row(character), _row(character, identity)]).status_code == 200
     groups = guest_reader.get(f"/api/character/{character.system_id}/entries").json()["groups"]
     entries = [e for g in groups for e in g["entries"]]
     assert len(entries) == 2
@@ -101,9 +101,9 @@ def test_entries_lists_each_identity_appearance(admin_client, guest_reader, anim
     assert sorted(str(e["identity_name"]) for e in entries) == ["Conan", "None"]
 
 
-def test_put_rejects_an_identity_paired_with_two_characters(admin_client, anime, character, second_character, identity):
+def test_put_rejects_an_identity_paired_with_two_characters(owner_client, anime, character, second_character, identity):
     # The identity belongs to `character`; one row pairs it with the other
     # character first, so only checking the last pairing would let it through.
-    r = _put(admin_client, anime, [_row(second_character, identity), _row(character, identity)])
+    r = _put(owner_client, anime, [_row(second_character, identity), _row(character, identity)])
     assert r.status_code == 422
     assert "does not belong" in r.json()["detail"]

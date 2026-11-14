@@ -112,8 +112,8 @@ Routers: `app/routers/quote.py` (`/api/quote`) and `app/routers/meme.py`
 (`/api/meme`). Reads need the caller's account to have the `quotes_memes`
 feature switched on (`require_feature_quotes_memes`,
 `app/services/rbac/features.py`) — a per-account switch on the Users page
-that only a `user` or `super` account can hold, and that the root admin
-holds without one. A guest and a shared account never read them. Writes
+that only a `user` or `super` account can hold. A guest, a shared account
+and the admin account never read them. Writes
 need `manage.catalog`. The SPA asks the same feature through `hasFeature`
 for the `/quote` and `/meme` routes, their nav rows, and the Quotes and
 Memes sections of a detail page
@@ -177,7 +177,8 @@ enough — the row itself is the leak. Every list, grouped and detail read calls
 `drop_hidden_rows(db, viewer, rows, type_attr, id_attr)` from
 `app/services/rbac/enforcement.py`:
 
-- Root roles (and a `None` viewer) get everything.
+- A `None` viewer — an internal caller, not a request — gets everything. No
+  role is exempt.
 - Otherwise the distinct `(type, id)` pairs are checked with
   `filter_visible_pairs` and rows whose pair is hidden are **dropped**, not
   degraded to `missing: true` (the UI reads `missing` as "dangling reference,
@@ -272,7 +273,9 @@ row's pair is renamed to `_legacy_*` on the way in). The author travels as
 `username` in place of `author_id`, whose uuid is minted per database, and Pull
 resolves it back to the local account. `author_id` is NOT NULL, so a row whose
 author is unknown here, blank, or absent falls back to the installation owner
-rather than failing; a sheet written before the column existed is resolved by
+rather than failing — and with no owner either is skipped and reported as
+`no installation owner` ([data-actions.md](../data-actions.md#the-installation-owner));
+a sheet written before the column existed is resolved by
 its `author_id` uuid first. Blank timestamp
 cells parse to `None`, which is why `created_at`/`updated_at` are optional in
 the response schemas.

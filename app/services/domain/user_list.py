@@ -26,12 +26,19 @@ from app.services.domain.completion import (
     apply_list_completion_timestamp,
     reached_total,
 )
-from app.services.rbac.permissions import GUEST_ROLE_NAME, SHARED_ROLE_NAME
+from app.services.rbac.permissions import (
+    ADMIN_ROLE_NAME,
+    GUEST_ROLE_NAME,
+    SHARED_ROLE_NAME,
+)
 from app.utils.constants import COMPLETED_WATCH_STATUSES
 
-# Roles whose accounts never own the installation's personal data: a shared
-# login is several people's, and a guest-role account is nobody's.
-NEVER_OWNER_ROLE_NAMES: frozenset[str] = frozenset({SHARED_ROLE_NAME, GUEST_ROLE_NAME})
+# Roles whose accounts are never the installation owner by fallback: the admin
+# keeps no personal data, a shared login is several people's, and a guest-role
+# account is nobody's.
+NEVER_OWNER_ROLE_NAMES: frozenset[str] = frozenset(
+    {ADMIN_ROLE_NAME, SHARED_ROLE_NAME, GUEST_ROLE_NAME}
+)
 
 # Which payload key carries the status, per hyphenated media type.
 STATUS_FIELD: dict[str, str] = {
@@ -168,27 +175,21 @@ def installation_owner_id(db: Session) -> Optional[UUID]:
     else's ratings.
 
     The answer is DATA: `users.is_installation_owner`, a partial-unique flag
-    so at most one account holds it. It used to be the account named `admin`,
-    which is how every personal row in the first installation came to belong
-    to an administrative account (revision o1a1ownerflag moved them). An admin
-    administers; it does not carry a library, and the two questions are not
-    the same one.
+    so at most one account holds it. Its holder is the owner whatever its
+    status - the flag is a deliberate choice, and a disabled owner's rows are
+    still theirs.
 
-    The two fallbacks are for a database where nobody holds the flag - a fresh
-    install, or a restore from a sheet backed up before the column existed:
-    the alphabetically-first NON-root account, then the
-    alphabetically-first account of any kind. Neither ever names an account
-    whose role is `shared` or `guest`: a shared account is non-root and the
-    seed creates two on every boot, so on a fresh install it would otherwise
-    be the first fallback's answer, and the owner's whole collection would be
-    filed under a login several people use. Nor does either name an account
-    that is not `active`: a pending registrant is a stranger until approved,
-    and a disabled account cannot sign in to see what was filed under it.
-    Never None while an active admin account exists, because `user_media_list.user_id` is NOT NULL and a
-    restore has to file its rows somewhere. The second fallback can therefore
-    still name an admin, on a database that has no other account - which is
-    right: a sheet must restore onto a fresh machine before a second account
-    exists on it.
+    With nobody holding the flag - a fresh install, or a restore from a sheet
+    backed up before the column existed - the owner is the first `active`
+    account, by username, whose role is not `admin`, `guest` or `shared`
+    (NEVER_OWNER_ROLE_NAMES, by role name). The admin keeps no personal data;
+    a shared account is several people's, and the seed creates two on every
+    boot; a pending registrant is a stranger until approved, and a disabled
+    account cannot sign in to see what was filed under it.
+
+    Otherwise None - never the admin. Every caller treats None as "nobody to
+    file under" and skips: Pull counts the owner-dependent rows it could not
+    restore and says so in its report, and Calculate derives nothing.
 
     Nothing on a request path may call this. If a route needs to know who is
     asking, the answer is acting_user_id() and it is allowed to be None.
@@ -201,7 +202,7 @@ def installation_owner_id(db: Session) -> Optional[UUID]:
     if owner is not None:
         return owner.id
 
-    candidates = (
+    owner = (
         db.query(models.User)
         .join(models.Role, models.User.role_id == models.Role.system_id)
         .filter(
@@ -209,9 +210,19 @@ def installation_owner_id(db: Session) -> Optional[UUID]:
             models.User.status == USER_STATUS_ACTIVE,
         )
         .order_by(models.User.username)
+        .first()
     )
-    owner = candidates.filter(~models.Role.is_root).first() or candidates.first()
     return owner.id if owner is not None else None
+
+
+def no_owner_message(skipped: int) -> str:
+    """
+    The report line for rows a pipeline could not file because
+    installation_owner_id() answered None. Pull and Calculate both use it, so
+    the "nobody to file under" case reads the same wherever it surfaces and is
+    never folded into a generic skip count.
+    """
+    return f"no installation owner: {skipped} row(s) skipped"
 
 
 def list_row(db: Session, user_id: Optional[UUID], media_id: UUID):

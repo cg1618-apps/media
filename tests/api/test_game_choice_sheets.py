@@ -71,7 +71,7 @@ def test_nodes_and_edges_are_plain_uuid_identity():
 
 
 def test_the_graph_round_trips_and_a_save_still_resolves(
-    db, sheets, monkeypatch, a_game, admin_user
+    db, sheets, monkeypatch, a_game, owner_user
 ):
     start = models.GameChoiceNode(
         system_id=uuid.uuid4(), game_id=a_game.system_id, kind="start",
@@ -100,7 +100,7 @@ def test_the_graph_round_trips_and_a_save_still_resolves(
     db.add_all([edge, open_branch, link])
     save = models.Note(
         system_id=uuid.uuid4(), media_id=a_game.system_id,
-        author_id=admin_user.id, section="saves", locator="1", kind="regular",
+        author_id=owner_user.id, section="saves", locator="1", kind="regular",
         fields={"choice_node": str(end.system_id)},
     )
     db.add(save)
@@ -206,7 +206,7 @@ def test_a_mark_restores_onto_the_installation_owner(
 
 
 def test_a_mark_under_a_foreign_uuid_updates_the_local_one(
-    db, sheets, monkeypatch, a_game
+    db, sheets, monkeypatch, a_game, owner_user
 ):
     """The same person marks the same node on both machines, under two uuids.
     Inserting the sheet's would collide with the one-mark-per-node index and
@@ -218,6 +218,7 @@ def test_a_mark_under_a_foreign_uuid_updates_the_local_one(
     db.add(node)
     db.flush()
     owner = installation_owner_id(db)
+    assert owner == owner_user.id  # a mark belongs to somebody
     local = models.GameChoiceMark(
         system_id=uuid.uuid4(), user_id=owner, game_id=a_game.system_id,
         node_id=node.system_id, done=False, note="local",

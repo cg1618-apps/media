@@ -82,8 +82,7 @@ function mockFetch(entry, notes, permissions = USER_PERMISSIONS) {
       body = {
         is_admin: permissions.includes("manage.catalog"),
         username: "cg1618",
-        role: "user",
-        is_root: false,
+        role: permissions.includes("manage.catalog") ? "super" : "user",
         permissions,
         visible_gated_types: ["h-comic", "h-game"],
       };

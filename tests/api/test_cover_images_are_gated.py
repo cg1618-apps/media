@@ -54,13 +54,13 @@ def cover_on_disk():
 
 
 def test_a_hidden_entrys_cover_is_not_served(
-    client, admin_client, catalog_writer, hidden_anime, cover_on_disk
+    client, owner_client, catalog_writer, hidden_anime, cover_on_disk
 ):
     url = cover_on_disk("anime", hidden_anime.system_id)
 
     # The mirror, first: the file is really there and really served, so the
     # 404s below are the gate refusing rather than the fixture failing.
-    allowed = admin_client.get(url)
+    allowed = owner_client.get(url)
     assert allowed.status_code == 200
     assert allowed.content == PIXEL
 
@@ -82,7 +82,7 @@ def test_a_visible_entrys_cover_is_served_to_the_same_narrowed_session(
 
 
 def test_the_owner_type_in_the_url_is_not_trusted(
-    admin_client, catalog_writer, hidden_anime, cover_on_disk
+    owner_client, catalog_writer, hidden_anime, cover_on_disk
 ):
     """
     The type is resolved from the media row, never from the path.
@@ -94,7 +94,7 @@ def test_the_owner_type_in_the_url_is_not_trusted(
     """
     url = cover_on_disk("movie", hidden_anime.system_id)
 
-    assert admin_client.get(url).status_code == 200
+    assert owner_client.get(url).status_code == 200
     narrowed = catalog_writer()
     assert narrowed.get(url).status_code == 404
 

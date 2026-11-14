@@ -15,7 +15,7 @@ the type, and what hentai shares with other types stays where they need it.
                      either type is seeable; hentai's own only with hentai
 
 Each refusal has the `hentai` label present - the entries are created through
-the API, which stamps it - and is paired with `admin_client`, sitting in
+the API, which stamps it - and is paired with `owner_client`, sitting in
 `unrestricted`, reading the same record back. The partial session - a mode
 that sees h-comic and not hentai - is `unrestricted` with the `hentai` label
 denied, so both labels exist and one of them is hidden.
@@ -37,16 +37,16 @@ from app.utils import constants as c
 from tests.api.conftest import role_id_for
 
 
-def _hentai(admin_client, db_session, name="Zvornik Shared Hentai"):
-    body = admin_client.post("/api/hentai/", json={"hentai_name_cn": name}).json()
+def _hentai(owner_client, db_session, name="Zvornik Shared Hentai"):
+    body = owner_client.post("/api/hentai/", json={"hentai_name_cn": name}).json()
     entry_id = uuid.UUID(body["system_id"])
     assert label_keys_for_entry(db_session, entry_id) == ["hentai", "nsfw"]
     return entry_id
 
 
 @pytest.fixture
-def hentai_id(admin_client, db_session):
-    return _hentai(admin_client, db_session)
+def hentai_id(owner_client, db_session):
+    return _hentai(owner_client, db_session)
 
 
 @pytest.fixture
@@ -80,14 +80,14 @@ def h_comic_only(mode_client, db_session):
 
 
 def test_a_studio_credited_only_on_hentai_is_hidden(
-    guest_reader, admin_client, db_session, hentai_id
+    guest_reader, owner_client, db_session, hentai_id
 ):
     credits_service.replace_credits(
         db_session, "hentai", hentai_id, "studio", ["Zvornik Hentai Studio"]
     )
     studio = credits_service.find_studio(db_session, "Zvornik Hentai Studio")
     assert guest_reader.get(f"/api/studio/{studio.system_id}").status_code == 404
-    assert admin_client.get(f"/api/studio/{studio.system_id}").status_code == 200
+    assert owner_client.get(f"/api/studio/{studio.system_id}").status_code == 200
 
 
 def test_a_studio_also_on_an_anime_stays_visible(
@@ -104,14 +104,14 @@ def test_a_studio_also_on_an_anime_stays_visible(
 
 
 def test_a_director_credited_only_on_hentai_is_hidden(
-    guest_reader, admin_client, db_session, hentai_id
+    guest_reader, owner_client, db_session, hentai_id
 ):
     credits_service.replace_credits(
         db_session, "hentai", hentai_id, "director", ["Zvornik Hentai Director"]
     )
     person = credits_service.find_person(db_session, "Zvornik Hentai Director")
     assert guest_reader.get(f"/api/person/{person.system_id}").status_code == 404
-    assert admin_client.get(f"/api/person/{person.system_id}").status_code == 200
+    assert owner_client.get(f"/api/person/{person.system_id}").status_code == 200
 
 
 def _ids(response) -> set[str]:
@@ -120,7 +120,7 @@ def _ids(response) -> set[str]:
 
 
 def test_an_author_credited_only_on_hentai_is_hidden(
-    guest_reader, admin_client, h_comic_only, db_session, hentai_id
+    guest_reader, owner_client, h_comic_only, db_session, hentai_id
 ):
     credits_service.replace_credits(
         db_session, "hentai", hentai_id, "author", ["Zvornik Hentai Author"]
@@ -136,9 +136,9 @@ def test_an_author_credited_only_on_hentai_is_hidden(
         assert narrow.get(f"/api/person/{person.system_id}/entries").status_code == 404
         assert str(person.system_id) not in _ids(narrow.get("/api/person/"))
 
-    assert admin_client.get(f"/api/person/{person.system_id}").status_code == 200
-    assert str(person.system_id) in _ids(admin_client.get("/api/person/"))
-    groups = admin_client.get(f"/api/person/{person.system_id}/entries").json()["groups"]
+    assert owner_client.get(f"/api/person/{person.system_id}").status_code == 200
+    assert str(person.system_id) in _ids(owner_client.get("/api/person/"))
+    groups = owner_client.get(f"/api/person/{person.system_id}/entries").json()["groups"]
     assert [(g["media_type"], g["role"], g["label"]) for g in groups] == [
         ("hentai", "author", "Author")
     ]
@@ -146,12 +146,12 @@ def test_an_author_credited_only_on_hentai_is_hidden(
 
 
 def test_the_h_comic_author_credited_on_its_hentai_lists_both(
-    admin_client, h_comic_only, db_session, hentai_id
+    owner_client, h_comic_only, db_session, hentai_id
 ):
     """One person, the h-comic's author and the hentai's. A session seeing
     both types sees both credits on the person's page; one seeing h-comic
     alone sees the person through the h-comic, and the hentai not at all."""
-    body = admin_client.post(
+    body = owner_client.post(
         "/api/h-comic/", json={"h_comic_name_cn": "Zvornik Source H-Comic", "region": "KR"}
     ).json()
     h_comic_id = uuid.UUID(body["system_id"])
@@ -169,7 +169,7 @@ def test_the_h_comic_author_credited_on_its_hentai_lists_both(
             for g in response.json()["groups"]
         }
 
-    assert groups(admin_client) == {
+    assert groups(owner_client) == {
         ("h-comic", "author"): [str(h_comic_id)],
         ("hentai", "author"): [str(hentai_id)],
     }
@@ -197,7 +197,7 @@ def test_studio_director_and_author_reach_hentai_and_nothing_hentai_only_is_new(
 
 
 def test_an_h_genre_value_used_only_by_hentai_is_hidden(
-    client, admin_client, db_session, hentai_id
+    client, owner_client, db_session, hentai_id
 ):
     credits_service.replace_tags(db_session, hentai_id, "h_genre_plot", ["Zvornik HPlot"])
     db_session.flush()
@@ -206,7 +206,7 @@ def test_an_h_genre_value_used_only_by_hentai_is_hidden(
         return {row["value"] for row in cl.get("/api/options/H Genre Plot").json()}
 
     assert "Zvornik HPlot" not in values(client)
-    assert "Zvornik HPlot" in values(admin_client)
+    assert "Zvornik HPlot" in values(owner_client)
 
 
 def test_the_h_genre_categories_are_gated_by_both_types():
@@ -225,8 +225,8 @@ def test_the_h_genre_categories_are_gated_by_both_types():
 # ---------------------------------------------------------------------------
 
 
-def test_unrestricted_is_served_the_hentai_vocabularies(admin_client):
-    body = admin_client.get("/api/constants").json()
+def test_unrestricted_is_served_the_hentai_vocabularies(owner_client):
+    body = owner_client.get("/api/constants").json()
     assert body["hentai_source_material"] == list(c.HENTAI_SOURCE_MATERIALS)
     assert "Hentai" in body["franchise_type"]
     assert "hentai" in body["media_type"]

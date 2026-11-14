@@ -24,7 +24,7 @@ def sheet(monkeypatch):
     return _install
 
 
-def test_blank_anime_statuses_insert_as_valid_values(db_session, sheet, admin_user):
+def test_blank_anime_statuses_insert_as_valid_values(db_session, sheet, owner_user):
     sheet(["anime_name_en"], [["Frieren"]])
 
     result = pull.execute_pull_specific(db_session, "Anime", log_action=False)

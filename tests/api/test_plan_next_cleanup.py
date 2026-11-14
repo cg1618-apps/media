@@ -6,7 +6,7 @@ only because the target was FK-less. Step 3 gave plan_next real foreign keys
 with ON DELETE CASCADE, so the sweep is gone and what is worth testing is that
 PostgreSQL does the work. Requires PostgreSQL. See tests/api/conftest.py.
 
-The client here is `super_client`, not `admin_client`: since 2026-09-12 an
+The client here is `super_client`, not `owner_client`: since 2026-09-12 an
 administrative account holds no `self.*` grant and every route in this prefix
 answers it 401. The `super` role is the account shape that legitimately keeps
 a library - it holds both self.* grants and manage.catalog, so the catalogue

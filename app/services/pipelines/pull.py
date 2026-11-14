@@ -68,12 +68,13 @@ from app.services.domain.hierarchy import find_by_names
 from app.services.domain.highlight_group_order import GROUP_ORDER_TYPES
 from app.services.domain.label_tags import LABEL_FIELD_TYPES, reconcile_label_tags
 from app.services.domain.legacy_personal import (
+    NoInstallationOwner,
     legacy_personal_headers,
     pop_legacy_personal,
     restore_legacy_personal,
 )
 from app.services.domain.note_marks import clean_mark_values
-from app.services.domain.user_list import installation_owner_id
+from app.services.domain.user_list import installation_owner_id, no_owner_message
 from app.services.integrations.sheets import (
     SheetsUnavailableError,
     get_all_raw_rows,
@@ -1101,6 +1102,11 @@ def execute_pull_specific(
     # restore, so it is reported rather than only logged. execute_pull_all
     # folds these into the Pull All audit row.
     unresolved_refs: list[str] = []
+    # Rows that had to be filed under the installation owner while there is
+    # none (installation_owner_id() answered None). Counted apart from
+    # rows_skipped and reported by name, so "nobody to file under" is never
+    # read as an ordinary bad row.
+    owner_missing = 0
     # A header this tab cannot store and does not mean to carry. Decided once
     # from the header row rather than per row, because it is a property of the
     # sheet, not of any one entry: a tab with a thousand stale rows must not
@@ -1297,8 +1303,9 @@ def execute_pull_specific(
                 owner = _restore_owner_id(db)
             if owner is None:
                 logger.warning(
-                    "No user account exists; skipping the %s row.", tab_name
+                    "No installation owner; skipping the %s row.", tab_name
                 )
+                owner_missing += 1
                 rows_skipped += 1
                 continue
             clean_header_dict["user_id"] = owner
@@ -1355,9 +1362,17 @@ def execute_pull_specific(
                     if author is not None
                     else None
                 )
-            clean_header_dict["author_id"] = (
-                known.id if known is not None else _restore_owner_id(db)
-            )
+            author_id = known.id if known is not None else _restore_owner_id(db)
+            if author_id is None:
+                # author_id is NOT NULL: with no owner to fall back to, the
+                # row is skipped here rather than failing the tab's commit.
+                logger.warning(
+                    "No installation owner; skipping the %s row.", tab_name
+                )
+                owner_missing += 1
+                rows_skipped += 1
+                continue
+            clean_header_dict["author_id"] = author_id
 
         # A copy row belongs to whoever bought it (Task 19). The sheet holds
         # one person's collection, so every row it restores is filed under the
@@ -1371,6 +1386,7 @@ def execute_pull_specific(
         if tab_name in ("Game Copy", "Game Choice Mark"):
             owner = installation_owner_id(db)
             if owner is None:
+                owner_missing += 1
                 rows_skipped += 1
                 continue
             clean_header_dict["user_id"] = owner
@@ -2245,11 +2261,17 @@ def execute_pull_specific(
         if legacy_personal:
             if entry.system_id is None:
                 db.flush()
-            unresolved = restore_legacy_personal(
-                db, tab_name, entry.system_id, legacy_personal
-            )
-            if unresolved is not None:
-                unresolved_refs.append(unresolved)
+            try:
+                unresolved = restore_legacy_personal(
+                    db, tab_name, entry.system_id, legacy_personal
+                )
+            except NoInstallationOwner:
+                # The row is restored; only its personal values are skipped,
+                # counted into the tab's no_owner_message line below.
+                owner_missing += 1
+            else:
+                if unresolved is not None:
+                    unresolved_refs.append(unresolved)
 
         if pending_character_tags:
             if entry.system_id is None:
@@ -2264,6 +2286,12 @@ def execute_pull_specific(
         # Flush periodically so DB generates new UUIDs immediately for Foreign Key references
         if processed % 50 == 0:
             db.flush()
+
+    if owner_missing:
+        # Named rather than folded into rows_skipped: these rows are fine and
+        # will restore once an owner exists (the Users tab's
+        # is_installation_owner, or an active member account).
+        unresolved_refs.append(f"{tab_name}: {no_owner_message(owner_missing)}")
 
     try:
         db.commit()
@@ -2350,6 +2378,7 @@ def execute_pull_specific(
         "rows_added": rows_added,
         "rows_updated": rows_updated,
         "rows_skipped": rows_skipped,
+        "owner_missing": owner_missing,
         "credit_conflicts": credit_conflicts,
         "created_entities": created_entities,
         "unresolved_refs": unresolved_refs,

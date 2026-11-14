@@ -11,16 +11,16 @@ def _anime_id(db_session, name="測試"):
     return a.system_id
 
 
-def test_create_and_list(admin_client, guest_reader):
-    admin_client.post("/api/studio/", json={"name_en": "MAPPA"})
+def test_create_and_list(owner_client, guest_reader):
+    owner_client.post("/api/studio/", json={"name_en": "MAPPA"})
     assert [s["name_en"] for s in guest_reader.get("/api/studio/").json()] == ["MAPPA"]
 
 
-def test_update_changes_the_country_and_ignores_a_rating(admin_client):
-    created = admin_client.post(
+def test_update_changes_the_country_and_ignores_a_rating(owner_client):
+    created = owner_client.post(
         "/api/studio/", json={"name_en": "MAPPA"}
     ).json()
-    r = admin_client.put(
+    r = owner_client.put(
         f"/api/studio/{created['system_id']}",
         json={"name_en": "MAPPA", "country": "Japan", "my_rating": "S"},
     )
@@ -29,9 +29,9 @@ def test_update_changes_the_country_and_ignores_a_rating(admin_client):
 
 
 def test_renaming_a_studio_changes_every_entry_that_credits_it(
-    admin_client, client, db_session
+    owner_client, client, db_session
 ):
-    created = admin_client.post(
+    created = owner_client.post(
         "/api/studio/", json={"name_en": "MAPPA"}
     ).json()
     entry_id = _anime_id(db_session)
@@ -44,7 +44,7 @@ def test_renaming_a_studio_changes_every_entry_that_credits_it(
     )
     db_session.commit()
 
-    admin_client.put(
+    owner_client.put(
         f"/api/studio/{created['system_id']}", json={"name_en": "MAPPA Inc."}
     )
     from app.services.domain.credits import credit_names
@@ -52,8 +52,8 @@ def test_renaming_a_studio_changes_every_entry_that_credits_it(
     assert credit_names(db_session, entry_id, "studio") == ["MAPPA Inc."]
 
 
-def test_delete_cascades_the_credits(admin_client, db_session):
-    created = admin_client.post(
+def test_delete_cascades_the_credits(owner_client, db_session):
+    created = owner_client.post(
         "/api/studio/", json={"name_en": "MAPPA"}
     ).json()
     db_session.add(
@@ -65,7 +65,7 @@ def test_delete_cascades_the_credits(admin_client, db_session):
     )
     db_session.commit()
 
-    admin_client.delete(f"/api/studio/{created['system_id']}")
+    owner_client.delete(f"/api/studio/{created['system_id']}")
     assert db_session.query(models.MediaCredit).count() == 0
 
 
@@ -76,12 +76,12 @@ def test_writes_require_admin(client):
     )
 
 
-def test_create_rejects_a_studio_with_no_name(admin_client):
-    assert admin_client.post("/api/studio/", json={"country": "Japan"}).status_code == 422
+def test_create_rejects_a_studio_with_no_name(owner_client):
+    assert owner_client.post("/api/studio/", json={"country": "Japan"}).status_code == 422
 
 
-def test_response_carries_the_display_name(admin_client):
-    created = admin_client.post(
+def test_response_carries_the_display_name(owner_client):
+    created = owner_client.post(
         "/api/studio/",
         json={"name_en": "Kyoto Animation", "name_alt": "KyoAni",
               "display_name_field": "alt"},
@@ -89,14 +89,14 @@ def test_response_carries_the_display_name(admin_client):
     assert created["display_name"] == "KyoAni"
 
 
-def test_list_is_sorted_by_display_name(admin_client, guest_reader):
-    admin_client.post("/api/studio/", json={"name_en": "WIT STUDIO"})
-    admin_client.post("/api/studio/", json={"name_en": "MAPPA"})
+def test_list_is_sorted_by_display_name(owner_client, guest_reader):
+    owner_client.post("/api/studio/", json={"name_en": "WIT STUDIO"})
+    owner_client.post("/api/studio/", json={"name_en": "MAPPA"})
     names = [s["display_name"] for s in guest_reader.get("/api/studio/").json()]
     assert names == ["MAPPA", "WIT STUDIO"]
 
 
-def test_profile_columns_round_trip(admin_client, monkeypatch):
+def test_profile_columns_round_trip(owner_client, monkeypatch):
     # The update route fills from MAL, and mal_id 569 is a real producer: without
     # this stub the test fetches Tenrai and downloads MAPPA's logo into the
     # developer's static/covers on every run.
@@ -104,8 +104,8 @@ def test_profile_columns_round_trip(admin_client, monkeypatch):
         "app.services.domain.autofill.fetch_tenrai_producer_data",
         lambda mal_id: None,
     )
-    created = admin_client.post("/api/studio/", json={"name_en": "MAPPA"}).json()
-    r = admin_client.put(
+    created = owner_client.post("/api/studio/", json={"name_en": "MAPPA"}).json()
+    r = owner_client.put(
         f"/api/studio/{created['system_id']}",
         json={"name_en": "MAPPA", "country": "Japan", "founded_date": "2011-06",
               "website_url": "https://mappa.co.jp", "mal_id": 569},

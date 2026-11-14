@@ -214,17 +214,21 @@ def test_a_flagless_restore_never_files_the_owners_data_under_a_shared_account(
 ):
     """On a database where nobody holds is_installation_owner - a fresh
     install - the seeded admin and the two shared accounts are the only
-    accounts. A shared account is non-root and sorts before most names, which
-    is exactly the account the owner fallback must skip."""
+    accounts. Neither kind ever owns the installation, so the answer is None
+    and a restore skips the owner's rows rather than filing them under a
+    login several people use."""
     from app.services.domain.user_list import installation_owner_id
 
     assert (
         db_session.query(models.User).filter(models.User.is_installation_owner).count()
         == 0
     )
-    owner = db_session.get(models.User, installation_owner_id(db_session))
-    assert owner.role != SHARED_ROLE_NAME
-    assert owner.role == "admin"
+    assert installation_owner_id(db_session) is None
+
+    # The mirror: an active member is the owner the moment one exists, so the
+    # None above is the role rule and not an empty table.
+    member = _member(db_session, "zzz_member", USER_STATUS_ACTIVE)
+    assert installation_owner_id(db_session) == member.id
 
 
 def test_a_flagless_restore_picks_a_member_over_the_admin(db_session, plain_user):
@@ -260,10 +264,12 @@ def test_an_inactive_account_never_owns_the_installation(db_session):
 
     pending = _member(db_session, "aaa", USER_STATUS_PENDING)
     disabled = _member(db_session, "aab", USER_STATUS_DISABLED)
+    assert installation_owner_id(db_session) is None
 
-    owner_id = installation_owner_id(db_session)
-    assert owner_id not in (pending.id, disabled.id)
-    assert db_session.get(models.User, owner_id).status == USER_STATUS_ACTIVE
+    # The mirror: an active member sorting after both wins.
+    active = _member(db_session, "zzz_member", USER_STATUS_ACTIVE)
+    assert installation_owner_id(db_session) == active.id
+    assert active.id not in (pending.id, disabled.id)
 
 
 def test_an_active_member_owns_it_past_inactive_ones(db_session):

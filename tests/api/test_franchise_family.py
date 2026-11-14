@@ -41,14 +41,14 @@ def mainstream_franchise(db_session):
     return _franchise(db_session, "ACG")
 
 
-def _manga(admin_client, **fields):
-    return admin_client.post(
+def _manga(owner_client, **fields):
+    return owner_client.post(
         "/api/manga/", json={"manga_name_en": "Zvornik Manga", **fields}
     )
 
 
-def _h_comic(admin_client, **fields):
-    return admin_client.post(
+def _h_comic(owner_client, **fields):
+    return owner_client.post(
         "/api/h-comic/", json={"h_comic_name_cn": "Zvornik H", "region": "JP", **fields}
     )
 
@@ -59,42 +59,42 @@ def _h_comic(admin_client, **fields):
 
 
 def test_a_mainstream_entry_cannot_be_created_in_a_gated_franchise(
-    admin_client, gated_franchise
+    owner_client, gated_franchise
 ):
-    response = _manga(admin_client, franchise_id=str(gated_franchise.system_id))
+    response = _manga(owner_client, franchise_id=str(gated_franchise.system_id))
     assert response.status_code == 422, response.text
 
 
 def test_a_mainstream_entry_can_be_created_in_a_mainstream_franchise(
-    admin_client, mainstream_franchise
+    owner_client, mainstream_franchise
 ):
-    response = _manga(admin_client, franchise_id=str(mainstream_franchise.system_id))
+    response = _manga(owner_client, franchise_id=str(mainstream_franchise.system_id))
     assert response.status_code == 201, response.text
     assert response.json()["franchise_id"] == str(mainstream_franchise.system_id)
 
 
 def test_a_gated_entry_cannot_be_created_in_a_mainstream_franchise(
-    admin_client, mainstream_franchise
+    owner_client, mainstream_franchise
 ):
-    response = _h_comic(admin_client, franchise_id=str(mainstream_franchise.system_id))
+    response = _h_comic(owner_client, franchise_id=str(mainstream_franchise.system_id))
     assert response.status_code == 422, response.text
 
 
-def test_a_gated_entry_can_be_created_in_its_own_family(admin_client, gated_franchise):
-    response = _h_comic(admin_client, franchise_id=str(gated_franchise.system_id))
+def test_a_gated_entry_can_be_created_in_its_own_family(owner_client, gated_franchise):
+    response = _h_comic(owner_client, franchise_id=str(gated_franchise.system_id))
     assert response.status_code == 201, response.text
     assert response.json()["franchise_id"] == str(gated_franchise.system_id)
 
 
 @pytest.mark.parametrize("method", ["put", "patch"])
 def test_a_mainstream_entry_cannot_be_moved_into_a_gated_franchise(
-    admin_client, db_session, gated_franchise, mainstream_franchise, method
+    owner_client, db_session, gated_franchise, mainstream_franchise, method
 ):
-    created = _manga(admin_client, franchise_id=str(mainstream_franchise.system_id))
+    created = _manga(owner_client, franchise_id=str(mainstream_franchise.system_id))
     assert created.status_code == 201, created.text
     entry_id = created.json()["system_id"]
 
-    response = getattr(admin_client, method)(
+    response = getattr(owner_client, method)(
         f"/api/manga/{entry_id}", json={"franchise_id": str(gated_franchise.system_id)}
     )
     assert response.status_code == 422, response.text
@@ -105,13 +105,13 @@ def test_a_mainstream_entry_cannot_be_moved_into_a_gated_franchise(
 
 @pytest.mark.parametrize("method", ["put", "patch"])
 def test_a_mainstream_entry_can_be_moved_within_its_family(
-    admin_client, mainstream_franchise, db_session, method
+    owner_client, mainstream_franchise, db_session, method
 ):
     other = _franchise(db_session, "ACG", name="Zvornik Other")
-    created = _manga(admin_client, franchise_id=str(mainstream_franchise.system_id))
+    created = _manga(owner_client, franchise_id=str(mainstream_franchise.system_id))
     entry_id = created.json()["system_id"]
 
-    response = getattr(admin_client, method)(
+    response = getattr(owner_client, method)(
         f"/api/manga/{entry_id}", json={"franchise_id": str(other.system_id)}
     )
     assert response.status_code == 200, response.text
@@ -123,16 +123,16 @@ def test_a_mainstream_entry_can_be_moved_within_its_family(
 # ---------------------------------------------------------------------------
 
 
-def test_a_franchise_cannot_be_created_spanning_two_families(admin_client):
-    response = admin_client.post(
+def test_a_franchise_cannot_be_created_spanning_two_families(owner_client):
+    response = owner_client.post(
         "/api/franchise/",
         json={"franchise_name_en": "Zvornik Mixed", "franchise_type": "ACG, H-Comic"},
     )
     assert response.status_code == 422, response.text
 
 
-def test_a_franchise_can_be_created_with_two_types_of_one_family(admin_client):
-    response = admin_client.post(
+def test_a_franchise_can_be_created_with_two_types_of_one_family(owner_client):
+    response = owner_client.post(
         "/api/franchise/",
         json={"franchise_name_en": "Zvornik Pair", "franchise_type": "ACG, Anime"},
     )
@@ -141,9 +141,9 @@ def test_a_franchise_can_be_created_with_two_types_of_one_family(admin_client):
 
 @pytest.mark.parametrize("method", ["put", "patch"])
 def test_a_franchise_cannot_be_updated_to_span_two_families(
-    admin_client, mainstream_franchise, method
+    owner_client, mainstream_franchise, method
 ):
-    response = getattr(admin_client, method)(
+    response = getattr(owner_client, method)(
         f"/api/franchise/{mainstream_franchise.system_id}",
         json={"franchise_type": "ACG, H-Comic"},
     )
@@ -152,12 +152,12 @@ def test_a_franchise_cannot_be_updated_to_span_two_families(
 
 @pytest.mark.parametrize("method", ["put", "patch"])
 def test_a_franchise_holding_mainstream_entries_cannot_become_gated(
-    admin_client, mainstream_franchise, method
+    owner_client, mainstream_franchise, method
 ):
-    created = _manga(admin_client, franchise_id=str(mainstream_franchise.system_id))
+    created = _manga(owner_client, franchise_id=str(mainstream_franchise.system_id))
     assert created.status_code == 201, created.text
 
-    response = getattr(admin_client, method)(
+    response = getattr(owner_client, method)(
         f"/api/franchise/{mainstream_franchise.system_id}",
         json={"franchise_type": "H-Comic"},
     )
@@ -165,9 +165,9 @@ def test_a_franchise_holding_mainstream_entries_cannot_become_gated(
 
 
 @pytest.mark.parametrize("method", ["put", "patch"])
-def test_an_empty_franchise_can_change_family(admin_client, mainstream_franchise, method):
+def test_an_empty_franchise_can_change_family(owner_client, mainstream_franchise, method):
     """The mirror: the refusal above is about the entries, not the retyping."""
-    response = getattr(admin_client, method)(
+    response = getattr(owner_client, method)(
         f"/api/franchise/{mainstream_franchise.system_id}",
         json={"franchise_type": "H-Comic"},
     )

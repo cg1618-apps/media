@@ -19,7 +19,6 @@ function respond(url) {
       is_admin: false,
       username,
       role: "guest",
-      is_root: false,
       permissions,
       visible_gated_types: visibleGatedTypes,
     };

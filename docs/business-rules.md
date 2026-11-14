@@ -1121,7 +1121,7 @@ reachable through a chain, marked `derived: true`, `system_id: null`, with
 - Derived rows are appended after stored rows; the canvas (`graph_for_scope`)
   draws stored rows only.
 
-**Visibility.** For a non-root viewer, any edge whose far end or `via`
+**Visibility.** For every viewer, the admin included, any edge whose far end or `via`
 intermediate the viewer may not see is **removed**, not blanked.
 
 ### The sequel seed (`seed_sequel_relations`)

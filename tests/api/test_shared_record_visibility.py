@@ -13,7 +13,7 @@ Two things make the refusal tests bite, and both look like decoration:
   - `nsfw_label` and the labelled entry. The rule computes over the labels
     the viewer's mode lacks, which is EMPTY in a fresh test database, so a
     refusal without a real label passes vacuously.
-  - the mirror. Every refusal is paired with `admin_client` - `unrestricted`,
+  - the mirror. Every refusal is paired with `owner_client` - `unrestricted`,
     which carries every label - asking the same thing and getting the record,
     so a 404 says the gate refused rather than that the row was never there.
 
@@ -134,7 +134,7 @@ def _ids(response) -> set[str]:
 
 
 def test_a_person_credited_only_on_hidden_entries_is_hidden(
-    guest_reader, admin_client, hidden_only_director
+    guest_reader, owner_client, hidden_only_director
 ):
     person_id = str(hidden_only_director.system_id)
 
@@ -147,16 +147,16 @@ def test_a_person_credited_only_on_hidden_entries_is_hidden(
     assert guest_reader.get("/api/person/role-counts").json()["director"] == 0
 
     # The mirror: unrestricted carries the label and sees the same person.
-    assert admin_client.get(f"/api/person/{person_id}").status_code == 200
-    assert HIDDEN_TITLE in admin_client.get(f"/api/person/{person_id}/entries").text
-    assert person_id in _ids(admin_client.get("/api/person/"))
-    search = admin_client.get("/api/search/?q=Zvornik Director").json()
+    assert owner_client.get(f"/api/person/{person_id}").status_code == 200
+    assert HIDDEN_TITLE in owner_client.get(f"/api/person/{person_id}/entries").text
+    assert person_id in _ids(owner_client.get("/api/person/"))
+    search = owner_client.get("/api/search/?q=Zvornik Director").json()
     assert [p["system_id"] for p in search["results"]["person"]] == [person_id]
-    assert admin_client.get("/api/person/role-counts").json()["director"] == 1
+    assert owner_client.get("/api/person/role-counts").json()["director"] == 1
 
 
 def test_a_seiyuu_cast_only_on_hidden_entries_is_hidden(
-    guest_reader, admin_client, db_session, labelled_anime, character
+    guest_reader, owner_client, db_session, labelled_anime, character
 ):
     """A seiyuu appears through character_casting, not media_credit."""
     person = models.Person(system_id=uuid.uuid4(), name_en="Zvornik Voice")
@@ -179,11 +179,11 @@ def test_a_seiyuu_cast_only_on_hidden_entries_is_hidden(
     db_session.flush()
 
     assert guest_reader.get(f"/api/person/{person.system_id}").status_code == 404
-    assert admin_client.get(f"/api/person/{person.system_id}").status_code == 200
+    assert owner_client.get(f"/api/person/{person.system_id}").status_code == 200
 
 
 def test_one_visible_credit_keeps_a_person_visible_and_omits_the_hidden_one(
-    guest_reader, admin_client, db_session, hidden_only_director, visible_manga
+    guest_reader, owner_client, db_session, hidden_only_director, visible_manga
 ):
     credits_service.replace_credits(
         db_session, "manga", visible_manga.system_id, "author", ["Zvornik Director"]
@@ -205,12 +205,12 @@ def test_one_visible_credit_keeps_a_person_visible_and_omits_the_hidden_one(
     assert person_id in _ids(guest_reader.get("/api/person/"))
 
     # The mirror: unrestricted sees both groups.
-    groups = admin_client.get(f"/api/person/{person_id}/entries").json()["groups"]
+    groups = owner_client.get(f"/api/person/{person_id}/entries").json()["groups"]
     assert {(g["media_type"], g["role"]) for g in groups} == {
         ("manga", "author"),
         ("anime", "director"),
     }
-    assert admin_client.get(f"/api/person/{person_id}").json()["credit_count"] == 2
+    assert owner_client.get(f"/api/person/{person_id}").json()["credit_count"] == 2
 
 
 def test_a_person_with_no_connections_stays_visible(
@@ -257,7 +257,7 @@ def test_a_media_type_gap_does_not_hide_a_person(
 
 
 def test_a_person_credited_on_an_entry_in_a_hidden_franchise_is_hidden(
-    guest_reader, admin_client, db_session, nsfw_label
+    guest_reader, owner_client, db_session, nsfw_label
 ):
     """The franchise half of the label gate counts as well."""
     franchise = models.Franchise(
@@ -287,11 +287,11 @@ def test_a_person_credited_on_an_entry_in_a_hidden_franchise_is_hidden(
     person = credits_service.find_person(db_session, "Zvornik F Director")
 
     assert guest_reader.get(f"/api/person/{person.system_id}").status_code == 404
-    assert admin_client.get(f"/api/person/{person.system_id}").status_code == 200
+    assert owner_client.get(f"/api/person/{person.system_id}").status_code == 200
 
 
 def test_a_hidden_person_cannot_be_edited_by_a_narrow_editor(
-    admin_client, catalog_writer, hidden_only_director
+    owner_client, catalog_writer, hidden_only_director
 ):
     """Writes follow reads: a narrowed catalogue editor gets the same 404."""
     person_id = hidden_only_director.system_id
@@ -299,7 +299,7 @@ def test_a_hidden_person_cannot_be_edited_by_a_narrow_editor(
     payload = {"name_en": "Renamed", "roles": []}
     assert narrow.put(f"/api/person/{person_id}", json=payload).status_code == 404
     # The mirror: an editor whose mode carries the label may.
-    response = admin_client.put(f"/api/person/{person_id}", json=payload)
+    response = owner_client.put(f"/api/person/{person_id}", json=payload)
     assert response.status_code == 200, response.text
 
 
@@ -309,7 +309,7 @@ def test_a_hidden_person_cannot_be_edited_by_a_narrow_editor(
 
 
 def test_a_character_cast_only_on_hidden_entries_is_hidden(
-    guest_reader, admin_client, db_session, labelled_anime, character
+    guest_reader, owner_client, db_session, labelled_anime, character
 ):
     db_session.add(
         models.CharacterCasting(
@@ -328,8 +328,8 @@ def test_a_character_cast_only_on_hidden_entries_is_hidden(
         assert guest_reader.get(path).status_code == 404
     assert character_id not in _ids(guest_reader.get("/api/character/?name=Ichika"))
 
-    assert admin_client.get(f"/api/character/{character_id}").status_code == 200
-    assert character_id in _ids(admin_client.get("/api/character/?name=Ichika"))
+    assert owner_client.get(f"/api/character/{character_id}").status_code == 200
+    assert character_id in _ids(owner_client.get("/api/character/?name=Ichika"))
 
 
 def test_a_character_with_one_visible_casting_omits_the_hidden_one(
@@ -352,7 +352,7 @@ def test_a_character_with_one_visible_casting_omits_the_hidden_one(
 
 
 def test_a_studio_credited_only_on_hidden_entries_is_hidden(
-    guest_reader, admin_client, db_session, labelled_anime
+    guest_reader, owner_client, db_session, labelled_anime
 ):
     credits_service.replace_credits(
         db_session, "anime", labelled_anime.system_id, "studio", ["Zvornik Studio"]
@@ -366,12 +366,12 @@ def test_a_studio_credited_only_on_hidden_entries_is_hidden(
     assert studio_id not in _ids(guest_reader.get("/api/studio/"))
     assert guest_reader.get("/api/search/?q=Zvornik Studio").json()["results"]["studio"] == []
 
-    assert admin_client.get(f"/api/studio/{studio_id}").status_code == 200
-    assert studio_id in _ids(admin_client.get("/api/studio/"))
+    assert owner_client.get(f"/api/studio/{studio_id}").status_code == 200
+    assert studio_id in _ids(owner_client.get("/api/studio/"))
 
 
 def test_a_publisher_credited_only_on_hidden_entries_is_hidden(
-    guest_reader, admin_client, db_session, labelled_anime
+    guest_reader, owner_client, db_session, labelled_anime
 ):
     credits_service.replace_credits(
         db_session,
@@ -391,8 +391,8 @@ def test_a_publisher_credited_only_on_hidden_entries_is_hidden(
         assert guest_reader.get(path).status_code == 404
     assert publisher_id not in _ids(guest_reader.get("/api/publisher/?scope=anime"))
 
-    assert admin_client.get(f"/api/publisher/{publisher_id}").status_code == 200
-    assert publisher_id in _ids(admin_client.get("/api/publisher/?scope=anime"))
+    assert owner_client.get(f"/api/publisher/{publisher_id}").status_code == 200
+    assert publisher_id in _ids(owner_client.get("/api/publisher/?scope=anime"))
 
 
 # ---------------------------------------------------------------------------
@@ -401,7 +401,7 @@ def test_a_publisher_credited_only_on_hidden_entries_is_hidden(
 
 
 def test_a_vocabulary_value_used_only_on_hidden_entries_is_hidden(
-    client, admin_client, db_session, labelled_anime
+    client, owner_client, db_session, labelled_anime
 ):
     credits_service.replace_tags(
         db_session, labelled_anime.system_id, "genre_main", ["Zvornik Genre"]
@@ -421,7 +421,7 @@ def test_a_vocabulary_value_used_only_on_hidden_entries_is_hidden(
         narrow = values(client, path)
         assert "Zvornik Genre" not in narrow
         assert "Zvornik Unused" in narrow
-        assert {"Zvornik Genre", "Zvornik Unused"} <= values(admin_client, path)
+        assert {"Zvornik Genre", "Zvornik Unused"} <= values(owner_client, path)
 
 
 # ---------------------------------------------------------------------------
@@ -456,7 +456,7 @@ def hidden_series(db_session, nsfw_label):
 
 
 def test_a_series_under_a_hidden_franchise_is_hidden(
-    guest_reader, admin_client, hidden_series
+    guest_reader, owner_client, hidden_series
 ):
     series_id = str(hidden_series.system_id)
 
@@ -466,22 +466,22 @@ def test_a_series_under_a_hidden_franchise_is_hidden(
         "series"
     ] == []
 
-    assert admin_client.get(f"/api/series/{series_id}").status_code == 200
-    assert series_id in _ids(admin_client.get("/api/series/"))
+    assert owner_client.get(f"/api/series/{series_id}").status_code == 200
+    assert series_id in _ids(owner_client.get("/api/series/"))
     assert [
         s["system_id"]
-        for s in admin_client.get("/api/search/?q=Zvornik Hidden Series").json()[
+        for s in owner_client.get("/api/search/?q=Zvornik Hidden Series").json()[
             "results"
         ]["series"]
     ] == [series_id]
 
 
 def test_a_hidden_persons_photo_is_not_served(
-    client, admin_client, hidden_only_director, cover_on_disk
+    client, owner_client, hidden_only_director, cover_on_disk
 ):
     url = cover_on_disk("staff", hidden_only_director.system_id)
     # The mirror first: the file is really there and really served.
-    allowed = admin_client.get(url)
+    allowed = owner_client.get(url)
     assert allowed.status_code == 200
     assert allowed.content == PIXEL
     assert client.get(url).status_code == 404
@@ -494,14 +494,14 @@ def test_a_visible_persons_photo_is_served_to_the_same_narrow_viewer(
     assert client.get(url).status_code == 200
 
 
-def test_notes_on_a_hidden_series_are_404(client, admin_client, hidden_series):
+def test_notes_on_a_hidden_series_are_404(client, owner_client, hidden_series):
     path = f"/api/notes?owner_type=series&owner_id={hidden_series.system_id}"
     assert client.get(path).status_code == 404
-    assert admin_client.get(path).status_code == 200
+    assert owner_client.get(path).status_code == 200
 
 
 def test_a_narrow_editor_cannot_write_a_note_on_a_hidden_series(
-    admin_client, catalog_writer, hidden_series
+    owner_client, catalog_writer, hidden_series
 ):
     payload = {
         "owner_type": "series",
@@ -511,19 +511,19 @@ def test_a_narrow_editor_cannot_write_a_note_on_a_hidden_series(
     }
     narrow = catalog_writer()
     assert narrow.post("/api/notes", json=payload).status_code == 404
-    response = admin_client.post("/api/notes", json=payload)
+    response = owner_client.post("/api/notes", json=payload)
     assert response.status_code == 201, response.text
 
 
 def test_a_meme_on_a_hidden_series_is_dropped(
-    quote_reader, admin_client, catalog_writer, hidden_series
+    quote_reader, owner_client, catalog_writer, hidden_series
 ):
     payload = {
         "owner_type": "series",
         "owner_id": str(hidden_series.system_id),
         "text": "Zvornik meme",
     }
-    created = admin_client.post("/api/meme/", json=payload)
+    created = owner_client.post("/api/meme/", json=payload)
     assert created.status_code in (200, 201), created.text
     meme_id = created.json()["system_id"]
     path = f"/api/meme/?owner_type=series&owner_id={hidden_series.system_id}"
@@ -532,7 +532,7 @@ def test_a_meme_on_a_hidden_series_is_dropped(
     assert quote_reader.get(f"/api/meme/{meme_id}").status_code == 404
     assert catalog_writer().post("/api/meme/", json=payload).status_code == 404
 
-    assert [m["system_id"] for m in admin_client.get(path).json()] == [meme_id]
+    assert [m["system_id"] for m in owner_client.get(path).json()] == [meme_id]
 
 
 # ---------------------------------------------------------------------------
@@ -541,7 +541,7 @@ def test_a_meme_on_a_hidden_series_is_dropped(
 
 
 def test_a_person_whose_only_role_names_a_hidden_gated_type_is_hidden(
-    guest_reader, admin_client, db_session, manga_is_gated
+    guest_reader, owner_client, db_session, manga_is_gated
 ):
     """A club minted before its first credit: roles, and nothing else."""
     person = models.Person(system_id=uuid.uuid4(), name_en="Zvornik Club")
@@ -556,11 +556,11 @@ def test_a_person_whose_only_role_names_a_hidden_gated_type_is_hidden(
     assert guest_reader.get("/api/person/?role=author&scope=manga").json() == []
     assert "manga" not in guest_reader.get("/api/person/role-scopes").json()["author"]
 
-    assert admin_client.get(f"/api/person/{person.system_id}").status_code == 200
+    assert owner_client.get(f"/api/person/{person.system_id}").status_code == 200
     assert str(person.system_id) in _ids(
-        admin_client.get("/api/person/?role=author&scope=manga")
+        owner_client.get("/api/person/?role=author&scope=manga")
     )
-    assert "manga" in admin_client.get("/api/person/role-scopes").json()["author"]
+    assert "manga" in owner_client.get("/api/person/role-scopes").json()["author"]
 
 
 def test_an_ungated_scope_is_not_a_connection(
@@ -579,7 +579,7 @@ def test_an_ungated_scope_is_not_a_connection(
 
 
 def test_a_visible_person_omits_a_role_scoped_to_a_hidden_gated_type(
-    guest_reader, admin_client, db_session, sample_anime, manga_is_gated
+    guest_reader, owner_client, db_session, sample_anime, manga_is_gated
 ):
     credits_service.replace_credits(
         db_session, "anime", sample_anime.system_id, "director", ["Zvornik Both"]
@@ -595,7 +595,7 @@ def test_a_visible_person_omits_a_role_scoped_to_a_hidden_gated_type(
     assert {(r["role"], r["scope"]) for r in narrow.json()["roles"]} == {
         ("director", "anime")
     }
-    wide = admin_client.get(f"/api/person/{person.system_id}").json()
+    wide = owner_client.get(f"/api/person/{person.system_id}").json()
     assert {(r["role"], r["scope"]) for r in wide["roles"]} == {
         ("director", "anime"),
         ("author", "manga"),
@@ -634,7 +634,7 @@ def test_a_narrow_editor_saving_a_person_keeps_the_roles_it_cannot_see(
 
 
 def test_a_value_scoped_only_to_a_hidden_gated_type_is_hidden(
-    client, admin_client, db_session, manga_is_gated
+    client, owner_client, db_session, manga_is_gated
 ):
     option = models.SystemOption(category="Genre Main", value="Zvornik Gated Genre")
     option.scopes = [models.SystemOptionScope(scope="manga")]
@@ -646,7 +646,7 @@ def test_a_value_scoped_only_to_a_hidden_gated_type_is_hidden(
 
     assert "Zvornik Gated Genre" not in values(client, "/api/options/Genre Main")
     assert values(client, "/api/options/Genre Main?scope=manga") == set()
-    assert "Zvornik Gated Genre" in values(admin_client, "/api/options/Genre Main")
+    assert "Zvornik Gated Genre" in values(owner_client, "/api/options/Genre Main")
 
 
 def _platform(db_session, value, scopes, category="Platform"):
@@ -679,7 +679,7 @@ def _platforms(c, category="Platform") -> set[str]:
 # Sources one; both carry gated scopes on real data (Bahamut, Official site).
 @pytest.mark.parametrize("category", ["Platform", "Reference Source"])
 def test_a_value_also_scoped_to_an_ordinary_type_stays_visible_unused(
-    client, admin_client, db_session, manga_is_gated, category
+    client, owner_client, db_session, manga_is_gated, category
 ):
     """
     Bahamut's shape - anime, anime-movie and hentai - before any anime uses
@@ -694,7 +694,7 @@ def test_a_value_also_scoped_to_an_ordinary_type_stays_visible_unused(
     narrow = _platforms(client, category)
     assert "Zvornik Mixed" in narrow
     assert "Zvornik Gated" not in narrow
-    assert {"Zvornik Mixed", "Zvornik Gated"} <= _platforms(admin_client, category)
+    assert {"Zvornik Mixed", "Zvornik Gated"} <= _platforms(owner_client, category)
     anime_only = client.get(f"/api/options/{category}?scope=anime").json()
     assert "Zvornik Mixed" in {row["value"] for row in anime_only}
 
@@ -713,17 +713,17 @@ def test_a_value_used_as_a_main_source_on_a_visible_entry_stays_visible(
 
 
 def test_a_value_used_as_a_main_source_only_on_hidden_entries_is_hidden(
-    client, admin_client, db_session, labelled_anime, manga_is_gated
+    client, owner_client, db_session, labelled_anime, manga_is_gated
 ):
     option = _platform(db_session, "Zvornik Platform", ["manga"])
     _main_source(db_session, labelled_anime, option)
 
     assert "Zvornik Platform" not in _platforms(client)
-    assert "Zvornik Platform" in _platforms(admin_client)
+    assert "Zvornik Platform" in _platforms(owner_client)
 
 
 def test_a_publisher_scoped_only_to_a_hidden_gated_type_is_hidden(
-    guest_reader, admin_client, db_session, manga_is_gated
+    guest_reader, owner_client, db_session, manga_is_gated
 ):
     publisher = models.Publisher(name_en="Zvornik Gated Publisher")
     db_session.add(publisher)
@@ -734,7 +734,7 @@ def test_a_publisher_scoped_only_to_a_hidden_gated_type_is_hidden(
     db_session.flush()
 
     assert guest_reader.get(f"/api/publisher/{publisher.system_id}").status_code == 404
-    assert admin_client.get(f"/api/publisher/{publisher.system_id}").status_code == 200
+    assert owner_client.get(f"/api/publisher/{publisher.system_id}").status_code == 200
 
 
 def test_the_registry_names_exactly_the_gated_types():

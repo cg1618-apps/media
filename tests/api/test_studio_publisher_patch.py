@@ -31,8 +31,8 @@ def _patch(client, kind, entity, body):
 
 
 @pytest.mark.parametrize("kind", KINDS)
-def test_patch_changes_only_the_keys_sent(admin_client, record, kind):
-    r = _patch(admin_client, kind, record[kind], {"country": "Japan", "remark": "Kept"})
+def test_patch_changes_only_the_keys_sent(owner_client, record, kind):
+    r = _patch(owner_client, kind, record[kind], {"country": "Japan", "remark": "Kept"})
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["country"] == "Japan"
@@ -41,21 +41,21 @@ def test_patch_changes_only_the_keys_sent(admin_client, record, kind):
 
 
 @pytest.mark.parametrize("kind", KINDS)
-def test_patch_returns_the_full_response(admin_client, record, kind):
-    body = _patch(admin_client, kind, record[kind], {"remark": "x"}).json()
+def test_patch_returns_the_full_response(owner_client, record, kind):
+    body = _patch(owner_client, kind, record[kind], {"remark": "x"}).json()
     for key in ("public_id", "display_name", "credit_count", "media_types", "restricted"):
         assert key in body
 
 
-def test_publisher_patch_keeps_its_scopes(admin_client, record):
-    body = _patch(admin_client, "publisher", record["publisher"], {"remark": "x"}).json()
+def test_publisher_patch_keeps_its_scopes(owner_client, record):
+    body = _patch(owner_client, "publisher", record["publisher"], {"remark": "x"}).json()
     assert body["scopes"] == ["game"]
 
 
 @pytest.mark.parametrize("kind", KINDS)
-def test_patch_ignores_a_rating(admin_client, db_session, record, kind):
+def test_patch_ignores_a_rating(owner_client, db_session, record, kind):
     """A rating is the viewer's own (PUT /api/me/ratings), not a column."""
-    r = _patch(admin_client, kind, record[kind], {"my_rating": "a+"})
+    r = _patch(owner_client, kind, record[kind], {"my_rating": "a+"})
     assert r.status_code == 200
     assert r.json()["my_rating"] is None
     assert db_session.query(models.UserRating).count() == 0
@@ -71,8 +71,8 @@ def test_patch_ignores_a_rating(admin_client, db_session, record, kind):
         {"system_id": str(uuid.uuid4())},
     ],
 )
-def test_patch_refuses_what_put_would_refuse(admin_client, record, kind, body):
-    assert _patch(admin_client, kind, record[kind], body).status_code == 422
+def test_patch_refuses_what_put_would_refuse(owner_client, record, kind, body):
+    assert _patch(owner_client, kind, record[kind], body).status_code == 422
 
 
 @pytest.mark.parametrize("kind", KINDS)
@@ -89,20 +89,20 @@ def test_a_signed_in_non_admin_cannot_patch(user_client, record, kind):
 
 
 @pytest.mark.parametrize("kind", KINDS)
-def test_patching_an_unknown_id_is_404(admin_client, kind):
-    r = admin_client.patch(f"/api/{kind}/{uuid.uuid4()}", json={"remark": "x"})
+def test_patching_an_unknown_id_is_404(owner_client, kind):
+    r = owner_client.patch(f"/api/{kind}/{uuid.uuid4()}", json={"remark": "x"})
     assert r.status_code == 404
 
 
 def test_a_studio_patch_carrying_a_producer_link_derives_the_id(
-    admin_client, record, monkeypatch
+    owner_client, record, monkeypatch
 ):
     fetched = []
     monkeypatch.setattr(
         autofill_module, "fetch_tenrai_producer_data", lambda _id: fetched.append(_id)
     )
     body = _patch(
-        admin_client,
+        owner_client,
         "studio",
         record["studio"],
         {"mal_link": "https://myanimelist.net/anime/producer/56/A-1_Pictures"},

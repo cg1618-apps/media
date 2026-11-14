@@ -279,9 +279,9 @@ def test_the_admin_holds_no_self_list_and_is_refused(
     db_session, admin_client, user_client, owners
 ):
     """
-    The root role short-circuits every permission EXCEPT the self.* family
-    (Viewer.has): an administrative account keeps no list, no plan queue and
-    no ratings of its own. So admin is refused here as it is on /api/me/list.
+    The admin holds no self.* permission: an administrative account keeps
+    no list, no plan queue and no ratings of its own. So it is refused here
+    as it is on /api/me/list.
     """
     fid = owners["franchise"].system_id
     _put(user_client, "franchise", fid, {"my_rating": "S"})
@@ -402,17 +402,17 @@ def test_a_hidden_franchise_is_404_on_write(db_session, client):
 # --- Catalogue writes no longer carry them ----------------------------------
 
 
-def test_a_catalogue_write_ignores_a_rating(db_session, admin_client, owners):
+def test_a_catalogue_write_ignores_a_rating(db_session, owner_client, owners):
     fid = owners["franchise"].system_id
-    r = admin_client.patch(f"/api/franchise/{fid}", json={"my_rating": "S"})
+    r = owner_client.patch(f"/api/franchise/{fid}", json={"my_rating": "S"})
     assert r.status_code == 200
-    r = admin_client.put(
+    r = owner_client.put(
         f"/api/franchise/{fid}",
         json={"franchise_name_en": "Ratable Franchise", "franchise_type": "ACG",
               "my_rating": "S", "franchise_expectation": "High"},
     )
     assert r.status_code == 200
-    r = admin_client.patch(
+    r = owner_client.patch(
         f"/api/person/{owners['person'].system_id}", json={"my_rating": "not one"}
     )
     assert r.status_code == 200
@@ -446,7 +446,7 @@ def test_plan_next_carries_the_callers_own_expectation(
 
 
 def test_a_merge_moves_the_losers_ratings_where_the_survivor_has_none(
-    db_session, admin_client, user_client, plain_user, kana_client, kana
+    db_session, owner_client, user_client, plain_user, kana_client, kana
 ):
     keep = models.Studio(system_id=uuid.uuid4(), name_en="Keep Studio")
     drop = models.Studio(system_id=uuid.uuid4(), name_en="Drop Studio")
@@ -458,7 +458,7 @@ def test_a_merge_moves_the_losers_ratings_where_the_survivor_has_none(
     _put(user_client, "studio", drop.system_id, {"my_rating": "F"})
     _put(kana_client, "studio", drop.system_id, {"my_rating": "B"})
 
-    r = admin_client.post(
+    r = owner_client.post(
         f"/api/studio/{keep.system_id}/merge", json={"source_id": str(drop.system_id)}
     )
     assert r.status_code == 200, r.text
@@ -470,11 +470,11 @@ def test_a_merge_moves_the_losers_ratings_where_the_survivor_has_none(
 
 
 def test_a_character_merge_moves_ratings_too(
-    db_session, admin_client, kana_client, kana, character, second_character
+    db_session, owner_client, kana_client, kana, character, second_character
 ):
     _put(kana_client, "character", second_character.system_id, {"my_rating": "A"})
 
-    r = admin_client.post(
+    r = owner_client.post(
         f"/api/character/{character.system_id}/merge",
         json={"source_id": str(second_character.system_id)},
     )
@@ -560,12 +560,12 @@ def test_a_unit_write_needs_self_list_and_a_known_rating(
 
 
 def test_the_novel_write_carries_no_unit_rating_or_remark(
-    db_session, admin_client, novel_unit
+    db_session, owner_client, novel_unit
 ):
     """The catalogue write's units payload ignores a rating and a remark -
     they belong to a reader and are written only through /api/me."""
     novel, unit = novel_unit
-    r = admin_client.patch(
+    r = owner_client.patch(
         f"/api/novel/{novel.system_id}",
         json={"units": [{"system_id": str(unit.system_id), "unit_kind": "volume",
                          "position": 1, "my_rating": "S", "remark": "admin note"}]},

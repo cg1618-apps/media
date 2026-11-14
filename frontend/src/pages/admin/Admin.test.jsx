@@ -18,8 +18,13 @@ const showToast = vi.fn();
 vi.mock("../../hooks/useToast", () => ({ useToast: () => ({ showToast }) }));
 // The pending-registrations panel has its own test and needs a query client.
 vi.mock("./PendingRegistrations", () => ({ default: () => null }));
+// Every permission by default; a test narrows `held` to drop one.
+const session = vi.hoisted(() => ({ held: null }));
 vi.mock("../../contexts/AuthContext", () => ({
-  useAuth: () => ({ has: () => true, visibleGatedTypes: [] }),
+  useAuth: () => ({
+    has: (p) => (session.held ? session.held.includes(p) : true),
+    visibleGatedTypes: [],
+  }),
 }));
 
 const SYNC_CAST = "/api/data-control/calculate/sync-cast";
@@ -135,6 +140,37 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  session.held = null;
+});
+
+describe("Control Center announcements", () => {
+  // The editor asks manage.announcements, not the page's manage.pipelines.
+  // The refusal holds manage.pipelines (the page is drawn: Sync Cast is
+  // there), so the missing editor is its own gate's doing; the admin's set,
+  // which holds both, is the mirror.
+  it("draws no announcement editor without manage.announcements", async () => {
+    session.held = ["manage.pipelines"];
+    render(
+      <MemoryRouter>
+        <Admin />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole("button", { name: /Sync Cast/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add Announcement" })).toBeNull();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+  });
+
+  it("draws it for the admin, who holds manage.announcements", async () => {
+    session.held = ["admin.authz", "manage.pipelines", "manage.announcements"];
+    render(
+      <MemoryRouter>
+        <Admin />
+      </MemoryRouter>,
+    );
+    expect(
+      await screen.findByRole("button", { name: "Add Announcement" }),
+    ).toBeInTheDocument();
+  });
 });
 
 describe("Control Center Sync Cast", () => {

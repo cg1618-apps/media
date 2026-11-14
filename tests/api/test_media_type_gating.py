@@ -44,8 +44,8 @@ def test_another_type_is_unaffected(no_anime_client, sample_comic):
     assert str(sample_comic.system_id) in response.text
 
 
-def test_admin_is_unaffected(admin_client, sample_anime):
-    assert str(sample_anime.system_id) in admin_client.get("/api/anime/").text
+def test_admin_is_unaffected(owner_client, sample_anime):
+    assert str(sample_anime.system_id) in owner_client.get("/api/anime/").text
 
 
 @pytest.mark.parametrize("media_type", sorted(MEDIA_TYPE_KEYS))

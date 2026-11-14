@@ -1,6 +1,6 @@
 # Design decisions
 
-Last verified: 2026-11-13
+Last verified: 2026-11-14
 
 ## What this is for
 
@@ -4583,6 +4583,93 @@ columns on `users`. Migration `s1w2itches345` carries all of it.
   a default of `[]`. The groups and seasonal are always present, because no
   switch hides them. The SPA already read every bucket as `?? []`, and the
   nav search offers only the scopes whose bucket would come back.
+
+### The admin's pages get their own `manage.*` keys, not `manage.catalog` (spec: 2026-11-03 account-system-design, "The named accounts")
+
+The admin keeps announcements, the Note pages (System Options, Alias
+Conversion, External APIs), `/images` and `/resources`, and every one of them
+was gated on `manage.catalog` — `/resources`' reads on `view.extras`. Four
+keys replace that: `manage.announcements`, `manage.options`, `manage.images`
+and `manage.resources` (`ADMIN_PAGE_PERMISSIONS`).
+
+- **`manage.catalog` is catalogue WRITE, and the admin writes no catalogue
+  row.** Granting it would have handed the admin every entry, group, person,
+  credit and catalogue note write — creating an entry needs no visibility, so
+  even the empty object set would not have stopped it. The spec says the admin
+  never writes the catalogue; a page it needs cannot be the price of that.
+- **`manage.catalog` also drives `/me`'s `is_admin`**, which about 86 SPA
+  files read as "may edit the catalogue" and draw edit controls on. Granting it
+  would have made `is_admin` true for the admin account and lit those controls
+  on pages it cannot use. Keeping the key off keeps `is_admin` meaning exactly
+  what its readers think: true for `super`, false for the admin.
+- **`manage.resources` gates reads as well as writes.** The owner: the
+  site-wide Resources page is strictly the admin's and super's. So `user`
+  loses `/resources` with this change, and `view.extras` stops naming it.
+- **Form defaults and picker defaults stay on `manage.catalog`.** They shape
+  how catalogue rows are written, so they are catalogue-editing tools rather
+  than Note pages, and the admin has no use for them.
+- **`super` holds all four by lock; `user`, `guest` and `shared` never do.**
+  `super` already locks on everything but `admin.authz`, so the four reach it
+  on the first boot through the reconciliation, with no seed change.
+
+### No role is root, and the object axis applies to every viewer (spec: 2026-11-03 account-system-design, "The named accounts")
+
+`role.is_root` is dropped, and with it every place that let the admin past a
+check: the short-circuit in `Viewer.has()` and `AuthContext.has()`, the
+`ROOT_FEATURES` exception, the exemptions in `media_relation.py` and
+`watch_order.py`, the author check on personal notes, and `/me`'s `is_root`.
+The admin role now stores its seven grants as rows, its whole row locked.
+Migration `a1d2minroot45` carries it.
+
+- **A permission minted later reaches nobody until it is granted.** The
+  short-circuit's defence was that a new content label or media type would
+  never hide anything from the administrator. That was its danger too: every
+  new capability reached the most powerful login by default, without anyone
+  deciding it should. With a fixed set, a later feature reaches the admin only
+  by an edit to `ADMIN_FIXED_PERMISSIONS`. The cost the short-circuit avoided —
+  re-granting the admin every new label — is gone anyway, because labels left
+  the role axis for the access mode.
+- **The admin holds no catalogue, so there is nothing left to exempt.** It
+  holds no `media_type.*`, no `view.*` and no mode: ceiling and default NULL,
+  so it resolves the empty object set. An exemption from the object axis —
+  relations and watch orders skipped `filter_visible_pairs` /
+  `drop_hidden_rows` for root — would now exempt a viewer that sees nothing
+  from the filter that says so, which is a leak waiting for its first bug.
+  Applying the axis to every viewer removes the special case instead of
+  keeping it correct by accident.
+- **No mode is enforced at boot, not just at migration.**
+  `seed.ensure_admin_accounts_modeless` re-asserts NULL on every admin-role
+  account on every start, the way `ensure_shared_accounts` re-asserts the
+  shared modes: a Pull restores the Users tab as the sheet says, and a sheet
+  written before this change carries the admin at `unrestricted`. The
+  lifespan's INSERT cannot write NULL — the columns' Python-side default fires
+  on None — so the account is parked with an UPDATE afterwards.
+- **"Holds no user data" stops being a carve-out.** It was the one condition
+  where the short-circuit did not reach (`self.*`). With no short-circuit the
+  rule is simply the admin's locked row, and the explicit-grant escape hatch
+  ("a grant beats the carve-out") has nothing left to escape.
+- **Nobody edits another account's personal note**, the admin included. The
+  root admin could still delete a member's personal-scope note, because the
+  `DELETE` route never asked the section's write capability and the edit
+  check let root through. Both are closed: `DELETE` asks what a `PATCH` asks.
+- **The last-admin guard goes; deleting the admin account is a 409.** The
+  guard counted accounts that could administer, which with fixed roles is
+  only ever the one `admin` account — whose role is already fixed. An explicit
+  refusal says what is protected instead of deriving it from a count.
+- **The installation owner is never the admin.** Without the flag, the owner
+  is the first `active` account by username whose role is not `admin`,
+  `guest` or `shared`, and otherwise nobody. The old last resort, "the first
+  account of any kind", existed so that a sheet could restore onto a fresh
+  machine before a second account existed; it is what filed the first
+  installation's collection under `admin`. A restore with no owner now skips
+  the owner-dependent rows and names them (`no installation owner: N row(s)
+  skipped`) rather than filing someone's library under an account that keeps
+  none, and Pull restores the Users tab first so the sheet's owner is in place
+  before any row needs it.
+- **What the admin gives up.** It cannot see what a restriction does by
+  looking; the label reference's counts cover that, and a "preview as an
+  account or mode" feature is the remedy if that is ever not enough. Its own
+  dashboard is not built yet, so `/` shows it the guest's dashboard.
 
 ### A personal list write never finishes the work (2026-11-14)
 

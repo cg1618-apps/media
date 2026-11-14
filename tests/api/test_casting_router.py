@@ -55,45 +55,45 @@ def test_get_returns_an_empty_cast_for_a_bare_anime(client, anime):
     assert r.json()["cast"] == []
 
 
-def test_put_replaces_the_whole_cast(admin_client, anime, character, person):
+def test_put_replaces_the_whole_cast(owner_client, anime, character, person):
     body = {"cast": [{
         "character_id": str(character.system_id),
         "voices": [{"person_id": str(person.system_id)}],
         "role": "Main",
         "position": 0,
     }]}
-    assert admin_client.put(f"/api/casting/anime/{anime.system_id}", json=body).status_code == 200
+    assert owner_client.put(f"/api/casting/anime/{anime.system_id}", json=body).status_code == 200
 
-    rows = admin_client.get(f"/api/casting/anime/{anime.system_id}").json()["cast"]
+    rows = owner_client.get(f"/api/casting/anime/{anime.system_id}").json()["cast"]
     assert len(rows) == 1
     assert rows[0]["character_name"] == character.display_name
     assert [v["person_name"] for v in rows[0]["voices"]] == [person.display_name]
 
-    assert admin_client.put(
+    assert owner_client.put(
         f"/api/casting/anime/{anime.system_id}", json={"cast": []}
     ).status_code == 200
-    assert admin_client.get(f"/api/casting/anime/{anime.system_id}").json()["cast"] == []
+    assert owner_client.get(f"/api/casting/anime/{anime.system_id}").json()["cast"] == []
 
 
-def test_cast_is_ordered_by_position(admin_client, anime, character, second_character):
+def test_cast_is_ordered_by_position(owner_client, anime, character, second_character):
     body = {"cast": [
         {"character_id": str(second_character.system_id), "position": 1},
         {"character_id": str(character.system_id), "position": 0},
     ]}
-    admin_client.put(f"/api/casting/anime/{anime.system_id}", json=body)
-    rows = admin_client.get(f"/api/casting/anime/{anime.system_id}").json()["cast"]
+    owner_client.put(f"/api/casting/anime/{anime.system_id}", json=body)
+    rows = owner_client.get(f"/api/casting/anime/{anime.system_id}").json()["cast"]
     assert [r["character_id"] for r in rows] == [
         str(character.system_id), str(second_character.system_id)
     ]
 
 
-def test_a_seiyuu_on_a_manga_casting_is_rejected(admin_client, manga, character, person):
+def test_a_seiyuu_on_a_manga_casting_is_rejected(owner_client, manga, character, person):
     """ck_casting_voice_scope, surfaced as a 422 rather than a 500."""
     body = {"cast": [{
         "character_id": str(character.system_id),
         "voices": [{"person_id": str(person.system_id)}],
     }]}
-    r = admin_client.put(f"/api/casting/manga/{manga.system_id}", json=body)
+    r = owner_client.put(f"/api/casting/manga/{manga.system_id}", json=body)
     assert r.status_code == 422
 
 
@@ -107,7 +107,7 @@ def _stored_roles(db_session, anime):
 
 @pytest.mark.parametrize("blank", ["", "   ", None])
 def test_a_blank_or_null_role_saves_the_row_with_no_role(
-    admin_client, db_session, anime, character, blank
+    owner_client, db_session, anime, character, blank
 ):
     """
     The role is optional. A select's empty option arrives as "", which is
@@ -115,20 +115,20 @@ def test_a_blank_or_null_role_saves_the_row_with_no_role(
     cast. It is stored as NULL, exactly like an explicit null.
     """
     body = {"cast": [{"character_id": str(character.system_id), "role": blank}]}
-    r = admin_client.put(f"/api/casting/anime/{anime.system_id}", json=body)
+    r = owner_client.put(f"/api/casting/anime/{anime.system_id}", json=body)
     assert r.status_code == 200, r.text
     assert _stored_roles(db_session, anime) == [None]
 
 
-def test_an_unknown_role_is_still_a_422(admin_client, db_session, anime, character):
+def test_an_unknown_role_is_still_a_422(owner_client, db_session, anime, character):
     """The mirror: blank is forgiven, a real word outside the vocabulary is not."""
     body = {"cast": [{"character_id": str(character.system_id), "role": "Nonsense"}]}
-    r = admin_client.put(f"/api/casting/anime/{anime.system_id}", json=body)
+    r = owner_client.put(f"/api/casting/anime/{anime.system_id}", json=body)
     assert r.status_code == 422
     assert _stored_roles(db_session, anime) == []
 
 
-def test_display_photo_falls_back_to_the_character_portrait(admin_client, anime, character):
+def test_display_photo_falls_back_to_the_character_portrait(owner_client, anime, character):
     """
     The casting shows how she looks in THIS entry; absent that, her portrait.
     character.photo_file is a real, non-None value (see the conftest fixture)
@@ -136,15 +136,15 @@ def test_display_photo_falls_back_to_the_character_portrait(admin_client, anime,
     happened to be None.
     """
     body = {"cast": [{"character_id": str(character.system_id)}]}
-    admin_client.put(f"/api/casting/anime/{anime.system_id}", json=body)
-    row = admin_client.get(f"/api/casting/anime/{anime.system_id}").json()["cast"][0]
+    owner_client.put(f"/api/casting/anime/{anime.system_id}", json=body)
+    row = owner_client.get(f"/api/casting/anime/{anime.system_id}").json()["cast"][0]
     assert row["photo_file"] is None
     assert row["display_photo_file"] == character.photo_file
     assert row["display_photo_file"] is not None
 
 
 def test_photo_prefers_the_casting_s_own_over_the_character_s(
-    admin_client, anime, character
+    owner_client, anime, character
 ):
     """The override direction: a casting with its own photo_file wins, the
     character's portrait is only a fallback for when the casting has none."""
@@ -152,22 +152,22 @@ def test_photo_prefers_the_casting_s_own_over_the_character_s(
         "character_id": str(character.system_id),
         "photo_file": "castings/ichika-this-anime.jpg",
     }]}
-    admin_client.put(f"/api/casting/anime/{anime.system_id}", json=body)
-    row = admin_client.get(f"/api/casting/anime/{anime.system_id}").json()["cast"][0]
+    owner_client.put(f"/api/casting/anime/{anime.system_id}", json=body)
+    row = owner_client.get(f"/api/casting/anime/{anime.system_id}").json()["cast"][0]
     assert row["photo_file"] == "castings/ichika-this-anime.jpg"
     assert row["display_photo_file"] == "castings/ichika-this-anime.jpg"
     assert row["display_photo_file"] != character.photo_file
 
 
 def test_omitted_positions_default_from_payload_order(
-    admin_client, anime, character, second_character
+    owner_client, anime, character, second_character
 ):
     body = {"cast": [
         {"character_id": str(character.system_id)},
         {"character_id": str(second_character.system_id)},
     ]}
-    admin_client.put(f"/api/casting/anime/{anime.system_id}", json=body)
-    rows = admin_client.get(f"/api/casting/anime/{anime.system_id}").json()["cast"]
+    owner_client.put(f"/api/casting/anime/{anime.system_id}", json=body)
+    rows = owner_client.get(f"/api/casting/anime/{anime.system_id}").json()["cast"]
     assert [r["position"] for r in rows] == [0, 1]
     assert [r["character_id"] for r in rows] == [
         str(character.system_id), str(second_character.system_id)
@@ -175,7 +175,7 @@ def test_omitted_positions_default_from_payload_order(
 
 
 def test_a_repeated_put_reusing_a_character_does_not_collide(
-    admin_client, anime, character, second_character
+    owner_client, anime, character, second_character
 ):
     """
     replace_casting deletes then inserts; the same character_id appearing in
@@ -187,17 +187,17 @@ def test_a_repeated_put_reusing_a_character_does_not_collide(
         {"character_id": str(character.system_id), "position": 0},
         {"character_id": str(second_character.system_id), "position": 1},
     ]}
-    assert admin_client.put(
+    assert owner_client.put(
         f"/api/casting/anime/{anime.system_id}", json=first
     ).status_code == 200
 
     second = {"cast": [
         {"character_id": str(character.system_id), "position": 0},
     ]}
-    r = admin_client.put(f"/api/casting/anime/{anime.system_id}", json=second)
+    r = owner_client.put(f"/api/casting/anime/{anime.system_id}", json=second)
     assert r.status_code == 200
 
-    rows = admin_client.get(f"/api/casting/anime/{anime.system_id}").json()["cast"]
+    rows = owner_client.get(f"/api/casting/anime/{anime.system_id}").json()["cast"]
     assert [r["character_id"] for r in rows] == [str(character.system_id)]
 
 
@@ -205,14 +205,14 @@ def test_an_unknown_media_type_is_a_400(client, anime):
     assert client.get(f"/api/casting/nonsense/{anime.system_id}").status_code == 400
 
 
-def test_a_known_but_non_castable_media_type_is_a_422(admin_client, movie):
+def test_a_known_but_non_castable_media_type_is_a_422(owner_client, movie):
     """
     "movie" is a real key in MEDIA_TABLES - the entry resolves fine - but it
     is not one of the four castable media types, so this is well-formed but
     inapplicable: 422, not a 400 (that is reserved for a genuinely unknown
     key like "nonsense") and not a 404 (the entry does exist).
     """
-    r = admin_client.put(
+    r = owner_client.put(
         f"/api/casting/movie/{movie.system_id}",
         json={"cast": [{"character_id": str(uuid.uuid4())}]},
     )
@@ -231,7 +231,7 @@ def test_guest_cannot_replace_a_cast(client, anime):
     assert client.put(f"/api/casting/anime/{anime.system_id}", json={"cast": []}).status_code == 401
 
 
-def test_a_repeated_character_id_in_one_payload_is_a_422(admin_client, anime, character):
+def test_a_repeated_character_id_in_one_payload_is_a_422(owner_client, anime, character):
     """
     A payload naming the same character twice would collide with
     uq_character_casting (character_id, media_type, entry_id) - CastEditor
@@ -243,22 +243,22 @@ def test_a_repeated_character_id_in_one_payload_is_a_422(admin_client, anime, ch
         {"character_id": str(character.system_id), "position": 0},
         {"character_id": str(character.system_id), "position": 1},
     ]}
-    r = admin_client.put(f"/api/casting/anime/{anime.system_id}", json=body)
+    r = owner_client.put(f"/api/casting/anime/{anime.system_id}", json=body)
     assert r.status_code == 422
     assert str(character.system_id) in r.json()["detail"]
 
 
-def test_an_unknown_character_id_is_a_422(admin_client, anime):
+def test_an_unknown_character_id_is_a_422(owner_client, anime):
     """A character_id with no matching row would otherwise reach the
     database and raise a raw FK violation (a 500)."""
     unknown_id = uuid.uuid4()
     body = {"cast": [{"character_id": str(unknown_id)}]}
-    r = admin_client.put(f"/api/casting/anime/{anime.system_id}", json=body)
+    r = owner_client.put(f"/api/casting/anime/{anime.system_id}", json=body)
     assert r.status_code == 422
     assert str(unknown_id) in r.json()["detail"]
 
 
-def test_an_unknown_person_id_is_a_422(admin_client, anime, character):
+def test_an_unknown_person_id_is_a_422(owner_client, anime, character):
     """A person_id with no matching row would otherwise reach the database
     and raise a raw FK violation (a 500)."""
     unknown_id = uuid.uuid4()
@@ -266,16 +266,16 @@ def test_an_unknown_person_id_is_a_422(admin_client, anime, character):
         "character_id": str(character.system_id),
         "voices": [{"person_id": str(unknown_id)}],
     }]}
-    r = admin_client.put(f"/api/casting/anime/{anime.system_id}", json=body)
+    r = owner_client.put(f"/api/casting/anime/{anime.system_id}", json=body)
     assert r.status_code == 422
     assert str(unknown_id) in r.json()["detail"]
 
 
-def test_a_hentai_is_cast_with_its_seiyuu(admin_client, character, person):
+def test_a_hentai_is_cast_with_its_seiyuu(owner_client, character, person):
     """Hentai is animated, so it is cast the way anime is. The mirror is
     test_a_seiyuu_on_a_manga_casting_is_rejected: the same payload on a
     type with no voice acting is a 422."""
-    created = admin_client.post("/api/hentai/", json={"hentai_name_cn": "Cast Hentai"})
+    created = owner_client.post("/api/hentai/", json={"hentai_name_cn": "Cast Hentai"})
     assert created.status_code == 201, created.text
     entry_id = created.json()["system_id"]
 
@@ -284,47 +284,47 @@ def test_a_hentai_is_cast_with_its_seiyuu(admin_client, character, person):
         "voices": [{"person_id": str(person.system_id)}],
         "role": "Main",
     }]}
-    r = admin_client.put(f"/api/casting/hentai/{entry_id}", json=body)
+    r = owner_client.put(f"/api/casting/hentai/{entry_id}", json=body)
     assert r.status_code == 200, r.text
 
-    rows = admin_client.get(f"/api/casting/hentai/{entry_id}").json()["cast"]
+    rows = owner_client.get(f"/api/casting/hentai/{entry_id}").json()["cast"]
     assert len(rows) == 1
     assert rows[0]["character_name"] == character.display_name
     assert [v["person_name"] for v in rows[0]["voices"]] == [person.display_name]
 
 
-def _put_role(admin_client, anime, character, role):
+def _put_role(owner_client, anime, character, role):
     body = {"cast": [{"character_id": str(character.system_id), "role": role}]}
-    return admin_client.put(f"/api/casting/anime/{anime.system_id}", json=body)
+    return owner_client.put(f"/api/casting/anime/{anime.system_id}", json=body)
 
 
 def test_a_cast_save_fills_a_role_less_character_s_role(
-    admin_client, db_session, anime, character
+    owner_client, db_session, anime, character
 ):
     assert character.role is None
-    assert _put_role(admin_client, anime, character, "Core").status_code == 200
+    assert _put_role(owner_client, anime, character, "Core").status_code == 200
 
     db_session.refresh(character)
     assert character.role == "Core"
 
 
 def test_a_cast_save_never_overwrites_the_character_s_own_role(
-    admin_client, db_session, anime, character
+    owner_client, db_session, anime, character
 ):
     # The casting names a role, so the fill had something to write: a green
     # here means the held role refused it, not that nothing was offered.
     character.role = "Other"
     db_session.flush()
-    assert _put_role(admin_client, anime, character, "Main").status_code == 200
+    assert _put_role(owner_client, anime, character, "Main").status_code == 200
 
     db_session.refresh(character)
     assert character.role == "Other"
 
 
 def test_a_casting_with_no_role_leaves_the_character_without_one(
-    admin_client, db_session, anime, character
+    owner_client, db_session, anime, character
 ):
-    assert _put_role(admin_client, anime, character, None).status_code == 200
+    assert _put_role(owner_client, anime, character, None).status_code == 200
 
     db_session.refresh(character)
     assert character.role is None

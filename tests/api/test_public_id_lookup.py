@@ -59,7 +59,7 @@ def test_hidden_entry_404s_by_public_id_with_the_same_message(
 
 
 def test_delete_by_public_id_removes_the_cover_under_its_system_id(
-    admin_client, db_session, media_entry_for, monkeypatch
+    owner_client, db_session, media_entry_for, monkeypatch
 ):
     """
     The regression the GET-only tests could not see.
@@ -81,14 +81,14 @@ def test_delete_by_public_id_removes_the_cover_under_its_system_id(
     row.cover_image_file = "anime/whatever.jpg"
     db_session.flush()
 
-    response = admin_client.delete(f"/api/anime/{entry['public_id']}")
+    response = owner_client.delete(f"/api/anime/{entry['public_id']}")
     assert response.status_code == 200, response.text
     assert seen == [("anime", str(entry["system_id"]))]
 
 
-def test_update_by_public_id_edits_the_same_row(admin_client, media_entry_for):
+def test_update_by_public_id_edits_the_same_row(owner_client, media_entry_for):
     entry = media_entry_for("/api/anime")
-    response = admin_client.patch(
+    response = owner_client.patch(
         f"/api/anime/{entry['public_id']}", json={"anime_name_en": "Renamed By PID"}
     )
     assert response.status_code == 200, response.text
@@ -96,5 +96,5 @@ def test_update_by_public_id_edits_the_same_row(admin_client, media_entry_for):
     assert response.json()["anime_name_en"] == "Renamed By PID"
 
 
-def test_delete_by_unknown_public_id_is_a_404(admin_client):
-    assert admin_client.delete("/api/anime/99999999").status_code == 404
+def test_delete_by_unknown_public_id_is_a_404(owner_client):
+    assert owner_client.delete("/api/anime/99999999").status_code == 404

@@ -24,10 +24,27 @@
 //
 // Sections either carry `items` (a single list) or `columns` (a mega-panel).
 
+// The nine ordinary media types' keys. A role holding none of them reads no
+// library at all - the admin, whose role holds no media_type.* - so the
+// Library tab asks for any one of them. The gated three have their own
+// Restricted tab.
+const LIBRARY_MEDIA_TYPE_PERMISSIONS = [
+  "media_type.anime",
+  "media_type.anime-movie",
+  "media_type.manga",
+  "media_type.novel",
+  "media_type.game",
+  "media_type.tv-show",
+  "media_type.movie",
+  "media_type.cartoon",
+  "media_type.comic",
+];
+
 export const NAV_SECTIONS = [
   {
     key: "library",
     label: "Library",
+    requires: LIBRARY_MEDIA_TYPE_PERMISSIONS,
     columns: [
       {
         heading: "Groups",
@@ -202,8 +219,9 @@ export const NAV_SECTIONS = [
       // route redirects to login (App.jsx, ProtectedRoute requireAuth), so
       // showing the row logged out would only bounce people. self.list is the
       // nav's spelling of "a signed-in member with a library of their own" -
-      // user and super hold it, guest does not, and neither does admin: the
-      // root short-circuit never covers the self.* family (AuthContext.has).
+      // user and super hold it; guest and admin do not, since neither role
+      // holds any self.* key. Settings, in the account strip, is gated the
+      // same way.
       { label: "Plan", icon: "fas fa-clipboard-list", to: "/plan", requires: "self.list" },
       // Completions is an extra a member gets on top of browsing:
       // view.extras, the same key App.jsx's route asks.
@@ -251,12 +269,18 @@ export const NAV_SECTIONS = [
     // watch orders.
     items: [
       // Quotes and Memes follow the account's quotes_memes feature switch,
-      // the one App.jsx's routes ask; Resources is an extra (view.extras).
-      // All three are read-only for a member; their edit controls ask
-      // manage.catalog inside the page.
+      // the one App.jsx's routes ask. Both are read-only for a member; their
+      // edit controls ask manage.catalog inside the page. Resources is the
+      // admin's and super's alone - manage.resources, the key App.jsx's route
+      // and /api/resources ask, for reading as well as editing.
       { label: "Quotes", icon: "fas fa-quote-left", to: "/quote", feature: "quotes_memes" },
       { label: "Memes", icon: "fas fa-face-grin-squint", to: "/meme", feature: "quotes_memes" },
-      { label: "Resources", icon: "fas fa-bookmark", to: "/resources", requires: "view.extras" },
+      {
+        label: "Resources",
+        icon: "fas fa-bookmark",
+        to: "/resources",
+        requires: "manage.resources",
+      },
       // Relations and Watch Orders are ways of reading the collection, so they
       // belong here rather than in Admin — but both pages write through
       // catalogue endpoints (mediaRelation/watchOrder + resource CRUD), so the
@@ -284,41 +308,63 @@ export const NAV_SECTIONS = [
     // Add/Modify/Delete/Form Defaults all write catalogue rows through
     // catalogue CRUD endpoints (resource(...).create/update/remove, etc.);
     // Picker Defaults writes /api/random-picker-defaults, also manage.catalog.
-    requires: "manage.catalog",
+    // Images is the image library, manage.images - held by the admin, who
+    // holds no manage.catalog, so the tab asks for either and each row for
+    // its own.
+    requires: ["manage.catalog", "manage.images"],
     items: [
-      { label: "Add Entry", icon: "fas fa-plus-circle", to: "/add" },
-      { label: "Modify Entry", icon: "fas fa-edit", to: "/modify" },
-      { label: "Delete Entry", icon: "fas fa-trash-alt", to: "/delete" },
-      { label: "Form Defaults", icon: "fas fa-sliders-h", to: "/defaults" },
-      { label: "Picker Defaults", icon: "fas fa-dice", to: "/random-defaults" },
-      { label: "Images", icon: "fas fa-images", to: "/images" },
+      { label: "Add Entry", icon: "fas fa-plus-circle", to: "/add", requires: "manage.catalog" },
+      { label: "Modify Entry", icon: "fas fa-edit", to: "/modify", requires: "manage.catalog" },
+      {
+        label: "Delete Entry",
+        icon: "fas fa-trash-alt",
+        to: "/delete",
+        requires: "manage.catalog",
+      },
+      {
+        label: "Form Defaults",
+        icon: "fas fa-sliders-h",
+        to: "/defaults",
+        requires: "manage.catalog",
+      },
+      {
+        label: "Picker Defaults",
+        icon: "fas fa-dice",
+        to: "/random-defaults",
+        requires: "manage.catalog",
+      },
+      { label: "Images", icon: "fas fa-images", to: "/images", requires: "manage.images" },
     ],
   },
   {
     key: "note",
     label: "Note",
-    // System Options, Aliases and External APIs all read catalogue vocabulary
-    // via options.list()/person.roleCounts()/studio.list()/constants — the
-    // same manage.catalog surface as Entry; editing lives on Add/Modify.
-    requires: "manage.catalog",
+    // Each row asks its own key, so the tab asks for any of them: the admin
+    // holds manage.options, admin.authz and manage.pipelines but not
+    // manage.catalog, and still sees the whole section.
+    requires: ["manage.options", "admin.authz", "manage.catalog", "manage.pipelines"],
     // The three read-only inventories of how the data is described: the
     // vocabulary, its translations, and which columns each external API
-    // writes. Editing lives on Add/Modify under Entry.
+    // writes. Editing lives on Add/Modify under Entry. manage.options, the
+    // key App.jsx's routes, /api/options and /api/constants/external-apis ask.
     items: [
       {
         label: "System Options",
         icon: "fas fa-list-check",
         to: "/options",
+        requires: "manage.options",
       },
       {
         label: "Alias Conversion",
         icon: "fas fa-right-left",
         to: "/aliases",
+        requires: "manage.options",
       },
       {
         label: "External APIs",
         icon: "fas fa-cloud-arrow-down",
         to: "/external-apis",
+        requires: "manage.options",
       },
       // The label reference: every content label, which modes show it and
       // how many entries and franchises carry it. Read by super, who attaches
@@ -332,9 +378,8 @@ export const NAV_SECTIONS = [
         requires: ["admin.authz", "manage.catalog"],
       },
       // What the pipelines change, step by step. It explains the Control
-      // Center's actions, so it takes their gate rather than the section's:
-      // super holds manage.pipelines by grant, admin by the root flag, and
-      // nobody else - a catalogue editor sees the three rows above only.
+      // Center's actions, so it takes their gate: super and admin hold
+      // manage.pipelines, and nobody else.
       // App.jsx's /business-logic route asks the same.
       {
         label: "Business Logic",

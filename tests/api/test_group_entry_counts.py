@@ -39,9 +39,9 @@ def test_a_guest_counts_only_the_visible_entries_of_a_franchise(
 
 
 def test_admin_counts_every_entry_of_a_franchise(
-    admin_client, sample_franchise, two_in_series
+    owner_client, sample_franchise, two_in_series
 ):
-    body = admin_client.get("/api/franchise/").json()
+    body = owner_client.get("/api/franchise/").json()
     assert _row(body, sample_franchise.system_id)["entry_count"] == 2
 
 
@@ -50,17 +50,17 @@ def test_a_guest_counts_only_the_visible_entries_of_a_series(client, two_in_seri
     assert _row(body, two_in_series.system_id)["entry_count"] == 1
 
 
-def test_admin_counts_every_entry_of_a_series(admin_client, two_in_series):
-    body = admin_client.get("/api/series/").json()
+def test_admin_counts_every_entry_of_a_series(owner_client, two_in_series):
+    body = owner_client.get("/api/series/").json()
     assert _row(body, two_in_series.system_id)["entry_count"] == 2
 
 
-def test_an_empty_franchise_counts_zero(admin_client, db_session):
+def test_an_empty_franchise_counts_zero(owner_client, db_session):
     empty = models.Franchise(
         system_id=uuid.uuid4(), franchise_type="ACG", franchise_name_en="Empty"
     )
     db_session.add(empty)
     db_session.flush()
 
-    body = admin_client.get("/api/franchise/").json()
+    body = owner_client.get("/api/franchise/").json()
     assert _row(body, empty.system_id)["entry_count"] == 0

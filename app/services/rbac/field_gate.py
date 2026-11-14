@@ -37,10 +37,9 @@ def _withheld(viewer: Optional[Viewer]):
     request", and blanking their fields would corrupt a pipeline's view of the
     row rather than protect anybody.
 
-    The is_root short-circuit is gone. Field groups left the role axis in
-    Phase B, so holding every capability no longer reaches them - which is
-    what lets the owner's own account sit in a narrow mode and actually be
-    narrowed.
+    No role is exempt. Field groups are the access mode's, so holding a
+    capability does not reach them - which is what lets the owner's own
+    account sit in a narrow mode and actually be narrowed.
     """
     if viewer is None:
         return ()

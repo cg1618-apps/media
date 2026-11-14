@@ -5,7 +5,7 @@ Content labels on collections and series, and the cascade down the tree.
   franchise   hides itself, its series and its entries
   series      hides itself and its entries - not its franchise, not a sibling
 
-Every refusal is paired with its mirror: the same request from `admin_client`,
+Every refusal is paired with its mirror: the same request from `owner_client`,
 whose mode (`unrestricted`) shows every label, so a 404 or an absence proves
 the label did the hiding rather than anything incidental. `narrow` sits in
 `safe`, which shows no label at all, and `nsfw` is the label every fixture
@@ -31,7 +31,7 @@ def narrow(catalog_writer):
 
 
 @pytest.fixture
-def tree(db_session, admin_user):
+def tree(db_session, owner_user):
     """
     collection -> franchise -> two series, an entry in one series, and an
     entry of the franchise in no series. Nothing is labelled yet.
@@ -118,14 +118,14 @@ EVERYTHING = {"collection", "franchise", "series", "sibling", "in_series", "loos
 # ---------------------------------------------------------------------------
 
 
-def test_an_unlabelled_tree_hides_nothing(narrow, admin_client, tree):
+def test_an_unlabelled_tree_hides_nothing(narrow, owner_client, tree):
     """The baseline the refusals below are measured against."""
     assert _seen(narrow, tree) == EVERYTHING
-    assert _seen(admin_client, tree) == EVERYTHING
+    assert _seen(owner_client, tree) == EVERYTHING
 
 
 def test_a_collection_label_hides_the_whole_tree(
-    db_session, narrow, admin_client, tree, nsfw_label
+    db_session, narrow, owner_client, tree, nsfw_label
 ):
     _label(
         db_session,
@@ -135,11 +135,11 @@ def test_a_collection_label_hides_the_whole_tree(
     )
 
     assert _seen(narrow, tree) == set()
-    assert _seen(admin_client, tree) == EVERYTHING
+    assert _seen(owner_client, tree) == EVERYTHING
 
 
 def test_a_series_label_hides_the_series_and_its_entries_only(
-    db_session, narrow, admin_client, tree, nsfw_label
+    db_session, narrow, owner_client, tree, nsfw_label
 ):
     _label(
         db_session,
@@ -149,11 +149,11 @@ def test_a_series_label_hides_the_series_and_its_entries_only(
     )
 
     assert _seen(narrow, tree) == {"collection", "franchise", "sibling", "loose"}
-    assert _seen(admin_client, tree) == EVERYTHING
+    assert _seen(owner_client, tree) == EVERYTHING
 
 
 def test_a_franchise_label_hides_its_series_and_entries_not_its_collection(
-    db_session, narrow, admin_client, tree, nsfw_label
+    db_session, narrow, owner_client, tree, nsfw_label
 ):
     _label(
         db_session,
@@ -163,7 +163,7 @@ def test_a_franchise_label_hides_its_series_and_entries_not_its_collection(
     )
 
     assert _seen(narrow, tree) == {"collection"}
-    assert _seen(admin_client, tree) == EVERYTHING
+    assert _seen(owner_client, tree) == EVERYTHING
 
 
 def test_moving_a_franchise_out_of_a_labelled_collection_reveals_it(
@@ -183,7 +183,7 @@ def test_moving_a_franchise_out_of_a_labelled_collection_reveals_it(
 
 
 def test_a_labelled_collection_is_absent_from_lists(
-    db_session, narrow, admin_client, tree, nsfw_label
+    db_session, narrow, owner_client, tree, nsfw_label
 ):
     _label(
         db_session,
@@ -205,11 +205,11 @@ def test_a_labelled_collection_is_absent_from_lists(
     ):
         key = str(tree[obj].system_id)
         assert key not in ids(narrow, path), path
-        assert key in ids(admin_client, path), path
+        assert key in ids(owner_client, path), path
 
 
 def test_a_labelled_collection_and_series_are_absent_from_search(
-    db_session, narrow, admin_client, tree, nsfw_label
+    db_session, narrow, owner_client, tree, nsfw_label
 ):
     """The `collection` bucket had no visibility gate at all before groups
     could carry labels."""
@@ -228,9 +228,9 @@ def test_a_labelled_collection_and_series_are_absent_from_search(
     collection = str(tree["collection"].system_id)
     series = str(tree["series"].system_id)
     assert collection not in bucket(narrow, "collection", "Tree Collection")
-    assert collection in bucket(admin_client, "collection", "Tree Collection")
+    assert collection in bucket(owner_client, "collection", "Tree Collection")
     assert series not in bucket(narrow, "series", "Tree Series")
-    assert series in bucket(admin_client, "series", "Tree Series")
+    assert series in bucket(owner_client, "series", "Tree Series")
 
 
 # ---------------------------------------------------------------------------
@@ -248,7 +248,6 @@ def _viewer(visible_label_ids):
         username=None,
         role_id=None,
         role_name="guest",
-        is_root=False,
         permissions=frozenset(),
         visible_label_ids=visible_label_ids,
     )
@@ -299,37 +298,37 @@ def test_filter_visible_pairs_drops_a_hidden_collection_and_series(
 
 
 @pytest.mark.parametrize("tier", ["collection", "series"])
-def test_assigning_a_label_brings_nsfw(admin_client, tree, tier, nsfw_label):
-    res = admin_client.put(
+def test_assigning_a_label_brings_nsfw(owner_client, tree, tier, nsfw_label):
+    res = owner_client.put(
         f"/api/content-labels/{tier}/{tree[tier].system_id}",
         json={"label_keys": ["erotica"]},
     )
     assert res.status_code == 200, res.text
     assert res.json() == ["erotica", "nsfw"]
     assert (
-        admin_client.get(f"/api/content-labels/{tier}/{tree[tier].system_id}").json()
+        owner_client.get(f"/api/content-labels/{tier}/{tree[tier].system_id}").json()
         == ["erotica", "nsfw"]
     )
 
 
 @pytest.mark.parametrize("tier", ["collection", "series"])
 def test_dropping_nsfw_while_another_label_stays_is_refused(
-    admin_client, tree, tier, nsfw_label
+    owner_client, tree, tier, nsfw_label
 ):
     url = f"/api/content-labels/{tier}/{tree[tier].system_id}"
-    assert admin_client.put(url, json={"label_keys": ["erotica"]}).status_code == 200
+    assert owner_client.put(url, json={"label_keys": ["erotica"]}).status_code == 200
 
-    refused = admin_client.put(url, json={"label_keys": ["erotica"]})
+    refused = owner_client.put(url, json={"label_keys": ["erotica"]})
 
     assert refused.status_code == 422
-    assert admin_client.get(url).json() == ["erotica", "nsfw"]
+    assert owner_client.get(url).json() == ["erotica", "nsfw"]
     # The mirror: dropping every label at once is allowed.
-    assert admin_client.put(url, json={"label_keys": []}).json() == []
+    assert owner_client.put(url, json={"label_keys": []}).json() == []
 
 
 @pytest.mark.parametrize("tier", ["collection", "series"])
-def test_an_unknown_label_is_422(admin_client, tree, tier, nsfw_label):
-    res = admin_client.put(
+def test_an_unknown_label_is_422(owner_client, tree, tier, nsfw_label):
+    res = owner_client.put(
         f"/api/content-labels/{tier}/{tree[tier].system_id}",
         json={"label_keys": ["no-such-label"]},
     )
@@ -344,7 +343,7 @@ def test_an_unknown_label_is_422(admin_client, tree, tier, nsfw_label):
     ],
 )
 def test_a_narrow_editor_cannot_relabel_what_it_cannot_see(
-    db_session, narrow, admin_client, tree, nsfw_label, tier, join_model, column
+    db_session, narrow, owner_client, tree, nsfw_label, tier, join_model, column
 ):
     _label(db_session, join_model, nsfw_label, **{column: tree[tier].system_id})
     url = f"/api/content-labels/{tier}/{tree[tier].system_id}"
@@ -352,7 +351,7 @@ def test_a_narrow_editor_cannot_relabel_what_it_cannot_see(
     assert narrow.put(url, json={"label_keys": []}).status_code == 404
     assert narrow.get(url).status_code == 404
     # The mirror: the same call from a mode that shows the label.
-    assert admin_client.put(url, json={"label_keys": []}).status_code == 200
+    assert owner_client.put(url, json={"label_keys": []}).status_code == 200
 
 
 @pytest.mark.parametrize("tier", ["collection", "series"])
@@ -365,7 +364,7 @@ def test_a_plain_user_may_assign_nothing(user_client, tree, tier, nsfw_label):
 
 
 def test_the_group_responses_carry_their_own_labels(
-    db_session, admin_client, tree, nsfw_label
+    db_session, owner_client, tree, nsfw_label
 ):
     """Each group shows only its OWN labels - a series does not claim its
     collection's, or the page could not say which one to edit."""
@@ -376,16 +375,16 @@ def test_the_group_responses_carry_their_own_labels(
         collection_id=tree["collection"].system_id,
     )
 
-    collection = admin_client.get(
+    collection = owner_client.get(
         f"/api/collection/{tree['collection'].system_id}"
     ).json()
-    series = admin_client.get(f"/api/series/{tree['series'].system_id}").json()
+    series = owner_client.get(f"/api/series/{tree['series'].system_id}").json()
 
     assert [label["key"] for label in collection["content_labels"]] == ["nsfw"]
     assert series["content_labels"] == []
 
 
-def test_the_reference_counts_each_tier(db_session, admin_client, tree, nsfw_label):
+def test_the_reference_counts_each_tier(db_session, owner_client, tree, nsfw_label):
     _label(
         db_session,
         models.CollectionContentLabel,
@@ -399,7 +398,7 @@ def test_the_reference_counts_each_tier(db_session, admin_client, tree, nsfw_lab
         series_id=tree["series"].system_id,
     )
 
-    rows = {row["key"]: row for row in admin_client.get("/api/content-labels/").json()}
+    rows = {row["key"]: row for row in owner_client.get("/api/content-labels/").json()}
 
     assert rows["nsfw"]["collection_count"] >= 1
     assert rows["nsfw"]["series_count"] >= 1

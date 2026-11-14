@@ -20,7 +20,7 @@ def _links(db_session, entry_id):
     )
 
 
-def test_deleting_an_anime_removes_its_links(admin_client, db_session):
+def test_deleting_an_anime_removes_its_links(owner_client, db_session):
     a = models.Anime(anime_name_cn="測試")
     db_session.add(a)
     db_session.commit()
@@ -29,11 +29,11 @@ def test_deleting_an_anime_removes_its_links(admin_client, db_session):
     db_session.commit()
     assert _links(db_session, a.system_id) == 2
 
-    assert admin_client.delete(f"/api/anime/{a.system_id}").status_code == 200
+    assert owner_client.delete(f"/api/anime/{a.system_id}").status_code == 200
     assert _links(db_session, a.system_id) == 0
 
 
-def test_deleting_an_anime_movie_removes_its_links(admin_client, db_session):
+def test_deleting_an_anime_movie_removes_its_links(owner_client, db_session):
     m = models.AnimeMovies(anime_movie_name_cn="測試電影")
     db_session.add(m)
     db_session.commit()
@@ -43,11 +43,11 @@ def test_deleting_an_anime_movie_removes_its_links(admin_client, db_session):
     db_session.commit()
     assert _links(db_session, m.system_id) == 1
 
-    assert admin_client.delete(f"/api/anime-movie/{m.system_id}").status_code == 200
+    assert owner_client.delete(f"/api/anime-movie/{m.system_id}").status_code == 200
     assert _links(db_session, m.system_id) == 0
 
 
-def test_deleting_a_factory_type_entry_removes_its_links(admin_client, db_session):
+def test_deleting_a_factory_type_entry_removes_its_links(owner_client, db_session):
     """Comic goes through the shared router factory, which the other five use."""
     c = models.Comic(comic_name_en="Saga")
     db_session.add(c)
@@ -61,11 +61,11 @@ def test_deleting_a_factory_type_entry_removes_its_links(admin_client, db_sessio
     db_session.commit()
     assert _links(db_session, c.system_id) == 2
 
-    assert admin_client.delete(f"/api/comic/{c.system_id}").status_code == 200
+    assert owner_client.delete(f"/api/comic/{c.system_id}").status_code == 200
     assert _links(db_session, c.system_id) == 0
 
 
-def test_another_entrys_links_are_left_alone(admin_client, db_session):
+def test_another_entrys_links_are_left_alone(owner_client, db_session):
     """The delete is scoped to one entry's media_id, not to the role."""
     a = models.Anime(anime_name_cn="甲")
     b = models.Anime(anime_name_cn="乙")
@@ -77,7 +77,7 @@ def test_another_entrys_links_are_left_alone(admin_client, db_session):
         )
     db_session.commit()
 
-    admin_client.delete(f"/api/anime/{a.system_id}")
+    owner_client.delete(f"/api/anime/{a.system_id}")
     assert _links(db_session, b.system_id) == 1
 
 
@@ -109,7 +109,7 @@ def test_deleting_the_media_row_cascades_to_media_source(db_session):
     assert db_session.query(models.MediaSource).filter_by(media_id=sid).count() == 0
 
 
-def test_deleting_the_entry_unattaches_its_quotes_but_keeps_them(db_session, admin_user):
+def test_deleting_the_entry_unattaches_its_quotes_but_keeps_them(db_session, owner_user):
     """
     quote.media_id is ON DELETE SET NULL, deliberately unlike every other link
     table here. A quote carries its own content - text, translation, speaker,
@@ -123,7 +123,7 @@ def test_deleting_the_entry_unattaches_its_quotes_but_keeps_them(db_session, adm
     db_session.commit()
     sid = a.system_id
 
-    q = models.Quote(entry_id=sid, text="活著就是要好好活著", speaker="某人", author_id=admin_user.id)
+    q = models.Quote(entry_id=sid, text="活著就是要好好活著", speaker="某人", author_id=owner_user.id)
     db_session.add(q)
     db_session.commit()
     quote_id = q.system_id

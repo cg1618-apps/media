@@ -58,11 +58,11 @@ def _reload(db, row):
     return db.query(models.Note).filter_by(system_id=row.system_id).one()
 
 
-def test_links_move_into_the_description(db_session, revision, game, admin_user):
+def test_links_move_into_the_description(db_session, revision, game, owner_user):
     row = _row(
         db_session,
         game,
-        admin_user.id,
+        owner_user.id,
         title="祈願",
         content="Pity at 90",
         links=["https://example.com/a", "https://example.com/b"],
@@ -79,10 +79,10 @@ def test_links_move_into_the_description(db_session, revision, game, admin_user)
 
 
 def test_a_links_only_row_keeps_its_links_as_its_description(
-    db_session, revision, game, admin_user
+    db_session, revision, game, owner_user
 ):
     row = _row(
-        db_session, game, admin_user.id, links=["https://example.com/only"]
+        db_session, game, owner_user.id, links=["https://example.com/only"]
     )
     db_session.commit()
 
@@ -94,7 +94,7 @@ def test_a_links_only_row_keeps_its_links_as_its_description(
     assert row.content == "https://example.com/only"
 
 
-def test_other_sections_keep_their_links(db_session, revision, game, admin_user):
+def test_other_sections_keep_their_links(db_session, revision, game, owner_user):
     """
     The mirror case: without it, a reshape that cleared links everywhere
     would pass the two tests above.
@@ -102,7 +102,7 @@ def test_other_sections_keep_their_links(db_session, revision, game, admin_user)
     row = _row(
         db_session,
         game,
-        admin_user.id,
+        owner_user.id,
         section="guide_notes",
         content="Parry everything",
         links=["https://example.com/guide"],
@@ -118,14 +118,14 @@ def test_other_sections_keep_their_links(db_session, revision, game, admin_user)
 
 
 def test_a_migrated_row_validates_against_the_new_spec(
-    db_session, revision, game, admin_user
+    db_session, revision, game, owner_user
 ):
     from app.schemas.note import NoteCreate, validate_note_payload
 
     row = _row(
         db_session,
         game,
-        admin_user.id,
+        owner_user.id,
         kind="gacha",
         title="祈願",
         links=["https://example.com/a"],

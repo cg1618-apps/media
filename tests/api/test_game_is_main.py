@@ -44,20 +44,20 @@ def test_constants_serves_both_vocabularies(client):
 
 @pytest.mark.parametrize("media_type", ["game", "h-game"])
 @pytest.mark.parametrize("value", ["Main", "Remake", "Remaster"])
-def test_each_value_round_trips(admin_client, media_type, value):
+def test_each_value_round_trips(owner_client, media_type, value):
     route, name = ROUTES[media_type]
-    created = admin_client.post(f"{route}/", json={name: "Title", "is_main": value})
+    created = owner_client.post(f"{route}/", json={name: "Title", "is_main": value})
     assert created.status_code == 201, created.text
     assert created.json()["is_main"] == value
 
-    fetched = admin_client.get(f"{route}/{created.json()['public_id']}").json()
+    fetched = owner_client.get(f"{route}/{created.json()['public_id']}").json()
     assert fetched["is_main"] == value
 
 
 @pytest.mark.parametrize("media_type", ["game", "h-game"])
-def test_it_is_optional(admin_client, media_type):
+def test_it_is_optional(owner_client, media_type):
     route, name = ROUTES[media_type]
-    created = admin_client.post(f"{route}/", json={name: "Title"})
+    created = owner_client.post(f"{route}/", json={name: "Title"})
     assert created.status_code == 201, created.text
     assert created.json()["is_main"] is None
 
@@ -65,40 +65,40 @@ def test_it_is_optional(admin_client, media_type):
 @pytest.mark.parametrize("media_type", ["game", "h-game"])
 @pytest.mark.parametrize("value", ["本傳", "DLC", "main"])
 def test_a_value_outside_the_vocabulary_is_refused_on_create(
-    admin_client, media_type, value
+    owner_client, media_type, value
 ):
     # 本傳 is the shared vocabulary's, and DLC is game_type's: neither belongs
     # to this column.
     route, name = ROUTES[media_type]
-    response = admin_client.post(f"{route}/", json={name: "Title", "is_main": value})
+    response = owner_client.post(f"{route}/", json={name: "Title", "is_main": value})
     assert response.status_code == 422
 
 
 @pytest.mark.parametrize("media_type", ["game", "h-game"])
-def test_a_value_outside_the_vocabulary_is_refused_on_update(admin_client, media_type):
+def test_a_value_outside_the_vocabulary_is_refused_on_update(owner_client, media_type):
     route, name = ROUTES[media_type]
-    created = admin_client.post(f"{route}/", json={name: "Title", "is_main": "Main"})
+    created = owner_client.post(f"{route}/", json={name: "Title", "is_main": "Main"})
     assert created.status_code == 201, created.text
-    response = admin_client.put(
+    response = owner_client.put(
         f"{route}/{created.json()['system_id']}", json={"is_main": "外傳"}
     )
     assert response.status_code == 422
     # The mirror: a value inside it is accepted on the same route.
-    ok = admin_client.put(
+    ok = owner_client.put(
         f"{route}/{created.json()['system_id']}", json={"is_main": "Remake"}
     )
     assert ok.status_code == 200, ok.text
     assert ok.json()["is_main"] == "Remake"
 
 
-def test_the_h_game_tracker_patch_checks_it_too(admin_client):
+def test_the_h_game_tracker_patch_checks_it_too(owner_client):
     # PATCH has no request schema; the h-game progress hook checks every
     # h-game vocabulary on it, is_main included.
     route, name = ROUTES["h-game"]
-    created = admin_client.post(f"{route}/", json={name: "Title"}).json()
-    refused = admin_client.patch(f"{route}/{created['system_id']}", json={"is_main": "外傳"})
+    created = owner_client.post(f"{route}/", json={name: "Title"}).json()
+    refused = owner_client.patch(f"{route}/{created['system_id']}", json={"is_main": "外傳"})
     assert refused.status_code == 422
-    ok = admin_client.patch(f"{route}/{created['system_id']}", json={"is_main": "Remaster"})
+    ok = owner_client.patch(f"{route}/{created['system_id']}", json={"is_main": "Remaster"})
     assert ok.status_code == 200, ok.text
     assert ok.json()["is_main"] == "Remaster"
 

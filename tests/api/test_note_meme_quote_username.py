@@ -129,7 +129,7 @@ def _remark(owner_id, content, username):
 
 
 def test_two_accounts_remarks_on_one_entry_come_back_as_two_rows(
-    db, sheets, sample_anime, admin_user, kana
+    db, sheets, sample_anime, owner_user, kana
 ):
     """remark is one row per owner PER AUTHOR. Once authors round-trip, the
     remark fold in Pull must match on the author too - or the second remark
@@ -138,7 +138,7 @@ def test_two_accounts_remarks_on_one_entry_come_back_as_two_rows(
     sheets({
         "Note": [
             NOTE_HEADERS,
-            _remark(owner, "admin's remark", admin_user.username),
+            _remark(owner, "admin's remark", owner_user.username),
             _remark(owner, "kana's remark", "kana_author"),
         ]
     })
@@ -152,7 +152,7 @@ def test_two_accounts_remarks_on_one_entry_come_back_as_two_rows(
             models.Note.media_id == owner, models.Note.section == "remark"
         )
     }
-    assert remarks == {admin_user.id: "admin's remark", kana.id: "kana's remark"}
+    assert remarks == {owner_user.id: "admin's remark", kana.id: "kana's remark"}
 
 
 def test_a_remark_folds_onto_the_same_authors_local_row(

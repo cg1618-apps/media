@@ -62,9 +62,9 @@ ADMIN_ROLE = ADMIN_ROLE_NAME
 # A signed-in member. Not an administrator and not a second kind of admin:
 # guest reads, the view.* reads a guest lacks, and the three self.* writes.
 USER_ROLE = USER_ROLE_NAME
-# Everything except the ability to change who may do what. NOT is_root:
-# the point of the role is that its grant set is finite and inspectable, so a
-# permission minted in code reaches it only when someone grants it.
+# Everything except the ability to change who may do what. Its grant set is
+# finite and inspectable, like every role's, so a permission minted in code
+# reaches it only when someone grants it.
 SUPER_ROLE = SUPER_ROLE_NAME
 # An account several people sign in to. Reads what a guest reads and files
 # requests; its mode is fixed per account (SHARED_ACCOUNTS below).
@@ -144,8 +144,9 @@ def default_shared_permissions() -> set[str]:
 def default_super_permissions() -> set[str]:
     """
     A super account: everything a signed-in member has, the four entity-page
-    keys (locked on for super, unlike for a member), and the three management
-    permissions. Derived from default_user_permissions() rather than
+    keys (locked on for super, unlike for a member), and the management
+    permissions; the admin's page keys (manage.announcements and the rest)
+    reach it through the lock reconciliation, which locks them on. Derived from default_user_permissions() rather than
     restated, so a media type added later reaches this role too.
 
     admin.authz is deliberately absent. That is the whole distinction between
@@ -174,15 +175,17 @@ def ensure_rbac_seed(db: Session) -> None:
         GUEST_ROLE,
         label="Guest",
         description="Anyone who is not logged in.",
-        is_root=False,
         sort_order=0,
     )
     _ensure_role(
         db,
         ADMIN_ROLE,
         label="Admin",
-        description="Full access. Holds every permission implicitly.",
-        is_root=True,
+        description=(
+            "Runs the installation: accounts, roles, access modes, pipelines, "
+            "the request inbox, announcements, options, images and resources. "
+            "Reads and writes no catalogue, and keeps no list or notes."
+        ),
         sort_order=100,
     )
     user = _ensure_role(
@@ -193,7 +196,6 @@ def ensure_rbac_seed(db: Session) -> None:
             "A signed-in member. Reads the whole site, and writes their "
             "own list and their own personal notes."
         ),
-        is_root=False,
         sort_order=50,
     )
     shared = _ensure_role(
@@ -205,7 +207,6 @@ def ensure_rbac_seed(db: Session) -> None:
             "and files requests; its mode and its role are fixed, and only "
             "the admin sets its password."
         ),
-        is_root=False,
         sort_order=25,
     )
     super_role = _ensure_role(
@@ -219,7 +220,6 @@ def ensure_rbac_seed(db: Session) -> None:
             "since it restores the Users and Content Label tabs and role "
             "assignments along with everything else."
         ),
-        is_root=False,
         sort_order=75,
     )
 
@@ -287,6 +287,25 @@ def ensure_shared_accounts(db: Session) -> None:
     db.flush()
 
 
+def ensure_admin_accounts_modeless(db: Session) -> None:
+    """
+    Re-assert that every admin-role account has no mode.
+
+    The admin reads no catalogue, so its ceiling and default are both NULL
+    and it resolves the empty object set - no catalogue read even through a
+    route that forgot a permission check. Runs on every boot, the way
+    ensure_shared_accounts re-asserts the shared modes, so a Pull or a hand
+    edit that gave the account a mode is undone on the next start.
+    """
+    role = db.query(models.Role).filter(models.Role.name == ADMIN_ROLE).first()
+    if role is None:
+        return
+    for user in db.query(models.User).filter(models.User.role_id == role.system_id):
+        if user.mode_ceiling is not None or user.mode_default is not None:
+            set_mode_ceiling(db, user, None, None)
+    db.flush()
+
+
 def _enforce_locks(db: Session) -> None:
     """
     Make every stored grant set agree with permissions.locked_permissions().
@@ -300,12 +319,12 @@ def _enforce_locks(db: Session) -> None:
     OFF grant - a guest role still holding manage.catalog from before this
     rule existed is exactly the row that must not survive a restart.
 
-    Root roles are skipped: they hold everything through the resolver's
-    short-circuit and store no rows at all.
+    The admin role is covered like any other: its row is wholly locked, so
+    this tops it up to its fixed set and drops anything else.
     """
-    roles = db.query(models.Role).filter(models.Role.is_root.is_(False)).all()
+    roles = db.query(models.Role).all()
     for role in roles:
-        locked_on, locked_off = locked_permissions(role.name, False)
+        locked_on, locked_off = locked_permissions(role.name)
         held = {
             row.permission
             for row in db.query(models.RolePermission).filter(

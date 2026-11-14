@@ -46,6 +46,10 @@ vi.mock("./pages/public/RandomPicker", () => stub("random picker"));
 vi.mock("./pages/public/Quotes", () => stub("quotes"));
 vi.mock("./pages/public/Memes", () => stub("memes"));
 vi.mock("./pages/public/Resources", () => stub("resources"));
+vi.mock("./pages/admin/SystemOptions", () => stub("system options"));
+vi.mock("./pages/admin/Aliases", () => stub("aliases"));
+vi.mock("./pages/admin/ExternalApis", () => stub("external apis"));
+vi.mock("./pages/admin/Images", () => stub("images"));
 
 import App from "./App";
 
@@ -104,7 +108,6 @@ const CLOSED = {
   "/random/hentai": "random picker",
   "/quote": "quotes",
   "/meme": "memes",
-  "/resources": "resources",
 };
 
 describe("a member-only route", () => {
@@ -138,11 +141,58 @@ describe("the quotes and memes routes", () => {
     });
   }
 
-  it("still open Resources to that member, an extra", async () => {
-    asMemberWithoutQuotes();
-    await visit("/resources");
-    expect(await screen.findByText("resources page")).toBeInTheDocument();
-  });
+});
+
+// The admin's own pages. The admin holds its fixed set and no catalogue key;
+// a member holds a non-empty set with none of these keys in it, so its
+// redirect is the gate's doing, and the admin opening the same path is the
+// mirror.
+const ADMIN_KEYS = [
+  "admin.authz",
+  "manage.pipelines",
+  "manage.requests",
+  "manage.announcements",
+  "manage.options",
+  "manage.images",
+  "manage.resources",
+];
+const asAdmin = () => session(ADMIN_KEYS, "admin");
+// Super holds every key but admin.authz; the ones these routes ask suffice.
+const asSuper = () =>
+  session(
+    [...MEMBER_KEYS, "manage.catalog", "manage.options", "manage.images", "manage.resources"],
+    "cg1618",
+    ["quotes_memes"],
+  );
+
+describe("the admin's own pages", () => {
+  const ADMIN_PAGES = {
+    "/resources": "resources",
+    "/options": "system options",
+    "/aliases": "aliases",
+    "/external-apis": "external apis",
+    "/images": "images",
+  };
+  for (const [path, page] of Object.entries(ADMIN_PAGES)) {
+    it(`sends a member from ${path} to log in`, async () => {
+      asMember();
+      await visit(path);
+      expect(await screen.findByText("login page")).toBeInTheDocument();
+      expect(screen.queryByText(`${page} page`)).toBeNull();
+    });
+
+    it(`opens ${path} for the admin, who holds no manage.catalog`, async () => {
+      asAdmin();
+      await visit(path);
+      expect(await screen.findByText(`${page} page`)).toBeInTheDocument();
+    });
+
+    it(`opens ${path} for super`, async () => {
+      asSuper();
+      await visit(path);
+      expect(await screen.findByText(`${page} page`)).toBeInTheDocument();
+    });
+  }
 });
 
 describe("a guest's open routes", () => {

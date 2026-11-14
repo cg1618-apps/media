@@ -110,7 +110,7 @@ The same entry may appear in several items of one list (a split run). A **dangli
 
 ### Viewer visibility
 
-Reads apply RBAC (`app/services/rbac/enforcement.py`). An order whose owning collection, franchise or series the viewer's mode hides reads as missing: `/lists` and `/follows` leave it out (`apply_owner_visibility`), and its detail, follow and unfollow are 404 (`tier_visible`), because its name and owner would confirm the group. The follow row itself stays, and a wider mode lists it again. Candidates for a hidden owner are 404, and a collection's hidden member franchises are skipped (`visible_scope_franchise_ids`). Inside a visible order, the list-detail endpoint passes the `Viewer` into `resolve_items`, which calls `drop_hidden_rows` for non-root roles — hidden entries are *removed* from the guide, not flagged missing. The candidates endpoint passes the viewer into `list_candidate_entries`, which wraps each table query in `apply_entry_visibility`. Built-in lists are generated without a viewer (`build_release_items` never receives one), so their steps are **not** visibility-filtered. Reorder responses call the detail handler with `viewer=None` (admin-only anyway).
+Reads apply RBAC (`app/services/rbac/enforcement.py`). An order whose owning collection, franchise or series the viewer's mode hides reads as missing: `/lists` and `/follows` leave it out (`apply_owner_visibility`), and its detail, follow and unfollow are 404 (`tier_visible`), because its name and owner would confirm the group. The follow row itself stays, and a wider mode lists it again. Candidates for a hidden owner are 404, and a collection's hidden member franchises are skipped (`visible_scope_franchise_ids`). Inside a visible order, the list-detail endpoint passes the `Viewer` into `resolve_items`, which calls `drop_hidden_rows` for every viewer, the admin included — hidden entries are *removed* from the guide, not flagged missing. The candidates endpoint passes the viewer into `list_candidate_entries`, which wraps each table query in `apply_entry_visibility`. Built-in lists are generated without a viewer (`build_release_items` never receives one), so their steps are **not** visibility-filtered. Reorder responses call the detail handler with `viewer=None` (admin-only anyway).
 
 ## API
 
@@ -187,7 +187,7 @@ Constraints: `ck_watch_order_follow_one_owner` (`num_nonnulls(franchise_id, seri
 
 ### Progress
 
-Computed on every read, per viewer, from the viewer's own `user_media_list` rows; nothing is stored. The steps counted are exactly the ones the guide draws for that viewer — `_resolved_steps` in the router serves both the detail endpoint and the follows — so a hidden entry's step is dropped for a non-root viewer by `resolve_items`, and a built-in order's steps are generated as they are for the page (unfiltered, as noted under Viewer visibility). The rules live in `app/services/domain/watch_order_follow.py`:
+Computed on every read, per viewer, from the viewer's own `user_media_list` rows; nothing is stored. The steps counted are exactly the ones the guide draws for that viewer — `_resolved_steps` in the router serves both the detail endpoint and the follows — so a hidden entry's step is dropped for every viewer by `resolve_items`, and a built-in order's steps are generated as they are for the page (unfiltered, as noted under Viewer visibility). The rules live in `app/services/domain/watch_order_follow.py`:
 
 | State | When |
 | --- | --- |

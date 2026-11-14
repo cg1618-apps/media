@@ -91,10 +91,10 @@ def test_detail_refuses_an_anonymous_caller(client):
     assert client.get("/api/health/detail").status_code == 401
 
 
-def test_detail_reports_both_revisions_for_an_authorised_caller(admin_client, db_session):
+def test_detail_reports_both_revisions_for_an_authorised_caller(owner_client, db_session):
     _stamp(db_session, "abc123")
 
-    response = admin_client.get("/api/health/detail")
+    response = owner_client.get("/api/health/detail")
     assert response.status_code == 200
     body = response.json()
     assert body["alembic_revision"] == "abc123"

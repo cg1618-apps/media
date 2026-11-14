@@ -50,7 +50,7 @@ def test_a_bare_entry_costs_nothing(db_session):
     assert counts["detached"] == {"quotes": 0}
 
 
-def test_credits_and_list_rows_are_counted_as_deleted(db_session, admin_user):
+def test_credits_and_list_rows_are_counted_as_deleted(db_session, owner_user):
     _entry, media = _anime(db_session)
     person = models.Person(system_id=uuid.uuid4(), name_en="Someone")
     db_session.add(person)
@@ -67,7 +67,7 @@ def test_credits_and_list_rows_are_counted_as_deleted(db_session, admin_user):
         models.UserMediaList(
             system_id=uuid.uuid4(),
             media_id=media.system_id,
-            user_id=admin_user.id,
+            user_id=owner_user.id,
             status="Completed",
         )
     )
@@ -78,7 +78,7 @@ def test_credits_and_list_rows_are_counted_as_deleted(db_session, admin_user):
     assert counts["deleted"]["list_rows"] == 1
 
 
-def test_a_quote_is_reported_as_detached_not_deleted(db_session, admin_user):
+def test_a_quote_is_reported_as_detached_not_deleted(db_session, owner_user):
     """quote.media_id is SET NULL, so the quote outlives the entry. Telling the
     operator it will be deleted would be false."""
     _entry, media = _anime(db_session)
@@ -86,7 +86,7 @@ def test_a_quote_is_reported_as_detached_not_deleted(db_session, admin_user):
         models.Quote(
             system_id=uuid.uuid4(),
             media_id=media.system_id,
-            author_id=admin_user.id,
+            author_id=owner_user.id,
             text="A line worth keeping.",
         )
     )
@@ -97,7 +97,7 @@ def test_a_quote_is_reported_as_detached_not_deleted(db_session, admin_user):
     assert "quotes" not in counts["deleted"]
 
 
-def test_the_database_agrees_with_the_report(db_session, admin_user):
+def test_the_database_agrees_with_the_report(db_session, owner_user):
     """The counts are a promise about what PostgreSQL will do. Delete the row
     and check the promise was kept - the cascade takes the list row, and the
     quote survives with a null media_id."""
@@ -106,7 +106,7 @@ def test_the_database_agrees_with_the_report(db_session, admin_user):
         models.UserMediaList(
             system_id=uuid.uuid4(),
             media_id=media.system_id,
-            user_id=admin_user.id,
+            user_id=owner_user.id,
             status="Completed",
         )
     )
@@ -115,7 +115,7 @@ def test_the_database_agrees_with_the_report(db_session, admin_user):
         models.Quote(
             system_id=quote_id,
             media_id=media.system_id,
-            author_id=admin_user.id,
+            author_id=owner_user.id,
             text="Survivor.",
         )
     )

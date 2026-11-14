@@ -180,34 +180,34 @@ def test_restricted_sources_are_withheld_in_safe_and_shown_in_normal(
 # --- The removed routes ------------------------------------------------------
 
 
-def test_modes_cannot_be_created_deleted_or_regranted(admin_client, mode):
+def test_modes_cannot_be_created_deleted_or_regranted(owner_client, mode):
     normal = mode(MODE_NORMAL)
-    assert admin_client.post(
+    assert owner_client.post(
         "/api/access-modes/", json={"key": "x", "label": "X"}
     ).status_code in (404, 405)
-    assert admin_client.delete(
+    assert owner_client.delete(
         f"/api/access-modes/{normal.system_id}"
     ).status_code in (404, 405)
-    assert admin_client.put(
+    assert owner_client.put(
         f"/api/access-modes/{normal.system_id}/grants",
         json={"label_keys": [], "field_group_keys": []},
     ).status_code in (404, 405)
 
 
-def test_labels_cannot_be_created_renamed_or_deleted(admin_client, db_session):
+def test_labels_cannot_be_created_renamed_or_deleted(owner_client, db_session):
     ensure_labels(db_session)
     nsfw = (
         db_session.query(models.ContentLabel)
         .filter(models.ContentLabel.key == "nsfw")
         .one()
     )
-    assert admin_client.post(
+    assert owner_client.post(
         "/api/content-labels/", json={"key": "spoiler", "label": "Spoiler"}
     ).status_code in (404, 405)
-    assert admin_client.patch(
+    assert owner_client.patch(
         f"/api/content-labels/{nsfw.system_id}", json={"label": "x"}
     ).status_code in (404, 405)
-    assert admin_client.delete(
+    assert owner_client.delete(
         f"/api/content-labels/{nsfw.system_id}"
     ).status_code in (404, 405)
 
@@ -225,7 +225,7 @@ def test_a_modes_name_and_description_stay_adjustable(admin_client, mode):
 # --- The reference -----------------------------------------------------------
 
 
-@pytest.mark.parametrize("who", ["admin_client", "super_client"])
+@pytest.mark.parametrize("who", ["owner_client", "super_client"])
 def test_the_reference_lists_every_label_with_its_modes(request, labelled, who):
     client = request.getfixturevalue(who)
     r = client.get("/api/content-labels/")

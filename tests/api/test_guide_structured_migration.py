@@ -60,12 +60,12 @@ def _reload(db, row):
 
 
 def test_text_entries_become_the_description_and_links_become_links(
-    db_session, revision, game, admin_user
+    db_session, revision, game, owner_user
 ):
     row = _note(
         db_session,
         game,
-        admin_user.id,
+        owner_user.id,
         "skills",
         title="Bloodhound's Step",
         entries=[
@@ -89,12 +89,12 @@ def test_text_entries_become_the_description_and_links_become_links(
 
 
 def test_an_existing_body_keeps_its_place_above_the_entries(
-    db_session, revision, game, admin_user
+    db_session, revision, game, owner_user
 ):
     row = _note(
         db_session,
         game,
-        admin_user.id,
+        owner_user.id,
         "collectibles",
         title="Golden Seeds",
         content="Thirty of them.",
@@ -111,14 +111,14 @@ def test_an_existing_body_keeps_its_place_above_the_entries(
 
 
 def test_a_url_is_written_into_the_body_where_the_new_spec_has_no_links(
-    db_session, revision, game, admin_user
+    db_session, revision, game, owner_user
 ):
     # `enemies` lost its links when it was reshaped. Dropping the URL would be
     # a silent loss, so it goes into the description with its label.
     row = _note(
         db_session,
         game,
-        admin_user.id,
+        owner_user.id,
         "enemies",
         title="Malenia",
         entries=[
@@ -140,14 +140,14 @@ def test_a_url_is_written_into_the_body_where_the_new_spec_has_no_links(
 
 
 def test_stats_links_move_into_the_description(
-    db_session, revision, game, admin_user
+    db_session, revision, game, owner_user
 ):
     # stats_and_points was text_links, so its links are in the COLUMN rather
     # than in an entries array - a different path through the migration.
     row = _note(
         db_session,
         game,
-        admin_user.id,
+        owner_user.id,
         "stats_and_points",
         content="Vigor to 40 first.",
         links=["https://example.com/soft-caps"],
@@ -162,14 +162,14 @@ def test_stats_links_move_into_the_description(
     assert row.links is None
 
 
-def test_a_mod_keeps_its_type(db_session, revision, game, admin_user):
+def test_a_mod_keeps_its_type(db_session, revision, game, owner_user):
     # `kind` was the section's dropdown and is now its `type` field, on the
     # same column with the same two values - so the rows need no touching,
     # which is exactly what this asserts.
     row = _note(
         db_session,
         game,
-        admin_user.id,
+        owner_user.id,
         "mods_and_tools",
         title="SKSE",
         kind="Tool",
@@ -186,7 +186,7 @@ def test_a_mod_keeps_its_type(db_session, revision, game, admin_user):
 
 
 def test_every_migrated_row_validates_against_its_new_spec(
-    db_session, revision, game, admin_user
+    db_session, revision, game, owner_user
 ):
     """
     The point of the whole migration. A row the reshape leaves invalid reads
@@ -196,7 +196,7 @@ def test_every_migrated_row_validates_against_its_new_spec(
         _note(
             db_session,
             game,
-            admin_user.id,
+            owner_user.id,
             section,
             title="Something",
             entries=[
@@ -210,7 +210,7 @@ def test_every_migrated_row_validates_against_its_new_spec(
         _note(
             db_session,
             game,
-            admin_user.id,
+            owner_user.id,
             "stats_and_points",
             title="Vigor",
             content="To 40.",
@@ -242,13 +242,13 @@ def test_every_migrated_row_validates_against_its_new_spec(
 
 
 def test_the_reshape_leaves_other_sections_alone(
-    db_session, revision, game, admin_user
+    db_session, revision, game, owner_user
 ):
     # `side_quests` is still name_entries until Story List exists to take it.
     row = _note(
         db_session,
         game,
-        admin_user.id,
+        owner_user.id,
         "side_quests",
         title="Ranni",
         entries=[{"type": "text", "value": "Do not kill Blaidd"}],

@@ -62,7 +62,7 @@ router = APIRouter(
 
 
 def _to_response(db: Session, role: models.Role) -> schemas.RoleResponse:
-    locked_on, locked_off = locked_permissions(role.name, bool(role.is_root))
+    locked_on, locked_off = locked_permissions(role.name)
     granted = [
         row.permission
         for row in db.query(models.RolePermission.permission).filter(
@@ -78,7 +78,6 @@ def _to_response(db: Session, role: models.Role) -> schemas.RoleResponse:
         label=role.label,
         description=role.description,
         sort_order=role.sort_order,
-        is_root=role.is_root,
         permissions=sorted(granted),
         user_count=user_count,
         locked_on=sorted(locked_on),
@@ -212,7 +211,7 @@ def _enforce_locks(role: models.Role, requested: set[str]) -> None:
     decides, and the half the editor reads is served from the same table, so
     the two cannot drift.
     """
-    locked_on, locked_off = locked_permissions(role.name, bool(role.is_root))
+    locked_on, locked_off = locked_permissions(role.name)
     forbidden = sorted(locked_off & requested)
     if forbidden:
         raise HTTPException(
@@ -260,11 +259,6 @@ def replace_permissions(
     db: Session = Depends(get_db),
 ):
     role = _get_or_404(db, role_id)
-    if role.is_root:
-        raise HTTPException(
-            status_code=409,
-            detail="A root role role holds every permission; grants do not apply.",
-        )
     _validate(db, payload.permissions)
     _enforce_locks(role, set(payload.permissions))
 

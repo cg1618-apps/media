@@ -42,25 +42,26 @@ const MEMBER_VIEW = ["view.studio", "view.publisher", "view.person", "view.chara
 // What /api/auth/me grants the non-admin viewer; a guest case sets [].
 let viewPermissions = MEMBER_VIEW;
 
-function respond(url, isAdmin, isRoot = isAdmin) {
+function respond(url, isAdmin) {
   const u = String(url);
   if (u.startsWith("/api/auth/me")) {
     return {
       is_admin: isAdmin,
-      username: isAdmin ? "admin" : "reader",
-      role: isAdmin ? "admin" : "user",
-      is_root: isRoot,
+      // The catalogue editor is super: is_admin is manage.catalog, which the
+      // admin role does not hold.
+      username: isAdmin ? "cg1618" : "reader",
+      role: isAdmin ? "super" : "user",
       // A member's keys by default: entity names link (the four entity keys)
       // and a unit's remark, the viewer's own, is shown (self.list). The guest view of the
       // links is pinned in CastSection.test and StudioLinks.test, and of the
       // remark below.
-      permissions: viewPermissions,
+      permissions: isAdmin ? [...viewPermissions, "manage.catalog"] : viewPermissions,
     };
   }
   return [];
 }
 
-function mockFetch(novel, { isAdmin = false, isRoot = isAdmin, onPatch, onUnitPut } = {}) {
+function mockFetch(novel, { isAdmin = false, onPatch, onUnitPut } = {}) {
   vi.stubGlobal(
     "fetch",
     vi.fn((url, options) => {
@@ -94,7 +95,7 @@ function mockFetch(novel, { isAdmin = false, isRoot = isAdmin, onPatch, onUnitPu
       return Promise.resolve({
         ok: true,
         status: 200,
-        json: () => Promise.resolve(respond(u, isAdmin, isRoot)),
+        json: () => Promise.resolve(respond(u, isAdmin)),
       });
     }),
   );
@@ -219,8 +220,7 @@ describe("Novel detail page — units", () => {
   });
 
   it("gives an editor holding self.list the catalogue editor and its own controls", async () => {
-    // manage.catalog and self.list together, without the root flag: the
-    // super role's shape.
+    // manage.catalog and self.list together: the super role's shape.
     mockFetch(
       {
         ...BASE_NOVEL,
@@ -239,7 +239,7 @@ describe("Novel detail page — units", () => {
           },
         ],
       },
-      { isAdmin: true, isRoot: false },
+      { isAdmin: true },
     );
     mount();
     expect(await screen.findByText(/\+ Add arc/)).toBeInTheDocument();

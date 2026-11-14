@@ -27,8 +27,8 @@ def _add(db_session, row):
     return row
 
 
-def _merge(admin_client, path, keep, drop):
-    r = admin_client.post(
+def _merge(owner_client, path, keep, drop):
+    r = owner_client.post(
         f"/api/{path}/{keep.system_id}/merge",
         json={"source_id": str(drop.system_id)},
     )
@@ -37,7 +37,7 @@ def _merge(admin_client, path, keep, drop):
 
 
 def test_a_character_merge_fills_the_blanks_and_keeps_the_rest(
-    admin_client, db_session
+    owner_client, db_session
 ):
     keep = _add(
         db_session,
@@ -54,7 +54,7 @@ def test_a_character_merge_fills_the_blanks_and_keeps_the_rest(
             mal_id=42,
         ),
     )
-    _merge(admin_client, "character", keep, drop)
+    _merge(owner_client, "character", keep, drop)
 
     db_session.expire_all()
     merged = db_session.get(models.Character, keep.system_id)
@@ -62,7 +62,7 @@ def test_a_character_merge_fills_the_blanks_and_keeps_the_rest(
     assert (merged.name_cn, merged.remark) == ("一花", "mine")
 
 
-def test_a_person_merge_fills_the_blanks(admin_client, db_session):
+def test_a_person_merge_fills_the_blanks(owner_client, db_session):
     keep = _add(db_session, models.Person(system_id=uuid.uuid4(), name_cn="花澤香菜"))
     drop = _add(
         db_session,
@@ -70,20 +70,20 @@ def test_a_person_merge_fills_the_blanks(admin_client, db_session):
             system_id=uuid.uuid4(), name_en="Kana Hanazawa", name_jp="花澤香菜"
         ),
     )
-    _merge(admin_client, "person", keep, drop)
+    _merge(owner_client, "person", keep, drop)
 
     db_session.expire_all()
     merged = db_session.get(models.Person, keep.system_id)
     assert (merged.name_en, merged.name_jp) == ("Kana Hanazawa", "花澤香菜")
 
 
-def test_a_studio_merge_fills_the_blanks(admin_client, db_session):
+def test_a_studio_merge_fills_the_blanks(owner_client, db_session):
     keep = _add(db_session, models.Studio(system_id=uuid.uuid4(), name_en="Kyoto Animation"))
     drop = _add(
         db_session,
         models.Studio(system_id=uuid.uuid4(), name_jp="京都アニメーション", country="JP"),
     )
-    _merge(admin_client, "studio", keep, drop)
+    _merge(owner_client, "studio", keep, drop)
 
     db_session.expire_all()
     merged = db_session.get(models.Studio, keep.system_id)
@@ -94,7 +94,7 @@ def test_a_studio_merge_fills_the_blanks(admin_client, db_session):
     )
 
 
-def test_a_publisher_merge_fills_the_blanks(admin_client, db_session):
+def test_a_publisher_merge_fills_the_blanks(owner_client, db_session):
     keep = _add(db_session, models.Publisher(system_id=uuid.uuid4(), name_en="Kadokawa"))
     drop = _add(
         db_session,
@@ -102,7 +102,7 @@ def test_a_publisher_merge_fills_the_blanks(admin_client, db_session):
             system_id=uuid.uuid4(), name_jp="KADOKAWA", website_url="https://k.test"
         ),
     )
-    _merge(admin_client, "publisher", keep, drop)
+    _merge(owner_client, "publisher", keep, drop)
 
     db_session.expire_all()
     merged = db_session.get(models.Publisher, keep.system_id)
@@ -110,7 +110,7 @@ def test_a_publisher_merge_fills_the_blanks(admin_client, db_session):
 
 
 def test_a_downloaded_photo_is_renamed_onto_the_survivor(
-    admin_client, db_session, cover_dir
+    owner_client, db_session, cover_dir
 ):
     keep = _add(db_session, models.Character(system_id=uuid.uuid4(), name_en="A"))
     drop_id = uuid.uuid4()
@@ -123,7 +123,7 @@ def test_a_downloaded_photo_is_renamed_onto_the_survivor(
             system_id=drop_id, name_en="B", photo_file=old, photo_focus="10 90"
         ),
     )
-    _merge(admin_client, "character", keep, drop)
+    _merge(owner_client, "character", keep, drop)
 
     new = image_manager.cover_key("character", str(keep.system_id))
     db_session.expire_all()
@@ -133,19 +133,19 @@ def test_a_downloaded_photo_is_renamed_onto_the_survivor(
     assert not (cover_dir / "character" / f"{drop_id}.jpg").exists()
 
 
-def test_an_uploaded_logo_is_shared_not_renamed(admin_client, db_session, cover_dir):
+def test_an_uploaded_logo_is_shared_not_renamed(owner_client, db_session, cover_dir):
     keep = _add(db_session, models.Studio(system_id=uuid.uuid4(), name_en="A"))
     drop = _add(
         db_session,
         models.Studio(system_id=uuid.uuid4(), name_en="B", logo_file="library/abc.jpg"),
     )
-    _merge(admin_client, "studio", keep, drop)
+    _merge(owner_client, "studio", keep, drop)
 
     db_session.expire_all()
     assert db_session.get(models.Studio, keep.system_id).logo_file == "library/abc.jpg"
 
 
-def test_the_survivors_own_photo_is_kept(admin_client, db_session, cover_dir):
+def test_the_survivors_own_photo_is_kept(owner_client, db_session, cover_dir):
     keep = _add(
         db_session,
         models.Person(system_id=uuid.uuid4(), name_en="A", photo_file="library/mine.jpg"),
@@ -159,14 +159,14 @@ def test_the_survivors_own_photo_is_kept(admin_client, db_session, cover_dir):
             photo_focus="10 90",
         ),
     )
-    _merge(admin_client, "person", keep, drop)
+    _merge(owner_client, "person", keep, drop)
 
     db_session.expire_all()
     merged = db_session.get(models.Person, keep.system_id)
     assert (merged.photo_file, merged.photo_focus) == ("library/mine.jpg", None)
 
 
-def test_a_casting_both_hold_fills_from_the_losers(admin_client, db_session, anime):
+def test_a_casting_both_hold_fills_from_the_losers(owner_client, db_session, anime):
     keep = _add(db_session, models.Character(system_id=uuid.uuid4(), name_en="A"))
     drop = _add(db_session, models.Character(system_id=uuid.uuid4(), name_en="B"))
     for character, role, remark in ((keep, None, None), (drop, "Main", "child")):
@@ -180,7 +180,7 @@ def test_a_casting_both_hold_fills_from_the_losers(admin_client, db_session, ani
             )
         )
     db_session.commit()
-    _merge(admin_client, "character", keep, drop)
+    _merge(owner_client, "character", keep, drop)
 
     db_session.expire_all()
     casting = (
@@ -191,14 +191,14 @@ def test_a_casting_both_hold_fills_from_the_losers(admin_client, db_session, ani
     assert (casting.role, casting.remark) == ("Main", "child")
 
 
-def test_filling_the_losers_own_names_is_not_a_clash(admin_client, db_session):
+def test_filling_the_losers_own_names_is_not_a_clash(owner_client, db_session):
     # The survivor ends with exactly the loser's names; the loser is gone by
     # then, so uq_person_name has nothing to collide with.
     keep = _add(db_session, models.Person(system_id=uuid.uuid4(), name_en="A"))
     drop = _add(
         db_session, models.Person(system_id=uuid.uuid4(), name_en="A", name_cn="B")
     )
-    _merge(admin_client, "person", keep, drop)
+    _merge(owner_client, "person", keep, drop)
 
     db_session.expire_all()
     merged = db_session.get(models.Person, keep.system_id)
@@ -206,12 +206,12 @@ def test_filling_the_losers_own_names_is_not_a_clash(admin_client, db_session):
 
 
 def test_filling_a_third_records_names_is_a_409_that_changes_nothing(
-    admin_client, db_session
+    owner_client, db_session
 ):
     _add(db_session, models.Person(system_id=uuid.uuid4(), name_en="A", name_cn="B"))
     keep = _add(db_session, models.Person(system_id=uuid.uuid4(), name_en="A"))
     drop = _add(db_session, models.Person(system_id=uuid.uuid4(), name_cn="B"))
-    r = admin_client.post(
+    r = owner_client.post(
         f"/api/person/{keep.system_id}/merge", json={"source_id": str(drop.system_id)}
     )
     assert r.status_code == 409

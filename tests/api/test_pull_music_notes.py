@@ -90,12 +90,12 @@ def _rows(db_session, owner_id, section):
 
 
 @pytest.fixture
-def local_statuses(db_session, sample_anime, admin_user):
+def local_statuses(db_session, sample_anime, owner_user):
     """The four rows the migration minted here, under this database's uuids."""
     rows = []
     for i, kind in enumerate(("op", "ed", "insert_songs", "ost")):
         row = models.Note(
-            author_id=admin_user.id,
+            author_id=owner_user.id,
             media_id=sample_anime.system_id,
             section="music_status",
             kind=kind,

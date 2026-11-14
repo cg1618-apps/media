@@ -53,10 +53,10 @@ def sheet(monkeypatch):
 
 
 @pytest.fixture
-def local_op(db_session, sample_anime, admin_user):
+def local_op(db_session, sample_anime, owner_user):
     """One OP row, normal and named, under this database's own uuid."""
     note = models.Note(
-        author_id=admin_user.id,
+        author_id=owner_user.id,
         media_id=sample_anime.system_id,
         section="op",
         kind="normal",

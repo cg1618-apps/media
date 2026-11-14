@@ -84,24 +84,24 @@ def _ids(rows):
 
 
 def test_free_scan_lists_a_free_game_whose_prices_are_not_all_zero(
-    admin_client, db_session, admin_user
+    owner_client, db_session, owner_user
 ):
-    null_prices = _game(admin_client, "Star Rail")
-    _copy(db_session, admin_user, null_prices, "Free", "Other")
-    priced = _h_game(admin_client, "Priced H", price_original_jp="1200")
-    _copy(db_session, admin_user, priced, "Free")
+    null_prices = _game(owner_client, "Star Rail")
+    _copy(db_session, owner_user, null_prices, "Free", "Other")
+    priced = _h_game(owner_client, "Priced H", price_original_jp="1200")
+    _copy(db_session, owner_user, priced, "Free")
     zeroed = _game(
-        admin_client,
+        owner_client,
         "Already Zero",
         price_original_us="0",
         price_original_jp="0",
         price_original_tw="0",
     )
-    _copy(db_session, admin_user, zeroed, "Free")
-    bought = _game(admin_client, "Bought One")
-    _copy(db_session, admin_user, bought, "Bought")
+    _copy(db_session, owner_user, zeroed, "Free")
+    bought = _game(owner_client, "Bought One")
+    _copy(db_session, owner_user, bought, "Bought")
 
-    body = admin_client.get(FREE_SCAN).json()
+    body = owner_client.get(FREE_SCAN).json()
 
     assert _ids(body["entries"]) == {null_prices["system_id"], priced["system_id"]}
     assert body["count"] == 2
@@ -122,31 +122,31 @@ def test_free_scan_lists_a_free_game_whose_prices_are_not_all_zero(
 
 
 def test_free_scan_ignores_another_accounts_free_copy(
-    admin_client, db_session, admin_user, other_user
+    owner_client, db_session, owner_user, other_user
 ):
     """The other account's Free copy is what the filter refuses; the
     caller's own Free copy of a second game is the mirror."""
-    theirs = _game(admin_client, "Their Free Game")
+    theirs = _game(owner_client, "Their Free Game")
     _copy(db_session, other_user, theirs, "Free")
-    mine = _game(admin_client, "My Free Game")
-    _copy(db_session, admin_user, mine, "Free")
+    mine = _game(owner_client, "My Free Game")
+    _copy(db_session, owner_user, mine, "Free")
 
-    body = admin_client.get(FREE_SCAN).json()
+    body = owner_client.get(FREE_SCAN).json()
 
     assert _ids(body["entries"]) == {mine["system_id"]}
 
 
 def test_zero_sets_all_three_list_prices_and_skips_what_no_longer_qualifies(
-    admin_client, db_session, admin_user
+    owner_client, db_session, owner_user
 ):
     """The refusal needs a ticked entry that does NOT qualify - a game with
     only a Bought copy - to bite; the Free one beside it is the mirror."""
-    free = _game(admin_client, "Free To Play", price_original_us="19.99")
-    _copy(db_session, admin_user, free, "Free")
-    bought = _game(admin_client, "Paid For", price_original_us="29.99")
-    _copy(db_session, admin_user, bought, "Bought")
+    free = _game(owner_client, "Free To Play", price_original_us="19.99")
+    _copy(db_session, owner_user, free, "Free")
+    bought = _game(owner_client, "Paid For", price_original_us="29.99")
+    _copy(db_session, owner_user, bought, "Bought")
 
-    r = admin_client.post(
+    r = owner_client.post(
         FREE_ZERO, json={"system_ids": [free["system_id"], bought["system_id"]]}
     )
 
@@ -172,11 +172,11 @@ def test_zero_sets_all_three_list_prices_and_skips_what_no_longer_qualifies(
     assert log.rows_updated == 1
 
 
-def test_zero_reaches_an_h_game(admin_client, db_session, admin_user):
-    free = _h_game(admin_client, "Free H")
-    _copy(db_session, admin_user, free, "Free")
+def test_zero_reaches_an_h_game(owner_client, db_session, owner_user):
+    free = _h_game(owner_client, "Free H")
+    _copy(db_session, owner_user, free, "Free")
 
-    r = admin_client.post(FREE_ZERO, json={"system_ids": [free["system_id"]]})
+    r = owner_client.post(FREE_ZERO, json={"system_ids": [free["system_id"]]})
 
     assert r.json()["updated_count"] == 1
     db_session.expire_all()
@@ -185,12 +185,12 @@ def test_zero_reaches_an_h_game(admin_client, db_session, admin_user):
 
 
 def test_zero_skips_an_entry_only_another_account_holds_free(
-    admin_client, db_session, other_user
+    owner_client, db_session, other_user
 ):
-    theirs = _game(admin_client, "Their Free", price_original_us="5.00")
+    theirs = _game(owner_client, "Their Free", price_original_us="5.00")
     _copy(db_session, other_user, theirs, "Free")
 
-    r = admin_client.post(FREE_ZERO, json={"system_ids": [theirs["system_id"]]})
+    r = owner_client.post(FREE_ZERO, json={"system_ids": [theirs["system_id"]]})
 
     assert r.json()["updated_count"] == 0
     db_session.expire_all()
@@ -204,12 +204,12 @@ def test_zero_skips_an_entry_only_another_account_holds_free(
 
 
 def test_bought_scan_lists_copies_whose_game_has_no_list_price_anywhere(
-    admin_client, db_session, admin_user
+    owner_client, db_session, owner_user
 ):
-    unpriced = _game(admin_client, "Switch Exclusive")
+    unpriced = _game(owner_client, "Switch Exclusive")
     copy = _copy(
         db_session,
-        admin_user,
+        owner_user,
         unpriced,
         "Bought",
         "Nintendo eShop",
@@ -217,15 +217,15 @@ def test_bought_scan_lists_copies_whose_game_has_no_list_price_anywhere(
         price_currency="USD",
     )
     zero_priced = _h_game(
-        admin_client, "Zero Priced H", price_original_us="0", price_original_jp="0"
+        owner_client, "Zero Priced H", price_original_us="0", price_original_jp="0"
     )
-    _copy(db_session, admin_user, zero_priced, "Bought", "Other")
-    one_region = _game(admin_client, "Has JP Price", price_original_jp="6800")
-    _copy(db_session, admin_user, one_region, "Bought")
-    free = _game(admin_client, "Free Unpriced")
-    _copy(db_session, admin_user, free, "Free")
+    _copy(db_session, owner_user, zero_priced, "Bought", "Other")
+    one_region = _game(owner_client, "Has JP Price", price_original_jp="6800")
+    _copy(db_session, owner_user, one_region, "Bought")
+    free = _game(owner_client, "Free Unpriced")
+    _copy(db_session, owner_user, free, "Free")
 
-    body = admin_client.get(BOUGHT_SCAN).json()
+    body = owner_client.get(BOUGHT_SCAN).json()
 
     assert _ids(body["copies"]) == {unpriced["system_id"], zero_priced["system_id"]}
     assert body["count"] == 2
@@ -247,13 +247,13 @@ def test_bought_scan_lists_copies_whose_game_has_no_list_price_anywhere(
 
 
 def test_bought_scan_ignores_another_accounts_copy(
-    admin_client, db_session, admin_user, other_user
+    owner_client, db_session, owner_user, other_user
 ):
-    theirs = _game(admin_client, "Their Purchase")
+    theirs = _game(owner_client, "Their Purchase")
     _copy(db_session, other_user, theirs, "Bought")
-    mine = _game(admin_client, "My Purchase")
-    _copy(db_session, admin_user, mine, "Bought")
+    mine = _game(owner_client, "My Purchase")
+    _copy(db_session, owner_user, mine, "Bought")
 
-    body = admin_client.get(BOUGHT_SCAN).json()
+    body = owner_client.get(BOUGHT_SCAN).json()
 
     assert _ids(body["copies"]) == {mine["system_id"]}

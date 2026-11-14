@@ -147,7 +147,6 @@ beforeEach(() => {
                   is_admin: false,
                   username: "reader",
                   role: "user",
-                  is_root: false,
                   permissions: mePermissions,
                 },
           ),

@@ -3,17 +3,17 @@
 from app import models
 
 
-def test_a_new_entry_reports_no_sources(admin_client, sample_anime):
-    r = admin_client.get(f"/api/anime/{sample_anime.system_id}")
+def test_a_new_entry_reports_no_sources(owner_client, sample_anime):
+    r = owner_client.get(f"/api/anime/{sample_anime.system_id}")
     assert r.status_code == 200
     assert r.json()["sources"] == []
 
 
-def test_posting_sources_creates_rows(admin_client, sample_franchise, db_session):
+def test_posting_sources_creates_rows(owner_client, sample_franchise, db_session):
     db_session.add(models.SystemOption(category="Platform", value="Netflix"))
     db_session.commit()
 
-    r = admin_client.post(
+    r = owner_client.post(
         "/api/anime/",
         json={
             "anime_name_en": "Sourced",
@@ -36,13 +36,13 @@ def test_posting_sources_creates_rows(admin_client, sample_franchise, db_session
 
 
 def test_patching_sources_replaces_the_whole_set(
-    admin_client, sample_anime, db_session
+    owner_client, sample_anime, db_session
 ):
-    admin_client.patch(
+    owner_client.patch(
         f"/api/anime/{sample_anime.system_id}",
         json={"sources": [{"kind": "access", "bucket": "other", "name": "One"}]},
     )
-    r = admin_client.patch(
+    r = owner_client.patch(
         f"/api/anime/{sample_anime.system_id}",
         json={"sources": [{"kind": "access", "bucket": "other", "name": "Two"}]},
     )
@@ -50,7 +50,7 @@ def test_patching_sources_replaces_the_whole_set(
 
 
 def test_deleting_the_entry_deletes_its_sources(
-    admin_client, sample_anime, db_session
+    owner_client, sample_anime, db_session
 ):
     db_session.add(
         models.MediaSource(
@@ -62,12 +62,12 @@ def test_deleting_the_entry_deletes_its_sources(
     )
     db_session.commit()
 
-    admin_client.delete(f"/api/anime/{sample_anime.system_id}")
+    owner_client.delete(f"/api/anime/{sample_anime.system_id}")
 
     assert db_session.query(models.MediaSource).count() == 0
 
 
-def test_the_list_endpoint_attaches_sources(admin_client, sample_anime, db_session):
+def test_the_list_endpoint_attaches_sources(owner_client, sample_anime, db_session):
     db_session.add(
         models.MediaSource(
             media_id=sample_anime.system_id,
@@ -79,7 +79,7 @@ def test_the_list_endpoint_attaches_sources(admin_client, sample_anime, db_sessi
     )
     db_session.commit()
 
-    rows = admin_client.get("/api/anime/").json()
+    rows = owner_client.get("/api/anime/").json()
     mine = next(r for r in rows if r["system_id"] == str(sample_anime.system_id))
     assert [s["name"] for s in mine["sources"]] == ["Wikipedia"]
 

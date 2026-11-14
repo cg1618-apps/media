@@ -94,15 +94,15 @@ def sample_manga(db_session, sample_franchise, list_row):
 # ---------------------------------------------------------------------------
 
 class TestCompleteAnime:
-    def test_admin_can_mark_completed(self, admin_client, sample_anime):
-        response = admin_client.post(f"/api/anime/{sample_anime.system_id}/complete")
+    def test_admin_can_mark_completed(self, owner_client, sample_anime):
+        response = owner_client.post(f"/api/anime/{sample_anime.system_id}/complete")
         assert response.status_code == 200
         data = response.json()
         assert data["watching_status"] == "Completed"
         assert data["airing_status"] == "Finished Airing"
 
     def test_ep_fin_set_to_ep_total(
-        self, admin_client, db_session, sample_franchise, list_row
+        self, owner_client, db_session, sample_franchise, list_row
     ):
         entry = models.Anime(
             system_id=uuid.uuid4(),
@@ -116,7 +116,7 @@ class TestCompleteAnime:
         db_session.flush()
         # Part-watched: the progress the endpoint must carry to ep_total.
         list_row(entry, status="Watching", ep_fin=10)
-        response = admin_client.post(f"/api/anime/{entry.system_id}/complete")
+        response = owner_client.post(f"/api/anime/{entry.system_id}/complete")
         assert response.status_code == 200
         assert response.json()["ep_fin"] == 24
 
@@ -124,8 +124,8 @@ class TestCompleteAnime:
         response = client.post(f"/api/anime/{sample_anime.system_id}/complete")
         assert response.status_code == 401
 
-    def test_nonexistent_id_returns_404(self, admin_client):
-        response = admin_client.post(f"/api/anime/{uuid.uuid4()}/complete")
+    def test_nonexistent_id_returns_404(self, owner_client):
+        response = owner_client.post(f"/api/anime/{uuid.uuid4()}/complete")
         assert response.status_code == 404
 
 
@@ -134,8 +134,8 @@ class TestCompleteAnime:
 # ---------------------------------------------------------------------------
 
 class TestCompleteAnimeMovie:
-    def test_admin_can_mark_completed(self, admin_client, sample_anime_movie):
-        response = admin_client.post(f"/api/anime-movie/{sample_anime_movie.system_id}/complete")
+    def test_admin_can_mark_completed(self, owner_client, sample_anime_movie):
+        response = owner_client.post(f"/api/anime-movie/{sample_anime_movie.system_id}/complete")
         assert response.status_code == 200
         data = response.json()
         assert data["watching_status"] == "Completed"
@@ -145,8 +145,8 @@ class TestCompleteAnimeMovie:
         response = client.post(f"/api/anime-movie/{sample_anime_movie.system_id}/complete")
         assert response.status_code == 401
 
-    def test_nonexistent_id_returns_404(self, admin_client):
-        response = admin_client.post(f"/api/anime-movie/{uuid.uuid4()}/complete")
+    def test_nonexistent_id_returns_404(self, owner_client):
+        response = owner_client.post(f"/api/anime-movie/{uuid.uuid4()}/complete")
         assert response.status_code == 404
 
 
@@ -155,15 +155,15 @@ class TestCompleteAnimeMovie:
 # ---------------------------------------------------------------------------
 
 class TestCompleteTVShow:
-    def test_admin_can_mark_completed(self, admin_client, sample_tv_show):
-        response = admin_client.post(f"/api/tv-shows/{sample_tv_show.system_id}/complete")
+    def test_admin_can_mark_completed(self, owner_client, sample_tv_show):
+        response = owner_client.post(f"/api/tv-shows/{sample_tv_show.system_id}/complete")
         assert response.status_code == 200
         data = response.json()
         assert data["watching_status"] == "Completed"
         assert data["airing_status"] == "Finished Airing"
 
-    def test_ep_fin_set_to_ep_total(self, admin_client, sample_tv_show):
-        response = admin_client.post(f"/api/tv-shows/{sample_tv_show.system_id}/complete")
+    def test_ep_fin_set_to_ep_total(self, owner_client, sample_tv_show):
+        response = owner_client.post(f"/api/tv-shows/{sample_tv_show.system_id}/complete")
         assert response.status_code == 200
         assert response.json()["ep_fin"] == 10
 
@@ -171,8 +171,8 @@ class TestCompleteTVShow:
         response = client.post(f"/api/tv-shows/{sample_tv_show.system_id}/complete")
         assert response.status_code == 401
 
-    def test_nonexistent_id_returns_404(self, admin_client):
-        response = admin_client.post(f"/api/tv-shows/{uuid.uuid4()}/complete")
+    def test_nonexistent_id_returns_404(self, owner_client):
+        response = owner_client.post(f"/api/tv-shows/{uuid.uuid4()}/complete")
         assert response.status_code == 404
 
 
@@ -181,15 +181,15 @@ class TestCompleteTVShow:
 # ---------------------------------------------------------------------------
 
 class TestCompleteCartoon:
-    def test_admin_can_mark_completed(self, admin_client, sample_cartoon):
-        response = admin_client.post(f"/api/cartoon/{sample_cartoon.system_id}/complete")
+    def test_admin_can_mark_completed(self, owner_client, sample_cartoon):
+        response = owner_client.post(f"/api/cartoon/{sample_cartoon.system_id}/complete")
         assert response.status_code == 200
         data = response.json()
         assert data["watching_status"] == "Completed"
         assert data["airing_status"] == "Finished Airing"
 
-    def test_ep_fin_set_to_ep_total(self, admin_client, sample_cartoon):
-        response = admin_client.post(f"/api/cartoon/{sample_cartoon.system_id}/complete")
+    def test_ep_fin_set_to_ep_total(self, owner_client, sample_cartoon):
+        response = owner_client.post(f"/api/cartoon/{sample_cartoon.system_id}/complete")
         assert response.status_code == 200
         assert response.json()["ep_fin"] == 8
 
@@ -197,8 +197,8 @@ class TestCompleteCartoon:
         response = client.post(f"/api/cartoon/{sample_cartoon.system_id}/complete")
         assert response.status_code == 401
 
-    def test_nonexistent_id_returns_404(self, admin_client):
-        response = admin_client.post(f"/api/cartoon/{uuid.uuid4()}/complete")
+    def test_nonexistent_id_returns_404(self, owner_client):
+        response = owner_client.post(f"/api/cartoon/{uuid.uuid4()}/complete")
         assert response.status_code == 404
 
 
@@ -207,8 +207,8 @@ class TestCompleteCartoon:
 # ---------------------------------------------------------------------------
 
 class TestCompleteMovie:
-    def test_admin_can_mark_completed(self, admin_client, sample_movie):
-        response = admin_client.post(f"/api/movies/{sample_movie.system_id}/complete")
+    def test_admin_can_mark_completed(self, owner_client, sample_movie):
+        response = owner_client.post(f"/api/movies/{sample_movie.system_id}/complete")
         assert response.status_code == 200
         data = response.json()
         assert data["watching_status"] == "Completed"
@@ -218,8 +218,8 @@ class TestCompleteMovie:
         response = client.post(f"/api/movies/{sample_movie.system_id}/complete")
         assert response.status_code == 401
 
-    def test_nonexistent_id_returns_404(self, admin_client):
-        response = admin_client.post(f"/api/movies/{uuid.uuid4()}/complete")
+    def test_nonexistent_id_returns_404(self, owner_client):
+        response = owner_client.post(f"/api/movies/{uuid.uuid4()}/complete")
         assert response.status_code == 404
 
 
@@ -228,29 +228,29 @@ class TestCompleteMovie:
 # ---------------------------------------------------------------------------
 
 class TestCompleteManga:
-    def test_admin_can_mark_completed(self, admin_client, sample_manga):
-        response = admin_client.post(f"/api/manga/{sample_manga.system_id}/complete")
+    def test_admin_can_mark_completed(self, owner_client, sample_manga):
+        response = owner_client.post(f"/api/manga/{sample_manga.system_id}/complete")
         assert response.status_code == 200
         data = response.json()
         assert data["reading_status"] == "Completed"
 
-    def test_ch_fin_set_to_ch_total(self, admin_client, sample_manga):
-        response = admin_client.post(f"/api/manga/{sample_manga.system_id}/complete")
+    def test_ch_fin_set_to_ch_total(self, owner_client, sample_manga):
+        response = owner_client.post(f"/api/manga/{sample_manga.system_id}/complete")
         assert response.json()["ch_fin"] == 50
 
-    def test_vol_fin_set_to_vol_total(self, admin_client, sample_manga):
-        response = admin_client.post(f"/api/manga/{sample_manga.system_id}/complete")
+    def test_vol_fin_set_to_vol_total(self, owner_client, sample_manga):
+        response = owner_client.post(f"/api/manga/{sample_manga.system_id}/complete")
         assert response.json()["vol_fin"] == 5
 
-    def test_vol_fin_page_set_to_zero(self, admin_client, sample_manga):
-        response = admin_client.post(f"/api/manga/{sample_manga.system_id}/complete")
+    def test_vol_fin_page_set_to_zero(self, owner_client, sample_manga):
+        response = owner_client.post(f"/api/manga/{sample_manga.system_id}/complete")
         assert response.json()["vol_fin_page"] == 0
 
-    def test_serialization_status_set_to_completed(self, admin_client, sample_manga):
-        response = admin_client.post(f"/api/manga/{sample_manga.system_id}/complete")
+    def test_serialization_status_set_to_completed(self, owner_client, sample_manga):
+        response = owner_client.post(f"/api/manga/{sample_manga.system_id}/complete")
         assert response.json()["serialization_status"] == "完結"
 
-    def test_serialization_status_not_changed_for_cancelled(self, admin_client, db_session, sample_franchise):
+    def test_serialization_status_not_changed_for_cancelled(self, owner_client, db_session, sample_franchise):
         cancelled = models.Manga(
             system_id=uuid.uuid4(),
             franchise_id=sample_franchise.system_id,
@@ -259,7 +259,7 @@ class TestCompleteManga:
         )
         db_session.add(cancelled)
         db_session.flush()
-        response = admin_client.post(f"/api/manga/{cancelled.system_id}/complete")
+        response = owner_client.post(f"/api/manga/{cancelled.system_id}/complete")
         assert response.status_code == 200
         assert response.json()["serialization_status"] == "腰斬"
 
@@ -267,8 +267,8 @@ class TestCompleteManga:
         response = client.post(f"/api/manga/{sample_manga.system_id}/complete")
         assert response.status_code == 401
 
-    def test_nonexistent_id_returns_404(self, admin_client):
-        response = admin_client.post(f"/api/manga/{uuid.uuid4()}/complete")
+    def test_nonexistent_id_returns_404(self, owner_client):
+        response = owner_client.post(f"/api/manga/{uuid.uuid4()}/complete")
         assert response.status_code == 404
 
 
@@ -295,8 +295,8 @@ def airing_anime(db_session, sample_franchise, list_row):
 
 
 class TestProgressReachingTotalCompletes:
-    def test_stepping_to_the_total_marks_completed(self, admin_client, airing_anime):
-        response = admin_client.patch(
+    def test_stepping_to_the_total_marks_completed(self, owner_client, airing_anime):
+        response = owner_client.patch(
             f"/api/anime/{airing_anime.system_id}", json={"ep_fin": 10}
         )
         assert response.status_code == 200
@@ -305,26 +305,26 @@ class TestProgressReachingTotalCompletes:
         assert data["watching_status"] == "Completed"
         assert data["airing_status"] == "Finished Airing"
 
-    def test_completion_stamps_completed_at(self, admin_client, db_session, admin_user, airing_anime):
-        admin_client.patch(f"/api/anime/{airing_anime.system_id}", json={"ep_fin": 10})
+    def test_completion_stamps_completed_at(self, owner_client, db_session, owner_user, airing_anime):
+        owner_client.patch(f"/api/anime/{airing_anime.system_id}", json={"ep_fin": 10})
         row = (
             db_session.query(models.UserMediaList)
-            .filter_by(user_id=admin_user.id, media_id=airing_anime.system_id)
+            .filter_by(user_id=owner_user.id, media_id=airing_anime.system_id)
             .one()
         )
         assert row.completed_at is not None
 
-    def test_stepping_below_the_total_does_not(self, admin_client, airing_anime):
+    def test_stepping_below_the_total_does_not(self, owner_client, airing_anime):
         # The mirror case: the same fixture, one short of the total.
-        response = admin_client.patch(
+        response = owner_client.patch(
             f"/api/anime/{airing_anime.system_id}", json={"ep_fin": 8}
         )
         data = response.json()
         assert data["watching_status"] == "Watching"
         assert data["airing_status"] == "Currently Airing"
 
-    def test_an_explicit_status_in_the_same_write_wins(self, admin_client, airing_anime):
-        response = admin_client.patch(
+    def test_an_explicit_status_in_the_same_write_wins(self, owner_client, airing_anime):
+        response = owner_client.patch(
             f"/api/anime/{airing_anime.system_id}",
             json={"ep_fin": 10, "watching_status": "Dropped"},
         )
@@ -333,7 +333,7 @@ class TestProgressReachingTotalCompletes:
         assert data["airing_status"] == "Currently Airing"
 
     def test_a_counter_already_at_its_total_is_not_refinished(
-        self, admin_client, db_session, sample_franchise, list_row
+        self, owner_client, db_session, sample_franchise, list_row
     ):
         # At 10/10 but Watching (a rewatch, say): re-saving 10 is no crossing.
         entry = models.Anime(
@@ -346,11 +346,11 @@ class TestProgressReachingTotalCompletes:
         db_session.add(entry)
         db_session.flush()
         list_row(entry, status="Watching", ep_fin=10)
-        response = admin_client.patch(f"/api/anime/{entry.system_id}", json={"ep_fin": 10})
+        response = owner_client.patch(f"/api/anime/{entry.system_id}", json={"ep_fin": 10})
         assert response.json()["watching_status"] == "Watching"
 
     def test_an_unknown_total_never_completes(
-        self, admin_client, db_session, sample_franchise, list_row
+        self, owner_client, db_session, sample_franchise, list_row
     ):
         entry = models.Anime(
             system_id=uuid.uuid4(),
@@ -362,17 +362,17 @@ class TestProgressReachingTotalCompletes:
         db_session.add(entry)
         db_session.flush()
         list_row(entry, status="Watching", ep_fin=9)
-        response = admin_client.patch(f"/api/anime/{entry.system_id}", json={"ep_fin": 10})
+        response = owner_client.patch(f"/api/anime/{entry.system_id}", json={"ep_fin": 10})
         assert response.json()["watching_status"] == "Watching"
 
-    def test_tv_show(self, admin_client, sample_tv_show):
-        response = admin_client.patch(
+    def test_tv_show(self, owner_client, sample_tv_show):
+        response = owner_client.patch(
             f"/api/tv-shows/{sample_tv_show.system_id}", json={"ep_fin": 10}
         )
         assert response.json()["watching_status"] == "Completed"
 
-    def test_manga_chapters(self, admin_client, sample_manga):
-        response = admin_client.patch(
+    def test_manga_chapters(self, owner_client, sample_manga):
+        response = owner_client.patch(
             f"/api/manga/{sample_manga.system_id}", json={"ch_fin": 50}
         )
         data = response.json()
@@ -380,7 +380,7 @@ class TestProgressReachingTotalCompletes:
         # The rest of Mark completed comes with it.
         assert data["vol_fin"] == 5
 
-    def test_comic_issues(self, admin_client, db_session, sample_franchise, list_row):
+    def test_comic_issues(self, owner_client, db_session, sample_franchise, list_row):
         entry = models.Comic(
             system_id=uuid.uuid4(),
             franchise_id=sample_franchise.system_id,
@@ -390,5 +390,5 @@ class TestProgressReachingTotalCompletes:
         db_session.add(entry)
         db_session.flush()
         list_row(entry, status="Reading", issue_fin=11)
-        response = admin_client.patch(f"/api/comic/{entry.system_id}", json={"issue_fin": 12})
+        response = owner_client.patch(f"/api/comic/{entry.system_id}", json={"issue_fin": 12})
         assert response.json()["reading_status"] == "Completed"

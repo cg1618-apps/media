@@ -58,7 +58,7 @@ def test_a_guest_viewer_has_no_user_id(db):
     assert viewer.user_id is None
 
 
-def test_acting_user_id_does_not_fall_back_for_a_guest(db, an_admin):
+def test_acting_user_id_does_not_fall_back_for_a_guest(db, an_admin, plain_user):
     """
     It used to. Steps 1 and 2 resolved a guest to the lowest-username admin so
     that the personal columns stayed visible on the public pages while the data
@@ -73,4 +73,7 @@ def test_acting_user_id_does_not_fall_back_for_a_guest(db, an_admin):
     """
     viewer = resolve_viewer(_request(), db)
     assert acting_user_id(db, viewer) is None
-    assert installation_owner_id(db) == an_admin.id
+    # The pipeline rule does answer - and never with the admin, even one
+    # that sorts first: it keeps no personal data.
+    assert an_admin.username < plain_user.username
+    assert installation_owner_id(db) == plain_user.id

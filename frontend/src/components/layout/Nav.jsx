@@ -171,6 +171,12 @@ export default function Nav() {
   // Settings is the account's own page, so it sits with the account rather
   // than in a tab. self.list is the key App.jsx's /settings route asks.
   const canOpenSettings = has("self.list");
+  // The role chip marks a privileged account (see the strip below).
+  const showRoleChip = isAdmin || has("admin.authz");
+  // Back up is a pipeline (POST /api/data-control/backup asks
+  // manage.pipelines), so it asks that key alone: the admin holds it without
+  // manage.catalog.
+  const canBackUp = has("manage.pipelines");
   const sections = visibleSections(
     NAV_SECTIONS,
     has,
@@ -319,12 +325,14 @@ export default function Nav() {
                   strip: a guest reads "Guest", any signed-in account reads
                   its username and gets a way out.
 
-                  It prints the ROLE, never a fixed word. `isAdmin` is
-                  has(manage.catalog), which `super` holds as well as
-                  `admin`, so a chip hard-coding "Admin" labels a super
-                  account with the wrong role - and the two are exactly what
-                  this chip exists to tell apart. */}
-              {isAdmin && (
+                  It prints the ROLE, never a fixed word, and is drawn for
+                  the two privileged roles: `super` (isAdmin, which is
+                  has(manage.catalog)) and `admin` (admin.authz - it holds no
+                  manage.catalog, so isAdmin alone would drop its chip). A
+                  chip hard-coding "Admin" would label a super account with
+                  the wrong role, and the two are exactly what it exists to
+                  tell apart. */}
+              {showRoleChip && (
                 <span
                   title="Your role"
                   className="hidden sm:inline-flex items-center font-mono text-[10px] uppercase tracking-[0.12em] text-ink-text/60 border border-ink-text/30 px-1.5 py-0.5"
@@ -340,7 +348,7 @@ export default function Nav() {
               >
                 {username ?? "Guest"}
               </span>
-              {isAdmin && has("manage.pipelines") && (
+              {canBackUp && (
                 <button
                   type="button"
                   onClick={handleBackup}
@@ -556,7 +564,7 @@ export default function Nav() {
                 <span className="text-sm text-text-muted truncate">
                   {username ?? "Guest"}
                 </span>
-                {isAdmin && (
+                {showRoleChip && (
                   <span
                     title="Your role"
                     className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint border border-border px-1.5 py-0.5"
@@ -574,7 +582,7 @@ export default function Nav() {
                 {theme === "dark" ? "Light mode" : "Dark mode"}
               </button>
 
-              {isAdmin && has("manage.pipelines") && (
+              {canBackUp && (
                 <button
                   type="button"
                   onClick={() => {
