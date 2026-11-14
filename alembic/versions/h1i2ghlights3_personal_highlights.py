@@ -14,9 +14,10 @@ What this revision does:
           created: user_id (users, CASCADE), media_id (media, CASCADE), each
           indexed; group_order JSONB NOT NULL; timestamps. UNIQUE (user_id,
           media_id).
-  data    every non-null h_comic / h_game.highlight_group_order that is a
-          non-empty JSON array becomes the installation owner's row for that
-          entry. Every note row of the six sections is re-authored to the
+  data    every h_comic / h_game.highlight_group_order that is a non-empty
+          JSON array becomes the installation owner's row for that entry; SQL
+          NULL, JSON null, any other scalar and [] are "no order" and move
+          nothing. Every note row of the six sections is re-authored to the
           installation owner, so the rows stay readable by the one account
           they were written for. The owner is OWNER below - a frozen rule,
           not an import: the flag holder whatever its status, else the first
@@ -83,12 +84,18 @@ SELECT u.id
 
 TAIPEI_NOW = "(now() AT TIME ZONE 'Asia/Taipei')"
 
-# An order worth keeping: a JSON array with something in it. The write paths
-# never stored anything else, but a restored cell is checked, not trusted.
+# An order worth keeping: a JSON array with something in it. SQL NULL, the
+# JSON scalar null - which an installed database holds by the hundred - any
+# other scalar and an empty array are all "no order".
+#
+# The guard is a CASE, not an AND. PostgreSQL does not promise to evaluate an
+# AND's operands left to right, so `jsonb_typeof(x) = 'array' AND
+# jsonb_array_length(x) > 0` may call jsonb_array_length on a scalar, which
+# raises "cannot get array length of a scalar". A CASE evaluates its THEN only
+# when its WHEN held. jsonb_typeof of SQL NULL is NULL, so NULL falls to 0.
 _HAS_ORDER = (
-    "highlight_group_order IS NOT NULL "
-    "AND jsonb_typeof(highlight_group_order) = 'array' "
-    "AND jsonb_array_length(highlight_group_order) > 0"
+    "CASE WHEN jsonb_typeof(highlight_group_order) = 'array' "
+    "THEN jsonb_array_length(highlight_group_order) ELSE 0 END > 0"
 )
 
 

@@ -229,11 +229,14 @@ def copy_back_to_note(conn) -> None:
                 {"owner": owner, "s": section, "k": key},
             )
         for section, key in _fields_rows():
+            # A JSON-null (or any non-object) fields counts as none: `||` onto
+            # a JSON null would build an array, [null, {...}].
             conn.execute(
                 sa.text(
                     """
                     UPDATE note AS n
-                       SET fields = COALESCE(n.fields, '{}'::jsonb)
+                       SET fields = CASE WHEN jsonb_typeof(n.fields) = 'object'
+                                         THEN n.fields ELSE '{}'::jsonb END
                                     || jsonb_build_object(:k, m.values -> :k)
                       FROM note_mark m
                      WHERE m.user_id = :owner AND m.note_id = n.system_id
