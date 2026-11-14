@@ -3,7 +3,6 @@
 import uuid
 
 from sqlalchemy import (
-    Boolean,
     CheckConstraint,
     Column,
     DateTime,
@@ -119,8 +118,8 @@ class Meme(Base):
     episode = Column(String, nullable=True)
     link = Column(String, nullable=True)
 
-    # --- Classification ---
-    is_favorite = Column(Boolean, default=False, nullable=True)
+    # Whether a meme is a favourite is each account's own, in user_favorite;
+    # the response's `is_favorite` is the viewer's (models/__init__.py).
 
     # --- Misc ---
     sort_index = Column(Float, nullable=True)

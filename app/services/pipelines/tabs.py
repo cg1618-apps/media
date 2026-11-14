@@ -27,6 +27,7 @@ The chains that must hold, all pinned by tests/api/test_sheet_restore_order.py:
     Users, Novel Unit -> User Novel Unit Rating
     Users, H-Comic, H-Game -> User Highlight Group Order
     Users, Note      -> Note Mark
+    Users, Quote, Meme -> User Favorite
 
 Users is first because nothing points at it and Plan Next, Seasonal and Game
 Copy all carry a NOT NULL user_id.
@@ -422,6 +423,17 @@ SHEET_TABS: tuple[SheetTab, ...] = (
     ),
     # Memes name quotes, so after them.
     SheetTab("Meme", models.Meme, f.parse_meme_from_sheet, **AUTHOR_BY_USERNAME),
+    # One account's favourite quote or meme. After Users, Quote and Meme:
+    # user_id is dropped for `username`, the way every per-user tab drops it,
+    # and quote_id / meme_id name the Quote and Meme tabs' rows by the uuid
+    # those tabs carry.
+    SheetTab(
+        "User Favorite",
+        models.UserFavorite,
+        f.parse_user_favorite_from_sheet,
+        drop_columns=("user_id",),
+        extra_columns=(("username", _row_username),),
+    ),
     SheetTab("Note", models.Note, f.parse_note_from_sheet, **AUTHOR_BY_USERNAME),
     # One account's personal values on one catalogue note row. After Users
     # and Note: user_id is dropped for `username`, the way every per-user tab

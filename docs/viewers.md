@@ -1,6 +1,6 @@
 # What each viewer sees
 
-Last verified: 2026-11-13
+Last verified: 2026-11-14
 
 ## What this is for
 
@@ -34,8 +34,8 @@ catalogue and what is an account's own data is
 > accounts. Quotes and memes follow a per-account switch on the Users page,
 > held only by `user` and `super` accounts ([authorization.md](authorization.md),
 > "Per-account feature switches"); favourites, music status and mod status
-> are switches there too, which gate nothing until the personal-data work
-> lands. Until the header rework, the inbox sits under Pipelines for both
+> are switches there too, and each account's favourite quotes and memes and
+> its music and mod statuses appear only with its own switch on. Until the header rework, the inbox sits under Pipelines for both
 > admin and super, and pending registrations are a panel on `/system`, shown
 > only to the admin. Invite links are issued on `/users`. A `user` never writes the catalogue (`manage.catalog` is
 > locked off for the role). The shared accounts, `shared-normal` and

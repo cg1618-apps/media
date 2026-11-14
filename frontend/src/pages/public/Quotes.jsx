@@ -15,6 +15,9 @@ import QuoteForm, {
   emptyQuote,
   toQuotePayload,
 } from "../../components/forms/QuoteForm";
+import FavoriteStar, {
+  FAVOURITES_FEATURE,
+} from "../../components/ui/FavoriteStar";
 import LazyImage from "../../components/ui/LazyImage";
 import { useApiQuery } from "../../hooks/useApiQuery";
 import { useAuth } from "../../contexts/AuthContext";
@@ -35,21 +38,6 @@ function QuoteRow({ quote, isAdmin, onChanged }) {
   const [busy, setBusy] = useState(false);
 
   const imageUrl = getQuoteImageUrl(quote.image_file);
-
-  const patch = async (body) => {
-    setBusy(true);
-    try {
-      await fetchJson(endpoints.quotes.patch(quote.system_id), {
-        method: "PATCH",
-        ...jsonBody(body),
-      });
-      await onChanged();
-    } catch (err) {
-      showToast("error", err.message || "Update failed.");
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const saveEdit = async () => {
     setBusy(true);
@@ -193,18 +181,10 @@ function QuoteRow({ quote, isAdmin, onChanged }) {
               <i className="fas fa-image text-xs" />
             </button>
           )}
+          {/* The viewer's own favourite - only with the favourites feature. */}
+          <FavoriteStar kind="quote" item={quote} className="h-7 w-7 hover:bg-surface-2" />
           {isAdmin && (
             <>
-              <button
-                onClick={() => patch({ is_favorite: !quote.is_favorite })}
-                disabled={busy}
-                title="Toggle favorite"
-                className={`h-7 w-7 hover:bg-surface-2 ${
-                  quote.is_favorite ? "text-brand" : "text-text-faint hover:text-brand"
-                }`}
-              >
-                <i className="fas fa-star text-xs" />
-              </button>
               <button
                 onClick={() => {
                   setDraft(emptyQuote(quote));
@@ -233,7 +213,7 @@ function QuoteRow({ quote, isAdmin, onChanged }) {
 
 export default function Quotes() {
   const auth = useAuth();
-  const { isAdmin } = auth;
+  const { isAdmin, hasFeature } = auth;
   const mediaTypeFilters = visibleByType(auth, MEDIA_TYPE_FILTERS, (m) => m.value);
   const queryClient = useQueryClient();
 
@@ -298,12 +278,15 @@ export default function Quotes() {
           <Toggle active={generalOnly} onClick={() => setGeneralOnly((v) => !v)}>
             General
           </Toggle>
-          <Toggle
-            active={favoritesOnly}
-            onClick={() => setFavoritesOnly((v) => !v)}
-          >
-            Favorites
-          </Toggle>
+          {/* The viewer's own favourites, so only for an account keeping them. */}
+          {hasFeature(FAVOURITES_FEATURE) && (
+            <Toggle
+              active={favoritesOnly}
+              onClick={() => setFavoritesOnly((v) => !v)}
+            >
+              Favorites
+            </Toggle>
+          )}
           {isAdmin && (
             <Toggle active={reviewOnly} onClick={() => setReviewOnly((v) => !v)}>
               Needs review

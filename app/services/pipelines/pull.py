@@ -332,6 +332,14 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
     ),  # uq_user_rating_owner
     # The same shape for a reader's unit row; unit_id travels unchanged.
     "User Novel Unit Rating": ("user_id", "unit_id"),  # uq_user_novel_unit
+    # One row per account per quote or meme, minted wherever the favourite
+    # was made; user_id is resolved from `username`, and quote_id / meme_id
+    # are the Quote and Meme tabs' uuids - exactly one set, the other IS NULL.
+    "User Favorite": (
+        "user_id",
+        "quote_id",
+        "meme_id",
+    ),  # uq_user_favorite_quote / uq_user_favorite_meme
     # One mark per account per note. Its system_id is minted wherever the
     # mark was made; user_id is resolved from `username` and note_id is the
     # Note tab's uuid, translated through that tab when it misses here.
@@ -1257,10 +1265,10 @@ def execute_pull_specific(
         # that row's owner is unknown, so it is skipped and reported rather
         # than quietly filed under the admin.
         #
-        # Watch Order Follow, User Rating and User Novel Unit Rating have
-        # carried `username` from their first day, so they reach the fallback
-        # only for a hand-built sheet; they share the block for the
-        # resolution.
+        # Watch Order Follow, User Rating, User Novel Unit Rating, Note Mark
+        # and User Favorite have carried `username` from their first day, so
+        # they reach the fallback only for a hand-built sheet; they share the
+        # block for the resolution.
         if tab_name in (
             "Plan Next",
             "Seasonal",
@@ -1268,6 +1276,7 @@ def execute_pull_specific(
             "User Rating",
             "User Novel Unit Rating",
             "Note Mark",
+            "User Favorite",
         ):
             username = parse_from_sheet(raw_header_dict.get("username"), str)
             if username:

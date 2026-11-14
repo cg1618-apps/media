@@ -21,6 +21,11 @@ from app import models, schemas
 from app.database import get_taipei_now
 from app.dependencies import get_db
 from app.routers._patching import apply_column_patch
+from app.services.domain.user_favorite import (
+    attach_favorites,
+    favorite_filter,
+    favorite_owner,
+)
 from app.services.rbac.enforcement import (
     drop_hidden_rows,
     entry_visible,
@@ -54,8 +59,13 @@ def _apply_filters(
     needs_review: Optional[bool],
     tag: Optional[str],
     search_query: Optional[str],
+    favorite_user_id=None,
 ):
-    """Shared filter chain for the list and grouped endpoints."""
+    """Shared filter chain for the list and grouped endpoints.
+
+    `is_favorite` asks the viewer's own favourites, `favorite_user_id` -
+    favorite_owner's answer, None for anyone without the feature.
+    """
     if media_type:
         query = query.filter(models.Quote.media_type == media_type)
     if entry_id:
@@ -63,7 +73,7 @@ def _apply_filters(
     if is_general is not None:
         query = query.filter(models.Quote.is_general.is_(is_general))
     if is_favorite is not None:
-        query = query.filter(models.Quote.is_favorite.is_(is_favorite))
+        query = query.filter(favorite_filter("quote", is_favorite, favorite_user_id))
     if needs_review is not None:
         query = query.filter(models.Quote.needs_review.is_(needs_review))
     if tag:
@@ -107,8 +117,9 @@ def _meme_membership(db: Session, quote_ids: list) -> dict:
     return {str(quote_id): meme_id for quote_id, meme_id in rows}
 
 
-def _resolved(db: Session, db_quote: models.Quote) -> schemas.QuoteResolved:
+def _resolved(db: Session, db_quote: models.Quote, viewer: Viewer) -> schemas.QuoteResolved:
     """Wraps one quote with its referenced entry's display data."""
+    attach_favorites(db, "quote", [db_quote], favorite_owner(db, viewer))
     resolved = resolve_entries(db, [(db_quote.media_type, db_quote.entry_id)])
     ref = entry_ref_for(resolved, db_quote.media_type, db_quote.entry_id)
     membership = _meme_membership(db, [db_quote.system_id])
@@ -172,7 +183,9 @@ def get_all_quotes(
     Retrieves Quotes, optionally filtered.
     'search_query' searches the text, translation, speaker, and original source.
     Each row carries its referenced entry's display data, resolved server-side.
+    `is_favorite` on each row, and the filter, are the viewer's own.
     """
+    favorite_user_id = favorite_owner(db, viewer)
     query = _apply_filters(
         db.query(models.Quote),
         media_type,
@@ -182,6 +195,7 @@ def get_all_quotes(
         needs_review,
         tag,
         search_query,
+        favorite_user_id,
     )
 
     quotes = (
@@ -189,6 +203,7 @@ def get_all_quotes(
     )
     # The quote TEXT is the leak, so the row goes, not just its entry reference.
     quotes = drop_hidden_rows(db, viewer, quotes, "media_type", "entry_id")
+    attach_favorites(db, "quote", quotes, favorite_user_id)
 
     resolved = resolve_entries(db, [(q.media_type, q.entry_id) for q in quotes])
     membership = _meme_membership(db, [q.system_id for q in quotes])
@@ -225,6 +240,7 @@ def get_quotes_grouped(
     resolved entry header per bucket, and only the server can turn a
     (media_type, entry_id) pair into a name and cover.
     """
+    favorite_user_id = favorite_owner(db, viewer)
     query = _apply_filters(
         db.query(models.Quote),
         media_type,
@@ -234,6 +250,7 @@ def get_quotes_grouped(
         needs_review,
         tag,
         search_query,
+        favorite_user_id,
     )
 
     quotes = (
@@ -247,6 +264,7 @@ def get_quotes_grouped(
         .all()
     )
     quotes = drop_hidden_rows(db, viewer, quotes, "media_type", "entry_id")
+    attach_favorites(db, "quote", quotes, favorite_user_id)
 
     resolved = resolve_entries(db, [(q.media_type, q.entry_id) for q in quotes])
 
@@ -285,7 +303,7 @@ def get_quote(
         db, viewer, db_quote.media_type, db_quote.entry_id
     ):
         raise HTTPException(status_code=404, detail="Quote not found.")
-    return _resolved(db, db_quote)
+    return _resolved(db, db_quote, viewer)
 
 
 # ==========================================
@@ -317,6 +335,7 @@ def create_quote(
         db.add(db_quote)
         db.commit()
         db.refresh(db_quote)
+        attach_favorites(db, "quote", [db_quote], favorite_owner(db, viewer))
         return db_quote
     except Exception as e:
         logger.error("Error creating quote: %s", e, exc_info=True)
@@ -344,6 +363,7 @@ def update_quote(
         db_quote.updated_at = get_taipei_now()
         db.commit()
         db.refresh(db_quote)
+        attach_favorites(db, "quote", [db_quote], favorite_owner(db, admin))
         return db_quote
     except Exception as e:
         logger.error("Error updating quote %s: %s", quote_id, e, exc_info=True)
@@ -369,6 +389,7 @@ def patch_quote(
         db_quote.updated_at = get_taipei_now()
         db.commit()
         db.refresh(db_quote)
+        attach_favorites(db, "quote", [db_quote], favorite_owner(db, admin))
         return db_quote
     except Exception as e:
         logger.error("Error patching quote %s: %s", quote_id, e, exc_info=True)

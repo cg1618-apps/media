@@ -22,7 +22,6 @@ export function emptyMeme(overrides = {}) {
     quote_id: null,
     episode: "",
     link: "",
-    is_favorite: false,
     remark: "",
     ...overrides,
   };
@@ -40,7 +39,6 @@ export function toMemePayload(val, extra = {}) {
     quote_id: val.quote_id || null,
     episode: clean(val.episode),
     link: clean(val.link),
-    is_favorite: !!val.is_favorite,
     remark: clean(val.remark),
     ...extra,
   };
@@ -183,16 +181,6 @@ export default function MemeForm({ val, setVal, ownerType, ownerId }) {
           />
         </Row>
       </div>
-
-      <label className="flex items-center gap-2 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={!!val.is_favorite}
-          onChange={(e) => set("is_favorite", e.target.checked)}
-          className="accent-brand"
-        />
-        <span className="text-xs text-text-muted">Favorite</span>
-      </label>
 
       <Row label="Remark">
         <input

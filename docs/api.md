@@ -24,6 +24,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 | Post-write enrichment hooks | media entries (`POST` / `PUT`) | The per-type write hook (e.g. `execute_replace_single_movie`) runs after the row is committed. If it fails the error is logged and the row is still returned — it must **never** surface as a 500, or the SPA retries and creates duplicates. |
 | Personal fields are the viewer's | all twelve media types: `GET` list and detail, `POST`, `PUT`, `PATCH`, `POST /{id}/complete` | The status, rating and progress fields keep **exactly the names they always had** - `watching_status` / `reading_status` / `playing_status`, `my_rating`, `ep_fin`, `vol_fin`, `ch_fin`, `issue_fin`, `my_watch_day`, `completed_at` and the rest - but they are stored on `user_media_list` and resolved for the **acting user**, not read off the entry. `time_fin` (Paused at, on the six watching types) is personal the same way. A write splits into a catalogue half and a personal half (`split_list_payload`) and creates the acting user's list row if it does not exist. An entry with **no list row** reads back as the type's default status (`Might Watch` / `Might Read` / `Might Play`), `null` for the rest, and `0` for the counters that were `NOT NULL DEFAULT 0` before the move - which is also how a row holding `null` for one of them reads back. Those counters accept `null` on every write (`vol_fin`, `vol_fin_page`, `ch_fin`, `arc_fin`, `issue_fin`, `page_fin` are `Optional[...] = 0` in the manga, novel, comic and h-comic schemas, as `ep_fin` is on the watching types), and the admin forms send a blank one as `null`. A logged-out visitor has **no list**: `acting_user_id` returns None, no personal field is attached, and the status reads back `null` rather than the default, which would be a claim about a person (see [authorization.md](authorization.md), "Which LIST"). A `?watching_status=` filter goes through an OUTER join rather than a column comparison, so it still matches entries that have no list row. |
 | Ratings and expectations are the viewer's | collection, franchise, series, person, studio, publisher, character (list, detail, the write responses and their search buckets) | `my_rating` and the tier's `*_expectation` on a collection, franchise or series, and `my_rating` on a person, studio, publisher or character, keep their names but are read from the **viewer's own** `user_rating` row (`app/services/domain/user_rating.py`, `attach_ratings`). A logged-out visitor, and an account with no row, reads **`null`** - the key kept. The catalogue `POST` / `PUT` / `PATCH` bodies do not carry them; they are written through [`PUT /api/me/ratings/{owner_type}/{owner_id}`](#my-ratings--apime). No list endpoint filters or sorts on them. |
+| A quote's and a meme's `is_favorite` are the viewer's | quote, meme (list, grouped, detail and the write responses) | `is_favorite` keeps its name but is read from the **viewer's own** `user_favorite` rows (`app/services/domain/user_favorite.py`, `attach_favorites`), and only for an account holding the `favourites` feature: a logged-out visitor, the admin and any account without the switch read **`false`**. The `is_favorite` filter asks the same rows. The catalogue `POST` / `PUT` / `PATCH` bodies do not carry it - a key sent is ignored; it is written through [`PUT /api/me/favorites/{kind}/{id}`](#my-favourites--apime). |
 | A novel unit's `my_rating` and `remark` are the reader's | `/api/novel` | Same idea one level down: served on each unit for the viewer from their own `user_novel_unit_rating` row, `null` for anyone with none. The `units` items of the catalogue `POST` / `PUT` / `PATCH` do not carry them - a client still sending either has the key ignored - and they are written only through [`PUT /api/me/novel-units/{unit_id}`](#my-ratings--apime). A row left holding neither stores nothing. |
 | Delete returning `204` | notes, content labels, users, roles | No body. Every other delete returns a JSON `{status, message}` or the deleted row. |
 | Hidden = missing | every public read | An entry the viewer may not see answers **404** with the router's normal not-found message. |
@@ -893,12 +894,12 @@ the switch); every write is admin-only.
 
 | Method   | Path            | Auth   | Description                                                                                                                                                                                    |
 | -------- | --------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/`             | feature `quotes_memes` | List quotes. Optional params: `media_type`, `entry_id`, `is_general`, `is_favorite`, `needs_review`, `tag`, `search_query`, `limit` (≤2000), `offset`. Newest first.                     |
+| `GET`    | `/`             | feature `quotes_memes` | List quotes. Optional params: `media_type`, `entry_id`, `is_general`, `is_favorite` (the viewer's own favourites), `needs_review`, `tag`, `search_query`, `limit` (≤2000), `offset`. Newest first.                     |
 | `GET`    | `/grouped`      | feature `quotes_memes` | The Quote page feed: quotes bucketed by entry, each bucket carrying its resolved entry header. Same filters minus `entry_id`. Named entries sort first; unresolvable ones sink to the bottom.    |
 | `GET`    | `/{quote_id}`   | feature `quotes_memes` | One quote with its entry's display data.                                                                                                                                                        |
 | `POST`   | `/`             | Admin  | Create. Body: `QuoteCreate`. 400 on an unknown `media_type`.                                                                                                                                    |
 | `PUT`    | `/{quote_id}`   | Admin  | Full update. Body: `QuoteUpdate`.                                                                                                                                                               |
-| `PATCH`  | `/{quote_id}`   | Admin  | Partial update (inline edits, favorite toggle). Body: raw JSON dict.                                                                                                                            |
+| `PATCH`  | `/{quote_id}`   | Admin  | Partial update (inline edits). Body: raw JSON dict. `is_favorite` is not a column; the viewer's own is written through `PUT /api/me/favorites/quote/{id}`.                                         |
 | `DELETE` | `/{quote_id}`   | Admin  | Delete. Logs to `deleted_record` as type "Quote". `image_file` is left alone — quote images are hand-managed local files.                                                                        |
 
 **Response models:** `QuoteResponse`, `QuoteResolved` (adds `missing`,
@@ -926,12 +927,12 @@ admin-only.
 
 | Method   | Path           | Auth   | Description                                                                                                                                       |
 | -------- | -------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/`            | feature `quotes_memes` | List memes. Optional params: `owner_type`, `owner_id`, `is_favorite`, `search_query` (matches `text`), `limit` (≤2000), `offset`.                   |
+| `GET`    | `/`            | feature `quotes_memes` | List memes. Optional params: `owner_type`, `owner_id`, `is_favorite` (the viewer's own favourites), `search_query` (matches `text`), `limit` (≤2000), `offset`.                   |
 | `GET`    | `/grouped`     | feature `quotes_memes` | The Meme page feed: memes bucketed by owner, each bucket carrying its resolved owner header. Named owners sort first; unresolvable ones last.       |
 | `GET`    | `/{meme_id}`   | feature `quotes_memes` | One meme with its entry and linked-quote data resolved.                                                                                            |
 | `POST`   | `/`            | Admin  | Create. Body: `MemeCreate`. 400 on an unknown `owner_type`, an unknown `quote_id`, or a quote already claimed by another meme.                      |
 | `PUT`    | `/{meme_id}`   | Admin  | Full update, same validation.                                                                                                                      |
-| `PATCH`  | `/{meme_id}`   | Admin  | Partial update. Body: raw JSON dict.                                                                                                               |
+| `PATCH`  | `/{meme_id}`   | Admin  | Partial update. Body: raw JSON dict. `is_favorite` is not a column; the viewer's own is written through `PUT /api/me/favorites/meme/{id}`.          |
 | `DELETE` | `/{meme_id}`   | Admin  | Delete. Logs to `deleted_record` as type "Meme". **Linked quotes are not deleted** — a quote stands on its own.                                     |
 
 **Response models:** `MemeResponse`, `MemeResolved` (adds the resolved owner
@@ -2579,6 +2580,23 @@ all get **401**.
 Each route writes one row, the caller's, and takes no user id. A row left
 holding neither value is deleted, so "never rated" and "cleared" are one
 state.
+
+---
+
+## My Favourites — `/api/me`
+
+The caller's own favourite quotes and memes (`app/routers/me_favorites.py`,
+table `user_favorite`). Gated at **router level** on two features:
+`favourites`, and `quotes_memes`, the switch every quote and meme read is
+behind. A logged-out visitor, an account without either switch and the
+`admin` account all get **401**.
+
+| Method | Path | Notes |
+|---|---|---|
+| PUT | `/api/me/favorites/{kind}/{id}` | `kind` is `quote` or `meme`; `id` its `system_id`. Body `{"is_favorite": bool}` - the key is required, any other key is **422**. Idempotent: favouring a favourite, or clearing what is not one, changes nothing. Returns `{kind, item_id, is_favorite}`. **404** for an unknown kind, and for a quote or meme that does not exist or that the caller's GET would not answer (an entry or owner hidden from the caller), in the item's own not-found words. |
+
+The route writes one row, the caller's, and takes no user id. Clearing a
+favourite deletes the row.
 
 ---
 

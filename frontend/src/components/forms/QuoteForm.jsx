@@ -17,7 +17,6 @@ export function emptyQuote(overrides = {}) {
     pending_image_id: null,
     tags: [],
     is_general: false,
-    is_favorite: false,
     needs_review: false,
     remark: "",
     ...overrides,
@@ -41,7 +40,6 @@ export function toQuotePayload(val, extra = {}) {
     image_file: clean(val.image_file),
     tags: (val.tags || []).length ? val.tags : null,
     is_general: !!val.is_general,
-    is_favorite: !!val.is_favorite,
     needs_review: !!val.needs_review,
     remark: clean(val.remark),
     ...extra,
@@ -198,11 +196,6 @@ export default function QuoteForm({ val, setVal, showReview = true }) {
           hint="Sendable in any conversation"
           checked={val.is_general}
           onChange={(v) => set("is_general", v)}
-        />
-        <Check
-          label="Favorite"
-          checked={val.is_favorite}
-          onChange={(v) => set("is_favorite", v)}
         />
         {showReview && (
           <Check

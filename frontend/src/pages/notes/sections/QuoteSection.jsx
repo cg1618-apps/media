@@ -28,6 +28,7 @@ import {
   tagCls,
   useEntryCap,
 } from "./ui";
+import FavoriteStar from "../../../components/ui/FavoriteStar";
 import LazyImage from "../../../components/ui/LazyImage";
 
 export default function QuoteSection({
@@ -180,9 +181,8 @@ export default function QuoteSection({
                     {item.is_general && (
                       <span className={brandTagCls}>general</span>
                     )}
-                    {item.is_favorite && (
-                      <span className={tagCls}>favourite</span>
-                    )}
+                    {/* The viewer's own favourite - only with the feature. */}
+                    <FavoriteStar kind="quote" item={item} className="px-0.5" />
                     {item.needs_review && (
                       <span className={tagCls}>needs review</span>
                     )}

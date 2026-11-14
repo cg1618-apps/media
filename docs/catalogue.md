@@ -1,6 +1,6 @@
 # The catalogue and your data
 
-Last verified: 2026-11-13
+Last verified: 2026-11-14
 
 ## What this is for
 
@@ -28,6 +28,7 @@ card. It carries no technical detail; the tables behind it are
 | The watch orders you follow | a watch order's follow toggle |
 | Your personal notes — the sections marked **yours** in [Notes](#notes-yours-or-shared), your highlights among them | the Notes card on an entry or group |
 | The order of the highlight groups on an H-Comic or H-Game | its 亮點 Highlights card |
+| Your favourite quotes and memes — only once the admin turns favourites on for your account | the star on a quote or meme, and the Favorites filter on Quotes and Memes |
 
 Nobody else can change any of it, and nobody else can see it, the admin
 included. There is no profile others can open and no community figure your
@@ -44,15 +45,6 @@ sections marked **shared** in [Notes](#notes-yours-or-shared).
 
 Only accounts allowed to edit the catalogue can change it, and everyone
 sees the same version.
-
-## Shared today, but one person's opinion
-
-One thing is stored with the catalogue while being the owner's opinion, so
-it is the owner's for everyone, and members cannot set their own: whether a
-quote or meme is a favourite.
-
-*Changing:* marking a quote or meme as a favourite will become **yours** —
-but only for accounts the admin turns that feature on for.
 
 ## Notes: yours or shared
 
