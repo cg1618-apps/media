@@ -72,6 +72,20 @@ describe("useStatusToggle", () => {
     expect(calls()).toEqual([["/api/me/plan-flags/a1", "PUT", { watch_next: true }]]);
   });
 
+  it("folds the saved values into an entry the caller holds", async () => {
+    stubFetch();
+    const { result } = renderToggle();
+    let updated;
+    await act(async () => {
+      updated = await result.current.mutateAsync({
+        id: "a1",
+        fields: { watching_status: "Completed" },
+        entry: { system_id: "a1", anime_name_en: "Held Title", watching_status: "Watching" },
+      });
+    });
+    expect(updated).toMatchObject({ anime_name_en: "Held Title", watching_status: "Completed", ep_fin: 12 });
+  });
+
   it("sends only an explicit catalogue payload to the entry PATCH", async () => {
     stubFetch();
     const { result } = renderToggle();

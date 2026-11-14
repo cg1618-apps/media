@@ -7,6 +7,7 @@ import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
 import { useAuth } from "../../contexts/AuthContext";
 import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
 import { useToast } from "../../hooks/useToast";
+import { useOwnTrackerSave } from "../../hooks/useOwnTrackerSave";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import InfoCard from "../../components/info/InfoCard";
@@ -37,7 +38,6 @@ import { useCasting } from "../../hooks/useCasting";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
-import { progressToast } from "../../lib/progressToast";
 import { focusStyle } from "../../lib/covers";
 import CastSection from "../../components/info/CastSection";
 import LazyImage from "../../components/ui/LazyImage";
@@ -58,7 +58,7 @@ const counterInputCls =
 
 function MangaTrackerBlock({
   manga,
-  isAdmin,
+  canTrack,
   onChChange,
   onVolChange,
   onPageChange,
@@ -72,9 +72,11 @@ function MangaTrackerBlock({
   const volFin = manga.vol_fin ?? 0;
   const volTotal = manga.vol_total != null ? manga.vol_total : null;
   const volFinPage = manga.vol_fin_page ?? 0;
+  // Every field here is the viewer's own (self.list): without it the slip is
+  // not drawn at all.
+  if (!canTrack) return null;
 
   function stepCh(delta) {
-    if (!isAdmin) return;
     let next = (chFin || 0) + delta;
     if (chTotal !== null && next > chTotal) next = chTotal;
     if (next < 0) next = 0;
@@ -83,7 +85,6 @@ function MangaTrackerBlock({
   }
 
   function stepVol(delta) {
-    if (!isAdmin) return;
     let next = (volFin || 0) + delta;
     if (volTotal !== null && next > volTotal) next = volTotal;
     if (next < 0) next = 0;
@@ -100,7 +101,6 @@ function MangaTrackerBlock({
           <div className="flex items-center border border-border-strong w-fit">
             <button
               onClick={() => stepCh(-1)}
-              disabled={!isAdmin}
               aria-label="Previous chapter"
               className={stepBtnCls}
             >
@@ -110,9 +110,7 @@ function MangaTrackerBlock({
               <input
                 type="number"
                 value={chFin}
-                disabled={!isAdmin}
                 onChange={(e) => {
-                  if (!isAdmin) return;
                   const v = parseInt(e.target.value, 10) || 0;
                   if (chTotal !== null && v > chTotal) return;
                   onChChange(Math.max(0, v));
@@ -129,7 +127,6 @@ function MangaTrackerBlock({
             </div>
             <button
               onClick={() => stepCh(1)}
-              disabled={!isAdmin}
               aria-label="Next chapter"
               className={`${stepBtnCls} text-brand`}
             >
@@ -145,7 +142,6 @@ function MangaTrackerBlock({
             <div className="flex items-center border border-border-strong">
               <button
                 onClick={() => stepVol(-1)}
-                disabled={!isAdmin}
                 aria-label="Previous volume"
                 className={stepBtnCls}
               >
@@ -155,9 +151,7 @@ function MangaTrackerBlock({
                 <input
                   type="number"
                   value={volFin}
-                  disabled={!isAdmin}
                   onChange={(e) => {
-                    if (!isAdmin) return;
                     const v = parseInt(e.target.value, 10) || 0;
                     if (volTotal !== null && v > volTotal) return;
                     onVolChange(Math.max(0, v));
@@ -174,7 +168,6 @@ function MangaTrackerBlock({
               </div>
               <button
                 onClick={() => stepVol(1)}
-                disabled={!isAdmin}
                 aria-label="Next volume"
                 className={`${stepBtnCls} text-brand`}
               >
@@ -187,9 +180,7 @@ function MangaTrackerBlock({
               <input
                 type="number"
                 value={volFinPage}
-                disabled={!isAdmin}
                 onChange={(e) => {
-                  if (!isAdmin) return;
                   const v = parseInt(e.target.value, 10) || 0;
                   onPageChange(Math.max(0, v));
                 }}
@@ -212,8 +203,7 @@ function MangaTrackerBlock({
             <Eyebrow as="label">Reading status</Eyebrow>
             <select
               value={manga.reading_status || ""}
-              disabled={!isAdmin}
-              onChange={(e) => isAdmin && onStatusChange(e.target.value)}
+              onChange={(e) => onStatusChange(e.target.value)}
               className={selectCls}
             >
               <StatusOptions statuses={READING_STATUSES} />
@@ -224,8 +214,7 @@ function MangaTrackerBlock({
             <Eyebrow as="label">Rating</Eyebrow>
             <select
               value={manga.my_rating || ""}
-              disabled={!isAdmin}
-              onChange={(e) => isAdmin && onRatingChange(e.target.value)}
+              onChange={(e) => onRatingChange(e.target.value)}
               className={selectCls}
             >
               <option value="">Unrated</option>
@@ -239,15 +228,11 @@ function MangaTrackerBlock({
           {/* Read Next */}
           <div className="space-y-1">
             <Eyebrow>Read next</Eyebrow>
-            <label
-              className={`flex items-center gap-2 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
-            >
+            <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={!!manga.read_next}
-                disabled={!isAdmin}
                 onChange={(e) =>
-                  isAdmin &&
                   onWatchNextChange(
                     e.target.checked,
                     e.target.checked
@@ -263,15 +248,11 @@ function MangaTrackerBlock({
           {/* To Reread */}
           <div className="space-y-1">
             <Eyebrow>To reread</Eyebrow>
-            <label
-              className={`flex items-center gap-2 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
-            >
+            <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={!!manga.to_reread}
-                disabled={!isAdmin}
                 onChange={(e) =>
-                  isAdmin &&
                   onToRewatchChange(
                     e.target.checked,
                     e.target.checked
@@ -342,28 +323,15 @@ export default function Manga() {
     seriesQuery.error?.message ||
     null;
 
-  async function performPatch(payload, msg) {
-    if (!isAdmin) return;
-    setManga((prev) => ({ ...prev, ...payload }));
-    try {
-      const res = await fetch(endpoints.resource("manga").patch(system_id), {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Sync failed");
-      const updated = await res.json();
-      // `manga` is still the pre-write row here: this closure never saw the
-      // optimistic update. A progress step can finish the entry.
-      showToast("success", progressToast(manga, updated, msg || "Saved"));
-      setManga(updated);
-      setMediaItem(updated);
-    } catch {
-      showToast("error", "Update failed");
-      fetchMediaItem();
-    }
-  }
+  // The viewer's own values (status, rating, progress, plan flags) go through /api/me;
+  // saveRelease is the toolbar's release step, the work's half through the
+  // catalogue PATCH.
+  const { saveOwn, saveRelease } = useOwnTrackerSave("manga", {
+    entry: manga,
+    setEntry: setManga,
+    setMediaItem,
+    fetchMediaItem,
+  });
 
   async function handleAutofill() {
     setAutofilling(true);
@@ -483,7 +451,7 @@ export default function Manga() {
             >
               Mark completed
             </Button>
-            <MarkReleaseButton type="manga" entry={manga} title={titleMain} onPatch={performPatch} />
+            <MarkReleaseButton type="manga" entry={manga} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
             <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
               {autofilling ? "Autofilling…" : "Autofill & update"}
             </Button>
@@ -622,24 +590,24 @@ export default function Manga() {
           {/* My Tracker Block */}
           <MangaTrackerBlock
             manga={manga}
-            isAdmin={isAdmin}
+            canTrack={ownData}
             onChChange={(v) =>
-              performPatch({ ch_fin: v }, "Chapter progress saved")
+              saveOwn({ ch_fin: v }, "Chapter progress saved")
             }
             onVolChange={(v) =>
-              performPatch({ vol_fin: v }, "Volume progress saved")
+              saveOwn({ vol_fin: v }, "Volume progress saved")
             }
             onPageChange={(v) =>
-              performPatch({ vol_fin_page: v }, "Page saved")
+              saveOwn({ vol_fin_page: v }, "Page saved")
             }
             onStatusChange={(v) =>
-              performPatch({ reading_status: v }, "Status updated")
+              saveOwn({ reading_status: v }, "Status updated")
             }
             onRatingChange={(v) =>
-              performPatch({ my_rating: v || null }, "Rating saved")
+              saveOwn({ my_rating: v || null }, "Rating saved")
             }
-            onWatchNextChange={(v, msg) => performPatch({ read_next: v }, msg)}
-            onToRewatchChange={(v, msg) => performPatch({ to_reread: v }, msg)}
+            onWatchNextChange={(v, msg) => saveOwn({ read_next: v }, msg)}
+            onToRewatchChange={(v, msg) => saveOwn({ to_reread: v }, msg)}
           />
 
           {/* Detail Cards */}

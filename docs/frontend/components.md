@@ -309,7 +309,14 @@ columns.
   `MyTrackerCard`, which serves nine types. It takes its rows as `axes`:
   `GAME_COMPLETION_AXES` by default, and the h-game page passes
   `H_GAME_COMPLETION_AXES` - Completion Level, All Endings, All CG and
-  usefulness, the other personal answer about a playthrough), `WeeklySchedule`,
+  usefulness. The completion axes are columns on the entry: a select for
+  `isAdmin` that writes through `onChange` (the catalogue PATCH), a read-only
+  `Chip` otherwise. An axis marked `{ personal: true }` - usefulness, a list
+  field - follows `canTrack` instead: a select written through `onOwnChange`
+  (`/api/me`) for a holder of `self.list`, absent for anyone else),
+  `MarkReleaseButton` (the editor toolbar's release step; with `canTrack`
+  false it carries none of the viewer's own fields - see
+  `RELEASE_PERSONAL_FIELDS` in `lib/releaseAction.js`), `WeeklySchedule`,
   `ComingNext` (the dashboard's next-season block; its selection is the pure
   `selectComingNext` in `lib/comingNext.js`), `FollowedOrders` (the
   dashboard's followed watch orders, under Coming Next), `FollowedOrderPanel`
@@ -340,21 +347,29 @@ columns.
   page. The mode is chosen in the dashboard's one type-filter bar, is one setting
   for the whole dashboard, and persists per browser through
   `lib/dashboardView.js` (`cg1618:dashboard-view`) — never server-side.
-  `MyTrackerCard` renders its −/input/+ stepper **only when the caller passes
-  an `onEpChange`**; a game passes none, so its card shows status, rating and
+  `MyTrackerCard` and the detail pages' own tracker blocks
+  (`NovelTrackerBlock`, and Manga's, H-Comic's and Hentai's local ones) show
+  only the viewer's own values, so they take `canTrack` - `self.list`, which
+  the page reads from `useViewScope().ownData` - and render **nothing** without
+  it; with it every control is enabled. The page saves each change through
+  `hooks/useOwnTrackerSave.js` (`useStatusToggle` underneath: plan flags to
+  `/api/me/plan-flags`, the rest to `/api/me/list`), never the catalogue
+  PATCH. `MyTrackerCard` renders its −/input/+ stepper **only when the caller
+  passes an `onEpChange`**; a game passes none, so its card shows status, rating and
   the To Replay checkbox alone rather than an inert `0 / undefined` counter
   (`statusLabel` and `rewatchLabel` are what relabel it "Playing Status" /
   "To Replay"). The stepper itself is the exported `EpisodeStepper`, so the
   hentai page, whose tracker fields are its own, puts the same control in
   its own slip. The same rule drops the **Paused at** field: the card renders
-  it only when the caller passes an `onTimeFinChange`, which the anime, TV
-  and cartoon pages do. The field is the exported `PausedAtInput` - a free-text
+  it only when the caller passes an `onTimeFinChange`, which the anime, TV,
+  cartoon, anime movie and movie pages do (`pausedPlaceholder` sets the
+  movies' `1:10:00`). The field is the exported `PausedAtInput` - a free-text
   input styled as the card's selects (`SELECT_CLS`), saved on blur or Enter
-  and only when the trimmed text changed, a blank sent as `null`, and a
-  read-only `Chip` for a viewer who cannot write. It is keyed on the stored
-  value, so a position the server cleared (an `ep_fin` step up, or becoming
-  Completed) disappears as soon as the response lands. The movie, anime movie
-  and hentai trackers render `PausedAtInput` in their own slips.
+  and only when the trimmed text changed, a blank sent as `null`. It is keyed
+  on the stored value, so a position the server cleared (an `ep_fin` step up,
+  or becoming Completed) disappears as soon as the response lands. The hentai
+  tracker renders `PausedAtInput` in its own slip. `EpisodeStepper` and
+  `PausedAtInput` take `canTrack` too and render nothing without it.
   `GameDashboardCard` is a fourth dashboard card rather than a third arm
   inside `DashboardCard`: that file's `isReading` ternaries serve the
   watch/read pair, and a game's bar is read-only playtime against `hltb_main`

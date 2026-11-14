@@ -6,6 +6,8 @@ import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import { useAuth } from "../../contexts/AuthContext";
 import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
 import { useToast } from "../../hooks/useToast";
+import { useOwnTrackerSave } from "../../hooks/useOwnTrackerSave";
+import { useViewScope } from "../../hooks/useViewScope";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import { endpoints } from "../../api/endpoints";
@@ -32,7 +34,6 @@ import { useCasting } from "../../hooks/useCasting";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
-import { progressToast } from "../../lib/progressToast";
 import { focusStyle } from "../../lib/covers";
 import CastSection from "../../components/info/CastSection";
 import LazyImage from "../../components/ui/LazyImage";
@@ -47,6 +48,7 @@ export default function Anime() {
   const navigate = useNavigate();
   const { isAdmin, has } = useAuth();
   const { showToast } = useToast();
+  const { ownData } = useViewScope();
 
   const [anime, setAnime] = useState(null);
   const [autofilling, setAutofilling] = useState(false);
@@ -92,28 +94,15 @@ export default function Anime() {
     seriesQuery.error?.message ||
     null;
 
-  async function performUpdate(payload, msg) {
-    if (!isAdmin) return;
-    setAnime((prev) => ({ ...prev, ...payload }));
-    try {
-      const res = await fetch(endpoints.resource("anime").patch(system_id), {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Sync failed");
-      const updated = await res.json();
-      // `anime` is still the pre-write row here: this closure never saw the
-      // optimistic update. A progress step can finish the entry.
-      showToast("success", progressToast(anime, updated, msg || "Saved"));
-      setAnime(updated);
-      setMediaItem(updated);
-    } catch {
-      showToast("error", "Update failed");
-      fetchMediaItem();
-    }
-  }
+  // The viewer's own values (status, rating, progress, plan flags) go through /api/me;
+  // saveRelease is the toolbar's release step, the work's half through the
+  // catalogue PATCH.
+  const { saveOwn, saveRelease } = useOwnTrackerSave("anime", {
+    entry: anime,
+    setEntry: setAnime,
+    setMediaItem,
+    fetchMediaItem,
+  });
 
   async function handleAutofill() {
     setAutofilling(true);
@@ -250,7 +239,7 @@ export default function Anime() {
             >
               Mark completed
             </Button>
-            <MarkReleaseButton type="anime" entry={anime} title={titleMain} onPatch={performUpdate} />
+            <MarkReleaseButton type="anime" entry={anime} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
             <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
               {autofilling ? "Autofilling…" : "Autofill & update"}
             </Button>
@@ -404,18 +393,18 @@ export default function Anime() {
             watchingStatus={anime.watching_status}
             myRating={anime.my_rating}
             timeFin={anime.time_fin}
-            isAdmin={isAdmin}
+            canTrack={ownData}
             onEpChange={(v) =>
-              performUpdate({ ep_fin: v }, "Episode progress saved")
+              saveOwn({ ep_fin: v }, "Episode progress saved")
             }
             onStatusChange={(v) =>
-              performUpdate({ watching_status: v }, "Status updated")
+              saveOwn({ watching_status: v }, "Status updated")
             }
             onRatingChange={(v) =>
-              performUpdate({ my_rating: v }, "Rating saved")
+              saveOwn({ my_rating: v }, "Rating saved")
             }
             onTimeFinChange={(v) =>
-              performUpdate({ time_fin: v }, "Paused position saved")
+              saveOwn({ time_fin: v }, "Paused position saved")
             }
             statusOptions={WATCHING_STATUSES}
             ratingOptions={MY_RATINGS}

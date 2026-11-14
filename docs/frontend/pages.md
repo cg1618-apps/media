@@ -1161,10 +1161,26 @@ Files `pages/detail/Anime.jsx`, `AnimeMovie.jsx`, `Movie.jsx`, `TV.jsx`,
 **Common skeleton.** Data: `useMediaItem(type, id)` mirrored into local
 state, `useMediaList("franchise", LIST_OPTIONS)`, `useMediaList("series")`
 (not AnimeMovie), and `useMediaCacheUpdate(type, id)` for
-`setMediaItem / fetchMediaItem / invalidateMedia`. Every write goes through a
-local `performPatch(payload, msg)`: no-op for guests, optimistic merge, PATCH
-`endpoints.resource(type).patch(id)`, replace from the response; on failure
-toast "Update failed" and refetch.
+`setMediaItem / fetchMediaItem / invalidateMedia`. Two kinds of write, by
+whose value it is:
+
+- **The viewer's own** - status, my rating, progress counters, Paused at
+  (`time_fin`), usefulness, Novel's `progress_display` and the plan flags
+  (`watch_next` / `to_rewatch` and each type's spelling) - go through
+  `saveOwn(fields, msg)` from `hooks/useOwnTrackerSave.js`, which calls
+  `useStatusToggle(type)`: plan flags to `PUT /api/me/plan-flags/{id}`, every
+  other key to `PUT /api/me/list/{id}`. It is a no-op without `self.list`
+  (`useViewScope().ownData`), merges optimistically, then replaces the held
+  entry with the answer - the entry with the saved row folded in - and calls
+  `setMediaItem`. `/api/me/list` keeps the tracker's rule that reaching the
+  total finishes the row, so the toast is `progressToast`'s: "Marked as
+  Completed!" when the answered status became Completed. On failure, toast
+  "Update failed" and refetch.
+- **The work's** - an editor's (`isAdmin`) - go through the catalogue PATCH
+  `endpoints.resource(type).patch(id)`: the release step (below), Game's and
+  H-Game's completion axes and Novel's units editor (those three pages keep a
+  local `performPatch` for them), with the same optimistic merge, replace and
+  failure handling.
 
 Top to bottom:
 
@@ -1174,7 +1190,14 @@ Top to bottom:
    **Mark Completed** → `POST {apiEndpoint}/{id}/complete` then refetch;
    the **release button** (`components/tracker/MarkReleaseButton.jsx`, rules
    in `lib/releaseAction.js`) moves the entry one step along its release
-   axis through `performPatch`, and is absent when there is no next step:
+   axis, and is absent when there is no next step. It is the one control
+   that edits the work and the viewer's row together, so `saveRelease` (from
+   `useOwnTrackerSave`) splits it: the release fields go to the catalogue
+   PATCH and `RELEASE_PERSONAL_FIELDS` - the Watch When Airs → Active
+   Watching move on **Mark airing**, and anime's **My watch day** in the
+   dialog - to `PUT /api/me/list/{id}`, in one `useStatusToggle` mutation.
+   The page passes `canTrack={ownData}`; without `self.list` the step moves
+   no status and the dialog does not ask for My watch day:
 
    | Type | Shown when | Label → writes |
    | --- | --- | --- |
@@ -1280,27 +1303,37 @@ Top to bottom:
    `pages/notes/NotesTemplate.jsx` — except Game, which composes
    `NotesProvider` / `NotesGroup` / `NotesBlocks` itself (see **Notes** below).
 
-**Tracker**: `MyTrackerCard` (`components/tracker/MyTrackerCard.jsx`:
+**Tracker**: every tracker slip is the viewer's own list row, so it is drawn
+for a holder of `self.list` (`useViewScope().ownData`, passed as `canTrack`)
+and not at all for anyone else - an editor without `self.list` included -
+and every control in it is enabled and saves through `saveOwn`, never the
+catalogue PATCH. `MyTrackerCard` (`components/tracker/MyTrackerCard.jsx`:
 progress stepper with cumulative counts, status select, rating select,
 an optional **Paused at** text input (`time_fin`, `PausedAtInput`), optional
-Watch/Read Next and To Rewatch/Reread checkboxes; every control is
-admin-only) on Anime, TV (`watch_next` + `to_rewatch`), Cartoon
-(`watch_next`) - those three pass `onTimeFinChange`, which `PATCH`es
-`{ time_fin }` - Comic (`issue_fin`, `reading_status`, `to_reread`) and Game
-(`playing_status`, `to_replay`) — Game passes **no** `onEpChange`, which is
-what drops the stepper: a game has no unit to count off, and playtime lives in
-its own Progress slip instead.
+Watch/Read Next and To Rewatch/Reread checkboxes) on Anime, TV (`watch_next`
++ `to_rewatch`), Cartoon (`watch_next`), AnimeMovie and Movie (no stepper,
+`watch_next` + `to_rewatch`, Paused at placeholder `1:10:00`) - those five
+pass `onTimeFinChange` - Comic (`issue_fin`, `reading_status`, `to_reread`),
+Game and H-Game (`playing_status`, `to_replay`). Game and H-Game pass **no**
+`onEpChange`, which is what drops the stepper: a game has no unit to count
+off, and playtime lives in its own Progress slip instead.
 Game also renders `components/tracker/GameCompletionBlock` directly below the
 tracker: `completion_level` plus the three completion axes as four selects -
 `all_endings` and `all_collected` over `GAME_COMPLETION_FLAGS`,
-`all_achievements` over its own `GAME_ACHIEVEMENT_FLAGS` (Fully before Yes) - each patching the one field it changed and sending `null` rather
-than `""` for the unset option. Same two guards as `MyTrackerCard` — nothing
-at all for a logged-out visitor, read-only `Chip`s for a signed-in non-admin.
-AnimeMovie and Movie inline a status/rating/Paused at/Watch Next/To Rewatch
-tracker, the Paused at field being the same `PausedAtInput`;
+`all_achievements` over its own `GAME_ACHIEVEMENT_FLAGS` (Fully before Yes) -
+each patching the one field it changed and sending `null` rather than `""`
+for the unset option. The axes are columns on the game, so they are an
+editor's: a select for `isAdmin`, written through the catalogue PATCH, and a
+read-only `Chip` for any other signed-in viewer; nothing at all for a
+logged-out visitor.
 Manga uses a local `MangaTrackerBlock` (`ch_fin`, `vol_fin`, `vol_fin_page`,
 `read_next`, `to_reread`); Novel uses `components/tracker/NovelTrackerBlock`
-(`ch_fin/vol_fin/arc_fin` by `progress_display`).
+(`ch_fin/vol_fin/arc_fin` by `progress_display`); H-Comic and Hentai use the
+local blocks described below. All take `canTrack` and draw nothing without
+it. **Mark completed** stays in the editor's toolbar: `POST /{id}/complete`
+asks `manage.catalog` and also writes the work's airing status. A list
+holder who is not an editor finishes an entry by choosing Completed in the
+status select, which goes through `/api/me/list`.
 
 **Per-type differences**
 
@@ -1331,7 +1364,9 @@ with the region deciding what shows (`lib/hComicRegion.js`):
 | Notes | remark list, reviews and the shared sections | the same, plus **亮點 Highlights** |
 
 Both regions carry the tracker's reading status, rating, **usefulness**
-(personal, like the rating) and Read Next / To Reread; a **Genres** card (Genre
+(personal, like the rating) and Read Next / To Reread - a local
+`HComicTrackerBlock`, drawn for `self.list` and saved through `saveOwn`;
+**Behind official** is the work's and is also in the Information card; a **Genres** card (Genre
 Plot / Appearance / Relation); `SourcesCard` with the KR official source as its
 tag, and the MAL link and the E-Hentai gallery (`ehentaiLink`, tag "EH")
 under "Where to Look Up"; `RelationsSection`; a **Cast** slip, the shared
@@ -1374,7 +1409,7 @@ IGDB and Steam fill, through `replaceSingle("h-game")`). What differs:
 
 | | |
 |---|---|
-| Completion block | `GameCompletionBlock` with `H_GAME_COMPLETION_AXES`: Completion Level, All Endings, **All CG**, and **usefulness** (personal, like the rating) - no All Achievements or All Collected |
+| Completion block | `GameCompletionBlock` with `H_GAME_COMPLETION_AXES`: Completion Level, All Endings, **All CG** - the work's, an editor's through the catalogue PATCH - and **usefulness**, the viewer's own (marked `personal` in the axes), drawn for `self.list` and written through `saveOwn` (`onOwnChange`) - no All Achievements or All Collected |
 | Progress | `HGameProgress`: the main-story estimate and achievements - there is no playtime, so the cover's progress rule is achievements earned against the total |
 | Information card | Type, Main / Remake (`is_main`), Base Game (an h-game), Series Number, Play Style, Platform, Language. A multi-choice list reads "None" when it is `[]` and a dash when it is `null` (`choiceText`) |
 | Genres card | Genre, Theme, Genre Plot / Appearance / Relation |
@@ -1396,8 +1431,9 @@ take free text with no suggestions
 the same way. It is tracked like Cartoon: a local `HentaiTrackerBlock`
 (watching status, rating, **usefulness**, Paused at, Watch next, To rewatch) whose slip
 carries `MyTrackerCard`'s `EpisodeStepper` in its actions slot - `ep_fin` of
-`ep_total`, `PATCH { ep_fin }`, and `progressToast`'s "Marked as Completed!"
-when a step reaches the total and the server finishes the entry - then
+`ep_total`, `PUT /api/me/list/{id} { ep_fin }`, and `progressToast`'s "Marked
+as Completed!" when a step reaches the total and the server finishes the row;
+the whole slip is drawn only for `self.list` - then
 `NamingCard`, and three cards - **Information** (Source
 Material, Originality, Airing Status, Release Date, Episodes), **Credits** (Studio via `studioValue` and Director on one row, Author below, each person linked through `creditValue`) and
 **Genres** (Genre Plot / Appearance / Relation), with a **Cast** slip between
@@ -1713,8 +1749,18 @@ status, ownership and usefulness), the draw is
 uniform, the Weights tab and the **Weighted** checkbox are not drawn (a
 `?tab=weights` link opens the picker), a saved default naming a personal
 filter is ignored, and `/api/plan-next/` is never asked. What is left is
-media type, the type's catalogue filters, release decade and the external
-score.
+media type, the type's catalogue filters, release decade, genre and the
+external score.
+
+**Genre** (`genre`) is a catalogue filter in both versions: its chips are
+the genres the pool holds, and an entry matches when any of its genres is
+on. It reads each type's own field, a ", "-joined string on every list
+response (`GENRE_FIELD`): `genre_main` on the eight mainstream types and
+`game_genre` on game and h-game. The adult genre fields are left out, as
+`/api/statistics/catalogue` leaves them out, so h-comic and hentai have no
+genre chips. The franchise mode does not offer it: a franchise has no genre
+of its own, and "any entry's genre" would make most franchises match most
+chips.
 
 **External score** (`externalScore`) is a catalogue filter in both versions:
 chips `9+`, `8+`, `7+`, `6+` and `No score`, which OR like every chip, read

@@ -117,7 +117,10 @@ describe("HComic detail page", () => {
         page_total: 20,
         originality: "同人",
       },
-      [HIGHLIGHT_ROW]
+      [HIGHLIGHT_ROW],
+      [],
+      // The counter is the viewer's own progress, drawn for self.list.
+      ["self.list"]
     );
     mount({ system_id: "jp1" });
     await screen.findByRole("heading", { name: "Jay Pee" });
@@ -142,7 +145,10 @@ describe("HComic detail page", () => {
         ch_behind: 3,
         highlight_group_order: [],
       },
-      [HIGHLIGHT_ROW]
+      [HIGHLIGHT_ROW],
+      [],
+      // The counter is the viewer's own progress, drawn for self.list.
+      ["self.list"]
     );
     mount({ system_id: "kr1" });
     await screen.findByRole("heading", { name: "Kay Are" });

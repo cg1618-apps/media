@@ -280,3 +280,119 @@ describe("Game detail page — Replace", () => {
     expect(screen.queryByRole("heading", { name: "Time to Beat" })).toBeNull();
   });
 });
+
+// The playing status, rating and To Replay are the viewer's own list row:
+// drawn and enabled for a holder of self.list who is not an editor, written
+// through /api/me and never the catalogue PATCH, and not drawn without it.
+// The completion axes are columns on the game, so they stay an editor's.
+describe("Game detail page own tracker", () => {
+  const GAME = {
+    system_id: "g1",
+    game_name_en: "Test Game",
+    franchise_id: null,
+    series_id: null,
+    cover_image_file: null,
+    playing_status: "Active Playing",
+    my_rating: null,
+    to_replay: false,
+    completion_level: "Main Story",
+    all_endings: "No",
+  };
+
+  function mockFetch({ admin = false, permissions = [] } = {}) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url, init) => {
+        const u = String(url);
+        let body = [];
+        if (init?.method === "PUT" && u.startsWith("/api/me/list/")) {
+          body = { media_id: "g1", media_type: "game", ...JSON.parse(init.body) };
+        } else if (init?.method === "PUT" && u.startsWith("/api/me/plan-flags/")) {
+          body = JSON.parse(init.body);
+        } else if (init?.method === "PATCH") {
+          body = { ...GAME, ...JSON.parse(init.body) };
+        } else if (u.startsWith("/api/auth/me")) {
+          body = { is_admin: admin, username: "reader", role: admin ? "super" : "user", permissions };
+        } else if (u.startsWith("/api/game/g1")) {
+          body = GAME;
+        }
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
+      }),
+    );
+  }
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  function mount() {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return render(
+      <QueryClientProvider client={client}>
+        <AuthProvider>
+          <ToastProvider>
+            <MemoryRouter initialEntries={["/game/g1"]}>
+              <Routes>
+                <Route path="/game/:publicId/:slug?" element={<Game />} />
+              </Routes>
+            </MemoryRouter>
+          </ToastProvider>
+        </AuthProvider>
+      </QueryClientProvider>,
+    );
+  }
+
+  const puts = (prefix) =>
+    fetch.mock.calls.filter(([url, init]) => init?.method === "PUT" && String(url).startsWith(prefix));
+  const patches = () => fetch.mock.calls.filter(([, init]) => init?.method === "PATCH");
+
+  it("saves the playing status through /api/me/list for a list holder", async () => {
+    mockFetch({ permissions: ["self.list"] });
+    mount();
+    const status = await screen.findByRole("combobox", { name: "Playing Status" });
+    expect(status).toBeEnabled();
+    fireEvent.change(status, { target: { value: "Completed" } });
+    await waitFor(() => expect(puts("/api/me/list/")).toHaveLength(1));
+    expect(puts("/api/me/list/")[0][0]).toBe("/api/me/list/g1");
+    expect(JSON.parse(puts("/api/me/list/")[0][1].body)).toEqual({ playing_status: "Completed" });
+    expect(patches()).toHaveLength(0);
+  });
+
+  it("saves To Replay through /api/me/plan-flags", async () => {
+    mockFetch({ permissions: ["self.list"] });
+    mount();
+    fireEvent.click(await screen.findByRole("checkbox", { name: "To Replay" }));
+    await waitFor(() => expect(puts("/api/me/plan-flags/")).toHaveLength(1));
+    expect(puts("/api/me/plan-flags/")[0][0]).toBe("/api/me/plan-flags/g1");
+    expect(JSON.parse(puts("/api/me/plan-flags/")[0][1].body)).toEqual({ to_replay: true });
+    expect(patches()).toHaveLength(0);
+  });
+
+  it("reads the completion axes without editing them, for a list holder who is not an editor", async () => {
+    mockFetch({ permissions: ["self.list"] });
+    mount();
+    await screen.findByRole("combobox", { name: "Playing Status" });
+    expect(screen.queryByLabelText("All Endings")).not.toBeInTheDocument();
+    expect(screen.getByText("Main Story")).toBeInTheDocument();
+  });
+
+  it("draws no tracker without self.list", async () => {
+    mockFetch({ permissions: [] });
+    mount();
+    await screen.findByRole("heading", { name: "Test Game" });
+    expect(screen.queryByText("My tracker")).toBeNull();
+    expect(screen.queryByRole("combobox", { name: "Playing Status" })).toBeNull();
+    expect(screen.queryByRole("checkbox", { name: "To Replay" })).toBeNull();
+  });
+
+  it("gives an editor without self.list the completion axes, through the PATCH, and no tracker", async () => {
+    mockFetch({ admin: true, permissions: ["manage.catalog"] });
+    mount();
+    const endings = await screen.findByLabelText("All Endings");
+    expect(screen.queryByText("My tracker")).toBeNull();
+    expect(screen.queryByRole("combobox", { name: "Playing Status" })).toBeNull();
+    fireEvent.change(endings, { target: { value: "Yes" } });
+    await waitFor(() => expect(patches()).toHaveLength(1));
+    expect(String(patches()[0][0])).toBe("/api/game/g1");
+    expect(JSON.parse(patches()[0][1].body)).toEqual({ all_endings: "Yes" });
+    expect(puts("/api/me/")).toHaveLength(0);
+  });
+});

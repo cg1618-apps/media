@@ -18,7 +18,15 @@
 //
 // Mark airing also moves a `Watch When Airs` watching status to
 // `Active Watching`, in the same write.
+//
+// The release axis and its details are the work's; the watching status and
+// my watch day are the viewer's own list fields. RELEASE_PERSONAL_FIELDS
+// names those, so the page can send them through /api/me and the rest through
+// the catalogue PATCH. For a viewer without self.list (`canTrack: false`) the
+// step neither moves the status nor asks for my watch day.
 import { RELEASE_PRIORITY } from "./releaseDate";
+
+export const RELEASE_PERSONAL_FIELDS = new Set(["watching_status", "my_watch_day"]);
 
 const AIR_PENDING = ["Not Yet Aired", "Rumored"];
 
@@ -32,20 +40,20 @@ function step(field, label, value, toast, ask = false) {
 
 // Marking an entry airing starts watching it when I was waiting for it to
 // air - the same move the future-release card's bolt makes (MediaCard).
-function markAiring(entry) {
+function markAiring(entry, canTrack) {
   const action = step("airing_status", "Mark airing", "Airing", "Marked as airing", true);
-  if (entry.watching_status !== "Watch When Airs") return action;
+  if (!canTrack || entry.watching_status !== "Watch When Airs") return action;
   action.payload.watching_status = "Active Watching";
   action.toast = "Marked as airing · Active Watching";
   return action;
 }
 
-function airing(entry, { oneShot }) {
+function airing(entry, { oneShot, canTrack }) {
   const status = entry.airing_status;
   if (AIR_PENDING.includes(status)) {
     return oneShot
       ? step("airing_status", "Mark released", "Finished Airing", "Marked as released", true)
-      : markAiring(entry);
+      : markAiring(entry, canTrack);
   }
   if (status === "Airing" && !oneShot) {
     return step(
@@ -86,18 +94,18 @@ function game(entry) {
 }
 
 // `type` is the data-layer key the pages pass to endpoints.resource().
-export function releaseAction(type, entry) {
+export function releaseAction(type, entry, { canTrack = true } = {}) {
   if (!entry) return null;
   switch (type) {
     case "anime":
     case "cartoon":
-      return airing(entry, { oneShot: entry.airing_type === "Movie" });
+      return airing(entry, { oneShot: entry.airing_type === "Movie", canTrack });
     case "tv-show":
     case "hentai":
-      return airing(entry, { oneShot: false });
+      return airing(entry, { oneShot: false, canTrack });
     case "anime-movie":
     case "movie":
-      return airing(entry, { oneShot: true });
+      return airing(entry, { oneShot: true, canTrack });
     case "manga":
     case "comic":
     case "h-comic":
@@ -129,7 +137,7 @@ const ANIME_SCHEDULE = [
 ];
 
 // The empty fields the release dialog offers, in display order.
-export function releaseDetailFields(type, entry) {
+export function releaseDetailFields(type, entry, { canTrack = true } = {}) {
   if (!entry) return [];
   const fields = (RELEASE_PRIORITY[type] || []).map((field) => ({
     field,
@@ -139,5 +147,9 @@ export function releaseDetailFields(type, entry) {
   if (type === "anime" && entry.airing_type !== "Movie") {
     fields.push(...ANIME_SCHEDULE);
   }
-  return fields.filter(({ field }) => entry[field] == null || entry[field] === "");
+  return fields.filter(
+    ({ field }) =>
+      (entry[field] == null || entry[field] === "") &&
+      (canTrack || !RELEASE_PERSONAL_FIELDS.has(field)),
+  );
 }

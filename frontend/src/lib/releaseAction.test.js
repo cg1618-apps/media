@@ -176,3 +176,27 @@ describe("releaseDetailFields", () => {
     expect(names("tv-show", { release_date: "2026" })).toEqual([]);
   });
 });
+
+// The status move and my watch day are the viewer's own list fields: a viewer
+// without self.list gets the release step without them, and the mirror case
+// with the same entry still carries them.
+describe("a release step for a viewer without self.list", () => {
+  const waiting = { airing_status: "Not Yet Aired", watching_status: "Watch When Airs" };
+
+  it("does not move the watching status", () => {
+    expect(releaseAction("anime", waiting, { canTrack: false }).payload).toEqual({
+      airing_status: "Airing",
+    });
+    expect(releaseAction("anime", waiting).payload).toEqual({
+      airing_status: "Airing",
+      watching_status: "Active Watching",
+    });
+  });
+
+  it("does not ask for my watch day", () => {
+    const fields = (opts) => releaseDetailFields("anime", waiting, opts).map((f) => f.field);
+    expect(fields({ canTrack: false })).not.toContain("my_watch_day");
+    expect(fields({ canTrack: false })).toContain("broadcast_day");
+    expect(fields()).toContain("my_watch_day");
+  });
+});
