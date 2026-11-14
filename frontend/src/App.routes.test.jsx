@@ -119,7 +119,8 @@ describe("a member-only route", () => {
       await visit(path);
       expect(await screen.findByText("login page")).toBeInTheDocument();
       expect(screen.queryByText(`${page} page`)).toBeNull();
-      expect(window.location.search).toBe(`?next=${encodeURIComponent(path)}`);
+      expect(window.location.pathname).toBe("/login");
+      expect(window.location.search).toBe("");
     });
 
     it(`opens ${path} for a member`, async () => {

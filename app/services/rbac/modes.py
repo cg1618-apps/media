@@ -27,7 +27,6 @@ from sqlalchemy.orm import Session
 
 from app import models
 from app.services.rbac import cache
-from app.services.rbac.permissions import SHARED_ROLE_NAME
 from app.services.rbac.seed_modes import MODE_ORDER, MODE_SAFE, mode_rank
 
 
@@ -115,19 +114,6 @@ def resolve_mode(
     return _effective(db, user, mode)
 
 
-def mode_is_fixed(user: models.User) -> bool:
-    """Whether this account may not switch modes at all: a shared account.
-
-    Several people sign in to one shared account, and its mode is what the
-    admin chose for all of them - ceiling and default are both that one mode
-    (seed.ensure_shared_accounts). Narrowing it would be one person's choice
-    made for everyone signed in, so the switch endpoint refuses it and
-    held_modes offers nothing to switch to.
-    """
-    role = user.role_ref
-    return role is not None and role.name == SHARED_ROLE_NAME
-
-
 def within_ceiling(user: models.User, mode_key: str) -> bool:
     """Whether `mode_key` ranks at or below this account's ceiling.
 
@@ -187,12 +173,11 @@ def held_modes(
 
     A guest holds none - they have no account, so there is nothing to switch
     between; wanting more means logging in. An account with no mode holds
-    none either. An account whose mode is fixed (mode_is_fixed) holds its
-    default alone, so the switcher, which needs two, does not render.
+    none either. A shared account is no exception: it holds every mode up to
+    its ceiling, like any other.
     """
     if user is None or user.mode_ceiling is None:
         return []
-    fixed = mode_is_fixed(user)
 
     modes = {
         mode.key: mode
@@ -204,8 +189,6 @@ def held_modes(
     for key in MODE_ORDER:
         mode = modes.get(key)
         if mode is None or not within_ceiling(user, key):
-            continue
-        if fixed and key != user.mode_default:
             continue
         effective = _effective(db, user, mode)
         is_active = mode.system_id == active.mode_id

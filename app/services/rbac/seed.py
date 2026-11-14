@@ -72,12 +72,13 @@ USER_ROLE = USER_ROLE_NAME
 # reaches it only when someone grants it.
 SUPER_ROLE = SUPER_ROLE_NAME
 # An account several people sign in to. Reads what a guest reads and files
-# requests; its mode is fixed per account (SHARED_ACCOUNTS below).
+# requests; each account is seeded at its own mode (SHARED_ACCOUNTS below).
 SHARED_ROLE = SHARED_ROLE_NAME
 
-# The shared accounts, each fixed at its own mode: the username and the mode
-# it is held at. Created on boot with an unusable password - the admin sets
-# one on /users when handing the account out.
+# The shared accounts: the username and the mode it is created at, as both
+# ceiling and default. Created on boot with an unusable password - the admin
+# sets one on /users when handing the account out, and may change the mode
+# there like any account's.
 SHARED_ACCOUNTS: tuple[tuple[str, str], ...] = (
     ("shared-normal", MODE_NORMAL),
     ("shared-borderline", MODE_BORDERLINE),
@@ -261,16 +262,17 @@ def _top_up(db: Session, role: models.Role, permissions: set[str]) -> None:
 
 def ensure_shared_accounts(db: Session) -> None:
     """
-    Create the shared accounts if missing, and re-assert what is fixed.
+    Create the shared accounts if missing, and re-assert their role.
 
     Runs on every boot after ensure_rbac_seed and the access-mode seed, so the
     role and the modes it names exist. A new account gets an unusable
     password (nothing verifies against UNUSABLE_PASSWORD_HASH), its role's
     request limit and status `active`; the admin sets the password on /users.
 
-    On every run, whatever a Pull or a hand edit left: the role is `shared`
-    and the ceiling and default are the account's own mode. The password,
-    status and request limit are the admin's and are left alone.
+    On every run, whatever a Pull or a hand edit left, the role is `shared`.
+    The mode is the admin's, like the password, status and request limit, and
+    is left alone - except on an account with no mode at all, which would see
+    nothing, and is put back at its seeded mode.
     """
     role = db.query(models.Role).filter(models.Role.name == SHARED_ROLE).one()
     for username, mode in SHARED_ACCOUNTS:
@@ -289,9 +291,12 @@ def ensure_shared_accounts(db: Session) -> None:
             )
             db.add(user)
             db.flush()
+            # Explicitly: a new users row defaults to normal / normal, which
+            # is not every shared account's mode.
+            set_mode_ceiling(db, user, mode, mode)
         if user.role_id != role.system_id:
             user.role_id = role.system_id
-        if user.mode_ceiling != mode or user.mode_default != mode:
+        if user.mode_ceiling is None:
             set_mode_ceiling(db, user, mode, mode)
     db.flush()
 

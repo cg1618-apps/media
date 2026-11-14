@@ -36,7 +36,6 @@ from app.services.rbac.modes import (
     ResolvedMode,
     default_mode_id,
     held_modes,
-    mode_is_fixed,
     resolve_mode,
     switch_requires_password,
     within_ceiling,
@@ -299,12 +298,6 @@ def switch_access_mode(
             detail="Sign in to change access mode.",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    if mode_is_fixed(user):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="A shared account's mode is fixed.",
-        )
-
     # Available means ranked at or below the account's ceiling. 404 for a
     # mode above it, and deliberately the same answer a mode that does not
     # exist gets: which modes exist is not this caller's business, and it is

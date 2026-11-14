@@ -291,17 +291,6 @@ export default function Nav() {
     hardNavigate(location.pathname + location.search);
   }
 
-  // On /login itself the next ProtectedRoute already put in the query string
-  // IS the destination. Rebuilding the link around the current location there
-  // would nest the login page inside its own next, and Login has no
-  // already-signed-in bounce - so a visitor who was sent here from a protected
-  // page and clicked this button instead of filling in the form would sign in
-  // and land straight back on this form.
-  const loginHref =
-    location.pathname === "/login"
-      ? `/login${location.search}`
-      : `/login?next=${encodeURIComponent(location.pathname + location.search)}`;
-
   return (
     <nav className="sticky top-0 z-50">
       {/* Row 1 — the drawer front */}
@@ -394,7 +383,7 @@ export default function Nav() {
                 </button>
               ) : (
                 <Link
-                  to={loginHref}
+                  to="/login"
                   className="inline-flex items-center border border-ink-text/40 hover:border-ink-text px-3 py-1.5 text-xs font-medium text-ink-text transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                 >
                   Log in
@@ -629,7 +618,7 @@ export default function Nav() {
                 </button>
               ) : (
                 <Link
-                  to={loginHref}
+                  to="/login"
                   onClick={() => setMobileOpen(false)}
                   className={DRAWER_ROW}
                 >

@@ -1463,26 +1463,54 @@ prose twin is [../data-actions.md](../data-actions.md#6-calculate-all).
   reading surfaces) is drawn with `fa-eye`. On `user`, `guest` and `shared`
   the three gated media types are drawn locked (on for `user`, off for the
   other two), through the same `locked_on` / `locked_off`.
-- **Users** — create users with a role, change role, set a password,
-  delete; the server refuses deleting or disabling your own account, and
-  those refusals surface as toasts. Both
-  role selects — on create and in a row's edit mode — offer only **User** and
-  **Super**; an `admin` or `shared` row shows its role as text instead of a
-  select. A `shared` row has no **Delete** and no access panel: its mode
-  column reads `Mode: <label> (fixed)`. The `admin` row has no **Delete**
-  and no access panel either: it has no mode, and its mode column reads
-  `No mode (admin)` — the server answers 409 to deleting it or giving it a
-  mode. The
-  password field in a row's edit mode says that setting one signs the
-  account out everywhere. The edit form also holds an **Open request limit**
-  number field (blank is no limit) for any account whose role has one: not
-  for `super`, which is never limited (the server answers 422), and not for
-  `admin`, which files nothing. The field follows the role chosen in the
-  same form, and `open_request_limit` is sent only when it changed — left out
-  of a save that changes the role, the server resets the limit to the new
-  role's default. A **Status** column shows each account's `status` as a chip
-  (`active`, `disabled` in danger, `pending`). Each row offers only what the
-  server would accept:
+- **Users** — create users with a role, and edit, disable or delete them;
+  the server refuses deleting or disabling your own account, and those
+  refusals surface as toasts. The create form's role select offers only
+  **User** and **Super**. A **Status** column shows each account's
+  `status` as a chip (`active`, `disabled` in danger, `pending`). The
+  **Access** column is a read-only summary with no controls in it: the
+  account's `<ceiling> / <default>` (with `(narrowed)` when it has
+  denials), `no mode — sees nothing` in danger for an account with no
+  ceiling, or `No mode (admin)` for the admin account; and, on a `user` or
+  `super` row, a chip for each feature switch that is on (`No features
+  on` when none is). Each row offers only what the server would accept:
+  - **Edit** on every row opens the account's edit dialog, which holds
+    everything the row can change:
+    - **Role** — a select offering only **User** and **Super**; an `admin`
+      or `shared` account shows its role as text, since the server answers
+      409 to changing either.
+    - **Password** — optional, and the field says that setting one signs the
+      account out everywhere.
+    - **Open request limit** — a number field (blank is no limit) for any
+      account whose role has one: not for `super`, which is never limited
+      (the server answers 422), and not for `admin`, which files nothing.
+      The field follows the role chosen in the same dialog, and
+      `open_request_limit` is sent only when it changed — left out of a save
+      that changes the role, the server resets the limit to the new role's
+      default.
+    - **Features**, on a `user` or `super` account: four checkboxes —
+      **Quotes & memes**, **Favourites**, **Music status**, **Mod status** —
+      each its `feature_<name>` field. An `admin` or `shared` account has
+      none, since the server answers 409 to switching one on there. Only
+      Quotes & memes opens anything today; the other three are stored for
+      the personal-data pages.
+    - **Access mode**, on every account but the admin, `shared` accounts
+      included: the **ceiling** (any ranked mode, narrowest first, or none),
+      the login **default** (only modes at or below the ceiling), and the
+      ceiling's own labels and field groups as tick-to-show boxes, unticked
+      to deny. Lowering the ceiling below the default moves the default down
+      and drops denials the new ceiling does not show. The admin account has
+      no mode — the server answers 409 to giving it one — so its dialog says
+      so instead.
+
+    **Save** sends the changed role, password, limit and switches as one
+    `PATCH /api/users/{id}`, and a changed mode as one
+    `PUT /api/users/{id}/access-modes` with `ceiling`, `default`,
+    `denied_label_keys` and `denied_field_group_keys`; each is sent only
+    when something in it changed, and a save that changed nothing sends
+    nothing. **Cancel** or Escape closes the dialog without saving.
+  - **Delete** on any account but an `admin` or `shared` one — the server
+    answers 409 to deleting either.
   - **Disable** on an active account other than your own, behind a
     `ConfirmModal` saying it signs the account out everywhere and nothing in
     it is lost; **Enable** on a disabled one, straight away. Both are
@@ -1491,12 +1519,6 @@ prose twin is [../data-actions.md](../data-actions.md#6-calculate-all).
     `POST /api/users/{id}/reset-link`, then `OnceLinkModal` with the link, a
     **Copy link** button and the expiry, saying the link is shown only once -
     the server keeps only a hash, and making another stops this one working.
-  - **Feature switches** on a `user` or `super` row: four checkboxes —
-    **Quotes & memes**, **Favourites**, **Music status**, **Mod status** —
-    each a `PATCH /api/users/{id}` with its `feature_<name>` field, saved as
-    it is ticked. An `admin` or `shared` row has none, since the server
-    answers 409 to switching one on there. Only Quotes & memes opens
-    anything today; the other three are stored for the personal-data pages.
 - **Access Modes** — one card per mode, narrowest first: its name and
   description, editable; how many accounts' ceilings reach it; and the labels
   and field groups it shows, read-only, because those are derived in code.

@@ -309,7 +309,7 @@ The matrix above is the grants; this is what holding one means.
 | read Completions (`self.list`) | — | **never** | yes | yes | **never** |
 | read and edit the site-wide Resources page (`manage.resources`) | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **always** |
 | read quotes and memes, and the Quotes and Memes sections of a detail page (the account's `quotes_memes` switch) | — | **never** | per account | per account | **never** |
-| switch their own access mode | — (no account) | **never** — its mode is fixed (409) | yes | yes | **never** — it has no mode |
+| switch their own access mode | — (no account) | yes — widening needs the shared password | yes | yes | **never** — it has no mode |
 | keep a list row — status, rating, progress | — | **never** | yes | yes | **never** |
 | keep a plan queue | — | **never** | yes | yes | **never** |
 | write their own highlights and other personal notes, their own highlight group order on an h-comic or h-game, and their own values on catalogue note rows - collected, beaten, completion, my value, the NG reset (`self.personal_notes`) | — | **never** | yes | yes | **never** |
@@ -574,8 +574,10 @@ below.
 ### Shared accounts
 
 Two accounts several people sign in to: `shared-normal` and
-`shared-borderline` (`SHARED_ACCOUNTS` in `seed.py`). Each is held at its own
-mode — ceiling and default both `normal`, or both `borderline`.
+`shared-borderline` (`SHARED_ACCOUNTS` in `seed.py`). Each is created at its
+own mode — ceiling and default both `normal`, or both `borderline` — and from
+then on its ceiling and default are the admin's to set on `/users`, like any
+account's.
 
 `ensure_shared_accounts(db)` runs in the lifespan on every boot, after the
 role, mode and label seeds it depends on:
@@ -585,20 +587,20 @@ role, mode and label seeds it depends on:
   `open_request_limit` 10 (`DEFAULT_REQUEST_LIMITS`) and status `active`. No
   password is in `.env` or the code: the admin sets each one on `/users` when
   handing the account out, and until then nobody can sign in to it.
-- **What is fixed is re-asserted on every boot**, whatever a Pull or a hand
-  edit left: the role is `shared`, and the ceiling and default are the
-  account's own mode (through `set_mode_ceiling`).
-- **What is the admin's is left alone**: the password, the status and the
-  request limit.
+- **The role is re-asserted on every boot**, whatever a Pull or a hand edit
+  left: it is `shared`.
+- **What is the admin's is left alone**: the password, the status, the
+  request limit and the mode. An account left with no mode at all, which
+  would see nothing, is put back at its seeded mode.
 
 They travel on the Users tab like any account, with their ceiling and
 default. A Pull onto a database with no `shared` role skips the row, as for
 any unknown role, and reports it.
 
-`/users` refuses what would undo them: their role cannot be changed, they
-cannot be deleted (disabling is allowed), and their modes cannot be edited —
-see [Guards on users](#guards-on-users-approutersuserspy) — nor switched by the
-account itself: `POST /api/auth/access-mode` answers **409** for one
+`/users` refuses what would undo them: their role cannot be changed and they
+cannot be deleted (disabling is allowed) — see
+[Guards on users](#guards-on-users-approutersuserspy). Their mode is not
+fixed: the account switches within its ceiling like any other
 ([Switching mid-session](#switching-mid-session-post-apiauthaccess-mode)). A reset link is
 never issued for one ([authentication.md](authentication.md#reset-links)).
 
@@ -1831,11 +1833,13 @@ the test.
 **Which modes are available** is a rank comparison: a mode at or below the
 account's ceiling. `/api/auth/me` lists exactly those, narrowest first.
 
-**A shared account does not switch at all** (`modes.mode_is_fixed`). Several
-people use one login, so narrowing it would be one person's choice made for
-everyone signed in: the endpoint answers **409** `A shared account's mode is
-fixed.`, and `/api/auth/me` lists its own mode alone, so the switcher, which
-needs two, does not render.
+**A shared account switches like any other.** A switched mode lives in the
+`access_mode` cookie of one browser, so one person narrowing changes nothing
+for anyone else on the same login. What follows is that anyone using the
+shared login can widen it to its ceiling with the shared password, for up to
+an hour at a time (`access_mode_override_minutes`). So a shared account's
+ceiling is what everyone holding that password may see; its default is only
+where a login starts.
 
 `/api/auth/me` advertises the cost per mode as `requires_password`, and the
 endpoint enforces it with the **same function**, because the endpoint that
@@ -1891,8 +1895,8 @@ component alone:
   narrow, so gating it would hide it from the `user` role - the account that
   most needs to narrow itself.
 - **It renders only above ONE available mode.** A control with one option is
-  noise. A shared account is offered its own mode alone, so it never sees
-  the control.
+  noise. An account whose ceiling is `safe` holds that one mode and never
+  sees the control.
 - **`requires_password` comes from the server**, per mode, on
   `/api/auth/me`. Never recompute the subset test in the browser: two
   implementations of one rule drift, and the browser's is the one nobody
@@ -1961,8 +1965,6 @@ answers the same in `safe` as in `unrestricted`.
   role is fixed.` / `A shared account's role is fixed.`
 - **A shared account is never deleted** → **409** `A shared account cannot be
   deleted. Disable it instead.`; disabling it is allowed.
-- **A shared account's mode is fixed**: `PUT /api/users/{id}/access-modes` on
-  one → **409** `A shared account's mode is fixed.`
 - **Setting a shared account's password is allowed** — the admin is the only
   one who can, since the role cannot hold `self.password`.
 - **A feature switch is a `user` or `super` account's**: switching one on
@@ -1975,7 +1977,7 @@ answers the same in `safe` as in `unrestricted`.
 | Page | File | What it does |
 |---|---|---|
 | Roles | `frontend/src/pages/admin/Roles.jsx` | the five roles, no create or delete; checkbox grid per family from `/api/roles/catalog`, locked cells drawn disabled, so the `admin` row — locked in every cell — draws wholly disabled with no Save button; each role's list entry counts its grants |
-| Users | `frontend/src/pages/admin/Users.jsx` | create users, assign roles (the selects offer only User and Super; an admin or shared row shows its role as text), reset passwords, delete (not an admin or shared row); the access panel sets an account's ceiling, its default (offered only up to the ceiling) and its denials (the ceiling's own items) — a shared row has no panel and shows `Mode: <label> (fixed)`, the admin row has none and shows `No mode (admin)`; a `user` or `super` row carries the four feature toggles (Quotes & memes, Favourites, Music status, Mod status), each saved as it is ticked, and an admin or shared row none |
+| Users | `frontend/src/pages/admin/Users.jsx` | create users, reset passwords, delete (not an admin or shared row); the Access column is a read-only summary (`<ceiling> / <default>`, `(narrowed)` with denials, `No mode (admin)`, and each feature switch that is on); every edit is in the row's **Edit** dialog: the role (User or Super; an admin or shared account's role is text), the password, the request limit, the four feature switches (Quotes & memes, Favourites, Music status, Mod status) on a `user` or `super` account, and the ceiling, the default (offered only up to the ceiling) and the denials (the ceiling's own items) on every account but the admin, shared ones included |
 | Content Labels | `frontend/src/pages/admin/ContentLabels.jsx` | the read-only label reference: name, key, description, a chip per mode that shows the label, "also carries NSFW", and entry, collection, franchise and series counts. Reached by `admin` and `super` (`<ProtectedRoute anyPermission>`), from the Note section of the nav |
 | Access Modes | `frontend/src/pages/admin/AccessModes.jsx` | one card per mode, narrowest first: editable name and description, `user_count`, and the derived labels and field groups read-only |
 | Label picker | `frontend/src/components/forms/ContentLabelPicker.jsx` | rendered **once** on Add and once on Modify (not in the per-type tabs); on Add the parent holds the selection and `PUT`s after create, mirroring the credits control |
@@ -2021,7 +2023,7 @@ matters is enforced server-side.
 | `tests/api/test_role_locks.py` | the locked-grant table and both halves that read it: what the role list serves, what the write path refuses, and what the seed reconciles; the admin row wholly fixed, served wholly locked, and any change to it refused |
 | `tests/api/test_fixed_roles.py` | no route creates or deletes a role; the seed creates exactly the five; an unknown name is locked out of everything; `shared`'s and `user`'s locks refused on save with the free-cell mirror; boot drops a stored `manage.catalog` from `user`; a gated type refused on `guest` and `shared` and required on `user`, each ordinary type free for all three, and boot reconciling the gated types both ways |
 | `tests/api/test_fixed_roles_migration.py` | revision `f1i2veroles45` on a scratch database: an empty role outside the five is deleted, one holding an account makes the upgrade fail naming it and leaves everything in place |
-| `tests/api/test_shared_accounts.py` | the seed creates both shared accounts at their own mode with limit 10 and an unusable password (login refused until the admin sets one, with the mirror); a hand-edited role or ceiling restored on the next seed run, password, status and limit untouched; a shared account files a request and cannot read quotes or memes or change its own password; it cannot switch mode (409) while a member switches within its ceiling, and `/me` offers it its own mode alone |
+| `tests/api/test_shared_accounts.py` | the seed creates both shared accounts at their own mode with limit 10 and an unusable password (login refused until the admin sets one, with the mirror); a hand-edited role restored on the next seed run, the admin's mode, password, status and limit untouched, and an account with no mode given its seeded one back; a shared account files a request and cannot read quotes or memes or change its own password; it narrows without the password, widens only with it (401 `requires_password` first), a wider mode is on the timed cookie and a narrower one is not, it cannot reach past its ceiling (404), and `/me` offers it every mode up to its ceiling |
 | `tests/api/test_users_router.py` | `/users`' role guards: create or change to a role other than `user` / `super` 422, the admin's and a shared account's role 409, a shared account's delete and access-modes 409 — each with its accepted mirror |
 | `tests/api/test_admin_not_root.py` | the admin is not root, each refusal against a row that is there with the mirror beside it: refused (401) a catalogue read and write that `owner_client` makes; reaches each of its pages' APIs and writes announcements; reads the real System Options Tier 3 counts against seeded people and a studio, which a member is refused; is refused every option write (401) that super makes; cannot edit or delete a member's personal note (404) while its author can; writes no catalogue note while super does; the seeded admin has no mode, cannot be deleted (409) and takes no mode (409), each with a member's mirror |
 | `tests/api/test_admin_page_permissions.py` | the four admin-page keys: a catalogue editor (`manage.catalog` plus the member set) is refused every announcement write, the Note pages' reads, the image library and the Resources page's reads and writes, against rows that are there; `super`, and an account holding only the page's key over guest reads, reach each; a member is refused `/resources` while super reads it; form and picker defaults and every `/api/options` write stay on `manage.catalog`, and `manage.options` alone opens none of them |

@@ -5,14 +5,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import Users from "./Users";
 
 /**
- * The Access column's "Change" button opens the per-account mode panel.
+ * Every per-account control lives in the row's Edit dialog; the table's
+ * Access column is a read-only summary of it.
  *
- * It is worth a test because the failure mode here is SILENT: the button sets
- * a piece of state, and if nothing reads that state the click does nothing at
- * all - no error, no toast, no console warning. That is exactly how the panel
- * shipped in 384bbdd4 and stayed dead; eslint said "assigned a value but
- * never used" three times and said it as a WARNING, which CI does not fail
- * on. A rendering assertion is the only thing that notices.
+ * The dialog's reachability is worth a test because the failure mode here is
+ * SILENT: the button sets a piece of state, and if nothing reads that state
+ * the click does nothing at all - no error, no toast, no console warning. A
+ * rendering assertion is the only thing that notices.
  */
 
 const USERS = [
@@ -29,7 +28,7 @@ const USERS = [
 
 const ROLES = [{ system_id: "user", name: "user", label: "User" }];
 
-// Served out of rank order on purpose: the panel must order by `rank`.
+// Served out of rank order on purpose: the dialog must order by `rank`.
 const MODES = [
   {
     system_id: "u",
@@ -73,11 +72,19 @@ const MODES = [
   },
 ];
 
+function rowOf(username) {
+  return screen.getByText(username).closest("tr");
+}
+
+async function openEdit(username) {
+  await userEvent.click(within(rowOf(username)).getByRole("button", { name: "Edit" }));
+  return screen.findByRole("dialog", { name: `Edit ${username}` });
+}
+
 async function openPanel() {
   render(<Users />);
   await screen.findByText("alice");
-  await userEvent.click(screen.getByRole("button", { name: "Change" }));
-  await screen.findByText("Access for alice");
+  return openEdit("alice");
 }
 
 const ceilingSelect = () => screen.getByLabelText("Widest mode (ceiling)");
@@ -87,8 +94,11 @@ const optionsOf = (select) =>
     .getAllByRole("option")
     .map((o) => o.textContent);
 
+const callsOf = (method) =>
+  fetchJson.mock.calls.filter(([, opts]) => opts?.method === method);
+
 function lastPut() {
-  const puts = fetchJson.mock.calls.filter(([, opts]) => opts?.method === "PUT");
+  const puts = callsOf("PUT");
   return JSON.parse(puts[puts.length - 1][1].body);
 }
 
@@ -118,17 +128,17 @@ beforeEach(() => {
   });
 });
 
-describe("the access-mode panel", () => {
-  it("opens when Change is clicked", async () => {
+describe("the access mode in the Edit dialog", () => {
+  it("opens when Edit is clicked", async () => {
     // THE LOAD-BEARING CASE. Everything else on this page can be right while
-    // the panel is unreachable, because an unmounted component breaks nothing
-    // it does not render.
+    // the dialog is unreachable, because an unmounted component breaks
+    // nothing it does not render.
     render(<Users />);
     await screen.findByText("alice");
 
-    await userEvent.click(screen.getByRole("button", { name: "Change" }));
+    const dialog = await openEdit("alice");
 
-    expect(await screen.findByText("Access for alice")).toBeTruthy();
+    expect(within(dialog).getByLabelText("Widest mode (ceiling)")).toBeTruthy();
   });
 
   it("shows the ceiling and default in the list", async () => {
@@ -169,32 +179,54 @@ describe("the access-mode panel", () => {
     expect(screen.getByLabelText("sources_restricted")).toBeChecked();
   });
 
-  it("saves ceiling, default and denials to the account's endpoint", async () => {
-    await openPanel();
+  it("saves a changed ceiling to the account's endpoint", async () => {
+    const dialog = await openPanel();
 
-    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await userEvent.selectOptions(ceilingSelect(), "unrestricted");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
 
-    await waitFor(() =>
-      expect(
-        fetchJson.mock.calls.some(
-          ([url, opts]) =>
-            url === "/api/users/1/access-modes" && opts?.method === "PUT",
-        ),
-      ).toBe(true),
-    );
+    await waitFor(() => expect(callsOf("PUT")).toHaveLength(1));
+    expect(callsOf("PUT")[0][0]).toBe("/api/users/1/access-modes");
+    expect(lastPut()).toEqual({
+      ceiling: "unrestricted",
+      default: "normal",
+      denied_label_keys: ["nsfw"],
+      denied_field_group_keys: [],
+    });
+    expect(callsOf("PATCH")).toHaveLength(0);
+  });
+
+  it("saves a changed default to the account's endpoint", async () => {
+    const dialog = await openPanel();
+
+    await userEvent.selectOptions(defaultSelect(), "safe");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(callsOf("PUT")).toHaveLength(1));
+    expect(callsOf("PUT")[0][0]).toBe("/api/users/1/access-modes");
     expect(lastPut()).toEqual({
       ceiling: "borderline",
-      default: "normal",
+      default: "safe",
       denied_label_keys: ["nsfw"],
       denied_field_group_keys: [],
     });
   });
 
+  it("saves a changed denial to the account's endpoint", async () => {
+    const dialog = await openPanel();
+
+    await userEvent.click(screen.getByLabelText("nsfw"));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(callsOf("PUT")).toHaveLength(1));
+    expect(lastPut().denied_label_keys).toEqual([]);
+  });
+
   it("lowering the ceiling below the default moves the default down and drops denials", async () => {
-    await openPanel();
+    const dialog = await openPanel();
 
     await userEvent.selectOptions(ceilingSelect(), "safe");
-    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
 
     await waitFor(() => expect(lastPut().ceiling).toBe("safe"));
     expect(lastPut()).toEqual({
@@ -206,30 +238,34 @@ describe("the access-mode panel", () => {
   });
 
   it("parks the account with no mode", async () => {
-    await openPanel();
+    const dialog = await openPanel();
 
     await userEvent.selectOptions(ceilingSelect(), "");
 
     expect(screen.getByText(/has no access mode/)).toBeTruthy();
-    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
     await waitFor(() => expect(lastPut().ceiling).toBeNull());
     expect(lastPut().default).toBeNull();
   });
 
-  it("closes without saving when Close is clicked", async () => {
-    render(<Users />);
-    await screen.findByText("alice");
-    await userEvent.click(screen.getByRole("button", { name: "Change" }));
-    await screen.findByText("Access for alice");
+  it("sends nothing for a save that changed nothing", async () => {
+    const dialog = await openPanel();
 
-    await userEvent.click(screen.getByRole("button", { name: "Close" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
 
-    await waitFor(() =>
-      expect(screen.queryByText("Access for alice")).toBeNull(),
-    );
-    expect(
-      fetchJson.mock.calls.some(([, opts]) => opts?.method === "PUT"),
-    ).toBe(false);
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(callsOf("PUT")).toHaveLength(0);
+    expect(callsOf("PATCH")).toHaveLength(0);
+  });
+
+  it("closes without saving when Cancel is clicked", async () => {
+    const dialog = await openPanel();
+
+    await userEvent.selectOptions(ceilingSelect(), "safe");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(callsOf("PUT")).toHaveLength(0);
   });
 });
 
@@ -245,10 +281,6 @@ const LIFECYCLE_USERS = [
   { id: 4, username: "dave", role_name: "user", status: "disabled", access_modes: [] },
   { id: 5, username: "erin", role_name: "user", status: "pending", access_modes: [] },
 ];
-
-function rowOf(username) {
-  return screen.getByText(username).closest("tr");
-}
 
 describe("account lifecycle on /users", () => {
   beforeEach(() => {
@@ -393,9 +425,9 @@ describe("account lifecycle on /users", () => {
   it("says on the password field that setting one signs the account out", async () => {
     render(<Users />);
     await screen.findByText("bob");
-    await userEvent.click(within(rowOf("bob")).getByRole("button", { name: "Edit" }));
+    const dialog = await openEdit("bob");
     expect(
-      screen.getByPlaceholderText("New password (optional)"),
+      within(dialog).getByPlaceholderText("New password (optional)"),
     ).toHaveAccessibleDescription(/signs this account out everywhere/);
   });
 });
@@ -437,14 +469,9 @@ describe("the open request limit", () => {
 
   async function editRow(username) {
     render(<Users />);
-    const cell = await screen.findByText(username);
-    const row = cell.closest("tr");
-    await userEvent.click(within(row).getByRole("button", { name: "Edit" }));
-    return row;
+    await screen.findByText(username);
+    return openEdit(username);
   }
-
-  const patches = () =>
-    fetchJson.mock.calls.filter(([, opts]) => opts?.method === "PATCH");
 
   it("is offered for a user account, holding its current limit", async () => {
     await editRow("ursula");
@@ -462,36 +489,37 @@ describe("the open request limit", () => {
   });
 
   it("sends the limit only when it changed, and blank as no limit", async () => {
-    const row = await editRow("ursula");
+    const dialog = await editRow("ursula");
     const field = screen.getByLabelText("Open request limit");
     await userEvent.clear(field);
-    await userEvent.click(within(row).getByRole("button", { name: "Save" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
 
-    await waitFor(() => expect(patches()).toHaveLength(1));
-    const [url, opts] = patches()[0];
+    await waitFor(() => expect(callsOf("PATCH")).toHaveLength(1));
+    const [url, opts] = callsOf("PATCH")[0];
     expect(url).toBe("/api/users/1");
     expect(JSON.parse(opts.body)).toEqual({ open_request_limit: null });
   });
 
   it("leaves the limit out of a save that did not touch it", async () => {
-    const row = await editRow("ursula");
+    const dialog = await editRow("ursula");
     await userEvent.type(
-      within(row).getByPlaceholderText("New password (optional)"),
+      within(dialog).getByPlaceholderText("New password (optional)"),
       "pw",
     );
-    await userEvent.click(within(row).getByRole("button", { name: "Save" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
 
-    await waitFor(() => expect(patches()).toHaveLength(1));
-    expect(JSON.parse(patches()[0][1].body)).toEqual({ password: "pw" });
+    await waitFor(() => expect(callsOf("PATCH")).toHaveLength(1));
+    expect(JSON.parse(callsOf("PATCH")[0][1].body)).toEqual({ password: "pw" });
   });
 });
 
 /**
  * The five fixed roles. Only `user` and `super` are offered as an account's
- * role; an admin or shared account keeps its role, and a shared account's mode
- * is fixed and it cannot be deleted. Every refusal is paired with the user
- * row on the same page, so a green proves the role did the hiding rather than
- * the control being absent everywhere.
+ * role; an admin or shared account keeps its role and cannot be deleted. A
+ * shared account's mode is edited like any other account's; the admin
+ * account has none. Every refusal is paired with the user row on the same
+ * page, so a green proves the role did the hiding rather than the control
+ * being absent everywhere.
  */
 describe("the fixed roles on /users", () => {
   // All five, in the server's sort order, so a filter that let any of the
@@ -523,7 +551,8 @@ describe("the fixed roles on /users", () => {
   ];
 
   beforeEach(() => {
-    fetchJson.mockImplementation((url) => {
+    fetchJson.mockImplementation((url, opts) => {
+      if (opts?.method === "PUT") return Promise.resolve({});
       if (url.includes("/roles")) return Promise.resolve(FIVE_ROLES);
       if (url.includes("/access-modes")) return Promise.resolve(MODES);
       return Promise.resolve(FIXED_USERS);
@@ -533,8 +562,7 @@ describe("the fixed roles on /users", () => {
   async function editRow(username) {
     render(<Users />);
     await screen.findByText(username);
-    await userEvent.click(within(rowOf(username)).getByRole("button", { name: "Edit" }));
-    return rowOf(username);
+    return openEdit(username);
   }
 
   it("offers only User and Super when creating an account", async () => {
@@ -544,23 +572,25 @@ describe("the fixed roles on /users", () => {
   });
 
   it("offers only User and Super when editing a user account", async () => {
-    const row = await editRow("bob");
-    expect(optionsOf(within(row).getByRole("combobox", { name: "Role" }))).toEqual([
+    const dialog = await editRow("bob");
+    expect(optionsOf(within(dialog).getByRole("combobox", { name: "Role" }))).toEqual([
       "User",
       "Super",
     ]);
   });
 
   it("shows a shared account's role as text, with no select", async () => {
-    const row = await editRow("shared-normal");
-    expect(within(row).queryByRole("combobox", { name: "Role" })).toBeNull();
+    const dialog = await editRow("shared-normal");
+    expect(within(dialog).queryByRole("combobox", { name: "Role" })).toBeNull();
+    expect(within(dialog).getByText("shared")).toBeTruthy();
     // Its password can still be set.
-    expect(within(row).getByPlaceholderText("New password (optional)")).toBeTruthy();
+    expect(within(dialog).getByPlaceholderText("New password (optional)")).toBeTruthy();
   });
 
   it("shows an admin account's role as text, with no select", async () => {
-    const row = await editRow("alice");
-    expect(within(row).queryByRole("combobox", { name: "Role" })).toBeNull();
+    const dialog = await editRow("alice");
+    expect(within(dialog).queryByRole("combobox", { name: "Role" })).toBeNull();
+    expect(within(dialog).getByText("admin")).toBeTruthy();
   });
 
   it("offers Delete on a user account and not on a shared or admin one", async () => {
@@ -574,17 +604,19 @@ describe("the fixed roles on /users", () => {
     expect(within(rowOf("alice")).queryByRole("button", { name: "Delete" })).toBeNull();
   });
 
-  it("offers the admin account no mode panel, since it has no mode", async () => {
-    // The server answers 409 to a ceiling on the admin account. The user row
-    // on the same page is the mirror: its Change button is there and opens
-    // the panel.
+  it("offers the admin account no mode controls, since it has no mode", async () => {
+    // The server answers 409 to a ceiling on the admin account. The user
+    // account's dialog on the same page is the mirror: it has them.
     render(<Users />);
     await screen.findByText("alice");
-    const admin = rowOf("alice");
-    expect(within(admin).getByText("No mode (admin)")).toBeTruthy();
-    expect(within(admin).queryByRole("button", { name: "Change" })).toBeNull();
-    await userEvent.click(within(rowOf("bob")).getByRole("button", { name: "Change" }));
-    expect(await screen.findByText("Access for bob")).toBeTruthy();
+    expect(within(rowOf("alice")).getByText("No mode (admin)")).toBeTruthy();
+
+    const admin = await openEdit("alice");
+    expect(within(admin).queryByLabelText("Widest mode (ceiling)")).toBeNull();
+    await userEvent.click(within(admin).getByRole("button", { name: "Cancel" }));
+
+    const bob = await openEdit("bob");
+    expect(within(bob).getByLabelText("Widest mode (ceiling)")).toBeTruthy();
   });
 
   it("keeps Disable on a shared account", async () => {
@@ -595,22 +627,55 @@ describe("the fixed roles on /users", () => {
     ).toBeTruthy();
   });
 
-  it("shows a shared account's mode as fixed, with no way to change it", async () => {
+  it("offers a shared account's mode ceiling and default, and saves them", async () => {
+    const dialog = await editRow("shared-normal");
+    const ceiling = within(dialog).getByLabelText("Widest mode (ceiling)");
+    expect(optionsOf(ceiling)).toEqual([
+      "No mode",
+      "Safe",
+      "Normal",
+      "Borderline",
+      "Unrestricted",
+    ]);
+
+    await userEvent.selectOptions(ceiling, "borderline");
+    await userEvent.selectOptions(
+      within(dialog).getByLabelText("Lands here at login (default)"),
+      "safe",
+    );
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(callsOf("PUT")).toHaveLength(1));
+    const [url, opts] = callsOf("PUT")[0];
+    expect(url).toBe("/api/users/3/access-modes");
+    expect(JSON.parse(opts.body)).toEqual({
+      ceiling: "borderline",
+      default: "safe",
+      denied_label_keys: [],
+      denied_field_group_keys: [],
+    });
+  });
+
+  it("shows a shared account's mode like any other, never as fixed", async () => {
     render(<Users />);
     await screen.findByText("shared-normal");
-    const shared = rowOf("shared-normal");
-    expect(within(shared).getByText("Mode: Normal (fixed)")).toBeTruthy();
-    expect(within(shared).queryByRole("button", { name: "Change" })).toBeNull();
-    // The mirror: the user row still opens the panel.
-    await userEvent.click(within(rowOf("bob")).getByRole("button", { name: "Change" }));
-    expect(await screen.findByText("Access for bob")).toBeTruthy();
+    // The summary is there, so the missing "(fixed)" is not an empty cell.
+    expect(within(rowOf("shared-normal")).getByText("normal / normal")).toBeTruthy();
+    expect(screen.queryByText(/fixed/i)).toBeNull();
+
+    const dialog = await openEdit("shared-normal");
+    expect(within(dialog).getByLabelText("Widest mode (ceiling)")).toHaveValue("normal");
+    expect(screen.queryByText(/fixed/i)).toBeNull();
   });
 });
 
 /**
- * The per-account feature switches. Only a user or super account holds them,
- * so their rows carry four toggles and an admin or shared row carries none -
- * each refusal paired with a row on the same page that has them.
+ * The per-account feature switches and the read-only Access column. Only a
+ * user or super account holds the switches, so their Edit dialogs carry four
+ * and an admin or shared dialog carries none - each refusal paired with an
+ * account on the same page that has them. The table carries no control at
+ * all, and the "no control" assertion is made in the same render as the
+ * summary text it replaces, so the absence is not an empty table.
  */
 describe("the feature switches on /users", () => {
   const ROLES_HERE = [
@@ -625,8 +690,8 @@ describe("the feature switches on /users", () => {
     role_id: `r-${roleName}`,
     role_name: roleName,
     status: "active",
-    mode_ceiling: "normal",
-    mode_default: "normal",
+    mode_ceiling: roleName === "admin" ? null : "normal",
+    mode_default: roleName === "admin" ? null : "normal",
     denied_label_keys: [],
     denied_field_group_keys: [],
     open_request_limit: null,
@@ -638,11 +703,17 @@ describe("the feature switches on /users", () => {
   });
   const FEATURE_USERS = [
     account(1, "alice", "admin"),
-    account(2, "bob", "user", { feature_quotes_memes: true }),
+    account(2, "bob", "user", { feature_quotes_memes: true, feature_mod_status: true }),
     account(3, "carol", "super"),
     account(4, "shared-normal", "shared"),
   ];
-  const LABELS = ["Quotes & memes", "Favourites", "Music status", "Mod status"];
+  const FIELDS = {
+    "Quotes & memes": "feature_quotes_memes",
+    Favourites: "feature_favourites",
+    "Music status": "feature_music_status",
+    "Mod status": "feature_mod_status",
+  };
+  const LABELS = Object.keys(FIELDS);
 
   beforeEach(() => {
     fetchJson.mockImplementation((url, opts) => {
@@ -653,40 +724,71 @@ describe("the feature switches on /users", () => {
     });
   });
 
-  it("gives a user and a super row all four, and an admin or shared row none", async () => {
+  it("puts no control in the Access column, only its summary as text", async () => {
+    render(<Users />);
+    await screen.findByText("bob");
+    // The summary is there - each row's mode and the switches that are on...
+    const bob = rowOf("bob");
+    expect(within(bob).getByText("normal / normal")).toBeTruthy();
+    expect(within(bob).getByText("Quotes & memes")).toBeTruthy();
+    expect(within(bob).getByText("Mod status")).toBeTruthy();
+    expect(within(bob).queryByText("Favourites")).toBeNull();
+    expect(within(rowOf("carol")).getByText("No features on")).toBeTruthy();
+    expect(within(rowOf("shared-normal")).getByText("normal / normal")).toBeTruthy();
+    expect(within(rowOf("alice")).getByText("No mode (admin)")).toBeTruthy();
+    // ...and nothing in the table is a control but each row's action buttons.
+    const table = screen.getByRole("table");
+    expect(within(table).queryAllByRole("checkbox")).toHaveLength(0);
+    expect(within(table).queryAllByRole("combobox")).toHaveLength(0);
+    expect(within(table).queryByRole("button", { name: "Change" })).toBeNull();
+    expect(within(bob).getByRole("button", { name: "Edit" })).toBeTruthy();
+  });
+
+  it("gives a user and a super dialog all four, and an admin or shared dialog none", async () => {
     render(<Users />);
     await screen.findByText("bob");
     for (const name of ["bob", "carol"]) {
+      const dialog = await openEdit(name);
       for (const label of LABELS) {
-        expect(
-          within(rowOf(name)).getByRole("checkbox", { name: `${label} for ${name}` }),
-        ).toBeTruthy();
+        expect(within(dialog).getByRole("checkbox", { name: label })).toBeTruthy();
       }
+      await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
     }
     for (const name of ["alice", "shared-normal"]) {
-      expect(within(rowOf(name)).queryAllByRole("checkbox")).toHaveLength(0);
+      const dialog = await openEdit(name);
+      for (const label of LABELS) {
+        expect(within(dialog).queryByRole("checkbox", { name: label })).toBeNull();
+      }
+      await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
     }
   });
 
   it("shows each switch as stored", async () => {
     render(<Users />);
     await screen.findByText("bob");
-    expect(
-      within(rowOf("bob")).getByRole("checkbox", { name: "Quotes & memes for bob" }).checked,
-    ).toBe(true);
-    expect(
-      within(rowOf("bob")).getByRole("checkbox", { name: "Favourites for bob" }).checked,
-    ).toBe(false);
+    const dialog = await openEdit("bob");
+    expect(within(dialog).getByRole("checkbox", { name: "Quotes & memes" })).toBeChecked();
+    expect(within(dialog).getByRole("checkbox", { name: "Favourites" })).not.toBeChecked();
   });
 
-  it("saves a toggle as a PATCH of that one field", async () => {
-    render(<Users />);
-    await screen.findByText("bob");
-    await userEvent.click(
-      within(rowOf("bob")).getByRole("checkbox", { name: "Mod status for bob" }),
-    );
-    const patch = fetchJson.mock.calls.find(([, opts]) => opts?.method === "PATCH");
-    expect(patch[0]).toContain("/users/2");
-    expect(JSON.parse(patch[1].body)).toEqual({ feature_mod_status: true });
-  });
+  for (const label of LABELS) {
+    it(`saves ${label} from the dialog as a PATCH of that one field`, async () => {
+      render(<Users />);
+      await screen.findByText("bob");
+      const dialog = await openEdit("bob");
+      const box = within(dialog).getByRole("checkbox", { name: label });
+      const was = box.checked;
+
+      await userEvent.click(box);
+      // Nothing is sent until Save.
+      expect(callsOf("PATCH")).toHaveLength(0);
+      await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+
+      await waitFor(() => expect(callsOf("PATCH")).toHaveLength(1));
+      const [url, opts] = callsOf("PATCH")[0];
+      expect(url).toBe("/api/users/2");
+      expect(JSON.parse(opts.body)).toEqual({ [FIELDS[label]]: !was });
+      expect(callsOf("PUT")).toHaveLength(0);
+    });
+  }
 });

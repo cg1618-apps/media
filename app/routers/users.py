@@ -326,10 +326,6 @@ def replace_access_modes(
     checked before anything is written.
     """
     user = _get_or_404(db, user_id)
-    if _is_shared(db, user):
-        raise HTTPException(
-            status_code=409, detail="A shared account's mode is fixed."
-        )
     if _is_admin_account(db, user):
         raise HTTPException(
             status_code=409, detail="The admin account has no mode."
