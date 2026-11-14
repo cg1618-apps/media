@@ -48,6 +48,7 @@ const USER = new Set([
   ...MEDIA_TYPE_KEYS,
   "view.search",
   "view.personal",
+  "view.statistics",
   "self.list",
   "self.personal_notes",
   "self.requests",
@@ -390,8 +391,8 @@ describe("visibleSections", () => {
     expect(routesFor(holdsSelfList)).toContain("/plan");
   });
 
-  it("offers Seasonal and Statistics to every catalogue reader, list or not", () => {
-    // Both draw the catalogue's version without a list, so they ask what
+  it("offers Seasonal to every catalogue reader, list or not", () => {
+    // It draws the catalogue's version without a list, so it asks what
     // Future Releases asks - any ordinary media type - and not self.list.
     const routesFor = (has) =>
       visibleSections(NAV_SECTIONS, has).flatMap((s) =>
@@ -399,17 +400,27 @@ describe("visibleSections", () => {
       );
     const reader = routesFor((p) => p === "media_type.anime");
     expect(reader).toContain("/seasonal");
-    expect(reader).toContain("/statistics");
     // Mirror: a list without any media type reads no catalogue, and the
     // admin's own keys read none either.
     const listOnly = routesFor((p) => p === "self.list");
     expect(listOnly).not.toContain("/seasonal");
-    expect(listOnly).not.toContain("/statistics");
     const admin = routesFor((p) =>
       ["admin.authz", "manage.pipelines", "manage.options"].includes(p),
     );
     expect(admin).not.toContain("/seasonal");
-    expect(admin).not.toContain("/statistics");
+  });
+
+  it("offers Statistics on view.statistics alone", () => {
+    // A catalogue reader without the key - the guest's shape - is not offered
+    // it; the same reader holding it is.
+    const routesFor = (has) =>
+      visibleSections(NAV_SECTIONS, has).flatMap((s) =>
+        sectionItems(s).map((i) => i.to),
+      );
+    expect(routesFor((p) => p === "media_type.anime")).not.toContain("/statistics");
+    expect(
+      routesFor((p) => p === "media_type.anime" || p === "view.statistics"),
+    ).toContain("/statistics");
   });
 
   it("lists Settings in no section: it lives in Nav's account strip", () => {
@@ -532,15 +543,14 @@ describe("visibleSections - the guest scope", () => {
   const memberFeatures = (f) => f === "quotes_memes";
 
   it("leaves a guest the Library tab and Explore's catalogue pages", () => {
-    // Seasonal, Future Releases and Statistics read the catalogue, which a
-    // guest reads; the Random Picker asks a key a guest never holds.
+    // Seasonal and Future Releases read the catalogue, which a guest reads;
+    // the Random Picker and Statistics ask keys a guest never holds.
     const sections = visibleSections(NAV_SECTIONS, holdsNothing);
     expect(sections.map((s) => s.key)).toEqual(["library", "explore"]);
     const explore = sections.find((s) => s.key === "explore");
     expect(sectionItems(explore).map((i) => i.label)).toEqual([
       "Seasonal",
       "Future Releases",
-      "Statistics",
     ]);
   });
 
@@ -683,6 +693,7 @@ describe("the header's tab grouping", () => {
       "media_type.anime",
       "self.list",
       "view.random_picker",
+      "view.statistics",
       "manage.catalog",
       "manage.resources",
     ]);
@@ -743,7 +754,7 @@ describe("the two permission surfaces agree", () => {
   const ROUTE_GATES = {
     "/plan": "self.list",
     "/seasonal": LIBRARY_MEDIA_TYPE_PERMISSIONS,
-    "/statistics": LIBRARY_MEDIA_TYPE_PERMISSIONS,
+    "/statistics": "view.statistics",
     "/users": "admin.authz",
     "/roles": "admin.authz",
     "/content-labels": ["admin.authz", "manage.catalog"],

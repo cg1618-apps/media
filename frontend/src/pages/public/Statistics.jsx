@@ -1,10 +1,11 @@
 // Frontend: page component file for Statistics.
 //
-// With a list (self.list), the viewer's own numbers, computed from its lists,
-// seasonal rows and game copies. Without one, counts of the catalogue only
-// (StatsCatalogue): the personal sections are absent, not empty.
+// Opened by view.statistics (App.jsx). With a list (self.list), the viewer's
+// own numbers - computed from its lists, seasonal rows and game copies - and
+// the catalogue sections below them. Without one, the catalogue sections
+// alone (StatsCatalogue): the personal sections are absent, not empty.
 import { useViewScope } from "../../hooks/useViewScope";
-import StatsCatalogue from "../statistics/StatsCatalogue";
+import StatsCatalogue, { StatsCatalogueSections } from "../statistics/StatsCatalogue";
 import useStatisticsData from "../statistics/useStatisticsData";
 import StatsFavoriteGrids from "../statistics/StatsFavoriteGrids";
 import StatsFranchiseSummary from "../statistics/StatsFranchiseSummary";
@@ -106,6 +107,10 @@ function StatisticsWithList() {
 
           {/* Block 3 — what the game collection cost */}
           <StatsGameSpend games={allGame} fxRates={fxRates} />
+
+          {/* Block 4 — the catalogue's own counts, the same sections a
+              shared account sees as its whole page */}
+          <StatsCatalogueSections />
         </div>
       </div>
     </div>

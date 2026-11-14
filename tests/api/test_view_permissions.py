@@ -1,10 +1,10 @@
 """
 The view.* family: what a logged-out visitor does not see.
 
-Six keys: four entity-page keys (studio, publisher, person, character),
-search and random_picker. `super` holds all six by lock; `user` is seeded with
-the last two and the entity keys start off; `shared` holds random_picker by
-lock; `guest` and `admin` hold none. Each refusal below is
+Seven keys: four entity-page keys (studio, publisher, person, character),
+search, random_picker and statistics. `super` holds all seven by lock; `user`
+is seeded with the last three and the entity keys start off; `shared` holds
+random_picker and statistics by lock; `guest` and `admin` hold none. Each refusal below is
 asserted with the gated thing PRESENT - a row to read - and is mirrored by a viewer holding the key reading the
 same thing through the same fixture, so a green proves the gate refused and not
 that there was nothing to return.
@@ -24,6 +24,7 @@ from app.services.rbac.permissions import (
     PERM_VIEW_PUBLISHER,
     PERM_VIEW_RANDOM_PICKER,
     PERM_VIEW_SEARCH,
+    PERM_VIEW_STATISTICS,
     PERM_VIEW_STUDIO,
     VIEW_PERMISSION_KEYS,
     VIEW_PERMISSION_LABELS,
@@ -66,7 +67,7 @@ def _held(db, role_name):
 # ---------------------------------------------------------------------------
 
 
-def test_the_six_keys_are_in_the_catalog():
+def test_the_seven_keys_are_in_the_catalog():
     assert VIEW_PERMISSION_KEYS == (
         "studio",
         "publisher",
@@ -74,6 +75,7 @@ def test_the_six_keys_are_in_the_catalog():
         "character",
         "search",
         "random_picker",
+        "statistics",
     )
     assert {view_perm(k) for k in VIEW_PERMISSION_KEYS} == VIEW_ALL
     assert ENTITY_VIEW_PERMISSIONS == ENTITY_KEYS
@@ -129,8 +131,12 @@ def test_the_seed_defaults():
     assert not ENTITY_KEYS & default_user_permissions()
     assert VIEW_ALL <= default_super_permissions()
     assert not VIEW_ALL & default_guest_permissions()
-    # A shared account opens the Random Picker, and nothing else of the family.
-    assert VIEW_ALL & default_shared_permissions() == {PERM_VIEW_RANDOM_PICKER}
+    # A shared account opens the Random Picker and Statistics, and nothing
+    # else of the family.
+    assert VIEW_ALL & default_shared_permissions() == {
+        PERM_VIEW_RANDOM_PICKER,
+        PERM_VIEW_STATISTICS,
+    }
 
 
 def test_the_seeded_roles_hold_what_the_defaults_say(db, client):
@@ -211,6 +217,8 @@ def gated_reads(db, person, character, anime_with_studio, sample_anime):
         # /api/resources is not here: it answers to manage.resources - see
         # test_admin_page_permissions.py.
         PERM_VIEW_RANDOM_PICKER: ["/api/random-picker-defaults/all"],
+        # sample_anime is the entry these counts have to keep from a guest.
+        PERM_VIEW_STATISTICS: ["/api/statistics/catalogue"],
     }
 
 
@@ -232,7 +240,8 @@ def test_a_holder_of_the_family_reads_every_gated_read(db, client, gated_reads):
 
 def test_a_seeded_member_reads_no_entity_page(user_client, gated_reads):
     """The seeded `user` role starts with the entity keys off - and still
-    reads search and the Random Picker, so each refusal is an entity gate's."""
+    reads search, the Random Picker and Statistics, so each refusal is an
+    entity gate's."""
     for permission, urls in gated_reads.items():
         expected = 401 if permission in ENTITY_KEYS else 200
         for url in urls:

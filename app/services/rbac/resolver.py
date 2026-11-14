@@ -39,6 +39,7 @@ from app.services.rbac.permissions import (
     PERM_VIEW_PUBLISHER,
     PERM_VIEW_RANDOM_PICKER,
     PERM_VIEW_SEARCH,
+    PERM_VIEW_STATISTICS,
     PERM_VIEW_STUDIO,
 )
 
@@ -316,6 +317,7 @@ require_view_person = require_permission(PERM_VIEW_PERSON)
 require_view_character = require_permission(PERM_VIEW_CHARACTER)
 require_view_search = require_permission(PERM_VIEW_SEARCH)
 require_view_random_picker = require_permission(PERM_VIEW_RANDOM_PICKER)
+require_view_statistics = require_permission(PERM_VIEW_STATISTICS)
 
 # Requests and reports: the only two gates /api/requests uses. Filing is a
 # self.* permission, which the admin role has locked off - an administrative

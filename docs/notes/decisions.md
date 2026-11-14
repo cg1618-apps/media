@@ -5090,3 +5090,39 @@ shown buttons that answered 401.
   ceiling, default and denials sit in the Edit dialog beside role, password
   and limit, saved together. The PATCH and the PUT are sent only for what
   changed.
+
+### Statistics asks its own key, view.statistics, and its catalogue sections are everyone's (2026-11-14)
+
+- **A key of its own, locked per role like `view.random_picker`.** The page
+  used to open on any ordinary `media_type.*`, which reached the guest; no
+  existing key draws the line "super, user and shared, never guest". The
+  route, `App.jsx` and `navigation.js` all ask it, and `/api/statistics/catalogue`
+  refuses a guest with 401 like the other view gates. Revision `s1t2atistics3`
+  grants it to the three holders.
+- **The catalogue sections show for every holder**, not only a viewer
+  without a list. A member sees them after its personal sections, so the
+  page reads the same for the shared account and for a member, plus the
+  member's own blocks.
+- **Franchises per type come from the entries, not from the franchise.**
+  `COUNT(DISTINCT media.franchise_id)` over the same visible entries the
+  entry count uses, in one grouped query. `franchise.franchise_type` was
+  rejected: it is a free comma-joined string with its own vocabulary (ACG,
+  "TV, Movie") which does not map onto the twelve media types, and it knows
+  nothing about visibility.
+- **The score distributions are bucketed by the server, per media type, and
+  pooled by the page.** One request answers both the pooled chart and any
+  single type. The scored types are read off the models (`hasattr`) rather
+  than listed, so the four that carry `mal_rating` and `anilist_rating`
+  today - anime, anime movie, manga, novel - are not a list to keep in step.
+  A perfect score folds into the top bucket rather than getting a bucket of
+  one value.
+- **The catalogue chart is headed "Rating distribution" with the Catalogue
+  eyebrow, and its sidebar entry is "Catalogue ratings"**, because a member's
+  page already has a personal "Rating distribution" and two sidebar entries
+  of one name would be ambiguous.
+- **"Entries by genre" was removed**, to be added back; what it needs is in
+  open-items.md.
+- **No shared modal component exists**, so `SeasonCountsModal` follows the
+  modal chrome `ConfirmModal` and `RemarkModal` share. Its grid is CSS
+  columns rather than a CSS grid, so seasons read down each column, newest
+  first, as the table above it does.

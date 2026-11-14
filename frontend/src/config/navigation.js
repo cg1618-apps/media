@@ -235,12 +235,13 @@ export const NAV_SECTIONS = [
     // The browsing pages: ways into the collection by season, by release
     // date, by chance and by the numbers.
     items: [
-      // Seasonal, Future Releases and Statistics read the catalogue, so each
-      // asks for any ordinary media type, as the Library tab does: every
-      // viewer that reads the catalogue has it, the admin does not. With a
-      // list the page is the viewer's own; without one, the catalogue's. The
-      // Random Picker asks its own key, view.random_picker - super, user and
-      // shared, never guest. Each is what App.jsx's routes ask.
+      // Seasonal and Future Releases read the catalogue, so each asks for any
+      // ordinary media type, as the Library tab does: every viewer that reads
+      // the catalogue has it, the admin does not. With a list the page is the
+      // viewer's own; without one, the catalogue's. The Random Picker and
+      // Statistics each ask their own key - view.random_picker and
+      // view.statistics, super, user and shared, never guest. Each is what
+      // App.jsx's routes ask.
       // /random/<type> lights the Random Picker row up too.
       {
         label: "Seasonal",
@@ -264,7 +265,7 @@ export const NAV_SECTIONS = [
         label: "Statistics",
         icon: "fas fa-chart-bar",
         to: "/statistics",
-        requires: LIBRARY_MEDIA_TYPE_PERMISSIONS,
+        requires: "view.statistics",
       },
     ],
   },

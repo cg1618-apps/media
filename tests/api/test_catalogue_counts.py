@@ -1,13 +1,14 @@
 """
 The catalogue versions of Seasonal and Statistics, and the current season.
 
-A viewer without a list of its own - a guest, a shared account - reads counts
-of the catalogue instead of its own numbers (docs/viewers.md, "Seasonal and
-Statistics"). Each count is narrowed to what the viewer may see.
+Seasonal's catalogue version answers any catalogue reader, a guest included.
+Statistics' catalogue counts answer `view.statistics` - super, user and shared
+- and refuse a guest (tests/api/test_view_statistics.py has the gate itself).
+Each count is narrowed to what the viewer may see.
 
 The refusal tests bite on the media-type gate. A viewer whose role lacks
 `media_type.anime` is given anime that exist, and must count none of them,
-while the same request counts its manga. The mirror is the anonymous guest,
+while the same request counts its manga. The mirror is the shared account,
 which holds the type and counts the same anime.
 """
 
@@ -17,8 +18,7 @@ import pytest
 
 from app import models
 from app.services.rbac.permissions import media_type_perm
-from app.services.rbac.seed import default_guest_permissions
-from app.utils.credit_roles import TAG_FIELDS
+from app.services.rbac.seed import default_shared_permissions
 from tests.api.conftest import make_viewer
 
 CURRENT = "/api/seasonal/current-season"
@@ -26,7 +26,16 @@ SEASONS = "/api/seasonal/catalogue"
 STATS = "/api/statistics/catalogue"
 
 
-def _anime(db, franchise, name, season, date):
+def _franchise(db, name):
+    franchise = models.Franchise(
+        system_id=uuid.uuid4(), franchise_name_en=name, franchise_type="ACG"
+    )
+    db.add(franchise)
+    db.flush()
+    return franchise
+
+
+def _anime(db, franchise, name, season, date, mal=None, anilist=None):
     entry = models.Anime(
         system_id=uuid.uuid4(),
         franchise_id=franchise.system_id,
@@ -34,61 +43,62 @@ def _anime(db, franchise, name, season, date):
         airing_type="TV",
         release_season=season,
         release_date=date,
+        mal_rating=mal,
+        anilist_rating=anilist,
     )
     db.add(entry)
     db.flush()
     return entry
 
 
-def _genre(db, entry, value):
-    option = (
-        db.query(models.SystemOption)
-        .filter_by(category=TAG_FIELDS["genre_main"].category, value=value)
-        .one_or_none()
-    )
-    if option is None:
-        option = models.SystemOption(
-            system_id=uuid.uuid4(),
-            category=TAG_FIELDS["genre_main"].category,
-            value=value,
-        )
-        db.add(option)
-        db.flush()
-    db.add(
-        models.MediaTag(
-            system_id=uuid.uuid4(),
-            media_id=entry.system_id,
-            field="genre_main",
-            option_id=option.system_id,
-        )
-    )
-    db.flush()
-
-
 @pytest.fixture
 def catalogue(db_session, sample_franchise):
-    """Three anime over two seasons, one with no season, and one manga."""
-    a = _anime(db_session, sample_franchise, "Spring One", "SPR", "2024-04-05")
-    b = _anime(db_session, sample_franchise, "Spring Two", "SPR", "2024-04-12")
-    c = _anime(db_session, sample_franchise, "Winter One", "WIN", "2025-01-10")
-    _anime(db_session, sample_franchise, "No Season", None, None)
-    _genre(db_session, a, "Catalogue Genre Alpha")
-    _genre(db_session, b, "Catalogue Genre Alpha")
-    _genre(db_session, c, "Catalogue Genre Beta")
+    """
+    Four anime over two franchises - three across two seasons, one with no
+    season - and one manga. The second franchise holds one anime, so the
+    franchise count (2) differs from the entry count (4) and from a count of
+    every franchise. MAL scores 9.4, 8.1, 8.9 and a perfect 10; AniList 85,
+    100 and one unscored.
+    """
+    other = _franchise(db_session, "Catalogue Counts Other")
+    _anime(db_session, sample_franchise, "Spring One", "SPR", "2024-04-05", 9.4, 85)
+    _anime(db_session, sample_franchise, "Spring Two", "SPR", "2024-04-12", 8.1, 100)
+    _anime(db_session, other, "Winter One", "WIN", "2025-01-10", 8.9, None)
+    _anime(db_session, sample_franchise, "No Season", None, None, 10.0, None)
     manga = models.Manga(
         system_id=uuid.uuid4(),
         franchise_id=sample_franchise.system_id,
         manga_name_en="Some Manga",
+        mal_rating=7.5,
     )
     db_session.add(manga)
     db_session.flush()
-    return {"anime": [a, b, c]}
+    return {"other": other}
+
+
+def _as_shared(db_session, client, grants=None):
+    return make_viewer(
+        db_session, client, "statsviewer", grants or default_shared_permissions()
+    )
 
 
 def _without_anime(db_session, client):
-    """A guest's grants minus media_type.anime."""
-    grants = default_guest_permissions() - {media_type_perm("anime")}
-    return make_viewer(db_session, client, "noanime", grants)
+    """A shared account's grants minus media_type.anime."""
+    return _as_shared(
+        db_session, client, default_shared_permissions() - {media_type_perm("anime")}
+    )
+
+
+def _type_row(body, media_type):
+    return next((r for r in body["by_type"] if r["media_type"] == media_type), None)
+
+
+def _buckets(body, score, media_type):
+    return {
+        r["bucket"]: r["entry_count"]
+        for r in body["scores"][score]
+        if r["media_type"] == media_type
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -140,23 +150,56 @@ def test_the_catalogue_seasons_need_no_list(client, catalogue):
 # ---------------------------------------------------------------------------
 
 
-def test_the_statistics_count_types_seasons_and_genres(client, catalogue):
-    body = client.get(STATS).json()
-    assert body["by_type"]["anime"] == 4
-    assert body["by_type"]["manga"] == 1
+def test_the_statistics_count_entries_and_franchises_per_type(
+    client, db_session, catalogue
+):
+    body = _as_shared(db_session, client).get(STATS).json()
+    assert _type_row(body, "anime") == {
+        "media_type": "anime",
+        "entry_count": 4,
+        "franchise_count": 2,
+    }
+    assert _type_row(body, "manga") == {
+        "media_type": "manga",
+        "entry_count": 1,
+        "franchise_count": 1,
+    }
     assert body["by_season"][0] == {"season": "WIN 2025", "entry_count": 1}
-    genres = {row["genre"]: row["entry_count"] for row in body["by_genre"]}
-    assert genres["Catalogue Genre Alpha"] == 2
-    assert genres["Catalogue Genre Beta"] == 1
+
+
+def test_the_franchise_count_follows_entry_visibility(client, db_session, catalogue):
+    """The franchise holding only anime is counted for anime and not for
+    manga, so the count is of franchises holding a visible entry of the type,
+    not of franchises - and it goes with the entries when the type is hidden."""
+    body = _as_shared(db_session, client).get(STATS).json()
+    assert _type_row(body, "anime")["franchise_count"] == 2
+    assert _type_row(body, "manga")["franchise_count"] == 1
+
+
+def test_the_score_distributions_bucket_each_type(client, db_session, catalogue):
+    body = _as_shared(db_session, client).get(STATS).json()
+    # 9.4 and a perfect 10 share the top bucket; 8.1 and 8.9 the one below.
+    assert _buckets(body, "mal", "anime") == {9: 2, 8: 2}
+    assert _buckets(body, "mal", "manga") == {7: 1}
+    # 85 and 100: the perfect score folds into 90. Unscored entries are in
+    # no bucket.
+    assert _buckets(body, "anilist", "anime") == {90: 1, 80: 1}
+    assert _buckets(body, "anilist", "manga") == {}
+
+
+def test_the_genre_counts_are_gone(client, db_session, catalogue):
+    body = _as_shared(db_session, client).get(STATS).json()
+    assert "by_genre" not in body
 
 
 def test_a_type_the_viewer_lacks_is_absent_from_every_count(
     client, db_session, catalogue
 ):
     body = _without_anime(db_session, client).get(STATS).json()
-    assert "anime" not in body["by_type"]
+    assert _type_row(body, "anime") is None
     # The refusal is the type gate, not an empty database: the manga counts.
-    assert body["by_type"]["manga"] == 1
+    assert _type_row(body, "manga")["entry_count"] == 1
     assert body["by_season"] == []
-    genres = {row["genre"] for row in body["by_genre"]}
-    assert "Catalogue Genre Alpha" not in genres
+    assert _buckets(body, "mal", "anime") == {}
+    assert _buckets(body, "anilist", "anime") == {}
+    assert _buckets(body, "mal", "manga") == {7: 1}

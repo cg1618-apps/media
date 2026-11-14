@@ -1,11 +1,11 @@
 // /statistics in both versions.
 //
-// With a list, the personal page: built from the viewer's own lists
-// (useStatisticsData), with Favourites, the franchise summary and game
-// spend. Without one, counts of the catalogue from /api/statistics/catalogue,
-// and the personal sections are absent - not drawn empty - and their data is
-// never asked for.
-import { render, screen, within } from "@testing-library/react";
+// With a list, the personal page - built from the viewer's own lists
+// (useStatisticsData), with Favourites, the franchise summary and game spend -
+// and the catalogue sections below it. Without one, the catalogue sections
+// alone, from /api/statistics/catalogue: the personal sections are absent -
+// not drawn empty - and their data is never asked for.
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -25,10 +25,25 @@ vi.mock("../statistics/StatsFranchiseSummary", () => ({
 }));
 vi.mock("../statistics/StatsGameSpend", () => ({ default: () => <section>Game spend</section> }));
 
+// Fourteen seasons, newest first, so two of them sit past the twelve shown.
+const SEASONS = Array.from({ length: 14 }, (_, i) => ({
+  season: `SPR ${2026 - i}`,
+  entry_count: i + 1,
+}));
+
 const CATALOGUE = {
-  by_type: { manga: 4, anime: 7 },
-  by_season: [{ season: "SPR 2026", entry_count: 3 }],
-  by_genre: [{ genre: "奇幻", entry_count: 5 }],
+  by_type: [
+    { media_type: "manga", entry_count: 4, franchise_count: 3 },
+    { media_type: "anime", entry_count: 7, franchise_count: 2 },
+  ],
+  by_season: SEASONS,
+  scores: {
+    mal: [
+      { media_type: "anime", bucket: 8, entry_count: 5 },
+      { media_type: "manga", bucket: 7, entry_count: 2 },
+    ],
+    anilist: [{ media_type: "anime", bucket: 80, entry_count: 4 }],
+  },
 };
 
 function renderPage() {
@@ -75,10 +90,12 @@ describe("Statistics", () => {
       expect(screen.getByText("Stats sidebar")).toBeInTheDocument();
     });
 
-    it("does not ask for the catalogue counts", () => {
+    it("draws the catalogue sections below the personal ones", async () => {
       renderPage();
-      expect(fetchedUrls()).not.toContain("/api/statistics/catalogue");
-      expect(screen.queryByRole("heading", { name: "Entries by type" })).toBeNull();
+      expect(await screen.findByRole("table", { name: "Entries by type" })).toBeInTheDocument();
+      expect(screen.getByRole("table", { name: "Anime by season" })).toBeInTheDocument();
+      expect(fetchedUrls()).toContain("/api/statistics/catalogue");
+      expect(screen.getByText("Game spend")).toBeInTheDocument();
     });
   });
 
@@ -87,20 +104,49 @@ describe("Statistics", () => {
       auth.held = new Set();
     });
 
-    it("counts the catalogue by type, season and genre", async () => {
+    it("counts franchises and entries per type, in registry order", async () => {
       renderPage();
       const types = await screen.findByRole("table", { name: "Entries by type" });
-      const rows = within(types).getAllByRole("row").slice(1);
+      const rows = within(types).getAllByRole("row");
+      expect(rows[0].textContent).toBe("TypeFranchisesEntries");
       // The registry's order: anime before manga, whatever the payload's.
-      expect(rows.map((r) => r.textContent)).toEqual(["Anime7", "Manga4"]);
-      expect(
-        within(screen.getByRole("table", { name: "Anime by season" })).getByText("SPR 2026"),
-      ).toBeInTheDocument();
-      expect(
-        within(screen.getByRole("table", { name: "Entries by genre" })).getByText("奇幻"),
-      ).toBeInTheDocument();
+      expect(rows.slice(1).map((r) => r.textContent)).toEqual(["Anime27", "Manga34"]);
       expect(screen.getByText("11 entries in the catalogue")).toBeInTheDocument();
       expect(fetchedUrls()).toContain("/api/statistics/catalogue");
+    });
+
+    it("shows the twelve newest seasons, and every season behind Show all", async () => {
+      renderPage();
+      const seasons = await screen.findByRole("table", { name: "Anime by season" });
+      const rows = within(seasons).getAllByRole("row").slice(1);
+      expect(rows).toHaveLength(12);
+      expect(rows[0].textContent).toBe("SPR 20261");
+      expect(within(seasons).queryByText("SPR 2013")).toBeNull();
+      expect(screen.queryByRole("dialog")).toBeNull();
+
+      fireEvent.click(screen.getByRole("button", { name: "Show all 14" }));
+      const dialog = screen.getByRole("dialog");
+      expect(within(dialog).getByText("SPR 2013")).toBeInTheDocument();
+      expect(within(dialog).getByText("SPR 2026")).toBeInTheDocument();
+
+      fireEvent.keyDown(window, { key: "Escape" });
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+
+    it("has no genre table", async () => {
+      renderPage();
+      await screen.findByRole("table", { name: "Entries by type" });
+      expect(screen.queryByText("Entries by genre")).toBeNull();
+    });
+
+    it("pools each score over every type, and narrows to the type picked", async () => {
+      renderPage();
+      const picker = await screen.findByRole("combobox", { name: "MAL rating media type" });
+      expect(screen.getByText("7 scored")).toBeInTheDocument();
+      fireEvent.change(picker, { target: { value: "manga" } });
+      expect(screen.getByText("2 scored")).toBeInTheDocument();
+      // AniList's chart keeps its own selection.
+      expect(screen.getByText("4 scored")).toBeInTheDocument();
     });
 
     it("leaves the personal sections out, and never asks for their data", async () => {
@@ -109,7 +155,9 @@ describe("Statistics", () => {
       expect(personalData).not.toHaveBeenCalled();
       expect(screen.queryByRole("heading", { name: "Favourites" })).toBeNull();
       expect(screen.queryByText("Game spend")).toBeNull();
-      expect(screen.queryByText("Rating distribution")).toBeNull();
+      // The personal summary's mock renders this text; the catalogue's own
+      // chart is headed "Rating distribution" too, so ask for the mock's tag.
+      expect(screen.queryByText("Rating distribution", { selector: "section" })).toBeNull();
       expect(screen.queryByText("Stats sidebar")).toBeNull();
       expect(fetchedUrls().some((u) => u.startsWith("/api/seasonal"))).toBe(false);
     });

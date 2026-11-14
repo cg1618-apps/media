@@ -517,18 +517,36 @@ class SeasonCount(BaseModel):
     entry_count: int
 
 
-class GenreCount(BaseModel):
-    genre: str
+class TypeCount(BaseModel):
+    """One media type: its visible entries, and the distinct franchises
+    holding at least one of them."""
+
+    media_type: str
     entry_count: int
+    franchise_count: int
+
+
+class ScoreBucketCount(BaseModel):
+    """Visible entries of one media type whose score falls in one bucket.
+    `bucket` is the lower bound: 8 is 8.0-8.99 on MAL, 80 is 80-89 on AniList."""
+
+    media_type: str
+    bucket: int
+    entry_count: int
+
+
+class ScoreDistributions(BaseModel):
+    mal: List[ScoreBucketCount]
+    anilist: List[ScoreBucketCount]
 
 
 class CatalogueStatistics(BaseModel):
     """GET /api/statistics/catalogue. Every count is over what the viewer may
     see; a media type with no visible entry is absent from `by_type`."""
 
-    by_type: Dict[str, int]
+    by_type: List[TypeCount]
     by_season: List[SeasonCount]
-    by_genre: List[GenreCount]
+    scores: ScoreDistributions
 
 
 class DashboardSummary(BaseModel):

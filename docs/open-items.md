@@ -258,3 +258,17 @@ design system so the behaviour can be used, and their look is undecided:
 | Invented entities never reach the admin log table — `error_message` renders only on Failed rows, never `details_json` | `Admin.jsx` |
 | The colour-token table holds pre-archive hexes | `docs/frontend/components.md` |
 | Two docs still describe a `ScoreBlock` "Last updated" figure that the component no longer has, one of them as the worked example of withheld fields being absent rather than blanked — so replacing it needs a different example, not a deletion | `docs/authorization.md:423`, `:1163`, `:1191` |
+
+**Statistics has no "Entries by genre" table, and one is to be added back.**
+It is left out until it can be shown well. Adding it needs:
+
+- **which vocabularies it counts.** It would count Genre Main on the eight
+  mainstream types and Game Genre on game, as `media_tag` rows joined to
+  `system_option`, narrowed by `apply_media_visibility`. Whether Genre Sub,
+  and the gated types' own adult genre vocabularies, belong in it is
+  undecided.
+- **a shape for a long list.** There are far more genres than media types, so
+  it needs the season table's treatment - the top few with a Show all - or a
+  chart, rather than one long table.
+- **a media-type selector**, like the rating charts' own, since a genre's
+  count across every type pools things that do not compare.
