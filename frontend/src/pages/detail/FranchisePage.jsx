@@ -57,6 +57,7 @@ import PlanKindToggles, {
 } from "../../components/plan/PlanKindToggles";
 import { SIZE_GROUPS, scopesFor } from "../../config/planNextGroups";
 import { effectiveBucket } from "../../utils/planNext";
+import { usePageTitle } from "../../contexts/PageTitleContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { useViewScope } from "../../hooks/useViewScope";
 import { useMyRatingSaver } from "../../api/mutations/useMyRatingMutations";
@@ -1257,6 +1258,17 @@ export default function FranchisePage() {
     totalEntries > 0 ? Math.round((completedCount / totalEntries) * 100) : 0;
 
   // ── loading / error ───────────────────────────────────────────────────────
+  // The heading's title, which the browser tab shows too.
+  const mainTitle = franchise
+    ? franchise.franchise_name_cn ||
+      franchise.franchise_name_en ||
+      franchise.franchise_name_alt ||
+      franchise.franchise_name_roman ||
+      franchise.franchise_name_jp ||
+      "Unknown Franchise"
+    : null;
+  usePageTitle(loading || error ? null : mainTitle);
+
   if (loading) return <HubLoading label="Loading Franchise Hub..." />;
 
   if (error)
@@ -1293,14 +1305,6 @@ export default function FranchisePage() {
     Object.fromEntries(allEntries.map((e) => [e.system_id, e])),
     { [franchise.system_id]: allEntries },
   );
-
-  const mainTitle =
-    franchise.franchise_name_cn ||
-    franchise.franchise_name_en ||
-    franchise.franchise_name_alt ||
-    franchise.franchise_name_roman ||
-    franchise.franchise_name_jp ||
-    "Unknown Franchise";
 
   const subTitles = [
     { label: "EN", value: franchise.franchise_name_en },

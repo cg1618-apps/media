@@ -26,6 +26,8 @@ import SourcesCard from "../../components/info/SourcesCard";
 import MyTrackerCard from "../../components/tracker/MyTrackerCard";
 import ComicNotes from "./ComicNotes";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
+import DetailContents, { TocSection } from "../../components/layout/DetailContents";
+import { usePageTitle } from "../../contexts/PageTitleContext";
 import {
   Button,
   Chip,
@@ -131,6 +133,10 @@ export default function Comic() {
     fetchMediaItem,
   });
 
+  // The heading's title, which the browser tab shows too.
+  const titleMain = comic ? getDisplayName(comic, "comic") : null;
+  usePageTitle(loading || error ? null : titleMain);
+
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading details..." />;
   }
@@ -145,7 +151,6 @@ export default function Comic() {
   }
 
   // EN leads for comics; the CN title becomes the subtitle when it differs.
-  const titleMain = getDisplayName(comic, "comic");
   const titleSub =
     comic.comic_name_cn && comic.comic_name_cn !== titleMain
       ? comic.comic_name_cn
@@ -180,7 +185,7 @@ export default function Comic() {
     .join("  ·  ");
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+    <DetailContents>
       {/* Breadcrumb: a catalogue path, set in mono */}
       <div className="mb-8 flex items-center justify-between gap-3">
         <nav
@@ -365,133 +370,147 @@ export default function Comic() {
           </header>
 
           {/* Where this entry sits in the watch orders the viewer follows. */}
-          <FollowedOrderPanel entryId={comic.system_id} />
+          <TocSection id="watch-orders" label="Watch orders">
+            <FollowedOrderPanel entryId={comic.system_id} />
+          </TocSection>
 
           {/* My Tracker — comic tracks issues only, so the shared single-counter
               card fits without a comic-specific tracker block. */}
-          <MyTrackerCard
-            epFin={comic.issue_fin ?? 0}
-            epTotal={comic.issue_total != null ? comic.issue_total : "?"}
-            watchingStatus={comic.reading_status || "Might Read"}
-            myRating={comic.my_rating}
-            canTrack={ownData}
-            onEpChange={(v) =>
-              saveOwn({ issue_fin: v }, "Issue progress saved")
-            }
-            onStatusChange={(v) =>
-              saveOwn({ reading_status: v }, "Status updated")
-            }
-            onRatingChange={(v) =>
-              saveOwn({ my_rating: v || null }, "Rating saved")
-            }
-            toRewatch={comic.to_reread}
-            onToRewatchChange={(v) =>
-              saveOwn(
-                { to_reread: v },
-                v ? "Marked for reread" : "Removed from reread",
-              )
-            }
-            rewatchLabel="To Reread"
-            statusOptions={READING_STATUSES}
-            ratingOptions={MY_RATINGS}
-            statusLabel="Reading Status"
-          />
+          <TocSection id="tracker" label="My tracker">
+            <MyTrackerCard
+              epFin={comic.issue_fin ?? 0}
+              epTotal={comic.issue_total != null ? comic.issue_total : "?"}
+              watchingStatus={comic.reading_status || "Might Read"}
+              myRating={comic.my_rating}
+              canTrack={ownData}
+              onEpChange={(v) =>
+                saveOwn({ issue_fin: v }, "Issue progress saved")
+              }
+              onStatusChange={(v) =>
+                saveOwn({ reading_status: v }, "Status updated")
+              }
+              onRatingChange={(v) =>
+                saveOwn({ my_rating: v || null }, "Rating saved")
+              }
+              toRewatch={comic.to_reread}
+              onToRewatchChange={(v) =>
+                saveOwn(
+                  { to_reread: v },
+                  v ? "Marked for reread" : "Removed from reread",
+                )
+              }
+              rewatchLabel="To Reread"
+              statusOptions={READING_STATUSES}
+              ratingOptions={MY_RATINGS}
+              statusLabel="Reading Status"
+            />
+          </TocSection>
 
           {/* Detail Cards */}
           <div className="space-y-6">
-            <NamingCard type="comic" item={comic} />
-            <InfoCard
-              title="Information"
-              fields={[
-                [
-                  { label: "Type", value: comic.comic_type },
-                  { label: "Volume Label", value: comic.volume_label },
-                  { label: "Continuity", value: comic.continuity },
-                ],
-                [{ label: "Era", value: comic.era }],
-                [
-                  {
-                    label: "Serialization Status",
-                    value: comic.serialization_status,
-                  },
-                  { label: "Reading Status", value: comic.reading_status },
-                ],
-                [
-                  { label: "Release Year", value: yearRange },
-                  {
-                    label: "Issue Total",
-                    value:
-                      comic.issue_total != null
-                        ? String(comic.issue_total)
-                        : null,
-                  },
-                ],
-                { label: "Genre (Main)", value: comic.genre_main },
-                { label: "Genre (Sub)", value: comic.genre_sub },
-                { label: "標籤 Label", value: comic.label },
-              ]}
-            />
-            {events.length > 0 && <EventsCard events={events} />}
-            {(comic.writer ||
-              comic.artist ||
-              comic.publisher ||
-              comic.imprint ||
-              comic.publisher_refs?.length > 0) && (
+            <TocSection id="naming" label="Naming">
+              <NamingCard type="comic" item={comic} />
+            </TocSection>
+            <TocSection id="information" label="Information">
               <InfoCard
-                title="Production"
+                title="Information"
                 fields={[
-                  ...(comic.writer
-                    ? [
-                        {
-                          label: creditLabel(comic, "author", "Writer"),
-                          value: creditValue(comic, "author", comic.writer),
-                        },
-                      ]
-                    : []),
-                  ...(comic.artist
-                    ? [
-                        {
-                          label: creditLabel(comic, "illustrator", "Artist"),
-                          value: creditValue(
-                            comic,
-                            "illustrator",
-                            comic.artist,
-                          ),
-                        },
-                      ]
-                    : []),
-                  ...(comic.publisher || comic.publisher_refs?.length
-                    ? [
-                        {
-                          label: publisherLabel(comic, "出版商"),
-                          value: publisherValue(comic),
-                        },
-                      ]
-                    : []),
-                  ...(comic.imprint
-                    ? [{ label: "Imprint", value: comic.imprint }]
-                    : []),
+                  [
+                    { label: "Type", value: comic.comic_type },
+                    { label: "Volume Label", value: comic.volume_label },
+                    { label: "Continuity", value: comic.continuity },
+                  ],
+                  [{ label: "Era", value: comic.era }],
+                  [
+                    {
+                      label: "Serialization Status",
+                      value: comic.serialization_status,
+                    },
+                    { label: "Reading Status", value: comic.reading_status },
+                  ],
+                  [
+                    { label: "Release Year", value: yearRange },
+                    {
+                      label: "Issue Total",
+                      value:
+                        comic.issue_total != null
+                          ? String(comic.issue_total)
+                          : null,
+                    },
+                  ],
+                  { label: "Genre (Main)", value: comic.genre_main },
+                  { label: "Genre (Sub)", value: comic.genre_sub },
+                  { label: "標籤 Label", value: comic.label },
                 ]}
               />
-            )}
+            </TocSection>
+            <TocSection id="events" label="Events">
+              {events.length > 0 && <EventsCard events={events} />}
+            </TocSection>
+            <TocSection id="production" label="Production">
+              {(comic.writer ||
+                comic.artist ||
+                comic.publisher ||
+                comic.imprint ||
+                comic.publisher_refs?.length > 0) && (
+                <InfoCard
+                  title="Production"
+                  fields={[
+                    ...(comic.writer
+                      ? [
+                          {
+                            label: creditLabel(comic, "author", "Writer"),
+                            value: creditValue(comic, "author", comic.writer),
+                          },
+                        ]
+                      : []),
+                    ...(comic.artist
+                      ? [
+                          {
+                            label: creditLabel(comic, "illustrator", "Artist"),
+                            value: creditValue(
+                              comic,
+                              "illustrator",
+                              comic.artist,
+                            ),
+                          },
+                        ]
+                      : []),
+                    ...(comic.publisher || comic.publisher_refs?.length
+                      ? [
+                          {
+                            label: publisherLabel(comic, "出版商"),
+                            value: publisherValue(comic),
+                          },
+                        ]
+                      : []),
+                    ...(comic.imprint
+                      ? [{ label: "Imprint", value: comic.imprint }]
+                      : []),
+                  ]}
+                />
+              )}
+            </TocSection>
           </div>
 
           {/* Remarks */}
-          {ownData && comic.remark && (
-            <Slip title="Remarks">
-              <textarea
-                key={comic.system_id}
-                defaultValue={comic.remark || ""}
-                onBlur={(e) => {
-                  if (e.target.value !== (comic.remark || ""))
-                    saveMyRemark(e.target.value);
-                }}
-                rows={4}
-                placeholder="Add remarks…"
-                className={textareaCls}
-              ></textarea>
-            </Slip>
-          )}
+          <TocSection id="remarks" label="Remarks">
+            {ownData && comic.remark && (
+              <Slip title="Remarks">
+                <textarea
+                  key={comic.system_id}
+                  defaultValue={comic.remark || ""}
+                  onBlur={(e) => {
+                    if (e.target.value !== (comic.remark || ""))
+                      saveMyRemark(e.target.value);
+                  }}
+                  rows={4}
+                  placeholder="Add remarks…"
+                  className={textareaCls}
+                ></textarea>
+              </Slip>
+            )}
+          </TocSection>
 
           {/* Structured Notes — the remark textarea above renders only for a
               holder of self.list who has a remark; hide the notes page's
@@ -506,6 +525,6 @@ export default function Comic() {
           />
         </div>
       </div>
-    </div>
+    </DetailContents>
   );
 }

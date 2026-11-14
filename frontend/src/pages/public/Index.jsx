@@ -18,6 +18,8 @@ import ComingNext from "../../components/tracker/ComingNext";
 import FollowedOrders from "../../components/tracker/FollowedOrders";
 import { useWatchOrderFollows } from "../../api/mutations/useWatchOrderFollows";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
+import TableOfContents from "../../components/layout/TableOfContents";
+import { useScrollSpy } from "../../hooks/useScrollSpy";
 import AnnouncementBoard from "../../components/info/AnnouncementBoard";
 import { useMediaList } from "../../hooks/useMediaList";
 import { useApiQuery } from "../../hooks/useApiQuery";
@@ -225,45 +227,6 @@ function visibleTocItems({
     const division = id.split("-")[0];
     return !(division in DIVISION_TYPES) || divisionShown(division, typeFilter);
   });
-}
-
-function DashboardTOC({ activeId, items }) {
-  const scrollTo = (id) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const top =
-      el.getBoundingClientRect().top + window.scrollY - stickyOffset(id);
-    window.scrollTo({ top, behavior: "smooth" });
-  };
-
-  return (
-    <nav
-      aria-label="Contents"
-      className="sticky top-[calc(var(--nav-h)+1rem)] space-y-0.5"
-    >
-      <Eyebrow className="px-2 mb-3">Contents</Eyebrow>
-      {items.map(({ id, label, level }) => {
-        const isActive = activeId === id;
-        return (
-          <button
-            key={id}
-            onClick={() => scrollTo(id)}
-            className={`w-full text-left flex items-center gap-2 border-l-2 transition-colors py-1 ${
-              level === 2
-                ? "pl-5 pr-2 font-mono text-[11px] uppercase tracking-[0.12em]"
-                : "pl-3 pr-2 font-display text-sm"
-            } ${
-              isActive
-                ? "border-brand text-brand"
-                : "border-transparent text-text-faint hover:text-text"
-            }`}
-          >
-            <span className="truncate">{label}</span>
-          </button>
-        );
-      })}
-    </nav>
-  );
 }
 
 function Section({
@@ -671,7 +634,6 @@ function CatalogueDashboard() {
   const loading = blockingQueries.some((q) => q.isLoading);
   const error =
     blockingQueries.map((q) => q.error?.message).find(Boolean) || null;
-  const [activeSection, setActiveSection] = useState("announcements");
   // One type filter for Watching, Reading and Playing: null shows every
   // type; a value shows only it, and only the division that holds it.
   const [typeFilter, setTypeFilter] = useState(null);
@@ -713,33 +675,14 @@ function CatalogueDashboard() {
     showLibraries,
     showRecent: sections.recentlyAdded,
   });
-  const tocIdsKey = tocItems.map(({ id }) => id).join(" ");
 
-  // Track which section is in view to highlight TOC. It watches the anchors
-  // the TOC lists, so a guest's spy never looks for a division it lacks.
-  useEffect(() => {
-    if (loading) return;
-    const ids = tocIdsKey.split(" ");
-
-    function getActive() {
-      // Use the same offset as the sticky headers so the highlight matches
-      // what is visible. A hidden division has no element and is skipped.
-      let active = ids[0];
-      for (const id of ids) {
-        const el = document.getElementById(id);
-        if (!el) continue;
-        const threshold = window.scrollY + stickyOffset(id) + 16;
-        if (el.getBoundingClientRect().top + window.scrollY <= threshold) {
-          active = id;
-        }
-      }
-      setActiveSection(active);
-    }
-
-    window.addEventListener("scroll", getActive, { passive: true });
-    getActive();
-    return () => window.removeEventListener("scroll", getActive);
-  }, [loading, tocIdsKey]);
+  // Which section is in view, to highlight its TOC row. It watches the
+  // anchors the TOC lists, so a guest's spy never looks for a division it
+  // lacks; stickyOffset is where each anchor's sticky header ends.
+  const activeSection = useScrollSpy(
+    tocItems.map(({ id }) => id),
+    { offsetFor: stickyOffset, enabled: !loading },
+  );
 
   async function handleEpChange(sysId, newVal, prevVal, uiType) {
     if (uiType === "TV Show") {
@@ -981,7 +924,11 @@ function CatalogueDashboard() {
       <div className="flex gap-8">
         {/* TOC Sidebar — visible on xl+ screens */}
         <aside className="hidden xl:block w-48 shrink-0">
-          <DashboardTOC activeId={activeSection} items={tocItems} />
+          <TableOfContents
+            items={tocItems}
+            activeId={activeSection}
+            offsetFor={stickyOffset}
+          />
         </aside>
 
         {/* Main Content */}

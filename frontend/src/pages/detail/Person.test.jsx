@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Person from "./Person";
+import { PageTitleProvider } from "../../contexts/PageTitleContext";
 import { ToastProvider } from "../../hooks/useToast";
 
 let auth;
@@ -74,10 +75,12 @@ function renderPage() {
     <QueryClientProvider client={new QueryClient()}>
     <ToastProvider>
       <MemoryRouter initialEntries={["/person/7"]}>
-        <Routes>
-          <Route path="/person/:publicId/:slug?" element={<Person />} />
-          <Route path="/modify" element={<WhereAmI />} />
-        </Routes>
+        <PageTitleProvider>
+          <Routes>
+            <Route path="/person/:publicId/:slug?" element={<Person />} />
+            <Route path="/modify" element={<WhereAmI />} />
+          </Routes>
+        </PageTitleProvider>
       </MemoryRouter>
     </ToastProvider>
     </QueryClientProvider>,
@@ -98,6 +101,11 @@ beforeEach(() => {
 });
 
 describe("Person detail page", () => {
+  it("names the person in the browser tab as its heading does", async () => {
+    renderPage();
+    await waitFor(() => expect(document.title).toBe("Hayao Miyazaki"));
+  });
+
   it("shows the server-resolved display photo", async () => {
     renderPage();
     expect(await screen.findByAltText("Hayao Miyazaki photo")).toHaveAttribute(

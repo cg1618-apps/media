@@ -25,6 +25,8 @@ import ScoreBlock from "../../components/info/ScoreBlock";
 import SourcesCard from "../../components/info/SourcesCard";
 import MyTrackerCard from "../../components/tracker/MyTrackerCard";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
+import DetailContents, { TocSection } from "../../components/layout/DetailContents";
+import { usePageTitle } from "../../contexts/PageTitleContext";
 import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
@@ -123,6 +125,12 @@ export default function Anime() {
     }
   }
 
+  // The heading's title, which the browser tab shows too.
+  const titleMain = anime
+    ? anime.anime_name_cn || anime.anime_name_en || anime.anime_name_roman || "Unknown"
+    : null;
+  usePageTitle(loading || error ? null : titleMain);
+
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading details..." />;
   }
@@ -136,11 +144,6 @@ export default function Anime() {
     );
   }
 
-  const titleMain =
-    anime.anime_name_cn ||
-    anime.anime_name_en ||
-    anime.anime_name_roman ||
-    "Unknown";
   const titleSub =
     anime.anime_name_en && anime.anime_name_en !== titleMain
       ? anime.anime_name_en
@@ -190,7 +193,7 @@ export default function Anime() {
     .join("  ·  ");
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+    <DetailContents>
       {/* Breadcrumb: a catalogue path, set in mono */}
       <div className="mb-8 flex items-center justify-between gap-3">
         <nav
@@ -381,90 +384,102 @@ export default function Anime() {
           </header>
 
           {/* Where this entry sits in the watch orders the viewer follows. */}
-          <FollowedOrderPanel entryId={anime.system_id} />
+          <TocSection id="watch-orders" label="Watch orders">
+            <FollowedOrderPanel entryId={anime.system_id} />
+          </TocSection>
 
           {/* My Tracker Block */}
-          <MyTrackerCard
-            epFin={epFin}
-            epTotal={epTotal}
-            hasCum={hasCum}
-            cumFin={cumFin}
-            cumTotal={cumTotal}
-            watchingStatus={anime.watching_status}
-            myRating={anime.my_rating}
-            timeFin={anime.time_fin}
-            canTrack={ownData}
-            onEpChange={(v) =>
-              saveOwn({ ep_fin: v }, "Episode progress saved")
-            }
-            onStatusChange={(v) =>
-              saveOwn({ watching_status: v }, "Status updated")
-            }
-            onRatingChange={(v) =>
-              saveOwn({ my_rating: v }, "Rating saved")
-            }
-            onTimeFinChange={(v) =>
-              saveOwn({ time_fin: v }, "Paused position saved")
-            }
-            statusOptions={WATCHING_STATUSES}
-            ratingOptions={MY_RATINGS}
-          />
+          <TocSection id="tracker" label="My tracker">
+            <MyTrackerCard
+              epFin={epFin}
+              epTotal={epTotal}
+              hasCum={hasCum}
+              cumFin={cumFin}
+              cumTotal={cumTotal}
+              watchingStatus={anime.watching_status}
+              myRating={anime.my_rating}
+              timeFin={anime.time_fin}
+              canTrack={ownData}
+              onEpChange={(v) =>
+                saveOwn({ ep_fin: v }, "Episode progress saved")
+              }
+              onStatusChange={(v) =>
+                saveOwn({ watching_status: v }, "Status updated")
+              }
+              onRatingChange={(v) =>
+                saveOwn({ my_rating: v }, "Rating saved")
+              }
+              onTimeFinChange={(v) =>
+                saveOwn({ time_fin: v }, "Paused position saved")
+              }
+              statusOptions={WATCHING_STATUSES}
+              ratingOptions={MY_RATINGS}
+            />
+          </TocSection>
 
           {/* Naming / Information / Production (stacked) */}
           <div className="space-y-6">
-            <NamingCard type="anime" item={anime} />
-            <InfoCard
-              title="Information"
-              fields={[
-                [
-                  { label: "本傳/外傳", value: anime.is_main },
-                  { label: "Season Part", value: anime.season_part },
-                  { label: "Special Episodes", value: anime.ep_special },
-                  { label: "Total Episodes", value: epTotalDisplay },
-                ],
-                [
-                  { label: "Airing Type", value: anime.airing_type },
-                  { label: "Airing Status", value: anime.airing_status },
-                  { label: "Release Season", value: releaseSeasonYear },
-                  { label: "Release Date", value: releaseDate },
-                ],
-                { label: "Genre (Main)", value: anime.genre_main },
-                { label: "Genre (Sub)", value: anime.genre_sub },
-                { label: "標籤 Label", value: anime.label },
-              ]}
-            />
-            <InfoCard
-              title="Production"
-              fields={[
-                [
-                  { label: "Studio", value: studioValue(anime) },
+            <TocSection id="naming" label="Naming">
+              <NamingCard type="anime" item={anime} />
+            </TocSection>
+            <TocSection id="information" label="Information">
+              <InfoCard
+                title="Information"
+                fields={[
+                  [
+                    { label: "本傳/外傳", value: anime.is_main },
+                    { label: "Season Part", value: anime.season_part },
+                    { label: "Special Episodes", value: anime.ep_special },
+                    { label: "Total Episodes", value: epTotalDisplay },
+                  ],
+                  [
+                    { label: "Airing Type", value: anime.airing_type },
+                    { label: "Airing Status", value: anime.airing_status },
+                    { label: "Release Season", value: releaseSeasonYear },
+                    { label: "Release Date", value: releaseDate },
+                  ],
+                  { label: "Genre (Main)", value: anime.genre_main },
+                  { label: "Genre (Sub)", value: anime.genre_sub },
+                  { label: "標籤 Label", value: anime.label },
+                ]}
+              />
+            </TocSection>
+            <TocSection id="production" label="Production">
+              <InfoCard
+                title="Production"
+                fields={[
+                  [
+                    { label: "Studio", value: studioValue(anime) },
+                    {
+                      // The heading comes from the ref the backend built, not
+                      // from here — see publisherLabel.
+                      label: publisherLabel(anime, "台灣代理商"),
+                      value: publisherValue(anime),
+                    },
+                  ],
+                  [
+                    {
+                      label: "Director",
+                      value: creditValue(anime, "director", anime.director),
+                    },
+                    {
+                      label: "Producer",
+                      value: creditValue(anime, "producer", anime.producer),
+                    },
+                  ],
                   {
-                    // The heading comes from the ref the backend built, not
-                    // from here — see publisherLabel.
-                    label: publisherLabel(anime, "台灣代理商"),
-                    value: publisherValue(anime),
+                    label: "Music",
+                    value: creditValue(anime, "composer", anime.music),
                   },
-                ],
-                [
-                  {
-                    label: "Director",
-                    value: creditValue(anime, "director", anime.director),
-                  },
-                  {
-                    label: "Producer",
-                    value: creditValue(anime, "producer", anime.producer),
-                  },
-                ],
-                {
-                  label: "Music",
-                  value: creditValue(anime, "composer", anime.music),
-                },
-              ]}
-            />
+                ]}
+              />
+            </TocSection>
           </div>
 
           {/* Cast */}
-          <CastSection cast={cast} />
+          <TocSection id="cast" label="Cast">
+            <CastSection cast={cast} />
+          </TocSection>
 
           {/* Structured Notes */}
           <AnimeNotes
@@ -476,6 +491,6 @@ export default function Anime() {
         </div>
       </div>
 
-    </div>
+    </DetailContents>
   );
 }
