@@ -235,16 +235,19 @@ export const NAV_SECTIONS = [
     // The browsing pages: ways into the collection by season, by release
     // date, by chance and by the numbers.
     items: [
-      // Seasonal and Statistics are per-user like Plan, and gated on
-      // self.list for the same reason: Statistics is built from the caller's
-      // own seasonal rows.
-      { label: "Seasonal", icon: "fas fa-leaf", to: "/seasonal", requires: "self.list" },
-      // Future Releases reads the catalogue lists, so it asks for any
-      // ordinary media type, as the Library tab does: every viewer that reads
-      // the catalogue has it, the admin does not. The Random Picker asks its
-      // own key, view.random_picker - super, user and shared, never guest.
-      // Each is what App.jsx's routes ask. /random/<type> lights the Random
-      // Picker row up too.
+      // Seasonal, Future Releases and Statistics read the catalogue, so each
+      // asks for any ordinary media type, as the Library tab does: every
+      // viewer that reads the catalogue has it, the admin does not. With a
+      // list the page is the viewer's own; without one, the catalogue's. The
+      // Random Picker asks its own key, view.random_picker - super, user and
+      // shared, never guest. Each is what App.jsx's routes ask.
+      // /random/<type> lights the Random Picker row up too.
+      {
+        label: "Seasonal",
+        icon: "fas fa-leaf",
+        to: "/seasonal",
+        requires: LIBRARY_MEDIA_TYPE_PERMISSIONS,
+      },
       {
         label: "Future Releases",
         icon: "fas fa-calendar-plus",
@@ -257,7 +260,12 @@ export const NAV_SECTIONS = [
         to: "/random",
         requires: "view.random_picker",
       },
-      { label: "Statistics", icon: "fas fa-chart-bar", to: "/statistics", requires: "self.list" },
+      {
+        label: "Statistics",
+        icon: "fas fa-chart-bar",
+        to: "/statistics",
+        requires: LIBRARY_MEDIA_TYPE_PERMISSIONS,
+      },
     ],
   },
   {

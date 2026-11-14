@@ -10,6 +10,7 @@ import DashboardCard from "../../components/tracker/DashboardCard";
 import { progressToast } from "../../lib/progressToast";
 import RatingDistributionBlock from "../../components/info/RatingDistributionBlock";
 import SeasonBulkActions from "../../components/tracker/SeasonBulkActions";
+import CatalogueSeasonGrid from "../../components/seasonal/CatalogueSeasonGrid";
 import { Eyebrow, ProgressRule, RatingStamp, Slip } from "../../components/ui/primitives";
 
 // Section definitions — display order and status membership
@@ -93,7 +94,7 @@ function StatFigure({ label, value }) {
   );
 }
 
-export default function SeasonalDetail() {
+function SeasonalDetailWithList() {
   const { seasonal_id } = useParams();
   const seasonalId = decodeURIComponent(seasonal_id);
   const navigate = useNavigate();
@@ -377,3 +378,106 @@ export default function SeasonalDetail() {
   );
 }
 
+// Without a list: the season's anime as the catalogue has them, with no
+// status split, no counters built from a list and no season rating. The
+// editor's season-wide actions stay, since they write the catalogue.
+function SeasonalDetailCatalogue() {
+  const { seasonal_id } = useParams();
+  const seasonalId = decodeURIComponent(seasonal_id);
+  const navigate = useNavigate();
+  const { isAdmin } = useAuth();
+  const prevSeason = getAdjacentSeason(seasonalId, "prev");
+  const nextSeason = getAdjacentSeason(seasonalId, "next");
+
+  const [animeData, setAnimeData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    async function load() {
+      setLoading(true);
+      try {
+        const res = await fetch(
+          `/api/anime/?airing_season=${encodeURIComponent(seasonalId)}`,
+          { credentials: "include" },
+        );
+        if (!res.ok) throw new Error("Failed to load seasonal data.");
+        setAnimeData(await res.json());
+        setError(null);
+      } catch (e) {
+        setError(e.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [seasonalId, reloadKey]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <div className="text-center">
+          <i className="fas fa-spinner fa-spin text-brand text-3xl mb-3"></i>
+          <p className="text-text-faint text-sm">Loading seasonal data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-12">
+        <div className="text-center border border-danger text-danger p-6">
+          <p className="font-bold">Error loading seasonal page.</p>
+          <p className="text-sm mt-1">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
+      <Slip title="Season">
+        <div className="flex flex-col sm:flex-row sm:items-start gap-6">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-3 mb-2">
+              <button
+                onClick={() => navigate(`/seasonal/${encodeURIComponent(prevSeason)}`)}
+                className="w-8 h-8 flex items-center justify-center border border-border-strong text-text-faint hover:text-brand hover:border-brand transition shrink-0"
+                title={`Previous: ${prevSeason}`}
+              >
+                <i className="fas fa-chevron-left text-xs"></i>
+              </button>
+              <h1 className="font-display text-4xl font-semibold text-text leading-none">
+                {seasonalId}
+              </h1>
+              <button
+                onClick={() => navigate(`/seasonal/${encodeURIComponent(nextSeason)}`)}
+                className="w-8 h-8 flex items-center justify-center border border-border-strong text-text-faint hover:text-brand hover:border-brand transition shrink-0"
+                title={`Next: ${nextSeason}`}
+              >
+                <i className="fas fa-chevron-right text-xs"></i>
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-x-6 gap-y-3 mt-5">
+              <StatFigure label="Total" value={animeData.length} />
+            </div>
+          </div>
+          {isAdmin && (
+            <div className="shrink-0">
+              <SeasonBulkActions anime={animeData} onDone={() => setReloadKey((k) => k + 1)} />
+            </div>
+          )}
+        </div>
+      </Slip>
+      <CatalogueSeasonGrid anime={animeData} />
+    </div>
+  );
+}
+
+// With a list, the viewer's own season; without one, the catalogue's.
+export default function SeasonalDetail() {
+  const { ownData } = useViewScope();
+  return ownData ? <SeasonalDetailWithList /> : <SeasonalDetailCatalogue />;
+}

@@ -41,6 +41,9 @@ vi.mock("./pages/detail/Person", () => stub("person"));
 vi.mock("./pages/detail/Character", () => stub("character"));
 vi.mock("./pages/detail/Identity", () => stub("identity"));
 vi.mock("./pages/public/FutureReleases", () => stub("future releases"));
+vi.mock("./pages/public/SeasonalOverall", () => stub("seasonal"));
+vi.mock("./pages/public/SeasonalDetail", () => stub("seasonal detail"));
+vi.mock("./pages/public/Statistics", () => stub("statistics"));
 vi.mock("./pages/public/Completions", () => stub("completions"));
 vi.mock("./pages/public/RandomPicker", () => stub("random picker"));
 vi.mock("./pages/public/Quotes", () => stub("quotes"));
@@ -127,21 +130,30 @@ describe("a member-only route", () => {
   }
 });
 
-describe("the Future Releases route", () => {
-  // It reads the catalogue lists, so it asks for any ordinary media type - a
-  // guest's nine keys open it, and a session holding none is sent to log in.
-  it("opens for a reader of one ordinary media type", async () => {
-    session(["media_type.anime"], null);
-    await visit("/future-releases");
-    expect(await screen.findByText("future releases page")).toBeInTheDocument();
-  });
+describe("the catalogue Explore routes", () => {
+  // Future Releases, Seasonal and Statistics read the catalogue, so each asks
+  // for any ordinary media type - a guest's nine keys open it, with no list -
+  // and a session holding none (the admin's shape) is sent to log in.
+  for (const [path, page] of [
+    ["/future-releases", "future releases"],
+    ["/seasonal", "seasonal"],
+    [`/seasonal/${encodeURIComponent("SPR 2026")}`, "seasonal detail"],
+    ["/statistics", "statistics"],
+  ]) {
+    it(`opens ${path} for a reader of one ordinary media type, without a list`, async () => {
+      session(["media_type.anime"], null);
+      await visit(path);
+      expect(await screen.findByText(`${page} page`)).toBeInTheDocument();
+    });
 
-  it("sends a session holding no media type to log in", async () => {
-    asGuest();
-    await visit("/future-releases");
-    expect(await screen.findByText("login page")).toBeInTheDocument();
-    expect(screen.queryByText("future releases page")).toBeNull();
-  });
+    it(`sends a session holding no media type from ${path} to log in`, async () => {
+      // A list alone is not enough: the pages read the catalogue.
+      session(["self.list"], "listonly");
+      await visit(path);
+      expect(await screen.findByText("login page")).toBeInTheDocument();
+      expect(screen.queryByText(`${page} page`)).toBeNull();
+    });
+  }
 });
 
 describe("the quotes and memes routes", () => {
