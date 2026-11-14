@@ -43,7 +43,7 @@ from app.services.rbac.enforcement import (
     franchise_visible,
     series_visible,
 )
-from app.services.rbac.permissions import PERM_SELF_LIST, PERM_VIEW_ENTITIES
+from app.services.rbac.permissions import PERM_SELF_LIST, view_perm
 from app.services.rbac.resolver import Viewer, require_permission
 from app.services.rbac.shared_visibility import shared_record_visible
 from app.utils.constants import FRANCHISE_EXPECTATIONS
@@ -71,7 +71,7 @@ NOT_FOUND: dict[str, str] = {
     "publisher": "Publisher not found.",
 }
 
-# The entities' GETs sit behind view.entities, as well as their own
+# Each entity's GET sits behind its own view key (view.studio, ...), as well as its
 # shared-record visibility.
 ENTITY_TYPES = frozenset({"character", "person", "studio", "publisher"})
 
@@ -153,7 +153,8 @@ def _visible(db: Session, viewer: Viewer, owner_type: str, owner) -> bool:
     if owner_type == "series":
         return series_visible(db, viewer, owner.system_id)
     if owner_type in ENTITY_TYPES:
-        return viewer.has(PERM_VIEW_ENTITIES) and shared_record_visible(
+        # One view key per entity kind: view.studio, view.publisher, ...
+        return viewer.has(view_perm(owner_type)) and shared_record_visible(
             db, viewer, OWNER_MODELS[owner_type], owner.system_id
         )
     # A collection's GET applies no visibility rule.

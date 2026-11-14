@@ -36,10 +36,10 @@ function respond(url, isAdmin) {
       username: isAdmin ? "admin" : "reader",
       role: isAdmin ? "admin" : "user",
       is_root: isAdmin,
-      // A member's view.* keys: entity names link (view.entities). The guest
+      // A member's keys: entity names link (the four entity keys). The guest
       // view is pinned in CastSection.test, StudioLinks.test and Novel's own
       // guest case below.
-      permissions: ["view.entities", "view.search", "view.extras"],
+      permissions: ["view.studio", "view.publisher", "view.person", "view.character", "view.search", "view.extras"],
     };
   }
   return [];

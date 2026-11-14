@@ -18,7 +18,10 @@ import Nav from "./Nav";
 // which is what the guest-scope tests below set up.
 const MEMBER_KEYS = new Set([
   "self.list",
-  "view.entities",
+  "view.studio",
+  "view.publisher",
+  "view.person",
+  "view.character",
   "view.search",
   "view.extras",
 ]);

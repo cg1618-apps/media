@@ -169,14 +169,14 @@ describe("FranchisePage relations link", () => {
 // A guest's hub: the franchise carries a rating and an expectation, and the
 // member mirror draws both and offers the Characters tab, so their absence
 // for a guest is the permissions' doing - self.list for the viewer's own
-// rating and expectation, view.entities for the Characters tab.
+// rating and expectation, view.character for the Characters tab.
 describe("FranchisePage for a guest", () => {
   const GUEST = { username: null, role: "guest", is_root: false, permissions: [] };
   const MEMBER = {
     username: "reader",
     role: "user",
     is_root: false,
-    permissions: ["view.entities", "view.search", "view.extras", "self.list"],
+    permissions: ["view.studio", "view.publisher", "view.person", "view.character", "view.search", "view.extras", "self.list"],
   };
   // The member without self.list: every view.* key, the same franchise.
   const READER = { ...MEMBER, permissions: MEMBER.permissions.filter((p) => p !== "self.list") };

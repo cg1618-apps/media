@@ -30,11 +30,13 @@ from app.services.domain.account_codes import (
 from app.services.domain.accounts import revoke_sessions, set_login_cookie
 from app.services.domain.registration import UsernameTaken, register_account
 from app.services.rbac import cache
+from app.services.rbac.features import held_features
 from app.services.rbac.gated_types import visible_gated_types
 from app.services.rbac.modes import (
     ResolvedMode,
     default_mode_id,
     held_modes,
+    mode_is_fixed,
     resolve_mode,
     switch_requires_password,
     within_ceiling,
@@ -196,6 +198,7 @@ def get_me(request: Request, db: Session = Depends(get_db)):
     except Exception:
         logger.exception("Failed to resolve viewer; falling back to guest")
         viewer = GUEST_FALLBACK
+    user = _user_for(db, viewer)
 
     return {
         # Means "may edit the catalogue", not "is an administrator". The SPA's
@@ -232,6 +235,10 @@ def get_me(request: Request, db: Session = Depends(get_db)):
         # a session that cannot see a gated type is not told it exists, so an
         # empty list and "no gated types" read the same.
         "visible_gated_types": visible_gated_types(db, viewer),
+        # The account's feature switches, by name (services/rbac/features.py)
+        # - the same function the routes they gate ask, so the SPA's
+        # hasFeature() cannot disagree with them. A guest holds none.
+        "features": held_features(user, viewer.is_root),
         "mode": {
             "id": str(viewer.mode_id) if viewer.mode_id else None,
             "key": viewer.mode_key,
@@ -250,7 +257,7 @@ def get_me(request: Request, db: Session = Depends(get_db)):
         # A guest gets an empty list - no account, nothing to switch between.
         "modes": held_modes(
             db,
-            _user_for(db, viewer),
+            user,
             ResolvedMode(
                 viewer.mode_id,
                 viewer.mode_key,
@@ -292,6 +299,11 @@ def switch_access_mode(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Sign in to change access mode.",
             headers={"WWW-Authenticate": "Bearer"},
+        )
+    if mode_is_fixed(user):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A shared account's mode is fixed.",
         )
 
     # Available means ranked at or below the account's ceiling. 404 for a

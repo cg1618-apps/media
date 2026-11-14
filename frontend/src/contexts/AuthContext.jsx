@@ -39,15 +39,16 @@ const ANONYMOUS = {
   // it is never told a gated type exists. Read through canSeeGatedType
   // (lib/gatedTypes.js), not directly.
   visibleGatedTypes: [],
+  // The account's feature switches by name (`features`), e.g.
+  // "quotes_memes". The server applies the root short-circuit itself, so
+  // hasFeature() is a plain membership test. A guest holds none.
+  features: [],
   // The OBJECT axis. `mode` is the active access mode; `modes` is every mode
   // this account holds, each already carrying `requires_password` - the
   // server computes that subset test so the SPA never models it. A guest
   // holds none.
   mode: null,
   modes: [],
-  // The granted features (`features` on /me), or null when /me does not
-  // carry them - see hasFeature.
-  features: null,
   loading: false,
 };
 
@@ -68,9 +69,9 @@ export function AuthProvider({ children }) {
           isRoot: data.is_root ?? false,
           permissions: data.permissions ?? [],
           visibleGatedTypes: data.visible_gated_types ?? [],
+          features: data.features ?? [],
           mode: data.mode ?? null,
           modes: data.modes ?? [],
-          features: data.features ?? null,
           loading: false,
         });
       } else {
@@ -129,18 +130,13 @@ export function AuthProvider({ children }) {
     [auth.isRoot, held],
   );
 
-  // Whether the viewer holds a granted feature ("music_status", "mod_status",
-  // ...). Read from /me's `features`; the per-account switches supply that
-  // list, and until /me carries it the answer is the server's stand-in - a
-  // holder of self.personal_notes holds every feature (has_feature in
-  // app/services/rbac/features.py).
-  const features = useMemo(
-    () => (auth.features ? new Set(auth.features) : null),
-    [auth.features],
-  );
+  // A feature is a switch on the ACCOUNT, not a permission on its role, so it
+  // is its own question. /me already gives the root role the features it
+  // holds without a switch (services/rbac/features.py), so nothing is
+  // short-circuited here.
   const hasFeature = useCallback(
-    (name) => (features ? features.has(name) : has("self.personal_notes")),
-    [features, has],
+    (feature) => auth.features.includes(feature),
+    [auth.features],
   );
 
   const value = useMemo(

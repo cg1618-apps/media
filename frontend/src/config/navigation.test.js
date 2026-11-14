@@ -138,19 +138,19 @@ describe("NAV_SECTIONS", () => {
     expect(itemRequirement({ to: "/statistics" })).toBeNull();
   });
 
-  it("lists Resources in Insights right after Memes, gated like Quotes", () => {
-    // The page is read by everyone who can open Quotes (view.extras); only
-    // its edit controls ask for manage.catalog, and they ask inside the page.
+  it("lists Resources in Insights right after Memes, as an extra", () => {
+    // Resources is an extra (view.extras); Quotes and Memes beside it follow
+    // the account's quotes_memes feature switch instead. Only the edit
+    // controls ask for manage.catalog, and they ask inside the page.
     expect(ownersOf("/resources")).toEqual(["insights"]);
     const insights = NAV_SECTIONS.find((s) => s.key === "insights");
     const items = sectionItems(insights);
     const tos = items.map((i) => i.to);
     expect(tos.indexOf("/resources")).toBe(tos.indexOf("/meme") + 1);
     const row = (to) => items.find((i) => i.to === to);
-    expect(itemRequirement(row("/resources"))).toBe(
-      itemRequirement(row("/quote")),
-    );
     expect(itemRequirement(row("/resources"))).toBe("view.extras");
+    expect(row("/quote").feature).toBe("quotes_memes");
+    expect(row("/meme").feature).toBe("quotes_memes");
   });
 
   it("splits the pipeline pages from the accounts/authz pages", () => {
@@ -280,17 +280,34 @@ describe("visibleSections", () => {
   });
 
   it("drops the admin-only rows from a section a member may open", () => {
-    // view.extras opens Insights (Quotes, Memes, Resources); the insights
-    // section being drawn at all is what lets the manage.catalog rows be
-    // dropped by their own gate.
+    // view.extras opens Insights (Resources); the insights section being
+    // drawn at all is what lets the manage.catalog rows be dropped by their
+    // own gate.
     const holdsExtras = (p) => p === "view.extras";
     const [insights] = visibleSections(NAV_SECTIONS, holdsExtras).filter(
       (s) => s.key === "insights",
     );
     const routes = sectionItems(insights).map((i) => i.to);
-    expect(routes).toContain("/quote");
+    expect(routes).toContain("/resources");
     expect(routes).not.toContain("/relations");
     expect(routes).not.toContain("/watch-orders");
+  });
+
+  it("shows Quotes and Memes only to an account with the feature switch", () => {
+    // view.extras is held in both cases, so the switch is what decides.
+    const holdsExtras = (p) => p === "view.extras";
+    const routesFor = (hasFeature) =>
+      visibleSections(NAV_SECTIONS, holdsExtras, undefined, hasFeature).flatMap(
+        (s) => sectionItems(s).map((i) => i.to),
+      );
+    const without = routesFor(() => false);
+    expect(without).toContain("/resources");
+    expect(without).not.toContain("/quote");
+    expect(without).not.toContain("/meme");
+    // Mirror: the same viewer with the switch on.
+    const withIt = routesFor((f) => f === "quotes_memes");
+    expect(withIt).toContain("/quote");
+    expect(withIt).toContain("/meme");
   });
 
   it("hides the per-user rows from a logged-out visitor", () => {
@@ -334,9 +351,12 @@ describe("visibleSections", () => {
   });
 
   it("keeps them for an admin, and keeps item identity intact", () => {
-    const [insights] = visibleSections(NAV_SECTIONS, holdsEverything).filter(
-      (s) => s.key === "insights",
-    );
+    const [insights] = visibleSections(
+      NAV_SECTIONS,
+      holdsEverything,
+      undefined,
+      holdsEverything,
+    ).filter((s) => s.key === "insights");
     // Nav marks the current row by object identity, so filtering must hand
     // back the very same item objects, not copies.
     expect(sectionItems(insights)).toEqual(
@@ -412,15 +432,20 @@ describe("visibleSections - the guest scope", () => {
   const holdsNothing = () => false;
   const MEMBER = new Set([
     "self.list",
-    "view.entities",
+    "view.studio",
+    "view.publisher",
+    "view.person",
+    "view.character",
     "view.search",
     "view.extras",
   ]);
   const holdsMember = (p) => MEMBER.has(p);
-  const routesFor = (has) =>
-    visibleSections(NAV_SECTIONS, has).flatMap((s) =>
+  const routesFor = (has, hasFeature) =>
+    visibleSections(NAV_SECTIONS, has, undefined, hasFeature).flatMap((s) =>
       sectionItems(s).map((i) => i.to),
     );
+  // Quotes and Memes follow the account's switch, which a guest never has.
+  const memberFeatures = (f) => f === "quotes_memes";
 
   it("leaves a guest only the Library tab", () => {
     expect(visibleSections(NAV_SECTIONS, holdsNothing).map((s) => s.key)).toEqual([
@@ -453,11 +478,43 @@ describe("visibleSections - the guest scope", () => {
       "/library/seiyuu",
     ];
     const forGuest = routesFor(holdsNothing);
-    const forMember = routesFor(holdsMember);
+    const forMember = routesFor(holdsMember, memberFeatures);
     for (const to of extras) {
       expect(forGuest, to).not.toContain(to);
       expect(forMember, to).toContain(to);
     }
+  });
+});
+
+describe("visibleSections - the entity rows, one key per kind", () => {
+  const ENTITY_ROWS = {
+    "/library/studio": "view.studio",
+    "/library/publisher": "view.publisher",
+    "/library/person": "view.person",
+    "/library/seiyuu": "view.person",
+    "/library/character": "view.character",
+  };
+  const KEYS = [...new Set(Object.values(ENTITY_ROWS))];
+  const routesHolding = (held) =>
+    visibleSections(NAV_SECTIONS, (p) => held.includes(p)).flatMap((s) =>
+      sectionItems(s).map((i) => i.to),
+    );
+
+  it("hides a library row when only its kind is off", () => {
+    for (const key of KEYS) {
+      // The other three kinds are on, so the Entities column is drawn and
+      // a missing row is this key's doing.
+      const routes = routesHolding(KEYS.filter((k) => k !== key));
+      for (const [to, asks] of Object.entries(ENTITY_ROWS)) {
+        if (asks === key) expect(routes, `${key} off`).not.toContain(to);
+        else expect(routes, `${key} off`).toContain(to);
+      }
+    }
+  });
+
+  it("shows every row with all four kinds on", () => {
+    const routes = routesHolding(KEYS);
+    for (const to of Object.keys(ENTITY_ROWS)) expect(routes).toContain(to);
   });
 });
 
@@ -483,16 +540,14 @@ describe("the two permission surfaces agree", () => {
     "/system": "manage.pipelines",
     "/clean-orphans": "manage.pipelines",
     "/business-logic": "manage.pipelines",
-    "/library/studio": "view.entities",
-    "/library/publisher": "view.entities",
-    "/library/person": "view.entities",
-    "/library/character": "view.entities",
-    "/library/seiyuu": "view.entities",
+    "/library/studio": "view.studio",
+    "/library/publisher": "view.publisher",
+    "/library/person": "view.person",
+    "/library/character": "view.character",
+    "/library/seiyuu": "view.person",
     "/future-releases": "view.extras",
     "/completions": "view.extras",
     "/random": "view.extras",
-    "/quote": "view.extras",
-    "/meme": "view.extras",
     "/resources": "view.extras",
     "/request-inbox": "manage.requests",
   };

@@ -24,6 +24,11 @@ from app.services.rbac.seed import default_user_permissions
 from tests.api.conftest import make_viewer
 
 
+@pytest.fixture(autouse=True)
+def _features(features_follow_personal_notes):
+    """See conftest.features_follow_personal_notes."""
+
+
 @pytest.fixture
 def reviewer(db_session, client):
     """A member who runs pipelines - and so holds the music status feature."""

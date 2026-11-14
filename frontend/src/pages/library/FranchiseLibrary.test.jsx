@@ -7,11 +7,11 @@ import FranchiseLibrary from "./FranchiseLibrary";
 // The viewer's scope. A member (every flag on) unless a test says otherwise;
 // `scope.<flag> = false` makes the guest case.
 const { scope } = vi.hoisted(() => ({
-  scope: { entities: true, search: true, extras: true, ownData: true },
+  scope: { studio: true, publisher: true, person: true, character: true, search: true, extras: true, ownData: true },
 }));
 vi.mock("../../hooks/useViewScope", () => ({ useViewScope: () => scope }));
 beforeEach(() => {
-  Object.assign(scope, { entities: true, search: true, extras: true, ownData: true });
+  Object.assign(scope, { studio: true, publisher: true, person: true, character: true, search: true, extras: true, ownData: true });
 });
 
 const COLLECTIONS = [

@@ -516,7 +516,7 @@ def test_a_narrow_editor_cannot_write_a_note_on_a_hidden_series(
 
 
 def test_a_meme_on_a_hidden_series_is_dropped(
-    guest_reader, admin_client, catalog_writer, hidden_series
+    quote_reader, admin_client, catalog_writer, hidden_series
 ):
     payload = {
         "owner_type": "series",
@@ -528,8 +528,8 @@ def test_a_meme_on_a_hidden_series_is_dropped(
     meme_id = created.json()["system_id"]
     path = f"/api/meme/?owner_type=series&owner_id={hidden_series.system_id}"
 
-    assert guest_reader.get(path).json() == []
-    assert guest_reader.get(f"/api/meme/{meme_id}").status_code == 404
+    assert quote_reader.get(path).json() == []
+    assert quote_reader.get(f"/api/meme/{meme_id}").status_code == 404
     assert catalog_writer().post("/api/meme/", json=payload).status_code == 404
 
     assert [m["system_id"] for m in admin_client.get(path).json()] == [meme_id]

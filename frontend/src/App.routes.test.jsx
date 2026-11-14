@@ -49,18 +49,22 @@ vi.mock("./pages/public/Resources", () => stub("resources"));
 
 import App from "./App";
 
-const MEMBER_KEYS = ["self.list", "view.entities", "view.search", "view.extras"];
+const MEMBER_KEYS = ["self.list", "view.studio", "view.publisher", "view.person", "view.character", "view.search", "view.extras"];
 
-function session(permissions, username) {
+function session(permissions, username, features = []) {
   auth.current = {
     loading: false,
     username,
     has: (p) => permissions.includes(p),
+    hasFeature: (f) => features.includes(f),
     visibleGatedTypes: ["h-comic", "h-game", "hentai"],
   };
 }
 const asGuest = () => session([], null);
-const asMember = () => session(MEMBER_KEYS, "reader");
+const asMember = () => session(MEMBER_KEYS, "reader", ["quotes_memes"]);
+// A member whose account does not have the quotes-and-memes switch on: every
+// permission asMember holds, view.extras included.
+const asMemberWithoutQuotes = () => session(MEMBER_KEYS, "reader");
 
 async function visit(path) {
   window.history.pushState({}, "", path);
@@ -119,6 +123,26 @@ describe("a member-only route", () => {
       expect(await screen.findByText(`${page} page`)).toBeInTheDocument();
     });
   }
+});
+
+describe("the quotes and memes routes", () => {
+  for (const [path, page] of [
+    ["/quote", "quotes"],
+    ["/meme", "memes"],
+  ]) {
+    it(`send a member without the switch from ${path} to log in`, async () => {
+      asMemberWithoutQuotes();
+      await visit(path);
+      expect(await screen.findByText("login page")).toBeInTheDocument();
+      expect(screen.queryByText(`${page} page`)).toBeNull();
+    });
+  }
+
+  it("still open Resources to that member, an extra", async () => {
+    asMemberWithoutQuotes();
+    await visit("/resources");
+    expect(await screen.findByText("resources page")).toBeInTheDocument();
+  });
 });
 
 describe("a guest's open routes", () => {

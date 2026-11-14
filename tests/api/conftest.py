@@ -24,6 +24,7 @@ from app.services.domain.gated_labels import ensure_label, ensure_labels
 from app.services.integrations import image_manager, sheets
 from app.services.rbac import cache as rbac_cache
 from app.services.rbac.permissions import (
+    ENTITY_VIEW_PERMISSIONS,
     PERM_MANAGE_CATALOG,
     VIEW_PERMISSION_KEYS,
     view_perm,
@@ -604,11 +605,19 @@ def make_viewer(
 ALL_VIEW_PERMISSIONS = frozenset(view_perm(key) for key in VIEW_PERMISSION_KEYS)
 
 
-def make_guest_reader(db_session, client, username="guestreader", extra=ALL_VIEW_PERMISSIONS):
+def make_guest_reader(
+    db_session,
+    client,
+    username="guestreader",
+    extra=ALL_VIEW_PERMISSIONS,
+):
     """
     Log `client` in as an account that sees exactly what a guest sees - this
     database's guest-role grants and the `safe` mode, which is what a
     logged-out visitor resolves - plus the role permissions in `extra`.
+
+    Its role is bespoke, so it holds no feature switch: the feature gate
+    admits only `user` and `super`. A quote or meme read uses quote_reader.
 
     For tests written against the anonymous `client` that read a surface now
     behind a view.* key. Moving them to `user_client` would change the object
@@ -660,8 +669,44 @@ def make_guest_reader(db_session, client, username="guestreader", extra=ALL_VIEW
 
 @pytest.fixture
 def guest_reader(db_session, client):
-    """`client`, logged in as make_guest_reader: a guest plus every view.* key."""
+    """`client`, logged in as make_guest_reader: a guest plus every view.* key
+    - every role-gated read, on the guest's object axis."""
     return make_guest_reader(db_session, client)
+
+
+@pytest.fixture
+def quote_reader(db_session, client):
+    """`client`, logged in as a real `user` account in the `safe` mode with
+    the quotes-and-memes switch on.
+
+    The quote and meme reads ask the switch, which the feature gate grants
+    only on a `user` or `super` account - so the visibility tests run on a
+    role the gate admits, and a 404 or a missing row is the visibility rule
+    at work rather than the switch. `safe` is the guest's object axis, as
+    guest_reader's is.
+    """
+    user = models.User(
+        id=uuid.uuid4(),
+        username="quotereader",
+        hashed_password=get_password_hash("x"),
+        role_id=role_id_for(db_session, "user"),
+        feature_quotes_memes=True,
+    )
+    user.mode_ceiling = MODE_SAFE
+    user.mode_default = MODE_SAFE
+    db_session.add(user)
+    db_session.flush()
+    safe = (
+        db_session.query(models.AccessMode)
+        .filter(models.AccessMode.key == MODE_SAFE)
+        .one()
+    )
+    rbac_cache.bump()
+    token = create_access_token(
+        {"sub": user.username, "role": "user", "mode": str(safe.system_id)}
+    )
+    client.cookies.set("access_token", f"Bearer {token}")
+    return client
 
 
 @pytest.fixture
@@ -717,7 +762,12 @@ def catalog_writer(db_session, client):
             db_session,
             client,
             username,
-            default_user_permissions() | {PERM_MANAGE_CATALOG} | set(extra),
+            # The entity-page keys too: an editor of studios, people and
+            # characters reads their pages, and the seeded member does not.
+            default_user_permissions()
+            | ENTITY_VIEW_PERMISSIONS
+            | {PERM_MANAGE_CATALOG}
+            | set(extra),
             label_keys=label_keys,
         )
 
@@ -1195,3 +1245,25 @@ def labelled_hidden_anime(db_session, sample_franchise):
     )
     db_session.flush()
     return {"public_id": entry.public_id, "system_id": str(entry.system_id)}
+
+
+@pytest.fixture
+def features_follow_personal_notes(monkeypatch):
+    """Every feature for a signed-in viewer holding self.personal_notes.
+
+    The real gate (app/services/rbac/features.py) grants a feature only to a
+    `user` or `super` account whose switch is on, and make_viewer's accounts
+    are on bespoke roles. Tests about what a granted value DOES - marks, the
+    music statuses, the review queue - pin this rule instead, so a refusal in
+    them is the behaviour under test and not the switch; the gate itself is
+    tested in test_account_features.py.
+    """
+    from app.services.rbac import features
+    from app.services.rbac.permissions import PERM_SELF_PERSONAL_NOTES
+
+    def has_feature(db, viewer, name):
+        if name not in features.FEATURE_NAMES:
+            raise ValueError(f"Unknown feature {name!r}")
+        return viewer.user_id is not None and viewer.has(PERM_SELF_PERSONAL_NOTES)
+
+    monkeypatch.setattr(features, "has_feature", has_feature)

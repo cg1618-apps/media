@@ -108,10 +108,10 @@ export default function SeriesPage() {
   const { isAdmin, has } = auth;
   // A guest's view of a hub (the keys members hold): without self.list the
   // viewer has no rating or expectation of the series and no "my rating" to
-  // sort by, so neither is drawn; without view.entities there is no
+  // sort by, so neither is drawn; without view.character there is no
   // Characters tab, and HubCharacters never asks /api/character/ for one.
   const { ownData } = useViewScope();
-  const showCharacters = has("view.entities");
+  const showCharacters = has("view.character");
   // Gated: a series under a franchise of the restricted family is hidden from
   // a session that cannot see the type, so only a session that can asks for
   // its h-comics.

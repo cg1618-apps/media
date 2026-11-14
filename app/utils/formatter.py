@@ -12,6 +12,7 @@ from uuid import UUID
 
 # The image focal-point rule, so a restored focus is judged exactly as a form
 # value is.
+from app.models.system import USER_FEATURE_COLUMNS
 from app.schemas.image_focus import coerce_image_focus
 
 # The h-game vocabularies, and the lenient list rule a restore uses, imported
@@ -1940,6 +1941,13 @@ def parse_user_from_sheet(raw: dict) -> dict:
         # the columns' `normal` default.
         "mode_ceiling": parse_from_sheet(raw.get("mode_ceiling"), str),
         "mode_default": parse_from_sheet(raw.get("mode_default"), str),
+        # The feature switches: NOT NULL, so a blank cell is false, like
+        # is_installation_owner. A sheet with no header for one leaves the
+        # local value alone (pull drops the key), and an insert gets false.
+        **{
+            column: bool(parse_from_sheet(raw.get(column), bool))
+            for column in USER_FEATURE_COLUMNS
+        },
     }
     status = parse_from_sheet(raw.get("status"), str)
     if status in ("active", "disabled"):

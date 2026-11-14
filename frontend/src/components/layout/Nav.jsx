@@ -148,7 +148,7 @@ function DrawerSection({ section, currentItem, onNavigate }) {
 export default function Nav() {
   const { theme, toggle: toggleTheme } = useTheme();
   const auth = useAuth();
-  const { isAdmin, has, username, role } = auth;
+  const { isAdmin, has, hasFeature, username, role } = auth;
   const { showToast } = useToast();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -168,8 +168,11 @@ export default function Nav() {
   // desktop slot, the phone button and its sheet are all absent.
   const canSearch = has("view.search");
   const canFileRequests = has("self.requests");
-  const sections = visibleSections(NAV_SECTIONS, has, (type) =>
-    canSeeGatedType(auth, type),
+  const sections = visibleSections(
+    NAV_SECTIONS,
+    has,
+    (type) => canSeeGatedType(auth, type),
+    hasFeature,
   );
   const currentSection = activeSectionKey(location.pathname);
   const currentItem = activeItem(location.pathname)?.item ?? null;

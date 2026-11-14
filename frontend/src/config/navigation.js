@@ -15,6 +15,9 @@
 //            admin-only pages that sit inside a tab everyone may open. A
 //            list means ANY of them, the same as <ProtectedRoute
 //            anyPermission> in App.jsx
+//   feature  the account feature switch this row needs (hasFeature in
+//            AuthContext), the same one App.jsx's <ProtectedRoute feature>
+//            asks. Checked in place of `requires`, not beside it
 //   gatedType the gated media type this row belongs to. The row is drawn only
 //            for a session that may see that type (canSeeGatedType in
 //            lib/gatedTypes.js), the same question App.jsx's route asks
@@ -47,42 +50,43 @@ export const NAV_SECTIONS = [
         heading: "Entities",
         // The credited entities are a member's view of the catalogue: a guest
         // browses the media and the groups, and reads entity names as plain
-        // text on those pages (useEntityHref in lib/entityPath.js). Every row
-        // asks view.entities, as App.jsx's entity routes do.
+        // text on those pages (useEntityHref in lib/entityPath.js). Each row
+        // asks its own kind's key, as App.jsx's entity routes do; Seiyuu is a
+        // person list and asks view.person.
         items: [
           {
             label: "Studio",
             icon: "fas fa-building",
             to: "/library/studio",
             matches: ["/studio"],
-            requires: "view.entities",
+            requires: "view.studio",
           },
           {
             label: "Publisher",
             icon: "fas fa-copyright",
             to: "/library/publisher",
             matches: ["/publisher"],
-            requires: "view.entities",
+            requires: "view.publisher",
           },
           {
             label: "Person",
             icon: "fas fa-user",
             to: "/library/person",
             matches: ["/person"],
-            requires: "view.entities",
+            requires: "view.person",
           },
           {
             label: "Character",
             icon: "fas fa-masks-theater",
             to: "/library/character",
             matches: ["/character", "/identity"],
-            requires: "view.entities",
+            requires: "view.character",
           },
           {
             label: "Seiyuu",
             icon: "fas fa-microphone",
             to: "/library/seiyuu",
-            requires: "view.entities",
+            requires: "view.person",
           },
         ],
       },
@@ -226,10 +230,12 @@ export const NAV_SECTIONS = [
       // Per-user, like Plan and Seasonal above: the page is built from the
       // caller's own seasonal rows.
       { label: "Statistics", icon: "fas fa-chart-bar", to: "/statistics", requires: "self.list" },
-      // Quotes, Memes and Resources are extras too (view.extras), read-only
-      // for a member; their edit controls ask manage.catalog inside the page.
-      { label: "Quotes", icon: "fas fa-quote-left", to: "/quote", requires: "view.extras" },
-      { label: "Memes", icon: "fas fa-face-grin-squint", to: "/meme", requires: "view.extras" },
+      // Quotes and Memes follow the account's quotes_memes feature switch,
+      // the one App.jsx's routes ask; Resources is an extra (view.extras).
+      // All three are read-only for a member; their edit controls ask
+      // manage.catalog inside the page.
+      { label: "Quotes", icon: "fas fa-quote-left", to: "/quote", feature: "quotes_memes" },
+      { label: "Memes", icon: "fas fa-face-grin-squint", to: "/meme", feature: "quotes_memes" },
       { label: "Resources", icon: "fas fa-bookmark", to: "/resources", requires: "view.extras" },
       // Relations and Watch Orders are ways of reading the collection, so they
       // belong here rather than in Admin — but both pages write through
@@ -425,12 +431,21 @@ export function meets(has, needed) {
 
 // Nobody is shown a gated row unless the caller says they may see it.
 const SEES_NO_GATED_TYPE = () => false;
+// Nor a feature row unless the caller says the account holds the feature.
+const HOLDS_NO_FEATURE = () => false;
 
 // The rows of one list a viewer may see. `canSeeType(type)` answers for rows
-// carrying a `gatedType`; left out, every such row is hidden.
-export function visibleItems(items, has, canSeeType = SEES_NO_GATED_TYPE) {
+// carrying a `gatedType`, and `hasFeature(name)` for rows carrying a
+// `feature`; left out, every such row is hidden.
+export function visibleItems(
+  items,
+  has,
+  canSeeType = SEES_NO_GATED_TYPE,
+  hasFeature = HOLDS_NO_FEATURE,
+) {
   return items.filter((item) => {
     if (item.gatedType && !canSeeType(item.gatedType)) return false;
+    if (item.feature) return hasFeature(item.feature);
     return meets(has, itemRequirement(item));
   });
 }
@@ -438,10 +453,13 @@ export function visibleItems(items, has, canSeeType = SEES_NO_GATED_TYPE) {
 // The same section with the rows this viewer may not see removed. Returns the
 // section itself when nothing was dropped, and always hands back the original
 // item objects — Nav marks the current row by identity.
-function withVisibleItems(section, has, canSeeType) {
+function withVisibleItems(section, has, canSeeType, hasFeature) {
   if (section.columns) {
     const columns = section.columns
-      .map((col) => ({ ...col, items: visibleItems(col.items, has, canSeeType) }))
+      .map((col) => ({
+        ...col,
+        items: visibleItems(col.items, has, canSeeType, hasFeature),
+      }))
       .filter((col) => col.items.length > 0);
     const kept = columns.reduce((n, col) => n + col.items.length, 0);
     return kept === sectionItems(section).length
@@ -449,17 +467,23 @@ function withVisibleItems(section, has, canSeeType) {
       : { ...section, columns };
   }
   if (!section.items) return section;
-  const items = visibleItems(section.items, has, canSeeType);
+  const items = visibleItems(section.items, has, canSeeType, hasFeature);
   return items.length === section.items.length ? section : { ...section, items };
 }
 
 // The sections a viewer may see, each trimmed to the rows they may see. A
 // section left with nothing but dividers is dropped along with them.
-// `canSeeType` is the gated-type question (see visibleItems).
-export function visibleSections(sections, has, canSeeType = SEES_NO_GATED_TYPE) {
+// `canSeeType` and `hasFeature` are the gated-type and feature questions
+// (see visibleItems).
+export function visibleSections(
+  sections,
+  has,
+  canSeeType = SEES_NO_GATED_TYPE,
+  hasFeature = HOLDS_NO_FEATURE,
+) {
   return sections
     .filter((section) => meets(has, sectionRequirement(section)))
-    .map((section) => withVisibleItems(section, has, canSeeType))
+    .map((section) => withVisibleItems(section, has, canSeeType, hasFeature))
     .filter(
       (section) =>
         !(section.items || section.columns) ||

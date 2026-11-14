@@ -19,6 +19,11 @@
 // its role, so its row shows the role as text. A shared account cannot be
 // deleted (disable it instead) and its access mode is fixed, so its row shows
 // the mode and offers no panel to change it.
+//
+// The feature switches (quotes and memes, favourites, music status, mod
+// status) are per account, and only a `user` or `super` account holds them:
+// the server answers 409 to switching one on anywhere else, so an admin or
+// shared row shows none. Each switch saves as it is ticked.
 import { useCallback, useEffect, useState } from "react";
 
 import { fetchJson, jsonBody } from "../../api/client";
@@ -52,6 +57,15 @@ const ASSIGNABLE_ROLE_NAMES = new Set(["user", "super"]);
 
 // Roles whose accounts keep the role they have, so the row shows it as text.
 const FIXED_ROLE_NAMES = new Set(["admin", "shared"]);
+
+// The per-account feature switches, in the order the row shows them. Each is
+// a boolean `feature_<name>` field on the user response and the PATCH body.
+const FEATURES = [
+  { field: "feature_quotes_memes", label: "Quotes & memes" },
+  { field: "feature_favourites", label: "Favourites" },
+  { field: "feature_music_status", label: "Music status" },
+  { field: "feature_mod_status", label: "Mod status" },
+];
 
 // The account's role key. role_name comes on the response; the lookup by id
 // covers a row served without it.
@@ -175,6 +189,21 @@ export default function Users() {
       await load();
     } catch (err) {
       showToast("error", err.message);
+    }
+  }
+
+  async function setFeature(user, field, on) {
+    setBusy(true);
+    try {
+      await fetchJson(endpoints.users.update(user.id), {
+        method: "PATCH",
+        ...jsonBody({ [field]: on }),
+      });
+      await load();
+    } catch (err) {
+      showToast("error", err.message);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -415,6 +444,22 @@ export default function Users() {
                   Change
                 </button>
                   </>
+                )}
+                {ASSIGNABLE_ROLE_NAMES.has(roleName) && (
+                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                    {FEATURES.map(({ field, label }) => (
+                      <label key={field} className="inline-flex items-center gap-1">
+                        <input
+                          type="checkbox"
+                          aria-label={`${label} for ${user.username}`}
+                          checked={Boolean(user[field])}
+                          disabled={busy}
+                          onChange={() => setFeature(user, field, !user[field])}
+                        />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
                 )}
               </td>
               <td className="px-4 py-2 text-right whitespace-nowrap">

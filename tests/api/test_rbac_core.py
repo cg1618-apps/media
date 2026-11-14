@@ -16,6 +16,7 @@ from app.services.rbac.permissions import (
     PERM_ADMIN_AUTHZ,
     PERM_MANAGE_CATALOG,
     PERM_MANAGE_PIPELINES,
+    gated_type_permissions,
     media_type_perm,
 )
 from app.services.rbac.seed import ensure_rbac_seed
@@ -63,8 +64,9 @@ def test_admin_is_a_root_role_and_needs_no_grants(db_session):
     assert admin.is_root is True
 
 
-def test_guest_is_granted_every_media_type_and_no_field_group(db_session):
-    """Day one must be behaviour-identical: guest sees what it saw before.
+def test_guest_is_granted_every_ordinary_media_type_and_no_field_group(db_session):
+    """A guest reads every ordinary type and never a gated one: the three
+    gated types are locked off for the role.
 
     Field groups left the role axis in Phase B, so a seeded guest holds none
     of them - what a logged-out visitor may see of a reachable entry is the
@@ -72,8 +74,11 @@ def test_guest_is_granted_every_media_type_and_no_field_group(db_session):
     """
     ensure_rbac_seed(db_session)
     grants = _grants(db_session, "guest")
+    gated = gated_type_permissions()
+    assert gated
     for media_type in MEDIA_TYPE_KEYS:
-        assert media_type_perm(media_type) in grants
+        permission = media_type_perm(media_type)
+        assert (permission in grants) is (permission not in gated), permission
     assert not any(p.startswith("field_group.") for p in grants)
 
 

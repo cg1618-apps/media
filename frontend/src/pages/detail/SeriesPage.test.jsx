@@ -212,7 +212,7 @@ describe("SeriesPage own rating and expectation", () => {
     username: "reader",
     role: "user",
     is_root: false,
-    permissions: ["view.entities", "view.search", "view.extras", "self.list"],
+    permissions: ["view.studio", "view.publisher", "view.person", "view.character", "view.search", "view.extras", "self.list"],
   };
   const READER = { ...MEMBER, permissions: MEMBER.permissions.filter((p) => p !== "self.list") };
   const rated = { ...SERIES, my_rating: "S", series_expectation: "High" };
@@ -259,7 +259,7 @@ describe("SeriesPage own rating and expectation", () => {
   it("offers no editor, and draws no expectation, without self.list", async () => {
     stubAs(READER);
     renderPage();
-    // The Characters tab is view.entities': its arrival says /me has loaded.
+    // The Characters tab is view.character's: its arrival says /me has loaded.
     expect(await screen.findByRole("button", { name: /^Characters/ })).toBeInTheDocument();
     expect(screen.queryByText(/Expectation · High/)).toBeNull();
     expect(ratingSelect()).toBeFalsy();

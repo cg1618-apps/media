@@ -111,8 +111,15 @@ and `MemeForm` hides the quote control for tier owners.
 ## Endpoints
 
 Routers: `app/routers/quote.py` (`/api/quote`) and `app/routers/meme.py`
-(`/api/meme`). Reads need `view.extras`, which a guest does not hold; writes
-need `manage.catalog`.
+(`/api/meme`). Reads need the caller's account to have the `quotes_memes`
+feature switched on (`require_feature_quotes_memes`,
+`app/services/rbac/features.py`) — a per-account switch on the Users page
+that only a `user` or `super` account can hold, and that the root admin
+holds without one. A guest and a shared account never read them. Writes
+need `manage.catalog`. The SPA asks the same feature through `hasFeature`
+for the `/quote` and `/meme` routes, their nav rows, and the Quotes and
+Memes sections of a detail page
+([authorization.md](../authorization.md#per-account-feature-switches)).
 
 ### Quotes
 

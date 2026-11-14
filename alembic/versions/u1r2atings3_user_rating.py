@@ -39,7 +39,7 @@ for one person's. Not marked irreversible - the owner's data, which is all
 the old schema could hold, comes back whole.
 
 Revision ID: u1r2atings3
-Revises: t1a2gsync345
+Revises: s1w2itches345
 Create Date: 2026-11-13 00:00:00.000000
 
 """
@@ -51,7 +51,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision: str = "u1r2atings3"
-down_revision: Union[str, Sequence[str], None] = "t1a2gsync345"
+down_revision: Union[str, Sequence[str], None] = "s1w2itches345"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

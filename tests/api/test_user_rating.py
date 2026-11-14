@@ -39,6 +39,30 @@ OWNER_TYPES = (
 )
 
 
+@pytest.fixture(autouse=True)
+def _members_open_entity_pages(db_session):
+    """The seeded `user` role holds no entity-page key (an admin turns each
+    on); these tests are about whose rating a viewer reads and writes, so
+    `user` holds all four here and an entity's GET answers it."""
+    from app.services.rbac import cache as rbac_cache
+    from app.services.rbac.permissions import ENTITY_VIEW_KEYS, view_perm
+
+    role = db_session.query(models.Role).filter(models.Role.name == "user").one()
+    held = {
+        r.permission
+        for r in db_session.query(models.RolePermission).filter(
+            models.RolePermission.role_id == role.system_id
+        )
+    }
+    for key in ENTITY_VIEW_KEYS:
+        if view_perm(key) not in held:
+            db_session.add(
+                models.RolePermission(role_id=role.system_id, permission=view_perm(key))
+            )
+    db_session.flush()
+    rbac_cache.bump()
+
+
 def _account(db, username, role="user"):
     user = models.User(
         id=uuid.uuid4(),

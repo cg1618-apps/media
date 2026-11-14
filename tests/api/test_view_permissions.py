@@ -1,7 +1,9 @@
 """
 The view.* family: what a logged-out visitor does not see.
 
-Three keys, held by `user` and `super` and not by `guest`. Each refusal below is
+Six keys: four entity-page keys (studio, publisher, person, character),
+search and extras. `super` holds all six by lock; `user` is seeded with the
+last two and the entity keys start off; `guest` holds none. Each refusal below is
 asserted with the gated thing PRESENT - a row to read - and is mirrored by a viewer holding the key reading the
 same thing through the same fixture, so a green proves the gate refused and not
 that there was nothing to return.
@@ -13,11 +15,15 @@ import pytest
 
 from app import models
 from app.services.rbac.permissions import (
+    ENTITY_VIEW_PERMISSIONS,
     FAMILY_VIEW,
     PERM_MANAGE_CATALOG,
-    PERM_VIEW_ENTITIES,
+    PERM_VIEW_CHARACTER,
     PERM_VIEW_EXTRAS,
+    PERM_VIEW_PERSON,
+    PERM_VIEW_PUBLISHER,
     PERM_VIEW_SEARCH,
+    PERM_VIEW_STUDIO,
     VIEW_PERMISSION_KEYS,
     VIEW_PERMISSION_LABELS,
     locked_permissions,
@@ -26,17 +32,17 @@ from app.services.rbac.permissions import (
 )
 from app.services.rbac.seed import (
     default_guest_permissions,
+    default_shared_permissions,
     default_super_permissions,
     default_user_permissions,
     ensure_rbac_seed,
 )
 from tests.api.conftest import make_viewer
 
-VIEW_ALL = {
-    PERM_VIEW_ENTITIES,
-    PERM_VIEW_SEARCH,
-    PERM_VIEW_EXTRAS,
-}
+ENTITY_KEYS = {PERM_VIEW_STUDIO, PERM_VIEW_PUBLISHER, PERM_VIEW_PERSON, PERM_VIEW_CHARACTER}
+# What `user` is seeded with of the family: everything but the entity pages.
+VIEW_ALL = {view_perm(key) for key in VIEW_PERMISSION_KEYS}
+MEMBER_VIEW = VIEW_ALL - ENTITY_KEYS
 
 
 @pytest.fixture
@@ -59,10 +65,19 @@ def _held(db, role_name):
 # ---------------------------------------------------------------------------
 
 
-def test_the_three_keys_are_in_the_catalog():
-    assert VIEW_PERMISSION_KEYS == ("entities", "search", "extras")
+def test_the_six_keys_are_in_the_catalog():
+    assert VIEW_PERMISSION_KEYS == (
+        "studio",
+        "publisher",
+        "person",
+        "character",
+        "search",
+        "extras",
+    )
     assert {view_perm(k) for k in VIEW_PERMISSION_KEYS} == VIEW_ALL
+    assert ENTITY_VIEW_PERMISSIONS == ENTITY_KEYS
     assert VIEW_ALL <= static_catalog()
+    assert "view.entities" not in static_catalog()
 
 
 def test_view_personal_is_gone_from_the_catalog():
@@ -90,7 +105,7 @@ def test_seeding_twice_grants_no_view_personal(db):
 
     held = {row.permission for row in db.query(models.RolePermission)}
     assert "view.personal" not in held
-    assert VIEW_ALL <= _held(db, "user")
+    assert MEMBER_VIEW <= _held(db, "user")
     assert VIEW_ALL <= _held(db, "super")
 
 
@@ -106,26 +121,33 @@ def test_the_role_editor_offers_the_family(admin_client):
     assert offered == VIEW_ALL
 
 
-def test_user_and_super_defaults_hold_the_family_and_guest_does_not():
-    assert VIEW_ALL <= default_user_permissions()
+def test_the_seed_defaults():
+    # The entity pages start off for a role seeded now; an established
+    # database keeps them through the migration, not through the seed.
+    assert MEMBER_VIEW <= default_user_permissions()
+    assert not ENTITY_KEYS & default_user_permissions()
     assert VIEW_ALL <= default_super_permissions()
     assert not VIEW_ALL & default_guest_permissions()
+    assert not VIEW_ALL & default_shared_permissions()
 
 
 def test_the_seeded_roles_hold_what_the_defaults_say(db, client):
     # `client` runs the lifespan, which seeds and enforces the locks.
-    assert VIEW_ALL <= _held(db, "user")
+    assert MEMBER_VIEW <= _held(db, "user")
+    assert not ENTITY_KEYS & _held(db, "user")
     assert VIEW_ALL <= _held(db, "super")
     assert not VIEW_ALL & _held(db, "guest")
+    assert not ENTITY_KEYS & _held(db, "shared")
 
 
-def test_super_holds_the_family_by_lock_and_guest_is_not_locked_off():
+def test_super_holds_the_family_by_lock_and_the_entity_keys_are_free_below_it():
     super_on, _ = locked_permissions("super", False)
     assert VIEW_ALL <= super_on
-    # Deliberately a free choice for guest: an admin may open search or the
-    # entity pages to the public.
-    guest_on, guest_off = locked_permissions("guest", False)
-    assert not VIEW_ALL & (guest_on | guest_off)
+    # Deliberately a free choice for user, guest and shared: an admin may
+    # open any one kind of entity page to them.
+    for name in ("user", "guest", "shared"):
+        on, off = locked_permissions(name, False)
+        assert not ENTITY_KEYS & (on | off), name
 
 
 # ---------------------------------------------------------------------------
@@ -149,32 +171,35 @@ def gated_reads(db, admin_client, person, character, anime_with_studio, sample_a
     )
     db.add_all([publisher, identity])
     db.flush()
-    quote = admin_client.post("/api/quote/", json={"text": "有名的一句"}).json()
-    meme = admin_client.post(
-        "/api/meme/",
-        json={
-            "owner_type": "anime",
-            "owner_id": str(sample_anime.system_id),
-            "text": "迷因",
-        },
-    )
-    assert meme.status_code == 200, meme.text
-    meme = meme.json()
     resource = admin_client.post(
         "/api/resources", json={"kind": "group", "title": "Links"}
     )
     assert resource.status_code in (200, 201), resource.text
     return {
-        PERM_VIEW_ENTITIES: [
+        PERM_VIEW_STUDIO: [
             "/api/studio/",
             f"/api/studio/{studio.system_id}",
             f"/api/studio/{studio.system_id}/entries",
+        ],
+        PERM_VIEW_PUBLISHER: [
             "/api/publisher/",
             f"/api/publisher/{publisher.system_id}",
             f"/api/publisher/{publisher.system_id}/entries",
+        ],
+        # The seiyuu library is a person list, so it answers to view.person.
+        PERM_VIEW_PERSON: [
             "/api/person/",
+            "/api/person/?role=seiyuu",
+            "/api/person/role-counts",
+            "/api/person/role-scopes",
             f"/api/person/{person.system_id}",
             f"/api/person/{person.system_id}/entries",
+            f"/api/person/{person.system_id}/clubs",
+            f"/api/person/{person.system_id}/members",
+        ],
+        # Identities are pages of a character; the franchise and series
+        # Characters tab reads this same list, filtered.
+        PERM_VIEW_CHARACTER: [
             "/api/character/",
             f"/api/character/{character.system_id}",
             f"/api/character/{character.system_id}/entries",
@@ -182,11 +207,10 @@ def gated_reads(db, admin_client, person, character, anime_with_studio, sample_a
             f"/api/character-identity/{identity.system_id}/entries",
         ],
         PERM_VIEW_SEARCH: ["/api/search/?q=Test"],
+        # The quote and meme reads are not here: they answer to the
+        # account's quotes-and-memes switch, not to a view key - see
+        # test_account_features.py.
         PERM_VIEW_EXTRAS: [
-            "/api/quote/",
-            f"/api/quote/{quote['system_id']}",
-            "/api/meme/",
-            f"/api/meme/{meme['system_id']}",
             "/api/resources",
             "/api/random-picker-defaults/all",
         ],
@@ -200,17 +224,26 @@ def test_a_guest_is_refused_every_gated_read(client, gated_reads):
             assert r.status_code == 401, (permission, url, r.status_code)
 
 
-def test_a_member_reads_every_gated_read(user_client, gated_reads):
+def test_a_holder_of_the_family_reads_every_gated_read(db, client, gated_reads):
     """The mirror: the same URLs, the same rows, a viewer holding the family."""
+    make_viewer(db, client, "whole-family", default_user_permissions() | VIEW_ALL)
     for permission, urls in gated_reads.items():
         for url in urls:
-            r = user_client.get(url)
+            r = client.get(url)
             assert r.status_code == 200, (permission, url, r.text)
 
 
-@pytest.mark.parametrize(
-    "permission", [PERM_VIEW_ENTITIES, PERM_VIEW_SEARCH, PERM_VIEW_EXTRAS]
-)
+def test_a_seeded_member_reads_no_entity_page(user_client, gated_reads):
+    """The seeded `user` role starts with the entity keys off - and still
+    reads search and the extras, so each refusal is an entity gate's."""
+    for permission, urls in gated_reads.items():
+        expected = 401 if permission in ENTITY_KEYS else 200
+        for url in urls:
+            r = user_client.get(url)
+            assert r.status_code == expected, (permission, url, r.status_code)
+
+
+@pytest.mark.parametrize("permission", sorted(VIEW_ALL))
 def test_each_key_opens_exactly_its_own_reads(db, client, gated_reads, permission):
     """The keys are independent: holding one opens its reads and no other's."""
     make_viewer(db, client, f"only-{permission}", default_guest_permissions() | {permission})
@@ -221,16 +254,18 @@ def test_each_key_opens_exactly_its_own_reads(db, client, gated_reads, permissio
             assert r.status_code == expected, (permission, url, r.status_code)
 
 
-def test_entity_writes_still_need_manage_catalog(user_client):
-    """A member holds view.entities and still may not write a studio."""
-    r = user_client.post("/api/studio/", json={"name_en": "Shaft"})
+def test_entity_writes_still_need_manage_catalog(db, client):
+    """A member holding view.studio still may not write a studio."""
+    make_viewer(db, client, "studio-reader", default_user_permissions() | {PERM_VIEW_STUDIO})
+    assert client.get("/api/studio/").status_code == 200
+    r = client.post("/api/studio/", json={"name_en": "Shaft"})
     assert r.status_code == 401
 
 
 def test_an_entity_write_does_not_also_need_the_read(db, client):
     """
     The view gate sits on the read routes, not on the router, so a role
-    holding manage.catalog and not view.entities can still write.
+    holding manage.catalog and not view.studio can still write.
     """
     make_viewer(db, client, "writer-only", default_guest_permissions() | {PERM_MANAGE_CATALOG})
     r = client.post("/api/studio/", json={"name_en": "Shaft"})
@@ -375,7 +410,7 @@ def test_entities_give_another_viewer_null(db, client, rated_entities):
         db,
         client,
         "entities-only",
-        default_guest_permissions() | {PERM_VIEW_ENTITIES},
+        default_guest_permissions() | ENTITY_KEYS,
     )
     for kind, row in rated_entities.items():
         body = client.get(f"/api/{kind}/{row.system_id}").json()
@@ -386,10 +421,17 @@ def test_entities_give_another_viewer_null(db, client, rated_entities):
         ] is None, kind
 
 
-def test_entities_give_the_member_its_own(user_client, rated_entities):
+def test_entities_give_the_member_its_own(db, client, rated_entities):
+    """Another account rated each entity S (rated_entities); this member rated
+    each A, and reads its own A - not the other's S, and not null."""
+    make_viewer(db, client, "entities-own", default_user_permissions() | ENTITY_KEYS)
+    me = db.query(models.User).filter(models.User.username == "entities-own").one()
     for kind, row in rated_entities.items():
-        body = user_client.get(f"/api/{kind}/{row.system_id}").json()
-        assert body["my_rating"] == "S", kind
+        db.add(models.UserRating(user_id=me.id, **{f"{kind}_id": row.system_id}, my_rating="A"))
+    db.flush()
+    for kind, row in rated_entities.items():
+        body = client.get(f"/api/{kind}/{row.system_id}").json()
+        assert body["my_rating"] == "A", kind
 
 
 @pytest.fixture

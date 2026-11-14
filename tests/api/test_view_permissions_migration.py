@@ -18,11 +18,14 @@ from pathlib import Path
 import pytest
 
 from app import models
-from app.services.rbac.permissions import VIEW_PERMISSION_KEYS, view_perm
 
 ROOT = Path(__file__).resolve().parents[2]
 REVISION = ROOT / "alembic" / "versions" / "v1i2ewperms34_view_permissions_for_user.py"
-VIEW_ALL = {view_perm(key) for key in VIEW_PERMISSION_KEYS}
+# The four names as they were when this revision shipped. A revision is
+# history: view.entities has since been split into four keys, and the
+# revision still grants (and this test still checks) the name it was
+# written against.
+VIEW_ALL = {"view.entities", "view.search", "view.extras", "view.personal"}
 
 
 @pytest.fixture(scope="module")
@@ -56,16 +59,8 @@ def pre_revision(db_session, client):
     return db_session
 
 
-# Granted by this revision and retired by a later one (h1i2ghlights3), which
-# deletes its grants. The revision's list is frozen, so it keeps naming it.
-RETIRED_LATER = {"view.personal"}
-
-
 def test_the_names_match_the_code(revision):
-    """Every view.* key the code has was granted here; the only extra name
-    is the one a later revision retired."""
-    assert set(revision.VIEW_PERMISSIONS) == VIEW_ALL | RETIRED_LATER
-    assert not RETIRED_LATER & VIEW_ALL
+    assert set(revision.VIEW_PERMISSIONS) == VIEW_ALL
 
 
 def test_upgrade_grants_user_and_not_guest(revision, pre_revision):
@@ -95,7 +90,13 @@ def test_upgrade_is_idempotent(revision, pre_revision):
 def test_downgrade_takes_them_off_every_role(revision, pre_revision):
     db = pre_revision
     revision.grant_view_permissions(db.connection())
-    # `super` holds them by lock; the downgrade must reach it too.
+    # `super` held them by lock when this revision shipped; the downgrade must
+    # reach it too. The lock now names the split keys, so the old names are
+    # put on super here to give the downgrade something to take off.
+    super_role = db.query(models.Role).filter(models.Role.name == "super").one()
+    for permission in sorted(VIEW_ALL - _held(db, "super")):
+        db.add(models.RolePermission(role_id=super_role.system_id, permission=permission))
+    db.flush()
     assert VIEW_ALL <= _held(db, "super")
     revision.revoke_view_permissions(db.connection())
     for role in ("user", "super", "guest"):

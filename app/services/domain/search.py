@@ -35,8 +35,16 @@ from app.services.rbac.enforcement import (
 )
 from app.services.rbac.field_gate import gate
 from app.services.rbac.gated_types import unseeable_gated_types
+from app.services.rbac.permissions import (
+    PERM_VIEW_CHARACTER,
+    PERM_VIEW_PERSON,
+    PERM_VIEW_PUBLISHER,
+    PERM_VIEW_STUDIO,
+    media_type_perm,
+)
 from app.services.rbac.resolver import viewer_user_id
 from app.services.rbac.shared_visibility import CONNECTIONS, apply_shared_visibility
+from app.utils.media_resolver import MEDIA_TYPE_KEYS
 
 # The characters cleanString deletes: whitespace plus the punctuation that
 # separates words in a title. translate() drops every character listed here
@@ -414,6 +422,31 @@ def _related_franchises(db: Session, entries: list, limit: int) -> list:
     )
 
 
+# The permission each entity bucket needs: the same key that opens that
+# kind's pages, so search never lists a person the viewer could not open.
+_ENTITY_BUCKET_PERMISSION = {
+    "person": PERM_VIEW_PERSON,
+    "studio": PERM_VIEW_STUDIO,
+    "publisher": PERM_VIEW_PUBLISHER,
+    "character": PERM_VIEW_CHARACTER,
+}
+
+
+def _viewer_may_search(viewer, spec: SearchableType) -> bool:
+    """Whether this bucket belongs in the viewer's response at all.
+
+    An entity bucket needs its kind's view.* key, and a media-type bucket the
+    role's media_type.* grant. Groups and seasonal need neither. A None
+    viewer is an internal caller and sees every bucket.
+    """
+    if viewer is None:
+        return True
+    needed = _ENTITY_BUCKET_PERMISSION.get(spec.key)
+    if needed is None and spec.owner_type in MEDIA_TYPE_KEYS:
+        needed = media_type_perm(spec.owner_type)
+    return needed is None or viewer.has(needed)
+
+
 def search(
     db: Session,
     viewer,
@@ -427,8 +460,10 @@ def search(
 
     Returns (buckets, related_franchises). Buckets carry a key for every
     searchable type this viewer may see, empty for the ones this scope did not
-    ask about. A gated type the viewer cannot see has NO key: an empty bucket
-    would still say the type exists (gated_types.py).
+    ask about. A type the viewer cannot see has NO key - a gated type its mode
+    hides, an entity kind whose view.* key it lacks, a media type its role
+    does not hold: an empty bucket would still say the type exists
+    (gated_types.py).
 
     `include_characters` adds a `character` bucket, searched at scope "all"
     only; without it there is no such key.
@@ -437,6 +472,7 @@ def search(
     searchable = tuple(spec for spec in SEARCHABLE_TYPES if spec.key not in hidden)
     if include_characters:
         searchable += (CHARACTER_SEARCH,)
+    searchable = tuple(spec for spec in searchable if _viewer_may_search(viewer, spec))
     buckets: dict[str, list] = {spec.key: [] for spec in searchable}
     q_clean = clean_string(query)
     if not q_clean:

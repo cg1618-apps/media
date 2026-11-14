@@ -7,6 +7,10 @@ import Identity from "./Identity";
 // Reassigned per test: a guest by default, an admin where a test says so.
 let auth;
 vi.mock("../../contexts/AuthContext", () => ({ useAuth: () => auth }));
+// The page is behind its kind's view key, so its viewer holds the entity
+// keys and the cards on it link (useEntityHref).
+const ENTITY_KEYS = ["view.studio", "view.publisher", "view.person", "view.character"];
+const holdsEntityKeys = (p) => ENTITY_KEYS.includes(p);
 
 const IDENTITY = {
   system_id: "i1",
@@ -140,7 +144,7 @@ function renderPage(path = "/identity/3") {
 }
 
 beforeEach(() => {
-  auth = { isAdmin: false };
+  auth = { isAdmin: false, has: holdsEntityKeys };
   mockFetch();
 });
 
@@ -327,7 +331,7 @@ describe("Identity detail page", () => {
   });
 
   it("links Quick edit to this identity's Modify editor for an admin", async () => {
-    auth = { isAdmin: true };
+    auth = { isAdmin: true, has: holdsEntityKeys };
     const user = userEvent.setup();
     renderPage();
     await user.click(await screen.findByRole("button", { name: "Quick edit" }));

@@ -4,7 +4,8 @@
 // catalogue section needs manage.catalog and a personal one
 // self.personal_notes - the permissions the server takes for the writes. The
 // root flag does not pass self.*, so an admin reads a personal section
-// without its controls. Quotes and memes are catalogue tables.
+// without its controls. Quotes and memes are catalogue tables, drawn for an
+// account with the quotes_memes feature, which every viewer here holds.
 //
 // Both sections hold a row, so a missing Edit or Delete is the gate refusing
 // and not an empty list; each viewer is asserted on both sections, so one
@@ -22,7 +23,7 @@ vi.mock("./sections/QuoteSection", () => ({
 
 let held = new Set();
 vi.mock("../../contexts/AuthContext", () => ({
-  useAuth: () => ({ has: (p) => held.has(p) }),
+  useAuth: () => ({ has: (p) => held.has(p), hasFeature: (f) => f === "quotes_memes" }),
 }));
 
 const TRIVIA = { key: "trivia", shape: "text", label: "Trivia", kinds: [], scope: "catalog" };
@@ -57,7 +58,7 @@ const controls = (label) => {
 };
 
 async function renderAs(permissions) {
-  held = new Set(["view.extras", ...permissions]);
+  held = new Set(permissions);
   render(<NotesTemplate ownerType="game" ownerId="g1" />);
   await waitFor(() => expect(screen.getByText("my own goal")).toBeInTheDocument());
   expect(screen.getByText("a catalogue fact")).toBeInTheDocument();

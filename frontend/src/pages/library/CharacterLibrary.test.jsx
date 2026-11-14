@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import CharacterLibrary from "./CharacterLibrary";
 
 // A session that may see every gated type, so the Restricted chip is drawn.
-// The page is a member's (view.entities), so its viewer holds the key, and
+// The page asks view.character, so its viewer holds the key, and
 // its cards link to the character pages. self.list (the viewer's own rating)
 // is held unless a test takes it away.
 const held = new Set();
@@ -17,7 +17,7 @@ vi.mock("../../contexts/AuthContext", () => ({
 }));
 beforeEach(() => {
   held.clear();
-  held.add("view.entities").add("self.list");
+  held.add("view.character").add("self.list");
 });
 
 const CHARACTERS = [

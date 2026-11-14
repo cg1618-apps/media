@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { hardNavigate } from "../lib/hardNavigate";
@@ -213,20 +213,29 @@ describe("a switched-to access mode that expires", () => {
     });
   }
 
+  // The clock must not move while the page signs in. The reload's delay is
+  // computed when /me answers, and every assertion below is about a margin
+  // measured from that moment, so any fake time that passes during the render
+  // eats into it. /me is a mocked promise, so signing in needs microtasks
+  // only: act() drains them without touching the clock. Neither
+  // testing-library's waitFor (under `shouldAdvanceTime` the clock follows
+  // real time, seconds of it on a loaded machine) nor vi.waitFor (it advances
+  // the clock by each polling interval) can promise that.
   async function renderSignedIn() {
     render(
       <AuthProvider>
         <Probe />
       </AuthProvider>,
     );
-    await waitFor(() =>
-      expect(screen.getByTestId("role")).toHaveTextContent("admin"),
-    );
+    for (let i = 0; i < 20 && !screen.queryByTestId("role")?.textContent; i++) {
+      await act(async () => {});
+    }
+    expect(screen.getByTestId("role")).toHaveTextContent("admin");
   }
 
   beforeEach(() => {
     hardNavigate.mockClear();
-    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.useFakeTimers();
   });
 
   afterEach(() => {

@@ -8,7 +8,7 @@
 import { Link } from "react-router-dom";
 
 import { getCoverUrl, FALLBACK_SVG, focusStyle, thumbUrl } from "../../lib/covers";
-import { entityPath } from "../../lib/entityPath";
+import { useEntityHref } from "../../lib/entityPath";
 import LazyImage from "../ui/LazyImage";
 
 export default function IdentityCard({ identity, to, label }) {
@@ -21,9 +21,11 @@ export default function IdentityCard({ identity, to, label }) {
         .filter((name) => name && name !== identity.display_name),
     ),
   ];
-  // Empty when the row carries no public_id: the card renders as plain
-  // markup rather than a link to nowhere.
-  const path = to ?? entityPath("identity", identity);
+  // Empty when the row carries no public_id, or the viewer lacks
+  // view.character: the card renders as plain markup rather than a link to
+  // nowhere.
+  const entityHref = useEntityHref();
+  const path = to ?? entityHref("identity", identity);
   const Wrapper = path ? Link : "div";
   const wrapperProps = path ? { to: path } : {};
   return (

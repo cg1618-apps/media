@@ -9,6 +9,10 @@ import { ToastProvider } from "../../hooks/useToast";
 // Reassigned per test: a guest by default, an admin where a test says so.
 let auth;
 vi.mock("../../contexts/AuthContext", () => ({ useAuth: () => auth }));
+// The page is behind its kind's view key, so its viewer holds the entity
+// keys and the cards on it link (useEntityHref).
+const ENTITY_KEYS = ["view.studio", "view.publisher", "view.person", "view.character"];
+const holdsEntityKeys = (p) => ENTITY_KEYS.includes(p);
 
 const CHARACTER = {
   system_id: "c1",
@@ -117,7 +121,7 @@ function putCalls() {
 }
 
 beforeEach(() => {
-  auth = { isAdmin: false, has: () => false };
+  auth = { isAdmin: false, has: holdsEntityKeys };
   mockFetch();
 });
 
@@ -372,7 +376,7 @@ describe("Character detail page", () => {
     // The guest test renders the same character; only the permission differs, so
     // the select's presence here is self.list's doing.
     beforeEach(() => {
-      auth = { isAdmin: false, has: (p) => p === "self.list" };
+      auth = { isAdmin: false, has: (p) => p === "self.list" || holdsEntityKeys(p) };
     });
 
     it("edits its own rating, with no admin controls", async () => {

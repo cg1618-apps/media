@@ -234,7 +234,7 @@ def test_view_personal_grants_are_deleted(db_session, revision):
             models.RolePermission.role_id == role.system_id
         )
     }
-    assert {"view.personal", "view.entities"} <= held_before
+    assert {"view.personal", "view.search"} <= held_before
 
     revision.drop_view_personal(db_session.connection())
     db_session.expire_all()
@@ -246,7 +246,7 @@ def test_view_personal_grants_are_deleted(db_session, revision):
         )
     }
     assert "view.personal" not in held
-    assert "view.entities" in held
+    assert "view.search" in held
 
 
 def test_downgrade_restores_the_owners_orders(db_session, highlighted, revision):

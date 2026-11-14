@@ -10,9 +10,11 @@ that lived only in a migration body would leave every API test role-less.
 Idempotent for the same reason: the lifespan runs against a database that may
 already hold these rows, and it must not duplicate or overwrite them.
 
-Guest is granted every media type on purpose, so the authorization system
-ships behaving exactly like its absence; an admin narrows it further by
-REMOVING grants, so no other page changes on the day it lands.
+Guest is granted every ordinary media type on purpose, so the authorization
+system ships behaving exactly like its absence; an admin narrows it further
+by REMOVING grants. The three gated types are not a free choice for any role
+(permissions.locked_permissions), so _enforce_locks, not the top-up, decides
+who holds them.
 
 Field groups are NOT here any more. They left the role axis in Phase B for
 the access-mode axis - see app/services/rbac/seed_modes.py, whose `safe` mode
@@ -30,6 +32,8 @@ from app.services.domain.requests import default_request_limit
 from app.services.rbac.modes import set_mode_ceiling
 from app.services.rbac.permissions import (
     ADMIN_ROLE_NAME,
+    ENTITY_VIEW_KEYS,
+    ENTITY_VIEW_PERMISSIONS,
     GUEST_ROLE_NAME,
     PERM_MANAGE_CATALOG,
     PERM_MANAGE_PIPELINES,
@@ -42,6 +46,7 @@ from app.services.rbac.permissions import (
     SUPER_ROLE_NAME,
     USER_ROLE_NAME,
     VIEW_PERMISSION_KEYS,
+    gated_type_permissions,
     locked_permissions,
     media_type_perm,
     view_perm,
@@ -72,8 +77,17 @@ SHARED_ACCOUNTS: tuple[tuple[str, str], ...] = (
     ("shared-borderline", MODE_BORDERLINE),
 )
 
+def ordinary_media_type_permissions() -> set[str]:
+    """media_type.<key> for every media type that is not gated."""
+    return {media_type_perm(mt) for mt in MEDIA_TYPE_KEYS} - gated_type_permissions()
+
+
 def default_guest_permissions() -> set[str]:
-    """Every media type. That is the whole of the guest role now.
+    """The nine ordinary media types. That is the whole of the guest role.
+
+    The gated types are not here: they are locked off for guest
+    (permissions.locked_permissions), so seeding them would only have
+    _enforce_locks take them away again on the same boot.
 
     Field groups used to be here too. They left the role axis in Phase B -
     they scope which FIELDS of a reachable entry a session sees, which is the
@@ -81,22 +95,30 @@ def default_guest_permissions() -> set[str]:
     union can only add, so a field group granted here could never be taken
     away by a mode, and the narrow tiers would have been unbuildable.
     """
-    return {media_type_perm(mt) for mt in MEDIA_TYPE_KEYS}
+    return ordinary_media_type_permissions()
 
 
 def default_user_permissions() -> set[str]:
     """
-    A signed-in member's grants: everything a guest may read, the whole view
-    family (the parts of the site a guest does not see), and the four
+    A signed-in member's grants: everything a guest may read, the gated
+    types (locked on for a member; the access mode still decides whether
+    their entries show), search, extras and personal content, and the four
     permissions over their own account - their list, their personal notes,
     their requests and their password.
+
+    The four entity-page keys (view.studio, view.publisher, view.person,
+    view.character) are NOT seeded: they start off for a role created now and
+    are the admin's to switch on. An established database keeps what it held
+    under the single view.entities key, which the migration carries onto all
+    four.
 
     Derived from default_guest_permissions() rather than restated, so a media
     type added later reaches both roles at once.
     """
     return (
         default_guest_permissions()
-        | {view_perm(key) for key in VIEW_PERMISSION_KEYS}
+        | gated_type_permissions()
+        | {view_perm(key) for key in VIEW_PERMISSION_KEYS if key not in ENTITY_VIEW_KEYS}
         | {
             PERM_SELF_LIST,
             PERM_SELF_PERSONAL_NOTES,
@@ -111,22 +133,23 @@ def default_shared_permissions() -> set[str]:
     A shared account's grants: what a guest reads, plus filing requests.
 
     Derived from default_guest_permissions() so a media type added later
-    reaches it too. Gated types are among them, as for guest: the account's
-    fixed mode is what hides their entries, through their label.
+    reaches it too. No gated types, as for guest: they are locked off for
+    this role. The four entity-page keys start off and stay adjustable.
     """
     return default_guest_permissions() | {PERM_SELF_REQUESTS}
 
 
 def default_super_permissions() -> set[str]:
     """
-    A super account: everything a signed-in member has, plus the three
-    management permissions. Derived from default_user_permissions() rather than restated,
-    so a media type or field group added later reaches this role too.
+    A super account: everything a signed-in member has, the four entity-page
+    keys (locked on for super, unlike for a member), and the three management
+    permissions. Derived from default_user_permissions() rather than
+    restated, so a media type added later reaches this role too.
 
     admin.authz is deliberately absent. That is the whole distinction between
     this role and the admin account.
     """
-    return default_user_permissions() | {
+    return default_user_permissions() | ENTITY_VIEW_PERMISSIONS | {
         PERM_MANAGE_CATALOG,
         PERM_MANAGE_PIPELINES,
         PERM_MANAGE_REQUESTS,

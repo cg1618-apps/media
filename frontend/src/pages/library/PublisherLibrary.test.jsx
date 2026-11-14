@@ -4,7 +4,9 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import PublisherLibrary from "./PublisherLibrary";
 
-// self.list (the viewer's own rating) is held unless a test takes it away.
+// The page is behind view.publisher, so its viewer holds it and the cards
+// link (useEntityHref). self.list (the viewer's own rating) is held unless a
+// test takes it away.
 const held = new Set();
 vi.mock("../../contexts/AuthContext", () => ({
   useAuth: () => ({
@@ -14,7 +16,7 @@ vi.mock("../../contexts/AuthContext", () => ({
 }));
 beforeEach(() => {
   held.clear();
-  held.add("self.list");
+  held.add("view.publisher").add("self.list");
 });
 
 const PUBLISHERS = [

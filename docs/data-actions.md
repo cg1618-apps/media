@@ -179,7 +179,7 @@ its own commit. Each of the twelve entry tabs drops its constant `media_type`
 column and appends a derived, read-only `display_name` for the human reader;
 Pull drops any header that is not a column of the model (`drop_non_columns`).
 
-**`Users`** carries `id`, `username`, `is_installation_owner`, `status`, `open_request_limit` and `role`.
+**`Users`** carries `id`, `username`, `is_installation_owner`, `status`, `open_request_limit`, `mode_ceiling`, `mode_default`, the four feature switches (`feature_quotes_memes`, `feature_favourites`, `feature_music_status`, `feature_mod_status`) and `role`.
 An older sheet whose Users tab still has a `list_is_public` header Pulls
 cleanly: `RETIRED_HEADERS` in `pull.py` names it, so `unexpected_headers` does
 not report it among the run's `unresolved_refs` the way it reports a stale
@@ -215,6 +215,11 @@ its commit and roll back **every** account. `parse_user_from_sheet` is an
 explicit projection, so a column added to the User model does not travel until
 it is named there. `open_request_limit` is named there; a blank cell is NULL
 (no limit), and a sheet with no header for it leaves the local value alone.
+The four feature switches are named there too: a blank cell is false, a
+sheet with no header for one leaves the local value alone, and an account the
+Pull creates gets false. A switch restored onto an account that is not `user`
+or `super` is stored but opens nothing, because the feature gate asks the role
+as well as the column ([authorization.md](authorization.md#per-account-feature-switches)).
 
 **Requests are not on the sheet.** `user_request` has no tab, so Backup and
 Pull never touch it: the inbox lives on the box and in its own dumps, and a

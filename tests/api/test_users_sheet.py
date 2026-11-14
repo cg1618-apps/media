@@ -452,3 +452,106 @@ def test_the_backup_row_carries_the_mode_pair(db):
 
     assert row["mode_ceiling"] == "borderline"
     assert row["mode_default"] == "safe"
+
+
+# ---------------------------------------------------------------------------
+# The feature switches travel
+# ---------------------------------------------------------------------------
+
+FEATURE_HEADERS = [
+    "feature_quotes_memes",
+    "feature_favourites",
+    "feature_music_status",
+    "feature_mod_status",
+]
+
+
+def test_the_feature_switches_travel(db, sheets):
+    """Account settings like the mode pair: a Pull must not reset them, and a
+    blank cell is off, as the columns are NOT NULL."""
+    sheets(
+        {
+            "Users": [
+                USER_HEADERS + FEATURE_HEADERS,
+                [str(uuid.uuid4()), "switched", "FALSE", "user", "TRUE", "FALSE", "TRUE", ""],
+            ]
+        }
+    )
+
+    pull.execute_pull_specific(db, "Users", log_action=False, may_restore_authz=True)
+
+    user = db.query(models.User).filter_by(username="switched").one()
+    assert (
+        user.feature_quotes_memes,
+        user.feature_favourites,
+        user.feature_music_status,
+        user.feature_mod_status,
+    ) == (True, False, True, False)
+
+
+def test_a_sheet_with_the_switches_restores_them_over_local_ones(db, sheets):
+    local = models.User(
+        id=uuid.uuid4(),
+        username="restored",
+        hashed_password=get_password_hash("pw"),
+        role_id=db.query(models.Role).filter_by(name="user").one().system_id,
+        feature_quotes_memes=False,
+        feature_mod_status=True,
+    )
+    db.add(local)
+    db.flush()
+    sheets(
+        {
+            "Users": [
+                USER_HEADERS + FEATURE_HEADERS,
+                [str(local.id), "restored", "FALSE", "user", "TRUE", "", "", "FALSE"],
+            ]
+        }
+    )
+
+    pull.execute_pull_specific(db, "Users", log_action=False, may_restore_authz=True)
+
+    db.refresh(local)
+    assert local.feature_quotes_memes is True
+    assert local.feature_mod_status is False
+
+
+def test_a_sheet_without_the_switches_leaves_local_ones_alone(db, sheets):
+    """A sheet backed up before the columns existed has no header for them.
+    The mirror of the restore above: the same switches, kept."""
+    local = models.User(
+        id=uuid.uuid4(),
+        username="kept",
+        hashed_password=get_password_hash("pw"),
+        role_id=db.query(models.Role).filter_by(name="user").one().system_id,
+        feature_quotes_memes=True,
+        feature_music_status=True,
+    )
+    db.add(local)
+    db.flush()
+    sheets({"Users": [USER_HEADERS, [str(local.id), "kept", "FALSE", "super"]]})
+
+    pull.execute_pull_specific(db, "Users", log_action=False, may_restore_authz=True)
+
+    db.refresh(local)
+    assert local.role_ref.name == "super"  # the row did update
+    assert local.feature_quotes_memes is True
+    assert local.feature_music_status is True
+    assert local.feature_favourites is False
+
+
+def test_an_insert_from_a_sheet_without_the_switches_gets_them_off(db, sheets):
+    sheets({"Users": [USER_HEADERS, [str(uuid.uuid4()), "fresh", "FALSE", "user"]]})
+
+    pull.execute_pull_specific(db, "Users", log_action=False, may_restore_authz=True)
+
+    fresh = db.query(models.User).filter_by(username="fresh").one()
+    assert not any(getattr(fresh, c) for c in FEATURE_HEADERS)
+
+
+def test_the_backup_row_carries_the_switches(db):
+    tab = TAB_BY_NAME["Users"]
+    kept = [
+        c.name for c in models.User.__table__.columns if c.name not in tab.drop_columns
+    ]
+    assert set(FEATURE_HEADERS) <= set(kept)

@@ -16,6 +16,11 @@ import pytest
 
 from app import models
 
+
+@pytest.fixture(autouse=True)
+def _features(features_follow_personal_notes):
+    """See conftest.features_follow_personal_notes."""
+
 SONG_SECTIONS = ("op", "ed", "insert_songs", "ost")
 
 

@@ -2318,6 +2318,10 @@ over `role.name` so login can still return it and mint it as a JWT claim.
 | `open_request_limit` | Integer | yes | | How many **open** requests the account may hold at once; NULL is no limit. CHECK `ck_users_open_request_limit_non_negative` (≥ 0). Set to the role's default when the account is created or changes role (15 for `user`, 10 for `shared`, NULL otherwise) and adjustable on the Users page; never enforced, and never settable, for `super`. Travels on the Sheets `Users` tab (`parse_user_from_sheet` names it); a sheet with no header for it leaves the local value alone. |
 | `mode_ceiling` | String | yes | `normal` (server default) | The widest access mode the account may use: a mode **key**, ranked by `seed_modes.MODE_ORDER` (`safe < normal < borderline < unrestricted`). NULL together with `mode_default` is no mode - the account resolves the empty object set. Written by `services/rbac/modes.py::set_mode_ceiling`. A key rather than an `access_mode` id: the order is defined on keys, and a key survives a Pull where a per-database uuid does not. |
 | `mode_default` | String | yes | `normal` (server default) | The mode a login lands in; at or below the ceiling. |
+| `feature_quotes_memes` | Boolean | **no** | `false` (server default) | The account's **quotes and memes** switch: the quote and meme reads, and the Quotes and Memes sections of a detail page, ask it (`services/rbac/features.py`). The root admin holds the feature without it. |
+| `feature_favourites` | Boolean | **no** | `false` (server default) | The favourites switch. Stored and set on `/users`; gates nothing yet. |
+| `feature_music_status` | Boolean | **no** | `false` (server default) | The music status switch. Stored and set on `/users`; gates nothing yet. |
+| `feature_mod_status` | Boolean | **no** | `false` (server default) | The mod status switch. Stored and set on `/users`; gates nothing yet. |
 
 The mode pair is held by three CHECK constraints, so a hand edit or a Pull
 cannot break it: `ck_users_mode_keys` (each NULL or one of the four keys),
@@ -2328,6 +2332,16 @@ order is at most the ceiling's). Both travel on the Sheets `Users` tab
 local pair alone on an update and gives an inserted account `normal` /
 `normal`, and a pair the constraints would refuse is skipped and reported
 rather than rolling back the tab.
+
+The four `feature_*` columns are the **per-account feature switches**
+(`USER_FEATURE_NAMES` in `app/models/system.py`). Only a `user` or `super`
+account may hold one: `PATCH /api/users/{id}` refuses switching one on
+anywhere else with 409, and `held_features` asks the role as well as the
+column, so a value a Pull stores on a shared account opens nothing. They are
+columns rather than a table so they travel on the Sheets `Users` tab beside the
+mode pair and the request limit (`parse_user_from_sheet` names them): a blank
+cell is false, a sheet with no header for one leaves the local value alone on
+an update, and an inserted account gets false.
 
 No timestamps. Relationship `role_ref` (joined load). Virtual `role`. There
 is no visibility flag: everything per user is private to its account.

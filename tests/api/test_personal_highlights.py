@@ -383,7 +383,7 @@ def test_the_same_viewer_with_the_type_may_order(db, client, kr):
         db,
         client,
         "with-h-comic",
-        default_guest_permissions() | {PERM_SELF_PERSONAL_NOTES},
+        default_guest_permissions() | {PERM_SELF_PERSONAL_NOTES, "media_type.h-comic"},
     )
     assert client.get(f"/api/h-comic/{kr['system_id']}").status_code == 200
     assert _put_order(client, kr, ["Ana"]).status_code == 200

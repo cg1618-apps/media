@@ -1,10 +1,13 @@
 // Frontend: which of the member-only reading surfaces this viewer may see.
 //
-// The three view.* keys open what a guest is not shown: the credited entities,
-// search, and the extras (Future Releases, Completions, the Random Picker,
-// Quotes, Memes, Resources). user and super hold all three; guest holds none;
-// admin passes through the root flag. A personal note section needs no key:
-// every viewer is served it, holding only its own rows.
+// The view.* keys open what a guest is not shown: the credited entities, one
+// key per kind (studio, publisher, person - which covers seiyuu - and
+// character, which covers identities), search and the extras (Future Releases,
+// Completions, the Random Picker, Resources). super
+// holds them all; user holds what its role grants; guest holds none; admin
+// passes through the root flag.
+// A personal note section needs no key: every viewer is served it, holding
+// only its own rows.
 //
 // `ownData` is the viewer's own opinion of catalogue rows - its rating of a
 // group or an entity, its expectation of a tier, a novel unit's remark. Those
@@ -24,7 +27,10 @@ export function useViewScope() {
   const auth = useAuth();
   const has = (permission) => Boolean(auth?.has?.(permission));
   return {
-    entities: has("view.entities"),
+    studio: has("view.studio"),
+    publisher: has("view.publisher"),
+    person: has("view.person"),
+    character: has("view.character"),
     search: has("view.search"),
     extras: has("view.extras"),
     ownData: has("self.list"),

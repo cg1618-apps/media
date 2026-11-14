@@ -276,6 +276,21 @@ describe("who edits a personal value", () => {
     // The ungranted value on the same page still has its control.
     expect(screen.getByLabelText("Collected")).toBeInTheDocument();
   });
+
+  it("draws no control for a granted value whose feature the account lacks", async () => {
+    // The listing still carries both granted values, so their absence is the
+    // feature check's doing; the mirror above holds both features.
+    features = new Set();
+    await renderAs(USER);
+
+    expect(screen.queryByLabelText("紅蓮華 status")).toBeNull();
+    expect(screen.queryByLabelText("OP status")).toBeNull();
+    expect(card("模組&工具 Mods").queryByLabelText("Status")).toBeNull();
+    expect(screen.getByText("Need")).toBeInTheDocument();
+    // The ungranted values on the same page still have their controls.
+    expect(screen.getByLabelText("Collected")).toBeInTheDocument();
+    expect(screen.getByLabelText("Mine")).toHaveValue("20");
+  });
 });
 
 describe("NG reset", () => {

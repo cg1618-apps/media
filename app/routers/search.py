@@ -29,25 +29,31 @@ Scope = Enum("Scope", {value.replace("-", "_"): value for value in SCOPES}, type
 
 
 class SearchBuckets(BaseModel):
-    """One list per searchable type. Keys are the `scope` values."""
+    """One list per searchable type. Keys are the `scope` values.
+
+    The three groups and seasonal are always present. Every other bucket
+    defaults to None, and _drop_absent leaves a None bucket out of the
+    response: search() gives no key for a type the viewer cannot see - a
+    gated type its mode hides, a media type its role does not hold, an
+    entity kind whose view.* key it lacks - and the response must not put
+    one back.
+    """
 
     collection: List[schemas.CollectionResponse] = []
     franchise: List[schemas.FranchiseResponse] = []
     series: List[schemas.SeriesResponse] = []
-    anime: List[schemas.AnimeResponse] = []
-    anime_movie: List[schemas.AnimeMovieResponse] = Field(
-        default=[], alias="anime-movie"
+    seasonal: List[schemas.SeasonalResponse] = []
+    anime: Optional[List[schemas.AnimeResponse]] = None
+    anime_movie: Optional[List[schemas.AnimeMovieResponse]] = Field(
+        default=None, alias="anime-movie"
     )
-    movie: List[schemas.MovieResponse] = []
-    tv_show: List[schemas.TVShowResponse] = Field(default=[], alias="tv-show")
-    cartoon: List[schemas.CartoonResponse] = []
-    manga: List[schemas.MangaResponse] = []
-    novel: List[schemas.NovelResponse] = []
-    comic: List[schemas.ComicResponse] = []
-    game: List[schemas.GameResponse] = []
-    # A gated type's bucket defaults to None, not [], and _drop_absent leaves
-    # a None bucket out of the response: search() gives no key for a gated
-    # type the viewer cannot see, and the response must not put one back.
+    movie: Optional[List[schemas.MovieResponse]] = None
+    tv_show: Optional[List[schemas.TVShowResponse]] = Field(default=None, alias="tv-show")
+    cartoon: Optional[List[schemas.CartoonResponse]] = None
+    manga: Optional[List[schemas.MangaResponse]] = None
+    novel: Optional[List[schemas.NovelResponse]] = None
+    comic: Optional[List[schemas.ComicResponse]] = None
+    game: Optional[List[schemas.GameResponse]] = None
     h_comic: Optional[List[schemas.HComicResponse]] = Field(
         default=None, alias="h-comic"
     )
@@ -55,13 +61,12 @@ class SearchBuckets(BaseModel):
     h_game: Optional[List[schemas.HGameResponse]] = Field(
         default=None, alias="h-game"
     )
-    seasonal: List[schemas.SeasonalResponse] = []
     # Staff. Shown on their own tab by the search page, after the media tab.
-    person: List[schemas.PersonResponse] = []
-    studio: List[schemas.StudioResponse] = []
-    publisher: List[schemas.PublisherResponse] = []
-    # Only when the request asks for it (`characters=true`); None otherwise,
-    # which _drop_absent leaves out, so the nav dropdown never sees the key.
+    person: Optional[List[schemas.PersonResponse]] = None
+    studio: Optional[List[schemas.StudioResponse]] = None
+    publisher: Optional[List[schemas.PublisherResponse]] = None
+    # Only when the request asks for it (`characters=true`) and the viewer
+    # holds view.character.
     character: Optional[List[schemas.CharacterResponse]] = None
 
     # The bucket keys the frontend uses are hyphenated media-type keys, but
@@ -72,8 +77,8 @@ class SearchBuckets(BaseModel):
 
     @model_serializer(mode="wrap")
     def _drop_absent(self, handler):
-        """Leave out a bucket that is None - a hidden gated type's. Top level
-        only: a null field on an entry inside a bucket is still sent."""
+        """Leave out a bucket that is None - a type the viewer cannot see. Top
+        level only: a null field on an entry inside a bucket is still sent."""
         return {key: rows for key, rows in handler(self).items() if rows is not None}
 
 
