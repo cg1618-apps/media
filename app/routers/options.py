@@ -15,7 +15,13 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.dependencies import get_db
-from app.services.rbac.resolver import Viewer, get_viewer, require_manage_options
+from app.services.domain.credit_counts import person_role_counts, studio_count
+from app.services.rbac.resolver import (
+    Viewer,
+    get_viewer,
+    require_manage_catalog,
+    require_manage_options,
+)
 from app.services.rbac.shared_visibility import (
     apply_shared_visibility,
     hidden_scopes,
@@ -75,7 +81,7 @@ def _omit_hidden_scopes(options: list, db: Session, viewer: Viewer) -> list:
 
 
 # ==========================================
-# PUBLIC READ OPERATIONS (Unprotected)
+# READ OPERATIONS (public, but for the manage.options counts)
 # ==========================================
 
 
@@ -115,6 +121,34 @@ def get_all_system_options(
         .all()
     )
     return _omit_hidden_scopes(options, db, viewer)
+
+
+@router.get(
+    "/record-counts",
+    response_model=schemas.OptionRecordCounts,
+    summary="Count the Records Tier 3 Lists",
+)
+def get_record_counts(
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(require_manage_options),
+):
+    """
+    How many people hold each person role, and how many studios exist: the
+    counts System Options' Tier 3 shows beside the categories those records
+    replaced.
+
+    `manage.options` rather than `view.person` / `view.studio`, because it is
+    the page's own key - the admin reaches System Options holding neither
+    view key. Numbers only, never a name, and counted as the viewer may see
+    them, the same tally /api/person/role-counts heads its list with.
+
+    Declared BEFORE /{category}, which would otherwise take "record-counts"
+    as a category name and answer an empty list.
+    """
+    return {
+        "person_roles": person_role_counts(db, viewer),
+        "studios": studio_count(db, viewer),
+    }
 
 
 @router.get(
@@ -158,7 +192,7 @@ def get_system_options(
 
 
 # ==========================================
-# PROTECTED WRITE OPERATIONS (Admin Only)
+# WRITE OPERATIONS (manage.catalog, the Add and Modify forms' key)
 # ==========================================
 
 
@@ -186,7 +220,7 @@ def resolve_option_alias(db: Session, category: str, source: str, value: str):
 def add_system_option(
     payload: schemas.SystemOptionCreate,
     db: Session = Depends(get_db),
-    admin: Viewer = Depends(require_manage_options),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Adds a new dropdown option to the database.
@@ -236,7 +270,7 @@ def update_system_option(
     option_id: UUID,
     payload: schemas.SystemOptionCreate,
     db: Session = Depends(get_db),
-    admin: Viewer = Depends(require_manage_options),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Updates an existing dropdown option in the database.
@@ -326,7 +360,7 @@ def update_system_option(
 def delete_option(
     option_id: UUID,
     db: Session = Depends(get_db),
-    admin: Viewer = Depends(require_manage_options),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """Deletes an option and logs it to the deleted_record table."""
     db_opt = (

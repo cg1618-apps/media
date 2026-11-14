@@ -51,6 +51,7 @@ export const endpoints = {
   options: {
     list: () => "/api/options/",
     byCategory: (category) => `/api/options/${category}`,
+    recordCounts: () => "/api/options/record-counts",
     create: () => "/api/options/",
     update: (id) => `/api/options/${id}`,
     remove: (id) => `/api/options/${id}`,

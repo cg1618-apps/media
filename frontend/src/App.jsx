@@ -336,8 +336,9 @@ export default function App() {
 
                 {/* The Note pages - the vocabulary, its translations and which
                     columns each external API writes. manage.options, the key
-                    /api/options and /api/constants/external-apis ask: the
-                    admin's and super's, not a catalogue write. */}
+                    /api/options/record-counts and /api/constants/external-apis
+                    ask: the admin's and super's. Read-only for both - an
+                    option is written on the forms, under manage.catalog. */}
                 <Route element={<ProtectedRoute permission="manage.options" />}>
                   <Route path="/options" element={<SystemOptions />} />
                   <Route path="/aliases" element={<Aliases />} />
