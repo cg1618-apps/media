@@ -63,7 +63,7 @@ are a large share of the bundle and never needed on first paint.
 | `/random` | `public/RandomPicker.jsx` — the general mode | lazy, **`view.random_picker`** |
 | `/random/h-comic`, `/random/h-game`, `/random/hentai` | `RandomPicker type="…"` — the same file, each inside its type's `<ProtectedRoute gatedType>` and, within it, `<ProtectedRoute permission="view.random_picker">` (matched before `/random/:type`) | lazy, **gated**, **`view.random_picker`** |
 | `/random/:type` | `RandomPicker` — one type's mode, or `/random/franchise`, the franchise mode; an unknown type redirects to `/random` | lazy, **`view.random_picker`** |
-| `/plan` | `public/Plan.jsx` | lazy, **login required** |
+| `/plan` | `public/Plan.jsx` | lazy, **`self.list`** |
 | `/quote` | `public/Quotes.jsx` | lazy, **feature `quotes_memes`** (`<ProtectedRoute feature>`) |
 | `/meme` | `public/Memes.jsx` | lazy, **feature `quotes_memes`** |
 | `/resources` | `public/Resources.jsx` | lazy, **`manage.resources`** — the admin's and super's alone |
@@ -176,10 +176,11 @@ hands back the original item objects, since Nav marks the current row by
 identity. Every gate is `has()` from `useAuth()`, a plain membership test,
 so a tab or row is drawn only for a role that holds its key.
 
-A guest is therefore shown one tab, Library, holding Groups, ACG and
-Reality. The admin is shown no Library and no Track tab, Insights holding
-Resources alone, Entry holding Images alone, and Note, Pipelines and Admin
-in full.
+A guest is therefore shown two tabs: Library, holding Groups, ACG and
+Reality, and Explore, holding Seasonal, Future Releases and Statistics. A
+shared account's Explore adds the Random Picker. The admin is shown no
+Library, Restricted, Track or Explore tab, Extras holding Resources alone,
+Entry holding Images alone, and Note, System and Admin in full.
 
 **`components/layout/Nav.jsx`** renders two rows: an "ink" row (logo → `/`,
 `<NavSearch/>`, session controls) and a paper tab strip. `<NavSearch/>`, the
@@ -205,10 +206,12 @@ load of the page it is on, so nothing cached for the outgoing account
 survives) follows the indicator rather than the chip: it renders for any
 signed-in account, because a strip naming you with no way out is a dead end.
 Guests get **Log in** → `/login?next=<current path>`.
-**Requests** → `/requests` sits just before log out, and in the drawer just
-above it, for a viewer holding `self.requests` — the key the route asks. It
+**Requests** → `/requests` sits before log out, and in the drawer above
+it, for a viewer holding `self.requests` — the key the route asks. It
 is an account control rather than a tab, and the admin account, which files
-nothing, is not offered it.
+nothing, is not offered it. **Settings** → `/settings` (an icon) sits
+between it and log out, for a viewer holding `self.list`, the key its route
+asks — user and super.
 
 The nav narrows in three steps:
 
@@ -2021,9 +2024,6 @@ lost it once `/library/seiyuu` shipped.
   remaining gaps are `usePlanData.allEntriesByFranchise`, which still skips
   comics, and `CollectionLibrary` and `CollectionPage`, which fetch eight entry
   lists and so can never draw a collection cover from a game.
-- `FutureReleases` has no Games tab, so an unreleased game (`release_status`
-  `Rumored` / `Unreleased`, playing status `Play When Released`) shows up
-  nowhere on that page.
 - `SeasonalDetail` refetches on id change without a cancellation flag;
   `SeasonalOverall`, `CollectionLibrary`, `FranchiseLibrary` fetch once.
 - `Search.jsx` passes `isAdmin` only to the Manga `MediaCard`s.

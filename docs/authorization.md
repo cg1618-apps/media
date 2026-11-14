@@ -871,8 +871,11 @@ keeping:
   and there is deliberately **no fallback to another account**.
 - The frontend counterpart is `ProtectedRoute`'s `requireAuth` prop
   (`frontend/src/components/layout/ProtectedRoute.jsx`), which gates on
-  `username` rather than on `has(permission)`. `/plan`, `/seasonal`,
-  `/seasonal/:seasonal_id` and `/statistics` use it.
+  `username` rather than on `has(permission)`. No route uses it: `/plan`,
+  `/completions` and `/settings` ask `permission="self.list"`, and
+  `/seasonal`, `/seasonal/:seasonal_id`, `/statistics` and
+  `/future-releases` ask any ordinary `media_type.*`, since each has a
+  catalogue version for a viewer without a list.
 - `/api/auth/me` returns `is_admin` (`manage.catalog`, so false for the
   admin account), `username`, `role`, `permissions` (sorted);
   `AuthContext.jsx` builds a `Set` and exposes `has()`, a plain membership
@@ -1573,7 +1576,7 @@ missing from the twenty-first.
 | Surface | What it does with the rule |
 |---|---|
 | `Viewer.has()` (`services/rbac/resolver.py`) | a set membership test, for every role; the admin's set holds no `self.*` |
-| `AuthContext.has()` (`frontend/src/contexts/AuthContext.jsx`) | the same test over `/me`'s `permissions`, so the nav never advertises Plan, Seasonal and Statistics to an account the API answers 401 |
+| `AuthContext.has()` (`frontend/src/contexts/AuthContext.jsx`) | the same test over `/me`'s `permissions`, so the nav never advertises Plan or Completions to an account the API answers 401, nor Seasonal, Future Releases or Statistics to one that reads no catalogue |
 | `/api/me/*`, `/api/plan-next/*`, `/api/seasonal/*` | all three prefixes are gated on `self.list` at the router, so a route added later is covered by default. An admin gets 401. The exception is `/api/seasonal/current-season` and `/api/seasonal/catalogue`, which are about the catalogue and sit on a separate, ungated router |
 | `/api/watch-order/follows*`, `/api/watch-order/lists/{id}/follow` | gated on `self.list` **per route** (`require_self_list` in `routers/watch_order.py`), because the rest of that router is public reads and catalogue writes. An admin gets 401. The SPA asks `has("self.list")` before drawing the follow toggle, the entry panel or the dashboard section, and before fetching for them |
 | Nested game `copies` | skipped, not refused, for a viewer without `self.list` (`services/domain/game_copies.py`). A copy is personal ownership written through a **catalogue** route, so failing the whole Game edit would refuse a legitimate catalogue change. The SPA hides the editor, so this is the second stop |
