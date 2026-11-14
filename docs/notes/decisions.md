@@ -4670,3 +4670,42 @@ Migration `a1d2minroot45` carries it.
   looking; the label reference's counts cover that, and a "preview as an
   account or mode" feature is the remedy if that is ever not enough. Its own
   dashboard is not built yet, so `/` shows it the guest's dashboard.
+
+### No admin-role account is the installation owner (2026-11-14)
+
+Decided by the owner. The installation owner is whose collection a restore
+or a pipeline files rows under, and the admin keeps no personal data, so the
+flag and the admin role never meet on one account.
+
+- **Guarded where they are written, not with a constraint.** A CHECK across
+  `users` and `role` needs a trigger or a denormalised role name, and either
+  is a migration for a state only a hand edit or an old sheet can produce.
+  The writers are few: `/api/users`, Pull's Users tab and boot.
+- **`/api/users` needed no new refusal.** It writes no flag, and every route
+  that sets a role (create, approve, `PATCH`) already takes `user` or `super`
+  only (422), with the admin account's own role fixed (409). Tests now pin
+  both with a flagged account present, so a later change that widens either
+  is caught.
+- **Pull drops the flag from an admin row and restores the rest**, reported
+  in `unresolved_refs`, rather than skipping the row. A skipped row would
+  leave the account's other columns stale for a fault in one cell; this is
+  how a bad mode pair is already handled. The drop happens before the
+  clearing step, so the local holder keeps its flag.
+- **Boot clears a flag a hand edit left on an admin account**
+  (`ensure_no_admin_installation_owner`), the way `ensure_admin_accounts_modeless`
+  removes the admin's mode.
+- **`installation_owner_id()` also passes an admin flag holder over.** The
+  guards make that state unreachable through the application, but the
+  function is the one place every restore and pipeline asks, and "never the
+  admin" is its contract; on a hand-edited database the rows then go to the
+  fallback account rather than to one that keeps no personal data. The
+  frozen owner query in the revisions that moved personal data
+  (`u1r2atings3` onward) is left as it shipped: a revision keeps meaning
+  what it meant when it ran, and no guarded database reaches it with an
+  admin flag holder.
+- **Found on the way: Pull un-owned the owner.** The clearing step that
+  makes room for the sheet's flag holder also cleared the row's own account
+  when it already held the flag - the ordinary Backup-then-Pull case - and
+  the row's update then saw no change and wrote nothing, so every Pull left
+  the collection with no flag holder (the fallback then answered). The
+  clearing step now spares the row's own account, by username.

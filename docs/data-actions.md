@@ -121,7 +121,8 @@ iterates.
 account a restore or Calculate files a personal row under when the row itself
 does not say. It answers, in order:
 
-1. the account holding `users.is_installation_owner`, whatever its status;
+1. the account holding `users.is_installation_owner`, whatever its status,
+   unless its role is `admin` - no admin account is the owner;
 2. else the first `active` account, by username, whose role is not `admin`,
    `guest` or `shared` (`NEVER_OWNER_ROLE_NAMES`);
 3. else **None** — never the admin, which keeps no personal data.
@@ -247,9 +248,15 @@ writes no row at all for a pending account.
 
 The tab also carries **`is_installation_owner`**, so the two machines agree
 about whose collection this is. A restored `true` clears the flag from
-whatever local account held it first: `ix_one_installation_owner` is unique
-across the whole table, and without the clearing step the tab would raise at
-its commit and roll back **every** account. `parse_user_from_sheet` is an
+whatever other local account held it first: `ix_one_installation_owner` is
+unique across the whole table, and without the clearing step the tab would
+raise at its commit and roll back **every** account. The row's own account
+(by username) is not cleared, so a sheet naming the local owner leaves it the
+owner. **An admin-role row is restored without the flag** - no admin account
+is the owner - and the tab adds `Users: '<name>' is an admin account and
+cannot be the installation owner; restored without the flag` to
+`unresolved_refs`; the clearing step does not run for it, so the local holder
+keeps its flag. `parse_user_from_sheet` is an
 explicit projection, so a column added to the User model does not travel until
 it is named there. `open_request_limit` is named there; a blank cell is NULL
 (no limit), and a sheet with no header for it leaves the local value alone.
