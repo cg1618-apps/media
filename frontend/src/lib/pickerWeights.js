@@ -8,8 +8,24 @@
 //   2. one entry inside that group, chosen by the product of its entry
 //      factors: rating (Completed only), plan mark, release decade, and in a
 //      one-type mode that type's serialization status
+//
+// The status group, the rating and the plan mark read the viewer's own list,
+// so WEIGHT_INPUTS flags them `personal: true`. A context with `personal:
+// false` - a viewer without self.list - leaves them unused: the pool is one
+// group, and each personal factor is 1. The picker page goes further for such
+// a viewer and draws unweighted (see drawChances' `weighted`).
 import { MEDIA_CONFIG } from "../config/mediaRegistry";
 import { UNRATED, decadeOf, entryKey, statusGroupOf } from "./randomPicker";
+
+// Every input the weighted draw reads: stage 1's group, then the stage-2
+// factors entryFactors names.
+export const WEIGHT_INPUTS = {
+  group: { personal: true },
+  rating: { personal: true },
+  plan: { personal: true },
+  decade: { personal: false },
+  serialization: { personal: false },
+};
 
 // Stage 1. A group missing from the pool is skipped, and the rest share the
 // draw in these proportions.
@@ -117,9 +133,10 @@ function hasMark(entry, kind, planMarks) {
 
 /**
  * Each stage-2 factor of one entry, by name. `mode` is "all" or the type;
- * `planMarks` is groupPlanMarks' Set, or empty for a guest.
+ * `planMarks` is groupPlanMarks' Set, or empty for a guest; `personal` false
+ * makes every WEIGHT_INPUTS factor flagged personal 1.
  */
-export function entryFactors(entry, { mode = "all", planMarks } = {}) {
+export function entryFactors(entry, { mode = "all", planMarks, personal = true } = {}) {
   const { type, item } = entry;
   const completed = weightGroupOf(type, item) === "Completed";
   const year = parseInt(decadeOf(type, item), 10);
@@ -128,7 +145,7 @@ export function entryFactors(entry, { mode = "all", planMarks } = {}) {
     : hasMark(entry, "rewatch", planMarks)
       ? REWATCH_WEIGHT
       : 1;
-  return {
+  const factors = {
     rating: completed
       ? (RATING_WEIGHT[item.my_rating || UNRATED] ?? RATING_WEIGHT[UNRATED]) *
         (COMPLETED_STATUS_WEIGHT[rawStatus(type, item)] ?? 1)
@@ -138,6 +155,10 @@ export function entryFactors(entry, { mode = "all", planMarks } = {}) {
     serialization:
       mode === "all" ? 1 : (SERIALIZATION_WEIGHTS[type]?.[item.serialization_status] ?? 1),
   };
+  if (personal) return factors;
+  return Object.fromEntries(
+    Object.entries(factors).map(([name, w]) => [name, WEIGHT_INPUTS[name].personal ? 1 : w]),
+  );
 }
 
 /** The stage-2 weight of one entry: its factors multiplied. */
@@ -147,7 +168,9 @@ export function entryWeight(entry, context) {
 
 /**
  * Every entry's chance of being drawn from `pool`, as a Map keyed by
- * entryKey. Unweighted, every entry has the same chance.
+ * entryKey. Unweighted, every entry has the same chance. Without `personal`
+ * in the context (see entryFactors) the status group is unused, so the whole
+ * pool is one group.
  */
 export function drawChances(pool, context, weighted = true) {
   const chances = new Map();
@@ -155,9 +178,10 @@ export function drawChances(pool, context, weighted = true) {
     for (const e of pool) chances.set(entryKey(e), 1 / pool.length);
     return chances;
   }
+  const byGroup = context?.personal !== false || !WEIGHT_INPUTS.group.personal;
   const groups = new Map();
   for (const e of pool) {
-    const g = weightGroupOf(e.type, e.item);
+    const g = byGroup ? weightGroupOf(e.type, e.item) : null;
     const w = entryWeight(e, context);
     if (!groups.has(g)) groups.set(g, { total: 0, entries: [] });
     const bucket = groups.get(g);

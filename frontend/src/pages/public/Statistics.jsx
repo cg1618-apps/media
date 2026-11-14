@@ -1,4 +1,10 @@
 // Frontend: page component file for Statistics.
+//
+// With a list (self.list), the viewer's own numbers, computed from its lists,
+// seasonal rows and game copies. Without one, counts of the catalogue only
+// (StatsCatalogue): the personal sections are absent, not empty.
+import { useViewScope } from "../../hooks/useViewScope";
+import StatsCatalogue from "../statistics/StatsCatalogue";
 import useStatisticsData from "../statistics/useStatisticsData";
 import StatsFavoriteGrids from "../statistics/StatsFavoriteGrids";
 import StatsFranchiseSummary from "../statistics/StatsFranchiseSummary";
@@ -9,6 +15,11 @@ import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { Eyebrow } from "../../components/ui/primitives";
 
 export default function Statistics() {
+  const { ownData } = useViewScope();
+  return ownData ? <StatisticsWithList /> : <StatsCatalogue />;
+}
+
+function StatisticsWithList() {
   const {
     franchises,
     series,

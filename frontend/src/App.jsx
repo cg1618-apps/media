@@ -264,13 +264,22 @@ export default function App() {
                   <Route path="/random" element={<RandomPicker />} />
                   <Route path="/random/:type" element={<RandomPicker />} />
                 </Route>
-                {/* Future Releases reads the catalogue lists: any viewer that
-                    reads one ordinary media type opens it, the same list
-                    navigation.js asks for its row and the Library tab. */}
+                {/* Future Releases, Seasonal and Statistics read the
+                    catalogue: any viewer that reads one ordinary media type
+                    opens them, the same list navigation.js asks for their
+                    rows and the Library tab. Each page draws the viewer's own
+                    version with a list (self.list) and the catalogue's
+                    without one. */}
                 <Route
                   element={<ProtectedRoute anyPermission={LIBRARY_MEDIA_TYPE_PERMISSIONS} />}
                 >
                   <Route path="/future-releases" element={<FutureReleases />} />
+                  <Route path="/seasonal" element={<SeasonalOverall />} />
+                  <Route
+                    path="/seasonal/:seasonal_id"
+                    element={<SeasonalDetail />}
+                  />
+                  <Route path="/statistics" element={<Statistics />} />
                 </Route>
                 {/* The site-wide Resources page is the admin's and super's
                     alone: manage.resources gates /api/resources reads and
@@ -283,8 +292,8 @@ export default function App() {
                   <Route path="/meme" element={<Memes />} />
                 </Route>
 
-                {/* Per-user pages: a plan queue and a season's counters belong
-                    to one account, and their APIs 401 a stranger.
+                {/* Per-user pages: a plan queue and a list's completions
+                    belong to one account, and their APIs 401 a stranger.
 
                     `permission="self.list"`, not `requireAuth`. These asked
                     two different questions until 2026-09-12: the route let in
@@ -297,12 +306,6 @@ export default function App() {
                     control on these pages writes the viewer's own rows. */}
                 <Route element={<ProtectedRoute permission="self.list" />}>
                   <Route path="/completions" element={<Completions />} />
-                  <Route path="/seasonal" element={<SeasonalOverall />} />
-                  <Route
-                    path="/seasonal/:seasonal_id"
-                    element={<SeasonalDetail />}
-                  />
-                  <Route path="/statistics" element={<Statistics />} />
                   <Route path="/plan" element={<Plan />} />
                 </Route>
 

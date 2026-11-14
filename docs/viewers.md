@@ -75,11 +75,6 @@ catalogue and what is an account's own data is
 > catalogue sections empty, since it reads no catalogue.
 > **`/resources` is the admin's and super's alone**: a `user` does not
 > reach it.
->
-> **A shared account's Random Picker, and every viewer's Future Releases, are
-> the member's pages.** The catalogue-only versions (no personal filters,
-> unweighted picking; no status sort or expectation badge) are not built, so
-> the personal values read empty for a viewer without a list.
 
 ## At a glance
 
@@ -219,14 +214,6 @@ Super without the catalogue work.
 The admin has none of them: it reads no catalogue.
 
 ¹ Shared accounts get a Random Picker that differs from today's; see
-[Customised pages](#customised-pages).
-
-**Seasonal and Statistics need a version without personal data.** Both are
-built from the viewer's own list today — Seasonal sorts a season's anime
-into Completed / Watching / Planned / Might Watch / Dropped by the viewer's
-status, and Statistics counts the viewer's ratings and favourites. A guest
-or shared account has no list, so as built both pages would be empty for
-them. What those two pages show an account without data is in
 [Customised pages](#customised-pages).
 
 ## Guest

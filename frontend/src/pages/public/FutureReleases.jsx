@@ -1,6 +1,14 @@
 // Frontend: page component file for FutureReleases.
+//
+// With a list (self.list), each group is ordered by the viewer's own status
+// and franchise expectation, and every card says whether the entry is on the
+// viewer's list and whether it is planned. Without one, the catalogue only:
+// each group in release-date order, with no personal marker.
 import { useState, useCallback, useMemo } from "react";
-import { releaseYear } from "../../lib/releaseDate";
+import { primaryReleaseValue, releaseScore, releaseYear } from "../../lib/releaseDate";
+import { MEDIA_CONFIG } from "../../config/mediaRegistry";
+import { PLAN_FLAG_KEYS } from "../../hooks/useStatusToggle";
+import { useViewScope } from "../../hooks/useViewScope";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../contexts/AuthContext";
 import MediaCard from "../../components/cards/MediaCard";
@@ -72,6 +80,41 @@ function sortGroup(entries, franchiseDict) {
   });
 }
 
+// Without a list: earliest release first, an undated entry after every dated
+// one, by name. The date is the type's own most meaningful release column.
+function sortByReleaseDate(entries, mediaType) {
+  const score = (e) => releaseScore(primaryReleaseValue(mediaType, e)) || Infinity;
+  return [...entries].sort((a, b) => {
+    const d = score(a) - score(b);
+    if (d !== 0 && !Number.isNaN(d)) return d;
+    return String(a.display_name ?? "").localeCompare(String(b.display_name ?? ""));
+  });
+}
+
+// The viewer's own marks on a card: on its list (any status), and planned
+// (any plan flag). Read from the fields every list response carries.
+function ListMarkers({ type, data }) {
+  const statusField = MEDIA_CONFIG[type]?.statusField;
+  const onList = Boolean(statusField && data[statusField]);
+  const planned = [...PLAN_FLAG_KEYS].some((key) => data[key] === true);
+  if (!onList && !planned) return null;
+  return (
+    <div className="flex flex-wrap gap-1 mt-1" data-testid="list-markers">
+      {onList && <Chip tone="brand">On your list</Chip>}
+      {planned && <Chip>Planned</Chip>}
+    </div>
+  );
+}
+
+function FutureCard({ ownData, ...cardProps }) {
+  return (
+    <div>
+      <MediaCard {...cardProps} />
+      {ownData && <ListMarkers type={cardProps.type} data={cardProps.data} />}
+    </div>
+  );
+}
+
 // A game is "future" while it is one of these. "Early Access" is already
 // out, and "Cancelled" is never coming - neither belongs on this page.
 const GAME_UNRELEASED_STATUSES = ["Rumored", "Unreleased"];
@@ -97,13 +140,15 @@ const LIST_OPTIONS = { params: { limit: 2000 } };
 
 export default function FutureReleases() {
   const { isAdmin } = useAuth();
+  const { ownData } = useViewScope();
   const queryClient = useQueryClient();
   const [activeTypeFilter, setActiveTypeFilter] = useState("all");
 
   const [mainTab, setMainTab] = useState("anime");
 
   const animeQuery = useMediaList("anime", LIST_OPTIONS);
-  const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
+  // The franchise expectation orders a list's groups; nothing else reads it.
+  const franchiseQuery = useMediaList("franchise", { ...LIST_OPTIONS, enabled: ownData });
   // The open read every catalogue reader may ask, not the Control Center's
   // manage.pipelines route, which a member would be refused.
   const seasonQuery = useApiQuery(
@@ -430,7 +475,9 @@ export default function FutureReleases() {
             <div className="space-y-10">
               {sortedKeys.map((key) => {
                 const label = getGroupLabel(key);
-                const sorted = sortGroup(groups[key], franchiseDict);
+                const sorted = ownData
+                  ? sortGroup(groups[key], franchiseDict)
+                  : sortByReleaseDate(groups[key], "anime");
                 let badge = null;
                 if (key === currentSeasonKey) {
                   badge = <Chip tone="brand">Current</Chip>;
@@ -452,7 +499,8 @@ export default function FutureReleases() {
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                       {sorted.map((anime) => (
-                        <MediaCard
+                        <FutureCard
+                          ownData={ownData}
                           key={anime.system_id}
                           type="anime"
                           variant="future"
@@ -497,7 +545,9 @@ export default function FutureReleases() {
           ) : (
             <div className="space-y-10">
               {movieYears.map((year) => {
-                const sorted = sortGroup(movieGroups[year], franchiseDict);
+                const sorted = ownData
+                  ? sortGroup(movieGroups[year], franchiseDict)
+                  : sortByReleaseDate(movieGroups[year], "anime-movie");
                 return (
                   <section key={year}>
                     <div className="flex items-center gap-3 mb-4">
@@ -511,7 +561,8 @@ export default function FutureReleases() {
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                       {sorted.map((movie) => (
-                        <MediaCard
+                        <FutureCard
+                          ownData={ownData}
                           key={movie.system_id}
                           type="anime-movie"
                           variant="future"
@@ -563,8 +614,12 @@ export default function FutureReleases() {
                     <div className="flex-1 border-t border-dotted border-border-strong/60"></div>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                    {liveMovieGroups[year].map((movie) => (
-                      <MediaCard
+                    {(ownData
+                      ? liveMovieGroups[year]
+                      : sortByReleaseDate(liveMovieGroups[year], "movie")
+                    ).map((movie) => (
+                      <FutureCard
+                        ownData={ownData}
                         key={movie.system_id}
                         type="movie"
                         variant="future"
@@ -616,8 +671,12 @@ export default function FutureReleases() {
                     <div className="flex-1 border-t border-dotted border-border-strong/60"></div>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                    {cartoonGroups[year].map((cartoon) => (
-                      <MediaCard
+                    {(ownData
+                      ? cartoonGroups[year]
+                      : sortByReleaseDate(cartoonGroups[year], "cartoon")
+                    ).map((cartoon) => (
+                      <FutureCard
+                        ownData={ownData}
                         key={cartoon.system_id}
                         type="cartoon"
                         variant="future"
@@ -671,7 +730,8 @@ export default function FutureReleases() {
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                     {gameGroups[year].map((game) => (
-                      <MediaCard
+                      <FutureCard
+                        ownData={ownData}
                         key={game.system_id}
                         type="game"
                         variant="future"
@@ -720,7 +780,8 @@ export default function FutureReleases() {
                   return a.release_date.localeCompare(b.release_date);
                 })
                 .map((show) => (
-                  <MediaCard
+                  <FutureCard
+                    ownData={ownData}
                     key={show.system_id}
                     type="tv-show"
                     variant="future"
