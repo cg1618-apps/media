@@ -56,6 +56,7 @@ import PlanKindToggles, {
   kindLabel,
   applicableTypes,
 } from "../../components/plan/PlanKindToggles";
+import { usePageTitle } from "../../contexts/PageTitleContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { useViewScope } from "../../hooks/useViewScope";
 import { useMyRatingSaver } from "../../api/mutations/useMyRatingMutations";
@@ -983,6 +984,17 @@ export default function SeriesPage() {
     totalEntries > 0 ? Math.round((completedCount / totalEntries) * 100) : 0;
 
   // ── loading / error ───────────────────────────────────────────────────────
+  // The heading's title, which the browser tab shows too.
+  const mainTitle = series
+    ? series.series_name_cn ||
+      series.series_name_en ||
+      series.series_name_alt ||
+      series.series_name_roman ||
+      series.series_name_jp ||
+      "Unknown Series"
+    : null;
+  usePageTitle(loading || error ? null : mainTitle);
+
   if (loading) return <HubLoading label="Loading Series Hub..." />;
 
   if (error)
@@ -1012,14 +1024,6 @@ export default function SeriesPage() {
     ...hentaiList,
   ];
   const cover = getSeriesCover(series, allEntries);
-
-  const mainTitle =
-    series.series_name_cn ||
-    series.series_name_en ||
-    series.series_name_alt ||
-    series.series_name_roman ||
-    series.series_name_jp ||
-    "Unknown Series";
 
   const subTitles = [
     { label: "EN", value: series.series_name_en },
