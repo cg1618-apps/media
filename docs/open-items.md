@@ -150,15 +150,6 @@ group still sees the order and the group's display name. `media_relation`'s
 `/graph` and scope listing behave the same way. Fix by gating each on
 `tier_visible` and answering a hidden owner as missing.
 
-**System Options shows the admin zero people and studios.** The page's Tier 3
-counts — people by role, and studios — read `/api/person/role-counts` and
-`/api/studio/`, which are `view.person` and `view.studio` reads. The admin
-reaches `/options` through `manage.options` but holds neither key, so both
-requests are refused and the page draws zeros, with no error. Unmade
-decision: give the counts an endpoint of their own behind `manage.options`,
-or accept the gap until the admin's own pages are designed with the
-per-viewer pages ([to-do-next.md](to-do-next.md)).
-
 **Two community-adjacent measurements are unanswered.** Does any endpoint return
 an entry's `system_id` for a type the viewer lacks? And the same for a
 label-hidden entry — that one is demonstrable: the home database carries three

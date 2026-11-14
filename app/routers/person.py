@@ -17,7 +17,6 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
-from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
 
 from app import models, schemas
@@ -28,6 +27,7 @@ from app.routers._patching import apply_column_patch
 from app.schemas.external_search import ExternalSearchResult
 from app.services.domain.autofill import autofill_person_from_mal
 from app.services.domain.casting import fallback_photo
+from app.services.domain.credit_counts import person_role_counts
 from app.services.domain.credits import find_person
 from app.services.domain.derivation import apply_extract_mal_id_person
 from app.services.domain.entity_photos import EntityMedia, person_media
@@ -235,19 +235,9 @@ def get_role_counts(
     Counts people, not person_role rows - a director scoped for
     all three of their media types has three rows but is one person. Counts
     only the people and role scopes this viewer may see, so the tally agrees
-    with the list it heads.
+    with the list it heads (app/services/domain/credit_counts.py).
     """
-    hidden = hidden_scopes(db, viewer)
-    roles = [role for role in PERSON_ROLES if role not in hidden_person_roles(hidden)]
-    query = db.query(
-        models.PersonRole.role,
-        func.count(func.distinct(models.PersonRole.person_id)),
-    ).join(models.Person, models.PersonRole.person_id == models.Person.system_id)
-    query = apply_shared_visibility(query, models.Person, db, viewer)
-    if hidden:
-        query = query.filter(models.PersonRole.scope.notin_(hidden))
-    tallied = dict(query.group_by(models.PersonRole.role).all())
-    return {role: tallied.get(role, 0) for role in roles}
+    return person_role_counts(db, viewer)
 
 
 @router.get(
