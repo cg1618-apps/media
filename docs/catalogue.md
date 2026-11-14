@@ -20,11 +20,14 @@ card. It carries no technical detail; the tables behind it are
 | Your list: status, rating, progress, completed date, watch day, usefulness | the "My tracker" card on an entry, the libraries' status column |
 | Your plan queue: watch next, read next, rewatch | Plan |
 | Your season ratings | Seasonal |
-| Your rating of each novel volume | a novel's volumes |
+| Your rating and expectation of a collection, franchise or series | the collection, franchise and series pages and their cards |
+| Your rating of a character, person, studio or publisher | their pages and cards |
+| Your rating of, and remark on, each novel volume | a novel's volumes |
 | Your game copies: where you bought it, the format, what you paid | a game's copies |
 | Your progress through a game's choices: what you have done, and a note | a game's Choices card |
 | The watch orders you follow | a watch order's follow toggle |
-| Your personal notes — the sections marked **yours** in [Notes](#notes-yours-or-shared) | the Notes card on an entry or group |
+| Your personal notes — the sections marked **yours** in [Notes](#notes-yours-or-shared), your highlights among them | the Notes card on an entry or group |
+| The order of the highlight groups on an H-Comic or H-Game | its 亮點 Highlights card |
 
 Nobody else can change any of it, and nobody else can see it, the admin
 included. There is no profile others can open and no community figure your
@@ -44,29 +47,12 @@ sees the same version.
 
 ## Shared today, but one person's opinion
 
-A few things are stored with the catalogue while being the owner's opinion,
-so they are the owner's for everyone, and members cannot set their own:
+One thing is stored with the catalogue while being the owner's opinion, so
+it is the owner's for everyone, and members cannot set their own: whether a
+quote or meme is a favourite.
 
-- the rating and expectation of a collection, franchise or series;
-- the rating of a character, person, studio or publisher;
-- the remark on a novel volume;
-- whether a quote or meme is a favourite.
-
-Members see them; visitors who are not signed in do not.
-
-*Changing:* every rating and every expectation above will become
-**yours** — each account rates and sets expectations for itself, privately.
-The only ratings that stay shared are the scores other sites publish.
-The remark on a novel volume will become yours too, and so will marking a
-quote or meme as a favourite — but only for accounts the admin turns that
-feature on for.
-
-*Changing:* highlights will become **yours** — each account keeps its
-own, privately, like the other personal sections. Today they are shared
-notes written by whoever edits the catalogue. The
-Anime highlights (神回/神片段 Highlights) and the TV Show, Cartoon and Manga
-ones are kept from visitors who are not signed in; the Novel, Game, H-Comic
-and H-Game ones are not.
+*Changing:* marking a quote or meme as a favourite will become **yours** —
+but only for accounts the admin turns that feature on for.
 
 ## Notes: yours or shared
 
@@ -87,12 +73,12 @@ that type, or a group (collection, franchise, series).
 | 大眾評價 Public Reviews | every type; every group | shared |
 | 我的評價 Personal Reviews | every type; every group | **yours** |
 | 各集評論 Episode Comments (Manga: 各話評論 Chapter Comments; Game: 各章評論 Part Reviews) | Anime, TV Show, Cartoon, Manga, Game | **yours** |
-| 神回/神片段 Highlights | Anime | shared |
-| 神回/神片段 (Manga: 神回) | TV Show, Cartoon, Manga | shared |
-| 神片段 | Novel | shared |
-| 神場景 Highlights | Game | shared |
-| 亮點 Highlights | H-Comic | shared |
-| 亮點 Highlights | H-Game | shared |
+| 神回/神片段 Highlights | Anime | **yours** |
+| 神回/神片段 (Manga: 神回) | TV Show, Cartoon, Manga | **yours** |
+| 神片段 | Novel | **yours** |
+| 神場景 Highlights | Game | **yours** |
+| 亮點 Highlights | H-Comic | **yours** |
+| 亮點 Highlights | H-Game | **yours** |
 | 解析/解惑/討論 Analysis/Discussion | every type but H-Comic, Hentai; every group | shared |
 | 分鏡/演出/巧思/細節 | Anime, Anime Movie, TV Show, Cartoon, Manga; series | shared |
 | 巧思 | Novel | shared |
@@ -108,14 +94,14 @@ that type, or a group (collection, franchise, series).
 | 屬性&配點 Stats & Points | Game, H-Game | shared |
 | 職業 Classes | Game, H-Game | shared |
 | 技能 Skills | Game, H-Game | shared |
-| 配裝&流派 Builds & Styles | Game, H-Game | shared |
-| 隊伍組成 Team Composition | Game, H-Game | shared |
-| 武器&裝備 Weapons & Gear | Game, H-Game | shared |
-| 道具 Items | Game, H-Game | shared |
-| 收集物 Collectibles | Game, H-Game | shared |
-| 角色 Characters | Game, H-Game | shared |
-| 敵人 Enemies | Game, H-Game | shared |
-| 地理 Geography | Game, H-Game | shared |
+| 配裝&流派 Builds & Styles | Game, H-Game | shared, **and yours** |
+| 隊伍組成 Team Composition | Game, H-Game | shared, **and yours** |
+| 武器&裝備 Weapons & Gear | Game, H-Game | shared, **and yours** |
+| 道具 Items | Game, H-Game | shared, **and yours** |
+| 收集物 Collectibles | Game, H-Game | shared, **and yours** |
+| 角色 Characters | Game, H-Game | shared, **and yours** |
+| 敵人 Enemies | Game, H-Game | shared, **and yours** |
+| 地理 Geography | Game, H-Game | shared, **and yours** |
 | 遊戲名詞 Game Terms | Game, H-Game | shared |
 | 玩家術語 Player Terms | Game | shared |
 | 主線劇情 Main Plot | Game | shared |
@@ -135,6 +121,7 @@ that type, or a group (collection, franchise, series).
 | 繼承內容 Carried Over | Game, H-Game | shared |
 | 重置內容 Reset | Game, H-Game | shared |
 | 新周目前需完成 Before Starting | Game, H-Game | shared |
+| 下周目目標 NG+ Goals | Game, H-Game | **yours** |
 | 現在進行 Doing now | Game, H-Game | **yours** |
 | 接下來 To do next | Game, H-Game | **yours** |
 | 未來 To do in the future | Game, H-Game | **yours** |
@@ -148,22 +135,38 @@ that type, or a group (collection, franchise, series).
 | 加長 | Anime, TV Show, Cartoon | shared |
 | 改編 Adaptation | Anime, Anime Movie, TV Show, Cartoon, Novel; series, franchise | shared |
 | 模組&工具 Mods & Tools | Game, H-Game | shared |
-| 攻略資源 Guide Resources | Game, H-Game | shared |
-| Resources | every type; every group | shared |
+| 攻略資源 Guide Resources | Game, H-Game | shared, **and yours** |
+| Resources | every type; every group | shared, **and yours** |
 | Questions | every type but H-Comic, Hentai; every group | **yours** |
 | 名言 Quotes | every type but H-Comic, Hentai, H-Game | shared |
 | 梗/迷因 Memes | every type but H-Comic, Hentai, H-Game; every group | shared |
 
-The six highlight rows (神回/神片段, 神片段, 神場景, 亮點) are shared today and
-will become **yours**.
+**Shared rows with a part that is yours.** Some shared sections hold a
+shared row — the item, enemy, ending, stat, song or mod — with your own
+progress on it, which nobody else sees and which every account keeps
+separately: collected and the amount collected on 武器&裝備 Weapons & Gear,
+道具 Items and 收集物 Collectibles, beaten on 敵人 Enemies, completion on 結局
+Endings, and your value on 屬性&配點 Stats & Points. Until you set one it
+reads as its starting value — not collected, to beat — or blank. The status
+of each song and each song list on OP, ED, 插入曲 Insert Song and OST, and
+the status on 模組&工具 Mods & Tools, are yours too, but only for accounts
+the music status or mod status feature is turned on for; an account without
+it does not see those statuses at all. OP/ED 變動 has no such part.
 
-*Changing:* some shared sections will gain a part that is **yours**. The
-row stays shared — the item, enemy, ending or song — and your progress on
-it becomes yours: collected on 武器&裝備 Weapons & Gear, 道具 Items and
-收集物 Collectibles, beaten on 敵人 Enemies, completion on 結局 Endings, and
-your value on 屬性&配點 Stats & Points. The status on OP, ED and 插入曲
-Insert Song, and on 模組&工具 Mods & Tools, will become yours too, but only
-for accounts the admin turns that feature on for.
+**Shared, and yours.** Ten sections — those marked **shared, and yours**
+above — hold your own rows beside the shared ones: a weapon, an enemy, a
+place, a build or a resource the shared list does not have yet. Yours come
+after the shared rows, in every group and under every place, and only you
+see them. Whoever edits the catalogue adds shared rows there instead, and
+the admin account keeps none of its own; there is no switch between the
+two. A row of yours stays yours — to have it in the shared list, ask for it
+to be added. Collected, the amount collected and beaten work on your own
+rows as on the shared ones.
+
+**NG reset.** Starting a game over clears your own collected status and
+amount collected on every 物品 row whose NG Reset says yes, and your beaten
+on every enemy — on the shared rows and on your own. Nobody else's progress,
+and none of the rows, change.
 
 Nobody else sees your **yours** sections. Quotes and memes are not notes
 underneath, but they appear in the card and are shared.

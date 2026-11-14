@@ -103,6 +103,9 @@ export function defaultEntityFilters(defs) {
   return filters;
 }
 
+// The viewer's own rating (self.list). Every *FilterDefs takes `{ ownData }`
+// and leaves the group out when it is false: a viewer without self.list has no
+// rating of its own, so the group would offer only chips nothing can match.
 const ratingDef = {
   key: "myRating",
   label: "My Rating",
@@ -183,11 +186,11 @@ const hasIdentitiesDef = {
  * trait, and the card kind and identities groups over its character and
  * identity cards.
  */
-export function characterFilterDefs(auth) {
+export function characterFilterDefs(auth, { ownData = true } = {}) {
   return [
     mediaTypeDef(auth, CHARACTER_MEDIA_TYPES, CHARACTER_RESTRICTED_TYPES),
     characterRoleDef(),
-    ratingDef,
+    ...(ownData ? [ratingDef] : []),
     genderDef(),
     tagListDef("appearance", "Appearance"),
     tagListDef("trait", "Trait"),
@@ -202,10 +205,10 @@ export function characterFilterDefs(auth) {
  * against the `roles` each person holds. A library already narrowed to one
  * role (`role`, the seiyuu view) has no Type group: every row holds it.
  */
-export function personFilterDefs(auth, role = null) {
+export function personFilterDefs(auth, role = null, { ownData = true } = {}) {
   const common = [
     mediaTypeDef(auth, PERSON_MEDIA_TYPES, PERSON_RESTRICTED_TYPES),
-    ratingDef,
+    ...(ownData ? [ratingDef] : []),
     genderDef(),
   ];
   if (role) return common;
@@ -237,10 +240,10 @@ const countryDef = {
 };
 
 /** The studio library's defs: entry type, rating, country. */
-export function studioFilterDefs(auth) {
+export function studioFilterDefs(auth, { ownData = true } = {}) {
   return [
     mediaTypeDef(auth, STUDIO_MEDIA_TYPES, STUDIO_RESTRICTED_TYPES),
-    ratingDef,
+    ...(ownData ? [ratingDef] : []),
     countryDef,
   ];
 }
@@ -250,13 +253,13 @@ export function studioFilterDefs(auth) {
  * matches the types a publisher is credited on OR offered on (`scopes`), so
  * one offered on manga but not yet credited is still found under Manga.
  */
-export function publisherFilterDefs(auth) {
+export function publisherFilterDefs(auth, { ownData = true } = {}) {
   return [
     mediaTypeDef(auth, PUBLISHER_MEDIA_TYPES, [], (item) => [
       ...(item.media_types || []),
       ...(item.scopes || []),
     ]),
-    ratingDef,
+    ...(ownData ? [ratingDef] : []),
     countryDef,
   ];
 }

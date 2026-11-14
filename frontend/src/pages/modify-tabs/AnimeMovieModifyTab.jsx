@@ -37,7 +37,6 @@ export default function AnimeMovieModifyTab({
       <AnimeMovieNotes
         key={ownerId}
         movie={editingItem ?? {}}
-        isAdmin={true}
         hideSections={["remark"]}
       />
     </>

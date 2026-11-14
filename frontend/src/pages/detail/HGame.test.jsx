@@ -2,9 +2,10 @@
 //
 // What it has that Game's page does not: the multi-choice facts (null is "not
 // recorded", [] is "none of these"), the DLsite links beside Steam under
-// Where to Play, and 亮點 Highlights, whose group order is the entry's own
-// highlight_group_order - moved on the page and saved whole by PATCH, the way
-// h-comic's is.
+// Where to Play, and 亮點 Highlights, a personal section whose group order is
+// the viewer's own highlight_group_order - moved on the page by a holder of
+// self.personal_notes and saved whole by PUT /api/me/highlight-group-order,
+// never by the entry PATCH.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -19,6 +20,7 @@ import HGame, { choiceText } from "./HGame";
 const HIGHLIGHTS = {
   key: "h_game_highlights",
   shape: "structured",
+  scope: "personal",
   label: "亮點 Highlights",
   require_any: [],
   hierarchical: false,
@@ -69,19 +71,24 @@ const ENTRY = {
   highlight_group_order: ["Ahri", "Bora"],
 };
 
-function mockFetch(entry, notes) {
+// A `user`: its own notes and list, no catalogue writes.
+const USER_PERMISSIONS = ["self.list", "self.personal_notes"];
+
+function mockFetch(entry, notes, permissions = USER_PERMISSIONS) {
   const fetchMock = vi.fn((url, options = {}) => {
     const u = String(url);
     let body = [];
     if (u.startsWith("/api/auth/me")) {
       body = {
-        is_admin: true,
+        is_admin: permissions.includes("manage.catalog"),
         username: "cg1618",
-        role: "admin",
+        role: "user",
         is_root: false,
-        permissions: ["manage.catalog", "self.list"],
+        permissions,
         visible_gated_types: ["h-comic", "h-game"],
       };
+    } else if (u.startsWith("/api/me/highlight-group-order/")) {
+      body = { media_id: entry.system_id, ...JSON.parse(options.body) };
     } else if (u.startsWith(`/api/h-game/${entry.system_id}`)) {
       body =
         options.method === "PATCH" ? { ...entry, ...JSON.parse(options.body) } : entry;
@@ -142,7 +149,7 @@ describe("HGame detail page", () => {
     expect(within(play).queryByRole("link", { name: /DLsite \(TW\)/ })).toBeNull();
   });
 
-  it("orders highlight groups by the entry and saves a move whole", async () => {
+  it("orders highlight groups by the viewer's order and saves a move whole to /api/me", async () => {
     const fetchMock = mockFetch(ENTRY, [note("n1", ["Bora"]), note("n2", ["Ahri"])]);
     mount();
     expect(await screen.findByText("亮點 Highlights")).toBeInTheDocument();
@@ -153,15 +160,32 @@ describe("HGame detail page", () => {
         .map((h) => within(h).getByRole("heading").textContent);
     expect(names()).toEqual(["Ahri", "Bora"]);
 
-    fireEvent.keyDown(screen.getByLabelText("Reorder group Bora"), { key: "ArrowUp" });
+    fireEvent.keyDown(await screen.findByLabelText("Reorder group Bora"), { key: "ArrowUp" });
 
-    const patch = fetchMock.mock.calls.find(
-      ([url, options]) => String(url) === "/api/h-game/hg1" && options?.method === "PATCH"
-    );
-    expect(patch).toBeDefined();
+    const findPut = () =>
+      fetchMock.mock.calls.find(
+        ([url, options]) =>
+          String(url) === "/api/me/highlight-group-order/hg1" && options?.method === "PUT"
+      );
+    await waitFor(() => expect(findPut()).toBeDefined());
+    const put = findPut();
     // The handles stay frozen until that save has come back.
     await waitFor(() => expect(screen.getByLabelText("Reorder group Ahri")).not.toBeDisabled());
-    expect(JSON.parse(patch[1].body)).toEqual({ highlight_group_order: ["Bora", "Ahri"] });
+    expect(JSON.parse(put[1].body)).toEqual({ group_order: ["Bora", "Ahri"] });
+    // The entry PATCH no longer carries the order.
+    expect(
+      fetchMock.mock.calls.some(([, options]) => options?.method === "PATCH")
+    ).toBe(false);
+  });
+
+  // The mirror: two groups, so a reorder would be offered if the gate let it.
+  it("offers no group reorder to a viewer without self.personal_notes", async () => {
+    mockFetch(ENTRY, [note("n1", ["Bora"]), note("n2", ["Ahri"])], ["manage.catalog"]);
+    mount();
+    expect(await screen.findByText("亮點 Highlights")).toBeInTheDocument();
+    expect(screen.getAllByTestId("group-header")).toHaveLength(2);
+    expect(screen.queryByLabelText("Reorder group Bora")).toBeNull();
+    expect(screen.queryByLabelText("Reorder group Ahri")).toBeNull();
   });
 
   // An empty studio_refs is what bites: `[].length` is 0, and React prints a

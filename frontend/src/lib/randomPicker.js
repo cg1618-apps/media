@@ -179,7 +179,7 @@ export const PICKER_MODES = ["all", ...PICKER_TYPES.map((t) => t.type), FRANCHIS
 
 /**
  * A mode's defs: the general ones for "all", the franchise ones, else that
- * type's. `personal` is whether the viewer holds view.personal (see
+ * type's. `personal` is whether the viewer holds self.list (see
  * franchiseFilterDefs).
  */
 export function filterDefsForMode(mode, types, { personal = true } = {}) {
@@ -210,10 +210,10 @@ function sortFranchiseTypes(values) {
  * The franchise mode's defs. `types` are the media types this session may
  * see, offered as "holds an entry of" chips.
  *
- * A franchise's expectation and rating are the catalogue's own judgements,
- * personal content: without view.personal (`personal: false`) the server
- * sends neither, so neither filter is offered - every franchise would read
- * as unrated and no expectation chip could match.
+ * A franchise's expectation and rating are the viewer's own: without
+ * self.list (`personal: false`) the viewer has neither, so neither filter is
+ * offered - every franchise would read as unrated and no expectation chip
+ * could match.
  */
 export function franchiseFilterDefs(types, { personal = true } = {}) {
   const defs = [

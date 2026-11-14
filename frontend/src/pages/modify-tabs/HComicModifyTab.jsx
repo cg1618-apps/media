@@ -36,7 +36,6 @@ export default function HComicModifyTab({
           other on Save Changes. */}
       <HComicNotes
         hComic={editingItem ?? {}}
-        isAdmin={true}
         hideSections={["remark"]}
       />
     </>

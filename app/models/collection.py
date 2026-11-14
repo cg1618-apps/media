@@ -71,8 +71,6 @@ class Collection(Base, NameFallbackMixin):
     collection_name_jp = Column(String, nullable=True)
     collection_name_alt = Column(String, nullable=True)
 
-    my_rating = Column(String, nullable=True)
-    collection_expectation = Column(String, default="Low")
     # Cover is chosen by pointing at one member Franchise; the actual image is
     # then resolved through that franchise's existing cover logic.
     # use_alter breaks the collection <-> franchise FK cycle so that

@@ -5,14 +5,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import StudioLibrary from "./StudioLibrary";
 
 // A session that may see every gated type, so the Restricted chip is drawn.
+// The page is behind its kind's view key, so its viewer holds the entity keys
+// and the cards link (useEntityHref). self.list (the viewer's own rating) is
+// held unless a test takes it away.
+const held = new Set();
 vi.mock("../../contexts/AuthContext", () => ({
-  // The page is behind its kind's view key, so its viewer holds it and
-  // the cards link (useEntityHref).
   useAuth: () => ({
     visibleGatedTypes: ["h-comic", "h-game", "hentai"],
-    has: (p) => ["view.studio", "view.publisher", "view.person", "view.character"].includes(p),
+    has: (p) => held.has(p),
   }),
 }));
+beforeEach(() => {
+  held.clear();
+  held.add("view.studio").add("view.publisher").add("view.person").add("view.character");
+  held.add("self.list");
+});
 
 const STUDIOS = [
   { system_id: "1", public_id: "s1", name_en: "MAPPA", display_name: "MAPPA", credit_count: 12,
@@ -121,5 +128,25 @@ describe("StudioLibrary", () => {
     const cards = screen.getAllByRole("link").map((a) => a.textContent);
     expect(cards).toHaveLength(2);
     expect(screen.queryByText("Pink Pineapple")).not.toBeInTheDocument();
+  });
+});
+
+// My rating is the viewer's own (self.list). Without the key the library
+// offers no rating sort or filter at all - not empty ones; the same rows with
+// the key offer both, so the absence is the permission's doing.
+describe("StudioLibrary and the viewer's own rating", () => {
+  it("offers no My rating sort or filter without self.list", async () => {
+    held.delete("self.list");
+    renderPage();
+    await screen.findByText("KyoAni");
+    expect(screen.queryByRole("option", { name: "My rating" })).not.toBeInTheDocument();
+    expect(screen.queryByText("My Rating")).not.toBeInTheDocument();
+  });
+
+  it("offers both with self.list", async () => {
+    renderPage();
+    await screen.findByText("KyoAni");
+    expect(screen.getByRole("option", { name: "My rating" })).toBeInTheDocument();
+    expect(screen.getByText("My Rating")).toBeInTheDocument();
   });
 });

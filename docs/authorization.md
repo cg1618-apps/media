@@ -74,7 +74,7 @@ exist yet.
 | `media_type.anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, `game` (the nine ordinary types) | yes (as seeded) | yes (as seeded) | yes (as seeded) | **locked on** | implicit |
 | `media_type.h-comic`, `h-game`, `hentai` (the three gated types) | **locked off** | **locked off** | **locked on** | **locked on** | implicit |
 | `view.studio`, `view.publisher`, `view.person`, `view.character` | — (free choice) | — (free choice) | — (free choice) | **locked on** | implicit |
-| `view.search`, `view.personal` | — (free choice) | — (free choice) | yes | **locked on** | implicit |
+| `view.search` | — (free choice) | — (free choice) | yes | **locked on** | implicit |
 | `view.extras` | — (free choice) | **locked off** | yes | **locked on** | implicit |
 | `self.list` | **locked off** | **locked off** | yes | **locked on** | **never implicit** |
 | `self.personal_notes` | **locked off** | **locked off** | yes | **locked on** | **never implicit** |
@@ -134,7 +134,7 @@ never hold. A permission in neither set is a free choice.
 | `admin` (any root role) | everything except `self.*` | `self.*` | nothing |
 | `super` | everything except `admin.authz` | `admin.authz` | nothing |
 | `guest` | — | `admin.*`, `manage.*`, `self.*`, the three gated `media_type.*` | the nine ordinary `media_type.*`, `view.*` |
-| `shared` | `self.requests` | `admin.*`, `manage.*`, `self.list`, `self.personal_notes`, `self.password`, `view.extras`, the three gated `media_type.*` | the nine ordinary `media_type.*`, `view.studio`, `view.publisher`, `view.person`, `view.character`, `view.search`, `view.personal` |
+| `shared` | `self.requests` | `admin.*`, `manage.*`, `self.list`, `self.personal_notes`, `self.password`, `view.extras`, the three gated `media_type.*` | the nine ordinary `media_type.*`, `view.studio`, `view.publisher`, `view.person`, `view.character`, `view.search` |
 | `user` | `self.requests`, `self.password`, the three gated `media_type.*` | `admin.authz`, `manage.catalog`, `manage.pipelines`, `manage.requests` | `self.list`, `self.personal_notes`, the nine ordinary `media_type.*`, `view.*` |
 | any other name | — | everything | nothing |
 
@@ -289,11 +289,12 @@ short-circuit deliberately does not cover.
 | search (`view.search`) | — | — | yes | yes | implicit |
 | read resources, the random picker, future releases, completions (`view.extras`) | — | **never** | yes | yes | implicit |
 | read quotes and memes, and the Quotes and Memes sections of a detail page (the account's `quotes_memes` switch) | — | **never** | per account | per account | **always**, without the switch |
-| read the highlights and the owner's opinions — group and entity ratings and expectations, novel unit remarks (`view.personal`) | — | — | yes | yes | implicit |
 | switch their own access mode | — (no account) | **never** — its mode is fixed (409) | yes | yes | yes |
 | keep a list row — status, rating, progress | — | **never** | yes | yes | **never** |
 | keep a plan queue | — | **never** | yes | yes | **never** |
+| write their own highlights and other personal notes, their own highlight group order on an h-comic or h-game, and their own values on catalogue note rows - collected, beaten, completion, my value, the NG reset (`self.personal_notes`) | — | **never** | yes | yes | **never** |
 | rate a season | — | **never** | yes | yes | **never** |
+| rate a collection, franchise, series, character, person, studio or publisher, set a tier's expectation, rate and remark on a novel unit (`self.list`) | — | **never** | yes | yes | **never** |
 | read their own account settings — username and role | — (no account) | through the API; the SPA's `/settings` route asks `self.list`, so it is not drawn | yes | yes | yes, through the API; the SPA's `/settings` route asks `self.list`, so it is not drawn for `admin` |
 | change their own password (`self.password`) — the admin sets its own, and a shared account's, on `/users` | — | **never** | **always** | **always** | **never** |
 | write a personal note — a review or a remark | — | **never** | yes | yes | **never** |
@@ -427,14 +428,13 @@ The `view` family, as the role editor labels it (`VIEW_PERMISSION_LABELS`):
 | `view.character` | View Characters | every read on `/api/character` and `/api/character-identity`. In the SPA: the character library, character and identity pages, character and identity names rendered as links, and the Characters tab on franchise and series pages |
 | `view.search` | Search | `GET /api/search/`. In the SPA: the nav search and `/search` |
 | `view.extras` | View Extras | every read on `/api/resources`, and `GET /api/random-picker-defaults/{mode}`. In the SPA: the Resources page, the random picker, future releases and completions. Quotes and memes are not here: they follow the account's `quotes_memes` switch ([Per-account feature switches](#per-account-feature-switches)) |
-| `view.personal` | View Personal Content | no route. The `highlights` and `highlight_episodes` note sections, and the personal fields nulled by `personal_gate` - see [Personal fields](#personal-fields-personal_gatepy) |
 
 Each read route depends on `require_view_studio`, `require_view_publisher`,
 `require_view_person`, `require_view_character`, `require_view_search` or
 `require_view_extras` (`resolver.py`) **per route, not on the router**, so a write on the same router answers to
 `manage.catalog` alone and a role holding that is not also required to hold
-the read. `view.personal` has no route gate: it is read inside `note.py` and
-`personal_gate`. The seven keys are independent:
+the read.
+The six keys are independent:
 a role may hold any subset. The four entity keys are `ENTITY_VIEW_KEYS`, one
 per kind, so an admin can open the people pages and keep the character pages
 closed, say.
@@ -473,7 +473,7 @@ creates, renames or deletes a role:
 |---|---|---|---|
 | `guest` | 0 | no | `default_guest_permissions()` — the nine ordinary media types, and nothing else. Field groups are the mode axis, not this one |
 | `shared` | 25 | no | `default_shared_permissions()` — guest's set plus `self.requests` |
-| `user` | 50 | no | `default_user_permissions()` — guest's set plus the three gated types, `view.search`, `view.extras`, `view.personal`, and `self.list`, `self.personal_notes`, `self.requests` and `self.password`. Not the four entity keys, which start off |
+| `user` | 50 | no | `default_user_permissions()` — guest's set plus the three gated types, `view.search`, `view.extras`, and `self.list`, `self.personal_notes`, `self.requests` and `self.password`. Not the four entity keys, which start off |
 | `super` | 75 | no | `default_user_permissions()` plus the four entity keys, `manage.catalog`, `manage.pipelines` and `manage.requests` — every catalogue capability, deliberately **not** `admin.authz` |
 | `admin` | 100 | **yes** | nothing explicitly; a root role holds every permission implicitly **except `self.*`**, which is ownership rather than privilege and so has no implicit holder |
 
@@ -506,7 +506,11 @@ the defaults, so an admin who narrowed guest gets a `user` role narrowed the
 same way. Migration `v1i2ewperms34` adds the `view.*` grants of its day to an
 existing `user` role, since the seed's top-up never reaches a role that
 already holds something; `super` gets them from the lock reconciliation on the
-next start. Migration `s1w2itches345` gives `view.studio`, `view.publisher`,
+next start.
+Migration `h1i2ghlights3` deletes every `view.personal` grant: the key is
+gone from the vocabulary, so the seed and the lock reconciliation never mint
+it again.
+Migration `s1w2itches345` gives `view.studio`, `view.publisher`,
 `view.person` and `view.character` to every role that held the single
 entity key they replace, so an established database shows the same pages it
 did; it also reconciles the gated types to their locks and grants any of the
@@ -514,10 +518,15 @@ nine ordinary types missing from `guest`, `user`, `shared` or `super` once
 ([notes/decisions.md](notes/decisions.md)).
 
 `self.personal_notes` is what `app/routers/note.py` requires of every
-personal-scope note write, and what `app/routers/game_choice.py` requires of
-a done mark or personal note on a block or edge of a game's choice graph
-([systems/game-choices.md](systems/game-choices.md)). See
-[Note scope](#note-scope) below.
+personal-scope note write - the six highlight sections among them - what
+`app/routers/me_highlights.py` requires of
+`PUT /api/me/highlight-group-order/{media_id}`, and what
+`app/routers/game_choice.py` requires of a done mark or personal note on a
+block or edge of a game's choice graph
+([systems/game-choices.md](systems/game-choices.md)), and what
+`PUT /api/notes/{note_id}/mark` and `POST /api/notes/ng-reset` require of a
+viewer's own values on catalogue note rows. See [Note scope](#note-scope)
+below.
 
 ### Shared accounts
 
@@ -1154,11 +1163,11 @@ type's nav row, routes, tabs and pickers out rather than render them empty.
 |---|---|
 | media lists, detail (every type, incl. gating) | `app/routers/_factory.py` (`apply_entry_visibility`, `entry_visible`, `gate`) |
 | credits for an entry | `routers/credits.py` → 404; hidden entries' credits not counted on person/studio |
-| people, characters, character identities, studios, publishers (list, detail, `/entries`, `role-counts`, `role-scopes`, writes) | `routers/person.py`, `character.py`, `character_identity.py`, `studio.py`, `publisher.py` — every read behind its kind's key (`view.person`, the seiyuu list included; `view.character` for characters and identities; `view.studio`; `view.publisher`), then [Shared records](#shared-records); `my_rating` nulled by [Personal fields](#personal-fields-personal_gatepy) |
+| people, characters, character identities, studios, publishers (list, detail, `/entries`, `role-counts`, `role-scopes`, writes) | `routers/person.py`, `character.py`, `character_identity.py`, `studio.py`, `publisher.py` — every read behind its kind's key (`view.person`, the seiyuu list included; `view.character` for characters and identities; `view.studio`; `view.publisher`), then [Shared records](#shared-records); `my_rating` is the viewer's own - see [Ratings and expectations](#ratings-and-expectations-user_rating) |
 | option lists (`/api/options/`, `/api/options/{category}`) and option writes | `routers/options.py` (`_visible_options`) — [Shared records](#shared-records) |
 | collections (list, detail, writes) | `routers/collection.py` (`apply_collection_visibility`, `collection_visible`) — hidden by its own labels; 404 "Collection not found." on detail, `PUT` and `PATCH`, "Collection not found" on `DELETE` |
-| series (list, detail, writes) | `routers/series.py` (`apply_series_visibility`, `series_visible`) — hidden by its own labels or a hidden franchise above it; rating and expectation nulled by [Personal fields](#personal-fields-personal_gatepy), as on franchises and collections |
-| notes for an owner | `routers/note.py` → 404 for a hidden entry, collection, franchise or series owner (`tier_visible`, `require_visible_owner`), personal sections return only the viewer's own rows (none for a logged-out viewer), and `VIEW_PERSONAL_SECTIONS` (`highlights`, `highlight_episodes`) are withheld from the rows and the section listing without it |
+| series (list, detail, writes) | `routers/series.py` (`apply_series_visibility`, `series_visible`) — hidden by its own labels or a hidden franchise above it; rating and expectation are the viewer's own, as on franchises and collections - see [Ratings and expectations](#ratings-and-expectations-user_rating) |
+| notes for an owner | `routers/note.py` → 404 for a hidden entry, collection, franchise or series owner (`tier_visible`, `require_visible_owner`), personal sections - the six highlight sections among them - return only the viewer's own rows (none for a logged-out viewer) |
 | quotes (list, grouped, by id) | `routers/quote.py` — every read behind the `quotes_memes` feature (`require_feature_quotes_memes`), then `drop_hidden_rows` |
 | memes (list, grouped, by id) | `routers/meme.py` — every read behind the `quotes_memes` feature; a meme on a hidden entry, collection, franchise or series is dropped; writes use `require_visible_owner` |
 | plan-next rows | `routers/plan_next.py` |
@@ -1169,8 +1178,11 @@ type's nav row, routes, tabs and pickers out rather than render them empty.
 | attaching an image to a media entry or an entity | `routers/images.py` → 404 "Entry not found." An entity owner is asked through `shared_record_visible`; quote/meme owners carry no label and are not checked |
 | serving a cover image (`/api/covers/{owner_type}/{id}.jpg`) | `routers/covers.py` → 404, with its viewer from `cover_viewer.get_cover_viewer` ([cached for 5 s](#the-cover-routes-viewer-cache-cover_viewerpy)). The media type is resolved from the `media` row, never read out of the path: both halves of the pair are caller-supplied there, so trusting the folder would gate an entry under another type's permission. An id naming no `media` row is an entity owner (staff, character, publisher, studio), a shared record asked through `shared_record_visible` (a `character-identity` owner is asked through its character, `identity_visible`); its folder is read from the path, which is safe because the folder names the file |
 | watch orders, their items, addable candidates, follows | `routers/watch_order.py` (`apply_owner_visibility`, `tier_visible`, `resolve_items`, `list_candidate_entries`) — an order whose owning group is hidden is absent from `/lists` and `/follows` and 404 on its detail, follow and unfollow; candidates for a hidden owner are 404 |
-| search | `routers/search.py` — behind `view.search`; entries, collections, franchises, series and the person/studio/publisher buckets, each bucket passed through [Personal fields](#personal-fields-personal_gatepy) as its own list route is. A bucket the viewer may not see has **no key** in `results` (`_viewer_may_search`, `services/domain/search.py`): a media type needs `media_type.<type>` (and a gated one also the mode), `person`, `studio`, `publisher` and `character` need `view.person`, `view.studio`, `view.publisher` and `view.character`; `collection`, `franchise`, `series` and `seasonal` are always present. An empty bucket would still say the type exists, so the key goes. In the SPA the nav search offers a scope only on the same rule, and an entity row or card links through its kind's key |
+| search | `routers/search.py` — behind `view.search`; entries, collections, franchises, series and the person/studio/publisher buckets, each bucket carrying the viewer's own ratings as its own list route does ([Ratings and expectations](#ratings-and-expectations-user_rating)). A bucket the viewer may not see has **no key** in `results` (`_viewer_may_search`, `services/domain/search.py`): a media type needs `media_type.<type>` (and a gated one also the mode), `person`, `studio`, `publisher` and `character` need `view.person`, `view.studio`, `view.publisher` and `view.character`; `collection`, `franchise`, `series` and `seasonal` are always present. An empty bucket would still say the type exists, so the key goes. In the SPA the nav search offers a scope only on the same rule, and an entity row or card links through its kind's key |
 | own-list reads and writes (`/api/me/list/{media_id}`) | `routers/me_list.py`, behind `self.list` **and** `entry_visible` in `_media_or_404`. Both are needed: the capability gate alone lets an account holding `self.list` rate an entry it cannot see, or a media type it does not hold, by knowing the uuid. Writes follow reads: 404 with the not-found message, never 403 |
+| own values on catalogue note rows (`PUT /api/notes/{note_id}/mark`, `POST /api/notes/ng-reset`) | `routers/note.py`, behind `self.personal_notes` **and** `require_visible_owner` on the note's owner: 404 "Note not found." / "Owner not found." for a hidden one. Reads overlay only the viewer's own marks (`note_marks.notes_out`) |
+| own highlight group order (`/api/me/highlight-group-order/{media_id}`) | `routers/me_highlights.py`, behind `self.personal_notes` on the router **and** `entry_visible` on the h-comic or h-game: 404 "Entry not found." for a hidden one, any other type, or none. The order is read back on the h-comic and h-game responses as the viewer's own (`highlight_group_order.attach_group_orders`) |
+| own ratings (`/api/me/ratings/{owner_type}/{owner_id}`, `/api/me/novel-units/{unit_id}`) | `routers/me_ratings.py`, behind `self.list` on the router **and** the owner's own read check (`franchise_visible`, `series_visible`, the kind's view key (`view.studio`, `view.publisher`, `view.person`, `view.character`) plus `shared_record_visible` for an entity, `entry_visible` on the unit's novel). Writes follow reads: 404 with the owner's not-found message |
 | account settings (`/api/account/settings`) | `routers/account.py` - a read of the caller's own username and role; no path takes a user id, and there is no write |
 | requests and reports (`/api/requests`) | `routers/requests.py` — filing and the caller's own behind `self.requests`, the inbox behind `manage.requests`. **No object check**: a target must exist, not be visible - see [Accepted residuals](#accepted-residuals) |
 | `data_control` / `system` GETs | behind `require_manage_pipelines` |
@@ -1329,9 +1341,9 @@ request".
   rows in the first place. `gate()` and `gated_columns()` know nothing about
   `source_buckets` — see [Field groups](#field-groups) above.
 - Returns the ORM instances untouched when nothing is withheld (the common case).
-- **No field group names a note section.** Personal sections are filtered by
-  author in `app/routers/note.py`, and the highlight sections by
-  `view.personal` - see [Note scope](#note-scope).
+- **No field group names a note section.** Personal sections - the
+  highlight sections among them - are filtered by author in
+  `app/routers/note.py` - see [Note scope](#note-scope).
 - **`remark` is not gated here at all.** It is a personal-scope note, read
   per viewer by `app.services.domain.remark_field.attach_remark`, filtered on
   `note.author_id`. It must never become a class-level `column_property`: a
@@ -1341,41 +1353,45 @@ request".
   refuse a second account's remark outright. See
   [business-rules.md](business-rules.md).
 
-## Personal fields (`personal_gate.py`)
+## Ratings and expectations (`user_rating`)
 
-`strip_personal(viewer, kind, payload, schema)` nulls the fields that record
-the owner's opinion on a catalogue row, for a viewer without `view.personal`.
-A different axis from [Field gating](#field-gating-field_gatepy): that one is
-the access MODE's field groups and ignores `is_root`; this one is a ROLE
-permission asked through `Viewer.has()`, so the root short-circuit reaches it.
+The rating of a collection, franchise, series, character, person, studio or
+publisher, the expectation of the three tiers, and a novel unit's rating and
+remark are **each account's own**, not catalogue columns. They live on
+`user_rating` and `user_novel_unit_rating` (see
+[data-model.md](data-model.md)), and no permission reveals one account's to
+another.
 
-| Kind | Fields nulled |
-|---|---|
-| `collection` | `my_rating`, `collection_expectation` |
-| `franchise` | `my_rating`, `franchise_expectation` |
-| `series` | `my_rating`, `series_expectation` |
-| `person`, `studio`, `publisher`, `character` | `my_rating` |
-| `novel` | `remark` on every item of `units` |
-
-- **Null, not absent.** The key stays in the response, so every viewer gets
-  one shape. That is the opposite of a withheld field group, and deliberate:
-  these fields are on every row, so their presence announces nothing.
-- **A viewer holding `manage.catalog` is exempt.** The catalogue forms load a
-  row with a GET and send it back whole, so a manager handed a null would
-  write the null over the stored value.
-- **Copied, never set.** These are real columns, so an ORM row is copied
-  through the route's response schema before a field is nulled, exactly as
-  `field_gate` does.
-- **Applied where the rows leave:** the list and detail reads of
+- **Read as the viewer's own.** The responses keep the field names
+  (`my_rating`, `collection_expectation`, `franchise_expectation`,
+  `series_expectation`, a unit's `my_rating` and `remark`), filled per
+  request by `app.services.domain.user_rating.attach_ratings` (and
+  `user_list.attach_unit_ratings` for units) from the caller's own rows. A
+  logged-out visitor, and any account with no row, reads **null** - the key
+  is always present, so every viewer gets one shape.
+- **Written under `self.list`**, through
+  `PUT /api/me/ratings/{owner_type}/{owner_id}` and
+  `PUT /api/me/novel-units/{unit_id}` (`routers/me_ratings.py`). The
+  catalogue create and update schemas for the tiers and entities do not
+  carry these fields, so a `manage.catalog` write cannot make one account's
+  opinion everybody's. A novel's `units` payload (`POST` / `PUT` / `PATCH
+  /api/novel`, `manage.catalog`) carries no personal values either:
+  `NovelUnitWrite` has no `my_rating` or `remark`, an item naming one has it
+  ignored, and `write_novel_units` writes only the unit's own columns - so a
+  units save neither files the writer's opinion nor clears anybody's.
+- **The admin keeps none.** The root short-circuit does not cover the `self`
+  family, so `admin` gets 401 on both `/api/me` writes and the SPA draws no
+  group, entity or novel unit rating, expectation or remark editor for it.
+- **Writes follow reads.** An owner the caller's GET would answer 404 for is
+  a 404 on the write too, in the same words, so a hidden row cannot be
+  confirmed by rating it.
+- **Attached where the rows leave:** the list and detail reads of
   `routers/collection.py`, `franchise.py` and `series.py`; the response
-  builders of the four entity routers (`character_responses.py` for
-  characters); the media factory's list and detail reads, after `gate()`;
-  and every search bucket plus `related_franchises`. No list route filters or
-  sorts on these columns, so there is no query parameter to leak them
-  through; the SPA's sorts and the random picker's filters run on the
-  response.
-- **A unit's `my_rating` is not here.** It is the viewer's own rating
-  (`user_novel_unit_rating`), attached per viewer, and a guest has none.
+  builders of the four entity routers; the media factory's novel reads (unit
+  ratings); every search bucket plus `related_franchises`; and Plan Next's
+  expectation (`own_expectations`). No list route filters or sorts on these
+  fields; the SPA's sorts, filters and statistics run on the response, so
+  they work on the viewer's own values.
 
 ## What a guest sees
 
@@ -1394,11 +1410,12 @@ text. The casting rows an
 entry page draws (`/api/casting/{type}/{id}`) and the credits embedded in an
 entry response stay open, because the page needs the names.
 
-**Which OPINIONS:** none. Without `view.personal` a visitor gets the owner's
-rating and expectation of every collection, franchise and series, the rating
-of every person, studio, publisher and character, and every novel unit's
-remark as **null** (see [Personal fields](#personal-fields-personal_gatepy)),
-and no `highlights` or `highlight_episodes` note section at all.
+**Which OPINIONS:** none. A visitor has no account, so every rating and
+expectation of a collection, franchise, series, person, studio, publisher or
+character, and every novel unit's rating and remark, reads **null** (see
+[Ratings and expectations](#ratings-and-expectations-user_rating)); every
+highlight, being a personal note, is somebody's own and not the visitor's; and
+every highlight group order reads null.
 
 **Which OBJECTS:** a logged-out visitor resolves to the `safe` mode, always.
 It is looked up **by key**, and there is no column anywhere that says
@@ -1463,8 +1480,9 @@ Two rules that are **not** this one:
 ## The admin account holds no user data
 
 An administrative account administers the site. It does not keep a library on
-it — no list rows, no plan queue, no season ratings, no game copies, no
-personal notes, no marks on a game's choice graph.
+it — no list rows, no plan queue, no season ratings, no ratings or
+expectations of groups and entities, no game copies, no personal notes, no
+marks on a game's choice graph.
 
 **The rule is one condition in `Viewer.has()`: the root short-circuit
 does not cover the `self` family.** `self.list`, `self.personal_notes` and
@@ -1506,8 +1524,8 @@ the column in [data-model.md](data-model.md).
 ## Note scope
 
 Every entry in `NOTE_SECTIONS` (`app/utils/note_sections.py`) declares a
-`scope`, with no default: **`catalog`** (61 sections) holds one shared set of
-rows, **`personal`** (13) holds one set per user, and the two `SHAPE_EXTERNAL`
+`scope`, with no default: **`catalog`** (55 sections) holds one shared set of
+rows, **`personal`** (20) holds one set per user, and the two `SHAPE_EXTERNAL`
 sections - `quotes` and `memes` - declare `None`, because they store no `note`
 row and are universal by design. The distinction lives in the registry rather
 than in the schema, so reclassifying a section stays a registry edit plus a
@@ -1517,6 +1535,25 @@ data reassignment, never an `ALTER TABLE`. `/api/notes/sections` serves it.
 |---|---|---|
 | `catalog` | `manage.catalog` | everyone, unfiltered |
 | `personal` | any signed-in account holding `self.personal_notes`, own rows only | `WHERE author_id = viewer`, and nothing else: there is no way to read another account's personal notes, the admin included, and a logged-out viewer gets none. An `author` query parameter is ignored |
+
+**Mixed sections.** Ten catalogue sections (`NoteSection.mixed`) also hold
+personal rows, `note.personal`, beside the catalogue's. Which kind a write
+makes is fixed by `manage.catalog`, never by the payload, and nobody writes
+both in one section:
+
+| Account | Writes in a mixed section | Reads |
+|---|---|---|
+| `user`, or any account without `manage.catalog` holding `self.personal_notes` | personal rows only | the catalogue rows and its own personal rows |
+| `super`, or anyone holding `manage.catalog` | catalogue rows only | the catalogue rows, and any personal rows of its own from before it held `manage.catalog` |
+| `admin` | catalogue rows only - it keeps no personal data | the catalogue rows |
+| a logged-out visitor | nothing (**401**) | the catalogue rows |
+
+A personal row is edited, deleted, reordered, marked and nested under by its
+author alone, and is **404** to anyone else - a member, a catalogue editor,
+the `admin` account: `_authorize_edit` has no root short-circuit for it. A
+catalogue row is edited under `manage.catalog` (**401** otherwise). A reorder
+renumbers one kind: the catalogue rows for a `manage.catalog` holder, the
+caller's own personal rows for anyone else. No write changes a row's kind.
 
 **Two answers, and there is no 403 in this router.** `401` means *you may not
 do this kind of thing* — a capability failure, matching what
@@ -1530,20 +1567,55 @@ row gets, because a 403 confirms a row exists exactly as surely as a 200 does.
 | no `manage.catalog`, creating a catalogue note | **401** |
 | no `manage.catalog`, editing a catalogue note | **401** — the caller may not edit catalogue notes at all, which is not a fact about this note |
 | somebody else's personal note | **404**, worded identically to a missing one |
+| somebody else's personal row in a mixed section - edit, delete, mark, or as a parent (**422 "Parent note not found."**) | **404**, the `admin` account included |
+| a catalogue row nesting under a personal row | **422** |
 
 `tests/api/test_note_status_codes.py` asserts the absence of 403 directly, so
 a "clearer" 403 fails the suite rather than quietly reintroducing an oracle.
+
+**Personal values on catalogue rows.** Some catalogue sections' rows carry
+values that are each viewer's own - collected and the amount collected,
+beaten, completion, my value, and the music and mod statuses
+([systems/notes.md](systems/notes.md#personal-values-on-catalogue-rows-note-marks)).
+They live in `note_mark`, one row per account per note, and are never on the
+shared row: a catalogue write (`manage.catalog`) drops them, and only the
+viewer's own are ever read back onto a row - another account's never, the
+admin's view included, and a logged-out visitor reads each value's default.
+They are written by `PUT /api/notes/{note_id}/mark` and cleared by
+`POST /api/notes/ng-reset`, both behind `self.personal_notes` and the note
+owner's own read check:
+
+| Situation | Answer |
+|---|---|
+| no `self.personal_notes` - a guest, or the `admin` account, whose root flag never passes `self.*` | **401** |
+| a value granted by a feature the caller does not hold | **401**, naming the feature |
+| a note that does not exist, or whose owner the caller may not see | **404 "Note not found."** (the NG reset: **404 "Owner not found."**) |
+| a key that is not personal on the row's section, or a value outside its vocabulary | **422** |
+
+**Granted features.** The music statuses (`music_status`) and the mod status
+(`mod_status`) are behind a per-account feature: an account without it does
+not see them at all - not on the rows, not in `/api/notes/sections`, not in
+the review queue's music block, which lists only the caller's own statuses.
+Every check goes through `has_feature(db, viewer, name)` in
+`app/services/rbac/features.py`, over `FEATURE_NAMES` (`quotes_memes`,
+`favourites`, `music_status`, `mod_status`); an unknown name raises
+`ValueError`. It answers from a stand-in today - an account holding
+`self.personal_notes` holds every feature, anyone else none, the admin
+included - and the per-account switches replace that module wholesale
+without touching a caller.
 
 **Quotes and memes are untouched by scope.** They carry an `author_id` for
 provenance and every viewer holding the `quotes_memes` feature reads the same
 rows.
 
-**Two catalogue sections are withheld without `view.personal`:**
-`highlights` and `highlight_episodes` (`VIEW_PERSONAL_SECTIONS` in
-`note_sections.py`). They are catalogue rows, so they are withheld whoever
-wrote them, and absent from `/api/notes/sections` too - the SPA renders the
-sections the listing names, so an omitted section is not drawn at all rather
-than drawn empty.
+**The six highlight sections are personal** - `highlights`,
+`highlight_episodes`, `highlight_passages`, `highlight_moments`,
+`h_comic_highlights`, `h_game_highlights` - and so is 下周目目標
+(`ng_goals`). Nothing withholds a section from the listing:
+`/api/notes/sections` names every section of the owner type with its `scope`,
+and the page decides from the scope who may write it. An h-comic's and
+h-game's highlight group order is per account too, in
+`user_highlight_group_order`, written under `self.personal_notes`.
 
 **A remark belongs to its author.** `remark` is read per viewer by
 `attach_remark`, filtered on `note.author_id`, and
@@ -1863,9 +1935,10 @@ matters is enforced server-side.
 | `tests/api/test_visibility_aggregates.py` | quotes, memes, credits, notes, plan, relations, watch orders, person counts |
 | `tests/api/test_visibility_graph.py` | `/graph` filtering |
 | `tests/api/test_resources.py` | the Resources page: a guest is refused the read (401) and a `user` reads it, against a populated tree; both are refused every write (401), and the same writes succeed for `super` (by grant) and `admin` (root) |
+| `tests/api/test_user_rating.py`, `test_user_rating_migration.py`, `test_user_rating_sheets.py` | two accounts rating one row each read their own, a guest reads null, every write without `self.list` (the admin's included) is 401 against an existing row and changes nothing, the vocabularies on all seven owners, writes following reads, merges moving rows; `u1r2atings3`'s own data steps, run against the test session, filing values under the owner (flag unset with an eligible-looking guest, flag set, admin and guest only) and its downgrade restoring only the owner's; the two Sheets tabs round-tripping and an old sheet's columns landing on the owner |
 | `tests/api/test_guest_has_no_list.py` | a guest reads no status, rating or progress; the personal-column filter matches nothing rather than cross-joining; `installation_owner_id` still answers |
 | `tests/api/test_viewer_user_id.py` | `Viewer.user_id`, and that `acting_user_id` does **not** fall back |
-| `tests/api/test_view_permissions.py` | the `view` family: the seven keys in the catalog with labels, offered by the role editor, the seed defaults, `super` holding all seven by lock with the entity keys free below it; every gated read refused to a guest and read by a holder against populated rows, a seeded member reading no entity page, and each key opening exactly its own reads; entity writes still need `manage.catalog` and do not need the read; highlights absent from the rows and the section listing; group, entity and novel-unit personal fields null for a guest and present for a member, through list, detail and search, never written back, and present for a catalogue manager without the key |
+| `tests/api/test_view_permissions.py` | the `view` family: the six keys in the catalog with labels, `view.personal` in neither the catalog nor any seeded role, offered by the role editor, the seed defaults, `super` holding all six by lock with the entity keys free below it; every gated read refused to a guest and read by a holder against populated rows, a seeded member reading no entity page, and each key opening exactly its own reads; entity writes still need `manage.catalog` and do not need the read; group, entity and novel-unit ratings, expectations and remarks the viewer's own - null for a guest and for another viewer, the member's own through list, detail and search, and a catalogue manager's own rather than the member's |
 | `tests/api/test_view_permissions_migration.py` | revision `v1i2ewperms34`, run from its own file: it grants the keys of its day to an established `user` role and nothing to `guest`, is idempotent, and its downgrade takes them off every role |
 | `tests/api/test_account_features.py` | the feature switches: quotes and memes refused to a member without the switch and read with it, against a populated quote and meme; refused to a guest; read by the admin without the switch; `view.extras` still opening resources; `/me`'s `features` for a member, a guest and the admin; switching one on for a shared or the admin account 409 with the user and super mirrors; switching off always allowed; a stored switch on a shared account opening nothing |
 | `tests/api/test_switches_migration.py` | revision `s1w2itches345` on a scratch database: the four columns with `cg1618` switched on, the entity key carried onto all four kinds, the gated types reconciled, missing ordinary types granted, and the downgrade folding the four back |

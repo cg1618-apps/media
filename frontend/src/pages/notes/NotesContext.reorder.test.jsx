@@ -9,6 +9,11 @@ import { withSectionOrder } from "./NotesContext";
 import * as api from "./api";
 
 vi.mock("./api");
+// A catalogue writer: these sections have catalogue scope, so their write
+// controls follow manage.catalog.
+vi.mock("../../contexts/AuthContext", () => ({
+  useAuth: () => ({ has: (p) => p === "manage.catalog" }),
+}));
 
 const CONTROLS = {
   key: "controls",
@@ -46,7 +51,7 @@ afterEach(() => {
 });
 
 const renderPage = async () => {
-  render(<NotesTemplate ownerType="game" ownerId="g1" isAdmin />);
+  render(<NotesTemplate ownerType="game" ownerId="g1" />);
   await screen.findByLabelText("Reorder Jump");
 };
 

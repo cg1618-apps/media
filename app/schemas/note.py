@@ -28,6 +28,7 @@ from app.utils.note_sections import (
     kinds_for,
     label_for,
     locator_for,
+    personal_values,
     section_by_key,
     sections_for,
     uses_link_pairs,
@@ -94,6 +95,10 @@ class NoteResponse(NoteBase):
     # Read-only. Set from the request's viewer, never from the payload, which
     # is why it is on the response schema and not on NoteBase.
     author_id: Optional[UUID] = None
+    # A personal row of a mixed section - the viewer's own, since nobody reads
+    # another account's. Read-only like author_id: the server decides it on
+    # create from manage.catalog, so a `personal` key in a payload is ignored.
+    personal: bool = False
     # Nullable in the database, and a blank Google Sheets cell parses to None
     # on Pull, so one timestamp-less row must not fail the whole list endpoint.
     created_at: Optional[datetime] = None
@@ -126,6 +131,13 @@ class NoteFieldOut(BaseModel):
     option_category: Optional[str] = None
     # Populated for `list` fields alone: the shape of one nested row.
     item_fields: List["NoteFieldOut"] = []
+    # The value is the VIEWER's own, not the row's: it is read from and
+    # written to the viewer's note mark (PUT /api/notes/{id}/mark), never
+    # through a catalogue write, which drops it.
+    personal: bool = False
+    # The granted feature a personal field is behind. A viewer without it is
+    # never sent the field, so a field listed here is one the viewer holds.
+    granted: Optional[str] = None
 
 
 class NoteMoveTarget(BaseModel):
@@ -205,6 +217,17 @@ class NoteSectionOut(BaseModel):
     # `section`): the owner's other `quick_move` sections in the same group,
     # in registry order. Empty where the section does not quick-move.
     move_targets: List[NoteMoveTarget] = []
+    # The row's `status` is the viewer's own (the song lists, music_status),
+    # read and written like a personal field under the mark key "status".
+    personal_status: bool = False
+    # The granted feature that status is behind. Without it `statuses`,
+    # `default_status` and the type-status keys above are empty, because the
+    # viewer does not see the status at all.
+    status_granted: Optional[str] = None
+    # The section also holds each viewer's own personal rows beside the
+    # catalogue's (rows carrying `personal`). A viewer holding manage.catalog
+    # writes catalogue rows here, any other writer personal rows.
+    mixed: bool = False
 
 
 class NoteReorder(BaseModel):
@@ -214,6 +237,32 @@ class NoteReorder(BaseModel):
     owner_id: UUID
     section: str
     ordered_ids: List[UUID]
+
+
+class NoteMarkWrite(BaseModel):
+    """
+    PUT /api/notes/{id}/mark: {values: {key: value | null}}. Each key is one
+    of the row's personal values - a personal field's key, or "status" for a
+    section-level personal status. A key with a value sets it, null or blank
+    clears it, a key not named is left alone.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    values: dict[str, Optional[str]]
+
+
+class NgResetRequest(BaseModel):
+    """POST /api/notes/ng-reset: the one owner whose rows start a new cycle."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    owner_type: str
+    owner_id: UUID
+
+
+class NgResetResult(BaseModel):
+    cleared: int
 
 
 def field_out(field: NoteField) -> NoteFieldOut:
@@ -230,6 +279,8 @@ def field_out(field: NoteField) -> NoteFieldOut:
         placeholder=field.placeholder,
         option_category=field.option_category,
         item_fields=[field_out(f) for f in field.item_fields],
+        personal=field.personal,
+        granted=field.granted,
     )
 
 
@@ -252,10 +303,30 @@ def move_targets_for(section: NoteSection, owner_type: str) -> List[NoteMoveTarg
     ]
 
 
-def section_out(section: NoteSection, owner_type: str) -> NoteSectionOut:
-    """Resolve a registry entry for one owner type."""
+def _withheld(granted: Optional[str], features: Optional[frozenset]) -> bool:
+    """Whether a value granted by `granted` is hidden from a viewer holding
+    `features`. None describes the registry for nobody in particular."""
+    return granted is not None and features is not None and granted not in features
+
+
+def section_out(
+    section: NoteSection, owner_type: str, features: Optional[frozenset] = None
+) -> NoteSectionOut:
+    """
+    Resolve a registry entry for one owner type, and for a viewer holding the
+    granted features `features`: a personal value granted by one it lacks is
+    left out - its field dropped, a personal status's vocabulary and default
+    emptied, and a song list's type status unlinked - because the viewer does
+    not see it at all. The router always passes the viewer's set; None
+    (every value present) is the registry's own view, for tests and tools.
+    """
     group = group_by_key(group_for(section, owner_type) or "")
     type_status = section_by_key(section.type_status_section or "")
+    if type_status is not None and _withheld(type_status.status_granted, features):
+        type_status = None
+    status_hidden = section.personal_status and _withheld(
+        section.status_granted, features
+    )
     return NoteSectionOut(
         key=section.key,
         shape=section.shape,
@@ -267,13 +338,15 @@ def section_out(section: NoteSection, owner_type: str) -> NoteSectionOut:
         standalone=section.standalone,
         kinds=list(kinds_for(section, owner_type)),
         default_kind=section.default_kind,
-        statuses=list(section.statuses),
+        statuses=[] if status_hidden else list(section.statuses),
         locator_placeholder=locator_for(section, owner_type),
         locator_required=section.locator_required,
         takes_links=section.takes_links,
         singleton=section.singleton,
         desc_required=owner_type in section.desc_required,
-        fields=[field_out(f) for f in section.fields],
+        fields=[
+            field_out(f) for f in section.fields if not _withheld(f.granted, features)
+        ],
         require_any=[list(group) for group in section.require_any],
         hierarchical=section.hierarchical,
         group_by=section.group_by,
@@ -283,19 +356,45 @@ def section_out(section: NoteSection, owner_type: str) -> NoteSectionOut:
         link_text_category=section.link_text_category,
         kind_category=section.kind_category,
         kind_is_group=section.kind_is_group,
-        default_status=section.default_status,
+        default_status=None if status_hidden else section.default_status,
         one_per_kind=section.one_per_kind,
         hidden=section.hidden,
         type_status_section=type_status.key if type_status else None,
         type_statuses=list(type_status.statuses) if type_status else [],
         type_status_default=type_status.default_status if type_status else None,
         move_targets=move_targets_for(section, owner_type),
+        personal_status=section.personal_status,
+        status_granted=section.status_granted,
+        mixed=section.mixed,
     )
 
 
-def sections_out(owner_type: str) -> List[NoteSectionOut]:
+def sections_out(
+    owner_type: str, features: Optional[frozenset] = None
+) -> List[NoteSectionOut]:
     """The whole registry for one owner type, in display order."""
-    return [section_out(s, owner_type) for s in sections_for(owner_type)]
+    return [section_out(s, owner_type, features) for s in sections_for(owner_type)]
+
+
+def drop_personal_values(section: NoteSection, payload: NoteBase) -> None:
+    """
+    Take every personal value out of a catalogue payload, in place: a
+    column-backed one set to None, a `fields` one removed from the blob.
+
+    A catalogue write never stores a viewer's value - that is the mark's
+    (PUT /api/notes/{id}/mark) - so the key is ignored rather than refused:
+    the page sends a whole row back, and refusing would make every edit of a
+    row it had drawn with the viewer's values fail. Its option is not checked
+    either, for the same reason.
+    """
+    for value in personal_values(section):
+        if value.column:
+            if getattr(payload, value.column, None) is not None:
+                setattr(payload, value.column, None)
+        elif payload.fields and value.key in payload.fields:
+            payload.fields = {
+                k: v for k, v in payload.fields.items() if k != value.key
+            }
 
 
 def _field_value(field: NoteField, payload: NoteBase):
@@ -411,7 +510,66 @@ def _check_field(field: NoteField, value, where: str) -> None:
     _check_scalar(field, value, where)
 
 
-def _validate_structured(section: NoteSection, payload: NoteBase) -> None:
+def _structured_empty(section: NoteSection, payload: NoteBase) -> bool:
+    """
+    Whether a structured row says nothing in the catalogue.
+
+    A DEFAULTED field cannot be the thing that makes a row worth storing.
+    The music_track shape says the same about `default_kind`: a value that
+    is always set would make every row non-empty, so an untouched draft with
+    a prefilled collect status would save as a row saying nothing. Only the
+    fields somebody had to fill in themselves count here.
+
+    `or catalogue` keeps a section whose every field is defaulted from being
+    unsaveable outright; none is today, and a test asserts it.
+
+    A personal field never counts either: it is never stored on the row
+    (drop_personal_values removes it), so a row whose only value is
+    somebody's "collected" says nothing in the catalogue.
+    """
+    catalogue = [f for f in section.fields if not f.personal]
+    carrying = [f for f in catalogue if f.default is None] or catalogue
+    return all(_is_blank(_field_value(f, payload)) for f in carrying)
+
+
+def _music_track_empty(payload: NoteBase) -> bool:
+    """
+    Whether a song row says nothing in the catalogue. Any one column carries
+    a song: a name, an episode (a remembered scene often comes before the
+    title), a link or a remark. The status is not one of them - it is each
+    viewer's own. `kind` never counts: OP and ED default it to "normal", so
+    it is always set and would make every row non-empty.
+    """
+    return (
+        not (payload.content or "").strip()
+        and not (payload.title or "").strip()
+        and not (payload.locator or "").strip()
+        and not payload.links
+    )
+
+
+def catalogue_empty(payload: NoteBase) -> bool:
+    """
+    Whether a row of one of the two shapes a personal value can be the only
+    content of - structured and music_track - says nothing once its personal
+    values are set aside. False for every other shape and unknown section.
+    Leaves `payload` untouched.
+    """
+    section = section_by_key(payload.section or "")
+    if section is None:
+        return False
+    copy = payload.model_copy(deep=True)
+    drop_personal_values(section, copy)
+    if section.shape == SHAPE_STRUCTURED:
+        return _structured_empty(section, copy)
+    if section.shape == SHAPE_MUSIC_TRACK:
+        return _music_track_empty(copy)
+    return False
+
+
+def _validate_structured(
+    section: NoteSection, payload: NoteBase, allow_empty: bool = False
+) -> None:
     """
     Check one structured row against its section's field spec.
 
@@ -461,16 +619,7 @@ def _validate_structured(section: NoteSection, payload: NoteBase) -> None:
                 f"{', '.join(labels)}."
             )
 
-    # A DEFAULTED field cannot be the thing that makes a row worth storing.
-    # The music_track shape says the same about `default_kind`: a value that
-    # is always set would make every row non-empty, so an untouched draft with
-    # a prefilled collect status would save as a row saying nothing. Only the
-    # fields somebody had to fill in themselves count here.
-    #
-    # `or spec` keeps a section whose every field is defaulted from being
-    # unsaveable outright; none is today, and a test asserts it.
-    carrying = [f for f in spec if f.default is None] or list(spec)
-    if all(_is_blank(_field_value(f, payload)) for f in carrying):
+    if not allow_empty and _structured_empty(section, payload):
         raise ValueError(f"Section '{section.key}' note is empty.")
 
     _check_root_only_group(section, payload)
@@ -495,13 +644,20 @@ def _check_root_only_group(section: NoteSection, payload: NoteBase) -> None:
 
 
 
-def validate_note_payload(payload: NoteBase) -> None:
+def validate_note_payload(payload: NoteBase, allow_empty: bool = False) -> None:
     """
     Check one note against the registry.
 
     Raises ValueError, which the router turns into a 422. Singleton and
     one-per-kind uniqueness are not checked here - they need a database query,
     so the router owns them.
+
+    `allow_empty` lifts the "note is empty" refusal of the two shapes a
+    personal value used to fill (structured and music_track; see
+    `catalogue_empty`). The router passes it on a PATCH of a row that is
+    ALREADY empty in the catalogue - a song or a stat whose only value was
+    its status or "my value", now somebody's mark - so that row can still be
+    edited. A PATCH can never empty a row that says something.
     """
     owner_type = payload.owner_type
     if owner_type not in OWNER_TABLES:
@@ -528,11 +684,15 @@ def validate_note_payload(payload: NoteBase) -> None:
     if payload.parent_id is not None and not section.hierarchical:
         raise ValueError(f"Section '{section.key}' rows do not nest.")
 
+    # A personal value is the viewer's own and is never part of a catalogue
+    # row; it goes before anything below can count or check it.
+    drop_personal_values(section, payload)
+
     # A structured section owns its whole validation - the kind, status and
     # emptiness rules below are per-shape, and this shape's rules live in its
     # registry spec instead.
     if section.shape == SHAPE_STRUCTURED:
-        _validate_structured(section, payload)
+        _validate_structured(section, payload, allow_empty)
         return
 
     if payload.fields is not None:
@@ -586,28 +746,16 @@ def validate_note_payload(payload: NoteBase) -> None:
         if not content and not (payload.locator or "").strip():
             raise ValueError(f"Section '{section.key}' note is empty.")
     elif section.shape == SHAPE_MUSIC_TRACK:
-        # Any one column carries a song: a status alone is enough - "I still
-        # need the OP" is a real note before the song has a name - and so is
-        # an episode, since a remembered scene often comes before the title.
-        # `kind` never counts: OP and ED default it to "normal", so it is
-        # always set and would make every row non-empty.
-        if (
-            not content
-            and not (payload.title or "").strip()
-            and not (payload.status or "").strip()
-            and not (payload.locator or "").strip()
-            and not payload.links
-        ):
+        if not allow_empty and _music_track_empty(payload):
             raise ValueError(f"Section '{section.key}' note is empty.")
     elif section.shape == SHAPE_MUSIC_STATUS:
-        # One list's status and nothing else: which list, and how far.
+        # Which list, and nothing else. How far each viewer has got with it is
+        # that viewer's own status, dropped above and kept in its mark.
         if not payload.kind:
             raise ValueError(
                 f"Section '{section.key}' needs a kind: one of "
                 f"{', '.join(kinds_for(section, owner_type))}."
             )
-        if not payload.status:
-            raise ValueError(f"Section '{section.key}' needs a status.")
         for column in ("locator", "title", "content", "links", "entries"):
             if not _is_blank(getattr(payload, column, None)):
                 raise ValueError(f"Section '{section.key}' takes no '{column}'.")

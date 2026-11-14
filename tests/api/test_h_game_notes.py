@@ -6,7 +6,6 @@ and comments it shares with h-comic and hentai.
 Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
-import uuid
 
 import pytest
 
@@ -111,8 +110,8 @@ def test_the_highlights_section_shape(admin_client):
         assert fields[key]["options"], key
 
 
-def test_a_highlight_round_trips(admin_client, entry):
-    response = admin_client.post(
+def test_a_highlight_round_trips(user_client, entry):
+    response = user_client.post(
         "/api/notes",
         json=_row(
             entry,
@@ -131,29 +130,29 @@ def test_a_highlight_round_trips(admin_client, entry):
     assert body["fields"]["audio"] == "H場景"
 
 
-def test_the_scene_selects_are_closed_vocabularies(admin_client, entry):
+def test_the_scene_selects_are_closed_vocabularies(user_client, entry):
     fields = {"female_characters": ["Ana"], "art_style": "Watercolour"}
-    response = admin_client.post("/api/notes", json=_row(entry, fields=fields))
+    response = user_client.post("/api/notes", json=_row(entry, fields=fields))
     assert response.status_code == 422
     # The mirror, so the refusal above is the vocabulary and not the row.
     fields["art_style"] = "2D"
-    response = admin_client.post("/api/notes", json=_row(entry, fields=fields))
+    response = user_client.post("/api/notes", json=_row(entry, fields=fields))
     assert response.status_code == 201, response.text
 
 
-def test_a_highlight_takes_no_location(admin_client, entry):
+def test_a_highlight_takes_no_location(user_client, entry):
     fields = {"female_characters": ["Ana"], "location": "classroom"}
-    response = admin_client.post("/api/notes", json=_row(entry, fields=fields))
+    response = user_client.post("/api/notes", json=_row(entry, fields=fields))
     assert response.status_code == 422
 
 
-def test_female_characters_are_required(admin_client, entry):
-    response = admin_client.post("/api/notes", json=_row(entry, fields={"male_characters": ["Cy"]}))
+def test_female_characters_are_required(user_client, entry):
+    response = user_client.post("/api/notes", json=_row(entry, fields={"male_characters": ["Cy"]}))
     assert response.status_code == 422
 
 
-def test_usefulness_is_a_closed_vocabulary(admin_client, entry):
-    assert admin_client.post("/api/notes", json=_row(entry, status="very")).status_code == 422
+def test_usefulness_is_a_closed_vocabulary(user_client, entry):
+    assert user_client.post("/api/notes", json=_row(entry, status="very")).status_code == 422
 
 
 def test_the_section_is_not_offered_to_game_or_h_comic(admin_client):
@@ -161,11 +160,11 @@ def test_the_section_is_not_offered_to_game_or_h_comic(admin_client):
         assert SECTION not in _sections(admin_client, owner), owner
 
 
-def test_a_guest_cannot_read_the_highlights(client, admin_client, entry):
-    assert admin_client.post("/api/notes", json=_row(entry)).status_code == 201
+def test_a_guest_cannot_read_the_highlights(client, user_client, entry):
+    assert user_client.post("/api/notes", json=_row(entry)).status_code == 201
     params = {"owner_type": "h-game", "owner_id": entry["system_id"]}
     assert client.get("/api/notes", params=params).status_code == 404
-    assert len(admin_client.get("/api/notes", params=params).json()) == 1
+    assert len(user_client.get("/api/notes", params=params).json()) == 1
 
 
 def _plain(entry, section, **columns):
@@ -184,12 +183,14 @@ def test_a_game_section_takes_a_row_on_h_game(admin_client, entry):
     assert response.status_code == 201, response.text
 
 
-def test_a_game_only_catalogue_section_refuses_a_row_on_h_game(admin_client, entry):
-    for section, columns in (
-        ("highlight_moments", {"locator": "Ch 3", "content": "the moment"}),
-        ("lore", {"content": "the world"}),
+def test_a_game_only_section_refuses_a_row_on_h_game(admin_client, user_client, entry):
+    """lore is catalogue, so the admin writes it; highlight_moments is
+    personal, so a member does - each refused for the owner, not the writer."""
+    for client, section, columns in (
+        (user_client, "highlight_moments", {"locator": "Ch 3", "content": "the moment"}),
+        (admin_client, "lore", {"content": "the world"}),
     ):
-        response = admin_client.post("/api/notes", json=_plain(entry, section, **columns))
+        response = client.post("/api/notes", json=_plain(entry, section, **columns))
         assert response.status_code == 422, section
 
 
@@ -224,28 +225,16 @@ def test_h_game_takes_personal_reviews_and_not_reviews_and_comments(
 
 
 # ---------------------------------------------------------------------------
-# The group order, a column written through the entry update
+# The group order is the viewer's own - see test_personal_highlights.py
 # ---------------------------------------------------------------------------
 
 
-def test_the_group_order_is_written_through_the_entry_update(admin_client, entry, db_session):
-    response = admin_client.patch(
-        f"/api/h-game/{entry['system_id']}",
-        json={"highlight_group_order": ["Bea", " Ana", "Bea", ""]},
-    )
-    assert response.status_code == 200, response.text
-    assert response.json()["highlight_group_order"] == ["Bea", "Ana"]
-    row = db_session.get(models.HGame, uuid.UUID(entry["system_id"]))
-    db_session.refresh(row)
-    assert row.highlight_group_order == ["Bea", "Ana"]
-
-
-def test_a_malformed_group_order_is_refused(admin_client, entry):
-    response = admin_client.patch(
-        f"/api/h-game/{entry['system_id']}", json={"highlight_group_order": "Ana"}
-    )
-    assert response.status_code == 422
-    response = admin_client.put(
-        f"/api/h-game/{entry['system_id']}", json={"highlight_group_order": [1, 2]}
-    )
-    assert response.status_code == 422
+def test_the_entry_update_ignores_a_group_order(admin_client, entry, db_session):
+    for write in (admin_client.patch, admin_client.put):
+        response = write(
+            f"/api/h-game/{entry['system_id']}",
+            json={"highlight_group_order": ["Bea", "Ana"]},
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["highlight_group_order"] is None
+    assert db_session.query(models.UserHighlightGroupOrder).count() == 0

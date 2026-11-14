@@ -701,10 +701,26 @@ describe("manga, novel and comic bodies", () => {
         unit_key: "1",
         name_cn: "",
         name_en: "",
-        remark: "",
         ch_count: 8,
         position: 1,
       },
+    ]);
+  });
+
+  it("novel sends none of a unit's personal values", () => {
+    // A row read back from the server carries the viewer's own rating and
+    // remark; they belong to PUT /api/me/novel-units, not the catalogue
+    // write, and a remark alone does not keep an otherwise empty row.
+    const body = novelFieldsPayload({
+      units: [
+        { system_id: "u1", unit_kind: "arc", unit_key: "a", name_cn: "", name_en: "",
+          ch_count: 10, my_rating: "S", remark: "mine", display_key: "a" },
+        { unit_kind: "volume", unit_key: "", name_cn: "", name_en: "", remark: "only", ch_count: "" },
+      ],
+    });
+    expect(body.units).toEqual([
+      { system_id: "u1", unit_kind: "arc", unit_key: "a", name_cn: "", name_en: "",
+        ch_count: 10, position: 1 },
     ]);
   });
 

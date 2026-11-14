@@ -83,9 +83,9 @@ export function usePickerData(mode, typesKey) {
         : types.flatMap((t, i) => toEntries(t, lists[i])),
     [isFranchiseMode, franchises, types, lists],
   );
-  // A franchise's expectation and rating are personal content
-  // (view.personal); without the key their filters are not offered.
-  const { personal } = useViewScope();
+  // A franchise's expectation and rating are the viewer's own (self.list);
+  // without the key their filters are not offered.
+  const { ownData: personal } = useViewScope();
   const filterDefs = useMemo(
     () => filterDefsForMode(mode, types, { personal }),
     [mode, types, personal],

@@ -18,6 +18,11 @@ import NotesTemplate from "./NotesTemplate";
 import * as api from "./api";
 
 vi.mock("./api");
+// A catalogue writer: these sections have catalogue scope, so their write
+// controls follow manage.catalog.
+vi.mock("../../contexts/AuthContext", () => ({
+  useAuth: () => ({ has: (p) => p === "manage.catalog" }),
+}));
 
 const SECTIONS = [
   { key: "foreshadowing", shape: "text_links", label: "伏筆/前後呼應 Foreshadowing", kinds: [] },
@@ -54,7 +59,7 @@ beforeEach(() => {
 const renderTemplate = (props = {}) =>
   render(
     <MemoryRouter>
-      <NotesTemplate ownerType="anime" ownerId="abc" isAdmin {...props} />
+      <NotesTemplate ownerType="anime" ownerId="abc" {...props} />
     </MemoryRouter>,
   );
 

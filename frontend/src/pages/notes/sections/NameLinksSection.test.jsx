@@ -38,7 +38,7 @@ function renderSection(props = {}) {
     onReorder: vi.fn(),
   };
   render(
-    <NameLinksSection section={RESOURCES} notes={[]} isAdmin {...handlers} {...props} />,
+    <NameLinksSection section={RESOURCES} notes={[]} canWrite {...handlers} {...props} />,
   );
   return handlers;
 }

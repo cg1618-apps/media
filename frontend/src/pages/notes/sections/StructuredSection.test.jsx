@@ -77,7 +77,7 @@ const renderSection = (props = {}) =>
     <StructuredSection
       section={CONTROLS}
       notes={[]}
-      isAdmin
+      canWrite
       onCreate={() => {}}
       onUpdate={() => {}}
       onDelete={() => {}}
@@ -299,7 +299,7 @@ it("quick-edits one field without opening the row, merging the blob", async () =
 it("shows a quick-edit value as a read-only tag for a guest", () => {
   renderSection({
     section: ENEMIES,
-    isAdmin: false,
+    canWrite: false,
     notes: [{ system_id: "n1", title: "Malenia", fields: { tries: "47" } }],
   });
 
@@ -320,7 +320,7 @@ it("heads a row with its title column, not with the first filled text field", ()
           fields: { region: "Haligtree" },
         },
       ]}
-      isAdmin
+      canWrite
       onCreate={() => {}}
       onUpdate={() => {}}
       onDelete={() => {}}
@@ -370,7 +370,7 @@ const renderTree = (props = {}) =>
     <StructuredSection
       section={STORY_LIST}
       notes={TREE}
-      isAdmin
+      canWrite
       onCreate={() => {}}
       onUpdate={() => {}}
       onDelete={() => {}}

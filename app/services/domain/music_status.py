@@ -2,13 +2,15 @@
 The per-list music statuses an anime starts with.
 
 Every anime has one `music_status` note row per song list - OP, ED, insert
-songs, OST - saying how far tracking that whole list has got. The rows are
-created with the anime rather than on first edit, so the music card always has
-a status to show and to PATCH, and so a fresh anime reads "Not Done" from the
-database rather than from a default the page has to know.
+songs, OST - that each viewer's own status for the whole list hangs on. The
+rows are catalogue and are created with the anime rather than on first edit,
+so the music card always has a row to mark. They carry no status: how far a
+list has got is each viewer's own, in its note_mark for the row
+(app/services/domain/note_marks.py), and a viewer with no mark reads the
+section's `default_status`, "Not Done".
 
-Which lists and which starting status are the registry's: the music_status
-section's `kinds` and `default_status` in app/utils/note_sections.py.
+Which lists there are is the registry's: the music_status section's `kinds`
+in app/utils/note_sections.py.
 """
 
 import uuid
@@ -41,7 +43,6 @@ def seed_music_status(db: Session, entry, viewer) -> None:
                 author_id=author_id,
                 section=section.key,
                 kind=kind,
-                status=section.default_status,
                 sort_index=float(position),
             )
         )

@@ -1,6 +1,10 @@
 // Frontend: modal component file for FranchiseCreateModal.
+//
+// Confirms the quick-create of a franchise from an entry's names and takes its
+// remark. It asks no expectation: an expectation is the viewer's own, set on
+// the franchise's page, and the catalogue write does not carry one.
 import { useState } from "react";
-import { inputCls, selectCls } from "../forms/FormField";
+import { inputCls } from "../forms/FormField";
 import { Button, Eyebrow } from "../ui/primitives";
 
 export default function FranchiseCreateModal({
@@ -8,7 +12,6 @@ export default function FranchiseCreateModal({
   onCancel,
   franchiseType = "ACG",
 }) {
-  const [expectation, setExpectation] = useState("Low");
   const [remark, setRemark] = useState("");
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
@@ -30,22 +33,6 @@ export default function FranchiseCreateModal({
           </p>
           <div>
             <Eyebrow as="label" className="block mb-1">
-              Expectation
-            </Eyebrow>
-            <select
-              value={expectation}
-              onChange={(e) => setExpectation(e.target.value)}
-              className={selectCls}
-            >
-              {["Highest", "High", "Medium", "Low"].map((v) => (
-                <option key={v} value={v}>
-                  {v}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <Eyebrow as="label" className="block mb-1">
               Remark
             </Eyebrow>
             <textarea
@@ -59,7 +46,7 @@ export default function FranchiseCreateModal({
         </div>
         <div className="px-6 py-3 border-t border-border flex gap-2 justify-end">
           <Button onClick={onCancel}>Cancel</Button>
-          <Button kind="primary" onClick={() => onConfirm(expectation, remark)}>
+          <Button kind="primary" onClick={() => onConfirm(remark)}>
             Create and proceed
           </Button>
         </div>

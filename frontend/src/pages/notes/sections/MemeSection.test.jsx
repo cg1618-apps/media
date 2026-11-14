@@ -44,7 +44,7 @@ function renderSection() {
         label="Memes"
         ownerType="anime"
         ownerId="entry-1"
-        isAdmin
+        canWrite
         onCount={() => {}}
       />
     </QueryClientProvider>,

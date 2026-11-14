@@ -301,3 +301,21 @@ describe("publisherFilterDefs", () => {
     expect(filtered(defs, rows, { mediaType: [NO_ENTRIES] })).toEqual(["offered", "neither"]);
   });
 });
+
+// The rating group is the viewer's own (self.list): every library's defs
+// leave it out for `{ ownData: false }`, and keep it by default.
+describe("the My Rating group and ownData", () => {
+  const builders = {
+    character: (o) => characterFilterDefs(SEES_ALL, o),
+    person: (o) => personFilterDefs(SEES_ALL, null, o),
+    seiyuu: (o) => personFilterDefs(SEES_ALL, "seiyuu", o),
+    studio: (o) => studioFilterDefs(SEES_ALL, o),
+    publisher: (o) => publisherFilterDefs(SEES_ALL, o),
+  };
+  for (const [name, build] of Object.entries(builders)) {
+    it(`${name}: dropped without own data, kept with it`, () => {
+      expect(build({ ownData: false }).map((fd) => fd.key)).not.toContain("myRating");
+      expect(build({ ownData: true }).map((fd) => fd.key)).toContain("myRating");
+    });
+  }
+});

@@ -10,7 +10,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 
 - **Public endpoints** — accessible by any visitor (guest or admin).
 - **Capability-gated endpoints** — require a valid JWT in the `access_token` HTTP-Only cookie plus the capability the route names: `require_manage_catalog`, `require_manage_pipelines` or `require_admin_authz` (`app/services/rbac/resolver.py`). There is no single "is an admin" dependency.
-- **View-gated reads** — an Auth cell naming a `view.*` permission (`view.studio`, `view.publisher`, `view.person`, `view.character`, `view.search`, `view.extras`, `view.personal`) is a read the `guest` role does not hold as seeded, so a logged-out visitor gets **401**. A signed-in `user` holds `view.search`, `view.extras` and `view.personal` as seeded; the four entity keys are the admin's to switch on per role. See [authorization.md](authorization.md#permission-catalog-code).
+- **View-gated reads** — an Auth cell naming a `view.*` permission (`view.studio`, `view.publisher`, `view.person`, `view.character`, `view.search`, `view.extras`) is a read the `guest` role does not hold as seeded, so a logged-out visitor gets **401**. A signed-in `user` holds `view.search` and `view.extras` as seeded; the four entity keys are the admin's to switch on per role. See [authorization.md](authorization.md#permission-catalog-code).
 - **Feature-gated reads** — an Auth cell naming `feature quotes_memes` is a read the caller's **account** must have switched on (`users.feature_quotes_memes`), answered **401** otherwise, the same shape as a permission refusal. See [authorization.md](authorization.md#per-account-feature-switches).
 - Login flow: `POST /api/auth/login` → sets cookie → all subsequent admin requests carry it automatically.
 - A missing or invalid cookie on an admin endpoint is **401**, never 403. The one 403 in the app is the login route's, for a pending or disabled account that gave the right password. Public read endpoints additionally resolve a *viewer* and hide what the viewer's role may not see (as 404) — see [Authorization](#authorization) at the end of this file and `docs/authorization.md`.
@@ -23,8 +23,8 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 | `PATCH` with a raw JSON dict | collection, franchise, series, media entries, watch-order lists/items/sections, quote, meme | Handled by `apply_column_patch` (`app/routers/_patching.py`). Any of `system_id`, `id`, `created_at`, `updated_at` in the body → **422**. Keys that are not real columns of the row (relationship names, virtual fields such as `watch_next`, typos) are **silently ignored** and logged at debug level, so an older bundle sending an extra key does not break. |
 | Post-write enrichment hooks | media entries (`POST` / `PUT`) | The per-type write hook (e.g. `execute_replace_single_movie`) runs after the row is committed. If it fails the error is logged and the row is still returned — it must **never** surface as a 500, or the SPA retries and creates duplicates. |
 | Personal fields are the viewer's | all twelve media types: `GET` list and detail, `POST`, `PUT`, `PATCH`, `POST /{id}/complete` | The status, rating and progress fields keep **exactly the names they always had** - `watching_status` / `reading_status` / `playing_status`, `my_rating`, `ep_fin`, `vol_fin`, `ch_fin`, `issue_fin`, `my_watch_day`, `completed_at` and the rest - but they are stored on `user_media_list` and resolved for the **acting user**, not read off the entry. `time_fin` (Paused at, on the six watching types) is personal the same way. A write splits into a catalogue half and a personal half (`split_list_payload`) and creates the acting user's list row if it does not exist. An entry with **no list row** reads back as the type's default status (`Might Watch` / `Might Read` / `Might Play`), `null` for the rest, and `0` for the counters that were `NOT NULL DEFAULT 0` before the move - which is also how a row holding `null` for one of them reads back. Those counters accept `null` on every write (`vol_fin`, `vol_fin_page`, `ch_fin`, `arc_fin`, `issue_fin`, `page_fin` are `Optional[...] = 0` in the manga, novel, comic and h-comic schemas, as `ep_fin` is on the watching types), and the admin forms send a blank one as `null`. A logged-out visitor has **no list**: `acting_user_id` returns None, no personal field is attached, and the status reads back `null` rather than the default, which would be a claim about a person (see [authorization.md](authorization.md), "Which LIST"). A `?watching_status=` filter goes through an OUTER join rather than a column comparison, so it still matches entries that have no list row. |
-| The owner's opinions need `view.personal` | collection, franchise, series, person, studio, publisher, character (list, detail and their search buckets); `/api/novel` units | `my_rating` and the tier's `*_expectation` on a collection, franchise or series, `my_rating` on a person, studio, publisher or character, and `remark` on each novel unit come back **`null`** - the key kept, the value withheld - for a viewer holding neither `view.personal` nor `manage.catalog` (`app/services/rbac/personal_gate.py`). No list endpoint filters or sorts on them. |
-| A novel unit's `my_rating` is the reader's | `/api/novel` | Same idea one level down: served and accepted on each unit, stored in `user_novel_unit_rating`. A `null` rating stores no row. |
+| Ratings and expectations are the viewer's | collection, franchise, series, person, studio, publisher, character (list, detail, the write responses and their search buckets) | `my_rating` and the tier's `*_expectation` on a collection, franchise or series, and `my_rating` on a person, studio, publisher or character, keep their names but are read from the **viewer's own** `user_rating` row (`app/services/domain/user_rating.py`, `attach_ratings`). A logged-out visitor, and an account with no row, reads **`null`** - the key kept. The catalogue `POST` / `PUT` / `PATCH` bodies do not carry them; they are written through [`PUT /api/me/ratings/{owner_type}/{owner_id}`](#my-ratings--apime). No list endpoint filters or sorts on them. |
+| A novel unit's `my_rating` and `remark` are the reader's | `/api/novel` | Same idea one level down: served on each unit for the viewer from their own `user_novel_unit_rating` row, `null` for anyone with none. The `units` items of the catalogue `POST` / `PUT` / `PATCH` do not carry them - a client still sending either has the key ignored - and they are written only through [`PUT /api/me/novel-units/{unit_id}`](#my-ratings--apime). A row left holding neither stores nothing. |
 | Delete returning `204` | notes, content labels, users, roles | No body. Every other delete returns a JSON `{status, message}` or the deleted row. |
 | Hidden = missing | every public read | An entry the viewer may not see answers **404** with the router's normal not-found message. |
 | Detail GET takes a `public_id` **or** a UUID | the single-entry GET on all twenty entity endpoints: the twelve media types plus collection, franchise, series, person, studio, publisher, character and `/api/watch-order/lists/{ref}` | One resolver, `find_entity` in `app/utils/entity_ref.py`, decides which form the segment is: a positive decimal integer with no sign or separators is a `public_id`, anything else is parsed as a UUID. **Everything else still takes the UUID** - every write, and the nested `/entries`, credits, relations, sources and cover routes. A reference that parses as neither, or that resolves to no row, is a **404** with the router's normal not-found message - never a 422, because a hand-mangled detail URL is a missing page rather than a bad request. |
@@ -81,6 +81,8 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [System — `/api/system`](#system--apisystem)
 - [Watch Order — Sections](#watch-order--sections)
 - [My List — `/api/me`](#my-list--apime)
+- [My Ratings — `/api/me`](#my-ratings--apime)
+- [My Highlight Group Order — `/api/me`](#my-highlight-group-order--apime)
 - [Account — `/api/account`](#account--apiaccount)
 - [Requests — `/api/requests`](#requests--apirequests)
 - [Authorization](#authorization) — `/api/roles`, `/api/users`, `/api/content-labels`
@@ -133,7 +135,7 @@ The optional umbrella tier above Franchise (e.g. Marvel, Type-Moon).
 | `PATCH`  | `/{system_id}` | Admin  | Partial update (used by inline hub edits). Body: raw JSON dict.                                                                                |
 | `DELETE` | `/{system_id}` | Admin  | Delete a collection. **Member franchises are NOT deleted** — their `collection_id` is set to `NULL` via the DB constraint. Logs to `deleted_record`. |
 
-**Response model:** `CollectionResponse` (`created_at`/`updated_at` are optional, since a Pull can produce rows without them). Every response carries `content_labels`, the labels on the collection itself, read-only here: the only writer is `PUT /api/content-labels/collection/{collection_id}` (see [`/api/content-labels`](#apicontent-labels)).
+**Response model:** `CollectionResponse` (`created_at`/`updated_at` are optional, since a Pull can produce rows without them). Every response carries `content_labels`, the labels on the collection itself, read-only here: the only writer is `PUT /api/content-labels/collection/{collection_id}` (see [`/api/content-labels`](#apicontent-labels)). `my_rating` and `collection_expectation` are the viewer's own, null without a rating row; `CollectionCreate` / `CollectionUpdate` do not carry them.
 
 **A labelled collection is hidden.** A collection carrying a label the
 viewer's mode lacks is absent from the list, the search and the `collection`
@@ -155,7 +157,7 @@ To list a collection's members, use `GET /api/franchise/?collection_id=<uuid>`.
 | `GET`    | `/{system_id}` | Public | Get a single franchise by UUID.                                                                                                                                               |
 | `POST`   | `/`            | Admin  | Create a franchise. Body: `FranchiseCreate`.                                                                                                                                  |
 | `PUT`    | `/{system_id}` | Admin  | Full update of a franchise. Body: `FranchiseUpdate`.                                                                                                                          |
-| `PATCH`  | `/{system_id}` | Admin  | Partial update (e.g. inline rating edit). Body: raw JSON dict.                                                                                                                |
+| `PATCH`  | `/{system_id}` | Admin  | Partial update. Body: raw JSON dict. The viewer's rating and expectation are not columns here; they are written through `PUT /api/me/ratings/franchise/{id}`.                    |
 | `DELETE` | `/{system_id}` | Admin  | Delete a franchise. Linked series, anime, movies, TV shows, cartoons, manga, and novels `franchise_id` are set to `NULL` via DB constraint cascade. Logs to `deleted_record`. |
 
 **Franchise families.** A `franchise_type` whose types span two families
@@ -169,7 +171,7 @@ entry it already holds. Both are checked before anything is written. A
 franchise whose types include a gated type's (`H-Comic`, `Hentai`, `H-Game`)
 gains that type's content label on every write.
 
-**Response model:** `FranchiseResponse`
+**Response model:** `FranchiseResponse`. `my_rating` and `franchise_expectation` are the viewer's own, null without a rating row; `FranchiseCreate` / `FranchiseUpdate` do not carry them.
 
 **A franchise is hidden by its own labels and by its collection's.** One
 carrying a label the viewer's mode lacks, or sitting in a collection that
@@ -202,12 +204,12 @@ read-time through `series.franchise_id`. A series' labels hide its entries,
 not its franchise or its sibling series.
 | `POST`   | `/`            | Admin  | Create a series. Resolves or auto-creates parent franchise. Body: `SeriesCreate`.  |
 | `PUT`    | `/{system_id}` | Admin  | Full update. Resolves hierarchy changes. Body: `SeriesUpdate`.                     |
-| `PATCH`  | `/{system_id}` | Admin  | Partial update (e.g. inline rating edit). Body: raw JSON dict.                     |
+| `PATCH`  | `/{system_id}` | Admin  | Partial update. Body: raw JSON dict. The viewer's rating and expectation go through `PUT /api/me/ratings/series/{id}`. |
 | `DELETE` | `/{system_id}` | Admin  | Delete a series. Linked `anime.series_id` set to `NULL`. Logs to `deleted_record`. |
 
-**`SeriesCreate` / `SeriesUpdate` body (= `SeriesBase`):** `franchise_id`, `series_name_en`, `series_name_cn`, `series_name_roman`, `series_name_jp`, `series_name_alt`, `my_rating`, `series_expectation` (default `"Low"`), `cover_entry_id`, `remark`. No `to_rewatch` field — `series` has no rewatch column or virtual field at all; a series' rewatch marks are read and written through `POST` / `DELETE /api/plan-next/target` with `scope=series` directly (see Plan Next below).
+**`SeriesCreate` / `SeriesUpdate` body (= `SeriesBase`):** `franchise_id`, `series_name_en`, `series_name_cn`, `series_name_roman`, `series_name_jp`, `series_name_alt`, `cover_entry_id`, `type_slots`, `size_group_derived`, `size_group_manual`, `remark`. No `to_rewatch` field — `series` has no rewatch column or virtual field at all; a series' rewatch marks are read and written through `POST` / `DELETE /api/plan-next/target` with `scope=series` directly (see Plan Next below).
 
-**Response model:** `SeriesResponse` — `SeriesCreate`/`SeriesUpdate` fields above plus `system_id`, `created_at`, `updated_at`, `entry_count` (list only), and `content_labels`, the series' own labels, read-only here: the only writer is `PUT /api/content-labels/series/{series_id}`.
+**Response model:** `SeriesResponse` — `SeriesCreate`/`SeriesUpdate` fields above plus `system_id`, `created_at`, `updated_at`, `entry_count` (list only), the viewer's own `my_rating` and `series_expectation` (null without a rating row), and `content_labels`, the series' own labels, read-only here: the only writer is `PUT /api/content-labels/series/{series_id}`.
 
 ---
 
@@ -342,10 +344,10 @@ not its franchise or its sibling series.
 
 **`units` — the `novel_unit` child rows.** `POST`/`PUT` bodies accept an
 optional `units: NovelUnitWrite[]` array (`NovelCreate`/`NovelUpdate`, via
-`NovelBase.units`). A missing `units` key leaves the existing rows
-untouched; an empty array `[]` deletes them all. `PATCH` cannot write
-`units` at all — its body is a raw column dict and `units` is not a real
-column, so it is silently ignored. Each item:
+`NovelBase.units`), and so does `PATCH`: the router lifts `units` out of
+every write body before the row is touched (`MediaTypeSpec.nested_collections`)
+and hands it to `write_novel_units`. A missing `units` key leaves the
+existing rows untouched; an empty array `[]` deletes them all. Each item:
 
 - `system_id` (optional) — present on an item to update that existing row,
   absent to insert a new one. Separately: any **existing** row whose
@@ -353,11 +355,17 @@ column, so it is silently ignored. Each item:
   by the array omitting an id, not by an item lacking the field.
 - `unit_kind` — one of `volume`, `arc`, `story`, `chapter`.
 - `position` (float, required) — order within the novel; not unique.
-- `unit_key`, `name_cn`, `name_en`, `remark` (all optional strings).
+- `unit_key`, `name_cn`, `name_en` (all optional strings).
 - `ch_count` (optional float) — only meaningful on `unit_kind = "arc"`; the
   router (`write_novel_units`) forces it to `null` on any other kind before
   the row is written, regardless of what the client sent, so a re-kinded row
   cannot trip `ck_novel_unit_ch_count_arc_only`.
+
+An item carries **no** `my_rating` or `remark`: a unit's rating and remark
+are each reader's own, written through
+[`PUT /api/me/novel-units/{unit_id}`](#my-ratings--apime). An item that still
+names either has the key ignored, as every catalogue write ignores a personal
+field, so a units save neither files the writer's opinion nor clears anybody's.
 
 The response's `units` array (`NovelUnitResponse[]`) mirrors the same fields
 plus `system_id` and a computed field, **`display_key`**: an explicit
@@ -366,8 +374,7 @@ plus `system_id` and a computed field, **`display_key`**: an explicit
 [options.md](options.md#novel-unit-kinds-apputilsconstantspy)). `display_key`
 is display-time only; it is never stored.
 
-Every write (create, update, and patch — patch bypasses `units` itself since
-`PATCH` takes a raw column dict, but still re-derives) recomputes
+Every write (create, update and patch, whether or not it carries `units`) recomputes
 `arc_total`, `ch_total`, `ch_fin` from the novel's arc rows and normalises
 `arc_fin`/`ch_fin_in_arc` — see the rollover rule in
 [business-rules.md](business-rules.md).
@@ -472,7 +479,7 @@ then E-Hentai (keyed on the gallery in `ehentai_link`), both fill-only
 | `GET`    | `/{entry_id}`          | Public | One entry, by `public_id` or UUID. |
 | `POST`   | `/`                    | Admin  | Create. Body: `HComicCreate`; **`region` is required** (`JP` / `KR`). Auto-runs `execute_replace_single_h_comic`: when the entry has a `mal_link`, `mal_id` is extracted from it and Tenrai's manga record fills what is blank, then the E-Hentai gallery in `ehentai_link` fills the cover and the illustrator credit if they are still blank (see `/replace/h-comic/{entry_id}`); then `run_sync_h_comic` and `run_sync_gated_labels`. |
 | `PUT`    | `/{entry_id}`          | Admin  | Full update. Body: `HComicUpdate`. `region` may be omitted, but not sent as `null` (422). Same write hook. |
-| `PATCH`  | `/{entry_id}`          | Admin  | Partial update, raw JSON dict. The h-comic vocabularies and `highlight_group_order` are checked here too (422), because a PATCH body never passes through the schema. `animation_status` follows the derived-status rule below. |
+| `PATCH`  | `/{entry_id}`          | Admin  | Partial update, raw JSON dict. The h-comic vocabularies are checked here too (422), because a PATCH body never passes through the schema. `animation_status` follows the derived-status rule below. |
 | `POST`   | `/{entry_id}/complete` | Admin  | `reading_status = "Completed"`; `serialization_status` becomes `完結` unless it is `腰斬`; the region's counter reaches its total (`page_fin = page_total` on JP, `ch_fin = ch_total` on KR). |
 | `DELETE` | `/{entry_id}`          | Admin  | Delete. Logs to `deleted_record` under type `H-Comic`. |
 
@@ -480,8 +487,7 @@ then E-Hentai (keyed on the gallery in `ehentai_link`), both fill-only
 `h_comic_name_en` / `_cn` / `_alt` / `_jp` / `_kr`, `region`, `originality`,
 `animation_status`, `series_number`, `serialization_status`, `page_total`,
 `ch_total`, `ch_behind`, `release_date`, `end_date`, `mal_id`, `mal_link`,
-`ehentai_link`, `highlight_group_order`
-(list of strings), the personal `reading_status` (default `Might Read`),
+`ehentai_link`, the personal `reading_status` (default `Might Read`),
 `my_rating`, `page_fin`, `ch_fin`, `usefulness`, `completed_at`, the plan flags
 `read_next` / `to_reread`, `remark`, `cover_image_file`, `cover_image_focus`, and `sources`.
 `region`, `originality`, `animation_status` and `usefulness` are checked
@@ -493,8 +499,9 @@ region, `app/services/domain/gated_labels.py` for the label):
 
 - **Region.** The columns the region does not use are cleared whatever the
   payload says - on KR `originality`, `animation_status`, `series_number`,
-  `page_total` and the reader's `page_fin`; on JP `ch_total`, `ch_behind`,
-  `highlight_group_order` and the reader's `ch_fin`.
+  `page_total` and the reader's `page_fin`; on JP `ch_total`, `ch_behind`
+  and the reader's `ch_fin`, and every account's highlight group order on the
+  entry is deleted.
 - **Label.** The `h-comic` label is attached if missing.
 
 **Franchise.** An h-comic auto-resolves only into a franchise of the
@@ -515,11 +522,13 @@ derived, sending the derived or the stored value changes nothing, and any other
 value is **422**. See
 [entry-types.md](entry-types.md#h-comic-animation-status-attach_animation_status-appservicesdomainh_comicpy).
 
-**`highlight_group_order`** is the order of the KR highlight groups (see
-[systems/notes.md](systems/notes.md#h-comic-highlights-h_comic_highlights)):
-a list of female character names, written whole through `PUT` or `PATCH`,
-deduplicated with blanks dropped (`[]` stores `null`); a non-list, or a list
-holding a non-string, is 422. It is cleared on a JP entry.
+**`highlight_group_order`** is a response field only: the VIEWER'S own order
+of the KR highlight groups (see
+[systems/notes.md](systems/notes.md#h-comic-highlights-h_comic_highlights)),
+a list of female character names, or `null` for nobody signed in, for no
+order, and always on a JP entry. It is written by
+[`PUT /api/me/highlight-group-order/{media_id}`](#my-highlight-group-order--apime);
+an entry write that sends it has the key ignored.
 
 **Response model:** `HComicResponse` — the columns, the personal fields,
 `display_name` (CN → EN → Alt → JP → KR), `public_id`, `content_labels`,
@@ -590,7 +599,7 @@ factory from `MEDIA_REGISTRY["h_game"]`, plus Game's IGDB picker.
 | `GET`    | `/{entry_id}`          | Public | One entry, by `public_id` or UUID. |
 | `POST`   | `/`                    | Admin  | Create. Body: `HGameCreate`. Auto-runs `execute_save_replace_h_game`: Game's Replace in its save form (ids extracted from `igdb_link` and `steam_link`, IGDB fetched fill-only when there is an `igdb_id`, SteamDB row derived, Steam fetched when there is an appid, then the HowLongToBeat search unless it already missed in this process), then `run_sync_game` and `run_sync_gated_labels`. |
 | `PUT`    | `/{entry_id}`          | Admin  | Full update. Body: `HGameUpdate`. Same write hook. |
-| `PATCH`  | `/{entry_id}`          | Admin  | Partial update, raw JSON dict. The vocabularies and `highlight_group_order` are checked here too (422), because a PATCH body never passes through the schema. |
+| `PATCH`  | `/{entry_id}`          | Admin  | Partial update, raw JSON dict. The vocabularies are checked here too (422), because a PATCH body never passes through the schema. |
 | `POST`   | `/{entry_id}/complete` | Admin  | `playing_status = "Completed"`; nothing on the catalogue side, as for game. |
 | `DELETE` | `/{entry_id}`          | Admin  | Delete. Logs to `deleted_record` under type `H-Game`; the entry's `game_copy` rows go with its `media` row. |
 
@@ -602,7 +611,7 @@ factory from `MEDIA_REGISTRY["h_game"]`, plus Game's IGDB picker.
 the six `price_*`, `language_availability`, `dialogue_audio` (list),
 `sound_effect` (list), `h_presentation` (list), `art_style` (list),
 `h_art_style` (list), `platform` (list), `igdb_id` / `igdb_link`, `steam_appid` / `steam_link`,
-`dlsite_link_jp` / `_tw`, `highlight_group_order` (list of strings),
+`dlsite_link_jp` / `_tw`,
 `type_slots`, `cover_image_file`, `cover_image_focus`, the personal `playing_status` (default
 `Might Play`), `my_rating`, `usefulness`, `completed_at`, the plan flags
 `play_next` / `to_replay`, `remark`, `sources` and `copies` (Game's
@@ -626,9 +635,8 @@ auto-creates one of type `H-Game`, labelled. A `franchise_id` naming an
 `H-Comic` or `Hentai` franchise is accepted; one naming a mainstream franchise
 (`Game`, `ACG`, ...) is **422**.
 
-**`highlight_group_order`** is the order of the highlight groups (see
-[systems/notes.md](systems/notes.md)), written whole as on h-comic; every
-h-game keeps it.
+**`highlight_group_order`** is a response field only, the viewer's own order
+of the highlight groups, as on h-comic; every h-game takes one.
 
 **Response model:** `HGameResponse` — the columns, the personal fields,
 `display_name` (CN → EN → Alt → Roman → JP), `public_id`, `base_game`
@@ -1096,7 +1104,7 @@ whether the file exists on this machine — and `attachments`, the list of
 
 Structured commentary on any owner: one row per bullet, linked resource or
 episode comment. This is the only storage for them — there is no `notes` JSONB column on the
-seven media tables. Reads are public, less what needs `view.personal` (below); every write is admin-only.
+seven media tables. Reads are public; a catalogue write needs `manage.catalog` and a personal one `self.personal_notes`.
 
 Like Meme, a note's owner may be a media entry **or** one of the three
 grouping tiers — the same twelve hyphenated `owner_type` values.
@@ -1108,15 +1116,46 @@ the id, never from the payload's `owner_type`.
 
 | Method   | Path           | Auth   | Description                                                                                                                                       |
 | -------- | -------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/sections`    | Public | The section registry resolved for one owner type, in display order. Required param: `owner_type`. 400 on an unknown one, and on a gated type the viewer cannot see (`h-comic`, `h-game` or `hentai` outside `unrestricted`). Without `view.personal`, `highlights` and `highlight_episodes` are absent from the list. |
-| `GET`    | `""`           | Public | Every note for one owner, ordered the way the page renders them. Required params: `owner_type`, `owner_id`. Catalogue sections for everyone; personal sections only the viewer's own rows, and none for a logged-out viewer. There is no parameter that reads another account's personal notes, the admin's included. Without `view.personal`, rows in `highlights` and `highlight_episodes` are omitted. |
-| `POST`   | `""`           | Admin  | Create (201). Body: `NoteCreate`. 422 on a payload the registry rejects, on a second row in a singleton section, or on a second `music_status` row for the same anime and `kind`. `sort_index` defaults to the end.     |
-| `PATCH`  | `/reorder`     | Admin  | Rewrite `sort_index` for one section of one owner. Body: `NoteReorder`. 400 unless `ordered_ids` names exactly that section's notes, each once.                |
-| `PATCH`  | `/{note_id}`   | Admin  | Partial update. Body: `NoteUpdate`, validated as the row *will* be, so a partial update cannot land on an invalid combination. A PATCH that changes `section` without sending `sort_index` puts the row at the end of its new section. |
-| `DELETE` | `/{note_id}`   | Admin  | Delete, **204 No Content**. Logs to `deleted_record` as type "Note", standing a truncated `content` in for the name a note does not have.        |
+| `GET`    | `/sections`    | Public | The section registry resolved for one owner type, in display order. Required param: `owner_type`. 400 on an unknown one, and on a gated type the viewer cannot see (`h-comic`, `h-game` or `hentai` outside `unrestricted`). Each section carries its `scope` (`catalog` or `personal`), which says who may write it, and `mixed` (`true` on the ten catalogue sections that also hold each viewer's own personal rows). |
+| `GET`    | `""`           | Public | Every note for one owner, ordered the way the page renders them. Required params: `owner_type`, `owner_id`. Catalogue sections for everyone; personal sections only the viewer's own rows, and none for a logged-out viewer. There is no parameter that reads another account's personal notes, the admin's included. The six highlight sections are personal, so their rows are the viewer's own too. A mixed section returns its catalogue rows and then the viewer's own personal rows (`personal: true`), each kind by `sort_index`; nobody reads another account's. |
+| `POST`   | `""`           | By scope | Create (201). Body: `NoteCreate`. In a mixed section the server picks the row's kind, never the payload (a `personal` key is ignored): a caller holding `manage.catalog` writes a catalogue row, any other caller holding `self.personal_notes` a personal row. 422 on a payload the registry rejects, on a catalogue row nesting under a personal one or a row nesting under another account's personal row, on a second row in a singleton section, or on a second `music_status` row for the same anime and `kind`. `sort_index` defaults to the end.     |
+| `PATCH`  | `/reorder`     | By scope | Rewrite `sort_index` for one section of one owner. Body: `NoteReorder`. 400 unless `ordered_ids` names exactly that section's notes, each once - in a personal section, exactly the caller's own; in a mixed section exactly its catalogue rows for a `manage.catalog` holder and exactly the caller's own personal rows for anyone else.                |
+| `PATCH`  | `/{note_id}`   | By scope | Partial update. Body: `NoteUpdate`, validated as the row *will* be, so a partial update cannot land on an invalid combination. A PATCH that changes `section` without sending `sort_index` puts the row at the end of its new section. A personal row of a mixed section is edited only by its author, may move only to another mixed section (422 otherwise), and never changes kind. |
+| `DELETE` | `/{note_id}`   | By scope | Delete, **204 No Content**. Logs to `deleted_record` as type "Note", standing a truncated `content` in for the name a note does not have. Every account's note marks on the row go with it.        |
+| `PUT`    | `/{note_id}/mark` | `self.personal_notes` | Set or clear the caller's own personal values on one catalogue row. Body `{"values": {key: value \| null}}`: each key is one of the row's personal values (a personal field's key, or `status` for a section-level personal status); a value sets it, `null` or blank clears it, a key not named is left alone. Returns the `NoteResponse` as the caller now reads it. **401** without the permission - the `admin` account included, it keeps no personal data - and for a value granted by a feature the caller lacks; **404** for a missing note or an owner the caller may not see; **422** for a key that is not personal on the row's section, or a value outside its vocabulary. |
+| `POST`   | `/ng-reset`    | `self.personal_notes` | Start a new cycle of one owner for the caller. Body `{"owner_type", "owner_id"}`. Clears, from the caller's own marks only, `collected` and `amount_collected` on every 物品 row whose `ng_reset` is `yes` (a row without one reads `yes`) and `beaten` on every 敵人 row. Returns `{"cleared": n}`, the number of the caller's marks changed. 400 unknown `owner_type`, 401 as above, 404 owner not visible. |
 
-**Response models:** `NoteResponse`, `NoteSectionOut` (one resolved registry
-entry: `key`, `shape`, `label`, `kinds`, `locator_placeholder`,
+**Personal values on catalogue rows.** Some catalogue rows carry values that
+are each viewer's own: `collected` and `amount_collected` on 武器&裝備 / 道具
+/ 收集物, `beaten` on 敵人, `completion` on 結局, `my_value` on 屬性&配點, and
+`status` on the four song lists, `music_status` and 模組&工具 (the last two
+granted by the `music_status` and `mod_status` features). Every
+`NoteResponse` - from the list, a create, a PATCH or a mark - carries the
+**viewer's own** value in the place the field lives (`status`, or
+`fields[key]`), or the field's default (`not collected`, `to beat`, `Not
+Done`) when the viewer has none, else `null` / the key absent. A granted
+value the viewer lacks the feature for is `null` / absent. A catalogue
+`POST` / `PATCH` ignores a personal value it is sent: it is neither stored
+nor checked. The detail is in [systems/notes.md](systems/notes.md).
+
+**By scope** is the section's `scope`: a `catalog` section is written under
+`manage.catalog`, a `personal` one under `self.personal_notes` (which the
+`admin` account does not hold - its creates, edits and reorders there are
+**401**). A personal row is edited, reordered and deleted only by its author;
+another account's row is **404** - except that the `admin` account may delete
+one (`_authorize_edit`'s root short-circuit). A **mixed** section is decided by
+`manage.catalog`: its holders - `super`, the `admin` account - write, edit and
+reorder its catalogue rows (**401** for anyone else), and every other account
+holding `self.personal_notes` writes its own personal rows, which only it
+edits, deletes, reorders, marks and nests under (**404** to anyone else, the
+`admin` account included - no root short-circuit here). Personal sections include the six highlight sections and 下周目目標
+(`ng_goals`) - [catalogue.md](catalogue.md) lists every section's scope.
+
+**Response models:** `NoteResponse` (carries `personal`, true on a personal
+row of a mixed section - always the viewer's own - and false on every other),
+`NoteSectionOut` (one resolved registry
+entry: `key`, `shape`, `scope` (`catalog`, `personal`, or `null` for quotes and
+memes), `mixed`, `label`, `kinds`, `locator_placeholder`,
 `locator_required`, `takes_links` (an `episode_text` section whose rows also
 carry URL-string links - `op_ed_changes`), `singleton`, `desc_required`, and for a structured section
 `fields` - each field's `type` may be `names`, a list of strings stored under
@@ -1141,7 +1180,15 @@ per - Resources),
 `default_status`, `one_per_kind` (one row per owner and `kind`), `hidden` (no
 card of its own), and `type_status_section` / `type_statuses` /
 `type_status_default` (the section holding this list's status row, keyed by
-this section's key as `kind`, with that status's vocabulary and default)).
+this section's key as `kind`, with that status's vocabulary and default);
+and the personal-value keys: each field's `personal` (the value is the
+viewer's own, written through `PUT /{note_id}/mark`) and `granted` (the
+feature it is behind, or `null`), and each section's `personal_status` (its
+row's `status` is the viewer's own, mark key `status`) and `status_granted`.
+A value granted by a feature the viewer lacks is not listed: its field is
+left out, and a personal status's `statuses` and `default_status` are empty,
+as are a song list's `type_status_section` / `type_statuses` /
+`type_status_default`).
 
 `links` on `NoteCreate` / `NoteUpdate` / `NoteResponse` is a list of URL
 strings, or - on a section reporting `link_pairs: true` (the four song
@@ -1599,7 +1646,7 @@ derived from `(role, media_type)`, never stored.
 | `GET`    | `/{system_id}/entries` | `view.person` | The entries this person is credited on, grouped by `(media_type, role)`. 404 if the person is absent or hidden. |
 | `POST`   | `/`                | Admin  | Create a person, **or return the existing one** under that name — find-or-create, matching `resolve_person`, because `ensureSourceValues.js` POSTs here whenever a typed name is missing from a role-filtered dropdown. Body: `PersonCreate` (`PersonBase` fields + `roles: [{role, scope}]`), carrying either the four labelled name columns or one unslotted `name` that the endpoint places through `name_slot_for`. The lookup is by `name`, else the first of the labelled names - the first fragment of `name_alt` when that is all the body carries, since `name_alt` is a comma-separated list. A body with no name at all is 422, mirroring `ck_person_has_a_name`. Only on the create branch, `mal_id` is derived from `mal_link` and a seiyuu is enriched from MAL (see below). |
 | `PUT`    | `/{system_id}`     | Admin  | Fully update a person, replacing their `person_role` rows wholesale. Body: `PersonUpdate`. A non-null `photo_fallback_entry_id` must name an entry this person is credited on or voices a character in, and that the editor can see — 422 otherwise; a null keeps a stored choice the editor cannot see, as the role rows are kept. `mal_id` is derived from `mal_link`, and a seiyuu is enriched from MAL after the payload is copied (see below). |
-| `PATCH`  | `/{system_id}`     | Admin  | Partially update a person's own columns — the detail page's inline rating and remark edits. Body: any subset of the `PersonBase` columns as a JSON object; only the keys sent change, and `roles` is not a column (edit it through `PUT`). The `PUT` rules are checked before anything is written: `gender` and `my_rating` are their vocabularies (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, at least one name survives the patch, and `photo_fallback_entry_id` follows the `PUT` rule — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. A `mal_link` in the body re-derives `mal_id`; `PATCH` never calls MAL. Returns the full `PersonResponse`. |
+| `PATCH`  | `/{system_id}`     | Admin  | Partially update a person's own columns — the detail page's inline remark edit. Body: any subset of the `PersonBase` columns as a JSON object; only the keys sent change, and `roles` is not a column (edit it through `PUT`). The viewer's rating is not a column either; it is written through `PUT /api/me/ratings/person/{id}`. The `PUT` rules are checked before anything is written: `gender` is its vocabulary (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, at least one name survives the patch, and `photo_fallback_entry_id` follows the `PUT` rule — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. A `mal_link` in the body re-derives `mal_id`; `PATCH` never calls MAL. Returns the full `PersonResponse`. |
 | `DELETE` | `/{system_id}?credits=N` | Admin  | Delete a person. Cascades their `media_credit`, `character_casting_voice` and `person_role` rows — no `deleted_record` entry is logged. The castings they voiced stay, un-voiced by them (Decision H). `credits` is **required**: it is the count the confirmation dialog showed — `media_credit` rows plus voice rows — and a mismatch is a **409**, so the deletion that happens is the one the admin agreed to. |
 | `POST`   | `/{system_id}/merge` | Admin  | Merge `source_id` into this person: repoints every `media_credit` and every `character_casting_voice` row (a voice on a casting the survivor already voices is dropped), unions the `person_role` rows and moves every club membership onto the survivor, then deletes the loser. Every column the survivor leaves blank is then filled from the loser's, and one it holds is never overwritten; the picture (photo or logo) comes with its focus, a downloaded one renamed onto the survivor's own key (`app/services/domain/merge_fill.py`). 409, with nothing changed, if the filled names would equal another record's. Body: `MergeRequest` (`{source_id}`). 400 if merging into self. Returns `credits_moved`, credits and voices together. |
 | `GET`    | `/{system_id}/clubs` | `view.person` | The clubs this person belongs to, as `List[MembershipRef]`, ordered by name. Hidden clubs are omitted; 404 if the person is absent or hidden. |
@@ -1613,7 +1660,8 @@ not a connection: it never makes a hidden club or artist visible
 ([authorization.md](authorization.md#shared-records)).
 
 **Response model:** `PersonResponse` — the four name columns,
-`display_name_field`, the resolved `display_name`, `gender`, `my_rating`,
+`display_name_field`, the resolved `display_name`, `gender`, `my_rating` (the
+viewer's own, null without a rating row),
 `photo_file`, `photo_focus`, `photo_fallback_entry_id`, `remark`, `mal_id`, `mal_link`, `system_id`, `roles` (every
 `(role, scope)` the person holds, so the admin form can load the whole set in
 one request) and five fields resolved **for the viewer** from the entries they
@@ -1637,7 +1685,7 @@ may see (`filter_visible_pairs`), none of them stored:
 
 `gender` is one of `男`, `女`, `中性/無性`, `雙性混和`, `其他` or null, and
 `my_rating` one of `S`…`F` or null ([options.md](options.md)); a write outside
-either is a 422. `photo_fallback_entry_id` is reported only while it names a
+either is a 422 (the rating's through `PUT /api/me/ratings`). `photo_fallback_entry_id` is reported only while it names a
 linked entry the viewer can see, and is null otherwise. The list resolves all
 of this for every row in one pass, so its query count does not grow with the
 number of people; `/api/search` answers its `person` bucket the same way.
@@ -1722,14 +1770,14 @@ role/scope filter — studios have no `person_role` concept.
 | `GET`    | `/{system_id}/entries`| `view.studio` | The entries this studio is credited on, grouped by media type. 404 if the studio is absent or hidden. |
 | `POST`   | `/`                   | Admin  | Create a studio, **or return the existing one** under that name — find-or-create, because the Add/Modify forms POST here through `ensureSourceValues.js` whenever a typed name is not in the suggestion list. Matching is on the normalized name (`find_studio`), looked up by the body's first name - the first fragment of `name_alt` when that is all it carries, since `name_alt` is a comma-separated list; metadata on an existing row is left untouched. Body: `StudioCreate`. Only on the create branch, a payload carrying `mal_id` is enriched from MAL first (see below). |
 | `PUT`    | `/{system_id}`        | Admin  | Fully update a studio. Every credit points at the row by id, so a rename here changes what every credited entry shows — there is no propagation step. Body: `StudioUpdate`. The MAL enrichment runs after the payload is copied, so your values win. |
-| `PATCH`  | `/{system_id}`        | Admin  | Partially update a studio's own columns — the detail page's inline rating and remark edits. Body: any subset of the `StudioBase` columns as a JSON object. Only the keys sent change. The `PUT` rules are checked before anything is written: `my_rating` is its vocabulary (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, and at least one name survives the patch — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. Same checks as person's `PATCH` (`_entity_patch.prepare_patch`). A `mal_link` in the body re-derives `mal_id`; `PATCH` never calls MAL. Returns the full `StudioResponse`. |
+| `PATCH`  | `/{system_id}`        | Admin  | Partially update a studio's own columns — the detail page's inline remark edit. Body: any subset of the `StudioBase` columns as a JSON object. Only the keys sent change; the viewer's rating is written through `PUT /api/me/ratings/studio/{id}`. The `PUT` rules are checked before anything is written: `display_name_field` is `en`/`cn`/`jp`/`alt`, and at least one name survives the patch — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. Same checks as person's `PATCH` (`_entity_patch.prepare_patch`). A `mal_link` in the body re-derives `mal_id`; `PATCH` never calls MAL. Returns the full `StudioResponse`. |
 | `DELETE` | `/{system_id}`        | Admin  | Delete a studio. Cascades its `media_credit` rows — no `deleted_record` entry is logged. Merge, not delete, is the fix for a duplicate. |
 | `POST`   | `/{system_id}/merge`  | Admin  | Merge `source_id` into this studio: repoints every `media_credit` (dropping one that would duplicate a credit the survivor already holds), then deletes the loser. Every column the survivor leaves blank is then filled from the loser's, and one it holds is never overwritten; the picture (photo or logo) comes with its focus, a downloaded one renamed onto the survivor's own key (`app/services/domain/merge_fill.py`). 409, with nothing changed, if the filled names would equal another record's. Body: `MergeRequest`. 400 if merging into self. |
 
 **Response model:** `StudioResponse` — `StudioBase` fields (the four names,
-`display_name_field`, `my_rating`, `logo_file`, `logo_focus`, `remark`, `founded_date`,
+`display_name_field`, `logo_file`, `logo_focus`, `remark`, `founded_date`,
 `defunct_date`, `country`, `website_url`, `mal_id`, `mal_link`) plus
-`system_id`, the resolved `display_name`, and three fields resolved **for the
+`system_id`, the viewer's own `my_rating`, the resolved `display_name`, and three fields resolved **for the
 viewer** from the entries they may see, none of them stored:
 
 - `credit_count` — how many visible entries the studio is credited on, one
@@ -1837,14 +1885,14 @@ uses. `app/routers/publisher.py` mirrors `/api/studio` endpoint for endpoint,
 | `GET`    | `/{system_id}/entries`| `view.publisher` | The entries this publisher is credited on, grouped by media type. 404 if the publisher is absent or hidden. |
 | `POST`   | `/`                   | Admin  | Create a publisher, **or return the existing one** under that name — find-or-create for the same reason as studio: the Add/Modify forms POST here through `ensureSourceValues.js` whenever a typed name is not in the suggestion list, so a second row would split the credits. Matching is on the normalized name (`find_publisher`), looked up by the body's first name - the first fragment of `name_alt` when that is all it carries; metadata on an existing row is left untouched. Body: `PublisherCreate`. |
 | `PUT`    | `/{system_id}`        | Admin  | Fully update a publisher. Every credit points at the row by id, so a rename here changes what every credited entry shows — no propagation step. Body: `PublisherUpdate`. |
-| `PATCH`  | `/{system_id}`        | Admin  | Partially update a publisher's own columns — the detail page's inline rating and remark edits. Body: any subset of the `PublisherBase` columns as a JSON object; `scopes` is not a column (edit it through `PUT`). Only the keys sent change. The `PUT` rules are checked before anything is written: `my_rating` is its vocabulary (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, and at least one name survives the patch — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. Same checks as person's `PATCH` (`_entity_patch.prepare_patch`). Returns the full `PublisherResponse`. |
+| `PATCH`  | `/{system_id}`        | Admin  | Partially update a publisher's own columns — the detail page's inline remark edit. Body: any subset of the `PublisherBase` columns as a JSON object; `scopes` is not a column (edit it through `PUT`). Only the keys sent change; the viewer's rating is written through `PUT /api/me/ratings/publisher/{id}`. The `PUT` rules are checked before anything is written: `display_name_field` is `en`/`cn`/`jp`/`alt`, and at least one name survives the patch — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. Same checks as person's `PATCH` (`_entity_patch.prepare_patch`). Returns the full `PublisherResponse`. |
 | `DELETE` | `/{system_id}`        | Admin  | Delete a publisher. Cascades its `media_credit` rows — no `deleted_record` entry is logged. Merge, not delete, is the fix for a duplicate. **Also deletes the publisher's logo object** (see below). |
 | `POST`   | `/{system_id}/merge`  | Admin  | Merge `source_id` into this publisher: repoints every `media_credit` (dropping one that would duplicate a credit the survivor already holds), then deletes the loser. Every column the survivor leaves blank is then filled from the loser's, and one it holds is never overwritten; the picture (photo or logo) comes with its focus, a downloaded one renamed onto the survivor's own key (`app/services/domain/merge_fill.py`). 409, with nothing changed, if the filled names would equal another record's. Body: `MergeRequest`. 400 if merging into self. Returns `credits_moved`. |
 
 **Response model:** `PublisherResponse` (`app/schemas/publisher.py`) —
-`PublisherBase` fields (the four names, `display_name_field`, `my_rating`,
+`PublisherBase` fields (the four names, `display_name_field`,
 `logo_file`, `logo_focus`, `remark`, `founded_date`, `defunct_date`, `country`,
-`website_url`, `scopes`) plus `system_id`, the resolved `display_name`, and
+`website_url`, `scopes`) plus `system_id`, the viewer's own `my_rating`, the resolved `display_name`, and
 the three viewer-resolved fields `StudioResponse` carries — `credit_count`,
 `media_types` and `restricted` — from the same `credit_summaries` pass.
 `PublisherBase` rejects a payload with no name at all and a
@@ -1985,13 +2033,14 @@ line for line, plus one deliberate departure — see the `POST` row.
 | `GET`    | `/{system_id}/entries` | `view.character` | The entries this character is cast on, grouped by media type only — a character holds no role, unlike a person. Each entry carries `seiyuu`: everyone who voiced the character there, in voice order, as `[{display_name, system_id, public_id, remark}]` — empty when nobody did. One entry appears **once per identity** the character is cast under in it, so each row also carries `casting_id`, `identity_id`, `identity_name` and `identity_public_id` (null for the main identity), `credited_name`, the name the casting gives the character in that entry (null for none), and `remark`, the casting's own remark (null for none); `casting_id`, not the entry's `system_id`, tells two appearances apart. 404 if the character is absent or hidden; a visible character's castings on label-hidden entries are omitted, group and all. |
 | `POST`   | `/`                    | Admin  | Create a character. **Always a plain create, never find-or-create** — unlike `POST /api/person`, which safely resolves two spellings of one director onto one row. Character names carry no unique constraint (see `docs/data-model.md`): the "Yuki" of one anime and the "Yuki" of another are different characters, and silently returning the first match on a POST would fuse two unrelated casts under one `system_id`. Disambiguation happens in the cast editor's combobox instead, which lists existing matches together with the entries they already appear in and requires an explicit "Create new character named X" choice before minting a row. Body: `CharacterCreate`. A body with no name at all is 422, mirroring `ck_character_has_a_name`. `mal_id` is derived from `mal_link`, and the character is then filled from MAL (see below). `appearance` and `trait` are written once the row exists (see **Tags** below). A null `display_name_field` becomes `cn` when `name_cn` is filled ([business-rules.md](business-rules.md#10a-entity-display-names-modelsstaffpy-modelscharacterpy-libnamingjs)). |
 | `PUT`    | `/{system_id}`         | Admin  | Fully update a character. Body: `CharacterUpdate`. A non-null `photo_fallback_entry_id` must name an entry this character is cast on and the editor can see — 422 otherwise; a null keeps a stored choice the editor cannot see. `mal_id` is derived from `mal_link`, and the character is filled from MAL after the payload is copied (see below). `appearance` and `trait` each replace their list whole; one left out or `null` is unchanged. A null `display_name_field` becomes `cn` when `name_cn` is filled, as on `POST`. |
-| `PATCH`  | `/{system_id}`         | Admin  | Partially update a character — the detail page's inline rating and remark edits. Body: any subset of the `CharacterBase` columns as a JSON object; only the keys sent change. The `PUT` rules are checked before anything is written: `gender`, `my_rating` and `role` are their vocabularies (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, at least one name survives the patch, and `photo_fallback_entry_id` follows the `PUT` rule — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored — except `appearance` and `trait`, which replace their lists as on `PUT` (`null` is unchanged; anything but a list of strings is a 422). A `mal_link` in the body re-derives `mal_id`; `PATCH` never calls MAL. Returns the full `CharacterResponse`. |
+| `PATCH`  | `/{system_id}`         | Admin  | Partially update a character — the detail page's inline remark edit. Body: any subset of the `CharacterBase` columns as a JSON object; only the keys sent change; the viewer's rating is written through `PUT /api/me/ratings/character/{id}`. The `PUT` rules are checked before anything is written: `gender` and `role` are their vocabularies (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, at least one name survives the patch, and `photo_fallback_entry_id` follows the `PUT` rule — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored — except `appearance` and `trait`, which replace their lists as on `PUT` (`null` is unchanged; anything but a list of strings is a 422). A `mal_link` in the body re-derives `mal_id`; `PATCH` never calls MAL. Returns the full `CharacterResponse`. |
 | `DELETE` | `/{system_id}?castings=N` | Admin | Delete a character. Cascades its `character_casting` rows, and their voices with them, and its `character_tag` rows. `castings` is **required**: the count the confirmation dialog showed, and a mismatch is a **409** — the same guard shape as `DELETE /api/person?credits=N`. |
 | `POST`   | `/{system_id}/merge`   | Admin  | Merge `source_id` into this character: repoints every casting, then deletes the loser. The loser's identities move to the survivor, after its own, with their cast rows. Castings are matched per identity: only where the survivor already holds a casting of the **same identity** on the same entry (a main row meeting a main row) is the loser's casting there dropped, its voices the survivor's casting lacks are appended to the survivor's, so no seiyuu is lost, and the survivor's casting fills its blank role, credited name, remark and photo from it. Every column the survivor leaves blank is then filled from the loser's, and one it holds is never overwritten; the picture (photo or logo) comes with its focus, a downloaded one renamed onto the survivor's own key (`app/services/domain/merge_fill.py`). Each tag list ends as the union of both: the survivor's values in their order, then the loser's it lacked. This — not delete — is the fix for a duplicate, since deleting cascades the castings away. Body: `MergeRequest` (`{source_id}`). 400 if merging into self. |
 | `POST`   | `/{system_id}/sync-from-cast` | `manage.catalog` | The character page's **Sync from cast**: one of this character's cast rows replaces the role, remark and photo (with its focus) of the record it casts - the identity it names, else the character; an identity has no role. A value the row does not hold - no role, a blank remark, no photo of its own - leaves the record's alone. A photo that is a library image is attached as well as written to `photo_file`. Body: `{casting_id}`. Returns the `CharacterResponse`. 404 for a cast row that is not this character's or is on an entry the caller cannot see. |
 
 **Response model:** `CharacterResponse` — the four name columns,
-`display_name_field`, the resolved `display_name`, `gender`, `my_rating`,
+`display_name_field`, the resolved `display_name`, `gender`, `my_rating` (the
+viewer's own),
 `photo_file`, `photo_focus`, `photo_fallback_entry_id`, `role`, `remark`, `first_mention`,
 `first_appearance`, `first_encounter`, `mal_id`, `mal_link`, `system_id`, the tag
 lists `appearance` and `trait` (`string[]`, in stored order, `[]` when none —
@@ -2404,7 +2453,7 @@ see [authorization.md](authorization.md) for why that is accepted.
 | `GET`    | `/check/duplicates`                  | Find and report all duplicate entries across all tables. Returns grouped clusters.          |
 | `GET`    | `/check/alone-groups`                | Every franchise and series holding exactly one media entry (any of the twelve types), less those whose lone entry was marked reviewed: `{franchise: [...], series: [...]}`, each `{system_id, public_id, display_name, entry: {system_id, media_type, public_id, display_name}}`. |
 | `POST`   | `/check/alone-groups/{kind}/{system_id}/reviewed` | `kind` is `franchise` or `series` (422 otherwise). Records the group's current lone entry in `alone_reviewed_media_id`, so the group is listed again once that entry is replaced. Returns `{system_id, alone_reviewed_media_id}`; 404 for an unknown group, 409 when it no longer holds exactly one entry. |
-| `GET`    | `/check/music`                       | Every anime whose music is waiting: a song list or a song on Need, Pending or No Full Version. One row per anime with `system_id`, `public_id`, `anime_name_cn`, `anime_name_en`, `display_name`, the flagged `lists` (`[{kind, status}]`) and the flagged `songs` (`[{section, title, status, locator}]`). Not per caller: the music sections are catalogue notes. |
+| `GET`    | `/check/music`                       | Every anime whose music is waiting: a song list or a song on Need, Pending or No Full Version. One row per anime with `system_id`, `public_id`, `anime_name_cn`, `anime_name_en`, `display_name`, the flagged `lists` (`[{kind, status}]`) and the flagged `songs` (`[{section, title, status, locator}]`). **Per caller**: the songs and lists are catalogue rows, but each status is the caller's own note mark, so only the caller's own statuses list an anime, and a caller without the `music_status` feature is listed nothing. |
 | `GET`    | `/check/remarks`                     | The **caller's own** non-empty remarks (`section = 'remark'` only), one key per media type — all twelve. A remark belongs to its author, so the response carries one per entry. Each row carries `system_id`, `public_id`, its type's name columns and disambiguating columns, the caller's status (`watching_status` / `reading_status` / `playing_status`, read from `user_media_list`) and `remark`; a movie row carries `release_date` (USA, else TW). |
 
 **SSE response format** (streaming endpoints): `text/event-stream` — each event is a JSON string with `{status, current_entry, processed, total}`.
@@ -2509,6 +2558,45 @@ which keys a type owns.
 Neither route takes a user id, so there is no shape of request that writes
 somebody else's list. Catalogue writes are unaffected and stay behind
 `Depends(require_manage_catalog)` on the per-type entry endpoints.
+
+---
+
+## My Ratings — `/api/me`
+
+The caller's own rating of a collection, franchise, series, character,
+person, studio or publisher, the expectation of a collection, franchise or
+series, and the rating of and remark on a novel unit
+(`app/routers/me_ratings.py`). Gated at **router level** on `self.list`, as
+My List is: a logged-out visitor, a viewer without the permission and the
+`admin` account (the root short-circuit does not cover the `self` family)
+all get **401**.
+
+| Method | Path | Notes |
+|---|---|---|
+| PUT | `/api/me/ratings/{owner_type}/{owner_id}` | `owner_type` is `collection`, `franchise`, `series`, `character`, `person`, `studio` or `publisher`; `owner_id` a `system_id` or `public_id`, as the owner's GET accepts. Body `{my_rating?, expectation?}`, **partial**: only the keys sent change, and `null` or `""` clears one. Returns `{owner_type, owner_id, my_rating, expectation}`. **422** for a rating outside `MY_RATINGS`, an expectation outside `FRANCHISE_EXPECTATIONS`, an expectation on a character, person, studio or publisher, or any other key. **404** for an unknown owner type, and for an owner that does not exist or that the caller's GET would not answer (a hidden franchise or series; an entity without its kind's view key - `view.character`, `view.person`, `view.studio` or `view.publisher` - or hidden by its shared-record visibility), in the owner's own not-found words. |
+| PUT | `/api/me/novel-units/{unit_id}` | Body `{my_rating?, remark?}`, partial as above. Returns `{unit_id, my_rating, remark}`. **422** for a rating outside `MY_RATINGS` or any other key; **404** "Novel unit not found." for a unit that does not exist or whose novel the caller may not see. |
+
+Each route writes one row, the caller's, and takes no user id. A row left
+holding neither value is deleted, so "never rated" and "cleared" are one
+state.
+
+---
+
+## My Highlight Group Order — `/api/me`
+
+The caller's own order of the highlight groups on an h-comic or an h-game
+(`app/routers/me_highlights.py`, table `user_highlight_group_order`). Gated at
+**router level** on `self.personal_notes`, the permission the highlight rows
+are written under: a logged-out visitor, a viewer without it and the `admin`
+account all get **401**.
+
+| Method | Path | Notes |
+|---|---|---|
+| PUT | `/api/me/highlight-group-order/{media_id}` | `media_id` is the entry's `system_id`. Body `{"group_order": [names] \| null}` - the key is required. The list is read and written whole, trimmed, with blanks and repeats dropped; `null`, `[]` or a list of blanks clears the order and deletes the row. Returns `{media_id, group_order}`. **422** for a value that is not a list of strings, a missing key or any other key, and for a JP h-comic (it has no highlights section). **404** "Entry not found." for an entry that does not exist, is not an h-comic or h-game, or that the caller's GET would not answer. |
+
+The order is read back as `highlight_group_order` on the h-comic and h-game
+list, detail and search responses - the viewer's own, `null` for anyone else.
+When an h-comic's region becomes JP, every account's order on it is deleted.
 
 ---
 
@@ -2815,8 +2903,9 @@ quote (list/grouped/by-id), meme (list/grouped/by-id), `media_relation`
 (`/for-entry`, the scope listing, and `/graph`), `watch_order` (`/lists/{id}`,
 `/candidates`), `plan_next`, `credits`, `notes`, and the `credit_count` on
 person and studio. Field groups the mode lacks are stripped from a copy of the
-row before serialisation, and so are the owner's ratings, expectations and unit
-remarks for a viewer without `view.personal` (`docs/authorization.md`).
+row before serialisation. Group and entity ratings, tier expectations and
+novel unit ratings and remarks are the viewer's own, attached per request
+(`docs/authorization.md`).
 
 **Accepted residuals**, documented rather than fixed: `seasonal` counts are
 precomputed over all entries and over-count for a restricted viewer;

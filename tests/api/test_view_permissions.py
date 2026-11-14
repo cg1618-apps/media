@@ -1,12 +1,10 @@
 """
 The view.* family: what a logged-out visitor does not see.
 
-Seven keys: four entity-page keys (studio, publisher, person, character),
-search, extras and personal. `super` holds all seven by lock; `user` is
-seeded with the last three and the entity keys start off; `guest` holds
-none. Each refusal below is
-asserted with the gated thing PRESENT - a row to read, a rating to strip, a
-highlight to withhold - and is mirrored by a viewer holding the key reading the
+Six keys: four entity-page keys (studio, publisher, person, character),
+search and extras. `super` holds all six by lock; `user` is seeded with the
+last two and the entity keys start off; `guest` holds none. Each refusal below is
+asserted with the gated thing PRESENT - a row to read - and is mirrored by a viewer holding the key reading the
 same thing through the same fixture, so a green proves the gate refused and not
 that there was nothing to return.
 """
@@ -37,6 +35,7 @@ from app.services.rbac.seed import (
     default_shared_permissions,
     default_super_permissions,
     default_user_permissions,
+    ensure_rbac_seed,
 )
 from tests.api.conftest import make_viewer
 
@@ -66,7 +65,7 @@ def _held(db, role_name):
 # ---------------------------------------------------------------------------
 
 
-def test_the_seven_keys_are_in_the_catalog():
+def test_the_six_keys_are_in_the_catalog():
     assert VIEW_PERMISSION_KEYS == (
         "studio",
         "publisher",
@@ -74,12 +73,40 @@ def test_the_seven_keys_are_in_the_catalog():
         "character",
         "search",
         "extras",
-        "personal",
     )
     assert {view_perm(k) for k in VIEW_PERMISSION_KEYS} == VIEW_ALL
     assert ENTITY_VIEW_PERMISSIONS == ENTITY_KEYS
     assert VIEW_ALL <= static_catalog()
     assert "view.entities" not in static_catalog()
+
+
+def test_view_personal_is_gone_from_the_catalog():
+    """Every highlight section is personal, so nothing is left for it to open."""
+    assert "view.personal" not in static_catalog()
+    assert "personal" not in VIEW_PERMISSION_LABELS
+
+
+def test_seeding_twice_grants_no_view_personal(db):
+    """
+    The user and super roles are emptied first, so the seed's top-up - which
+    only fills a role holding nothing - really does run, and runs again. The
+    mirror is the same assertion's other half: the rest of the family IS
+    granted, so the absence is the vocabulary and not an empty seed.
+    """
+    roles = db.query(models.Role).filter(models.Role.name.in_(["user", "super"])).all()
+    assert len(roles) == 2
+    db.query(models.RolePermission).filter(
+        models.RolePermission.role_id.in_([r.system_id for r in roles])
+    ).delete(synchronize_session=False)
+    db.flush()
+
+    ensure_rbac_seed(db)
+    ensure_rbac_seed(db)
+
+    held = {row.permission for row in db.query(models.RolePermission)}
+    assert "view.personal" not in held
+    assert MEMBER_VIEW <= _held(db, "user")
+    assert VIEW_ALL <= _held(db, "super")
 
 
 def test_every_key_has_a_label_and_a_description():
@@ -187,10 +214,6 @@ def gated_reads(db, admin_client, person, character, anime_with_studio, sample_a
             "/api/resources",
             "/api/random-picker-defaults/all",
         ],
-        # view.personal gates no route of its own: what it opens are
-        # sections and fields inside pages every viewer reads, tested below.
-        # Holding it still opens none of the reads above, which the
-        # parametrised test asserts.
     }
 
 
@@ -251,78 +274,34 @@ def test_an_entity_write_does_not_also_need_the_read(db, client):
 
 
 # ---------------------------------------------------------------------------
-# Notes: the highlight sections
+# Ratings, expectations and unit remarks are the viewer's own
 # ---------------------------------------------------------------------------
-
-
-def _notes(c, anime, **params):
-    return c.get(
-        "/api/notes",
-        params={"owner_type": "anime", "owner_id": str(anime.system_id), **params},
-    )
+# They live per account (user_rating, user_novel_unit_rating), so a viewer
+# reads its own and nobody else's. Each
+# null below is asserted with a row PRESENT - the member's own - so it proves
+# the read is per account rather than that nothing was rated.
 
 
 @pytest.fixture
-def highlight(db, sample_anime, admin_user):
-    """A catalogue highlight on the anime - the row a guest must not see."""
-    db.add(
-        models.Note(
-            system_id=uuid.uuid4(),
-            media_id=sample_anime.system_id,
-            section="highlights",
-            content="第六話",
-            author_id=admin_user.id,
-        )
-    )
-    db.flush()
-
-
-def test_a_guest_does_not_see_highlights(client, sample_anime, highlight):
-    r = _notes(client, sample_anime)
-    assert r.status_code == 200
-    assert not [n for n in r.json() if n["section"] == "highlights"]
-
-
-def test_a_member_sees_highlights(user_client, sample_anime, highlight):
-    r = _notes(user_client, sample_anime)
-    assert [n["content"] for n in r.json() if n["section"] == "highlights"] == ["第六話"]
-
-
-def test_the_section_listing_omits_highlights_for_a_guest(client, user_client):
-    def keys(c, owner_type):
-        r = c.get("/api/notes/sections", params={"owner_type": owner_type})
-        assert r.status_code == 200
-        return {s["key"] for s in r.json()}
-
-    assert "highlights" in keys(user_client, "anime")
-    assert "highlight_episodes" in keys(user_client, "tv-show")
-    assert "highlights" not in keys(client, "anime")
-    assert "highlight_episodes" not in keys(client, "tv-show")
-    # Only those two: a guest still gets every other section.
-    assert keys(user_client, "anime") - keys(client, "anime") == {"highlights"}
-
-
-# ---------------------------------------------------------------------------
-# Stripping personal fields
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture
-def rated_groups(db, sample_collected_franchise, sample_collection):
-    """Groups carrying the owner's opinion - the values a guest must not get."""
+def rated_groups(db, plain_user, sample_collected_franchise, sample_collection):
+    """Groups the member (plain_user, user_client) has rated and expected."""
     franchise = sample_collected_franchise
-    franchise.my_rating = "S"
-    franchise.franchise_expectation = "High"
     series = models.Series(
         system_id=uuid.uuid4(),
         franchise_id=franchise.system_id,
         series_name_en="Rated Series",
-        my_rating="A",
-        series_expectation="High",
     )
-    sample_collection.my_rating = "A+"
-    sample_collection.collection_expectation = "High"
     db.add(series)
+    db.flush()
+    db.add_all([
+        models.UserRating(user_id=plain_user.id, franchise_id=franchise.system_id,
+                          my_rating="S", expectation="High"),
+        models.UserRating(user_id=plain_user.id, series_id=series.system_id,
+                          my_rating="A", expectation="High"),
+        models.UserRating(user_id=plain_user.id,
+                          collection_id=sample_collection.system_id,
+                          my_rating="A+", expectation="High"),
+    ])
     db.flush()
     return {"franchise": franchise, "series": series, "collection": sample_collection}
 
@@ -354,7 +333,7 @@ def test_a_guest_gets_group_ratings_and_expectations_as_null(client, rated_group
             assert body[field] is None, (kind, field)
 
 
-def test_a_member_gets_them(user_client, rated_groups):
+def test_the_member_gets_its_own(user_client, rated_groups):
     bodies = _group_reads(user_client, rated_groups)
     kinds = [k for k in rated_groups for _ in (0, 1)]
     for kind, body in zip(kinds, bodies):
@@ -362,21 +341,10 @@ def test_a_member_gets_them(user_client, rated_groups):
             assert body[field] is not None, (kind, field)
 
 
-def test_stripping_does_not_write_the_null_back(db, client, rated_groups):
-    client.get(f"/api/franchise/{rated_groups['franchise'].system_id}")
-    db.flush()
-    db.refresh(rated_groups["franchise"])
-    assert rated_groups["franchise"].my_rating == "S"
-    assert rated_groups["franchise"].franchise_expectation == "High"
-
-
-def test_a_catalogue_manager_without_view_personal_still_gets_them(
-    db, client, rated_groups
-):
-    """
-    The edit forms load a group with a GET and send it back whole, so a
-    manager handed a null would write it over the stored value.
-    """
+def test_a_catalogue_manager_gets_its_own_not_the_members(db, client, rated_groups):
+    """manage.catalog used to be exempt from the strip, because the edit
+    forms sent the rating back whole. They no longer carry it, so a manager
+    reads its own - none - and never the member's."""
     make_viewer(
         db,
         client,
@@ -384,10 +352,10 @@ def test_a_catalogue_manager_without_view_personal_still_gets_them(
         default_guest_permissions() | {PERM_MANAGE_CATALOG},
     )
     body = client.get(f"/api/franchise/{rated_groups['franchise'].system_id}").json()
-    assert body["my_rating"] == "S"
+    assert body["my_rating"] is None
 
 
-def test_search_strips_for_a_searcher_without_view_personal(db, client, rated_groups):
+def test_search_gives_another_searcher_null(db, client, rated_groups):
     make_viewer(
         db,
         client,
@@ -404,7 +372,7 @@ def test_search_strips_for_a_searcher_without_view_personal(db, client, rated_gr
     assert franchise["franchise_expectation"] is None
 
 
-def test_search_keeps_them_for_a_member(user_client, rated_groups):
+def test_search_gives_the_member_its_own(user_client, rated_groups):
     body = user_client.get("/api/search/", params={"q": "Collected Franchise"}).json()
     franchise = next(
         f
@@ -415,14 +383,19 @@ def test_search_keeps_them_for_a_member(user_client, rated_groups):
 
 
 @pytest.fixture
-def rated_entities(db, person, character):
-    studio = models.Studio(system_id=uuid.uuid4(), name_en="Rated Studio", my_rating="S")
-    publisher = models.Publisher(
-        system_id=uuid.uuid4(), name_en="Rated Publisher", my_rating="S"
-    )
-    person.my_rating = "S"
-    character.my_rating = "S"
+def rated_entities(db, plain_user, person, character):
+    studio = models.Studio(system_id=uuid.uuid4(), name_en="Rated Studio")
+    publisher = models.Publisher(system_id=uuid.uuid4(), name_en="Rated Publisher")
     db.add_all([studio, publisher])
+    db.flush()
+    db.add_all([
+        models.UserRating(user_id=plain_user.id, studio_id=studio.system_id, my_rating="S"),
+        models.UserRating(user_id=plain_user.id, publisher_id=publisher.system_id,
+                          my_rating="S"),
+        models.UserRating(user_id=plain_user.id, person_id=person.system_id, my_rating="S"),
+        models.UserRating(user_id=plain_user.id, character_id=character.system_id,
+                          my_rating="S"),
+    ])
     db.flush()
     return {
         "studio": studio,
@@ -432,7 +405,7 @@ def rated_entities(db, person, character):
     }
 
 
-def test_entities_strip_my_rating_without_view_personal(db, client, rated_entities):
+def test_entities_give_another_viewer_null(db, client, rated_entities):
     make_viewer(
         db,
         client,
@@ -448,15 +421,21 @@ def test_entities_strip_my_rating_without_view_personal(db, client, rated_entiti
         ] is None, kind
 
 
-def test_entities_keep_my_rating_for_a_member(db, client, rated_entities):
-    make_viewer(db, client, "entities-personal", default_user_permissions() | ENTITY_KEYS)
+def test_entities_give_the_member_its_own(db, client, rated_entities):
+    """Another account rated each entity S (rated_entities); this member rated
+    each A, and reads its own A - not the other's S, and not null."""
+    make_viewer(db, client, "entities-own", default_user_permissions() | ENTITY_KEYS)
+    me = db.query(models.User).filter(models.User.username == "entities-own").one()
+    for kind, row in rated_entities.items():
+        db.add(models.UserRating(user_id=me.id, **{f"{kind}_id": row.system_id}, my_rating="A"))
+    db.flush()
     for kind, row in rated_entities.items():
         body = client.get(f"/api/{kind}/{row.system_id}").json()
-        assert body["my_rating"] == "S", kind
+        assert body["my_rating"] == "A", kind
 
 
 @pytest.fixture
-def novel_with_remark(db, sample_franchise):
+def novel_with_remark(db, plain_user, sample_franchise):
     novel = models.Novel(
         system_id=uuid.uuid4(),
         franchise_id=sample_franchise.system_id,
@@ -465,14 +444,18 @@ def novel_with_remark(db, sample_franchise):
     )
     db.add(novel)
     db.flush()
+    unit = models.NovelUnit(
+        system_id=uuid.uuid4(),
+        novel_id=novel.system_id,
+        unit_kind="arc",
+        position=1,
+        ch_count=10,
+    )
+    db.add(unit)
+    db.flush()
     db.add(
-        models.NovelUnit(
-            system_id=uuid.uuid4(),
-            novel_id=novel.system_id,
-            unit_kind="arc",
-            position=1,
-            ch_count=10,
-            remark="這卷最好看",
+        models.UserNovelUnitRating(
+            user_id=plain_user.id, unit_id=unit.system_id, remark="這卷最好看"
         )
     )
     db.flush()
@@ -487,15 +470,13 @@ def _units(c, novel):
     return detail["units"] + row["units"]
 
 
-def test_a_guest_gets_novel_unit_remarks_as_null(db, client, novel_with_remark):
+def test_a_guest_gets_novel_unit_remarks_as_null(client, novel_with_remark):
     units = _units(client, novel_with_remark)
     assert units, "the novel must carry a unit for this to bite"
     assert all(u["remark"] is None for u in units)
-    unit = db.query(models.NovelUnit).filter_by(novel_id=novel_with_remark.system_id).one()
-    assert unit.remark == "這卷最好看"
 
 
-def test_a_member_gets_novel_unit_remarks(user_client, novel_with_remark):
+def test_the_member_gets_its_own_unit_remarks(user_client, novel_with_remark):
     units = _units(user_client, novel_with_remark)
     assert units
     assert all(u["remark"] == "這卷最好看" for u in units)

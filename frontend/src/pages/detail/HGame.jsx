@@ -17,6 +17,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
 
 import { endpoints } from "../../api/endpoints";
+import { useHighlightGroupOrderSaver } from "../../api/mutations/useMyHighlightGroupOrder";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
 import InfoCard from "../../components/info/InfoCard";
@@ -121,7 +122,7 @@ export function HGameProgress({ hGame }) {
 export default function HGame() {
   const { publicId } = useParams();
   const navigate = useNavigate();
-  const { isAdmin, isRoot } = useAuth();
+  const { isAdmin, isRoot, has } = useAuth();
   const { showToast } = useToast();
 
   const [hGame, setHGame] = useState(null);
@@ -132,6 +133,8 @@ export default function HGame() {
   // Everything past the lookup speaks UUIDs; resolved from the fetched row so
   // the URL segment and the id can never disagree.
   const system_id = itemQuery.data?.system_id;
+  // The highlight group order is the viewer's own (self.personal_notes).
+  const saveGroupOrder = useHighlightGroupOrderSaver("h-game", system_id, setHGame);
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const { setMediaItem, fetchMediaItem, invalidateMedia } = useMediaCacheUpdate(
@@ -251,22 +254,20 @@ export default function HGame() {
 
   return (
     // One provider around the whole page, as on Game: 待辦 Todo renders in the
-    // Progress slip and everything else at the bottom, from one fetch. The
-    // three props after isAdmin are what 亮點 Highlights reads - the row, and
-    // the stored group order with the callback that saves a new one. An
-    // h-game has no cast, so its `names` inputs take free text only.
+    // Progress slip and everything else at the bottom, from one fetch.
+    // `owner` and the group order are what 亮點 Highlights reads - the row,
+    // and the viewer's own group order with the callback that saves a new
+    // one, passed only to a holder of self.personal_notes. An h-game has no
+    // cast, so its `names` inputs take free text only.
     <NotesProvider
       key={hGame.system_id}
       ownerType="h-game"
       ownerId={hGame.system_id}
-      isAdmin={isAdmin}
       owner={hGame}
       series={series}
       franchise={franchise}
       groupOrder={hGame.highlight_group_order}
-      onGroupOrderChange={(names) =>
-        performPatch({ highlight_group_order: names }, "Group order saved")
-      }
+      onGroupOrderChange={has("self.personal_notes") ? saveGroupOrder : undefined}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
         <div className="mb-8 flex items-center justify-between gap-3">

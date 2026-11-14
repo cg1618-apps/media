@@ -13,7 +13,7 @@ from app.schemas.link_fields import GameRef, HGameLinkFields
 from app.schemas.release_date_field import release_date_validator
 from app.schemas.sources import SourceWriteFields
 from app.services.domain.game_copies import derive_game_ownership
-from app.services.domain.h_comic import check_usefulness, normalize_group_order
+from app.services.domain.h_comic import check_usefulness
 from app.services.domain.h_game import (
     check_art_style,
     check_dialogue_audio,
@@ -81,9 +81,8 @@ class HGameBase(BaseModel):
     dlsite_link_jp: Optional[str] = None
     dlsite_link_tw: Optional[str] = None
 
-    # The group order of the highlights section, read and written whole: a
-    # list of female character names.
-    highlight_group_order: Optional[List[str]] = None
+    # No highlight_group_order on a write: it is the viewer's own - see
+    # HGameResponse.
 
     type_slots: Optional[dict] = None
     cover_image_file: Optional[str] = None
@@ -158,10 +157,6 @@ class _WriteChecks(GameWriteChecks):
     def _usefulness(cls, v):
         return check_usefulness(v)
 
-    @field_validator("highlight_group_order", mode="before", check_fields=False)
-    @classmethod
-    def _group_order(cls, v):
-        return normalize_group_order(v)
 
 
 class HGameCreate(_WriteChecks, HGameBase, SourceWriteFields):
@@ -185,6 +180,12 @@ class HGameResponse(HGameBase, HGameLinkFields):
     copies: List[GameCopyIO] = []
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+
+    # The VIEWER'S order of the highlight groups (a list of female character
+    # names), from user_highlight_group_order via
+    # highlight_group_order.attach_group_orders. Null for nobody signed in
+    # and for no order. Ignored on a write.
+    highlight_group_order: Optional[List[str]] = None
 
     model_config = ConfigDict(from_attributes=True)
 

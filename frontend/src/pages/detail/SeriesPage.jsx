@@ -57,6 +57,8 @@ import PlanKindToggles, {
   applicableTypes,
 } from "../../components/plan/PlanKindToggles";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
+import { useViewScope } from "../../hooks/useViewScope";
+import { useMyRatingSaver } from "../../api/mutations/useMyRatingMutations";
 import { entityPath } from "../../lib/entityPath";
 
 const WATCHING_STATUS_GROUPS = {
@@ -104,11 +106,11 @@ export default function SeriesPage() {
   const { publicId } = useParams();
   const auth = useAuth();
   const { isAdmin, has } = auth;
-  // A guest's view of a hub (the view.* keys, held by members): without
-  // view.personal the series's own rating and expectation and the "my rating"
-  // sorts are not drawn; without view.character there is no Characters tab,
-  // and HubCharacters never asks /api/character/ for one.
-  const showPersonal = has("view.personal");
+  // A guest's view of a hub (the keys members hold): without self.list the
+  // viewer has no rating or expectation of the series and no "my rating" to
+  // sort by, so neither is drawn; without view.character there is no
+  // Characters tab, and HubCharacters never asks /api/character/ for one.
+  const { ownData } = useViewScope();
   const showCharacters = has("view.character");
   // Gated: a series under a franchise of the restricted family is hidden from
   // a session that cannot see the type, so only a session that can asks for
@@ -214,6 +216,7 @@ export default function SeriesPage() {
   // Everything past the lookup still speaks UUIDs; only the URL segment
   // changed. Resolved from the fetched row so the two can never disagree.
   const system_id = series?.system_id;
+  const saveMyRating = useMyRatingSaver("series", system_id, setSeries);
 
   useCanonicalPath("series", series);
 
@@ -1085,7 +1088,7 @@ export default function SeriesPage() {
             cover={cover}
             spine="Series"
             id={series.system_id}
-            rating={showPersonal ? series.my_rating : null}
+            rating={ownData ? series.my_rating : null}
             done={completedCount}
             total={totalEntries}
             pct={completionPct}
@@ -1140,10 +1143,10 @@ export default function SeriesPage() {
               className="mt-4"
             />
 
-            {((showPersonal && series.series_expectation) ||
+            {((ownData && series.series_expectation) ||
               rewatchMarked.size > 0) && (
               <div className="flex flex-wrap gap-2 mt-4">
-                {showPersonal && series.series_expectation && (
+                {ownData && series.series_expectation && (
                   <Chip>Expectation · {series.series_expectation}</Chip>
                 )}
                 {Array.from(rewatchMarked).map((mediaType) => (
@@ -1156,44 +1159,56 @@ export default function SeriesPage() {
             )}
           </header>
 
-          {isAdmin && (
+          {/* The rating and expectation are the viewer's own (self.list);
+              the rewatch controls stay the catalogue manager's. */}
+          {(ownData || isAdmin) && (
             <Slip title="Curation">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Overall rating">
-                  <select
-                    value={rating}
-                    onChange={(e) => {
-                      setRating(e.target.value);
-                      saveField("my_rating", e.target.value);
-                    }}
-                    className={`${SELECT_CLS} w-full`}
-                  >
-                    <option value="">Not rated</option>
-                    {["S", "A+", "A", "B", "C", "D", "E", "F"].map((r) => (
-                      <option key={r} value={r}>
-                        {r}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Expectation">
-                  <select
-                    value={expectation}
-                    onChange={(e) => {
-                      setExpectation(e.target.value);
-                      saveField("series_expectation", e.target.value);
-                    }}
-                    className={`${SELECT_CLS} w-full`}
-                  >
-                    <option value="">None</option>
-                    {["Highest", "High", "Medium", "Low"].map((r) => (
-                      <option key={r} value={r}>
-                        {r}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                {seriesApplicableRewatchTypes.length > 0 && (
+                {ownData && (
+                  <>
+                    <Field label="Overall rating">
+                      <select
+                        value={rating}
+                        onChange={(e) => {
+                          setRating(e.target.value);
+                          saveMyRating(
+                            { my_rating: e.target.value || null },
+                            "Rating saved",
+                          );
+                        }}
+                        className={`${SELECT_CLS} w-full`}
+                      >
+                        <option value="">Not rated</option>
+                        {["S", "A+", "A", "B", "C", "D", "E", "F"].map((r) => (
+                          <option key={r} value={r}>
+                            {r}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Expectation">
+                      <select
+                        value={expectation}
+                        onChange={(e) => {
+                          setExpectation(e.target.value);
+                          saveMyRating(
+                            { expectation: e.target.value || null },
+                            "Expectation saved",
+                          );
+                        }}
+                        className={`${SELECT_CLS} w-full`}
+                      >
+                        <option value="">None</option>
+                        {["Highest", "High", "Medium", "Low"].map((r) => (
+                          <option key={r} value={r}>
+                            {r}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                  </>
+                )}
+                {isAdmin && seriesApplicableRewatchTypes.length > 0 && (
                   <Field
                     label={kindLabel("rewatch", seriesApplicableRewatchTypes)}
                     className="sm:col-span-2"
@@ -1273,7 +1288,7 @@ export default function SeriesPage() {
             >
               <option value="title">Sort: title</option>
               <option value="release_date">Sort: release date</option>
-              {showPersonal && (
+              {ownData && (
                 <option value="my_rating">Sort: my rating</option>
               )}
               <option value="mal_rating">Sort: MAL rating</option>
@@ -1375,7 +1390,7 @@ export default function SeriesPage() {
               className={SELECT_CLS}
             >
               <option value="title">Sort: title</option>
-              {showPersonal && (
+              {ownData && (
                 <option value="my_rating">Sort: my rating</option>
               )}
               <option value="mal_rating">Sort: MAL rating</option>
@@ -1459,7 +1474,7 @@ export default function SeriesPage() {
               className={SELECT_CLS}
             >
               <option value="title">Sort: title</option>
-              {showPersonal && (
+              {ownData && (
                 <option value="my_rating">Sort: my rating</option>
               )}
               <option value="mal_rating">Sort: MAL rating</option>
@@ -1542,7 +1557,7 @@ export default function SeriesPage() {
               className={SELECT_CLS}
             >
               <option value="title">Sort: title</option>
-              {showPersonal && (
+              {ownData && (
                 <option value="my_rating">Sort: my rating</option>
               )}
               <option value="release_date">Sort: release date</option>
@@ -1614,7 +1629,7 @@ export default function SeriesPage() {
             >
               <option value="release_date">Sort: release date</option>
               <option value="title">Sort: title</option>
-              {showPersonal && (
+              {ownData && (
                 <option value="my_rating">Sort: my rating</option>
               )}
               <option value="hours_played">Sort: hours played</option>
@@ -1766,7 +1781,7 @@ export default function SeriesPage() {
             >
               <option value="release_date">Sort: release date</option>
               <option value="title">Sort: title</option>
-              {showPersonal && (
+              {ownData && (
                 <option value="my_rating">Sort: my rating</option>
               )}
               <option value="imdb_rating">Sort: IMDb rating</option>
@@ -1839,7 +1854,7 @@ export default function SeriesPage() {
             >
               <option value="release_date">Sort: release date</option>
               <option value="title">Sort: title</option>
-              {showPersonal && (
+              {ownData && (
                 <option value="my_rating">Sort: my rating</option>
               )}
               <option value="imdb_rating">Sort: IMDb rating</option>
@@ -1913,7 +1928,7 @@ export default function SeriesPage() {
             >
               <option value="release_date">Sort: release date</option>
               <option value="title">Sort: title</option>
-              {showPersonal && (
+              {ownData && (
                 <option value="my_rating">Sort: my rating</option>
               )}
               <option value="imdb_rating">Sort: IMDb rating</option>
@@ -2031,7 +2046,6 @@ export default function SeriesPage() {
               hide the duplicate `remark` section wherever that editor renders. */}
           <SeriesNotes
             series={series}
-            isAdmin={isAdmin}
             hideSections={isAdmin || series.remark ? ["remark"] : []}
           />
         </Section>

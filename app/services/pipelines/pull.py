@@ -60,9 +60,19 @@ from app.services.domain.credits import (
     replace_tags,
 )
 from app.services.domain.gated_labels import enforce_gated_label_invariants
-from app.services.domain.h_comic import enforce_h_comic_invariants
+from app.services.domain.h_comic import (
+    enforce_h_comic_invariants,
+    normalize_group_order,
+)
 from app.services.domain.hierarchy import find_by_names
+from app.services.domain.highlight_group_order import GROUP_ORDER_TYPES
 from app.services.domain.label_tags import LABEL_FIELD_TYPES, reconcile_label_tags
+from app.services.domain.legacy_personal import (
+    legacy_personal_headers,
+    pop_legacy_personal,
+    restore_legacy_personal,
+)
+from app.services.domain.note_marks import clean_mark_values
 from app.services.domain.user_list import installation_owner_id
 from app.services.integrations.sheets import (
     SheetsUnavailableError,
@@ -121,7 +131,11 @@ MEDIA_TYPE_FOR_TAB = _MEDIA_TYPE_FOR_TAB
 # Tabs after which the h-comic variant rule is re-established (see
 # app/services/domain/h_comic.py): every tab that writes an h-comic row or a
 # reader's counter on one.
-H_COMIC_INVARIANT_TABS: frozenset[str] = frozenset({"H-Comic", "User Media List"})
+# User Highlight Group Order is one: an order restored onto a JP entry orders
+# nothing, and the rule deletes it.
+H_COMIC_INVARIANT_TABS: frozenset[str] = frozenset(
+    {"H-Comic", "User Media List", "User Highlight Group Order"}
+)
 
 # Tabs after which every gated type's label is re-attached (see
 # app/services/domain/gated_labels.py): each gated type's entry tab, the
@@ -279,6 +293,11 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
     # instead; resolve_user_media_list_key turns that into these two ids before
     # the match runs.
     "User Media List": ("user_id", "media_id"),  # uq_user_media
+    # The same natural key, resolved the same way.
+    "User Highlight Group Order": (
+        "user_id",
+        "media_id",
+    ),  # uq_user_highlight_group_order
     # The Steam import mints these locally, so the same purchase carries a
     # different system_id on each machine while the natural key is identical.
     # game_id is a real entry uuid and is the same everywhere, so no parent
@@ -296,6 +315,27 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
     "Game Choice Mark": (
         "user_id", "node_id", "edge_id",
     ),  # uq_game_choice_mark_node / uq_game_choice_mark_edge
+    # One row per account per owner. The system_id is minted wherever the
+    # rating was made, so the same person's rating carries a different one on
+    # each machine; user_id is resolved from `username`, and the owner
+    # columns are real uuids (a person's, studio's or publisher's translated
+    # through its own tab below) - exactly one set, the rest IS NULL.
+    "User Rating": (
+        "user_id",
+        "collection_id",
+        "franchise_id",
+        "series_id",
+        "character_id",
+        "person_id",
+        "studio_id",
+        "publisher_id",
+    ),  # uq_user_rating_owner
+    # The same shape for a reader's unit row; unit_id travels unchanged.
+    "User Novel Unit Rating": ("user_id", "unit_id"),  # uq_user_novel_unit
+    # One mark per account per note. Its system_id is minted wherever the
+    # mark was made; user_id is resolved from `username` and note_id is the
+    # Note tab's uuid, translated through that tab when it misses here.
+    "Note Mark": ("user_id", "note_id"),  # uq_note_mark_user_note
 }
 
 # Tabs that cite one of the above by raw uuid. The sheet carries the OTHER
@@ -314,6 +354,15 @@ DERIVED_IDENTITY_PARENTS: dict[str, tuple[tuple[str, str], ...]] = {
     "Publisher Scope": (("publisher_id", "Publisher"),),
     "Media Content Label": (("label_id", "Content Label"),),
     "Franchise Content Label": (("label_id", "Content Label"),),
+    "User Rating": (
+        ("person_id", "Person"),
+        ("studio_id", "Studio"),
+        ("publisher_id", "Publisher"),
+    ),
+    # A note's uuid travels, but a migration-minted row (music_status, one
+    # per anime per list) carries a different one on every database; the
+    # Note tab's own fold is what tells which local row the sheet's is.
+    "Note Mark": (("note_id", "Note"),),
     "Collection Content Label": (("label_id", "Content Label"),),
     "Series Content Label": (("label_id", "Content Label"),),
 }
@@ -336,6 +385,7 @@ DERIVED_IDENTITY_MINTED_PK: frozenset[str] = frozenset(
         # Its uuid is minted per database and the sheet carries no id at all -
         # only the natural key resolve_user_media_list_key turns into two.
         "User Media List",
+        "User Highlight Group Order",
     }
 )
 
@@ -464,6 +514,7 @@ def unexpected_headers(tab_name: str, headers: list) -> list[str]:
     known |= {name for name, _fn in TAB_BY_NAME[tab_name].extra_columns}
     known |= RENAMED_HEADERS.get(tab_name, frozenset())
     known |= RETIRED_HEADERS.get(tab_name, frozenset())
+    known |= legacy_personal_headers(tab_name)
     media_type = _MEDIA_TYPE_FOR_TAB.get(tab_name)
     if media_type:
         for role in credit_roles_for(media_type):
@@ -480,9 +531,13 @@ def unexpected_headers(tab_name: str, headers: list) -> list[str]:
     return seen
 
 
-def resolve_user_media_list_key(db: Session, payload: dict) -> Optional[str]:
+def resolve_user_media_list_key(
+    db: Session, payload: dict, tab_name: str = "User Media List"
+) -> Optional[str]:
     """
-    Turn a User Media List row's natural key into real ids, in place.
+    Turn a User Media List row's natural key into real ids, in place. The
+    User Highlight Group Order tab carries the same key and comes through
+    here too, under its own `tab_name` for the reasons.
 
     The sheet identifies the entry by (media_type, public_id) and the person by
     username, because a uuid in the sheet belongs to whichever database last
@@ -510,20 +565,18 @@ def resolve_user_media_list_key(db: Session, payload: dict) -> Optional[str]:
         )
     if media is None:
         logger.warning(
-            "User Media List: no %s entry with public_id %s; row skipped.",
-            media_type, public_id,
+            "%s: no %s entry with public_id %s; row skipped.",
+            tab_name, media_type, public_id,
         )
         return (
-            f"User Media List: entry ({media_type}, {public_id}) is unknown "
+            f"{tab_name}: entry ({media_type}, {public_id}) is unknown "
             f"here, for user {username!r}"
         )
 
     user = db.query(User).filter(User.username == username).first() if username else None
     if user is None:
-        logger.warning(
-            "User Media List: no user named %r; row skipped.", username
-        )
-        return f"User Media List: user {username!r} is unknown here"
+        logger.warning("%s: no user named %r; row skipped.", tab_name, username)
+        return f"{tab_name}: user {username!r} is unknown here"
 
     payload["media_id"] = media.system_id
     payload["user_id"] = user.id
@@ -662,14 +715,19 @@ def _match_note_twin(
 
     Compared in Python rather than in SQL because a JSONB column holds either
     SQL NULL or JSON null for "empty", depending on how the row was written.
+
+    Catalogue rows only, on both sides. A personal row of a mixed section is
+    written by one account and never minted per database, so it has no twin
+    under another uuid - and matching one by content would fold it onto the
+    catalogue row it copies, or the catalogue row onto it.
     """
     owner = _note_owner_filters(payload)
     section = payload.get("section")
-    if not owner or not section:
+    if not owner or not section or payload.get("personal"):
         return None
     candidates = (
         db.query(Note)
-        .filter(*owner, Note.section == section)
+        .filter(*owner, Note.section == section, Note.personal.is_(False))
         .order_by(Note.created_at, Note.system_id)
         .all()
     )
@@ -793,6 +851,8 @@ def _foreign_uuid_map(db: Session, parent_tab: str) -> dict[str, object]:
         return mapping
 
     headers, parser = matrix[0], TAB_PARSERS[parent_tab]
+    if parent_tab == "Note":
+        return _note_uuid_map(db, headers, matrix[1:])
     for row in matrix[1:]:
         if not row or not any(row):
             continue
@@ -802,6 +862,52 @@ def _foreign_uuid_map(db: Session, parent_tab: str) -> dict[str, object]:
         if not sheet_uuid:
             continue
         local = _match_by_natural_key(db, parent_tab, payload)
+        if local is not None:
+            mapping[str(sheet_uuid)] = local.system_id
+    return mapping
+
+
+def _note_uuid_map(db: Session, headers: list, data_rows: list) -> dict[str, object]:
+    """
+    {sheet note uuid: local note uuid} for the Note tab's rows whose uuid this
+    database does not hold, matched exactly as restoring the tab matches them:
+    a one_per_kind row (music_status) by owner, section and kind, any other by
+    _match_note_twin. A personal-scope singleton is not matched, and nor is a
+    personal row of a mixed section (_match_note_twin refuses it): neither is
+    minted per database.
+    """
+    parser = TAB_PARSERS["Note"]
+    sheet_ids = _sheet_ids(headers, data_rows)
+    claimed: set = set()
+    mapping: dict[str, object] = {}
+    for row in data_rows:
+        if not row or not any(row):
+            continue
+        raw = parse_row_to_dict(headers, row)
+        payload = {k: v for k, v in parser(raw).items() if k in raw}
+        sheet_uuid = payload.get("system_id")
+        if not sheet_uuid or db.get(Note, sheet_uuid) is not None:
+            continue
+        if _resolve_owner_columns(db, "Note", payload) is not None:
+            continue
+        _fold_one_row_ost(payload)
+        pop_legacy_personal("Note", payload)
+        section = section_by_key(payload.get("section") or "")
+        if section is not None and section.one_per_kind:
+            owner = _note_owner_filters(payload)
+            local = (
+                db.query(Note)
+                .filter(*owner, Note.section == section.key, Note.kind == payload.get("kind"))
+                .first()
+                if owner
+                else None
+            )
+        elif section is not None and section.scope == SCOPE_PERSONAL:
+            local = None
+        else:
+            local = _match_note_twin(db, payload, sheet_ids, claimed)
+            if local is not None:
+                claimed.add(local.system_id)
         if local is not None:
             mapping[str(sheet_uuid)] = local.system_id
     return mapping
@@ -1106,6 +1212,39 @@ def execute_pull_specific(
                 rows_skipped += 1
                 continue
 
+        # A highlight group order: the same natural key, then the value as
+        # the write path stores it. A cell that is not a list of names is
+        # reported rather than guessed at, and an empty order is not stored.
+        if tab_name == "User Highlight Group Order":
+            if clean_header_dict.get("media_type") not in GROUP_ORDER_TYPES:
+                unresolved = (
+                    f"{tab_name}: a {clean_header_dict.get('media_type')!r} "
+                    "entry has no highlight groups"
+                )
+            else:
+                unresolved = resolve_user_media_list_key(
+                    db, clean_header_dict, tab_name=tab_name
+                )
+            if unresolved is None:
+                try:
+                    clean_header_dict["group_order"] = normalize_group_order(
+                        clean_header_dict.get("group_order")
+                    )
+                except ValueError:
+                    unresolved = (
+                        f"{tab_name}: the order for user "
+                        f"{raw_header_dict.get('username')!r} is not a list "
+                        "of names"
+                    )
+                else:
+                    if clean_header_dict["group_order"] is None:
+                        rows_skipped += 1
+                        continue
+            if unresolved is not None:
+                unresolved_refs.append(unresolved)
+                rows_skipped += 1
+                continue
+
         # plan_next.user_id and seasonal.user_id are NOT NULL. Both tabs carry
         # `username` since Step 4, and it is resolved here - before the
         # natural-key match below, because user_id is part of both tables'
@@ -1118,9 +1257,18 @@ def execute_pull_specific(
         # that row's owner is unknown, so it is skipped and reported rather
         # than quietly filed under the admin.
         #
-        # Watch Order Follow has carried `username` from its first day, so it
-        # never reaches the fallback; it shares the block for the resolution.
-        if tab_name in ("Plan Next", "Seasonal", "Watch Order Follow"):
+        # Watch Order Follow, User Rating and User Novel Unit Rating have
+        # carried `username` from their first day, so they reach the fallback
+        # only for a hand-built sheet; they share the block for the
+        # resolution.
+        if tab_name in (
+            "Plan Next",
+            "Seasonal",
+            "Watch Order Follow",
+            "User Rating",
+            "User Novel Unit Rating",
+            "Note Mark",
+        ):
             username = parse_from_sheet(raw_header_dict.get("username"), str)
             if username:
                 owner_row = (
@@ -1145,6 +1293,16 @@ def execute_pull_specific(
                 rows_skipped += 1
                 continue
             clean_header_dict["user_id"] = owner
+
+        # A mark is stored only while it holds something, as the write path
+        # keeps it (note_marks.write_mark): a cell that is not an object of
+        # values, or holds none, is not a mark.
+        if tab_name == "Note Mark" and "values" in clean_header_dict:
+            values = clean_mark_values(clean_header_dict.get("values"))
+            if values is None:
+                rows_skipped += 1
+                continue
+            clean_header_dict["values"] = values
 
         # Note and Meme alone carry the pre-m5b1notefks (owner_type, owner_id)
         # pair their parsers rename to _legacy_*; Quote never had one.
@@ -1864,6 +2022,15 @@ def execute_pull_specific(
         # status folds onto the local row for that list.
         if tab_name == "Note":
             _fold_one_row_ost(clean_header_dict)
+        # An old sheet's personal values on a Note row, held aside BEFORE the
+        # row is matched to a local one: the matches below compare content,
+        # and the local row no longer carries them. Filed under the
+        # installation owner once the row exists (restore_legacy_personal).
+        legacy_note_values = (
+            pop_legacy_personal(tab_name, clean_header_dict)
+            if tab_name == "Note"
+            else {}
+        )
         singleton = section_by_key(clean_header_dict.get("section") or "")
         if (
             tab_name == "Note"
@@ -1993,6 +2160,13 @@ def execute_pull_specific(
         # ep_fin, ...) off the nine detail models is the second wave. Which
         # of those headers are UNEXPECTED is decided once per tab, above -
         # see unexpected_headers.
+        # An old sheet's rating / expectation / unit remark, held aside: they
+        # are not columns any more, and are filed under the installation
+        # owner once the row exists (restore_legacy_personal below).
+        legacy_personal = (
+            pop_legacy_personal(tab_name, clean_header_dict) or legacy_note_values
+        )
+
         clean_header_dict = drop_non_columns(Model, clean_header_dict)
 
         # UPSERT LOGIC
@@ -2058,6 +2232,15 @@ def execute_pull_specific(
                 except AmbiguousNameError as e:
                     credit_conflicts.append(f"{tab_name} [{field_key}]: {e}")
                     logger.warning("Ambiguous %s on '%s' row: %s", field_key, tab_name, e)
+
+        if legacy_personal:
+            if entry.system_id is None:
+                db.flush()
+            unresolved = restore_legacy_personal(
+                db, tab_name, entry.system_id, legacy_personal
+            )
+            if unresolved is not None:
+                unresolved_refs.append(unresolved)
 
         if pending_character_tags:
             if entry.system_id is None:

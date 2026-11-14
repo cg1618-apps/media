@@ -60,8 +60,11 @@ describe("showsField", () => {
       ])
     );
     expect(REGION_ONLY_FIELDS.KR).toEqual(
-      expect.arrayContaining(["ch_total", "ch_behind", "highlight_group_order", "ch_fin"])
+      expect.arrayContaining(["ch_total", "ch_behind", "ch_fin"])
     );
+    // The group order is each reader's own, not a field of the entry: the
+    // server deletes every reader's order when an h-comic becomes JP.
+    expect(REGION_ONLY_FIELDS.KR).not.toContain("highlight_group_order");
   });
 });
 

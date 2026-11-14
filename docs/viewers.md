@@ -42,6 +42,12 @@ catalogue and what is an account's own data is
 > `shared-borderline`, each fixed at its own mode, keep no data of their own,
 > and only the admin sets their password
 > ([authorization.md](authorization.md), "Shared accounts").
+> Ratings and expectations: each account keeps its own rating of every
+> collection, franchise, series, character, person, studio and publisher,
+> its own expectation of every collection, franchise and series, and its own
+> rating of and remark on every novel unit; a guest has none and the admin
+> keeps none ([authorization.md](authorization.md), "Ratings and
+> expectations"). That is the rating and expectation part of the rows below.
 >
 > **Built:** the read-only label reference, for `admin` and `super` — the
 > "Label reference" row of [At a glance](#at-a-glance) and its bullets under

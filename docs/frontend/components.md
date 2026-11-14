@@ -36,6 +36,7 @@ src/
 | `api/endpoints.js` | The only place URLs are spelled. `resource(type)` gives `list/detail/create/update/patch/remove/complete` for every `MEDIA_CONFIG` key; named groups for auth, options, roles, users, contentLabels, seasonal, announcements, watchOrder, mediaRelation, gameChoice, formDefaults, person, studio, credits, system, quotes, memes, resources (the Resources tree - plural, because `resource` is the media builder), dataControl. |
 | `api/mutations/useResourceMutations.js` | `useCreateResource`, `usePatchResource`, `useDeleteResource`, `useReorderResources`: `useMutation` wrappers for `/api/resources` that invalidate `RESOURCES_QUERY_KEY` (`["resources"]`) when they settle. The reorder one also applies the move to the cache first (`applyReorder`) and restores the previous tree on failure. |
 | `api/mutations/useRequestMutations.js` | Requests and reports. `useMyRequests(status?)` reads `GET /api/requests/mine` under `["requests", "mine", status ?? "all"]`; `useRequestInbox(status = "open")` reads `GET /api/requests?status=` under `["requests", "inbox", status]`. `useFileRequest` (POST), `useEditRequest` (`{id, data}`, PATCH), `useSetRequestStatus` (`{id, status, response?}`, PUT `/status`) and `useDeleteRequest` (`id`) each invalidate the whole `["requests"]` prefix when they settle, so both pages and every status filter refetch. |
+| `api/mutations/useMyRatingMutations.js` | The caller's own ratings. `useSaveMyRating()` sends `PUT /api/me/ratings/{owner_type}/{owner_id}` with a partial `{my_rating?, expectation?}` and invalidates `["media-list", ownerType]` and `["api", "search"]`; `useMyRatingSaver(ownerType, ownerId, setRow)` wraps it for one page, folding the answer into the page's row (`applyMyRating`, which writes `expectation` back under the tier's own field, `EXPECTATION_FIELD`) and toasting. `useSaveMyNovelUnit(novelId)` sends `PUT /api/me/novel-units/{unit_id}` `{my_rating?, remark?}` and invalidates the novel's list and detail; the novel detail page's Units card calls it, with the novel's `public_id`, from each unit's rating select and remark field. |
 | `api/mutations/useGameChoiceMutations.js` | One game's choice graph. `useChoiceGraph(gameId)` reads `GET /api/game-choice/graph?game_id=` (idle without a game id) under `choiceGraphQueryKey(gameId)` = `["game-choice-graph", gameId]`; `useCreateChoiceNode`, `usePatchChoiceNode`, `useDeleteChoiceNode`, `useCreateChoiceEdge`, `usePatchChoiceEdge`, `useDeleteChoiceEdge`, `useCreateNextPart` (`POST /edges/{id}/next`: a branch's new next block, answering `{node, edge}`) and `useSetChoiceMark` (`{target: "node" \| "edge", id, done, note}`, a PUT) each invalidate that key when they settle. No optimistic update: the graph is small and its layout a pure function of the rows. |
 | `hooks/useApiQuery(key, url, {params})` | `useQuery` wrapper; key becomes `[...key, params]` when params exist. |
 | `hooks/useMediaList(type, {params})` | List query keyed `["media-list", type, params]`; `LIST_OPTIONS = { params: { limit: 2000 } }` is the full-table convention. |
@@ -45,8 +46,8 @@ src/
 | `hooks/useIncrementalList(items, batch = 60)` | Draws a long list a batch at a time: `visible` is the first `batch` items and grows by `batch` whenever `sentinelRef` - an empty element rendered after the grid - comes within 800px of the screen; `hasMore` says whether it can still grow. A list with different items starts again from one batch. Without an `IntersectionObserver` every item is visible. Used by the library grids. |
 | `hooks/useLibraryState` | Search/filter/sort/view state for `LibraryLayout`; nothing is persisted. |
 | `hooks/useFilterState(filterDefs, data, initial?)` | The chip/toggle values for a list of FilterDefs, opened on `initial` (else empty), plus `toggleFilter`, `clearFilters` (all empty), `resetFilters` (back to `initial`), `activeFilterCount` and the derived options of `set-dynamic` defs. Shared by `useLibraryState`, the random picker and Picker Defaults; the defs and `initial` are read once, so a caller whose defs change remounts. `useEntityFilterState(filterDefs, data)` beside it is the entity libraries' (character, person, studio, publisher) form: `initial` is `defaultEntityFilters(filterDefs)`, and it adds `isDefault` (`sameFilters` against that default) so the page hands `FilterPanel` its `resetFilters` only once the state has moved off it. |
-| `hooks/useViewScope()` | The member-only reading surfaces as flags - `{ studio, publisher, person, character, search, extras, personal }`, one per `view.*` permission (`person` covers the seiyuu library, `character` covers identities) (`has()` from `AuthContext`; all false outside an `AuthProvider`). A component that draws or fetches something a guest may not read asks this rather than spelling the key itself - see [pages.md, "The guest scope"](pages.md#the-guest-scope). |
-| `hooks/usePickerData(mode, typesKey)` | One random picker mode's entries (`{type, item}` over the types' lists, on the library pages' cache keys), its FilterDefs (the franchise mode's expectation and rating filters only with `view.personal`), its stored default filters resolved against them (`["random-picker-defaults", mode]`; unreadable defaults count as none), and `defaultWeighted` (true unless saved off). Shared by the picker and Picker Defaults. |
+| `hooks/useViewScope()` | The member-only reading surfaces as flags - `{ studio, publisher, person, character, search, extras }`, one per `view.*` permission (`person` covers the seiyuu library, `character` covers identities) - plus `ownData` (`self.list`): whether the viewer keeps its own ratings, expectations and novel unit ratings and remarks, so whether there is one to draw (`has()` from `AuthContext`; all false outside an `AuthProvider`). A component that draws or fetches something a guest may not read asks this rather than spelling the key itself - see [pages.md, "The guest scope"](pages.md#the-guest-scope). |
+| `hooks/usePickerData(mode, typesKey)` | One random picker mode's entries (`{type, item}` over the types' lists, on the library pages' cache keys), its FilterDefs (the franchise mode's expectation and rating filters only with `self.list`, `ownData`), its stored default filters resolved against them (`["random-picker-defaults", mode]`; unreadable defaults count as none), and `defaultWeighted` (true unless saved off). Shared by the picker and Picker Defaults. |
 | `hooks/useFormDefaults` | Loads and applies `/api/form-defaults/<type>` to a fresh form (`resolveDefaults`, `coerceToShape`). A stored select value its options do not offer is skipped, so it cannot sit hidden behind a blank select and be posted. Repeater defaults (source rows, game copies) arrive as arrays with any `system_id` stripped — a default row is a template that must insert, never update. The restricted source rows come from the picked prefill instead (`prefillPicks`, `startingSources`), and on h-comic from the region the form starts on. |
 | `hooks/useGlobalMediaSearch(query)` | Debounced `/api/search/?q=&limit=10`, flattened to entry hits for pickers. |
 | `pages/plan/usePlanData` | The Plan page's lists (franchise, series and the twelve entry types - `h-comic`, `h-game` and `hentai` each fetched only for a session that can see it) plus `["plan-next"]`. |
@@ -73,7 +74,8 @@ toggled inside a hub does not update the library cache until it goes stale.
   `refetchAuth()`. `ProtectedRoute` and the nav gate on `has(<permission>)`,
   or on `hasFeature(<name>)` for a row or route carrying `feature`, the same
   question on both for one page; page
-  controls gate on `isAdmin`, and the guest scope's flags are read through
+  controls gate on `isAdmin`, except the notes page's, which gate per section
+  (`pages/notes` below), and the guest scope's flags are read through
   `useViewScope()`. `refetchAuth()` is
   *not* how an identity change is applied: sign-in, sign-out and an
   access-mode switch each call `hardNavigate()` (`lib/hardNavigate.js`) and
@@ -229,8 +231,8 @@ not drawn. The character, person and studio libraries use it for
   to it, one without is faded, a value with no icon is skipped, and regional
   variants sharing one icon — `Toptoon TW` and `Toptoon KR` — draw it once),
   `FranchiseCard` and `CollectionCard` (each takes `cover`, a resolved
-  `{ url, focus }`, and draws the tier's rating stamp and expectation chip
-  only for a viewer holding `view.personal`), `CharacterCard` (one card of `lib/characterCards.js` - a
+  `{ url, focus }`, and draws the viewer's own rating stamp and expectation
+  chip of the tier only for a holder of `self.list`), `CharacterCard` (one card of `lib/characterCards.js` - a
   character, or one of its identities drawn dashed; the character library,
   the hubs' Characters tab and `/search`'s Characters tab draw it), and `StaffCard`
   (`PersonCard` / `StudioCard` / `PublisherCard` over one shared body — the
@@ -417,7 +419,10 @@ not drawn. The character, person and studio libraries use it for
   fields — `sources` everywhere, `copies` on game — it renders `SourcesEditor`
   and `GameCopiesEditor` themselves, so the default rows are built in the same
   UI that will show them on the Add form), `NovelUnitsEditor` (replaced `BelongingNovelsEditor`
-  — edits the `novel_unit` rows the Add/Modify novel tabs send as `units`;
+  — edits the `novel_unit` rows the Add/Modify novel tabs send as `units`:
+  kind, key, CN/EN name and an arc's chapter count, and no rating or remark,
+  which are each reader's own and set on the detail page; `novelUnitPayload`
+  (`lib/payloads.js`) sends a row's own fields only;
   kind choices come from `kindsForType(novel.type)` in `lib/novelUnits.js`,
   and previews each row's `unitDisplayKey` placeholder before save. The
   two-stage reading cursor stepper (`arcStep`, same module) lives in the
@@ -617,6 +622,57 @@ not drawn. The character, person and studio libraries use it for
   the game detail page, which renders 待辦 Todo in its Progress slip and the
   rest at the bottom: two `NotesTemplate`s would be two fetches of the same two
   endpoints on one page.
+  **Who may write a section is the provider's, not a prop.** Each section's
+  `scope` names the permission its writes need (`writePermissionFor`):
+  `manage.catalog` for a catalogue section and for the external Quotes and
+  Memes, `self.personal_notes` for a personal one. The provider asks the
+  viewer's `has()` and hands each section component `canWrite`, which gates
+  its Add, Edit, Delete, reorder grips, inline selects and group-order grips
+  (per row in a mixed section, below).
+  `has()` does not pass the `self.*` family to the root flag, so an admin
+  reads a personal section without its controls, and a `user` writes its own
+  personal sections and reads the catalogue ones. The series' and franchise's
+  rows shown on an entry (`GroupNotes`) are drawn with `canWrite` false.
+  `NotesTemplate` and `NotesProvider` take no admin flag, and nor do the
+  `*Notes.jsx` wrappers.
+  **A `mixed` section gates each row by its kind** (`rowAccessFor`). The
+  sections listing marks ten catalogue sections `mixed` - 武器&裝備, 道具,
+  收集物, 敵人, 角色 (`characters_guide`), 地理, 配裝&流派, 隊伍組成, 攻略資源
+  and Resources - and each row carries `personal`. Which kind a viewer
+  writes is fixed by `manage.catalog`: its holder writes catalogue rows,
+  anyone else holding `self.personal_notes` its own personal rows, never
+  both. So the provider hands such a section `canWrite` (Add) for either,
+  and three per-row rules the components read where they used `canWrite`
+  per row: `canEditRow(note)` (Edit, Delete, a quick edit) - a personal
+  row for `self.personal_notes`, a catalogue row for `manage.catalog`;
+  `canMoveRow(note)` (the reorder grip) - the rows of the kind the viewer
+  writes; and `canAddUnder(note)` (a hierarchical row's Add under) - any
+  row for a personal writer, a catalogue row only for a catalogue writer,
+  since the server refuses a catalogue row under a personal parent. Outside
+  a mixed section all three are `canWrite`. A mixed section's rows are
+  handed over catalogue rows first and the viewer's own after, each kind in
+  the order it arrived (`catalogueFirst`), so every group drawn from them
+  holds its catalogue rows first. A reorder sends only the ids of the rows
+  the viewer may move - `PATCH /api/notes/reorder` renumbers that kind
+  alone - and `withSectionOrder` puts the named rows back into the places
+  they held, so the other kind never moves on screen. A personal row
+  carries a **Mine** chip (`MineChip` in `ui.jsx`, the ink `Chip`). The
+  look is **provisional UI**, pending the owner's design.
+  **Personal values on catalogue rows are marks, gated apart from the
+  section.** A field the registry marks `personal` (an item's collected and
+  collected amount, an enemy's beaten, an ending's completion, a stat's
+  Mine, a mod's status) and a section's `personal_status` (each song's and
+  each song list's status) are the viewer's own. The provider hands each
+  section `canMark` - `has("self.personal_notes")` and, for every value
+  `granted` by a feature, `hasFeature(name)` - and two handlers: `onMark(id,
+  values)` (`PUT /api/notes/{id}/mark` through `api.markNote`, then a
+  reload) and `onNgReset()` (`POST /api/notes/ng-reset` for the owner through
+  `api.ngReset`, then a reload and a success toast with the cleared count).
+  A value the viewer lacks the feature for never reaches the page: the
+  sections listing leaves it out. `hasFeature` lives on `useAuth()`
+  (`contexts/AuthContext.jsx`) and reads `/me`'s `features`; until `/me`
+  carries the list it answers as the server's stand-in does, true for a
+  holder of `self.personal_notes`.
 - **`pages/notes/sections`** — one component per note shape (`TextSection`,
   `TextLinksSection`, `EpisodeTextSection`, `NameLinksSection`,
   `MusicTrackSection`, `QuoteSection`, `MemeSection`,
@@ -626,17 +682,24 @@ not drawn. The character, person and studio libraries use it for
   `MusicTrackSection` serves all four song lists (OP, ED, 插入曲, OST): song
   name; Song Type on OP and ED only, a `SuggestInput` over the section's
   `kind_category` values ("Song Type") starting on `default_kind`; the
-  per-song status as a closed select; the episode; link pairs; and a remark.
-  Save stays inert on a row carrying nothing but its prefilled type, and on a
-  link label with no URL - the server's rules, mirrored. The **list status**
+  the episode; link pairs; and a remark. Save stays inert on a row carrying
+  nothing but its prefilled type, and on a link label with no URL - the
+  server's rules, mirrored. The **per-song status** is not in the form: it is
+  the viewer's own, drawn on the row as a compact select over `statuses`
+  (blank clears it) for a viewer who may mark (`canMark`), and as a tag for
+  anyone else; a change calls `onMark(song id, {status})`. The **list status**
   sits in the card header (`SectionCard`'s `actions`), and a list carrying one
   opens even with no songs (`openWhenEmpty`), as does the 音樂 Music group card
   around it: a compact mono `<select>` over
-  `type_statuses` for an admin, a `brandTagCls` tag for anyone else. Its value
-  is the `music_status` row whose `kind` is the section's key, which the
-  provider hands in as `typeStatusNote`; with no row it reads
-  `type_status_default`, and the first change POSTs the row, every later one
-  PATCHes it. The provider also fetches the values of every category a
+  `type_statuses` for a viewer who may mark (`canMark`), a
+  `brandTagCls` tag for anyone else. Its value
+  is the viewer's own status on the `music_status` row whose `kind` is the
+  section's key, which the provider hands in as `typeStatusNote`; a change
+  marks that row (`onMark(row id, {status})`). Every anime is created with
+  its four rows; a list with none reads `type_status_default` as a tag,
+  since there is nothing to mark. A viewer without the `music_status`
+  feature is sent no `type_status_section`, so no list status at all. The
+  provider also fetches the values of every category a
   section names (`kind_category`, `link_text_category`) or one of its
   structured fields names (`option_category`) from
   `GET /api/options/{category}?scope=<owner type>` once per page and passes
@@ -665,7 +728,31 @@ not drawn. The character, person and studio libraries use it for
   singleton today, but the rule stays with the component. It owns its own
   drag-to-reorder, because it orders a tree and groups rather than a flat
   list, and an inline
-  `quick_edit` input that saves on blur without opening the row. For a
+  `quick_edit` input that saves on blur without opening the row. **A
+  `personal` field is not part of the row's form or its catalogue save**
+  (`catalogueFields`): a catalogue edit never sends one, and the not-empty
+  rule never counts one. It is drawn on the read view instead, by
+  `PersonalValue`, as a **provisional UI** pending the owner's design: for a
+  viewer who may mark (`canMark`), a closed select (a blank option clears
+  it) that marks on change, or a short text input (the `quick_edit` one for
+  Mine) that marks on blur, each sending only its own key through `onMark`;
+  for anyone else, a select's value as a tag and free text as a labelled
+  tag. So a `user` sets its own values on rows it cannot edit, and a
+  catalogue writer edits the row through Edit and its own values inline. A
+  section holding `collected`, `amount_collected` or `beaten` (武器&裝備,
+  道具, 收集物, 敵人 - the keys are named in the component, since the
+  registry's `ng_resets` is not served) carries an **NG reset** button in
+  its header for a viewer who may mark, also provisional: it asks in place -
+  "Clear my collected and beaten for this game?" with Reset and Cancel, no
+  browser dialog - and Reset calls `onNgReset`, which resets the whole
+  owner, not one card. Personal values and the NG reset work on a mixed
+  section's personal rows as on its catalogue rows. In a mixed section a row
+  takes a grip only when `canMoveRow` passes it, a move's indexes count
+  those rows alone and the rows it steps over keep their places
+  (`movedAmong` in `groupedRows.js`), and a group's grip shows only when
+  every row of the section is the viewer's to move, since a group move
+  renumbers them all; `useRowReorder` in `ui.jsx` applies the same rule to
+  a flat shape (Resources). For a
   `hierarchical` section it also draws the tree: an Add button per row opening
   a draft that carries that row's id as `parent_id`, children indented behind
   a rule, and a move - among a row's own siblings only - that flattens the
@@ -710,9 +797,10 @@ not drawn. The character, person and studio libraries use it for
   and one control shared by all of them rather than a copy per shape. The row
   being edited and the draft row are never folded away; `StructuredSection`
   caps top-level rows, or each group of a grouped section. Every list section
-  is also reorderable by an admin, the same way: a `DragHandle` per row (none
+  is also reorderable by a viewer who may write it (`canWrite`), the same way: a `DragHandle` per row (none
   on the row being edited, none while there is only one row), each move sent
-  to `onReorder` as the section's whole order for `PATCH /api/notes/reorder`,
+  to `onReorder` as the section's whole order for `PATCH /api/notes/reorder`
+  (in a mixed section, the whole order of the viewer's kind of row),
   applied on screen at once through the provider's pure `withSectionOrder`,
   and the section's grips disabled until the save settles. The flat shapes
   share `useRowReorder`, `ReorderList`, `ReorderRow` and `ReorderHandle` in
@@ -838,7 +926,7 @@ functions `tagsForLabels`, `labelsForTags`, `applyLabelEdit` and
 | `peopleOrder.js` | `byRatingThenAppearances(people)`: a person picker's best-first order before typed-text matching — `my_rating` by `getRatingWeight` (unrated last), then `credit_count`, most first; stable. The cast editor's seiyuu box uses it |
 | `formatters.js` | `getSourceValues(sources, source)` (filters the `fetchAllSources()` bag by category/scope/**usage** for a `ComboBox` or `MultiSelect`: a scoped descriptor keeps the values scoped to its type or to none, and `ensureSourceValues` reads it to decide what already exists — ordered by `suggestionOrder.js` where the field has counts), `getIdleSourceValues(sources, source)` (a studio field's empty-box list: the studios with a count on the form's media type, most first; `undefined` for any other field, or without counts, meaning the whole list) and display formatters |
 | `suggestionOrder.js` | How an Add/Modify tags field orders its values: `usageCounts(sources, source)` reads `sources.usage` (`GET /api/credits/usage`) for the descriptor's media type — its own `scope`, else `sources.mediaType` — and kind: studios, publishers, people per role, and the vocabularies in `APPEARANCE_ORDERED_CATEGORIES` (Genre Main, Genre Sub, Label, Game Genre and the three H genres); `null` for every other vocabulary, which keeps its admin `sort_order`. `byAppearances(items, counts)` sorts most-used first, ties by name case-insensitively. `withMediaType(sources, type)` is the bag Add and Modify hand the open tab. See [Admin Pages](admin-pages.md#suggestion-order) |
-| `payloads.js` | form state → request body for every media type, including mapping the `SourcesEditor` array into the `sources` write-payload key. Add's create and Modify's save build each entry body through the same function - `buildAnimePayload`, `buildAnimeMoviePayload`, and `<type>FieldsPayload` for the other ten (`movie`, `tvShow`, `cartoon`, `manga`, `novel`, `comic`, `game`, `hComic`, `hGame`, `hentai`). A `<type>FieldsPayload` returns the entry's own fields only: the page resolves (and may create) the franchise and series and spreads `franchise_id` / `series_id` over the result. `movie` through `comic` take the status default as `{ defaultStatus }` - the page's `/defaults`-resolved value, since this module holds no page state - and fall back to the type's built-in one. A blank finished count is sent as `null`, never `0`, by every builder here: `ep_fin` (`buildAnimePayload` and the watching types), manga `vol_fin` / `vol_fin_page` / `ch_fin`, novel `vol_fin` / `arc_fin` / `ch_fin`, comic `issue_fin`, and h-comic `page_fin` / `ch_fin` (`hComicFieldsPayload`). `hComicFieldsPayload` and `hGameFieldsPayload` never send `highlight_group_order`: the detail page's drag owns that column, and a form save leaves it alone. `hGameFieldsPayload` sends a multi-choice list through `choiceList(value, vocabulary)` - `null` stays `null`, a list (`[]` included) goes in vocabulary order. `hComicFieldsPayload` leaves `animation_status` out while `animation_status_source` is `"derived"`, since the server refuses (422) any value but the served one. `hentaiFieldsPayload` and `hComicFieldsPayload` send `mal_id` only beside a `mal_link` - the write hook derives the id from the link. Every entry body's `sources` goes through the one `sourcesPayload` |
+| `payloads.js` | form state → request body for every media type, including mapping the `SourcesEditor` array into the `sources` write-payload key. Add's create and Modify's save build each entry body through the same function - `buildAnimePayload`, `buildAnimeMoviePayload`, and `<type>FieldsPayload` for the other ten (`movie`, `tvShow`, `cartoon`, `manga`, `novel`, `comic`, `game`, `hComic`, `hGame`, `hentai`). A `<type>FieldsPayload` returns the entry's own fields only: the page resolves (and may create) the franchise and series and spreads `franchise_id` / `series_id` over the result. `movie` through `comic` take the status default as `{ defaultStatus }` - the page's `/defaults`-resolved value, since this module holds no page state - and fall back to the type's built-in one. A blank finished count is sent as `null`, never `0`, by every builder here: `ep_fin` (`buildAnimePayload` and the watching types), manga `vol_fin` / `vol_fin_page` / `ch_fin`, novel `vol_fin` / `arc_fin` / `ch_fin`, comic `issue_fin`, and h-comic `page_fin` / `ch_fin` (`hComicFieldsPayload`). `hComicFieldsPayload` and `hGameFieldsPayload` never send `highlight_group_order`: it is each viewer's own, written through `PUT /api/me/highlight-group-order/{media_id}`. `hGameFieldsPayload` sends a multi-choice list through `choiceList(value, vocabulary)` - `null` stays `null`, a list (`[]` included) goes in vocabulary order. `hComicFieldsPayload` leaves `animation_status` out while `animation_status_source` is `"derived"`, since the server refuses (422) any value but the served one. `hentaiFieldsPayload` and `hComicFieldsPayload` send `mal_id` only beside a `mal_link` - the write hook derives the id from the link. Every entry body's `sources` goes through the one `sourcesPayload` |
 | `autofill.js`, `ensureSourceValues.js` | fill a form from a picked row; create the typed values a save needs that do not exist yet, or add the field's scope to an existing option scoped to other types only (`findOutOfScopeOption`, `buildWidenRequest`) |
 | `covers.js` | `getCoverUrl`, `FALLBACK_SVG` (`/api/covers/<key>` on every host — the route applies the same visibility gates the API does — except a `library/`-prefixed key — an uploaded image — which resolves to `/static/<key>` instead, since a library file's content-hash name says nothing about an entry. The app serves its own images off local disk, so there is no hostname switch and no bucket URL). `withMediaType` for tagging a fetched list so the convention-filename fallback knows which folder to look in — an untagged entry falls back to the placeholder rather than a broken URL plus the grouping-tier resolvers `getFranchiseCover` / `getSeriesCover` / `getCollectionCover`, which return `{ url, focus }` (`NO_COVER` is the centred placeholder): a borrowed cover keeps the focal point of the entry it came from, and a convention-filename cover is centred. The focal-point helpers: `focusStyle(focus)` (the `objectPosition` style a cropped `<img>` takes, undefined when centred), `entryCover(entry)` (an entry's own `{ url, focus }`), and `parseFocus` / `formatFocus` (`"X% Y%"` to `{ x, y }` and back, whole percentages clamped to 0..100, the centre stored as null). `getSeriesCover` takes one flat combined list and its caller must pass **every** entry list the page loaded: a series whose `cover_entry_id` points at a type left out silently falls back to the placeholder. Passing fewer lists than the page loaded is the standing bug here, and it fails silently. Also `isLocalHost` and `getQuoteImageUrl`: quote images live under `static/quotes/`, and a `library/`-prefixed key (an uploaded quote or meme image) resolves the same way `getCoverUrl` resolves one — off the localhost hold, which only ever existed because there was no way to get a file onto the machine at all |
 | `status.js` | status button configs (`getStatusButtonConfig`, `getReadingButtonConfig`, `getPlayingButtonConfig`) and `getCardStatusConfig(type, status)`, which picks between them from two `Set`s (`READ_TYPES`, `PLAY_TYPES`) rather than a chain of `||` — a tenth media type is one entry, not another ternary arm |
@@ -977,8 +1065,8 @@ content-label endpoints refuse (422) a set that drops it.
 | `forms/OptionCategorySelect.jsx` | The Tier 2 category dropdown on all three admin pages — Add's Category field, Modify's and Delete's "select a category" filter. A closed `<select>`, so Add can no longer coin a category by typing one; its `<optgroup>`s come from `groupTier2Categories` (`lib/optionsPageGroups.js`), the same arrangement `/options` reads, and a list yielding one section renders flat. |
 | `add-tabs/PersonAddTab.jsx` | Exports `PersonFields` (the editor) and `useRoleScopes` (the legal role → media-type map from `GET /api/person/role-scopes`), both reused by `modify-tabs/PersonModifyTab.jsx`. |
 | `forms/CharacterFirstsFields.jsx` | A **First Appearances** section header and three text inputs — **First Mention**, **First Appearance**, **First Encounter** — each with the `CHARACTER_FIRST_PLACEHOLDER` notation and a one-line hint saying what it records. Rendered last by both `CharacterFields` and `IdentityFields`, so a character and an identity edit their firsts the same way. |
-| `forms/EntityProfileFields.jsx` | The profile inputs `CharacterFields` and `PersonFields` share: `GenderRatingFields` (Gender — `QuickPicks` chips for 男 and 女, filtered against `GENDERS`, beside a closed select of "—" plus every `GENDERS` value, both editing the one value — and My Rating — a closed select of "Unrated" plus `MY_RATINGS`; both store `""` for unset, which the savers send as null) and, on Modify only (an unsaved row has no entries), `PhotoFallbackField`: "— Auto (latest with cover) —" plus the row's entries from `GET /api/{character\|person}/{id}/entries`, once each (`uniqueGroupEntries`), labelled `name (year) [type]` like the franchise cover picker. Its hint follows `ownerType`: a character's chosen entry lends its casting photo before its cover, a person's only its cover. It writes `photo_fallback_entry_id`, which the Modify tab's `PUT` carries. |
-| `info/EntityProfileControls.jsx` | The admin controls every entity detail page shares — character, person, studio and publisher: `AdminToolbar` (the dashed Admin strip with **Quick edit** to `/modify?id=<system_id>&type=<character\|person\|studio\|publisher>`), `RatingSelect` (Unrated plus `MY_RATINGS`, saving on change), `RemarkEditor` (a textarea saving on blur — emptied is null, untouched saves nothing) and `useEntityPatch(ownerType, systemId, onSaved)`, which PATCHes the partial body to `endpoints.{character\|person\|studio\|publisher}.patch(id)`, hands the response to `onSaved` and toasts. |
+| `forms/EntityProfileFields.jsx` | The profile inputs `CharacterFields` and `PersonFields` share: `GenderField` (`QuickPicks` chips for 男 and 女, filtered against `GENDERS`, beside a closed select of "—" plus every `GENDERS` value, both editing the one value; stores `""` for unset, which the savers send as null) and, on Modify only (an unsaved row has no entries), `PhotoFallbackField`: "— Auto (latest with cover) —" plus the row's entries from `GET /api/{character\|person}/{id}/entries`, once each (`uniqueGroupEntries`), labelled `name (year) [type]` like the franchise cover picker. Its hint follows `ownerType`: a character's chosen entry lends its casting photo before its cover, a person's only its cover. It writes `photo_fallback_entry_id`, which the Modify tab's `PUT` carries. No rating field: a rating is the viewer's own, set on the detail page through `PUT /api/me/ratings`. |
+| `info/EntityProfileControls.jsx` | The controls every entity detail page shares — character, person, studio and publisher: `AdminToolbar` (the dashed Admin strip with **Quick edit** to `/modify?id=<system_id>&type=<character\|person\|studio\|publisher>`), `RatingSelect` (the viewer's own rating — Unrated plus `MY_RATINGS`, saving on change; the pages draw it for a holder of `self.list` and save it through `useMyRatingSaver`), `RemarkEditor` (a textarea saving on blur — emptied is null, untouched saves nothing) and `useEntityPatch(ownerType, systemId, onSaved)`, which PATCHes the partial body to `endpoints.{character\|person\|studio\|publisher}.patch(id)`, hands the response to `onSaved` and toasts. |
 | `lib/characterCards.js` | The character library's cards. `characterCards(characters)` flattens the `/api/character/` list into one card per character, and one card per identity of its `identities`, each emitted right after its character (the library sorts them afterwards, an identity card by its own name). An identity card carries its own `public_id` (so it links to the identity page), `display_name`, `display_photo_file` / `display_photo_focus` and resolved gender (`display_gender`), the character's `public_id` as `character_public_id`, `character_display_name`, the character's face for its footer as `character_photo_file` / `character_photo_focus` (the character's displayed photo pair, else its own), and the character's `my_rating`, `role`, `media_types`, `restricted`, `appearance`, `trait` and `casting_count`, so it filters as the character does; it has `card_kind: "identity"`, `identity_id` and a unique `card_id`. Every card of a character carries `search_names`, the names of the character and of all its identities, and `has_identities`. Exports the `Characters` / `Identities` / `Has identities` / `No identities` filter option labels. |
 | `lib/entityFilters.js` | The entity libraries' FilterDefs and their shared default. `characterFilterDefs(auth)` (Entry type, Role — the character's own `role`, with Not set for null — My Rating, Gender, then **Appearance** and **Trait**: `set-dynamic` defs over the values the rows' lists hold, sorted, plus Not set when a row's list is empty, matching a row that holds any ticked value, then **Card** - Characters / Identities, by the card's `card_kind` - and **Identities** - Has identities / No identities, by `has_identities`); `personFilterDefs(auth, role?)` (Type — the `PERSON_SUB_TABS` roles — then Entry type, My Rating, Gender; with a `role`, as on `/library/seiyuu`, no Type group); `studioFilterDefs(auth)` and `publisherFilterDefs(auth)` (Entry type, My Rating, and **Country** — a `set-dynamic` def over the countries on record, plus Not set when a row has none). Entry type offers the entity's plain types, then **No entries**, which matches a row whose `media_types` is empty, then a **Restricted** parent over the gated types the entity can have — h-comic and hentai for a character, those and h-game for a person, hentai and h-game for a studio, none for a publisher — keeping only the ones `canSeeGatedType` allows. It matches `media_types`, and for a publisher `media_types` ∪ `scopes`, so one offered on a type but not yet credited on it is still found there. Rating, gender, role and country add Unrated / Not set for null. `defaultEntityFilters(defs)` is the state every entity library opens on: Entry type holds its plain options and No entries, so the restricted types start off, and every other group is empty. |
 | `info/PersonLinks.jsx` | `creditValue(item, role, legacyValue)` for an InfoCard credit row: links built from `credit_refs` when the entry has them (plain names for a viewer without `view.person`, through `useEntityHref`), the legacy comma-joined string when it does not — which is also what a viewer without the Credits permission sees. `creditLabel(item, role, fallback)` takes the heading from the ref, so 原作 / Author / Writer stays owned by `credit_label()` on the backend. |

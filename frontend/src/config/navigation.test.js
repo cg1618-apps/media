@@ -438,7 +438,6 @@ describe("visibleSections - the guest scope", () => {
     "view.character",
     "view.search",
     "view.extras",
-    "view.personal",
   ]);
   const holdsMember = (p) => MEMBER.has(p);
   const routesFor = (has, hasFeature) =>

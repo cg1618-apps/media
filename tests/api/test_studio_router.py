@@ -16,15 +16,16 @@ def test_create_and_list(admin_client, guest_reader):
     assert [s["name_en"] for s in guest_reader.get("/api/studio/").json()] == ["MAPPA"]
 
 
-def test_update_changes_the_rating(admin_client):
+def test_update_changes_the_country_and_ignores_a_rating(admin_client):
     created = admin_client.post(
         "/api/studio/", json={"name_en": "MAPPA"}
     ).json()
     r = admin_client.put(
         f"/api/studio/{created['system_id']}",
-        json={"name_en": "MAPPA", "my_rating": "S"},
+        json={"name_en": "MAPPA", "country": "Japan", "my_rating": "S"},
     )
-    assert r.json()["my_rating"] == "S"
+    # The rating is the writer's own, written through PUT /api/me/ratings.
+    assert (r.json()["country"], r.json()["my_rating"]) == ("Japan", None)
 
 
 def test_renaming_a_studio_changes_every_entry_that_credits_it(
@@ -76,7 +77,7 @@ def test_writes_require_admin(client):
 
 
 def test_create_rejects_a_studio_with_no_name(admin_client):
-    assert admin_client.post("/api/studio/", json={"my_rating": "S"}).status_code == 422
+    assert admin_client.post("/api/studio/", json={"country": "Japan"}).status_code == 422
 
 
 def test_response_carries_the_display_name(admin_client):

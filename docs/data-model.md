@@ -20,10 +20,10 @@ Enum values are **not** repeated here: every closed vocabulary lives in
 - [Grouping tiers](#grouping-tiers): collection, franchise, series
 - [Media entries](#media-entries): anime, anime_movies, movies, tv_shows, cartoons, manga, novel, novel_unit, comic, games, game_copy, game_choice_node, game_choice_edge, game_choice_mark, h_comic, h_game, hentai
 - [Virtual fields on media entries](#virtual-fields-on-media-entries)
-- [Personal data](#personal-data): user_media_list, user_novel_unit_rating
+- [Personal data](#personal-data): user_media_list, user_novel_unit_rating, user_rating
 - [People, studios and links](#people-studios-and-links): person, person_role, person_membership, studio, publisher, publisher_scope, character, character_tag, character_casting, character_casting_voice, media_credit, media_tag
 - [Where an entry can be watched or read](#media_source): media_source
-- [Notes, quotes and memes](#notes-quotes-and-memes): note, quote, meme
+- [Notes, quotes and memes](#notes-quotes-and-memes): note, note_mark, quote, meme
 - [Resources page](#resources-page): resource_node
 - [Image library](#image-library): image, image_attachment
 - [Relations and watch orders](#relations-and-watch-orders): media_relation, watch_order_list, watch_order_section, watch_order_item, watch_order_follow
@@ -166,15 +166,14 @@ stats. Model: `Collection` (`app/models/collection.py`).
 | `collection_name_roman` | String | yes | | |
 | `collection_name_jp` | String | yes | | |
 | `collection_name_alt` | String | yes | | |
-| `my_rating` | String | yes | | One of MY_RATINGS |
-| `collection_expectation` | String | yes | `"Low"` | One of FRANCHISE_EXPECTATIONS |
 | `cover_franchise_id` | UUID | yes | | FK `franchise.system_id` ON DELETE SET NULL. The cover is chosen by pointing at one member franchise; the image is resolved through that franchise's cover logic. Declared with `use_alter` (constraint `fk_collection_cover_franchise_id`) to break the collection ↔ franchise FK cycle. |
 | `no_built_in_orders` | Boolean | yes | `False` | Suppresses the generated Release Order for umbrellas like 迪士尼 that group unrelated standalone works. |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 Relationships: `franchises` (Franchise.collection_id), `cover_franchise`.
 Virtual: `remark`, `display_name`, `content_labels` (its own rows in
-[`collection_content_label`](#collection_content_label)).
+[`collection_content_label`](#collection_content_label)), and the viewer's own `my_rating` and
+`collection_expectation` (from [`user_rating`](#user_rating)).
 
 ### `franchise`
 
@@ -186,8 +185,6 @@ missing). Model: `Franchise` (`app/models/franchise.py`).
 | `system_id` | UUID | no | uuid4 | PK |
 | `franchise_type` | String | yes | | One of FRANCHISE_TYPES / `FranchiseType` (the two lists differ - see [options.md](options.md#franchise-type)). May hold a comma-separated list; duplicate detection buckets under each token. Every type in the list must belong to one family (`FRANCHISE_FAMILY_FOR_TYPE`: `H-Comic`, `Hentai` and `H-Game` are the `restricted` family, everything else is mainstream; the family is code, never stored) - a mixed list is refused (422) by the franchise endpoints. See [entry-types.md](entry-types.md#franchise-families-franchise_family_for_type-apputilsconstantspy). |
 | `franchise_name_en` / `_cn` / `_roman` / `_jp` / `_alt` | String | yes | | Name variants; CN leads `display_name`. |
-| `my_rating` | String | yes | | MY_RATINGS |
-| `franchise_expectation` | String | yes | `"Low"` | FRANCHISE_EXPECTATIONS |
 | `collection_id` | UUID | yes | | FK `collection.system_id` ON DELETE SET NULL, indexed. Declared here (not at the end) so it lands as sheet column J. |
 | `cover_entry_id` | UUID | yes | | Any entry UUID of any type; no FK (six tables). |
 | `type_covers` | JSONB | yes | | Per-media-type cover choice (dict). |
@@ -199,7 +196,8 @@ missing). Model: `Franchise` (`app/models/franchise.py`).
 
 Relationships: `series`, `collection`, `animes`. Virtual: `remark`,
 `display_name`, `content_labels` (its own rows in
-[`franchise_content_label`](#franchise_content_label)).
+[`franchise_content_label`](#franchise_content_label)), and the viewer's own `my_rating` and `franchise_expectation`
+(from [`user_rating`](#user_rating)).
 
 ### `series`
 
@@ -213,8 +211,6 @@ deliberate grouping). Model: `Series` (`app/models/franchise.py`).
 | `system_id` | UUID | no | uuid4 | PK |
 | `franchise_id` | UUID | yes | | FK `franchise.system_id` ON DELETE SET NULL |
 | `series_name_en` / `_cn` / `_roman` / `_jp` / `_alt` | String | yes | | The hierarchy resolver looks a series up by `en`, `cn` and `alt` only (`SERIES_NAME_COLUMNS`). |
-| `my_rating` | String | yes | | MY_RATINGS |
-| `series_expectation` | String | yes | `"Low"` | FRANCHISE_EXPECTATIONS |
 | `cover_entry_id` | UUID | yes | | Any entry UUID, any type; no FK. |
 | `type_slots` | JSONB | yes | | Which favourite 3×3 grid slot this row holds, as `{gridKey: 1..9}` - see [frontend/pages.md](frontend/pages.md#statistics--statistics--completions--completions). One grid is keyed here, Comic. There is no `type_covers` beside it: a series has no types, so `cover_entry_id` says everything a per-type map would. |
 | `size_group_derived` / `size_group_manual` | JSONB | yes | | As on franchise. |
@@ -223,7 +219,8 @@ deliberate grouping). Model: `Series` (`app/models/franchise.py`).
 
 Relationships: `franchise`, `animes`. Virtual: `remark`, `display_name`,
 `names_dict`, `content_labels` (its own rows in
-[`series_content_label`](#series_content_label)).
+[`series_content_label`](#series_content_label)), and the viewer's own `my_rating` and `series_expectation` (from
+[`user_rating`](#user_rating)).
 
 ---
 
@@ -507,16 +504,14 @@ languages. CHECKs: `ck_novel_unit_kind` (`unit_kind` in
 | `position` | Float | no | | Order within the novel. **Not unique** - the editor renumbers every row after a drag, and a unique constraint could fire mid-save while two rows briefly share a value |
 | `unit_key` | String | yes | | Explicit label (e.g. a volume subtitle's short code). When blank, the display key falls back to `"{prefix} {position}"` (`unit_display_key` / `unitDisplayKey`) |
 | `name_cn` / `name_en` | String | yes | | |
-| `remark` | String | yes | | |
 | `ch_count` | Float | yes | | Chapters in this arc. Meaningful only on `unit_kind = 'arc'` rows (guarded by the CHECK); the sole source of `novel.ch_total` and `novel.ch_fin` |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
-Written through `POST`/`PUT /api/novel` via the `units` payload key (popped
-out before the row is built, see `MediaTypeSpec.nested_collections`);
+Written through `POST`/`PUT`/`PATCH /api/novel` via the `units` payload key
+(popped out before the row is touched, see `MediaTypeSpec.nested_collections`);
 reconciled by `write_novel_units` (rows with a `system_id` are updated, rows
-without are inserted, rows the payload omits are deleted). `PATCH` cannot
-touch `units` - it is not a real column, so `apply_column_patch` silently
-ignores it. Every create/update/patch write runs `derive_novel_progress`,
+without are inserted, rows the payload omits are deleted). Every
+create/update/patch write runs `derive_novel_progress`,
 which recomputes `arc_total`/`ch_total`/`ch_fin` from the arc rows and
 normalises `arc_fin`/`ch_fin_in_arc` - see business-rules.md.
 
@@ -531,10 +526,11 @@ the historical values once and deleted any non-`volume` `novel_unit` rows
 belonging to these types; its downgrade is a deliberate no-op, because nothing
 else in the schema records what those values were.
 
-A unit's `my_rating` is NOT a column here: it is one reader's grade of
-one volume or arc and lives in
-[`user_novel_unit_rating`](#user_novel_unit_rating). It is still served
-and accepted as `my_rating` on each unit of a novel's response.
+A unit's `my_rating` and `remark` are NOT columns here: they are one
+reader's grade of and note on one volume or arc and live in
+[`user_novel_unit_rating`](#user_novel_unit_rating). They are still served
+as `my_rating` and `remark` on each unit of a novel's response, filled with
+the viewer's own; the `units` write does not carry them.
 
 ### `comic`
 
@@ -784,7 +780,6 @@ write path; see [authorization.md](authorization.md#gated-types).
 | `mal_id` | Integer | yes | | Both. Extracted from `mal_link` by the write hook and every pipeline (`apply_extract_mal_id_manga_novel`); the key Tenrai is fetched on |
 | `mal_link` | String | yes | | Both. The MyAnimeList manga URL, typed by hand |
 | `ehentai_link` | String | yes | | Both. The E-Hentai gallery URL (`https://e-hentai.org/g/<gid>/<token>/`, an `exhentai.org` one accepted), typed by hand. No id column: the E-Hentai fill reads the gallery id and token out of it, and fills the cover and the illustrator credit after Tenrai ([external-apis.md](external-apis.md#e-hentai)) |
-| `highlight_group_order` | JSONB | yes | | **KR.** The owner's order of the `h_comic_highlights` groups: a list of distinct, non-blank female character names, read and written whole through the entry update. Names absent from it render after it, in first-appearance order |
 
 Constraints and wiring, as for every entry table: composite FK `fk_h_comic_media`
 (`system_id`, `media_type`) -> `media` (deferrable, ON DELETE CASCADE), CHECK
@@ -839,7 +834,6 @@ CHECK, matching `games`; they are checked on every write path
 | `igdb_id` / `igdb_link` | Integer / String | yes | | As on `games` |
 | `steam_appid` / `steam_link` | Integer / String | yes | | As on `games`; the SteamDB reference row is derived from the appid |
 | `dlsite_link_jp` / `dlsite_link_tw` | String | yes | | The two DLsite store pages. No id column: the DLsite fill reads the product id (`RJ`/`VJ`/`BJ` + digits) out of the JP link, else the TW link - the same product either way |
-| `highlight_group_order` | JSONB | yes | | The owner's order of the `h_game_highlights` groups, as `h_comic`'s |
 | `type_slots` | JSONB | yes | | Favourite-grid slot per grid key, as on `games` |
 
 Constraints and wiring, as for every entry table: composite FK `fk_h_game_media`
@@ -954,6 +948,9 @@ carries `ch_fin_in_arc` as NULL forever. It is cheaper than the alternative.
 `user_media_list` is keyed by `media_id`, so a per-unit rating has nowhere to
 sit on it; a two-column join table is the smallest thing that is correct.
 
+`user_rating` holds the same kind of opinion for the rows that are not media
+entries either: the grouping tiers and the four entities.
+
 ### `user_media_list`
 
 One person's relationship with one entry: what they think of it, how far they
@@ -1005,9 +1002,35 @@ deliberately excluded from the read-back-as-`0` rule: it was nullable on
 and hentai reads it the same way. Its schemas already declared it
 `Optional[int] = 0`, and a blank one is sent as `null` too.
 
+### `user_highlight_group_order`
+
+One account's order of the highlight groups on one h-comic or h-game - the
+groups `h_comic_highlights` / `h_game_highlights` draw, one per female
+character name. Model: `UserHighlightGroupOrder`
+(`app/models/user_highlight_group_order.py`). Keyed by `(user_id, media_id)` -
+`uq_user_highlight_group_order`.
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `user_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE, indexed |
+| `media_id` | UUID | **no** | | FK `media.system_id` ON DELETE CASCADE, indexed - the h-comic's or h-game's `system_id`, which is its `media` row's |
+| `group_order` | JSONB | **no** | | A list of distinct, non-blank female character names, read and written whole. Names absent from it render after it, in first-appearance order |
+| `created_at` / `updated_at` | DateTime | yes | now | |
+
+An empty or cleared order is **not stored**: `write_group_order`
+(`app/services/domain/highlight_group_order.py`, used by
+`PUT /api/me/highlight-group-order/{media_id}` and the old-sheet carry in
+`legacy_personal.py`) deletes the row. `attach_group_orders` puts the
+viewer's order back on each h-comic and h-game as `highlight_group_order`, a
+plain class attribute defaulted to `None` (`app/models/__init__.py`), one
+query per page. When an h-comic's region becomes JP every account's row for
+it is deleted (`drop_jp_group_orders`, in the write hook and in
+`enforce_h_comic_invariants`).
+
 ### `user_novel_unit_rating`
 
-One reader's grade of one novel unit. Model: `UserNovelUnitRating`
+One reader's grade of, and remark on, one novel unit. Model: `UserNovelUnitRating`
 (`app/models/user_novel_unit_rating.py`). Keyed by `(user_id, unit_id)` -
 `uq_user_novel_unit`.
 
@@ -1017,12 +1040,49 @@ One reader's grade of one novel unit. Model: `UserNovelUnitRating`
 | `user_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE |
 | `unit_id` | UUID | **no** | | FK `novel_unit.system_id` ON DELETE CASCADE |
 | `my_rating` | String | yes | | MY_RATINGS |
+| `remark` | Text | yes | | The reader's own note on the unit |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
-A null rating stores **no row**: `write_novel_units` deletes an existing one
-rather than keeping it holding None, so "never graded" and "graded, then
-cleared" do not become two different states. `attach_unit_ratings` puts the
-value back on each unit for the reader, one query per page.
+A row holding neither a rating nor a remark is **not stored**:
+`write_unit_rating` (`app/services/domain/novel_unit_writer.py`, used by
+`PUT /api/me/novel-units/{unit_id}` and the old-sheet carry in
+`legacy_personal.py`) deletes an
+existing one rather than keeping it holding None, so "never graded" and
+"graded, then cleared" do not become two different states.
+`attach_unit_ratings` puts both values back on each unit for the reader, one
+query per page.
+
+### `user_rating`
+
+One account's rating of one collection, franchise, series, character,
+person, studio or publisher, and for a tier its expectation. Model:
+`UserRating` (`app/models/user_rating.py`).
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `user_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE, indexed |
+| `collection_id` / `franchise_id` / `series_id` / `character_id` / `person_id` / `studio_id` / `publisher_id` | UUID | yes | | The owner: one FK per owning table, each to its `system_id` ON DELETE CASCADE and indexed. Exactly one is set |
+| `my_rating` | String | yes | | MY_RATINGS |
+| `expectation` | String | yes | | FRANCHISE_EXPECTATIONS; tiers only |
+| `created_at` / `updated_at` | DateTime | yes | now | |
+
+Constraints: `ck_user_rating_one_owner` (`num_nonnulls` of the seven owner
+columns `= 1`); `ck_user_rating_expectation_on_tier` (an `expectation` only
+when the owner is a collection, franchise or series);
+`uq_user_rating_owner` UNIQUE (`user_id`, the seven owner columns) **NULLS
+NOT DISTINCT**, since six of the seven are NULL on every row.
+
+A row holding neither value is **not stored**: `write_rating`
+(`app/services/domain/user_rating.py`) deletes it, as
+`user_novel_unit_rating` does. `attach_ratings` puts the viewer's values back
+on each row as `my_rating` and the tier's `collection_expectation` /
+`franchise_expectation` / `series_expectation`, one query per page; they are
+plain class attributes defaulted to `None` (`app/models/__init__.py`), not
+columns, so they cannot be filtered or sorted on in SQL. A merge of two
+characters, people, studios or publishers moves the loser's rows to the
+survivor for every account that has none there (`merge_user_ratings`); the
+survivor's own rating wins.
 
 ## People, studios and links
 
@@ -1040,7 +1100,6 @@ One human credited on a media entry (Tier 3 entity - see
 | `name_alt` | String | yes | | The slot for names that are none of the other three: a comma-separated list, each fragment a name of its own when a name is matched. Never chosen automatically. |
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain |
 | `gender` | String | yes | | GENDERS (`男` / `女` / `中性/無性` / `雙性混和` / `其他`), or NULL for not set. On the base table, not a seiyuu extension: a fact about the person, not the role. |
-| `my_rating` | String | yes | | MY_RATINGS, or NULL |
 | `photo_file` | String | yes | | Storage key under `static/covers/`, `staff/<system_id>.jpg`. Filled from MAL's people photo for a seiyuu with a `mal_id` — see [external-apis.md](external-apis.md#mapping-for-person-seiyuu--map_tenrai_to_person_data) |
 | `photo_focus` | String | yes | | `photo_file`'s focal point, `"X% Y%"`; NULL centres it. Reset to NULL when the photo changes — see [image focal points](#image-focal-points) |
 | `photo_fallback_entry_id` | UUID | yes | | A `media.system_id` whose cover stands in when `photo_file` is NULL; must be an entry the person is credited on or voices a character in. No FK, like `franchise.cover_entry_id`: a stale id falls through to the automatic choice ([systems/credits-and-tags.md](systems/credits-and-tags.md#photo-fallback)). |
@@ -1130,7 +1189,6 @@ every type it applies to is not wrong in the way a distributor list offering
 | `name_en` | String | yes | | Indexed |
 | `name_cn` / `name_jp` / `name_alt` | String | yes | | |
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain |
-| `my_rating` | String | yes | | MY_RATINGS |
 | `logo_file` | String | yes | | Storage key under `static/covers/`, `studio/<system_id>.jpg`. Filled from MAL's producer logo when `mal_id` is set — see [external-apis.md](external-apis.md#mapping-for-studio--map_tenrai_to_studio_data) |
 | `logo_focus` | String | yes | | `logo_file`'s focal point, `"X% Y%"`; NULL centres it. Reset to NULL when the logo changes — see [image focal points](#image-focal-points) |
 | `remark` | Text | yes | | |
@@ -1189,7 +1247,6 @@ mean something vaguer than it does.
 | `name_en` | String | yes | | Indexed |
 | `name_cn` / `name_jp` / `name_alt` | String | yes | | |
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain |
-| `my_rating` | String | yes | | MY_RATINGS |
 | `logo_file` | String | yes | | Storage key under `static/covers/`, `publisher/<system_id>.jpg`. Never autofilled - there is no MAL producer record for a games publisher or a TW distributor |
 | `logo_focus` | String | yes | | `logo_file`'s focal point, `"X% Y%"`; NULL centres it. Reset to NULL when the logo changes — see [image focal points](#image-focal-points) |
 | `remark` | Text | yes | | |
@@ -1286,7 +1343,6 @@ with one intentional deviation - see the constraints note below.
 | `name_alt` | String | yes | | |
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain. NULL becomes `cn` on save and in Calculate All while `name_cn` is filled ([business-rules.md](business-rules.md) §10a) |
 | `gender` | String | yes | | GENDERS, or NULL for not set - the same vocabulary as `person.gender` |
-| `my_rating` | String | yes | | MY_RATINGS, or NULL |
 | `photo_file` | String | yes | | Storage key under `static/covers/`, `character/<system_id>.jpg`; the canonical portrait. A casting may override it with its own `photo_file` for how the character looked in that entry. Filled from MAL's character picture for a character with a `mal_id` — see [external-apis.md](external-apis.md#mapping-for-character--map_tenrai_to_character_data) |
 | `photo_focus` | String | yes | | `photo_file`'s focal point, `"X% Y%"`; NULL centres it. Reset to NULL when the photo changes — see [image focal points](#image-focal-points) |
 | `role` | String | yes | | Optional: one of `CHARACTER_ROLES`, or NULL - what the character is to their story overall. While NULL it is filled from the highest-ranked `character_casting.role` (`CHARACTER_ROLES` order) on each cast save and by Calculate All; a set value is never overwritten |
@@ -1629,16 +1685,17 @@ its section's *shape* in `app/utils/note_sections.py`
 | `collection_id` / `franchise_id` / `series_id` | UUID | yes | | FK to the matching tier table, ON DELETE CASCADE, indexed - set when the owner is a grouping tier |
 | `author_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE, indexed. Who wrote the row - see [`note`, `quote` and `meme`: who wrote it](#note-quote-and-meme-who-wrote-it) |
 | `section` | String | yes | | Key in NOTE_SECTIONS, indexed |
-| `parent_id` | UUID | yes | | FK `note.system_id` ON DELETE CASCADE, indexed. The row this one nests under, for a section the registry marks `hierarchical`; unbounded depth. A child is kept in its parent's owner and section by the router, not by the database - a CHECK cannot read another row. |
+| `personal` | Boolean | **no** | false (server default) | A personal row of a mixed section (`NoteSection.mixed`): one account's own, read and written by its `author_id` alone, beside the section's catalogue rows. False on a catalogue row and on a row of a personal-scope section, which is personal by its section. Set by the server on create from `manage.catalog`; nothing changes it after. A catalogue row may not nest under a personal one (the router refuses it) |
+| `parent_id` | UUID | yes | | FK `note.system_id` ON DELETE CASCADE, indexed. The row this one nests under, for a section the registry marks `hierarchical`; unbounded depth. In a mixed section, deleting a catalogue row first moves members' personal rows under it to the top level, so the CASCADE takes only catalogue rows. A child is kept in its parent's owner and section by the router, not by the database - a CHECK cannot read another row. |
 | `locator` | String | yes | | Where in the work: episode, chapter, scene, timestamp, or a question's source. The section supplies the label and whether it is required. |
 | `kind` | String | yes | | Only where the section declares `kinds`, a `kind_category` (free text - an OP or ED's Song Type) or `kind_is_group` (free text - a Resources row's group). On a `music_status` row, the song list it is about (`op`, `ed`, `insert_songs`, `ost`) |
-| `status` | String | yes | | Music tracking status: one of `MUSIC_STATUSES` (Need/Pending/No Full Version/Done) on a `music_track` song, one of `MUSIC_TYPE_STATUSES` on a `music_status` row; music sections only |
+| `status` | String | yes | | The second dropdown's column. On every section whose status is a viewer's own - the song lists, `music_status`, and the structured `collected` / `beaten` / `completion` / mods `status` - it is never stored and stays null: the value lives in [`note_mark`](#note_mark) and each read fills the column with the viewer's own |
 | `title` | String | yes | | Name half of `name_links` / song name of a `music_track` row |
 | `content` | Text | yes | | Body |
 | `links` | JSONB | yes | | List of URL strings; on the four song lists (`note_sections.uses_link_pairs`), a list of `{"text": str or null, "url": str}` pairs instead. Which shape is decided by the section, never per row |
 | `entries` | JSONB | yes | | The `name_entries` shape's ordered items - each `{"type": "text" or "link", "value": str, "label": str or null}`. Deliberately not folded into `links`: one column meaning two things is how subtle bugs start. |
 | `fields` | JSONB | yes | | The `structured` shape's registry-declared fields, keyed by `NoteField.key`, plus any nested list. Only what the section's spec does not map onto a column - a structured name is `title` and its description `content` - so this holds the leftovers and the nested lists. Validated against the spec; an unknown key is a 422. |
-| `sort_index` | Float | yes | | Ordering within (owner, section) |
+| `sort_index` | Float | yes | | Ordering within (owner, section) - in a mixed section within one kind: the catalogue rows, and each account's personal rows after them |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 `ck_note_one_owner` CHECKs `num_nonnulls(media_id, collection_id,
@@ -1659,8 +1716,9 @@ notes page's only read path; **`ix_note_one_remark_per_owner`** - partial
 UNIQUE over the four owner columns **plus `author_id`**, **NULLS NOT
 DISTINCT**, `WHERE section = 'remark'`; **`ix_note_one_music_status_per_kind`**
 - partial UNIQUE over `(media_id, kind)`, `WHERE section = 'music_status'`,
-because each song list of an anime has one status row (and `music_status` is
-anime-only, so `media_id` is the whole owner).
+because each song list of an anime has one row for its status to hang on
+(and `music_status` is anime-only, so `media_id` is the whole owner). The
+status itself is each viewer's own note mark.
 
 The second is keyed per owner **per author**, because `remark` is a
 personal-scope section: two accounts may each hold one on the same entry and
@@ -1673,6 +1731,31 @@ NULLS NOT DISTINCT is required because three of the four owner columns are
 always NULL - and `author_id` is NULL on rows written before accounts existed
 - so without it Postgres treats every such row as unique and the index
 enforces nothing.
+
+### `note_mark`
+
+One account's personal values on one catalogue note row: collected and the
+amount collected on the three 物品 sections, beaten on 敵人, completion on 結局,
+my value on 屬性&配點, and the status of the song lists, `music_status` and
+模組&工具. The row is catalogue; these values on it are each reader's own, and
+the registry names them (`personal_values` in `app/utils/note_sections.py`,
+see [systems/notes.md](systems/notes.md#personal-values-on-catalogue-rows-note-marks)).
+Model: `NoteMark` (`app/models/note_mark.py`). Keyed by `(user_id, note_id)` -
+`uq_note_mark_user_note`.
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `user_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE, indexed |
+| `note_id` | UUID | **no** | | FK `note.system_id` ON DELETE CASCADE, indexed |
+| `values` | JSONB | **no** | | `{key: value}`, each a non-blank string, keyed by the registry's personal-value key (`collected`, `amount_collected`, `beaten`, `completion`, `my_value`, or `status`) |
+| `created_at` / `updated_at` | DateTime | yes | now | |
+
+A mark with no value left is **not stored**: `write_mark`
+(`app/services/domain/note_marks.py`, used by `PUT /api/notes/{id}/mark`, the
+NG reset and the old-sheet carry in `legacy_personal.py`) merges a write into
+the row and deletes it once it is empty. `notes_out` puts the viewer's values
+back onto each `NoteResponse` where the field lives, one query per page.
 
 ### `quote`
 
@@ -2640,8 +2723,9 @@ dangling reference stays visible and fixable in the admin pages. Consequence:
 All three carry a `NOT NULL author_id` referencing `users(id) ON DELETE
 CASCADE` (`fk_note_author`, `fk_quote_author`, `fk_meme_author`). It is always
 set — a catalogue note has an author too, and recording it is the only
-provenance the catalogue has. What a section's **scope** changes is who a row
-is *filtered* for, not whether somebody wrote it; quotes and memes are
+provenance the catalogue has. What a section's **scope** - and, in a mixed
+section, a row's `personal` - changes is who a row is *filtered* for, not
+whether somebody wrote it; quotes and memes are
 universal and nothing filters on their author at all. See
 [authorization.md](authorization.md) for the read and write rules.
 

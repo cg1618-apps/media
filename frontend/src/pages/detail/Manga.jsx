@@ -774,7 +774,6 @@ export default function Manga() {
           <MangaNotes
             key={manga.system_id}
             manga={manga}
-            isAdmin={isAdmin}
             hideSections={manga.remark ? ["remark"] : []}
             series={series}
             franchise={franchise}

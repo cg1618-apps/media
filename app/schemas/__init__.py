@@ -151,8 +151,11 @@ from app.schemas.movie import (
     MovieUpdate,
 )
 from app.schemas.note import (
+    NgResetRequest,
+    NgResetResult,
     NoteBase,
     NoteCreate,
+    NoteMarkWrite,
     NoteReorder,
     NoteResponse,
     NoteSectionOut,
@@ -506,6 +509,9 @@ __all__ = [
     "NoteCreate",
     "NoteUpdate",
     "NoteResponse",
+    "NgResetRequest",
+    "NgResetResult",
+    "NoteMarkWrite",
     "NoteReorder",
     "ResourceNodeCreate",
     "ResourceNodeResponse",

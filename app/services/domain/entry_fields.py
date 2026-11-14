@@ -16,6 +16,7 @@ from app.services.domain.content_labels import attach_content_labels
 from app.services.domain.credits import attach_link_fields
 from app.services.domain.game_copies import attach_own_copies
 from app.services.domain.h_comic import attach_animation_status
+from app.services.domain.highlight_group_order import attach_group_orders
 from app.services.domain.plan_next import PLAN_FLAG_FIELDS, planned_entry_ids
 from app.services.domain.remark_field import attach_remark
 from app.services.domain.sources import attach_sources
@@ -47,3 +48,5 @@ def attach_entry_list_fields(db: Session, media_type: str, entries: list, viewer
     attach_animation_status(db, media_type, entries)
     # Filtered to this viewer's own remarks.
     attach_remark(db, media_type, entries, plan_user_id)
+    # The viewer's own highlight group order; h-comic and h-game only.
+    attach_group_orders(db, media_type, entries, plan_user_id)

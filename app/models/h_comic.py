@@ -10,7 +10,7 @@ from sqlalchemy import (
     Integer,
     String,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 
 from app.database import Base, get_taipei_now
 from app.models.base import NameFallbackMixin
@@ -26,7 +26,7 @@ class HComic(Base, NameFallbackMixin):
     hidden by the form (app/services/domain/h_comic.py):
 
         JP only   originality, animation_status, series_number, page_total
-        KR only   ch_total, ch_behind, highlight_group_order
+        KR only   ch_total, ch_behind
 
     A name column the region does not use (`h_comic_name_jp` on KR,
     `h_comic_name_kr` on JP) is kept, because a name is harmless.
@@ -108,11 +108,6 @@ class HComic(Base, NameFallbackMixin):
     # The E-Hentai gallery the second fill source reads, after MAL. No id
     # column: the gallery id and token are read out of the URL.
     ehentai_link = Column(String, nullable=True)
-
-    # The owner's order of the KR highlight GROUPS (one group per female
-    # character name): a list of names, read and written whole. Names absent
-    # from it render after it, in first-appearance order. KR.
-    highlight_group_order = Column(JSONB, nullable=True)
 
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)

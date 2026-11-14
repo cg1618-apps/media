@@ -22,6 +22,7 @@ import {
 } from "react";
 
 import { useAuth } from "../../contexts/AuthContext";
+import { useToast } from "../../hooks/useToast";
 import { getDisplayName } from "../../lib/naming";
 import * as api from "./api";
 import GroupNotes from "./GroupNotes";
@@ -61,40 +62,101 @@ const SHAPES = {
 // rather than rewritten. media_type/entry_id and owner_type/owner_id are the
 // same hyphenated owner keys the notes API uses.
 const EXTERNAL_SHAPES = {
-  quotes: ({ label, ownerType, ownerId, isAdmin, onCount }) => (
+  quotes: ({ label, ownerType, ownerId, canWrite, onCount }) => (
     <QuoteSection
       label={label}
       mediaType={ownerType}
       entryId={ownerId}
-      isAdmin={isAdmin}
+      canWrite={canWrite}
       onCount={onCount}
     />
   ),
-  memes: ({ label, ownerType, ownerId, isAdmin, onCount }) => (
+  memes: ({ label, ownerType, ownerId, canWrite, onCount }) => (
     <MemeSection
       label={label}
       ownerType={ownerType}
       ownerId={ownerId}
-      isAdmin={isAdmin}
+      canWrite={canWrite}
       onCount={onCount}
     />
   ),
 };
+
+// The permission a write to a section needs, from its `scope`: the server
+// takes manage.catalog for a catalogue section and self.personal_notes for a
+// personal one, and refuses the other. Quotes and memes are their own
+// catalogue tables, so an external section is catalogue whatever it says.
+// self.* is ownership, so the root flag does not pass it (AuthContext's has()),
+// and an admin reads a personal section without its write controls.
+export function writePermissionFor(section) {
+  if (section.shape === "external") return "manage.catalog";
+  return section.scope === "personal" ? "self.personal_notes" : "manage.catalog";
+}
+
+// Who may do what to a section and to each of its rows, as the props the
+// section components take. `has` is the viewer's AuthContext has().
+//
+// - `canWrite` is the section's own write controls (Add, and the inline
+//   editors of a section with no rows to speak of): writePermissionFor.
+// - `canEditRow(note)` - Edit, Delete and a row's quick edit.
+// - `canMoveRow(note)` - whether the row takes a reorder handle, and whether
+//   its id is part of the order a move sends.
+// - `canAddUnder(note)` - whether a new row may be drafted under it, in a
+//   hierarchical section.
+//
+// Outside a mixed section all four are `canWrite`. A `mixed` section holds
+// catalogue rows and the viewer's own personal rows (`note.personal`), and
+// which kind a viewer writes is fixed by manage.catalog: its holder writes
+// catalogue rows, anyone else holding self.personal_notes personal ones -
+// never both. So Add shows for either; a personal row is written by
+// self.personal_notes (every personal row a viewer is served is its own) and
+// a catalogue row by manage.catalog; a reorder moves the rows of the kind
+// the viewer writes, and the server renumbers that kind alone; and a
+// catalogue row never goes under a personal parent.
+export function rowAccessFor(section, has) {
+  const may = (permission) => Boolean(has?.(permission));
+  if (!section.mixed) {
+    const canWrite = may(writePermissionFor(section));
+    const always = () => canWrite;
+    return { canWrite, canEditRow: always, canMoveRow: always, canAddUnder: always };
+  }
+  const catalogue = may("manage.catalog");
+  const personal = may("self.personal_notes");
+  const writesCatalogue = catalogue;
+  const writesPersonal = !catalogue && personal;
+  return {
+    canWrite: writesCatalogue || writesPersonal,
+    canEditRow: (note) => (note.personal ? personal : catalogue),
+    canMoveRow: (note) => (note.personal ? writesPersonal : writesCatalogue),
+    canAddUnder: (note) => writesPersonal || (writesCatalogue && !note.personal),
+  };
+}
+
+// A mixed section's rows, catalogue rows first and the viewer's own after,
+// each kind in the order it arrived. The server sends them that way; this
+// keeps a reorder's optimistic order (withSectionOrder) from interleaving
+// them, and so every group drawn from them, which keeps its rows' order,
+// holds its catalogue rows first too.
+export function catalogueFirst(notes) {
+  return [...notes.filter((n) => !n.personal), ...notes.filter((n) => n.personal)];
+}
 
 const NotesContext = createContext(null);
 
 // `notes` with one section's rows put in `orderedIds` order, every other row
 // where it was. The page draws a section in array order, so this is how a
 // reorder shows before the server has answered. Ids not in the section are
-// ignored; a row the list does not name keeps its place after those it does.
+// ignored. The named rows are put back into the places they held, so a row
+// the list does not name keeps its place - in a mixed section, the rows of
+// the kind the viewer does not move.
 export function withSectionOrder(notes, section, orderedIds) {
   const position = new Map(orderedIds.map((id, i) => [id, i]));
-  const rank = (n) => position.get(n.system_id) ?? orderedIds.length;
+  const named = (n) => n.section === section && position.has(n.system_id);
   const sorted = notes
-    .filter((n) => n.section === section)
-    .sort((a, b) => rank(a) - rank(b));
+    .filter(named)
+    .sort((a, b) => position.get(a.system_id) - position.get(b.system_id));
   let next = 0;
-  return notes.map((n) => (n.section === section ? sorted[next++] : n));
+  return notes.map((n) => (named(n) ? sorted[next++] : n));
 }
 
 // Whether a section applies to this owner ROW, not just this owner type.
@@ -126,6 +188,9 @@ export function useNotes() {
   return value;
 }
 
+// Who may write which section is not a prop: each section's write controls
+// follow `writePermissionFor`, asked of the signed-in viewer here.
+//
 // `owner` is the owner row, for `owner_where`. The next three feed the
 // structured shape and only matter to a section declaring the matching field:
 // `nameSuggestions` for a `names` input, and the owner's stored group order
@@ -141,7 +206,6 @@ export function useNotes() {
 export function NotesProvider({
   ownerType,
   ownerId,
-  isAdmin,
   owner,
   nameSuggestions,
   groupOrder,
@@ -151,13 +215,26 @@ export function NotesProvider({
   children,
 }) {
   const [allSections, setSections] = useState([]);
+  const auth = useAuth();
+  const canWrite = (section) => Boolean(auth?.has?.(writePermissionFor(section)));
+  const accessFor = (section) => rowAccessFor(section, auth?.has);
+  // Whether the viewer may set its own personal values (note marks) on a
+  // section's rows: self.personal_notes, plus every feature one of them is
+  // granted by. The listing already leaves out a value the viewer lacks the
+  // feature for; asking here as well keeps a stale listing from drawing a
+  // control the server would refuse.
+  const canMark = (section) =>
+    Boolean(auth?.has?.("self.personal_notes")) &&
+    [section.status_granted, ...(section.fields || []).map((f) => f.granted)]
+      .filter(Boolean)
+      .every((name) => Boolean(auth?.hasFeature?.(name)));
+  const showToast = useToast()?.showToast;
   // Quotes and Memes follow the account's quotes_memes feature switch:
   // without it their external sections are dropped with the hidden ones
   // below, so neither renders nor fetches from /api/quote or /api/meme,
   // which would answer 401.
-  // The highlight sections need no such rule here: the server leaves them
-  // out of the registry for a viewer without view.personal.
-  const auth = useAuth();
+  // A personal section needs no such rule: the registry lists it for every
+  // viewer, and the rows the server sends are only the viewer's own.
   const showQuotesMemes = Boolean(auth?.hasFeature?.("quotes_memes"));
   // A `hidden` section (music_status) is never a card of its own: its rows
   // belong to the sections pointing at it through `type_status_section`. It
@@ -334,8 +411,11 @@ export function NotesProvider({
   const bySection = useMemo(() => {
     const map = {};
     for (const n of notes) (map[n.section] ||= []).push(n);
+    for (const section of allSections) {
+      if (section.mixed && map[section.key]) map[section.key] = catalogueFirst(map[section.key]);
+    }
     return map;
-  }, [notes]);
+  }, [notes, allSections]);
 
   const handlers = useMemo(
     () => ({
@@ -357,6 +437,27 @@ export function NotesProvider({
           await reloadNotes();
         } catch (e) {
           setError(String(e.message || e));
+        }
+      },
+      // The viewer's own personal values on one catalogue row, through the
+      // mark endpoint - never the catalogue PATCH, which ignores them.
+      onMark: async (id, values) => {
+        try {
+          await api.markNote(id, values);
+          await reloadNotes();
+        } catch (e) {
+          setError(String(e.message || e));
+        }
+      },
+      // A new cycle of this owner for the viewer: its own collected values on
+      // the rows that reset, and every beaten, are cleared.
+      onNgReset: async () => {
+        try {
+          const { cleared } = await api.ngReset(ownerType, ownerId);
+          await reloadNotes();
+          showToast?.("success", `NG reset: ${cleared} cleared`);
+        } catch (e) {
+          showToast?.("error", String(e.message || e));
         }
       },
       onDelete: async (id) => {
@@ -395,7 +496,7 @@ export function NotesProvider({
         }
       },
     }),
-    [ownerType, ownerId, reloadNotes],
+    [ownerType, ownerId, reloadNotes, showToast],
   );
 
   const renderSection = (section) => {
@@ -408,7 +509,7 @@ export function NotesProvider({
           label={section.label}
           ownerType={ownerType}
           ownerId={ownerId}
-          isAdmin={isAdmin}
+          canWrite={canWrite(section)}
           onCount={reporterFor(section.key)}
         />
       );
@@ -430,7 +531,8 @@ export function NotesProvider({
         notes={bySection[section.key] || []}
         optionValues={optionValues}
         typeStatusNote={typeStatusNote}
-        isAdmin={isAdmin}
+        {...accessFor(section)}
+        canMark={canMark(section)}
         ownerId={ownerId}
         nameSuggestions={nameSuggestions}
         groupOrder={groupOrder}

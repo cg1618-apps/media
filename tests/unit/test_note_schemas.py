@@ -308,9 +308,10 @@ def test_question_with_only_a_source_is_rejected():
 
 
 # --- music_track: one shape for every song list -------------------------
-# op, ed, insert_songs and ost hold the same row: a song name, the per-song
-# status, the episode, text-and-URL link pairs, a remark - and a Song Type on
-# op and ed alone.
+# op, ed, insert_songs and ost hold the same row: a song name, the episode,
+# text-and-URL link pairs, a remark - and a Song Type on op and ed alone. The
+# per-song status is each viewer's own (a note mark), so a catalogue payload
+# carrying one has it dropped: `_song` sends one to prove that.
 
 SONG_SECTIONS = ("op", "ed", "insert_songs", "ost")
 
@@ -341,9 +342,18 @@ def test_song_may_carry_every_column(section):
 
 
 @pytest.mark.parametrize("section", SONG_SECTIONS)
-def test_song_with_only_a_status_passes(section):
-    # "I still need the OP" is a real note before the song has a name.
-    validate_note_payload(_song(section))
+def test_song_with_only_a_status_is_empty(section):
+    # The status is a viewer's own, never the catalogue row's, so it cannot
+    # be what makes a song row worth storing.
+    with pytest.raises(ValueError, match="is empty"):
+        validate_note_payload(_song(section))
+
+
+@pytest.mark.parametrize("section", SONG_SECTIONS)
+def test_an_already_empty_song_may_still_be_edited(section):
+    """A row whose only value was its status (now a mark) is saved when the
+    caller says it was already empty - the router's PATCH rule."""
+    validate_note_payload(_song(section), allow_empty=True)
 
 
 @pytest.mark.parametrize("section", SONG_SECTIONS)
@@ -369,16 +379,17 @@ def test_insert_song_no_longer_requires_an_episode():
 
 
 @pytest.mark.parametrize("section", SONG_SECTIONS)
-def test_song_rejects_an_unknown_status(section):
-    with pytest.raises(ValueError, match="not a valid status"):
-        validate_note_payload(_song(section, status="Someday"))
+def test_a_songs_status_is_dropped_rather_than_checked(section):
+    payload = _song(section, title="紅蓮華", status="Someday")
+    validate_note_payload(payload)
+    assert payload.status is None
 
 
 @pytest.mark.parametrize("section", ("op", "ed"))
 def test_song_type_is_free_text_on_op_and_ed(section):
     # Suggested from the "Song Type" option category, never closed.
-    validate_note_payload(_song(section, kind="acoustic"))
-    validate_note_payload(_song(section, kind="all inclusive version"))
+    validate_note_payload(_song(section, kind="acoustic", title="紅蓮華"))
+    validate_note_payload(_song(section, kind="all inclusive version", title="紅蓮華"))
 
 
 @pytest.mark.parametrize("section", ("insert_songs", "ost"))
@@ -497,16 +508,17 @@ def test_music_status_kind_must_name_a_song_list():
         validate_note_payload(_type_status(kind="op_ed_changes"))
 
 
-def test_music_status_needs_a_kind_and_a_status():
+def test_music_status_needs_a_kind_and_no_status():
     with pytest.raises(ValueError, match="needs a kind"):
         validate_note_payload(_type_status(kind=None))
-    with pytest.raises(ValueError, match="needs a status"):
-        validate_note_payload(_type_status(status=None))
+    # The list's status is each viewer's own: the row is the list alone.
+    validate_note_payload(_type_status(status=None))
 
 
-def test_music_status_refuses_a_per_song_value_outside_its_vocabulary():
-    with pytest.raises(ValueError, match="not a valid status"):
-        validate_note_payload(_type_status(status="Someday"))
+def test_music_status_drops_a_status_rather_than_checking_it():
+    payload = _type_status(status="Someday")
+    validate_note_payload(payload)
+    assert payload.status is None
 
 
 def test_music_status_carries_nothing_else():

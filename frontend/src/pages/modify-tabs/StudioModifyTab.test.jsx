@@ -157,7 +157,9 @@ it("loads the selected studio and disables save with hint when every name is cle
 
 // My Rating is the same S..F vocabulary every other rated record uses, so it
 // is a picker rather than a free-text box.
-it("edits my rating through a dropdown of the rating vocabulary", async () => {
+// My rating is the viewer's own, set on the studio's page through
+// /api/me/ratings: the catalogue form neither offers it nor sends it.
+it("offers no rating, and saves none", async () => {
   const user = userEvent.setup();
   mount();
   await waitFor(() =>
@@ -168,10 +170,12 @@ it("edits my rating through a dropdown of the rating vocabulary", async () => {
   await waitFor(() =>
     expect(screen.getByDisplayValue("Sunrise")).toBeInTheDocument(),
   );
-  const rating = screen.getByRole("option", { name: "A+" }).closest("select");
-  expect(rating).toBeInTheDocument();
-  await user.selectOptions(rating, "A+");
-  expect(rating).toHaveValue("A+");
+  expect(screen.queryByRole("option", { name: "A+" })).not.toBeInTheDocument();
+
+  await user.click(screen.getByRole("button", { name: /save changes/i }));
+  const put = () => fetch.mock.calls.find(([, o]) => o?.method === "PUT");
+  await waitFor(() => expect(put()).toBeDefined());
+  expect(JSON.parse(put()[1].body)).not.toHaveProperty("my_rating");
 });
 
 // An unset country is a value the admin can choose, so the editor shows it as

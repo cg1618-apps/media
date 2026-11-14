@@ -29,7 +29,6 @@ import {
   CARTOON_AIRING_TYPES,
   COMIC_TYPES,
   COMPLETION_LEVELS,
-  FRANCHISE_EXPECTATIONS,
   FRANCHISE_TYPES,
   IS_MAIN,
   MANGA_REGIONS,
@@ -1425,12 +1424,6 @@ export const TYPE_FIELD_META = {
     collection_name_roman: { label: "Name (Romaji)", group: "Names" },
     collection_name_jp: { label: "Name (JP)", group: "Names" },
     collection_name_alt: { label: "Name (Alt)", group: "Names" },
-    collection_expectation: {
-      label: "Expectation",
-      control: "select",
-      options: FRANCHISE_EXPECTATIONS,
-      group: "Status",
-    },
   },
 
   franchise: {
@@ -1445,12 +1438,6 @@ export const TYPE_FIELD_META = {
       control: "tags",
       options: FRANCHISE_TYPES,
       group: "Classification",
-    },
-    franchise_expectation: {
-      label: "Expectation",
-      control: "select",
-      options: FRANCHISE_EXPECTATIONS,
-      group: "Status",
     },
   },
 
@@ -1479,7 +1466,6 @@ export const TYPE_FIELD_META = {
       group: "Names",
       autofillable: false,
     },
-    my_rating: { autofillable: false },
     country: { label: "Country", group: "Classification", autofillable: false },
     logo_file: {
       label: "Logo File",
@@ -1534,7 +1520,6 @@ export const TYPE_FIELD_META = {
       group: "Names",
       autofillable: false,
     },
-    my_rating: { autofillable: false },
     country: { label: "Country", group: "Classification", autofillable: false },
     logo_file: {
       label: "Logo File",
@@ -1592,7 +1577,6 @@ export const TYPE_FIELD_META = {
       group: "Classification",
       autofillable: false,
     },
-    my_rating: { autofillable: false },
     photo_file: {
       label: "Photo File",
       control: "none",
@@ -1652,7 +1636,6 @@ export const TYPE_FIELD_META = {
       group: "Classification",
       autofillable: false,
     },
-    my_rating: { autofillable: false },
     photo_file: {
       label: "Photo File",
       control: "none",

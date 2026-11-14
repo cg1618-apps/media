@@ -36,7 +36,6 @@ export default function MangaModifyTab({
       <MangaNotes
         key={ownerId}
         manga={editingItem ?? {}}
-        isAdmin={true}
         hideSections={["remark"]}
       />
     </>

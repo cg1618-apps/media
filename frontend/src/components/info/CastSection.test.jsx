@@ -9,11 +9,11 @@ import CastSection from "./CastSection";
 // The viewer's view.* scope. A member (every flag on) unless a test says
 // otherwise; `scope.<flag> = false` makes the guest case.
 const { scope } = vi.hoisted(() => ({
-  scope: { studio: true, publisher: true, person: true, character: true, search: true, extras: true, personal: true },
+  scope: { studio: true, publisher: true, person: true, character: true, search: true, extras: true },
 }));
 vi.mock("../../hooks/useViewScope", () => ({ useViewScope: () => scope }));
 beforeEach(() => {
-  Object.assign(scope, { studio: true, publisher: true, person: true, character: true, search: true, extras: true, personal: true });
+  Object.assign(scope, { studio: true, publisher: true, person: true, character: true, search: true, extras: true });
 });
 
 function casting(name, role, position, voices = []) {

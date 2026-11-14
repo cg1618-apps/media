@@ -38,7 +38,7 @@ const renderSection = (props = {}) =>
     <EpisodeTextSection
       section={OP_ED_CHANGES}
       notes={[]}
-      isAdmin
+      canWrite
       onCreate={() => {}}
       onUpdate={() => {}}
       onDelete={() => {}}

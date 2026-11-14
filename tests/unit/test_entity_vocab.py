@@ -49,23 +49,18 @@ def test_a_gender_outside_the_vocabulary_is_refused(schema, gender):
 
 
 @pytest.mark.parametrize("schema", WRITE_SCHEMAS)
-@pytest.mark.parametrize("rating", ["S", "A+", "F"])
-def test_a_rating_in_the_vocabulary_is_accepted(schema, rating):
-    assert schema(name_en="A", my_rating=rating).my_rating == rating
+def test_a_write_does_not_carry_a_rating(schema):
+    """The rating is the writer's own (user_rating), written through
+    PUT /api/me/ratings, which applies check_my_rating. A catalogue write
+    ignores the key, whatever it holds."""
+    body = schema(name_en="A", my_rating="Great")
+    assert "my_rating" not in body.model_dump()
 
 
 @pytest.mark.parametrize("schema", WRITE_SCHEMAS)
-@pytest.mark.parametrize("rating", ["a+", "A++", "10", "Great"])
-def test_a_rating_outside_the_vocabulary_is_refused(schema, rating):
-    with pytest.raises(ValidationError):
-        schema(name_en="A", my_rating=rating)
-
-
-@pytest.mark.parametrize("schema", WRITE_SCHEMAS)
-def test_an_empty_string_is_null_for_both(schema):
-    body = schema(name_en="A", gender="", my_rating="  ")
+def test_an_empty_string_is_null(schema):
+    body = schema(name_en="A", gender="")
     assert body.gender is None
-    assert body.my_rating is None
 
 
 def test_the_response_schemas_do_not_refuse_what_is_stored():

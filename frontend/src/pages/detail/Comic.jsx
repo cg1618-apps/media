@@ -514,7 +514,6 @@ export default function Comic() {
           <ComicNotes
             key={comic.system_id}
             comic={comic}
-            isAdmin={isAdmin}
             hideSections={comic.remark ? ["remark"] : []}
             series={series}
             franchise={franchise}

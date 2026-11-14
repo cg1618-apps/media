@@ -49,7 +49,7 @@ function renderSection() {
         label="Quotes"
         mediaType="anime"
         entryId="entry-1"
-        isAdmin
+        canWrite
         onCount={() => {}}
       />
     </QueryClientProvider>,

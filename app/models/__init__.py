@@ -45,6 +45,7 @@ from app.models.media_source import MediaSource  # noqa: F401
 from app.models.meme import Meme
 from app.models.movie import Movies
 from app.models.note import Note
+from app.models.note_mark import NoteMark
 from app.models.novel import Novel, NovelUnit
 from app.models.plan_next import PlanNext
 from app.models.quote import Quote
@@ -71,8 +72,10 @@ from app.models.system import (
     User,
 )
 from app.models.tv_show import TVShows
+from app.models.user_highlight_group_order import UserHighlightGroupOrder
 from app.models.user_media_list import UserMediaList
 from app.models.user_novel_unit_rating import UserNovelUnitRating
+from app.models.user_rating import UserRating
 from app.models.user_request import UserRequest
 from app.models.watch_order import (
     WatchOrderFollow,
@@ -89,8 +92,10 @@ __all__ = [
     "Franchise",
     "Series",
     "Media",
+    "UserHighlightGroupOrder",
     "UserMediaList",
     "UserNovelUnitRating",
+    "UserRating",
     "Anime",
     "AnimeMovies",
     "Movies",
@@ -133,6 +138,7 @@ __all__ = [
     "Quote",
     "Meme",
     "Note",
+    "NoteMark",
     "ResourceNode",
     "SystemOption",
     "SystemOptionAlias",
@@ -207,6 +213,34 @@ for _model in (
     Collection,
 ):
     _model.remark = None
+
+
+# ---------------------------------------------------------------------------
+# `my_rating` and `*_expectation`, read side
+# ---------------------------------------------------------------------------
+# The same arrangement as `remark` above, for the same reason. A rating of a
+# group or an entity, and a tier's expectation, are the VIEWER'S own: they
+# live in `user_rating`, one row per account, and
+#     app.services.domain.user_rating.attach_ratings(db, owner_type, entries,
+#                                                    user_id)
+# puts the viewer's values back on the instances before they are serialised,
+# one query per page. A novel unit's `remark` is likewise the reader's own,
+# on user_novel_unit_rating beside its rating, attached by
+# user_list.attach_unit_ratings.
+#
+# Plain class attributes defaulted to None, so a path that forgot to attach
+# serialises null - never raises, never shows somebody else's value.
+for _model in (Collection, Franchise, Series, Character, Person, Studio, Publisher):
+    _model.my_rating = None
+Collection.collection_expectation = None
+Franchise.franchise_expectation = None
+Series.series_expectation = None
+NovelUnit.remark = None
+# An h-comic's and an h-game's highlight group order is the viewer's own too,
+# in user_highlight_group_order, attached by
+# app.services.domain.highlight_group_order.attach_group_orders.
+HComic.highlight_group_order = None
+HGame.highlight_group_order = None
 
 
 # ---------------------------------------------------------------------------

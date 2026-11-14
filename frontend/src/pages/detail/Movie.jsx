@@ -512,7 +512,6 @@ export default function Movie() {
           <MovieNotes
             key={movie.system_id}
             movie={movie}
-            isAdmin={isAdmin}
             hideSections={movie.remark ? ["remark"] : []}
             series={series}
             franchise={franchise}

@@ -5,8 +5,8 @@ from app.utils.constants import NOVEL_UNIT_KINDS, NOVEL_UNIT_KINDS_BY_TYPE
 
 
 def test_novel_unit_columns():
-    """my_rating is deliberately absent: it is one reader's opinion of one
-    unit and moved to user_novel_unit_rating in step 1."""
+    """my_rating and remark are deliberately absent: each is one reader's
+    opinion of one unit, and lives on user_novel_unit_rating."""
     cols = {c.name for c in models.NovelUnit.__table__.columns}
     assert cols == {
         "system_id",
@@ -16,9 +16,7 @@ def test_novel_unit_columns():
         "unit_key",
         "name_cn",
         "name_en",
-        "remark",
         "ch_count",
-        # Per-unit grade on the MY_RATINGS scale; nothing derives from it.
         "created_at",
         "updated_at",
     }
@@ -60,3 +58,8 @@ def test_kind_vocabulary():
     # Every offered kind must be a real kind.
     for kinds in NOVEL_UNIT_KINDS_BY_TYPE.values():
         assert set(kinds) <= set(NOVEL_UNIT_KINDS)
+
+
+def test_the_unit_rating_row_carries_the_remark():
+    cols = {c.name for c in models.UserNovelUnitRating.__table__.columns}
+    assert {"user_id", "unit_id", "my_rating", "remark"} <= cols
