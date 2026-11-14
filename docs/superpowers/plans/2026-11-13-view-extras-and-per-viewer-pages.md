@@ -255,8 +255,16 @@ viewers.md:
   in P7 may widen that. A surface this branch adds or opens to a new viewer
   that lists watch orders or relations (the guest's and shared account's
   watch-order pages, the dashboard's followed orders) gates each owner on
-  `tier_visible` and answers a hidden one as missing. If that means fixing
-  the routes themselves, the open item is deleted in the same commit.
+  `tier_visible` and answers a hidden one as missing. **Done at the route
+  level**: `watch_order.py` and `media_relation.py` gate every read on the
+  owner (`apply_owner_visibility`, `tier_visible`,
+  `visible_scope_franchise_ids`), so the pages P7 opens inherit it, and the
+  open item is deleted. Writes stay on `manage.catalog` without the owner
+  gate: an editor's write is not a new viewer surface. Built-in orders'
+  steps are still generated unfiltered (`build_release_items` takes no
+  viewer, documented in `systems/watch-orders.md`); an entry hidden there
+  is hidden through its group, which the owner gate now covers, unless it
+  carries its own label.
 
 ## Part D — Seasonal, Statistics, Random Picker, Future Releases, Completions
 

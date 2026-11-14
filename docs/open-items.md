@@ -1,6 +1,6 @@
 # Open items
 
-Last verified: 2026-11-13
+Last verified: 2026-11-14
 
 Known defects, unmade decisions and blocked work. **Everything here is open by
 definition** — there is no status column, no claiming, and no lifecycle. An item
@@ -142,13 +142,6 @@ existed miss it, and a role is topped up only when it holds nothing; the
 company development database has the grant, so it is a per-database fact.
 Guests are to see games: on `/roles`, check the `guest` role on each
 database and grant `media_type.game` where it is missing.
-
-**A watch order owned by a hidden group still lists.** `routers/watch_order.py`
-filters the entries inside an order but never asks whether its owning
-collection, franchise or series is visible, so a viewer whose mode hides that
-group still sees the order and the group's display name. `media_relation`'s
-`/graph` and scope listing behave the same way. Fix by gating each on
-`tier_visible` and answering a hidden owner as missing.
 
 **Two community-adjacent measurements are unanswered.** Does any endpoint return
 an entry's `system_id` for a type the viewer lacks? And the same for a

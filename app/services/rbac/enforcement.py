@@ -276,6 +276,60 @@ def tier_visible(db: Session, viewer, tier_id) -> bool:
     return True
 
 
+def apply_owner_visibility(
+    query: Query,
+    db: Session,
+    viewer,
+    *,
+    collection_id_column,
+    franchise_id_column,
+    series_id_column,
+) -> Query:
+    """
+    Narrow rows owned by one grouping tier to those whose owner may be seen.
+
+    For tables whose rows belong to a collection, franchise or series through
+    three nullable owner columns, as watch orders do. A NULL column matches no
+    label row, so only the owner actually set decides, and each tier's
+    condition carries its cascade (a series under a hidden franchise is
+    hidden).
+    """
+    if viewer is None:
+        return query
+    hidden = hidden_label_ids(db, viewer)
+    if not hidden:
+        return query
+    return query.filter(
+        ~sa.or_(
+            _collection_hidden(collection_id_column, hidden),
+            _franchise_hidden(franchise_id_column, hidden),
+            _series_hidden(series_id_column, hidden),
+        )
+    )
+
+
+def visible_scope_franchise_ids(
+    db: Session, viewer, franchise_id=None, collection_id=None
+) -> list:
+    """
+    The franchises a franchise or collection scope covers, for the reads that
+    take one (watch-order candidates, the relations scope listing and graph).
+
+    A hidden scope is 404, in the words a missing one would get, and a
+    collection's hidden member franchises are dropped. The caller has already
+    checked that exactly one of the two ids is given.
+    """
+    scope_id = franchise_id or collection_id
+    if not tier_visible(db, viewer, scope_id):
+        raise HTTPException(status_code=404, detail="Scope not found.")
+    if franchise_id:
+        return [franchise_id]
+    query = db.query(models.Franchise.system_id).filter(
+        models.Franchise.collection_id == collection_id
+    )
+    return [row[0] for row in apply_franchise_visibility(query, db, viewer).all()]
+
+
 def apply_entry_visibility(
     query: Query, model, media_type: str, db: Session, viewer: Optional[Viewer]
 ) -> Query:

@@ -1,6 +1,6 @@
 # Watch Orders
 
-Last verified: 2026-10-29
+Last verified: 2026-11-14
 
 ## What this is for
 
@@ -110,7 +110,7 @@ The same entry may appear in several items of one list (a split run). A **dangli
 
 ### Viewer visibility
 
-Reads apply RBAC (`app/services/rbac/enforcement.py`): the list-detail endpoint passes the `Viewer` into `resolve_items`, which calls `drop_hidden_rows` for non-root roles — hidden entries are *removed* from the guide, not flagged missing. The candidates endpoint passes the viewer into `list_candidate_entries`, which wraps each table query in `apply_entry_visibility`. Built-in lists are generated without a viewer (`build_release_items` never receives one), so their steps are **not** visibility-filtered. Reorder responses call the detail handler with `viewer=None` (admin-only anyway).
+Reads apply RBAC (`app/services/rbac/enforcement.py`). An order whose owning collection, franchise or series the viewer's mode hides reads as missing: `/lists` and `/follows` leave it out (`apply_owner_visibility`), and its detail, follow and unfollow are 404 (`tier_visible`), because its name and owner would confirm the group. The follow row itself stays, and a wider mode lists it again. Candidates for a hidden owner are 404, and a collection's hidden member franchises are skipped (`visible_scope_franchise_ids`). Inside a visible order, the list-detail endpoint passes the `Viewer` into `resolve_items`, which calls `drop_hidden_rows` for non-root roles — hidden entries are *removed* from the guide, not flagged missing. The candidates endpoint passes the viewer into `list_candidate_entries`, which wraps each table query in `apply_entry_visibility`. Built-in lists are generated without a viewer (`build_release_items` never receives one), so their steps are **not** visibility-filtered. Reorder responses call the detail handler with `viewer=None` (admin-only anyway).
 
 ## API
 
@@ -224,5 +224,6 @@ Hooks: `frontend/src/api/mutations/useWatchOrderFollows.js` — `useWatchOrderFo
 - `app/utils/release_date.py` — `RELEASE_PRIORITY`, `sort_key`, `display` used by built-in orders.
 - `app/services/rbac/enforcement.py` — `apply_entry_visibility`, `drop_hidden_rows`.
 - `app/utils/data_control_utils.py` — "Watch Order" branch of `log_deleted_record`.
+- `tests/api/test_watch_order_hidden_owner.py` — an order or relations scope whose owning group is hidden reads as missing.
 - `tests/api/test_watch_order_follow.py` — following: one per group, per user, permission, every progress rule, visibility, built-in orders, entry context, Sheets.
 - `tests/api/test_watch_order.py` — the behavioural spec (≈150 tests across lists, built-ins, series owners, opt-out, candidates, parts, contiguity, duplication).
