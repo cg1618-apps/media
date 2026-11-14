@@ -15,6 +15,7 @@ import { Chip, Eyebrow } from "../../components/ui/primitives";
 import { useAuth } from "../../contexts/AuthContext";
 import { useViewScope } from "../../hooks/useViewScope";
 import { canSeeGatedType } from "../../lib/gatedTypes";
+import { withoutPersonal } from "../../lib/libraryScope";
 
 const EXPECTATION_WEIGHT = { Highest: 0, High: 1, Medium: 2, Low: 3 };
 
@@ -165,9 +166,7 @@ const TABLE_COLUMNS = [
 // libraries read as one component rather than two tables that drifted.
 function FranchiseTable({ franchises, columnCtx, showPersonal }) {
   const navigate = useNavigate();
-  const columns = showPersonal
-    ? TABLE_COLUMNS
-    : TABLE_COLUMNS.filter((col) => !col.personal);
+  const columns = showPersonal ? TABLE_COLUMNS : withoutPersonal(TABLE_COLUMNS);
   return (
     <div className="bg-surface border border-border overflow-auto max-h-[75vh]">
       <table className="w-full text-left">

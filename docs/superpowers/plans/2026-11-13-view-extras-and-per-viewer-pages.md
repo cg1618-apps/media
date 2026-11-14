@@ -18,6 +18,21 @@ The credits PUT refuses (422) dropping NSFW from `tags.label` while
 輕微色情/擦邊肉番 stays, and the Label option 肉番 is called 擦邊肉番. A
 fixture or test that writes labels follows both.
 
+**Split into sub-branches (manager, 2026-11-14).** Part D's frontend is on
+`feat/per-viewer-pages-explore` (media-fb) and Part E's on
+`feat/per-viewer-pages-dashboards` (media-48), both cut from 60f76b1, each PR
+based on `feat/per-viewer-pages` and merged into it by this branch's owner -
+never into dev. **Both must be merged here before #360 leaves draft**: GitHub
+does not retarget a child PR when its base merges, so a sub-PR still open then
+would never reach dev. Before saying #360 is ready, prove each with
+`git merge-base --is-ancestor origin/<sub-branch> origin/feat/per-viewer-pages`.
+Ownership: D owns the Seasonal, Statistics, Random Picker, Future Releases
+and Completions pages, `lib/randomPicker.js`, `lib/pickerWeights.js`,
+`hooks/usePickerData.js`, `components/picker/*`, and only the Seasonal and
+Statistics rows of `App.jsx` / `navigation.js`; E owns `pages/public/Index.jsx`
+and `components/dashboard/*`. This branch keeps Part A, Part C, the backend
+and everything else.
+
 **Fixtures after P3h (#362).** `admin_client` becomes the real admin: no
 mode, only its fixed set (`admin.authz`, `manage.pipelines`,
 `manage.requests`, `manage.announcements`, `manage.options`,
@@ -210,6 +225,15 @@ gate is any ordinary media type (`LIBRARY_MEDIA_TYPE_PERMISSIONS`), not
   first). If none is left, the PATCH refuses personal keys with **422**
   rather than dropping them, as `/api/me/list` refuses a foreign key. If
   one is left, say which in the PR body rather than leave it silently.
+  **Checked 2026-11-14: callers remain, so no 422.** The Add and Modify forms
+  (`pages/admin/Add.jsx`, `Modify.jsx`, `pages/add-tabs/*`, through
+  `lib/payloads.js`'s `*FieldsPayload` and `buildAnime*Payload`) send the
+  editor's own status, `my_rating`, progress counters and plan flags in the
+  same body as the catalogue fields, on POST, PUT and PATCH. They are
+  catalogue editors' forms (super holds `self.list` too), so the personal
+  half stays on those routes for them; the PR body lists them. Every
+  self-service control a viewer without `manage.catalog` is offered writes
+  through `/api/me`.
 - UI gates: every personal control asks P5's
   `useViewScope().ownData` (= `has("self.list")`), not `isAdmin`. Nothing
   here builds on `useViewScope().personal`: `view.personal` survives only

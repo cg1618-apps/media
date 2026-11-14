@@ -55,6 +55,8 @@ import { NotesBlocks, NotesGroup } from "../notes/NotesTemplate";
 import { GameCopiesSection, yesNo } from "./Game";
 import LazyImage from "../../components/ui/LazyImage";
 import { focusStyle } from "../../lib/covers";
+import { useViewScope } from "../../hooks/useViewScope";
+import { useMyRemarkSaver } from "../../api/mutations/useMyRemark";
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
@@ -133,6 +135,8 @@ export default function HGame() {
   // Everything past the lookup speaks UUIDs; resolved from the fetched row so
   // the URL segment and the id can never disagree.
   const system_id = itemQuery.data?.system_id;
+  const { ownData } = useViewScope();
+  const saveMyRemark = useMyRemarkSaver("h-game", system_id, setHGame);
   // The highlight group order is the viewer's own (self.personal_notes).
   const saveGroupOrder = useHighlightGroupOrderSaver("h-game", system_id, setHGame);
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
@@ -557,15 +561,15 @@ export default function HGame() {
 
             <GameCopiesSection copies={hGame.copies} />
 
-            {hGame.remark && (
+            {ownData && hGame.remark && (
               <Slip title="Remarks">
                 <textarea
                   key={hGame.system_id}
                   defaultValue={hGame.remark || ""}
-                  disabled={!isAdmin}
-                  onBlur={(e) =>
-                    isAdmin && performPatch({ remark: e.target.value || null }, "Remark saved")
-                  }
+                  onBlur={(e) => {
+                    if (e.target.value !== (hGame.remark || ""))
+                      saveMyRemark(e.target.value);
+                  }}
                   rows={4}
                   placeholder="Add remarks…"
                   className={textareaCls}
@@ -574,7 +578,7 @@ export default function HGame() {
             )}
 
             <NotesBlocks
-              hideSections={hGame.remark ? ["remark"] : []}
+              hideSections={ownData && hGame.remark ? ["remark"] : []}
               // Rendered in the Progress slip at the top instead.
               hideGroups={["todo"]}
             />

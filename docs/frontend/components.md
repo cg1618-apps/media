@@ -37,6 +37,7 @@ src/
 | `api/mutations/useResourceMutations.js` | `useCreateResource`, `usePatchResource`, `useDeleteResource`, `useReorderResources`: `useMutation` wrappers for `/api/resources` that invalidate `RESOURCES_QUERY_KEY` (`["resources"]`) when they settle. The reorder one also applies the move to the cache first (`applyReorder`) and restores the previous tree on failure. |
 | `api/mutations/useRequestMutations.js` | Requests and reports. `useMyRequests(status?)` reads `GET /api/requests/mine` under `["requests", "mine", status ?? "all"]`; `useRequestInbox(status = "open")` reads `GET /api/requests?status=` under `["requests", "inbox", status]`. `useFileRequest` (POST), `useEditRequest` (`{id, data}`, PATCH), `useSetRequestStatus` (`{id, status, response?}`, PUT `/status`) and `useDeleteRequest` (`id`) each invalidate the whole `["requests"]` prefix when they settle, so both pages and every status filter refetch. |
 | `api/mutations/useMyRatingMutations.js` | The caller's own ratings. `useSaveMyRating()` sends `PUT /api/me/ratings/{owner_type}/{owner_id}` with a partial `{my_rating?, expectation?}` and invalidates `["media-list", ownerType]` and `["api", "search"]`; `useMyRatingSaver(ownerType, ownerId, setRow)` wraps it for one page, folding the answer into the page's row (`applyMyRating`, which writes `expectation` back under the tier's own field, `EXPECTATION_FIELD`) and toasting. `useSaveMyNovelUnit(novelId)` sends `PUT /api/me/novel-units/{unit_id}` `{my_rating?, remark?}` and invalidates the novel's list and detail; the novel detail page's Units card calls it, with the novel's `public_id`, from each unit's rating select and remark field. |
+| `api/mutations/useMyRemark.js` | The caller's own remark on an entry or a group. `useSaveMyRemark()` sends `PUT /api/me/remarks/{owner_type}/{owner_id}` with `{remark}` (an empty one as null) and invalidates `["media-item", ownerType]` and `["media-list", ownerType]`; `useMyRemarkSaver(ownerType, ownerId, setRow)` wraps it for one page, folding the answered `{remark}` into the page's row, toasting "Remark saved" or the error, and resolving to the saved remark (`undefined` on failure). Every entry detail page's Remarks slip and the franchise, series and collection hubs' Remark box save through it; `owner_type` is the hyphenated media type or the tier. |
 | `api/mutations/useGameChoiceMutations.js` | One game's choice graph. `useChoiceGraph(gameId)` reads `GET /api/game-choice/graph?game_id=` (idle without a game id) under `choiceGraphQueryKey(gameId)` = `["game-choice-graph", gameId]`; `useCreateChoiceNode`, `usePatchChoiceNode`, `useDeleteChoiceNode`, `useCreateChoiceEdge`, `usePatchChoiceEdge`, `useDeleteChoiceEdge`, `useCreateNextPart` (`POST /edges/{id}/next`: a branch's new next block, answering `{node, edge}`) and `useSetChoiceMark` (`{target: "node" \| "edge", id, done, note}`, a PUT) each invalidate that key when they settle. No optimistic update: the graph is small and its layout a pure function of the rows. |
 | `hooks/useApiQuery(key, url, {params})` | `useQuery` wrapper; key becomes `[...key, params]` when params exist. |
 | `hooks/useMediaList(type, {params})` | List query keyed `["media-list", type, params]`; `LIST_OPTIONS = { params: { limit: 2000 } }` is the full-table convention. |
@@ -45,9 +46,9 @@ src/
 | `hooks/useStatusToggle(type)` | The caller's own status, progress and plan flags on one entry. A plan flag (`PLAN_FLAG_KEYS`: `watch_next`, `to_rewatch` and each type's spelling) goes to `PUT /api/me/plan-flags/{id}`, every other key to `PUT /api/me/list/{id}` (`putMyListRow`), and only an explicit `catalogue` payload - MediaCard's bolt, which marks the work released - to the entry `PATCH`. Answers the cached entry with the saved values folded in, and writes through to both the item and every `["media-list", type]` cache entry (it maps over lists, which is why the plan-next query must live under its own key). |
 | `api/myList.js` → `putMyListRow(mediaId, fields)` | `PUT /api/me/list/{id}`, answering the saved row as the entry's own keys without the `media_id` / `media_type` envelope. The dashboard's and Seasonal's steppers use it. |
 | `hooks/useIncrementalList(items, batch = 60)` | Draws a long list a batch at a time: `visible` is the first `batch` items and grows by `batch` whenever `sentinelRef` - an empty element rendered after the grid - comes within 800px of the screen; `hasMore` says whether it can still grow. A list with different items starts again from one batch. Without an `IntersectionObserver` every item is visible. Used by the library grids. |
-| `hooks/useLibraryState` | Search/filter/sort/view state for `LibraryLayout`; nothing is persisted. |
+| `hooks/useLibraryState` | Search/filter/sort/view state for `LibraryLayout`; nothing is persisted. A chosen sort the config does not offer falls back to its first (`resolveSortKey`). |
 | `hooks/useFilterState(filterDefs, data, initial?)` | The chip/toggle values for a list of FilterDefs, opened on `initial` (else empty), plus `toggleFilter`, `clearFilters` (all empty), `resetFilters` (back to `initial`), `activeFilterCount` and the derived options of `set-dynamic` defs. Shared by `useLibraryState`, the random picker and Picker Defaults; the defs and `initial` are read once, so a caller whose defs change remounts. `useEntityFilterState(filterDefs, data)` beside it is the entity libraries' (character, person, studio, publisher) form: `initial` is `defaultEntityFilters(filterDefs)`, and it adds `isDefault` (`sameFilters` against that default) so the page hands `FilterPanel` its `resetFilters` only once the state has moved off it. |
-| `hooks/useViewScope()` | The member-only reading surfaces as flags - `{ studio, publisher, person, character, search, randomPicker, extras }`, one per `view.*` permission (`person` covers the seiyuu library, `character` covers identities) - plus `ownData` (`self.list`): whether the viewer keeps its own ratings, expectations and novel unit ratings and remarks, so whether there is one to draw (`has()` from `AuthContext`; all false outside an `AuthProvider`). A component that draws or fetches something a guest may not read asks this rather than spelling the key itself - see [pages.md, "The guest scope"](pages.md#the-guest-scope). |
+| `hooks/useViewScope()` | The member-only reading surfaces as flags - `{ studio, publisher, person, character, search, randomPicker, extras }`, one per `view.*` permission (`person` covers the seiyuu library, `character` covers identities) - plus `ownData` (`self.list`): whether the viewer keeps its own ratings, expectations, remarks on entries and groups, and novel unit ratings and remarks, so whether there is one to draw (`has()` from `AuthContext`; all false outside an `AuthProvider`). A component that draws or fetches something a guest may not read asks this rather than spelling the key itself - see [pages.md, "The guest scope"](pages.md#the-guest-scope). |
 | `hooks/usePickerData(mode, typesKey)` | One random picker mode's entries (`{type, item}` over the types' lists, on the library pages' cache keys), its FilterDefs (every def flagged `personal: true` only with `self.list`, `ownData` - see [pages.md, "RandomPicker"](pages.md#randompicker--random--randomtype)), its stored default filters resolved against them (`["random-picker-defaults", mode]`; unreadable defaults count as none), and `defaultWeighted` (true unless saved off). Shared by the picker and Picker Defaults. |
 | `hooks/useFormDefaults` | Loads and applies `/api/form-defaults/<type>` to a fresh form (`resolveDefaults`, `coerceToShape`). A stored select value its options do not offer is skipped, so it cannot sit hidden behind a blank select and be posted. Repeater defaults (source rows, game copies) arrive as arrays with any `system_id` stripped — a default row is a template that must insert, never update. The restricted source rows come from the picked prefill instead (`prefillPicks`, `startingSources`), and on h-comic from the region the form starts on. |
 | `hooks/useGlobalMediaSearch(query)` | Debounced `/api/search/?q=&limit=10`, flattened to entry hits for pickers. |
@@ -190,6 +191,33 @@ caller gets parent chips with no extra wiring. A parent with no children is
 not drawn. The character, person and studio libraries use it for
 **Restricted** over the gated media types.
 
+## The `personal` flag
+
+A FilterDef, SortDef or table column in a library config
+(`pages/library/configs/*.jsx`) may carry `personal: true`: its value is the
+viewer's own - a field in the server's `LIST_FIELDS`, a plan flag, or
+something derived from the viewer's own game copies (`ownership`) - rather
+than a fact about the work. `lib/libraryScope.js` holds the dropping:
+
+- `withoutPersonal(defs)` — `defs` without the personal ones.
+- `catalogueOnly(config)` — a new config with its personal filter, sort and
+  column defs dropped; a `defaultSort` that named a dropped sort becomes the
+  first remaining one.
+- `libraryConfigFor(config, ownData)` — the whole config with a list of the
+  viewer's own, else `catalogueOnly(config)`.
+- `resolveSortKey(sortDefs, key)` — `key` when offered, else the first sort's
+  key; `useLibraryState` passes its chosen sort through it, so the select and
+  the order agree.
+
+`LibraryLayout` calls `libraryConfigFor(config, useViewScope().ownData)`
+before anything reads the config, and keys its body on the scope so a sort or
+filter state is not carried from one scope into the other. A config marks
+the defs it writes inline; the shared factories in `libraryColumns.jsx` carry
+the flag already. `FranchiseLibrary`'s own table drops its personal columns
+with `withoutPersonal`. `configs/personal.test.js` holds every config to
+marking its status-group filter, my-rating sort, and status, my and plan-flag
+columns.
+
 ## Shared components by folder
 
 - **`components/layout`** — `Layout` (canvas shell: Nav, outlet, footer, toast,
@@ -203,7 +231,10 @@ not drawn. The character, person and studio libraries use it for
   `imdbRatingColumn` (any IMDb field - TV shows and cartoons add one for
   `imdb_series_rating`), `watchButtonColumn`, `readButtonColumn`,
   `planFlagColumn`, `myRatingSort`, `malRatingSort`, `imdbRatingSort`,
-  `imdbSeriesRatingSort`, `usefulnessSort`),
+  `imdbSeriesRatingSort`, `usefulnessSort`; the factories that read the
+  viewer's own value - `myRatingColumn`, the three status buttons,
+  `planFlagColumn`, `myRatingSort`, `usefulnessSort` - carry `personal: true`
+  themselves, see [The `personal` flag](#the-personal-flag)),
   `GroupedEntryPage`, `CollapsibleCardGrid`, `CollapsiblePillRow`,
   `AdminTabBar`, `FittedName`, `TierBadge`.
 - **`components/hub`** — `HubChrome` (`HubShell`, `GRID_CLS`, `Crumbs` (an

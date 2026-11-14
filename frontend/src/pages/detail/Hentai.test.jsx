@@ -4,7 +4,7 @@
 // total - and it draws the shared notes page, since the type has no section
 // of its own.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -15,21 +15,29 @@ import Hentai from "./Hentai";
 
 const REMARK = { key: "remark", shape: "text", label: "Remark", owner_where: {} };
 
-function mockFetch(entry, cast = [], { admin = false, patched = null } = {}) {
+// A member's view.* keys, so credits and the cast link.
+const MEMBER_KEYS = ["view.studio", "view.publisher", "view.person", "view.character", "view.search", "view.random_picker"];
+
+function mockFetch(
+  entry,
+  cast = [],
+  { admin = false, patched = null, permissions = MEMBER_KEYS } = {},
+) {
   vi.stubGlobal(
     "fetch",
     vi.fn((url, init) => {
       const u = String(url);
       let body = [];
-      if (init?.method === "PATCH") {
+      if (init?.method === "PUT" && u.startsWith("/api/me/remarks/")) {
+        body = { remark: JSON.parse(init.body).remark };
+      } else if (init?.method === "PATCH") {
         body = patched ? patched(JSON.parse(init.body)) : entry;
       } else if (u.startsWith("/api/auth/me")) {
         body = {
           is_admin: admin,
           username: "cg1618",
           role: "user",
-          // A member's view.* keys, so credits and the cast link.
-          permissions: ["view.studio", "view.publisher", "view.person", "view.character", "view.search", "view.random_picker"],
+          permissions,
           visible_gated_types: ["h-comic", "h-game", "hentai"],
         };
       } else if (u.startsWith(`/api/hentai/${entry.system_id}`)) {
@@ -211,5 +219,52 @@ describe("Hentai detail page", () => {
     await screen.findByRole("heading", { name: "中文名" });
     await screen.findByText("Notes");
     expect(screen.queryByText("Cast")).toBeNull();
+  });
+});
+
+// The Remarks box is the viewer's own remark: drawn for a holder of self.list
+// and written through /api/me/remarks, never the catalogue's PATCH. The entry
+// carries a remark in both cases, so the box's absence without self.list is
+// the permission's doing and not an empty row's.
+describe("Hentai detail page own remark", () => {
+  const remarked = { ...ENTRY, remark: "Skip the second episode." };
+  const remarkBox = () => screen.queryByPlaceholderText("Add remarks…");
+  const putCalls = () =>
+    fetch.mock.calls.filter(
+      ([url, init]) => init?.method === "PUT" && String(url).startsWith("/api/me/remarks/"),
+    );
+  const patchCalls = () => fetch.mock.calls.filter(([, init]) => init?.method === "PATCH");
+
+  it("lets a holder of self.list edit it, saved through /api/me/remarks", async () => {
+    mockFetch(remarked, [], { permissions: [...MEMBER_KEYS, "self.list"] });
+    mount(remarked);
+    const box = await screen.findByPlaceholderText("Add remarks…");
+    expect(box).toHaveValue("Skip the second episode.");
+    expect(box).toBeEnabled();
+
+    await userEvent.clear(box);
+    await userEvent.type(box, "Watch both.");
+    fireEvent.blur(box);
+    await waitFor(() => expect(putCalls()).toHaveLength(1));
+    expect(putCalls()[0][0]).toBe("/api/me/remarks/hentai/h1");
+    expect(JSON.parse(putCalls()[0][1].body)).toEqual({ remark: "Watch both." });
+    expect(await screen.findByText("Remark saved")).toBeInTheDocument();
+    expect(patchCalls()).toHaveLength(0);
+  });
+
+  it("sends an unchanged remark nowhere", async () => {
+    mockFetch(remarked, [], { permissions: ["self.list"] });
+    mount(remarked);
+    fireEvent.blur(await screen.findByPlaceholderText("Add remarks…"));
+    expect(putCalls()).toHaveLength(0);
+    expect(patchCalls()).toHaveLength(0);
+  });
+
+  it("does not draw the box without self.list", async () => {
+    mockFetch(remarked, [], { permissions: [] });
+    mount(remarked);
+    await screen.findByRole("heading", { name: "中文名" });
+    await screen.findByText("Notes");
+    expect(remarkBox()).toBeNull();
   });
 });
