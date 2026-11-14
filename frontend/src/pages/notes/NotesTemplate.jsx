@@ -12,6 +12,7 @@ import { useMemo } from "react";
 
 import { NotesProvider, useNotes } from "./NotesContext";
 import { GroupCard } from "./sections/ui";
+import { TocSection } from "../../components/layout/DetailContents";
 
 // Split the flat registry into what the page renders: the Notes card holds
 // every ungrouped section, and each group becomes a card of its own BESIDE it -
@@ -112,6 +113,9 @@ export function NotesGroup({ groupKey }) {
  * both cases: a caller names something it renders itself, never something new.
  */
 export function NotesBlocks({ hideSections = [], hideGroups = [] }) {
+  // Each top-level card is a TocSection, so a detail page's table of contents
+  // lists the Notes card, every group card and every standalone section - and
+  // never a group's own sections, which sit inside its card.
   const { sections, loading, error, renderSection, blockCount } = useNotes();
 
   // Callers pass fresh array literals on every render, so the joins keep this
@@ -153,25 +157,33 @@ export function NotesBlocks({ hideSections = [], hideGroups = [] }) {
         <Spinner />
       ) : (
         flat.length > 0 && (
-          <GroupCard label="Notes" count={blockCount(flat)} showCount={false}>
-            {flat.map(renderSection)}
-          </GroupCard>
+          <TocSection id="notes" label="Notes">
+            <GroupCard label="Notes" count={blockCount(flat)} showCount={false}>
+              {flat.map(renderSection)}
+            </GroupCard>
+          </TocSection>
         )
       )}
       {!loading &&
         groups.map((group) => (
-          <GroupCard
-            key={group.key}
-            label={group.label}
-            count={blockCount(group.sections)}
-            // A group holding a list with its own status (音樂 Music) opens
-            // when empty too, or the statuses its lists open for stay hidden.
-            openWhenEmpty={group.sections.some((s) => s.type_status_section)}
-          >
-            {group.sections.map(renderSection)}
-          </GroupCard>
+          <TocSection key={group.key} id={`notes-${group.key}`} label={group.label}>
+            <GroupCard
+              label={group.label}
+              count={blockCount(group.sections)}
+              // A group holding a list with its own status (音樂 Music) opens
+              // when empty too, or the statuses its lists open for stay hidden.
+              openWhenEmpty={group.sections.some((s) => s.type_status_section)}
+            >
+              {group.sections.map(renderSection)}
+            </GroupCard>
+          </TocSection>
         ))}
-      {!loading && standalone.map(renderSection)}
+      {!loading &&
+        standalone.map((section) => (
+          <TocSection key={section.key} id={`notes-${section.key}`} label={section.label}>
+            {renderSection(section)}
+          </TocSection>
+        ))}
     </>
   );
 }

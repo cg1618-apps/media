@@ -18,6 +18,8 @@ import MyTrackerCard from "../../components/tracker/MyTrackerCard";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import MovieNotes from "./MovieNotes";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
+import DetailContents, { TocSection } from "../../components/layout/DetailContents";
+import { usePageTitle } from "../../contexts/PageTitleContext";
 import { Button, Eyebrow, RatingStamp, Slip } from "../../components/ui/primitives";
 import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
@@ -127,6 +129,15 @@ export default function Movie() {
     }
   }
 
+  // The heading's title, which the browser tab shows too.
+  const titleMain = movie
+    ? movie.movie_name_cn ||
+      movie.movie_name_en ||
+      movie.movie_name_alt ||
+      "Unknown"
+    : null;
+  usePageTitle(loading || error ? null : titleMain);
+
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading details..." />;
   }
@@ -140,11 +151,6 @@ export default function Movie() {
     );
   }
 
-  const titleMain =
-    movie.movie_name_cn ||
-    movie.movie_name_en ||
-    movie.movie_name_alt ||
-    "Unknown";
   const titleSub =
     movie.movie_name_en && movie.movie_name_en !== titleMain
       ? movie.movie_name_en
@@ -171,7 +177,7 @@ export default function Movie() {
     movie.imdb_rating && movie.imdb_rating !== "N/A" ? movie.imdb_rating : "—";
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+    <DetailContents>
       {/* Breadcrumb: a catalogue path, set in mono */}
       <div className="mb-8 flex items-center justify-between gap-3">
         <nav
@@ -358,71 +364,83 @@ export default function Movie() {
           </header>
 
           {/* Where this entry sits in the watch orders the viewer follows. */}
-          <FollowedOrderPanel entryId={movie.system_id} />
+          <TocSection id="watch-orders" label="Watch orders">
+            <FollowedOrderPanel entryId={movie.system_id} />
+          </TocSection>
 
           {/* My Tracker Block - no stepper: a movie is watched whole, so
               only where playback paused is kept. */}
-          <MyTrackerCard
-            watchingStatus={movie.watching_status}
-            myRating={movie.my_rating}
-            timeFin={movie.time_fin}
-            watchNext={movie.watch_next}
-            toRewatch={movie.to_rewatch}
-            canTrack={ownData}
-            onStatusChange={(v) => saveOwn({ watching_status: v }, "Status updated")}
-            onRatingChange={(v) => saveOwn({ my_rating: v }, "Rating saved")}
-            onTimeFinChange={(v) => saveOwn({ time_fin: v }, "Paused position saved")}
-            pausedPlaceholder="1:10:00"
-            onWatchNextChange={(v) =>
-              saveOwn({ watch_next: v }, v ? "Added to Watch Next" : "Removed from Watch Next")
-            }
-            onToRewatchChange={(v) =>
-              saveOwn({ to_rewatch: v }, v ? "Marked for rewatch" : "Removed from rewatch")
-            }
-            statusOptions={WATCHING_STATUSES}
-            ratingOptions={MY_RATINGS}
-          />
+          <TocSection id="tracker" label="My tracker">
+            <MyTrackerCard
+              watchingStatus={movie.watching_status}
+              myRating={movie.my_rating}
+              timeFin={movie.time_fin}
+              watchNext={movie.watch_next}
+              toRewatch={movie.to_rewatch}
+              canTrack={ownData}
+              onStatusChange={(v) => saveOwn({ watching_status: v }, "Status updated")}
+              onRatingChange={(v) => saveOwn({ my_rating: v }, "Rating saved")}
+              onTimeFinChange={(v) => saveOwn({ time_fin: v }, "Paused position saved")}
+              pausedPlaceholder="1:10:00"
+              onWatchNextChange={(v) =>
+                saveOwn({ watch_next: v }, v ? "Added to Watch Next" : "Removed from Watch Next")
+              }
+              onToRewatchChange={(v) =>
+                saveOwn({ to_rewatch: v }, v ? "Marked for rewatch" : "Removed from rewatch")
+              }
+              statusOptions={WATCHING_STATUSES}
+              ratingOptions={MY_RATINGS}
+            />
+          </TocSection>
 
           {/* Detail Cards */}
           <div className="space-y-6">
-            <NamingCard type="movie" item={movie} />
-            <InfoCard
-              title="Information"
-              fields={[
-                [
-                  { label: "本傳 / 外傳", value: movie.is_main },
-                  { label: "Airing Status", value: movie.airing_status },
-                  { label: "Length", value: formatLength(movie.length_min) },
-                ],
-                {
-                  label: "Director",
-                  value: creditValue(movie, "director", movie.director),
-                },
-                [
-                  { label: "Release Date TW", value: movie.release_date_tw },
-                  { label: "Release Date USA", value: movie.release_date_usa },
-                ],
-              ]}
-            />
-            <GenresCard item={movie} />
+            <TocSection id="naming" label="Naming">
+              <NamingCard type="movie" item={movie} />
+            </TocSection>
+            <TocSection id="information" label="Information">
+              <InfoCard
+                title="Information"
+                fields={[
+                  [
+                    { label: "本傳 / 外傳", value: movie.is_main },
+                    { label: "Airing Status", value: movie.airing_status },
+                    { label: "Length", value: formatLength(movie.length_min) },
+                  ],
+                  {
+                    label: "Director",
+                    value: creditValue(movie, "director", movie.director),
+                  },
+                  [
+                    { label: "Release Date TW", value: movie.release_date_tw },
+                    { label: "Release Date USA", value: movie.release_date_usa },
+                  ],
+                ]}
+              />
+            </TocSection>
+            <TocSection id="genres" label="Genres">
+              <GenresCard item={movie} />
+            </TocSection>
           </div>
 
           {/* Remarks */}
-          {ownData && movie.remark && (
-            <Slip title="Remarks">
-              <textarea
-                key={movie.system_id}
-                defaultValue={movie.remark || ""}
-                onBlur={(e) => {
-                  if (e.target.value !== (movie.remark || ""))
-                    saveMyRemark(e.target.value);
-                }}
-                rows={4}
-                placeholder="Add remarks…"
-                className={selectCls}
-              ></textarea>
-            </Slip>
-          )}
+          <TocSection id="remarks" label="Remarks">
+            {ownData && movie.remark && (
+              <Slip title="Remarks">
+                <textarea
+                  key={movie.system_id}
+                  defaultValue={movie.remark || ""}
+                  onBlur={(e) => {
+                    if (e.target.value !== (movie.remark || ""))
+                      saveMyRemark(e.target.value);
+                  }}
+                  rows={4}
+                  placeholder="Add remarks…"
+                  className={selectCls}
+                ></textarea>
+              </Slip>
+            )}
+          </TocSection>
 
           {/* The dedicated remark textarea above renders only for a holder of
               self.list who has a remark; hide the notes page's `remark`
@@ -437,6 +455,6 @@ export default function Movie() {
           />
         </div>
       </div>
-    </div>
+    </DetailContents>
   );
 }

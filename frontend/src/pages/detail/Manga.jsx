@@ -22,6 +22,8 @@ import SourcesCard from "../../components/info/SourcesCard";
 import ScoreBlock from "../../components/info/ScoreBlock";
 import MangaNotes from "./MangaNotes";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
+import DetailContents, { TocSection } from "../../components/layout/DetailContents";
+import { usePageTitle } from "../../contexts/PageTitleContext";
 import {
   Button,
   Eyebrow,
@@ -350,6 +352,17 @@ export default function Manga() {
     }
   }
 
+  // The heading's title, which the browser tab shows too.
+  const titleMain = manga
+    ? manga.manga_name_cn ||
+      manga.manga_name_en ||
+      manga.manga_name_roman ||
+      manga.manga_name_jp ||
+      manga.manga_name_alt ||
+      "Unknown"
+    : null;
+  usePageTitle(loading || error ? null : titleMain);
+
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading details..." />;
   }
@@ -363,13 +376,6 @@ export default function Manga() {
     );
   }
 
-  const titleMain =
-    manga.manga_name_cn ||
-    manga.manga_name_en ||
-    manga.manga_name_roman ||
-    manga.manga_name_jp ||
-    manga.manga_name_alt ||
-    "Unknown";
   const titleSub =
     manga.manga_name_en && manga.manga_name_en !== titleMain
       ? manga.manga_name_en
@@ -398,7 +404,7 @@ export default function Manga() {
     .join("  ·  ");
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+    <DetailContents>
       {/* Breadcrumb: a catalogue path, set in mono */}
       <div className="mb-8 flex items-center justify-between gap-3">
         <nav
@@ -583,153 +589,169 @@ export default function Manga() {
           </header>
 
           {/* Where this entry sits in the watch orders the viewer follows. */}
-          <FollowedOrderPanel entryId={manga.system_id} />
+          <TocSection id="watch-orders" label="Watch orders">
+            <FollowedOrderPanel entryId={manga.system_id} />
+          </TocSection>
 
           {/* My Tracker Block */}
-          <MangaTrackerBlock
-            manga={manga}
-            canTrack={ownData}
-            onChChange={(v) =>
-              saveOwn({ ch_fin: v }, "Chapter progress saved")
-            }
-            onVolChange={(v) =>
-              saveOwn({ vol_fin: v }, "Volume progress saved")
-            }
-            onPageChange={(v) =>
-              saveOwn({ vol_fin_page: v }, "Page saved")
-            }
-            onStatusChange={(v) =>
-              saveOwn({ reading_status: v }, "Status updated")
-            }
-            onRatingChange={(v) =>
-              saveOwn({ my_rating: v || null }, "Rating saved")
-            }
-            onWatchNextChange={(v, msg) => saveOwn({ read_next: v }, msg)}
-            onToRewatchChange={(v, msg) => saveOwn({ to_reread: v }, msg)}
-          />
+          <TocSection id="tracker" label="My tracker">
+            <MangaTrackerBlock
+              manga={manga}
+              canTrack={ownData}
+              onChChange={(v) =>
+                saveOwn({ ch_fin: v }, "Chapter progress saved")
+              }
+              onVolChange={(v) =>
+                saveOwn({ vol_fin: v }, "Volume progress saved")
+              }
+              onPageChange={(v) =>
+                saveOwn({ vol_fin_page: v }, "Page saved")
+              }
+              onStatusChange={(v) =>
+                saveOwn({ reading_status: v }, "Status updated")
+              }
+              onRatingChange={(v) =>
+                saveOwn({ my_rating: v || null }, "Rating saved")
+              }
+              onWatchNextChange={(v, msg) => saveOwn({ read_next: v }, msg)}
+              onToRewatchChange={(v, msg) => saveOwn({ to_reread: v }, msg)}
+            />
+          </TocSection>
 
           {/* Detail Cards */}
           <div className="space-y-6">
-            <NamingCard type="manga" item={manga} />
-            <InfoCard
-              title="Information"
-              fields={[
-                [
-                  { label: "Region", value: manga.region },
-                  { label: "本傳 / 外傳", value: manga.is_main },
-                ],
-                [
-                  {
-                    label: "Serialization Status",
-                    value: manga.serialization_status,
-                  },
-                ],
-                [
-                  {
-                    label: "Release Date",
-                    value: manga.release_date || null,
-                  },
-                  {
-                    label: "End Date",
-                    value: manga.end_date || null,
-                  },
-                ],
-                [
-                  {
-                    label: "Volume Total",
-                    value:
-                      manga.vol_total != null ? String(manga.vol_total) : null,
-                  },
-                  {
-                    label: "Chapter Total",
-                    value:
-                      manga.ch_total != null ? String(manga.ch_total) : null,
-                  },
-                ],
-              ]}
-            />
-            <GenresCard item={manga} />
-            {/* Production Card */}
-            {(manga.author_plot ||
-              manga.author_draw ||
-              manga.anime_studio ||
-              manga.publisher_tw ||
-              manga.publisher_refs?.length > 0) && (
+            <TocSection id="naming" label="Naming">
+              <NamingCard type="manga" item={manga} />
+            </TocSection>
+            <TocSection id="information" label="Information">
               <InfoCard
-                title="Production"
+                title="Information"
                 fields={[
-                  ...(authorSame
-                    ? [
-                        {
-                          label: "作者",
-                          value: creditValue(
-                            manga,
-                            "author",
-                            manga.author_plot,
-                          ),
-                        },
-                      ]
-                    : [
-                        ...(manga.author_plot
-                          ? [
-                              {
-                                label: creditLabel(manga, "author", "原作"),
-                                value: creditValue(
-                                  manga,
-                                  "author",
-                                  manga.author_plot,
-                                ),
-                              },
-                            ]
-                          : []),
-                        ...(manga.author_draw
-                          ? [
-                              {
-                                label: creditLabel(
-                                  manga,
-                                  "illustrator",
-                                  "作畫",
-                                ),
-                                value: creditValue(
-                                  manga,
-                                  "illustrator",
-                                  manga.author_draw,
-                                ),
-                              },
-                            ]
-                          : []),
-                      ]),
+                  [
+                    { label: "Region", value: manga.region },
+                    { label: "本傳 / 外傳", value: manga.is_main },
+                  ],
                   [
                     {
-                      label: publisherLabel(manga, "台灣出版商"),
-                      value: publisherValue(manga),
+                      label: "Serialization Status",
+                      value: manga.serialization_status,
                     },
-                    { label: "Anime Studio", value: manga.anime_studio },
+                  ],
+                  [
+                    {
+                      label: "Release Date",
+                      value: manga.release_date || null,
+                    },
+                    {
+                      label: "End Date",
+                      value: manga.end_date || null,
+                    },
+                  ],
+                  [
+                    {
+                      label: "Volume Total",
+                      value:
+                        manga.vol_total != null ? String(manga.vol_total) : null,
+                    },
+                    {
+                      label: "Chapter Total",
+                      value:
+                        manga.ch_total != null ? String(manga.ch_total) : null,
+                    },
                   ],
                 ]}
               />
-            )}
+            </TocSection>
+            <TocSection id="genres" label="Genres">
+              <GenresCard item={manga} />
+            </TocSection>
+            {/* Production Card */}
+            <TocSection id="production" label="Production">
+              {(manga.author_plot ||
+                manga.author_draw ||
+                manga.anime_studio ||
+                manga.publisher_tw ||
+                manga.publisher_refs?.length > 0) && (
+                <InfoCard
+                  title="Production"
+                  fields={[
+                    ...(authorSame
+                      ? [
+                          {
+                            label: "作者",
+                            value: creditValue(
+                              manga,
+                              "author",
+                              manga.author_plot,
+                            ),
+                          },
+                        ]
+                      : [
+                          ...(manga.author_plot
+                            ? [
+                                {
+                                  label: creditLabel(manga, "author", "原作"),
+                                  value: creditValue(
+                                    manga,
+                                    "author",
+                                    manga.author_plot,
+                                  ),
+                                },
+                              ]
+                            : []),
+                          ...(manga.author_draw
+                            ? [
+                                {
+                                  label: creditLabel(
+                                    manga,
+                                    "illustrator",
+                                    "作畫",
+                                  ),
+                                  value: creditValue(
+                                    manga,
+                                    "illustrator",
+                                    manga.author_draw,
+                                  ),
+                                },
+                              ]
+                            : []),
+                        ]),
+                    [
+                      {
+                        label: publisherLabel(manga, "台灣出版商"),
+                        value: publisherValue(manga),
+                      },
+                      { label: "Anime Studio", value: manga.anime_studio },
+                    ],
+                  ]}
+                />
+              )}
+            </TocSection>
           </div>
 
           {/* Cast */}
-          <CastSection cast={cast} />
+          <TocSection id="cast" label="Cast">
+            <CastSection cast={cast} />
+          </TocSection>
 
           {/* Remarks */}
-          {ownData && manga.remark && (
-            <Slip title="Remarks">
-              <textarea
-                key={manga.system_id}
-                defaultValue={manga.remark || ""}
-                onBlur={(e) => {
-                  if (e.target.value !== (manga.remark || ""))
-                    saveMyRemark(e.target.value);
-                }}
-                rows={4}
-                placeholder="Add remarks…"
-                className={selectCls}
-              ></textarea>
-            </Slip>
-          )}
+          <TocSection id="remarks" label="Remarks">
+            {ownData && manga.remark && (
+              <Slip title="Remarks">
+                <textarea
+                  key={manga.system_id}
+                  defaultValue={manga.remark || ""}
+                  onBlur={(e) => {
+                    if (e.target.value !== (manga.remark || ""))
+                      saveMyRemark(e.target.value);
+                  }}
+                  rows={4}
+                  placeholder="Add remarks…"
+                  className={selectCls}
+                ></textarea>
+              </Slip>
+            )}
+          </TocSection>
 
           {/* Structured Notes */}
           {/* The dedicated remark textarea above renders only for a holder of
@@ -745,6 +767,6 @@ export default function Manga() {
           />
         </div>
       </div>
-    </div>
+    </DetailContents>
   );
 }

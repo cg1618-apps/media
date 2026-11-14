@@ -37,6 +37,7 @@ import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { Eyebrow, RatingStamp } from "../../components/ui/primitives";
 import LazyImage from "../../components/ui/LazyImage";
 import { useAuth } from "../../contexts/AuthContext";
+import { usePageTitle } from "../../contexts/PageTitleContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
 
@@ -89,6 +90,10 @@ export default function Identity() {
     };
   }, [publicId]);
 
+  // The heading's name, which the browser tab shows too.
+  const name = identity ? identity.display_name || "Unknown Identity" : null;
+  usePageTitle(loading || error ? null : name);
+
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading identity..." />;
   }
@@ -102,7 +107,6 @@ export default function Identity() {
     );
   }
 
-  const name = identity.display_name || "Unknown Identity";
   const characterName = identity.character_display_name || "Unknown Character";
   // Empty when the response carries no character public_id: the name is then
   // shown as plain text rather than a link to nowhere.

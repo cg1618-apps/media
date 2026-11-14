@@ -17,6 +17,8 @@ import SourcesCard from "../../components/info/SourcesCard";
 import MyTrackerCard from "../../components/tracker/MyTrackerCard";
 import CartoonNotes from "./CartoonNotes";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
+import DetailContents, { TocSection } from "../../components/layout/DetailContents";
+import { usePageTitle } from "../../contexts/PageTitleContext";
 import {
   Button,
   Eyebrow,
@@ -122,6 +124,15 @@ export default function Cartoon() {
     }
   }
 
+  // The heading's title, which the browser tab shows too.
+  const titleMain = cartoon
+    ? cartoon.cartoon_name_cn ||
+      cartoon.cartoon_name_en ||
+      cartoon.cartoon_name_alt ||
+      "Unknown"
+    : null;
+  usePageTitle(loading || error ? null : titleMain);
+
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading details..." />;
   }
@@ -135,11 +146,6 @@ export default function Cartoon() {
     );
   }
 
-  const titleMain =
-    cartoon.cartoon_name_cn ||
-    cartoon.cartoon_name_en ||
-    cartoon.cartoon_name_alt ||
-    "Unknown";
   const titleSub =
     cartoon.cartoon_name_en && cartoon.cartoon_name_en !== titleMain
       ? cartoon.cartoon_name_en
@@ -180,7 +186,7 @@ export default function Cartoon() {
       : null;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+    <DetailContents>
       {/* Breadcrumb: a catalogue path, set in mono */}
       <div className="mb-8 flex items-center justify-between gap-3">
         <nav
@@ -388,93 +394,105 @@ export default function Cartoon() {
           </header>
 
           {/* Where this entry sits in the watch orders the viewer follows. */}
-          <FollowedOrderPanel entryId={cartoon.system_id} />
+          <TocSection id="watch-orders" label="Watch orders">
+            <FollowedOrderPanel entryId={cartoon.system_id} />
+          </TocSection>
 
           {/* My Tracker Block */}
-          <MyTrackerCard
-            epFin={epFin}
-            epTotal={epTotal ?? "?"}
-            watchingStatus={cartoon.watching_status}
-            myRating={cartoon.my_rating}
-            timeFin={cartoon.time_fin}
-            watchNext={cartoon.watch_next}
-            canTrack={ownData}
-            onEpChange={(v) =>
-              saveOwn({ ep_fin: v }, "Episode progress saved")
-            }
-            onStatusChange={(v) =>
-              saveOwn({ watching_status: v }, "Status updated")
-            }
-            onRatingChange={(v) =>
-              saveOwn({ my_rating: v }, "Rating saved")
-            }
-            onTimeFinChange={(v) =>
-              saveOwn({ time_fin: v }, "Paused position saved")
-            }
-            onWatchNextChange={(v) =>
-              saveOwn(
-                { watch_next: v },
-                v ? "Added to Watch Next" : "Removed from Watch Next",
-              )
-            }
-            statusOptions={WATCHING_STATUSES}
-            ratingOptions={MY_RATINGS}
-          />
+          <TocSection id="tracker" label="My tracker">
+            <MyTrackerCard
+              epFin={epFin}
+              epTotal={epTotal ?? "?"}
+              watchingStatus={cartoon.watching_status}
+              myRating={cartoon.my_rating}
+              timeFin={cartoon.time_fin}
+              watchNext={cartoon.watch_next}
+              canTrack={ownData}
+              onEpChange={(v) =>
+                saveOwn({ ep_fin: v }, "Episode progress saved")
+              }
+              onStatusChange={(v) =>
+                saveOwn({ watching_status: v }, "Status updated")
+              }
+              onRatingChange={(v) =>
+                saveOwn({ my_rating: v }, "Rating saved")
+              }
+              onTimeFinChange={(v) =>
+                saveOwn({ time_fin: v }, "Paused position saved")
+              }
+              onWatchNextChange={(v) =>
+                saveOwn(
+                  { watch_next: v },
+                  v ? "Added to Watch Next" : "Removed from Watch Next",
+                )
+              }
+              statusOptions={WATCHING_STATUSES}
+              ratingOptions={MY_RATINGS}
+            />
+          </TocSection>
 
           {/* Detail Cards */}
           <div className="space-y-6">
-            <NamingCard type="cartoon" item={cartoon} />
-            <InfoCard
-              title="Information"
-              fields={[
-                [
-                  { label: "本傳 / 外傳", value: cartoon.is_main },
-                  { label: "Season", value: cartoon.season_part },
-                ],
-                [
-                  { label: "Airing Type", value: cartoon.airing_type },
-                  { label: "Airing Status", value: cartoon.airing_status },
-                ],
-                [
-                  {
-                    label: "Length Per Ep (min)",
-                    value:
-                      cartoon.length_ep_min != null
-                        ? String(cartoon.length_ep_min)
-                        : null,
-                  },
-                ],
-                [
-                  { label: "Release Date", value: cartoon.release_date },
-                  {
-                    label: "Total Ep",
-                    value:
-                      cartoon.ep_total != null
-                        ? String(cartoon.ep_total)
-                        : null,
-                  },
-                ],
-              ]}
-            />
-            <GenresCard item={cartoon} />
+            <TocSection id="naming" label="Naming">
+              <NamingCard type="cartoon" item={cartoon} />
+            </TocSection>
+            <TocSection id="information" label="Information">
+              <InfoCard
+                title="Information"
+                fields={[
+                  [
+                    { label: "本傳 / 外傳", value: cartoon.is_main },
+                    { label: "Season", value: cartoon.season_part },
+                  ],
+                  [
+                    { label: "Airing Type", value: cartoon.airing_type },
+                    { label: "Airing Status", value: cartoon.airing_status },
+                  ],
+                  [
+                    {
+                      label: "Length Per Ep (min)",
+                      value:
+                        cartoon.length_ep_min != null
+                          ? String(cartoon.length_ep_min)
+                          : null,
+                    },
+                  ],
+                  [
+                    { label: "Release Date", value: cartoon.release_date },
+                    {
+                      label: "Total Ep",
+                      value:
+                        cartoon.ep_total != null
+                          ? String(cartoon.ep_total)
+                          : null,
+                    },
+                  ],
+                ]}
+              />
+            </TocSection>
+            <TocSection id="genres" label="Genres">
+              <GenresCard item={cartoon} />
+            </TocSection>
           </div>
 
           {/* Remarks */}
-          {ownData && cartoon.remark && (
-            <Slip title="Remarks">
-              <textarea
-                key={cartoon.system_id}
-                defaultValue={cartoon.remark || ""}
-                onBlur={(e) => {
-                  if (e.target.value !== (cartoon.remark || ""))
-                    saveMyRemark(e.target.value);
-                }}
-                rows={4}
-                placeholder="Add remarks…"
-                className={textareaCls}
-              ></textarea>
-            </Slip>
-          )}
+          <TocSection id="remarks" label="Remarks">
+            {ownData && cartoon.remark && (
+              <Slip title="Remarks">
+                <textarea
+                  key={cartoon.system_id}
+                  defaultValue={cartoon.remark || ""}
+                  onBlur={(e) => {
+                    if (e.target.value !== (cartoon.remark || ""))
+                      saveMyRemark(e.target.value);
+                  }}
+                  rows={4}
+                  placeholder="Add remarks…"
+                  className={textareaCls}
+                ></textarea>
+              </Slip>
+            )}
+          </TocSection>
 
           {/* Structured Notes */}
           {/* The dedicated remark textarea above renders only for a holder of
@@ -490,6 +508,6 @@ export default function Cartoon() {
           />
         </div>
       </div>
-    </div>
+    </DetailContents>
   );
 }

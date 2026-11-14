@@ -4976,3 +4976,34 @@ shown buttons that answered 401.
   account's watch-order pages and the dashboard's followed orders leak
   nothing.
 
+
+### The tab title is the page's name, and a detail page's contents are read from the page (2026-11-14)
+
+- **One writer of `document.title`.** `PageTitleProvider` in `Layout` owns it;
+  pages only name themselves, through `usePageTitle`. Rejected: a
+  `document.title =` effect in each page, which nothing keeps consistent, and
+  a title field on every `<Route>` in `App.jsx`, which cannot know a record's
+  name and would be a third list of pages beside the routes and the nav.
+- **Ordinary pages take the nav's label**, read from `navigation.js`, so the
+  tab and the menu cannot disagree. A library row adds "Library" ("Anime
+  Library"), because the bare label would read as an entry page.
+- **No site suffix.** The tab shows only the page's name, as the owner
+  asked; `SITE_NAME` survives only as the title of a path nothing names.
+- **The loading and error fallback is the nav row the path lights up** -
+  "Anime" on `/anime/12`, "Franchise" on `/series/4`. Rejected: "Loading…"
+  and "Not found" titles, which say nothing about where the tab is, and the
+  site name, which makes every half-loaded tab look the same. A failed load
+  is not told apart from a slow one in the tab; the page itself says which.
+- **The detail-page contents are discovered, not declared.** Which sections a
+  detail page renders turns on the viewer (`self.list`), the data (an empty
+  cast) and the notes registry, which arrives after the entry. Writing those
+  conditions again as a list per page would let the list and the page
+  disagree, so `DetailContents` reads `data-toc` anchors off the rendered
+  tree (with a `MutationObserver` for the notes) and skips one that rendered
+  nothing. The dashboard keeps its declared list: it has sub-rows and
+  already computes which divisions it draws.
+- **On the right, xl+ only, with the page widened to make room.** The left
+  column is the cover, sources and relations; a second column there would
+  stack two sticky things in one place. Widening the container to `88rem` on
+  xl keeps the cover column near its usual width instead of handing it the
+  contents' 12rem; below xl the contents are not drawn at all.

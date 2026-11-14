@@ -33,6 +33,7 @@ import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { Eyebrow, RatingStamp } from "../../components/ui/primitives";
 import LazyImage from "../../components/ui/LazyImage";
 import { useAuth } from "../../contexts/AuthContext";
+import { usePageTitle } from "../../contexts/PageTitleContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { useViewScope } from "../../hooks/useViewScope";
 import { useMyRatingSaver } from "../../api/mutations/useMyRatingMutations";
@@ -98,6 +99,10 @@ export default function Publisher() {
     };
   }, [publicId]);
 
+  // The heading's name, which the browser tab shows too.
+  const name = publisher ? publisher.display_name || "Unknown Publisher" : null;
+  usePageTitle(loading || error ? null : name);
+
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading publisher..." />;
   }
@@ -111,7 +116,6 @@ export default function Publisher() {
     );
   }
 
-  const name = publisher.display_name || "Unknown Publisher";
   const logoUrl = getCoverUrl(publisher.logo_file);
   const span = lifespan(publisher);
   const creditTotal = groups.reduce((sum, g) => sum + g.entries.length, 0);
