@@ -31,7 +31,9 @@ and Completions pages, `lib/randomPicker.js`, `lib/pickerWeights.js`,
 `hooks/usePickerData.js`, `components/picker/*`, and only the Seasonal and
 Statistics rows of `App.jsx` / `navigation.js`; E owns `pages/public/Index.jsx`
 and `components/dashboard/*`. This branch keeps Part A, Part C, the backend
-and everything else.
+and everything else. A third, `feat/per-viewer-pages-genre` (media-fb), adds the
+picker's catalogue `genre` filter after #366 merges; the same merge-before-
+ready rule holds for it. Sub-PRs: #365 (E), #366 (D), and the genre PR.
 
 **Fixtures after P3h (#362).** `admin_client` becomes the real admin: no
 mode, only its fixed set (`admin.authz`, `manage.pipelines`,
