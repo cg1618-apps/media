@@ -52,6 +52,7 @@ import { focusStyle } from "../../lib/covers";
 import CastSection from "../../components/info/CastSection";
 import LazyImage from "../../components/ui/LazyImage";
 import { useViewScope } from "../../hooks/useViewScope";
+import ProgressInput from "../../components/tracker/ProgressInput";
 import { useMyRemarkSaver } from "../../api/mutations/useMyRemark";
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
@@ -119,12 +120,10 @@ function ProgressStepper({ progress, onChange }) {
           <i className="fas fa-minus text-xs"></i>
         </button>
         <div className="font-mono text-sm flex items-baseline justify-center px-2 min-w-[90px] whitespace-nowrap border-l border-r border-border">
-          <input
-            type="number"
+          <ProgressInput
             aria-label={`${label} read`}
             value={fin}
-            onChange={(e) => {
-              const v = parseInt(e.target.value, 10) || 0;
+            onCommit={(v) => {
               if (total !== null && v > total) return;
               onChange(Math.max(0, v));
             }}

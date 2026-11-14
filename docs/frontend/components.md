@@ -397,6 +397,21 @@ columns.
   or becoming Completed) disappears as soon as the response lands. The hentai
   tracker renders `PausedAtInput` in its own slip. `EpisodeStepper` and
   `PausedAtInput` take `canTrack` too and render nothing without it.
+- **`ProgressInput`** (`components/tracker/ProgressInput.jsx`) is the typed
+  half of every progress stepper: `EpisodeStepper`, `DashboardCard`,
+  `ComicDashboardCard`, `NovelDashboardCard`, `NovelTrackerBlock` and the
+  manga and h-comic counters (Seasonal draws `DashboardCard`, so its stepper
+  is the same one). Typing edits a draft and saves nothing; the draft is
+  committed on blur or Enter — what a phone's Done / Go key sends, beside
+  `inputMode="numeric"` (`"decimal"` with `decimal`, the novel counts) and
+  `enterKeyHint="done"` — and Escape drops it and shows the saved value.
+  `onCommit` is called at most once per edit, never with the value already
+  saved. The number's meaning stays with the caller: an emptied box parses to
+  0, and `onCommit` is the same handler the stepper's clamping lives in, so
+  over the total is refused there and a negative raised to 0 there; a refused
+  commit just shows the saved value again. The − / + buttons beside it call
+  their handler directly and save at once. Add and Modify forms do not use
+  it: their fields save with the form.
   `GameDashboardCard` is a fourth dashboard card rather than a third arm
   inside `DashboardCard`: that file's `isReading` ternaries serve the
   watch/read pair, and a game's bar is read-only playtime against `hltb_main`

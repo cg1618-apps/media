@@ -196,6 +196,7 @@ describe("NovelDashboardCard — the arc + chapter numbers name the arc being re
   it("a typed arc starts at its beginning", () => {
     const onProgressChange = renderCard(novel({ arc_fin: 0, ch_fin_in_arc: 7 }));
     fireEvent.change(screen.getByLabelText("Arc being read"), { target: { value: "2" } });
+    fireEvent.blur(screen.getByLabelText("Arc being read"));
     expect(onProgressChange).toHaveBeenCalledWith(
       "n6",
       { arc_fin: 1, ch_fin_in_arc: 0 },
@@ -208,6 +209,7 @@ describe("NovelDashboardCard — the arc + chapter numbers name the arc being re
     fireEvent.change(screen.getByLabelText("Chapters read in this arc"), {
       target: { value: "103" },
     });
+    fireEvent.blur(screen.getByLabelText("Chapters read in this arc"));
     expect(onProgressChange).toHaveBeenCalledWith(
       "n6",
       { arc_fin: 1, ch_fin_in_arc: 3 },

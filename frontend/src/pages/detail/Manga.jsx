@@ -44,6 +44,7 @@ import { focusStyle } from "../../lib/covers";
 import CastSection from "../../components/info/CastSection";
 import LazyImage from "../../components/ui/LazyImage";
 import { useViewScope } from "../../hooks/useViewScope";
+import ProgressInput from "../../components/tracker/ProgressInput";
 import { useMyRemarkSaver } from "../../api/mutations/useMyRemark";
 
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
@@ -109,11 +110,10 @@ function MangaTrackerBlock({
               <i className="fas fa-minus text-xs"></i>
             </button>
             <div className="font-mono text-sm flex items-baseline justify-center px-2 min-w-[90px] whitespace-nowrap border-l border-r border-border">
-              <input
-                type="number"
+              <ProgressInput
                 value={chFin}
-                onChange={(e) => {
-                  const v = parseInt(e.target.value, 10) || 0;
+                aria-label="Chapters read"
+                onCommit={(v) => {
                   if (chTotal !== null && v > chTotal) return;
                   onChChange(Math.max(0, v));
                 }}
@@ -150,11 +150,10 @@ function MangaTrackerBlock({
                 <i className="fas fa-minus text-xs"></i>
               </button>
               <div className="font-mono text-sm flex items-baseline justify-center px-2 min-w-[90px] whitespace-nowrap border-l border-r border-border">
-                <input
-                  type="number"
+                <ProgressInput
                   value={volFin}
-                  onChange={(e) => {
-                    const v = parseInt(e.target.value, 10) || 0;
+                  aria-label="Volumes read"
+                  onCommit={(v) => {
                     if (volTotal !== null && v > volTotal) return;
                     onVolChange(Math.max(0, v));
                   }}
@@ -179,11 +178,10 @@ function MangaTrackerBlock({
             {/* Pages input */}
             <div className="flex items-center gap-1.5 border border-border-strong px-3 py-2">
               <Eyebrow>Page</Eyebrow>
-              <input
-                type="number"
+              <ProgressInput
                 value={volFinPage}
-                onChange={(e) => {
-                  const v = parseInt(e.target.value, 10) || 0;
+                aria-label="Page of the volume"
+                onCommit={(v) => {
                   onPageChange(Math.max(0, v));
                 }}
                 className="w-14 text-right font-mono text-sm text-text bg-transparent border-b border-transparent hover:border-border-strong focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0 leading-none disabled:opacity-60"
