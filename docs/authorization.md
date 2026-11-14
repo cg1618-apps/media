@@ -1534,6 +1534,9 @@ Two rules that are **not** this one:
   `users.is_installation_owner` — see [The admin account holds no user
   data](#the-admin-account-holds-no-user-data) below — and the flag holder is
   the answer whatever its status: a disabled owner's data is still theirs.
+  An admin-role flag holder is passed over for the fallback below; no admin
+  account is the owner, and the paths that write the flag keep it off one
+  (see [The admin account holds no user data](#the-admin-account-holds-no-user-data)).
   Where nobody holds the flag, the answer is the first `active` account by
   username whose role is not `admin`, `guest` or `shared`
   (`NEVER_OWNER_ROLE_NAMES`): the admin keeps no personal data; the seed
@@ -1591,6 +1594,20 @@ Whose rows a pipeline files under is the matching data question, answered by
 `users.is_installation_owner` and never by a role. See
 `installation_owner_id()` in [What a guest sees](#what-a-guest-sees) above and
 the column in [data-model.md](data-model.md).
+
+**No admin-role account is the installation owner.** Every path that writes
+the flag or a role keeps the two apart:
+
+| Path | What it does |
+|---|---|
+| `/api/users` | Writes no flag at all, and never gives an account the `admin` role: create, approve and `PATCH` take `user` or `super` only (**422**), and the admin account's own role is fixed (**409**). |
+| Pull's `Users` tab | Restores an admin-role row **without** the flag and adds a line to `unresolved_refs` (`Users: '<name>' is an admin account and cannot be the installation owner; restored without the flag`). The local holder keeps its flag. |
+| Boot | `ensure_no_admin_installation_owner` (`app/services/rbac/seed.py`) clears the flag from any admin-role account, with a warning, beside `ensure_admin_accounts_modeless`. |
+| `installation_owner_id()` | Passes over an admin-role flag holder, so a hand-edited database still files rows under an eligible account. |
+
+The frozen owner rule inside the revisions that moved personal data onto the
+owner (`u1r2atings3` and the four after it) reads the flag whatever the role;
+with the guards above, no database reaches them in that state.
 
 ## Note scope
 
@@ -2010,6 +2027,7 @@ matters is enforced server-side.
 | `tests/api/test_field_gating.py` | link and source stripping; the narrowest viewer there is still gets credits, both timestamps and `system_id`; and a probe group stands the columns flavour up so the copy-not-setattr rule stays tested with no real column group left |
 | `tests/api/test_cover_viewer_cache.py` | a warm cover request runs no viewer query (anonymous, narrowed and the owner, by statement count); a session warming the cache lends nothing to another; labelling an entry reaches the next cover request because no cache holds what an entry carries, and a new denial and a deleted account each reach it through `bump()`; an unbumped change expires on the TTL (clock moved by hand); an entry never outlives its token; an answer resolved across a bump is not kept, mirrored by the same call without one being a hit. `hidden_anime` keeps every refusal from being vacuous |
 | `tests/api/test_cover_images_are_gated.py` | a hidden entry's cover 404s and the same file 200s for a session that sees the entry, the lying-folder case, and that `/static/covers/` no longer answers. The written file and `nsfw_label` are load-bearing: a missing file 404s too, and an empty label set makes every refusal vacuous |
+| `tests/api/test_owner_not_admin.py` | no admin-role account is the installation owner: `installation_owner_id()` passes an admin flag holder over (mirror: a member holder wins), boot clears the flag from an admin account (mirror: a member owner keeps it), Pull restores an admin row without the flag and leaves the local holder its flag (mirror: a super row takes it), and `/api/users` neither makes a flagged account admin (422; mirror: `super` succeeds) nor sets the flag |
 | `tests/api/test_shared_record_visibility.py` | the shared-record rule: a person, seiyuu, character, studio, publisher or vocabulary value connected only to label-hidden entries is hidden, one visible connection keeps it visible with the hidden one omitted, no connections stays visible, a type gap hides nothing; series under a hidden franchise; entity photos; notes on a hidden series; and scope connections through a gated type registered for the test (`manga` pointed at `nsfw`), independent of h-comic. Every refusal pairs with `owner_client` seeing the same record |
 | `tests/api/test_h_comic_entries.py` | h-comic: the label stamped on every router write path and refused removal (422) and deletion (no route), guest / `normal` / `borderline` 404 and absent from list and search while `unrestricted` sees it, only `unrestricted` shows the label, `visible_gated_types`, no `h-comic` search bucket for a narrow session, `PUT /api/me/list` running the list hook, H-Comic franchises labelled and segregated from mainstream ones |
 | `tests/api/test_hentai_entries.py` | hentai: the same set as h-comic's - label stamped, refused removal and deletion, narrow modes 404 while `unrestricted` sees it, only `unrestricted` shows the label - plus its franchise family |

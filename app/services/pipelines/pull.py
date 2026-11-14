@@ -93,6 +93,7 @@ from app.services.rbac import cache
 from app.services.rbac.gated_types import REQUIRED_LABEL_FOR_TYPE
 from app.services.rbac.labels import LABEL_KEYS
 from app.services.rbac.modes import check_mode_pair
+from app.services.rbac.permissions import ADMIN_ROLE_NAME
 from app.services.security import UNUSABLE_PASSWORD_HASH
 from app.utils.constants import MUSIC_STATUSES
 from app.utils.credit_roles import (
@@ -1733,6 +1734,27 @@ def execute_pull_specific(
                 continue
             clean_header_dict["role_id"] = role.system_id
 
+            # No admin account is ever the installation owner. The row is
+            # restored - role and all - without the flag, and reported, the
+            # way a bad mode pair below is dropped: refusing the whole row
+            # would leave the account's other columns stale, and raising
+            # would roll back every account on the tab. Dropping it before the
+            # flag-clearing below also keeps the local owner's flag in place.
+            if role.name == ADMIN_ROLE_NAME and clean_header_dict.get(
+                "is_installation_owner"
+            ):
+                username = clean_header_dict.get("username")
+                logger.warning(
+                    "Users: %r holds the admin role; restoring it without "
+                    "is_installation_owner.",
+                    username,
+                )
+                unresolved_refs.append(
+                    f"Users: {username!r} is an admin account and cannot be the "
+                    "installation owner; restored without the flag"
+                )
+                clean_header_dict["is_installation_owner"] = False
+
             # The mode pair travels together and must satisfy the three
             # ck_users_mode_* constraints, or the tab's commit raises and
             # rolls back every account. A bad pair - one half missing, an
@@ -1777,11 +1799,15 @@ def execute_pull_specific(
             # whole Quote tab in 709f9f00. The sheet is the authority on whose
             # collection this is, so clear the flag locally first and let this
             # row set it. Flushed, not merely staged: the index is checked per
-            # statement, not at commit.
+            # statement, not at commit. Only OTHER accounts are cleared: the
+            # row's own account (matched by username, the identity a Users
+            # row travels on) may already hold it, and clearing it there too
+            # would leave the row's update seeing no change and the flag gone.
             if clean_header_dict.get("is_installation_owner"):
-                db.query(User).filter(User.is_installation_owner).update(
-                    {"is_installation_owner": False}, synchronize_session=False
-                )
+                db.query(User).filter(
+                    User.is_installation_owner,
+                    User.username != clean_header_dict.get("username"),
+                ).update({"is_installation_owner": False}, synchronize_session=False)
                 db.flush()
 
         # System Configs, Person Role, Publisher Scope, System Option Scope

@@ -23,6 +23,8 @@ role's own field-group grants at migration time precisely so that nothing a
 visitor sees changed on the day it landed.
 """
 
+import logging
+
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -55,6 +57,8 @@ from app.services.rbac.permissions import (
 from app.services.rbac.seed_modes import MODE_BORDERLINE, MODE_NORMAL
 from app.services.security import UNUSABLE_PASSWORD_HASH
 from app.utils.media_resolver import MEDIA_TYPE_KEYS
+
+logger = logging.getLogger(__name__)
 
 # These names are owned by permissions.py, which keys the lock table on them.
 GUEST_ROLE = GUEST_ROLE_NAME
@@ -305,6 +309,33 @@ def ensure_admin_accounts_modeless(db: Session) -> None:
             set_mode_ceiling(db, user, None, None)
     db.flush()
 
+
+
+def ensure_no_admin_installation_owner(db: Session) -> None:
+    """
+    Clear users.is_installation_owner from every admin-role account.
+
+    No admin account may be the installation owner: the owner is whose
+    collection a restore or a pipeline files rows under, and the admin keeps
+    no personal data. /api/users never writes the flag and never gives an
+    account the admin role, and Pull restores an admin row without it, so
+    only a hand edit leaves one. Runs on every boot, beside
+    ensure_admin_accounts_modeless, so that state does not outlive a start.
+    """
+    role = db.query(models.Role).filter(models.Role.name == ADMIN_ROLE).first()
+    if role is None:
+        return
+    flagged = db.query(models.User).filter(
+        models.User.role_id == role.system_id, models.User.is_installation_owner
+    )
+    for user in flagged:
+        logger.warning(
+            "Account %r holds the admin role and cannot be the installation "
+            "owner; clearing its is_installation_owner flag.",
+            user.username,
+        )
+        user.is_installation_owner = False
+    db.flush()
 
 def _enforce_locks(db: Session) -> None:
     """

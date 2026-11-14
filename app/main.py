@@ -82,6 +82,7 @@ from app.services.integrations.image_manager import COVER_DIR, COVER_OWNERS
 from app.services.rbac.seed import (
     ADMIN_ROLE,
     ensure_admin_accounts_modeless,
+    ensure_no_admin_installation_owner,
     ensure_rbac_seed,
     ensure_shared_accounts,
 )
@@ -185,6 +186,8 @@ async def lifespan(app: FastAPI):
         # Whatever a Pull or a hand edit left, an admin-role account has no
         # mode - the way ensure_shared_accounts re-asserts the shared modes.
         ensure_admin_accounts_modeless(db)
+        # Nor is it ever the installation owner.
+        ensure_no_admin_installation_owner(db)
         db.commit()
 
     except Exception as e:

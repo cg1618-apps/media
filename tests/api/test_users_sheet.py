@@ -555,3 +555,36 @@ def test_the_backup_row_carries_the_switches(db):
         c.name for c in models.User.__table__.columns if c.name not in tab.drop_columns
     ]
     assert set(FEATURE_HEADERS) <= set(kept)
+
+
+def test_a_pull_keeps_the_flag_on_the_account_that_already_holds_it(db, sheets):
+    """The ordinary case: the sheet's owner is the local owner. Clearing the
+    flag to make room for the sheet's holder must not clear it from that
+    same account - the row's own update would see no change and leave it
+    cleared, and every Pull would un-own the collection."""
+    db.query(models.User).update({"is_installation_owner": False})
+    owner = models.User(
+        id=uuid.uuid4(),
+        username="kana",
+        hashed_password=get_password_hash("pw"),
+        role_id=db.query(models.Role).filter_by(name="super").one().system_id,
+        is_installation_owner=True,
+    )
+    db.add(owner)
+    db.flush()
+    sheets(
+        {
+            "Users": [
+                ["id", "username", "role", "is_installation_owner"],
+                [str(uuid.uuid4()), "kana", "super", "TRUE"],
+            ]
+        }
+    )
+
+    result = pull.execute_pull_specific(
+        db, "Users", log_action=False, may_restore_authz=True
+    )
+
+    assert result["status"] == "success"
+    db.refresh(owner)
+    assert owner.is_installation_owner is True
