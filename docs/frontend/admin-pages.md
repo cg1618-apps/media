@@ -1323,10 +1323,10 @@ link opens on that scope. Details in [../systems/relations.md](../systems/relati
 Read-only: Tier 1 enums from `/api/constants`, Tier 2 options grouped by
 category with their scopes, Tier 3 people and studios. Editing happens on
 Add/Modify under System → System Option — see [../options.md](../options.md).
-The route, like `/aliases` and `/external-apis`, asks `manage.options`. The
-Tier 3 counts read `/api/person/role-counts` and `/api/studio/`, which ask
-`view.person` and `view.studio`; the admin holds neither, so for it they
-read as zero ([../open-items.md](../open-items.md)).
+The route, like `/aliases` and `/external-apis`, asks `manage.options`, and
+so do the Tier 3 counts: they read `/api/options/record-counts`, which returns
+numbers only, rather than `/api/person/role-counts` and `/api/studio/`, which
+ask `view.person` and `view.studio` - keys the admin does not hold.
 
 ## /aliases (`Aliases.jsx`)
 

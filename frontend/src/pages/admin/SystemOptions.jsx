@@ -38,7 +38,7 @@ import {
 //
 // A row is one LIVE role, not one old category, because the role collapse made
 // that mapping many-to-one: Manga Author, Novel Author and Comic Writer all
-// became `author`. The Records column reads /api/person/role-counts, which
+// became `author`. The Records column reads /api/options/record-counts, which
 // tallies per role and knows nothing of scope, so a row per old category would
 // have printed the same author total three times and invited an admin to add
 // them up.
@@ -624,19 +624,14 @@ export default function SystemOptions() {
       .catch(() => setOptions([]))
       .finally(() => setTier2Loading(false));
 
-    Promise.all([
-      fetch(endpoints.person.roleCounts(), { credentials: "include" })
-        .then((r) => (r.ok ? r.json() : {}))
-        .catch(() => ({})),
-      // No count endpoint for studios, and none is worth adding: the list is
-      // small and every admin form already fetches it.
-      fetch(endpoints.studio.list(), { credentials: "include" })
-        .then((r) => (r.ok ? r.json() : []))
-        .catch(() => []),
-    ])
-      .then(([counts, studios]) => {
-        setRoleCounts(counts);
-        setStudioCount(studios.length);
+    // The page's own manage.options read, not /api/person/role-counts and
+    // /api/studio/: the admin reaches this page holding neither view key.
+    fetch(endpoints.options.recordCounts(), { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : { person_roles: {}, studios: 0 }))
+      .catch(() => ({ person_roles: {}, studios: 0 }))
+      .then((counts) => {
+        setRoleCounts(counts.person_roles);
+        setStudioCount(counts.studios);
       })
       .finally(() => setTier3Loading(false));
   }, []);

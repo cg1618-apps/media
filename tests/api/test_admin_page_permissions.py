@@ -1,9 +1,14 @@
 """
 The admin's own pages, each on its own key rather than manage.catalog.
 
-Announcements (manage.announcements), the Note pages' APIs - /api/options
-writes and /api/constants/external-apis (manage.options), /api/images
-(manage.images) and /api/resources, reads and writes (manage.resources).
+Announcements (manage.announcements), the Note pages' reads -
+/api/options/record-counts and /api/constants/external-apis (manage.options),
+/api/images (manage.images) and /api/resources, reads and writes
+(manage.resources).
+
+Option writes are the exception: /api/options POST, PUT and DELETE are
+manage.catalog's, the key of the Add and Modify forms where an option is
+actually written. So the page key alone is refused them.
 
 Every refusal below runs against a row that is THERE - an announcement, an
 option, an image, a resource tree - so a 401 is the gate's and not an empty
@@ -114,9 +119,14 @@ def option(db_session):
     return row
 
 
-def _option_requests(option):
+_NOTE_PAGE_READS = [
+    ("get", "/api/constants/external-apis", None),
+    ("get", "/api/options/record-counts", None),
+]
+
+
+def _option_writes(option):
     return [
-        ("get", "/api/constants/external-apis", None),
         ("post", "/api/options/", {"category": "Genre Main", "value": "Zvornik New"}),
         (
             "put",
@@ -231,29 +241,49 @@ def test_the_announcement_key_makes_every_write(
 # ---------------------------------------------------------------------------
 
 
-def test_a_catalogue_editor_is_refused_the_note_page_apis(db_session, client, option):
+def test_a_catalogue_editor_is_refused_the_note_page_reads(db_session, client):
     editor = _catalogue_editor(db_session, client)
-    for method, url, body in _option_requests(option):
+    for method, url, body in _NOTE_PAGE_READS:
         assert _send(editor, method, url, body).status_code == 401, (method, url)
-    db_session.expire_all()
-    values = {o.value for o in db_session.query(models.SystemOption)}
-    assert "Zvornik Option" in values
-    assert "Zvornik New" not in values
-    # The vocabulary itself is still everyone's to read: only the writes moved.
-    listed = {o["value"] for o in editor.get("/api/options/Genre Main").json()}
-    assert "Zvornik Option" in listed
 
 
 @pytest.mark.parametrize("who", ["super", "page_key"])
-def test_the_options_key_reaches_every_note_page_api(
-    request, db_session, client, option, who
-):
-    writer = (
+def test_the_options_key_reaches_every_note_page_read(request, db_session, client, who):
+    reader = (
         request.getfixturevalue("super_client")
         if who == "super"
         else _page_key_holder(db_session, client, PERM_MANAGE_OPTIONS)
     )
-    for method, url, body in _option_requests(option):
+    for method, url, body in _NOTE_PAGE_READS:
+        r = _send(reader, method, url, body)
+        assert r.status_code == 200, (method, url, r.text)
+
+
+def test_the_options_key_alone_is_refused_option_writes(db_session, client, option):
+    holder = _page_key_holder(db_session, client, PERM_MANAGE_OPTIONS)
+    for method, url, body in _option_writes(option):
+        assert _send(holder, method, url, body).status_code == 401, (method, url)
+    db_session.expire_all()
+    values = {o.value for o in db_session.query(models.SystemOption)}
+    assert "Zvornik Option" in values
+    assert "Zvornik New" not in values
+    # The vocabulary itself is still everyone's to read.
+    listed = {o["value"] for o in holder.get("/api/options/Genre Main").json()}
+    assert "Zvornik Option" in listed
+
+
+@pytest.mark.parametrize("who", ["super", "catalogue_editor"])
+def test_a_catalogue_editor_makes_every_option_write(
+    request, db_session, client, option, who
+):
+    """The mirror: the same writes, against the same row, by manage.catalog
+    holders - one of which holds no manage.options."""
+    writer = (
+        request.getfixturevalue("super_client")
+        if who == "super"
+        else _catalogue_editor(db_session, client)
+    )
+    for method, url, body in _option_writes(option):
         r = _send(writer, method, url, body)
         assert r.status_code == 200, (method, url, r.text)
     db_session.expire_all()
