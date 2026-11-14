@@ -58,7 +58,7 @@ are a large share of the bundle and never needed on first paint.
 | `/seasonal` | `public/SeasonalOverall.jsx` — the viewer's own season with a list, the catalogue's without | lazy, **any ordinary `media_type.*`** (`anyPermission={LIBRARY_MEDIA_TYPE_PERMISSIONS}`, the list the Library tab asks) |
 | `/seasonal/:seasonal_id` | `public/SeasonalDetail.jsx` — likewise | lazy, **any ordinary `media_type.*`** (`anyPermission={LIBRARY_MEDIA_TYPE_PERMISSIONS}`, the list the Library tab asks) |
 | `/future-releases` | `public/FutureReleases.jsx` — reads the open `/api/seasonal/current-season` | lazy, **any ordinary `media_type.*`** (`anyPermission={LIBRARY_MEDIA_TYPE_PERMISSIONS}`, the list the Library tab asks) |
-| `/statistics` | `public/Statistics.jsx` — the viewer's own numbers with a list, counts of the catalogue without | lazy, **any ordinary `media_type.*`** (`anyPermission={LIBRARY_MEDIA_TYPE_PERMISSIONS}`, the list the Library tab asks) |
+| `/statistics` | `public/Statistics.jsx` — the viewer's own numbers and the catalogue sections with a list, the catalogue sections alone without | lazy, **`view.statistics`** |
 | `/completions` | `public/Completions.jsx` | lazy, **`self.list`** |
 | `/random` | `public/RandomPicker.jsx` — the general mode | lazy, **`view.random_picker`** |
 | `/random/h-comic`, `/random/h-game`, `/random/hentai` | `RandomPicker type="…"` — the same file, each inside its type's `<ProtectedRoute gatedType>` and, within it, `<ProtectedRoute permission="view.random_picker">` (matched before `/random/:type`) | lazy, **gated**, **`view.random_picker`** |
@@ -148,7 +148,7 @@ about styling.
 | `library` | Library | mega-panel (`columns`), `requires` any of the nine ordinary `media_type.*` keys (`LIBRARY_MEDIA_TYPE_PERMISSIONS`), so a role holding none — the admin — has no Library tab. Nav only: the `/library` routes themselves stay open | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities** (each row `requires` its own kind's key, so a row whose kind is off is dropped and a viewer holding none has no Entities column): Studio `/library/studio` (also matches `/studio`; `view.studio`), Publisher `/library/publisher` (also matches `/publisher`; `view.publisher`), Person `/library/person` (also matches `/person`; `view.person`), Character `/library/character` (also matches `/character` and `/identity`; `view.character`), Seiyuu `/library/seiyuu` (`view.person`) · **ACG**: Anime, Anime Movie, Manga, Novel, Game `/library/game` (also matches `/game`) · **Reality**: TV Show, Movie, Cartoon, Comic |
 | `restricted` | Restricted | flat `items`, every row gated | H-Comic `/library/h-comic` (also matches `/h-comic`; `gatedType: "h-comic"`), H-Game `/library/h-game` (also matches `/h-game`; `gatedType: "h-game"`), Hentai `/library/hentai` (also matches `/hentai`; `gatedType: "hentai"`). Each is drawn only for a session that can see its type; a session that can see no gated type has every row dropped, so the tab itself is not drawn |
 | `track` | Track | flat `items` | Plan `/plan` (`requires: "self.list"` — see below), Completions `/completions` (`requires: "self.list"`). The account's own progress; a guest holds no `self.*` key, so the tab is not drawn |
-| `explore` | Explore | flat `items` | Seasonal `/seasonal`, Future Releases `/future-releases` and Statistics `/statistics`, each `requires: LIBRARY_MEDIA_TYPE_PERMISSIONS` (any ordinary media type, so a guest's and a shared account's Explore hold all three and the admin's none), and Random Picker `/random` (`requires: "view.random_picker"`; its `/random/<type>` pages light it too) |
+| `explore` | Explore | flat `items` | Seasonal `/seasonal` and Future Releases `/future-releases`, each `requires: LIBRARY_MEDIA_TYPE_PERMISSIONS` (any ordinary media type, so a guest's and a shared account's Explore hold both and the admin's neither), Statistics `/statistics` (`requires: "view.statistics"`, so super, user and shared and never a guest), and Random Picker `/random` (`requires: "view.random_picker"`; its `/random/<type>` pages light it too) |
 | `extras` | Extras | flat | Quotes `/quote` and Memes `/meme` (each `feature: "quotes_memes"`), Resources `/resources` (`requires: "manage.resources"`, so the admin and super only) ┃ Relations `/relations`, Watch Orders `/watch-orders` — these two carry `requires: "manage.catalog"` on the row, inside a tab everyone may open |
 | `entry` | Entry | flat, `requires` any of `manage.catalog` / `manage.images` | Add `/add`, Modify `/modify`, Delete `/delete`, Form Defaults `/defaults`, Picker Defaults `/random-defaults` — each `requires: "manage.catalog"` — and Images `/images` (`requires: "manage.images"`). The admin holds no `manage.catalog`, so Images is the one row it sees |
 | `note` | Note | flat, `requires` any of `manage.options` / `admin.authz` / `manage.catalog` / `manage.pipelines` — whatever its rows ask, so the admin, holding no `manage.catalog`, still sees the whole section | System Options `/options`, Alias Conversion `/aliases`, External APIs `/external-apis` — the three read-only inventories of how the data is described, each `requires: "manage.options"` — Content Labels `/content-labels`, the read-only label reference, which carries `requires: ["admin.authz", "manage.catalog"]` (any of the two, the same either-of its route asks), and Business Logic `/business-logic`, what Calculate All changes step by step, which carries `requires: "manage.pipelines"` on the row, so only the super role and admin see it |
@@ -177,8 +177,8 @@ identity. Every gate is `has()` from `useAuth()`, a plain membership test,
 so a tab or row is drawn only for a role that holds its key.
 
 A guest is therefore shown two tabs: Library, holding Groups, ACG and
-Reality, and Explore, holding Seasonal, Future Releases and Statistics. A
-shared account's Explore adds the Random Picker. The admin is shown no
+Reality, and Explore, holding Seasonal and Future Releases. A shared
+account's Explore adds the Random Picker and Statistics. The admin is shown no
 Library, Restricted, Track or Explore tab, Extras holding Resources alone,
 Entry holding Images alone, and Note, System and Admin in full.
 
@@ -1579,12 +1579,14 @@ Editing happens only on the admin `/watch-orders` page.
 
 ### Pages in two versions: with a list and without
 
-`/seasonal`, `/seasonal/:seasonal_id`, `/statistics` and `/future-releases`
-read the catalogue, so they sit inside
+`/seasonal`, `/seasonal/:seasonal_id` and `/future-releases` read the
+catalogue, so they sit inside
 `<ProtectedRoute anyPermission={LIBRARY_MEDIA_TYPE_PERMISSIONS}>` in
 `App.jsx` and their nav rows ask the same list: every viewer that reads an
 ordinary media type opens them, a guest and a shared account included, and
-the admin, holding none, does not. Each page asks `useViewScope().ownData`
+the admin, holding none, does not. `/statistics` has two versions too, but
+asks its own key, `view.statistics` - super, user and shared - so a guest
+has none. Each page asks `useViewScope().ownData`
 (`self.list`) once, at the top, and draws one of two components: the
 viewer's own version with a list, and the catalogue's without one. The
 catalogue version never asks for a per-user read (`/api/seasonal/`,
@@ -1640,13 +1642,34 @@ Files `pages/public/Statistics.jsx`, `pages/statistics/useStatisticsData.js`,
 `StatsCatalogue.jsx`, `pages/public/Completions.jsx`,
 `components/charts/BarChart.jsx`.
 
-**Without a list**, Statistics is `StatsCatalogue.jsx`: counts of the
-catalogue from one `GET /api/statistics/catalogue` - entries per type (in
-the registry's order), anime per season and entries per genre, each a plain
-table - over what the viewer's role and mode show. The personal sections
-below, and the sidebar that indexes them, are absent rather than empty, and
-`useStatisticsData` never runs. Everything else in this section is the
-version with a list.
+**The catalogue sections** (`StatsCatalogue.jsx`, over the pure functions
+in `catalogueStats.js`) come from one `GET /api/statistics/catalogue`, over
+what the viewer's role and mode show. A shared account sees them as the
+whole page; a viewer with a list sees them at the end, after Game Spend,
+with sidebar entries of their own (`StatsCatalogueSections`). Three blocks:
+
+- **Entries by type** - Type, Franchises and Entries, in the registry's
+  order. Franchises is the distinct franchises holding at least one visible
+  entry of the type.
+- **Anime by season** - Season and Count, newest first, the twelve newest
+  (`SEASONS_SHOWN`) and a **Show all** button opening `SeasonCountsModal`,
+  which lays every season out as season/count pairs in CSS columns - two on
+  a phone, up to six on a wide screen, reading down each. Escape, the close
+  button or a press on the backdrop closes it.
+- **Rating distribution** (eyebrow Catalogue, sidebar label "Catalogue
+  ratings", so it is not confused with the personal Rating distribution) -
+  two `RatingDistributionCard`s, MAL rating in ten one-point buckets and
+  AniList score in ten ten-point buckets, highest first. Each pools every
+  media type carrying the score and has its own type selector, defaulting to
+  All types; every bucket is drawn, at zero if empty, so the chart keeps its
+  shape whatever is selected.
+
+The two tables are each as wide as their content, side by side when the
+screen has room and stacked when it does not.
+
+**Without a list** the personal sections, and the sidebar that indexes
+them, are absent rather than empty, and `useStatisticsData` never runs.
+Everything else in this section is the version with a list.
 
 `useStatisticsData` runs `useMediaList` for franchise, series and every
 entry type the session may see (`h-comic`, `h-game` and `hentai` each only
@@ -1782,9 +1805,8 @@ external score.
 the genres the pool holds, and an entry matches when any of its genres is
 on. It reads each type's own field, a ", "-joined string on every list
 response (`GENRE_FIELD`): `genre_main` on the eight mainstream types and
-`game_genre` on game and h-game. The adult genre fields are left out, as
-`/api/statistics/catalogue` leaves them out, so h-comic and hentai have no
-genre chips. The franchise mode does not offer it: a franchise has no genre
+`game_genre` on game and h-game. The adult genre fields are left out, so
+h-comic and hentai have no genre chips. The franchise mode does not offer it: a franchise has no genre
 of its own, and "any entry's genre" would make most franchises match most
 chips.
 

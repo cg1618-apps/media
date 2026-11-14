@@ -21,6 +21,10 @@ export const STATS_SECTIONS = [
   { id: "rating-distribution", label: "Rating distribution" },
   { id: "anime-seasonal", label: "Anime seasonal" },
   { id: "game-spend", label: "Game spend" },
+  // The catalogue sections (StatsCatalogue.jsx), below the personal ones.
+  { id: "catalogue-types", label: "Entries by type" },
+  { id: "catalogue-seasons", label: "Anime by season" },
+  { id: "catalogue-ratings", label: "Catalogue ratings" },
 ];
 
 // Flattened, parents included, in the order they appear down the page. What

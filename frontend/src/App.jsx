@@ -264,12 +264,11 @@ export default function App() {
                   <Route path="/random" element={<RandomPicker />} />
                   <Route path="/random/:type" element={<RandomPicker />} />
                 </Route>
-                {/* Future Releases, Seasonal and Statistics read the
-                    catalogue: any viewer that reads one ordinary media type
-                    opens them, the same list navigation.js asks for their
-                    rows and the Library tab. Each page draws the viewer's own
-                    version with a list (self.list) and the catalogue's
-                    without one. */}
+                {/* Future Releases and Seasonal read the catalogue: any
+                    viewer that reads one ordinary media type opens them, the
+                    same list navigation.js asks for their rows and the Library
+                    tab. Each page draws the viewer's own version with a list
+                    (self.list) and the catalogue's without one. */}
                 <Route
                   element={<ProtectedRoute anyPermission={LIBRARY_MEDIA_TYPE_PERMISSIONS} />}
                 >
@@ -279,6 +278,11 @@ export default function App() {
                     path="/seasonal/:seasonal_id"
                     element={<SeasonalDetail />}
                   />
+                </Route>
+                {/* Statistics asks its own key, view.statistics - super, user
+                    and shared, never guest - as /api/statistics/catalogue
+                    and navigation.js's row do. */}
+                <Route element={<ProtectedRoute permission="view.statistics" />}>
                   <Route path="/statistics" element={<Statistics />} />
                 </Route>
                 {/* The site-wide Resources page is the admin's and super's

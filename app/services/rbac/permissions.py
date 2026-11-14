@@ -185,6 +185,7 @@ ENTITY_VIEW_KEYS: tuple[str, ...] = ("studio", "publisher", "person", "character
 VIEW_PERMISSION_KEYS: tuple[str, ...] = ENTITY_VIEW_KEYS + (
     "search",
     "random_picker",
+    "statistics",
 )
 
 VIEW_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
@@ -220,6 +221,11 @@ VIEW_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
         "Open the Random Picker and read its saved defaults. Fixed per role: "
         "super, user and shared hold it, a guest never does.",
     ),
+    "statistics": (
+        "Statistics",
+        "Open the Statistics page and read its catalogue counts. Fixed per "
+        "role: super, user and shared hold it, a guest never does.",
+    ),
 }
 
 
@@ -254,6 +260,7 @@ ENTITY_VIEW_PERMISSIONS: frozenset[str] = frozenset(
 )
 PERM_VIEW_SEARCH = view_perm("search")
 PERM_VIEW_RANDOM_PICKER = view_perm("random_picker")
+PERM_VIEW_STATISTICS = view_perm("statistics")
 
 
 def split_perm(permission: str) -> tuple[str, str]:
@@ -395,7 +402,7 @@ def locked_permissions(role_name: str) -> tuple[frozenset[str], frozenset[str]]:
             | {manage_perm(key) for key in MANAGE_PERMISSION_KEYS}
             | own
             | gated
-            | {PERM_VIEW_RANDOM_PICKER}
+            | {PERM_VIEW_RANDOM_PICKER, PERM_VIEW_STATISTICS}
         )
     if role_name == SUPER_ROLE_NAME:
         return frozenset(every - {PERM_ADMIN_AUTHZ}), frozenset({PERM_ADMIN_AUTHZ})
@@ -410,7 +417,13 @@ def locked_permissions(role_name: str) -> tuple[frozenset[str], frozenset[str]]:
         # `super`, so a member never holds it.
         # The admin's own pages are not a member's either.
         return frozenset(
-            {PERM_SELF_REQUESTS, PERM_SELF_PASSWORD, PERM_VIEW_RANDOM_PICKER} | gated
+            {
+                PERM_SELF_REQUESTS,
+                PERM_SELF_PASSWORD,
+                PERM_VIEW_RANDOM_PICKER,
+                PERM_VIEW_STATISTICS,
+            }
+            | gated
         ), frozenset(
             refused
             | {PERM_MANAGE_CATALOG, PERM_MANAGE_REQUESTS}
@@ -421,10 +434,12 @@ def locked_permissions(role_name: str) -> tuple[frozenset[str], frozenset[str]]:
         # reads; it keeps no list or personal notes of its own, because they
         # would be everyone's. Its password is the admin's to set - one person
         # changing it would lock out everyone else using the login. It holds
-        # the Random Picker, in its catalogue-only version (viewers.md,
-        # "Shared"). Quotes and memes are a per-account switch, which a shared
+        # the Random Picker and Statistics, each in its catalogue-only version
+        # (viewers.md, "Shared"). Quotes and memes are a per-account switch, which a shared
         # account can never hold (features.FEATURE_ROLE_NAMES).
-        return frozenset({PERM_SELF_REQUESTS, PERM_VIEW_RANDOM_PICKER}), frozenset(
+        return frozenset(
+            {PERM_SELF_REQUESTS, PERM_VIEW_RANDOM_PICKER, PERM_VIEW_STATISTICS}
+        ), frozenset(
             {admin_perm(key) for key in ADMIN_PERMISSION_KEYS}
             | {manage_perm(key) for key in MANAGE_PERMISSION_KEYS}
             | {PERM_SELF_LIST, PERM_SELF_PERSONAL_NOTES, PERM_SELF_PASSWORD}

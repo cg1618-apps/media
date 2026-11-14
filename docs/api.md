@@ -1252,7 +1252,7 @@ catalogue, not an account, and sit on a separate router
 
 | Method | Path | Auth | Description |
 | ------ | ---- | ---- | ----------- |
-| `GET`  | `/catalogue` | Public | `CatalogueStatistics` — `by_type` (`{media_type: count}`, a type with no visible entry absent), `by_season` (as `/api/seasonal/catalogue`) and `by_genre` (`{genre, entry_count}[]`, most first, over Genre Main and Game Genre). Counts of the catalogue for a viewer without a list, narrowed to the media types its role holds and the labels its mode shows (`services/domain/catalogue_stats.py`). |
+| `GET`  | `/catalogue` | `view.statistics` | `CatalogueStatistics` — `by_type` (`{media_type, entry_count, franchise_count}[]`, a type with no visible entry absent; `franchise_count` is the distinct franchises holding at least one visible entry of the type, through `media.franchise_id`), `by_season` (as `/api/seasonal/catalogue`), and `scores` — `mal` and `anilist`, each `{media_type, bucket, entry_count}[]` over every type carrying that column (anime, anime movie, manga, novel). `bucket` is the lower bound: MAL in one-point buckets 0-9, AniList in ten-point buckets 0-90, a perfect score folded into the top one; an unscored entry is in none. Every count is narrowed to the media types the role holds and the labels its mode shows (`services/domain/catalogue_stats.py`). **401** for a guest or the admin. |
 `/api/search` stays public, but its `seasonal` bucket holds the caller's own
 rows and is empty for an anonymous searcher.
 

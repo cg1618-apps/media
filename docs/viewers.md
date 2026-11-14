@@ -29,7 +29,8 @@ it; "per account" is a per-account feature switch, off by default.
 | Studio, publisher, person, character pages | — | ✓ | switch, off | switch, off | switch, off |
 | Search | — | ✓ | switch, on | switch, off | switch, off |
 | Future Releases | — | ✓ | ✓ | ✓ | ✓ |
-| Seasonal, Statistics | — | ✓ | ✓ | ✓ ² | ✓ ² |
+| Seasonal | — | ✓ | ✓ | ✓ ² | ✓ ² |
+| Statistics | — | ✓ | ✓ | — | ✓ ² |
 | Random Picker | — | ✓ | ✓ | — | ✓ ¹ |
 | Plan, Completions | — | ✓ | ✓ | — | — |
 | Quotes, memes | — | per account | per account | — | — |
@@ -146,19 +147,19 @@ Super without the catalogue work.
 | Search | switch, off | switch, off | switch, on | ✓ |
 | Future Releases | ✓ | ✓ | ✓ | ✓ |
 | Seasonal | ✓ | ✓ | ✓ | ✓ |
-| Statistics | ✓ | ✓ | ✓ | ✓ |
+| Statistics | — | ✓ | ✓ | ✓ |
 | Random Picker | — | ✓ ¹ | ✓ | ✓ |
 | Plan | — | — | ✓ | ✓ |
 | Completions | — | — | ✓ | ✓ |
 
 The admin has none of them: it reads no catalogue. Search asks
 `view.search`, a switch on each role: fixed on for super, seeded on for
-user and seeded off for guest and shared. Seasonal, Statistics and
-Future Releases ask for any ordinary media type, so every viewer that reads
-the catalogue has them; a viewer without a list — guest and shared — gets
-each in its catalogue version. The Random Picker asks `view.random_picker`,
-fixed on for super, user and shared and off for guest. Plan and Completions
-ask `self.list`.
+user and seeded off for guest and shared. Seasonal and Future Releases ask
+for any ordinary media type, so every viewer that reads the catalogue has
+them; a viewer without a list — guest and shared — gets each in its
+catalogue version. The Random Picker asks `view.random_picker` and
+Statistics asks `view.statistics`, each fixed on for super, user and shared
+and off for guest. Plan and Completions ask `self.list`.
 
 ¹ Shared accounts get the Random Picker's catalogue version; see
 [Random Picker and Future Releases](#random-picker-and-future-releases).
@@ -169,14 +170,14 @@ The logged-out visitor.
 
 - **Reads** the libraries, entry and group pages, watch orders, the
   dashboard's announcements, broadcast schedule and library links, Future
-  Releases, Seasonal and Statistics (each in its catalogue version, without
-  personal data), and Search and the entity kinds where its role's switches
+  Releases and Seasonal (each in its catalogue version, without personal
+  data), and Search and the entity kinds where its role's switches
   open them (Search is seeded off).
 - **The nine ordinary media types, games included**, in `safe` — each a
   switch on the role, seeded on. Never H-Comic, H-Game or Hentai: those are
   fixed off for a guest.
-- **Not:** Random Picker, Plan, Completions, quotes, memes, `/resources`,
-  personal data, requests.
+- **Not:** Random Picker, Statistics, Plan, Completions, quotes, memes,
+  `/resources`, personal data, requests.
 - **No register link** on the sign-in page: an invite arrives as a link.
 - Its mode is `safe`, always, fixed.
 
@@ -258,7 +259,7 @@ Every page listed below is settled in its general version.
 | Library | collection, franchise, the nine types, the entity libraries whose switches are on | — | ✓ | ✓ | ✓ | ✓ |
 | Restricted | H-Comic, H-Game, Hentai | — | in `unrestricted` | in `unrestricted` | — | — |
 | **Track** | Plan, Completions | — | ✓ | ✓ | — | — |
-| **Explore** | Seasonal, Future Releases, Random Picker, Statistics | — | ✓ | ✓ | all but Random Picker | ✓ |
+| **Explore** | Seasonal, Future Releases, Random Picker, Statistics | — | ✓ | ✓ | Seasonal, Future Releases | ✓ |
 | **Extras** | Quotes, Memes, Resources ┃ Relations, Watch Orders | Resources | Resources, Relations, Watch Orders; quotes and memes by switch | quotes and memes by switch | — | — |
 | Entry | catalogue editing, Picker Defaults, Images | Images | ✓ | — | — | — |
 | Note | System Options, Alias Conversion, External APIs, Content Labels, Business Logic | ✓ | ✓ | — | — | — |
@@ -325,8 +326,9 @@ series the viewer's mode hides reads as missing wherever it would be listed
 
 | Viewer | Seasonal | Statistics |
 | --- | --- | --- |
-| **super, user** | the season's anime grouped by the viewer's own status, its own season rating, and its own episode steppers | its own ratings, favourites and counts, from its own list |
-| **guest, shared** | the season's anime **without a status split** — what aired or airs that season, best external score first — and the All Seasons table, each season with its count of entries | **counts of the catalogue**, not anyone's opinion: entries per type, per anime season and per genre, over what the viewer's role and mode show |
+| **super, user** | the season's anime grouped by the viewer's own status, its own season rating, and its own episode steppers | its own ratings, favourites and counts, from its own list, **and below them the catalogue sections** shared sees |
+| **shared** | the season's anime **without a status split** — what aired or airs that season, best external score first — and the All Seasons table, each season with its count of entries | **the catalogue sections alone** — counts of the catalogue, not anyone's opinion, over what the viewer's role and mode show: franchises and entries per type, anime per season, and the MAL and AniList score distributions |
+| **guest** | as shared | none: no nav row, and the route and its counts refuse it |
 | **admin** | none | none |
 
 ### Random Picker and Future Releases

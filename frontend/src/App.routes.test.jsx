@@ -131,14 +131,13 @@ describe("a member-only route", () => {
 });
 
 describe("the catalogue Explore routes", () => {
-  // Future Releases, Seasonal and Statistics read the catalogue, so each asks
-  // for any ordinary media type - a guest's nine keys open it, with no list -
-  // and a session holding none (the admin's shape) is sent to log in.
+  // Future Releases and Seasonal read the catalogue, so each asks for any
+  // ordinary media type - a guest's nine keys open it, with no list - and a
+  // session holding none (the admin's shape) is sent to log in.
   for (const [path, page] of [
     ["/future-releases", "future releases"],
     ["/seasonal", "seasonal"],
     [`/seasonal/${encodeURIComponent("SPR 2026")}`, "seasonal detail"],
-    ["/statistics", "statistics"],
   ]) {
     it(`opens ${path} for a reader of one ordinary media type, without a list`, async () => {
       session(["media_type.anime"], null);
@@ -154,6 +153,23 @@ describe("the catalogue Explore routes", () => {
       expect(screen.queryByText(`${page} page`)).toBeNull();
     });
   }
+});
+
+describe("the statistics route", () => {
+  // view.statistics alone: super, user and shared hold it, a guest never does.
+  it("sends a catalogue reader without the key to log in", async () => {
+    // The guest's shape: an ordinary media type and no view.statistics.
+    session(["media_type.anime"], null);
+    await visit("/statistics");
+    expect(await screen.findByText("login page")).toBeInTheDocument();
+    expect(screen.queryByText("statistics page")).toBeNull();
+  });
+
+  it("opens it for the same reader once it holds the key", async () => {
+    session(["media_type.anime", "view.statistics"], "shared");
+    await visit("/statistics");
+    expect(await screen.findByText("statistics page")).toBeInTheDocument();
+  });
 });
 
 describe("the quotes and memes routes", () => {
