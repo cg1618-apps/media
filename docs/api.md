@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-11-14
+Last verified: 2026-11-16
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -1615,7 +1615,7 @@ editor cannot see.
 | `PUT`    | `/{option_id}` | `manage.catalog` | Update an existing option by UUID `system_id`. Body: `SystemOptionCreate`; replaces the option's scope, usage **and alias** rows wholesale — a body omitting a list deletes it. 400 on a duplicate `(category, value)`. |
 | `DELETE` | `/{option_id}` | `manage.catalog` | Delete an option by UUID. Cascades its `system_option_scope`, `system_option_alias`, `media_tag` and `character_tag` rows. Logs to `deleted_record`.                  |
 
-**Response model:** `SystemOptionResponse` (`{system_id, category, value, sort_order, remark, scopes: [str, ...], usages: [str, ...], aliases: [{source, value}, ...]}`)
+**Response model:** `SystemOptionResponse` (`{system_id, category, value, sort_order, remark, scopes: [str, ...], usages: [str, ...], aliases: [{source, value}, ...], family}`). `family` is read-only and derived, never stored: on a `Game Platform` console it names the console's family (`Nintendo` on `Switch`), and it is null on a family and on every other category - see [Game Platform: families and consoles](options.md#game-platform-families-and-consoles). A body sending it back is ignored.
 
 **Validation.** `scopes` must be `MEDIA_TYPE_KEYS`, `usages` must be
 `OPTION_USAGES`, and each alias `source` must be `ALIAS_SOURCES`

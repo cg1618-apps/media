@@ -1273,7 +1273,7 @@ def autofill_game_from_igdb(game, db: Session, *, cover: bool = True) -> None:
     """
     # Imported here rather than at module scope: app.routers.options imports
     # app.schemas, which imports this module back.
-    from app.routers.options import resolve_option_alias
+    from app.routers.options import resolve_option_aliases
     from app.utils.credit_roles import CREDIT_ROLES, TAG_FIELDS
 
     igdb_id = game.igdb_id
@@ -1335,8 +1335,8 @@ def autofill_game_from_igdb(game, db: Session, *, cover: bool = True) -> None:
                 continue
             resolved = []
             for english in values or []:
-                option = resolve_option_alias(db, category, "igdb", english)
-                if option is None:
+                options = resolve_option_aliases(db, category, "igdb", english)
+                if not options:
                     logger.warning(
                         "IGDB %s '%s' has no alias row; skipped for game %s",
                         category,
@@ -1344,11 +1344,13 @@ def autofill_game_from_igdb(game, db: Session, *, cover: bool = True) -> None:
                         game.system_id,
                     )
                     continue
-                # Many IGDB names fold into one value - "PlayStation 4" and
-                # "PlayStation 5" are both PlayStation - so the same value can
-                # resolve twice. replace_tags does not dedupe.
-                if option.value not in resolved:
-                    resolved.append(option.value)
+                # One IGDB name may resolve to several values - "PlayStation
+                # 4" is both the PlayStation family and the PS4 console - and
+                # several names to one: "PlayStation 4" and "PlayStation 5"
+                # both reach PlayStation. replace_tags does not dedupe.
+                for option in options:
+                    if option.value not in resolved:
+                        resolved.append(option.value)
             if resolved:
                 replace_tags(db, game.system_id, field, resolved)
 

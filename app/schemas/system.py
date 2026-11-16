@@ -5,7 +5,7 @@ from datetime import date, datetime
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, computed_field, field_validator
 
 MAX_FIELD_COUNT = 200
 # A default is a starting point, not a data import: no multi-select or repeater
@@ -193,6 +193,24 @@ class SystemOptionResponse(SystemOptionBase):
         if v and not isinstance(v[0], (dict, SystemOptionAliasIO)):
             return [{"source": a.source, "value": a.value} for a in v]
         return v
+
+    @computed_field
+    @property
+    def family(self) -> Optional[str]:
+        """
+        The Game Platform family a console belongs to - Nintendo for Switch -
+        and None for a family and for every other vocabulary.
+
+        Read from GAME_PLATFORMS, not stored: which family a console belongs
+        to is code, edited nowhere. The platform picker reads it to add a
+        console's family as it is picked, which replace_tags does on every
+        write.
+        """
+        from app.utils.game_vocabulary import GAME_PLATFORM_FAMILIES, PLATFORM_CATEGORY
+
+        if self.category != PLATFORM_CATEGORY:
+            return None
+        return GAME_PLATFORM_FAMILIES.get(self.value)
 
 
 

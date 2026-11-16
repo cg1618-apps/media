@@ -31,6 +31,10 @@ from app.utils.credit_roles import (
     sheet_column_for,
     tag_fields_for,
 )
+from app.utils.game_vocabulary import (
+    GAME_PLATFORM_FIELD,
+    with_platform_families,
+)
 from app.utils.name_normalize import (
     name_slot_for,
     names_of,
@@ -515,8 +519,14 @@ def replace_tags(
     No media_type parameter, unlike replace_credits: a tag registers no scope
     (Ruling R27, below), so once the row is keyed by media_id the type has
     nothing left to do here.
+
+    The one write path for tags, so the one place a Game Platform console
+    brings its family along (with_platform_families): the API, Fill and Pull
+    all store Nintendo beside Switch, whatever they were handed.
     """
     spec = TAG_FIELDS[field]
+    if field == GAME_PLATFORM_FIELD:
+        values = with_platform_families(list(values))
 
     db.query(models.MediaTag).filter_by(
         media_id=media_id, field=field

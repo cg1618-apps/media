@@ -196,9 +196,13 @@ def get_system_options(
 # ==========================================
 
 
-def resolve_option_alias(db: Session, category: str, source: str, value: str):
+def resolve_option_aliases(db: Session, category: str, source: str, value: str):
     """
-    The option one external source's string names, or None.
+    Every option one external source's string names, in picker order.
+
+    Usually one, sometimes none, and more than one where a vocabulary has two
+    grains: IGDB's "Nintendo Switch" is both the Nintendo family and the
+    Switch console in Game Platform, so both carry the alias.
 
     Scoped by category on purpose: the same English word can name a genre in
     one vocabulary and a theme in another, and an unscoped match would import
@@ -212,7 +216,8 @@ def resolve_option_alias(db: Session, category: str, source: str, value: str):
             models.SystemOptionAlias.source == source,
             models.SystemOptionAlias.value == value,
         )
-        .first()
+        .order_by(models.SystemOption.sort_order, models.SystemOption.value)
+        .all()
     )
 
 

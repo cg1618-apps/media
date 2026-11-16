@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-11-14
+Last verified: 2026-11-16
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -2237,8 +2237,10 @@ Constraint and index: `uq_system_option_alias` UNIQUE (`option_id`, `source`,
 Exists because vocabulary values are stored in **Chinese** - that is what the
 pickers show - while an external API speaks English. The English is a wire
 format, resolved through this table on the way in by
-`resolve_option_alias(db, category, source, value)`
-(`app/routers/options.py`), which matches within one `category` on purpose:
+`resolve_option_aliases(db, category, source, value)`
+(`app/routers/options.py`), which returns every match in `sort_order` - two
+in `Game Platform`, where a console and its family share the console's IGDB
+name - and matches within one `category` on purpose:
 the same English word can name a genre in one vocabulary and a theme in
 another, and an unscoped match would import it into the wrong one.
 

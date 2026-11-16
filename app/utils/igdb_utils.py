@@ -6,7 +6,7 @@ Two deliberate non-translations live here:
 
 * Genres, themes, game modes and platforms come through as **raw English**.
   Turning "Role-playing (RPG)" into the vocabulary value is the alias layer's
-  job (`system_option_alias` / `resolve_option_alias`), because an unmatched
+  job (`system_option_alias` / `resolve_option_aliases`), because an unmatched
   value must surface as a gap to fill rather than be silently invented here.
 * `parent_game` is carried as a bare IGDB id. Resolving it to a `system_id`
   needs the database, which a pure mapper does not have.

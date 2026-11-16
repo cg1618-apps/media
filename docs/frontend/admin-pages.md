@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-11-14
+Last verified: 2026-11-16
 
 **What this is for.** Every administrative route behind `ProtectedRoute` in
 `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -590,7 +590,9 @@ Play Next / To Replay flags; Information - **Main / Remake** (`is_main` over
 `GAME_IS_MAIN`, starting on Main), game type, a **Base Game** `ComboBox`
 that never offers the row being edited (`ck_games_not_self_parent`), release
 status, release date, current patch, the three HLTB tiers and the platform,
-mode and combat vocabularies; Genre, Theme and Label; Production (Developer
+mode and combat vocabularies - picking a platform console picks its family
+too, and a family stays picked while one of its consoles is
+(`lib/gamePlatforms.js`); Genre, Theme and Label; Production (Developer
 is a **studio** row, Publisher a **publisher** row; director and composer are
 people scoped to `game`); the three **Prices** (the MSRP per region); **Copies**; the IGDB and Steam
 ids and links with the sources; cover and remark. Submit needs a CN or EN name, `POST /api/game/` then
