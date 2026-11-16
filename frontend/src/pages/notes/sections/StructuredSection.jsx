@@ -991,11 +991,12 @@ function GroupBlock({ name, noName, count, movable, children }) {
 // move would be built from the order still in flight. The new order shows at
 // once (`pending`), and a save that fails drops it again.
 //
-// The entry cap applies per GROUP, not per section: each group shows its first
-// VISIBLE_ENTRIES rows and folds the rest behind its own toggle, and every
-// group header stays on screen. The headers are what a reader scans and what
-// drags, and a header folded out of sight could be neither found nor dropped
-// on.
+// The entry cap applies twice: each group shows its first VISIBLE_ENTRIES
+// rows and folds the rest behind its own toggle, and the section shows its
+// first VISIBLE_ENTRIES groups and folds the rest behind "Show all groups".
+// A group holding the row being edited stays on screen, and the sortable list
+// holds every group, folded or not, so the last group shown can be moved down
+// past the fold - which unfolds the groups, or it would vanish.
 //
 // Grouped by a `select` field instead (`groupBy` is `section.groupable_by`),
 // a row is in exactly one group and `onRowsReorder` is given: then the rows
@@ -1034,6 +1035,9 @@ function GroupedRows({
   // The groups unfolded past the cap, by name (the nameless group by a key no
   // name can take, since a name is trimmed text and never empty).
   const [unfolded, setUnfolded] = useState(() => new Set());
+  // Whether the groups themselves are unfolded past the first
+  // VISIBLE_ENTRIES (see `shownGroups`).
+  const [groupsExpanded, setGroupsExpanded] = useState(false);
   const order =
     pending && pending.base === groupOrder ? pending.order : groupOrder || [];
 
@@ -1044,6 +1048,15 @@ function GroupedRows({
   // named group's index here is its index in `groups` too.
   const named = groups.filter((g) => g.name !== null);
   const unnamed = groups.filter((g) => g.name === null);
+  // The groups drawn: the first VISIBLE_ENTRIES, the nameless one counting
+  // last, plus any group holding the row being edited - the rest fold behind
+  // "Show all groups". The sortable list still holds every named group, so
+  // the last group shown can be moved down past the fold, which unfolds it.
+  const shown = new Set(
+    capEntries(groups, groupsExpanded, (g) =>
+      Boolean(editKey?.startsWith(`${g.name}|`)),
+    ),
+  );
   const saveOrder = onRowsReorder || onGroupOrderChange;
   const canMove =
     canWrite && Boolean(saveOrder) && named.length > 1 && notes.every(canMoveRow);
@@ -1055,6 +1068,7 @@ function GroupedRows({
 
   const move = (from, to) => {
     if (from === to) return;
+    if (to >= VISIBLE_ENTRIES) setGroupsExpanded(true);
     const next = movedGroupOrder(groups, from, to);
     if (onRowsReorder) {
       const byName = new Map(groups.map((g) => [g.name, g]));
@@ -1188,9 +1202,15 @@ function GroupedRows({
   return (
     <div className="space-y-3">
       <SortableList ids={named.map((g) => g.name)} onMove={move} disabled={locked}>
-        {named.map(renderGroup)}
+        {named.map((g, gi) => (shown.has(g) ? renderGroup(g, gi) : null))}
       </SortableList>
-      {unnamed.map((g) => renderGroup(g, groups.length - 1))}
+      {unnamed.filter((g) => shown.has(g)).map((g) => renderGroup(g, groups.length - 1))}
+      <ShowAllToggle
+        noun="groups"
+        total={groups.length}
+        expanded={groupsExpanded}
+        onToggle={() => setGroupsExpanded(!groupsExpanded)}
+      />
     </div>
   );
 }
@@ -1274,6 +1294,9 @@ function StructuredSectionBody({
   const [groupedByField, setGroupedByField] = useGroupToggle(section.key);
   // The tree's groups unfolded past the cap, by name ("" for the nameless one).
   const [unfolded, setUnfolded] = useState(() => new Set());
+  // Whether the tree's groups themselves are unfolded past the first
+  // VISIBLE_ENTRIES, as GroupedRows folds its groups.
+  const [groupsExpanded, setGroupsExpanded] = useState(false);
 
   // Only a top-level row carries the group of a hierarchical section, so the
   // form leaves it out for a child: a draft under a row, or an edited row
@@ -1371,6 +1394,7 @@ function StructuredSectionBody({
   // with the nameless group still last.
   const moveGroup = (from, to) => {
     if (from === to || !onReorder) return;
+    if (to >= VISIBLE_ENTRIES) setGroupsExpanded(true);
     const byName = new Map(rootGroups.map((g) => [g.name, g]));
     const unnamed = rootGroups.filter((g) => g.name === null);
     const next = movedGroupOrder(rootGroups, from, to).map((n) => byName.get(n));
@@ -1552,6 +1576,11 @@ function StructuredSectionBody({
     const keep = (node) =>
       (editId !== null && holds(node, editId)) ||
       (addingUnder && holds(node, addingUnder));
+    // The groups drawn, folded like GroupedRows': the first VISIBLE_ENTRIES
+    // plus any group holding the row being edited or added under.
+    const shown = new Set(
+      capEntries(rootGroups, groupsExpanded, (g) => g.nodes.some(keep)),
+    );
     const renderGroup = (group) => {
       const foldKey = group.name ?? "";
       const expanded = unfolded.has(foldKey);
@@ -1585,9 +1614,15 @@ function StructuredSectionBody({
           onMove={moveGroup}
           disabled={reordering}
         >
-          {named.map(renderGroup)}
+          {named.map((g) => (shown.has(g) ? renderGroup(g) : null))}
         </SortableList>
-        {unnamed.map(renderGroup)}
+        {unnamed.filter((g) => shown.has(g)).map(renderGroup)}
+        <ShowAllToggle
+          noun="groups"
+          total={rootGroups.length}
+          expanded={groupsExpanded}
+          onToggle={() => setGroupsExpanded(!groupsExpanded)}
+        />
       </div>
     );
   };
