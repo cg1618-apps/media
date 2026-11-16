@@ -99,6 +99,7 @@ import {
 import { Button } from "../../../components/ui/primitives";
 import {
   EmptyHint,
+  GroupName,
   ItemActions,
   LinkPill,
   LinksEditor,
@@ -949,15 +950,26 @@ function buildTree(notes, hierarchical) {
 // name (or `noName` for the trailing nameless group), the row count - and its
 // rows indented under it. A named group is a sortable item, movable or not:
 // the handle is what makes it draggable, and only a movable group draws one.
+// Given `onRename`, a named group's name is renamable in place (GroupName).
 // The caller sets the `key`.
-function GroupBlock({ name, noName, count, movable, children }) {
+function GroupBlock({ name, noName, count, movable, onRename, children }) {
   const body = (
     <>
       <div data-testid="group-header" className="flex items-center gap-2 mb-1.5">
         {movable && <DragHandle label={`group ${name}`} />}
-        <h5 className="text-sm font-medium text-text">
-          {name ?? <span className="text-text-faint">{noName}</span>}
-        </h5>
+        {name !== null ? (
+          <GroupName
+            name={name}
+            onRename={onRename}
+            inputClassName="max-w-xs py-0.5"
+          >
+            <h5 className="text-sm font-medium text-text">{name}</h5>
+          </GroupName>
+        ) : (
+          <h5 className="text-sm font-medium text-text">
+            <span className="text-text-faint">{noName}</span>
+          </h5>
+        )}
         <span className="font-mono text-[10px] text-text-faint tabular-nums">
           {count}
         </span>
@@ -1007,6 +1019,10 @@ function GroupBlock({ name, noName, count, movable, children }) {
 // of this file): a row takes a handle only when the viewer may move it, the
 // rows a move steps over keep their places, and a group moves only when
 // every row is movable.
+//
+// `onRenameGroup(from, to)` renames a named group; a group offers it when any
+// of its rows is the viewer's to edit, since the server renames exactly
+// those rows.
 function GroupedRows({
   section,
   notes,
@@ -1017,6 +1033,7 @@ function GroupedRows({
   groupOrder,
   onGroupOrderChange,
   onRowsReorder,
+  onRenameGroup,
   busy = false,
   onUpdate,
   onDelete,
@@ -1161,6 +1178,11 @@ function GroupedRows({
         noName={noName}
         count={group.notes.length}
         movable={movable}
+        onRename={
+          onRenameGroup && group.name !== null && group.notes.some(canEditRow)
+            ? (to) => onRenameGroup(group.name, to)
+            : undefined
+        }
       >
         {rowsMove ? (
           // Every row of the group is in the list, folded or not, so a
@@ -1256,8 +1278,13 @@ function StructuredSectionBody({
   nameSuggestions = [],
   groupOrder = null,
   onGroupOrderChange,
+  onRenameGroup,
   reordering = false,
 }) {
+  // A group header's rename, for this section.
+  const renameGroup = onRenameGroup
+    ? (from, to) => onRenameGroup(section.key, from, to)
+    : undefined;
   // `null` means the draft is a root; an id means it is a child of that row.
   // `false` means no draft is open, which is why this is not a boolean.
   const [addingUnder, setAddingUnder] = useState(false);
@@ -1568,6 +1595,13 @@ function StructuredSectionBody({
           noName={noName}
           count={group.nodes.length}
           movable={canMove && group.name !== null}
+          onRename={
+            renameGroup &&
+            group.name !== null &&
+            group.nodes.some((node) => canEditRow(node.note))
+              ? (to) => renameGroup(group.name, to)
+              : undefined
+          }
         >
           {renderNodes(group.nodes, 0, capEntries(group.nodes, expanded, keep))}
           <ShowAllToggle
@@ -1634,6 +1668,7 @@ function StructuredSectionBody({
             canMoveRow={canMoveRow}
             groupBy={section.groupable_by}
             onRowsReorder={onReorder ? sendOrder : undefined}
+            onRenameGroup={renameGroup}
             busy={reordering}
             onUpdate={onUpdate}
             onDelete={onDelete}
@@ -1679,6 +1714,7 @@ function StructuredSectionBody({
             canMoveRow={canMoveRow}
             groupOrder={groupOrder}
             onGroupOrderChange={onGroupOrderChange}
+            onRenameGroup={renameGroup}
             onUpdate={onUpdate}
             onDelete={onDelete}
             canMark={canMark}

@@ -952,6 +952,20 @@ columns.
   share `useRowReorder`, `ReorderList`, `ReorderRow` and `ReorderHandle` in
   `ui.jsx`; a grip is labelled by `noteLabel` (the row's name, locator, text
   or first link). The rules are in `docs/systems/notes.md`.
+  A named group header - `GroupBlock` in `StructuredSection` (a
+  `groupable_by` section, the grouped tree, a `group_by` section) and a
+  Resources group heading in `NameLinksSection` - renames its group through
+  `GroupName` (`ui.jsx`): a pencil labelled "Rename group <name>", shown when
+  the section was given `onRenameGroup` and the viewer may edit any row of the
+  group (`canEditRow`), turns the name into an input labelled "Group name",
+  prefilled; Enter or leaving it saves the trimmed value, Escape cancels, and
+  a blank or unchanged value sends nothing. The nameless group and Resources'
+  "Other" carry none, and the group's drag handle stays beside it. The
+  provider's `onRenameGroup(section, from, to)` sends one
+  `POST /api/notes/rename-group` and reloads the rows; on a `group_by`
+  section, whose renamed order arrives with the entry (`groupOrder`), it also
+  invalidates the entry's `["media-item", ownerType]` query when the page has
+  a query client.
 
 ## Dropdown lists
 
