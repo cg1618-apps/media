@@ -25,6 +25,7 @@ import {
   ReorderRow,
   SaveCancel,
   SectionCard,
+  isPersonal,
   ShowAllToggle,
   DraftPopup,
   inputCls,
@@ -146,6 +147,7 @@ export default function NameLinksSection({
   return (
     <SectionCard
       label={section.label}
+      personal={isPersonal(section)}
       count={notes.length}
       canWrite={canWrite}
       onAdd={() => setAdding(true)}

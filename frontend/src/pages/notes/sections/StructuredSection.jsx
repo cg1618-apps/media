@@ -105,6 +105,7 @@ import {
   MineChip,
   SaveCancel,
   SectionCard,
+  isPersonal,
   ShowAllToggle,
   VISIBLE_ENTRIES,
   brandTagCls,
@@ -1596,6 +1597,7 @@ function StructuredSectionBody({
     return (
       <SectionCard
         label={section.label}
+        personal={isPersonal(section)}
         count={notes.length}
         canWrite={canWrite}
         onAdd={openDraft}
@@ -1620,6 +1622,7 @@ function StructuredSectionBody({
     return (
       <SectionCard
         label={section.label}
+        personal={isPersonal(section)}
         count={notes.length}
         canWrite={canWrite}
         onAdd={openDraft}
@@ -1663,6 +1666,7 @@ function StructuredSectionBody({
     return (
       <SectionCard
         label={section.label}
+        personal={isPersonal(section)}
         count={notes.length}
         canWrite={canWrite}
         onAdd={openDraft}
@@ -1700,6 +1704,7 @@ function StructuredSectionBody({
   return (
     <SectionCard
       label={section.label}
+      personal={isPersonal(section)}
       count={notes.length}
       canWrite={canWrite}
       onAdd={openDraft}

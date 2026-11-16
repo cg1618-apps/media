@@ -16,6 +16,7 @@ import {
   ReorderRow,
   SaveCancel,
   SectionCard,
+  isPersonal,
   ShowAllToggle,
   brandTagCls,
   DraftPopup,
@@ -142,6 +143,7 @@ export default function EpisodeTextSection({
   return (
     <SectionCard
       label={section.label}
+      personal={isPersonal(section)}
       count={notes.length}
       canWrite={canWrite}
       onAdd={() => setAdding(true)}
