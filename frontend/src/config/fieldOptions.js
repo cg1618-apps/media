@@ -412,6 +412,8 @@ export const OPTION_CATEGORIES = [
   "Character Group",
   "Collectible Type",
   "Item Type",
+  "Weapon & Gear Type",
+  "Enemy Tier",
   "Geography Group",
 ];
 
@@ -428,6 +430,8 @@ export const NOTE_SUGGESTION_CATEGORIES = [
   "Character Group",
   "Collectible Type",
   "Item Type",
+  "Weapon & Gear Type",
+  "Enemy Tier",
   "Geography Group",
 ];
 

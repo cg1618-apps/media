@@ -464,9 +464,9 @@ column a field claims; a field with no arrow lives in `fields`.
 | `builds_and_styles` | name → `title`, **stats** *(list: name, min_value, rec_value)*, **armor** *(list: body_part, name, special)*, **weapons** *(list: range_type, type, name, special)*, **items** *(list: type, name, amount)*, **skills** *(list: type, name)*, description → `content`, links → `links` |
 | `team_composition` | name → `title`, **members** *(list: name, role 定位, build, description)*, description → `content`, links → `links` |
 | `skills` | type → `kind`, name → `title`, description → `content`, links → `links` |
-| `collectibles` / `items` / `weapons_and_gear` | type → `kind` (free-text select; suggested from `Collectible Type` / `Item Type` / nothing), name → `title`, variant, description → `content`, links → `links`, collected → `status` *(default `not collected`; personal, NG-reset)*, **has_amount** *(label "Amount", `yes` / `no`, default `no`, `view_hidden`)*, **amount_total** *(label "Total", text; shown when has_amount is yes)*, **amount_collected** *(label "Collected amount", text; personal, NG-reset; shown when has_amount is yes)*, **ng_reset** *(label "NG Reset", `yes` / `no`, default `yes`)*; `groupable_by = "type"` |
+| `collectibles` / `items` / `weapons_and_gear` | type → `kind` (free-text select; suggested from `Collectible Type` / `Item Type` / `Weapon & Gear Type`), name → `title`, variant, description → `content`, links → `links`, collected → `status` *(default `not collected`; personal, NG-reset)*, **has_amount** *(label "Amount", `yes` / `no`, default `no`, `view_hidden`)*, **amount_total** *(label "Total", text; shown when has_amount is yes)*, **amount_collected** *(label "Collected amount", text; personal, NG-reset; shown when has_amount is yes)*, **ng_reset** *(label "NG Reset", `yes` / `no`, default `yes`)*; `groupable_by = "type"` |
 | `characters_guide` | group → `kind` (free-text select, suggested from `Character Group`), name → `title`, alias, description → `content`; `groupable_by = "group"` |
-| `enemies` | tier → `kind` (free-text select), region, name → `title`, alias, description → `content`, beaten → `status` *(default `to beat`; personal, NG-reset)*; `groupable_by = "tier"` |
+| `enemies` | tier → `kind` (free-text select, suggested from `Enemy Tier`), region, name → `title`, alias, description → `content`, beaten → `status` *(default `to beat`; personal, NG-reset)*; `groupable_by = "tier"` |
 | `geography` | group → `kind` (free-text select, suggested from `Geography Group`; top-level rows only), name → `title`, description → `content`, links → `links`; `hierarchical`, `groupable_by = "group"`, `require_any = (("name",),)` |
 | `endings` | name → `title`, completion → `status` *(personal)*, description → `content`, links → `links` |
 | `mods_and_tools` | type → `kind`, name → `title`, developer, description → `content`, status → `status` *(personal, granted by `mod_status`)*; `groupable_by = "type"` |
@@ -521,13 +521,15 @@ A free-text value can be offered suggestions from a `system_option` category
 without being closed to them. A section names one for its `kind`
 (`kind_category`, the OP and ED Song Type) or for its link text
 (`link_text_category`, Song Source); a structured field names one for itself
-(`NoteField.option_category`). Four fields do:
+(`NoteField.option_category`). Six fields do:
 
 | Category | Field | Seeded values |
 | --- | --- | --- |
 | `Character Group` | 角色 Characters `group` | 商人, 重要NPC, 主角, 同伴, 可攻略, 反派 |
 | `Collectible Type` | 收集物 Collectibles `type` | 重要物品 |
 | `Item Type` | 道具 Items `type` | 重要道具, 任務道具 |
+| `Weapon & Gear Type` | 武器&裝備 Weapons & Gear `type` | none |
+| `Enemy Tier` | 敵人 Enemies `tier` | none |
 | `Geography Group` | 地理 Geography `group` | none |
 
 Seeded by migration `n1o2tesrwk3` with **no scope rows**, so game and h-game

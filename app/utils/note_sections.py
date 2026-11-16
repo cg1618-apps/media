@@ -578,6 +578,8 @@ HAS_AMOUNT_SHOWN = ("has_amount", "yes")
 CHARACTER_GROUP_CATEGORY = "Character Group"
 COLLECTIBLE_TYPE_CATEGORY = "Collectible Type"
 ITEM_TYPE_CATEGORY = "Item Type"
+WEAPON_GEAR_TYPE_CATEGORY = "Weapon & Gear Type"
+ENEMY_TIER_CATEGORY = "Enemy Tier"
 GEOGRAPHY_GROUP_CATEGORY = "Geography Group"
 
 
@@ -1513,7 +1515,9 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         scope=SCOPE_CATALOG,
         mixed=True,
         group="gear",
-        fields=_named_thing_fields(variant=True, collected=True),
+        fields=_named_thing_fields(
+            variant=True, collected=True, type_category=WEAPON_GEAR_TYPE_CATEGORY
+        ),
         groupable_by="type",
     ),
     NoteSection(
@@ -1595,7 +1599,13 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         fields=(
             # Free text: "boss", "small boss", "elite", "trash" are one game's
             # vocabulary and the next game's is a different one.
-            NoteField(key="tier", label="Tier", type=FIELD_SELECT, column="kind"),
+            NoteField(
+                key="tier",
+                label="Tier",
+                type=FIELD_SELECT,
+                column="kind",
+                option_category=ENEMY_TIER_CATEGORY,
+            ),
             NoteField(key="region", label="Region"),
             NoteField(key="name", label="Name", column="title"),
             NoteField(key="alias", label="Alias"),

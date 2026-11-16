@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-11-14
+Last verified: 2026-11-16
 
 ## What this is for
 
@@ -314,11 +314,11 @@ out. What the three gated types keep is in
 | `skills` | structured | 技能 Skills | game, h-game | builds | type, name, description, links; groupable by type |
 | `builds_and_styles` | structured | 配裝&流派 Builds & Styles | game, h-game | builds | name, five nested lists, description, links |
 | `team_composition` | structured | 隊伍組成 Team Composition | game, h-game | builds | name, members list (name, 定位, build, notes), description, links |
-| `weapons_and_gear` | structured | 武器&裝備 Weapons & Gear | game, h-game | gear | type, name, variant, description, links, collect status (default `not collected`; personal), total, collected amount (personal), NG reset (`yes` / `no`, default `yes`); groupable by type |
+| `weapons_and_gear` | structured | 武器&裝備 Weapons & Gear | game, h-game | gear | type (suggested from `Weapon & Gear Type`), name, variant, description, links, collect status (default `not collected`; personal), total, collected amount (personal), NG reset (`yes` / `no`, default `yes`); groupable by type |
 | `items` | structured | 道具 Items | game, h-game | gear | type (suggested from `Item Type`), name, variant, description, links, collect status (default `not collected`; personal), total, collected amount (personal), NG reset (`yes` / `no`, default `yes`); groupable by type |
 | `collectibles` | structured | 收集物 Collectibles | game, h-game | gear | type (suggested from `Collectible Type`), name, variant, description, links, collect status (default `not collected`; personal), total, collected amount (personal), NG reset (`yes` / `no`, default `yes`); groupable by type |
 | `characters_guide` | structured | 角色 Characters | game, h-game | compendium | group (suggested from `Character Group`), name, alias, description; groupable by group |
-| `enemies` | structured | 敵人 Enemies | game, h-game | compendium | tier, region, name, alias, description, beaten status (default `to beat`; personal); groupable by tier |
+| `enemies` | structured | 敵人 Enemies | game, h-game | compendium | tier (suggested from `Enemy Tier`), region, name, alias, description, beaten status (default `to beat`; personal); groupable by tier |
 | `geography` | structured | 地理 Geography | game, h-game | compendium | group (suggested from `Geography Group`, top-level rows only), name, description, links; nestable; groupable by group |
 | `game_terms` | structured | 遊戲名詞 Game Terms | game, h-game | compendium | name (CN), alt name, description |
 | `player_terms` | structured | 玩家術語 Player Terms | game | compendium | name (CN), alt name, description |
@@ -627,12 +627,13 @@ is that its values read as tags *on* the work, while `Platform` and the
 Comic vocabularies name an outside party. A new category is therefore not automatically a tag.
 
 `NOTE_SUGGESTION_CATEGORIES` (`app/utils/note_sections.py`, served as
-`/api/constants` `note_suggestion_categories`): `Item Type`, `Collectible
-Type`, `Character Group`, `Geography Group` — the categories a note field's
+`/api/constants` `note_suggestion_categories`): `Weapon & Gear Type`, `Item
+Type`, `Collectible Type`, `Character Group`, `Enemy Tier`, `Geography Group`
+— the categories a note field's
 `option_category` names, which the same three admin pages offer under a third
 sub-tab, **Note Suggestions**, rather than under Options. Navigation only, like
-the Tags split. Derived from the registry, so it holds exactly the four the
-registry names: a fifth is a registry edit, not an admin action. `Song Type`
+the Tags split. Derived from the registry, so it holds exactly the six the
+registry names: a seventh is a registry edit, not an admin action. `Song Type`
 and `Song Source` are named by a section rather than by a field, so they stay
 under Options. See [systems/notes.md](systems/notes.md#suggestion-categories).
 
@@ -640,13 +641,13 @@ under Options. See [systems/notes.md](systems/notes.md#suggestion-categories).
 2 categories with no `TagField` behind them — `Reference Source` instead
 backs `media_source` `kind='reference'` rows directly, resolved by
 `option_id` the same way `main`-bucket access rows are, never through
-`media_tag`). `NOTE_OPTION_CATEGORIES` (`app/utils/note_sections.py`): `Item
-Type`, `Collectible Type`, `Character Group`, `Geography Group`, `Song Type`
-and `Song Source`, derived from the note sections that name them (a field's
+`media_tag`). `NOTE_OPTION_CATEGORIES` (`app/utils/note_sections.py`):
+`Weapon & Gear Type`, `Item Type`, `Collectible Type`, `Character Group`,
+`Enemy Tier`, `Geography Group`, `Song Type` and `Song Source`, derived from the note sections that name them (a field's
 `option_category`, a section's `kind_category` and `link_text_category`)
 rather than listed, so a section that names a new category offers it with no
 second edit. `OPTION_CATEGORIES` = the tag-field categories, the two character
-tag categories (`CHARACTER_OPTION_CATEGORIES`) and these eight,
+tag categories (`CHARACTER_OPTION_CATEGORIES`) and these ten,
 served as `/api/constants` `option_categories` and unioned with the
 categories present in the stored options to build the category picker on the
 Add and Modify pages. Without it a declared category holding no values yet
@@ -755,6 +756,8 @@ twenty-seven in `OPTION_CATEGORIES`:
 | `Character Group` | unscoped (read by game and h-game notes) | suggestions for a 角色 Characters row's group (`characters_guide`, `note.kind`); `商人`, `重要NPC`, `主角`, `同伴`, `可攻略`, `反派` seeded by `n1o2tesrwk3`. Suggestions only |
 | `Collectible Type` | unscoped (read by game and h-game notes) | suggestions for a 收集物 Collectibles row's type (`collectibles`, `note.kind`); `重要物品` seeded by `n1o2tesrwk3`. Suggestions only |
 | `Item Type` | unscoped (read by game and h-game notes) | suggestions for a 道具 Items row's type (`items`, `note.kind`); `重要道具`, `任務道具` seeded by `n1o2tesrwk3`. Suggestions only |
+| `Weapon & Gear Type` | unscoped (read by game and h-game notes) | suggestions for a 武器&裝備 Weapons & Gear row's type (`weapons_and_gear`, `note.kind`); ships empty. Suggestions only |
+| `Enemy Tier` | unscoped (read by game and h-game notes) | suggestions for a 敵人 Enemies row's tier (`enemies`, `note.kind`); ships empty. Suggestions only |
 | `Geography Group` | unscoped (read by game and h-game notes) | suggestions for a 地理 Geography row's group (`geography`, `note.kind`); ships empty. Suggestions only |
 
 **h-comic has Platform values of its own**, scoped to `h-comic` alone and
