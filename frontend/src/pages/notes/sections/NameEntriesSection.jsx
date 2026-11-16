@@ -24,7 +24,7 @@ import {
   SaveCancel,
   SectionCard,
   ShowAllToggle,
-  draftCls,
+  DraftPopup,
   inputCls,
   tagCls,
   useEntryCap,
@@ -281,7 +281,13 @@ export default function NameEntriesSection({
       </ReorderList>
       <ShowAllToggle {...cap.toggle} />
       {adding && (
-        <div className={draftCls}>
+        <DraftPopup
+          title={`Add to ${section.label}`}
+          onClose={() => {
+            setDraft(empty());
+            setAdding(false);
+          }}
+        >
           <NameEntriesForm section={section} val={draft} setVal={setDraft} />
           <SaveCancel
             onSave={commit}
@@ -290,7 +296,7 @@ export default function NameEntriesSection({
               setAdding(false);
             }}
           />
-        </div>
+        </DraftPopup>
       )}
       {!notes.length && !adding && <EmptyHint />}
     </SectionCard>

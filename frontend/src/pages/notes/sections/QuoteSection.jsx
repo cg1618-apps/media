@@ -23,7 +23,7 @@ import {
   SectionCard,
   ShowAllToggle,
   brandTagCls,
-  draftCls,
+  DraftPopup,
   rowCls,
   tagCls,
   useEntryCap,
@@ -222,7 +222,13 @@ export default function QuoteSection({
       })}
       <ShowAllToggle {...cap.toggle} />
       {adding && (
-        <div className={draftCls}>
+        <DraftPopup
+          title={`Add to ${label}`}
+          onClose={() => {
+            setDraft(emptyQuote());
+            setAdding(false);
+          }}
+        >
           <QuoteForm val={draft} setVal={setDraft} />
           <SaveCancel
             onSave={commit}
@@ -231,7 +237,7 @@ export default function QuoteSection({
               setAdding(false);
             }}
           />
-        </div>
+        </DraftPopup>
       )}
       {!items.length && !adding && (
         <p className="text-xs text-text-faint">

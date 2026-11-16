@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 
 import { Button } from "../../../components/ui/primitives";
 import {
+  DraftPopup,
   EmptyHint,
   ItemActions,
   ReorderHandle,
@@ -209,7 +210,13 @@ function TextList({
       </ReorderList>
       <ShowAllToggle {...cap.toggle} />
       {adding && (
-        <div>
+        <DraftPopup
+          title={`Add to ${section.label}`}
+          onClose={() => {
+            setDraft("");
+            setAdding(false);
+          }}
+        >
           <AutoGrowTextarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -224,7 +231,7 @@ function TextList({
               setAdding(false);
             }}
           />
-        </div>
+        </DraftPopup>
       )}
       {!notes.length && !adding && <EmptyHint />}
     </SectionCard>

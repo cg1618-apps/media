@@ -36,7 +36,7 @@ import {
   SectionCard,
   ShowAllToggle,
   brandTagCls,
-  draftCls,
+  DraftPopup,
   inputCls,
   rowCls,
   tagCls,
@@ -290,7 +290,13 @@ export default function MusicTrackSection({
       </ReorderList>
       <ShowAllToggle {...cap.toggle} />
       {adding && (
-        <div className={draftCls}>
+        <DraftPopup
+          title={`Add to ${section.label}`}
+          onClose={() => {
+            setDraft(empty(section));
+            setAdding(false);
+          }}
+        >
           <MusicTrackForm
             val={draft}
             setVal={setDraft}
@@ -304,7 +310,7 @@ export default function MusicTrackSection({
               setAdding(false);
             }}
           />
-        </div>
+        </DraftPopup>
       )}
       {!notes.length && !adding && <EmptyHint />}
     </SectionCard>

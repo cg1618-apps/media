@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-11-14
+Last verified: 2026-11-16
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -848,10 +848,22 @@ columns.
   singleton today, but the rule stays with the component. It owns its own
   drag-to-reorder, because it orders a tree and groups rather than a flat
   list, and an inline
-  `quick_edit` input that saves on blur without opening the row. **A
-  `personal` field is not part of the row's form or its catalogue save**
-  (`catalogueFields`): a catalogue edit never sends one, and the not-empty
-  rule never counts one. It is drawn on the read view instead, by
+  `quick_edit` input that saves on blur without opening the row. A field
+  naming `shown_when` is left out of the form and the read view while its
+  steering field (read as its default when blank) holds anything else
+  (`shownFor`), and a `view_hidden` field is never drawn on the read view. A
+  section carrying both `amount_collected` and `amount_total` reads them as
+  one unlabelled `collected/total` value (`AmountPair`): for a viewer who may
+  mark, the collected half is an input that marks on blur, followed by
+  `/total`; for anyone else one tag, a blank half reading `–`. **A
+  `personal` field is not part of an edit form or any catalogue save**
+  (`catalogueFields`): a catalogue write never sends one, and the not-empty
+  rule never counts one. The **create** form does ask for the personal
+  values, for a viewer who may mark (an item's collect status and collected
+  amount): the ones changed from their default are written through
+  `onCreate(payload, marks)`, which posts the row and then puts the mark on
+  the row it got back. A saved row's personal values are drawn on the read
+  view instead, by
   `PersonalValue`, as a **provisional UI** pending the owner's design: for a
   viewer who may mark (`canMark`), a closed select (a blank option clears
   it) that marks on change, or a short text input (the `quick_edit` one for
@@ -915,7 +927,11 @@ columns.
   Every list section shows its first three rows and folds the rest behind
   "Show all (N)" - `useEntryCap` and `ShowAllToggle` in `ui.jsx`, one hook
   and one control shared by all of them rather than a copy per shape. The row
-  being edited and the draft row are never folded away; `StructuredSection`
+  being edited is never folded away, and a new row's form is not in the list
+  at all: every Add opens it in `DraftPopup` (`ui.jsx`), a non-modal dialog
+  docked at the bottom right that leaves the page behind it usable, so text
+  can be copied from the rows into it (see `docs/systems/notes.md`, "The
+  draft popup"). `StructuredSection`
   caps top-level rows, or each group of a grouped section. Every list section
   is also reorderable by a viewer who may write it (`canWrite`), the same way: a `DragHandle` per row (none
   on the row being edited, none while there is only one row), each move sent
