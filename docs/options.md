@@ -262,14 +262,14 @@ can only hold URLs and `text_links` has no title, so neither could say
 | `guides` | 攻略 Guides |
 | `builds` | 養成&流派 Builds & Growth |
 | `gear` | 物品 Items & Gear |
-| `compendium` | 圖鑑與名詞 Compendium & Terms (characters, enemies, geography, terms) |
+| `compendium` | 圖鑑與名詞 Compendium & Terms (characters, enemies, terms; for an h-game also geography) |
 | `story` | 劇情 Story (for an h-game, the four Story List strands and 結局) |
 | `story_list` | 劇情列表 Story List (game only) |
-| `worldbuilding` | 世界觀 Worldbuilding (game only) |
+| `worldbuilding` | 世界觀 Worldbuilding (game only; holds 地理 Geography above 時間線) |
 | `ng_plus` | NG 多周目 |
 | `todo` | 待辦 Todo (rendered inside the game page's Progress slip) |
 | `music` | 音樂 Music |
-| `tools` | 資源&工具 Tools & Resources |
+| `tools` | 資源&工具 Tools & Resources (mods and tools, guide resources, then the site-wide Resources) |
 | `quotes_memes` | 名言/梗 Quotes and Memes |
 
 **Sections** (`NOTE_SECTIONS`, in display order). "All" means every media
@@ -290,7 +290,7 @@ out. What the three gated types keep is in
 | `double_edged` | text_links | 優缺點 | All but h-comic, hentai | reviews | |
 | `public_reviews` | text_links | 大眾評價 Public Reviews | All | reviews | |
 | `personal_reviews` | text | 我的評價 Personal Reviews | All | reviews | personal scope |
-| `episode_comments` | text_links | 各集評論 Episode Comments (manga: 各話評論 Chapter Comments; game: 各章評論 Part Reviews) | anime, tv-show, cartoon, manga, game | reviews | locator required; manga's placeholder is "Chapter", game's "Chapter / Part" |
+| `episode_comments` | episode_text | 各集評論 Episode Comments (manga: 各話評論 Chapter Comments; game: 各章評論 Part Reviews) | anime, tv-show, cartoon, manga, game | reviews | locator and text required, no links; manga's placeholder is "Chapter", game's "Chapter / Part" |
 | `highlights` | episode_text | 神回/神片段 Highlights | anime | | kinds `HIGHLIGHT_KINDS` |
 | `highlight_episodes` | episode_text | 神回/神片段 (manga: 神回) | tv-show, cartoon, manga | | kinds `HIGHLIGHT_KINDS` for tv-show and cartoon only |
 | `highlight_passages` | text | 神片段 | novel | | |
@@ -306,11 +306,11 @@ out. What the three gated types keep is in
 | `easter_eggs` | text_links | 彩蛋/致敬 Easter Eggs/References | every entry type but h-comic, hentai, h-game; series, franchise | analysis_group; **reviews** for game | Right after 解析 in the 評論 card for a game |
 | `beginner` | text_links | 新手 Beginner | game | guides | |
 | `gameplay_systems` | structured | 玩法系統 Gameplay Systems | game, h-game | guides | type (free text), name (CN), alt name, description; groupable by type |
-| `controls` | structured | 操作 Controls | game, h-game | guides | Fields: type (`kind`, free text), control (`title`), description (`content`), links; groupable by type |
+| `controls` | structured | 操作 Controls | game, h-game | guides | Fields: type (`kind`, free text), control (`title`), description (`content`); no links; groupable by type |
 | `guide_notes` | text | 攻略筆記 Guide Notes | game, h-game | guides | no links |
-| `trivia` | text_links | 小知識 Trivia | game | guides | |
+| `trivia` | structured | 小知識 Trivia | game | guides | title (`title`), description (`content`), titled links; any one makes a row |
 | `stats_and_points` | structured | 屬性&配點 Stats & Points | game, h-game | builds | name, min/rec/soft-cap, my value (quick-edit; personal), description |
-| `classes` | structured | 職業 Classes | game, h-game | builds | type, name, 定位 role, 解鎖條件 unlock, 核心屬性 key stats, description, links; groupable by type |
+| `classes` | structured | 職業 Classes | game, h-game | builds | type, name, 定位 role, 解鎖條件 unlock, 核心屬性 key stats, description; no links; groupable by type |
 | `skills` | structured | 技能 Skills | game, h-game | builds | type, name, description, links; groupable by type |
 | `builds_and_styles` | structured | 配裝&流派 Builds & Styles | game, h-game | builds | name, five nested lists, description, links |
 | `team_composition` | structured | 隊伍組成 Team Composition | game, h-game | builds | name, members list (name, 定位, build, notes), description, links |
@@ -319,12 +319,11 @@ out. What the three gated types keep is in
 | `collectibles` | structured | 收集物 Collectibles | game, h-game | gear | type (suggested from `Collectible Type`), name, variant, description, links, collect status (default `not collected`; personal), total, collected amount (personal), NG reset (`yes` / `no`, default `yes`); groupable by type |
 | `characters_guide` | structured | 角色 Characters | game, h-game | compendium | group (suggested from `Character Group`), name, alias, description; groupable by group |
 | `enemies` | structured | 敵人 Enemies | game, h-game | compendium | tier (suggested from `Enemy Tier`), region, name, alias, description, beaten status (default `to beat`; personal); groupable by tier |
-| `geography` | structured | 地理 Geography | game, h-game | compendium | group (suggested from `Geography Group`, top-level rows only), name, description, links; nestable; groupable by group |
 | `game_terms` | structured | 遊戲名詞 Game Terms | game, h-game | compendium | name (CN), alt name, description |
 | `player_terms` | structured | 玩家術語 Player Terms | game | compendium | name (CN), alt name, description |
-| `main_plot` | structured | 主線劇情 Main Plot | game | story | chapter (`locator`, optional), description, links |
-| `side_plot` | structured | 支線劇情 Side Stories | game | story | chapter (`locator`, optional), description, links |
-| `character_arcs` | text_links | 角色劇情 Character Arcs | game | story | |
+| `main_plot` | structured | 主線劇情 Main Plot | game | story | chapter (`locator`, optional), titled links; no description |
+| `side_plot` | structured | 支線劇情 Side Stories | game | story | chapter (`locator`, optional), titled links; no description |
+| `character_arcs` | structured | 角色劇情 Character Arcs | game | story | one or more titled links (required), nothing else |
 | `endings` | structured | 結局 Endings | game, h-game | story | name, completion status (personal), description, links |
 | `story_list_main` | structured | 主線 Main | game, h-game | story_list; **story** for h-game | order, name, description, links; nestable |
 | `story_list_side` | structured | 支線 Side | game, h-game | story_list; **story** for h-game | order, name, description, links; nestable |
@@ -332,6 +331,7 @@ out. What the three gated types keep is in
 | `story_list_event` | structured | 事件 Event | game, h-game | story_list; **story** for h-game | order, name, description, links; nestable |
 | `lore` | text_links | 設定 Lore | game | worldbuilding | |
 | `story_terms` | structured | 劇情名詞 Story Terms | game | worldbuilding | name (CN), alt name, description |
+| `geography` | structured | 地理 Geography | game, h-game | worldbuilding; **compendium** for h-game | group (suggested from `Geography Group`, top-level rows only), name, description; no links; nestable; groupable by group. Above 時間線 for a game |
 | `timeline` | text_links | 時間線 Timeline | game | worldbuilding | |
 | `mysteries` | text_links | 未解之謎 Mysteries | game | worldbuilding | |
 | `story_other` | text_links | 其他 Other | game | worldbuilding | |
@@ -354,7 +354,7 @@ out. What the three gated types keep is in
 | `adaptation` | text_links | 改編 Adaptation | anime, anime-movie, tv-show, cartoon, novel, series, franchise | | description required on anime, anime-movie, novel |
 | `mods_and_tools` | structured | 模組&工具 Mods & Tools | game, h-game | tools | type `Mod`/`Tool`, name, developer, description, status (personal, behind the `mod_status` feature); groupable by type |
 | `guide_resources` | structured | 攻略資源 Guide Resources | game, h-game | tools | group (free text, no suggestions), name, description, links; groupable by group |
-| `resources` | name_links | Resources | All | standalone | optional free-text Group in `kind` (`kind_is_group`) |
+| `resources` | name_links | Resources | All | standalone; **tools** for game and h-game | optional free-text Group in `kind` (`kind_is_group`); last in the 資源&工具 card on a game |
 | `questions` | episode_text | Questions | All but h-comic, hentai | standalone | description required everywhere |
 | `quotes` | external | 名言 Quotes | Entries but H | quotes_memes | |
 | `memes` | external | 梗/迷因 Memes | All but H | quotes_memes | |
@@ -374,11 +374,11 @@ Song Type is no longer a constant: it is free text, suggested from the
 
 **`guide_resources` is not `resources`, and neither replaces the other.** The
 site-wide `resources` section (`name_links`, all owners, standalone) holds
-plain bookmarks and games inherit it; `guide_resources` (`structured`, in
-the 資源&工具 card,
-game and h-game only) holds a pointer to somebody else's
-walkthrough with notes attached. Two keys and two labels, because a second
-card also called "Resources" would be unreadable.
+plain bookmarks and games inherit it - in the 資源&工具 card, after
+`guide_resources`, rather than as a card of its own; `guide_resources`
+(`structured`, game and h-game only) holds a pointer to somebody else's
+walkthrough with notes attached. Two keys and two labels, because two
+subsections called "Resources" in one card would be unreadable.
 
 **The 攻略 sections are twenty sections (for a game) across five cards
 rather than one section with a `kind`**, because
@@ -752,7 +752,7 @@ twenty-seven in `OPTION_CATEGORIES`:
 | `Character Trait` | unscoped (every character) | character tag field `trait`; admin-managed, ships empty, and a value typed into the character form creates itself |
 | `Franchise for Filter` | movie, tv-show | nothing today; filter-only, no form field |
 | `Song Type` | anime | suggestions for the Song Type (`note.kind`) of an `op` or `ed` row; `normal`, `different version`, `all inclusive version` seeded by `m1s2ongstat3`. Suggestions only - a value not in the list is stored as typed |
-| `Song Source` | anime | suggestions for a song link's label (`text` of a link pair on `op`, `ed`, `insert_songs`, `ost`); `YouTube`, `YouTube Music`, `Spotify`, `Apple Music`, `Bilibili` seeded by `m1s2ongstat3`. Suggestions only, like `Song Type` |
+| `Song Source` | anime | suggestions for a song link's title (`text` of a titled link on `op`, `ed`, `insert_songs`, `ost`); `YouTube`, `YouTube Music`, `Spotify`, `Apple Music`, `Bilibili` seeded by `m1s2ongstat3`. Suggestions only, like `Song Type` |
 | `Character Group` | unscoped (read by game and h-game notes) | suggestions for a 角色 Characters row's group (`characters_guide`, `note.kind`); `商人`, `重要NPC`, `主角`, `同伴`, `可攻略`, `反派` seeded by `n1o2tesrwk3`. Suggestions only |
 | `Collectible Type` | unscoped (read by game and h-game notes) | suggestions for a 收集物 Collectibles row's type (`collectibles`, `note.kind`); `重要物品` seeded by `n1o2tesrwk3`. Suggestions only |
 | `Item Type` | unscoped (read by game and h-game notes) | suggestions for a 道具 Items row's type (`items`, `note.kind`); `重要道具`, `任務道具` seeded by `n1o2tesrwk3`. Suggestions only |

@@ -51,7 +51,6 @@ def test_a_grouped_region_holding_areas_round_trips(owner_client, game):
         game,
         title="Gatefront",
         content="the first grace",
-        links=["https://example.com/gatefront"],
         parent_id=area.json()["system_id"],
     )
     assert room.status_code == 201, room.text
@@ -131,21 +130,25 @@ def test_the_section_is_served_to_game(client):
     assert geo["scope"] == "catalog"
     assert geo["hierarchical"] is True
     assert geo["groupable_by"] == "group"
-    assert geo["group"] == "compendium"
+    # Part of the world for a game: 世界觀, above 時間線 Timeline.
+    assert geo["group"] == "worldbuilding"
+    keys = list(sections)
+    assert keys.index(SECTION) == keys.index("timeline") - 1
     assert geo["require_any"] == [["name"]]
+    assert "links" not in [f["key"] for f in geo["fields"]]
     group = next(f for f in geo["fields"] if f["key"] == "group")
     assert group["option_category"] == "Geography Group"
     assert group["column"] == "kind"
 
 
-def test_h_game_is_served_the_section_after_enemies(owner_client):
-    keys = [
-        s["key"]
-        for s in owner_client.get(
-            "/api/notes/sections", params={"owner_type": "h-game"}
-        ).json()
-    ]
-    assert keys.index(SECTION) == keys.index("enemies") + 1
+def test_h_game_is_served_the_section_in_compendium(owner_client):
+    # An h-game has no 世界觀, so it keeps the section in 圖鑑與名詞.
+    sections = owner_client.get(
+        "/api/notes/sections", params={"owner_type": "h-game"}
+    ).json()
+    geo = next(s for s in sections if s["key"] == SECTION)
+    assert geo["group"] == "compendium"
+    assert not any(s["group"] == "worldbuilding" for s in sections)
 
 
 def test_the_section_is_not_offered_to_anime(client):

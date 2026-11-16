@@ -78,10 +78,10 @@ def test_the_order_number_is_free_text_on_the_locator_column():
 
 def test_story_list_and_geography_are_the_only_hierarchical_ones():
     # 地理 Geography nests too - a region holding areas holding rooms - and is
-    # declared with the compendium, before the story lists.
+    # declared with 世界觀 Worldbuilding, after the story lists.
     assert [
         s.key for s in ns.NOTE_SECTIONS if s.hierarchical
-    ] == ["geography", *STORY_LIST_KEYS]
+    ] == [*STORY_LIST_KEYS, "geography"]
 
 
 # --- require_any, which is what makes an entry an entry -------------------
@@ -130,24 +130,49 @@ def test_the_sections_endpoint_reports_the_nesting_and_the_rule():
 # --- 3: the 劇情 sections gained links -------------------------------------
 
 
-def test_the_two_plot_sections_carry_links_and_keep_their_chapter():
+def test_the_two_plot_sections_are_a_chapter_and_its_links():
     for key in ("main_plot", "side_plot"):
         section = ns.section_by_key(key)
         assert section.shape == ns.SHAPE_STRUCTURED, key
-        assert [f.key for f in section.fields] == [
-            "chapter",
-            "description",
-            "links",
-        ], key
-        # The chapter keeps the column it held as an episode_text section, so
-        # no row had to move when links were added.
+        assert [f.key for f in section.fields] == ["chapter", "links"], key
+        # The chapter keeps the column it held as an episode_text section.
         assert ns.field_by_key(section, "chapter").column == "locator", key
+
+
+def test_a_plot_row_takes_no_description():
+    validate_note_payload(_payload("main_plot", locator="Ch 3"))
+    with pytest.raises(ValueError, match="takes no 'content'"):
+        validate_note_payload(_payload("main_plot", locator="Ch 3", content="x"))
+
+
+def test_a_character_arc_is_titled_links_and_needs_one():
+    section = ns.section_by_key("character_arcs")
+    assert section.shape == ns.SHAPE_STRUCTURED
+    assert [f.key for f in section.fields] == ["links"]
+    validate_note_payload(
+        _payload(
+            "character_arcs",
+            links=[{"text": "Perlica", "url": "https://a.example"}],
+        )
+    )
+    with pytest.raises(ValueError, match="Links is required"):
+        validate_note_payload(_payload("character_arcs", links=[]))
+    with pytest.raises(ValueError, match="takes no 'content'"):
+        validate_note_payload(
+            _payload(
+                "character_arcs",
+                content="Perlica's arc",
+                links=[{"text": None, "url": "https://a.example"}],
+            )
+        )
 
 
 def test_a_plot_beat_still_needs_no_chapter():
     # The opposite of episode_comments and highlight_moments: a beat
     # remembered without its chapter number is still a beat.
-    validate_note_payload(_payload("main_plot", content="The tree burns."))
+    validate_note_payload(
+        _payload("main_plot", links=[{"text": "The tree burns", "url": "https://a.example"}])
+    )
     assert ns.section_by_key("main_plot").locator_required is False
 
 

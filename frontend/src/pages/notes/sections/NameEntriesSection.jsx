@@ -3,7 +3,7 @@
 //
 // The shape exists because a guide is often *either* a paragraph you wrote or
 // a URL you saved, in one ordered list. `name_links` cannot hold that: its
-// `links` column is a flat list of URL strings with nowhere to put prose. So
+// `links` column is a flat list of titled links with nowhere to put prose. So
 // each item here is {type: "text" | "link", value, label}, stored in the
 // note's own `entries` column — never in `links`, which means something else.
 import { useState } from "react";

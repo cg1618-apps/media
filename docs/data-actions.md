@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-11-14
+Last verified: 2026-11-16
 
 ## What this is for
 
@@ -684,7 +684,8 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
      If matched, the local PK is used; otherwise the PK key is dropped so the database mints one.
    - **Singleton notes** (`remark`): a `Note` row in a singleton section is retargeted at the existing row in that section for the same owner **and the same author** (`ix_note_one_remark_per_owner` allows one per owner per author, `remark` being personal-scope), keeping the local `system_id`. Two accounts' remarks on one entry therefore come back as two rows.
    - **Music status notes** (`music_status`): the same, per owner **and list** - a row is retargeted at the anime's existing `music_status` row with the same `kind` (`ix_note_one_music_status_per_kind` allows one per list), keeping the local `system_id`. Revision `m1s2ongstat3` minted those rows separately on every database, so this is what folds the two machines' copies together instead of failing the tab at commit. `ost` rows are songs and are never folded.
-   - **Old-shape music rows**: an `ost` row carrying a type comes from a backup taken while the OST was one row per anime (an OST song has no type); it is read as that anime's `music_status` row for `ost`, its status kept when it is one of `MUSIC_STATUSES` (Need, Pending, No Full Version, Done) and `Not Done` otherwise, and folded as above. Song-list links that arrive as URL strings are read as text-URL pairs with no text; text-URL pairs that arrive on any other section (彩蛋/致敬 Easter Eggs/References, from a backup taken while its links were pairs) are read as their URLs, the text dropped, and a `fields` blob on a section that is not `structured` is dropped.
+   - **Old-shape music rows**: an `ost` row carrying a type comes from a backup taken while the OST was one row per anime (an OST song has no type); it is read as that anime's `music_status` row for `ost`, its status kept when it is one of `MUSIC_STATUSES` (Need, Pending, No Full Version, Done) and `Not Done` otherwise, and folded as above. Note links that arrive as URL strings, on any section, are read as titled links with no title, and a `fields` blob on a section that is not `structured` is dropped.
+   - **Old-shape note rows**: a row of 操作 Controls, 職業 Classes, 地理 Geography, 各集評論, 主線劇情, 支線劇情, 角色劇情 or 小知識 from a backup taken before revision `n1l2inkpairs3` is reshaped as that revision reshaped the local rows - see [systems/notes.md](systems/notes.md), Google Sheets, "Old-shape note rows". A row already in the new shape pulls unchanged.
    - **Note twins under another uuid**: a `Note` row whose `system_id` is unknown locally is retargeted at a local row with the same owner, section and content (`parent_id`, `locator`, `kind`, `status`, `title`, `content`, `links`, `entries`, `fields`), keeping the local `system_id` (`_match_note_twin` in `pull.py`). It exists because the OP and ED rows were minted by a migration once per database, so the same row has a different uuid on every machine and would otherwise arrive as a second copy. Two guards keep genuinely separate identical rows apart: a local row whose own id is in the sheet is never a candidate, and each local row is claimed by at most one sheet row.
    - **The Note and Meme tabs carry four owner columns**, not an
      `owner_type` / `owner_id` pair: `media_id`, `collection_id`,

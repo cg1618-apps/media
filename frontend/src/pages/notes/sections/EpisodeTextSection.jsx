@@ -2,15 +2,13 @@
 // locator (an episode, a chapter, a scene, a timestamp - the registry supplies
 // the label), with a kind dropdown where the registry declares one
 // (op_ed_changes, highlights) and none where it does not, and any number of
-// URL links where the registry says the section `takes_links` (op_ed_changes) -
-// edited and drawn exactly as a text_links row's are.
+// titled links where the registry says the section `takes_links`
+// (op_ed_changes) - edited and drawn exactly as a text_links row's are.
 import { useState } from "react";
 
 import {
   EmptyHint,
   ItemActions,
-  LinkPill,
-  LinksEditor,
   ReorderHandle,
   ReorderList,
   ReorderRow,
@@ -27,26 +25,26 @@ import {
   useRowReorder,
 } from "./ui";
 import AutoGrowTextarea from "../../../components/ui/AutoGrowTextarea";
+import { LinkPairPills, LinkPairsEditor } from "./LinkPairs";
+import { pairsFromLinks, pairsIncomplete, pairsToLinks } from "./linkPairValues";
 
-const empty = () => ({ locator: "", kind: "", content: "", links: [""] });
+const empty = () => ({ locator: "", kind: "", content: "", links: [] });
 
 const fromNote = (n) => ({
   locator: n.locator || "",
   kind: n.kind || "",
   content: n.content || "",
-  links: n.links?.length ? n.links : [""],
+  links: pairsFromLinks(n.links),
 });
 
-// Links go out only where the section takes them, blank ones dropped - the same
+// Links go out only where the section takes them, URL-less ones dropped - the same
 // list text_links sends. A section that takes none sends no `links` key, so an
 // edit there never touches the column.
 const toFields = (val, section) => ({
   locator: val.locator.trim() || null,
   kind: section.kinds?.length ? val.kind.trim() || null : null,
   content: val.content.trim() || null,
-  ...(section.takes_links && {
-    links: (val.links || []).map((l) => l.trim()).filter(Boolean),
-  }),
+  ...(section.takes_links && { links: pairsToLinks(val.links) }),
 });
 
 function EpisodeTextForm({ val, setVal, section }) {
@@ -84,8 +82,8 @@ function EpisodeTextForm({ val, setVal, section }) {
         className={inputCls}
       />
       {section.takes_links && (
-        <LinksEditor
-          links={val.links}
+        <LinkPairsEditor
+          pairs={val.links}
           onChange={(links) => setVal({ ...val, links })}
         />
       )}
@@ -120,6 +118,7 @@ export default function EpisodeTextSection({
   // part that cannot be missing. Mirrors validate_note_payload so the reader
   // sees a disabled Save rather than a 422.
   const invalid = (val) => {
+    if (section.takes_links && pairsIncomplete(val.links)) return true;
     if (section.locator_required && !val.locator.trim()) return true;
     // The mirror of the above: `questions` takes an optional source but the
     // question itself is the point.
@@ -167,10 +166,7 @@ export default function EpisodeTextSection({
                   {n.content && (
                     <p className="text-sm text-text whitespace-pre-wrap">{n.content}</p>
                   )}
-                  {section.takes_links &&
-                    (n.links || [])
-                      .filter(Boolean)
-                      .map((l, j) => <LinkPill key={j} url={l} />)}
+                  {section.takes_links && <LinkPairPills links={n.links} />}
                 </div>
                 <ItemActions
                   canWrite={canWrite}

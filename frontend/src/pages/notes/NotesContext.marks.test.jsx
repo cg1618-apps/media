@@ -141,7 +141,6 @@ const OP = {
   kind_category: null,
   statuses: ["Need", "Pending", "No Full Version", "Done"],
   default_status: null,
-  link_pairs: true,
   personal_status: true,
   status_granted: "music_status",
   type_status_section: "music_status",

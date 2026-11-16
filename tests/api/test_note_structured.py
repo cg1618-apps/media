@@ -64,13 +64,12 @@ def test_a_structured_row_round_trips_columns_and_the_blob(
         game,
         title="L2 + O",
         content="Parry on the upswing.",
-        links=["https://example.com/guide"],
     )
     assert r.status_code == 201, r.text
     body = r.json()
     assert body["title"] == "L2 + O"
     assert body["content"] == "Parry on the upswing."
-    assert body["links"] == ["https://example.com/guide"]
+    assert body["links"] is None
     # Every `controls` field claims a column, so nothing lands in the blob.
     assert body["fields"] is None
 

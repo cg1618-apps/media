@@ -209,30 +209,26 @@ def test_episode_comment_may_be_episode_and_text():
     )
 
 
-def test_episode_comment_may_carry_several_links():
+def test_episode_comment_takes_an_episode_and_text():
     validate_note_payload(
-        _payload(
-            section="episode_comments",
-            locator="ep 1",
-            content=None,
-            links=["https://a.example/1", "https://b.example/2"],
-        )
+        _payload(section="episode_comments", locator="ep 1", content="開場就定調")
     )
 
 
-def test_episode_comment_may_carry_text_and_links_together():
-    validate_note_payload(
-        _payload(
-            section="episode_comments",
-            locator="ep 1",
-            content="開場就定調",
-            links=["https://a.example/1", "https://b.example/2"],
+def test_episode_comment_takes_no_links():
+    with pytest.raises(ValueError, match="takes no links"):
+        validate_note_payload(
+            _payload(
+                section="episode_comments",
+                locator="ep 1",
+                content="開場就定調",
+                links=["https://a.example/1"],
+            )
         )
-    )
 
 
 def test_episode_comment_with_only_an_episode_rejected():
-    with pytest.raises(ValueError, match="empty"):
+    with pytest.raises(ValueError, match="requires content"):
         validate_note_payload(
             _payload(section="episode_comments", locator="ep 1", content=None)
         )
@@ -411,21 +407,35 @@ def test_song_link_pair_needs_a_url(section):
         validate_note_payload(_song(section, links=[_pair(url="  ")]))
 
 
-@pytest.mark.parametrize("section", SONG_SECTIONS)
-def test_song_refuses_a_bare_url_string(section):
-    # The pair shape is the only one these sections take, so a reader never
-    # has to guess which of two shapes a stored row is in.
-    with pytest.raises(ValueError, match="text-and-URL pairs"):
-        validate_note_payload(_song(section, links=["https://youtu.be/a"]))
+@pytest.mark.parametrize("section", SONG_SECTIONS + ("analysis", "resources"))
+def test_a_bare_url_string_reads_as_an_untitled_pair(section):
+    # Pairs are the only shape stored, so a reader never has to guess which
+    # of two shapes a row is in; a page still sending URL strings is read as
+    # sending pairs with no title.
+    payload = _song(section, links=["https://youtu.be/a"])
+    assert [link.model_dump() for link in payload.links] == [
+        {"text": None, "url": "https://youtu.be/a"}
+    ]
 
 
-def test_a_url_string_section_refuses_a_link_pair():
-    # The mirror: everything outside the songs keeps URL strings.
-    validate_note_payload(
-        _payload(section="analysis", links=["https://a.example"])
-    )
-    with pytest.raises(ValueError, match="must be URLs"):
-        validate_note_payload(_payload(section="analysis", links=[_pair()]))
+@pytest.mark.parametrize(
+    "section, owner",
+    (("analysis", "anime"), ("public_reviews", "anime"), ("trivia", "game")),
+)
+def test_any_link_carrying_section_takes_titled_pairs(section, owner):
+    links = [_pair(), _pair("https://b.example", None)]
+    validate_note_payload(_payload(section=section, owner_type=owner, links=links))
+    with pytest.raises(ValueError, match="needs a URL"):
+        validate_note_payload(
+            _payload(section=section, owner_type=owner, links=[_pair(url=" ")])
+        )
+
+
+def test_a_section_that_takes_no_links_refuses_one():
+    # The mirror, on a section whose rows are not empty without the link.
+    validate_note_payload(_payload(section="remark", content="x"))
+    with pytest.raises(ValueError, match="takes no links"):
+        validate_note_payload(_payload(section="remark", content="x", links=[_pair()]))
 
 
 def test_a_link_pair_with_an_unknown_key_is_refused():
@@ -457,7 +467,6 @@ def test_section_out_exposes_the_song_contract():
         assert not out.locator_required
         assert not out.singleton
         assert out.statuses == ["Need", "Pending", "No Full Version", "Done"]
-        assert out.link_pairs is True
         assert out.link_text_category == "Song Source"
         # The per-type status bar is rendered from these three alone.
         assert out.type_status_section == "music_status"
@@ -478,9 +487,8 @@ def test_section_out_exposes_the_song_contract():
     assert ost.kind_category is None and ost.default_kind is None
 
 
-def test_section_out_reports_url_string_links_elsewhere():
+def test_section_out_suggests_no_link_titles_elsewhere():
     out = section_out(section_by_key("analysis"), "anime")
-    assert out.link_pairs is False
     assert out.link_text_category is None
     assert out.type_status_section is None
     assert out.type_statuses == []
@@ -564,9 +572,8 @@ def test_easter_egg_takes_an_episode_a_description_and_several_urls():
     validate_note_payload(_egg(content=None, links=["https://a.example"]))
 
 
-def test_easter_egg_refuses_link_pairs():
-    with pytest.raises(ValueError, match="must be URLs"):
-        validate_note_payload(_egg(links=[_pair()]))
+def test_easter_egg_takes_titled_links():
+    validate_note_payload(_egg(links=[_pair()]))
 
 
 def test_an_empty_easter_egg_is_refused():
@@ -581,10 +588,9 @@ def test_easter_egg_takes_no_status_or_structured_fields():
         validate_note_payload(_egg(fields={}))
 
 
-def test_section_out_reports_url_string_links_for_easter_eggs():
+def test_section_out_reports_easter_eggs_as_text_links():
     out = section_out(section_by_key("easter_eggs"), "anime")
     assert out.shape == "text_links"
-    assert out.link_pairs is False
     assert out.fields == []
     assert out.locator_placeholder == "Episode(s), e.g. ep 3"
 
@@ -666,11 +672,19 @@ def test_op_ed_change_may_be_only_an_episode_and_links():
     )
 
 
-def test_op_ed_change_links_are_urls_not_pairs():
-    with pytest.raises(ValueError, match="must be URLs"):
+def test_op_ed_change_links_are_titled_pairs():
+    validate_note_payload(
+        _payload(
+            section="op_ed_changes",
+            locator="ep 10",
+            links=[{"text": "YouTube", "url": "https://youtu.be/a"}],
+        )
+    )
+    # The mirror: an episode_text section without takes_links refuses them.
+    with pytest.raises(ValueError, match="takes no links"):
         validate_note_payload(
             _payload(
-                section="op_ed_changes",
+                section="extended_episodes",
                 locator="ep 10",
                 links=[{"text": "YouTube", "url": "https://youtu.be/a"}],
             )
@@ -704,7 +718,6 @@ def test_manga_chapter_comment_accepted():
             section="episode_comments",
             locator="ch 12",
             content="伏筆回收",
-            links=["https://example.com/ch12"],
         )
     )
 

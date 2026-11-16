@@ -1,13 +1,11 @@
 // Frontend: renders one `text_links`-shaped section - a body of text plus any
-// number of links, optionally tagged with an episode. One item is one `note`
+// number of titled links, optionally tagged with an episode. One item is one `note`
 // row, so adding or editing one touches only that row.
 import { useState } from "react";
 
 import {
   EmptyHint,
   ItemActions,
-  LinkPill,
-  LinksEditor,
   ReorderHandle,
   ReorderList,
   ReorderRow,
@@ -24,21 +22,28 @@ import {
   useRowReorder,
 } from "./ui";
 import AutoGrowTextarea from "../../../components/ui/AutoGrowTextarea";
+import { LinkPairPills, LinkPairsEditor } from "./LinkPairs";
+import {
+  hasLinkPair,
+  pairsFromLinks,
+  pairsIncomplete,
+  pairsToLinks,
+} from "./linkPairValues";
 
-const empty = () => ({ locator: "", content: "", links: [""] });
+const empty = () => ({ locator: "", content: "", links: [] });
 
 const fromNote = (n) => ({
   locator: n.locator || "",
   content: n.content || "",
-  links: n.links?.length ? n.links : [""],
+  links: pairsFromLinks(n.links),
 });
 
-// The row as the API wants it: blank links dropped, blanks sent as null so the
-// backend stores a null column rather than an empty string.
+// The row as the API wants it: links with no URL dropped, blanks sent as null
+// so the backend stores a null column rather than an empty string.
 const toFields = (val, section) => ({
   locator: section.locator_placeholder ? val.locator.trim() || null : null,
   content: val.content.trim() || null,
-  links: (val.links || []).map((l) => l.trim()).filter(Boolean),
+  links: pairsToLinks(val.links),
 });
 
 function TextLinksForm({ val, setVal, section }) {
@@ -62,8 +67,8 @@ function TextLinksForm({ val, setVal, section }) {
         }
         className={inputCls}
       />
-      <LinksEditor
-        links={val.links}
+      <LinkPairsEditor
+        pairs={val.links}
         onChange={(links) => setVal({ ...val, links })}
       />
     </div>
@@ -116,14 +121,17 @@ export default function TextLinksSection({
   });
   const reorder = useRowReorder({ section, notes, canWrite, onReorder, reordering, cap });
 
-  // An empty row is never worth storing, and some sections demand a body.
+  // An empty row is never worth storing, and some sections demand a body. A
+  // row is a description, titled links, or both. A title with no URL waits
+  // for its URL rather than being dropped.
   const invalid = (val) => {
+    if (pairsIncomplete(val.links)) return true;
     const content = val.content.trim();
     if (section.desc_required && !content) return true;
     // An episode comment with no episode names nothing. Mirrors
     // validate_note_payload so Save is disabled rather than returning a 422.
     if (section.locator_required && !val.locator.trim()) return true;
-    return !content && !(val.links || []).some((l) => l.trim());
+    return !content && !hasLinkPair(val.links);
   };
 
   const commit = () => {
@@ -163,9 +171,7 @@ export default function TextLinksSection({
                   {n.content && (
                     <p className="text-sm text-text whitespace-pre-wrap">{n.content}</p>
                   )}
-                  {(n.links || []).filter(Boolean).map((l, j) => (
-                    <LinkPill key={j} url={l} />
-                  ))}
+                  <LinkPairPills links={n.links} />
                   {!n.content && !(n.links || []).filter(Boolean).length && (
                     <span className="text-xs text-text-faint">(empty)</span>
                   )}

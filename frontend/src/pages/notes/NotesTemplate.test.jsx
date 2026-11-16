@@ -321,7 +321,6 @@ describe("NotesTemplate hidden sections and list statuses", () => {
       statuses: ["Need", "Pending", "Done"],
       kind_category: key === "op" ? "Song Type" : null,
       link_text_category: "Song Source",
-      link_pairs: true,
       type_status_section: "music_status",
       type_statuses: ["All Done", "Done", "Need", "Pending", "Not Done"],
       type_status_default: "Not Done",

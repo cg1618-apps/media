@@ -40,9 +40,7 @@ from app.utils.entity_vocab import normalize_gender, normalize_my_rating
 from app.utils.note_sections import (
     SHAPE_STRUCTURED,
     as_link_pairs,
-    as_link_urls,
     section_by_key,
-    uses_link_pairs,
 )
 
 # The scope -> owner column map. plan_next_kinds imports only media_resolver,
@@ -2188,18 +2186,76 @@ def _note_section(raw: dict):
 
 def _note_links(raw: dict):
     """
-    The Note tab's `links` cell, in the shape the row's section takes. A sheet
-    backed up before a section changed shape carries the other one: URL
-    strings on a section that now takes pairs, or pairs (彩蛋, which was
-    structured) on one that now takes URL strings.
+    The Note tab's `links` cell as titled pairs. A sheet backed up before
+    every note link became a pair carries URL strings, and each reads as a
+    pair with no title - what the local rows became.
     """
     links = json.loads(raw["links"]) if raw.get("links") else None
-    section = _note_section(raw)
-    if section is None:
-        return links
-    if uses_link_pairs(section):
-        return as_link_pairs(links)
-    return as_link_urls(links)
+    return as_link_pairs(links)
+
+
+# The reshaping revision n1l2inkpairs3 gave the local rows, applied to a row
+# of a sheet backed up before it - otherwise Pull would restore values into
+# columns their sections no longer draw, and the row would 422 on its next
+# edit. Each step is a no-op on a row already in the new shape, so a newer
+# sheet passes through untouched.
+_NOTE_SECTIONS_WITHOUT_LINKS = ("controls", "classes", "geography", "episode_comments")
+_NOTE_PLOT_SECTIONS = ("main_plot", "side_plot")
+_NOTE_TEXT_SEPARATOR = " — "
+
+
+def _blank_to_none(value):
+    return value.strip() if isinstance(value, str) and value.strip() else None
+
+
+def _link_line(link: dict) -> str:
+    url = (link.get("url") or "").strip()
+    title = (link.get("text") or "").strip()
+    return f"{title}: {url}" if url and title else url or title
+
+
+def _reshape_pulled_note(row: dict) -> dict:
+    section = row.get("section")
+    links = row.get("links")
+    if section in _NOTE_SECTIONS_WITHOUT_LINKS and links:
+        lines = [line for line in map(_link_line, links) if line]
+        body = _blank_to_none(row.get("content"))
+        row["content"] = "\n".join(([body] if body else []) + lines) or None
+        row["links"] = None
+    elif section in _NOTE_PLOT_SECTIONS and _blank_to_none(row.get("content")):
+        description = _blank_to_none(row["content"])
+        chapter = _blank_to_none(row.get("locator"))
+        if links and not _blank_to_none(links[0].get("text")):
+            row["links"] = [{**links[0], "text": chapter}, *links[1:]]
+            row["locator"] = description
+        else:
+            row["locator"] = (
+                f"{chapter}{_NOTE_TEXT_SEPARATOR}{description}" if chapter else description
+            )
+        row["content"] = None
+    elif section == "character_arcs":
+        text = _NOTE_TEXT_SEPARATOR.join(
+            part
+            for part in map(
+                _blank_to_none, (row.get("title"), row.get("locator"), row.get("content"))
+            )
+            if part
+        )
+        if text:
+            row["title"] = row["locator"] = row["content"] = None
+        if text and links:
+            existing = _blank_to_none(links[0].get("text"))
+            title = f"{existing}{_NOTE_TEXT_SEPARATOR}{text}" if existing else text
+            row["links"] = [{**links[0], "text": title}, *links[1:]]
+        elif text:
+            # Text with no link has nowhere to live in a row of titled links.
+            row["section"] = "story_other"
+            row["content"] = "【角色劇情】 " + text
+    elif section == "trivia" and _blank_to_none(row.get("locator")):
+        if not _blank_to_none(row.get("title")):
+            row["title"] = row["locator"]
+            row["locator"] = None
+    return row
 
 
 def _note_fields(raw: dict):
@@ -2234,7 +2290,7 @@ def parse_note_from_sheet(raw: dict) -> dict:
     Parses a raw dictionary from the Note sheet into typed data ready for the
     Database.
     """
-    return {
+    return _reshape_pulled_note({
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         # The four owner columns replaced the (owner_type, owner_id) pair. A
         # sheet backed up before that change still carries the pair, so it is
@@ -2272,8 +2328,7 @@ def parse_note_from_sheet(raw: dict) -> dict:
         "status": parse_from_sheet(raw.get("status"), str),
         "title": parse_from_sheet(raw.get("title"), str),
         "content": parse_from_sheet(raw.get("content"), str),
-        # Read in the one shape the row's section takes, whichever shape the
-        # backup wrote - see _note_links.
+        # Titled pairs, whichever shape the backup wrote - see _note_links.
         "links": _note_links(raw),
         # The name_entries shape, parsed exactly like `links` beside it. Absent
         # here, Backup would still write the column and Pull would drop it -
@@ -2287,4 +2342,4 @@ def parse_note_from_sheet(raw: dict) -> dict:
         "sort_index": parse_from_sheet(raw.get("sort_index"), float),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
-    }
+    })
