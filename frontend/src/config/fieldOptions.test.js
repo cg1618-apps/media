@@ -137,11 +137,14 @@ describe("declared option categories", () => {
   });
 
   it("declares the note sections' field suggestion categories, empty ones included", () => {
-    // Geography Group is seeded with no values, so only this list offers it
-    // on Add before its first value exists.
+    // Geography Group, Weapon & Gear Type and Enemy Tier are seeded with no
+    // values, so only this list offers them on Add before a first value
+    // exists.
     expect(CONSTANTS_FALLBACK.note_suggestion_categories).toBe(NOTE_SUGGESTION_CATEGORIES);
     for (const c of NOTE_SUGGESTION_CATEGORIES) expect(OPTION_CATEGORIES).toContain(c);
-    expect(NOTE_SUGGESTION_CATEGORIES).toContain("Geography Group");
+    for (const c of ["Geography Group", "Weapon & Gear Type", "Enemy Tier"]) {
+      expect(NOTE_SUGGESTION_CATEGORIES).toContain(c);
+    }
   });
 
   it("updates in place from the API payload", () => {

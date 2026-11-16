@@ -212,9 +212,11 @@ def test_serves_the_note_suggestion_categories(client):
 
     body = client.get("/api/constants").json()
     assert body["note_suggestion_categories"] == [
+        "Weapon & Gear Type",
         "Item Type",
         "Collectible Type",
         "Character Group",
+        "Enemy Tier",
         "Geography Group",
     ]
     assert body["note_suggestion_categories"] == list(NOTE_SUGGESTION_CATEGORIES)

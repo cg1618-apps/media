@@ -852,18 +852,28 @@ columns.
   naming `shown_when` is left out of the form and the read view while its
   steering field (read as its default when blank) holds anything else
   (`shownFor`), and a `view_hidden` field is never drawn on the read view. A
+  field naming `view_labels` is read only while it holds one of the values
+  named, as that value's label, last on the row's line and pushed to its
+  right end (`ml-auto`) - NG Reset's "Won't Reset" on a `no` row. A
   section carrying both `amount_collected` and `amount_total` reads them as
   one unlabelled `collected/total` value (`AmountPair`): for a viewer who may
   mark, the collected half is an input that marks on blur, followed by
   `/total`; for anyone else one tag, a blank half reading `–`. **A
-  `personal` field is not part of an edit form or any catalogue save**
-  (`catalogueFields`): a catalogue write never sends one, and the not-empty
-  rule never counts one. The **create** form does ask for the personal
-  values, for a viewer who may mark (an item's collect status and collected
-  amount): the ones changed from their default are written through
+  `personal` field is never part of a catalogue save** (`catalogueFields`):
+  a catalogue write never sends one, and the not-empty rule never counts
+  one. **Both forms carry them all the same**, for a viewer who may mark, so
+  a form holds everything its row shows - an item's collect status and
+  collected amount, an enemy's beaten, a stat's Mine, an ending's
+  completion, a mod's status - subject to `shown_when` like any field. The
+  **create** form's values that differ from their default go through
   `onCreate(payload, marks)`, which posts the row and then puts the mark on
-  the row it got back. A saved row's personal values are drawn on the read
-  view instead, by
+  the row it got back (`draftMarks`); the **edit** form's values that differ
+  from what the row read go through `onUpdate(id, payload, marks)`, which
+  PATCHes the row and then PUTs the mark, a value emptied in the form sent
+  as null to clear it (`editMarks`). With nothing personal changed, neither
+  passes `marks` and no mark is written. A viewer who may not mark gets
+  neither form's personal fields. A saved row's personal values are also
+  drawn on the read view, by
   `PersonalValue`, as a **provisional UI** pending the owner's design: for a
   viewer who may mark (`canMark`), a closed select (a blank option clears
   it) that marks on change, or a short text input (the `quick_edit` one for

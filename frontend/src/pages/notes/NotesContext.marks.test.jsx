@@ -82,6 +82,7 @@ const ITEMS = {
       column: null,
       options: ["yes", "no"],
       default: "yes",
+      view_labels: { no: "Won't Reset" },
     },
   ],
 };
@@ -341,11 +342,12 @@ describe("NG reset", () => {
 });
 
 describe("a catalogue edit", () => {
-  it("leaves the personal fields out of the form and sends no personal key", async () => {
-    await renderAs(["manage.catalog", "self.personal_notes"]);
+  it("leaves the personal fields out of the form of a viewer who cannot mark", async () => {
+    await renderAs(["manage.catalog"]);
     const items = card("道具 Items");
 
     await userEvent.click(items.getByRole("button", { name: "Edit" }));
+    expect(items.getByLabelText("Name")).toHaveValue("Golden Seed");
     expect(items.queryAllByLabelText("Collected")).toHaveLength(0);
     expect(items.queryAllByLabelText("Collected amount")).toHaveLength(0);
     await userEvent.click(items.getByRole("button", { name: "Save" }));
@@ -357,6 +359,87 @@ describe("a catalogue edit", () => {
     expect(payload).not.toHaveProperty("status");
     expect(payload.fields).toEqual({ has_amount: "yes", amount_total: "30", ng_reset: "yes" });
     expect(api.markNote).not.toHaveBeenCalled();
+  });
+
+  it("carries every value the row shows for a viewer who may mark (the mirror)", async () => {
+    vi.mocked(api.fetchNotes).mockResolvedValue([
+      { ...ROWS[0], fields: { ...ROWS[0].fields, amount_collected: "7" } },
+      ...ROWS.slice(1),
+    ]);
+    await renderAs(["manage.catalog", "self.personal_notes"]);
+    const items = card("道具 Items");
+    await userEvent.click(items.getByRole("button", { name: "Edit" }));
+
+    expect(items.getByLabelText("Collected")).toHaveValue("not collected");
+    expect(items.getByLabelText("Total")).toHaveValue("30");
+    expect(items.getByLabelText("Collected amount")).toHaveValue("7");
+  });
+
+  it("saves the catalogue through PATCH and only the changed personal values through the mark", async () => {
+    await renderAs(["manage.catalog", "self.personal_notes"]);
+    const items = card("道具 Items");
+    await userEvent.click(items.getByRole("button", { name: "Edit" }));
+
+    await userEvent.selectOptions(items.getByLabelText("Collected"), "enough collected");
+    await userEvent.type(items.getByLabelText("Collected amount"), "12");
+    await userEvent.click(items.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(api.markNote).toHaveBeenCalledTimes(1));
+    const [id, payload] = vi.mocked(api.updateNote).mock.calls[0];
+    expect(id).toBe("i1");
+    expect(payload).not.toHaveProperty("status");
+    expect(payload.fields).toEqual({ has_amount: "yes", amount_total: "30", ng_reset: "yes" });
+    expect(api.markNote).toHaveBeenCalledWith("i1", {
+      collected: "enough collected",
+      amount_collected: "12",
+    });
+  });
+
+  it("writes no mark when no personal value changed", async () => {
+    await renderAs(["manage.catalog", "self.personal_notes"]);
+    const items = card("道具 Items");
+    await userEvent.click(items.getByRole("button", { name: "Edit" }));
+    await userEvent.click(items.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(api.updateNote).toHaveBeenCalledTimes(1));
+    expect(api.markNote).not.toHaveBeenCalled();
+  });
+
+  it("clears a personal value emptied in the form", async () => {
+    vi.mocked(api.fetchNotes).mockResolvedValue([
+      { ...ROWS[0], fields: { ...ROWS[0].fields, amount_collected: "7" } },
+      ...ROWS.slice(1),
+    ]);
+    await renderAs(["manage.catalog", "self.personal_notes"]);
+    const items = card("道具 Items");
+    await userEvent.click(items.getByRole("button", { name: "Edit" }));
+    await userEvent.clear(items.getByLabelText("Collected amount"));
+    await userEvent.click(items.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(api.markNote).toHaveBeenCalledWith("i1", { amount_collected: null }));
+  });
+
+  it("carries a stat's Mine in its edit form, and saves a change through the mark", async () => {
+    await renderAs(["manage.catalog", "self.personal_notes"]);
+    const stats = card("屬性&配點 Stats");
+    await userEvent.click(stats.getByRole("button", { name: "Edit" }));
+    // The row's inline control is replaced by the form, so this is the form's.
+    const mine = stats.getByLabelText("Mine");
+    expect(mine).toHaveValue("20");
+    await userEvent.clear(mine);
+    await userEvent.type(mine, "35");
+    await userEvent.click(stats.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(api.markNote).toHaveBeenCalledWith("s1", { my_value: "35" }));
+    expect(vi.mocked(api.updateNote).mock.calls[0][1].fields).toBeNull();
+  });
+
+  it("asks no Mine in the edit form of a viewer who cannot mark", async () => {
+    await renderAs(["manage.catalog"]);
+    const stats = card("屬性&配點 Stats");
+    await userEvent.click(stats.getByRole("button", { name: "Edit" }));
+    expect(stats.getByLabelText("Stat")).toHaveValue("Vigor");
+    expect(stats.queryByLabelText("Mine")).toBeNull();
   });
 });
 
@@ -454,5 +537,32 @@ describe("creating an item", () => {
     await openDraft(["manage.catalog"]);
     expect(screen.getByLabelText("Name")).toBeInTheDocument();
     expect(screen.queryByLabelText("Collected")).toBeNull();
+  });
+});
+
+describe("an item's NG Reset", () => {
+  const withItem = (fields) =>
+    vi.mocked(api.fetchNotes).mockResolvedValue([{ ...ROWS[0], fields }, ...ROWS.slice(1)]);
+
+  it("reads \"Won't Reset\" on a row that says no, last on its line", async () => {
+    withItem({ has_amount: "yes", amount_total: "30", ng_reset: "no" });
+    await renderAs(USER);
+    const flag = card("道具 Items").getByText("Won't Reset");
+    expect(flag.className).toContain("ml-auto");
+    expect(flag.parentElement.lastElementChild).toBe(flag);
+    expect(card("道具 Items").queryByText("no")).toBeNull();
+  });
+
+  it("reads nothing on a row that resets, said or by default (the mirror)", async () => {
+    for (const fields of [{ ng_reset: "yes" }, {}]) {
+      withItem(fields);
+      const { unmount } = render(<NotesTemplate ownerType="game" ownerId="g1" />);
+      held = new Set(USER);
+      await waitFor(() => expect(screen.getByText("Golden Seed")).toBeInTheDocument());
+      const items = card("道具 Items");
+      expect(items.queryByText("Won't Reset")).toBeNull();
+      expect(items.queryByText("yes")).toBeNull();
+      unmount();
+    }
   });
 });

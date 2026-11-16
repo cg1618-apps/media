@@ -35,7 +35,11 @@
 //     on the read view - only while that field of the same row holds that
 //     value, a missing value reading as its default (`shownFor`). Display
 //     only: a hidden field keeps what it stores. A `view_hidden` field is
-//     left off the read view altogether; it only steers others.
+//     left off the read view altogether; it only steers others. A field
+//     naming `view_labels` ({value: label}) is read only while it holds one
+//     of those values (blank reading as its default), as that label, at the
+//     right end of the row's line (`flags`) - NG Reset reads "Won't Reset"
+//     on a "no" row and nothing otherwise.
 // None of them names a section: any section declaring them gets them.
 //
 // One pair is named here: a section carrying both `amount_collected` and
@@ -153,6 +157,28 @@ const shownFor = (section, field, valueOf) => {
 const emptyDraft = (section) =>
   Object.fromEntries(section.fields.map((f) => [f.key, emptyValue(f)]));
 
+// The personal values an edit form changed, as the mark to write beside the
+// catalogue save: each drawn value that differs from what the row read, a
+// blank one sent as null, which clears it. A value its shown_when hides is
+// left as it is.
+const editMarks = (section, val, note) => {
+  const marks = {};
+  for (const f of section.fields) {
+    if (!f.personal || !shownFor(section, f, (key) => val[key])) continue;
+    const out = String(val[f.key] ?? "").trim();
+    const was = String(readValue(f, note) ?? "").trim();
+    if (out !== was) marks[f.key] = out || null;
+  }
+  return marks;
+};
+
+// A catalogue save and the mark beside it, as one onUpdate. The mark is
+// passed only when something personal changed.
+const saveRow = (onUpdate, id, payload, marks) => {
+  if (Object.keys(marks).length) onUpdate(id, payload, marks);
+  else onUpdate(id, payload);
+};
+
 // The personal values a create form chose, as the mark to write once the row
 // exists: the ones drawn, filled, and not merely their default - a mark
 // holding the default says nothing a missing one does not.
@@ -167,10 +193,11 @@ const draftMarks = (section, val) => {
 };
 
 // One saved row as form state. A column-backed field comes from the column,
-// everything else from the `fields` blob.
-const fromNote = (section, note) =>
+// everything else from the `fields` blob. `withPersonal` adds the viewer's own
+// personal values, which a read puts where the field lives too.
+const fromNote = (section, note, withPersonal = false) =>
   Object.fromEntries(
-    catalogueFields(section).map((f) => {
+    (withPersonal ? section.fields : catalogueFields(section)).map((f) => {
       const raw = f.column ? note[f.column] : (note.fields || {})[f.key];
       if (ARRAY_TYPES.has(f.type)) return [f.key, raw || []];
       return [f.key, raw == null ? "" : String(raw)];
@@ -401,10 +428,11 @@ function ChoiceNodeInput({ field, value, onChange }) {
   );
 }
 
-// `withPersonal` adds the viewer's own personal values, for the create form
-// only: a new row has no read view yet to set them on, so they are asked here
-// and written as a mark once the row exists (`draftMarks`). An edit form never
-// carries them - the saved row's inline controls do.
+// `withPersonal` adds the viewer's own personal values, for a viewer who may
+// mark: the form then holds everything the row shows. A create form writes
+// them as a mark once the row exists (`draftMarks`); an edit form writes the
+// ones it changed beside the catalogue save (`editMarks`). The saved row's
+// inline controls set them too, without opening the form.
 function StructuredForm({ section, val, setVal, nameSuggestions, withPersonal = false }) {
   const shown = (withPersonal ? section.fields : catalogueFields(section)).filter(
     (f) => shownFor(section, f, (key) => val[key]),
@@ -763,6 +791,7 @@ function StructuredRow({
       !f.quick_edit &&
       !f.personal &&
       !inPair(f) &&
+      !f.view_labels &&
       onRow(f) &&
       (f.type === "text" || f.type === "select") &&
       !isBlank(readValue(f, note)),
@@ -774,6 +803,15 @@ function StructuredRow({
   const personal = section.fields.filter(
     (f) => f.personal && !inPair(f) && onRow(f),
   );
+  // The relabelled exceptions, drawn last and pushed to the line's end.
+  const flags = section.fields
+    .filter((f) => f.view_labels && !f.personal && onRow(f))
+    .map((f) => {
+      const raw = readValue(f, note);
+      const label = f.view_labels[isBlank(raw) ? f.default ?? "" : raw];
+      return label ? { key: f.key, label } : null;
+    })
+    .filter(Boolean);
   const choiceNodes = section.fields.filter(
     (f) => f.type === "choice_node" && !isBlank(readValue(f, note)),
   );
@@ -788,6 +826,7 @@ function StructuredRow({
         quick.length > 0 ||
         personal.length > 0 ||
         amountPair ||
+        flags.length > 0 ||
         choiceNodes.length > 0) && (
         <div className="flex flex-wrap items-center gap-1.5">
           {heading && (
@@ -836,6 +875,11 @@ function StructuredRow({
               value={readValue(f, note)}
               tagCls={tagCls}
             />
+          ))}
+          {flags.map((flag) => (
+            <span key={flag.key} data-flag className={`${tagCls} ml-auto`}>
+              {flag.label}
+            </span>
           ))}
         </div>
       )}
@@ -1067,11 +1111,17 @@ function GroupedRows({
               val={editVal}
               setVal={setEditVal}
               nameSuggestions={nameSuggestions}
+              withPersonal={canMark}
             />
             <SaveCancel
               onSave={() => {
                 if (invalid(section, editVal)) return;
-                onUpdate(n.system_id, toPayload(section, editVal));
+                saveRow(
+                  onUpdate,
+                  n.system_id,
+                  toPayload(section, editVal),
+                  canMark ? editMarks(section, editVal, n) : {},
+                );
                 setEditKey(null);
               }}
               onCancel={() => setEditKey(null)}
@@ -1096,7 +1146,7 @@ function GroupedRows({
             canWrite={canEditRow(n)}
             onEdit={() => {
               setEditKey(key);
-              setEditVal(fromNote(section, n));
+              setEditVal(fromNote(section, n, canMark));
             }}
             onDelete={() => onDelete(n.system_id)}
           />
@@ -1254,7 +1304,13 @@ function StructuredSectionBody({
 
   const saveEdit = () => {
     if (invalid(withoutField(section, editOmit), editVal)) return;
-    onUpdate(editId, payloadWithout(section, editVal, editOmit));
+    const note = notes.find((n) => n.system_id === editId);
+    saveRow(
+      onUpdate,
+      editId,
+      payloadWithout(section, editVal, editOmit),
+      canMark && note ? editMarks(section, editVal, note) : {},
+    );
     setEditId(null);
   };
 
@@ -1376,6 +1432,7 @@ function StructuredSectionBody({
                 val={editVal}
                 setVal={setEditVal}
                 nameSuggestions={nameSuggestions}
+                withPersonal={canMark}
               />
               <SaveCancel onSave={saveEdit} onCancel={() => setEditId(null)} />
             </div>
@@ -1415,7 +1472,7 @@ function StructuredSectionBody({
                 canWrite={canEditRow(n)}
                 onEdit={() => {
                   setEditId(n.system_id);
-                  setEditVal(fromNote(section, n));
+                  setEditVal(fromNote(section, n, canMark));
                 }}
                 onDelete={() => onDelete(n.system_id)}
               />
