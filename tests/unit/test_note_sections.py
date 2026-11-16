@@ -166,9 +166,11 @@ def test_note_option_categories_come_from_the_registry():
     # Registry order: the game sections' field-level suggestion categories
     # come before the music group's section-level ones.
     assert ns.NOTE_OPTION_CATEGORIES == (
+        "Weapon & Gear Type",
         "Item Type",
         "Collectible Type",
         "Character Group",
+        "Enemy Tier",
         "Geography Group",
         "Song Type",
         "Song Source",
@@ -176,12 +178,15 @@ def test_note_option_categories_come_from_the_registry():
 
 
 def test_note_suggestion_categories_are_the_field_level_ones():
-    # Exactly the four the owner settled, in registry order. Geography Group is
-    # in it with no seeded value: the constant, not a row, puts it in pickers.
+    # Exactly the six the owner settled, in registry order. Geography Group,
+    # Weapon & Gear Type and Enemy Tier are in it with no seeded value: the
+    # constant, not a row, puts them in pickers.
     assert ns.NOTE_SUGGESTION_CATEGORIES == (
+        "Weapon & Gear Type",
         "Item Type",
         "Collectible Type",
         "Character Group",
+        "Enemy Tier",
         "Geography Group",
     )
     assert set(ns.NOTE_SUGGESTION_CATEGORIES) <= set(ns.NOTE_OPTION_CATEGORIES)
@@ -195,8 +200,9 @@ def test_each_suggestion_category_sits_on_the_field_it_names():
     assert category("collectibles", "type") == "Collectible Type"
     assert category("items", "type") == "Item Type"
     assert category("geography", "group") == "Geography Group"
-    # Weapons share the spec and not the category.
-    assert category("weapons_and_gear", "type") is None
+    # Weapons share the spec, and have a category of their own.
+    assert category("weapons_and_gear", "type") == "Weapon & Gear Type"
+    assert category("enemies", "tier") == "Enemy Tier"
     assert category("guide_resources", "group") is None
 
 

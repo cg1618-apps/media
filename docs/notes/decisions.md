@@ -3902,7 +3902,10 @@ under "note marks", both below.
 - **Only four categories: Character Group, Collectible Type, Item Type,
   Geography Group.** Adding a fifth is a registry edit, not an admin action.
   攻略資源 Guide Resources gained a group but no category: the spec named
-  none.
+  none. Two more followed at the owner's request, **Weapon & Gear Type**
+  (武器&裝備's type, which shared the 物品 spec but had been left without
+  one) and **Enemy Tier** (敵人's tier), both shipping empty like Geography
+  Group.
 - **The admin sub-tab is "Note Suggestions"**, a third beside Options and
   Tags on `/add`, `/modify` and `/delete`. The categories are the same
   `system_option` structure as everything under Options, and the split is

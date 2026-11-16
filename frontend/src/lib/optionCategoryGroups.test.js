@@ -54,7 +54,14 @@ describe("isTagCategory", () => {
 
 describe("isNoteSuggestionCategory", () => {
   it("recognises the note sections' field suggestions, before /api/constants answers", () => {
-    for (const c of ["Character Group", "Collectible Type", "Item Type", "Geography Group"]) {
+    for (const c of [
+      "Character Group",
+      "Collectible Type",
+      "Item Type",
+      "Weapon & Gear Type",
+      "Enemy Tier",
+      "Geography Group",
+    ]) {
       expect(isNoteSuggestionCategory(c)).toBe(true);
     }
     // A section-level note suggestion stays under Options.

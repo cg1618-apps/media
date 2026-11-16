@@ -239,6 +239,12 @@ class NoteField:
     # The read view does not draw this field. For a field that only steers
     # others, whose value the read view already shows by what it draws.
     view_hidden: bool = False
+    # ((value, label), ...): the read view draws this field only while it
+    # holds one of these values (a blank reading as `default`), as that label,
+    # at the end of the row's line. For a field whose usual value says nothing
+    # and whose exception is worth a flag. Only on a closed select, naming its
+    # options; checked at import (`_check_view_labels`).
+    view_labels: tuple[tuple[str, str], ...] | None = None
 
 
 @dataclass(frozen=True)
@@ -578,6 +584,8 @@ HAS_AMOUNT_SHOWN = ("has_amount", "yes")
 CHARACTER_GROUP_CATEGORY = "Character Group"
 COLLECTIBLE_TYPE_CATEGORY = "Collectible Type"
 ITEM_TYPE_CATEGORY = "Item Type"
+WEAPON_GEAR_TYPE_CATEGORY = "Weapon & Gear Type"
+ENEMY_TIER_CATEGORY = "Enemy Tier"
 GEOGRAPHY_GROUP_CATEGORY = "Geography Group"
 
 
@@ -671,6 +679,7 @@ def _named_thing_fields(
                     type=FIELD_SELECT,
                     options=NG_RESET_OPTIONS,
                     default="yes",
+                    view_labels=(("no", "Won't Reset"),),
                 ),
             )
             if collected
@@ -1513,7 +1522,9 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         scope=SCOPE_CATALOG,
         mixed=True,
         group="gear",
-        fields=_named_thing_fields(variant=True, collected=True),
+        fields=_named_thing_fields(
+            variant=True, collected=True, type_category=WEAPON_GEAR_TYPE_CATEGORY
+        ),
         groupable_by="type",
     ),
     NoteSection(
@@ -1595,7 +1606,13 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         fields=(
             # Free text: "boss", "small boss", "elite", "trash" are one game's
             # vocabulary and the next game's is a different one.
-            NoteField(key="tier", label="Tier", type=FIELD_SELECT, column="kind"),
+            NoteField(
+                key="tier",
+                label="Tier",
+                type=FIELD_SELECT,
+                column="kind",
+                option_category=ENEMY_TIER_CATEGORY,
+            ),
             NoteField(key="region", label="Region"),
             NoteField(key="name", label="Name", column="title"),
             NoteField(key="alias", label="Alias"),
@@ -2384,6 +2401,24 @@ def _check_shown_when(section: NoteSection) -> None:
             )
 
 
+def _check_view_labels(section: NoteSection) -> None:
+    """`view_labels` relabels values of a closed select, so it names them."""
+    for f in section.fields:
+        if f.view_labels is None:
+            continue
+        if f.type != FIELD_SELECT or not f.options:
+            raise ValueError(
+                f"Section '{section.key}': field '{f.key}' has view_labels "
+                "but is not a closed select."
+            )
+        for value, _label in f.view_labels:
+            if value not in f.options:
+                raise ValueError(
+                    f"Section '{section.key}': field '{f.key}' has view_labels "
+                    f"naming '{value}', which it does not offer."
+                )
+
+
 def _check_mixed(section: NoteSection) -> None:
     """
     `mixed` sits on catalogue sections only - a personal section's rows are
@@ -2408,6 +2443,7 @@ for _section in NOTE_SECTIONS:
     _check_type_status(_section)
     _check_personal(_section)
     _check_shown_when(_section)
+    _check_view_labels(_section)
 
 # The music_status kinds and the lists pointing at it must be the same set:
 # a list with no status row would show no bar, a status with no list a stray.

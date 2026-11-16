@@ -394,6 +394,9 @@ def test_the_gear_sections_carry_an_amount_total_and_an_ng_reset():
         ), key
         assert reset.options == ("yes", "no"), key
         assert reset.default == "yes", key
+        # Read only when it is the exception: "no" says something, the
+        # default "yes" does not.
+        assert reset.view_labels == (("no", "Won't Reset"),), key
     for key in ("skills",):
         assert "amount_total" not in _keys(key)
         assert "ng_reset" not in _keys(key)
