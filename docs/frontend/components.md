@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-11-14
+Last verified: 2026-11-16
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -915,7 +915,11 @@ columns.
   Every list section shows its first three rows and folds the rest behind
   "Show all (N)" - `useEntryCap` and `ShowAllToggle` in `ui.jsx`, one hook
   and one control shared by all of them rather than a copy per shape. The row
-  being edited and the draft row are never folded away; `StructuredSection`
+  being edited is never folded away, and a new row's form is not in the list
+  at all: every Add opens it in `DraftPopup` (`ui.jsx`), a non-modal dialog
+  docked at the bottom right that leaves the page behind it usable, so text
+  can be copied from the rows into it (see `docs/systems/notes.md`, "The
+  draft popup"). `StructuredSection`
   caps top-level rows, or each group of a grouped section. Every list section
   is also reorderable by a viewer who may write it (`canWrite`), the same way: a `DragHandle` per row (none
   on the row being edited, none while there is only one row), each move sent

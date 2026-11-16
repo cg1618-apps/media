@@ -15,7 +15,7 @@ import {
   SectionCard,
   ShowAllToggle,
   brandTagCls,
-  draftCls,
+  DraftPopup,
   inputCls,
   noteLabel,
   rowCls,
@@ -189,7 +189,13 @@ export default function TextLinksSection({
       </ReorderList>
       <ShowAllToggle {...cap.toggle} />
       {adding && (
-        <div className={draftCls}>
+        <DraftPopup
+          title={`Add to ${section.label}`}
+          onClose={() => {
+            setDraft(empty());
+            setAdding(false);
+          }}
+        >
           <TextLinksForm val={draft} setVal={setDraft} section={section} />
           <SaveCancel
             onSave={commit}
@@ -198,7 +204,7 @@ export default function TextLinksSection({
               setAdding(false);
             }}
           />
-        </div>
+        </DraftPopup>
       )}
       {!notes.length && !adding && <EmptyHint />}
     </SectionCard>
