@@ -1291,7 +1291,9 @@ function StructuredSectionBody({
     : null;
   const groupableField = section.hierarchical ? null : groupableBy;
   const treeGroupField = section.hierarchical ? groupableBy : null;
-  const [groupedByField, setGroupedByField] = useGroupToggle(section.key);
+  // An `always_grouped` section has no flat view to toggle to.
+  const [toggledGrouped, setGroupedByField] = useGroupToggle(section.key);
+  const groupedByField = Boolean(section.always_grouped) || toggledGrouped;
   // The tree's groups unfolded past the cap, by name ("" for the nameless one).
   const [unfolded, setUnfolded] = useState(() => new Set());
   // Whether the tree's groups themselves are unfolded past the first
@@ -1538,8 +1540,10 @@ function StructuredSectionBody({
         };
 
   // The header toggle between the grouped view and the flat list, for a
-  // section grouped by `field`. Only shown once there is something to group.
+  // section grouped by `field`. Only shown once there is something to group,
+  // and never on an `always_grouped` section.
   const groupToggle = (field) =>
+    !section.always_grouped &&
     notes.length > 0 && (
       <button
         type="button"
