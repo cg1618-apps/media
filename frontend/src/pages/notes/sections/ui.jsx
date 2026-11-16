@@ -75,10 +75,40 @@ const countCls = "font-mono text-[10px] text-text-faint tabular-nums";
 const SectionCardContext = createContext({ bare: false, appendix: null, appendixCount: 0 });
 export const SectionCardProvider = SectionCardContext.Provider;
 
+// The mark after a PERSONAL section's title (`scope: "personal"`): its rows
+// are each viewer's own, never the catalogue's. A small circled P in the
+// title's mono ink, with the meaning in its tooltip and accessible name - a
+// drawn circle rather than the Ⓟ glyph, which the mono font sets unevenly.
+export function PersonalBadge() {
+  return (
+    <span
+      role="img"
+      aria-label="Personal"
+      title="Personal - only you see your rows here"
+      className="inline-flex items-center justify-center w-3.5 h-3.5 ml-1.5 rounded-full border border-current font-mono text-[8px] leading-none normal-case tracking-normal align-middle"
+    >
+      P
+    </span>
+  );
+}
+
+// Whether a section's rows are each viewer's own.
+export const isPersonal = (section) => section?.scope === "personal";
+
 // `actions` are extra header controls drawn before Add - a section's view
 // toggles. They sit in the header's click-shielded strip, so pressing one
-// never collapses the card. `openWhenEmpty` - see useCollapsed.
-export function SectionCard({ label, count, canWrite, onAdd, actions, openWhenEmpty, children }) {
+// never collapses the card. `openWhenEmpty` - see useCollapsed. `personal`
+// draws PersonalBadge after the label.
+export function SectionCard({
+  label,
+  personal = false,
+  count,
+  canWrite,
+  onAdd,
+  actions,
+  openWhenEmpty,
+  children,
+}) {
   const { bare, appendix, appendixCount } = useContext(SectionCardContext);
   const total = appendixCount ? (count || 0) + appendixCount : count;
   const [collapsed, setCollapsed] = useCollapsed(total, openWhenEmpty);
@@ -91,6 +121,7 @@ export function SectionCard({ label, count, canWrite, onAdd, actions, openWhenEm
       >
         <h4 className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-muted shrink-0">
           {label}
+          {personal && <PersonalBadge />}
         </h4>
         {total > 0 && <span className={countCls}>{total}</span>}
         <span className="flex-1 border-t border-dotted border-border-strong/60" />
@@ -364,8 +395,22 @@ export function useEntryCap(items, { keep } = {}) {
 }
 
 // The control under a capped list. Draws nothing when the list fits.
-export function ShowAllToggle({ total, expanded, onToggle }) {
+// `noun` names what folds when it is not rows - "groups" under a grouped
+// section, so its toggle does not read like a group's own.
+export function ShowAllToggle({ total, expanded, onToggle, noun }) {
   if (total <= VISIBLE_ENTRIES) return null;
+  if (noun) {
+    return (
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        className="font-mono text-[11px] uppercase tracking-[0.12em] text-text-muted hover:text-brand transition"
+      >
+        {expanded ? `Show fewer ${noun}` : `Show all ${noun} (${total})`}
+      </button>
+    );
+  }
   return (
     <button
       type="button"
