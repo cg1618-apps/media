@@ -419,13 +419,19 @@ export function NotesProvider({
 
   const handlers = useMemo(
     () => ({
-      onCreate: async (payload) => {
+      // `marks` are the viewer's own personal values chosen in the create
+      // form (an item's collect status). The row has to exist before a mark
+      // can name it, so they follow the create as a second write.
+      onCreate: async (payload, marks) => {
         try {
-          await api.createNote({
+          const created = await api.createNote({
             owner_type: ownerType,
             owner_id: ownerId,
             ...payload,
           });
+          if (marks && Object.keys(marks).length && created?.system_id) {
+            await api.markNote(created.system_id, marks);
+          }
           await reloadNotes();
         } catch (e) {
           setError(String(e.message || e));

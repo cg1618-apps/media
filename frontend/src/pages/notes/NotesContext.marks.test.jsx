@@ -48,7 +48,23 @@ const ITEMS = {
       personal: true,
       granted: null,
     },
-    { key: "amount_total", label: "Total", type: "text", column: null, options: [] },
+    {
+      key: "has_amount",
+      label: "Amount",
+      type: "select",
+      column: null,
+      options: ["yes", "no"],
+      default: "no",
+      view_hidden: true,
+    },
+    {
+      key: "amount_total",
+      label: "Total",
+      type: "text",
+      column: null,
+      options: [],
+      shown_when: { field: "has_amount", value: "yes" },
+    },
     {
       key: "amount_collected",
       label: "Collected amount",
@@ -57,6 +73,7 @@ const ITEMS = {
       options: [],
       personal: true,
       granted: null,
+      shown_when: { field: "has_amount", value: "yes" },
     },
     {
       key: "ng_reset",
@@ -146,7 +163,7 @@ const ROWS = [
     section: "items",
     title: "Golden Seed",
     status: "not collected",
-    fields: { amount_total: "30", ng_reset: "yes" },
+    fields: { has_amount: "yes", amount_total: "30", ng_reset: "yes" },
     sort_index: 0,
   },
   {
@@ -338,7 +355,104 @@ describe("a catalogue edit", () => {
     expect(id).toBe("i1");
     expect(payload.title).toBe("Golden Seed");
     expect(payload).not.toHaveProperty("status");
-    expect(payload.fields).toEqual({ amount_total: "30", ng_reset: "yes" });
+    expect(payload.fields).toEqual({ has_amount: "yes", amount_total: "30", ng_reset: "yes" });
     expect(api.markNote).not.toHaveBeenCalled();
+  });
+});
+
+describe("an item's amount", () => {
+  const withItem = (fields) =>
+    vi.mocked(api.fetchNotes).mockResolvedValue([{ ...ROWS[0], fields }, ...ROWS.slice(1)]);
+
+  it("reads as collected/total with no label, the collected half editable", async () => {
+    // No ng_reset on the row, so a "yes" tag could only be has_amount's.
+    withItem({ has_amount: "yes", amount_total: "30" });
+    await renderAs(USER);
+    const items = card("道具 Items");
+    expect(items.getByLabelText("Collected amount")).toBeInTheDocument();
+    expect(items.getByText("/30")).toBeInTheDocument();
+    expect(items.queryByText(/Total/)).toBeNull();
+    // has_amount steers; it is never drawn as a tag of its own.
+    expect(items.queryByText("yes")).toBeNull();
+  });
+
+  it("reads as one tag for a viewer who cannot mark", async () => {
+    await renderAs(["manage.catalog"]);
+    expect(card("道具 Items").getByText("–/30")).toBeInTheDocument();
+  });
+
+  it("is not drawn on a row whose has_amount is no or missing", async () => {
+    // The same row and total as the mirror above, so the absence is has_amount's.
+    for (const fields of [{ amount_total: "30" }, { has_amount: "no", amount_total: "30" }]) {
+      withItem(fields);
+      const { unmount } = render(<NotesTemplate ownerType="game" ownerId="g1" />);
+      held = new Set(USER);
+      await waitFor(() => expect(screen.getByText("Golden Seed")).toBeInTheDocument());
+      const items = card("道具 Items");
+      expect(items.queryByLabelText("Collected amount")).toBeNull();
+      expect(items.queryByText(/30/)).toBeNull();
+      // The collect status is still drawn: the row's personal values are there.
+      expect(items.getByLabelText("Collected")).toBeInTheDocument();
+      unmount();
+    }
+  });
+});
+
+describe("creating an item", () => {
+  const CURATOR = ["manage.catalog", "self.personal_notes"];
+
+  async function openDraft(permissions) {
+    vi.mocked(api.fetchNotes).mockResolvedValue(ROWS.slice(1));
+    vi.mocked(api.createNote).mockResolvedValue({ system_id: "new1" });
+    held = new Set(permissions);
+    render(<NotesTemplate ownerType="game" ownerId="g1" />);
+    await waitFor(() => expect(screen.getByText("Vigor")).toBeInTheDocument());
+    await userEvent.click(card("道具 Items").getByRole("button", { name: "Add" }));
+  }
+
+  it("asks for the total only once Amount says yes", async () => {
+    await openDraft(CURATOR);
+    expect(screen.getByLabelText("Amount")).toHaveValue("no");
+    expect(screen.queryByLabelText("Total")).toBeNull();
+    expect(screen.queryByLabelText("Collected amount")).toBeNull();
+
+    await userEvent.selectOptions(screen.getByLabelText("Amount"), "yes");
+    expect(screen.getByLabelText("Total")).toBeInTheDocument();
+    expect(screen.getByLabelText("Collected amount")).toBeInTheDocument();
+  });
+
+  it("picks the collect status and amount, written as a mark after the create", async () => {
+    await openDraft(CURATOR);
+    await userEvent.type(screen.getByLabelText("Name"), "Rune");
+    await userEvent.selectOptions(screen.getByLabelText("Collected"), "enough collected");
+    await userEvent.selectOptions(screen.getByLabelText("Amount"), "yes");
+    await userEvent.type(screen.getByLabelText("Total"), "12");
+    await userEvent.type(screen.getByLabelText("Collected amount"), "4");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(api.markNote).toHaveBeenCalledTimes(1));
+    const [payload] = vi.mocked(api.createNote).mock.calls[0];
+    expect(payload.title).toBe("Rune");
+    expect(payload).not.toHaveProperty("status");
+    expect(payload.fields).toEqual({ has_amount: "yes", amount_total: "12", ng_reset: "yes" });
+    expect(api.markNote).toHaveBeenCalledWith("new1", {
+      collected: "enough collected",
+      amount_collected: "4",
+    });
+  });
+
+  it("writes no mark when only the defaults were left", async () => {
+    await openDraft(CURATOR);
+    await userEvent.type(screen.getByLabelText("Name"), "Rune");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(api.createNote).toHaveBeenCalledTimes(1));
+    expect(api.markNote).not.toHaveBeenCalled();
+  });
+
+  it("does not ask a viewer who cannot mark for a collect status (the mirror is above)", async () => {
+    await openDraft(["manage.catalog"]);
+    expect(screen.getByLabelText("Name")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Collected")).toBeNull();
   });
 });
