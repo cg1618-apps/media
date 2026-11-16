@@ -151,6 +151,8 @@ const GEOGRAPHY = {
   hierarchical: true,
   group_by: null,
   groupable_by: "group",
+  // As the registry serves it: grouped by group, always.
+  always_grouped: true,
   owner_where: {},
   fields: [
     {
@@ -246,8 +248,16 @@ describe("groupable_by on a hierarchical section", () => {
     expect(onReorder).toHaveBeenCalledWith("geography", ["a4", "a1", "a2", "a6", "a3", "a5"]);
   });
 
-  it("toggles to the plain tree, where a root shows its group and a child still does not", async () => {
+  it("is always grouped: no toggle, whatever this browser remembered", () => {
+    localStorage.setItem("notes.grouped.geography", "0");
     renderGeography();
+    expect(screen.queryByRole("button", { name: "Group by group" })).toBeNull();
+    expect(headers()).toEqual(["Lands Between", "Underground", "No group"]);
+    localStorage.removeItem("notes.grouped.geography");
+  });
+
+  it("toggles to the plain tree when not always grouped (the mirror)", async () => {
+    renderGeography({ section: { ...GEOGRAPHY, always_grouped: false } });
     await userEvent.click(screen.getByRole("button", { name: "Group by group" }));
     expect(headers()).toEqual([]);
     expect(screen.getAllByText("Lands Between")).toHaveLength(2);
