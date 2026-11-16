@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.utils.media_resolver import OWNER_TABLES
 from app.utils.note_sections import (
@@ -252,6 +252,28 @@ class NoteReorder(BaseModel):
     owner_id: UUID
     section: str
     ordered_ids: List[UUID]
+
+
+class NoteGroupRename(BaseModel):
+    """
+    POST /api/notes/rename-group: rename one group of one section of one
+    owner, `from` to `to`. Both are trimmed by the router, which answers 422
+    for a blank `to` - the nameless group has no stored name to rename.
+    """
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    owner_type: str
+    owner_id: UUID
+    section: str
+    # `from` is a Python keyword, so the attribute is `from_` and the wire
+    # name is `from`.
+    from_: str = Field(alias="from")
+    to: str
+
+
+class NoteGroupRenameResult(BaseModel):
+    renamed: int
 
 
 class NoteMarkWrite(BaseModel):

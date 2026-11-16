@@ -213,6 +213,69 @@ export function ItemActions({ canWrite, onEdit, onDelete }) {
   );
 }
 
+// A named group header's name, renamable in place. `children` is how the name
+// reads; given `onRename`, a pencil beside it turns it into an input holding
+// the name, and Enter or leaving the input calls `onRename(newName)` with the
+// trimmed value - unless it is blank or unchanged - while Escape puts the name
+// back. Without `onRename` (a viewer with no row of the group to edit, or the
+// nameless group) it is only the name.
+export function GroupName({ name, onRename, inputClassName = "", children }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(name);
+  // Set once the edit has ended, so the blur that follows Enter or Escape -
+  // the input leaving the page - does not end it a second time.
+  const ended = useRef(false);
+
+  if (editing) {
+    const end = (save) => {
+      if (ended.current) return;
+      ended.current = true;
+      setEditing(false);
+      const next = value.trim();
+      if (save && next && next !== name) onRename(next);
+    };
+    return (
+      <input
+        aria-label="Group name"
+        autoFocus
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            end(true);
+          } else if (e.key === "Escape") {
+            e.preventDefault();
+            end(false);
+          }
+        }}
+        onBlur={() => end(true)}
+        className={`${inputCls} ${inputClassName}`}
+      />
+    );
+  }
+  return (
+    <>
+      {children}
+      {onRename && (
+        <button
+          type="button"
+          onClick={() => {
+            ended.current = false;
+            setValue(name);
+            setEditing(true);
+          }}
+          aria-label={`Rename group ${name}`}
+          title="Rename group"
+          className="text-text-faint hover:text-brand text-[10px] px-1"
+        >
+          <i className="fas fa-pencil-alt"></i>
+        </button>
+      )}
+    </>
+  );
+}
+
 // A personal row in a mixed section: the viewer's own, not the catalogue's.
 // Provisional UI.
 export function MineChip() {
