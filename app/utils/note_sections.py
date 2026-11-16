@@ -229,6 +229,16 @@ class NoteField:
     # cycle of a game: on a section that has an `ng_reset` field, only on the
     # rows whose ng_reset is yes; elsewhere on every row.
     ng_resets: bool = False
+    # (field key, value): the field is drawn - in the form and in the read
+    # view - only while that field of the same row holds that value. Display
+    # only: a hidden field keeps whatever it stores, so turning the steering
+    # field back brings its value back with it. The steering field must be a
+    # closed select of the same section, and the value one of its options;
+    # checked at import (`_check_shown_when`).
+    shown_when: tuple[str, str] | None = None
+    # The read view does not draw this field. For a field that only steers
+    # others, whose value the read view already shows by what it draws.
+    view_hidden: bool = False
 
 
 @dataclass(frozen=True)
@@ -557,6 +567,11 @@ MOD_KINDS = ("Mod", "Tool")
 # cycle starts. Closed, like the collect status itself: a fact about the game.
 NG_RESET_OPTIONS = ("yes", "no")
 
+# Whether a 物品 row is counted at all. Most are one-off things, so a row
+# opens on no and its two amounts stay hidden until it says yes.
+HAS_AMOUNT_OPTIONS = ("yes", "no")
+HAS_AMOUNT_SHOWN = ("has_amount", "yes")
+
 # The system_option categories the game note sections' free-text selects draw
 # suggestions from, one per field (`NoteField.option_category`). All open: a
 # value typed that is not in the list is stored as typed.
@@ -589,11 +604,14 @@ def _named_thing_fields(
     opposite - it is a fact about my run, so it reads the same everywhere and
     is closed.
 
-    A collected section also carries how many there are (`amount_total`,
-    text like the stat values - "12", "12 + DLC" - since there is no number
-    field) and whether a new cycle resets it (`ng_reset`). Both describe the
-    game rather than my run. `ng_reset` defaults to yes, the commoner answer,
-    and a row stored without the key reads as yes too.
+    A collected section also carries whether a row is counted at all
+    (`has_amount`), how many there are (`amount_total`, text like the stat
+    values - "12", "12 + DLC" - since there is no number field) and whether a
+    new cycle resets it (`ng_reset`). All three describe the game rather than
+    my run. `has_amount` defaults to no, since most rows are one-off things,
+    and a row stored without the key reads as no; both amounts are drawn only
+    while it says yes. `ng_reset` defaults to yes, the commoner answer, and a
+    row stored without the key reads as yes too.
     """
     return (
         NoteField(
@@ -624,7 +642,19 @@ def _named_thing_fields(
                     personal=True,
                     ng_resets=True,
                 ),
-                NoteField(key="amount_total", label="Total"),
+                NoteField(
+                    key="has_amount",
+                    label="Amount",
+                    type=FIELD_SELECT,
+                    options=HAS_AMOUNT_OPTIONS,
+                    default="no",
+                    view_hidden=True,
+                ),
+                NoteField(
+                    key="amount_total",
+                    label="Total",
+                    shown_when=HAS_AMOUNT_SHOWN,
+                ),
                 # How many of them I have, beside how many there are. Free
                 # text like the total, and personal like `collected`: never
                 # stored on the row, only in a mark, so it has no column.
@@ -633,6 +663,7 @@ def _named_thing_fields(
                     label="Collected amount",
                     personal=True,
                     ng_resets=True,
+                    shown_when=HAS_AMOUNT_SHOWN,
                 ),
                 NoteField(
                     key="ng_reset",
@@ -2330,6 +2361,29 @@ def _check_personal(section: NoteSection) -> None:
         refuse("personal values sit on catalogue rows only")
 
 
+def _check_shown_when(section: NoteSection) -> None:
+    """
+    A `shown_when` names a closed select of the same section and one of its
+    options, so the page can always answer it from the row it is drawing.
+    """
+    for f in section.fields:
+        if f.shown_when is None:
+            continue
+        key, value = f.shown_when
+        # Not field_by_key: it is defined below this module's import checks.
+        steer = next((g for g in section.fields if g.key == key), None)
+        if steer is None or steer.type != FIELD_SELECT or not steer.options:
+            raise ValueError(
+                f"Section '{section.key}': field '{f.key}' has a shown_when "
+                f"naming '{key}', which is not a closed select of the section."
+            )
+        if value not in steer.options:
+            raise ValueError(
+                f"Section '{section.key}': field '{f.key}' has a shown_when "
+                f"value '{value}' that '{key}' does not offer."
+            )
+
+
 def _check_mixed(section: NoteSection) -> None:
     """
     `mixed` sits on catalogue sections only - a personal section's rows are
@@ -2353,6 +2407,7 @@ for _section in NOTE_SECTIONS:
     _check_kind_category(_section)
     _check_type_status(_section)
     _check_personal(_section)
+    _check_shown_when(_section)
 
 # The music_status kinds and the lists pointing at it must be the same set:
 # a list with no status row would show no bar, a status with no list a stray.

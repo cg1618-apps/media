@@ -196,6 +196,7 @@ def test_the_four_named_thing_sections_share_one_spec():
             "description",
             "links",
             "collected",
+            "has_amount",
             "amount_total",
             "amount_collected",
             "ng_reset",
@@ -358,6 +359,7 @@ def test_the_three_gear_sections_track_collecting():
             "description",
             "links",
             "collected",
+            "has_amount",
             "amount_total",
             "amount_collected",
             "ng_reset",
@@ -395,6 +397,27 @@ def test_the_gear_sections_carry_an_amount_total_and_an_ng_reset():
     for key in ("skills",):
         assert "amount_total" not in _keys(key)
         assert "ng_reset" not in _keys(key)
+
+
+def test_the_gear_sections_ask_whether_a_row_has_an_amount():
+    # Most rows are one-off things with nothing to count, so a row opens on
+    # "no" and its two amounts stay out of the form and the read view until
+    # it says yes.
+    for key in COLLECTED_SECTIONS:
+        has = _field(key, "has_amount")
+        assert (has.label, has.type, has.column) == (
+            "Amount",
+            ns.FIELD_SELECT,
+            None,
+        ), key
+        assert has.options == ("yes", "no"), key
+        assert has.default == "no", key
+        assert has.view_hidden is True, key
+        assert has.personal is False, key
+        for amount in ("amount_total", "amount_collected"):
+            assert _field(key, amount).shown_when == ("has_amount", "yes"), key
+        for other in ("type", "name", "collected", "ng_reset"):
+            assert _field(key, other).shown_when is None, key
 
 
 def test_guide_resources_is_groupable_by_a_free_text_group():
