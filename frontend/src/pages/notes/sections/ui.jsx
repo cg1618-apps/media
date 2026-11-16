@@ -303,8 +303,8 @@ export function SaveCancel({ onSave, onCancel }) {
   );
 }
 
-// `label` overrides the text shown - a link pair's own text. Without one the
-// pill shows the link's host.
+// `label` overrides the text shown - a link's own title. Without one the pill
+// shows the link's host.
 export function LinkPill({ url, label: given }) {
   const label =
     given ||
@@ -325,45 +325,6 @@ export function LinkPill({ url, label: given }) {
       <i className="fas fa-external-link-alt text-[9px]"></i>
       {label}
     </a>
-  );
-}
-
-// A repeatable list of URL inputs, shared by every section whose links are URL
-// strings rather than pairs.
-export function LinksEditor({ links, onChange }) {
-  const list = links?.length ? links : [""];
-  const setLink = (i, v) => onChange(list.map((l, idx) => (idx === i ? v : l)));
-  return (
-    <div className="space-y-1">
-      {list.map((l, i) => (
-        <div key={i} className="flex gap-1">
-          <input
-            value={l}
-            onChange={(e) => setLink(i, e.target.value)}
-            placeholder="https://..."
-            className={inputCls}
-          />
-          {list.length > 1 && (
-            <button
-              type="button"
-              onClick={() => onChange(list.filter((_, idx) => idx !== i))}
-              aria-label="Remove link"
-              title="Remove link"
-              className="text-text-faint hover:text-danger px-1"
-            >
-              <i className="fas fa-times text-xs"></i>
-            </button>
-          )}
-        </div>
-      ))}
-      <button
-        type="button"
-        onClick={() => onChange([...list, ""])}
-        className="font-mono text-[11px] uppercase tracking-[0.12em] text-text-muted hover:text-brand transition"
-      >
-        + Add link
-      </button>
-    </div>
   );
 }
 

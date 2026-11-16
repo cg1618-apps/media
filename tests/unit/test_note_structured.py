@@ -104,7 +104,7 @@ def test_only_structured_sections_nest():
 
 def test_field_helpers_split_columns_from_the_blob():
     controls = section_by_key("controls")
-    assert set(column_field_map(controls)) == {"kind", "title", "content", "links"}
+    assert set(column_field_map(controls)) == {"kind", "title", "content"}
     # controls maps every field onto a column, so it stores no blob at all.
     assert json_fields(controls) == ()
     assert field_by_key(controls, "control").column == "title"
@@ -117,9 +117,9 @@ def test_field_helpers_split_columns_from_the_blob():
 def test_controls_is_structured_with_an_optional_type_and_control():
     section = section_by_key("controls")
     assert section.shape == SHAPE_STRUCTURED
-    assert [f.key for f in section.fields] == ["type", "control", "description", "links"]
+    assert [f.key for f in section.fields] == ["type", "control", "description"]
     assert not any(f.required for f in section.fields)
-    assert field_by_key(section, "links").type == FIELD_LINKS
+    assert field_by_key(section, "links") is None
 
 
 def test_sections_endpoint_serialises_the_spec():
@@ -129,7 +129,6 @@ def test_sections_endpoint_serialises_the_spec():
         ("type", "kind", "select"),
         ("control", "title", "text"),
         ("description", "content", "textarea"),
-        ("links", "links", "links"),
     ]
     assert out.require_any == []
     assert out.hierarchical is False
@@ -146,7 +145,7 @@ def test_a_non_structured_section_serialises_no_spec():
 def test_a_filled_field_is_enough():
     validate_note_payload(_payload(title="L2 + O"))
     validate_note_payload(_payload(content="Parry on the upswing."))
-    validate_note_payload(_payload(links=["https://example.com"]))
+    validate_note_payload(_payload("trivia", links=["https://example.com"]))
 
 
 def test_an_entirely_empty_row_is_refused():
@@ -292,16 +291,34 @@ def test_a_nested_list_is_checked_row_by_row():
         _validate_against(section, fields={"stats": "VIG 40"})
 
 
-def test_a_links_field_must_hold_strings():
-    # Only a BLOB-backed links field needs this check: a column-backed one is
-    # typed List[str] on NoteBase, so Pydantic refuses a bad value before the
-    # spec is consulted. `fields` is an untyped dict, so the spec is the only
-    # thing standing between a malformed payload and the column.
-    section = _spec_section(
-        fields=(NoteField(key="sources", label="Sources", type=FIELD_LINKS),)
+def test_a_links_field_must_be_the_links_column():
+    # A row's links live in one place, typed as titled pairs on NoteBase;
+    # `fields` is an untyped dict that would hold whatever was sent.
+    from app.utils.note_sections import _check_links_field
+
+    _check_links_field(
+        _spec_section(
+            fields=(
+                NoteField(
+                    key="links", label="Links", type=FIELD_LINKS, column="links"
+                ),
+            )
+        )
     )
-    _validate_against(section, fields={"sources": ["https://example.com"]})
-    with pytest.raises(ValueError, match="must be a list of URLs"):
-        _validate_against(section, fields={"sources": [{"url": "https://x.com"}]})
-    with pytest.raises(ValueError, match="must be a list of URLs"):
-        _validate_against(section, fields={"sources": "https://example.com"})
+    with pytest.raises(ValueError, match="not stored in the `links` column"):
+        _check_links_field(
+            _spec_section(
+                fields=(NoteField(key="sources", label="Sources", type=FIELD_LINKS),)
+            )
+        )
+
+
+def test_a_links_field_needs_a_url_on_every_link():
+    section = _spec_section(
+        fields=(
+            NoteField(key="links", label="Links", type=FIELD_LINKS, column="links"),
+        )
+    )
+    _validate_against(section, links=[{"text": "Wiki", "url": "https://x.com"}])
+    with pytest.raises(ValueError, match="needs a URL"):
+        _validate_against(section, links=[{"text": "Wiki", "url": " "}])

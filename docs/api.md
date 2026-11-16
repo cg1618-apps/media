@@ -1174,9 +1174,8 @@ carrying one is a 422 "Only a top-level row carries a group."),
 `move_targets` (`[{key, label}]`, the sections a row can be moved straight to
 by a PATCH of `section` - the owner's other `quick_move` sections in the same
 card, `[]` elsewhere), `owner_where` (`{owner column:
-[allowed values]}`, `{}` for none), and the music-group fields: `link_pairs`
-(the section's `links` are `{"text", "url"}` pairs rather than URL strings),
-`link_text_category` (the option category suggesting a pair's `text`),
+[allowed values]}`, `{}` for none), and the music-group fields:
+`link_text_category` (the option category suggesting a link's title),
 `kind_category` (`kind` is free text suggested from this option category),
 `kind_is_group` (`kind` is a free-text group name the card draws a heading
 per - Resources),
@@ -1193,11 +1192,12 @@ left out, and a personal status's `statuses` and `default_status` are empty,
 as are a song list's `type_status_section` / `type_statuses` /
 `type_status_default`).
 
-`links` on `NoteCreate` / `NoteUpdate` / `NoteResponse` is a list of URL
-strings, or - on a section reporting `link_pairs: true` (the four song
-lists) - a list of `{"text": str | null, "url": str}`. Each
-section takes exactly one of the two; the other is a 422, as is a pair with a
-blank `url` or a key other than those two.
+`links` on `NoteCreate` / `NoteUpdate` / `NoteResponse` is a list of titled
+links, `{"text": str | null, "url": str}`, on every section: `text` is the
+link's optional title. A bare URL string in a request is read as a link with
+no title, so it is stored - and read back - as `{"text": null, "url": ...}`.
+A link with a blank `url` or a key other than those two is a 422, and so is
+any link on a section that takes none (`Section '…' takes no links.`).
 
 A section with `owner_where` refuses a row on any other owner with **422**, on
 `POST` and on the merged row of a `PATCH`: `h_comic_highlights` is

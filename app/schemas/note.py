@@ -1,10 +1,10 @@
 """Note request/response schemas, validated against the section registry."""
 
 from datetime import datetime
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from app.utils.media_resolver import OWNER_TABLES
 from app.utils.note_sections import (
@@ -22,6 +22,7 @@ from app.utils.note_sections import (
     STORED_SHAPES,
     NoteField,
     NoteSection,
+    as_link_pairs,
     field_by_key,
     group_by_key,
     group_for,
@@ -31,17 +32,17 @@ from app.utils.note_sections import (
     personal_values,
     section_by_key,
     sections_for,
-    uses_link_pairs,
+    takes_links,
 )
 
 
 class LinkPair(BaseModel):
     """
-    One link of a section whose links are text-and-URL pairs - the song lists
-    (see note_sections.uses_link_pairs). `text` is the label shown
-    for the link (YouTube, Spotify, ...), suggested from the "Song Source"
-    option category but free; `url` is required, which validate_note_payload
-    enforces so the error names the section.
+    One link of a note, whatever its section: every `links` column holds
+    these. `text` is the link's optional title, the label its pill reads (the
+    host stands in without one) - on the song lists suggested from the "Song
+    Source" option category, free everywhere. `url` is required, which
+    validate_note_payload enforces so the error names the section.
 
     An unknown key is refused, so a typo'd `label` cannot be stored and then
     silently never shown.
@@ -62,11 +63,11 @@ class NoteBase(BaseModel):
     status: Optional[str] = None
     title: Optional[str] = None
     content: Optional[str] = None
-    # URL strings everywhere except the sections whose links are pairs, where
-    # each item is a LinkPair. Which of the two a section takes is the
-    # registry's call (uses_link_pairs) and validate_note_payload refuses the
-    # other, so one section never holds both.
-    links: Optional[List[Union[str, LinkPair]]] = None
+    # Titled links, on every section that takes links (note_sections.takes_links).
+    # A bare URL string is read as a pair with no title, so a page still
+    # running an older bundle, or a row written before every link was a pair,
+    # stores the one shape like everything else.
+    links: Optional[List[LinkPair]] = None
     # The name_entries shape's ordered items: each is
     # {"type": "text"|"link", "value": str, "label": str|None}. Kept apart from
     # `links`, which holds URL strings or text-and-URL pairs.
@@ -80,6 +81,11 @@ class NoteBase(BaseModel):
     # row's owner and section, and is not the row itself.
     parent_id: Optional[UUID] = None
     sort_index: Optional[float] = None
+
+    @field_validator("links", mode="before")
+    @classmethod
+    def _url_strings_as_pairs(cls, links):
+        return as_link_pairs(links) if isinstance(links, list) else links
 
 
 class NoteCreate(NoteBase):
@@ -171,7 +177,8 @@ class NoteSectionOut(BaseModel):
     group_label: Optional[str] = None
     group_icon: Optional[str] = None
     # Render as its own top-level card rather than inside the Notes card.
-    # Mutually exclusive with `group`, which is the same lift plus a shared card.
+    # Never set beside `group`, which is the same lift plus a shared card: a
+    # group resolved for the owner wins (Resources, in 資源&工具 on a game).
     standalone: bool = False
     kinds: List[str] = []
     default_kind: Optional[str] = None
@@ -197,10 +204,8 @@ class NoteSectionOut(BaseModel):
     # Owner-entry columns the section is limited to, {column: [values]}. The
     # page renders no card on an owner outside them; the API refuses a row.
     owner_where: dict[str, List[str]] = {}
-    # Whether `links` holds {"text", "url"} pairs rather than URL strings.
-    link_pairs: bool = False
-    # The system_option category suggesting a link pair's `text`. None offers
-    # no suggestions.
+    # The system_option category suggesting a link's title. None offers no
+    # suggestions.
     link_text_category: Optional[str] = None
     # `kind` is free text suggested from this system_option category (the
     # Song Type of an OP or ED). Set only where `kinds` is empty.
@@ -350,7 +355,7 @@ def section_out(
         group=group.key if group else None,
         group_label=group.label if group else None,
         group_icon=group.icon if group else None,
-        standalone=section.standalone,
+        standalone=section.standalone and group is None,
         kinds=list(kinds_for(section, owner_type)),
         default_kind=section.default_kind,
         statuses=[] if status_hidden else list(section.statuses),
@@ -367,7 +372,6 @@ def section_out(
         group_by=section.group_by,
         groupable_by=section.groupable_by,
         owner_where={k: list(v) for k, v in section.owner_where.items()},
-        link_pairs=uses_link_pairs(section),
         link_text_category=section.link_text_category,
         kind_category=section.kind_category,
         kind_is_group=section.kind_is_group,
@@ -431,7 +435,7 @@ def _is_blank(value) -> bool:
 
 
 def _check_link_pairs(links, where: str) -> None:
-    """Every item a text-and-URL pair, and every pair carrying a URL."""
+    """Every item a titled pair, and every pair carrying a URL."""
     if not isinstance(links, list) or not all(
         isinstance(link, LinkPair) for link in links
     ):
@@ -443,17 +447,15 @@ def _check_link_pairs(links, where: str) -> None:
 
 def _check_links(section: NoteSection, links) -> None:
     """
-    A non-structured section's links, in the one shape its registry entry
-    takes: pairs where uses_link_pairs says so, URL strings everywhere else.
-    A structured section checks its links field by field instead.
+    A non-structured section's links: none on a section that takes none, and
+    titled pairs each carrying a URL everywhere else. A structured section
+    checks its links field by field instead.
     """
     if not links:
         return
-    where = f"Section '{section.key}' links"
-    if uses_link_pairs(section):
-        _check_link_pairs(links, where)
-    elif not all(isinstance(link, str) for link in links):
-        raise ValueError(f"{where} must be URLs.")
+    if not takes_links(section):
+        raise ValueError(f"Section '{section.key}' takes no links.")
+    _check_link_pairs(links, f"Section '{section.key}' links")
 
 
 def _check_scalar(field: NoteField, value, where: str) -> None:
@@ -478,8 +480,7 @@ def _check_field(field: NoteField, value, where: str) -> None:
         return
 
     if field.type == FIELD_LINKS:
-        if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
-            raise ValueError(f"{where} must be a list of URLs.")
+        _check_link_pairs(value, where)
         return
 
     if field.type == FIELD_NAMES:

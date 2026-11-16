@@ -100,8 +100,6 @@ import { Button } from "../../../components/ui/primitives";
 import {
   EmptyHint,
   ItemActions,
-  LinkPill,
-  LinksEditor,
   MineChip,
   SaveCancel,
   SectionCard,
@@ -116,6 +114,13 @@ import {
   useEntryCap,
 } from "./ui";
 import AutoGrowTextarea from "../../../components/ui/AutoGrowTextarea";
+import { LinkPairPills, LinkPairsEditor } from "./LinkPairs";
+import {
+  hasLinkPair,
+  pairsFromLinks,
+  pairsIncomplete,
+  pairsToLinks,
+} from "./linkPairValues";
 
 // The owner's id, for a `choice_node` field: the game whose points it offers.
 const OwnerIdContext = createContext(null);
@@ -199,6 +204,7 @@ const fromNote = (section, note, withPersonal = false) =>
   Object.fromEntries(
     (withPersonal ? section.fields : catalogueFields(section)).map((f) => {
       const raw = f.column ? note[f.column] : (note.fields || {})[f.key];
+      if (f.type === "links") return [f.key, pairsFromLinks(raw)];
       if (ARRAY_TYPES.has(f.type)) return [f.key, raw || []];
       return [f.key, raw == null ? "" : String(raw)];
     }),
@@ -214,7 +220,7 @@ const toPayload = (section, val) => {
     const raw = val[f.key];
     let out;
     if (f.type === "links") {
-      out = (raw || []).map((l) => l.trim()).filter(Boolean);
+      out = pairsToLinks(raw);
       if (!out.length) out = null;
     } else if (f.type === "names") {
       // Deduplicated, blanks dropped: the server refuses a blank name.
@@ -261,15 +267,24 @@ const payloadWithout = (section, val, omitKey) => {
 // makes a row worth storing, or an untouched draft would save itself on the
 // strength of a status nobody chose.
 // A personal field never counts: it is not part of the row.
+// A links field is blank until one of its links has a URL, and a title still
+// waiting for its URL holds Save back rather than being dropped.
+const fieldBlank = (field, value) =>
+  field?.type === "links" ? !hasLinkPair(value) : isBlank(value);
+
 const invalid = (section, val) => {
   const own = catalogueFields(section);
-  const carrying = own.filter((f) => !f.default);
-  if ((carrying.length ? carrying : own).every((f) => isBlank(val[f.key])))
+  if (own.some((f) => f.type === "links" && pairsIncomplete(val[f.key])))
     return true;
-  if (own.some((f) => f.required && isBlank(val[f.key])))
+  const carrying = own.filter((f) => !f.default);
+  if ((carrying.length ? carrying : own).every((f) => fieldBlank(f, val[f.key])))
+    return true;
+  if (own.some((f) => f.required && fieldBlank(f, val[f.key])))
     return true;
   return (section.require_any || []).some((group) =>
-    group.every((key) => isBlank(val[key])),
+    group.every((key) =>
+      fieldBlank(section.fields.find((f) => f.key === key), val[key]),
+    ),
   );
 };
 
@@ -454,7 +469,7 @@ function StructuredForm({ section, val, setVal, nameSuggestions, withPersonal = 
         }
         if (field.type === "links") {
           return (
-            <LinksEditor key={field.key} links={val[field.key]} onChange={set} />
+            <LinkPairsEditor key={field.key} pairs={val[field.key]} onChange={set} />
           );
         }
         if (field.type === "choice_node") {
@@ -908,9 +923,8 @@ function StructuredRow({
       <div className="flex flex-wrap gap-1">
         {section.fields
           .filter((f) => f.type === "links")
-          .flatMap((f) => (readValue(f, note) || []).filter(Boolean))
-          .map((l, i) => (
-            <LinkPill key={i} url={l} />
+          .map((f) => (
+            <LinkPairPills key={f.key} links={readValue(f, note)} bare />
           ))}
       </div>
     </div>

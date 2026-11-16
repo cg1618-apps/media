@@ -120,13 +120,11 @@ def test_classes_fields_in_order():
         "unlock",
         "key_stats",
         "description",
-        "links",
     ]
     assert (fields["type"].type, fields["type"].column) == (ns.FIELD_SELECT, "kind")
     assert fields["type"].options == ()
     assert fields["name"].column == "title"
     assert fields["description"].column == "content"
-    assert fields["links"].column == "links"
     for key in ("role", "unlock", "key_stats"):
         assert fields[key].column is None, key
 

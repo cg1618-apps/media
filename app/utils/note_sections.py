@@ -40,6 +40,10 @@ from app.utils.media_resolver import MEDIA_TYPE_KEYS, OWNER_TYPE_KEYS
 SHAPE_TEXT = "text"  # content
 SHAPE_TEXT_LINKS = "text_links"  # content, links, optional episode
 SHAPE_EPISODE_TEXT = "episode_text"  # episode, content, kind where declared, links where takes_links
+# Every `links` column, whatever the shape, holds titled pairs,
+# `{"text": str | None, "url": str}`: the title is optional and is what the
+# link's pill reads, the host standing in when there is none. See
+# `takes_links` at the end of this module.
 SHAPE_NAME_LINKS = "name_links"  # title, links
 # A named list whose items are each either a line of text or a labelled link,
 # in one ordered array. name_links can only hold URLs, and text_links has no
@@ -52,10 +56,9 @@ SHAPE_NAME_ENTRIES = "name_entries"  # title, entries
 # status a property of my work on it, which is why `note` carries a `status`
 # column alongside `kind`.
 #
-# Its links are text-and-URL pairs, `{"text": str | None, "url": str}`, rather
-# than the URL strings every older shape holds: a song is heard on several
-# services, and "which one is this link" is the label a reader needs. See
-# `uses_link_pairs`.
+# Its links' titles are suggested from the "Song Source" category: a song is
+# heard on several services, and "which one is this link" is the title a
+# reader needs.
 SHAPE_MUSIC_TRACK = "music_track"  # title, kind, status, locator, links, content
 # How far tracking one whole song list of an anime has got: `kind` names the
 # list (a music_track section key) and `status` says how far. One row per
@@ -141,7 +144,7 @@ def _all_but(owners: tuple[str, ...], *excluded: str) -> tuple[str, ...]:
 FIELD_TEXT = "text"  # one line
 FIELD_TEXTAREA = "textarea"  # a body
 FIELD_SELECT = "select"  # a dropdown over `options`
-FIELD_LINKS = "links"  # the repeatable URL editor
+FIELD_LINKS = "links"  # the repeatable titled-link editor; column `links` only
 FIELD_LIST = "list"  # a repeatable row of `item_fields`
 # A list of free-text names, e.g. the characters a highlight is about. Always
 # stored in `fields`, never in a column: no `note` column holds a list of
@@ -403,8 +406,8 @@ class NoteSection:
     # per-owner, unlike `desc_required` - that is true of every owner the
     # section has.
     locator_required: bool = False
-    # `episode_text` sections only: rows also carry any number of links, as
-    # URL strings like a text_links row's. OP/ED 變動 is the one that does -
+    # `episode_text` sections only: rows also carry any number of titled
+    # links, like a text_links row's. OP/ED 變動 is the one that does -
     # where the changed OP or ED can be watched. Every other link-carrying
     # shape takes links by construction, so a test keeps this flag to
     # episode_text.
@@ -733,11 +736,11 @@ HIGHLIGHT_KINDS = ("神回", "神片段", "神篇章")
 
 def _plot_fields() -> tuple["NoteField", ...]:
     """
-    主線劇情 and 支線劇情: a chapter, what happens in it, and where that came
-    from.
+    主線劇情 and 支線劇情: a chapter and where it can be watched or read.
 
-    The chapter keeps the `locator` column it held as an episode_text
-    section, so no row had to move when links were added.
+    No description: what happens is the video or the write-up a link points
+    at, and each link's title says which one it is. The chapter keeps the
+    `locator` column it held as an episode_text section.
     """
     return (
         NoteField(
@@ -745,12 +748,6 @@ def _plot_fields() -> tuple["NoteField", ...]:
             label="Chapter",
             column="locator",
             placeholder="Chapter / Part, e.g. Ch 3",
-        ),
-        NoteField(
-            key="description",
-            label="Description",
-            type=FIELD_TEXTAREA,
-            column="content",
         ),
         NoteField(key="links", label="Links", type=FIELD_LINKS, column="links"),
     )
@@ -932,13 +929,17 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         group="reviews",
     ),
     NoteSection(
+        # An episode and what I thought of it - no links: a comment is mine,
+        # and a source worth keeping belongs in 大眾評價 or 解析.
         key="episode_comments",
         locator_required=True,
-        shape=SHAPE_TEXT_LINKS,
+        shape=SHAPE_EPISODE_TEXT,
         label="各集評論 Episode Comments",
         # Not h-game: an h-game is not reviewed part by part.
         owners=("anime", "tv-show", "cartoon", "manga", "game"),
         scope=SCOPE_PERSONAL,
+        # An episode with nothing said about it is not a comment.
+        desc_required=("anime", "tv-show", "cartoon", "manga", "game"),
         # A manga is cut into chapters and a game into chapters or parts
         # rather than episodes, but the section is the same one: a comment on
         # one segment of the work.
@@ -1300,7 +1301,6 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
                 type=FIELD_TEXTAREA,
                 column="content",
             ),
-            NoteField(key="links", label="Links", type=FIELD_LINKS, column="links"),
         ),
     ),
     NoteSection(
@@ -1322,12 +1322,24 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         group="guides",
     ),
     NoteSection(
+        # A fact worth knowing: an optional title to find it by, what it
+        # says, and where it came from. Any one of the three is a row.
         key="trivia",
-        shape=SHAPE_TEXT_LINKS,
+        shape=SHAPE_STRUCTURED,
         label="小知識 Trivia",
         owners=("game",),
         scope=SCOPE_CATALOG,
         group="guides",
+        fields=(
+            NoteField(key="title", label="Title", column="title"),
+            NoteField(
+                key="description",
+                label="Description",
+                type=FIELD_TEXTAREA,
+                column="content",
+            ),
+            NoteField(key="links", label="Links", type=FIELD_LINKS, column="links"),
+        ),
     ),
     # --- 養成&流派 Builds & Growth ----------------------------------------
     # How to build: where the points go, what they unlock, what that adds up
@@ -1387,7 +1399,6 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
                 type=FIELD_TEXTAREA,
                 column="content",
             ),
-            NoteField(key="links", label="Links", type=FIELD_LINKS, column="links"),
         ),
         groupable_by="type",
     ),
@@ -1642,43 +1653,6 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         groupable_by="tier",
     ),
     NoteSection(
-        # Where things are: a region holding areas holding rooms, each a row
-        # of its own - the `hierarchical` shape the 劇情列表 lists use. After
-        # 敵人 because "where is it" is the next question after "what is it".
-        #
-        # Groupable like the cast, but only a top-level row carries a group:
-        # the rows under it belong to its group by being under it, so the
-        # grouped view groups the roots and draws each one's subtree beneath
-        # it. A child carrying a group of its own is refused (422).
-        key="geography",
-        shape=SHAPE_STRUCTURED,
-        label="地理 Geography",
-        owners=GAME_OWNERS,
-        scope=SCOPE_CATALOG,
-        mixed=True,
-        group="compendium",
-        hierarchical=True,
-        groupable_by="group",
-        require_any=(("name",),),
-        fields=(
-            NoteField(
-                key="group",
-                label="Group",
-                type=FIELD_SELECT,
-                column="kind",
-                option_category=GEOGRAPHY_GROUP_CATEGORY,
-            ),
-            NoteField(key="name", label="Name", column="title"),
-            NoteField(
-                key="description",
-                label="Description",
-                type=FIELD_TEXTAREA,
-                column="content",
-            ),
-            NoteField(key="links", label="Links", type=FIELD_LINKS, column="links"),
-        ),
-    ),
-    NoteSection(
         # The game's own vocabulary - mechanics, currencies, jargon - as a
         # glossary. Its story counterpart is 劇情名詞 Story Terms: a word the
         # PLOT introduces is looked up while reading the story, not while
@@ -1736,12 +1710,25 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         fields=_plot_fields(),
     ),
     NoteSection(
+        # One or more titled links per row and nothing else: an arc is the
+        # video or the write-up that tells it, and the title names whose arc
+        # and which part. Structured so the links can be required - a row
+        # with none says nothing.
         key="character_arcs",
-        shape=SHAPE_TEXT_LINKS,
+        shape=SHAPE_STRUCTURED,
         label="角色劇情 Character Arcs",
         owners=("game",),
         scope=SCOPE_CATALOG,
         group="story",
+        fields=(
+            NoteField(
+                key="links",
+                label="Links",
+                type=FIELD_LINKS,
+                column="links",
+                required=True,
+            ),
+        ),
     ),
     # --- 劇情列表 Story List ----------------------------------------------
     # Four sections rather than one with a kind, for the reason the 待辦
@@ -1817,6 +1804,48 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         scope=SCOPE_CATALOG,
         group="worldbuilding",
         fields=_term_fields(),
+    ),
+    NoteSection(
+        # Where things are: a region holding areas holding rooms, each a row
+        # of its own - the `hierarchical` shape the 劇情列表 lists use. For a
+        # game it is part of the world the story happens in, so it sits in
+        # 世界觀 above 時間線 Timeline: where, then when. An h-game has no
+        # 世界觀, so for it the section is the last of 圖鑑與名詞 Compendium.
+        #
+        # No links: a place is described rather than sourced, and a map worth
+        # keeping belongs in 攻略資源 Guide Resources.
+        #
+        # Groupable like the cast, but only a top-level row carries a group:
+        # the rows under it belong to its group by being under it, so the
+        # grouped view groups the roots and draws each one's subtree beneath
+        # it. A child carrying a group of its own is refused (422).
+        key="geography",
+        shape=SHAPE_STRUCTURED,
+        label="地理 Geography",
+        owners=GAME_OWNERS,
+        scope=SCOPE_CATALOG,
+        mixed=True,
+        group="worldbuilding",
+        groups_by_owner={"h-game": "compendium"},
+        hierarchical=True,
+        groupable_by="group",
+        require_any=(("name",),),
+        fields=(
+            NoteField(
+                key="group",
+                label="Group",
+                type=FIELD_SELECT,
+                column="kind",
+                option_category=GEOGRAPHY_GROUP_CATEGORY,
+            ),
+            NoteField(key="name", label="Name", column="title"),
+            NoteField(
+                key="description",
+                label="Description",
+                type=FIELD_TEXTAREA,
+                column="content",
+            ),
+        ),
     ),
     NoteSection(
         # One ordered list of dated events. It was plain `text` on the
@@ -2092,9 +2121,10 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
     # `guide_resources` had no card of its own to be in, so pairing them gives
     # both a home.
     #
-    # Immediately before the site-wide `resources` card it mirrors. Still
-    # distinct in key AND label: two cards reading "Resources" on one page
-    # would be unreadable.
+    # For a game and an h-game the card also holds the site-wide `resources`
+    # section, declared right after these two. Still distinct in key AND
+    # label: two subsections reading "Resources" in one card would be
+    # unreadable.
     NoteSection(
         # Where `builds_and_mods`'s Mod and Tool rows went. A mod is not a
         # guide, so it is not folded into one of the sections above; Mod and
@@ -2144,8 +2174,8 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         # guides is a different kind of thing - it is where the guide came
         # from, not part of it.
         #
-        # So it stands on its own, immediately before the site-wide
-        # `resources` card it mirrors. Deliberately NOT keyed or labelled
+        # So it sits in 資源&工具, immediately before the site-wide
+        # `resources` section it mirrors. Deliberately NOT keyed or labelled
         # `resources`: two cards reading "Resources" on one page would be
         # unreadable, which is why the keys and the labels both differ.
         #
@@ -2181,7 +2211,12 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         owners=ALL_OWNERS,
         scope=SCOPE_CATALOG,
         mixed=True,
+        # Its own card everywhere but on a game or an h-game, where it is the last
+        # subsection of 資源&工具 Tools & Resources beside 攻略資源 - the two
+        # lists of somebody else's material read as one. A group resolved for
+        # the owner wins over `standalone` (schemas.note.section_out).
         standalone=True,
+        groups_by_owner=_for_game_owners("tools"),
         # An optional Group per row; the card draws one heading per group.
         kind_is_group=True,
     ),
@@ -2453,49 +2488,48 @@ if set(_BY_KEY[MUSIC_STATUS_SECTION].kinds) != {
     raise ValueError("music_status kinds and the song lists disagree.")
 
 
-def uses_link_pairs(section: NoteSection) -> bool:
-    """
-    Whether this section's `links` column holds text-and-URL pairs,
-    `{"text": str | None, "url": str}`, rather than URL strings.
+def _check_links_field(section: NoteSection) -> None:
+    """A links field is the `links` column: one place a row's links live."""
+    for f in section.fields:
+        if f.type == FIELD_LINKS and f.column != "links":
+            raise ValueError(
+                f"Section '{section.key}' field '{f.key}' is a links field "
+                "not stored in the `links` column."
+            )
 
-    Per section, never per row, so a reader of one section never has to guess
-    which of the two shapes a row is in. The pairs reach only the song lists
-    (the music_track shape): every other section's links are URL strings, and
-    converting those would rewrite thousands of rows for a label nobody asked
-    for there.
+
+for _section in NOTE_SECTIONS:
+    _check_links_field(_section)
+
+
+def takes_links(section: NoteSection) -> bool:
     """
-    return section.shape == SHAPE_MUSIC_TRACK
+    Whether rows of this section carry links at all. Every one that does
+    holds them as titled pairs, `{"text": str | None, "url": str}` - one shape
+    for every section, so no reader has to ask which a row is in.
+
+    text_links, name_links and music_track take links by construction; an
+    episode_text section takes them where it says `takes_links`, and a
+    structured one where its spec has a links field.
+    """
+    if section.shape in (SHAPE_TEXT_LINKS, SHAPE_NAME_LINKS, SHAPE_MUSIC_TRACK):
+        return True
+    if section.shape == SHAPE_EPISODE_TEXT:
+        return section.takes_links
+    if section.shape == SHAPE_STRUCTURED:
+        return any(f.type == FIELD_LINKS for f in section.fields)
+    return False
 
 
 def as_link_pairs(links: list | None) -> list | None:
-    """URL strings as pairs with no text; pairs and None pass through."""
+    """
+    URL strings as pairs with no text; pairs and None pass through. What a
+    link written before every link was a pair reads as - a Google Sheet
+    backed up before then, or a page still running the older bundle.
+    """
     if not links:
         return links
     return [{"text": None, "url": l} if isinstance(l, str) else l for l in links]
-
-
-def as_link_urls(links: list | None) -> list | None:
-    """
-    Pairs as URL strings, the inverse of `as_link_pairs`: each pair's text is
-    dropped, a pair with no URL goes, and a URL already taken is not taken
-    twice. URL strings and None pass through.
-    """
-    if not links:
-        return links
-    urls: list = []
-    for link in links:
-        if isinstance(link, dict):
-            url = (link.get("url") or "").strip()
-            if url and url not in urls:
-                urls.append(url)
-        else:
-            urls.append(link)
-    return urls
-
-
-LINK_PAIR_SECTIONS: frozenset[str] = frozenset(
-    s.key for s in NOTE_SECTIONS if uses_link_pairs(s)
-)
 
 # The field-level suggestion categories (`NoteField.option_category`), in
 # registry order. Served apart on /api/constants as

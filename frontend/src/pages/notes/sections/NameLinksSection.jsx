@@ -1,5 +1,6 @@
 // Frontend: renders one `name_links`-shaped section - a named bookmark
-// (Resources). The title is optional; the links carry the value.
+// (Resources). The name is optional; the links - each with an optional title -
+// carry the value.
 //
 // A section flagged `kind_is_group` takes an optional Group per row, stored in
 // `kind`. Once any row has one, the card draws one heading per group, in the
@@ -17,8 +18,6 @@ import { Fragment, useId, useState } from "react";
 import {
   EmptyHint,
   ItemActions,
-  LinkPill,
-  LinksEditor,
   MineChip,
   ReorderHandle,
   ReorderList,
@@ -32,20 +31,27 @@ import {
   useRowReorder,
 } from "./ui";
 import { groupNotes } from "./groupedRows";
+import { LinkPairPills, LinkPairsEditor } from "./LinkPairs";
+import {
+  hasLinkPair,
+  pairsFromLinks,
+  pairsIncomplete,
+  pairsToLinks,
+} from "./linkPairValues";
 
 const OTHER = "Other";
 
-const empty = () => ({ title: "", group: "", links: [""] });
+const empty = () => ({ title: "", group: "", links: [] });
 
 const fromNote = (n) => ({
   title: n.title || "",
   group: n.kind || "",
-  links: n.links?.length ? n.links : [""],
+  links: pairsFromLinks(n.links),
 });
 
 const toFields = (section, val) => ({
   title: val.title.trim() || null,
-  links: (val.links || []).map((l) => l.trim()).filter(Boolean),
+  links: pairsToLinks(val.links),
   ...(section.kind_is_group ? { kind: val.group.trim() || null } : {}),
 });
 
@@ -75,8 +81,8 @@ function NameLinksForm({ val, setVal, groupOptions }) {
           </datalist>
         </>
       )}
-      <LinksEditor
-        links={val.links}
+      <LinkPairsEditor
+        pairs={val.links}
         onChange={(links) => setVal({ ...val, links })}
       />
     </div>
@@ -128,7 +134,7 @@ export default function NameLinksSection({
   // A bookmark with neither a name nor a link is nothing; a group alone does
   // not make one.
   const invalid = (val) =>
-    !val.title.trim() && !(val.links || []).some((l) => l.trim());
+    pairsIncomplete(val.links) || (!val.title.trim() && !hasLinkPair(val.links));
 
   const commit = () => {
     if (invalid(draft)) return;
@@ -194,9 +200,7 @@ export default function NameLinksSection({
                           {n.title}
                         </span>
                       )}
-                      {(n.links || []).filter(Boolean).map((l, j) => (
-                        <LinkPill key={j} url={l} />
-                      ))}
+                      <LinkPairPills links={n.links} bare />
                     </div>
                   )}
                 </div>

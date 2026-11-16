@@ -23,8 +23,8 @@ The table lives in `app/models/note.py` (class `Note`, `__tablename__ = "note"`)
 | `status` | String | The column a status-shaped value is read into. On the sections whose status is **personal** — the song lists, `music_status`, and the structured `collected`, `beaten`, `completion` and mods `status` fields — it is never stored: it stays null on the row, and every read fills it with the viewer's own value from `note_mark` (see [Personal values on catalogue rows](#personal-values-on-catalogue-rows-note-marks)). Kept separate from `kind` because one row needs both (which cut it is vs. how far my tracking has got). |
 | `title` | String | The name half of a `name_links` row, or the song name on a `music_track` row. |
 | `content` | Text | The body. |
-| `links` | JSONB | A list of URL strings — or, on the sections `uses_link_pairs` names (the four song lists), of **link pairs** `{"text": str｜null, "url": str}`. Which of the two is a property of the section, never of the row, and the validator refuses the other. Always a list, even for shapes that allow one link, so multi-link support needs no migration. See [Music](#music). |
-| `entries` | JSONB | The `name_entries` shape's ordered items: each `{"type": "text"｜"link", "value": str, "label": str｜null}`, in array order. Deliberately **not** folded into `links`, which holds URLs (or link pairs) and nothing else — one column meaning two things is how subtle bugs start. Added by `alembic/versions/g1a2m3e4s5_add_games.py`. |
+| `links` | JSONB | A list of **titled links** `{"text": str｜null, "url": str}`, on every section that takes links (`note_sections.takes_links`). `text` is the link's optional title; `url` is required. One shape for every section, so no reader has to ask which a row is in. Always a list, even for shapes that allow one link, so multi-link support needs no migration. See [Links](#links). |
+| `entries` | JSONB | The `name_entries` shape's ordered items: each `{"type": "text"｜"link", "value": str, "label": str｜null}`, in array order. Deliberately **not** folded into `links`, which holds titled links and nothing else — one column meaning two things is how subtle bugs start. Added by `alembic/versions/g1a2m3e4s5_add_games.py`. |
 | `fields` | JSONB | The `structured` shape's registry-declared fields, as a flat object keyed by `NoteField.key`, plus any nested list a `list` field holds. Only the fields the section's spec does **not** map onto a column live here — a structured section's name goes in `title` and its description in `content` — so this carries the leftovers (a variant, an alias, four stat values) and the nested lists, which no column could hold. Validated against the spec: an unknown key is a 422, never a silently stored one. Added by `alembic/versions/n1f2ields3p4_note_structured_fields.py`. |
 | `sort_index` | Float | Ordering within one `(owner, section)`. New rows append at `max + 1.0`. |
 | `created_at` / `updated_at` | DateTime | Taipei time via `app/database.get_taipei_now`. Nullable — a Pull from a blank sheet cell leaves them None, so `NoteResponse` tolerates that. |
@@ -50,10 +50,10 @@ A shape names which columns a section uses. Declared as constants at the top of 
 | --- | --- | --- |
 | `text` | `content` | A plain bullet. |
 | `text_links` | `content`, `links`, optional `locator` | A body *and* its sources. |
-| `episode_text` | `locator`, `content`, `kind` where declared, `links` (URL strings) where the section `takes_links` | Anchored to an episode/chapter. |
+| `episode_text` | `locator`, `content`, `kind` where declared, `links` where the section `takes_links` | Anchored to an episode/chapter. |
 | `name_links` | `title`, `links`, and `kind` where the section is `kind_is_group` | A named resource, optionally filed under a group. |
 | `name_entries` | `title`, `entries` | A named list whose items are each a line of text **or** a labelled link, in one ordered array. **Currently owned by no section** — see the component table below. |
-| `music_track` | `title`, `status`, `locator`, `links` (link pairs), `content`, and `kind` where the section declares a `kind_category` | One song, whichever list it is in — OP, ED, insert song or OST. |
+| `music_track` | `title`, `status`, `locator`, `links`, `content`, and `kind` where the section declares a `kind_category` | One song, whichever list it is in — OP, ED, insert song or OST. |
 | `music_status` | `kind`, `status` | How far one whole song list of an anime has got. One row per `(owner, kind)`, never rendered as a card of its own. See [Music](#music). |
 | `structured` | *(whatever its `fields` spec names)* + `fields` | The registry-driven shape. The SECTION declares an ordered field spec instead of the shape naming fixed columns, so a section that grows a field is a registry edit rather than a new component and a migration. See [Structured sections](#structured-sections). |
 | `external` | *(none — its own table)* | `quotes` → `quote` table, `memes` → `meme` table. Never a `note` row; `validate_note_payload` rejects writes to it. |
@@ -68,7 +68,7 @@ A shape names which columns a section uses. Declared as constants at the top of 
 | --- | --- |
 | `key` | Its key in the `fields` blob, and its identity in `require_any`. Unique within the section. |
 | `label` | What the form and the read view call it. |
-| `type` | `text`, `textarea`, `select`, `links`, `list`, `names` or `choice_node`. `links` holds URL strings; no structured field holds link pairs. `names` is a list of free-text, non-empty strings - several allowed - stored in `fields`, never in a column. They are names, not character ids: the editor may suggest the characters cast on the entry, but any string is accepted, and renaming a character does not rewrite a row that named it. `choice_node` (`FIELD_CHOICE_NODE`) is the uuid of one block (a story part, never a branch) in the owner game's choice graph, stored in `fields`, never in a column; the editor offers that game's blocks and the read view shows the block's title. It is the one field type that names a row outside `note` - see [Game choices](game-choices.md#the-save-link). |
+| `type` | `text`, `textarea`, `select`, `links`, `list`, `names` or `choice_node`. `links` holds titled links and is always the `links` column - an import-time check refuses a links field stored anywhere else. `names` is a list of free-text, non-empty strings - several allowed - stored in `fields`, never in a column. They are names, not character ids: the editor may suggest the characters cast on the entry, but any string is accepted, and renaming a character does not rewrite a row that named it. `choice_node` (`FIELD_CHOICE_NODE`) is the uuid of one block (a story part, never a branch) in the owner game's choice graph, stored in `fields`, never in a column; the editor offers that game's blocks and the read view shows the block's title. It is the one field type that names a row outside `note` - see [Game choices](game-choices.md#the-save-link). |
 | `column` | One of `locator`, `kind`, `status`, `title`, `content`, `links`, or `None` to store in `fields`. No two fields of one section may claim the same column. |
 | `options` | The values a `select` accepts. **A select with no options is free text** — the guide sections' type, group and tier are open vocabularies stored in the columns a closed dropdown would use. |
 | `required` | This field alone may not be blank. |
@@ -107,11 +107,11 @@ Display-only. A grouped section is still an ordinary registry entry; `group` onl
 | `guides` | 攻略 Guides | `fa-map` — game and h-game only: gameplay systems, controls, guide notes, and for game also beginner and trivia. The way in, not the content |
 | `builds` | 養成&流派 Builds & Growth | `fa-chart-simple` — game and h-game only: stats, classes, skills, builds, team composition |
 | `gear` | 物品 Items & Gear | `fa-sack-xmark` — game and h-game only: weapons, items, collectibles. **Not** keyed `items`: a section owns that key |
-| `compendium` | 圖鑑與名詞 Compendium & Terms | `fa-dragon` — game and h-game only: characters, enemies, geography, game terms, and for game also player terms |
-| `tools` | 資源&工具 Tools & Resources | `fa-screwdriver-wrench` — game and h-game only: mods and tools, guide resources. Renders beside the site-wide Resources card, not with the 攻略 run |
+| `compendium` | 圖鑑與名詞 Compendium & Terms | `fa-dragon` — game and h-game only: characters, enemies, game terms, and for game also player terms; for h-game also geography, last |
+| `tools` | 資源&工具 Tools & Resources | `fa-screwdriver-wrench` — game and h-game only: mods and tools, guide resources, then the site-wide Resources section, which is its own card for every other owner. Renders near the end, not with the 攻略 run |
 | `story` | 劇情 Story | `fa-book-open` — game and h-game only. Game: main plot, side stories, character arcs, endings. H-game: the four Story List strands, then endings. What happens |
 | `story_list` | 劇情列表 Story List | `fa-list-ol` — game only, 4 **hierarchical** strands (an h-game's render in 劇情) |
-| `worldbuilding` | 世界觀 Worldbuilding | `fa-earth-asia` — game only: lore, story terms, timeline, mysteries, other. The world it happens in |
+| `worldbuilding` | 世界觀 Worldbuilding | `fa-earth-asia` — game only: lore, story terms, geography, timeline, mysteries, other. The world it happens in |
 | `ng_plus` | NG 多周目 | `fa-rotate` — game and h-game only: flow, carried over, reset, before starting, and 下周目目標 NG+ Goals. What starting over keeps and takes away, and what I mean to do next time |
 | `todo` | 待辦 Todo | `fa-list-check` — game and h-game only, 4 personal-scope buckets (a row moves between them in one step, `quick_move`) and then 存檔 Saves, all personal |
 | `music` | 音樂 Music | `fa-music` |
@@ -231,11 +231,12 @@ delete cascades — but dropping such a row would hide it with nothing to say so
 
 Where things are in a game: a region holding areas holding rooms, each a row
 of its own. Key `geography`, `structured`, catalogue scope, owners
-`GAME_OWNERS`, in 圖鑑與名詞 Compendium & Terms straight after 敵人 Enemies for
-game and h-game alike — "where is it" is the next question after "what is
-it". Fields: group → `kind` (free-text select, suggested from `Geography
-Group`), name → `title`, description → `content`, links → `links`;
-`require_any = (("name",),)`.
+`GAME_OWNERS`. For a game it is in 世界觀 Worldbuilding, above 時間線
+Timeline - where, then when; an h-game has no 世界觀, so for it the section is
+the last of 圖鑑與名詞 Compendium & Terms (`groups_by_owner`). Fields: group →
+`kind` (free-text select, suggested from `Geography Group`), name → `title`,
+description → `content`; no links - a map worth keeping belongs in 攻略資源
+Guide Resources. `require_any = (("name",),)`.
 
 It is the one section both **`hierarchical`** and **`groupable_by`**
 (`group`). Only a top-level row carries a group: the rows under it belong to
@@ -274,7 +275,7 @@ is all the author's.
 | `double_edged` | 優缺點 | text_links | reviews | All but h-comic, hentai | — | — | — | no | no | no |
 | `public_reviews` | 大眾評價 Public Reviews | text_links | reviews | All | — | — | — | no | no | no |
 | `personal_reviews` | 我的評價 Personal Reviews | text | reviews | All | — | — | — | no | no | no |
-| `episode_comments` | 各集評論 Episode Comments (manga: 各話評論 Chapter Comments; game: 各章評論 Part Reviews) | text_links | reviews | anime, tv-show, cartoon, manga, game | — | — | "Episode, e.g. ep 1" (manga: "Chapter, e.g. ch 1"; game: "Chapter / Part, e.g. Ch 3") | **yes** | no | no |
+| `episode_comments` | 各集評論 Episode Comments (manga: 各話評論 Chapter Comments; game: 各章評論 Part Reviews) | episode_text | reviews | anime, tv-show, cartoon, manga, game | — | — | "Episode, e.g. ep 1" (manga: "Chapter, e.g. ch 1"; game: "Chapter / Part, e.g. Ch 3") | **yes** | no | **every owner it has** |
 | `highlights` | 神回/神片段 Highlights | episode_text | flat | anime | 神回, 神片段, 神篇章 | — | "Episode(s), e.g. ep 6" | **yes** | no | no |
 | `highlight_episodes` | 神回/神片段 (manga: 神回) | episode_text | flat | tv-show, cartoon, manga | tv-show & cartoon: 神回, 神片段, 神篇章; manga: none | — | "Episode(s), e.g. ep 3" (manga: "Chapter(s), e.g. ch 6") | **yes** | no | no |
 | `highlight_passages` | 神片段 | text | flat | novel | — | — | — | no | no | no |
@@ -292,7 +293,7 @@ is all the author's.
 | `gameplay_systems` | 玩法系統 Gameplay Systems | **structured** | guides | game, h-game | — | — | — | no | no | no |
 | `controls` | 操作 Controls | **structured** | guides | game, h-game | — | — | — | no | no | no |
 | `guide_notes` | 攻略筆記 Guide Notes | text | guides | game, h-game | — | — | — | no | no | no |
-| `trivia` | 小知識 Trivia | text_links | guides | game | — | — | — | no | no | no |
+| `trivia` | 小知識 Trivia | **structured** | guides | game | — | — | — | no | no | no |
 | `stats_and_points` | 屬性&配點 Stats & Points | **structured** | builds | game, h-game | — | — | — | no | no | no |
 | `classes` | 職業 Classes | **structured** | builds | game, h-game | — | — | — | no | no | no |
 | `skills` | 技能 Skills | **structured** | builds | game, h-game | — | — | — | no | no | no |
@@ -303,12 +304,11 @@ is all the author's.
 | `collectibles` | 收集物 Collectibles | **structured** | gear | game, h-game | — | — | — | no | no | no |
 | `characters_guide` | 角色 Characters | **structured** | compendium | game, h-game | — | — | — | no | no | no |
 | `enemies` | 敵人 Enemies | **structured** | compendium | game, h-game | — | — | — | no | no | no |
-| `geography` | 地理 Geography | **structured** | compendium | game, h-game | — | — | — | no | no | no |
 | `game_terms` | 遊戲名詞 Game Terms | **structured** | compendium | game, h-game | — | — | — | no | no | no |
 | `player_terms` | 玩家術語 Player Terms | **structured** | compendium | game | — | — | — | no | no | no |
 | `main_plot` | 主線劇情 Main Plot | **structured** | story | game | — | — | *(on its `chapter` field)* | no | no | no |
 | `side_plot` | 支線劇情 Side Stories | **structured** | story | game | — | — | *(on its `chapter` field)* | no | no | no |
-| `character_arcs` | 角色劇情 Character Arcs | text_links | story | game | — | — | — | no | no | no |
+| `character_arcs` | 角色劇情 Character Arcs | **structured** | story | game | — | — | — | no | no | no |
 | `endings` | 結局 Endings | **structured** | story | game, h-game | — | — | — | no | no | no |
 | `story_list_main` | 主線 Main | **structured** | story_list (**story** for h-game) | game, h-game | — | — | — | no | no | no |
 | `story_list_side` | 支線 Side | **structured** | story_list (**story** for h-game) | game, h-game | — | — | — | no | no | no |
@@ -316,6 +316,7 @@ is all the author's.
 | `story_list_event` | 事件 Event | **structured** | story_list (**story** for h-game) | game, h-game | — | — | — | no | no | no |
 | `lore` | 設定 Lore | text_links | worldbuilding | game | — | — | — | no | no | no |
 | `story_terms` | 劇情名詞 Story Terms | **structured** | worldbuilding | game | — | — | — | no | no | no |
+| `geography` | 地理 Geography | **structured** | worldbuilding (**compendium** for h-game) | game, h-game | — | — | — | no | no | no |
 | `timeline` | 時間線 Timeline | text_links | worldbuilding | game | — | — | — | no | no | no |
 | `mysteries` | 未解之謎 Mysteries | text_links | worldbuilding | game | — | — | — | no | no | no |
 | `story_other` | 其他 Other | text_links | worldbuilding | game | — | — | — | no | no | no |
@@ -339,7 +340,7 @@ is all the author's.
 | `adaptation` | 改編 Adaptation | text_links | flat | anime, anime-movie, tv-show, cartoon, novel, series, franchise | — | — | — | no | no | anime, anime-movie, novel |
 | `mods_and_tools` | 模組&工具 Mods & Tools | **structured** | tools | game, h-game | — | — | — | no | no | no |
 | `guide_resources` | 攻略資源 Guide Resources | **structured** | tools | game, h-game | — | — | — | no | no | no |
-| `resources` | Resources | name_links | **standalone** | All | free-text Group (`kind_is_group`) | — | — | no | no | no |
+| `resources` | Resources | name_links | **standalone** (**tools** for game and h-game) | All | free-text Group (`kind_is_group`) | — | — | no | no | no |
 | `questions` | Questions | episode_text | **standalone** | All but h-comic, hentai | — | — | "Source, e.g. ep 3" | no | no | **every owner it has** |
 | `quotes` | 名言 Quotes | external | quotes_memes | Entries only, but not H | — | — | — | — | — | — |
 | `memes` | 梗/迷因 Memes | external | quotes_memes | All but H | — | — | — | — | — | — |
@@ -459,22 +460,24 @@ column a field claims; a field with no arrow lives in `fields`.
 
 | Section | Fields |
 | --- | --- |
-| `controls` | type → `kind` (free-text select), control → `title`, description → `content`, links → `links`; `groupable_by = "type"` |
+| `controls` | type → `kind` (free-text select), control → `title`, description → `content`; `groupable_by = "type"` |
+| `trivia` | title → `title`, description → `content`, links → `links` |
 | `stats_and_points` | name → `title`, min_value, rec_value, softmax_value, **my_value** *(quick-edit; personal)*, description → `content` |
-| `classes` | type → `kind` (free-text select), name → `title`, role, unlock, key_stats, description → `content`, links → `links`; `groupable_by = "type"` |
+| `classes` | type → `kind` (free-text select), name → `title`, role, unlock, key_stats, description → `content`; `groupable_by = "type"` |
 | `builds_and_styles` | name → `title`, **stats** *(list: name, min_value, rec_value)*, **armor** *(list: body_part, name, special)*, **weapons** *(list: range_type, type, name, special)*, **items** *(list: type, name, amount)*, **skills** *(list: type, name)*, description → `content`, links → `links` |
 | `team_composition` | name → `title`, **members** *(list: name, role 定位, build, description)*, description → `content`, links → `links` |
 | `skills` | type → `kind`, name → `title`, description → `content`, links → `links` |
 | `collectibles` / `items` / `weapons_and_gear` | type → `kind` (free-text select; suggested from `Collectible Type` / `Item Type` / `Weapon & Gear Type`), name → `title`, variant, description → `content`, links → `links`, collected → `status` *(default `not collected`; personal, NG-reset)*, **has_amount** *(label "Amount", `yes` / `no`, default `no`, `view_hidden`)*, **amount_total** *(label "Total", text; shown when has_amount is yes)*, **amount_collected** *(label "Collected amount", text; personal, NG-reset; shown when has_amount is yes)*, **ng_reset** *(label "NG Reset", `yes` / `no`, default `yes`; read only as "Won't Reset" on a `no` row)*; `groupable_by = "type"` |
 | `characters_guide` | group → `kind` (free-text select, suggested from `Character Group`), name → `title`, alias, description → `content`; `groupable_by = "group"` |
 | `enemies` | tier → `kind` (free-text select, suggested from `Enemy Tier`), region, name → `title`, alias, description → `content`, beaten → `status` *(default `to beat`; personal, NG-reset)*; `groupable_by = "tier"` |
-| `geography` | group → `kind` (free-text select, suggested from `Geography Group`; top-level rows only), name → `title`, description → `content`, links → `links`; `hierarchical`, `groupable_by = "group"`, `require_any = (("name",),)` |
+| `geography` | group → `kind` (free-text select, suggested from `Geography Group`; top-level rows only), name → `title`, description → `content`; `hierarchical`, `groupable_by = "group"`, `require_any = (("name",),)` |
 | `endings` | name → `title`, completion → `status` *(personal)*, description → `content`, links → `links` |
 | `mods_and_tools` | type → `kind`, name → `title`, developer, description → `content`, status → `status` *(personal, granted by `mod_status`)*; `groupable_by = "type"` |
 | `guide_resources` | group → `kind` (free-text select, no suggestions), name → `title`, description → `content`, links → `links`; `groupable_by = "group"` |
 | `ng_flow` | name → `title`, description → `content`, **points** *(list: text)*, links → `links` |
 | `ng_carried_over` / `ng_reset` / `ng_before_starting` | type → `kind` (free-text select), name → `title`, description → `content`, **points** *(list: text)*, links → `links`; `groupable_by = "type"` |
-| `main_plot` / `side_plot` | chapter → `locator` *(placeholder "Chapter / Part, e.g. Ch 3")*, description → `content`, links → `links` |
+| `main_plot` / `side_plot` | chapter → `locator` *(placeholder "Chapter / Part, e.g. Ch 3")*, links → `links`. No description: each link's title says what it is |
+| `character_arcs` | links → `links` *(required)*: one or more titled links and nothing else |
 | the four `story_list_*` strands | order → `locator`, name → `title`, description → `content`, links → `links`; `hierarchical`, `require_any = (("order", "name"),)` |
 | `saves` | number → `locator` *(placeholder "This save's slot number")*, name → `title`, checkpoint → `kind` *(`regular` / `main`, default `regular`)*, note → `content`, based on slot *(free text, placeholder "Slot number it was copied from")*, at node *(`choice_node`, key `choice_node`: the block of the game's choice graph the save sits in)*; `require_any = (("number", "name"),)` |
 
@@ -710,7 +713,7 @@ Runs on every POST and on the *merged* row of every PATCH. Raises `ValueError`, 
 | 2 | `section` is a registry key | Unknown note section '…'. |
 | 3 | Section's shape is a stored shape (not `external`) | Section '…' has its own table and is not stored as a note. |
 | 4 | Owner type is in the section's `owners` | Section '…' does not apply to owner type '…'. |
-| 5 | `links` are in the section's shape: link pairs where `uses_link_pairs`, each with a non-blank `url`; URL strings everywhere else. A pair with any key but `text` and `url` is refused by the request schema itself (`LinkPair`, `extra="forbid"`) | Section '…' links must be text-and-URL pairs. / Section '…' links link N needs a URL. / Section '…' links must be URLs. |
+| 5 | `links` only on a section that `takes_links`, each a titled link with a non-blank `url`. A bare URL string is read as a link with no title before this runs (`NoteBase`), and a link with any key but `text` and `url` is refused by the request schema itself (`LinkPair`, `extra="forbid"`) | Section '…' takes no links. / Section '…' links link N needs a URL. |
 | 5a | If `kind` given and the section declares neither a `kind_category` nor `kind_is_group`: section has kinds for this owner, and the value is one of them. A `kind_category` makes `kind` free text — the category only suggests; `kind_is_group` makes it a free-text group name (Resources) | Section '…' takes no kind for owner type '…'. / '…' is not a valid kind for section '…'. |
 | 6 | If `status` given: section has statuses, and the value is one of them | Section '…' takes no status. / '…' is not a valid status for section '…'. |
 | 7 | `desc_required` for this owner ⇒ stripped `content` non-empty | Section '…' requires content. |
@@ -819,19 +822,42 @@ where the **caller's own** status on one is such
 list an anime, and a caller without the feature is listed nothing. `Not
 Done` is not listed: every list starts there.
 
-**Link pairs.** A song is heard on several services, so a song link is
-`{"text": "YouTube", "url": "https://…"}` rather than a bare URL; `text` is
-the label shown and may be null, suggested from the "Song Source" option
-category (`link_text_category`). `GET /api/notes/sections` reports
-`link_pairs: true` on every section whose links take this shape, which is the
-four song lists and nothing else.
+**Song link titles.** A song is heard on several services, so a song link's
+title says which (`{"text": "YouTube", "url": "https://…"}`); on the four
+song lists it is suggested from the "Song Source" option category
+(`link_text_category`). Every other section's link titles are free text with
+nothing to suggest them - see [Links](#links).
 
 **彩蛋/致敬 Easter Eggs/References** sits last in 解析 on every entry type outside the gated
 ones (last in 評論 for a game), and on series and franchise: a hidden reference,
 where it plays and where somebody spotted it. One that recurs across a whole
 series is noted once on the series, and each entry shows it under its own rows. It is `text_links` like the rest of
 解析 - an optional episode in `locator`, a description in `content` and any
-number of URL strings in `links`, with no link text.
+number of titled links in `links`.
+
+### Links
+
+Every link a note holds is a **titled link**, `{"text": str | null, "url":
+str}`, whatever its section: text_links, name_links and music_track rows, an
+episode_text section that `takes_links` (OP/ED 變動), and every structured
+`links` field. The title is optional; the pill a link is drawn as reads it,
+and the link's host when there is none. One editor writes them all
+(`LinkPairsEditor`), and Save waits while a title has no URL rather than
+dropping what was typed.
+
+The server stores the one shape only. A request carrying a bare URL string -
+a page still running an older bundle - has it read as a link with no title
+(`NoteBase`, `as_link_pairs`), and so does a Google Sheet backed up before
+every link was titled (see the Sheets table below). A section that takes no
+links refuses one (422).
+
+A row of 優點, 缺點, 優缺點, 大眾評價 or 解析 - text_links sections - is a
+description, titled links, or both; at least one. A row of 小知識 Trivia is
+any of a title, a description and titled links. 主線劇情, 支線劇情 and 角色劇情
+carry no description: a plot row is its chapter and its links, an arc row
+one or more titled links, the titles saying what each is. 各集評論 is an
+episode and a comment with no links; 操作 Controls, 職業 Classes and 地理
+Geography carry none either.
 
 The notes page is three pieces:
 
@@ -912,14 +938,14 @@ TanStack Query - it has never used a query hook - so the group rows do too.
 | --- | --- | --- |
 | `TextSection.jsx` | text | content |
 | `TextLinksSection.jsx` | text_links | locator (only if the section has a `locator_placeholder`), content, links; enforces `desc_required` / `locator_required` client-side. On a section serving `move_targets` (the 待辦 buckets), each row also carries a native "Move to…" `<select>` beside Edit and Delete, shown to whoever may edit the row; picking a target calls `onUpdate(id, {section})`. |
-| `EpisodeTextSection.jsx` | episode_text | locator, kind dropdown when `kinds` non-empty, content, and links when the section `takes_links` — the same `LinksEditor` and `LinkPill`s as `TextLinksSection`, sent as URL strings with blanks dropped; a section without the flag sends no `links` key |
+| `EpisodeTextSection.jsx` | episode_text | locator, kind dropdown when `kinds` non-empty, content, and links when the section `takes_links` — the same `LinkPairsEditor` and `LinkPairPills` as `TextLinksSection`, sent as titled links with URL-less ones dropped; a section without the flag sends no `links` key |
 | `NameLinksSection.jsx` | name_links | title, links, and on a `kind_is_group` section an optional Group (a `datalist` over the groups this owner's rows already use). Once any row has a group the card draws one heading per group, in the order each first appears among the rows, and the ungrouped rows last under "Other"; rows are folded and reordered in that drawn order, so dragging a row above another group's first row moves its group up. With no row grouped the list is plain. |
 | `NameEntriesSection.jsx` | name_entries | title, kind dropdown when `kinds` non-empty, and the ordered `entries` array (each item a line of text or a labelled link, dragged into order in the form by its grip). No section uses it: `side_quests` was the last, and moved into 劇情列表 Story List. The shape, the column, the component and the Sheets parsing all stay — rows written before that change are still in the database and still have to Pull. |
 | `StructuredSection.jsx` | structured | whatever `section.fields` declares — it is the only component here that does not know its own fields. Also owns drag-to-reorder (a grip per row from `components/ui/Sortable.jsx`; each drop is one `PATCH /api/notes/reorder`, applied on screen at once by `NotesContext`, with that section's grips disabled until the save settles), the inline `quick_edit` input, and, for a `hierarchical` section, the tree: an Add button per row that opens a draft carrying that row's id as `parent_id`, children indented behind a rule, and a move — among a row's own siblings, never to another parent — that flattens the whole tree depth-first. A free-text `select` naming an `option_category` renders as a `SuggestInput` over that category's values (`optionValues`, handed in by `NotesContext`) and stays free text. A `names` field renders as `NamesInput.jsx` in the form and as tags in the row. A `choice_node` field renders as `ChoiceNodeSelect` in the form (the owner game's blocks, grouped Start / Part / Ending, plus "Unknown block" for a link the list does not hold) and as a tag reading "At node: {title}" in the row (`ChoiceNodeName`), both from `components/game-choices/ChoiceNodeField.jsx`; the owner's id reaches them through a context the component sets from its `ownerId` prop, rather than through every form and row. A section with `group_by` (and not hierarchical) reads as groups instead of one list (`GroupedRows`, rules in `groupedRows.js`): each group header carries a grip (drag, or ArrowUp / ArrowDown on it), and the rows are not movable there; a **Group by** toggle in the card header switches to the flat list, where they are. A section with `groupable_by` gets a toggle in its card header that switches between that grouped view (one group per `select` value) and the flat list; there both the groups and the rows within a group carry grips — a row moves only within its own group — and every move sends the section's whole row order, grouped. A section both `hierarchical` and `groupable_by` (地理 Geography) groups its top-level rows instead, each drawn with its subtree (`groupRoots`), and its form leaves the group field out for a child draft or a child being edited. **The entry cap** counts top-level rows only - a shown row shows every child - and keeps a row on screen while it or anything under it is being edited or having a child drafted; a row's grip moves it by its place among all its siblings, folded or not, so the last row shown can still be moved down past the fold, and a move that carries a row past the cap unfolds the section so the row does not vanish. A grouped section is capped **per group**, each group with its own toggle, and every group header stays on screen: the headers are what a reader scans and what carries a group's grip, and a folded-away header could be neither found nor dragged. |
 | `NamesInput.jsx` | — | the `names` input: chosen names as removable tags, a combobox suggesting `nameSuggestions` filtered by what is typed, any other text accepted - on Enter (read through `hooks/useEnterToAdd.js`), a comma, blur, or the `Add "<name>"` row while the text is not a suggestion |
 | `groupedRows.js` | — | pure: `groupNotes` (one group per name, a row under every name it carries, stored order first then first appearance, a trailing unnamed group only when a row names nobody), `movedGroupOrder`, `groupedIds`, `movedRow(groups, gi, from, to)` (a row taken out and put back at `to` within its own group, as a drop does), `namesOf`; and for a grouped tree, `groupRoots` (the roots grouped by a column, first appearance, ungrouped last), `treeIds` and `movedTreeIds` (every id depth-first in drawn order, with one sibling list's move applied) |
 | `MusicTrackSection.jsx` | music_track | all four song lists: title, Song Type (`kind`, a `SuggestInput` over the `kind_category` values, only where the section has one, starting on `default_kind`), episode (`locator`), link pairs (`LinkPairsEditor`, labels suggested from `link_text_category`), content. Each song's status is not in the form: it is the viewer's own, a select on the row for a viewer holding `self.personal_notes` and the `music_status` feature (`canMark`), a tag for anyone else. The list's own status sits in the card header the same way: a select over `type_statuses` for that viewer, a tag for anyone else, reading the viewer's status on the `music_status` row for this section's key (the provider's `typeStatusNote`) or `type_status_default`. Both write through `PUT /api/notes/{id}/mark` with the key `status`; a list with no `music_status` row has nothing to mark and reads its default as a tag. |
-| `LinkPairs.jsx` (+ `linkPairValues.js`) | — | `LinkPairsEditor` (repeatable label + URL, the label a `SuggestInput` when given `textOptions`) and `LinkPairPills` (pills labelled with the pair's text, else the host), used by `MusicTrackSection` |
+| `LinkPairs.jsx` (+ `linkPairValues.js`) | — | `LinkPairsEditor` (repeatable optional title + URL, the title a `SuggestInput` when given `textOptions`) and `LinkPairPills` (pills labelled with the link's title, else the host): the one link editor and read view of every section - `TextLinksSection`, `NameLinksSection`, `EpisodeTextSection`, `MusicTrackSection` and every `links` field of `StructuredSection` |
 | `QuoteSection.jsx` / `MemeSection.jsx` | external | adapt the long-lived quote/meme components; report counts |
 | `ui.jsx` | — | `GroupCard`, `SectionCard` (and `SectionCardProvider`, which plugs a series' and franchise's read-only rows into it - see above), `ItemActions`, `useCollapsed`, the entry cap (`VISIBLE_ENTRIES`, `capEntries`, `useEntryCap`, `ShowAllToggle`), `DraftPopup` (the new-row form's non-modal panel), shared classes |
 
@@ -948,7 +974,8 @@ The Google Sheets backup has a **"Note" tab** (`SheetTab("Note", models.Note, f.
 | Music status rows | The same retargeting per `(owner, kind)`: a sheet `music_status` row folds onto the local row for the same anime and list, keeping the local id. Its revision minted those rows separately on every database, so the two machines' copies differ in id and nothing else. |
 | Personal values in an old backup | A Note tab written before the personal values moved to marks carries them on the row — the status column, or `fields.my_value`. Pull takes them off the row before matching it (the matches compare content, and the local row no longer carries them) and files them under the installation owner's mark for the row it lands on (`pop_legacy_note_values`, through `app/services/domain/legacy_personal.py`). Exact, not a guess: on those sections that column or key only ever held the personal value, and a current backup carries it null. |
 | Note Mark tab | Each account's marks travel on their own tab, after Note: `note_mark`'s columns with `user_id` dropped for `username`, `values` as JSON text. Pull resolves the name (unknown → the row is skipped and reported; no header → the installation owner), matches an existing mark by `(user, note)`, and translates a `note_id` this database does not hold through the Note tab — a `music_status` row by owner and list, any other by its twin — so a mark follows a row each database minted under its own id. A cell holding no value is not restored. |
-| Old-shape music rows | A sheet `ost` row carrying a type is the one-row OST of a backup taken before the OST became a song list (an OST song never has a type); it becomes the anime's `music_status` row for `ost`, keeping its status if it is one of `MUSIC_STATUSES`. A song list's links that arrive as URL strings are read as link pairs with no text, and link pairs that arrive on any other section - 彩蛋/致敬 Easter Eggs/References, from a backup taken while its links were pairs - are read as their URL strings, the text dropped, a blank URL and a repeat skipped (`_note_links` in `app/utils/formatter.py`). A `fields` blob on a section that is not `structured` is dropped (`_note_fields`), since every other shape refuses one on the row's next edit. |
+| Old-shape music rows | A sheet `ost` row carrying a type is the one-row OST of a backup taken before the OST became a song list (an OST song never has a type); it becomes the anime's `music_status` row for `ost`, keeping its status if it is one of `MUSIC_STATUSES`. Links that arrive as URL strings - any section, from a backup taken before every link was titled - are read as links with no title (`_note_links` in `app/utils/formatter.py`). A `fields` blob on a section that is not `structured` is dropped (`_note_fields`), since every other shape refuses one on the row's next edit. |
+| Old-shape note rows | A sheet backed up before 操作 Controls, 職業 Classes, 地理 Geography and 各集評論 lost their links, 主線劇情 and 支線劇情 their description, 角色劇情 became titled links and 小知識 became structured is reshaped on Pull exactly as revision `n1l2inkpairs3` reshaped the local rows (`_reshape_pulled_note` in `app/utils/formatter.py`), so no pulled row keeps a value in a column its section no longer draws: links become lines of the description; a plot row's description becomes its chapter and the old chapter its first link's title (otherwise the description is appended to the chapter after " — "); an arc's text becomes its first link's title, or moves to 其他 Other prefixed "【角色劇情】 " when it has no link; a trivia row's stray locator becomes its title. Each step is a no-op on a row already in the new shape, so a newer sheet pulls unchanged. |
 | Round-trip | Because owner tables no longer have a `remark` column (and `format_model_for_sheet` walks real columns, so the column_property is not exported), **remark round-trips only via the Note tab**. The `remark` still parsed on Watch Order tabs is those tables' own column, unrelated. |
 
 ## Related
