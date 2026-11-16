@@ -105,7 +105,7 @@ import {
   VISIBLE_ENTRIES,
   brandTagCls,
   capEntries,
-  draftCls,
+  DraftPopup,
   inputCls,
   rowCls,
   tagCls,
@@ -1321,8 +1321,20 @@ function StructuredSectionBody({
     sendOrder([...next, ...unnamed].flatMap((g) => treeIds(g.nodes)));
   };
 
+  // The draft opens in a popup (DraftPopup in ./ui), whether it is a root or a
+  // child; a child's is named after the row it goes under.
+  const draftParent = addingUnder
+    ? notes.find((n) => n.system_id === addingUnder)
+    : null;
   const renderDraft = () => (
-    <div className={draftCls}>
+    <DraftPopup
+      title={
+        draftParent
+          ? `Add under ${rowLabel(section, draftParent)}`
+          : `Add to ${section.label}`
+      }
+      onClose={closeDraft}
+    >
       <StructuredForm
         section={withoutField(section, draftOmit)}
         val={draft}
@@ -1331,7 +1343,7 @@ function StructuredSectionBody({
         withPersonal={canMark}
       />
       <SaveCancel onSave={commit} onCancel={closeDraft} />
-    </div>
+    </DraftPopup>
   );
 
   // One sortable list per set of siblings, holding ALL of them even while the

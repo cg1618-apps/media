@@ -18,7 +18,7 @@ import {
   SectionCard,
   ShowAllToggle,
   brandTagCls,
-  draftCls,
+  DraftPopup,
   inputCls,
   rowCls,
   tagCls,
@@ -185,7 +185,13 @@ export default function EpisodeTextSection({
       </ReorderList>
       <ShowAllToggle {...cap.toggle} />
       {adding && (
-        <div className={draftCls}>
+        <DraftPopup
+          title={`Add to ${section.label}`}
+          onClose={() => {
+            setDraft(empty());
+            setAdding(false);
+          }}
+        >
           <EpisodeTextForm val={draft} setVal={setDraft} section={section} />
           <SaveCancel
             onSave={commit}
@@ -194,7 +200,7 @@ export default function EpisodeTextSection({
               setAdding(false);
             }}
           />
-        </div>
+        </DraftPopup>
       )}
       {!notes.length && !adding && <EmptyHint />}
     </SectionCard>

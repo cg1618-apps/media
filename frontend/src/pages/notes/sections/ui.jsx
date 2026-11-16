@@ -7,7 +7,8 @@
 // bordered surface, a mono eyebrow title on a dotted rule, hairline dividers
 // between rows. The cards stay `div.bg-surface` because NotesTemplate.test.jsx
 // locates them by that selector.
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { Button, Chip } from "../../../components/ui/primitives";
 import { DragHandle, SortableItem, SortableList, arrayMove } from "../../../components/ui/Sortable";
@@ -43,8 +44,6 @@ export const brandTagCls =
 
 // A row inside a section: a hairline above, no box.
 export const rowCls = "border-t border-border pt-2 first:border-t-0 first:pt-0";
-// The draft row: dashed so the reader sees it is not saved yet.
-export const draftCls = "border border-dashed border-border-strong p-2.5";
 
 const chevron = (collapsed) => (
   <span
@@ -187,6 +186,108 @@ export function ItemActions({ canWrite, onEdit, onDelete }) {
 // Provisional UI.
 export function MineChip() {
   return <Chip title="Your own row, not the catalogue's">Mine</Chip>;
+}
+
+// --- The draft popup ------------------------------------------------------
+
+// A new row's form, in a floating panel rather than at the end of its card.
+// A long section put the form a long scroll away from the Add button that
+// opened it, and copying from the existing rows meant scrolling back and forth.
+//
+// It is a NON-MODAL dialog (`aria-modal="false"`): no backdrop, no focus trap,
+// no scroll lock, so the page behind it stays readable, scrollable, selectable
+// and clickable while it is open - the point is to copy from the rows into
+// it. It opens docked at the bottom right of the viewport, can be dragged by
+// its header anywhere on screen, and scrolls inside itself when the form is
+// taller than the screen. Focus moves into it on open.
+//
+// It closes only through `onClose` (the × in its header, which the caller
+// wires to its Cancel) or the form's own Save and Cancel - never on Escape or
+// an outside click, which with a non-modal panel are exactly what a reader
+// does while copying, and would throw away a half-written row.
+//
+// Portalled to <body> so no card's overflow or a sortable row's transform can
+// clip or shift it. Popups open at once step diagonally so none hides
+// another; `z-40` keeps them under the modals (`z-50`).
+const openPopups = [];
+const POPUP_STEP = 24;
+
+export function DraftPopup({ title, onClose, children }) {
+  const panel = useRef(null);
+  // How many popups were already open when this one opened, for its diagonal
+  // step. Read once; the list itself is written by the effect below.
+  const [step] = useState(() => openPopups.length);
+  // Where the reader dragged it to; null is the docked corner.
+  const [pos, setPos] = useState(null);
+
+  useEffect(() => {
+    const mine = {};
+    openPopups.push(mine);
+    panel.current?.querySelector("input, select, textarea")?.focus();
+    return () => {
+      const i = openPopups.indexOf(mine);
+      if (i >= 0) openPopups.splice(i, 1);
+    };
+  }, []);
+
+  const startDrag = (e) => {
+    if (e.button !== 0 || e.target.closest("button")) return;
+    const box = panel.current.getBoundingClientRect();
+    const dx = e.clientX - box.left;
+    const dy = e.clientY - box.top;
+    const move = (ev) => {
+      const maxX = Math.max(0, window.innerWidth - box.width);
+      const maxY = Math.max(0, window.innerHeight - 40);
+      setPos({
+        x: Math.min(Math.max(0, ev.clientX - dx), maxX),
+        y: Math.min(Math.max(0, ev.clientY - dy), maxY),
+      });
+    };
+    const stop = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", stop);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", stop);
+    e.preventDefault();
+  };
+
+  const offset = step * POPUP_STEP;
+  const placement = pos
+    ? { left: pos.x, top: pos.y }
+    : { right: 16 + offset, bottom: 16 + offset };
+
+  return createPortal(
+    <div
+      ref={panel}
+      role="dialog"
+      aria-modal="false"
+      aria-label={title}
+      style={placement}
+      className="fixed z-40 flex flex-col w-[min(28rem,calc(100vw-2rem))] max-h-[80vh] bg-surface border border-border-strong shadow-xl"
+    >
+      <div
+        onPointerDown={startDrag}
+        className="flex items-center gap-3 px-3 py-2 border-b border-border cursor-move select-none touch-none"
+      >
+        <h4 className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-muted truncate">
+          {title}
+        </h4>
+        <span className="flex-1 border-t border-dotted border-border-strong/60" />
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          title="Close"
+          className="text-text-faint hover:text-text px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        >
+          <i className="fas fa-times text-xs"></i>
+        </button>
+      </div>
+      <div className="p-3 overflow-y-auto">{children}</div>
+    </div>,
+    document.body,
+  );
 }
 
 export function SaveCancel({ onSave, onCancel }) {

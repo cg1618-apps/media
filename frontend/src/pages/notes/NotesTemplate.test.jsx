@@ -284,7 +284,7 @@ describe("NotesTemplate collapse-when-empty", () => {
     expect(screen.getByText("No entries.")).toBeInTheDocument();
   });
 
-  it("opens an empty section when Add is clicked, so the draft row shows", async () => {
+  it("opens an empty section when Add is clicked, and the draft in its popup", async () => {
     vi.mocked(api.fetchNotes).mockResolvedValue([]);
     renderTemplate();
     // Same reason as above: "Notes" is also the spinner's heading.
@@ -294,7 +294,8 @@ describe("NotesTemplate collapse-when-empty", () => {
     fireEvent.click(screen.getByText("Notes"));
     const trivia = screen.getByText("Trivia").closest("div.bg-surface");
     fireEvent.click(within(trivia).getByRole("button", { name: /Add/ }));
-    expect(within(trivia).getByRole("textbox")).toBeInTheDocument();
+    const popup = screen.getByRole("dialog", { name: "Add to Trivia" });
+    expect(within(popup).getByRole("textbox")).toBeInTheDocument();
   });
 });
 

@@ -24,7 +24,7 @@ import {
   SectionCard,
   ShowAllToggle,
   brandTagCls,
-  draftCls,
+  DraftPopup,
   rowCls,
   useEntryCap,
 } from "./ui";
@@ -205,7 +205,13 @@ export default function MemeSection({
       })}
       <ShowAllToggle {...cap.toggle} />
       {adding && (
-        <div className={draftCls}>
+        <DraftPopup
+          title={`Add to ${label}`}
+          onClose={() => {
+            setDraft(emptyMeme());
+            setAdding(false);
+          }}
+        >
           <MemeForm
             val={draft}
             setVal={setDraft}
@@ -219,7 +225,7 @@ export default function MemeSection({
               setAdding(false);
             }}
           />
-        </div>
+        </DraftPopup>
       )}
       {!items.length && !adding && (
         <p className="text-xs text-text-faint">
