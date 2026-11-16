@@ -75,10 +75,40 @@ const countCls = "font-mono text-[10px] text-text-faint tabular-nums";
 const SectionCardContext = createContext({ bare: false, appendix: null, appendixCount: 0 });
 export const SectionCardProvider = SectionCardContext.Provider;
 
+// The mark after a PERSONAL section's title (`scope: "personal"`): its rows
+// are each viewer's own, never the catalogue's. A small circled P in the
+// title's mono ink, with the meaning in its tooltip and accessible name - a
+// drawn circle rather than the Ⓟ glyph, which the mono font sets unevenly.
+export function PersonalBadge() {
+  return (
+    <span
+      role="img"
+      aria-label="Personal"
+      title="Personal - only you see your rows here"
+      className="inline-flex items-center justify-center w-3.5 h-3.5 ml-1.5 rounded-full border border-current font-mono text-[8px] leading-none normal-case tracking-normal align-middle"
+    >
+      P
+    </span>
+  );
+}
+
+// Whether a section's rows are each viewer's own.
+export const isPersonal = (section) => section?.scope === "personal";
+
 // `actions` are extra header controls drawn before Add - a section's view
 // toggles. They sit in the header's click-shielded strip, so pressing one
-// never collapses the card. `openWhenEmpty` - see useCollapsed.
-export function SectionCard({ label, count, canWrite, onAdd, actions, openWhenEmpty, children }) {
+// never collapses the card. `openWhenEmpty` - see useCollapsed. `personal`
+// draws PersonalBadge after the label.
+export function SectionCard({
+  label,
+  personal = false,
+  count,
+  canWrite,
+  onAdd,
+  actions,
+  openWhenEmpty,
+  children,
+}) {
   const { bare, appendix, appendixCount } = useContext(SectionCardContext);
   const total = appendixCount ? (count || 0) + appendixCount : count;
   const [collapsed, setCollapsed] = useCollapsed(total, openWhenEmpty);
@@ -91,6 +121,7 @@ export function SectionCard({ label, count, canWrite, onAdd, actions, openWhenEm
       >
         <h4 className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-muted shrink-0">
           {label}
+          {personal && <PersonalBadge />}
         </h4>
         {total > 0 && <span className={countCls}>{total}</span>}
         <span className="flex-1 border-t border-dotted border-border-strong/60" />
@@ -179,6 +210,69 @@ export function ItemActions({ canWrite, onEdit, onDelete }) {
         <i className="fas fa-trash"></i>
       </button>
     </div>
+  );
+}
+
+// A named group header's name, renamable in place. `children` is how the name
+// reads; given `onRename`, a pencil beside it turns it into an input holding
+// the name, and Enter or leaving the input calls `onRename(newName)` with the
+// trimmed value - unless it is blank or unchanged - while Escape puts the name
+// back. Without `onRename` (a viewer with no row of the group to edit, or the
+// nameless group) it is only the name.
+export function GroupName({ name, onRename, inputClassName = "", children }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(name);
+  // Set once the edit has ended, so the blur that follows Enter or Escape -
+  // the input leaving the page - does not end it a second time.
+  const ended = useRef(false);
+
+  if (editing) {
+    const end = (save) => {
+      if (ended.current) return;
+      ended.current = true;
+      setEditing(false);
+      const next = value.trim();
+      if (save && next && next !== name) onRename(next);
+    };
+    return (
+      <input
+        aria-label="Group name"
+        autoFocus
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            end(true);
+          } else if (e.key === "Escape") {
+            e.preventDefault();
+            end(false);
+          }
+        }}
+        onBlur={() => end(true)}
+        className={`${inputCls} ${inputClassName}`}
+      />
+    );
+  }
+  return (
+    <>
+      {children}
+      {onRename && (
+        <button
+          type="button"
+          onClick={() => {
+            ended.current = false;
+            setValue(name);
+            setEditing(true);
+          }}
+          aria-label={`Rename group ${name}`}
+          title="Rename group"
+          className="text-text-faint hover:text-brand text-[10px] px-1"
+        >
+          <i className="fas fa-pencil-alt"></i>
+        </button>
+      )}
+    </>
   );
 }
 
@@ -303,8 +397,8 @@ export function SaveCancel({ onSave, onCancel }) {
   );
 }
 
-// `label` overrides the text shown - a link pair's own text. Without one the
-// pill shows the link's host.
+// `label` overrides the text shown - a link's own title. Without one the pill
+// shows the link's host.
 export function LinkPill({ url, label: given }) {
   const label =
     given ||
@@ -325,45 +419,6 @@ export function LinkPill({ url, label: given }) {
       <i className="fas fa-external-link-alt text-[9px]"></i>
       {label}
     </a>
-  );
-}
-
-// A repeatable list of URL inputs, shared by every section whose links are URL
-// strings rather than pairs.
-export function LinksEditor({ links, onChange }) {
-  const list = links?.length ? links : [""];
-  const setLink = (i, v) => onChange(list.map((l, idx) => (idx === i ? v : l)));
-  return (
-    <div className="space-y-1">
-      {list.map((l, i) => (
-        <div key={i} className="flex gap-1">
-          <input
-            value={l}
-            onChange={(e) => setLink(i, e.target.value)}
-            placeholder="https://..."
-            className={inputCls}
-          />
-          {list.length > 1 && (
-            <button
-              type="button"
-              onClick={() => onChange(list.filter((_, idx) => idx !== i))}
-              aria-label="Remove link"
-              title="Remove link"
-              className="text-text-faint hover:text-danger px-1"
-            >
-              <i className="fas fa-times text-xs"></i>
-            </button>
-          )}
-        </div>
-      ))}
-      <button
-        type="button"
-        onClick={() => onChange([...list, ""])}
-        className="font-mono text-[11px] uppercase tracking-[0.12em] text-text-muted hover:text-brand transition"
-      >
-        + Add link
-      </button>
-    </div>
   );
 }
 
@@ -403,8 +458,22 @@ export function useEntryCap(items, { keep } = {}) {
 }
 
 // The control under a capped list. Draws nothing when the list fits.
-export function ShowAllToggle({ total, expanded, onToggle }) {
+// `noun` names what folds when it is not rows - "groups" under a grouped
+// section, so its toggle does not read like a group's own.
+export function ShowAllToggle({ total, expanded, onToggle, noun }) {
   if (total <= VISIBLE_ENTRIES) return null;
+  if (noun) {
+    return (
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        className="font-mono text-[11px] uppercase tracking-[0.12em] text-text-muted hover:text-brand transition"
+      >
+        {expanded ? `Show fewer ${noun}` : `Show all ${noun} (${total})`}
+      </button>
+    );
+  }
   return (
     <button
       type="button"

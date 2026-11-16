@@ -33,18 +33,17 @@ GUIDE_CARDS = {
     "compendium": [
         "characters_guide",
         "enemies",
-        # Where things are, nestable, straight after who you fight there.
-        "geography",
         "game_terms",
         "player_terms",
     ],
-    # Things outside the game itself, rendered beside the site-wide Resources
-    # card rather than with the 攻略 run.
+    # Things outside the game itself, rendered after the 攻略 run. On a game
+    # the site-wide Resources section joins them (see below).
     "tools": ["mods_and_tools", "guide_resources"],
 }
 
-# Every section this file covers, whichever card it ended up in.
-GUIDES_ORDER = [key for keys in GUIDE_CARDS.values() for key in keys]
+# Every section this file covers, whichever card it ended up in. 地理
+# Geography is in 世界觀 for a game and in 圖鑑與名詞 for an h-game.
+GUIDES_ORDER = [key for keys in GUIDE_CARDS.values() for key in keys] + ["geography"]
 
 
 def _keys(section_key: str) -> list[str]:
@@ -79,6 +78,42 @@ def test_the_cards_read_in_this_order_on_the_page():
         "tools",
     ]
     assert order.index("guide_resources") < order.index("resources")
+
+
+def _card(owner: str, group: str) -> list[str]:
+    return [
+        s.key for s in ns.sections_for(owner) if ns.group_for(s, owner) == group
+    ]
+
+
+def test_a_game_reads_resources_last_in_tools_and_geography_in_worldbuilding():
+    for owner in ns.GAME_OWNERS:
+        assert _card(owner, "tools") == [
+            "mods_and_tools",
+            "guide_resources",
+            "resources",
+        ], owner
+    # Where, then when: above 時間線 Timeline.
+    assert _card("game", "worldbuilding") == [
+        "lore",
+        "story_terms",
+        "geography",
+        "timeline",
+        "mysteries",
+        "story_other",
+    ]
+    assert "geography" not in _card("game", "compendium")
+
+
+def test_an_h_game_keeps_geography_in_compendium():
+    # It has no 世界觀 card to move it into.
+    assert _card("h-game", "worldbuilding") == []
+    assert _card("h-game", "compendium") == [
+        "characters_guide",
+        "enemies",
+        "game_terms",
+        "geography",
+    ]
 
 
 def test_no_guide_card_is_left_holding_one_section():
@@ -394,6 +429,9 @@ def test_the_gear_sections_carry_an_amount_total_and_an_ng_reset():
         ), key
         assert reset.options == ("yes", "no"), key
         assert reset.default == "yes", key
+        # Read only when it is the exception: "no" says something, the
+        # default "yes" does not.
+        assert reset.view_labels == (("no", "Won't Reset"),), key
     for key in ("skills",):
         assert "amount_total" not in _keys(key)
         assert "ng_reset" not in _keys(key)
@@ -435,8 +473,8 @@ def test_geography_is_a_nestable_groupable_catalogue_list():
     assert section.shape == ns.SHAPE_STRUCTURED
     assert section.owners == ns.GAME_OWNERS
     assert section.scope == ns.SCOPE_CATALOG
-    assert section.group == "compendium"
-    assert section.groups_by_owner == {}
+    assert section.group == "worldbuilding"
+    assert section.groups_by_owner == {"h-game": "compendium"}
     assert section.hierarchical is True
     assert section.groupable_by == "group"
     assert section.require_any == (("name",),)
@@ -444,11 +482,10 @@ def test_geography_is_a_nestable_groupable_catalogue_list():
         ("group", ns.FIELD_SELECT, "kind"),
         ("name", ns.FIELD_TEXT, "title"),
         ("description", ns.FIELD_TEXTAREA, "content"),
-        ("links", ns.FIELD_LINKS, "links"),
     ]
     assert _field("geography", "group").option_category == "Geography Group"
     order = [s.key for s in ns.NOTE_SECTIONS]
-    assert order.index("geography") == order.index("enemies") + 1
+    assert order.index("geography") == order.index("timeline") - 1
 
 
 def test_a_hierarchical_section_groups_only_by_a_column_backed_field():

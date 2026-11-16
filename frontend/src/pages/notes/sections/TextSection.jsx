@@ -16,6 +16,8 @@ import {
   ReorderRow,
   SaveCancel,
   SectionCard,
+  PersonalBadge,
+  isPersonal,
   ShowAllToggle,
   inputCls,
   useEntryCap,
@@ -70,6 +72,7 @@ function SingletonText({ section, note, canWrite, onCreate, onUpdate, onDelete }
       <div className="flex items-center gap-3 px-3 py-2 border-b border-border">
         <h4 className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-muted shrink-0">
           {section.label}
+          {isPersonal(section) && <PersonalBadge />}
         </h4>
         <span className="flex-1 border-t border-dotted border-border-strong/60" />
         <Button
@@ -173,6 +176,7 @@ function TextList({
   return (
     <SectionCard
       label={section.label}
+      personal={isPersonal(section)}
       count={notes.length}
       canWrite={canWrite}
       onAdd={() => setAdding(true)}

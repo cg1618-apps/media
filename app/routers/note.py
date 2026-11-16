@@ -42,6 +42,10 @@ from app.database import get_taipei_now
 from app.dependencies import get_db
 from app.schemas.note import catalogue_empty, sections_out, validate_note_payload
 from app.services.domain.game_choice import node_of_game, parse_node_id
+from app.services.domain.highlight_group_order import (
+    group_order_row,
+    write_group_order,
+)
 from app.services.domain.note_marks import (
     FeatureRequired,
     MarkRefused,
@@ -664,6 +668,145 @@ def reorder_notes(
         by_id[note_id].sort_index = float(position)
     db.commit()
     return {"status": "success", "reordered": len(payload.ordered_ids)}
+
+
+def _group_field(section) -> tuple[Optional[str], Optional[str], tuple[str, ...]]:
+    """
+    Where a section's group name is stored: (column, names-field key, closed
+    options). A column for a `groupable_by` select and for Resources'
+    `kind_is_group`; a key under `fields` for a `group_by` names list.
+    (None, None, ()) for a section with no groups.
+    """
+    if section.kind_is_group:
+        return "kind", None, ()
+    key = section.groupable_by or section.group_by
+    field = field_by_key(section, key) if key else None
+    if field is None:
+        return None, None, ()
+    if field.column:
+        return field.column, None, field.options
+    return None, field.key, field.options
+
+
+def _renamed_names(names, old: str, new: str) -> Optional[list]:
+    """`names` with `old` replaced by `new`, repeats dropped; None if `old`
+    is not among them."""
+    if not isinstance(names, list):
+        return None
+    if not any(isinstance(n, str) and n.strip() == old for n in names):
+        return None
+    out: list = []
+    for name in names:
+        value = new if isinstance(name, str) and name.strip() == old else name
+        if value not in out:
+            out.append(value)
+    return out
+
+
+# Declared before "/{note_id}" for the same reason as /reorder. The notes
+# page calls it (frontend/src/pages/notes/api.js `renameGroup`) from a group
+# header's rename control.
+@router.post("/rename-group", response_model=schemas.NoteGroupRenameResult)
+def rename_group(
+    payload: schemas.NoteGroupRename,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
+):
+    """
+    Rename one group of one section of one owner, in one transaction: every
+    row filed under `from` is filed under `to` instead. Renaming onto a group
+    that already exists merges the two.
+
+    Only the rows the caller could edit one by one are renamed: every row of
+    a catalogue section (manage.catalog); in a mixed section the catalogue
+    rows if the caller holds manage.catalog, plus the caller's own personal
+    rows; in a personal section the caller's own rows. On a hierarchical
+    section only a top-level row carries the group, so only roots are
+    renamed. A `group_by` section's group is one name of a names list:
+    it is replaced in each row's list (a repeat dropped), and in the caller's
+    own stored group order (user_highlight_group_order).
+
+    400 for an unknown owner type or section; 401 for a caller who may not
+    write the section; 404 for an owner it may not see; 422 for a section
+    with no groups, a blank name, or a name outside a closed vocabulary.
+    `from` equal to `to` changes nothing. Returns how many rows changed.
+    """
+    _validate_owner_type(payload.owner_type)
+    section = section_by_key(payload.section)
+    if section is None:
+        raise HTTPException(
+            status_code=400, detail=f"Unknown note section '{payload.section}'."
+        )
+    _authorize_write(viewer, section.key)
+    column, names_key, options = _group_field(section)
+    if column is None and names_key is None:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Section '{section.key}' has no groups to rename.",
+        )
+    old = payload.from_.strip()
+    new = payload.to.strip()
+    if not old:
+        raise HTTPException(
+            status_code=422, detail="The group with no name cannot be renamed."
+        )
+    if not new:
+        raise HTTPException(status_code=422, detail="A group name cannot be blank.")
+    if options and new not in options:
+        raise HTTPException(
+            status_code=422,
+            detail=f"'{new}' is not one of {', '.join(options)}.",
+        )
+    _require_visible_owner(db, viewer, payload.owner_id)
+    if old == new:
+        return {"renamed": 0}
+
+    query = db.query(models.Note).filter(
+        *_owner_filters(payload.owner_type, payload.owner_id),
+        models.Note.section == section.key,
+    )
+    own = models.Note.author_id == viewer.user_id
+    if section.scope == SCOPE_PERSONAL:
+        query = query.filter(own)
+    elif section.mixed:
+        # The rows each kind of writer could edit one by one (_authorize_edit):
+        # the catalogue's for a manage.catalog holder, and anyone's own.
+        mine = and_(models.Note.personal.is_(True), own)
+        if viewer.has(PERM_MANAGE_CATALOG):
+            query = query.filter(or_(models.Note.personal.is_(False), mine))
+        else:
+            query = query.filter(mine)
+    if section.hierarchical:
+        query = query.filter(models.Note.parent_id.is_(None))
+
+    renamed = 0
+    now = get_taipei_now()
+    for row in query.all():
+        if column is not None:
+            if (getattr(row, column) or "").strip() != old:
+                continue
+            setattr(row, column, new)
+        else:
+            fields = row.fields or {}
+            names = _renamed_names(fields.get(names_key), old, new)
+            if names is None:
+                continue
+            # A fresh dict, so the JSONB column sees the change.
+            row.fields = {**fields, names_key: names}
+        row.updated_at = now
+        renamed += 1
+
+    if names_key is not None and viewer.user_id is not None:
+        stored = group_order_row(db, viewer.user_id, payload.owner_id)
+        if stored is not None and old in (stored.group_order or []):
+            write_group_order(
+                db,
+                viewer.user_id,
+                payload.owner_id,
+                [new if name == old else name for name in stored.group_order],
+            )
+    db.commit()
+    return {"renamed": renamed}
 
 
 @router.patch("/{note_id}", response_model=schemas.NoteResponse)

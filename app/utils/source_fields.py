@@ -39,10 +39,11 @@ ALIAS_SOURCES: tuple[str, ...] = ("igdb",)
 # Combat Mode is the game category NOT here: PvE/PvP is a hand-made
 # classification IGDB does not model, so it carries no aliases at all.
 #
-# Game Platform is the odd one of the four. Its values are brand names, and
-# several IGDB names fold into each - "PlayStation 4" and "PlayStation 5" both
-# become PlayStation - so its rows are many-to-one where the other three are
-# mostly one-to-one. game_vocabulary.py seeds them; editing them by hand is
+# Game Platform is the odd one of the four. Its values are brand names at two
+# grains, a family and a console, and every console's IGDB name is an alias of
+# both - "PlayStation 4" resolves to PlayStation and to PS4 - so its rows are
+# many-to-many where the other three are mostly one-to-one.
+# game_vocabulary.py seeds them; editing them by hand is
 # allowed, because a new console generation is exactly the case where waiting
 # for a code change would be silly.
 ALIAS_CATEGORIES: tuple[str, ...] = (

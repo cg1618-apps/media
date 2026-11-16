@@ -20,6 +20,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { QueryClientContext } from "@tanstack/react-query";
 
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
@@ -229,6 +230,12 @@ export function NotesProvider({
       .filter(Boolean)
       .every((name) => Boolean(auth?.hasFeature?.(name)));
   const showToast = useToast()?.showToast;
+  // The page's query client, when there is one: a group renamed in a
+  // `group_by` section is renamed in the viewer's stored group order too, and
+  // that order arrives with the entry (`groupOrder`), so the entry is
+  // refetched. Read from the context rather than useQueryClient(), which
+  // throws outside a provider, because not every screen holding notes has one.
+  const queryClient = useContext(QueryClientContext);
   // Quotes and Memes follow the account's quotes_memes feature switch:
   // without it their external sections are dropped with the hidden ones
   // below, so neither renders nor fetches from /api/quote or /api/meme,
@@ -437,9 +444,12 @@ export function NotesProvider({
           setError(String(e.message || e));
         }
       },
-      onUpdate: async (id, payload) => {
+      // `marks` are the viewer's own personal values an edit form changed;
+      // they go through the mark endpoint, never the catalogue PATCH.
+      onUpdate: async (id, payload, marks) => {
         try {
           await api.updateNote(id, payload);
+          if (marks && Object.keys(marks).length) await api.markNote(id, marks);
           await reloadNotes();
         } catch (e) {
           setError(String(e.message || e));
@@ -464,6 +474,20 @@ export function NotesProvider({
           showToast?.("success", `NG reset: ${cleared} cleared`);
         } catch (e) {
           showToast?.("error", String(e.message || e));
+        }
+      },
+      // One group of one section renamed, `from` to `to`, in one write - the
+      // server renames every row of it the viewer could edit (and, in a
+      // `group_by` section, the name in the viewer's own group order).
+      onRenameGroup: async (sectionKey, from, to) => {
+        try {
+          await api.renameGroup(ownerType, ownerId, sectionKey, from, to);
+          await reloadNotes();
+          if (allSections.find((s) => s.key === sectionKey)?.group_by) {
+            queryClient?.invalidateQueries({ queryKey: ["media-item", ownerType] });
+          }
+        } catch (e) {
+          setError(String(e.message || e));
         }
       },
       onDelete: async (id) => {
@@ -502,7 +526,7 @@ export function NotesProvider({
         }
       },
     }),
-    [ownerType, ownerId, reloadNotes, showToast],
+    [ownerType, ownerId, reloadNotes, showToast, allSections, queryClient],
   );
 
   const renderSection = (section) => {

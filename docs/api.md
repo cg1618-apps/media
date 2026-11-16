@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-11-14
+Last verified: 2026-11-16
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -1124,6 +1124,7 @@ the id, never from the payload's `owner_type`.
 | `GET`    | `""`           | Public | Every note for one owner, ordered the way the page renders them. Required params: `owner_type`, `owner_id`. Catalogue sections for everyone; personal sections only the viewer's own rows, and none for a logged-out viewer. There is no parameter that reads another account's personal notes, the admin's included. The six highlight sections are personal, so their rows are the viewer's own too. A mixed section returns its catalogue rows and then the viewer's own personal rows (`personal: true`), each kind by `sort_index`; nobody reads another account's. |
 | `POST`   | `""`           | By scope | Create (201). Body: `NoteCreate`. In a mixed section the server picks the row's kind, never the payload (a `personal` key is ignored): a caller holding `manage.catalog` writes a catalogue row, any other caller holding `self.personal_notes` a personal row. 422 on a payload the registry rejects, on a catalogue row nesting under a personal one or a row nesting under another account's personal row, on a second row in a singleton section, or on a second `music_status` row for the same anime and `kind`. `sort_index` defaults to the end.     |
 | `PATCH`  | `/reorder`     | By scope | Rewrite `sort_index` for one section of one owner. Body: `NoteReorder`. 400 unless `ordered_ids` names exactly that section's notes, each once - in a personal section, exactly the caller's own; in a mixed section exactly its catalogue rows for a `manage.catalog` holder and exactly the caller's own personal rows for anyone else.                |
+| `POST`   | `/rename-group` | By scope | Rename one group of one section of one owner, once. Body `{"owner_type", "owner_id", "section", "from", "to"}`; both names are trimmed. Every row filed under `from` is filed under `to`, in one transaction, and renaming onto an existing group merges the two. The group is `kind` on Resources, the `groupable_by` field's column on a section with one (on a hierarchical section, top-level rows only), and one name of the `group_by` names list on a section with one - replaced in each row's list, a repeat dropped, and in the caller's own stored group order. Only rows the caller could edit one by one change: every row of a catalogue section; in a mixed section the catalogue rows for a `manage.catalog` holder plus the caller's own personal rows; in a personal section the caller's own rows. `from` equal to `to` changes nothing. Returns `{"renamed": n}`, the rows changed. 400 unknown `owner_type` or section; 401 a caller who may not write the section; 404 owner not visible; 422 a section with no groups, a blank `from` (the nameless group has no stored name) or `to`, or a `to` outside a closed vocabulary. |
 | `PATCH`  | `/{note_id}`   | By scope | Partial update. Body: `NoteUpdate`, validated as the row *will* be, so a partial update cannot land on an invalid combination. A PATCH that changes `section` without sending `sort_index` puts the row at the end of its new section. A personal row of a mixed section is edited only by its author, may move only to another mixed section (422 otherwise), and never changes kind. |
 | `DELETE` | `/{note_id}`   | By scope | Delete, **204 No Content**. Asks the author rule and then the section's write capability, as a `PATCH` does; a row in a section the registry no longer knows is deletable by a `manage.catalog` holder. Logs to `deleted_record` as type "Note", standing a truncated `content` in for the name a note does not have. Every account's note marks on the row go with it.        |
 | `PUT`    | `/{note_id}/mark` | `self.personal_notes` | Set or clear the caller's own personal values on one catalogue row. Body `{"values": {key: value \| null}}`: each key is one of the row's personal values (a personal field's key, or `status` for a section-level personal status); a value sets it, `null` or blank clears it, a key not named is left alone. Returns the `NoteResponse` as the caller now reads it. **401** without the permission - the `admin` account included, it keeps no personal data - and for a value granted by a feature the caller lacks; **404** for a missing note or an owner the caller may not see; **422** for a key that is not personal on the row's section, or a value outside its vocabulary. |
@@ -1174,9 +1175,8 @@ carrying one is a 422 "Only a top-level row carries a group."),
 `move_targets` (`[{key, label}]`, the sections a row can be moved straight to
 by a PATCH of `section` - the owner's other `quick_move` sections in the same
 card, `[]` elsewhere), `owner_where` (`{owner column:
-[allowed values]}`, `{}` for none), and the music-group fields: `link_pairs`
-(the section's `links` are `{"text", "url"}` pairs rather than URL strings),
-`link_text_category` (the option category suggesting a pair's `text`),
+[allowed values]}`, `{}` for none), and the music-group fields:
+`link_text_category` (the option category suggesting a link's title),
 `kind_category` (`kind` is free text suggested from this option category),
 `kind_is_group` (`kind` is a free-text group name the card draws a heading
 per - Resources),
@@ -1193,11 +1193,12 @@ left out, and a personal status's `statuses` and `default_status` are empty,
 as are a song list's `type_status_section` / `type_statuses` /
 `type_status_default`).
 
-`links` on `NoteCreate` / `NoteUpdate` / `NoteResponse` is a list of URL
-strings, or - on a section reporting `link_pairs: true` (the four song
-lists) - a list of `{"text": str | null, "url": str}`. Each
-section takes exactly one of the two; the other is a 422, as is a pair with a
-blank `url` or a key other than those two.
+`links` on `NoteCreate` / `NoteUpdate` / `NoteResponse` is a list of titled
+links, `{"text": str | null, "url": str}`, on every section: `text` is the
+link's optional title. A bare URL string in a request is read as a link with
+no title, so it is stored - and read back - as `{"text": null, "url": ...}`.
+A link with a blank `url` or a key other than those two is a 422, and so is
+any link on a section that takes none (`Section '…' takes no links.`).
 
 A section with `owner_where` refuses a row on any other owner with **422**, on
 `POST` and on the merged row of a `PATCH`: `h_comic_highlights` is
@@ -1615,7 +1616,7 @@ editor cannot see.
 | `PUT`    | `/{option_id}` | `manage.catalog` | Update an existing option by UUID `system_id`. Body: `SystemOptionCreate`; replaces the option's scope, usage **and alias** rows wholesale — a body omitting a list deletes it. 400 on a duplicate `(category, value)`. |
 | `DELETE` | `/{option_id}` | `manage.catalog` | Delete an option by UUID. Cascades its `system_option_scope`, `system_option_alias`, `media_tag` and `character_tag` rows. Logs to `deleted_record`.                  |
 
-**Response model:** `SystemOptionResponse` (`{system_id, category, value, sort_order, remark, scopes: [str, ...], usages: [str, ...], aliases: [{source, value}, ...]}`)
+**Response model:** `SystemOptionResponse` (`{system_id, category, value, sort_order, remark, scopes: [str, ...], usages: [str, ...], aliases: [{source, value}, ...], family}`). `family` is read-only and derived, never stored: on a `Game Platform` console it names the console's family (`Nintendo` on `Switch`), and it is null on a family and on every other category - see [Game Platform: families and consoles](options.md#game-platform-families-and-consoles). A body sending it back is ignored.
 
 **Validation.** `scopes` must be `MEDIA_TYPE_KEYS`, `usages` must be
 `OPTION_USAGES`, and each alias `source` must be `ALIAS_SOURCES`

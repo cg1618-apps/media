@@ -3,7 +3,7 @@
 // `takes_links`.
 //
 // What these pin: OP/ED 變動 (takes_links) draws its links and edits them with
-// the same repeatable URL editor as text_links, sending URL strings; 加長
+// the same titled-link editor as text_links, sending titled pairs; 加長
 // (no takes_links) shows no link editor and sends no `links` at all.
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -20,7 +20,6 @@ const OP_ED_CHANGES = {
   locator_required: true,
   desc_required: false,
   takes_links: true,
-  link_pairs: false,
   fields: [],
 };
 
@@ -72,7 +71,7 @@ it("draws no stray 0 for a row with no links", () => {
   );
 });
 
-it("sends an episode, a kind and several URL strings", async () => {
+it("sends an episode, a kind and several titled links", async () => {
   const onCreate = vi.fn();
   renderSection({ onCreate });
 
@@ -82,6 +81,7 @@ it("sends an episode, a kind and several URL strings", async () => {
     "ep 10",
   );
   await userEvent.selectOptions(screen.getByRole("combobox"), "變化OP");
+  await userEvent.type(screen.getByLabelText("Link text"), "YouTube");
   await userEvent.type(screen.getByPlaceholderText("https://..."), "https://youtu.be/a");
   await userEvent.click(screen.getByRole("button", { name: "+ Add link" }));
   await userEvent.type(
@@ -95,7 +95,10 @@ it("sends an episode, a kind and several URL strings", async () => {
     locator: "ep 10",
     kind: "變化OP",
     content: null,
-    links: ["https://youtu.be/a", "https://b23.tv/b"],
+    links: [
+      { text: "YouTube", url: "https://youtu.be/a" },
+      { text: null, url: "https://b23.tv/b" },
+    ],
   });
 });
 
@@ -121,7 +124,10 @@ it("edits a row's existing links", async () => {
     locator: "ep 10",
     kind: null,
     content: null,
-    links: ["https://youtu.be/a", "https://b23.tv/b"],
+    links: [
+      { text: null, url: "https://youtu.be/a" },
+      { text: null, url: "https://b23.tv/b" },
+    ],
   });
 });
 

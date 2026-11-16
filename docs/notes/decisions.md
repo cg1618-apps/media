@@ -1,6 +1,6 @@
 # Design decisions
 
-Last verified: 2026-11-14
+Last verified: 2026-11-16
 
 ## What this is for
 
@@ -3902,7 +3902,10 @@ under "note marks", both below.
 - **Only four categories: Character Group, Collectible Type, Item Type,
   Geography Group.** Adding a fifth is a registry edit, not an admin action.
   攻略資源 Guide Resources gained a group but no category: the spec named
-  none.
+  none. Two more followed at the owner's request, **Weapon & Gear Type**
+  (武器&裝備's type, which shared the 物品 spec but had been left without
+  one) and **Enemy Tier** (敵人's tier), both shipping empty like Geography
+  Group.
 - **The admin sub-tab is "Note Suggestions"**, a third beside Options and
   Tags on `/add`, `/modify` and `/delete`. The categories are the same
   `system_option` structure as everything under Options, and the split is
@@ -5126,3 +5129,54 @@ shown buttons that answered 401.
   modal chrome `ConfirmModal` and `RemarkModal` share. Its grid is CSS
   columns rather than a CSS grid, so seasons read down each column, newest
   first, as the table above it does.
+
+### Every note link is titled; seven sections change what a row holds (2026-11-16)
+
+- **One link shape, everywhere.** Every `links` column holds `{"text",
+  "url"}` pairs with an optional title, not only the song lists. Keeping
+  URL strings on most sections and pairs on four meant two editors, two
+  validators and a per-section flag (`link_pairs`) every reader had to
+  consult; the flag, `uses_link_pairs` and `as_link_urls` are gone and
+  `takes_links` says only whether a section has links at all. Revision
+  `n1l2inkpairs3` turns every stored URL string into a pair with a null
+  text, matching how the song lists already stored a missing title.
+- **A bare URL string in a request is accepted and read as an untitled
+  link**, rather than refused. A page still running the older bundle during
+  a deploy would otherwise fail every save; the stored shape is still only
+  pairs.
+- **A section losing a field keeps its data in a field it still has**, as
+  `g3s4ysnolink` did for 玩法系統. Controls, classes, geography and episode
+  comments append their links to the description, one per line, "title:
+  url" when a link had a title. The owner chose the plot rule: a 主線劇情 /
+  支線劇情 row's description becomes its chapter and the old chapter its
+  first link's title (the one local row - "【Bilibili】 1.6丹青渡
+  日配女主全劇情全流程" / "祀的劇情" - reads chapter "祀的劇情", link
+  "【Bilibili】 …"); with no link, or a first link already titled, the
+  description is appended to the chapter after " — ".
+- **A 角色劇情 row with text and no link moves to 其他 Other**, prefixed
+  "【角色劇情】 ". An arc is titled links and nothing else, and its links are
+  required; the alternatives were to keep the text in a column the section
+  no longer draws (invisible, and a 422 on the row's next edit), to store a
+  link with an empty URL (which the validator refuses everywhere), or to
+  refuse the migration (which would freeze a deploy over a row that can be
+  kept). 其他 is the same game's catch-all for a story observation, so the
+  text stays readable and editable. An arc with a link takes its text as
+  the first link's title, appended after " — " to a title it already has.
+- **Irreversible.** Folded links, moved descriptions and moved arcs cannot
+  be told apart from text somebody typed. The downgrade still turns pairs
+  back into URL strings outside the song lists, dropping the titles, so the
+  older code can read what is left.
+- **A Pull from a sheet backed up before the revision is reshaped the same
+  way** (`_reshape_pulled_note`), rather than only having its links
+  converted: otherwise Pull would restore links on Controls and
+  descriptions on plots into columns their sections no longer draw. Each
+  step is a no-op on a row already in the new shape.
+- **各集評論 becomes `episode_text` and requires its text**, since a comment
+  that is only an episode says nothing; **小知識 Trivia becomes structured**
+  (title, description, links), so a fact can carry a name to find it by.
+- **Resources joins 資源&工具 on game and h-game** through `groups_by_owner`;
+  a group resolved for the owner wins over `standalone`, so the API never
+  sends both. **地理 Geography moves into 世界觀 above 時間線 for a game**;
+  its registry fallback group is `worldbuilding` and h-game, which has no
+  世界觀, overrides it back to `compendium`, which keeps the registry's
+  group runs adjacent.

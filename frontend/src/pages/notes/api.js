@@ -55,6 +55,15 @@ export const reorderNotes = (ownerType, ownerId, section, orderedIds) =>
     }),
   });
 
+// Renames one group of one section of one owner, `from` to `to`, in one
+// write: every row the caller could edit that is filed under `from` is filed
+// under `to` (onto an existing group, the two merge). Answers {renamed: n}.
+export const renameGroup = (ownerType, ownerId, section, from, to) =>
+  fetchJson(`${BASE}/rename-group`, {
+    method: "POST",
+    ...jsonBody({ owner_type: ownerType, owner_id: ownerId, section, from, to }),
+  });
+
 // The caller's own personal values on one catalogue row - `values` is
 // {key: value | null}, each key a personal field's key or "status" for a
 // section-level personal status. A null clears that value; a key not named is

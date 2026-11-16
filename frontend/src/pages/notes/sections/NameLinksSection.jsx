@@ -1,5 +1,6 @@
 // Frontend: renders one `name_links`-shaped section - a named bookmark
-// (Resources). The title is optional; the links carry the value.
+// (Resources). The name is optional; the links - each with an optional title -
+// carry the value.
 //
 // A section flagged `kind_is_group` takes an optional Group per row, stored in
 // `kind`. Once any row has one, the card draws one heading per group, in the
@@ -7,7 +8,9 @@
 // under "Other" (groupedRows.js). The rows are drawn - and folded, and
 // reordered - in that grouped order, so dragging a row above another group's
 // first row moves its whole group up. With no row grouped the list is the
-// plain one.
+// plain one. A named group's heading carries a rename control (GroupName) for
+// a viewer with a row of that group to edit; "Other" is no stored name and has
+// none.
 //
 // Resources is a mixed section: `canEditRow` and `canMoveRow` (NotesContext's
 // rowAccessFor) decide each row's Edit, Delete and handle, and a personal row
@@ -16,15 +19,15 @@ import { Fragment, useId, useState } from "react";
 
 import {
   EmptyHint,
+  GroupName,
   ItemActions,
-  LinkPill,
-  LinksEditor,
   MineChip,
   ReorderHandle,
   ReorderList,
   ReorderRow,
   SaveCancel,
   SectionCard,
+  isPersonal,
   ShowAllToggle,
   DraftPopup,
   inputCls,
@@ -32,20 +35,30 @@ import {
   useRowReorder,
 } from "./ui";
 import { groupNotes } from "./groupedRows";
+import { LinkPairPills, LinkPairsEditor } from "./LinkPairs";
+import {
+  hasLinkPair,
+  pairsFromLinks,
+  pairsIncomplete,
+  pairsToLinks,
+} from "./linkPairValues";
 
 const OTHER = "Other";
 
-const empty = () => ({ title: "", group: "", links: [""] });
+const headingCls =
+  "font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint";
+
+const empty = () => ({ title: "", group: "", links: [] });
 
 const fromNote = (n) => ({
   title: n.title || "",
   group: n.kind || "",
-  links: n.links?.length ? n.links : [""],
+  links: pairsFromLinks(n.links),
 });
 
 const toFields = (section, val) => ({
   title: val.title.trim() || null,
-  links: (val.links || []).map((l) => l.trim()).filter(Boolean),
+  links: pairsToLinks(val.links),
   ...(section.kind_is_group ? { kind: val.group.trim() || null } : {}),
 });
 
@@ -75,8 +88,8 @@ function NameLinksForm({ val, setVal, groupOptions }) {
           </datalist>
         </>
       )}
-      <LinksEditor
-        links={val.links}
+      <LinkPairsEditor
+        pairs={val.links}
         onChange={(links) => setVal({ ...val, links })}
       />
     </div>
@@ -93,6 +106,7 @@ export default function NameLinksSection({
   onUpdate,
   onDelete,
   onReorder,
+  onRenameGroup,
   reordering,
 }) {
   const [adding, setAdding] = useState(false);
@@ -105,8 +119,16 @@ export default function NameLinksSection({
     ? groupNotes(notes, null, [], "kind")
     : [{ name: null, notes }];
   const grouped = groups.some((g) => g.name !== null);
+  // Each row's group name, null for the ungrouped rows under "Other".
   const groupOf = new Map(
-    groups.flatMap((g) => g.notes.map((n) => [n.system_id, g.name ?? OTHER])),
+    groups.flatMap((g) => g.notes.map((n) => [n.system_id, g.name])),
+  );
+  const renamable = new Set(
+    onRenameGroup
+      ? groups
+          .filter((g) => g.name !== null && g.notes.some(canEditRow))
+          .map((g) => g.name)
+      : [],
   );
   const rows = groups.flatMap((g) => g.notes);
   const groupOptions = section.kind_is_group
@@ -128,7 +150,7 @@ export default function NameLinksSection({
   // A bookmark with neither a name nor a link is nothing; a group alone does
   // not make one.
   const invalid = (val) =>
-    !val.title.trim() && !(val.links || []).some((l) => l.trim());
+    pairsIncomplete(val.links) || (!val.title.trim() && !hasLinkPair(val.links));
 
   const commit = () => {
     if (invalid(draft)) return;
@@ -146,6 +168,7 @@ export default function NameLinksSection({
   return (
     <SectionCard
       label={section.label}
+      personal={isPersonal(section)}
       count={notes.length}
       canWrite={canWrite}
       onAdd={() => setAdding(true)}
@@ -159,12 +182,27 @@ export default function NameLinksSection({
           return (
             <Fragment key={n.system_id}>
               {opensGroup && (
-                <p
-                  data-testid="group-heading"
-                  className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint pt-1 first:pt-0"
-                >
-                  {group}
-                </p>
+                <div className="flex items-center gap-1 pt-1 first:pt-0">
+                  {group === null ? (
+                    <p data-testid="group-heading" className={headingCls}>
+                      {OTHER}
+                    </p>
+                  ) : (
+                    <GroupName
+                      name={group}
+                      onRename={
+                        renamable.has(group)
+                          ? (to) => onRenameGroup(section.key, group, to)
+                          : undefined
+                      }
+                      inputClassName="max-w-xs py-0.5"
+                    >
+                      <p data-testid="group-heading" className={headingCls}>
+                        {group}
+                      </p>
+                    </GroupName>
+                  )}
+                </div>
               )}
               <ReorderRow
                 reorder={reorder}
@@ -194,9 +232,7 @@ export default function NameLinksSection({
                           {n.title}
                         </span>
                       )}
-                      {(n.links || []).filter(Boolean).map((l, j) => (
-                        <LinkPill key={j} url={l} />
-                      ))}
+                      <LinkPairPills links={n.links} bare />
                     </div>
                   )}
                 </div>

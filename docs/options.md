@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-11-14
+Last verified: 2026-11-16
 
 ## What this is for
 
@@ -262,14 +262,14 @@ can only hold URLs and `text_links` has no title, so neither could say
 | `guides` | 攻略 Guides |
 | `builds` | 養成&流派 Builds & Growth |
 | `gear` | 物品 Items & Gear |
-| `compendium` | 圖鑑與名詞 Compendium & Terms (characters, enemies, geography, terms) |
+| `compendium` | 圖鑑與名詞 Compendium & Terms (characters, enemies, terms; for an h-game also geography) |
 | `story` | 劇情 Story (for an h-game, the four Story List strands and 結局) |
 | `story_list` | 劇情列表 Story List (game only) |
-| `worldbuilding` | 世界觀 Worldbuilding (game only) |
+| `worldbuilding` | 世界觀 Worldbuilding (game only; holds 地理 Geography above 時間線) |
 | `ng_plus` | NG 多周目 |
 | `todo` | 待辦 Todo (rendered inside the game page's Progress slip) |
 | `music` | 音樂 Music |
-| `tools` | 資源&工具 Tools & Resources |
+| `tools` | 資源&工具 Tools & Resources (mods and tools, guide resources, then the site-wide Resources) |
 | `quotes_memes` | 名言/梗 Quotes and Memes |
 
 **Sections** (`NOTE_SECTIONS`, in display order). "All" means every media
@@ -290,7 +290,7 @@ out. What the three gated types keep is in
 | `double_edged` | text_links | 優缺點 | All but h-comic, hentai | reviews | |
 | `public_reviews` | text_links | 大眾評價 Public Reviews | All | reviews | |
 | `personal_reviews` | text | 我的評價 Personal Reviews | All | reviews | personal scope |
-| `episode_comments` | text_links | 各集評論 Episode Comments (manga: 各話評論 Chapter Comments; game: 各章評論 Part Reviews) | anime, tv-show, cartoon, manga, game | reviews | locator required; manga's placeholder is "Chapter", game's "Chapter / Part" |
+| `episode_comments` | episode_text | 各集評論 Episode Comments (manga: 各話評論 Chapter Comments; game: 各章評論 Part Reviews) | anime, tv-show, cartoon, manga, game | reviews | locator and text required, no links; manga's placeholder is "Chapter", game's "Chapter / Part" |
 | `highlights` | episode_text | 神回/神片段 Highlights | anime | | kinds `HIGHLIGHT_KINDS` |
 | `highlight_episodes` | episode_text | 神回/神片段 (manga: 神回) | tv-show, cartoon, manga | | kinds `HIGHLIGHT_KINDS` for tv-show and cartoon only |
 | `highlight_passages` | text | 神片段 | novel | | |
@@ -306,25 +306,24 @@ out. What the three gated types keep is in
 | `easter_eggs` | text_links | 彩蛋/致敬 Easter Eggs/References | every entry type but h-comic, hentai, h-game; series, franchise | analysis_group; **reviews** for game | Right after 解析 in the 評論 card for a game |
 | `beginner` | text_links | 新手 Beginner | game | guides | |
 | `gameplay_systems` | structured | 玩法系統 Gameplay Systems | game, h-game | guides | type (free text), name (CN), alt name, description; groupable by type |
-| `controls` | structured | 操作 Controls | game, h-game | guides | Fields: type (`kind`, free text), control (`title`), description (`content`), links; groupable by type |
+| `controls` | structured | 操作 Controls | game, h-game | guides | Fields: type (`kind`, free text), control (`title`), description (`content`); no links; groupable by type |
 | `guide_notes` | text | 攻略筆記 Guide Notes | game, h-game | guides | no links |
-| `trivia` | text_links | 小知識 Trivia | game | guides | |
+| `trivia` | structured | 小知識 Trivia | game | guides | title (`title`), description (`content`), titled links; any one makes a row |
 | `stats_and_points` | structured | 屬性&配點 Stats & Points | game, h-game | builds | name, min/rec/soft-cap, my value (quick-edit; personal), description |
-| `classes` | structured | 職業 Classes | game, h-game | builds | type, name, 定位 role, 解鎖條件 unlock, 核心屬性 key stats, description, links; groupable by type |
+| `classes` | structured | 職業 Classes | game, h-game | builds | type, name, 定位 role, 解鎖條件 unlock, 核心屬性 key stats, description; no links; groupable by type |
 | `skills` | structured | 技能 Skills | game, h-game | builds | type, name, description, links; groupable by type |
 | `builds_and_styles` | structured | 配裝&流派 Builds & Styles | game, h-game | builds | name, five nested lists, description, links |
 | `team_composition` | structured | 隊伍組成 Team Composition | game, h-game | builds | name, members list (name, 定位, build, notes), description, links |
-| `weapons_and_gear` | structured | 武器&裝備 Weapons & Gear | game, h-game | gear | type, name, variant, description, links, collect status (default `not collected`; personal), total, collected amount (personal), NG reset (`yes` / `no`, default `yes`); groupable by type |
+| `weapons_and_gear` | structured | 武器&裝備 Weapons & Gear | game, h-game | gear | type (suggested from `Weapon & Gear Type`), name, variant, description, links, collect status (default `not collected`; personal), total, collected amount (personal), NG reset (`yes` / `no`, default `yes`); groupable by type |
 | `items` | structured | 道具 Items | game, h-game | gear | type (suggested from `Item Type`), name, variant, description, links, collect status (default `not collected`; personal), total, collected amount (personal), NG reset (`yes` / `no`, default `yes`); groupable by type |
 | `collectibles` | structured | 收集物 Collectibles | game, h-game | gear | type (suggested from `Collectible Type`), name, variant, description, links, collect status (default `not collected`; personal), total, collected amount (personal), NG reset (`yes` / `no`, default `yes`); groupable by type |
 | `characters_guide` | structured | 角色 Characters | game, h-game | compendium | group (suggested from `Character Group`), name, alias, description; groupable by group |
-| `enemies` | structured | 敵人 Enemies | game, h-game | compendium | tier, region, name, alias, description, beaten status (default `to beat`; personal); groupable by tier |
-| `geography` | structured | 地理 Geography | game, h-game | compendium | group (suggested from `Geography Group`, top-level rows only), name, description, links; nestable; groupable by group |
+| `enemies` | structured | 敵人 Enemies | game, h-game | compendium | tier (suggested from `Enemy Tier`), region, name, alias, description, beaten status (default `to beat`; personal); groupable by tier |
 | `game_terms` | structured | 遊戲名詞 Game Terms | game, h-game | compendium | name (CN), alt name, description |
 | `player_terms` | structured | 玩家術語 Player Terms | game | compendium | name (CN), alt name, description |
-| `main_plot` | structured | 主線劇情 Main Plot | game | story | chapter (`locator`, optional), description, links |
-| `side_plot` | structured | 支線劇情 Side Stories | game | story | chapter (`locator`, optional), description, links |
-| `character_arcs` | text_links | 角色劇情 Character Arcs | game | story | |
+| `main_plot` | structured | 主線劇情 Main Plot | game | story | chapter (`locator`, optional), titled links; no description |
+| `side_plot` | structured | 支線劇情 Side Stories | game | story | chapter (`locator`, optional), titled links; no description |
+| `character_arcs` | structured | 角色劇情 Character Arcs | game | story | one or more titled links (required), nothing else |
 | `endings` | structured | 結局 Endings | game, h-game | story | name, completion status (personal), description, links |
 | `story_list_main` | structured | 主線 Main | game, h-game | story_list; **story** for h-game | order, name, description, links; nestable |
 | `story_list_side` | structured | 支線 Side | game, h-game | story_list; **story** for h-game | order, name, description, links; nestable |
@@ -332,6 +331,7 @@ out. What the three gated types keep is in
 | `story_list_event` | structured | 事件 Event | game, h-game | story_list; **story** for h-game | order, name, description, links; nestable |
 | `lore` | text_links | 設定 Lore | game | worldbuilding | |
 | `story_terms` | structured | 劇情名詞 Story Terms | game | worldbuilding | name (CN), alt name, description |
+| `geography` | structured | 地理 Geography | game, h-game | worldbuilding; **compendium** for h-game | group (suggested from `Geography Group`, top-level rows only), name, description; no links; nestable; groupable by group. Above 時間線 for a game |
 | `timeline` | text_links | 時間線 Timeline | game | worldbuilding | |
 | `mysteries` | text_links | 未解之謎 Mysteries | game | worldbuilding | |
 | `story_other` | text_links | 其他 Other | game | worldbuilding | |
@@ -354,7 +354,7 @@ out. What the three gated types keep is in
 | `adaptation` | text_links | 改編 Adaptation | anime, anime-movie, tv-show, cartoon, novel, series, franchise | | description required on anime, anime-movie, novel |
 | `mods_and_tools` | structured | 模組&工具 Mods & Tools | game, h-game | tools | type `Mod`/`Tool`, name, developer, description, status (personal, behind the `mod_status` feature); groupable by type |
 | `guide_resources` | structured | 攻略資源 Guide Resources | game, h-game | tools | group (free text, no suggestions), name, description, links; groupable by group |
-| `resources` | name_links | Resources | All | standalone | optional free-text Group in `kind` (`kind_is_group`) |
+| `resources` | name_links | Resources | All | standalone; **tools** for game and h-game | optional free-text Group in `kind` (`kind_is_group`); last in the 資源&工具 card on a game |
 | `questions` | episode_text | Questions | All but h-comic, hentai | standalone | description required everywhere |
 | `quotes` | external | 名言 Quotes | Entries but H | quotes_memes | |
 | `memes` | external | 梗/迷因 Memes | All but H | quotes_memes | |
@@ -374,11 +374,11 @@ Song Type is no longer a constant: it is free text, suggested from the
 
 **`guide_resources` is not `resources`, and neither replaces the other.** The
 site-wide `resources` section (`name_links`, all owners, standalone) holds
-plain bookmarks and games inherit it; `guide_resources` (`structured`, in
-the 資源&工具 card,
-game and h-game only) holds a pointer to somebody else's
-walkthrough with notes attached. Two keys and two labels, because a second
-card also called "Resources" would be unreadable.
+plain bookmarks and games inherit it - in the 資源&工具 card, after
+`guide_resources`, rather than as a card of its own; `guide_resources`
+(`structured`, game and h-game only) holds a pointer to somebody else's
+walkthrough with notes attached. Two keys and two labels, because two
+subsections called "Resources" in one card would be unreadable.
 
 **The 攻略 sections are twenty sections (for a game) across five cards
 rather than one section with a `kind`**, because
@@ -627,12 +627,13 @@ is that its values read as tags *on* the work, while `Platform` and the
 Comic vocabularies name an outside party. A new category is therefore not automatically a tag.
 
 `NOTE_SUGGESTION_CATEGORIES` (`app/utils/note_sections.py`, served as
-`/api/constants` `note_suggestion_categories`): `Item Type`, `Collectible
-Type`, `Character Group`, `Geography Group` — the categories a note field's
+`/api/constants` `note_suggestion_categories`): `Weapon & Gear Type`, `Item
+Type`, `Collectible Type`, `Character Group`, `Enemy Tier`, `Geography Group`
+— the categories a note field's
 `option_category` names, which the same three admin pages offer under a third
 sub-tab, **Note Suggestions**, rather than under Options. Navigation only, like
-the Tags split. Derived from the registry, so it holds exactly the four the
-registry names: a fifth is a registry edit, not an admin action. `Song Type`
+the Tags split. Derived from the registry, so it holds exactly the six the
+registry names: a seventh is a registry edit, not an admin action. `Song Type`
 and `Song Source` are named by a section rather than by a field, so they stay
 under Options. See [systems/notes.md](systems/notes.md#suggestion-categories).
 
@@ -640,13 +641,13 @@ under Options. See [systems/notes.md](systems/notes.md#suggestion-categories).
 2 categories with no `TagField` behind them — `Reference Source` instead
 backs `media_source` `kind='reference'` rows directly, resolved by
 `option_id` the same way `main`-bucket access rows are, never through
-`media_tag`). `NOTE_OPTION_CATEGORIES` (`app/utils/note_sections.py`): `Item
-Type`, `Collectible Type`, `Character Group`, `Geography Group`, `Song Type`
-and `Song Source`, derived from the note sections that name them (a field's
+`media_tag`). `NOTE_OPTION_CATEGORIES` (`app/utils/note_sections.py`):
+`Weapon & Gear Type`, `Item Type`, `Collectible Type`, `Character Group`,
+`Enemy Tier`, `Geography Group`, `Song Type` and `Song Source`, derived from the note sections that name them (a field's
 `option_category`, a section's `kind_category` and `link_text_category`)
 rather than listed, so a section that names a new category offers it with no
 second edit. `OPTION_CATEGORIES` = the tag-field categories, the two character
-tag categories (`CHARACTER_OPTION_CATEGORIES`) and these eight,
+tag categories (`CHARACTER_OPTION_CATEGORIES`) and these ten,
 served as `/api/constants` `option_categories` and unioned with the
 categories present in the stored options to build the category picker on the
 Add and Modify pages. Without it a declared category holding no values yet
@@ -743,7 +744,7 @@ twenty-seven in `OPTION_CATEGORIES`:
 | `Game Theme` | game, h-game | tag field `game_theme`; 20 seeded values, each with an IGDB alias |
 | `Game Mode` | game | tag field `game_mode`; 5 seeded values, each with an IGDB alias |
 | `Combat Mode` | game | tag field `combat_mode`; `PvE` and `PvP`, seeded **without** aliases - it is not an IGDB field |
-| `Game Platform` | game | tag field `game_platform`; `PlayStation`, `Nintendo`, `Xbox`, `PC`, `Mobile`, `Browser` - each folding a whole IGDB console generation in through its aliases. Brand names, so English rather than Chinese |
+| `Game Platform` | game | tag field `game_platform`; six **families** - `PlayStation`, `Nintendo`, `Xbox`, `PC`, `Mobile`, `Browser` - each followed by its **consoles** under short names (`PS5`, `Switch`, …; the list is under [Game Platform: families and consoles](#game-platform-families-and-consoles)). A console brings its family on every write. Brand names, so English rather than Chinese |
 | `H Genre Plot` | h-comic, h-game, hentai | tag field `h_genre_plot`; admin-managed, ships empty |
 | `H Genre Appearance` | h-comic, h-game, hentai | tag field `h_genre_appearance`; admin-managed, ships empty |
 | `H Genre Relation` | h-comic, h-game, hentai | tag field `h_genre_relation`; admin-managed, ships empty |
@@ -751,10 +752,12 @@ twenty-seven in `OPTION_CATEGORIES`:
 | `Character Trait` | unscoped (every character) | character tag field `trait`; admin-managed, ships empty, and a value typed into the character form creates itself |
 | `Franchise for Filter` | movie, tv-show | nothing today; filter-only, no form field |
 | `Song Type` | anime | suggestions for the Song Type (`note.kind`) of an `op` or `ed` row; `normal`, `different version`, `all inclusive version` seeded by `m1s2ongstat3`. Suggestions only - a value not in the list is stored as typed |
-| `Song Source` | anime | suggestions for a song link's label (`text` of a link pair on `op`, `ed`, `insert_songs`, `ost`); `YouTube`, `YouTube Music`, `Spotify`, `Apple Music`, `Bilibili` seeded by `m1s2ongstat3`. Suggestions only, like `Song Type` |
+| `Song Source` | anime | suggestions for a song link's title (`text` of a titled link on `op`, `ed`, `insert_songs`, `ost`); `YouTube`, `YouTube Music`, `Spotify`, `Apple Music`, `Bilibili` seeded by `m1s2ongstat3`. Suggestions only, like `Song Type` |
 | `Character Group` | unscoped (read by game and h-game notes) | suggestions for a 角色 Characters row's group (`characters_guide`, `note.kind`); `商人`, `重要NPC`, `主角`, `同伴`, `可攻略`, `反派` seeded by `n1o2tesrwk3`. Suggestions only |
 | `Collectible Type` | unscoped (read by game and h-game notes) | suggestions for a 收集物 Collectibles row's type (`collectibles`, `note.kind`); `重要物品` seeded by `n1o2tesrwk3`. Suggestions only |
 | `Item Type` | unscoped (read by game and h-game notes) | suggestions for a 道具 Items row's type (`items`, `note.kind`); `重要道具`, `任務道具` seeded by `n1o2tesrwk3`. Suggestions only |
+| `Weapon & Gear Type` | unscoped (read by game and h-game notes) | suggestions for a 武器&裝備 Weapons & Gear row's type (`weapons_and_gear`, `note.kind`); ships empty. Suggestions only |
+| `Enemy Tier` | unscoped (read by game and h-game notes) | suggestions for a 敵人 Enemies row's tier (`enemies`, `note.kind`); ships empty. Suggestions only |
 | `Geography Group` | unscoped (read by game and h-game notes) | suggestions for a 地理 Geography row's group (`geography`, `note.kind`); ships empty. Suggestions only |
 
 **h-comic has Platform values of its own**, scoped to `h-comic` alone and
@@ -867,12 +870,57 @@ a pipeline asks for one; opening a category means teaching a pipeline to read
 it. Left open, an admin could attach `Shooter` to a `Genre Main` row and watch
 it do nothing forever, with nothing to say why.
 
-`Game Platform` is the many-to-one one: its values are brand names, and a whole
-console generation folds into each (`PlayStation 4` and `PlayStation 5` both
-become `PlayStation`). `game_vocabulary.py` seeds its rows, and they are
-editable by hand — a new console generation is exactly the case where waiting
-for a code change would be silly. `Combat Mode` is the game category with **no**
-aliases: PvE / PvP is a hand-made classification IGDB does not model.
+`Game Platform` is the many-to-many one: every console's IGDB name is an alias
+of the console **and** of its family, so `PlayStation 4` resolves to both
+`PlayStation` and `PS4`. `resolve_option_aliases` returns every match, in
+`sort_order`, for exactly that reason; in the other three categories it
+returns one value or none. `game_vocabulary.py` seeds the rows, and their
+values and aliases are editable by hand — a new console is exactly the case
+where waiting for a code change would be silly. Which family a console
+belongs to is **not** editable: see below. `Combat Mode` is the game category
+with **no** aliases: PvE / PvP is a hand-made classification IGDB does not
+model.
+
+### Game Platform: families and consoles
+
+`GAME_PLATFORMS` in `app/utils/game_vocabulary.py` is the one statement of
+which console belongs to which family; the seed, the tag write and the picker
+all read it. The values are short, compact tag names; the IGDB alias is the
+full name IGDB uses.
+
+| Family | Consoles (IGDB name, where it differs) |
+| --- | --- |
+| `PlayStation` | `PS1` (PlayStation), `PS2`, `PS3`, `PS4`, `PS5` (PlayStation 2–5), `PSP` (PlayStation Portable), `Vita` (PlayStation Vita), `PS VR`, `PS VR2` (PlayStation VR, VR2) |
+| `Nintendo` | `Switch`, `Switch 2` (Nintendo Switch, Switch 2), `Wii`, `Wii U`, `GameCube` (Nintendo GameCube), `N64` (Nintendo 64), `SNES` (Super Nintendo Entertainment System), `Super Famicom`, `NES` (Nintendo Entertainment System), `Famicom` (Family Computer), `DS`, `DSi`, `3DS`, `New 3DS` (Nintendo DS, DSi, 3DS, New Nintendo 3DS), `Game Boy`, `Game Boy Color`, `Game Boy Advance` |
+| `Xbox` | `Original Xbox` (Xbox), `Xbox 360`, `Xbox One`, `Xbox Series X\|S` |
+| `PC` | `Windows` (PC (Microsoft Windows)), `Mac`, `Linux`, `DOS` |
+| `Mobile` | `iOS`, `Android`, `Windows Phone` |
+| `Browser` | none - a family alone, aliased `Web browser` |
+
+The first Xbox is `Original Xbox` because `Xbox` is the family's value and
+`uq_system_option_value` allows one per category. The picker offers each
+family followed by its consoles, which is the `sort_order` the seed and
+`g1c2onsoles3` give them.
+
+**A console brings its family.** `replace_tags` is the one write path for
+tags - the credits API, Fill and Pull all go through it - and for
+`game_platform` it runs `with_platform_families` first: a console whose family
+is not among the values gets the family inserted just before it, so `Switch`
+is stored as `Nintendo, Switch`. A family alone brings no console, and the
+rule applies to no other tag field. **Removing a family while one of its
+consoles stays tagged keeps the family**: the write puts it straight back.
+Remove the consoles too and the family goes with them.
+
+The picker does the same before the save (`lib/gamePlatforms.js`, used by
+the Game form's Platform field), so picking `Switch` shows `Nintendo` picked
+and removing `Nintendo` beside `Switch` does nothing. It holds no copy of the
+map: every `Game Platform` option on `GET /api/options` carries `family`, the
+console's family name (null on a family and on every other category), read
+from `GAME_PLATFORMS` rather than stored.
+
+Fill tags both grains from one IGDB platform. Games tagged before the
+consoles existed keep their family tags alone; no console was guessed for
+them.
 
 **Deleting a conversion** removes only the external name, never the value it
 points at. There is no alias endpoint, so it is a `PUT` of the option without

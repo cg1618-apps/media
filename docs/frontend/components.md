@@ -802,8 +802,8 @@ columns.
   `MusicTrackSection` serves all four song lists (OP, ED, 插入曲, OST): song
   name; Song Type on OP and ED only, a `SuggestInput` over the section's
   `kind_category` values ("Song Type") starting on `default_kind`; the
-  the episode; link pairs; and a remark. Save stays inert on a row carrying
-  nothing but its prefilled type, and on a link label with no URL - the
+  the episode; titled links; and a remark. Save stays inert on a row carrying
+  nothing but its prefilled type, and on a link title with no URL - the
   server's rules, mirrored. The **per-song status** is not in the form: it is
   the viewer's own, drawn on the row as a compact select over `statuses`
   (blank clears it) for a viewer who may mark (`canMark`), and as a tag for
@@ -824,14 +824,17 @@ columns.
   structured fields names (`option_category`) from
   `GET /api/options/{category}?scope=<owner type>` once per page and passes
   them as `optionValues`; a category that fails to load is an empty list.
-  **Link pairs** (`LinkPairs.jsx`, pure helpers in `linkPairValues.js` - not
-  `linkPairs.js`, which Windows would resolve for `./LinkPairs`):
-  `LinkPairsEditor` is a repeatable row of label and URL, the label a
-  `SuggestInput` when the caller passes `textOptions` (a song's "Song
-  Source") and a plain input when it passes none;
-  `LinkPairPills` draws each stored pair as a `LinkPill` labelled with its
-  text, falling back to the host. Stored URL strings read as pairs with no
-  text. `NameEntriesSection` renders the `name_entries` shape — a titled
+  **Titled links** (`LinkPairs.jsx`, pure helpers in `linkPairValues.js` -
+  not `linkPairs.js`, which Windows would resolve for `./LinkPairs`) are the
+  one link editor and read view of every notes section: `TextLinksSection`,
+  `NameLinksSection`, `EpisodeTextSection`, `MusicTrackSection` and every
+  `links` field of `StructuredSection`. `LinkPairsEditor` is a repeatable
+  row of an optional title and a URL, the title a `SuggestInput` when the
+  caller passes `textOptions` (a song's "Song Source") and a plain input
+  when it passes none; `LinkPairPills` draws each stored link as a
+  `LinkPill` labelled with its title, falling back to the host. A stored
+  URL string reads as a link with no title. Every section holds Save back
+  while a title has no URL. `NameEntriesSection` renders the `name_entries` shape — a titled
   list whose items are each `{type: "text" | "link", value, label}` stored in
   the note's own `entries` column, never in `links` — and offers a kind
   dropdown built from `section.kinds` when the registry declares any. **No
@@ -852,18 +855,28 @@ columns.
   naming `shown_when` is left out of the form and the read view while its
   steering field (read as its default when blank) holds anything else
   (`shownFor`), and a `view_hidden` field is never drawn on the read view. A
+  field naming `view_labels` is read only while it holds one of the values
+  named, as that value's label, last on the row's line and pushed to its
+  right end (`ml-auto`) - NG Reset's "Won't Reset" on a `no` row. A
   section carrying both `amount_collected` and `amount_total` reads them as
   one unlabelled `collected/total` value (`AmountPair`): for a viewer who may
   mark, the collected half is an input that marks on blur, followed by
   `/total`; for anyone else one tag, a blank half reading `–`. **A
-  `personal` field is not part of an edit form or any catalogue save**
-  (`catalogueFields`): a catalogue write never sends one, and the not-empty
-  rule never counts one. The **create** form does ask for the personal
-  values, for a viewer who may mark (an item's collect status and collected
-  amount): the ones changed from their default are written through
+  `personal` field is never part of a catalogue save** (`catalogueFields`):
+  a catalogue write never sends one, and the not-empty rule never counts
+  one. **Both forms carry them all the same**, for a viewer who may mark, so
+  a form holds everything its row shows - an item's collect status and
+  collected amount, an enemy's beaten, a stat's Mine, an ending's
+  completion, a mod's status - subject to `shown_when` like any field. The
+  **create** form's values that differ from their default go through
   `onCreate(payload, marks)`, which posts the row and then puts the mark on
-  the row it got back. A saved row's personal values are drawn on the read
-  view instead, by
+  the row it got back (`draftMarks`); the **edit** form's values that differ
+  from what the row read go through `onUpdate(id, payload, marks)`, which
+  PATCHes the row and then PUTs the mark, a value emptied in the form sent
+  as null to clear it (`editMarks`). With nothing personal changed, neither
+  passes `marks` and no mark is written. A viewer who may not mark gets
+  neither form's personal fields. A saved row's personal values are also
+  drawn on the read view, by
   `PersonalValue`, as a **provisional UI** pending the owner's design: for a
   viewer who may mark (`canMark`), a closed select (a blank option clears
   it) that marks on change, or a short text input (the `quick_edit` one for
@@ -911,7 +924,9 @@ columns.
   provider passes both in from the owner page; `NotesContext` also drops a
   section whose `owner_where` the owner row fails (`ownerMatches`). A section
   with `groupable_by` gets a **Group by** toggle named after that field -
-  *Group by type*, *Group by tier* - (`SectionCard`'s `actions`) over the same grouped view, one group per `select` value; its
+  *Group by type*, *Group by tier* - (`SectionCard`'s `actions`) over the same grouped view, one group per `select` value, except on an
+  `always_grouped` section (the three grouped by `group`), which draws no
+  toggle and is always grouped; its
   groups and rows move by their grips - a row only within its own group
   (`movedRow` in `groupedRows.js`) - and each move goes to `onReorder` as the
   section's whole row order, grouped - nothing else stores the group order.
@@ -932,7 +947,9 @@ columns.
   docked at the bottom right that leaves the page behind it usable, so text
   can be copied from the rows into it (see `docs/systems/notes.md`, "The
   draft popup"). `StructuredSection`
-  caps top-level rows, or each group of a grouped section. Every list section
+  caps top-level rows, or each group of a grouped section - whose groups are
+  capped to the first three too, behind "Show all groups (N)" (`ShowAllToggle`
+  with `noun="groups"`). Every list section
   is also reorderable by a viewer who may write it (`canWrite`), the same way: a `DragHandle` per row (none
   on the row being edited, none while there is only one row), each move sent
   to `onReorder` as the section's whole order for `PATCH /api/notes/reorder`
@@ -942,6 +959,20 @@ columns.
   share `useRowReorder`, `ReorderList`, `ReorderRow` and `ReorderHandle` in
   `ui.jsx`; a grip is labelled by `noteLabel` (the row's name, locator, text
   or first link). The rules are in `docs/systems/notes.md`.
+  A named group header - `GroupBlock` in `StructuredSection` (a
+  `groupable_by` section, the grouped tree, a `group_by` section) and a
+  Resources group heading in `NameLinksSection` - renames its group through
+  `GroupName` (`ui.jsx`): a pencil labelled "Rename group <name>", shown when
+  the section was given `onRenameGroup` and the viewer may edit any row of the
+  group (`canEditRow`), turns the name into an input labelled "Group name",
+  prefilled; Enter or leaving it saves the trimmed value, Escape cancels, and
+  a blank or unchanged value sends nothing. The nameless group and Resources'
+  "Other" carry none, and the group's drag handle stays beside it. The
+  provider's `onRenameGroup(section, from, to)` sends one
+  `POST /api/notes/rename-group` and reloads the rows; on a `group_by`
+  section, whose renamed order arrives with the entry (`groupOrder`), it also
+  invalidates the entry's `["media-item", ownerType]` query when the page has
+  a query client.
 
 ## Dropdown lists
 
@@ -1054,6 +1085,7 @@ functions `tagsForLabels`, `labelsForTags`, `applyLabelEdit` and
 | File | Purpose |
 |---|---|
 | `naming.js` | `getDisplayName`, `getSortName`, `cleanString`, name-field lists |
+| `gamePlatforms.js` | `platformFamilies(options)`: `{console: family}` read off the loaded `Game Platform` options' `family`; `withPlatformFamilies(raw, families)`: the tags string with each console's family put in before it - the browser half of `with_platform_families` in `app/utils/game_vocabulary.py`. The Game form's Platform field runs every change through it |
 | `requests.js` | The words the request pages print: `requestKindLabel` / `requestStatusLabel` (a code with no label prints as itself), `DELETED_ACCOUNT` ("deleted account", for a null username) and `formatRequestDate` |
 | `releaseDate.js` | `releaseYear`, `releaseScore` for truncated-ISO dates |
 | `gameHours.js` | `hours(value)` (`"32.5 h"`, null for a missing or unreadable figure) and `timeToBeatFields(entry)`: the recorded IGDB time-to-beat figures (`hltb_main`, `hltb_main_extra`, `hltb_completionist`) as `InfoCard` fields Main, Main + Extra, Completionist, `[]` when none is recorded. Shared by the game and h-game pages |
@@ -1120,6 +1152,13 @@ under sticky division headers and the filter bar.
   render `NotesBlocks` too and carry the same anchors, unread.
 - **Not listed**: the header (title, eyebrow, scores) and the left column
   (cover, sources, relations), which sit beside the top of the page anyway.
+- **Height**: every contents column is capped to the space under the nav
+  (`max-h-[calc(100vh-var(--nav-h)-2rem)]`) and scrolls inside itself
+  (`overflow-y-auto`, `overscroll-contain`), so a list longer than the screen
+  - a game's detail page with all its note cards - stays reachable end to end
+  from anywhere on the page. When the current row changes, `keepInView`
+  moves the column's own scroll, never the page's, so that row sits at least
+  32 px inside the visible part.
 - **Placement**: on the right, `xl:` only, `w-40`, sticky under the nav. On
   `xl:` the container widens from `max-w-7xl` to `88rem`, by about the
   column's width, so the cover column keeps close to its usual size. Below

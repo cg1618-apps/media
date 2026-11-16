@@ -170,7 +170,8 @@ def test_the_per_owner_game_overrides_carry_over():
             continue
         assert ns.label_for(section, "h-game") == ns.label_for(section, "game"), section.key
         assert ns.locator_for(section, "h-game") == ns.locator_for(section, "game"), section.key
-        if not section.key.startswith("story_list_"):
+        # An h-game has no prose 劇情 and no 世界觀, so those two differ.
+        if not section.key.startswith("story_list_") and section.key != "geography":
             assert ns.group_for(section, "h-game") == ns.group_for(section, "game"), section.key
         assert ns.kinds_for(section, "h-game") == ns.kinds_for(section, "game"), section.key
 

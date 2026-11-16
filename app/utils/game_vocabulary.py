@@ -24,6 +24,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app import models
+from app.utils.name_normalize import normalize_name
 
 # category -> ((chinese_value, (igdb_aliases, ...)), ...)
 GAME_VOCABULARY: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
@@ -86,80 +87,145 @@ GAME_VOCABULARY: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
         ("PvE", ()),
         ("PvP", ()),
     ),
-    # WHICH platform the game is on - a family, not a console. IGDB names
-    # every model separately ("PlayStation 4", "Nintendo Switch"), so the
-    # aliases fold a generation each into its family. The values are English
-    # rather than Chinese because they are brand names; PC, Mobile and Browser
-    # keep the same register.
-    #
-    # Deliberately not storefronts and not subscriptions: which copy was
-    # bought lives in game_copy.
-    "Game Platform": (
-        (
-            "PlayStation",
-            (
-                "PlayStation",
-                "PlayStation 2",
-                "PlayStation 3",
-                "PlayStation 4",
-                "PlayStation 5",
-                "PlayStation Portable",
-                "PlayStation Vita",
-                "PlayStation VR",
-                "PlayStation VR2",
-            ),
-        ),
-        (
-            "Nintendo",
-            (
-                "Nintendo Switch",
-                "Nintendo Switch 2",
-                "Wii",
-                "Wii U",
-                "Nintendo GameCube",
-                "Nintendo 64",
-                "Super Nintendo Entertainment System",
-                "Super Famicom",
-                "Nintendo Entertainment System",
-                "Family Computer",
-                "Nintendo DS",
-                "Nintendo DSi",
-                "Nintendo 3DS",
-                "New Nintendo 3DS",
-                "Game Boy",
-                "Game Boy Color",
-                "Game Boy Advance",
-            ),
-        ),
-        (
-            "Xbox",
-            (
-                "Xbox",
-                "Xbox 360",
-                "Xbox One",
-                "Xbox Series X|S",
-            ),
-        ),
-        (
-            "PC",
-            (
-                "PC (Microsoft Windows)",
-                "Mac",
-                "Linux",
-                "DOS",
-            ),
-        ),
-        (
-            "Mobile",
-            (
-                "iOS",
-                "Android",
-                "Windows Phone",
-            ),
-        ),
-        ("Browser", ("Web browser",)),
-    ),
+    "Game Platform": (),  # filled from GAME_PLATFORMS below
 }
+
+# WHICH platform the game is on, at two grains: a family (PlayStation,
+# Nintendo, ...) and a console within it (PS5, Switch, ...). The values are
+# English rather than Chinese because they are brand names; consoles take the
+# short names people tag with, and IGDB's full name is the console's alias.
+#
+# A family's own aliases are every one of its consoles' IGDB names plus any
+# listed here, so one IGDB platform resolves to BOTH the family and the
+# console. Browser is a family with no console.
+#
+# This tuple is the one statement of which console belongs to which family:
+# replace_tags adds a console's family on every write (with_platform_families),
+# and every Game Platform option the API serves carries its `family`
+# (SystemOptionResponse) for the picker to do the same.
+#
+# Deliberately not storefronts and not subscriptions: which copy was bought
+# lives in game_copy.
+#
+# family -> (the family's own extra igdb aliases, ((console, igdb name), ...))
+GAME_PLATFORMS: tuple[
+    tuple[str, tuple[str, ...], tuple[tuple[str, str], ...]], ...
+] = (
+    (
+        "PlayStation",
+        (),
+        (
+            ("PS1", "PlayStation"),
+            ("PS2", "PlayStation 2"),
+            ("PS3", "PlayStation 3"),
+            ("PS4", "PlayStation 4"),
+            ("PS5", "PlayStation 5"),
+            ("PSP", "PlayStation Portable"),
+            ("Vita", "PlayStation Vita"),
+            ("PS VR", "PlayStation VR"),
+            ("PS VR2", "PlayStation VR2"),
+        ),
+    ),
+    (
+        "Nintendo",
+        (),
+        (
+            ("Switch", "Nintendo Switch"),
+            ("Switch 2", "Nintendo Switch 2"),
+            ("Wii", "Wii"),
+            ("Wii U", "Wii U"),
+            ("GameCube", "Nintendo GameCube"),
+            ("N64", "Nintendo 64"),
+            ("SNES", "Super Nintendo Entertainment System"),
+            ("Super Famicom", "Super Famicom"),
+            ("NES", "Nintendo Entertainment System"),
+            ("Famicom", "Family Computer"),
+            ("DS", "Nintendo DS"),
+            ("DSi", "Nintendo DSi"),
+            ("3DS", "Nintendo 3DS"),
+            ("New 3DS", "New Nintendo 3DS"),
+            ("Game Boy", "Game Boy"),
+            ("Game Boy Color", "Game Boy Color"),
+            ("Game Boy Advance", "Game Boy Advance"),
+        ),
+    ),
+    (
+        "Xbox",
+        (),
+        (
+            # Not "Xbox": that is the family's value, and uq_system_option_value
+            # allows one per category.
+            ("Original Xbox", "Xbox"),
+            ("Xbox 360", "Xbox 360"),
+            ("Xbox One", "Xbox One"),
+            ("Xbox Series X|S", "Xbox Series X|S"),
+        ),
+    ),
+    (
+        "PC",
+        (),
+        (
+            ("Windows", "PC (Microsoft Windows)"),
+            ("Mac", "Mac"),
+            ("Linux", "Linux"),
+            ("DOS", "DOS"),
+        ),
+    ),
+    (
+        "Mobile",
+        (),
+        (
+            ("iOS", "iOS"),
+            ("Android", "Android"),
+            ("Windows Phone", "Windows Phone"),
+        ),
+    ),
+    ("Browser", ("Web browser",), ()),
+)
+
+# console -> family
+GAME_PLATFORM_FAMILIES: dict[str, str] = {
+    console: family
+    for family, _, consoles in GAME_PLATFORMS
+    for console, _ in consoles
+}
+
+GAME_PLATFORM_FIELD = "game_platform"
+PLATFORM_CATEGORY = "Game Platform"
+
+
+def _platform_vocabulary() -> tuple[tuple[str, tuple[str, ...]], ...]:
+    """Each family, then its consoles - the order the picker offers them in."""
+    rows: list[tuple[str, tuple[str, ...]]] = []
+    for family, extra, consoles in GAME_PLATFORMS:
+        rows.append((family, tuple(igdb for _, igdb in consoles) + extra))
+        rows.extend((console, (igdb,)) for console, igdb in consoles)
+    return tuple(rows)
+
+
+GAME_VOCABULARY["Game Platform"] = _platform_vocabulary()
+
+
+def with_platform_families(values: list[str]) -> list[str]:
+    """
+    `values` with the family of every console among them.
+
+    A missing family goes in just before its first console; nothing else
+    moves. Matched as resolve_option matches, ignoring case, width and
+    whitespace. A family is never taken out: removing Nintendo while Switch
+    stays tagged puts Nintendo back.
+    """
+    families = {normalize_name(c): f for c, f in GAME_PLATFORM_FAMILIES.items()}
+    present = {normalize_name(v) for v in values}
+    out: list[str] = []
+    for value in values:
+        family = families.get(normalize_name(value))
+        if family is not None and normalize_name(family) not in present:
+            out.append(family)
+            present.add(normalize_name(family))
+        out.append(value)
+    return out
+
 
 # One vocabulary that already exists gains game-scoped values, so the Sources
 # card has something to offer on a game.

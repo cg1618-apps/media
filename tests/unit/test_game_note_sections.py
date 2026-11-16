@@ -76,9 +76,13 @@ def test_the_story_group_holds_the_four_plot_strands_in_order():
     assert [s.key for s in ns.NOTE_SECTIONS if s.group == "story"] == STORY_KEYS
 
 
-def test_the_worldbuilding_group_holds_five_sections_in_order():
+def test_the_worldbuilding_group_holds_six_sections_in_order():
+    # 地理 Geography is the sixth, above 時間線 Timeline - and, unlike the
+    # five, an h-game's too, which keeps it in 圖鑑與名詞 Compendium.
     keys = [s.key for s in ns.NOTE_SECTIONS if s.group == "worldbuilding"]
-    assert keys == STORY_SETTING_KEYS
+    expected = list(STORY_SETTING_KEYS)
+    expected.insert(expected.index("timeline"), "geography")
+    assert keys == expected
 
 
 def test_the_worldbuilding_card_renders_after_the_story_list():

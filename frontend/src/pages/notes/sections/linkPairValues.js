@@ -1,15 +1,13 @@
-// Frontend: the text-and-URL link pairs some note sections store in `links`.
+// Frontend: the titled links every note section stores in `links`.
 //
-// A section whose registry entry reports `link_pairs: true` (the four song
-// lists) stores each link as `{"text": str | null, "url":
-// str}` rather than a bare URL: a song is heard on several services, and the
-// text is the label a reader sees on the pill. Every other section keeps URL
-// strings. These are the pure halves of the editor in LinkPairs.jsx (a different name on
+// Each link is `{"text": str | null, "url": str}`: the text is an optional
+// title, the label a reader sees on the pill, the host standing in without
+// one. These are the pure halves of the editor in LinkPairs.jsx (a different name on
 // purpose: Windows resolves paths case-insensitively, and "./LinkPairs" would
 // otherwise find a "linkPairs.js" first).
 
-// Stored links as editable rows. A bare string - a row written before the
-// section took pairs - becomes a pair with no text rather than being lost.
+// Stored links as editable rows. A bare string - a link written before every
+// link was a pair - becomes a pair with no text rather than being lost.
 export const pairsFromLinks = (links) =>
   (links || [])
     .filter(Boolean)

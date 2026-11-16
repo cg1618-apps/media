@@ -61,7 +61,6 @@ def test_sections_describe_the_status_bar_and_the_song_rows(user_client):
         song = by_key[key]
         assert song["shape"] == "music_track"
         assert song["hidden"] is False
-        assert song["link_pairs"] is True
         assert song["link_text_category"] == "Song Source"
         assert song["type_status_section"] == "music_status"
         assert song["type_statuses"] == [
@@ -77,7 +76,6 @@ def test_sections_describe_the_status_bar_and_the_song_rows(user_client):
     egg = by_key["easter_eggs"]
     assert egg["group"] == "analysis_group"
     assert egg["shape"] == "text_links"
-    assert egg["link_pairs"] is False
     assert egg["fields"] == []
 
 
@@ -92,7 +90,6 @@ def test_a_visitor_is_listed_no_music_status(client):
     for key in SONG_SECTIONS:
         assert by_key[key]["statuses"] == []
         assert by_key[key]["type_status_section"] is None
-        assert by_key[key]["link_pairs"] is True
 
 
 # --- music_status -----------------------------------------------------------
@@ -294,10 +291,23 @@ def test_an_op_takes_a_song_type_outside_the_suggestions(owner_client, sample_an
     assert r.json()["kind"] == "TV size"
 
 
-def test_a_song_refuses_bare_url_links(owner_client, sample_anime):
+def test_a_song_stores_a_bare_url_as_an_untitled_pair(owner_client, sample_anime):
     r = owner_client.post(
         "/api/notes",
         json={**_owner(sample_anime), "section": "op", "links": ["https://a.example"]},
+    )
+    assert r.status_code == 201, r.text
+    assert r.json()["links"] == [{"text": None, "url": "https://a.example"}]
+
+
+def test_a_song_link_without_a_url_is_refused(owner_client, sample_anime):
+    r = owner_client.post(
+        "/api/notes",
+        json={
+            **_owner(sample_anime),
+            "section": "op",
+            "links": [{"text": "YouTube", "url": " "}],
+        },
     )
     assert r.status_code == 422
 
@@ -322,16 +332,12 @@ def test_an_easter_egg_round_trips(owner_client, sample_anime):
         "section": "easter_eggs",
         "locator": "ep 3",
         "content": "The poster is the ep 12 villain.",
-        "links": ["https://b23.tv/x", "https://youtu.be/y"],
+        "links": [
+            {"text": "Bilibili", "url": "https://b23.tv/x"},
+            {"text": None, "url": "https://youtu.be/y"},
+        ],
     }
     r = owner_client.post("/api/notes", json=body)
     assert r.status_code == 201, r.text
     assert r.json()["links"] == body["links"]
     assert r.json()["locator"] == "ep 3"
-
-    # Its links are URL strings, like the rest of 解析: a pair is refused.
-    r = owner_client.post(
-        "/api/notes",
-        json={**body, "links": [{"text": "Bilibili", "url": "https://b23.tv/x"}]},
-    )
-    assert r.status_code == 422

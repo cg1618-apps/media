@@ -120,13 +120,11 @@ def test_classes_fields_in_order():
         "unlock",
         "key_stats",
         "description",
-        "links",
     ]
     assert (fields["type"].type, fields["type"].column) == (ns.FIELD_SELECT, "kind")
     assert fields["type"].options == ()
     assert fields["name"].column == "title"
     assert fields["description"].column == "content"
-    assert fields["links"].column == "links"
     for key in ("role", "unlock", "key_stats"):
         assert fields[key].column is None, key
 
@@ -134,3 +132,28 @@ def test_classes_fields_in_order():
 def test_classes_sits_between_stats_and_skills():
     builds = [s.key for s in sections_out("game") if s.group == "builds"]
     assert builds[:3] == ["stats_and_points", "classes", "skills"]
+
+
+# --- always_grouped ---------------------------------------------------------
+
+
+def test_the_sections_grouped_by_group_are_always_grouped():
+    always = {s.key for s in ns.NOTE_SECTIONS if s.always_grouped}
+    assert always == {"characters_guide", "geography", "guide_resources"}
+    for key in always:
+        assert ns.section_by_key(key).groupable_by == "group", key
+    # The type and tier toggles stay toggles.
+    for key in ("items", "enemies", "skills"):
+        section = ns.section_by_key(key)
+        assert section.groupable_by is not None and not section.always_grouped, key
+
+
+def test_always_grouped_needs_a_groupable_by():
+    with pytest.raises(ValueError, match="always_grouped"):
+        ns._check_always_grouped(
+            ns.NoteSection(
+                key="x", shape=ns.SHAPE_STRUCTURED, label="x", owners=("game",),
+                scope=ns.SCOPE_CATALOG, always_grouped=True,
+                fields=(ns.NoteField(key="group", label="Group", type=ns.FIELD_SELECT),),
+            )
+        )

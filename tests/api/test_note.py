@@ -465,26 +465,33 @@ def test_op_ed_change_links_round_trip(owner_client, sample_anime):
             "section": "op_ed_changes",
             "locator": "ep 10",
             "kind": "變化OP",
-            "links": ["https://youtu.be/a", "https://b23.tv/b"],
+            "links": [
+                {"text": "YouTube", "url": "https://youtu.be/a"},
+                {"text": None, "url": "https://b23.tv/b"},
+            ],
         },
     )
     assert r.status_code == 201, r.text
     note = r.json()
-    assert note["links"] == ["https://youtu.be/a", "https://b23.tv/b"]
+    assert note["links"] == [
+        {"text": "YouTube", "url": "https://youtu.be/a"},
+        {"text": None, "url": "https://b23.tv/b"},
+    ]
 
+    # A bare URL string - an older page - is stored as an untitled pair.
     r = owner_client.patch(
         f"/api/notes/{note['system_id']}",
         json={"links": ["https://youtu.be/c"]},
     )
     assert r.status_code == 200, r.text
-    assert r.json()["links"] == ["https://youtu.be/c"]
+    assert r.json()["links"] == [{"text": None, "url": "https://youtu.be/c"}]
 
     r = owner_client.get(
         "/api/notes",
         params={"owner_type": "anime", "owner_id": str(sample_anime.system_id)},
     )
     (row,) = [n for n in r.json() if n["section"] == "op_ed_changes"]
-    assert row["links"] == ["https://youtu.be/c"]
+    assert row["links"] == [{"text": None, "url": "https://youtu.be/c"}]
 
 
 # --- music_track rows over the wire ---------------------------------------
