@@ -440,6 +440,10 @@ class NoteSection:
     # flat list - the one rows are reordered in - stays one click away, and no
     # group order is stored anywhere. Checked at import.
     groupable_by: str | None = None
+    # The `groupable_by` view is the only view: the card is always drawn
+    # grouped and offers no toggle. Rows are still moved within their group.
+    # Only beside a `groupable_by`; checked at import.
+    always_grouped: bool = False
     # Owner-entry columns this section is limited to: {column: allowed
     # values}. The note router refuses (422) a row on an owner whose column
     # holds anything else, and the page renders no card for it. Empty means
@@ -1594,6 +1598,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         ),
         # A cast read one faction at a time, like Skills one type at a time.
         groupable_by="group",
+        always_grouped=True,
     ),
     NoteSection(
         key="enemies",
@@ -1659,6 +1664,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         group="compendium",
         hierarchical=True,
         groupable_by="group",
+        always_grouped=True,
         require_any=(("name",),),
         fields=(
             NoteField(
@@ -2162,6 +2168,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         # reader may toggle a grouped view on. Free text, with no category to
         # suggest from.
         groupable_by="group",
+        always_grouped=True,
         fields=(
             NoteField(key="group", label="Group", type=FIELD_SELECT, column="kind"),
             NoteField(key="name", label="Name", column="title"),
@@ -2236,6 +2243,14 @@ def _check_group_by(section: NoteSection) -> None:
         raise ValueError(
             f"Section '{section.key}' groups by '{section.group_by}', which is "
             "not one of its `names` fields."
+        )
+
+
+def _check_always_grouped(section: NoteSection) -> None:
+    """`always_grouped` fixes the `groupable_by` view, so it needs one."""
+    if section.always_grouped and not section.groupable_by:
+        raise ValueError(
+            f"Section '{section.key}' is always_grouped with no groupable_by."
         )
 
 
@@ -2438,6 +2453,7 @@ for _section in NOTE_SECTIONS:
     _check_group_by(_section)
     _check_mixed(_section)
     _check_groupable_by(_section)
+    _check_always_grouped(_section)
     _check_option_categories(_section)
     _check_kind_category(_section)
     _check_type_status(_section)
