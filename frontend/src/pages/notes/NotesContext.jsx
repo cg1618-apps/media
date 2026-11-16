@@ -437,9 +437,12 @@ export function NotesProvider({
           setError(String(e.message || e));
         }
       },
-      onUpdate: async (id, payload) => {
+      // `marks` are the viewer's own personal values an edit form changed;
+      // they go through the mark endpoint, never the catalogue PATCH.
+      onUpdate: async (id, payload, marks) => {
         try {
           await api.updateNote(id, payload);
+          if (marks && Object.keys(marks).length) await api.markNote(id, marks);
           await reloadNotes();
         } catch (e) {
           setError(String(e.message || e));
