@@ -848,8 +848,8 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                         "game_platform",
                         "tag",
                         "if-absent",
-                        "alias-resolved; a whole console generation folds into one "
-                        "family, and the duplicate is dropped",
+                        "alias-resolved; each IGDB platform tags its console and "
+                        "its family, and a family two consoles share is kept once",
                     ),
                     Write("cover_image_file", "image", "if-empty"),
                     Write(

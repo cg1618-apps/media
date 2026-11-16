@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-11-14
+Last verified: 2026-11-16
 
 ## What this is for
 
@@ -743,7 +743,7 @@ twenty-seven in `OPTION_CATEGORIES`:
 | `Game Theme` | game, h-game | tag field `game_theme`; 20 seeded values, each with an IGDB alias |
 | `Game Mode` | game | tag field `game_mode`; 5 seeded values, each with an IGDB alias |
 | `Combat Mode` | game | tag field `combat_mode`; `PvE` and `PvP`, seeded **without** aliases - it is not an IGDB field |
-| `Game Platform` | game | tag field `game_platform`; `PlayStation`, `Nintendo`, `Xbox`, `PC`, `Mobile`, `Browser` - each folding a whole IGDB console generation in through its aliases. Brand names, so English rather than Chinese |
+| `Game Platform` | game | tag field `game_platform`; six **families** - `PlayStation`, `Nintendo`, `Xbox`, `PC`, `Mobile`, `Browser` - each followed by its **consoles** under short names (`PS5`, `Switch`, …; the list is under [Game Platform: families and consoles](#game-platform-families-and-consoles)). A console brings its family on every write. Brand names, so English rather than Chinese |
 | `H Genre Plot` | h-comic, h-game, hentai | tag field `h_genre_plot`; admin-managed, ships empty |
 | `H Genre Appearance` | h-comic, h-game, hentai | tag field `h_genre_appearance`; admin-managed, ships empty |
 | `H Genre Relation` | h-comic, h-game, hentai | tag field `h_genre_relation`; admin-managed, ships empty |
@@ -867,12 +867,57 @@ a pipeline asks for one; opening a category means teaching a pipeline to read
 it. Left open, an admin could attach `Shooter` to a `Genre Main` row and watch
 it do nothing forever, with nothing to say why.
 
-`Game Platform` is the many-to-one one: its values are brand names, and a whole
-console generation folds into each (`PlayStation 4` and `PlayStation 5` both
-become `PlayStation`). `game_vocabulary.py` seeds its rows, and they are
-editable by hand — a new console generation is exactly the case where waiting
-for a code change would be silly. `Combat Mode` is the game category with **no**
-aliases: PvE / PvP is a hand-made classification IGDB does not model.
+`Game Platform` is the many-to-many one: every console's IGDB name is an alias
+of the console **and** of its family, so `PlayStation 4` resolves to both
+`PlayStation` and `PS4`. `resolve_option_aliases` returns every match, in
+`sort_order`, for exactly that reason; in the other three categories it
+returns one value or none. `game_vocabulary.py` seeds the rows, and their
+values and aliases are editable by hand — a new console is exactly the case
+where waiting for a code change would be silly. Which family a console
+belongs to is **not** editable: see below. `Combat Mode` is the game category
+with **no** aliases: PvE / PvP is a hand-made classification IGDB does not
+model.
+
+### Game Platform: families and consoles
+
+`GAME_PLATFORMS` in `app/utils/game_vocabulary.py` is the one statement of
+which console belongs to which family; the seed, the tag write and the picker
+all read it. The values are short, compact tag names; the IGDB alias is the
+full name IGDB uses.
+
+| Family | Consoles (IGDB name, where it differs) |
+| --- | --- |
+| `PlayStation` | `PS1` (PlayStation), `PS2`, `PS3`, `PS4`, `PS5` (PlayStation 2–5), `PSP` (PlayStation Portable), `Vita` (PlayStation Vita), `PS VR`, `PS VR2` (PlayStation VR, VR2) |
+| `Nintendo` | `Switch`, `Switch 2` (Nintendo Switch, Switch 2), `Wii`, `Wii U`, `GameCube` (Nintendo GameCube), `N64` (Nintendo 64), `SNES` (Super Nintendo Entertainment System), `Super Famicom`, `NES` (Nintendo Entertainment System), `Famicom` (Family Computer), `DS`, `DSi`, `3DS`, `New 3DS` (Nintendo DS, DSi, 3DS, New Nintendo 3DS), `Game Boy`, `Game Boy Color`, `Game Boy Advance` |
+| `Xbox` | `Original Xbox` (Xbox), `Xbox 360`, `Xbox One`, `Xbox Series X\|S` |
+| `PC` | `Windows` (PC (Microsoft Windows)), `Mac`, `Linux`, `DOS` |
+| `Mobile` | `iOS`, `Android`, `Windows Phone` |
+| `Browser` | none - a family alone, aliased `Web browser` |
+
+The first Xbox is `Original Xbox` because `Xbox` is the family's value and
+`uq_system_option_value` allows one per category. The picker offers each
+family followed by its consoles, which is the `sort_order` the seed and
+`g1c2onsoles3` give them.
+
+**A console brings its family.** `replace_tags` is the one write path for
+tags - the credits API, Fill and Pull all go through it - and for
+`game_platform` it runs `with_platform_families` first: a console whose family
+is not among the values gets the family inserted just before it, so `Switch`
+is stored as `Nintendo, Switch`. A family alone brings no console, and the
+rule applies to no other tag field. **Removing a family while one of its
+consoles stays tagged keeps the family**: the write puts it straight back.
+Remove the consoles too and the family goes with them.
+
+The picker does the same before the save (`lib/gamePlatforms.js`, used by
+the Game form's Platform field), so picking `Switch` shows `Nintendo` picked
+and removing `Nintendo` beside `Switch` does nothing. It holds no copy of the
+map: every `Game Platform` option on `GET /api/options` carries `family`, the
+console's family name (null on a family and on every other category), read
+from `GAME_PLATFORMS` rather than stored.
+
+Fill tags both grains from one IGDB platform. Games tagged before the
+consoles existed keep their family tags alone; no console was guessed for
+them.
 
 **Deleting a conversion** removes only the external name, never the value it
 points at. There is no alias endpoint, so it is a `PUT` of the option without

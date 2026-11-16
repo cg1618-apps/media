@@ -1054,6 +1054,7 @@ functions `tagsForLabels`, `labelsForTags`, `applyLabelEdit` and
 | File | Purpose |
 |---|---|
 | `naming.js` | `getDisplayName`, `getSortName`, `cleanString`, name-field lists |
+| `gamePlatforms.js` | `platformFamilies(options)`: `{console: family}` read off the loaded `Game Platform` options' `family`; `withPlatformFamilies(raw, families)`: the tags string with each console's family put in before it - the browser half of `with_platform_families` in `app/utils/game_vocabulary.py`. The Game form's Platform field runs every change through it |
 | `requests.js` | The words the request pages print: `requestKindLabel` / `requestStatusLabel` (a code with no label prints as itself), `DELETED_ACCOUNT` ("deleted account", for a null username) and `formatRequestDate` |
 | `releaseDate.js` | `releaseYear`, `releaseScore` for truncated-ISO dates |
 | `gameHours.js` | `hours(value)` (`"32.5 h"`, null for a missing or unreadable figure) and `timeToBeatFields(entry)`: the recorded IGDB time-to-beat figures (`hltb_main`, `hltb_main_extra`, `hltb_completionist`) as `InfoCard` fields Main, Main + Extra, Completionist, `[]` when none is recorded. Shared by the game and h-game pages |

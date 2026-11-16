@@ -10,7 +10,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 
 from app import models
-from app.routers.options import resolve_option_alias
+from app.routers.options import resolve_option_aliases
 
 
 @pytest.fixture
@@ -28,21 +28,37 @@ def genre_option(db_session):
 
 
 def test_alias_resolves_to_the_chinese_value(db_session, genre_option):
-    found = resolve_option_alias(db_session, "Game Genre", "igdb", "Role-playing (RPG)")
-    assert found is not None
-    assert found.value == "角色扮演"
+    found = resolve_option_aliases(db_session, "Game Genre", "igdb", "Role-playing (RPG)")
+    assert [o.value for o in found] == ["角色扮演"]
 
 
-def test_an_unknown_alias_resolves_to_none(db_session, genre_option):
-    assert resolve_option_alias(db_session, "Game Genre", "igdb", "Roguelite") is None
+def test_an_unknown_alias_resolves_to_nothing(db_session, genre_option):
+    assert resolve_option_aliases(db_session, "Game Genre", "igdb", "Roguelite") == []
 
 
 def test_alias_lookup_is_scoped_to_its_category(db_session, genre_option):
     """The same English string may mean different things in two vocabularies."""
     assert (
-        resolve_option_alias(db_session, "Game Theme", "igdb", "Role-playing (RPG)")
-        is None
+        resolve_option_aliases(db_session, "Game Theme", "igdb", "Role-playing (RPG)")
+        == []
     )
+
+
+def test_one_string_may_name_several_options_in_a_category(db_session):
+    """Game Platform's family and console both carry IGDB's console name."""
+    family = models.SystemOption(category="Game Platform", value="Nintendo", sort_order=0)
+    console = models.SystemOption(category="Game Platform", value="Switch", sort_order=1)
+    db_session.add_all([console, family])
+    db_session.flush()
+    for option in (console, family):
+        db_session.add(
+            models.SystemOptionAlias(
+                option_id=option.system_id, source="igdb", value="Nintendo Switch"
+            )
+        )
+    db_session.commit()
+    found = resolve_option_aliases(db_session, "Game Platform", "igdb", "Nintendo Switch")
+    assert [o.value for o in found] == ["Nintendo", "Switch"]
 
 
 def test_one_option_may_carry_several_aliases(db_session, genre_option):
@@ -99,7 +115,7 @@ def test_aliases_round_trip_through_the_options_api(owner_client, db_session):
 def test_an_unknown_alias_source_is_rejected(owner_client):
     """
     A typo'd source is the one alias mistake nothing else catches: the row
-    saves, and then resolve_option_alias never matches it because Fill asks
+    saves, and then resolve_option_aliases never matches it because Fill asks
     for "igdb". Validated for the same reason scopes and usages are.
     """
     response = owner_client.post(
@@ -168,8 +184,8 @@ def test_an_unlisted_category_may_still_be_saved_without_aliases(owner_client):
 
 def test_game_platform_takes_several_aliases_for_one_value(owner_client):
     """
-    Platform is the many-to-one category: a whole console generation folds
-    into one brand name, which is exactly why it must be editable - a new
+    Platform is the category whose family value carries every one of its
+    consoles' IGDB names, which is exactly why it must be editable - a new
     console should not need a code change.
     """
     created = owner_client.post(

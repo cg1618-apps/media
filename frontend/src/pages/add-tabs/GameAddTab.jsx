@@ -29,6 +29,7 @@ import {
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import { getDisplayName, getSourceValues, parseTypes } from "../../utils/media";
 import { getIdleSourceValues } from "../../lib/formatters";
+import { platformFamilies, withPlatformFamilies } from "../../lib/gamePlatforms";
 import {
   COMPLETION_LEVELS,
   GAME_ACHIEVEMENT_FLAGS,
@@ -78,12 +79,16 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources, ownerId }
     : allGames;
   const baseGame = baseGameChoices.find((g) => g.system_id === f.base_game_id);
 
+  // A console brings its family: picking Switch picks Nintendo too.
+  const families = platformFamilies(sources?.options);
   const tagField = (key, source, placeholder) => (
     <MultiSelect
       options={getSourceValues(sources, source)}
       idleOptions={getIdleSourceValues(sources, source)}
       value={f[key]}
-      onChange={(v) => u(key, v)}
+      onChange={(v) =>
+        u(key, key === "game_platform" ? withPlatformFamilies(v, families) : v)
+      }
       placeholder={placeholder}
     />
   );

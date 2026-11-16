@@ -85,8 +85,8 @@ def test_games_seed_no_access_platforms(db_session):
     )
 
 
-def test_game_platform_folds_an_igdb_console_generation_into_its_family(db_session):
-    """IGDB names every model; the picker offers six families."""
+def test_game_platform_offers_each_family_then_its_consoles(db_session):
+    """IGDB names every model; the picker offers the families and the consoles."""
     values = [
         o.value
         for o in db_session.query(models.SystemOption)
@@ -94,14 +94,13 @@ def test_game_platform_folds_an_igdb_console_generation_into_its_family(db_sessi
         .order_by(models.SystemOption.sort_order)
         .all()
     ]
-    assert values == [
-        "PlayStation",
-        "Nintendo",
-        "Xbox",
-        "PC",
-        "Mobile",
-        "Browser",
+    families = ["PlayStation", "Nintendo", "Xbox", "PC", "Mobile", "Browser"]
+    assert [v for v in values if v in families] == families
+    assert values[: values.index("Nintendo")] == [
+        "PlayStation", "PS1", "PS2", "PS3", "PS4", "PS5", "PSP", "Vita",
+        "PS VR", "PS VR2",
     ]
+    assert {"Switch", "Switch 2", "Original Xbox", "Windows", "iOS"} <= set(values)
 
     playstation = (
         db_session.query(models.SystemOption)
@@ -110,6 +109,15 @@ def test_game_platform_folds_an_igdb_console_generation_into_its_family(db_sessi
     )
     igdb = {a.value for a in playstation.aliases if a.source == "igdb"}
     assert {"PlayStation 4", "PlayStation 5", "PlayStation Vita"} <= igdb
+
+
+def test_one_igdb_platform_resolves_to_the_family_and_the_console(db_session):
+    from app.routers.options import resolve_option_aliases
+
+    found = resolve_option_aliases(db_session, "Game Platform", "igdb", "Nintendo Switch")
+    assert [o.value for o in found] == ["Nintendo", "Switch"]
+    found = resolve_option_aliases(db_session, "Game Platform", "igdb", "Xbox")
+    assert [o.value for o in found] == ["Xbox", "Original Xbox"]
 
 
 def test_seeding_twice_is_a_no_op(db_session):
