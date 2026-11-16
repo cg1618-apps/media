@@ -22,7 +22,6 @@ const EASTER_EGGS = {
   locator_placeholder: "Episode(s), e.g. ep 3",
   locator_required: false,
   desc_required: false,
-  link_pairs: false,
   fields: [],
 };
 

@@ -25,7 +25,6 @@ const songList = (key, extra = {}) => ({
   locator_placeholder: "Episode(s), e.g. ep 3",
   locator_required: false,
   desc_required: false,
-  link_pairs: true,
   link_text_category: "Song Source",
   type_status_section: "music_status",
   type_statuses: TYPE_STATUSES,

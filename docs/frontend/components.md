@@ -802,8 +802,8 @@ columns.
   `MusicTrackSection` serves all four song lists (OP, ED, 插入曲, OST): song
   name; Song Type on OP and ED only, a `SuggestInput` over the section's
   `kind_category` values ("Song Type") starting on `default_kind`; the
-  the episode; link pairs; and a remark. Save stays inert on a row carrying
-  nothing but its prefilled type, and on a link label with no URL - the
+  the episode; titled links; and a remark. Save stays inert on a row carrying
+  nothing but its prefilled type, and on a link title with no URL - the
   server's rules, mirrored. The **per-song status** is not in the form: it is
   the viewer's own, drawn on the row as a compact select over `statuses`
   (blank clears it) for a viewer who may mark (`canMark`), and as a tag for
@@ -824,14 +824,17 @@ columns.
   structured fields names (`option_category`) from
   `GET /api/options/{category}?scope=<owner type>` once per page and passes
   them as `optionValues`; a category that fails to load is an empty list.
-  **Link pairs** (`LinkPairs.jsx`, pure helpers in `linkPairValues.js` - not
-  `linkPairs.js`, which Windows would resolve for `./LinkPairs`):
-  `LinkPairsEditor` is a repeatable row of label and URL, the label a
-  `SuggestInput` when the caller passes `textOptions` (a song's "Song
-  Source") and a plain input when it passes none;
-  `LinkPairPills` draws each stored pair as a `LinkPill` labelled with its
-  text, falling back to the host. Stored URL strings read as pairs with no
-  text. `NameEntriesSection` renders the `name_entries` shape — a titled
+  **Titled links** (`LinkPairs.jsx`, pure helpers in `linkPairValues.js` -
+  not `linkPairs.js`, which Windows would resolve for `./LinkPairs`) are the
+  one link editor and read view of every notes section: `TextLinksSection`,
+  `NameLinksSection`, `EpisodeTextSection`, `MusicTrackSection` and every
+  `links` field of `StructuredSection`. `LinkPairsEditor` is a repeatable
+  row of an optional title and a URL, the title a `SuggestInput` when the
+  caller passes `textOptions` (a song's "Song Source") and a plain input
+  when it passes none; `LinkPairPills` draws each stored link as a
+  `LinkPill` labelled with its title, falling back to the host. A stored
+  URL string reads as a link with no title. Every section holds Save back
+  while a title has no URL. `NameEntriesSection` renders the `name_entries` shape — a titled
   list whose items are each `{type: "text" | "link", value, label}` stored in
   the note's own `entries` column, never in `links` — and offers a kind
   dropdown built from `section.kinds` when the registry declares any. **No
@@ -944,7 +947,9 @@ columns.
   docked at the bottom right that leaves the page behind it usable, so text
   can be copied from the rows into it (see `docs/systems/notes.md`, "The
   draft popup"). `StructuredSection`
-  caps top-level rows, or each group of a grouped section. Every list section
+  caps top-level rows, or each group of a grouped section - whose groups are
+  capped to the first three too, behind "Show all groups (N)" (`ShowAllToggle`
+  with `noun="groups"`). Every list section
   is also reorderable by a viewer who may write it (`canWrite`), the same way: a `DragHandle` per row (none
   on the row being edited, none while there is only one row), each move sent
   to `onReorder` as the section's whole order for `PATCH /api/notes/reorder`

@@ -32,7 +32,7 @@ def test_parses_a_full_row():
     assert parsed["section"] == "op_ed_changes"
     assert parsed["locator"] == "ep 10"
     assert parsed["kind"] == "變化OP"
-    assert parsed["links"] == ["https://example.com/a"]
+    assert parsed["links"] == [{"text": None, "url": "https://example.com/a"}]
     assert parsed["sort_index"] == 0.0
     assert parsed["created_at"] is None
 
@@ -95,39 +95,81 @@ def test_blank_entries_cell_becomes_none():
     assert parsed["entries"] is None
 
 
-def test_old_link_pairs_on_a_url_string_section_pull_as_urls():
-    # 彩蛋 held text-and-URL pairs before it became text_links like the rest
-    # of 解析. A sheet backed up then still carries them; Pull reads the URLs
-    # in order and drops the text, which the section no longer shows.
-    pairs = [
-        {"text": "Bilibili", "url": "https://b23.tv/x"},
-        {"text": None, "url": "https://youtu.be/y"},
-        {"text": "blank", "url": "  "},
-        {"text": "again", "url": "https://b23.tv/x"},
-    ]
+def test_an_old_sheet_pulls_url_strings_as_untitled_pairs():
+    # A sheet backed up before every note link became a pair carries URL
+    # strings; Pull reads each as a pair with no title, as the local rows
+    # became.
     parsed = parse_note_from_sheet(
-        {"section": "easter_eggs", "links": json.dumps(pairs), "fields": "{}"}
+        {"section": "easter_eggs", "links": '["https://a.example"]', "fields": "{}"}
     )
-    assert parsed["links"] == ["https://b23.tv/x", "https://youtu.be/y"]
+    assert parsed["links"] == [{"text": None, "url": "https://a.example"}]
     # A structured row's empty `fields` blob does not follow it into a shape
     # that refuses one, or the row's next edit would be refused.
     assert parsed["fields"] is None
 
 
-def test_url_strings_on_a_url_string_section_pass_through():
-    parsed = parse_note_from_sheet(
-        {"section": "easter_eggs", "links": '["https://a.example"]'}
-    )
-    assert parsed["links"] == ["https://a.example"]
+def test_pairs_pull_as_they_are():
+    pairs = [{"text": "YouTube", "url": "https://youtu.be/a"}]
+    parsed = parse_note_from_sheet({"section": "op", "links": json.dumps(pairs)})
+    assert parsed["links"] == pairs
 
 
-def test_a_song_still_pulls_old_url_strings_as_pairs():
-    # The mirror: the sections that DO take pairs keep converting the other
-    # way, so the inverse above is not applied everywhere.
+# --- an old sheet's rows, reshaped as the local ones were -----------------
+
+
+def test_an_old_controls_row_pulls_its_links_into_the_description():
     parsed = parse_note_from_sheet(
-        {"section": "op", "links": '["https://youtu.be/a"]'}
+        {
+            "section": "controls",
+            "content": "Parry.",
+            "links": '["https://a.example", {"text": "Video", "url": "https://b.example"}]',
+        }
     )
-    assert parsed["links"] == [{"text": None, "url": "https://youtu.be/a"}]
+    assert parsed["content"] == "Parry.\nhttps://a.example\nVideo: https://b.example"
+    assert parsed["links"] is None
+
+
+def test_an_old_plot_row_pulls_its_description_as_the_chapter():
+    parsed = parse_note_from_sheet(
+        {
+            "section": "main_plot",
+            "locator": "【Bilibili】 1.6丹青渡 日配女主全劇情全流程",
+            "content": "祀的劇情",
+            "links": '["https://b23.tv/x"]',
+        }
+    )
+    assert parsed["locator"] == "祀的劇情"
+    assert parsed["content"] is None
+    assert parsed["links"] == [
+        {"text": "【Bilibili】 1.6丹青渡 日配女主全劇情全流程", "url": "https://b23.tv/x"}
+    ]
+
+
+def test_a_new_plot_row_pulls_unchanged():
+    # The mirror: a row already in the new shape is left alone.
+    links = [{"text": "Part 1", "url": "https://b23.tv/x"}]
+    parsed = parse_note_from_sheet(
+        {"section": "main_plot", "locator": "Ch 3", "links": json.dumps(links)}
+    )
+    assert (parsed["locator"], parsed["links"]) == ("Ch 3", links)
+
+
+def test_an_old_character_arc_pulls_its_text_into_the_link_title_or_story_other():
+    with_link = parse_note_from_sheet(
+        {
+            "section": "character_arcs",
+            "content": "Perlica's arc",
+            "links": '["https://a.example"]',
+        }
+    )
+    assert with_link["section"] == "character_arcs"
+    assert with_link["content"] is None
+    assert with_link["links"] == [{"text": "Perlica's arc", "url": "https://a.example"}]
+    without = parse_note_from_sheet(
+        {"section": "character_arcs", "content": "Perlica's arc"}
+    )
+    assert without["section"] == "story_other"
+    assert without["content"] == "【角色劇情】 Perlica's arc"
 
 
 def test_a_structured_section_keeps_its_fields():

@@ -666,3 +666,69 @@ it("leaves a free-text select without a category a plain input", async () => {
   await userEvent.click(screen.getByRole("button", { name: /^add$/i }));
   expect(screen.getByLabelText("Region")).not.toHaveAttribute("role");
 });
+
+// --- Titled links ------------------------------------------------------------
+
+// 角色劇情 Character Arcs as the API serves it: one required links field.
+const CHARACTER_ARCS = {
+  ...CONTROLS,
+  key: "character_arcs",
+  label: "角色劇情 Character Arcs",
+  groupable_by: null,
+  fields: [
+    {
+      key: "links",
+      label: "Links",
+      type: "links",
+      column: "links",
+      options: [],
+      required: true,
+    },
+  ],
+};
+
+it("sends a links field as titled pairs", async () => {
+  const onCreate = vi.fn();
+  renderSection({ section: CHARACTER_ARCS, onCreate });
+
+  await userEvent.click(screen.getByRole("button", { name: /add$/i }));
+  await userEvent.type(screen.getByLabelText("Link text"), "Perlica");
+  await userEvent.type(screen.getByLabelText("Link URL"), "https://b23.tv/x");
+  await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+  expect(onCreate).toHaveBeenCalledWith(
+    expect.objectContaining({
+      links: [{ text: "Perlica", url: "https://b23.tv/x" }],
+    }),
+  );
+});
+
+it("refuses a required links field holding only a title", async () => {
+  const onCreate = vi.fn();
+  renderSection({ section: CHARACTER_ARCS, onCreate });
+
+  await userEvent.click(screen.getByRole("button", { name: /add$/i }));
+  await userEvent.type(screen.getByLabelText("Link text"), "Perlica");
+  await userEvent.click(screen.getByRole("button", { name: "Save" }));
+  expect(onCreate).not.toHaveBeenCalled();
+});
+
+it("draws each link with its title", () => {
+  renderSection({
+    section: CHARACTER_ARCS,
+    notes: [
+      {
+        system_id: "a",
+        links: [
+          { text: "Perlica", url: "https://b23.tv/x" },
+          { text: null, url: "https://a.example/y" },
+        ],
+      },
+    ],
+  });
+  expect(screen.getByRole("link", { name: /Perlica/ })).toHaveAttribute(
+    "href",
+    "https://b23.tv/x",
+  );
+  expect(screen.getByRole("link", { name: /a\.example/ })).toBeInTheDocument();
+});

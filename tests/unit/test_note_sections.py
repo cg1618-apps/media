@@ -2,6 +2,8 @@
 
 import dataclasses
 
+import pytest
+
 from app.utils import note_sections as ns
 from app.utils.media_resolver import OWNER_TABLES
 
@@ -98,17 +100,46 @@ def test_only_op_and_ed_carry_a_free_text_song_type():
         assert sec.default_kind is None
 
 
-def test_song_links_are_text_and_url_pairs_suggested_from_song_source():
+def test_song_link_titles_are_suggested_from_song_source():
     for key in SONG_SECTIONS:
         sec = ns.section_by_key(key)
-        assert ns.uses_link_pairs(sec)
+        assert ns.takes_links(sec)
         assert sec.link_text_category == ns.SONG_SOURCE_CATEGORY == "Song Source"
 
 
-def test_link_pairs_are_confined_to_the_songs():
-    paired = {s.key for s in ns.NOTE_SECTIONS if ns.uses_link_pairs(s)}
-    assert paired == set(SONG_SECTIONS)
-    assert ns.LINK_PAIR_SECTIONS == frozenset(paired)
+def test_link_title_suggestions_are_confined_to_the_songs():
+    suggested = {s.key for s in ns.NOTE_SECTIONS if s.link_text_category}
+    assert suggested == set(SONG_SECTIONS)
+
+
+@pytest.mark.parametrize(
+    "key, takes",
+    (
+        ("analysis", True),
+        ("resources", True),
+        ("op", True),
+        ("op_ed_changes", True),
+        ("trivia", True),
+        ("character_arcs", True),
+        ("main_plot", True),
+        ("controls", False),
+        ("classes", False),
+        ("geography", False),
+        ("episode_comments", False),
+        ("highlights", False),
+        ("remark", False),
+        ("music_status", False),
+    ),
+)
+def test_which_sections_take_links(key, takes):
+    assert ns.takes_links(ns.section_by_key(key)) is takes
+
+
+def test_every_links_field_is_the_links_column():
+    for sec in ns.NOTE_SECTIONS:
+        for f in sec.fields:
+            if f.type == ns.FIELD_LINKS:
+                assert f.column == "links", (sec.key, f.key)
 
 
 def test_only_the_music_sections_carry_a_status():
@@ -270,7 +301,7 @@ def test_easter_eggs_is_text_links_like_the_rest_of_analysis():
     assert sec.locator_placeholder == "Episode(s), e.g. ep 3"
     assert not sec.singleton
     assert sec.fields == ()
-    assert not ns.uses_link_pairs(sec)
+    assert ns.takes_links(sec)
     # The same shape as its neighbours, so it reads and edits like them.
     speculation = ns.section_by_key("speculation")
     assert (sec.shape, sec.locator_placeholder, sec.desc_required) == (
@@ -383,6 +414,18 @@ def test_no_section_is_both_grouped_and_standalone():
     # card with its siblings. Setting both says nothing the page can honour.
     for sec in ns.NOTE_SECTIONS:
         assert not (sec.group and sec.standalone), f"{sec.key} sets both"
+
+
+def test_a_group_resolved_for_an_owner_wins_over_standalone():
+    from app.schemas.note import section_out
+
+    resources = ns.section_by_key("resources")
+    for owner in ("game", "h-game"):
+        out = section_out(resources, owner)
+        assert (out.group, out.standalone) == ("tools", False)
+    # The mirror: everywhere else Resources is its own card.
+    out = section_out(resources, "anime")
+    assert (out.group, out.standalone) == (None, True)
 
 
 def test_the_music_group_holds_the_music_sections():
@@ -601,7 +644,6 @@ REVIEW_LISTS = (
     "double_edged",
     "public_reviews",
     "introduction",
-    "episode_comments",
 )
 
 
@@ -618,9 +660,10 @@ def test_the_review_lists_are_every_reviews_section_but_personal_reviews():
         if s.group == "reviews" or "reviews" in s.groups_by_owner.values()
     }
     # 解析 Analysis and 彩蛋 Easter Eggs join 評論 for games only, and are
-    # text_links already.
+    # text_links already. 各集評論 is an episode and a comment, no links.
     assert in_reviews - {"analysis", "easter_eggs"} == set(REVIEW_LISTS) | {
-        "personal_reviews"
+        "personal_reviews",
+        "episode_comments",
     }
 
 
@@ -628,11 +671,13 @@ def test_personal_reviews_stays_plain_text():
     assert ns.section_by_key("personal_reviews").shape == ns.SHAPE_TEXT
 
 
-def test_episode_comments_is_text_links_with_an_episode_field():
-    # A comment on an episode carries a body and any number of sources, and
-    # still has to say which episode it is about.
+def test_episode_comments_is_an_episode_and_a_comment_with_no_links():
+    # A comment on an episode carries a body and has to say which episode it
+    # is about. It carries no links.
     sec = ns.section_by_key("episode_comments")
-    assert sec.shape == ns.SHAPE_TEXT_LINKS
+    assert sec.shape == ns.SHAPE_EPISODE_TEXT
+    assert sec.locator_required
+    assert not ns.takes_links(sec)
     assert ns.locator_for(sec, "anime") == "Episode, e.g. ep 1"
     # Manga and games are cut into chapters, so they reuse the section under
     # their own labels.

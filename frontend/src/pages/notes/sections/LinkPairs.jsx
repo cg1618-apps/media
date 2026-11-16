@@ -1,5 +1,6 @@
-// Frontend: the editor and the read view for text-and-URL link pairs, used by
-// MusicTrackSection (OP, ED, insert songs, OST). The rules are in
+// Frontend: the editor and the read view for a note's links - titled pairs,
+// on every section that takes links (text_links, name_links, music_track,
+// op_ed_changes and every structured links field). The rules are in
 // linkPairValues.js.
 import SuggestInput from "../../../components/forms/SuggestInput";
 import { LinkPill, inputCls } from "./ui";
@@ -7,10 +8,10 @@ import { pairLabel, pairsFromLinks } from "./linkPairValues";
 
 const textCls = inputCls + " sm:w-40 sm:shrink-0";
 
-// A repeatable row of label + URL. `textOptions` turns the label into a
-// SuggestInput over those values (a song link's "Song Source"); without it
-// the label is plain text. Starts with one blank row so there is something to
-// type into, like LinksEditor.
+// A repeatable row of optional title + URL. `textOptions` turns the title
+// into a SuggestInput over those values (a song link's "Song Source");
+// without it the title is plain text. Starts with one blank row so there is
+// something to type into.
 export function LinkPairsEditor({ pairs, onChange, textOptions }) {
   const list = pairs?.length ? pairs : [{ text: "", url: "" }];
   const setPair = (i, patch) =>
@@ -24,7 +25,7 @@ export function LinkPairsEditor({ pairs, onChange, textOptions }) {
               value={pair.text}
               onChange={(v) => setPair(i, { text: v })}
               options={textOptions}
-              placeholder="Link text"
+              placeholder="Title (optional)"
               aria-label="Link text"
               className={textCls}
             />
@@ -32,7 +33,7 @@ export function LinkPairsEditor({ pairs, onChange, textOptions }) {
             <input
               value={pair.text}
               onChange={(e) => setPair(i, { text: e.target.value })}
-              placeholder="Link text"
+              placeholder="Title (optional)"
               aria-label="Link text"
               className={textCls}
             />
@@ -70,16 +71,14 @@ export function LinkPairsEditor({ pairs, onChange, textOptions }) {
   );
 }
 
-// The stored links as pills, each labelled with its text or, failing that,
-// its host.
-export function LinkPairPills({ links }) {
+// The stored links as pills, each labelled with its title or, failing that,
+// its host. `bare` leaves out the wrapping row, for a caller that lays the
+// pills out among others.
+export function LinkPairPills({ links, bare = false }) {
   const pairs = pairsFromLinks(links).filter((p) => p.url);
   if (!pairs.length) return null;
-  return (
-    <div className="flex flex-wrap gap-1">
-      {pairs.map((pair, i) => (
-        <LinkPill key={i} url={pair.url} label={pairLabel(pair)} />
-      ))}
-    </div>
-  );
+  const pills = pairs.map((pair, i) => (
+    <LinkPill key={i} url={pair.url} label={pairLabel(pair)} />
+  ));
+  return bare ? pills : <div className="flex flex-wrap gap-1">{pills}</div>;
 }

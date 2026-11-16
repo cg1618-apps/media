@@ -1,9 +1,10 @@
-// Frontend: tests for the `text_links` shape - a body, any number of URL
+// Frontend: tests for the `text_links` shape - a body, any number of titled
 // links, and an episode where the section declares a locator placeholder.
 //
 // What these pin, on 彩蛋/致敬 Easter Eggs/References as it is registered: the episode is
 // optional and a blank one draws nothing (no stray tag, no number), and the
-// links are sent as URL strings - several of them, with no link text.
+// links are sent as titled pairs - several of them, the title optional - and a
+// row may be a description, titled links, or both.
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -17,7 +18,6 @@ const EASTER_EGGS = {
   locator_placeholder: "Episode(s), e.g. ep 3",
   locator_required: false,
   desc_required: false,
-  link_pairs: false,
   fields: [],
 };
 
@@ -62,7 +62,7 @@ it("shows an episode, a description and every link", () => {
   expect(screen.getAllByRole("link")).toHaveLength(2);
 });
 
-it("sends an episode, a description and several URL strings", async () => {
+it("sends an episode, a description and several titled links", async () => {
   const onCreate = vi.fn();
   renderSection({ onCreate });
 
@@ -75,22 +75,81 @@ it("sends an episode, a description and several URL strings", async () => {
     screen.getByPlaceholderText("Description (optional)"),
     "The poster.",
   );
+  await userEvent.type(screen.getByLabelText("Link text"), "Bilibili");
   await userEvent.type(screen.getByPlaceholderText("https://..."), "https://b23.tv/x");
   await userEvent.click(screen.getByRole("button", { name: "+ Add link" }));
   await userEvent.type(
     screen.getAllByPlaceholderText("https://...")[1],
     "https://a.example/y",
   );
-  // No link text: a text_links link is only its URL.
-  expect(screen.queryByLabelText("Link text")).not.toBeInTheDocument();
   await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
+  // The title is optional: the second link goes without one.
   expect(onCreate).toHaveBeenCalledWith({
     section: "easter_eggs",
     locator: "ep 3",
     content: "The poster.",
-    links: ["https://b23.tv/x", "https://a.example/y"],
+    links: [
+      { text: "Bilibili", url: "https://b23.tv/x" },
+      { text: null, url: "https://a.example/y" },
+    ],
   });
+});
+
+it("saves titled links with no description", async () => {
+  const onCreate = vi.fn();
+  renderSection({ onCreate });
+
+  await userEvent.click(screen.getByRole("button", { name: /^add$/i }));
+  await userEvent.type(screen.getByLabelText("Link text"), "Review");
+  await userEvent.type(screen.getByPlaceholderText("https://..."), "https://b23.tv/x");
+  await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+  expect(onCreate).toHaveBeenCalledWith(
+    expect.objectContaining({
+      content: null,
+      links: [{ text: "Review", url: "https://b23.tv/x" }],
+    }),
+  );
+});
+
+it("holds Save back while a title waits for its URL", async () => {
+  const onCreate = vi.fn();
+  renderSection({ onCreate });
+
+  await userEvent.click(screen.getByRole("button", { name: /^add$/i }));
+  await userEvent.type(
+    screen.getByPlaceholderText("Description (optional)"),
+    "The poster.",
+  );
+  await userEvent.type(screen.getByLabelText("Link text"), "Review");
+  await userEvent.click(screen.getByRole("button", { name: "Save" }));
+  expect(onCreate).not.toHaveBeenCalled();
+
+  // The mirror: the same row with the URL filled saves.
+  await userEvent.type(screen.getByPlaceholderText("https://..."), "https://b23.tv/x");
+  await userEvent.click(screen.getByRole("button", { name: "Save" }));
+  expect(onCreate).toHaveBeenCalled();
+});
+
+it("labels each pill with its title, or its host without one", () => {
+  renderSection({
+    notes: [
+      {
+        system_id: "n1",
+        content: "x",
+        links: [
+          { text: "Bilibili", url: "https://b23.tv/x" },
+          { text: null, url: "https://a.example/y" },
+        ],
+      },
+    ],
+  });
+  expect(screen.getByRole("link", { name: /Bilibili/ })).toHaveAttribute(
+    "href",
+    "https://b23.tv/x",
+  );
+  expect(screen.getByRole("link", { name: /a\.example/ })).toBeInTheDocument();
 });
 
 // --- Quick move between the 待辦 buckets ----------------------------------
@@ -104,7 +163,6 @@ const TODO_NOW = {
   locator_placeholder: null,
   locator_required: false,
   desc_required: true,
-  link_pairs: false,
   fields: [],
   move_targets: [
     { key: "todo_next", label: "下一步 Next" },
