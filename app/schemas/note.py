@@ -143,6 +143,9 @@ class NoteFieldOut(BaseModel):
     shown_when: Optional[Dict[str, str]] = None
     # The read view does not draw this field; it only steers others.
     view_hidden: bool = False
+    # {value: label}: the read view draws the field only while it holds one
+    # of these values, as that label, at the end of the row's line.
+    view_labels: Optional[Dict[str, str]] = None
 
 
 class NoteMoveTarget(BaseModel):
@@ -292,6 +295,7 @@ def field_out(field: NoteField) -> NoteFieldOut:
             else None
         ),
         view_hidden=field.view_hidden,
+        view_labels=dict(field.view_labels) if field.view_labels else None,
     )
 
 

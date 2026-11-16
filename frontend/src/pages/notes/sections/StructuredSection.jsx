@@ -35,7 +35,11 @@
 //     on the read view - only while that field of the same row holds that
 //     value, a missing value reading as its default (`shownFor`). Display
 //     only: a hidden field keeps what it stores. A `view_hidden` field is
-//     left off the read view altogether; it only steers others.
+//     left off the read view altogether; it only steers others. A field
+//     naming `view_labels` ({value: label}) is read only while it holds one
+//     of those values (blank reading as its default), as that label, at the
+//     right end of the row's line (`flags`) - NG Reset reads "Won't Reset"
+//     on a "no" row and nothing otherwise.
 // None of them names a section: any section declaring them gets them.
 //
 // One pair is named here: a section carrying both `amount_collected` and
@@ -787,6 +791,7 @@ function StructuredRow({
       !f.quick_edit &&
       !f.personal &&
       !inPair(f) &&
+      !f.view_labels &&
       onRow(f) &&
       (f.type === "text" || f.type === "select") &&
       !isBlank(readValue(f, note)),
@@ -798,6 +803,15 @@ function StructuredRow({
   const personal = section.fields.filter(
     (f) => f.personal && !inPair(f) && onRow(f),
   );
+  // The relabelled exceptions, drawn last and pushed to the line's end.
+  const flags = section.fields
+    .filter((f) => f.view_labels && !f.personal && onRow(f))
+    .map((f) => {
+      const raw = readValue(f, note);
+      const label = f.view_labels[isBlank(raw) ? f.default ?? "" : raw];
+      return label ? { key: f.key, label } : null;
+    })
+    .filter(Boolean);
   const choiceNodes = section.fields.filter(
     (f) => f.type === "choice_node" && !isBlank(readValue(f, note)),
   );
@@ -812,6 +826,7 @@ function StructuredRow({
         quick.length > 0 ||
         personal.length > 0 ||
         amountPair ||
+        flags.length > 0 ||
         choiceNodes.length > 0) && (
         <div className="flex flex-wrap items-center gap-1.5">
           {heading && (
@@ -860,6 +875,11 @@ function StructuredRow({
               value={readValue(f, note)}
               tagCls={tagCls}
             />
+          ))}
+          {flags.map((flag) => (
+            <span key={flag.key} data-flag className={`${tagCls} ml-auto`}>
+              {flag.label}
+            </span>
           ))}
         </div>
       )}

@@ -852,6 +852,9 @@ columns.
   naming `shown_when` is left out of the form and the read view while its
   steering field (read as its default when blank) holds anything else
   (`shownFor`), and a `view_hidden` field is never drawn on the read view. A
+  field naming `view_labels` is read only while it holds one of the values
+  named, as that value's label, last on the row's line and pushed to its
+  right end (`ml-auto`) - NG Reset's "Won't Reset" on a `no` row. A
   section carrying both `amount_collected` and `amount_total` reads them as
   one unlabelled `collected/total` value (`AmountPair`): for a viewer who may
   mark, the collected half is an input that marks on blur, followed by

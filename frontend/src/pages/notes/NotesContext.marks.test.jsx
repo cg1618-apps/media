@@ -82,6 +82,7 @@ const ITEMS = {
       column: null,
       options: ["yes", "no"],
       default: "yes",
+      view_labels: { no: "Won't Reset" },
     },
   ],
 };
@@ -536,5 +537,32 @@ describe("creating an item", () => {
     await openDraft(["manage.catalog"]);
     expect(screen.getByLabelText("Name")).toBeInTheDocument();
     expect(screen.queryByLabelText("Collected")).toBeNull();
+  });
+});
+
+describe("an item's NG Reset", () => {
+  const withItem = (fields) =>
+    vi.mocked(api.fetchNotes).mockResolvedValue([{ ...ROWS[0], fields }, ...ROWS.slice(1)]);
+
+  it("reads \"Won't Reset\" on a row that says no, last on its line", async () => {
+    withItem({ has_amount: "yes", amount_total: "30", ng_reset: "no" });
+    await renderAs(USER);
+    const flag = card("道具 Items").getByText("Won't Reset");
+    expect(flag.className).toContain("ml-auto");
+    expect(flag.parentElement.lastElementChild).toBe(flag);
+    expect(card("道具 Items").queryByText("no")).toBeNull();
+  });
+
+  it("reads nothing on a row that resets, said or by default (the mirror)", async () => {
+    for (const fields of [{ ng_reset: "yes" }, {}]) {
+      withItem(fields);
+      const { unmount } = render(<NotesTemplate ownerType="game" ownerId="g1" />);
+      held = new Set(USER);
+      await waitFor(() => expect(screen.getByText("Golden Seed")).toBeInTheDocument());
+      const items = card("道具 Items");
+      expect(items.queryByText("Won't Reset")).toBeNull();
+      expect(items.queryByText("yes")).toBeNull();
+      unmount();
+    }
   });
 });

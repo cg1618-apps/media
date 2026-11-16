@@ -239,6 +239,12 @@ class NoteField:
     # The read view does not draw this field. For a field that only steers
     # others, whose value the read view already shows by what it draws.
     view_hidden: bool = False
+    # ((value, label), ...): the read view draws this field only while it
+    # holds one of these values (a blank reading as `default`), as that label,
+    # at the end of the row's line. For a field whose usual value says nothing
+    # and whose exception is worth a flag. Only on a closed select, naming its
+    # options; checked at import (`_check_view_labels`).
+    view_labels: tuple[tuple[str, str], ...] | None = None
 
 
 @dataclass(frozen=True)
@@ -673,6 +679,7 @@ def _named_thing_fields(
                     type=FIELD_SELECT,
                     options=NG_RESET_OPTIONS,
                     default="yes",
+                    view_labels=(("no", "Won't Reset"),),
                 ),
             )
             if collected
@@ -2394,6 +2401,24 @@ def _check_shown_when(section: NoteSection) -> None:
             )
 
 
+def _check_view_labels(section: NoteSection) -> None:
+    """`view_labels` relabels values of a closed select, so it names them."""
+    for f in section.fields:
+        if f.view_labels is None:
+            continue
+        if f.type != FIELD_SELECT or not f.options:
+            raise ValueError(
+                f"Section '{section.key}': field '{f.key}' has view_labels "
+                "but is not a closed select."
+            )
+        for value, _label in f.view_labels:
+            if value not in f.options:
+                raise ValueError(
+                    f"Section '{section.key}': field '{f.key}' has view_labels "
+                    f"naming '{value}', which it does not offer."
+                )
+
+
 def _check_mixed(section: NoteSection) -> None:
     """
     `mixed` sits on catalogue sections only - a personal section's rows are
@@ -2418,6 +2443,7 @@ for _section in NOTE_SECTIONS:
     _check_type_status(_section)
     _check_personal(_section)
     _check_shown_when(_section)
+    _check_view_labels(_section)
 
 # The music_status kinds and the lists pointing at it must be the same set:
 # a list with no status row would show no bar, a status with no list a stray.

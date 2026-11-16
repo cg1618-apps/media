@@ -279,3 +279,42 @@ def test_the_listing_serves_shown_when_and_view_hidden():
     assert by_key["amount_collected"].shown_when == {"field": "has_amount", "value": "yes"}
     assert by_key["name"].shown_when is None
     assert by_key["name"].view_hidden is False
+
+
+# --- view_labels ------------------------------------------------------------
+
+
+def test_view_labels_must_name_options_of_a_closed_select():
+    with pytest.raises(ValueError, match="view_labels"):
+        ns._check_view_labels(
+            _shown_when_section(
+                ns.NoteField(key="a", label="A", view_labels=(("no", "Nope"),)),
+            )
+        )
+    with pytest.raises(ValueError, match="view_labels"):
+        ns._check_view_labels(
+            _shown_when_section(
+                ns.NoteField(
+                    key="a", label="A", type=ns.FIELD_SELECT, options=("yes", "no"),
+                    view_labels=(("maybe", "Perhaps"),),
+                ),
+            )
+        )
+
+
+def test_view_labels_on_a_closed_select_is_accepted():
+    ns._check_view_labels(
+        _shown_when_section(
+            ns.NoteField(
+                key="a", label="A", type=ns.FIELD_SELECT, options=("yes", "no"),
+                view_labels=(("no", "Nope"),),
+            ),
+        )
+    )
+
+
+def test_the_listing_serves_view_labels():
+    items = section_out(ns.section_by_key("items"), "game", frozenset())
+    by_key = {f.key: f for f in items.fields}
+    assert by_key["ng_reset"].view_labels == {"no": "Won't Reset"}
+    assert by_key["name"].view_labels is None
