@@ -403,8 +403,22 @@ export function useEntryCap(items, { keep } = {}) {
 }
 
 // The control under a capped list. Draws nothing when the list fits.
-export function ShowAllToggle({ total, expanded, onToggle }) {
+// `noun` names what folds when it is not rows - "groups" under a grouped
+// section, so its toggle does not read like a group's own.
+export function ShowAllToggle({ total, expanded, onToggle, noun }) {
   if (total <= VISIBLE_ENTRIES) return null;
+  if (noun) {
+    return (
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        className="font-mono text-[11px] uppercase tracking-[0.12em] text-text-muted hover:text-brand transition"
+      >
+        {expanded ? `Show fewer ${noun}` : `Show all ${noun} (${total})`}
+      </button>
+    );
+  }
   return (
     <button
       type="button"
