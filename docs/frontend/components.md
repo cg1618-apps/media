@@ -924,7 +924,9 @@ columns.
   provider passes both in from the owner page; `NotesContext` also drops a
   section whose `owner_where` the owner row fails (`ownerMatches`). A section
   with `groupable_by` gets a **Group by** toggle named after that field -
-  *Group by type*, *Group by tier* - (`SectionCard`'s `actions`) over the same grouped view, one group per `select` value; its
+  *Group by type*, *Group by tier* - (`SectionCard`'s `actions`) over the same grouped view, one group per `select` value, except on an
+  `always_grouped` section (the three grouped by `group`), which draws no
+  toggle and is always grouped; its
   groups and rows move by their grips - a row only within its own group
   (`movedRow` in `groupedRows.js`) - and each move goes to `onReorder` as the
   section's whole row order, grouped - nothing else stores the group order.

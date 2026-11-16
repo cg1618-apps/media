@@ -201,6 +201,8 @@ class NoteSectionOut(BaseModel):
     # The key of a `select` field the reader may toggle a one-group-per-value
     # view on. None offers no toggle.
     groupable_by: Optional[str] = None
+    # The groupable_by view is the only one: no toggle, always grouped.
+    always_grouped: bool = False
     # Owner-entry columns the section is limited to, {column: [values]}. The
     # page renders no card on an owner outside them; the API refuses a row.
     owner_where: dict[str, List[str]] = {}
@@ -371,6 +373,7 @@ def section_out(
         hierarchical=section.hierarchical,
         group_by=section.group_by,
         groupable_by=section.groupable_by,
+        always_grouped=section.always_grouped,
         owner_where={k: list(v) for k, v in section.owner_where.items()},
         link_text_category=section.link_text_category,
         kind_category=section.kind_category,
