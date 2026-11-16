@@ -219,3 +219,63 @@ def test_a_music_status_row_needs_only_its_list():
     validate_note_payload(payload)
     assert payload.status is None
     validate_note_payload(NoteBase(owner_type="anime", section="music_status", kind="ed"))
+
+
+# --- shown_when -------------------------------------------------------------
+
+
+def _shown_when_section(*fields):
+    return ns.NoteSection(
+        key="x", shape=ns.SHAPE_STRUCTURED, label="x", owners=("game",),
+        scope=ns.SCOPE_CATALOG, fields=fields,
+    )
+
+
+def test_shown_when_must_name_a_closed_select_of_the_section():
+    with pytest.raises(ValueError, match="shown_when"):
+        ns._check_shown_when(
+            _shown_when_section(
+                ns.NoteField(key="a", label="A", shown_when=("missing", "yes")),
+            )
+        )
+    with pytest.raises(ValueError, match="shown_when"):
+        ns._check_shown_when(
+            _shown_when_section(
+                ns.NoteField(key="has", label="Has"),
+                ns.NoteField(key="a", label="A", shown_when=("has", "yes")),
+            )
+        )
+
+
+def test_shown_when_must_name_one_of_the_selects_options():
+    with pytest.raises(ValueError, match="shown_when"):
+        ns._check_shown_when(
+            _shown_when_section(
+                ns.NoteField(
+                    key="has", label="Has", type=ns.FIELD_SELECT, options=("yes", "no")
+                ),
+                ns.NoteField(key="a", label="A", shown_when=("has", "maybe")),
+            )
+        )
+
+
+def test_shown_when_on_a_closed_select_is_accepted():
+    ns._check_shown_when(
+        _shown_when_section(
+            ns.NoteField(
+                key="has", label="Has", type=ns.FIELD_SELECT, options=("yes", "no")
+            ),
+            ns.NoteField(key="a", label="A", shown_when=("has", "yes")),
+        )
+    )
+
+
+def test_the_listing_serves_shown_when_and_view_hidden():
+    items = section_out(ns.section_by_key("items"), "game", frozenset())
+    by_key = {f.key: f for f in items.fields}
+    assert by_key["has_amount"].view_hidden is True
+    assert by_key["has_amount"].default == "no"
+    assert by_key["amount_total"].shown_when == {"field": "has_amount", "value": "yes"}
+    assert by_key["amount_collected"].shown_when == {"field": "has_amount", "value": "yes"}
+    assert by_key["name"].shown_when is None
+    assert by_key["name"].view_hidden is False

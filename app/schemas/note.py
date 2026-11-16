@@ -1,7 +1,7 @@
 """Note request/response schemas, validated against the section registry."""
 
 from datetime import datetime
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -138,6 +138,11 @@ class NoteFieldOut(BaseModel):
     # The granted feature a personal field is behind. A viewer without it is
     # never sent the field, so a field listed here is one the viewer holds.
     granted: Optional[str] = None
+    # {"field": key, "value": value}: draw this field only while that field
+    # of the same row holds that value. Display only.
+    shown_when: Optional[Dict[str, str]] = None
+    # The read view does not draw this field; it only steers others.
+    view_hidden: bool = False
 
 
 class NoteMoveTarget(BaseModel):
@@ -281,6 +286,12 @@ def field_out(field: NoteField) -> NoteFieldOut:
         item_fields=[field_out(f) for f in field.item_fields],
         personal=field.personal,
         granted=field.granted,
+        shown_when=(
+            {"field": field.shown_when[0], "value": field.shown_when[1]}
+            if field.shown_when
+            else None
+        ),
+        view_hidden=field.view_hidden,
     )
 
 

@@ -77,6 +77,8 @@ A shape names which columns a section uses. Declared as constants at the top of 
 | `quick_edit` | Render an inline editor in the read view, saving on blur without opening the row. For a value that changes while playing rather than while writing. |
 | `placeholder` | Overrides the label in the input. |
 | `option_category` | The `system_option` category whose values the editor suggests, as it is typed in. Only on a `select` declaring no `options` — a free-text one — and checked at import (`_check_option_categories`). Suggestions only: the value stays free text and is validated as before. Served as `NoteFieldOut.option_category`; see [Suggestion categories](#suggestion-categories). |
+| `shown_when` | `(field key, value)`: the field is drawn, in the form and on the read view, only while that field of the same row holds that value; a blank reads as that field's `default`. Display only — a hidden field keeps what it stores, so turning the steering field back brings the value back. The steering field must be a closed `select` of the same section and the value one of its options, checked at import (`_check_shown_when`). Served as `NoteFieldOut.shown_when`, `{field, value}`. |
+| `view_hidden` | The read view does not draw the field; it only steers others (the 物品 sections' `has_amount`). Served as `NoteFieldOut.view_hidden`. |
 
 Four rules sit on the section rather than on a field: **`require_any`** is groups of keys where at least one must be filled (an entry needs an order number *or* a name, and may have both), and **`hierarchical`** lets rows carry a `parent_id` and render as a tree. A flat section refuses a parent outright. **`group_by`** names one of the section's `names` fields; the read view draws one group per name, and a row naming two appears under both. The card carries a **Group by** toggle for it too (on by default, remembered per section in the reader's browser); turned off, the rows read as one flat list, which is where they are reordered - a row in two groups cannot be moved within one of them without moving in the other. It is display-only, and it is checked when the module is imported: a `group_by` naming anything but a `names` field of the same section fails the import. **`groupable_by`** names one of the section's `select` fields, and every game section with an optional, free-text bucket names it: 玩法系統 Gameplay Systems, 操作 Controls, 職業 Classes, 技能 Skills, the three 物品 sections, the three typed NG 多周目 sections and 模組&工具 Mods & Tools name `type`, 角色 Characters, 地理 Geography and 攻略資源 Guide Resources name `group`, and 敵人 Enemies names `tier`. 存檔 Saves does not: its checkpoint defaults to `regular`, so every row has one and it is a property of the save rather than a bucket. The card then carries a **Group by** toggle named after the field - *Group by type*, *Group by tier* - (on by default, remembered per section in the reader's browser) that draws one group per value, in the order each value first appears, with the rows carrying none in a trailing group. Unlike `group_by`, no group order is stored anywhere: the groups follow the rows' `sort_index`, so moving a group or a row within one saves the whole section's row order through `PATCH /api/notes/reorder`, grouped. It is checked at import the same way, and on a `hierarchical` section the field must also be column-backed (`_check_groupable_by`). A section both `hierarchical` and `groupable_by` — 地理 Geography alone — groups its **top-level rows** and draws each one's subtree beneath it; only a top-level row carries a value, and `_validate_structured` refuses one on a row with a `parent_id` (422 "Only a top-level row carries a group."), checked on the row as it will be, so a PATCH that reparents a grouped row must clear its group in the same request. **`owner_where`** limits a section to some owners of its types, as `{owner column: allowed values}`; the router refuses a row on any other owner (422, `_require_owner_where` in `app/routers/note.py`, after the owner is known to be visible) and the page renders no card for it. Both are published on `NoteSectionOut`.
 
@@ -462,7 +464,7 @@ column a field claims; a field with no arrow lives in `fields`.
 | `builds_and_styles` | name → `title`, **stats** *(list: name, min_value, rec_value)*, **armor** *(list: body_part, name, special)*, **weapons** *(list: range_type, type, name, special)*, **items** *(list: type, name, amount)*, **skills** *(list: type, name)*, description → `content`, links → `links` |
 | `team_composition` | name → `title`, **members** *(list: name, role 定位, build, description)*, description → `content`, links → `links` |
 | `skills` | type → `kind`, name → `title`, description → `content`, links → `links` |
-| `collectibles` / `items` / `weapons_and_gear` | type → `kind` (free-text select; suggested from `Collectible Type` / `Item Type` / nothing), name → `title`, variant, description → `content`, links → `links`, collected → `status` *(default `not collected`; personal, NG-reset)*, **amount_total** *(label "Total", text)*, **amount_collected** *(label "Collected amount", text; personal, NG-reset)*, **ng_reset** *(label "NG Reset", `yes` / `no`, default `yes`)*; `groupable_by = "type"` |
+| `collectibles` / `items` / `weapons_and_gear` | type → `kind` (free-text select; suggested from `Collectible Type` / `Item Type` / nothing), name → `title`, variant, description → `content`, links → `links`, collected → `status` *(default `not collected`; personal, NG-reset)*, **has_amount** *(label "Amount", `yes` / `no`, default `no`, `view_hidden`)*, **amount_total** *(label "Total", text; shown when has_amount is yes)*, **amount_collected** *(label "Collected amount", text; personal, NG-reset; shown when has_amount is yes)*, **ng_reset** *(label "NG Reset", `yes` / `no`, default `yes`)*; `groupable_by = "type"` |
 | `characters_guide` | group → `kind` (free-text select, suggested from `Character Group`), name → `title`, alias, description → `content`; `groupable_by = "group"` |
 | `enemies` | tier → `kind` (free-text select), region, name → `title`, alias, description → `content`, beaten → `status` *(default `to beat`; personal, NG-reset)*; `groupable_by = "tier"` |
 | `geography` | group → `kind` (free-text select, suggested from `Geography Group`; top-level rows only), name → `title`, description → `content`, links → `links`; `hierarchical`, `groupable_by = "group"`, `require_any = (("name",),)` |
@@ -477,7 +479,7 @@ column a field claims; a field with no arrow lives in `fields`.
 
 Only a handful of scalar fields in the whole group need `fields` at all —
 `variant`, `alias`, `region`, `developer`, `name_alt`, a class's `role`,
-`unlock` and `key_stats`, the 物品 sections' `amount_total` and `ng_reset`, a
+`unlock` and `key_stats`, the 物品 sections' `has_amount`, `amount_total` and `ng_reset`, a
 save's `based_on` and `choice_node` — plus the stat values and the nested
 lists. Everything else has a column, which is what makes one JSONB column
 enough.
@@ -485,12 +487,14 @@ enough.
 **Open vocabularies declare no options and render as free text**: a `type`, a
 `group` and a `tier` are the *game's* vocabulary, and a closed list would be
 wrong by the second game. The closed ones read the same everywhere: all but
-one are facts about my run rather than about the game, and the exception,
-`NG_RESET_OPTIONS`, is a fact about the game with only two possible answers:
+but three are facts about my run rather than about the game, and the
+exceptions, `HAS_AMOUNT_OPTIONS` and `NG_RESET_OPTIONS`, are facts about the
+game with only two possible answers:
 
 | Vocabulary | Values |
 | --- | --- |
 | `COLLECT_STATUSES` (the three 物品 sections' `collected`) | not collected, collected, enough collected, fully collected, skip, inapplicable — a progression with the opt-out after it, like the row below. "Collected" is a one-off thing that is simply had; "enough" and "fully" are about a thing collected in quantity, and "enough" is worth distinguishing from "fully" precisely because most things never reach "fully". "Inapplicable" means the row has nothing to collect at all, so "skip" stays a decision rather than doubling as "can't" |
+| `HAS_AMOUNT_OPTIONS` (the three 物品 sections' `has_amount`) | yes, no — whether the row is counted at all. Defaults to no, since most rows are one-off things, and a row stored without the key reads as no; both amounts are drawn only while it says yes |
 | `NG_RESET_OPTIONS` (the three 物品 sections' `ng_reset`) | yes, no — whether the NG reset clears a viewer's collect status and amount collected on the row. Defaults to yes, the commoner answer, and a row stored without the key (a sheet row from before the field) reads as yes |
 | `ENEMY_STATUSES` (`enemies.beaten`) | to beat, beaten, cheesed, skip — "cheesed" is deliberately not folded into "beaten": it answers "do I still owe this one a fair fight?" |
 | `ENDING_STATUSES` (`endings.completion`) | not yet, reached, skipped — "skipped" is a decision, not an absence, so it is a value rather than a blank |
@@ -501,12 +505,12 @@ one are facts about my run rather than about the game, and the exception,
 by `_named_thing_fields(variant=…, collected=…, type_category=…)`: they differ
 in those three arguments and nothing else. 技能 Skills takes none — a skill is
 learned rather than collected, so a collect status on it would be a field
-nobody could answer. `collected=True` adds the collect status, the amount
-total, the amount collected and NG Reset together. The two amounts are text,
-like the stat values ("12", "12 + DLC"), since there is no number field type.
-The amount total and NG Reset describe the game, so they are catalogue; the
-collect status and the amount collected describe a run, so they are each
-viewer's own.
+nobody could answer. `collected=True` adds the collect status, Amount, the
+amount total, the amount collected and NG Reset together. The two amounts are
+text, like the stat values ("12", "12 + DLC"), since there is no number field
+type, and both are `shown_when` Amount is yes. Amount, the amount total and NG
+Reset describe the game, so they are catalogue; the collect status and the
+amount collected describe a run, so they are each viewer's own.
 
 
 Registry helpers (`app/utils/note_sections.py`): `section_by_key`, `sections_for(owner_type)`, `label_for`, `kinds_for`, `locator_for`, `group_by_key`, `sections_by_scope`, plus the two derived key sets `PERSONAL_SECTIONS` and `CATALOG_SECTIONS`.

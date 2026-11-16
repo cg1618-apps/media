@@ -30,8 +30,17 @@
 //     not ask for one;
 //   - a free-text `select` naming an `option_category` suggests that
 //     category's values (`optionValues`, fetched by NotesContext) as it is
-//     typed in. It stays free text.
+//     typed in. It stays free text;
+//   - a field naming `shown_when` ({field, value}) is drawn - in the form and
+//     on the read view - only while that field of the same row holds that
+//     value, a missing value reading as its default (`shownFor`). Display
+//     only: a hidden field keeps what it stores. A `view_hidden` field is
+//     left off the read view altogether; it only steers others.
 // None of them names a section: any section declaring them gets them.
+//
+// One pair is named here: a section carrying both `amount_collected` and
+// `amount_total` reads them as one "collected/total" value with no label
+// (`AmountPair`), the viewer's own count editable in place before the slash.
 //
 // A field marked `personal` (an item's collected, an enemy's beaten, a stat's
 // "Mine", a mod's status) is the VIEWER's own value, not the row's: the row is
@@ -129,8 +138,33 @@ const emptyValue = (field) =>
 // a personal one, which is the viewer's own and written through its mark.
 const catalogueFields = (section) => section.fields.filter((f) => !f.personal);
 
+// Whether `field`'s shown_when holds, reading the steering field's value
+// through `valueOf(key)`; blank reads as that field's default. A field with no
+// rule is always shown.
+const shownFor = (section, field, valueOf) => {
+  const rule = field.shown_when;
+  if (!rule) return true;
+  const steer = section.fields.find((f) => f.key === rule.field);
+  const raw = valueOf(rule.field);
+  return (isBlank(raw) ? steer?.default ?? "" : raw) === rule.value;
+};
+
+// Every field, the personal ones too: the create form may ask for them.
 const emptyDraft = (section) =>
-  Object.fromEntries(catalogueFields(section).map((f) => [f.key, emptyValue(f)]));
+  Object.fromEntries(section.fields.map((f) => [f.key, emptyValue(f)]));
+
+// The personal values a create form chose, as the mark to write once the row
+// exists: the ones drawn, filled, and not merely their default - a mark
+// holding the default says nothing a missing one does not.
+const draftMarks = (section, val) => {
+  const marks = {};
+  for (const f of section.fields) {
+    if (!f.personal || !shownFor(section, f, (key) => val[key])) continue;
+    const out = String(val[f.key] ?? "").trim();
+    if (out && out !== (f.default || "")) marks[f.key] = out;
+  }
+  return marks;
+};
 
 // One saved row as form state. A column-backed field comes from the column,
 // everything else from the `fields` blob.
@@ -367,10 +401,17 @@ function ChoiceNodeInput({ field, value, onChange }) {
   );
 }
 
-function StructuredForm({ section, val, setVal, nameSuggestions }) {
+// `withPersonal` adds the viewer's own personal values, for the create form
+// only: a new row has no read view yet to set them on, so they are asked here
+// and written as a mark once the row exists (`draftMarks`). An edit form never
+// carries them - the saved row's inline controls do.
+function StructuredForm({ section, val, setVal, nameSuggestions, withPersonal = false }) {
+  const shown = (withPersonal ? section.fields : catalogueFields(section)).filter(
+    (f) => shownFor(section, f, (key) => val[key]),
+  );
   return (
     <div className="space-y-2">
-      {catalogueFields(section).map((field) => {
+      {shown.map((field) => {
         const set = (v) => setVal({ ...val, [field.key]: v });
         if (field.type === "names") {
           return (
@@ -507,8 +548,9 @@ function QuickEdit({ field, note, canWrite, onUpdate }) {
 
 // A short free-text value edited in place and saved on blur, or read as a
 // labelled tag. `onSave` gets the trimmed value, null for blank, and is not
-// called when nothing changed.
-function InlineText({ field, value, editable, onSave }) {
+// called when nothing changed. `bare` draws the input alone, for a value whose
+// neighbours already say what it is (AmountPair).
+function InlineText({ field, value, editable, onSave, bare = false }) {
   if (!editable) {
     return isBlank(value) ? null : (
       <span className={brandTagCls}>
@@ -520,19 +562,60 @@ function InlineText({ field, value, editable, onSave }) {
     if (String(next) === String(value ?? "")) return;
     onSave(next.trim() || null);
   };
+  const input = (
+    <input
+      key={String(value ?? "")}
+      defaultValue={value ?? ""}
+      aria-label={field.label}
+      onBlur={(e) => save(e.target.value)}
+      className="w-16 border border-border-strong bg-surface text-text px-1.5 py-0.5 text-xs font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-brand"
+    />
+  );
+  if (bare) return input;
   return (
     <label className="inline-flex items-center gap-1">
       <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
         {field.label}
       </span>
-      <input
-        key={String(value ?? "")}
-        defaultValue={value ?? ""}
-        aria-label={field.label}
-        onBlur={(e) => save(e.target.value)}
-        className="w-16 border border-border-strong bg-surface text-text px-1.5 py-0.5 text-xs font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-brand"
-      />
+      {input}
     </label>
+  );
+}
+
+// The amount pair (see the top of this file): a row's count read as
+// "collected/total", unlabelled. A viewer who may mark edits the collected
+// half in place, saved on blur through `onMark`; anyone else reads it. A
+// blank half reads "–", and a row with neither half draws nothing for a
+// reader.
+const AMOUNT_COLLECTED = "amount_collected";
+const AMOUNT_TOTAL = "amount_total";
+const blankAs = (v) => (isBlank(v) ? "–" : v);
+
+function AmountPair({ collected, total, note, canMark, onMark }) {
+  const have = readValue(collected, note);
+  const of = readValue(total, note);
+  if (!canMark) {
+    if (isBlank(have) && isBlank(of)) return null;
+    return (
+      <span data-amount className={`${tagCls} tabular-nums`}>
+        {blankAs(have)}/{blankAs(of)}
+      </span>
+    );
+  }
+  return (
+    <span
+      data-amount
+      className="inline-flex items-center gap-1 font-mono text-xs tabular-nums text-text-muted"
+    >
+      <InlineText
+        field={collected}
+        value={have}
+        editable
+        bare
+        onSave={(out) => onMark(note.system_id, { [collected.key]: out })}
+      />
+      <span>/{blankAs(of)}</span>
+    </span>
   );
 }
 
@@ -655,7 +738,21 @@ function StructuredRow({
 }) {
   const heading = rowHeading(section, note);
   const headingKey = heading?.field.key;
+  // The fields this row draws at all: its shown_when rules, read off the row.
+  const fieldOf = (key) => section.fields.find((f) => f.key === key);
+  const onRow = (f) =>
+    !f.view_hidden &&
+    shownFor(section, f, (key) => {
+      const steer = fieldOf(key);
+      return steer ? readValue(steer, note) : null;
+    });
   const namesFields = section.fields.filter((f) => f.type === "names");
+  const amountCollected = fieldOf(AMOUNT_COLLECTED);
+  const amountTotal = fieldOf(AMOUNT_TOTAL);
+  const amountPair = Boolean(
+    amountCollected && amountTotal && onRow(amountCollected) && onRow(amountTotal),
+  );
+  const inPair = (f) => f.key === AMOUNT_COLLECTED || f.key === AMOUNT_TOTAL;
 
   // Short scalars become tags, the bodies become paragraphs, and the lists
   // and links render themselves. The heading is drawn once and skipped here.
@@ -665,6 +762,8 @@ function StructuredRow({
       f.key !== groupedBy &&
       !f.quick_edit &&
       !f.personal &&
+      !inPair(f) &&
+      onRow(f) &&
       (f.type === "text" || f.type === "select") &&
       !isBlank(readValue(f, note)),
   );
@@ -672,7 +771,9 @@ function StructuredRow({
     (f) => f.type === "textarea" && !isBlank(readValue(f, note)),
   );
   const quick = section.fields.filter((f) => f.quick_edit && !f.personal);
-  const personal = section.fields.filter((f) => f.personal);
+  const personal = section.fields.filter(
+    (f) => f.personal && !inPair(f) && onRow(f),
+  );
   const choiceNodes = section.fields.filter(
     (f) => f.type === "choice_node" && !isBlank(readValue(f, note)),
   );
@@ -686,6 +787,7 @@ function StructuredRow({
         tags.length > 0 ||
         quick.length > 0 ||
         personal.length > 0 ||
+        amountPair ||
         choiceNodes.length > 0) && (
         <div className="flex flex-wrap items-center gap-1.5">
           {heading && (
@@ -717,6 +819,15 @@ function StructuredRow({
               onMark={onMark}
             />
           ))}
+          {amountPair && (
+            <AmountPair
+              collected={amountCollected}
+              total={amountTotal}
+              note={note}
+              canMark={canMark}
+              onMark={onMark}
+            />
+          )}
           {choiceNodes.map((f) => (
             <ChoiceNodeName
               key={f.key}
@@ -1130,11 +1241,14 @@ function StructuredSectionBody({
 
   const commit = () => {
     if (invalid(withoutField(section, draftOmit), draft)) return;
-    onCreate({
+    const payload = {
       section: section.key,
       ...payloadWithout(section, draft, draftOmit),
       ...(addingUnder ? { parent_id: addingUnder } : {}),
-    });
+    };
+    const marks = canMark ? draftMarks(section, draft) : {};
+    if (Object.keys(marks).length) onCreate(payload, marks);
+    else onCreate(payload);
     closeDraft();
   };
 
@@ -1226,6 +1340,7 @@ function StructuredSectionBody({
         val={draft}
         setVal={setDraft}
         nameSuggestions={nameSuggestions}
+        withPersonal={canMark}
       />
       <SaveCancel onSave={commit} onCancel={closeDraft} />
     </DraftPopup>
