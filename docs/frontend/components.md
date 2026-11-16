@@ -1130,6 +1130,13 @@ under sticky division headers and the filter bar.
   render `NotesBlocks` too and carry the same anchors, unread.
 - **Not listed**: the header (title, eyebrow, scores) and the left column
   (cover, sources, relations), which sit beside the top of the page anyway.
+- **Height**: every contents column is capped to the space under the nav
+  (`max-h-[calc(100vh-var(--nav-h)-2rem)]`) and scrolls inside itself
+  (`overflow-y-auto`, `overscroll-contain`), so a list longer than the screen
+  - a game's detail page with all its note cards - stays reachable end to end
+  from anywhere on the page. When the current row changes, `keepInView`
+  moves the column's own scroll, never the page's, so that row sits at least
+  32 px inside the visible part.
 - **Placement**: on the right, `xl:` only, `w-40`, sticky under the nav. On
   `xl:` the container widens from `max-w-7xl` to `88rem`, by about the
   column's width, so the cover column keeps close to its usual size. Below
