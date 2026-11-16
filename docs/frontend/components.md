@@ -944,7 +944,9 @@ columns.
   docked at the bottom right that leaves the page behind it usable, so text
   can be copied from the rows into it (see `docs/systems/notes.md`, "The
   draft popup"). `StructuredSection`
-  caps top-level rows, or each group of a grouped section. Every list section
+  caps top-level rows, or each group of a grouped section - whose groups are
+  capped to the first three too, behind "Show all groups (N)" (`ShowAllToggle`
+  with `noun="groups"`). Every list section
   is also reorderable by a viewer who may write it (`canWrite`), the same way: a `DragHandle` per row (none
   on the row being edited, none while there is only one row), each move sent
   to `onReorder` as the section's whole order for `PATCH /api/notes/reorder`
