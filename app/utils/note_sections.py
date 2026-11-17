@@ -848,11 +848,15 @@ def _story_list_sections() -> tuple["NoteSection", ...]:
 # Order here is display order.
 NOTE_SECTIONS: tuple[NoteSection, ...] = (
     NoteSection(
+        # The catalogue's one block of prose about an entry or a group: one
+        # row per owner, shared, written by a manage.catalog holder and read
+        # by everyone who can see the owner. A viewer's own short notes go in
+        # 備註列表 below, which is personal.
         key="remark",
         shape=SHAPE_TEXT,
         label="備註 Remark",
         owners=ALL_OWNERS,
-        scope=SCOPE_PERSONAL,
+        scope=SCOPE_CATALOG,
         singleton=True,
     ),
     NoteSection(
@@ -862,10 +866,11 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         # wall. They are deliberately NOT merged: a list whose first item is
         # three paragraphs reads as badly as a paragraph made of bullets.
         #
-        # Personal, like 備註, and non-singleton, which is the whole point.
-        # Every owner, like 備註: the need came from games, but nothing about
-        # a short note is game-shaped, and the two sections are read as a pair
-        # wherever 備註 appears.
+        # Personal, unlike 備註, and non-singleton, which is the whole point:
+        # 備註 is the catalogue's, and this is where each viewer keeps their
+        # own. Every owner, like 備註: the need came from games, but nothing
+        # about a short note is game-shaped, and the two sections are read as
+        # a pair wherever 備註 appears.
         key="remark_list",
         shape=SHAPE_TEXT_LINKS,
         label="備註列表 Remark List",

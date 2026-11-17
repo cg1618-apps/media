@@ -1,10 +1,10 @@
-// The caller's own remark: what goes over the wire, and how an answer lands
-// back in the row a page holds.
+// The catalogue remark: what goes over the wire, and how an answer lands back
+// in the row a page holds.
 import { act, renderHook } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { useMyRemarkSaver, useSaveMyRemark } from "./useMyRemark";
+import { useRemarkSaver, useSaveRemark } from "./useRemark";
 import { ToastProvider } from "../../hooks/useToast";
 
 function wrapperWith(queryClient) {
@@ -23,10 +23,10 @@ function okJson(body) {
 
 afterEach(() => vi.restoreAllMocks());
 
-describe("useSaveMyRemark", () => {
-  it("PUTs {remark} to /api/me/remarks/{owner_type}/{owner_id}", async () => {
+describe("useSaveRemark", () => {
+  it("PATCHes {remark} to the owner's own endpoint", async () => {
     global.fetch = vi.fn(() => okJson({ remark: "Rewatch." }));
-    const { result } = renderHook(() => useSaveMyRemark(), {
+    const { result } = renderHook(() => useSaveRemark(), {
       wrapper: wrapperWith(new QueryClient()),
     });
 
@@ -36,14 +36,14 @@ describe("useSaveMyRemark", () => {
 
     expect(global.fetch).toHaveBeenCalledTimes(1);
     const [url, init] = global.fetch.mock.calls[0];
-    expect(url).toBe("/api/me/remarks/anime-movie/M1");
-    expect(init.method).toBe("PUT");
+    expect(url).toBe("/api/anime-movie/M1");
+    expect(init.method).toBe("PATCH");
     expect(JSON.parse(init.body)).toEqual({ remark: "Rewatch." });
   });
 
   it("sends an emptied remark as null", async () => {
     global.fetch = vi.fn(() => okJson({ remark: null }));
-    const { result } = renderHook(() => useSaveMyRemark(), {
+    const { result } = renderHook(() => useSaveRemark(), {
       wrapper: wrapperWith(new QueryClient()),
     });
 
@@ -58,7 +58,7 @@ describe("useSaveMyRemark", () => {
     global.fetch = vi.fn(() => okJson({ remark: "x" }));
     const queryClient = new QueryClient();
     const spy = vi.spyOn(queryClient, "invalidateQueries");
-    const { result } = renderHook(() => useSaveMyRemark(), {
+    const { result } = renderHook(() => useSaveRemark(), {
       wrapper: wrapperWith(queryClient),
     });
 
@@ -72,14 +72,14 @@ describe("useSaveMyRemark", () => {
   });
 });
 
-describe("useMyRemarkSaver", () => {
+describe("useRemarkSaver", () => {
   it("folds the saved remark into the row", async () => {
     global.fetch = vi.fn(() => okJson({ remark: "Saved text." }));
     let row = { system_id: "F1", remark: "Old.", franchise_name_en: "Kept" };
     const setRow = vi.fn((update) => {
       row = update(row);
     });
-    const { result } = renderHook(() => useMyRemarkSaver("franchise", "F1", setRow), {
+    const { result } = renderHook(() => useRemarkSaver("franchise", "F1", setRow), {
       wrapper: wrapperWith(new QueryClient()),
     });
 
@@ -102,7 +102,7 @@ describe("useMyRemarkSaver", () => {
       }),
     );
     const setRow = vi.fn();
-    const { result } = renderHook(() => useMyRemarkSaver("anime", "A1", setRow), {
+    const { result } = renderHook(() => useRemarkSaver("anime", "A1", setRow), {
       wrapper: wrapperWith(new QueryClient()),
     });
 

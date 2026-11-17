@@ -6,12 +6,8 @@
 import { useRef } from "react";
 import { Button } from "../ui/primitives";
 
-// `canEdit`, not `canEdit`. A remark is a PERSONAL-scope note and belongs to
-// its author (it is read per viewer by attach_remark, filtered on
-// note.author_id), so the permission that authorises writing one is
-// self.personal_notes - not manage.catalog, which is what canEdit has meant
-// since Phase A. Gating it on the catalogue permission left a `user` account
-// able to write its own remark through the API and unable to through the UI.
+// `canEdit` is manage.catalog (`isAdmin`): the remark is the catalogue's, one
+// shared row per owner, so everyone else reads it here without editing it.
 export default function RemarkModal({ value, canEdit, onChange, onClose }) {
   // A remark is there to be read and copied, so selecting it with the mouse
   // must not dismiss the modal. The browser fires `click` on the nearest

@@ -367,8 +367,7 @@ class TestQuoteAndMeme:
 
 
 # A SCOPE_PERSONAL, SHAPE_TEXT, ALL_OWNERS section that is not a singleton -
-# checked in app/utils/note_sections.py:204. "remark" is also personal but is
-# singleton=True, which would add a second failure mode to every test here.
+# checked in app/utils/note_sections.py.
 PERSONAL_SECTION = "advantages"
 
 

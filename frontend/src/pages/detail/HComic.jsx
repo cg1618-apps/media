@@ -53,7 +53,7 @@ import CastSection from "../../components/info/CastSection";
 import LazyImage from "../../components/ui/LazyImage";
 import { useViewScope } from "../../hooks/useViewScope";
 import ProgressInput from "../../components/tracker/ProgressInput";
-import { useMyRemarkSaver } from "../../api/mutations/useMyRemark";
+import { useRemarkSaver } from "../../api/mutations/useRemark";
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
@@ -274,7 +274,7 @@ export default function HComic() {
   // the URL segment and the id can never disagree.
   const system_id = itemQuery.data?.system_id;
   const { ownData } = useViewScope();
-  const saveMyRemark = useMyRemarkSaver("h-comic", system_id, setHComic);
+  const saveRemark = useRemarkSaver("h-comic", system_id, setHComic);
   // The highlight group order is the viewer's own (self.personal_notes).
   const saveGroupOrder = useHighlightGroupOrderSaver("h-comic", system_id, setHComic);
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
@@ -636,14 +636,15 @@ export default function HComic() {
           </TocSection>
 
           <TocSection id="remarks" label="Remarks">
-            {ownData && hComic.remark && (
+            {hComic.remark && (
               <Slip title="Remarks">
                 <textarea
                   key={hComic.system_id}
                   defaultValue={hComic.remark || ""}
+                  readOnly={!isAdmin}
                   onBlur={(e) => {
-                    if (e.target.value !== (hComic.remark || ""))
-                      saveMyRemark(e.target.value);
+                    if (isAdmin && e.target.value !== (hComic.remark || ""))
+                      saveRemark(e.target.value);
                   }}
                   rows={4}
                   placeholder="Add remarks…"
@@ -653,14 +654,14 @@ export default function HComic() {
             )}
           </TocSection>
 
-          {/* The dedicated remark textarea above renders only for a holder of
-              self.list who has a remark; hide the notes page's `remark`
-              section exactly then, so the viewer's own row never has two
-              editors on one screen. */}
+          {/* The dedicated remark textarea above renders whenever a remark
+              exists - editable for a holder of manage.catalog, read-only for
+              everyone else; hide the notes page's `remark` section exactly
+              then, so the one row never has two editors on one screen. */}
           <HComicNotes
             key={hComic.system_id}
             hComic={hComic}
-            hideSections={ownData && hComic.remark ? ["remark"] : []}
+            hideSections={hComic.remark ? ["remark"] : []}
             series={series}
             franchise={franchise}
             nameSuggestions={castNames}

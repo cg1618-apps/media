@@ -46,7 +46,7 @@ import ContentLabelChips from "../../components/info/ContentLabelChips";
 import LazyImage from "../../components/ui/LazyImage";
 import { focusStyle } from "../../lib/covers";
 import { useViewScope } from "../../hooks/useViewScope";
-import { useMyRemarkSaver } from "../../api/mutations/useMyRemark";
+import { useRemarkSaver } from "../../api/mutations/useRemark";
 
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
@@ -88,7 +88,7 @@ export default function Comic() {
   // changed. Resolved from the fetched row so the two can never disagree.
   const system_id = comicQuery.data?.system_id;
   const { ownData } = useViewScope();
-  const saveMyRemark = useMyRemarkSaver("comic", system_id, setComic);
+  const saveRemark = useRemarkSaver("comic", system_id, setComic);
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const { setMediaItem, fetchMediaItem, invalidateMedia } =
@@ -495,14 +495,15 @@ export default function Comic() {
 
           {/* Remarks */}
           <TocSection id="remarks" label="Remarks">
-            {ownData && comic.remark && (
+            {comic.remark && (
               <Slip title="Remarks">
                 <textarea
                   key={comic.system_id}
                   defaultValue={comic.remark || ""}
+                  readOnly={!isAdmin}
                   onBlur={(e) => {
-                    if (e.target.value !== (comic.remark || ""))
-                      saveMyRemark(e.target.value);
+                    if (isAdmin && e.target.value !== (comic.remark || ""))
+                      saveRemark(e.target.value);
                   }}
                   rows={4}
                   placeholder="Add remarks…"
@@ -512,14 +513,15 @@ export default function Comic() {
             )}
           </TocSection>
 
-          {/* Structured Notes — the remark textarea above renders only for a
-              holder of self.list who has a remark; hide the notes page's
-              `remark` section exactly then, so the viewer's own row never has
-              two editors on one screen. */}
+          {/* Structured Notes — the remark textarea above renders whenever a
+              remark exists, editable for a holder of manage.catalog and
+              read-only for everyone else; hide the notes page's `remark`
+              section exactly then, so the one row never has two editors on
+              one screen. */}
           <ComicNotes
             key={comic.system_id}
             comic={comic}
-            hideSections={ownData && comic.remark ? ["remark"] : []}
+            hideSections={comic.remark ? ["remark"] : []}
             series={series}
             franchise={franchise}
           />

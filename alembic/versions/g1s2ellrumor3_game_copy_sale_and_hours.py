@@ -13,7 +13,7 @@ back: nothing records which Unreleased rows held it, and Unreleased is a valid
 status either side of the revision.
 
 Revision ID: g1s2ellrumor3
-Revises: a1n2imanga4
+Revises: r1e2mcatalog3
 Create Date: 2026-11-17 00:00:00.000000
 
 """
@@ -26,7 +26,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "g1s2ellrumor3"
-down_revision: Union[str, Sequence[str], None] = "a1n2imanga4"
+down_revision: Union[str, Sequence[str], None] = "r1e2mcatalog3"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
