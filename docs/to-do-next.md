@@ -17,18 +17,7 @@ document exists — under `superpowers/specs/` while it is being built — the
 item points at it instead, and the present-tense pages take over once it
 ships.
 
-## 1. Clear every Comic's remarks
-
-**A one-off migration deletes every `備註 Remark` and `備註列表 Remark List`
-note row owned by a Comic entry**, shared and personal alike, for every
-account. Nothing is preserved and no dump is kept for it. Scope is the Comic
-type only: not H-Comic, and not the collection, franchise or series a comic
-sits in. Comics keep both sections afterwards; only the data goes.
-
-It comes before item 2 so that the remark migration has no comic rows to
-carry, and none to list in item 2's report.
-
-## 2. 備註 becomes a shared list; 備註列表 becomes 個人筆記 Personal Notes
+## 1. 備註 becomes a shared list; 備註列表 becomes 個人筆記 Personal Notes
 
 **The shared `備註 Remark` stops being one block of prose per owner and
 becomes a list, and the personal `備註列表 Remark List` is renamed
@@ -66,7 +55,7 @@ group). Today's definitions are the first two entries of `NOTE_SECTIONS` in
   `note` indexes), `docs/systems/notes.md` and `docs/api.md` are updated in
   the same change.
 
-## 3. Anime: Original or Remake
+## 2. Anime: Original or Remake
 
 **Anime gets a new field saying whether the entry is the original work or a
 remake: `Original` (the default) or `Remake`.** It is modelled on game's
@@ -76,7 +65,7 @@ column of its own, because anime's `is_main` already means
 Existing rows are set to `Original`. It is on the anime form, the detail
 page and the Anime sheet tab.
 
-## 4. `ep_special` is text
+## 3. `ep_special` is text
 
 **Anime's `ep_special` becomes a string**, because specials are numbered like
 `17.5A` and `17.5B`. Today it is a `Float` (`app/models/anime.py`), entered
@@ -86,7 +75,7 @@ Existing values convert without a trailing `.0`: `17.0` → `"17"`, `17.5`
 `WatchOrderGuide.jsx`). Check every reader that sorts or does arithmetic on
 it.
 
-## 5. Every progress number is a float, and +/− steps to the next integer
+## 4. Every progress number is a float, and +/− steps to the next integer
 
 **Every progress count and total becomes a float**: `ep_fin`, `ep_total`,
 `ep_previous`, `issue_fin`, `issue_total`, `page_fin`, `page_total`, and
@@ -100,7 +89,7 @@ steps by one, as now (`2` + → `3`). The rule holds for every progress
 counter, including manga's and novel's, which are already floats. Whole
 values display without `.0`.
 
-## 6. Pull shows its progress
+## 5. Pull shows its progress
 
 **Pull All and single-tab Pull stream their progress to the page, the way
 Backup does.** Backup already runs on its own worker and relays SSE
@@ -110,7 +99,7 @@ a spinner (`pages/admin/Admin.jsx`). Pull gets the same shape: per-tab
 progress events, keepalives inside the tunnel's ~100 s window, and a 409
 while a Pull is already running.
 
-## 7. Novel becomes Book
+## 6. Novel becomes Book
 
 **The Novel type is renamed Book throughout, not just in the UI**: table
 `novel` → `book`, `media_type` `'novel'` → `'book'`, route `/api/novel` →
@@ -141,7 +130,7 @@ means the *genre* (a light novel, a web novel) stays.
 It comes after items 1–6 because items 2 and 5 touch the novel code, and a
 rename running alongside them would conflict everywhere.
 
-## 8. Upcoming books and manga volumes on Future Releases
+## 7. Upcoming books and manga volumes on Future Releases
 
 **Each book unit gets a JP and a TW release date, manga gets the next
 volume's JP and TW release dates, and Future Releases shows both.**
@@ -168,7 +157,7 @@ volume's JP and TW release dates, and Future Releases shows both.**
 - Data entry is by hand. Automatic sources are being researched; see
   open-items.md, "Automatic book release data".
 
-## 9. A content label chip says who sees it
+## 8. A content label chip says who sees it
 
 **The chip a detail page draws for each content label gets a tooltip that
 says which modes show the label and which label it also carries, generated
