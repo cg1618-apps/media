@@ -17,7 +17,7 @@ Owner: `app/models/plan_next.py`. The revisions that built it are in [notes/migr
 | `system_id` | UUID PK | Row id. `DELETE /api/plan-next/{system_id}` uses it. |
 | `kind` | String, NOT NULL, `server_default="next"` | `next` (queue) or `rewatch` (mark). Vocabulary is `KINDS` in `app/utils/plan_next_kinds.py`, validated in the router, not a DB enum. |
 | `user_id` | UUID, NOT NULL, FK `users.id` `ON DELETE CASCADE` (`fk_plan_next_user`) | Whose queue this row is. A plan belongs to one account, and deleting the account takes its plans with it. |
-| `media_type` | String, NOT NULL | Hyphenated key from `MEDIA_TABLES` (`app/utils/media_resolver.py`): `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, `game`. Stored on every row, group scopes included, because it is the Plan page tab - it is **not** the owner kind. |
+| `media_type` | String, NOT NULL | Hyphenated key from `MEDIA_TABLES` (`app/utils/media_resolver.py`): `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `book`, `comic`, `game`. Stored on every row, group scopes included, because it is the Plan page tab - it is **not** the owner kind. |
 | `media_id` | UUID, nullable | Entry-scope owner. Its foreign key is the composite `fk_plan_next_media_type` on `(media_id, media_type)` against `media(system_id, media_type)`, so an entry filed under `anime` cannot point at a manga. `ON DELETE CASCADE`. |
 | `franchise_id` | UUID, nullable, FK `franchise.system_id` `ON DELETE CASCADE` (`fk_plan_next_franchise`) | Franchise-scope owner. |
 | `series_id` | UUID, nullable, FK `series.system_id` `ON DELETE CASCADE` (`fk_plan_next_series`) | Series-scope owner. |
@@ -69,9 +69,9 @@ Both Sheets parsers (`parse_franchise_from_sheet`, `parse_series_from_sheet` in 
 | comic | entry, series | entry, series |
 | anime-movie | entry | entry |
 | manga | entry | entry |
-| novel | entry | entry, series, franchise |
+| book | entry | entry, series, franchise |
 
-The two maps differ on purpose: anime is queued one season at a time but rewatched as a whole franchise; novels are reread at any tier but queued one book at a time; comic has no franchise scope at all.
+The two maps differ on purpose: anime is queued one season at a time but rewatched as a whole franchise; books are reread at any tier but queued one book at a time; comic has no franchise scope at all.
 
 ### Size thresholds and measures
 
@@ -84,7 +84,7 @@ The two maps differ on purpose: anime is queued one season at a time but rewatch
 | cartoon | count of entries | same as tv-show | same |
 | movie | count of entries | ≤1 → `standalone`, ≤3 → `2_3movies`, else `4movies_plus` | Standalone / 2-3 Movies / 4+ Movies |
 | comic | `sum_issue_total` (series only) | ≤3 → `1_3`, ≤10 → `4_10`, else `11_plus` | 1-3 Issues / 4-10 Issues / 11+ Issues |
-| anime-movie, manga, novel | none | no bucket vocabulary on the backend | see UI section for their frontend-only groupings |
+| anime-movie, manga, book | none | no bucket vocabulary on the backend | see UI section for their frontend-only groupings |
 
 Note that anime's `24ep` band covers 13-24 episodes and `30ep_plus` is really "25+"; the labels are round names, not exact bounds. Comic thresholds were chosen from real data, to split the collection into three roughly equal bands across `1-3` / `4-10` / `11+`.
 
@@ -106,7 +106,7 @@ The entry Pydantic schemas still expose boolean flags so Add/Modify forms, detai
 | tv-show | `watch_next` | `to_rewatch` |
 | cartoon | `watch_next` | none (dropped; cartoon rewatches at franchise scope) |
 | manga | `read_next` | `to_reread` |
-| novel | `read_next` | `to_reread` |
+| book | `read_next` | `to_reread` |
 | comic | `read_next` | `to_reread` |
 
 An assertion in `plan_next_kinds.py` enforces that a type has an entry-level rewatch flag if and only if `entry` is in its `rewatch` scopes.
@@ -174,11 +174,11 @@ Within a tab, rows are grouped by bucket (`groupByBucket` in `frontend/src/utils
 
 There is no runtime guard; `GET /api/plan-next/kinds` is unused by the frontend so the page renders without a vocabulary round-trip. `frontend/src/utils/planNext.test.js` has a table-driven test that guards the two copies. When either side changes, update both and re-run the tests.
 
-The frontend also carries two groupings the backend does not: manga tabs group by the entry's `serialization_status` (完結 / 連載中 / 腰斬 / 停更, empties under "其他") and novel tabs by the entry's `type` (Web Novel / Light Novel / Novel / Other). These are categorical self-groupings, never derived by Calculate, and live only in `planNextGroups.js` (`SELF_GROUP_COLUMN` in `usePlanData.js` picks the column). Anime-movie has an empty vocabulary and renders one ungrouped list.
+The frontend also carries two groupings the backend does not: manga tabs group by the entry's `serialization_status` (完結 / 連載中 / 腰斬 / 停更, empties under "其他") and book tabs by the entry's `type` (網路小說 / 輕小說 / 小說 / 短篇集 / 指南/設定集 / 其他, empties under 其他). These are categorical self-groupings, never derived by Calculate, and live only in `planNextGroups.js` (`SELF_GROUP_COLUMN` in `usePlanData.js` picks the column). Anime-movie has an empty vocabulary and renders one ungrouped list.
 
 ### PlanKindToggles
 
-`frontend/src/components/plan/PlanKindToggles.jsx` is the shared per-media-type checkbox control used by `FranchisePage.jsx`, `SeriesPage.jsx`, `FranchiseModifyTab.jsx`, and `SeriesModifyTab.jsx` (all under `frontend/src/pages/`). It takes `kind`, `scope`, and the media types the group actually holds, filters to those `scopesFor(kind, type)` allows, and renders nothing when none apply. `kindLabel` returns "Watch/Read Next" for `next`; for `rewatch` it returns **"To Reread"** when every applicable type is manga, novel, or comic, else "To Rewatch". Toggling calls `POST /api/plan-next/` or `DELETE /api/plan-next/target`.
+`frontend/src/components/plan/PlanKindToggles.jsx` is the shared per-media-type checkbox control used by `FranchisePage.jsx`, `SeriesPage.jsx`, `FranchiseModifyTab.jsx`, and `SeriesModifyTab.jsx` (all under `frontend/src/pages/`). It takes `kind`, `scope`, and the media types the group actually holds, filters to those `scopesFor(kind, type)` allows, and renders nothing when none apply. `kindLabel` returns "Watch/Read Next" for `next`; for `rewatch` it returns **"To Reread"** when every applicable type is manga, book, or comic, else "To Rewatch". Toggling calls `POST /api/plan-next/` or `DELETE /api/plan-next/target`.
 
 ## Sheets
 
@@ -191,7 +191,7 @@ The "Plan Next" tab is registered in `SHEET_TABS` in `app/services/pipelines/tab
 | Stale boolean columns | Old backups of entry, franchise and series tabs still carry `watch_next`, `read_next`, `to_rewatch`, `to_reread`, `watch_next_group` headers. The parsers no longer emit those keys, so the header-intersection step in `pull.py` silently drops them; the flags are not restored from those columns. | `app/services/pipelines/pull.py` |
 | Size groups | Franchise and Series parsers read `size_group_derived` and `size_group_manual` through `_safe_json`. | `app/utils/formatter.py` |
 
-Backfill: migration `9b0bcb763e8c` converted the old booleans into rows once. Entry-level `to_rewatch`/`to_reread` became entry-scope `rewatch` rows (cartoon entries deliberately excluded). Group-level `to_rewatch` on franchise and series became one group-scope `rewatch` row per media type the group actually holds, with the types derived from the child entry tables rather than from `franchise_type`, because that column is multi-valued, and bundles types (an `Anime` franchise also holds novels).
+Backfill: migration `9b0bcb763e8c` converted the old booleans into rows once. Entry-level `to_rewatch`/`to_reread` became entry-scope `rewatch` rows (cartoon entries deliberately excluded). Group-level `to_rewatch` on franchise and series became one group-scope `rewatch` row per media type the group actually holds, with the types derived from the child entry tables rather than from `franchise_type`, because that column is multi-valued, and bundles types (an `Anime` franchise also holds books).
 
 History in one line: migration `b872c435410b` dropped `watch_next`/`read_next` from the entry tables and `franchise.watch_next_group`; migration `9b0bcb763e8c` dropped the nine `to_rewatch`/`to_reread` booleans (franchise, series, anime_movies, movies, tv_shows, cartoons, manga, novel, comic), leaving `plan_next` as the only place a plan is stored.
 

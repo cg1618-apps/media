@@ -22,7 +22,7 @@ code.
 - [The three tiers](#the-three-tiers)
 - [Tier 1: closed enums in code](#tier-1-closed-enums-in-code)
   - [`app/utils/constants.py`](#apputilsconstantspy)
-  - [Novel unit kinds](#novel-unit-kinds-apputilsconstantspy)
+  - [Book unit kinds](#book-unit-kinds-apputilsconstantspy)
   - [Relation kinds](#relation-kinds-apputilsrelation_kindspy)
   - [Note sections](#note-sections-apputilsnote_sectionspy)
   - [Plan-next vocabulary](#plan-next-vocabulary-apputilsplan_next_kindspy)
@@ -47,7 +47,7 @@ code.
 | 3 | `person`, `person_role`, `studio`, linked through `media_credit` | an admin, through `/api/person` and `/api/studio` | the credits endpoints | a director with JP/EN names and a rating |
 
 The reason Tier 1 is code: `"Not Yet Aired"` makes Fill skip `mal_rating`,
-`"完結"` gates the novel volume checks, `Completed (解說)` must count as
+`"完結"` gates the book volume checks, `Completed (解說)` must count as
 completed everywhere `Completed` does. If an admin could rename any of these,
 the logic would break silently and no migration would notice. Tier 2 values
 are only ever read by humans, so renaming one is a content edit and nothing
@@ -86,7 +86,7 @@ type it serves is seeable.
 | Name | Values (in order) | Used by | `/api/constants` key |
 |---|---|---|---|
 | `WatchStatus` (Enum) | `Might Watch`, `Plan to Watch`, `Watch When Airs`, `Watch When Released`, `Active Watching`, `Passive Watching`, `Paused`, `Completed`, `Completed (解說)`, `Temp Dropped`, `Dropped`, `Won't Watch` | `watching_status` on anime, anime_movies, movies, tv_shows, cartoons, hentai. `Watch When Released` is the film types' (`FILM_MEDIA_TYPES`: movie, anime movie) spelling of `Watch When Airs`: a film offers it in place of `Watch When Airs`, the other four offer `Watch When Airs` and never it, and every grouping that counts one as planned counts both | `watching_status` |
-| `ReadStatus` (Enum) | `Might Read`, `Plan to Read`, `Active Reading`, `Passive Reading`, `Paused`, `Completed`, `Completed (解說)`, `Temp Dropped`, `Dropped`, `Won't Read` | `reading_status` on manga, novel, comic, h_comic | `reading_status` |
+| `ReadStatus` (Enum) | `Might Read`, `Plan to Read`, `Active Reading`, `Passive Reading`, `Paused`, `Completed`, `Completed (解說)`, `Temp Dropped`, `Dropped`, `Won't Read` | `reading_status` on manga, book, comic, h_comic | `reading_status` |
 | `COMPLETED_WATCH_STATUSES` | `{Completed, Completed (解說)}` | completion checks (`Completed (解說)` = finished via a summary/commentary video; counts as completed everywhere) | not served |
 | `COMPLETED_READ_STATUSES` | `{Completed, Completed (解說)}` | same, for reading types | not served |
 | `PlayStatus` (Enum) | `Might Play`, `Plan to Play`, `Play When Released`, `Active Playing`, `Passive Playing`, `Play Anytime`, `Paused`, `Completed`, `Temp Dropped`, `Dropped`, `Won't Play` | `playing_status` on games and h_game. `Play When Released` is `Watch When Airs`'s analogue and more load-bearing here: a pre-ordered or wishlisted unreleased title is an ordinary state in a collection organised by purchasable. `Play Anytime` covers titles with nothing to resume and nothing to finish - sandbox (Minecraft), live-service (Valorant) and roguelike (Slay the Spire) alike, because what differs between those three is the game, not the state | `playing_status` |
@@ -98,18 +98,18 @@ type it serves is seeable.
 | `ANIME_AIRING_TYPES` | `TV`, `Movie`, `ONA`, `OVA`, `OAD`, `Special`, `Other` | `anime.airing_type` dropdown | `anime_airing_type` |
 | `CARTOON_AIRING_TYPES` | `TV`, `Movie`, `Special` | `cartoons.airing_type` dropdown (Fill only handles `TV` and `Movie`, see business-rules.md section 17) | `cartoon_airing_type` |
 | `TV_SHOW_AIRING_TYPES` | `TV`, `Special` | `tv_shows.airing_type` dropdown; `TV` is the column's default | `tv_show_airing_type` |
-| `FranchiseType` (Enum) | `Movie`, `TV`, `Cartoon`, `Comic`, `Anime`, `Manga`, `Novel`, `Game`, `H-Comic`, `H-Game`, `Hentai` | backend-internal only | not served |
-| `FRANCHISE_TYPES` | `Anime`, `Manga`, `Anime Movie`, `TV`, `Movie`, `Cartoon`, `Comic`, `Novel`, `Game`, `H-Comic`, `H-Game`, `Hentai` | `franchise.franchise_type` dropdown. `H-Comic`, `H-Game` and `Hentai` are the types code branches on: a franchise carrying one carries that gated type's label and only entries of its family resolve into it ([entry-types.md](entry-types.md#franchise_type-values)) | `franchise_type` |
+| `FranchiseType` (Enum) | `Movie`, `TV`, `Cartoon`, `Comic`, `Anime`, `Manga`, `Book`, `Game`, `H-Comic`, `H-Game`, `Hentai` | backend-internal only | not served |
+| `FRANCHISE_TYPES` | `Anime`, `Manga`, `Anime Movie`, `TV`, `Movie`, `Cartoon`, `Comic`, `Book`, `Game`, `H-Comic`, `H-Game`, `Hentai` | `franchise.franchise_type` dropdown. `H-Comic`, `H-Game` and `Hentai` are the types code branches on: a franchise carrying one carries that gated type's label and only entries of its family resolve into it ([entry-types.md](entry-types.md#franchise_type-values)) | `franchise_type` |
 | `FRANCHISE_FAMILY_FOR_TYPE` | `H-Comic`, `Hentai` and `H-Game` -> `restricted` (`RESTRICTED_FAMILY`); any other type is `mainstream` (`MAINSTREAM_FAMILY`) | which franchise types may share a franchise, and which franchises an entry may sit in. A franchise type list spanning two families is refused (422) | not served |
 | `FRANCHISE_EXPECTATIONS` | `Highest`, `High`, `Medium`, `Low` | `user_rating.expectation`, the viewer's own expectation of a collection, franchise or series (served as `collection_expectation` / `franchise_expectation` / `series_expectation`). **Enforced** by `PUT /api/me/ratings`: anything else is a 422 | `franchise_expectation` |
-| `MY_RATINGS` | `S`, `A+`, `A`, `B`, `C`, `D`, `E`, `F` | `my_rating` on `user_media_list` (entries), `seasonal`, `user_novel_unit_rating` and `user_rating` (collection, franchise, series, person, character, studio, publisher). **Enforced** on every `user_rating` and unit write through `PUT /api/me/ratings` and `PUT /api/me/novel-units`: a write naming anything else is a 422 and `""` is NULL (`check_my_rating`, `app/utils/entity_vocab.py`) | `my_rating` |
+| `MY_RATINGS` | `S`, `A+`, `A`, `B`, `C`, `D`, `E`, `F` | `my_rating` on `user_media_list` (entries), `seasonal`, `user_book_unit_rating` and `user_rating` (collection, franchise, series, person, character, studio, publisher). **Enforced** on every `user_rating` and unit write through `PUT /api/me/ratings` and `PUT /api/me/book-units`: a write naming anything else is a 422 and `""` is NULL (`check_my_rating`, `app/utils/entity_vocab.py`) | `my_rating` |
 | `GENDERS` | `男`, `女`, `中性/無性`, `雙性混和`, `其他` | `gender` on `person` and `character`. NULL means not set and is not a sixth value. **Enforced**: a write naming anything else is a 422 and `""` is NULL. A Sheets Pull folds an old free-text cell instead of refusing it - `male` -> `男`, `female` -> `女` (trimmed, any case), anything else unreadable -> NULL - and folds `my_rating` by trimming and upper-casing, the same rules the revision that closed both vocabularies applied to the stored rows | `gender` |
-| `IS_MAIN` | `本傳`, `外傳`, `前傳`, `後傳`, `總集篇` | `is_main` on anime, movies, tv_shows, cartoons, manga, novel (formerly the `Main / Spinoff` system-option category; comic has no `is_main`; games read `GAME_IS_MAIN`) | `is_main` |
+| `IS_MAIN` | `本傳`, `外傳`, `前傳`, `後傳`, `總集篇` | `is_main` on anime, movies, tv_shows, cartoons, manga, book (formerly the `Main / Spinoff` system-option category; comic has no `is_main`; games read `GAME_IS_MAIN`) | `is_main` |
 | `MOVIE_TYPES` | `Reality`, `Animation` | movie type | `movie_type` |
 | `TV_REGIONS` | `歐美劇`, `韓劇`, `日劇`, `陸劇`, `台劇`, `動畫` | `tv_shows.region` (formerly `Region (TV Show)` option category) | `tv_region` |
 | `MANGA_REGIONS` | `日漫`, `韓漫`, `國漫`, `台漫`, `其他` | `manga.region` (formerly `Region (Manga)` option category) | `manga_region` |
-| `NOVEL_REGIONS` | `JP`, `CN`, `TW`, `KR`, `Western` | `novel.region` | `novel_region` |
-| `NOVEL_TYPES` | `Light Novel`, `Novel`, `Web`, `Other` | `novel.novel_type`; also the Plan page novel grouping | `novel_type` |
+| `BOOK_REGIONS` | `JP`, `CN`, `TW`, `KR`, `Western` | `book.region` | `book_region` |
+| `BOOK_TYPES` | `輕小說`, `小說`, `網路小說`, `短篇集`, `指南/設定集`, `其他` | `book.type`; also the Plan page book grouping, the unit kinds a book offers (below), and which books Statistics' Novel section counts (`輕小說`, `小說`, `網路小說`, `短篇集`) | `book_type` |
 | `COMIC_TYPES` | `Ongoing`, `Limited`, `One-Shot`, `Annual` | `comic.comic_type` | `comic_type` |
 | `GAME_TYPES` | `Base Game`, `DLC`, `Expansion`, `Bundle` | `games.game_type`, `h_game.game_type`; `Base Game` is the value `ck_games_base_no_parent` / `ck_h_game_base_no_parent` name | `game_type` |
 | `GAME_IS_MAIN` | `Main`, `Remake`, `Remaster` | `games.is_main`, `h_game.is_main` - the game types' own `is_main` vocabulary in place of `IS_MAIN`. A plain label with no tie to the `remake` / `remaster` relation kinds. **Enforced** on both types: a write naming anything else is a 422 (on h-game's tracker PATCH too), and the Sheets parser drops an unknown cell to NULL. The Add form starts a new entry on `Main` | `game_is_main` |
@@ -123,7 +123,7 @@ type it serves is seeable.
 | `GAME_COPY_FORMATS` | `Digital`, `Physical`, `Key Card` | `game_copy.copy_format`. `Key Card` is a boxed copy that holds only a download code | `game_copy_format` |
 | `GAME_ACQUISITION_KINDS` | `Bought`, `Gifted`, `Free`, `Bundled`, `Subscription` | `game_copy.acquisition` | `game_acquisition` |
 | `MANGA_SERIALIZATION_STATUSES` | `連載中`, `停更`, `腰斬`, `完結` | `manga.serialization_status`, `h_comic.serialization_status` | `manga_serialization_status` |
-| `NOVEL_SERIALIZATION_STATUSES` | `連載中`, `連載中 (不穩定)`, `連載中 (有生之年)`, `停更`, `完結`, `腰斬`, `可能更多`, `未出` | `novel.serialization_status`; `完結` gates the volume/chapter checks | `novel_serialization_status` |
+| `BOOK_SERIALIZATION_STATUSES` | `連載中`, `連載中 (不穩定)`, `連載中 (有生之年)`, `停更`, `完結`, `腰斬`, `可能更多`, `未出` | `book.serialization_status`; `完結` gates the volume/chapter checks | `book_serialization_status` |
 | `WEEKDAYS` | `Monday`, `Tuesday`, `Wednesday`, `Thursday`, `Friday`, `Saturday`, `Sunday` | `anime.broadcast_day`, `anime.my_watch_day` (plain strings, no validator) | `day_of_week` |
 | `MUSIC_STATUSES` | `Need`, `Pending`, `No Full Version`, `Done` | A song's status on the `op`, `ed`, `insert_songs`, `ost` sections - each viewer's own, in its `note_mark`, read into `note.status`. `No Full Version` is a song whose full-length cut is not released yet. The note registry imports this tuple; it is not restated there | `music_status` |
 | `MUSIC_TYPE_STATUSES` | `All Done`, `Done`, `Need`, `Pending`, `No Full Version`, `Not Done` | A song list's status, on its `music_status` row - each viewer's own, in its `note_mark`, read into `note.status`: how far one whole song list of an anime has got. A viewer who has not set one reads `Not Done` (`MUSIC_TYPE_STATUS_DEFAULT`) | `music_type_status` |
@@ -177,30 +177,30 @@ Retired: `Dub Preference` (never existed in code) and the old `Main / Spinoff`,
 `Region (TV Show)`, `Region (Manga)` option categories (now `IS_MAIN`,
 `TV_REGIONS`, `MANGA_REGIONS`).
 
-### Novel unit kinds (`app/utils/constants.py`)
+### Book unit kinds (`app/utils/constants.py`)
 
-Not served by `/api/constants` - `novel_unit.unit_kind` and the per-type
+Not served by `/api/constants` - `book_unit.unit_kind` and the per-type
 offering are hand-maintained in the frontend the way `planNextGroups.js`
 mirrors `plan_next_kinds.py` (see
 [Frontend copies of backend vocabulary](#frontend-copies-of-backend-vocabulary)).
 Tier 1 because code branches on the exact values: which kinds the
-`NovelUnitsEditor` offers for a given `novel.type`, and which counter pair
+`BookUnitsEditor` offers for a given `book.type`, and which counter pair
 the tracker renders.
 
 | Name | Values | Used by |
 |---|---|---|
-| `NOVEL_UNIT_KINDS` | `volume`, `arc`, `story`, `chapter` | the closed set every `novel_unit.unit_kind` and `NovelUnitWrite.unit_kind` (Pydantic `Literal`) must be one of; also `ck_novel_unit_kind` |
-| `NOVEL_UNIT_KINDS_BY_TYPE` | `Light Novel` -> `(volume,)`; `Novel` -> `(volume,)`; `Web` -> `(arc,)`; `Other` -> `(volume, story, chapter)` | which kinds `NovelUnitsEditor` offers for the novel's `type`; mirrored in `frontend/src/lib/novelUnits.js` as `NOVEL_UNIT_KINDS_BY_TYPE` and pinned to this map by `frontend/src/config/novelUnitKinds.test.js` |
-| `NOVEL_UNIT_KEY_PREFIX` | `volume` -> `Vol`, `arc` -> `Arc`, `story` -> `Story`, `chapter` -> `Ch` | the generated display key (`unit_display_key` / `unitDisplayKey`) when a unit has no explicit `unit_key`, e.g. `"Vol 1"` |
+| `BOOK_UNIT_KINDS` | `volume`, `arc`, `story`, `chapter` | the closed set every `book_unit.unit_kind` and `BookUnitWrite.unit_kind` (Pydantic `Literal`) must be one of; also `ck_book_unit_kind` |
+| `BOOK_UNIT_KINDS_BY_TYPE` | `輕小說` -> `(volume,)`; `小說` -> `(volume,)`; `網路小說` -> `(arc,)`; `短篇集`, `指南/設定集` and `其他` -> `(volume, story, chapter)` | which kinds `BookUnitsEditor` offers for the book's `type`; mirrored in `frontend/src/lib/bookUnits.js` as `BOOK_UNIT_KINDS_BY_TYPE` and pinned to this map by `frontend/src/config/bookUnitKinds.test.js` |
+| `BOOK_UNIT_KEY_PREFIX` | `volume` -> `Vol`, `arc` -> `Arc`, `story` -> `Story`, `chapter` -> `Ch` | the generated display key (`unit_display_key` / `unitDisplayKey`) when a unit has no explicit `unit_key`, e.g. `"Vol 1"` |
 
 Only `arc` rows are authoritative for progress derivation (Decision B in the
 design doc): a `volume`, `story` or `chapter` row is display-only enrichment.
 See [business-rules.md](business-rules.md) for the rollover and derivation
 rules this feeds.
 
-Decision F only relabelled a column, it did not rename it: `novel.vol_total_original`
+Decision F only relabelled a column, it did not rename it: `book.vol_total_original`
 keeps its column name, but its form label (`fieldMeta.js`,
-`NovelAddTab.jsx`/`NovelModifyTab.jsx`) reads "Total Volumes (JP/KR)" to make
+`BookAddTab.jsx`/`BookModifyTab.jsx`) reads "Total Volumes (JP/KR)" to make
 the JP/KR-vs-TW pairing with `vol_total_tw` ("Total Volumes (TW)") explicit.
 
 ### Relation kinds (`app/utils/relation_kinds.py`)
@@ -297,14 +297,14 @@ out. What the three gated types keep is in
 | `episode_comments` | episode_text | 各集評論 Episode Comments (manga: 各話評論 Chapter Comments; game: 各章評論 Part Reviews) | anime, tv-show, cartoon, manga, game | reviews | locator and text required, no links; manga's placeholder is "Chapter", game's "Chapter / Part" |
 | `highlights` | episode_text | 神回/神片段 Highlights | anime | | kinds `HIGHLIGHT_KINDS` |
 | `highlight_episodes` | episode_text | 神回/神片段 (manga: 神回) | tv-show, cartoon, manga | | kinds `HIGHLIGHT_KINDS` for tv-show and cartoon only |
-| `highlight_passages` | text | 神片段 | novel | | |
+| `highlight_passages` | text | 神片段 | book | | |
 | `highlight_moments` | episode_text | 神場景 Highlights | game | | locator required, placeholder "Chapter / Boss" |
 | `h_comic_highlights` | structured | 亮點 Highlights | h-comic | | KR entries only (`owner_where`); grouped by the `female_characters` names field; usefulness select `H_COMIC_USEFULNESS` |
 | `h_game_highlights` | structured | 亮點 Highlights | h-game | | female/male characters, route / scene (`locator`), dialogue audio, H 演出形式 and art style (selects over the `h_game` columns' options), label, usefulness, description; every h-game; grouped by `female_characters` |
 | `analysis` | text_links | 解析/解惑/討論 Analysis/Discussion | All but h-comic, hentai | analysis_group; **reviews** for game and h-game | Last in the 評論 card for a game - see `groups_by_owner` |
 | `cinematography` | text_links | 分鏡/演出/巧思/細節 | anime, anime-movie, tv-show, cartoon, manga, series | analysis_group | |
-| `craft` | text_links | 巧思 | novel | analysis_group | |
-| `foreshadowing` | text_links | 伏筆/前後呼應 Foreshadowing | anime, anime-movie, tv-show, cartoon, manga, novel, series, franchise | analysis_group | |
+| `craft` | text_links | 巧思 | book | analysis_group | |
+| `foreshadowing` | text_links | 伏筆/前後呼應 Foreshadowing | anime, anime-movie, tv-show, cartoon, manga, book, series, franchise | analysis_group | |
 | `symmetry` | text_links | 對稱 Symmetry | same as foreshadowing | analysis_group | |
 | `speculation` | text_links | 猜測 Speculation | same as foreshadowing | analysis_group | |
 | `easter_eggs` | text_links | 彩蛋/致敬 Easter Eggs/References | every entry type but h-comic, hentai, h-game; series, franchise | analysis_group; **reviews** for game | Right after 解析 in the 評論 card for a game |
@@ -355,7 +355,7 @@ out. What the three gated types keep is in
 | `ost` | music_track | OST | anime | music | same as `insert_songs` |
 | `op_ed_changes` | episode_text | OP/ED 變動 | anime, tv-show, cartoon | music | kinds `OP_ED_KINDS`; `takes_links` (URL-string links) |
 | `extended_episodes` | episode_text | 加長 | anime, tv-show, cartoon | | |
-| `adaptation` | text_links | 改編 Adaptation | anime, anime-movie, tv-show, cartoon, novel, series, franchise | | description required on anime, anime-movie, novel |
+| `adaptation` | text_links | 改編 Adaptation | anime, anime-movie, tv-show, cartoon, book, series, franchise | | description required on anime, anime-movie, book |
 | `mods_and_tools` | structured | 模組&工具 Mods & Tools | game, h-game | tools | type `Mod`/`Tool`, name, developer, description, status (personal, behind the `mod_status` feature); groupable by type |
 | `guide_resources` | structured | 攻略資源 Guide Resources | game, h-game | tools | group (free text, no suggestions), name, description, links; groupable by group |
 | `resources` | name_links | Resources | All | standalone; **tools** for game and h-game | optional free-text Group in `kind` (`kind_is_group`); last in the 資源&工具 card on a game |
@@ -423,14 +423,14 @@ the page is in [systems/plan-next.md](systems/plan-next.md).
 | `tv-show` | entry, series, franchise | entry, series, franchise |
 | `cartoon` | entry, series, franchise | franchise |
 | `manga` | entry | entry |
-| `novel` | entry | entry, series, franchise |
+| `book` | entry | entry, series, franchise |
 | `comic` | entry, series | entry, series |
 | `game` | entry, series, franchise | entry, series, franchise |
 
 `PLAN_FLAG_FIELDS` (the virtual API fields that front `plan_next` at entry
 scope): `watch_next` on anime, anime-movie, movie, tv-show, cartoon;
 `to_rewatch` on anime-movie, movie, tv-show; `read_next` and `to_reread` on
-manga, novel, comic; `play_next` and `to_replay` on game. Anime and cartoon
+manga, book, comic; `play_next` and `to_replay` on game. Anime and cartoon
 have no entry-level rewatch field.
 
 Naming a field here is only half the wiring: the router factory sets it on
@@ -448,7 +448,7 @@ declare, **silently**. `GameBase` therefore declares `play_next` and
 | `movie` | `standalone` "Standalone", `2_3movies` "2-3 Movies", `4movies_plus` "4+ Movies" |
 | `comic` | `1_3` "1-3 Issues", `4_10` "4-10 Issues", `11_plus` "11+ Issues" |
 
-`anime-movie`, `manga`, `novel` and `game` have no bucket vocabulary. Games
+`anime-movie`, `manga`, `book` and `game` have no bucket vocabulary. Games
 are deliberately unbucketed for now: length is hours, not a count of
 episodes or issues, and no threshold has been agreed.
 
@@ -460,12 +460,12 @@ it is also the vocabulary of `person_role.role` - one list, not two.
 | Key | Label | Target | Media types |
 |---|---|---|---|
 | `studio` | Studio | studio | anime, anime-movie, game, h-game, hentai |
-| `publisher` | Publisher | publisher | anime, anime-movie, manga, novel, comic, game |
+| `publisher` | Publisher | publisher | anime, anime-movie, manga, book, comic, game |
 | `director` | Director | person | anime, anime-movie, movie, game, hentai |
 | `producer` | Producer | person | anime |
 | `composer` | Music / Composer | person | anime, game |
-| `author` | Author | person | manga, novel, comic, h-comic, hentai |
-| `illustrator` | Illustrator | person | manga, novel, comic, h-comic |
+| `author` | Author | person | manga, book, comic, h-comic, hentai |
+| `illustrator` | Illustrator | person | manga, book, comic, h-comic |
 | `club` | Club | person | h-comic |
 | `seiyuu` | Seiyuu 聲優 | person | anime, anime-movie, hentai |
 
@@ -487,7 +487,7 @@ than a new `developer` role: one company that made the work is the same fact
 the anime role records, and a separate key would split one studio's anime and
 game credits across two vocabularies. `director` and `composer` widened the
 same way. `publisher` covers all six types that credit one (anime,
-anime-movie, manga, novel, comic, game) for the same reason - see below.
+anime-movie, manga, book, comic, game) for the same reason - see below.
 
 **There is no `publisher_tw` or `comic_publisher` vocabulary.** A publisher is
 an entity with a page, not a tag: every such value is a `publisher` credit on
@@ -498,7 +498,7 @@ imprint is arguably a sub-entity of a publisher and the flat `publisher` table
 cannot express that.
 
 **One role, six reader-facing words.** `credit_label("publisher", media_type)`
-returns 台灣代理商 on anime and anime-movie, 台灣出版商 on manga and novel,
+returns 台灣代理商 on anime and anime-movie, 台灣出版商 on manga and book,
 出版商 on comic (a comic's publisher is Marvel - the work's *original*
 publisher, not a TW licensor) and 發行商 on game. All six types have an
 override, so the role's own `"Publisher"` label is never rendered; it survives
@@ -526,8 +526,8 @@ read through `/api/casting`, keyed off `character_casting` and its
 
 The reader-facing word is **derived, not stored**:
 `credit_label(role, media_type)` reads 原作 / Author / Writer for `author` on
-manga / novel / comic and 作畫 / Illustrator / Artist / 繪師 for `illustrator`
-on manga / novel / comic / h-comic. One vocabulary, several words.
+manga / book / comic and 作畫 / Illustrator / Artist / 繪師 for `illustrator`
+on manga / book / comic / h-comic. One vocabulary, several words.
 
 **Person scope is not option scope.** Every `person_role` row carries a
 NOT NULL media-type scope and a person is offered in the union of their rows;
@@ -546,12 +546,12 @@ Tier 2 category:
 
 | Key | Label | Tier 2 category | Media types |
 |---|---|---|---|
-| `genre_main` | Genre Main | `Genre Main` | anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic |
-| `genre_sub` | Genre Sub | `Genre Sub` | anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic |
-| `label` | 標籤 Label | `Label` | anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, game |
+| `genre_main` | Genre Main | `Genre Main` | anime, anime-movie, movie, tv-show, cartoon, manga, book, comic |
+| `genre_sub` | Genre Sub | `Genre Sub` | anime, anime-movie, movie, tv-show, cartoon, manga, book, comic |
+| `label` | 標籤 Label | `Label` | anime, anime-movie, movie, tv-show, cartoon, manga, book, comic, game |
 | `original_source` | Original Source (labelled Exclusive Source on movie) | `Platform` | tv-show, cartoon, movie, h-comic |
 | `exclusive_source` | Exclusive Source | `Platform` | anime, anime-movie |
-| `serialization_platform` | Serialization Platform | `Serialization Platform` | manga, novel |
+| `serialization_platform` | Serialization Platform | `Serialization Platform` | manga, book |
 | `comic_imprint` | Imprint | `Comic Imprint` | comic |
 | `comic_continuity` | Continuity | `Comic Continuity` | comic |
 | `comic_era` | Era | `Comic Era` | comic |
@@ -611,7 +611,7 @@ category rename `Official Source` → `Platform`, since the vocabulary now also
 serves `media_source` access rows) and gained `movie` as a third media type
 during the media-sources change, which also added `exclusive_source` and
 widened `serialization_platform` from a real `manga.serialization_platform`
-column (dropped) to a shared `TagField` over `manga` and `novel`. See
+column (dropped) to a shared `TagField` over `manga` and `book`. See
 [data-model.md](data-model.md#manga) and
 [data-model.md](data-model.md#media_source). The RESPONSE attribute for
 `original_source` is not always its own key: `tv-show` and `cartoon` kept the
@@ -677,8 +677,8 @@ the one new column.
 | `ITEM_IMPORTANCE` | `Essential`, `Recommended`, `Normal`, `Optional` (served as `/api/constants` `watch_order_importance`) |
 | `DEFAULT_IMPORTANCE` | `Normal`; `normalize_importance` coerces anything unrecognised (NULL, a bad Sheets cell) to it |
 | `MEDIA_TYPE_MODELS` / `VALID_WATCH_ORDER_MEDIA_TYPES` | the eight hyphenated media types — **`game` is not among them**: this map is hand-written, not derived from `MEDIA_TABLES`, so a game cannot be a watch-order step |
-| `_STATUS_FIELDS` | `watching_status` for anime, anime-movie, movie, tv-show, cartoon; `reading_status` for manga, novel, comic |
-| `_TOTAL_FIELDS` | `ep_total` (anime, tv-show, cartoon), `ch_total` (manga, novel), `issue_total` (comic); movies and anime movies have none |
+| `_STATUS_FIELDS` | `watching_status` for anime, anime-movie, movie, tv-show, cartoon; `reading_status` for manga, book, comic |
+| `_TOTAL_FIELDS` | `ep_total` (anime, tv-show, cartoon), `ch_total` (manga, book), `issue_total` (comic); movies and anime movies have none |
 
 Generated release orders have no `watch_order_item` rows, so every step of
 one is `Normal`. See [systems/watch-orders.md](systems/watch-orders.md).
@@ -712,7 +712,7 @@ labels.
 `MEDIA_TYPE_KEYS` (hyphenated, stored in `media_relation`, `watch_order_item`,
 `plan_next`, `media_credit`, `media_tag`, `system_option_scope`; served as
 `/api/constants` `media_type`): `anime`, `anime-movie`, `movie`, `tv-show`,
-`cartoon`, `manga`, `novel`, `comic`, `game`, `h-comic`, `h-game`, `hentai`. `OWNER_TYPE_KEYS` adds the grouping
+`cartoon`, `manga`, `book`, `comic`, `game`, `h-comic`, `h-game`, `hentai`. `OWNER_TYPE_KEYS` adds the grouping
 tiers `series`, `franchise`, `collection` for note and meme owners.
 `REQUEST_TARGET_TABLES` adds the five entities `studio`, `publisher`,
 `person`, `character`, `identity` (`ENTITY_TABLES`) to those, for
@@ -734,12 +734,12 @@ twenty-seven in `OPTION_CATEGORIES`:
 
 | Category | Offered in (scopes) | Read by |
 |---|---|---|
-| `Genre Main` | per value, among the eight mainstream types (anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic) | tag field `genre_main`. One vocabulary for all eight: a value with no scope rows is offered on every type, and one scoped to several (`奇幻` on anime and manga, say) is offered on exactly those. Game is not among them - its genres are `Game Genre` |
+| `Genre Main` | per value, among the eight mainstream types (anime, anime-movie, movie, tv-show, cartoon, manga, book, comic) | tag field `genre_main`. One vocabulary for all eight: a value with no scope rows is offered on every type, and one scoped to several (`奇幻` on anime and manga, say) is offered on exactly those. Game is not among them - its genres are `Game Genre` |
 | `Genre Sub` | per value, among the eight mainstream types | tag field `genre_sub`; shared across the eight the same way as `Genre Main` |
 | `Label` | per value, among the eight mainstream types and game | tag field `label` (標籤: viewing-experience tags such as 會跳OP; seeded with three values by migration `l1a2b3e4l5o6`) |
 | `Platform` | varies per value | tag fields `original_source` (tv-show, cartoon, movie, h-comic) and `exclusive_source` (anime, anime-movie), **and** `media_source` `kind='access', bucket='main'` rows on every media type. Renamed from `Official Source` (merged the old `TV Show Official Source` / `Cartoon Official Source`); serves two different questions, split by the `usage` axis below |
 | `Reference Source` | varies per value | `media_source` `kind='reference', bucket='main'` rows only — no `TagField`, in `FILTER_ONLY_CATEGORIES`. Gained `SteamDB`, `HowLongToBeat` and `Metacritic` for games, and `Official site` gained a `game` scope; every `game`-scoped value and `Twitter` also carry `h-game` (below); `Wikipedia` and `Fandom wiki` are unscoped and so already reach games |
-| `Serialization Platform` | manga, novel | tag field `serialization_platform`; seeded from the old free-text `manga.serialization_platform` column values |
+| `Serialization Platform` | manga, book | tag field `serialization_platform`; seeded from the old free-text `manga.serialization_platform` column values |
 | `Comic Imprint` | comic | tag field `comic_imprint` |
 | `Comic Continuity` | comic | tag field `comic_continuity` |
 | `Comic Era` | comic | tag field `comic_era` |
@@ -799,7 +799,7 @@ h-game has no `Platform` values: like game, it has no access rows.
 **Restricted sources are suggested, not a vocabulary.** A `restricted`
 `media_source` row is free text, so the names each type offers, and which of
 them it prefills by default - `Gimy` on the watch types, `Anime1` on anime, `BatCave` on comic,
-the novel sites, `禁漫天堂` and the six KR names on h-comic, `Hanime1` on
+the book sites, `禁漫天堂` and the six KR names on h-comic, `Hanime1` on
 hentai, and the rest - live in the frontend (`lib/restrictedSources.js`; the
 full table is in [Admin Pages](frontend/admin-pages.md#add-addjsx)), not in
 `system_option`. The server never checks them, and any other name is still
@@ -1024,12 +1024,12 @@ comment asks that the two be kept in step. Seven rows: five person roles plus
 | Old option categories | New home | Notes |
 |---|---|---|
 | `Studio` | `studio` | credited via `media_credit` role `studio` |
-| `Publisher / Distributor TW` · `Comic Publisher` | `publisher` | credited via `media_credit` role `publisher`, offered per media type through `publisher_scope`. One role, four labels: 台灣代理商 on anime and anime-movie, 台灣出版商 on manga and novel, 出版商 on comic, 發行商 on game |
+| `Publisher / Distributor TW` · `Comic Publisher` | `publisher` | credited via `media_credit` role `publisher`, offered per media type through `publisher_scope`. One role, four labels: 台灣代理商 on anime and anime-movie, 台灣出版商 on manga and book, 出版商 on comic, 發行商 on game |
 | `Director` | `person`, role `director` | scoped by media type on `person_role`: anime, anime-movie, movie |
 | `Producer` | `person`, role `producer` | scoped anime |
 | `Music / Composer` | `person`, role `composer` | scoped anime |
-| `Manga Author` · `Novel Author` · `Comic Writer` | `person`, role `author` | one role, three labels: 原作 on a manga, Author on a novel, Writer on a comic |
-| `Manga Author` · `Novel Illustrator` · `Comic Artist` | `person`, role `illustrator` | 作畫 on a manga, Illustrator on a novel, Artist on a comic. `Manga Author` covered this half too, before the split |
+| `Manga Author` · `Novel Author` · `Comic Writer` | `person`, role `author` | one role, three labels: 原作 on a manga, Author on a book, Writer on a comic |
+| `Manga Author` · `Novel Illustrator` · `Comic Artist` | `person`, role `illustrator` | 作畫 on a manga, Illustrator on a book, Artist on a comic. `Manga Author` covered this half too, before the split |
 
 A rating of a person, studio, publisher or character is the viewer's own
 `user_rating` row, on `MY_RATINGS` and enforced on every write; `gender` is
@@ -1063,7 +1063,8 @@ are no longer columns.
 | `CARTOON_TV_FIELDS_TO_FILL` | `airing_status`, `release_date`, `imdb_rating`, `imdb_series_rating`, `ep_total`, `cover_image_file` |
 | `CARTOON_MOVIE_FIELDS_TO_FILL` | `airing_status`, `release_date`, `imdb_rating`, `cover_image_file` |
 | `MANGA_FIELDS_TO_FILL` | `serialization_status`, `release_date`, `end_date`, `mal_rating`, `mal_rank`, `cover_image_file` |
-| `NOVEL_FIELDS_TO_FILL` | `serialization_status`, `release_date`, `end_date`, `mal_rating`, `mal_rank`, `cover_image_file` |
+| `BOOK_FIELDS_TO_FILL` | `serialization_status`, `release_date_jp`, `end_date`, `mal_rating`, `mal_rank`, `cover_image_file` |
+| `BOOK_OPENLIBRARY_FIELDS_TO_FILL` | `release_date_jp`, `cover_image_file` |
 | `COMIC_FIELDS_TO_FILL` | `release_date`, `issue_total`, `cover_image_file` |
 | `COMIC_LINK_FIELDS_TO_FILL` | `("credit", "author")`, `("credit", "illustrator")`, `("credit", "publisher")` |
 
@@ -1114,7 +1115,7 @@ Plan page sort described in [systems/plan-next.md](systems/plan-next.md)
 **Pipeline pauses** (`app/services/pipelines/specs.py`): `MAL_PAUSE = 1` and
 `COMICVINE_PAUSE = 1` seconds, used as `fill_sleep` / `replace_sleep` between
 entries in bulk Fill and Replace for the Tenrai-backed types (anime,
-anime-movie, manga, novel) and comic.
+anime-movie, manga, book) and comic.
 
 ---
 
@@ -1124,11 +1125,11 @@ anime-movie, manga, novel) and comic.
 |---|---|---|
 | `frontend/src/config/fieldOptions.js` | every `/api/constants` list (`WATCHING_STATUSES`, `FRANCHISE_TYPES`, `PERSON_ROLES`, `MEDIA_TYPES`, ...) plus `CONSTANTS_FALLBACK` | a pre-fetch **fallback only**. `frontend/src/config/useConstants.js` fetches `/api/constants` once and `applyConstants()` overwrites each array's contents in place, so every Add/Modify `<select>` shows API values after the first paint. `App.jsx` calls the hook at the root to force that re-render. |
 | `frontend/src/config/weekdays.js` | `WEEKDAYS` | same in-place overwrite via `day_of_week` |
-| `frontend/src/config/planNextGroups.js` | `SIZE_GROUPS`, `ALLOWED_SCOPES`, `KINDS` from `plan_next_kinds.py` | **hand-maintained**; `GET /api/plan-next/kinds` is not called. `planNext.test.js` guards `ALLOWED_SCOPES`/`KINDS` against drift; `SIZE_GROUPS` has no guard. It also adds two frontend-only groupings: manga by `serialization_status` (`完結`, `連載中`, `腰斬`, `停更`, ungrouped label `其他`) and novel by `novel_type` (`Web` relabelled "Web Novel", then `Light Novel`, `Novel`, `Other`). |
+| `frontend/src/config/planNextGroups.js` | `SIZE_GROUPS`, `ALLOWED_SCOPES`, `KINDS` from `plan_next_kinds.py` | **hand-maintained**; `GET /api/plan-next/kinds` is not called. `planNext.test.js` guards `ALLOWED_SCOPES`/`KINDS` against drift; `SIZE_GROUPS` has no guard. It also adds two frontend-only groupings: manga by `serialization_status` (`完結`, `連載中`, `腰斬`, `停更`, ungrouped label `其他`) and book by `type` (`網路小說` first, then `輕小說`, `小說`, `短篇集`, `指南/設定集`, `其他`; an empty type falls into `其他`). |
 | `frontend/src/utils/planNext.js` | `COMIC_BANDS` (a copy of the comic `SIZE_THRESHOLDS`) | hand-maintained |
 | `frontend/src/config/statusGroups.js` | `COMPLETED_STATUSES`; `WATCHING_STATUS_GROUP` / `READING_STATUS_GROUP` filter buckets (`Might Watch`/`Might Read`, `Planned`, `Watching`/`Reading`, `Completed`, `Dropped`); `STATUS_PICKER_GROUP` / `groupStatusOptions()` picker groups (`Not Released`, `On-Going`, `Done`) | hand-maintained; both groupings exist only in the frontend. The picker groups are a **display aid only** - `components/ui/StatusOptions.jsx` renders them as `<optgroup>`s in every Add/Modify and detail-page status `<select>`, and nothing filters, sorts or counts by them. A status the map does not know still renders, ungrouped, at the end of the list. |
 | `frontend/src/components/tracker/WatchOrderEditor.jsx` | `ITEM_IMPORTANCE` | hand-maintained mirror |
-| `fieldOptions.js` extras | `PROGRESS_DISPLAY_OPTIONS` - two entries, `""` (label "— Default (VOL JP/KR) —") and `vol_tw` (label "VOL TW (Taiwan Volumes)"): `novel.type` drives structure, so the only genuine choice left is JP/KR volumes vs TW volumes. A novel holding any other stored value (`ch`, `vol_original`, `arc_ch`) has it appended back by `withLegacyProgressDisplay()` as a selectable "(legacy)" entry rather than silently reverting to the default. Also `RELEASE_SEASONS` (`WIN`, `SPR`, `SUM`, `FAL`), `RELEASE_MONTHS`, `SEASON_NUMS` (1-10), `PART_NUMS` (1-7), `TRISTATE` (`"true"`, `"false"`) | frontend-only vocabularies with no backend list |
+| `fieldOptions.js` extras | `PROGRESS_DISPLAY_OPTIONS` - two entries, `""` (label "— Default (VOL JP/KR) —") and `vol_tw` (label "VOL TW (Taiwan Volumes)"): `book.type` drives structure, so the only genuine choice left is JP/KR volumes vs TW volumes. A book holding any other stored value (`ch`, `vol_original`, `arc_ch`) has it appended back by `withLegacyProgressDisplay()` as a selectable "(legacy)" entry rather than silently reverting to the default. Also `RELEASE_SEASONS` (`WIN`, `SPR`, `SUM`, `FAL`), `RELEASE_MONTHS`, `SEASON_NUMS` (1-10), `PART_NUMS` (1-7), `TRISTATE` (`"true"`, `"false"`) | frontend-only vocabularies with no backend list |
 
 Relation kinds and note sections are **not** copied: the frontend fetches
 `/api/media-relation/kinds` and the note registry over HTTP.

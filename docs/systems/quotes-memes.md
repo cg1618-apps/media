@@ -1,6 +1,6 @@
 # Quotes and memes
 
-Last verified: 2026-11-14
+Last verified: 2026-11-17
 
 ## What this is for
 
@@ -94,7 +94,7 @@ Defined in `app/utils/media_resolver.py` and mirrored in the frontend pickers.
 
 | Registry | Keys | Used by |
 |---|---|---|
-| `MEDIA_TABLES` | `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, `game` | `quote.media_type` (derived from `media_id`) |
+| `MEDIA_TABLES` | `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `book`, `comic`, `game` | `quote.media_type` (derived from `media_id`) |
 | `TIER_TABLES` | `series`, `franchise`, `collection` (`is_tier=True`) | — |
 | `OWNER_TABLES` = both | all twelve | `meme.owner_type` (derived from its four owner columns) |
 

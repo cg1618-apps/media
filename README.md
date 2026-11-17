@@ -1,7 +1,7 @@
 # CG1618 Media Tracker & Database
 
 A personal, cloud-hosted tracker for a media collection — anime, anime movies,
-movies, TV shows, cartoons, manga, novels and comics — organised as
+movies, TV shows, cartoons, manga, books and comics — organised as
 **Collection → Franchise → Series → entry**, with watch orders, relations,
 notes, quotes/memes, a plan-next board and per-season statistics. Guests can
 browse; an admin manages everything, enriches entries from Tenrai (MAL), TMDB,

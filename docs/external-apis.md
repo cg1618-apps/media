@@ -4,7 +4,7 @@ Last verified: 2026-11-17
 
 ## What this is for
 
-The app never asks you to type metadata that a public database already knows. Thirteen outside services feed it: **Tenrai** (a mirror of MyAnimeList) fills anime, anime movies, manga, novels, studios, seiyuu and characters, builds a cast from an entry's MAL character list, fills the columns an h-comic has, and four fields and two reference links of a hentai; **AniList** fills a second score and two all-time ranks on the same four title types, keyed on the `mal_id` they already carry; **TMDB** plus **OMDb** fill movies, TV shows and cartoons from an IMDb ID; **Comic Vine** fills comics; **Open Library** fills novels that have no MAL entry; **IGDB** and **Steam** together fill games — IGDB supplies the catalogue facts, the cover and the Steam appid, Steam fills prices, the Metacritic score and link and this collection's own playtime, and its library capsule - else its header image - is the cover when IGDB has none, and **HowLongToBeat**'s own search supplies a game's page link; **DLsite** fills an h-game's release date, studio and cover ahead of both; **AniDB** fills whatever of a hentai's cover, release date, airing status and episode count MAL left blank; **E-Hentai** fills an h-comic's cover and illustrator after Tenrai, for the doujinshi MAL does not list; and **Google Sheets** is the human-readable backup and restore source. Cover images are not an outside service any more: they are downloaded to local disk under `static/covers/`. This page says, for each service, where the code lives, what it sends, how it protects itself (throttle, retry, timeout), and exactly which database columns it writes. How those calls are strung into the Fill / Replace / Backup / Pull actions is in [data-actions.md](data-actions.md); the columns themselves are in [data-model.md](data-model.md); the "does this entry still need filling" tests and the ID-from-link rules are in [business-rules.md](business-rules.md) sections 2 and 5.
+The app never asks you to type metadata that a public database already knows. Thirteen outside services feed it: **Tenrai** (a mirror of MyAnimeList) fills anime, anime movies, manga, books, studios, seiyuu and characters, builds a cast from an entry's MAL character list, fills the columns an h-comic has, and four fields and two reference links of a hentai; **AniList** fills a second score and two all-time ranks on the same four title types, keyed on the `mal_id` they already carry; **TMDB** plus **OMDb** fill movies, TV shows and cartoons from an IMDb ID; **Comic Vine** fills comics; **Open Library** fills books that have no MAL entry; **IGDB** and **Steam** together fill games — IGDB supplies the catalogue facts, the cover and the Steam appid, Steam fills prices, the Metacritic score and link and this collection's own playtime, and its library capsule - else its header image - is the cover when IGDB has none, and **HowLongToBeat**'s own search supplies a game's page link; **DLsite** fills an h-game's release date, studio and cover ahead of both; **AniDB** fills whatever of a hentai's cover, release date, airing status and episode count MAL left blank; **E-Hentai** fills an h-comic's cover and illustrator after Tenrai, for the doujinshi MAL does not list; and **Google Sheets** is the human-readable backup and restore source. Cover images are not an outside service any more: they are downloaded to local disk under `static/covers/`. This page says, for each service, where the code lives, what it sends, how it protects itself (throttle, retry, timeout), and exactly which database columns it writes. How those calls are strung into the Fill / Replace / Backup / Pull actions is in [data-actions.md](data-actions.md); the columns themselves are in [data-model.md](data-model.md); the "does this entry still need filling" tests and the ID-from-link rules are in [business-rules.md](business-rules.md) sections 2 and 5.
 
 **In the app**: the same coverage — every field each service writes, and whether it fills or replaces it — is served to admins at `GET /api/constants/external-apis` and rendered on the read-only **External APIs** page (`/external-apis`). That catalog lives in `app/services/integrations/catalog.py`; it is hand-authored against this document and the autofill code, and `tests/api/test_external_api_catalog.py` guards it from drifting (media keys against `PIPELINES`, column names against the model). This page keeps the mapping rules — how MAL's `aired.string` becomes a date, how a placeholder cover is spotted — that the catalog does not carry.
 
@@ -39,12 +39,12 @@ A note on names: the MAL client is **Tenrai v1**. Any `jikan` still lurking in c
 
 | Service | Base URL | Key / env var (`app/config.py`) | Client file | Mapper file | Feeds |
 |---|---|---|---|---|---|
-| Tenrai v1 | `https://api.tenrai.org/v1` | none | `app/services/integrations/tenrai.py` | `app/utils/tenrai_utils.py` | `anime`, `anime_movies`, `manga`, `novel`, `studio`, `person` (seiyuu only), `character`, `h_comic`, `hentai` |
-| AniList | `https://graphql.anilist.co` | none | `app/services/integrations/anilist.py` | `app/utils/anilist_utils.py` | `anime`, `anime_movies`, `manga`, `novel` |
+| Tenrai v1 | `https://api.tenrai.org/v1` | none | `app/services/integrations/tenrai.py` | `app/utils/tenrai_utils.py` | `anime`, `anime_movies`, `manga`, `book`, `studio`, `person` (seiyuu only), `character`, `h_comic`, `hentai` |
+| AniList | `https://graphql.anilist.co` | none | `app/services/integrations/anilist.py` | `app/utils/anilist_utils.py` | `anime`, `anime_movies`, `manga`, `book` |
 | TMDB | `https://api.themoviedb.org/3` | `settings.tmdb_api_key` ← `TMDB_API_KEY` | `app/services/integrations/tmdb.py` | `app/utils/tmdb_utils.py` | `movies`, `tv_shows`, `cartoons` |
 | OMDb | `http://www.omdbapi.com` | `settings.omdb_api_key` ← `OMDB_API_KEY` | `app/services/integrations/omdb.py` | `app/utils/omdb_utils.py` | `imdb_rating` on the three above, `imdb_series_rating` on TV shows and TV cartoons |
 | Comic Vine | `https://comicvine.gamespot.com/api` | `settings.comicvine_api_key` ← `COMICVINE_API_KEY` | `app/services/integrations/comicvine.py` | `app/utils/comicvine_utils.py` | `comic` |
-| Open Library | `https://openlibrary.org` | none | `app/services/integrations/openlibrary.py` | `app/utils/openlibrary_utils.py` | `novel` (no MAL link) |
+| Open Library | `https://openlibrary.org` | none | `app/services/integrations/openlibrary.py` | `app/utils/openlibrary_utils.py` | `book` (no MAL link) |
 | IGDB | `https://api.igdb.com/v4` (token from `https://id.twitch.tv/oauth2/token`) | `settings.igdb_client_id` ← `IGDB_CLIENT_ID` **and** `settings.igdb_client_secret` ← `IGDB_CLIENT_SECRET` | `app/services/integrations/igdb.py` | `app/utils/igdb_utils.py` | `games` |
 | Steam | `https://store.steampowered.com/api` (no key) **and** `https://api.steampowered.com` (`settings.steam_api_key` ← `STEAM_API_KEY`, `settings.steam_id` ← `STEAM_ID`) | `settings.steam_api_key` / `settings.steam_id`, both optional | `app/services/integrations/steam.py` | `app/utils/steam_utils.py` | `games`, including a game's cover when IGDB has none; the cover of an `h_game` (image CDN for the capsule, storefront for the header image) |
 | HowLongToBeat | `https://howlongtobeat.com`, the site's own search endpoint (undocumented) | none; `settings.hltb_enabled` ← `HLTB_ENABLED` turns it off | `app/services/integrations/hltb.py` | `app/utils/hltb_utils.py` | the HowLongToBeat reference row on `games` and `h_game` |
@@ -79,8 +79,8 @@ this section is how the searches call out.
 | anime | Tenrai | `search_mal_anime` | `GET /anime?q=&sfw=true` | `mal_id`, `mal_link`, then the [MAL prefill](#mal-prefill) |
 | anime movie | Tenrai | `search_mal_anime(..., media_type="movie")` | `GET /anime?q=&type=movie&sfw=true` | `mal_id`, `mal_link`, then the [MAL prefill](#mal-prefill) |
 | manga | Tenrai | `search_mal_manga` | `GET /manga?q=&sfw=true`, over-fetched, light novels and novels dropped | `mal_id`, `mal_link`, then the [MAL prefill](#mal-prefill) |
-| novel | Tenrai | `search_mal_novel` | `GET /manga?q=&type=lightnovel` and `&type=novel`, interleaved, duplicates dropped | `mal_id`, `mal_link`, then the [MAL prefill](#mal-prefill) |
-| novel | Open Library | `search_openlibrary_works` | `GET /search.json?q=&fields=key,title,subtitle,first_publish_year,author_name,cover_i` | `openlibrary_id`, `openlibrary_link` |
+| book | Tenrai | `search_mal_novel` | `GET /manga?q=&type=lightnovel` and `&type=novel`, interleaved, duplicates dropped | `mal_id`, `mal_link`, then the [MAL prefill](#mal-prefill) |
+| book | Open Library | `search_openlibrary_works` | `GET /search.json?q=&fields=key,title,subtitle,first_publish_year,author_name,cover_i` | `openlibrary_id`, `openlibrary_link` |
 | person | Tenrai | `search_mal_people` | `GET /people?q=` | `mal_link` |
 | character | Tenrai | `search_mal_characters` | `GET /characters?q=` | `mal_link` |
 | movie, TV show, cartoon | TMDB | `search_tmdb(q, limit, kinds)` | `GET /search/movie`, `/search/tv`, or `/search/multi` for cartoon (movie and TV results only) | `imdb_id`, `imdb_link`, via `resolve_tmdb_imdb_id` |
@@ -111,7 +111,7 @@ Per source:
   `sfw=true`, so Rx titles — the gated hentai and h-comic types, which have no
   MAL picker — never appear. MAL's `type` filter takes one value, so the manga
   picker over-fetches one unfiltered page and drops the two novel types, and
-  the novel picker makes two requests and interleaves them so neither type
+  the book picker makes two requests and interleaves them so neither type
   crowds the other out at a small limit. Each `link` is the record's
   `myanimelist.net` page, which the `MAL_*_ID_PATTERN`s parse back into
   `mal_id`.
@@ -141,21 +141,21 @@ Tenrai v1 is a public read-only mirror of MyAnimeList. No key is needed.
 
 | Item | Value |
 |---|---|
-| Endpoints | `GET /anime/{mal_id}/full` (`fetch_tenrai_anime_data`, used for anime, anime movies **and** hentai - it serves Rx titles like any other), `GET /manga/{mal_id}/full` (`fetch_tenrai_manga_novel_data`, used for manga, novels **and** h-comics) and `GET /producers/{mal_id}/full` (`fetch_tenrai_producer_data`, used for studios) `GET /people/{mal_id}/full` (`fetch_tenrai_person_data`, used for seiyuu), `GET /characters/{mal_id}/full` (`fetch_tenrai_character_data`, used for characters), and `GET /anime/{mal_id}/characters` and `GET /manga/{mal_id}/characters` (`fetch_tenrai_cast(resource, mal_id)`, used by the MAL cast import - `anime` for anime, anime movies and hentai, `manga` for manga, novels and h-comics). The last two fetchers share `_get_tenrai_data`, one throttled GET with the same status handling as the others. The response's `data` object is returned. All six fetchers share one `TenraiRateLimiter` budget, as do the picker searches and the two prefill lookups, `lookup_mal_anime` and `lookup_mal_manga`, which read the same `/anime` and `/manga` records in one attempt (see [MAL prefill](#mal-prefill)). |
+| Endpoints | `GET /anime/{mal_id}/full` (`fetch_tenrai_anime_data`, used for anime, anime movies **and** hentai - it serves Rx titles like any other), `GET /manga/{mal_id}/full` (`fetch_tenrai_manga_novel_data`, used for manga, books **and** h-comics) and `GET /producers/{mal_id}/full` (`fetch_tenrai_producer_data`, used for studios) `GET /people/{mal_id}/full` (`fetch_tenrai_person_data`, used for seiyuu), `GET /characters/{mal_id}/full` (`fetch_tenrai_character_data`, used for characters), and `GET /anime/{mal_id}/characters` and `GET /manga/{mal_id}/characters` (`fetch_tenrai_cast(resource, mal_id)`, used by the MAL cast import - `anime` for anime, anime movies and hentai, `manga` for manga, books and h-comics). The last two fetchers share `_get_tenrai_data`, one throttled GET with the same status handling as the others. The response's `data` object is returned. All six fetchers share one `TenraiRateLimiter` budget, as do the picker searches and the two prefill lookups, `lookup_mal_anime` and `lookup_mal_manga`, which read the same `/anime` and `/manga` records in one attempt (see [MAL prefill](#mal-prefill)). |
 | User-Agent | `Mozilla/5.0 (Windows NT 10.0; Win64; x64) MediaTracker/1.0` — MAL's CDN rejects the default `python-requests` agent. |
 | Rate limiter | `TenraiRateLimiter`, two windows checked together: `DEFAULT_LIMITS = ((4, 1), (120, 60))` — 4 requests per second **and** 120 per minute. It loops until every window has room. |
 | Pipeline pacing | On top of the limiter, `specs.py` sleeps `MAL_PAUSE = 1` second between entries in Fill and Replace. |
-| MAL ID source | `mal_id` on the row; `extract_mal_id` / `extract_mal_id_manga_novel` in `app/utils/utils.py` pull it out of `mal_link` with `myanimelist\.net/anime/(\d+)` and `myanimelist\.net/manga/(\d+)`. A studio's URL is `myanimelist.net/anime/producer/<id>/<slug>`, so it needs its own `MAL_PRODUCER_ID_PATTERN` = `myanimelist\.net/anime/producer/(\d+)`, read by `extract_mal_id_producer`. The two patterns cannot poach each other's links: the anime one needs digits straight after `/anime/` and finds the word `producer` instead, and the producer one needs the literal segment. A person's URL is `myanimelist.net/people/<id>/<slug>`, read by `extract_mal_id_person` with `MAL_PERSON_ID_PATTERN` = `myanimelist\.net/people/(\d+)`. A character's is `myanimelist.net/character/<id>/<slug>`, read by `extract_mal_id_character` with `MAL_CHARACTER_ID_PATTERN` = `myanimelist\.net/character/(\d+)`. |
+| MAL ID source | `mal_id` on the row; `extract_mal_id` / `extract_mal_id_manga_book` in `app/utils/utils.py` pull it out of `mal_link` with `myanimelist\.net/anime/(\d+)` and `myanimelist\.net/manga/(\d+)`. A studio's URL is `myanimelist.net/anime/producer/<id>/<slug>`, so it needs its own `MAL_PRODUCER_ID_PATTERN` = `myanimelist\.net/anime/producer/(\d+)`, read by `extract_mal_id_producer`. The two patterns cannot poach each other's links: the anime one needs digits straight after `/anime/` and finds the word `producer` instead, and the producer one needs the literal segment. A person's URL is `myanimelist.net/people/<id>/<slug>`, read by `extract_mal_id_person` with `MAL_PERSON_ID_PATTERN` = `myanimelist\.net/people/(\d+)`. A character's is `myanimelist.net/character/<id>/<slug>`, read by `extract_mal_id_character` with `MAL_CHARACTER_ID_PATTERN` = `myanimelist\.net/character/(\d+)`. |
 
 ### MAL prefill
 
-A MAL pick on the anime, anime movie, manga or novel tab then asks
+A MAL pick on the anime, anime movie, manga or book tab then asks
 `GET /api/<type>/mal-prefill/{mal_id}` for the rest of the record
 (`app/services/domain/mal_prefill.py`; the field list per type is in
 [api.md](api.md#mal-prefill)), and the SPA fills only the fields the admin has not
 filled - blank, or still at the form's starting value.
 The record comes from `lookup_mal_anime` (`GET /anime/{id}/full`, anime and
-anime movie) or `lookup_mal_manga` (`GET /manga/{id}/full`, manga and novel):
+anime movie) or `lookup_mal_manga` (`GET /manga/{id}/full`, manga and book):
 the picker searches' rules rather than the Fill fetchers' — one attempt with
 `SEARCH_TIMEOUT`, through the shared `TenraiRateLimiter`, `None` for a 404
 (the route's 404) and `ExternalSearchError` for anything else (its 502). Not
@@ -163,7 +163,7 @@ cached.
 
 Its values are the type's mapper output filtered to exactly what that type's
 autofill writes — anime movie's `airing_type` and `ep_total`, which its
-autofill never writes, are left out, and the manga and novel totals only come
+autofill never writes, are left out, and the manga and book totals only come
 when the status maps to `完結` — plus `map_tenrai_titles` and the credits
 below. The cover and the Official/Twitter links are not in it.
 
@@ -177,7 +177,7 @@ Read by the MAL prefill and, for the credits, by the four MAL autofills.
 | `title_japanese` | `<type>_name_jp` (prefill only) | stripped; blank is `None`. |
 | `title_synonyms[]` | `<type>_name_alt` (prefill only) | each stripped; a blank, a repeat, or one equal to `title`, `title_english` or `title_japanese` is dropped; the rest comma-joined; none left is `None`. |
 | `studios[]` (anime) | `studio` credits on anime and anime movie | `map_tenrai_studios`: `{mal_id, name, url}` each; a nameless one is dropped. |
-| `authors[]` (manga) | `author` / `illustrator` credits on manga and novel | `map_tenrai_authors`: `role` `Story` → `author`, `Art` → `illustrator`, `Story & Art` → both; any other role, or no name, is dropped. `name` is `_western_order` (`"Oda, Eiichiro"` → `"Eiichiro Oda"`), `name_mal` keeps MAL's order. |
+| `authors[]` (manga) | `author` / `illustrator` credits on manga and book | `map_tenrai_authors`: `role` `Story` → `author`, `Art` → `illustrator`, `Story & Art` → both; any other role, or no name, is dropped. `name` is `_western_order` (`"Oda, Eiichiro"` → `"Eiichiro Oda"`), `name_mal` keeps MAL's order. |
 
 How a MAL studio or author is matched to a row, and when it is credited, is in
 [business-rules.md](business-rules.md#mal-credits).
@@ -223,15 +223,15 @@ Names, studio, scores, ranks and AniList are not written. Because nothing is ove
 
 AniDB runs after this, for whichever of the four columns and the Official site row are still blank - see [AniDB](#anidb). MAL's value wins wherever both have one.
 
-### Mapping for `manga` / `novel` — `map_tenrai_to_manga_data`, `map_tenrai_to_novel_data`
+### Mapping for `manga` / `book` — `map_tenrai_to_manga_data`, `map_tenrai_to_book_data`
 
 | Tenrai field | Column | Rule |
 |---|---|---|
-| `status` | `serialization_status` | `Finished`→`完結`, `Publishing`→`連載中`, `On Hiatus`→`停更`, `Discontinued`→`腰斬`. Novel additionally maps `Not yet published`→`未出`; for manga that status becomes `None`. |
-| `published.prop.from` / `.to` | `release_date` / `end_date` | `_iso_from_prop`: year, year-month, or full date depending on what MAL knows. |
+| `status` | `serialization_status` | `Finished`→`完結`, `Publishing`→`連載中`, `On Hiatus`→`停更`, `Discontinued`→`腰斬`. Book additionally maps `Not yet published`→`未出`; for manga that status becomes `None`. |
+| `published.prop.from` / `.to` | `release_date` / `end_date` (book: `release_date_jp` / `end_date` - MAL's date is the original's) | `_iso_from_prop`: year, year-month, or full date depending on what MAL knows. |
 | `score`, `rank` | `mal_rating`, `mal_rank` | as above. |
-| `volumes` | manga `vol_total`; novel `vol_total_original` (float) | as-is. |
-| `chapters` | `ch_total` (float for novel) | as-is. |
+| `volumes` | manga `vol_total`; book `vol_total_original` (float) | as-is. |
+| `chapters` | `ch_total` (float for book) | as-is. |
 | `images` | `cover_image_url` | same webp → jpg fallback. |
 
 ### Mapping for `h_comic` — `map_tenrai_to_manga_data`, the columns it has
@@ -251,7 +251,7 @@ Tenrai is the h-comic's **first** source, not its only one: [E-Hentai](#e-hentai
 
 ### What autofill actually writes (fill-only vs overwrite)
 
-`autofill_anime_from_mal`, `autofill_anime_movie_from_mal`, `autofill_manga_from_mal`, `autofill_novel_from_mal`, and `autofill_h_comic_from_mal` and `autofill_hentai_from_mal` for what they write:
+`autofill_anime_from_mal`, `autofill_anime_movie_from_mal`, `autofill_manga_from_mal`, `autofill_book_from_mal`, and `autofill_h_comic_from_mal` and `autofill_hentai_from_mal` for what they write:
 
 | Column(s) | Rule |
 |---|---|
@@ -261,7 +261,7 @@ Tenrai is the h-comic's **first** source, not its only one: [E-Hentai](#e-hentai
 | `vol_total` / `vol_total_original`, `ch_total` | Fill-only, and **only when `serialization_status == "完結"`** — a running series' totals stay blank. |
 | `mal_rating`, `mal_rank` | **Overwritten** when `force_replace_ratings=True` (the default, and what every pipeline passes) and the fetched value is truthy; otherwise fill-only. |
 | `cover_image_file` | Downloaded only when the column is empty and the mapper found a URL; see [Cover images](#cover-images-local-disk). |
-| `studio` credits (anime, anime movie); `author` and `illustrator` credits (manga, novel) | **Fill-only per role**, and only with a session (`db`): a role with no credits gets MAL's, found or created by `fill_mal_credits`; a role that has credits is kept as it is, and a credited row MAL names by name with no `mal_id` is given MAL's. See [business-rules.md](business-rules.md#mal-credits). |
+| `studio` credits (anime, anime movie); `author` and `illustrator` credits (manga, book) | **Fill-only per role**, and only with a session (`db`): a role with no credits gets MAL's, found or created by `fill_mal_credits`; a role that has credits is kept as it is, and a credited row MAL names by name with no `mal_id` is given MAL's. See [business-rules.md](business-rules.md#mal-credits). |
 
 ### Mapping for `studio` — `map_tenrai_to_studio_data`
 
@@ -322,7 +322,7 @@ The MAL cast import (`POST /api/casting/mal`, `app/services/domain/mal_cast.py`)
 | `character.name` | `character.name_en` of a created character (`name_en` in the row); the row's `name_mal` keeps it as MAL wrote it | `_western_order`; both orders are compared when matching a held character by name |
 | `character.images.jpg.image_url` | `character.photo_file` of a created character | `_mal_photo`; downloaded after the response (see [credits-and-tags.md](systems/credits-and-tags.md)) |
 | `role` | the casting's `role` | `Main` kept; everything else, MAL's `Supporting` included, becomes `Other` (`_mal_cast_role`). Which side characters are Core, Important Supporting or Supporting is set by hand |
-| `voice_actors[]` where `language` is `Japanese` | the casting's voices | each `person.mal_id` matched against `person.mal_id`, then `person.name` (western order) through `resolve_person`; other languages are dropped. A manga, novel or h-comic row carries no voices. |
+| `voice_actors[]` where `language` is `Japanese` | the casting's voices | each `person.mal_id` matched against `person.mal_id`, then `person.name` (western order) through `resolve_person`; other languages are dropped. A manga, book or h-comic row carries no voices. |
 
 The cast itself is not written by the import: it returns rows for the editor, which the ordinary cast `PUT` saves.
 
@@ -336,13 +336,13 @@ AniList is a public GraphQL API. No key is needed and no key exists — `ANILIST
 |---|---|
 | Endpoint | `POST https://graphql.anilist.co`, one `Page(perPage: 50) { media(idMal_in: $ids, type: $type) { ... } }` query per batch (`BATCH_QUERY` in `app/services/integrations/anilist.py`). |
 | Rate limiter | `AniListRateLimiter`, a sliding 60-second window. AniList's docs say 90 requests/minute; the API actually serves 30/minute. The limiter starts at the pessimistic 30 and then `observe()` adopts whatever `X-RateLimit-Limit` the last response actually reported — the header is trusted over both the documentation and the starting constant, because either could be wrong in either direction. |
-| Batching | Up to 50 `mal_id`s go into one request (`BATCH_SIZE = 50`). Over the ~1066 entries across anime, anime movies, manga and novel that carry a `mal_id`, one request per entry at 30/minute would add roughly 36 minutes to a Fill run; batches of 50 bring that to ~22 requests, about a minute. `fetch_anilist_batch` raises rather than silently truncating if handed more than 50 ids. |
+| Batching | Up to 50 `mal_id`s go into one request (`BATCH_SIZE = 50`). Over the ~1066 entries across anime, anime movies, manga and book that carry a `mal_id`, one request per entry at 30/minute would add roughly 36 minutes to a Fill run; batches of 50 bring that to ~22 requests, about a minute. `fetch_anilist_batch` raises rather than silently truncating if handed more than 50 ids. |
 | Lookup key | `idMal` — the same MAL id these four tables already carry in `mal_id`, extracted from `mal_link` the same way Tenrai's is. No second id column exists or is needed. |
-| Media type | `ANIME` for anime and anime movies; `MANGA` for manga **and** novel — AniList has no separate light-novel type, distinguishing them internally by `format: NOVEL` inside its `MANGA` media type, which is transparent to this integration. |
+| Media type | `ANIME` for anime and anime movies; `MANGA` for manga **and** book — AniList has no separate light-novel type, distinguishing them internally by `format: NOVEL` inside its `MANGA` media type, which is transparent to this integration. |
 | Rankings | AniList's `rankings` array mixes a `RATED` and a `POPULAR` kind across three scopes (all-time, year, season) — six rows for a well-ranked title. Only the `allTime` row of each kind is stored, in `anilist_rank` (rated) and `anilist_popularity_rank` (popularity): a seasonal or yearly rank says nothing about where a title sits against the whole collection. |
 | Score | `averageScore` → `anilist_rating` (`Integer`, AniList's own 0–100 scale — not normalized to MAL's 0–10). |
 | Empty results are normal | An id AniList resolves finds a `Media` record with a null `averageScore` and an empty `rankings` array about as often as it finds a fully-scored one — a resolved-but-empty stub is a real response, not a failure, and is treated identically to an id AniList has no record for at all. Roughly a third of a real collection's entries carry a score with **no** all-time rank; that is the expected shape, not a partial fetch. |
-| Cache | `prime_anilist_cache(db, model, media_type)` fetches every `mal_id` on the table in blocks of 50 and is wired as the `pre_run` hook on the anime, anime movie, manga and novel Fill/Replace specs, so a run reads the cache per entry instead of issuing a request per entry. The single-entry Replace path gets no `pre_run` (see [data-actions.md](data-actions.md)); `anilist_record` falls back to a one-id fetch there rather than silently returning nothing for an unprimed table. |
+| Cache | `prime_anilist_cache(db, model, media_type)` fetches every `mal_id` on the table in blocks of 50 and is wired as the `pre_run` hook on the anime, anime movie, manga and book Fill/Replace specs, so a run reads the cache per entry instead of issuing a request per entry. The single-entry Replace path gets no `pre_run` (see [data-actions.md](data-actions.md)); `anilist_record` falls back to a one-id fetch there rather than silently returning nothing for an unprimed table. |
 | Write rule | `autofill_from_anilist` overwrites `anilist_rating`, `anilist_rank` and `anilist_popularity_rank` on every run (scores and ranks drift, which is what Replace is for) — but only **per value**: a fetched `None` never blanks a column that already holds a real number, because a stub record must not erase a good score. It also upserts an AniList `reference` row via `upsert_main_source` when the record carries a `siteUrl`. |
 | Failure handling | Same shape as the other clients: a network error, a non-200, a GraphQL `errors` array, or an unparseable body all return `{}`/`None` and are logged, never raised — AniList is additive, so an entry is never worse off for it being unreachable. |
 
@@ -433,8 +433,8 @@ A Comic Vine **volume** is one numbered run, which is what one `comic` row is. T
 
 ## Open Library
 
-Open Library fills `novel` entries that MAL does not catalogue — mainly Western
-published books, the `Novel` bucket of `novel.type`. It is the first client in
+Open Library fills `book` entries that MAL does not catalogue — mainly Western
+published books, the `小說` bucket of `book.type`. It is the first client in
 this app with **no API key at all**: no `_get_api_key`, no 401 branch, and none
 of the "environment variable is not set" logging every other client has.
 `OPENLIBRARY_USER_AGENT = "CG1618-Media-Tracker/1.0"` is still mandatory —
@@ -443,12 +443,12 @@ Tenrai set one.
 
 An Open Library **work** is one book. A work id (`OL…W`) is distinct from an
 **edition** id (`OL…M`, one printing of a work) and an **author** id (`OL…A`).
-`novel.openlibrary_id` is a `String`, unlike Comic Vine's `Integer`
+`book.openlibrary_id` is a `String`, unlike Comic Vine's `Integer`
 `comicvine_id`, because the trailing letter is the only signal that the stored
 id names a work and not an edition or an author — storing the bare number
 would discard it.
 
-Because one novel entry can span several books (`Mistborn` is one entry and
+Because one book entry can span several books (`Mistborn` is one entry and
 three novels), the stored work id names the entry's **anchor book** — book 1,
 or the only book — not "the entry". This is why the mapping below is narrow:
 see [Autofill](#autofill---appservicesdomainautofillpy) further down.
@@ -456,35 +456,35 @@ see [Autofill](#autofill---appservicesdomainautofillpy) further down.
 | Item | Value |
 |---|---|
 | Endpoints | `GET /works/{id}.json` (always), `GET /works/{id}/editions.json?limit=1000` (only when `want_editions`), `GET /authors/{OL…A}.json` (only when `want_authors`, at most 3 authors) — all in `fetch_openlibrary_work(work_id, *, want_editions, want_authors)`. |
-| Why conditional | Unlike every other client here, which fetches unconditionally and lets the mapper discard what it does not need, this one takes two keyword-only flags. `editions.json?limit=1000` can return a thousand entries, and every write is fill-only, so an entry that already has a `release_date` can never use that response. The flags drop the steady-state cost to one call per entry. `autofill_novel_from_openlibrary` computes them: `want_editions = not novel.release_date`, `want_authors = not credit_names(db, "novel", ..., "author")`. |
+| Why conditional | Unlike every other client here, which fetches unconditionally and lets the mapper discard what it does not need, this one takes two keyword-only flags. `editions.json?limit=1000` can return a thousand entries, and every write is fill-only, so an entry that already has a `release_date_jp` can never use that response. The flags drop the steady-state cost to one call per entry. `autofill_book_from_openlibrary` computes them: `want_editions = not book.release_date_jp`, `want_authors = not credit_names(db, book.system_id, "author")`. |
 | Rate limiter | `OpenLibraryRateLimiter`: 100 requests per 60 s, the same in-memory sliding-window shape as the others. Open Library publishes no hard quota; this is politeness, not a ceiling they enforce. |
-| Pipeline pacing | `OPENLIBRARY_PAUSE` is not separate — novel's `fill_sleep` stays `MAL_PAUSE` (1 s) regardless of which branch ran. |
+| Pipeline pacing | `OPENLIBRARY_PAUSE` is not separate — book's `fill_sleep` stays `MAL_PAUSE` (1 s) regardless of which branch ran. |
 | Retry / failure | Same shape as every other client: `@retry`, `stop_after_attempt(5)`, `wait_exponential(multiplier=1, min=2, max=10)`, retried on `requests.exceptions.RequestException` and a local `RateLimitExceeded` (HTTP 429). 404 → warning, `None`. 5xx → warning, `None`. |
 | Work id source | `openlibrary_id` on the row; `extract_openlibrary_id(url)` in `app/utils/openlibrary_utils.py` pulls it from `openlibrary_link` with `openlibrary\.org/works/(OL\d+W)`. An edition URL, an author URL, a bare id, `""` and `None` all return `None` — never a wrong id, mirroring `extract_comicvine_id`'s rejection of issue URLs. |
 
-### Mapping — `map_openlibrary_to_novel_data`
+### Mapping — `map_openlibrary_to_book_data`
 
 | Source | Column | Rule |
 |---|---|---|
-| `editions[].publish_date` | `release_date` | `_earliest_edition_year`: regex `(1[4-9]\d\d\|20\d\d)` over each edition's `publish_date`, minimum year kept, anything after next year discarded, then `app.utils.release_date.normalize`. No editions → `None`. Deliberately **not** `work.first_publish_date` (unpopulated on every work checked) and **not** the search API's `first_publish_year` (wrong on 3 of the 4 entries probed) — the earliest edition year was right on both entries in scope. Written at **year precision**, exactly as Comic Vine's `start_year` already is written to `release_date`. |
+| `editions[].publish_date` | `release_date_jp` | `_earliest_edition_year`: regex `(1[4-9]\d\d\|20\d\d)` over each edition's `publish_date`, minimum year kept, anything after next year discarded, then `app.utils.release_date.normalize`. No editions → `None`. Deliberately **not** `work.first_publish_date` (unpopulated on every work checked) and **not** the search API's `first_publish_year` (wrong on 3 of the 4 entries probed) — the earliest edition year was right on both entries in scope. Written at **year precision**, exactly as Comic Vine's `start_year` already is written to comic's `release_date`. |
 | `authors[].name` | `author` credit | comma-joined by the mapper, then split again by `split_names` in the autofill before `replace_credits`. |
 | `work.covers` | `cover_image_url` | first entry that is not `-1` → `https://covers.openlibrary.org/b/id/{id}-L.jpg`. Open Library uses `-1` as a "no cover here" sentinel inside the `covers` array rather than omitting the slot; an unfiltered `covers[0]` would eventually download a 404. All `-1` or an absent `covers` → `None`. |
 
-### Autofill — `autofill_novel_from_openlibrary`
+### Autofill — `autofill_book_from_openlibrary`
 
 Fill-only, and deliberately narrow. It writes exactly three things:
-`release_date`, `cover_image_file` (via `download_cover_image`, same as every
+`release_date_jp`, `cover_image_file` (via `download_cover_image`, same as every
 other client), and the `author` credit (`replace_credits`, only when the entry
 has no `author` credit yet — the same rule TMDB uses for `director`).
 
 It **never** writes `end_date`, `vol_total_original`, `ch_total`,
-`serialization_status`, `mal_rating`, `mal_rank`, or any `novel_name_*` column
+`serialization_status`, `mal_rating`, `mal_rank`, or any `book_name_*` column
 — all of those are true of the whole multi-book entry, not of the one anchor
 book the stored id names, and Open Library has no way to supply them (or, for
 the names, no business supplying them at all).
 
-**Replace is deliberately not wired.** `replace_select` for `novel` still only
-selects rows with `mal_id`/`mal_link` set, so an Open-Library-only novel is
+**Replace is deliberately not wired.** `replace_select` for `book` only
+selects rows with `mal_id`/`mal_link` set, so an Open-Library-only book is
 never picked up by bulk Replace. Every Open Library write here is fill-only,
 so there is nothing for Replace to re-fetch that Fill has not already done.
 
@@ -1241,6 +1241,7 @@ Local disk is the only storage path. `app/services/integrations/image_manager.py
 | Item | Value |
 |---|---|
 | Where | `app/main.py` creates one subdirectory per owner type under `static/covers/` at startup and mounts `/static`. |
+| `copy_legacy_cover_folders(root)` | Runs in the lifespan, right after the secrets check. For each pair in `LEGACY_COVER_FOLDERS` - `novel` → `book`, the folder the Book type's covers had before it was named Book - copies every file of `static/covers/<old>/` and `static/covers/thumbs/<old>/` into the new folder, with `shutil.copy2` so a thumbnail keeps the mtime the staleness check compares. A copy, not a move: the old folder is left whole, so a rolled-back release, whose stored keys still say `novel/`, finds every cover. It never overwrites, so a cover saved under `book/` since wins and every boot after the first copies nothing; what it copied is logged. The stored keys themselves were rewritten by the migration. Deleting the old folders, and this step, is an open item ([open-items.md](open-items.md)). |
 | `download_cover_image(url, owner_type, system_id)` | Always fetches - `requests.get` with the MediaTracker User-Agent and a 15 s timeout - and writes over whatever file is at the owner's key, through a temporary file renamed into place so a failed download leaves the old file untouched. A file already there is never the answer: callers download only when the owner needs a cover, so it is a leftover, usually the cover of the external id the entry pointed at before. **No resizing or format conversion** - a WebP from Tenrai is stored under a `.jpg` name as-is. Returns the storage key to record on the row, or `None` on any error (logged). |
 | `cover_needs_download(current_key, owner_type, system_id)` | What every autofill asks before downloading, and what "only when the entry has no cover" means throughout this page: the column is empty, **or** it names the owner's own download (`<owner_type>/<id>.jpg`, a backfilled row's `covers/<owner_type>/<id>.jpg`, or the flat layout's bare `<id>.jpg` that a Pull can still bring in) and that file is not on this machine. No file ever answers to the bare spelling, so such an entry always needs a download, and the download writes the canonical `<owner_type>/<id>.jpg` over it. A cover that is anything else - a `library/` upload, another entry's download - is never replaced, even when its file is missing: nothing can supply an upload's bytes again. So changing an entry's external id does not replace a cover that is there; clearing it (the picker's **Remove**, `DELETE /api/images/owners/...`) is the explicit step, and the next Replace downloads the new id's. |
 | `cover_image_exists(owner_type, id)`, `list_all_cover_images(owner_type=None)`, `delete_cover_image(owner_type, id)` | The checks behind the Calculate-page cover tools (`bulk_check_cover_image`, `bulk_download_missing_covers`, `bulk_delete_orphaned_cover_images` in `app/services/calculation.py`) and the delete-entry background task. All swallow errors and log. `list_all_cover_images` returns keys and ignores anything left at `static/covers/` root, so an un-migrated file belongs to no owner and is never matched to a row; it walks the `COVER_OWNERS` folders only, so it never sees the thumbnail cache either. `delete_cover_image` removes the cover's cached thumbnail with it. |
@@ -1265,14 +1266,14 @@ From `PIPELINES` in `app/services/pipelines/specs.py` (the runner loop itself is
 | `movie` | `apply_extract_imdb_id` | `autofill_movie_from_imdb` | none | TMDB, OMDb |
 | `tv-show` | `apply_extract_imdb_id` | `autofill_tv_show_from_imdb` | none | TMDB (+ season), OMDb (+ season) |
 | `cartoon` | `apply_extract_imdb_id` | `autofill_cartoon_from_imdb` (only `airing_type` in `{"Movie", "TV"}`) | none | TMDB (+ season for TV), OMDb (+ season for TV) |
-| `manga` | `apply_extract_mal_id_manga_novel` | `autofill_manga_from_mal`, `autofill_from_anilist` | 1 s | Tenrai, AniList |
-| `novel` | `apply_extract_novel_ids` (`apply_extract_mal_id_manga_novel` then `apply_extract_openlibrary_id`) | `autofill_novel_from_mal` + `autofill_from_anilist` when `mal_link` is present, else `autofill_novel_from_openlibrary` alone (nothing for AniList to key on without a `mal_id`) | 1 s | Tenrai **or** Open Library, plus AniList on the Tenrai branch |
+| `manga` | `apply_extract_mal_id_manga_book` | `autofill_manga_from_mal`, `autofill_from_anilist` | 1 s | Tenrai, AniList |
+| `book` | `apply_extract_book_ids` (`apply_extract_mal_id_manga_book` then `apply_extract_openlibrary_id`) | `autofill_book_from_mal` + `autofill_from_anilist` when `mal_link` is present, else `autofill_book_from_openlibrary` alone (nothing for AniList to key on without a `mal_id`) | 1 s | Tenrai **or** Open Library, plus AniList on the Tenrai branch |
 | `studio` | `apply_extract_mal_id_studio` | `autofill_studio_from_mal`; `fill_only`, so no Replace routes exist | 1 s | Tenrai |
 | `seiyuu` | `apply_extract_mal_id_person` (every person) | `autofill_person_from_mal`, for a person holding the `seiyuu` role with a `mal_id` and a blank fillable column; `fill_only`, so no Replace routes exist | 1 s | Tenrai |
 | `character` | `apply_extract_mal_id_character` | `autofill_character_from_mal`, for a character with a `mal_id` and a blank fillable column; identities are not walked; `fill_only`, so no Replace routes exist | 1 s | Tenrai |
 | `comic` | `apply_extract_comicvine_id` | `autofill_comic_from_comicvine`; stops when `comicvine_rate_limiter.has_capacity()` is false; not in Fill All; no bulk Replace | `COMICVINE_PAUSE` (1 s) | Comic Vine |
 | `game` | `apply_extract_game_ids` (IGDB then Steam) | `autofill_game_from_igdb` (no budget) then `autofill_game_from_steam` (`budget=steam_store_rate_limiter.has_capacity`), then `autofill_hltb_source` (not repeating a miss), then `autofill_cover_from_steam` and `autofill_cover_from_steam_header` while the cover is still empty; in Fill All; Replace (bulk, single, write hook) runs all five, IGDB fill-only; bulk and single retry a HowLongToBeat miss, the write hook does not | `STEAM_PAUSE` (0.5 s), plus HowLongToBeat's own 1 s spacing | IGDB (+ Twitch for the token), Steam, HowLongToBeat |
-| `h-comic` | `apply_extract_mal_id_manga_novel` | `_fill_h_comic`: `autofill_h_comic_from_mal` - manga's record, the columns `h_comic` has - then `autofill_h_comic_from_ehentai` - the cover and illustrator MAL left empty (see [E-Hentai](#e-hentai)); all fill-only; no AniList; in Fill All and Replace All, and Replace (`apply_single_replace_h_comic`) runs the same order and also selects entries linked only to E-Hentai | 1 s | Tenrai, E-Hentai |
+| `h-comic` | `apply_extract_mal_id_manga_book` | `_fill_h_comic`: `autofill_h_comic_from_mal` - manga's record, the columns `h_comic` has - then `autofill_h_comic_from_ehentai` - the cover and illustrator MAL left empty (see [E-Hentai](#e-hentai)); all fill-only; no AniList; in Fill All and Replace All, and Replace (`apply_single_replace_h_comic`) runs the same order and also selects entries linked only to E-Hentai | 1 s | Tenrai, E-Hentai |
 | `hentai` | `apply_extract_hentai_ids` (MAL then AniDB) | `_fill_hentai`: `autofill_hentai_from_mal`, then `autofill_hentai_from_anidb` for what MAL left blank (see [AniDB](#anidb)); stops when `anidb.has_capacity()` is false (an AniDB error answer); in Fill All; Replace (`apply_single_replace_hentai`) runs the same order and also selects entries linked only to AniDB | 1 s, plus AniDB's own 4 s spacing | Tenrai, AniDB (API and image CDN) |
 | `h-game` | as game | `_fill_h_game`: `autofill_h_game_from_dlsite`, then game's two autofills on the `h_game` table writing only what it has (IGDB's cover held back), then `autofill_hltb_source` as game, then `autofill_cover_from_steam`, `autofill_game_cover_from_igdb` and `autofill_cover_from_steam_header` - the cover comes DLsite, Steam's capsule, IGDB, Steam's header (see [DLsite](#dlsite)); in Fill All; Replace (`apply_single_replace_h_game`) runs the same order and also selects entries linked only to DLsite. `/api/h-game/search-igdb` is game's picker | `STEAM_PAUSE` (0.5 s) | DLsite, IGDB (+ Twitch), Steam (storefront and image CDN), HowLongToBeat |
 

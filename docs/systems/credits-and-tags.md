@@ -63,12 +63,12 @@ the stored value, tuple of keys for validation.
 | key | label | target | media types |
 |---|---|---|---|
 | `studio` | Studio | studio | anime, anime-movie, game, h-game (its only credit), hentai |
-| `publisher` | Publisher | publisher | anime, anime-movie, manga, novel, comic, game |
+| `publisher` | Publisher | publisher | anime, anime-movie, manga, book, comic, game |
 | `director` | Director | person | anime, anime-movie, movie, game, hentai |
 | `producer` | Producer | person | anime |
 | `composer` | Music / Composer | person | anime, game |
-| `author` | Author | person | manga, novel, comic, h-comic, hentai |
-| `illustrator` | Illustrator | person | manga, novel, comic, h-comic |
+| `author` | Author | person | manga, book, comic, h-comic, hentai |
+| `illustrator` | Illustrator | person | manga, book, comic, h-comic |
 | `club` | Club | person | h-comic |
 | `seiyuu` | Seiyuu 聲優 | person | anime, anime-movie, hentai |
 
@@ -111,14 +111,14 @@ storage out of `media_credit` — see the `seiyuu` row above.
 
 **Labels are derived, not stored.** `credit_label(role, media_type)` is the
 single owner of the reader-facing word: the same `author` credit reads 原作 on
-a manga, Author on a novel and Writer on a comic, and `illustrator` reads 作畫 /
-Illustrator / Artist / 繪師 on manga / novel / comic / h-comic. A small `{(role, media_type): label}` override map falls
+a manga, Author on a book and Writer on a comic, and `illustrator` reads 作畫 /
+Illustrator / Artist / 繪師 on manga / book / comic / h-comic. A small `{(role, media_type): label}` override map falls
 back to `CreditRole.label`; nothing else in the codebase — no page, no form —
 may hard-code these words.
 
 `publisher` is the role that leans hardest on this: one vocabulary, six
 reader-facing words. It reads **台灣代理商** on an anime or anime movie and
-**台灣出版商** on a manga or novel — both name a *Taiwanese* licensor — while a
+**台灣出版商** on a manga or book — both name a *Taiwanese* licensor — while a
 comic's publisher is the work's original one (Marvel), so it reads **出版商**
 without the 台灣, and a game's reads **發行商**. All six types have an override,
 so the role's own `"Publisher"` label is never rendered; it survives only for
@@ -128,7 +128,7 @@ concept in code comments and never reaches a reader.
 **Retired keys**, in case you meet them in an old sheet or backup:
 `manga_author_plot` and `manga_author_draw` → `author` / `illustrator` on
 manga; `novel_author` / `novel_illustrator` → `author` / `illustrator` on
-novel; `comic_writer` / `comic_artist` → `author` / `illustrator` on comic. The
+book; `comic_writer` / `comic_artist` → `author` / `illustrator` on comic. The
 person roles `manga_author`, `novel_author`, `novel_illustrator`,
 `comic_writer` and `comic_artist` are gone the same way. Revision
 `r0l1c2o3l4p5` rewrote the stored values.
@@ -145,12 +145,12 @@ that names a credit which does not exist.
 
 | key | label | `system_option.category` | media types |
 |---|---|---|---|
-| `genre_main` | Genre Main | Genre Main | anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic |
-| `genre_sub` | Genre Sub | Genre Sub | anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic |
-| `label` | 標籤 Label | Label | anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, game |
+| `genre_main` | Genre Main | Genre Main | anime, anime-movie, movie, tv-show, cartoon, manga, book, comic |
+| `genre_sub` | Genre Sub | Genre Sub | anime, anime-movie, movie, tv-show, cartoon, manga, book, comic |
+| `label` | 標籤 Label | Label | anime, anime-movie, movie, tv-show, cartoon, manga, book, comic, game |
 | `original_source` | Original Source (labelled Exclusive Source on movie) | Platform | tv-show, cartoon, movie, h-comic (the KR official source) |
 | `exclusive_source` | Exclusive Source | Platform | anime, anime-movie |
-| `serialization_platform` | Serialization Platform | Serialization Platform | manga, novel |
+| `serialization_platform` | Serialization Platform | Serialization Platform | manga, book |
 | `comic_imprint` | Imprint | Comic Imprint | comic |
 | `comic_continuity` | Continuity | Comic Continuity | comic |
 | `comic_era` | Era | Comic Era | comic |
@@ -213,12 +213,12 @@ Helpers: `credit_roles_for(media_type)`, `tag_fields_for(media_type)`.
 Keyed by `(media_type, key)`, **not** by key alone, because the same key can
 have a different legacy header per type: the one `publisher` credit writes
 under `distributor_tw` on anime and anime-movie, `publisher_tw` on manga and
-novel, and `publisher` on comic and game — the headers the retired
+book, and `publisher` on comic and game — the headers the retired
 `publisher_tw` / `comic_publisher` tags used, kept byte-identical so the sheet
 never noticed the move. anime-movie's `distributor_tw` is the one genuinely new
 column: that tab never carried a distributor. Other renames:
 `composer → music`, manga's `author → author_plot` and `illustrator →
-author_draw`, novel's `author → author` and `illustrator → illustrator`,
+author_draw`, book's `author → author` and `illustrator → illustrator`,
 comic's `author → writer` and `illustrator → artist`, `comic_* → publisher /
 imprint / continuity / era / events`. Because the map was already keyed by
 `(media_type, key)`, the role collapse only renamed its keys: **every sheet
@@ -232,7 +232,7 @@ and the sheets share one vocabulary.
 
 ## Name matching: `app/utils/name_normalize.py`
 
-`name_slot_for(name, role=, scope=, novel_type=None)` decides **which** of a
+`name_slot_for(name, role=, scope=, book_type=None)` decides **which** of a
 person's four name columns an automatically created name lands in: `"en"` for a
 name with no CJK, `"cn"` for anime staff and Chinese-rendered literary
 novelists, `"jp"` otherwise. It never returns `"alt"` — that slot means "a name
@@ -320,7 +320,7 @@ All.
 | `DELETE /api/character/{id}?castings=N` | admin | Same count-guard shape as `DELETE /api/person?credits=N`: castings cascade away, and a count that moved underneath the admin is a 409. |
 | `POST /api/character/{id}/merge` `{source_id}` | admin | Repoints every casting from source onto target, deletes the source. Where both are cast on the same entry (which would collide on `uq_character_casting`), the source's casting is dropped, its voices the target's casting lacks are appended to the target's, and the target's casting fills its blank role, credited name, remark and photo from it. Then fills the target's blank columns, as person does. The correct fix for a duplicate, since a delete would cascade the castings away. |
 | `GET /api/casting/{media_type}/{entry_id}` | public (viewer) | The entry's cast, ordered by `position`; each row carries `voices: [{person_id, person_public_id, person_name, remark}]` in voice order, `credited_name` and `remark`. Missing or hidden entry → 404 (`entry_visible`), exactly as `/api/credits` behaves. |
-| `PUT /api/casting/{media_type}/{entry_id}` | admin | Replaces the whole cast in submitted order, each row with its `voices: [{person_id, remark?}]` in order. `media_type` is one of `CASTING_MEDIA_TYPES` (anime, anime-movie, manga, novel, h-comic, hentai). `role` is optional - null or blank stores no role. `credited_name` is trimmed, and null or blank stores none. Rejects (422) voices on a non-voiced media type - h-comic included - one person twice in a row's voices, or a non-blank role outside `CHARACTER_ROLES`, before a row ever reaches `ck_casting_voice_scope` or `uq_casting_voice`. |
+| `PUT /api/casting/{media_type}/{entry_id}` | admin | Replaces the whole cast in submitted order, each row with its `voices: [{person_id, remark?}]` in order. `media_type` is one of `CASTING_MEDIA_TYPES` (anime, anime-movie, manga, book, h-comic, hentai). `role` is optional - null or blank stores no role. `credited_name` is trimmed, and null or blank stores none. Rejects (422) voices on a non-voiced media type - h-comic included - one person twice in a row's voices, or a non-blank role outside `CHARACTER_ROLES`, before a row ever reaches `ck_casting_voice_scope` or `uq_casting_voice`. |
 
 **Deleting a publisher removes its logo; deleting a studio does not.** This
 asymmetry is deliberate, not an oversight. `delete_publisher` calls
@@ -643,7 +643,7 @@ chose to keep - and the ids and timestamps are never copied.
 **Importing a cast.** `POST /api/casting/mal` (`manage.catalog`,
 `app/services/domain/mal_cast.py`) takes `{media_type, mal_link,
 character_ids, main_only}`. `mal_link` is the entry's own MAL page: `/anime/<id>` for anime, anime-movie and hentai, read
-through Tenrai's `GET /anime/{id}/characters`; `/manga/<id>` for manga, novel
+through Tenrai's `GET /anime/{id}/characters`; `/manga/<id>` for manga, book
 and h-comic, through `GET /manga/{id}/characters`. It returns `{cast, created_characters, created_people, warnings}`, where `cast` rows have
 the shape `GET /api/casting/{media_type}/{entry_id}` returns, in MAL's order.
 `character_ids` (optional, default empty) is every character the editor's
@@ -676,7 +676,7 @@ editor's **Import main cast from MAL**.
   Supporting means "not Main", so it is not carried as Supporting - which
   side characters earn Core, Important Supporting or Supporting is set by hand.
 - **Only Japanese voice actors are taken.** MAL lists every dub; a casting
-  records the original cast. Manga, novel and h-comic rows carry no voices.
+  records the original cast. Manga, book and h-comic rows carry no voices.
 - **A seiyuu is matched by `person.mal_id`, then by name** through
   `resolve_person`, the same find-or-create every other person field uses. A
   name-matched person without a `mal_id` takes MAL's (and its `mal_link` when
@@ -896,7 +896,7 @@ is not, a second import creating nothing, a main-only import creating nothing
 for the side cast, a manga cast without voices, the
 422 and 502, and a guest refused). Frontend:
 `frontend/src/components/forms/CastEditor.test.jsx` (the seiyuu column absent
-on manga/novel, a second seiyuu with its own remark, a blank seiyuu line
+on manga/book, a second seiyuu with its own remark, a blank seiyuu line
 that adds no voice, and Import from MAL: offered only with a MAL link,
 reporting what it created, showing the server's refusal, and the main-cast
 button sending `main_only`), `src/components/info/CastSection.test.jsx` (the

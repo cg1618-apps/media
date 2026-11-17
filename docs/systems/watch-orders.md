@@ -63,13 +63,13 @@ The same entry may appear in several items of one list (a split run). A **dangli
 
 | Name | Value | Where |
 | --- | --- | --- |
-| `MEDIA_TYPE_MODELS` | anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, game, h-comic, hentai, h-game | domain |
+| `MEDIA_TYPE_MODELS` | anime, anime-movie, movie, tv-show, cartoon, manga, book, comic, game, h-comic, hentai, h-game | domain |
 | `ITEM_IMPORTANCE` | `("Essential", "Recommended", "Normal", "Optional")`; `DEFAULT_IMPORTANCE = "Normal"` | domain; mirrored in `WatchOrderEditor.jsx` |
 | `BUILT_IN_KINDS` | `release` → "Release Order", all types; `release-anime` → "Release Order (Anime)", anime only | router |
 | `MIN_ENTRIES_FOR_RELEASE` | `2` — an owner with fewer entries in scope gets no built-in order | router |
 | `_SINGLE_WINNER_FLAGS` | `is_default`, `is_most_recommended` | router |
-| `_TOTAL_FIELDS` | anime/tv-show/cartoon → `ep_total`; manga/novel → `ch_total`; comic → `issue_total`; movie types have none | domain |
-| `_STATUS_FIELDS` | watching_status for the five watched types and hentai, reading_status for manga/novel/comic/h-comic, playing_status for game/h-game | domain |
+| `_TOTAL_FIELDS` | anime/tv-show/cartoon → `ep_total`; manga/book → `ch_total`; comic → `issue_total`; movie types have none | domain |
+| `_STATUS_FIELDS` | watching_status for the five watched types and hentai, reading_status for manga/book/comic/h-comic, playing_status for game/h-game | domain |
 
 ## Rules
 
@@ -101,7 +101,7 @@ The same entry may appear in several items of one list (a split run). A **dangli
 | --- | --- | --- |
 | anime, tv-show, cartoon | `Ep` | yes |
 | comic | `#` (issue) | yes |
-| manga, novel | `Ch` | **no** — `WHOLE_ONLY_TYPES` |
+| manga, book | `Ch` | **no** — `WHOLE_ONLY_TYPES` |
 | movie, anime-movie | `Ep` (never shown) | **no** — `WHOLE_ONLY_TYPES` |
 | game | `Ep` (never shown) | **no** — `WHOLE_ONLY_TYPES`: a game is one whole entry, done or not by its `playing_status` |
 | h-comic, h-game, hentai | `Ep` (never shown) | **no** — `WHOLE_ONLY_TYPES` (a hentai step names the entry, never a range of its episodes); each offered in the editor's type filter only to a session that can see it |
@@ -196,7 +196,7 @@ Computed on every read, per viewer, from the viewer's own `user_media_list` rows
 | **active** | The status is an in-progress one — `Active Watching`, `Passive Watching`, `Active Reading`, `Passive Reading`, `Active Playing`, `Passive Playing` — and the step is not done by its range, and the range has been reached: a step whose `ep_start` is beyond the next unit (`units + 1 < ep_start`) stays pending, so the second half of a split run is not "now" while the first half is being watched |
 | **pending** | Everything else: no list row, `Might …`, `Plan to …`, `Watch When Airs`, `Watch When Released`, `Paused`, `Won't …` |
 
-The unit count is `UNIT_FIELDS`: `ep_fin` for anime, TV show, cartoon and hentai; `issue_fin` for comic; `ch_fin` for manga and novel. A type with no unit count (movies, games, h-comic, h-game) is done by status alone.
+The unit count is `UNIT_FIELDS`: `ep_fin` for anime, TV show, cartoon and hentai; `issue_fin` for comic; `ch_fin` for manga and book. A type with no unit count (movies, games, h-comic, h-game) is done by status alone.
 
 `done / total` counts steps. **Now** is every active step — there may be several. **Up next** is the **earliest pending step in reading order**, even when later steps are done: a skipped step is exactly what the follower needs to see. Optional steps are not skipped; the step carries its `importance` and the views show it. Each step is numbered 1..N over the steps the viewer can see.
 

@@ -14,7 +14,7 @@ older `business-rules.md` disagrees with this file, this file is current.
 
 Type keys used throughout are the hyphenated media-type slugs from
 `app/utils/media_resolver.py`: `anime`, `anime-movie`, `movie`, `tv-show`,
-`cartoon`, `manga`, `novel`, `comic`, `game`.
+`cartoon`, `manga`, `book`, `comic`, `game`.
 
 ---
 
@@ -61,11 +61,11 @@ one:
 | `tv-show`     | `release_date`                      |
 | `cartoon`     | `release_date`                      |
 | `manga`       | `release_date`                      |
-| `novel`       | `release_date`                      |
+| `book`        | `release_date_jp`, `release_date_tw` |
 | `comic`       | `release_date`                      |
 
 `DATE_COLUMNS` (keyed by `__tablename__`) is the wider list that also includes
-run-end columns (`manga.end_date`, `novel.end_date`, `comic.end_date`),
+run-end columns (`manga.end_date`, `book.end_date`, `comic.end_date`),
 `movies.release_date_usa`, and `studio.founded_date` / `studio.defunct_date`;
 the Sheets backup formatter uses it to know which cells to protect with an
 apostrophe (see `docs/data-actions.md`).
@@ -106,7 +106,7 @@ unparseable link never clears an existing ID.
 | Function                          | Reads             | Writes         | Pattern                                         |
 | --------------------------------- | ----------------- | -------------- | ----------------------------------------------- |
 | `apply_extract_mal_id_anime`      | `mal_link`        | `mal_id` (int) | `myanimelist.net/anime/(\d+)`                   |
-| `apply_extract_mal_id_manga_novel`| `mal_link`        | `mal_id` (int) | `myanimelist.net/manga/(\d+)`                   |
+| `apply_extract_mal_id_manga_book`| `mal_link`        | `mal_id` (int) | `myanimelist.net/manga/(\d+)`                   |
 | `apply_extract_mal_id_studio`     | `mal_link`        | `mal_id` (int) | `myanimelist.net/anime/producer/(\d+)` — a studio's MAL URL is `/anime/producer/56/A-1_Pictures`. The anime pattern above cannot match it (it wants digits straight after `/anime/` and meets the word `producer`), and this one cannot match a plain anime link, so the two never poach each other |
 | `apply_extract_mal_id_character`  | `mal_link`        | `mal_id` (int) | `myanimelist.net/character/(\d+)` — a character's MAL URL is `/character/11/Edward_Elric`. Derived on Fill and on every character `POST`, `PUT` and `PATCH` that carries a link |
 | `apply_extract_imdb_id`           | `imdb_link`       | `imdb_id` (str)| `imdb.com/title/tt(\d+)` → stored as `"tt…"`   |
@@ -301,14 +301,14 @@ Every completion helper comes in halves, because "this finished airing" and
 | Anime, TV Show, Cartoon, Hentai | `mark_tv_catalog` - `airing_status = "Finished Airing"` | `mark_tv_list` - `status = "Completed"`, `ep_fin = ep_total` when the total is known, `time_fin` cleared |
 | Anime Movie, Movie | `mark_movie_catalog` - `release_status = "Released"` | `mark_movie_list` - `status = "Completed"`, `time_fin` cleared |
 | Manga | `mark_reading_catalog` - `serialization_status = "完結"` unless it is `腰斬` | `mark_reading_list` - `status`, `ch_fin`, `vol_fin`, `vol_fin_page = 0` |
-| Novel | `mark_novel_catalog` - serialisation, and the volume totals agree on the largest **published** figure | `mark_novel_list` - `status`, `vol_fin`, and the arc cursor closed |
+| Book | `mark_book_catalog` - serialisation, and the volume totals agree on the largest **published** figure | `mark_book_list` - `status`, `vol_fin`, and the arc cursor closed |
 | Comic | `mark_comic_catalog` - serialisation | `mark_comic_list` - `status`, `issue_fin` |
 | Game | `mark_game_catalog` | `mark_game_list` - `status` only; a game's depth of finish is not a fraction (see below) |
 
 Two of those halves are narrower than the single helper they replace, on
 purpose:
 
-- `mark_novel_catalog` does **not** read `vol_fin`. The original took the max
+- `mark_book_catalog` does **not** read `vol_fin`. The original took the max
   across it as well, so one reader's progress could set the work's published
   length.
 - `mark_comic_catalog` does **not** raise `issue_total` to meet a reader who
@@ -331,7 +331,7 @@ pages, the dashboard, and the seasonal pages.
 
 - **The counter** is the type's `progress_counter` in `app/registry.py`:
   `ep_fin / ep_total` for anime, TV show, cartoon and hentai,
-  `ch_fin / ch_total` for manga and novel, `issue_fin / issue_total` for
+  `ch_fin / ch_total` for manga and book, `issue_fin / issue_total` for
   comic, and the region's own counter for h-comic (`page_fin / page_total` for
   JP, `ch_fin / ch_total` for KR). Movies, games and h-games have none, so a
   `PATCH` never finishes them.
@@ -364,7 +364,7 @@ source it fetched from says so — which `autofill` writes.
 
 Every progress count and total is a float: `ep_fin`, `ep_total`,
 `ep_previous`, `issue_fin`, `issue_total`, `page_fin`, `page_total`,
-`vol_fin`, `vol_total`, `ch_fin`, `ch_total`, and novel's `arc_fin`,
+`vol_fin`, `vol_total`, `ch_fin`, `ch_total`, and book's `arc_fin`,
 `ch_fin_in_arc` and totals. A viewer can be 2.5 episodes into a show whose
 total is 12.5. Not `achievements_total`, and not `vol_fin_page`, which is a
 page. Every way a value arrives keeps the fraction: the API schemas, the
@@ -379,7 +379,7 @@ never makes a step skip one. − stops at 0. + stops at the total and never
 passes it, a fractional one included: `2` + with a total of `2.5` → `2.5`;
 at the total it does nothing. The rule is one helper,
 `frontend/src/lib/progressStep.js`, and every stepper uses it - the detail
-pages' trackers, the dashboard cards, and novel's arc cursor (`arcStep`,
+pages' trackers, the dashboard cards, and book's arc cursor (`arcStep`,
 `wholeArcStep`). Typing into a counter takes a fraction as typed.
 
 Whole values display without `.0`, and a sum's float noise is rounded away
@@ -514,22 +514,23 @@ still writes the game's own columns, which are catalogue facts.
 
 ---
 
-## 4a. Novel two-stage progress (`app/services/domain/novel_units.py`)
+## 4a. Book two-stage progress (`app/services/domain/book_units.py`)
 
-A novel with `novel_unit` arc rows (`type = "Web"`, or any novel an admin
+A book with `book_unit` arc rows (`type = "網路小說"`, or any book an admin
 gave arc rows to) tracks progress in two stages instead of one flat chapter
 counter: `arc_fin` counts arcs that are **fully finished**, and
 `ch_fin_in_arc` is the chapter position inside the arc currently being read
-— the arc at index `arc_fin` (0-based) among the novel's arc rows in
+— the arc at index `arc_fin` (0-based) among the book's arc rows in
 `position` order. Screens show that arc one-based, as arc `arc_fin + 1`
 (`arcProgressView`, see [entry-types.md](entry-types.md)); what is stored is
 the finished count.
 
-**Derivation** (`derive_novel_progress`, called unconditionally on every
+**Derivation** (`derive_book_catalog` for the work's totals and
+`derive_book_list` for each reader's cursor, called unconditionally on every
 create/update/patch by the router, whether or not the write touched `units`):
 
-- **Volume-only type first** (`type` in `NOVEL_VOLUME_ONLY_TYPES`, i.e.
-  `Light Novel` and `Novel`): nothing is derived. `arc_total` and `ch_total`
+- **Volume-only type first** (`type` in `BOOK_VOLUME_ONLY_TYPES`, i.e.
+  `輕小說` and `小說`): nothing is derived. `arc_total` and `ch_total`
   go to null, `arc_fin`, `ch_fin` and `ch_fin_in_arc` to `0`, and the volume
   columns are left alone. This branch wins even when arc rows are present —
   the editor cannot create them for these types, but a sheet Pull can, and a
@@ -543,13 +544,13 @@ create/update/patch by the router, whether or not the write touched `units`):
   `arc_fin`/`ch_fin_in_arc` are first passed through the rollover rule below.
 
 **Choosing the counter** (`progressDisplayOptions` / `effectiveProgressDisplay`,
-`frontend/src/lib/novelUnits.js` - display only, no server component):
+`frontend/src/lib/bookUnits.js` - display only, no server component):
 `progress_display` may hold `vol_original`, `vol_tw`, `ch`, `arc` or `arc_ch`,
 but the dropdown offers only what the entry can render - volume counters
-except on `Web`, chapter counters except on the volume-only types, and the two
-arc counters only once the novel actually has arc rows. A stored value outside
+except on `網路小說`, chapter counters except on the volume-only types, and the two
+arc counters only once the book actually has arc rows. A stored value outside
 that set is ignored for rendering and the derived mode is used instead, so a
-`Web` row left holding `vol_tw` by a Pull or a type change cannot draw a
+`網路小說` row left holding `vol_tw` by a Pull or a type change cannot draw a
 volume row the type does not have.
 
 `arc` steps a whole arc at a time (`wholeArcStep`): `arc_fin` moves by one and
@@ -558,7 +559,7 @@ finished arcs. It is clamped at both ends, unlike the chapter rollover below,
 which deliberately runs past the last recorded arc.
 
 **Rollover** (`normalize_arc_progress`, mirrored in the frontend as
-`arcStep` in `frontend/src/lib/novelUnits.js`): folds an out-of-range
+`arcStep` in `frontend/src/lib/bookUnits.js`): folds an out-of-range
 `ch_fin_in_arc` into the right arc after a step.
 
 - *Carry up*: while the current arc (`counts[arc_fin]`) has a known,
@@ -582,15 +583,15 @@ which deliberately runs past the last recorded arc.
 
 **Display key** (`unit_display_key` / `unitDisplayKey`): a unit's shown
 label is its explicit `unit_key` if set, otherwise
-`"{NOVEL_UNIT_KEY_PREFIX[unit_kind]} {position}"` (e.g. `"Vol 1"`,
+`"{BOOK_UNIT_KEY_PREFIX[unit_kind]} {position}"` (e.g. `"Vol 1"`,
 `"Arc 2"`). Generated, never stored; computed server-side as
-`NovelUnitResponse.display_key` and previewed client-side before save.
+`BookUnitResponse.display_key` and previewed client-side before save.
 
 **Decision B — volume/arc asymmetry, deliberate.** Only `arc` rows are
 authoritative. `volume`, `story` and `chapter` rows are optional display
 enrichment: adding, editing or deleting them never changes `vol_fin`,
 `vol_total_original` or `vol_total_tw`, which remain the denominators for
-volume-based progress exactly as they were before `novel_unit` existed. The
+volume-based progress exactly as they were before `book_unit` existed. The
 asymmetry exists because `ch_count` — the one number progress derivation
 needs — lives only on arc rows; a volume has no equivalent "width".
 
@@ -610,7 +611,7 @@ in `app/utils/utils.py`.
 | TV Show     | `airing_status, release_date, imdb_rating, imdb_series_rating, ep_total, runtime_min, cover_image_file`                   |                                                                                                                                                                                                                                                                                         |
 | Cartoon     | TV: `airing_status, release_date, imdb_rating, imdb_series_rating, ep_total, cover_image_file`; Movie: `airing_status, release_date, imdb_rating, cover_image_file` | List chosen by `airing_type == "Movie"`; every other type uses the TV list. The Fill spec additionally requires `airing_type in {TV, Movie}` before queueing.                                                                                                                          |
 | Manga       | `serialization_status, release_date, end_date, mal_rating, mal_rank, cover_image_file`                                     | When `serialization_status == "完結"`, also missing if **both** `vol_total` and `ch_total` are `None`. One missing total alone does not trigger a fetch.                                                                                                                                 |
-| Novel       | same as manga                                                                                                             | Gate: `mal_link is None` → never missing (nothing to fill from). `完結` rule uses `vol_total_original` and `ch_total`, again only when **both** are `None`.                                                                                                                             |
+| Book        | same as manga                                                                                                             | Gate: `mal_link is None` → never missing (nothing to fill from). `完結` rule uses `vol_total_original` and `ch_total`, again only when **both** are `None`.                                                                                                                             |
 | Comic       | `release_date, issue_total, cover_image_file`                                                                             | Plus `COMIC_LINK_FIELDS_TO_FILL`: `author` credit, `illustrator` credit, `publisher` credit — Comic Vine's publisher resolves to a `publisher` entity, not a tag. Imprint, continuity, era and events and `end_date` are manual and never required — Comic Vine does not model them.                                                          |
 | H-Comic     | `serialization_status, release_date, end_date, cover_image_file` (`H_COMIC_FIELDS_TO_FILL`)                               | The MAL clause additionally requires `mal_id`. On a KR entry whose `serialization_status` is `完結`, also missing while `ch_total` is `None`; a JP entry counts pages, which MAL does not report. A second clause is ORed on, E-Hentai's: `has_missing_values_h_comic_ehentai(db, e)` is true when `ehentai_link` names a gallery and `cover_image_file` (`H_COMIC_EHENTAI_FIELDS_TO_FILL`) or the `illustrator` credit (`H_COMIC_EHENTAI_LINK_FIELDS_TO_FILL`) is blank - so an entry with only an E-Hentai link is eligible. See [external-apis.md](external-apis.md#e-hentai). |
 | Hentai      | `airing_status, release_date, ep_total, cover_image_file` (`HENTAI_FIELDS_TO_FILL`)                                       | The spec requires `mal_id`, **or** (`has_missing_values_hentai_anidb`) an `anidb_id` while AniDB is enabled. These are the only four things Tenrai and AniDB fill on a hentai, so nothing else can make one eligible. |
@@ -708,7 +709,7 @@ present and truthy, else the derived key, else `None`.
 | `comic`   | sum of `issue_total`                 | ≤3 → `1_3`; ≤10 → `4_10`; else `11_plus`           |
 
 `bucket_for` returns `None` for a missing or zero measure — "nothing measured"
-is not "small". Anime movie, manga and novel have no bucket vocabulary.
+is not "small". Anime movie, manga and book have no bucket vocabulary.
 
 ### Derivation (`derive_size_groups`)
 
@@ -730,7 +731,7 @@ see section 14).
 
 Each `*_post_processing(entry, db)` runs on **every** entry of the type after a
 Fill's fetch loop, and on every entry during Calculate All (`run_post_processing`
-covers anime, anime movie, TV show, cartoon, manga). Novel, Movie and Comic have
+covers anime, anime movie, TV show, cartoon, manga). Book, Movie and Comic have
 no post-processing.
 
 | Type        | Steps, in order                                                                                                                                                                                                                                                          |
@@ -754,11 +755,11 @@ bulk Replace:
 | TV Show     | extract IMDb id → autofill → tv-show post-processing                                                                                                 |
 | Cartoon     | extract IMDb id → autofill → cartoon post-processing                                                                                                 |
 | Manga       | extract MAL id → autofill (ratings forced) → manga post-processing                                                                                    |
-| Novel       | extract MAL id → autofill (ratings forced)                                                                                                            |
+| Book        | extract MAL id → autofill (ratings forced)                                                                                                            |
 | Comic       | nothing — no replace function; the write hook only re-syncs system options                                                                           |
 | Hentai      | extract MAL and AniDB ids → `autofill_hentai_from_mal` (airing status, release date, episode count, cover, and the Official site / Twitter reference rows; all fill-only) → `autofill_hentai_from_anidb` (the same four and the Official site row, only where still blank) → `apply_validate_episode_math` (clamp `ep_total`) → `run_sync_hentai` and `run_sync_gated_labels` as the spec's after steps (the label) |
 
-The `bulk` parameter is accepted by movie/tv/cartoon/manga/novel/hentai for
+The `bulk` parameter is accepted by movie/tv/cartoon/manga/book/hentai for
 signature parity and ignored. Fill-only vs overwrite semantics of the autofill functions
 are in `docs/external-apis.md`.
 
@@ -787,7 +788,7 @@ fragment of an `*_alt` list a name of its own - section 10).
 | `tv_show`         | with a franchise                       | `(franchise_id, series_id, season_part, is_main)`                           | shared name                                                                                             |
 | `cartoon`         | with a franchise                       | `(franchise_id, series_id, season_part, is_main)`                           | shared name                                                                                             |
 | `manga`           | with a franchise                       | `(franchise_id, series_id, is_main)`                                        | shared name                                                                                             |
-| `novel`           | with a franchise                       | `(franchise_id, series_id, is_main)`                                        | shared name                                                                                             |
+| `book`           | with a franchise                       | `(franchise_id, series_id, is_main)`                                        | shared name                                                                                             |
 | `comic`           | with a franchise                       | `(franchise_id, series_id)`                                                 | shared name **or** same non-null `comicvine_id` (two unfilled rows sharing NULL is not a match)         |
 | `game`            | with a franchise                       | `(franchise_id, series_id, game_type, is_main)` - a DLC shares its base game's name stem, and a remake or remaster its original's name | shared name |
 | `h_comic`         | with a franchise                       | `(franchise_id, series_id, region, series_number)` | shared name |
@@ -878,7 +879,7 @@ offers MAL's name and the save reports the ambiguity as it does for a typed
 name; the MAL autofill skips that one credit with a warning and writes the
 rest.
 
-The four MAL autofills (anime and anime movie `studio`; manga and novel
+The four MAL autofills (anime and anime movie `studio`; manga and book
 `author` and `illustrator`, from MAL's Story / Art roles) credit MAL's list
 **only into a role the entry has no credits for** (`fill_mal_credits`). A
 match is reused; no match creates the row — a studio under its MAL name in
@@ -1014,7 +1015,7 @@ cells.
 | tv-show                          | `TV`                          |
 | cartoon                          | `Cartoon`                     |
 | manga                            | `Manga`                       |
-| novel                            | `Novel`                       |
+| book                             | `Book`                        |
 | comic                            | `Comic`                       |
 | game                             | `Game`                        |
 | h-comic                          | `H-Comic` (labelled `h-comic`) |
@@ -1060,11 +1061,11 @@ card and the favourite AniManga franchises grid - count a franchise of either
 type as one of theirs.
 
 Which franchises an entry is offered in follows the same split (the Add and
-Modify pickers, `MangaAddTab.jsx` / `NovelAddTab.jsx`): a manga sits in a
-`Manga` franchise or an untyped one; a novel in a `Novel`, `Anime` or `Manga`
+Modify pickers, `MangaAddTab.jsx` / `BookAddTab.jsx`): a manga sits in a
+`Manga` franchise or an untyped one; a book in a `Book`, `Anime` or `Manga`
 franchise or an untyped one. The franchise hub lists anime on an `Anime`
 franchise, anime movies on an `Anime` or `Anime Movie` one, manga on a `Manga`
-one, and novels on a `Novel`, `Anime` or `Manga` one.
+one, and books on a `Book`, `Anime` or `Manga` one.
 
 `ACG` is not a franchise type. An older sheet backup's Franchise tab may
 still carry it, and Pull splits it (`split_acg_franchise_types`,
@@ -1076,7 +1077,11 @@ order and the separators their spacing, and a type the value already names is
 not listed twice - `"Game, ACG"` holding a manga becomes `"Game, Manga"`,
 `"ACG, Manga"` holding both becomes `"Anime, Manga"`. `Anime Movie` is its own
 type and is left alone. A `type_covers` choice filed under `ACG` moves to the
-type of the entry it names. The split decides by the entries, so Pull All runs
+type of the entry it names. A `Novel` token from a sheet older than the Book
+type is read as `Book` the same way, token-wise and never listed twice, and a
+`type_covers` choice under `Novel` moves to `Book` (`legacy_names.py`, see
+[data-actions.md](data-actions.md)); that one needs no entries to decide. The
+`ACG` split decides by the entries, so Pull All runs
 it once, after every tab; pulling the Franchise tab alone runs it against the
 entries already in the database.
 
@@ -1203,9 +1208,9 @@ entry schemas, but they are **virtual**: each is backed by a `plan_next` row
 | Field        | Kind      | Types carrying it                                |
 | ------------ | --------- | ------------------------------------------------ |
 | `watch_next` | `next`    | anime, anime-movie, movie, tv-show, cartoon      |
-| `read_next`  | `next`    | manga, novel, comic                              |
+| `read_next`  | `next`    | manga, book, comic                              |
 | `to_rewatch` | `rewatch` | anime-movie, movie, tv-show                      |
-| `to_reread`  | `rewatch` | manga, novel, comic                              |
+| `to_reread`  | `rewatch` | manga, book, comic                              |
 
 Anime and cartoon have no entry-level rewatch flag: their rewatch scope is
 franchise-only. `ALLOWED_SCOPES[kind][media_type]` is the full matrix

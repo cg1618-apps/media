@@ -83,7 +83,7 @@ for the catch-all, which is last).
 | `tv_show` | `/api/tv-shows` | factory; adds `GET /api/tv-shows/search-tmdb` and `/tmdb-imdb-id` |
 | `manga` | `/api/manga` | factory; adds `GET /api/manga/search-mal` and `/mal-prefill/{mal_id}` |
 | `note` | `/api/notes` | |
-| `novel` | `/api/novel` | factory; adds `GET /api/novel/search-mal`, `/mal-prefill/{mal_id}` and `/search-openlibrary` |
+| `book` | `/api/book` | factory; adds `GET /api/book/search-mal`, `/mal-prefill/{mal_id}` and `/search-openlibrary` |
 | `comic` | `/api/comic` | factory router nested in a prefix-less router that adds `GET /api/comic/search-comicvine` |
 | `game` | `/api/game` | factory router nested in a prefix-less router that adds `GET /api/game/search-igdb` |
 | `h_comic` | `/api/h-comic` | factory; a gated type |
@@ -239,7 +239,11 @@ At import time:
    gate instead - routers included, catch-all
    added last.
 
-In the lifespan (before the first request):
+In the lifespan (before the first request), after `settings.validate_secrets()`
+and `copy_legacy_cover_folders(COVER_DIR)` (the old `novel/` cover folders
+copied to `book/`, see
+[external-apis.md](external-apis.md#cover-images-local-disk);
+an `OSError` there is logged and does not stop the start):
 
 1. `ensure_rbac_seed(db)` -- idempotent role/permission seed
    (`app/services/rbac/seed.py`).

@@ -210,7 +210,7 @@ Data: `useRequestInbox(status)` from `api/mutations/useRequestMutations.js`
 ## /add (`Add.jsx`)
 
 A two-level tab bar (`config/adminTabs.js`): **Entries** (anime, anime movie,
-movie, TV show, cartoon, manga, novel, comic, game, and the gated h-comic,
+movie, TV show, cartoon, manga, book, comic, game, and the gated h-comic,
 h-game and hentai, each for a session that can see it), **Structure** (collection,
 franchise, series, quote, meme), **Entity** (studio, publisher, person,
 character) and **System** (system option, alias). Each
@@ -240,7 +240,7 @@ other name is accepted.
 | anime, anime movie | `Gimy`, `Anime1` | - |
 | movie, TV show, cartoon | `Gimy` | - |
 | manga | `漫畫櫃 (電腦版)`, `漫畫櫃 (手機版)`, `漫畫人` | `包子漫畫` |
-| novel | - | `bili嗶哩輕小說`, `無限輕小說`, `無限小說`, `輕小說文庫`, `真白萌`, `和圖書`, `小說狂人`, `全本小說` |
+| book | - | `bili嗶哩輕小說`, `無限輕小說`, `無限小說`, `輕小說文庫`, `真白萌`, `和圖書`, `小說狂人`, `全本小說` |
 | comic | `BatCave` | `GlobalComix`, `Read Comics Online` |
 | game, h-game | - | - |
 | h-comic | `禁漫天堂`, and six more on KR (below) | - |
@@ -277,7 +277,7 @@ It takes no default and auto-fill never copies it (`defaultable: false`,
 work.
 
 **Genres & Labels.** Anime, anime movie, movie, TV show, cartoon, manga,
-novel and comic each carry a **Genres & Labels** section — Genre Main, Genre
+book and comic each carry a **Genres & Labels** section — Genre Main, Genre
 Sub and 標籤 Label — drawn by `forms/GenreLabelFields.jsx` after Information
 (`GENRE_LABEL_TYPES` in `lib/genreLabelFields.js`). Each picker offers only its
 category's values scoped to that type or to no type, so a genre added on a
@@ -352,7 +352,7 @@ region updater, which re-suggests restricted sources.
 `buildAnimeMoviePayload`), then add the franchise and series ids they
 resolved, so a field added to a form is added to one payload, not two. A
 blank finished count — episodes watched, manga's volumes, pages and chapters
-read, novel's volumes, arcs and chapters read, comic's issues read, h-comic's
+read, book's volumes, arcs and chapters read, comic's issues read, h-comic's
 pages or chapters read — is sent as `null` ("not recorded") from both pages,
 on every type.
 
@@ -378,7 +378,7 @@ every type; a type leaves out what it lacks:
 6. **Production** (`fa-pen-nib`) — the studio, publisher and people credits.
 7. **Cast** (`fa-users`).
 8. Type extras — **Prices** and **Copies** (game, h-game), **Read Order**
-   (comic), **Units** (novel).
+   (comic), **Units** (book).
 9. **Links & Sources** (`fa-external-link-alt`) — each external id beside its
    link, the official or exclusive source, then the Sources editor.
 10. **Cover** (`fa-image`).
@@ -461,7 +461,7 @@ replaced by the next media add, and goes when the banner is dismissed or a
 non-media row (collection, person, …) is added.
 
 **Autofill search box (anime, anime movie, movie, TV show, cartoon, manga,
-novel, comic, game, h-comic, h-game, hentai).** Typing filters that tab's list
+book, comic, game, h-comic, h-game, hentai).** Typing filters that tab's list
 client-side; picking a row copies its fields into the form (`lib/autofill.js`,
 driven by `config/formFields/fieldMeta.js` and the auto-fill ticks on
 `/defaults`). Nothing is fetched from external APIs by this box. Every tab
@@ -482,7 +482,7 @@ searches, and what a pick writes:
 | Anime | MAL | `anime.searchMal` | `mal_id`, `mal_link`, blank `anime_name_roman`, then the MAL prefill (below) |
 | Anime Movie | MAL (movies) | `animeMovie.searchMal` | `mal_id`, `mal_link`, blank `anime_movie_name_roman`, then the MAL prefill |
 | Manga | MAL (no novels) | `manga.searchMal` | `mal_id`, `mal_link`, blank `manga_name_roman`, then the MAL prefill |
-| Novel | MAL (novels) **and** Open Library, two boxes | `novel.searchMal`, `novel.searchOpenLibrary` | MAL: `mal_id`, `mal_link`, blank `novel_name_roman`, then the MAL prefill; Open Library: `openlibrary_id` (a string), `openlibrary_link`, blank `novel_name_en` |
+| Book | MAL (light novels and novels) **and** Open Library, two boxes | `book.searchMal`, `book.searchOpenLibrary` | MAL: `mal_id`, `mal_link`, blank `book_name_roman`, then the MAL prefill; Open Library: `openlibrary_id` (a string), `openlibrary_link`, blank `book_name_en` |
 | Movie / TV Show / Cartoon | TMDB | `movie` / `tvShow` / `cartoon` `.searchTmdb` | `imdb_id`, `imdb_link`, blank `*_name_en`, after a resolve (below) |
 | Comic | Comic Vine, **on Enter** | `comic.searchComicVine` | `comicvine_id`, `comicvine_link`, blank `comic_name_en` |
 | Game / H-Game | IGDB | `game.searchIgdb` / `hGame.searchIgdb` | `igdb_id`, `igdb_link`, blank `game_name_en` / `h_game_name_en` |
@@ -513,7 +513,7 @@ only `mal_link`; the server derives `mal_id` from it on save and fills names
 and photo from MAL then, for a person only when it holds the seiyuu role,
 which the person box's hint says.
 
-**A MAL pick on anime, anime movie, manga and novel prefills the form.**
+**A MAL pick on anime, anime movie, manga and book prefills the form.**
 `makeMalPick` writes the id, link and romaji name at once, as above, then
 fetches `GET /api/<type>/mal-prefill/{mal_id}` (`endpoints.<type>.malPrefill`)
 and merges the answer into **only the fields the admin has not filled**: a
@@ -702,7 +702,7 @@ the picker.
 **Copies editor.** `components/forms/GameCopiesEditor.jsx`, one row per copy
 owned or wanted (storefront, ownership, format, acquisition, price paid +
 currency, acquired date, sell price + currency, hours played, remark), with a drag grip (`components/ui/Sortable.jsx`; ArrowUp / ArrowDown on it moves a row one place) and remove. It is fully
-controlled on the `NovelUnitsEditor` contract: no internal state, the parent
+controlled on the `BookUnitsEditor` contract: no internal state, the parent
 owns `items`, the array handed in is never mutated, and every change goes out
 through `onChange` with `position` renumbered 1..n. `acquired_date` is free text,
 not `<input type="date">`, because it carries the same partial precision
@@ -757,7 +757,7 @@ with one (女 on an h-comic or a hentai — `NEW_CAST_CHARACTER_GENDER`, see
 `CastEditor` in [components.md](components.md)). `CharacterFields` is exported
 so the Modify tab renders the same inputs.
 
-Every cast section — anime, anime movie, manga, novel, h-comic and hentai, on
+Every cast section — anime, anime movie, manga, book, h-comic and hentai, on
 Add and on Modify — passes the form's own `mal_link` to `CastEditor`, so
 **Import from MAL** and **Import main cast from MAL** appear once the entry has
 a MAL link (see `CastEditor` in
@@ -787,7 +787,7 @@ media type each is scoped to (`forms/OptionValueGroups.jsx` over
 Anime's values and Game's values rather than one list. A type's group holds
 only the values scoped to that type alone, in `MEDIA_TYPES` order. A value
 scoped to two or more types is listed once, under **Shared**, in a sub-group
-headed by its exact set of types (`Anime · Manga · Novel`) — Genre Main serves
+headed by its exact set of types (`Anime · Manga · Book`) — Genre Main serves
 eight types, and a copy of 奇幻 under each would bury every type's own values.
 Values with no scope — offered everywhere — come last under **All types**. A
 category whose values all fall in one type's group renders as a plain grid
@@ -873,7 +873,7 @@ carries no MAL columns, because MAL has no record of a games publisher or a
 Taiwanese distributor. Submit is blocked until at least one name is filled,
 matching `ck_publisher_has_a_name`. Below the name fields sits
 `PublisherScopePills` (`components/forms/PublisherScopePills.jsx`): one row of
-media-type pills — Anime, Anime Movie, Manga, Novel, Comic, Game — writing the
+media-type pills — Anime, Anime Movie, Manga, Book, Comic, Game — writing the
 `scopes` list the request body carries, which decides where this publisher is
 offered in the entry forms' pickers. A publisher with no pill lit is offered
 **nowhere**, which is the deliberate rule, not an oversight; the studio tab has
@@ -1412,7 +1412,7 @@ One section per media type, in `PIPELINES` order, each holding the id it is
 keyed on, the requests it costs per entry, chips for the pipelines it actually
 has, and one table per source. A type with several sources says how they
 combine: Movie / TV Show / Cartoon are `merged` (TMDB and OMDb both fetched,
-OMDb winning on `imdb_rating`, the only key they share), Novel is `either-or`
+OMDb winning on `imdb_rating`, the only key they share), Book is `either-or`
 (a `mal_link` routes to Tenrai, otherwise Open Library). Below the sections, a
 service table with the env var and rate limit behind each API, and a legend for
 the six rules.
@@ -1444,7 +1444,7 @@ topic is a new entry in that array.
 
 The one topic is **Calculate All**, in `run_calculate_all`'s call order:
 per-entry checks, episodes before each season, the sequel-relation seed, the
-sync run (anime seasonal rows and counts, the option-scope refreshes, novel
+sync run (anime seasonal rows and counts, the option-scope refreshes, book
 totals, the h-comic region rule, restricted-type labels, size groups, then the
 cast sync with its three groups - cast rows fill the character or identity,
 the original fills its cast rows, and how the original seiyuu are chosen,

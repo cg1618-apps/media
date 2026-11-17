@@ -24,8 +24,8 @@ Two lists exist on purpose (see the comment above `FRANCHISE_TYPES` in `app/util
 
 | Where | Values |
 |---|---|
-| `FranchiseType` enum (backend logic, auto-creation) | `"Movie"`, `"TV"`, `"Cartoon"`, `"Comic"`, `"Anime"`, `"Manga"`, `"Novel"`, `"Game"`, `"H-Comic"`, `"H-Game"`, `"Hentai"` |
-| `FRANCHISE_TYPES` tuple (what `/api/constants` serves to the dropdown) | `"Anime"`, `"Manga"`, `"Anime Movie"`, `"TV"`, `"Movie"`, `"Cartoon"`, `"Comic"`, `"Novel"`, `"Game"`, `"H-Comic"`, `"H-Game"`, `"Hentai"` |
+| `FranchiseType` enum (backend logic, auto-creation) | `"Movie"`, `"TV"`, `"Cartoon"`, `"Comic"`, `"Anime"`, `"Manga"`, `"Book"`, `"Game"`, `"H-Comic"`, `"H-Game"`, `"Hentai"` |
+| `FRANCHISE_TYPES` tuple (what `/api/constants` serves to the dropdown) | `"Anime"`, `"Manga"`, `"Anime Movie"`, `"TV"`, `"Movie"`, `"Cartoon"`, `"Comic"`, `"Book"`, `"Game"`, `"H-Comic"`, `"H-Game"`, `"Hentai"` |
 
 A franchise may carry a comma-separated list of types; duplicate detection buckets it under each one. Anime franchises are `"Anime"` and manga franchises `"Manga"`, matching the media types; a franchise holding both carries both. The two together are the **AniManga** group (`ANIMANGA_FRANCHISE_TYPES` in `frontend/src/config/fieldOptions.js`), which the statistics and the favourite AniManga franchises grid count as one; it is not a franchise type. `"ACG"` is not a franchise type either: Pull splits one restored from an older sheet into `"Anime"` and/or `"Manga"` by what the franchise holds ([business-rules.md](business-rules.md)).
 
@@ -78,7 +78,7 @@ apart in both directions:
 | `"tv-show"` | `FranchiseType.TV` (`"TV"`) |
 | `"cartoon"` | `FranchiseType.CARTOON` (`"Cartoon"`) |
 | `"manga"` | `FranchiseType.MANGA` (`"Manga"`) |
-| `"novel"` | `FranchiseType.NOVEL` (`"Novel"`) |
+| `"book"` | `FranchiseType.BOOK` (`"Book"`) |
 | `"comic"` | `FranchiseType.COMIC` (`"Comic"`) |
 | `"game"` | `FranchiseType.GAME` (`"Game"`) |
 | `"h-comic"` | `FranchiseType.H_COMIC` (`"H-Comic"`), labelled `h-comic` on creation |
@@ -99,7 +99,7 @@ Media-type keys are the hyphenated values in `MEDIA_TABLES` (`app/utils/media_re
 | `tv-show` | `tv_shows` | "Live-action and scripted TV show entries." One entry per season (`season_part`). `airing_type` is `"TV"` (the default) or `"Special"`. |
 | `cartoon` | `cartoons` | "Western animated TV show entries." `airing_type` is one of `"TV"`, `"Movie"`, `"Special"`. |
 | `manga` | `manga` | "Manga, manhwa, and manhua entries." |
-| `novel` | `novel` | "Light novel, web novel, and book entries." `novel_type` is `"Light Novel"`, `"Novel"`, `"Web"` or `"Other"`. |
+| `book` | `book` | "Books: light novels, novels, web novels, short-story collections, guides and setting books." `type` is `"輕小說"`, `"小說"`, `"網路小說"`, `"短篇集"`, `"指南/設定集"` or `"其他"`. Two release dates, `release_date_jp` (the original's) and `release_date_tw` (the Taiwanese edition's), as anime has, plus `end_date`. Statistics' **Novel** section counts only the novel types, `輕小說`, `小說`, `網路小說` and `短篇集`. |
 | `comic` | `comic` | "Western comic runs, Marvel-focused. One entry is one numbered run." `comic_type` is `"Ongoing"`, `"Limited"`, `"One-Shot"` or `"Annual"`. |
 | `game` | `games` | One **purchasable**, not one work: `game_type` is `"Base Game"`, `"DLC"`, `"Expansion"` or `"Bundle"`, and a DLC is a row in this same table with a `base_game_id`. `is_main` is `"Main"`, `"Remake"` or `"Remaster"` (`GAME_IS_MAIN`, not the other types' 本傳 / 外傳 list), a label independent of `game_type` and of the relation kinds. Ownership is not a column - it is derived from the `game_copy` rows. A game also owns a **choice graph** - the blocks (parts) of its branching story and the choices and conditions that lead from one to the next, with each player's own done marks and notes - in three tables of its own ([systems/game-choices.md](systems/game-choices.md)). |
 | `h-comic` | `h_comic` | Adult comics, seen in the `unrestricted` access mode only. One table, two variants keyed on `region` (`"JP"` or `"KR"`, required): the columns a region does not use are cleared on every write path (see "H-Comic regions" below). A **gated type** - every entry carries the `h-comic` content label ([authorization.md](authorization.md)). Its `animation_status` is derived from hentai adaptations when it has any (see "H-Comic animation status" below). |
@@ -177,44 +177,44 @@ and logs the rest rather than failing the tab. Game columns h_game does not
 have: `hours_played`, `metacritic_score`, `metacritic_user_score`,
 `all_achievements`, `all_collected`.
 
-### Novel unit structure (`novel_unit`, `NOVEL_UNIT_KINDS_BY_TYPE`)
+### Book unit structure (`book_unit`, `BOOK_UNIT_KINDS_BY_TYPE`)
 
-A novel is not one flat progress counter — it optionally holds `novel_unit`
-child rows (volume / arc / story / chapter), and `novel.type` decides which
-kinds the editor (`NovelUnitsEditor`) offers:
+A book is not one flat progress counter — it optionally holds `book_unit`
+child rows (volume / arc / story / chapter), and `book.type` decides which
+kinds the editor (`BookUnitsEditor`) offers:
 
-| `novel.type` | Kinds offered | Structure |
+| `book.type` | Kinds offered | Structure |
 |---|---|---|
-| `Light Novel` | `volume` | Volumes only, for display (subtitles, per-volume remarks). Progress is tracked flat via `vol_fin` / `vol_total_original` / `vol_total_tw` — volume rows never feed those columns (Decision B). Counts **nothing else**: see "Volume-only types" below. |
-| `Novel` | `volume` | Same as Light Novel. |
-| `Web` | `arc` | Two-stage progress: `arc_fin` (arcs fully finished) and `ch_fin_in_arc` (chapters into the current arc). `arc_total`, `ch_total` and `ch_fin` are derived from the arc rows' `ch_count` on every write — see `app/services/domain/novel_units.py` and [business-rules.md](business-rules.md). |
-| `Other` | `volume`, `story`, `chapter` | Free-form structure for entries that fit neither pattern (e.g. a short-story collection); `story` and `chapter` rows are display-only, the same as `volume`. |
+| `輕小說` | `volume` | Volumes only, for display (subtitles, per-volume remarks). Progress is tracked flat via `vol_fin` / `vol_total_original` / `vol_total_tw` — volume rows never feed those columns (Decision B). Counts **nothing else**: see "Volume-only types" below. |
+| `小說` | `volume` | Same as 輕小說. |
+| `網路小說` | `arc` | Two-stage progress: `arc_fin` (arcs fully finished) and `ch_fin_in_arc` (chapters into the current arc). `arc_total`, `ch_total` and `ch_fin` are derived from the arc rows' `ch_count` on every write — see `app/services/domain/book_units.py` and [business-rules.md](business-rules.md). |
+| `短篇集`, `指南/設定集`, `其他` | `volume`, `story`, `chapter` | Free-form structure for entries that fit neither pattern; `story` and `chapter` rows are display-only, the same as `volume`. The three types share one rule set. |
 
-### Which counter a novel shows
+### Which counter a book shows
 
 `progress_display` picks the counter; the dropdown that sets it is built per
-entry by `progressDisplayOptions(novel)` (`frontend/src/lib/novelUnits.js`),
-never from a flat list, so a novel is only ever offered a counter it can
+entry by `progressDisplayOptions(book)` (`frontend/src/lib/bookUnits.js`),
+never from a flat list, so a book is only ever offered a counter it can
 actually render:
 
-| `novel.type` | Offered | Not offered |
+| `book.type` | Offered | Not offered |
 |---|---|---|
-| `Light Novel`, `Novel` | Default, `vol_original`, `vol_tw` | every chapter and arc counter |
-| `Web` | Default, `ch` — plus `arc` and `arc_ch` **once the entry has arc rows** | every volume counter |
-| `Other`, unset | Default, `vol_original`, `vol_tw`, `ch` | the arc counters (only Web holds arc rows) |
+| `輕小說`, `小說` | Default, `vol_original`, `vol_tw` | every chapter and arc counter |
+| `網路小說` | Default, `ch` — plus `arc` and `arc_ch` **once the entry has arc rows** | every volume counter |
+| `短篇集`, `指南/設定集`, `其他`, unset | Default, `vol_original`, `vol_tw`, `ch` | the arc counters (only 網路小說 holds arc rows) |
 
 The five counters render as:
 
 | Value | Tracker row | Cover rule |
 |---|---|---|
 | `vol_original` / `vol_tw` | `Volumes`, editable | `Volumes 3 / 11 · 27%` |
-| `ch` | `Chapters`, editable. On a novel with arc rows `ch_fin` is derived from them, so a typed or stepped total is folded into the arc cursor (`arcCursorForChapters`) and the row is marked "from arcs" | `Chapters 21 / 87 · 24%` |
+| `ch` | `Chapters`, editable. On a book with arc rows `ch_fin` is derived from them, so a typed or stepped total is folded into the arc cursor (`arcCursorForChapters`) and the row is marked "from arcs" | `Chapters 21 / 87 · 24%` |
 | `arc` | `Arcs`: `arc 7 / 8 · 倒吊人` — the arc being read (typable), its name, and the arc count. Stepping closes or reopens a whole arc and resets `ch_fin_in_arc`; typing an arc starts at its beginning | `Arcs 6 / 8 · 75%` (arcs *finished*) |
 | `arc_ch` | `Arc / Chapter`: the arc being read and the chapters read inside it, both typable, with a chapter stepper | `Chapters`, the derived absolute pair |
 
 Every `arc_ch` display - the tracker row, the dashboard card and the library
-card's progress line (`getNovelProgress`) - names **the arc being read**, not
-the arcs finished, through `arcProgressView` (`lib/novelUnits.js`): arc
+card's progress line (`getBookProgress`) - names **the arc being read**, not
+the arcs finished, through `arcProgressView` (`lib/bookUnits.js`): arc
 `arc_fin + 1`, with `ch_fin_in_arc` chapters read in it. With every recorded
 arc finished and nothing read past them it shows the last arc, complete
 (`arc 8 · 90/90`); chapters read past the last recorded arc show as the arc
@@ -226,53 +226,53 @@ chapter stays in the arc shown and carries past its end as the stepper does.
 the two are deliberately asymmetric. Chapters on a light novel are
 *meaningless*, so the server clears them. Volumes on a web novel are merely
 *not the counter in use* — a web novel can get a print run later — so for
-`Web` the columns are kept untouched and only hidden: no Volumes tracker row,
+`網路小說` the columns are kept untouched and only hidden: no Volumes tracker row,
 no volume inputs in the Add and Modify forms. Change the type back and the
 numbers are still there.
 
 An override the type cannot render is ignored. `effectiveProgressDisplay()`
 falls back to the derived mode when the stored value is not in that entry's
-option list — a `Web` row still holding `vol_tw` after a type change or a
+option list — a `網路小說` row still holding `vol_tw` after a type change or a
 Pull, say. The select still *shows* the stored value (appended by
 `withLegacyProgressDisplay`, labelled `(legacy)`) so it is visible rather
 than silently swapped, but nothing renders a row for it.
 
 ### Volume-only types
 
-A type whose only allowed kind is `volume` — `Light Novel` and `Novel` — counts
+A type whose only allowed kind is `volume` — `輕小說` and `小說` — counts
 volumes and nothing else. Its `arc_total`, `ch_total`, `arc_fin`, `ch_fin` and
 `ch_fin_in_arc` are not empty, they are *meaningless*, so nothing renders or
-edits them: no chapter row in `NovelTrackerBlock`, no chapter total on the
+edits them: no chapter row in `BookTrackerBlock`, no chapter total on the
 cover rule (it counts volumes instead), and no arc/chapter inputs in the Add
 and Modify forms.
 
 The rule is enforced where the data is, not only in the UI.
-`derive_novel_progress()` clears those five columns for these types on every
+`derive_book_catalog()` and `derive_book_list()` clear those five columns for these types on every
 write path — the forms, the tracker's inline PATCH, Pull, Fill and Calculate —
 so a value cannot come back in through any of them, including a sheet that
 still carries one. Arc rows arriving from a Pull are ignored for derivation and
 deleted by the migration; the editor cannot create them.
 
-The type list is `NOVEL_VOLUME_ONLY_TYPES` (`app/utils/constants.py`), derived
-from `NOVEL_UNIT_KINDS_BY_TYPE` rather than typed a second time, and mirrored
-in `frontend/src/lib/novelUnits.js` as `countsChapters()`. An unset or
+The type list is `BOOK_VOLUME_ONLY_TYPES` (`app/utils/constants.py`), derived
+from `BOOK_UNIT_KINDS_BY_TYPE` rather than typed a second time, and mirrored
+in `frontend/src/lib/bookUnits.js` as `countsChapters()`. An unset or
 unrecognised type is *not* volume-only: it keeps its chapter pair, on both
 sides. Migration `v1o2l3o4n5l6` cleared the historical values once — it is not
 reversible, since nothing else records what `ch_total` was.
 
 Every unit also carries the reader's own `my_rating`, on the same S..F
-scale as the novel's - a per-volume or per-arc grade - and the reader's own
-`remark`, both kept per account in `user_novel_unit_rating` rather than on
+scale as the book's - a per-volume or per-arc grade - and the reader's own
+`remark`, both kept per account in `user_book_unit_rating` rather than on
 the unit. A holder of `self.list` sets both on the detail page, from a rating
 select and a remark field beside each unit, through
-`PUT /api/me/novel-units/{unit_id}`; the catalogue editor (`NovelUnitsEditor`)
-and the novel's `units` write carry neither. The rating is independent:
-nothing derives from it, and the novel's own rating stays hand-set.
+`PUT /api/me/book-units/{unit_id}`; the catalogue editor (`BookUnitsEditor`)
+and the book's `units` write carry neither. The rating is independent:
+nothing derives from it, and the book's own rating stays hand-set.
 
 Only `arc` rows are authoritative for derivation; every other kind is
 enrichment shown on the detail page via `display_key` (`unit_display_key` /
 `unitDisplayKey`: an explicit `unit_key`, or a generated `"Vol 1"`/`"Arc 2"`
-style label). Vocabulary source and drift guard: [options.md](options.md#novel-unit-kinds-apputilsconstantspy).
+style label). Vocabulary source and drift guard: [options.md](options.md#book-unit-kinds-apputilsconstantspy).
 
 ## Common points of confusion (from CLAUDE.md)
 
@@ -284,14 +284,14 @@ style label). Vocabulary source and drift guard: [options.md](options.md#novel-u
 
 ### Status, names, progress, source
 
-| | `anime` | `anime-movie` | `movie` | `tv-show` | `cartoon` | `manga` | `novel` | `comic` | `game` | `h-comic` | `h-game` | `hentai` |
+| | `anime` | `anime-movie` | `movie` | `tv-show` | `cartoon` | `manga` | `book` | `comic` | `game` | `h-comic` | `h-game` | `hentai` |
 |---|---|---|---|---|---|---|---|---|---|---| --- |---|
 | Status column | `watching_status` | `watching_status` | `watching_status` | `watching_status` | `watching_status` | `reading_status` | `reading_status` | `reading_status` | `playing_status` | `reading_status` | `playing_status` | `watching_status` |
 | Status vocabulary | `WatchStatus` | `WatchStatus` | `WatchStatus` | `WatchStatus` | `WatchStatus` | `ReadStatus` | `ReadStatus` | `ReadStatus` | `PlayStatus` | `ReadStatus` | `PlayStatus` | `WatchStatus` |
 | Default status | `"Might Watch"` | `"Might Watch"` | `"Might Watch"` | `"Might Watch"` | `"Might Watch"` | `"Might Read"` | `"Might Read"` | `"Might Read"` | `"Might Play"` | `"Might Read"` | `"Might Play"` | `"Might Watch"` |
 | Display-name fallback (model `display_name`) | CN → EN → Alt → roman → JP | CN → EN → Alt → roman → JP | CN → EN → Alt | CN → EN → Alt | CN → EN → Alt | CN → EN → Alt → roman → JP | CN → EN → Alt → roman → JP | **EN → CN → Alt** | CN → EN → Alt → roman → JP | CN → EN → Alt → JP → KR | CN → EN → Alt → roman → JP | CN → EN → Alt → roman → JP |
 | Name order in `NAMING_CONFIGS` (frontend) | cn, en, roman, jp, alt | cn, en, roman, jp, alt | cn, en, alt | cn, en, alt | cn, en, alt | cn, en, roman, jp, alt | cn, en, roman, jp, alt | cn, en, alt | cn, en, roman, jp, alt | cn, en, jp, kr, alt - the naming card shows the entry's own region's name only | cn, en, roman, jp, alt | cn, en, roman, jp, alt |
-| Progress columns | `ep_fin` / `ep_total` (+ `ep_previous`, `ep_special`), `time_fin` | `time_fin` only (one sitting) | `time_fin` only (one sitting) | `ep_fin` / `ep_total`, `time_fin` | `ep_fin` / `ep_total`, `time_fin` | `ch_fin` / `ch_total`, `vol_fin` / `vol_total`, `vol_fin_page` | `ch_fin` / `ch_total` / `ch_fin_in_arc` (derived from `novel_unit` arc rows; cleared outright on `Light Novel` and `Novel`), `vol_fin` / `vol_total_original` / `vol_total_tw` (never derived), `arc_fin` / `arc_total`, `progress_display`, `units` | `issue_fin` / `issue_total` | No fraction at all: `hours_played` plus **five independent completion axes** - `completion_level`, `all_endings`, `all_achievements`, `all_collected`, `achievements_earned` / `achievements_total`. Nothing is derived from anything, including `all_achievements` from the counts. The middle three carry GAME_COMPLETION_FLAGS, so a game with no endings or no achievement list answers `Inapplicable` rather than leaving the axis blank. | `page_fin` / `page_total` (JP) or `ch_fin` / `ch_total` (KR), plus `ch_behind` (KR, hand-set: chapters behind the official source). The other region's pair is cleared on every write | Game's completion axes without the dropped ones: `completion_level`, `all_endings`, `all_cg`, `achievements_earned` / `achievements_total`. No `hours_played`, no `all_achievements` / `all_collected` | `ep_fin` / `ep_total`, `time_fin`, as cartoon - no `ep_previous` or `ep_special` |
+| Progress columns | `ep_fin` / `ep_total` (+ `ep_previous`, `ep_special`), `time_fin` | `time_fin` only (one sitting) | `time_fin` only (one sitting) | `ep_fin` / `ep_total`, `time_fin` | `ep_fin` / `ep_total`, `time_fin` | `ch_fin` / `ch_total`, `vol_fin` / `vol_total`, `vol_fin_page` | `ch_fin` / `ch_total` / `ch_fin_in_arc` (derived from `book_unit` arc rows; cleared outright on `輕小說` and `小說`), `vol_fin` / `vol_total_original` / `vol_total_tw` (never derived), `arc_fin` / `arc_total`, `progress_display`, `units` | `issue_fin` / `issue_total` | No fraction at all: `hours_played` plus **five independent completion axes** - `completion_level`, `all_endings`, `all_achievements`, `all_collected`, `achievements_earned` / `achievements_total`. Nothing is derived from anything, including `all_achievements` from the counts. The middle three carry GAME_COMPLETION_FLAGS, so a game with no endings or no achievement list answers `Inapplicable` rather than leaving the axis blank. | `page_fin` / `page_total` (JP) or `ch_fin` / `ch_total` (KR), plus `ch_behind` (KR, hand-set: chapters behind the official source). The other region's pair is cleared on every write | Game's completion axes without the dropped ones: `completion_level`, `all_endings`, `all_cg`, `achievements_earned` / `achievements_total`. No `hours_played`, no `all_achievements` / `all_collected` | `ep_fin` / `ep_total`, `time_fin`, as cartoon - no `ep_previous` or `ep_special` |
 | Other status column | `airing_status` | `release_status` (`FILM_RELEASE_STATUSES`), plus `release_type` (Cinema / ONA) | `release_status` (`FILM_RELEASE_STATUSES`) | `airing_status` | `airing_status` | `serialization_status` | `serialization_status` | `serialization_status` | `release_status` | `serialization_status` (`MANGA_SERIALIZATION_STATUSES`), plus `animation_status` (JP, hand-set) | `release_status` | `airing_status` (`AiringStatus`) |
 | External id / link | `mal_id` / `mal_link` (Tenrai) | `mal_id` / `mal_link` (Tenrai) | `imdb_id` / `imdb_link` (TMDB + OMDb) | `imdb_id` / `imdb_link` (TMDB + OMDb) | `imdb_id` / `imdb_link` (TMDB + OMDb) | `mal_id` / `mal_link` (Tenrai) | `mal_id` / `mal_link` (Tenrai) | `comicvine_id` / `comicvine_link` (Comic Vine) | `igdb_id` / `igdb_link` (IGDB), plus `steam_appid` / `steam_link` (Steam) — the appid is normally adopted from IGDB's `external_games` and is what Steam and the derived SteamDB link both key off | `mal_id` / `mal_link` (Tenrai), plus `ehentai_link` (E-Hentai: the cover and the illustrator credit, keyed by the gallery id and token in the link); Tenrai runs first, so the cover is MAL's, else E-Hentai's | `igdb_id` / `igdb_link` (IGDB) and `steam_appid` / `steam_link` (Steam), as game, plus `dlsite_link_jp` / `dlsite_link_tw` (DLsite: release date, studio and cover, keyed by the product id in the link); the cover comes DLsite, then Steam's capsule, then IGDB, then Steam's header image | `mal_id` / `mal_link` (Tenrai: airing status, release date and cover only) |
 | Sources card heading | Where to Watch | Where to Watch | Where to Watch | Where to Watch | Where to Watch | Where to Read | Where to Read | Where to Read | **Where to Play** | Where to Read | **Where to Play** - the DLsite links render there beside Steam | Where to Watch |
@@ -333,19 +333,19 @@ Status values themselves are listed in [options.md](options.md). The frontend `M
 
 ### Pages
 
-| | `anime` | `anime-movie` | `movie` | `tv-show` | `cartoon` | `manga` | `novel` | `comic` | `game` | `h-comic` | `h-game` | `hentai` |
+| | `anime` | `anime-movie` | `movie` | `tv-show` | `cartoon` | `manga` | `book` | `comic` | `game` | `h-comic` | `h-game` | `hentai` |
 |---|---|---|---|---|---|---|---|---|---|---| --- |---|
-| Library page | `/library/anime` | `/library/anime-movie` | `/library/movie` | `/library/tv-show` | `/library/cartoon` | `/library/manga` | `/library/novel` | `/library/comic` | `/library/game` | `/library/h-comic` (gated) | `/library/h-game` (gated) | `/library/hentai` (gated) |
-| Detail route | `/anime/:system_id` | `/anime-movie/:system_id` | `/movie/:system_id` | `/tv-show/:system_id` | `/cartoon/:system_id` | `/manga/:system_id` | `/novel/:system_id` | `/comic/:system_id` | `/game/:system_id` | `/h-comic/:system_id` (gated) | `/h-game/:system_id` (gated) | `/hentai/:system_id` (gated) |
-| API base (`MEDIA_CONFIG.apiEndpoint`) | `/api/anime` | `/api/anime-movie` | `/api/movies` | `/api/tv-shows` | `/api/cartoon` | `/api/manga` | `/api/novel` | `/api/comic` | `/api/game` | `/api/h-comic` | `/api/h-game` | `/api/hentai` |
-| Dashboard card on `/` (`Index.jsx`) | `DashboardCard` | none | none | `DashboardCard` | `DashboardCard` | `DashboardCard` (reading section) | `NovelDashboardCard` | `ComicDashboardCard` | none | none | none | none |
+| Library page | `/library/anime` | `/library/anime-movie` | `/library/movie` | `/library/tv-show` | `/library/cartoon` | `/library/manga` | `/library/book` | `/library/comic` | `/library/game` | `/library/h-comic` (gated) | `/library/h-game` (gated) | `/library/hentai` (gated) |
+| Detail route | `/anime/:system_id` | `/anime-movie/:system_id` | `/movie/:system_id` | `/tv-show/:system_id` | `/cartoon/:system_id` | `/manga/:system_id` | `/book/:system_id` | `/comic/:system_id` | `/game/:system_id` | `/h-comic/:system_id` (gated) | `/h-game/:system_id` (gated) | `/hentai/:system_id` (gated) |
+| API base (`MEDIA_CONFIG.apiEndpoint`) | `/api/anime` | `/api/anime-movie` | `/api/movies` | `/api/tv-shows` | `/api/cartoon` | `/api/manga` | `/api/book` | `/api/comic` | `/api/game` | `/api/h-comic` | `/api/h-game` | `/api/hentai` |
+| Dashboard card on `/` (`Index.jsx`) | `DashboardCard` | none | none | `DashboardCard` | `DashboardCard` | `DashboardCard` (reading section) | `BookDashboardCard` | `ComicDashboardCard` | none | none | none | none |
 | Choice graph (分歧 Choices card, `ChoiceGraphCard`) | — | — | — | — | — | — | — | — | yes | — | yes | — |
 
-`/library/:type` is one page (`frontend/src/pages/library/Library.jsx`) that picks a config from `LIBRARY_CONFIGS` (`frontend/src/pages/library/configs/index.js`), which has twelve keys; `/library/h-comic`, `/library/h-game` and `/library/hentai` are each declared on their own route, behind their gates, and render the same page. The dashboard loads `anime`, `franchise`, `tv-show`, `cartoon`, `manga`, `novel`, `comic` and `game` lists, plus `anime-movie` and `movie` for a signed-in member; those two have no card and appear only in the Coming Next block under the weekly schedule.
+`/library/:type` is one page (`frontend/src/pages/library/Library.jsx`) that picks a config from `LIBRARY_CONFIGS` (`frontend/src/pages/library/configs/index.js`), which has twelve keys; `/library/h-comic`, `/library/h-game` and `/library/hentai` are each declared on their own route, behind their gates, and render the same page. The dashboard loads `anime`, `franchise`, `tv-show`, `cartoon`, `manga`, `book`, `comic` and `game` lists, plus `anime-movie` and `movie` for a signed-in member; those two have no card and appear only in the Coming Next block under the weekly schedule.
 
 ### Plan-next, rewatch, size buckets (`app/utils/plan_next_kinds.py`)
 
-| | `anime` | `anime-movie` | `movie` | `tv-show` | `cartoon` | `manga` | `novel` | `comic` | `game` | `h-comic` | `h-game` | `hentai` |
+| | `anime` | `anime-movie` | `movie` | `tv-show` | `cartoon` | `manga` | `book` | `comic` | `game` | `h-comic` | `h-game` | `hentai` |
 |---|---|---|---|---|---|---|---|---|---|---| --- |---|
 | `ALLOWED_SCOPES["next"]` | `entry`, `series`, `franchise` | `entry` | `entry`, `series`, `franchise` | `entry`, `series`, `franchise` | `entry`, `series`, `franchise` | `entry` | `entry` | `entry`, `series` | `entry`, `series`, `franchise` | `entry` | `entry`, `series`, `franchise` | `entry` |
 | `ALLOWED_SCOPES["rewatch"]` | `franchise` | `entry` | `entry`, `series`, `franchise` | `entry`, `series`, `franchise` | `franchise` | `entry` | `entry`, `series`, `franchise` | `entry`, `series` | `entry`, `series`, `franchise` | `entry` | `entry`, `series`, `franchise` | `entry` |
@@ -354,28 +354,28 @@ Status values themselves are listed in [options.md](options.md). The frontend `M
 | Measured against (`SIZE_MEASURE`) | `sum_ep_total` | — | `count` | `count` | `count` | — | — | `sum_issue_total` | — | — | — | — |
 | Where the bucket lives | series/franchise maps | — | series/franchise maps | series/franchise maps | series/franchise maps | — | — | **the entry's own `issue_total`** | — | — | — | — |
 
-Why the two scope maps differ (module comment): "anime is queued one season at a time but rewatched as a whole franchise, and novels are reread at every tier though they are only ever queued one book at a time." A type has an entry-level rewatch flag if and only if `"entry"` is in its rewatch scopes (asserted at import).
+Why the two scope maps differ (module comment): "anime is queued one season at a time but rewatched as a whole franchise, and books are reread at every tier though they are only ever queued one book at a time." A type has an entry-level rewatch flag if and only if `"entry"` is in its rewatch scopes (asserted at import).
 
 Buckets are stored on franchise and series as two JSONB maps keyed by media type (`size_group_derived`, written by Calculate; `size_group_manual`, written by the admin and never touched by Calculate); manual wins. An entry's bucket is resolved at display time from its series, then its franchise — except comic, which buckets on its own `issue_total` (`app/services/domain/size_group.py`). Details and the Plan page: [systems/plan-next.md](systems/plan-next.md).
 
 ### Watch-order range unit (`frontend/src/components/tracker/WatchOrderGuide.jsx`)
 
-| | `anime` | `anime-movie` | `movie` | `tv-show` | `cartoon` | `manga` | `novel` | `comic` | `game` | `h-comic` | `h-game` | `hentai` |
+| | `anime` | `anime-movie` | `movie` | `tv-show` | `cartoon` | `manga` | `book` | `comic` | `game` | `h-comic` | `h-game` | `hentai` |
 |---|---|---|---|---|---|---|---|---|---|---| --- |---|
 | From/to range offered (`supportsEpisodeRange`) | yes | no | no | yes | yes | no | no | yes | yes (by default — `game` is in neither set) | no - whole-only, like manga | no - whole-only, as the API treats it | no - whole-only: a step names the entry, never a range of its episodes |
 | Unit label (`RANGE_UNITS`, default `"Ep"`) | `Ep` | — | — | `Ep` | `Ep` | `Ch` | `Ch` | `#` | `Ep` (the fallback; no game unit declared) | — | — | — |
 
-`WHOLE_ONLY_TYPES = {"movie", "anime-movie", "manga", "novel", "h-comic", "h-game", "hentai"}`: those steps always cover the work whole. On the backend a hentai step is whole too - `hentai` has no `_TOTAL_FIELDS` entry in `app/services/domain/watch_order.py`. An unknown or null `media_type` keeps the range inputs. (The test file is `frontend/src/components/tracker/watchOrderRange.test.js`; there is no `frontend/src/utils/watchOrderRange.js`.) See [systems/watch-orders.md](systems/watch-orders.md).
+`WHOLE_ONLY_TYPES = {"movie", "anime-movie", "manga", "book", "h-comic", "h-game", "hentai"}`: those steps always cover the work whole. On the backend a hentai step is whole too - `hentai` has no `_TOTAL_FIELDS` entry in `app/services/domain/watch_order.py`. An unknown or null `media_type` keeps the range inputs. (The test file is `frontend/src/components/tracker/watchOrderRange.test.js`; there is no `frontend/src/utils/watchOrderRange.js`.) See [systems/watch-orders.md](systems/watch-orders.md).
 
 ### Fill / Replace pipelines (`app/services/pipelines/specs.py`)
 
-| | `anime` | `anime-movie` | `movie` | `tv-show` | `cartoon` | `manga` | `novel` | `comic` | `game` | `h-comic` | `h-game` | `hentai` |
+| | `anime` | `anime-movie` | `movie` | `tv-show` | `cartoon` | `manga` | `book` | `comic` | `game` | `h-comic` | `h-game` | `hentai` |
 |---|---|---|---|---|---|---|---|---|---|---| --- |---|
-| Id extractor | `apply_extract_mal_id_anime` | `apply_extract_mal_id_anime` | `apply_extract_imdb_id` | `apply_extract_imdb_id` | `apply_extract_imdb_id` | `apply_extract_mal_id_manga_novel` | `apply_extract_novel_ids` (`apply_extract_mal_id_manga_novel` then `apply_extract_openlibrary_id`) | `apply_extract_comicvine_id` | `apply_extract_game_ids` (IGDB then Steam) | `apply_extract_mal_id_manga_novel`, as manga | `apply_extract_game_ids`, as game | `apply_extract_hentai_ids` (MAL then AniDB) |
+| Id extractor | `apply_extract_mal_id_anime` | `apply_extract_mal_id_anime` | `apply_extract_imdb_id` | `apply_extract_imdb_id` | `apply_extract_imdb_id` | `apply_extract_mal_id_manga_book` | `apply_extract_book_ids` (`apply_extract_mal_id_manga_book` then `apply_extract_openlibrary_id`) | `apply_extract_comicvine_id` | `apply_extract_game_ids` (IGDB then Steam) | `apply_extract_mal_id_manga_book`, as manga | `apply_extract_game_ids`, as game | `apply_extract_hentai_ids` (MAL then AniDB) |
 | Fill eligible when | `mal_id` set and missing values | `mal_id` set and missing values | missing values | missing values | `airing_type` in `{"Movie", "TV"}` and missing values | `mal_id` set and missing values | `mal_link` set and missing MAL values, **or** `mal_link` unset and `openlibrary_id` set and missing Open Library values | `comicvine_id` set and missing values | `igdb_id` set and missing IGDB values, **or** `steam_appid` set and Steam has written nothing yet | `mal_id` set and `serialization_status`, `release_date`, `end_date` or the cover missing, or `ch_total` on a `完結` KR entry, **or** `ehentai_link` names a gallery and the cover or the illustrator credit is missing | as game | `mal_id` set and `airing_status`, `release_date`, `ep_total` or the cover missing, **or** AniDB enabled, `anidb_id` set and one of the same four missing |
-| Fill function | `autofill_anime_from_mal` | `autofill_anime_movie_from_mal` | `autofill_movie_from_imdb` | `autofill_tv_show_from_imdb` | `autofill_cartoon_from_imdb` | `autofill_manga_from_mal` | `autofill_novel_from_mal` / `autofill_novel_from_openlibrary` (routed on `mal_link`) | `autofill_comic_from_comicvine` | `autofill_game_from_igdb` then `autofill_game_from_steam`, then Steam's library capsule as the cover when IGDB supplied none, else Steam's header image | `_fill_h_comic`: `autofill_h_comic_from_mal` (Tenrai's manga record, no AniList or ratings) then `autofill_h_comic_from_ehentai` (the cover and the illustrator), all fill-only | game's two, generalised over the table: IGDB writes only `studio`, `game_genre`, `game_theme` and h_game's columns; Steam only prices and achievements | `autofill_hentai_from_mal`, then `autofill_hentai_from_anidb` for what MAL left blank |
+| Fill function | `autofill_anime_from_mal` | `autofill_anime_movie_from_mal` | `autofill_movie_from_imdb` | `autofill_tv_show_from_imdb` | `autofill_cartoon_from_imdb` | `autofill_manga_from_mal` | `autofill_book_from_mal` / `autofill_book_from_openlibrary` (routed on `mal_link`) | `autofill_comic_from_comicvine` | `autofill_game_from_igdb` then `autofill_game_from_steam`, then Steam's library capsule as the cover when IGDB supplied none, else Steam's header image | `_fill_h_comic`: `autofill_h_comic_from_mal` (Tenrai's manga record, no AniList or ratings) then `autofill_h_comic_from_ehentai` (the cover and the illustrator), all fill-only | game's two, generalised over the table: IGDB writes only `studio`, `game_genre`, `game_theme` and h_game's columns; Steam only prices and achievements | `autofill_hentai_from_mal`, then `autofill_hentai_from_anidb` for what MAL left blank |
 | Pause between calls | `MAL_PAUSE` (1 s) | 1 s | none | none | none | 1 s | 1 s | `COMICVINE_PAUSE` (1 s) + hourly budget | `STEAM_PAUSE` (0.5 s) + Steam storefront budget | `MAL_PAUSE` (1 s) | as game | `MAL_PAUSE` (1 s), AniDB's own 4 s spacing, and a stop on an AniDB error answer |
-| After Fill | derive `ep_previous`, `run_sync_anime` | `run_sync_anime_movie` | — | `run_sync_tv_show` | `run_sync_cartoon` | `run_sync_manga` | `run_sync_novel` | `run_sync_comic` | `run_sync_game` | `run_sync_h_comic`, `run_sync_gated_labels` | `run_sync_game`, `run_sync_gated_labels` | `run_sync_hentai`, `run_sync_gated_labels` |
+| After Fill | derive `ep_previous`, `run_sync_anime` | `run_sync_anime_movie` | — | `run_sync_tv_show` | `run_sync_cartoon` | `run_sync_manga` | `run_sync_book` | `run_sync_comic` | `run_sync_game` | `run_sync_h_comic`, `run_sync_gated_labels` | `run_sync_game`, `run_sync_gated_labels` | `run_sync_hentai`, `run_sync_gated_labels` |
 | Bulk Replace selects | rows with `mal_id` or `mal_link` | rows with `mal_id` or `mal_link` | rows with `imdb_id` or `imdb_link` | rows with `imdb_id` or `imdb_link` | TV/Movie rows with `imdb_id` or `imdb_link` | rows with `mal_id` or `mal_link` | rows with `mal_id` or `mal_link` | **no bulk Replace** (`replace=None`) | rows with `steam_appid`, `steam_link`, `igdb_id` or `igdb_link` (IGDB fill-only, then Steam) | rows with `mal_id`, `mal_link` or `ehentai_link` | as game | rows with `mal_id`, `mal_link`, `anidb_id` or `anidb_link` |
 | In Fill All / Replace All | yes / yes | yes / yes | yes / yes | yes / yes | yes / yes | yes / yes | yes / yes | **no / no** (`in_fill_all=False`, `in_replace_all=False`) | yes / yes | yes / yes | yes / yes | yes / yes |
 
@@ -403,7 +403,7 @@ Every finder is the same rule: rows that agree exactly on the key **and** share 
 | `tv-show` | `franchise_id`, `series_id`, `season_part` (lower-cased), `is_main` | — |
 | `cartoon` | `franchise_id`, `series_id`, `season_part` (lower-cased), `is_main` | — |
 | `manga` | `franchise_id`, `series_id`, `is_main` | — |
-| `novel` | `franchise_id`, `series_id`, `is_main` | — |
+| `book` | `franchise_id`, `series_id`, `is_main` | — |
 | `comic` | `franchise_id`, `series_id` | a shared name **or** the same non-null `comicvine_id` |
 | `game` | `franchise_id`, `series_id`, `game_type`, `is_main` | — |
 | `h-comic` | `franchise_id`, `series_id`, `region`, `series_number` | — |
@@ -416,7 +416,7 @@ All entry finders except anime skip rows whose `franchise_id` is null. Report ke
 
 Sections every owner has (all twelve types plus `series`, `franchise`, `collection`): `remark`, `personal_notes`, `public_reviews`, `personal_reviews`, `resources`. The gated types are left out of the rest of the shared sections: `introduction`, `advantages`, `disadvantages`, `double_edged`, `analysis` and `questions` reach every owner but h-comic and hentai; `memes` every owner but h-comic, hentai and h-game; `quotes` every media type but those three. So an h-comic's or a hentai's 評論 card holds only 大眾評價 Public Reviews and 我的評價 Personal Reviews. Hentai has nothing else, so it appears in none of the columns below. The type-specific sections:
 
-| Section key | `anime` | `anime-movie` | `movie` | `tv-show` | `cartoon` | `manga` | `novel` | `comic` | `game` | `h-comic` | `h-game` | series / franchise |
+| Section key | `anime` | `anime-movie` | `movie` | `tv-show` | `cartoon` | `manga` | `book` | `comic` | `game` | `h-comic` | `h-game` | series / franchise |
 |---|---|---|---|---|---|---|---|---|---|---| --- |---|
 | `episode_comments` | x | | | x | x | x (label `各話評論 Chapter Comments`, locator "Chapter") | | | x (label `各章評論 Part Reviews`, locator "Chapter / Part") | |  | |
 | `highlights` (kinds `神回`/`神片段`/`神篇章`) | x | | | | | | | | | |  | |
