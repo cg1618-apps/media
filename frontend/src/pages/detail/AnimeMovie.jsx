@@ -376,7 +376,7 @@ export default function AnimeMovie() {
                 fields={[
                   [
                     { label: "Airing Status", value: movie.airing_status },
-                    { label: "Length", value: formatLength(movie.length_min) },
+                    { label: "Runtime", value: formatLength(movie.length_min) },
                   ],
                   [
                     { label: "Release Date JP", value: movie.release_date_jp },
