@@ -128,12 +128,12 @@ def _remark(owner_id, content, username):
     return ["", "anime", str(owner_id), "remark", content, "0", username]
 
 
-def test_two_sheet_remarks_on_one_entry_fold_into_its_one_row(
+def test_two_sheet_remarks_on_one_entry_both_restore_with_their_authors(
     db, sheets, sample_anime, owner_user, kana
 ):
-    """remark is one catalogue row per owner, whoever wrote it, so a second
-    remark row in the sheet for the same entry folds onto the first rather
-    than failing the tab on ix_note_one_remark_per_owner."""
+    """remark is a catalogue list, so two remark rows in the sheet for the
+    same entry are two rows here, each filed under the author its username
+    names."""
     owner = sample_anime.system_id
     sheets({
         "Note": [
@@ -146,20 +146,23 @@ def test_two_sheet_remarks_on_one_entry_fold_into_its_one_row(
     result = pull.execute_pull_specific(db, "Note", log_action=False)
 
     assert result["status"] == "success"
-    remarks = [
-        n.content
+    remarks = sorted(
+        (n.content, n.author_id)
         for n in db.query(models.Note).filter(
             models.Note.media_id == owner, models.Note.section == "remark"
         )
+    )
+    assert remarks == [
+        ("admin's remark", owner_user.id),
+        ("kana's remark", kana.id),
     ]
-    assert remarks == ["kana's remark"]
 
 
-def test_a_remark_folds_onto_the_local_row_whoever_wrote_it(
+def test_a_sheet_remark_is_added_beside_the_local_one(
     db, sheets, sample_anime, owner_user, kana
 ):
-    """The local remark is the owner account's, the sheet's is kana's, with a
-    stale system_id: it updates the one local row in place."""
+    """A list row folds by system_id only. The sheet's remark carries none,
+    so it is a second row beside the local one, which stays as it was."""
     owner = sample_anime.system_id
     local = models.Note(
         author_id=owner_user.id, media_id=owner, section="remark",
@@ -175,6 +178,7 @@ def test_a_remark_folds_onto_the_local_row_whoever_wrote_it(
     rows = db.query(models.Note).filter(
         models.Note.media_id == owner, models.Note.section == "remark"
     ).all()
-    assert [(r.system_id, r.content) for r in rows] == [
-        (local.system_id, "from the sheet")
-    ]
+    by_content = {r.content: r for r in rows}
+    assert set(by_content) == {"local", "from the sheet"}
+    assert by_content["local"].system_id == local.system_id
+    assert by_content["from the sheet"].author_id == kana.id
