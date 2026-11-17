@@ -164,7 +164,7 @@ def test_the_stream_sends_keepalives_while_a_tab_is_slow(
 ):
     """A Sheets 429 pauses one tab for 60-120 s; with no bytes in that window
     the tunnel would 524 the request all over again."""
-    monkeypatch.setattr(dc, "BACKUP_KEEPALIVE_SECONDS", 0.05)
+    monkeypatch.setattr(dc, "STREAM_KEEPALIVE_SECONDS", 0.05)
     release = threading.Event()
 
     def slow_start(session_factory, emit, action_type="Manual"):

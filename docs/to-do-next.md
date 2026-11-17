@@ -89,17 +89,7 @@ steps by one, as now (`2` + → `3`). The rule holds for every progress
 counter, including manga's and novel's, which are already floats. Whole
 values display without `.0`.
 
-## 5. Pull shows its progress
-
-**Pull All and single-tab Pull stream their progress to the page, the way
-Backup does.** Backup already runs on its own worker and relays SSE
-(`POST /api/data-control/backup` in `app/routers/data_control.py`). Pull
-(`/pull`, `/pull/{key}`, `/pull/{tab_name}`) is one blocking request behind
-a spinner (`pages/admin/Admin.jsx`). Pull gets the same shape: per-tab
-progress events, keepalives inside the tunnel's ~100 s window, and a 409
-while a Pull is already running.
-
-## 6. Novel becomes Book
+## 5. Novel becomes Book
 
 **The Novel type is renamed Book throughout, not just in the UI**: table
 `novel` → `book`, `media_type` `'novel'` → `'book'`, route `/api/novel` →
@@ -131,7 +121,7 @@ It comes after every item above it because the remark rework and the
 float change touch the novel code, and a rename running alongside them
 would conflict everywhere.
 
-## 7. Upcoming books and manga volumes on Future Releases
+## 6. Upcoming books and manga volumes on Future Releases
 
 **Each book unit gets a JP and a TW release date, manga gets the next
 volume's JP and TW release dates, and Future Releases shows both.**
@@ -158,7 +148,7 @@ volume's JP and TW release dates, and Future Releases shows both.**
 - Data entry is by hand. Automatic sources are being researched; see
   open-items.md, "Automatic book release data".
 
-## 8. A content label chip says who sees it
+## 7. A content label chip says who sees it
 
 **The chip a detail page draws for each content label gets a tooltip that
 says which modes show the label and which label it also carries, generated

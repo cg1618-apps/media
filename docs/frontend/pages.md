@@ -195,10 +195,10 @@ account's `username` when signed in, **Guest** when not. It is a value, so it
 keeps the body face and its own casing - the mono uppercase treatment belongs
 to labels. The **Admin** chip beside it is a capability and stays gated on
 `isAdmin`, as does **Back up** (also behind `has("manage.pipelines")`). It
-runs `runBackup` from `api/backup.js`, which reads the endpoint's event
+runs `runBackup` from `api/sheets.js`, which reads the endpoint's event
 stream: the button counts tabs ("Backing up 12/47…"), and the toast is
 success, an error with the server's message, or a **warning** - never a
-failure - when another Backup is already running (409) or the stream drops
+failure - when another Backup or a Pull is already running (409) or the stream drops
 before the Backup ends, since the Backup keeps running on the server and
 its result lands in the Data Control log. The admin page's **Push All Data**
 uses the same helper. **Log out** (POST `/api/auth/logout`, then a full

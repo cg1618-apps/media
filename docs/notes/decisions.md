@@ -5378,3 +5378,37 @@ shown buttons that answered 401.
   `irreversible`. H-Comic and the groups a comic sits in are untouched, and
   comics keep both sections. It ran ahead of the remark-list rework so that
   rework had no comic rows to carry.
+
+### Pull streams its progress, and never runs beside a Backup (2026-11-17)
+
+- **Pull streams the way Backup does, on the same plumbing.** `/pull`,
+  `/pull/{key}` and `/pull/{tab_name}` start the Pull on a worker thread with
+  its own session and relay a `processing` event per tab, then the pipeline's
+  own result dict unchanged as the last event, with a `: keepalive` every 15
+  seconds. A Pull All outlasts the tunnel's ~100-second idle window the same
+  way a Backup did. The second use is what justified factoring: the advisory
+  lock and the worker thread moved from `backup.py` into
+  `app/services/pipelines/worker.py` (`claim`, `start_worker`, every lock
+  key), and the SSE relay into `_relay` in `data_control.py`
+  (`BACKUP_KEEPALIVE_SECONDS` became `STREAM_KEEPALIVE_SECONDS`).
+- **Pull has its own lock, and Pull and Backup exclude each other.** A
+  second Pull is a 409, and so is a Pull while a Backup runs, and a Backup
+  (manual, Auto after Fill All / Replace All, or the nightly `sheets.sh`)
+  while a Pull runs. Rejected: a Pull that only excludes other Pulls. A Pull
+  reading a sheet that a Backup is rewriting tab by tab restores from half
+  old and half new data, and a Backup during a Pull writes the half-restored
+  database over the very sheet being read, losing what the Pull had not yet
+  reached. Rejected too: one shared lock for both, because the refusal would
+  then say "a backup is running" when it is a Pull. Each run takes its own
+  lock and then reads the other's from `pg_locks` without taking it; two
+  that start together both refuse, which is safe.
+- **The final result stays the pipeline's own dict**, so the page keeps the
+  counts and lists the JSON response carried; the stream adds nothing to it.
+  Pull All's failures, which used to surface as a bare 500, now arrive as an
+  `error` event carrying the message. An unknown tab is still a 400, decided
+  before anything starts.
+- **The frontend helper became `api/sheets.js`** (`runBackup`, `runPull`,
+  `backupToast`, `pullToast`), one stream reader for both; a single-tab Pull
+  that was skipped for want of `admin.authz` toasts as a warning rather than
+  a success.
+

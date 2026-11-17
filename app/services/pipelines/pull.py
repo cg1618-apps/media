@@ -2,8 +2,9 @@
 
 import json
 import logging
+import threading
 import uuid
-from typing import Optional
+from typing import Callable, Optional
 
 from sqlalchemy import Sequence, null, or_, text
 from sqlalchemy import inspect as sa_inspect
@@ -88,6 +89,16 @@ from app.services.pipelines.tabs import (
 )
 from app.services.pipelines.tabs import (
     MEDIA_TYPE_FOR_TAB as _MEDIA_TYPE_FOR_TAB,
+)
+from app.services.pipelines.worker import (
+    BACKUP_LOCK_KEY,
+    PULL_LOCK_KEY,
+    AlreadyRunning,
+    Claim,
+    Emit,
+    Progress,
+    claim,
+    start_worker,
 )
 from app.services.rbac import cache
 from app.services.rbac.gated_types import REQUIRED_LABEL_FOR_TYPE
@@ -2462,11 +2473,17 @@ def execute_pull_specific(
 
 
 def execute_pull_all(
-    db: Session, action_type: str = "Manual", may_restore_authz: bool = False
+    db: Session,
+    action_type: str = "Manual",
+    may_restore_authz: bool = False,
+    on_progress: Optional[Progress] = None,
 ) -> dict:
     """
     Pulls ALL tabs from Google Sheets into the database.
     WARNING: The execution order is STRICT to satisfy Foreign Key constraints.
+
+    `on_progress(tab, n, total)` is called before each tab, the way Backup
+    reports its own.
 
     `may_restore_authz` is passed straight through to every tab; see
     execute_pull_specific. A caller without it restores the whole catalogue and
@@ -2497,7 +2514,9 @@ def execute_pull_all(
     skipped_tabs: list[str] = []
 
     try:
-        for tab in tabs_in_order:
+        for index, tab in enumerate(tabs_in_order, start=1):
+            if on_progress:
+                on_progress(tab, index, len(tabs_in_order))
             res = execute_pull_specific(
                 db,
                 tab,
@@ -2683,3 +2702,86 @@ def execute_pull_all(
         "unresolved_refs": [],
         "skipped_tabs": skipped_tabs,
     }
+
+
+# ---------------------------------------------------------------------------
+# Running a Pull from the admin page
+# ---------------------------------------------------------------------------
+
+# One Pull at a time: a second restore of the same sheet only repeats the
+# first, in a session contending for the same rows. Nor while a Backup runs: it rewrites the sheet
+# tab by tab, and a Pull reading it then restores from a sheet half old and
+# half new. See worker.py, and claim_backup for the other direction.
+
+
+class PullAlreadyRunning(AlreadyRunning):
+    """Another Pull, or a Backup, holds the sheet; this one was refused before reading."""
+
+
+class UnknownTab(ValueError):
+    """The tab named is not one Pull restores."""
+
+
+def claim_pull() -> Claim:
+    return claim(
+        PULL_LOCK_KEY,
+        PullAlreadyRunning,
+        "A pull is already running. Its result will appear in the Data Control log.",
+        excludes=[(
+            BACKUP_LOCK_KEY,
+            "A backup is running. Pull once it has finished.",
+        )],
+    )
+
+
+def start_pull(
+    session_factory: Callable[[], Session],
+    emit: Emit,
+    tab_name: Optional[str] = None,
+    action_type: str = "Manual",
+    may_restore_authz: bool = False,
+) -> threading.Thread:
+    """
+    Claim the Pull, then run Pull All (`tab_name` None) or one tab on a thread
+    of its own, reporting through `emit`: a `processing` event per tab, then
+    the pipeline's own result dict unchanged - `status` `success`, `skipped`
+    or `error` - or `{"status": "error", "message"}` if it raised.
+
+    An unknown tab raises UnknownTab, and a refusal PullAlreadyRunning, HERE,
+    before anything starts. Like start_backup, the thread opens its own session
+    and never waits on its listener: a dropped connection must not stop a
+    restore halfway.
+    """
+    if tab_name is not None and tab_name not in TAB_MODELS:
+        raise UnknownTab(f"Unknown tab: {tab_name}")
+    held = claim_pull()
+
+    def progress(tab: str, done: int, total: int) -> None:
+        emit({"status": "processing", "current_entry": tab,
+              "processed": done, "total": total})
+
+    def run() -> None:
+        db = session_factory()
+        try:
+            if tab_name is None:
+                result = execute_pull_all(
+                    db, action_type, may_restore_authz=may_restore_authz,
+                    on_progress=progress,
+                )
+            else:
+                progress(tab_name, 1, 1)
+                result = execute_pull_specific(
+                    db, tab_name, action_type=action_type, log_action=True,
+                    may_restore_authz=may_restore_authz,
+                )
+            emit(result)
+        except Exception as e:
+            # Pull All has logged and recorded its own failure; one tab's
+            # unexpected crash has not, so it is logged here.
+            logger.exception("Pull failed")
+            db.rollback()
+            emit({"status": "error", "message": str(e)})
+        finally:
+            db.close()
+
+    return start_worker("pull", held, run)
