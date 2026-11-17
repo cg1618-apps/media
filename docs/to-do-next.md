@@ -127,8 +127,9 @@ means the *genre* (a light novel, a web novel) stays.
 - *Gravity Falls: Lost Legends* is a graphic novel and goes under Comic. The
   owner moves it by hand; nothing in code depends on it.
 
-It comes after items 1–6 because items 2 and 5 touch the novel code, and a
-rename running alongside them would conflict everywhere.
+It comes after every item above it because the remark rework and the
+float change touch the novel code, and a rename running alongside them
+would conflict everywhere.
 
 ## 7. Upcoming books and manga volumes on Future Releases
 
@@ -136,7 +137,7 @@ rename running alongside them would conflict everywhere.
 volume's JP and TW release dates, and Future Releases shows both.**
 
 - **Book units** (`book_unit`, the Units section,
-  `NovelUnitsEditor.jsx` before item 7) gain `release_date_jp`,
+  `NovelUnitsEditor.jsx` before the Book rename) gain `release_date_jp`,
   `release_date_tw` and a cover image. The dates use the same partial-ISO
   format, are nullable, and are allowed on every unit kind. **There is no
   per-unit release status**: a unit is upcoming when one of its dates is in
