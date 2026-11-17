@@ -829,10 +829,15 @@ columns.
   one link editor and read view of every notes section: `TextLinksSection`,
   `NameLinksSection`, `EpisodeTextSection`, `MusicTrackSection` and every
   `links` field of `StructuredSection`. `LinkPairsEditor` is a repeatable
-  row of an optional title and a URL, the title a `SuggestInput` when the
-  caller passes `textOptions` (a song's "Song Source") and a plain input
-  when it passes none; `LinkPairPills` draws each stored link as a
-  `LinkPill` labelled with its title, falling back to the host. A stored
+  row of an optional title above a URL - stacked at every width, the title
+  at full width, because a title is usually the longer of the two - the
+  title a `SuggestInput` when the caller passes `textOptions` (a song's
+  "Song Source") and a plain input when it passes none; `LinkPairPills`
+  draws each stored link as a `LinkPill` labelled with its title, falling
+  back to the host. A titled link (`LinkPill titled`) reads as body text -
+  `text-sm` in the body face - and wraps instead of being cut to a fixed
+  width, since a link with a title is usually the whole entry; an untitled
+  one stays the small mono host tag. A stored
   URL string reads as a link with no title. Every section holds Save back
   while a title has no URL. `NameEntriesSection` renders the `name_entries` shape — a titled
   list whose items are each `{type: "text" | "link", value, label}` stored in
