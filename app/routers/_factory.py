@@ -226,11 +226,10 @@ def make_media_router(spec) -> APIRouter:
         # An h-comic's animation status is derived from its hentai
         # adaptations at read time. No-op for every other type.
         attach_animation_status(db, spec.owner_type, entry)
-        # `remark` is a personal-scope note, so it is read per viewer rather
-        # than mapped on the class - see app/models/__init__.py. A path that
-        # forgets this call shows no remark, never somebody else's.
-        attach_remark(db, spec.owner_type, entry, viewer_user_id(viewer))
-        # The viewer's own highlight group order, the same way. No-op for
+        # The catalogue remark, a note row rather than a column - see
+        # app/models/__init__.py. A path that forgets this call shows none.
+        attach_remark(db, spec.owner_type, entry)
+        # The viewer's own highlight group order, read per viewer. No-op for
         # every type but h-comic and h-game.
         attach_group_orders(db, spec.owner_type, entry, viewer_user_id(viewer))
         return entry

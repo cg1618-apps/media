@@ -1,26 +1,26 @@
-// Frontend: the caller's own remark on an entry or a group.
+// Frontend: the catalogue remark on an entry or a group.
 //
-// A remark is kept per account: each account has its own on an entry (`anime`,
-// `anime-movie`, ...) or a group (`collection`, `franchise`, `series`), and
-// another account's remark on the same row is untouched. It is written through
-// PUT /api/me/remarks/{owner_type}/{owner_id} under self.list, with the body
-// `{remark: text | null}` - empty or null clears it - and the answer is
-// `{remark: text | null}`. Reads carry the caller's own value as the row's
-// `remark`, so the answer folds straight back into the row a page holds, and
-// the reads that show it are invalidated to refetch.
+// A remark is one shared row per entry (`anime`, `anime-movie`, ...) or group
+// (`collection`, `franchise`, `series`), read by everyone who can see it and
+// written by a holder of manage.catalog (`isAdmin`). It is written through the
+// owner's own PATCH with the body `{remark: text | null}` - empty or null
+// clears it - and the answer is the owner's row, whose `remark` folds straight
+// back into the row a page holds; the reads that show it are invalidated to
+// refetch. A viewer's own short notes go in the notes page's 備註列表 Remark
+// List, which is personal.
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { fetchJson, jsonBody } from "../client";
 import { endpoints } from "../endpoints";
 import { useToast } from "../../hooks/useToast";
 
-/** `{ ownerType, ownerId, remark }` → `{remark}` as saved. */
-export function useSaveMyRemark() {
+/** `{ ownerType, ownerId, remark }` → the owner's row as saved. */
+export function useSaveRemark() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ ownerType, ownerId, remark }) =>
-      fetchJson(endpoints.me.remark(ownerType, ownerId), {
-        method: "PUT",
+      fetchJson(endpoints.resource(ownerType).patch(ownerId), {
+        method: "PATCH",
         ...jsonBody({ remark: remark || null }),
       }),
     onSuccess: (_saved, { ownerType }) => {
@@ -35,8 +35,8 @@ export function useSaveMyRemark() {
  * into the page's row through `setRow`, and toasts the outcome. Resolves to the
  * saved remark, or `undefined` when the save failed.
  */
-export function useMyRemarkSaver(ownerType, ownerId, setRow) {
-  const { mutateAsync } = useSaveMyRemark();
+export function useRemarkSaver(ownerType, ownerId, setRow) {
+  const { mutateAsync } = useSaveRemark();
   const { showToast } = useToast();
   return async function save(text) {
     try {

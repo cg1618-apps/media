@@ -13,9 +13,9 @@ closing a gap where a holder of `self.list` could write a status onto an
 entry it could not see.
 
 Deliberately narrow. Every write here is the caller's own - its list row, its
-plan flags, its remark - and none can address anyone else's, because no route
-takes a user id. Catalogue
-writes stay where they are; nothing here can touch a detail table.
+plan flags - and none can address anyone else's, because no route takes a
+user id. Catalogue writes stay where they are, the remark among them; nothing
+here can touch a detail table.
 
 The payload keys are the type's own, not the storage column names: an anime
 takes `watching_status` and a manga `reading_status`, exactly as the entry
@@ -34,7 +34,6 @@ from app import models
 from app.dependencies import get_db
 from app.registry import MEDIA_REGISTRY
 from app.services.domain.plan_next import set_entry_flag
-from app.services.domain.remark_field import upsert_remark
 from app.services.domain.user_list import (
     DEFAULT_STATUS,
     LIST_FIELD_DEFAULTS,
@@ -45,10 +44,9 @@ from app.services.domain.user_list import (
     list_row,
     write_list_payload,
 )
-from app.services.rbac.enforcement import entry_visible, tier_visible
+from app.services.rbac.enforcement import entry_visible
 from app.services.rbac.permissions import PERM_SELF_LIST
 from app.services.rbac.resolver import Viewer, require_permission
-from app.utils.media_resolver import MEDIA_TABLES, TIER_TABLES
 from app.utils.plan_next_kinds import PLAN_FLAG_FIELDS
 
 logger = logging.getLogger(__name__)
@@ -253,52 +251,3 @@ def write_my_plan_flags(
         )
     }
     return {field_name: kind in held for field_name, kind in fields.items()}
-
-
-# ---------------------------------------------------------------------------
-# Remarks
-# ---------------------------------------------------------------------------
-# A remark is a personal-scope note: each account has its own on an entry or a
-# group (services/domain/remark_field.py). The owner's own endpoint also writes
-# it, behind manage.catalog; this is the write every account with a list uses.
-
-
-def _remark_owner_or_404(db: Session, viewer: Viewer, owner_type: str, owner_id: UUID):
-    """The entry or group, if this viewer may see it - the same 404 for a
-    missing owner as for a hidden one, as _media_or_404 answers."""
-    if owner_type in MEDIA_TABLES:
-        media = db.get(models.Media, owner_id)
-        if media is None or media.media_type != owner_type:
-            raise HTTPException(status_code=404, detail="Entry not found")
-        return _media_or_404(db, viewer, owner_id)
-    if owner_type in TIER_TABLES:
-        tier = db.get(TIER_TABLES[owner_type].model, owner_id)
-        if tier is None or not tier_visible(db, viewer, owner_id):
-            raise HTTPException(status_code=404, detail="Entry not found")
-        return tier
-    raise HTTPException(status_code=404, detail="Entry not found")
-
-
-@router.put("/remarks/{owner_type}/{owner_id}", summary="Write My Remark")
-def write_my_remark(
-    owner_type: str,
-    owner_id: UUID,
-    payload: dict[str, Any],
-    db: Session = Depends(get_db),
-    viewer: Viewer = Depends(require_permission(PERM_SELF_LIST)),
-):
-    """
-    Set the caller's remark on an entry (`anime`, `manga`, ...) or a group
-    (`collection`, `franchise`, `series`). Body `{"remark": text}`; empty or
-    null clears it. Another account's remark on the same owner is untouched.
-    """
-    if set(payload) != {"remark"}:
-        raise HTTPException(status_code=422, detail="The body is {\"remark\": text}.")
-    text = payload["remark"]
-    if text is not None and not isinstance(text, str):
-        raise HTTPException(status_code=422, detail="remark must be text or null.")
-    _remark_owner_or_404(db, viewer, owner_type, owner_id)
-    user_id = _caller_id(viewer)
-    upsert_remark(db, owner_type, owner_id, text, user_id)
-    db.commit()
-    return {"remark": text if (text or "").strip() else None}

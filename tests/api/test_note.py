@@ -565,7 +565,8 @@ def test_sections_endpoint_reports_scope(client):
     r = client.get("/api/notes/sections", params={"owner_type": "anime"})
     assert r.status_code == 200
     by_key = {s["key"]: s for s in r.json()}
-    assert by_key["remark"]["scope"] == "personal"
+    assert by_key["remark"]["scope"] == "catalog"
+    assert by_key["remark_list"]["scope"] == "personal"
     assert by_key["op"]["scope"] == "catalog"
     assert by_key["quotes"]["scope"] is None
 

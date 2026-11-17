@@ -63,7 +63,7 @@ import { useViewScope } from "../../hooks/useViewScope";
 import { useMyRatingSaver } from "../../api/mutations/useMyRatingMutations";
 import { entityPath } from "../../lib/entityPath";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
-import { useMyRemarkSaver } from "../../api/mutations/useMyRemark";
+import { useRemarkSaver } from "../../api/mutations/useRemark";
 
 function GroupRail({ label, count }) {
   return (
@@ -224,7 +224,7 @@ export default function FranchisePage() {
   // Everything past the lookup still speaks UUIDs; only the URL segment
   // changed. Resolved from the fetched row so the two can never disagree.
   const system_id = franchise?.system_id;
-  const saveMyRemark = useMyRemarkSaver("franchise", system_id, setFranchise);
+  const saveCatalogueRemark = useRemarkSaver("franchise", system_id, setFranchise);
   const saveMyRating = useMyRatingSaver("franchise", system_id, setFranchise);
 
   useCanonicalPath("franchise", franchise);
@@ -740,8 +740,8 @@ export default function FranchisePage() {
 
   // Shared by the inline box and the full-view modal, which edit one draft.
   function saveRemark() {
-    if (ownData && remark !== (franchise?.remark || ""))
-      saveMyRemark(remark);
+    if (isAdmin && remark !== (franchise?.remark || ""))
+      saveCatalogueRemark(remark);
   }
 
   function toggleSetFilter(setFn, group, value) {
@@ -1532,7 +1532,9 @@ export default function FranchisePage() {
             </Slip>
           )}
 
-          {ownData && (
+          {/* The catalogue remark: drawn for a holder of manage.catalog, who
+              edits it, and read-only for everyone else once one exists. */}
+          {(isAdmin || franchise.remark) && (
             <Slip
               title="Remark"
               actions={
@@ -1553,8 +1555,9 @@ export default function FranchisePage() {
                 value={remark}
                 onChange={(e) => setRemark(e.target.value)}
                 onBlur={() => saveRemark()}
+                readOnly={!isAdmin}
                 rows={3}
-                placeholder="Private overview notes, watch order guides or remarks for the whole franchise"
+                placeholder="Overview notes, watch order guides or remarks for the whole franchise"
                 className="w-full border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none transition border-border bg-surface text-text"
               />
             </Slip>
@@ -2709,7 +2712,7 @@ export default function FranchisePage() {
               hide the duplicate `remark` section wherever that editor renders. */}
           <FranchiseNotes
             franchise={franchise}
-            hideSections={ownData ? ["remark"] : []}
+            hideSections={isAdmin || franchise.remark ? ["remark"] : []}
           />
         </Section>
       )}
@@ -2729,7 +2732,7 @@ export default function FranchisePage() {
       {showRemark && (
         <RemarkModal
           value={remark}
-          canEdit={ownData}
+          canEdit={isAdmin}
           onChange={setRemark}
           onClose={() => {
             saveRemark();

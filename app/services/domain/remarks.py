@@ -80,43 +80,32 @@ def _row(tab: _RemarkTab, entry, remark: str) -> dict:
     return row
 
 
-def find_all_remarks(db: Session, author_id=None) -> dict:
+def find_all_remarks(db: Session, viewer_id=None) -> dict:
     """
     Every entry carrying a non-empty remark, grouped by media type - all twelve.
 
-    THE CALLER'S OWN remarks, not everybody's. `remark` is a personal-scope
-    note and belongs to its author (decision 12); this is a review screen for
-    the operator's own writing, and the response shape carries one remark per
-    entry, which only has a meaning once a author is fixed. With a single
-    account - the case this installation has been in all along - the answer is
-    identical to the old one.
+    `remark` is a catalogue-scope note, one shared row per owner, so the
+    remarks are the same for every caller. Only `section == 'remark'` counts:
+    備註列表 Remark List and the other personal sections are not remarks,
+    however much they read like one.
 
-    author_id=None returns nothing rather than everything. There is no caller
-    for whom "somebody's remarks, unspecified" is the right answer, and
-    failing open here would publish every account's private assessments to a
-    screen that used to show only one person's.
-
-    Only `section == 'remark'` counts: the list-shaped personal sections are
-    not remarks, however much they read like one.
-
-    The status is the CALLER's, read from `user_media_list` through
-    `attach_list_fields`: no detail table has a status column, so an instance
-    loaded here carries none until that runs. An entry the caller never
-    listed reads its type's default status.
+    The status is the CALLER's (viewer_id), read from `user_media_list`
+    through `attach_list_fields`: no detail table has a status column, so an
+    instance loaded here carries none until that runs. An entry the caller
+    never listed reads its type's default status.
 
     The two-step query is not an oversight. The remark is a note row, not a
     column, so the ids come from `note` first and the entries second.
     """
-    remarks: dict = {}
-    if author_id is not None:
+    remarks: dict = {
+        owner_id: content
         for owner_id, content in db.query(Note.media_id, Note.content).filter(
             Note.section == "remark",
             Note.media_id.isnot(None),
-            Note.author_id == author_id,
             Note.content.isnot(None),
             Note.content != "",
-        ):
-            remarks[owner_id] = content
+        )
+    }
 
     result: dict = {}
     for tab in _TABS:
@@ -128,7 +117,7 @@ def find_all_remarks(db: Session, author_id=None) -> dict:
                 .order_by(tab.model.updated_at.desc())
                 .all()
             )
-            attach_list_fields(db, tab.media_type, entries, author_id)
+            attach_list_fields(db, tab.media_type, entries, viewer_id)
         result[tab.key] = [
             _row(tab, entry, remarks[entry.system_id]) for entry in entries
         ]
