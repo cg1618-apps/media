@@ -1,7 +1,12 @@
 import { describe, it, expect, afterEach } from "vitest";
 import {
   AIRING_STATUSES,
+  ANIME_MOVIE_RELEASE_TYPES,
   CONSTANTS_FALLBACK,
+  FILM_RELEASE_STATUSES,
+  GAME_RELEASE_STATUSES,
+  WATCHING_STATUSES,
+  watchingStatusesFor,
   FRANCHISE_TYPES,
   CHARACTER_ROLES,
   GENDERS,
@@ -26,11 +31,13 @@ import {
 // test file that happens to import fieldOptions.js in the same worker)
 // would see whatever the last test here left behind.
 const ORIGINAL_AIRING_STATUSES = [...AIRING_STATUSES];
+const ORIGINAL_WATCHING_STATUSES = [...WATCHING_STATUSES];
 const ORIGINAL_PERSON_ROLES = [...PERSON_ROLES];
 const ORIGINAL_OPTION_CATEGORIES = [...OPTION_CATEGORIES];
 afterEach(() => {
   applyConstants({
     airing_status: ORIGINAL_AIRING_STATUSES,
+    watching_status: ORIGINAL_WATCHING_STATUSES,
     person_role: ORIGINAL_PERSON_ROLES,
     option_categories: ORIGINAL_OPTION_CATEGORIES,
   });
@@ -59,6 +66,73 @@ describe("applyConstants", () => {
     applyConstants(null);
     applyConstants(undefined);
     expect(AIRING_STATUSES).toEqual(before);
+  });
+});
+
+describe("release vocabularies", () => {
+  it("has no Rumored on the airing types, nor on games", () => {
+    expect(AIRING_STATUSES).toEqual(["Not Yet Aired", "Airing", "Finished Airing", "Canceled"]);
+    expect(GAME_RELEASE_STATUSES).not.toContain("Rumored");
+  });
+
+  it("serves the films' release status and the anime movie release type", () => {
+    expect(CONSTANTS_FALLBACK.film_release_status).toBe(FILM_RELEASE_STATUSES);
+    expect(FILM_RELEASE_STATUSES).toEqual(["Not Released", "Released", "Canceled"]);
+    expect(CONSTANTS_FALLBACK.anime_movie_release_type).toBe(ANIME_MOVIE_RELEASE_TYPES);
+    expect(ANIME_MOVIE_RELEASE_TYPES).toEqual(["Cinema", "ONA"]);
+  });
+});
+
+describe("watchingStatusesFor", () => {
+  it.each(["movie", "anime-movie"])("offers %s Watch When Released, not Watch When Airs", (type) => {
+    const list = watchingStatusesFor(type);
+    expect(list).toContain("Watch When Released");
+    expect(list).not.toContain("Watch When Airs");
+    expect(list.indexOf("Watch When Released")).toBe(list.indexOf("Plan to Watch") + 1);
+  });
+
+  it.each(["anime", "tv-show", "cartoon", "hentai"])(
+    "offers %s Watch When Airs, never Watch When Released",
+    (type) => {
+      const list = watchingStatusesFor(type);
+      expect(list).toContain("Watch When Airs");
+      expect(list).not.toContain("Watch When Released");
+    },
+  );
+
+  it("follows /api/constants, keeping its array identity", () => {
+    const before = watchingStatusesFor("movie");
+    applyConstants({ watching_status: ["Might Watch", "Watch When Airs", "Watch When Released", "New"] });
+    expect(watchingStatusesFor("movie")).toBe(before);
+    expect(before).toEqual(["Might Watch", "Watch When Released", "New"]);
+    expect(watchingStatusesFor("anime")).toEqual(["Might Watch", "Watch When Airs", "New"]);
+  });
+});
+
+describe("film fields on the /defaults page", () => {
+  const meta = (type, key) => ({ ...COMMON_FIELD_META[key], ...TYPE_FIELD_META[type][key] });
+
+  it("offers each type its own watching list", () => {
+    expect(meta("movie", "watching_status").options).toContain("Watch When Released");
+    expect(meta("anime-movie", "watching_status").options).not.toContain("Watch When Airs");
+    expect(meta("anime", "watching_status").options).not.toContain("Watch When Released");
+  });
+
+  it("gives both films a Release Status and the anime movie a Release Type", () => {
+    for (const type of ["movie", "anime-movie"]) {
+      expect(meta(type, "release_status").label).toBe("Release Status");
+      expect(meta(type, "release_status").options).toBe(FILM_RELEASE_STATUSES);
+    }
+    expect(meta("anime-movie", "release_type").options).toBe(ANIME_MOVIE_RELEASE_TYPES);
+    // A game's release_status is its own vocabulary.
+    expect(meta("game", "release_status").options).toBe(GAME_RELEASE_STATUSES);
+  });
+
+  it("labels movie's original_source Exclusive Source, and no other type's", () => {
+    expect(meta("movie", "original_source").label).toBe("Exclusive Source");
+    for (const type of ["tv-show", "cartoon"]) {
+      expect(meta(type, "original_source").label).toBe("Original Source");
+    }
   });
 });
 

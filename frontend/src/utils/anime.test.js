@@ -252,6 +252,22 @@ describe("getNextStatus", () => {
       expect(getNextStatus(status)).toBe(expected);
     });
   });
+
+  it.each(["movie", "anime-movie"])(
+    "cycles a %s through Watch When Released, never Watch When Airs",
+    (type) => {
+      expect(getNextStatus("Plan to Watch", type)).toBe("Watch When Released");
+      expect(getNextStatus("Watch When Released", type)).toBe("Active Watching");
+    },
+  );
+
+  it.each(["anime", "tv-show", "cartoon", "hentai"])(
+    "cycles a %s through Watch When Airs, never Watch When Released",
+    (type) => {
+      expect(getNextStatus("Plan to Watch", type)).toBe("Watch When Airs");
+      expect(getNextStatus("Watch When Released", type)).toBe("Might Watch");
+    },
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -260,7 +276,7 @@ describe("getNextStatus", () => {
 
 describe("getStatusButtonConfig", () => {
   it("returns config object with symbol and cls for each status", () => {
-    STATUS_CYCLE.forEach((status) => {
+    [...STATUS_CYCLE, "Watch When Released"].forEach((status) => {
       const config = getStatusButtonConfig(status);
       expect(config).toHaveProperty("symbol");
       expect(config).toHaveProperty("cls");
@@ -307,18 +323,18 @@ describe("getStatusStyle", () => {
 describe("getReleaseFallback", () => {
   it("returns season + year when both present", () => {
     expect(
-      getReleaseFallback({ release_season: "WIN", release_date: "2024-01" })
+      getReleaseFallback({ release_season: "WIN", release_date_jp: "2024-01" })
     ).toBe("WIN 2024");
   });
 
   it("returns the stored date verbatim when the season is absent", () => {
     expect(
-      getReleaseFallback({ release_season: null, release_date: "2024-01" })
+      getReleaseFallback({ release_season: null, release_date_jp: "2024-01" })
     ).toBe("2024-01");
   });
 
   it("returns year only when that is all that is stored", () => {
-    expect(getReleaseFallback({ release_date: "2024" })).toBe("2024");
+    expect(getReleaseFallback({ release_date_jp: "2024" })).toBe("2024");
   });
 
   it("returns TBA when all absent", () => {

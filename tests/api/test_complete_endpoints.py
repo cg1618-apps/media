@@ -20,7 +20,7 @@ def sample_anime_movie(db_session, sample_franchise, list_row):
         system_id=uuid.uuid4(),
         franchise_id=sample_franchise.system_id,
         anime_movie_name_en="Test Anime Movie",
-        airing_status="Finished Airing",
+        release_status="Not Released",
     )
     db_session.add(entry)
     db_session.flush()
@@ -64,7 +64,7 @@ def sample_movie(db_session, sample_franchise, list_row):
         system_id=uuid.uuid4(),
         franchise_id=sample_franchise.system_id,
         movie_name_en="Test Movie",
-        airing_status="Finished Airing",
+        release_status="Not Released",
     )
     db_session.add(entry)
     db_session.flush()
@@ -139,7 +139,7 @@ class TestCompleteAnimeMovie:
         assert response.status_code == 200
         data = response.json()
         assert data["watching_status"] == "Completed"
-        assert data["airing_status"] == "Finished Airing"
+        assert data["release_status"] == "Released"
 
     def test_guest_cannot_mark_completed(self, client, sample_anime_movie):
         response = client.post(f"/api/anime-movie/{sample_anime_movie.system_id}/complete")
@@ -212,7 +212,7 @@ class TestCompleteMovie:
         assert response.status_code == 200
         data = response.json()
         assert data["watching_status"] == "Completed"
-        assert data["airing_status"] == "Finished Airing"
+        assert data["release_status"] == "Released"
 
     def test_guest_cannot_mark_completed(self, client, sample_movie):
         response = client.post(f"/api/movies/{sample_movie.system_id}/complete")

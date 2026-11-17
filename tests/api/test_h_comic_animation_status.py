@@ -68,7 +68,6 @@ def test_with_no_relation_the_hand_set_value_is_served_as_manual(owner_client):
     "airing_status,expected",
     [
         ("Not Yet Aired", "Announced"),
-        ("Rumored", "Announced"),
         ("Airing", "Animated"),
         ("Finished Airing", "Animated"),
     ],

@@ -36,7 +36,9 @@ def test_every_date_column_carries_a_check_constraint(model):
 def test_anime_no_longer_splits_year_and_month():
     assert "release_year" not in Anime.__table__.columns
     assert "release_month" not in Anime.__table__.columns
-    assert "release_date" in Anime.__table__.columns
+    assert "release_date" not in Anime.__table__.columns
+    assert "release_date_jp" in Anime.__table__.columns
+    assert "release_date_tw" in Anime.__table__.columns
 
 
 def test_anime_still_stores_release_season():

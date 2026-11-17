@@ -20,7 +20,9 @@ const BASE_ANIME = {
   airing_type: "TV",
   airing_status: "Finished",
   release_season: null,
-  release_date: null,
+  release_date_jp: null,
+  release_date_tw: null,
+  runtime_min: null,
   watching_status: "Watching",
   ep_fin: 1,
   ep_total: 12,
@@ -201,5 +203,29 @@ describe("Anime detail page — cast", () => {
       "Protagonist",
       "Sidekick",
     ]);
+  });
+});
+
+// The season names the JP broadcast, so its year comes from the JP date even
+// when the TW one is in a different year.
+describe("Anime detail page — release", () => {
+  it("builds the release season from the JP date and shows both dates and the runtime", async () => {
+    mockFetch(
+      {
+        ...BASE_ANIME,
+        release_season: "SPR",
+        release_date_jp: "2024-04",
+        release_date_tw: "2025-01-10",
+        runtime_min: 23,
+      },
+      [],
+    );
+    mount();
+
+    expect((await screen.findAllByText("SPR 2024")).length).toBeGreaterThan(0);
+    expect(screen.queryByText("SPR 2025")).toBeNull();
+    expect(screen.getByText("2024-04")).toBeInTheDocument();
+    expect(screen.getByText("2025-01-10")).toBeInTheDocument();
+    expect(screen.getByText("23")).toBeInTheDocument();
   });
 });

@@ -218,6 +218,34 @@ its own commit. Each of the twelve entry tabs drops its constant `media_type`
 column and appends a derived, read-only `display_name` for the human reader;
 Pull drops any header that is not a column of the model (`drop_non_columns`).
 
+**`Movies`** and **`Anime Movie`** carry `release_status`, in the film
+vocabulary (`Not Released` / `Released` / `Canceled`), and `Anime Movie` also
+`release_type`. A tab written before a film's `airing_status` became
+`release_status` carries `airing_status` and no `release_status`:
+`parse_movie_from_sheet` and `parse_anime_movie_from_sheet` read it into
+`release_status`, mapping `Not Yet Aired` and `Rumored` to `Not Released` and
+`Airing` and `Finished Airing` to `Released`, and Pull puts the derived key
+back after its header filter, only when the sheet carries no `release_status`.
+`RENAMED_HEADERS` in `pull.py` lists `airing_status` for both tabs, so
+`unexpected_headers` does not report it. Such a tab has no `release_type`
+column either, so a row it inserts is `Cinema` and a row it updates keeps the
+type it had. On the airing types (`Anime`, `TV Shows`, `Cartoons`, `Hentai`)
+a `Rumored` cell reads as `Not Yet Aired`, and on `User Media List` a movie's
+or an anime movie's `Watch When Airs` reads as `Watch When Released`. Backup
+writes the current headers from A1 and clears the columns past them, so the
+next Backup leaves no old header on the sheet.
+
+A tab backed up before a column was renamed still restores. `RENAMED_COLUMNS`
+in `pull.py` names the old header and the columns its parser reads it into -
+the Anime tab's single `release_date` into both `release_date_jp` and
+`release_date_tw`, the Cartoons tab's `length_ep_min` into `runtime_min` - and
+Pull keeps those values past its header filter only when the sheet carries
+none of the new headers, so a current sheet is read exactly as written. Both
+old headers are in `RENAMED_HEADERS`, and the Novel tab's dropped `read_order`
+is in `RETIRED_HEADERS`, so `unexpected_headers` reports none of the three.
+A TV Shows tab with no `airing_type` header leaves an existing show's value
+as it is and gives a new one the column default, `TV`.
+
 **`Users`** carries `id`, `username`, `is_installation_owner`, `status`, `open_request_limit`, `mode_ceiling`, `mode_default`, the four feature switches (`feature_quotes_memes`, `feature_favourites`, `feature_music_status`, `feature_mod_status`) and `role`.
 An older sheet whose Users tab still has a `list_is_public` header Pulls
 cleanly: `RETIRED_HEADERS` in `pull.py` names it, so `unexpected_headers` does
@@ -412,7 +440,9 @@ position, and the same derived-identity treatment, its two siblings have.
 belongs to a game or an h-game - so it is the `Media` tab that must land
 first, and a copy naming an h-game restores from the same tab as any other. `Game Copy` is not a `media_type` tab: it carries no
 credit or tag link columns, since a copy is a purchase record rather than an
-entry.
+entry. A sheet backed up before `sell_price`, `sell_currency` and
+`hours_played` existed lacks those headers, and its rows restore with the
+three empty.
 
 The choice graph's three tabs follow `Game Copy`, for the same reason: each
 table's `game_id` is a real FK onto `media.system_id`. `Game Choice Node`

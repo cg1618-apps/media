@@ -16,6 +16,7 @@ from app.utils.tenrai_utils import (
     map_tenrai_to_anime_movie_data,
     map_tenrai_to_manga_data,
     map_tenrai_to_novel_data,
+    parse_mal_duration_minutes,
 )
 
 # ---------------------------------------------------------------------------
@@ -164,7 +165,7 @@ class TestMapTenraiToAnimeData:
         assert result["airing_type"] == "TV"
         assert result["airing_status"] == "Finished Airing"
         assert result["release_season"] == "WIN"
-        assert result["release_date"] == "2023-01-07"
+        assert result["release_date_jp"] == "2023-01-07"
         assert result["mal_rating"] == 8.5
         assert result["mal_rank"] == "42"
         assert result["ep_total"] == 12
@@ -183,7 +184,7 @@ class TestMapTenraiToAnimeData:
             "string": "2026 to ?",
         }
         result = map_tenrai_to_anime_data(raw)
-        assert result["release_date"] == "2026"
+        assert result["release_date_jp"] == "2026"
 
     def test_a_named_day_is_kept(self):
         # The other side of the same rule: what `string` names is real.
@@ -194,7 +195,7 @@ class TestMapTenraiToAnimeData:
             "string": "Jan 12, 2026 to ?",
         }
         result = map_tenrai_to_anime_data(raw)
-        assert result["release_date"] == "2026-01-12"
+        assert result["release_date_jp"] == "2026-01-12"
 
     def test_webp_preferred_over_jpg(self):
         raw = make_full_tenrai_response()
@@ -240,7 +241,7 @@ class TestAnimeReleaseDateIsISO:
             "season": "summer",
         }
         mapped = map_tenrai_to_anime_data(raw)
-        assert mapped["release_date"] == "2026-07-06"
+        assert mapped["release_date_jp"] == "2026-07-06"
         assert mapped["release_season"] == "SUM"
 
     def test_a_month_with_no_named_day_stops_at_the_month(self):
@@ -254,7 +255,7 @@ class TestAnimeReleaseDateIsISO:
             "season": "winter",
         }
         mapped = map_tenrai_to_anime_data(raw)
-        assert mapped["release_date"] == "2026-01"
+        assert mapped["release_date_jp"] == "2026-01"
         assert mapped["release_season"] == "WIN"
 
     def test_an_unreliable_month_maps_to_year_precision(self):
@@ -268,7 +269,7 @@ class TestAnimeReleaseDateIsISO:
             "season": "winter",
         }
         mapped = map_tenrai_to_anime_data(raw)
-        assert mapped["release_date"] == "2026"
+        assert mapped["release_date_jp"] == "2026"
         assert mapped["release_season"] == "WIN"
 
     def test_split_year_and_month_are_gone(self):
@@ -281,7 +282,7 @@ class TestAnimeReleaseDateIsISO:
         assert "release_month" not in mapped
 
     def test_a_missing_aired_block_yields_no_date(self):
-        assert map_tenrai_to_anime_data({})["release_date"] is None
+        assert map_tenrai_to_anime_data({})["release_date_jp"] is None
 
 
 class TestMangaAndNovelReleaseDatesAreISO:
@@ -384,3 +385,66 @@ def _cast_role(role):
 )
 def test_a_mal_cast_is_main_or_other(mal_role, role):
     assert map_tenrai_cast([_cast_role(mal_role)])[0]["role"] == role
+
+
+# ---------------------------------------------------------------------------
+# Anime: JP and TW release dates, and the runtime
+# ---------------------------------------------------------------------------
+
+class TestAnimeReleaseDatesJpAndTw:
+    def test_a_series_gets_the_mal_date_in_both_columns(self):
+        mapped = map_tenrai_to_anime_data(make_full_tenrai_response())
+        assert mapped["release_date_jp"] == "2023-01-07"
+        assert mapped["release_date_tw"] == "2023-01-07"
+        assert "release_date" not in mapped
+
+    def test_a_movie_gets_the_mal_date_in_jp_only(self):
+        raw = make_full_tenrai_response()
+        raw["type"] = "Movie"
+        mapped = map_tenrai_to_anime_data(raw)
+        assert mapped["release_date_jp"] == "2023-01-07"
+        assert mapped["release_date_tw"] is None
+
+
+class TestParseMalDuration:
+    @pytest.mark.parametrize(
+        "text, minutes",
+        [
+            ("24 min per ep", 24),
+            ("24 min", 24),
+            ("1 hr 46 min", 106),
+            ("2 hr", 120),
+            ("12 min per ep", 12),
+            ("1 min 31 sec per ep", 2),
+            ("30 sec", 1),
+            ("Unknown", None),
+            ("", None),
+            (None, None),
+        ],
+    )
+    def test_parses_mal_duration_strings(self, text, minutes):
+        assert parse_mal_duration_minutes(text) == minutes
+
+
+class TestAnimeRuntimeBand:
+    # MAL scatters a normal TV episode between 22 and 26 minutes; every value
+    # inside the band is stored as 24, everything outside as MAL gives it.
+    @pytest.mark.parametrize(
+        "mal_minutes, stored",
+        [(21, 21), (22, 24), (23, 24), (24, 24), (26, 24), (27, 27), (106, 106)],
+    )
+    def test_the_band_edges(self, mal_minutes, stored):
+        raw = make_full_tenrai_response()
+        raw["duration"] = f"{mal_minutes} min per ep"
+        assert map_tenrai_to_anime_data(raw)["runtime_min"] == stored
+
+    def test_no_duration_maps_to_no_runtime(self):
+        assert map_tenrai_to_anime_data({})["runtime_min"] is None
+
+    @pytest.mark.parametrize("mal_minutes", [22, 24, 26])
+    def test_a_movie_keeps_mal_minutes_inside_the_band(self, mal_minutes):
+        # A film's length is its own, not a TV slot: the band skips a Movie.
+        raw = make_full_tenrai_response()
+        raw["type"] = "Movie"
+        raw["duration"] = f"{mal_minutes} min"
+        assert map_tenrai_to_anime_data(raw)["runtime_min"] == mal_minutes

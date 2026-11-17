@@ -30,6 +30,7 @@ from app.services.domain.credits import (
     find_studio_for_mal,
 )
 from app.services.integrations.tenrai import lookup_mal_anime, lookup_mal_manga
+from app.utils.constants import ANIME_MOVIE_ONA
 from app.utils.credit_roles import CREDIT_ROLES, sheet_column_for
 from app.utils.name_normalize import names_of
 from app.utils.tenrai_utils import (
@@ -50,12 +51,22 @@ _FINISHED = "完結"
 
 def _anime_fields(j: dict) -> dict:
     return {k: j.get(k) for k in (
-        "airing_type", "airing_status", "release_season", "release_date", "ep_total",
+        "airing_type", "airing_status", "release_season", "release_date_jp",
+        "release_date_tw", "ep_total", "runtime_min",
     )}
 
 
 def _anime_movie_fields(j: dict) -> dict:
-    return {k: j.get(k) for k in ("airing_status", "release_date_jp")}
+    """
+    What the anime movie autofill writes, plus MAL's release type. The type is
+    the prefill's alone: on the Add form it replaces only the untouched Cinema
+    default, while the autofill of a saved entry cannot tell a default Cinema
+    from a chosen one and leaves it. An ONA's one date fills both columns.
+    """
+    out = {k: j.get(k) for k in ("release_status", "release_date_jp", "release_type")}
+    if out["release_type"] == ANIME_MOVIE_ONA:
+        out["release_date_tw"] = out["release_date_jp"]
+    return out
 
 
 def _serialized_fields(j: dict, totals: tuple) -> dict:

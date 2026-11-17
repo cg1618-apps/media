@@ -44,8 +44,16 @@ export function franchiseColumn() {
   };
 }
 
-/** Airing status chip; `hidden` picks the breakpoint below which it collapses. */
-export function airingStatusColumn({ key = "status", header = "Status", hidden = "md" } = {}) {
+/**
+ * Airing status chip; `hidden` picks the breakpoint below which it collapses.
+ * `field` is the column the chip reads - release_status on the two film types.
+ */
+export function airingStatusColumn({
+  key = "status",
+  header = "Status",
+  hidden = "md",
+  field = "airing_status",
+} = {}) {
   const cls = hidden ? HIDDEN[hidden] : "";
   return {
     key,
@@ -53,8 +61,13 @@ export function airingStatusColumn({ key = "status", header = "Status", hidden =
     thClass: cls,
     tdClass: `text-center ${cls}`.trim(),
     render: (item) =>
-      item.airing_status ? <Chip className="text-[9px]">{item.airing_status}</Chip> : "-",
+      item[field] ? <Chip className="text-[9px]">{item[field]}</Chip> : "-",
   };
+}
+
+/** A film's release status chip - see airingStatusColumn. */
+export function releaseStatusColumn(options = {}) {
+  return airingStatusColumn({ ...options, field: "release_status" });
 }
 
 export function myRatingColumn() {

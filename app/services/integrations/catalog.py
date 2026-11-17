@@ -361,12 +361,25 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                         "winter/spring/summer/fall to WIN/SPR/SUM/FAL",
                     ),
                     Write(
-                        "release_date",
+                        "release_date_jp",
                         "column",
                         "fill-only",
                         "precision taken from MAL's own aired string, never padded",
                     ),
+                    Write(
+                        "release_date_tw",
+                        "column",
+                        "fill-only",
+                        "the same date as JP, except on an entry typed Movie",
+                    ),
                     Write("ep_total", "column", "fill-only"),
+                    Write(
+                        "runtime_min",
+                        "column",
+                        "fill-only",
+                        "MAL's duration per episode in whole minutes; 22 to 26 is "
+                        "stored as 24",
+                    ),
                     *_TENRAI_LINKS,
                     Write(
                         "studio",
@@ -393,8 +406,19 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
             SourceBlock(
                 source="tenrai",
                 writes=(
-                    Write("airing_status", "column", "fill-only"),
-                    Write("release_date_jp", "column", "fill-only"),
+                    Write(
+                        "release_status",
+                        "column",
+                        "fill-only",
+                        "MAL's Airing and Finished Airing are Released; Not "
+                        "Released counts as unfilled",
+                    ),
+                    Write(
+                        "release_date_jp",
+                        "column",
+                        "fill-only",
+                        "an ONA's release_date_tw follows it",
+                    ),
                     *_TENRAI_LINKS,
                     Write(
                         "studio",
@@ -431,11 +455,11 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                     Write("length_min", "column", "fill-only"),
                     Write("release_date_usa", "column", "fill-only"),
                     Write(
-                        "airing_status",
+                        "release_status",
                         "column",
                         "fill-only",
                         "derived, not fetched: a release date on or before today "
-                        "is Finished Airing",
+                        "is Released; Not Released counts as unfilled",
                     ),
                     Write(
                         "director",
@@ -485,6 +509,13 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                         "column",
                         "conditional",
                         "fill-only, and skipped when the season reports zero episodes",
+                    ),
+                    Write(
+                        "runtime_min",
+                        "column",
+                        "fill-only",
+                        "the season's most common episode runtime, falling back to "
+                        "the show's",
                     ),
                     Write(
                         "airing_status",
@@ -556,7 +587,7 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                     ),
                     Write("cover_image_file", "image", "if-empty"),
                     Write(
-                        "length_ep_min",
+                        "runtime_min",
                         "none",
                         "never",
                         "the mapper computes it from the season's episode runtimes, "

@@ -27,7 +27,8 @@ def mark_tv_list(row, entry) -> None:
 
 
 def mark_movie_catalog(entry) -> None:
-    entry.airing_status = "Finished Airing"
+    """The catalogue half of finishing a movie or an anime movie: it is out."""
+    entry.release_status = "Released"
 
 
 def mark_movie_list(row, entry) -> None:

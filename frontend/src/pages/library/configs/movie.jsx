@@ -1,5 +1,5 @@
 import {
-  airingStatusColumn,
+  releaseStatusColumn,
   franchiseColumn,
   imdbRatingColumn,
   imdbRatingSort,
@@ -9,6 +9,7 @@ import {
   watchButtonColumn,
 } from "../../../components/layout/libraryColumns";
 import { WATCHING_STATUS_GROUP } from "../../../utils/media";
+import { FILM_RELEASE_STATUSES } from "../../../config/fieldOptions";
 
 function getTitle(m)   { return m.movie_name_cn || m.movie_name_en || m.movie_name_alt || ""; }
 function getSortKey(m) { return m.movie_name_en || m.movie_name_alt || m.movie_name_cn || ""; }
@@ -41,11 +42,11 @@ const MOVIE_LIBRARY_CONFIG = {
 
   filterDefs: [
     {
-      key: "airingStatus",
+      key: "releaseStatus",
       label: "Release Status",
       type: "set",
-      options: ["Finished Airing", "Not Yet Aired", "Airing", "Canceled", "Rumored"],
-      match: (item, active) => active.has(item.airing_status),
+      options: FILM_RELEASE_STATUSES,
+      match: (item, active) => active.has(item.release_status),
     },
     {
       key: "movieType",
@@ -98,7 +99,7 @@ const MOVIE_LIBRARY_CONFIG = {
         );
       },
     },
-    airingStatusColumn(),
+    releaseStatusColumn(),
     myRatingColumn(),
     imdbRatingColumn(),
     {

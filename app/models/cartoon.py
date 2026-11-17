@@ -62,7 +62,7 @@ class Cartoon(Base, NameFallbackMixin):
     is_main = Column(String, nullable=True)
 
     ep_total = Column(Integer, nullable=True)
-    length_ep_min = Column(Integer, nullable=True)
+    runtime_min = Column(Integer, nullable=True)
 
     # A season's own rating (its episodes' mean); the show's is beside it.
     imdb_rating = Column(String, nullable=True)

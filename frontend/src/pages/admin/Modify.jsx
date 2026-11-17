@@ -155,6 +155,7 @@ function animeToForm(anime, allFranchises, allSeries, defaults) {
     ep_fin: anime.ep_fin ?? "",
     time_fin: anime.time_fin || "",
     ep_special: anime.ep_special ?? "",
+    runtime_min: anime.runtime_min ?? "",
     my_rating: anime.my_rating || "",
     mal_rating: anime.mal_rating ?? "",
     mal_rank: anime.mal_rank || "",
@@ -164,7 +165,8 @@ function animeToForm(anime, allFranchises, allSeries, defaults) {
     anilist_rank: anime.anilist_rank ?? "",
     anilist_popularity_rank: anime.anilist_popularity_rank ?? "",
     release_season: anime.release_season || "",
-    release_date: anime.release_date || "",
+    release_date_jp: anime.release_date_jp || "",
+    release_date_tw: anime.release_date_tw || "",
     broadcast_day: anime.broadcast_day || "",
     // API returns "23:00:00"; <input type="time"> wants "HH:MM".
     broadcast_time: (anime.broadcast_time || "").slice(0, 5),
@@ -243,7 +245,8 @@ function movieToForm(movie, allFranchises, defaults) {
     anime_movie_name_alt: movie.anime_movie_name_alt || "",
     franchise_id: movie.franchise_id || null,
     franchise_text: f ? getDisplayName(f, "franchise") : "",
-    airing_status: movie.airing_status || "",
+    release_status: movie.release_status || "",
+    release_type: movie.release_type || "Cinema",
     watching_status: movie.watching_status || defaults.watching_status,
     my_rating: movie.my_rating || "",
     time_fin: movie.time_fin || "",
@@ -726,7 +729,7 @@ export default function Modify() {
       franchise_text: f ? getDisplayName(f, "franchise") : "",
       series_id: m.series_id || null,
       series_text: s ? getDisplayName(s, "series") : "",
-      airing_status: m.airing_status || "",
+      release_status: m.release_status || "",
       watching_status: m.watching_status || md("movie").watching_status,
       my_rating: m.my_rating || "",
       imdb_rating: m.imdb_rating || "",
@@ -763,6 +766,7 @@ export default function Modify() {
       series_id: t.series_id || null,
       series_text: s ? getDisplayName(s, "series") : "",
       season_part: t.season_part || "",
+      airing_type: t.airing_type || "",
       region: t.region || "",
       // original_source: see the comment in animeToForm - loaded from
       // GET /api/credits/tv-show/{id} via loadCreditsIntoForm(), not here.
@@ -771,6 +775,7 @@ export default function Modify() {
       watching_status: t.watching_status || md("tv-show").watching_status,
       ep_total: t.ep_total ?? "",
       ep_fin: t.ep_fin ?? "",
+      runtime_min: t.runtime_min ?? "",
       time_fin: t.time_fin || "",
       my_rating: t.my_rating || "",
       imdb_rating: t.imdb_rating || "",
@@ -811,7 +816,7 @@ export default function Modify() {
       my_rating: c.my_rating || "",
       imdb_rating: c.imdb_rating || "",
       imdb_series_rating: c.imdb_series_rating || "",
-      length_ep_min: c.length_ep_min ?? "",
+      runtime_min: c.runtime_min ?? "",
       // original_source: see the comment in animeToForm - loaded from
       // GET /api/credits/cartoon/{id} via loadCreditsIntoForm(), not here.
       release_date: c.release_date || "",
@@ -912,7 +917,6 @@ export default function Modify() {
       // loaded from GET /api/credits/novel/{id} via loadCreditsIntoForm().
       release_date: n.release_date ?? "",
       end_date: n.end_date ?? "",
-      read_order: n.read_order ?? "",
       units: n.units || [],
       mal_id: n.mal_id ?? "",
       mal_link: n.mal_link || "",
@@ -3617,7 +3621,7 @@ export default function Modify() {
                       : activeTab === "franchise"
                         ? item.franchise_type
                         : activeTab === "anime-movie"
-                          ? item.airing_status
+                          ? item.release_status
                           : "";
                   return (
                     <button

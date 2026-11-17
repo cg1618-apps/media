@@ -22,12 +22,13 @@ describe("MarkReleaseButton", () => {
   it("asks for the missing details, then writes only what was filled", async () => {
     const { onPatch, user } = setup("anime", {
       airing_status: "Not Yet Aired",
-      release_date: "2026-10",
+      release_date_jp: "2026-10",
+      release_date_tw: "2026-10",
     });
     await user.click(screen.getByRole("button", { name: "Mark airing" }));
 
     const dialog = screen.getByRole("dialog");
-    expect(screen.queryByText("Release date")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Release date/)).not.toBeInTheDocument();
     expect(within(dialog).getByText("Broadcast day")).toBeInTheDocument();
     // Fields render in order: broadcast day, broadcast time, my watch day.
     await user.selectOptions(within(dialog).getAllByRole("combobox")[0], "Friday");
@@ -50,6 +51,24 @@ describe("MarkReleaseButton", () => {
       screen.getAllByRole("button", { name: "Mark released" }).find((b) => dialog.contains(b)),
     );
     expect(onPatch).toHaveBeenCalledWith({ release_status: "Released" }, "Marked as released");
+  });
+
+  it("marks a Not Released film Released, through release_status", async () => {
+    const { onPatch, user } = setup("movie", { release_status: "Not Released" });
+    await user.click(screen.getByRole("button", { name: "Mark released" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(
+      screen.getAllByRole("button", { name: "Mark released" }).find((b) => dialog.contains(b)),
+    );
+    expect(onPatch).toHaveBeenCalledWith({ release_status: "Released" }, "Marked as released");
+  });
+
+  it("asks an ONA anime movie for its one release date", async () => {
+    const { user } = setup("anime-movie", { release_status: "Not Released", release_type: "ONA" });
+    await user.click(screen.getByRole("button", { name: "Mark released" }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("Release date")).toBeInTheDocument();
+    expect(within(dialog).queryByText("Release date (TW)")).not.toBeInTheDocument();
   });
 
   it("cancel writes nothing", async () => {

@@ -29,7 +29,7 @@ import {
 import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
-import { WATCHING_STATUSES } from "../../config/fieldOptions";
+import { AIRING_WATCHING_STATUSES } from "../../config/fieldOptions";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
@@ -423,7 +423,7 @@ export default function TV() {
                   v ? "Marked for rewatch" : "Removed from rewatch",
                 )
               }
-              statusOptions={WATCHING_STATUSES}
+              statusOptions={AIRING_WATCHING_STATUSES}
               ratingOptions={MY_RATINGS}
             />
           </TocSection>
@@ -446,8 +446,13 @@ export default function TV() {
                       label: "Total Ep",
                       value: show.ep_total != null ? String(show.ep_total) : null,
                     },
+                    {
+                      label: "Runtime (min)",
+                      value: show.runtime_min != null ? String(show.runtime_min) : null,
+                    },
                   ],
                   [
+                    { label: "Airing Type", value: show.airing_type },
                     { label: "Airing Status", value: show.airing_status },
                     { label: "Release Date", value: show.release_date },
                   ],

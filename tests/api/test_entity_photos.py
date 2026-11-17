@@ -40,7 +40,7 @@ def _anime(db_session, franchise, name, released, cover=None):
         franchise_id=franchise.system_id,
         anime_name_en=name,
         airing_type="TV",
-        release_date=released,
+        release_date_jp=released,
     )
     db_session.add(entry)
     db_session.flush()
@@ -231,7 +231,7 @@ def half_hidden_character(db_session, sample_franchise, hidden_anime):
     guest cannot see it - which is newer and carries its own cover.
     """
     visible = _anime(db_session, sample_franchise, "Visible", "2020-01", cover="v.jpg")
-    _set(db_session, hidden_anime, release_date="2024-01")
+    _set(db_session, hidden_anime, release_date_jp="2024-01")
     _set_cover(db_session, hidden_anime, "hidden.jpg")
     character = _character(db_session)
     _cast(db_session, character, visible, "anime", 0)
@@ -336,7 +336,7 @@ def test_person_auto_never_picks_a_hidden_entrys_cover(
     guest_reader, owner_client, db_session, credited_person, hidden_anime
 ):
     p = credited_person
-    _set(db_session, hidden_anime, release_date="2024-01")
+    _set(db_session, hidden_anime, release_date_jp="2024-01")
     _set_cover(db_session, hidden_anime, "hidden.jpg")
     db_session.add(
         models.MediaCredit(

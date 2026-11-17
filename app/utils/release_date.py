@@ -35,7 +35,7 @@ _MONTH_ABBREVIATIONS = {
 # sorting, list display, and airing-status derivation. Keyed by media-type slug
 # to match the routing vocabulary the frontend and watch_order already use.
 RELEASE_PRIORITY: Dict[str, tuple] = {
-    "anime": ("release_date",),
+    "anime": ("release_date_jp", "release_date_tw"),
     "anime-movie": ("release_date_jp", "release_date_tw"),
     "movie": ("release_date_tw", "release_date_usa"),
     "tv-show": ("release_date",),
@@ -54,7 +54,7 @@ RELEASE_PRIORITY: Dict[str, tuple] = {
 # Sheets formatter can look up a model instance's date columns without restating
 # them per worksheet.
 DATE_COLUMNS: Dict[str, tuple] = {
-    "anime": ("release_date",),
+    "anime": ("release_date_jp", "release_date_tw"),
     "anime_movies": ("release_date_jp", "release_date_tw"),
     "movies": ("release_date_usa", "release_date_tw"),
     "tv_shows": ("release_date",),

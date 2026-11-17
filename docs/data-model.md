@@ -288,7 +288,8 @@ are
 
 TV anime, ONA/OVA/OAD/specials, and anime with `airing_type = "Movie"` that
 are tracked as part of a season run. Not the same table as `anime_movies`.
-Model: `Anime`. CHECK: `ck_anime_release_date_iso`.
+Model: `Anime`. CHECKs: `ck_anime_release_date_jp_iso`,
+`ck_anime_release_date_tw_iso`.
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
@@ -300,13 +301,15 @@ Model: `Anime`. CHECK: `ck_anime_release_date_iso`.
 | `ep_previous` | Integer | yes | | Episodes accumulated by prequels; **derived** by `derive_ep_previous_all_anime` after Fill/Replace. |
 | `ep_total` | Integer | yes | | |
 | `ep_special` | Float | yes | | The episode number a special sits at (0, 14.5) - a position, not a count. Part of the duplicate key. |
+| `runtime_min` | Integer | yes | | Minutes per episode. Fill writes MAL's duration, 22 to 26 stored as 24 except on a `Movie` |
 | `mal_rating` | Float | yes | | From Tenrai |
 | `mal_rank` | String | yes | | From Tenrai |
 | `anilist_rating` | Integer | yes | | AniList `averageScore`, keyed on `mal_id`. From AniList - see [external-apis.md](external-apis.md#anilist) |
 | `anilist_rank` | Integer | yes | | AniList all-time rated rank. Null is common - not every scored title has one |
 | `anilist_popularity_rank` | Integer | yes | | AniList all-time popularity rank |
-| `release_season` | String | yes | | e.g. `WIN 2024` (RELEASE_SEASONS) - drives `seasonal` |
-| `release_date` | String | yes | | ISO date string |
+| `release_season` | String | yes | | e.g. `WIN 2024` (RELEASE_SEASONS) - drives `seasonal`, with the year of `release_date_jp` |
+| `release_date_jp` | String | yes | | Japanese airing; preferred (RELEASE_PRIORITY) and the one the season is read from |
+| `release_date_tw` | String | yes | | Taiwanese airing. Fill writes MAL's date here too, except on an entry typed `Movie` |
 | `broadcast_day` | String | yes | | WEEKDAYS |
 | `broadcast_time` | Time | yes | | Postgres TIME, exchanged as `"HH:MM:SS"` |
 | `mal_id` | Integer | yes | | Derived from `mal_link` by `apply_extract_mal_id_anime` |
@@ -325,15 +328,16 @@ Model: `AnimeMovies`. CHECKs: `ck_anime_movies_release_date_jp_iso`,
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `anime_movie_name_en` / `_cn` / `_roman` / `_jp` / `_alt` | String | yes | | |
-| `airing_status` | String | yes | | AiringStatus |
+| `release_status` | String | yes | | FILM_RELEASE_STATUSES (`Not Released` / `Released` / `Canceled`); `Not Released` on a new entry |
+| `release_type` | String | no | `Cinema` | ANIME_MOVIE_RELEASE_TYPES (`Cinema` / `ONA`). The Add form's MAL prefill takes it from MAL's type; Fill never writes it. An ONA has one release date, held in both `release_date_jp` and `release_date_tw`: every create, update and patch keeps the two equal (`sync_ona_release_date` in `app/services/domain/anime_movie.py` - the date the write changed wins, otherwise JP) |
 | `mal_rating` | Float | yes | | |
 | `mal_rank` | String | yes | | |
 | `anilist_rating` | Integer | yes | | From AniList, keyed on `mal_id` - see [external-apis.md](external-apis.md#anilist) |
 | `anilist_rank` | Integer | yes | | AniList all-time rated rank |
 | `anilist_popularity_rank` | Integer | yes | | AniList all-time popularity rank |
 | `length_min` | Integer | yes | | Runtime in minutes |
-| `release_date_jp` | String | yes | | Preferred release date (RELEASE_PRIORITY) |
-| `release_date_tw` | String | yes | | |
+| `release_date_jp` | String | yes | | Preferred release date (RELEASE_PRIORITY). An ONA's one date |
+| `release_date_tw` | String | yes | | Equal to `release_date_jp` on an ONA |
 | `mal_id` | Integer | yes | | |
 | `mal_link` | String | yes | | |
 
@@ -351,7 +355,7 @@ Live-action and animated (non-anime) films. Model: `Movies`. CHECKs:
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `movie_name_en` / `_cn` / `_alt` | String | yes | | Three names only |
-| `airing_status` | String | yes | | |
+| `release_status` | String | yes | | FILM_RELEASE_STATUSES (`Not Released` / `Released` / `Canceled`); `Not Released` on a new entry |
 | `imdb_rating` | String | yes | | From OMDb |
 | `movie_type` | String | yes | | MOVIE_TYPES (`Reality` / `Animation`) |
 | `is_main` | String | yes | | IS_MAIN |
@@ -363,7 +367,10 @@ Live-action and animated (non-anime) films. Model: `Movies`. CHECKs:
 | `type_slots` | JSONB | yes | | Which favourite 3×3 grid slot this row holds, as `{gridKey: 1..9}` - see [frontend/pages.md](frontend/pages.md#statistics--statistics--completions--completions). One grid is keyed here, Movie - the favourite *movies*, which is a different grid from the favourite movie *franchises* that key "Movie" on `franchise`. |
 
 Virtual: `remark`, `watch_next`, `to_rewatch`, `display_name`, `director`,
-`genre_main` / `genre_sub` / `label`, `original_source` (tag link fields; `original_source` has no
+`genre_main` / `genre_sub` / `label`, `original_source` (tag link fields; on a movie the
+`original_source` field is labelled **Exclusive Source** everywhere it is shown, while
+TV Show, Cartoon and H-Comic call it Original Source - the key, the sheet header and
+the multi-value shape are the same on all four. `original_source` has no
 `LEGACY_SHEET_COLUMN` entry for `movie`, so its response attribute is the
 field key itself - see the response-attribute note under
 [Virtual fields](#virtual-fields-on-media-entries)) and `sources`.
@@ -377,9 +384,11 @@ Live-action / scripted TV. Model: `TVShows`. CHECK: `ck_tv_shows_release_date_is
 | `tv_name_en` / `_cn` / `_alt` | String | yes | | |
 | `region` | String | yes | | TV_REGIONS |
 | `season_part` | String | yes | | |
+| `airing_type` | String | yes | `TV` | TV_SHOW_AIRING_TYPES (`TV`, `Special`) |
 | `airing_status` | String | yes | | |
 | `is_main` | String | yes | | |
 | `ep_total` | Integer | yes | | |
+| `runtime_min` | Integer | yes | | Minutes per episode. Fill writes TMDB's season runtime |
 | `imdb_rating` | String | yes | | This season's own: the mean of its episodes' ratings (see `business-rules.md` §10c) |
 | `imdb_series_rating` | String | yes | | The whole show's, every season of it alike |
 | `release_date` | String | yes | | |
@@ -403,7 +412,7 @@ Western animation. Model: `Cartoon`. CHECK: `ck_cartoons_release_date_iso`.
 | `airing_status` | String | yes | | |
 | `is_main` | String | yes | | |
 | `ep_total` | Integer | yes | | |
-| `length_ep_min` | Integer | yes | | Minutes per episode |
+| `runtime_min` | Integer | yes | | Minutes per episode |
 | `imdb_rating` | String | yes | | A `TV` cartoon's is this season's own (see `business-rules.md` §10c); any other's is the title's |
 | `imdb_series_rating` | String | yes | | The whole show's on a `TV` cartoon; empty on any other |
 | `release_date` | String | yes | | |
@@ -473,7 +482,6 @@ Alembic revision `nv1u2n3i4t5s`.
 | `anilist_rank` | Integer | yes | | AniList all-time rated rank |
 | `anilist_popularity_rank` | Integer | yes | | AniList all-time popularity rank |
 | `release_date` / `end_date` | String | yes | | |
-| `read_order` | Float | yes | | Manual ordering within the group |
 | `mal_id` | Integer | yes | | |
 | `mal_link` | String | yes | | |
 | `openlibrary_id` | String | yes | | Open Library work id (`"OL5738148W"`). **String**, unlike `comicvine_id`'s `Integer` - the trailing letter distinguishes a work (`OL…W`) from an edition (`OL…M`) or an author (`OL…A`), which a bare integer would discard |
@@ -578,7 +586,7 @@ same table carrying a `base_game_id`, not a row in a second table. Model:
 | `all_collected` | String | yes | | GAME_COMPLETION_FLAGS: every in-game collectible found, or `Inapplicable` for a game that hides none |
 | `steam_progress_sync` | Boolean | yes | | A tristate boolean, and the one flag here that is NOT a completion axis - it is about the source, not the game, so it kept its type when the three above became a vocabulary. `NULL`/`true` = Steam is the authority for `hours_played` and `achievements_earned`; `false` blocks Steam from writing either, for a game owned on Steam but played elsewhere. Governs those two columns only - prices and the Metacritic score ignore it entirely. |
 | `achievements_earned` / `achievements_total` | Integer | yes | | A count, independent of `all_achievements`. `achievements_earned` is Steam-fillable and overwrite, guarded by `steam_progress_sync` and a zero/unknown check - see [external-apis.md](external-apis.md#steam); `achievements_total` is fill-only. |
-| `release_status` | String | yes | | GAME_RELEASE_STATUSES (Rumored / Unreleased / Early Access / Released / Ongoing / Discontinued / Cancelled) |
+| `release_status` | String | yes | | GAME_RELEASE_STATUSES (Unreleased / Early Access / Released / Ongoing / Discontinued / Cancelled) |
 | `release_date` | String | yes | | Truncated ISO-8601, CHECK `ck_games_release_date_iso` |
 | `current_patch` | String | yes | | What is installed, not what changed in it: "1.6.1", "Update 7" |
 | `hours_played` | Float | yes | | Steam-fillable, overwrite, guarded by `steam_progress_sync` and a zero/unknown check (minutes ÷ 60 from `GetOwnedGames`) - see [external-apis.md](external-apis.md#steam) |
@@ -629,6 +637,9 @@ joined on its own table's `system_id`.
 | `price_paid` | Numeric(10,2) | yes | | What **I** paid |
 | `price_currency` | String | yes | | |
 | `acquired_date` | String | yes | | Truncated ISO-8601, CHECK `ck_game_copy_acquired_date_iso` |
+| `sell_price` | Numeric(10,2) | yes | | What the copy sold for. A record only: no statistic reads it |
+| `sell_currency` | String | yes | | The same vocabulary as `price_currency` |
+| `hours_played` | Float | yes | | Decimal hours on this copy (`12.5`). A record only: it does not roll up into `games.hours_played` |
 | `remark` | String | yes | | A plain column here, not a `note` row |
 | `position` | Integer | **no** | `0` (server default too) | Order within the game |
 | `created_at` | DateTime | yes | now | No `updated_at` |
@@ -2804,4 +2815,4 @@ models - use this file instead:
 | Relation kinds: 11 | 14 stored kinds, 15 dropdown labels (`prequel` → swapped `sequel`). |
 | `plan_next.kind` has no default | `server_default="next"`, and it is load-bearing for Pull. |
 | `role` / `content_label` have no timestamps | Both have `created_at` / `updated_at`. |
-| `cartoon.airing_type` values TV / Movie / Other | `CARTOON_AIRING_TYPES` = TV, Movie, OVA, Special. |
+| `cartoon.airing_type` values TV / Movie / Other | `CARTOON_AIRING_TYPES` = TV, Movie, Special. |

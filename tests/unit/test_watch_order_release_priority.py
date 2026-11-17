@@ -45,6 +45,11 @@ def test_display_never_invents_precision():
     assert release_display(entry, "manga") == "2020"
 
 
-def test_anime_display_reads_the_single_column():
-    anime = types.SimpleNamespace(release_date="2024-07")
+def test_anime_display_puts_japan_first():
+    anime = types.SimpleNamespace(release_date_jp="2024-07", release_date_tw="2024-10")
     assert release_display(anime, "anime") == "2024-07"
+
+
+def test_anime_display_falls_back_to_taiwan():
+    anime = types.SimpleNamespace(release_date_jp=None, release_date_tw="2024-10")
+    assert release_display(anime, "anime") == "2024-10"

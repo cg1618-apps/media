@@ -258,7 +258,7 @@ def anime_post_processing(anime: Anime, db: Session) -> None:
 
     if (
         anime.release_season is None
-        and anime.release_date is not None
+        and anime.release_date_jp is not None
         and anime.airing_type == "TV"
     ):
         apply_calculate_seasonal_from_month(anime)

@@ -89,7 +89,6 @@ class NovelBase(BaseModel):
     release_date: Optional[str] = None
     end_date: Optional[str] = None
 
-    read_order: Optional[float] = None
 
     mal_id: Optional[int] = None
     mal_link: Optional[str] = None

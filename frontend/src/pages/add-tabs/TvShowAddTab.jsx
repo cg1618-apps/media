@@ -23,7 +23,8 @@ import {
   IS_MAIN,
   MY_RATINGS,
   TV_REGIONS,
-  WATCHING_STATUSES,
+  AIRING_WATCHING_STATUSES,
+  TV_SHOW_AIRING_TYPES,
 } from "../../config/fieldOptions";
 import { endpoints } from "../../api/endpoints";
 
@@ -115,7 +116,7 @@ export function TvShowFormBody({ f, u, sources, ownerId }) {
             value={f.watching_status ?? ""}
             onChange={(e) => u("watching_status", e.target.value)}
           >
-            <StatusOptions statuses={WATCHING_STATUSES} />
+            <StatusOptions statuses={AIRING_WATCHING_STATUSES} />
           </select>
         </Field>
         {choice("my_rating", "My Rating", MY_RATINGS)}
@@ -158,12 +159,16 @@ export function TvShowFormBody({ f, u, sources, ownerId }) {
         {choice("region", "Region", TV_REGIONS)}
       </div>
       <div className={row2}>
+        {choice("airing_type", "Airing Type", TV_SHOW_AIRING_TYPES)}
         {choice("airing_status", "Airing Status", AIRING_STATUSES)}
+      </div>
+      <div className={row2}>
         <ReleaseDateInput
           label="Release Date"
           value={f.release_date}
           onChange={(v) => u("release_date", v)}
         />
+        {count("runtime_min", "Runtime (min)", "45")}
       </div>
 
       <GenreLabelFields

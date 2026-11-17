@@ -30,10 +30,13 @@ export function isBaha(entry, bahamutOptionId) {
   return getBahaRow(entry, bahamutOptionId)?.available === true;
 }
 
+// An anime's release line. The season belongs to the JP broadcast, so its
+// year is the JP date's; with no season, the JP date then the TW one.
 export function getReleaseFallback(entry) {
-  const date = entry.release_date;
-  if (entry.release_season && date)
-    return `${entry.release_season} ${String(date).slice(0, 4)}`;
+  const jp = entry.release_date_jp;
+  if (entry.release_season && jp)
+    return `${entry.release_season} ${String(jp).slice(0, 4)}`;
+  const date = jp || entry.release_date_tw;
   if (date) return formatReleaseDate(date);
   return "TBA";
 }

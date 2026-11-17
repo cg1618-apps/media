@@ -112,12 +112,16 @@ def _constants() -> dict[str, list[str]]:
         "reading_status": _values(c.ReadStatus),
         "playing_status": _values(c.PlayStatus),
         "airing_status": _values(c.AiringStatus),
+        # movies.release_status and anime_movies.release_status.
+        "film_release_status": list(c.FILM_RELEASE_STATUSES),
+        "anime_movie_release_type": list(c.ANIME_MOVIE_RELEASE_TYPES),
         # Served from the FRANCHISE_TYPES / ANIME_AIRING_TYPES tuples, not the
         # enum, because the frontend dropdown has diverged from the Enum
         # class. See the comment above those tuples in app/utils/constants.py
         # (Ruling R10) before "fixing" this back to _values(c.AnimeAiringType).
         "anime_airing_type": list(c.ANIME_AIRING_TYPES),
         "cartoon_airing_type": list(c.CARTOON_AIRING_TYPES),
+        "tv_show_airing_type": list(c.TV_SHOW_AIRING_TYPES),
         # Served from the FRANCHISE_TYPES tuple, not the enum, because the
         # frontend dropdown has diverged from the Enum class. See the comment
         # above that tuple in app/utils/constants.py (Ruling R10) before

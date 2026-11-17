@@ -22,7 +22,10 @@ const ENTRY = {
   anime_movie_name_cn: "測試動畫電影",
   anime_movie_name_en: "Test Anime Movie",
   anime_movie_name_roman: null,
-  airing_status: "Finished Airing",
+  release_status: "Released",
+  release_type: "Cinema",
+  release_date_jp: "2024-07-19",
+  release_date_tw: "2024-08-02",
   watching_status: "Completed",
   remark: "Seen twice",
 };
@@ -41,13 +44,13 @@ const CAST_ROW = {
 const ok = (body) => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
 
 // A member with a list of their own (self.list), so the tracker is drawn.
-function mockFetch() {
+function mockFetch(entry = ENTRY) {
   vi.stubGlobal(
     "fetch",
     vi.fn((url) => {
       const u = String(url);
       if (u.startsWith("/api/casting/anime-movie/")) return ok({ cast: [CAST_ROW] });
-      if (u.startsWith("/api/anime-movie/")) return ok(ENTRY);
+      if (u.startsWith("/api/anime-movie/")) return ok(entry);
       if (u.startsWith("/api/auth/me")) {
         return ok({
           username: "reader",
@@ -101,5 +104,40 @@ describe("AnimeMovie detail page - tab title and contents", () => {
     await waitFor(() =>
       expect(rows()).toEqual(["My tracker", "Naming", "Information", "Production", "Cast", "Remarks"]),
     );
+  });
+});
+
+describe("AnimeMovie detail page - release", () => {
+  const information = async () =>
+    within(await screen.findByRole("heading", { level: 3, name: "Information" }).then((h) => h.closest("section")));
+
+  it("shows the release status and type, and a Cinema release's JP and TW dates", async () => {
+    mockFetch();
+    mount();
+    const card = await information();
+    expect(card.getByText("Release Status")).toBeInTheDocument();
+    expect(card.getByText("Released")).toBeInTheDocument();
+    expect(card.getByText("Release Type")).toBeInTheDocument();
+    expect(card.getByText("Cinema")).toBeInTheDocument();
+    expect(card.getByText("Release Date JP")).toBeInTheDocument();
+    expect(card.getByText("Release Date TW")).toBeInTheDocument();
+    expect(card.queryByText("Airing Status")).toBeNull();
+  });
+
+  it("shows an ONA's one Release Date in place of the JP and TW rows", async () => {
+    mockFetch({ ...ENTRY, release_type: "ONA", release_date_jp: "2025-03-01", release_date_tw: "2025-03-01" });
+    mount();
+    const card = await information();
+    expect(card.getByText("Release Date")).toBeInTheDocument();
+    expect(card.getByText("2025-03-01")).toBeInTheDocument();
+    expect(card.queryByText("Release Date JP")).toBeNull();
+    expect(card.queryByText("Release Date TW")).toBeNull();
+  });
+
+  it("falls back to the TW date on an ONA with no JP one", async () => {
+    mockFetch({ ...ENTRY, release_type: "ONA", release_date_jp: null, release_date_tw: "2025-04" });
+    mount();
+    const card = await information();
+    expect(card.getByText("2025-04")).toBeInTheDocument();
   });
 });

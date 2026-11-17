@@ -77,6 +77,9 @@ describe("GameCopiesSection", () => {
     price_currency: "USD",
     acquired_date: "2024-05-17",
     remark: "summer sale",
+    sell_price: "7.50",
+    sell_currency: "EUR",
+    hours_played: 12.5,
   };
 
   it("shows every field of a copy", () => {
@@ -88,6 +91,8 @@ describe("GameCopiesSection", () => {
     expect(screen.getByText("USD 9.99")).toBeInTheDocument();
     expect(screen.getByText("2024-05-17")).toBeInTheDocument();
     expect(screen.getByText("summer sale")).toBeInTheDocument();
+    expect(screen.getByText("sold EUR 7.50")).toBeInTheDocument();
+    expect(screen.getByText("12.5 h")).toBeInTheDocument();
   });
 
   it("orders the rows by position", () => {

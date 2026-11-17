@@ -50,6 +50,21 @@ describe("GameCopiesEditor", () => {
     expect(onChange.mock.calls[0][0][1].ownership).toBe("Owned");
   });
 
+  it("edits the sale price, its currency and the hours played", async () => {
+    const onChange = vi.fn();
+    render(<GameCopiesEditor items={ROWS} onChange={onChange} />);
+    fireEvent.change(screen.getByLabelText("Sell price for Steam"), {
+      target: { value: "7.5" },
+    });
+    expect(onChange.mock.calls[0][0][0].sell_price).toBe("7.5");
+    await userEvent.selectOptions(screen.getByLabelText("Sell currency for Steam"), "EUR");
+    expect(onChange.mock.calls[1][0][0].sell_currency).toBe("EUR");
+    fireEvent.change(screen.getByLabelText("Hours played for Steam"), {
+      target: { value: "12.5" },
+    });
+    expect(onChange.mock.calls[2][0][0].hours_played).toBe("12.5");
+  });
+
   // The row used to be one flex-wrap line holding everything, so a full copy
   // overflowed: Remark was squeezed to a few pixels and the remove control
   // wrapped onto a line of its own under the row. The fields wrap inside

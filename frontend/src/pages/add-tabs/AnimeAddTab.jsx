@@ -35,7 +35,7 @@ import {
   PART_NUMS,
   RELEASE_SEASONS,
   SEASON_NUMS,
-  WATCHING_STATUSES,
+  AIRING_WATCHING_STATUSES,
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
 import { endpoints } from "../../api/endpoints";
@@ -111,7 +111,7 @@ export function AnimeFormBody({ f, u, sources, ownerId }) {
             value={f.watching_status ?? ""}
             onChange={(e) => u("watching_status", e.target.value)}
           >
-            <StatusOptions statuses={WATCHING_STATUSES} />
+            <StatusOptions statuses={AIRING_WATCHING_STATUSES} />
           </select>
         </Field>
         {select("my_rating", "My Rating", MY_RATINGS)}
@@ -158,15 +158,24 @@ export function AnimeFormBody({ f, u, sources, ownerId }) {
         {select("airing_type", "Airing Type", ANIME_AIRING_TYPES)}
         {select("airing_status", "Airing Status", AIRING_STATUSES)}
       </div>
-      <div className={ROW2}>
+      {/* The season belongs to the JP broadcast; its year is the JP date's. */}
+      <div className={ROW3}>
         {select("release_season", "Release Season", RELEASE_SEASONS)}
         <ReleaseDateInput
-          label="Release Date"
-          value={f.release_date}
-          onChange={(v) => u("release_date", v)}
+          label="Release Date JP"
+          value={f.release_date_jp}
+          onChange={(v) => u("release_date_jp", v)}
+        />
+        <ReleaseDateInput
+          label="Release Date TW"
+          value={f.release_date_tw}
+          onChange={(v) => u("release_date_tw", v)}
         />
       </div>
-      <div className={ROW2}>{count("ep_special", "EP Special", { step: "0.01" })}</div>
+      <div className={ROW2}>
+        {count("ep_special", "EP Special", { step: "0.01" })}
+        {count("runtime_min", "Runtime (min)", { placeholder: "e.g. 24" })}
+      </div>
 
       <GenreLabelFields
         mediaType="anime"

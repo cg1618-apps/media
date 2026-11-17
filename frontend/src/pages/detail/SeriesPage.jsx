@@ -64,7 +64,8 @@ import { entityPath } from "../../lib/entityPath";
 import { useRemarkSaver } from "../../api/mutations/useRemark";
 
 const WATCHING_STATUS_GROUPS = {
-  Planned: ["Plan to Watch", "Watch When Airs"],
+  // Watch When Released is the two films' spelling of Watch When Airs.
+  Planned: ["Plan to Watch", "Watch When Airs", "Watch When Released"],
   Watching: ["Active Watching", "Passive Watching", "Paused"],
   Completed: COMPLETED_STATUSES,
   Dropped: ["Temp Dropped", "Dropped", "Won't Watch"],
@@ -78,8 +79,9 @@ function getWatchingGroup(status) {
   return "Might Watch";
 }
 
+// JP first, matching the stored release priority for anime.
 function animeDateScore(a) {
-  return releaseScore(a.release_date);
+  return releaseScore(a.release_date_jp || a.release_date_tw);
 }
 
 // TW first, matching the stored release priority for movies.
@@ -196,7 +198,7 @@ export default function SeriesPage() {
   // ── Movies tab state ──────────────────────────────────────────────────────
   const [movSort, setMovSort] = useState("release_date");
   const [movFilters, setMovFilters] = useState({
-    airingStatus: new Set(),
+    releaseStatus: new Set(),
     watchingStatus: new Set(),
   });
 
@@ -835,8 +837,8 @@ export default function SeriesPage() {
   const filteredAndSortedMovies = useMemo(() => {
     let result = movieList.filter((m) => {
       if (
-        movFilters.airingStatus.size > 0 &&
-        !movFilters.airingStatus.has(m.airing_status)
+        movFilters.releaseStatus.size > 0 &&
+        !movFilters.releaseStatus.has(m.release_status)
       )
         return false;
       if (movFilters.watchingStatus.size > 0) {
@@ -1779,15 +1781,15 @@ export default function SeriesPage() {
             <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
             {[
-              ["Finished", "Finished Airing"],
-              ["Not Aired", "Not Yet Aired"],
+              ["Released", "Released"],
+              ["Not Released", "Not Released"],
             ].map(([label, val]) => (
               <button
                 key={val}
                 onClick={() =>
-                  toggleSetFilter(setMovFilters, "airingStatus", val)
+                  toggleSetFilter(setMovFilters, "releaseStatus", val)
                 }
-                className={pillCls(movFilters.airingStatus.has(val))}
+                className={pillCls(movFilters.releaseStatus.has(val))}
               >
                 {label}
               </button>

@@ -19,6 +19,7 @@ from app.models import (
     Studio,
     TVShows,
 )
+from app.services.domain.anime_movie import sync_ona_release_date
 from app.services.domain.credits import (
     AmbiguousNameError,
     credit_names,
@@ -79,6 +80,8 @@ from app.utils.steam_utils import (
     steam_header_image_url,
 )
 from app.utils.tenrai_utils import (
+    anime_release_date_tw,
+    anime_runtime_min,
     map_tenrai_credits,
     map_tenrai_to_anime_data,
     map_tenrai_to_anime_movie_data,
@@ -209,10 +212,21 @@ def autofill_anime_from_mal(
             anime.airing_status = j_data.get("airing_status")
         if anime.release_season is None:
             anime.release_season = j_data.get("release_season")
-        if anime.release_date is None:
-            anime.release_date = j_data.get("release_date")
+        if anime.release_date_jp is None:
+            anime.release_date_jp = j_data.get("release_date_jp")
+        # TW takes MAL's date too, except on an entry typed Movie: the entry's
+        # own airing type decides (just filled above when it was empty).
+        if anime.release_date_tw is None:
+            anime.release_date_tw = anime_release_date_tw(
+                j_data.get("release_date_jp"), anime.airing_type
+            )
         if anime.ep_total is None:
             anime.ep_total = j_data.get("ep_total")
+        # The runtime band skips a Movie, decided by the entry's type too.
+        if anime.runtime_min is None:
+            anime.runtime_min = anime_runtime_min(
+                raw_data.get("duration"), anime.airing_type
+            )
         _write_tenrai_reference_rows(db, "anime", anime, j_data)
         _write_mal_credits(db, "anime", anime, raw_data)
 
@@ -269,8 +283,9 @@ def autofill_hentai_from_mal(hentai, db: Session = None) -> None:
 
         if hentai.airing_status is None:
             hentai.airing_status = j_data.get("airing_status")
+        # The anime mapper's JP date: a hentai has the one release date.
         if hentai.release_date is None:
-            hentai.release_date = j_data.get("release_date")
+            hentai.release_date = j_data.get("release_date_jp")
         if hentai.ep_total is None:
             hentai.ep_total = j_data.get("ep_total")
         _write_tenrai_reference_rows(db, "hentai", hentai, j_data)
@@ -502,10 +517,15 @@ def autofill_anime_movie_from_mal(
 
         j_data = map_tenrai_to_anime_movie_data(raw_data)
 
-        if anime_movie.airing_status is None:
-            anime_movie.airing_status = j_data.get("airing_status")
+        # Fill-only, with Not Released - the status a new anime movie starts
+        # at - counting as unfilled: MAL may only ever move it forward.
+        if anime_movie.release_status in (None, "Not Released") and j_data.get(
+            "release_status"
+        ):
+            anime_movie.release_status = j_data["release_status"]
         if anime_movie.release_date_jp is None:
             anime_movie.release_date_jp = j_data.get("release_date_jp")
+            sync_ona_release_date(db, anime_movie)
         _write_tenrai_reference_rows(db, "anime-movie", anime_movie, j_data)
         _write_mal_credits(db, "anime-movie", anime_movie, raw_data)
 
@@ -743,16 +763,17 @@ def autofill_movie_from_imdb(movie: Movies, db: Session) -> None:
         if fetched_rating is not None:
             movie.imdb_rating = fetched_rating
 
-        # Derive airing_status from raw release_date (fill-only)
-        if movie.airing_status is None and tmdb_raw is not None:
+        # Derive release_status from raw release_date. Fill-only, with Not
+        # Released - the status a new movie starts at - counting as unfilled.
+        if movie.release_status in (None, "Not Released") and tmdb_raw is not None:
             raw_date = tmdb_raw.get("release_date")
             if raw_date:
                 try:
                     release_date = date.fromisoformat(raw_date)
-                    movie.airing_status = (
-                        "Finished Airing"
+                    movie.release_status = (
+                        "Released"
                         if release_date <= date.today()
-                        else "Not Yet Aired"
+                        else "Not Released"
                     )
                 except (ValueError, TypeError):
                     pass
@@ -833,6 +854,8 @@ def autofill_tv_show_from_imdb(tv_show: TVShows, db: Session) -> None:
             fetched_ep_total = mapped.get("ep_total")
             if fetched_ep_total:
                 tv_show.ep_total = fetched_ep_total
+        if tv_show.runtime_min is None:
+            tv_show.runtime_min = mapped.get("runtime_min")
 
         _write_imdb_ratings(tv_show, mapped)
 

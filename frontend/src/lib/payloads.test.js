@@ -140,6 +140,19 @@ describe("the publisher field posts a credit, not a tag", () => {
 // The IGDB numeric id is Fill's only handle on a game, and the public
 // www.igdb.com link the picker stores carries a slug rather than the id - so
 // the id the admin picked has to travel in the payload of its own accord.
+describe("game copies", () => {
+  it("carry the sale price, its currency and the hours played", () => {
+    const { copies } = gameFieldsPayload({
+      copies: [
+        { storefront: "Steam", sell_price: "7.5", sell_currency: "EUR", hours_played: "12.5" },
+        { storefront: "GOG", sell_price: "", sell_currency: "", hours_played: "" },
+      ],
+    });
+    expect(copies[0]).toMatchObject({ sell_price: 7.5, sell_currency: "EUR", hours_played: 12.5 });
+    expect(copies[1]).toMatchObject({ sell_price: null, sell_currency: null, hours_played: null });
+  });
+});
+
 describe("game igdb_id", () => {
   it("is sent alongside the link", () => {
     const payload = gameFieldsPayload({
@@ -588,9 +601,43 @@ describe("movie, tv show and cartoon bodies", () => {
     });
   });
 
-  it("cartoon sends its episode length as a number", () => {
-    expect(cartoonFieldsPayload({ length_ep_min: "22" }).length_ep_min).toBe(22);
-    expect(cartoonFieldsPayload({ length_ep_min: "" }).length_ep_min).toBeNull();
+  it.each([
+    ["tv show", tvShowFieldsPayload],
+    ["cartoon", cartoonFieldsPayload],
+  ])("%s sends its runtime as a number", (_, build) => {
+    expect(build({ runtime_min: "22" }).runtime_min).toBe(22);
+    expect(build({ runtime_min: "" }).runtime_min).toBeNull();
+    expect("length_ep_min" in build({})).toBe(false);
+  });
+
+  it("tv show sends its airing type", () => {
+    expect(tvShowFieldsPayload({ airing_type: "Special" }).airing_type).toBe("Special");
+    expect(tvShowFieldsPayload({ airing_type: "" }).airing_type).toBeNull();
+  });
+});
+
+describe("anime release dates and runtime", () => {
+  it("sends the JP and TW release dates apart, and no plain release_date", () => {
+    const body = buildAnimePayload({
+      release_date_jp: "2024-04",
+      release_date_tw: "2024-05-01",
+    });
+    expect(body.release_date_jp).toBe("2024-04");
+    expect(body.release_date_tw).toBe("2024-05-01");
+    expect("release_date" in body).toBe(false);
+    expect(buildAnimePayload({ release_date_jp: "" }).release_date_jp).toBeNull();
+  });
+
+  it("sends its runtime as a number", () => {
+    expect(buildAnimePayload({ runtime_min: "24" }).runtime_min).toBe(24);
+    expect(buildAnimePayload({ runtime_min: "" }).runtime_min).toBeNull();
+  });
+});
+
+describe("novel read order", () => {
+  it("is no longer sent; comic keeps its own", () => {
+    expect("read_order" in novelFieldsPayload({ read_order: "1" })).toBe(false);
+    expect(comicFieldsPayload({ read_order: "2" }).read_order).toBe(2);
   });
 });
 
@@ -744,5 +791,45 @@ describe("blank finished counts on the other bodies", () => {
     expect(body.page_fin).toBeNull();
     expect(body.ch_fin).toBeNull();
     expect(hComicFieldsPayload({ region: "JP", page_fin: "0" }).page_fin).toBe(0);
+  });
+});
+
+// The two film types carry release_status where the airing types carry
+// airing_status; an anime movie also carries its release type.
+describe("film release status and anime movie release type", () => {
+  it("movie sends release_status and no airing_status", () => {
+    const body = movieFieldsPayload({ release_status: "Released" });
+    expect(body.release_status).toBe("Released");
+    expect("airing_status" in body).toBe(false);
+  });
+
+  it("anime movie sends release_status and release_type, and no airing_status", () => {
+    const body = buildAnimeMoviePayload({ release_status: "Not Released", release_type: "ONA" });
+    expect(body.release_status).toBe("Not Released");
+    expect(body.release_type).toBe("ONA");
+    expect("airing_status" in body).toBe(false);
+    expect(buildAnimeMoviePayload({}).release_type).toBe("Cinema");
+  });
+
+  it("an ONA sends its one date in both columns, JP first", () => {
+    const ona = (jp, tw) =>
+      buildAnimeMoviePayload({ release_type: "ONA", release_date_jp: jp, release_date_tw: tw });
+    expect(ona("2025-01", "2025-03")).toMatchObject({
+      release_date_jp: "2025-01",
+      release_date_tw: "2025-01",
+    });
+    expect(ona("", "2025-03")).toMatchObject({
+      release_date_jp: "2025-03",
+      release_date_tw: "2025-03",
+    });
+  });
+
+  it("a Cinema release keeps its two dates apart", () => {
+    const body = buildAnimeMoviePayload({
+      release_type: "Cinema",
+      release_date_jp: "2025-01",
+      release_date_tw: "2025-03",
+    });
+    expect(body).toMatchObject({ release_date_jp: "2025-01", release_date_tw: "2025-03" });
   });
 });

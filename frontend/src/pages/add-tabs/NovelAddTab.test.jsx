@@ -30,7 +30,6 @@ const NOVEL_SECTIONS = [
   "Genres & Labels",
   "Production",
   "Cast",
-  "Read Order",
   "Units",
   "Links & Sources",
   "Cover & Remark",

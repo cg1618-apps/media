@@ -86,6 +86,7 @@ def map_tmdb_to_tv_show_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "release_date": _convert_tmdb_date(raw_data.get("air_date")),
         "ep_total": len(episodes),
+        "runtime_min": _extract_episode_runtime(episodes),
         "cover_image_url": _build_poster_url(raw_data.get("poster_path")),
         "_season_air_date": raw_data.get("air_date"),
         "_episodes": episodes,
@@ -102,7 +103,7 @@ def map_tmdb_to_cartoon_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
         "release_date": _convert_tmdb_date(raw_data.get("air_date")),
         "ep_total": len(episodes),
         "cover_image_url": _build_poster_url(raw_data.get("poster_path")),
-        "length_ep_min": _extract_episode_runtime(episodes),
+        "runtime_min": _extract_episode_runtime(episodes),
         "_season_air_date": raw_data.get("air_date"),
         "_episodes": episodes,
     }

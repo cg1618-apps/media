@@ -22,11 +22,11 @@ import {
 } from "../../../utils/media";
 
 // ---------------------------------------------------------------------------
-// Release date sort score: the ISO release date, first-of-period for the
-// precision an entry does not carry.
+// Release date sort score: the JP date, then the TW one, first-of-period for
+// the precision an entry does not carry.
 // ---------------------------------------------------------------------------
 function getReleaseSortScore(item) {
-  return releaseScore(item.release_date);
+  return releaseScore(item.release_date_jp || item.release_date_tw);
 }
 
 // ---------------------------------------------------------------------------
@@ -46,7 +46,8 @@ const ANIME_LIBRARY_CONFIG = {
     const fullSeason = item.release_season
       ? SEASON_MAP[item.release_season.toUpperCase()] ?? ""
       : "";
-    const year = releaseYear(item.release_date) || "";
+    // The season names the JP broadcast, so its year is the JP date's.
+    const year = releaseYear(item.release_date_jp) || "";
     const seasonYear =
       item.release_season && year ? `${item.release_season}${year}` : "";
     const fullSeasonYear = fullSeason && year ? `${fullSeason}${year}` : "";
@@ -56,7 +57,8 @@ const ANIME_LIBRARY_CONFIG = {
       f?.franchise_name_cn, f?.franchise_name_en, f?.franchise_name_roman,
       f?.franchise_name_jp, f?.franchise_name_alt,
       s?.series_name_cn,    s?.series_name_en,
-      item.release_season,  fullSeason, item.release_date,
+      item.release_season,  fullSeason,
+      item.release_date_jp, item.release_date_tw,
       seasonYear,           fullSeasonYear,
       item.genre_main,      item.genre_sub,      item.studio,
       item.label,
@@ -78,7 +80,7 @@ const ANIME_LIBRARY_CONFIG = {
       key: "airingStatus",
       label: "Airing Status",
       type: "set",
-      options: ["Airing", "Finished Airing", "Not Yet Aired", "Canceled", "Rumored"],
+      options: ["Airing", "Finished Airing", "Not Yet Aired", "Canceled"],
       match: (item, active) => active.has(item.airing_status),
     },
     {

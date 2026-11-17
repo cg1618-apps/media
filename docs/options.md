@@ -85,16 +85,19 @@ type it serves is seeable.
 
 | Name | Values (in order) | Used by | `/api/constants` key |
 |---|---|---|---|
-| `WatchStatus` (Enum) | `Might Watch`, `Plan to Watch`, `Watch When Airs`, `Active Watching`, `Passive Watching`, `Paused`, `Completed`, `Completed (解說)`, `Temp Dropped`, `Dropped`, `Won't Watch` | `watching_status` on anime, anime_movies, movies, tv_shows, cartoons, hentai | `watching_status` |
+| `WatchStatus` (Enum) | `Might Watch`, `Plan to Watch`, `Watch When Airs`, `Watch When Released`, `Active Watching`, `Passive Watching`, `Paused`, `Completed`, `Completed (解說)`, `Temp Dropped`, `Dropped`, `Won't Watch` | `watching_status` on anime, anime_movies, movies, tv_shows, cartoons, hentai. `Watch When Released` is the film types' (`FILM_MEDIA_TYPES`: movie, anime movie) spelling of `Watch When Airs`: a film offers it in place of `Watch When Airs`, the other four offer `Watch When Airs` and never it, and every grouping that counts one as planned counts both | `watching_status` |
 | `ReadStatus` (Enum) | `Might Read`, `Plan to Read`, `Active Reading`, `Passive Reading`, `Paused`, `Completed`, `Completed (解說)`, `Temp Dropped`, `Dropped`, `Won't Read` | `reading_status` on manga, novel, comic, h_comic | `reading_status` |
 | `COMPLETED_WATCH_STATUSES` | `{Completed, Completed (解說)}` | completion checks (`Completed (解說)` = finished via a summary/commentary video; counts as completed everywhere) | not served |
 | `COMPLETED_READ_STATUSES` | `{Completed, Completed (解說)}` | same, for reading types | not served |
 | `PlayStatus` (Enum) | `Might Play`, `Plan to Play`, `Play When Released`, `Active Playing`, `Passive Playing`, `Play Anytime`, `Paused`, `Completed`, `Temp Dropped`, `Dropped`, `Won't Play` | `playing_status` on games and h_game. `Play When Released` is `Watch When Airs`'s analogue and more load-bearing here: a pre-ordered or wishlisted unreleased title is an ordinary state in a collection organised by purchasable. `Play Anytime` covers titles with nothing to resume and nothing to finish - sandbox (Minecraft), live-service (Valorant) and roguelike (Slay the Spire) alike, because what differs between those three is the game, not the state | `playing_status` |
 | `COMPLETED_PLAY_STATUSES` | `{Completed}` | completion checks for games. One value: there is no games analogue of `Completed (解說)`. Declared anyway so it reads beside its two siblings | not served |
-| `AiringStatus` (Enum) | `Not Yet Aired`, `Airing`, `Finished Airing`, `Canceled`, `Rumored` | `airing_status` (business logic compares string literals, the Enum itself is only served). `hentai.airing_status` is **checked** against it on every write, and it decides a derived h-comic `animation_status` (`Airing` / `Finished Airing` -> `Animated`) | `airing_status` |
+| `AiringStatus` (Enum) | `Not Yet Aired`, `Airing`, `Finished Airing`, `Canceled` | `airing_status` on anime, tv_shows, cartoons and hentai (business logic compares string literals, the Enum itself is only served). `hentai.airing_status` is **checked** against it on every write, and it decides a derived h-comic `animation_status` (`Airing` / `Finished Airing` -> `Animated`) | `airing_status` |
+| `FILM_RELEASE_STATUSES` | `Not Released`, `Released`, `Canceled` | `movies.release_status`, `anime_movies.release_status` - a film is released once, so it has no `Airing`. `Not Released` (`FILM_RELEASE_STATUS_DEFAULT`) on a new entry | `film_release_status` |
+| `ANIME_MOVIE_RELEASE_TYPES` | `Cinema`, `ONA` | `anime_movies.release_type`, checked on every write. `Cinema` (`ANIME_MOVIE_RELEASE_TYPE_DEFAULT`) on a new entry; an `ONA` has one release date, held in both `release_date_jp` and `release_date_tw` | `anime_movie_release_type` |
 | `AnimeAiringType` (Enum) | `TV`, `ONA`, `OVA`, `OAD`, `Special`, `Movie` | backend-internal only | not served |
 | `ANIME_AIRING_TYPES` | `TV`, `Movie`, `ONA`, `OVA`, `OAD`, `Special`, `Other` | `anime.airing_type` dropdown | `anime_airing_type` |
-| `CARTOON_AIRING_TYPES` | `TV`, `Movie`, `OVA`, `Special` | `cartoons.airing_type` dropdown (Fill only handles `TV` and `Movie`, see business-rules.md section 17) | `cartoon_airing_type` |
+| `CARTOON_AIRING_TYPES` | `TV`, `Movie`, `Special` | `cartoons.airing_type` dropdown (Fill only handles `TV` and `Movie`, see business-rules.md section 17) | `cartoon_airing_type` |
+| `TV_SHOW_AIRING_TYPES` | `TV`, `Special` | `tv_shows.airing_type` dropdown; `TV` is the column's default | `tv_show_airing_type` |
 | `FranchiseType` (Enum) | `Movie`, `TV`, `Cartoon`, `Comic`, `Anime`, `Manga`, `Novel`, `Game`, `H-Comic`, `H-Game`, `Hentai` | backend-internal only | not served |
 | `FRANCHISE_TYPES` | `Anime`, `Manga`, `Anime Movie`, `TV`, `Movie`, `Cartoon`, `Comic`, `Novel`, `Game`, `H-Comic`, `H-Game`, `Hentai` | `franchise.franchise_type` dropdown. `H-Comic`, `H-Game` and `Hentai` are the types code branches on: a franchise carrying one carries that gated type's label and only entries of its family resolve into it ([entry-types.md](entry-types.md#franchise_type-values)) | `franchise_type` |
 | `FRANCHISE_FAMILY_FOR_TYPE` | `H-Comic`, `Hentai` and `H-Game` -> `restricted` (`RESTRICTED_FAMILY`); any other type is `mainstream` (`MAINSTREAM_FAMILY`) | which franchise types may share a franchise, and which franchises an entry may sit in. A franchise type list spanning two families is refused (422) | not served |
@@ -111,7 +114,7 @@ type it serves is seeable.
 | `GAME_TYPES` | `Base Game`, `DLC`, `Expansion`, `Bundle` | `games.game_type`, `h_game.game_type`; `Base Game` is the value `ck_games_base_no_parent` / `ck_h_game_base_no_parent` name | `game_type` |
 | `GAME_IS_MAIN` | `Main`, `Remake`, `Remaster` | `games.is_main`, `h_game.is_main` - the game types' own `is_main` vocabulary in place of `IS_MAIN`. A plain label with no tie to the `remake` / `remaster` relation kinds. **Enforced** on both types: a write naming anything else is a 422 (on h-game's tracker PATCH too), and the Sheets parser drops an unknown cell to NULL. The Add form starts a new entry on `Main` | `game_is_main` |
 | `COMPLETION_LEVELS` | `Main Story`, `Main + Extras`, `Post-game`, `Completionist` | `games.completion_level`, `h_game.completion_level`. A ladder of **content depth only** - every ending seen and achievements earned are separate columns, because they move independently of this | `completion_level` |
-| `GAME_RELEASE_STATUSES` | `Rumored`, `Unreleased`, `Early Access`, `Released`, `Ongoing`, `Discontinued`, `Cancelled` | `games.release_status`, `h_game.release_status` | `game_release_status` |
+| `GAME_RELEASE_STATUSES` | `Unreleased`, `Early Access`, `Released`, `Ongoing`, `Discontinued`, `Cancelled` | `games.release_status`, `h_game.release_status`. Pull reads a retired `Rumored` as `Unreleased` (`_game_release_status_from_sheet`) | `game_release_status` |
 | `GAME_COMPLETION_FLAGS` | `Yes`, `No`, `Inapplicable` | `games.all_endings`, `games.all_collected`, `h_game.all_endings`, `h_game.all_cg`. `NULL` is outside the vocabulary and means "not recorded yet"; `Inapplicable` means the game has none of that thing to find. `games.steam_progress_sync` is **not** one of these - it is a boolean lock on Steam writes | `game_completion_flag` |
 | `GAME_ACHIEVEMENT_FLAGS` | `Fully`, `Yes`, `No`, `Inapplicable` | `games.all_achievements` only (h-game has no such column). `Fully` is every achievement including the hidden ones, `Yes` every one except them; `No`, `Inapplicable` and `NULL` mean what they mean on `GAME_COMPLETION_FLAGS`. A Sheets Pull reads it case-insensitively and maps an older backup's `TRUE` / `FALSE` to `Yes` / `No` | `game_achievement_flag` |
 | `GAME_STOREFRONTS` | `Steam`, `Nintendo eShop`, `PlayStation Store`, `Xbox Store`, `GOG`, `Epic Games Store`, `Physical Store`, `Other` | `game_copy.storefront`. A Sheets Pull reads an older backup's `Physical` as `Physical Store` | `game_storefront` |
@@ -545,7 +548,7 @@ Tier 2 category:
 | `genre_main` | Genre Main | `Genre Main` | anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic |
 | `genre_sub` | Genre Sub | `Genre Sub` | anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic |
 | `label` | 標籤 Label | `Label` | anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, game |
-| `original_source` | Original Source | `Platform` | tv-show, cartoon, movie, h-comic |
+| `original_source` | Original Source (labelled Exclusive Source on movie) | `Platform` | tv-show, cartoon, movie, h-comic |
 | `exclusive_source` | Exclusive Source | `Platform` | anime, anime-movie |
 | `serialization_platform` | Serialization Platform | `Serialization Platform` | manga, novel |
 | `comic_imprint` | Imprint | `Comic Imprint` | comic |
@@ -1051,11 +1054,11 @@ are no longer columns.
 
 | Constant | Fields |
 |---|---|
-| `ANIME_FIELDS_TO_FILL` | `airing_type`, `airing_status`, `release_date`, `release_season`, `mal_rating`, `mal_rank`, `ep_total`, `cover_image_file` (`official_link`/`twitter_link` were dropped columns and are deliberately not listed — Fill writes them as `media_source` reference rows now) |
-| `ANIME_MOVIE_FIELDS_TO_FILL` | `airing_status`, `release_date_jp`, `mal_rating`, `mal_rank`, `cover_image_file` (same `official_link`/`twitter_link` exclusion) |
-| `MOVIE_FIELDS_TO_FILL` | `length_min`, `airing_status`, `release_date_usa`, `imdb_rating`, `cover_image_file` |
+| `ANIME_FIELDS_TO_FILL` | `airing_type`, `airing_status`, `release_date_jp`, `release_season`, `mal_rating`, `mal_rank`, `ep_total`, `runtime_min`, `cover_image_file` (`official_link`/`twitter_link` were dropped columns and are deliberately not listed — Fill writes them as `media_source` reference rows now) |
+| `ANIME_MOVIE_FIELDS_TO_FILL` | `release_status`, `release_date_jp`, `mal_rating`, `mal_rank`, `cover_image_file` (same `official_link`/`twitter_link` exclusion) |
+| `MOVIE_FIELDS_TO_FILL` | `length_min`, `release_status`, `release_date_usa`, `imdb_rating`, `cover_image_file` |
 | `MOVIE_LINK_FIELDS_TO_FILL` | `("credit", "director")` |
-| `TV_SHOW_FIELDS_TO_FILL` | `airing_status`, `release_date`, `imdb_rating`, `imdb_series_rating`, `ep_total`, `cover_image_file` |
+| `TV_SHOW_FIELDS_TO_FILL` | `airing_status`, `release_date`, `imdb_rating`, `imdb_series_rating`, `ep_total`, `runtime_min`, `cover_image_file` |
 | `CARTOON_TV_FIELDS_TO_FILL` | `airing_status`, `release_date`, `imdb_rating`, `imdb_series_rating`, `ep_total`, `cover_image_file` |
 | `CARTOON_MOVIE_FIELDS_TO_FILL` | `airing_status`, `release_date`, `imdb_rating`, `cover_image_file` |
 | `MANGA_FIELDS_TO_FILL` | `serialization_status`, `release_date`, `end_date`, `mal_rating`, `mal_rank`, `cover_image_file` |
@@ -1071,6 +1074,7 @@ first column with a value represents the entry):
 
 | Media type | Columns, in order |
 |---|---|
+| `anime` | `release_date_jp`, `release_date_tw` |
 | `anime-movie` | `release_date_jp`, `release_date_tw` |
 | `movie` | `release_date_tw`, `release_date_usa` |
 | all others | `release_date` |
@@ -1146,7 +1150,7 @@ Carried over on purpose; do not "fix" one side without reconciling both.
   `frontend/src/config/fieldOptions.js`, not served.
 - **Anime airing type.** `AnimeAiringType` Enum lacks the trailing `Other`
   that `ANIME_AIRING_TYPES` (served) carries.
-- **Cartoon airing type.** The dropdown offers `TV`, `Movie`, `OVA`, `Special`,
+- **Cartoon airing type.** The dropdown offers `TV`, `Movie`, `Special`,
   but Fill only fetches `TV` and `Movie` (business-rules.md section 17).
 - **`MUSIC_STATUSES` and `MUSIC_TYPE_STATUSES`** are defined once in
   `constants.py` (the registry imports them) and once more each in

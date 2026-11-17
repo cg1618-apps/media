@@ -1,6 +1,6 @@
 # External APIs
 
-Last verified: 2026-11-16
+Last verified: 2026-11-17
 
 ## What this is for
 
@@ -189,7 +189,9 @@ How a MAL studio or author is matched to a row, and when it is credited, is in
 | `type` | `airing_type` | Kept if in `ALLOWED_AIRING_TYPES = {"TV", "Movie", "ONA", "OVA", "Special"}`, otherwise `"Other"` (so MAL's `OAD` becomes `"Other"`). |
 | `status` | `airing_status` | contains "finished" → `"Finished Airing"`; "currently" → `"Airing"`; "not yet" → `"Not Yet Aired"`; else `None`. |
 | `season` | `release_season` | `SEASON_MAP`: winter→`WIN`, spring→`SPR`, summer→`SUM`, fall→`FAL`. |
-| `aired.prop.from` + `aired.string` | `release_date` | `_aired_release_date`: `aired.string` decides the precision (`"Jul 6, 2026 …"` → `2026-07-06`; `"Jul 2026 …"` → `2026-07`; `"2026 …"` → `2026`) and `prop.from` supplies the numbers. `aired.from` alone is padded to 1 January and is deliberately not trusted. |
+| `aired.prop.from` + `aired.string` | `release_date_jp` | `_aired_release_date`: `aired.string` decides the precision (`"Jul 6, 2026 …"` → `2026-07-06`; `"Jul 2026 …"` → `2026-07`; `"2026 …"` → `2026`) and `prop.from` supplies the numbers. `aired.from` alone is padded to 1 January and is deliberately not trusted. |
+| `aired` (as above) + `type` | `release_date_tw` | the JP date again, or `None` when MAL's type is `Movie` (`anime_release_date_tw`). The autofill decides by the **entry's** `airing_type` instead, once that is filled, so an entry typed `Movie` gets JP only. |
+| `duration` | `runtime_min` | `parse_mal_duration_minutes`: whole minutes from `"24 min per ep"`, `"1 hr 46 min"`, `"1 min 31 sec per ep"`, rounded half up and never below 1; `"Unknown"` is `None`. A value from 22 to 26 inclusive (`TV_EPISODE_BAND`) is stored as 24 (`TV_EPISODE_MINUTES`): MAL lists the same half-hour slot anywhere in that range. Outside it, as MAL gives it, and always as MAL gives it on an anime whose `airing_type` is `Movie` - the entry's own type on Fill (`anime_runtime_min`), MAL's on the Add form's prefill. |
 | `score` | `mal_rating` | as-is (float). |
 | `rank` | `mal_rank` | stringified. |
 | `episodes` | `ep_total` | as-is. |
@@ -203,7 +205,7 @@ entry columns — those columns were dropped by migration `dc1o2l3s4d5`. See
 
 ### Mapping for `anime_movies` — `map_tenrai_to_anime_movie_data`
 
-Same rules, except the date goes to `release_date_jp` and there is no `release_season`. The mapper also returns `ep_total`, but `autofill_anime_movie_from_mal` never writes it.
+Same rules, except there is no `release_date_tw`, `runtime_min` or `release_season`, and the status goes to `release_status` in the film vocabulary: `Airing` and `Finished Airing` are `Released`, `Not Yet Aired` is `Not Released`. The mapper also returns `ep_total`, but `autofill_anime_movie_from_mal` never writes it. On an ONA, the filled `release_date_jp` is carried to `release_date_tw` as well. It also maps MAL's `type` to `release_type` (`Movie` → `Cinema`, `ONA` → `ONA`, anything else → nothing). Only the Add form's MAL prefill writes that, where it replaces the untouched `Cinema` default. The autofill of a saved entry leaves `release_type` alone, because a stored `Cinema` may be the default or a choice and nothing records which.
 
 ### Mapping for `hentai` — `map_tenrai_to_anime_data`, four fields and two links
 
@@ -211,8 +213,8 @@ Hentai reads anime's record through anime's mapper, and `autofill_hentai_from_ma
 
 | Tenrai field | Column | Rule |
 |---|---|---|
-| `status` | `airing_status` | anime's mapping; fill-only |
-| `aired` | `release_date` | anime's mapping (precision from MAL's own aired string); fill-only |
+| `status` | `release_status` (anime movie) / `airing_status` (others) | anime's mapping, then the film vocabulary on an anime movie; fill-only |
+| `aired` | `release_date` | anime's mapping's `release_date_jp` (precision from MAL's own aired string); fill-only |
 | `episodes` | `ep_total` | anime's mapping; fill-only |
 | `images` | `cover_image_file` | anime's URL choice; downloaded to `static/covers/hentai/` only when the entry has no cover |
 | `external` | `media_source` reference rows `Official site` and `Twitter` | anime's `_write_tenrai_reference_rows`; a row is added only when the entry has none for that value |
@@ -253,7 +255,8 @@ Tenrai is the h-comic's **first** source, not its only one: [E-Hentai](#e-hentai
 
 | Column(s) | Rule |
 |---|---|
-| `airing_type`, `airing_status`, `release_season`, `release_date` / `release_date_jp`, `ep_total` (anime only), `serialization_status`, `release_date`, `end_date` | **Fill-only** — written only when the column is `None`. |
+| `airing_type`, `airing_status`, `release_season`, `release_date` / `release_date_jp`, `release_date_tw` and `runtime_min` (anime only), `ep_total` (anime only), `serialization_status`, `release_date`, `end_date` | **Fill-only** — written only when the column is `None`. |
+| `release_status` (anime movie) | **Fill-only**, with `Not Released` - the status a new anime movie starts at - counting as unfilled, so MAL can move a film forward to `Released` but never back. |
 | Official site / Twitter (anime, anime movie only) | Not columns any more. `_write_tenrai_reference_rows` calls `upsert_main_source(db, media_type, entry.system_id, "reference", value, url)` for each of the two, which is itself fill-only at the row level: it adds a `media_source` `kind='reference', bucket='main'` row only when no such row exists yet for that vocabulary value, and never overwrites or removes one that does (even one with no `url`). |
 | `vol_total` / `vol_total_original`, `ch_total` | Fill-only, and **only when `serialization_status == "完結"`** — a running series' totals stay blank. |
 | `mal_rating`, `mal_rank` | **Overwritten** when `force_replace_ratings=True` (the default, and what every pipeline passes) and the fetched value is truthy; otherwise fill-only. |
@@ -374,10 +377,10 @@ TMDB (The Movie Database) is reached through its **Find** endpoint, so the looku
 | `air_date` | `release_date` | `release_date` (fill-only) |
 | `len(episodes)` | `ep_total` | `ep_total` (fill-only, and only when non-zero) |
 | `poster_path` | `cover_image_url` | cover download; falls back to the **show-level** `poster_path` when the season has none |
-| most common `episodes[].runtime` | `length_ep_min` | cartoon only, and **mapped but never written** — `autofill_cartoon_from_imdb` does not set the column, so it stays manual (falls back to show-level `episode_run_time[0]` inside the mapper). See [business-rules.md](business-rules.md) § known gaps. |
+| most common `episodes[].runtime` | `runtime_min` | `runtime_min` on a TV show (fill-only). On a cartoon **mapped but never written** — `autofill_cartoon_from_imdb` does not set the column, so it stays manual (falls back to show-level `episode_run_time[0]` inside the mapper). See [business-rules.md](business-rules.md) § known gaps. |
 | `air_date`, `episodes` | `_season_air_date`, `_episodes` | private; used by `_derive_tv_season_airing_status` |
 
-`airing_status` is **derived**, fill-only: movie / movie-cartoon compare TMDB's `release_date` with today (`<= today` → `"Finished Airing"`, else `"Not Yet Aired"`); TV / TV-cartoon use `_derive_tv_season_airing_status` — future season air date → `"Not Yet Aired"`, any episode missing a date or dated in the future → `"Airing"`, otherwise `"Finished Airing"`. Worked example: [notes/autofill-tv-show-example.md](notes/autofill-tv-show-example.md).
+A movie's `release_status` is **derived**, fill-only with `Not Released` counting as unfilled: TMDB's `release_date` on or before today → `"Released"`, else `"Not Released"`. A movie-cartoon's `airing_status` compares the same way (`<= today` → `"Finished Airing"`, else `"Not Yet Aired"`); TV / TV-cartoon use `_derive_tv_season_airing_status` — future season air date → `"Not Yet Aired"`, any episode missing a date or dated in the future → `"Airing"`, otherwise `"Finished Airing"`. Worked example: [notes/autofill-tv-show-example.md](notes/autofill-tv-show-example.md).
 
 ## OMDb
 

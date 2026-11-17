@@ -23,18 +23,22 @@ const SEASON_LABEL = {
   SUM: "Summer",
   FAL: "Fall",
 };
+// Watch When Airs and the films' Watch When Released rank together.
 const WATCHING_PRIORITY = {
   "Watch When Airs": 0,
+  "Watch When Released": 0,
   "Plan to Watch": 1,
   "Might Watch": 2,
 };
 const EXPECTATION_PRIORITY = { Highest: 0, High: 1, Medium: 2, Low: 3 };
 
 function getGroupKey(anime) {
-  const year = releaseYear(anime.release_date) || null;
+  // The season names the JP broadcast, so only the JP year pairs with it.
+  const jpYear = releaseYear(anime.release_date_jp) || null;
   const season = anime.release_season;
-  if (year && season && SEASON_ORDER[season] !== undefined)
-    return `S_${year}_${SEASON_ORDER[season]}`;
+  if (jpYear && season && SEASON_ORDER[season] !== undefined)
+    return `S_${jpYear}_${SEASON_ORDER[season]}`;
+  const year = jpYear || releaseYear(anime.release_date_tw) || null;
   if (year) return `Y_${year}`;
   return "Z_TBD";
 }
@@ -117,7 +121,7 @@ function FutureCard({ ownData, ...cardProps }) {
 
 // A game is "future" while it is one of these. "Early Access" is already
 // out, and "Cancelled" is never coming - neither belongs on this page.
-const GAME_UNRELEASED_STATUSES = ["Rumored", "Unreleased"];
+const GAME_UNRELEASED_STATUSES = ["Unreleased"];
 
 // games.release_date is ISO and may be a bare year, a year-month or a full
 // date (ck_games_release_date_iso), so the year is always its first four
@@ -161,7 +165,7 @@ export default function FutureReleases() {
   });
   const liveMovieQuery = useMediaList("movie", {
     enabled: mainTab === "movie",
-    params: { limit: 2000, airing_status: "Not Yet Aired" },
+    params: { limit: 2000, release_status: "Not Released" },
   });
   const tvShowQuery = useMediaList("tv-show", {
     params: { limit: 2000 },
@@ -202,7 +206,7 @@ export default function FutureReleases() {
   const allAnimeMovies = useMemo(
     () =>
       (animeMovieQuery.data || []).filter(
-        (movie) => movie.airing_status === "Not Yet Aired",
+        (movie) => movie.release_status === "Not Released",
       ),
     [animeMovieQuery.data],
   );

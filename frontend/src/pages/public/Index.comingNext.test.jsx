@@ -21,9 +21,9 @@ function respond(url, me) {
   if (url.startsWith("/api/anime/"))
     return [
       { system_id: "a1", anime_name_en: "Frieren", franchise_id: "f1", watching_status: "Active Watching" },
-      { system_id: "a2", anime_name_en: "Dandadan S3", release_season: "FAL", release_date: "2026-10-02", watching_status: "Watch When Airs" },
-      { system_id: "a3", anime_name_en: "Aired Summer Show", release_season: "SUM", release_date: "2026-07-02", airing_status: "Finished Airing", watching_status: "Watch When Airs" },
-      { system_id: "a4", anime_name_en: "Late Summer Show", release_season: "SUM", release_date: "2026-09-30", airing_status: "Not Yet Aired", watching_status: "Watch When Airs" },
+      { system_id: "a2", anime_name_en: "Dandadan S3", release_season: "FAL", release_date_jp: "2026-10-02", watching_status: "Watch When Airs" },
+      { system_id: "a3", anime_name_en: "Aired Summer Show", release_season: "SUM", release_date_jp: "2026-07-02", airing_status: "Finished Airing", watching_status: "Watch When Airs" },
+      { system_id: "a4", anime_name_en: "Late Summer Show", release_season: "SUM", release_date_jp: "2026-09-30", airing_status: "Not Yet Aired", watching_status: "Watch When Airs" },
     ];
   if (url.startsWith("/api/movies/"))
     return [{ system_id: "m1", movie_name_en: "Dune Messiah", release_date_tw: "2026-12-18", watching_status: "Plan to Watch" }];
@@ -108,7 +108,7 @@ it("opens onto next season's entries, grouped by type under each sub-section", a
   await user.click(within(coming).getByRole("button", { name: "Expand" }));
 
   const next = within(coming).getByRole("region", { name: /^Next season · FAL 2026/ });
-  const airs = within(next).getByRole("heading", { name: "Watch when airs" }).parentElement.parentElement;
+  const airs = within(next).getByRole("heading", { name: "Watch when airs / released" }).parentElement.parentElement;
   expect(within(airs).getByRole("heading", { name: "Anime" })).toBeInTheDocument();
   expect(within(airs).getByText("Dandadan S3")).toBeInTheDocument();
   expect(within(airs).getByRole("heading", { name: "Game" })).toBeInTheDocument();

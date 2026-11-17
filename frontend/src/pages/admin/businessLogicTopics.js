@@ -113,7 +113,7 @@ const CALCULATE_ALL = {
             "Every user gets a Seasonal row for every season the anime catalogue mentions; a season with nothing in it shows zeroes. Then every seasonal row's planned, watching, completed and dropped counts are recounted from that user's own list. These counts are always rewritten.",
           points: [
             "Only TV, ONA, Movie and Special anime count.",
-            "Planned is Plan to Watch or Watch When Airs; watching is Active Watching, Passive Watching or Paused; dropped is Temp Dropped or Dropped.",
+            "Planned is Plan to Watch, Watch When Airs or Watch When Released (the two films' spelling of Watch When Airs); watching is Active Watching, Passive Watching or Paused; dropped is Temp Dropped or Dropped.",
             "Option scopes: every option value an entry uses (a genre, a source) is made available for that entry's media type. This only ever adds — no scope is removed, and an option with no scopes, which is offered everywhere, is never given its first one. It reads every type's values each time, so the later repeats below change nothing new.",
           ],
         },

@@ -15,16 +15,18 @@
 
 /** Tier 1 group definitions, in the order they appear on the page. */
 export const TIER1_GROUPS = [
-  // One group, not an "Airing Type" one beside it: anime_airing_type and
-  // cartoon_airing_type answer the same question the other five do - what kind
-  // of work is this entry - and reading them apart made the answer look like
-  // two different things.
+  // One group, not an "Airing Type" one beside it: the three airing-type
+  // lists answer the same question the other four do - what kind of work is
+  // this entry - and reading them apart made the answer look like two
+  // different things.
   {
     title: "Entry Type",
     keys: [
       "anime_airing_type",
       "cartoon_airing_type",
+      "tv_show_airing_type",
       "movie_type",
+      "anime_movie_release_type",
       "novel_type",
       "comic_type",
       "game_type",
@@ -38,6 +40,7 @@ export const TIER1_GROUPS = [
     title: "Publication Status",
     keys: [
       "airing_status",
+      "film_release_status",
       "manga_serialization_status",
       "novel_serialization_status",
       "game_release_status",

@@ -167,3 +167,12 @@ describe("TV detail page release step", () => {
     expect(screen.queryByText("My tracker")).toBeNull();
   });
 });
+
+describe("TV detail page information", () => {
+  it("shows the airing type and the runtime", async () => {
+    mockFetch({ ...SHOW, airing_type: "Special", runtime_min: 47 });
+    mount();
+    expect(await screen.findByText("Special")).toBeInTheDocument();
+    expect(screen.getByText("47")).toBeInTheDocument();
+  });
+});

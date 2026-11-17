@@ -10,25 +10,27 @@ from app.schemas.movie import MovieBase
 
 def test_anime_accepts_every_precision():
     for value in ("2024", "2024-05", "2024-05-17"):
-        assert AnimeBase(release_date=value).release_date == value
+        assert AnimeBase(release_date_jp=value).release_date_jp == value
+        assert AnimeBase(release_date_tw=value).release_date_tw == value
 
 
 def test_anime_accepts_a_null_release_date():
-    assert AnimeBase().release_date is None
+    assert AnimeBase().release_date_jp is None
+    assert AnimeBase().release_date_tw is None
 
 
 def test_anime_normalizes_the_legacy_format_on_the_way_in():
-    assert AnimeBase(release_date="JUL 2001").release_date == "2001-07"
+    assert AnimeBase(release_date_jp="JUL 2001").release_date_jp == "2001-07"
 
 
 def test_anime_rejects_an_impossible_month():
     with pytest.raises(ValidationError):
-        AnimeBase(release_date="2024-13")
+        AnimeBase(release_date_tw="2024-13")
 
 
 def test_anime_rejects_unparseable_text():
     with pytest.raises(ValidationError):
-        AnimeBase(release_date="sometime next year")
+        AnimeBase(release_date_jp="sometime next year")
 
 
 def test_movie_validates_both_regional_columns():

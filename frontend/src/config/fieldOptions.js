@@ -9,18 +9,41 @@ import { WEEKDAYS } from "./weekdays";
 
 export { NOVEL_UNIT_KINDS_BY_TYPE } from "../lib/novelUnits";
 
+// The airing types' airing_status: anime, TV show, cartoon and hentai. The
+// two film types carry FILM_RELEASE_STATUSES instead.
 export const AIRING_STATUSES = [
   "Not Yet Aired",
   "Airing",
   "Finished Airing",
   "Canceled",
-  "Rumored",
 ];
 
+// movies.release_status and anime_movies.release_status (/api/constants
+// `film_release_status`). A film is released once, so it has no Airing. The
+// release_status key is shared with games, whose vocabulary is
+// GAME_RELEASE_STATUSES below.
+export const FILM_RELEASE_STATUSES = ["Not Released", "Released", "Canceled"];
+
+// anime_movies.release_type. An ONA has one release date, held in both
+// release_date_jp and release_date_tw.
+export const ANIME_MOVIE_RELEASE_TYPES = ["Cinema", "ONA"];
+export const ANIME_MOVIE_ONA = "ONA";
+
+// The two film types: they carry release_status where the other watching
+// types carry airing_status, and Watch When Released where those carry
+// Watch When Airs.
+export const FILM_TYPES = new Set(["movie", "anime-movie"]);
+
+export const isFilmType = (type) => FILM_TYPES.has(type);
+
+// The whole watching vocabulary, as /api/constants serves it. No one type
+// offers all of it: a film offers Watch When Released and the airing types
+// Watch When Airs - see watchingStatusesFor().
 export const WATCHING_STATUSES = [
   "Might Watch",
   "Plan to Watch",
   "Watch When Airs",
+  "Watch When Released",
   "Active Watching",
   "Passive Watching",
   "Paused",
@@ -75,7 +98,6 @@ export const COMPLETION_LEVELS = [
 ];
 
 export const GAME_RELEASE_STATUSES = [
-  "Rumored",
   "Unreleased",
   "Early Access",
   "Released",
@@ -161,7 +183,9 @@ export const ANIME_AIRING_TYPES = [
   "Other",
 ];
 
-export const CARTOON_AIRING_TYPES = ["TV", "Movie", "OVA", "Special"];
+export const CARTOON_AIRING_TYPES = ["TV", "Movie", "Special"];
+
+export const TV_SHOW_AIRING_TYPES = ["TV", "Special"];
 
 export const MOVIE_TYPES = ["Reality", "Animation"];
 
@@ -455,14 +479,42 @@ export const REQUEST_KINDS = [
 
 export const REQUEST_STATUSES = ["open", "done", "declined"];
 
+// "Waiting on the release" in each spelling. Every grouping that counts one
+// as planned counts both.
+export const WAIT_FOR_RELEASE_STATUSES = ["Watch When Airs", "Watch When Released"];
+
+// WATCHING_STATUSES narrowed to what one kind of type offers. Derived, not
+// written out: applyConstants refreshes them in place from the full list, so
+// /api/constants stays their source too.
+export const FILM_WATCHING_STATUSES = [];
+export const AIRING_WATCHING_STATUSES = [];
+
+function refreshWatchingLists() {
+  const narrow = (target, without) => {
+    target.length = 0;
+    target.push(...WATCHING_STATUSES.filter((s) => s !== without));
+  };
+  narrow(FILM_WATCHING_STATUSES, "Watch When Airs");
+  narrow(AIRING_WATCHING_STATUSES, "Watch When Released");
+}
+refreshWatchingLists();
+
+/** The watching statuses a media type offers, in cycle order. */
+export function watchingStatusesFor(type) {
+  return isFilmType(type) ? FILM_WATCHING_STATUSES : AIRING_WATCHING_STATUSES;
+}
+
 // Shape-matched to GET /api/constants. Rendered only until the fetch resolves.
 export const CONSTANTS_FALLBACK = {
   watching_status: WATCHING_STATUSES,
   reading_status: READING_STATUSES,
   playing_status: PLAYING_STATUSES,
   airing_status: AIRING_STATUSES,
+  film_release_status: FILM_RELEASE_STATUSES,
+  anime_movie_release_type: ANIME_MOVIE_RELEASE_TYPES,
   anime_airing_type: ANIME_AIRING_TYPES,
   cartoon_airing_type: CARTOON_AIRING_TYPES,
+  tv_show_airing_type: TV_SHOW_AIRING_TYPES,
   franchise_type: FRANCHISE_TYPES,
   franchise_expectation: FRANCHISE_EXPECTATIONS,
   my_rating: MY_RATINGS,
@@ -536,4 +588,5 @@ export function applyConstants(data) {
     target.length = 0;
     target.push(...values);
   }
+  refreshWatchingLists();
 }

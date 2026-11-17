@@ -48,9 +48,9 @@ def test_mark_tv_list_leaves_ep_fin_alone_when_the_total_is_unknown(row):
 
 
 def test_mark_movie_halves():
-    entry = Movies(airing_status="Not Yet Aired")
+    entry = Movies(release_status="Not Released")
     mark_movie_catalog(entry)
-    assert entry.airing_status == "Finished Airing"
+    assert entry.release_status == "Released"
 
     r = UserMediaList(status="Might Watch")
     mark_movie_list(r, entry)

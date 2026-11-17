@@ -43,6 +43,7 @@ export const GROUP_WEIGHTS = [
 export const GROUP_OVERRIDES = {
   "Temp Dropped": "In Progress",
   "Watch When Airs": "Might",
+  "Watch When Released": "Might",
   "Play When Released": "Might",
 };
 

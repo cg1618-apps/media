@@ -78,6 +78,16 @@ def map_imdb_to_movie_data(
     return merged
 
 
+def _fall_back_to_show_runtime(
+    merged: Dict[str, Any], tmdb_raw: Optional[Dict[str, Any]]
+) -> None:
+    """runtime_min from the show's episode_run_time when the season gave none."""
+    if merged.get("runtime_min") is None and tmdb_raw is not None:
+        run_times = tmdb_raw.get("episode_run_time") or []
+        if run_times:
+            merged["runtime_min"] = run_times[0]
+
+
 def map_imdb_to_tv_show_data(
     tmdb_raw: Optional[Dict[str, Any]],
     tmdb_season_raw: Optional[Dict[str, Any]],
@@ -86,7 +96,9 @@ def map_imdb_to_tv_show_data(
 ) -> Dict[str, Any]:
     """
     Merges show-level TMDB, season-level TMDB, and OMDb data for a TVShows entry.
-    Season data takes precedence for cover/release/ep_total; show-level poster is fallback.
+    Season data takes precedence for cover/release/ep_total/runtime_min;
+    show-level poster and episode_run_time are used as fallbacks when the
+    season provides no value.
     """
     merged: Dict[str, Any] = {}
 
@@ -97,6 +109,8 @@ def map_imdb_to_tv_show_data(
         fallback_url = _build_poster_url(tmdb_raw.get("poster_path"))
         if fallback_url:
             merged["cover_image_url"] = fallback_url
+
+    _fall_back_to_show_runtime(merged, tmdb_raw)
 
     if omdb_raw is not None:
         merged.update(map_omdb_to_tv_data(omdb_raw, omdb_season_raw))
@@ -112,7 +126,7 @@ def map_imdb_to_cartoon_data(
 ) -> Dict[str, Any]:
     """
     Merges show-level TMDB, season-level TMDB, and OMDb data for a Cartoon entry.
-    Season data takes precedence for cover/release/ep_total/length_ep_min; show-level
+    Season data takes precedence for cover/release/ep_total/runtime_min; show-level
     poster and episode_run_time are used as fallbacks when season provides no value.
     """
     merged: Dict[str, Any] = {}
@@ -125,10 +139,7 @@ def map_imdb_to_cartoon_data(
         if fallback_url:
             merged["cover_image_url"] = fallback_url
 
-    if merged.get("length_ep_min") is None and tmdb_raw is not None:
-        run_times = tmdb_raw.get("episode_run_time") or []
-        if run_times:
-            merged["length_ep_min"] = run_times[0]
+    _fall_back_to_show_runtime(merged, tmdb_raw)
 
     if omdb_raw is not None:
         merged.update(map_omdb_to_tv_data(omdb_raw, omdb_season_raw))

@@ -471,9 +471,12 @@ makes the merged tree a tested tree differs by branch:
   + A`, `dev + A + B` and `dev + A + B + C` at once; if B fails, B leaves the
   queue and C is retested as `dev + A + C`. A branch is never brought up to
   date by hand, so landing one pull request does not re-run the others.
-- **`main` requires a branch to be up to date before merging**
-  (`strict_required_status_checks_policy`) and has no queue. A release is one
-  pull request at a time, so nothing ahead of it moves the base.
+- **`main` has no queue and no up-to-date requirement.** A release is one
+  pull request at a time and `main` moves only when one merges, so a release
+  run - its head merged onto `main` - tests the tree that deploys. The strict
+  rule is off on purpose: every release merge puts a merge commit on `main`
+  that `dev` never receives, and the rule would count those commits and
+  report the next release behind, with no file different.
 
 Without one of those, merging a second pull request first would land a
 combination nothing had tested.

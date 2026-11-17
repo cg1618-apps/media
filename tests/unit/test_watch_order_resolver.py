@@ -501,13 +501,13 @@ class TestPartialDatesAreFirstOfPeriod:
         ) == release_sort_key(SimpleNamespace(release_date="2020-01-01"), "manga")
 
     def test_anime_without_a_month_is_january_first(self):
-        entry = SimpleNamespace(release_date="2026")
+        entry = SimpleNamespace(release_date_jp="2026")
         assert release_sort_key(entry, "anime") == (2026, 1, 1)
 
     def test_anime_with_a_month_is_the_first_of_it(self):
-        entry = SimpleNamespace(release_date="2026-07")
+        entry = SimpleNamespace(release_date_jp="2026-07")
         assert release_sort_key(entry, "anime") == (2026, 7, 1)
 
     def test_unparseable_still_sinks(self):
-        entry = SimpleNamespace(release_date=None)
+        entry = SimpleNamespace(release_date_jp=None, release_date_tw=None)
         assert release_sort_key(entry, "anime") == (9999, 99, 99)

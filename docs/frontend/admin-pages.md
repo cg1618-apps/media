@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-11-16
+Last verified: 2026-11-17
 
 **What this is for.** Every administrative route behind `ProtectedRoute` in
 `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -369,7 +369,7 @@ every type; a type leaves out what it lacks:
 6. **Production** (`fa-pen-nib`) — the studio, publisher and people credits.
 7. **Cast** (`fa-users`).
 8. Type extras — **Prices** and **Copies** (game, h-game), **Read Order**
-   (novel, comic), **Units** (novel).
+   (comic), **Units** (novel).
 9. **Links & Sources** (`fa-external-link-alt`) — each external id beside its
    link, the official or exclusive source, then the Sources editor.
 10. **Cover & Remark** (`fa-image`).
@@ -694,7 +694,7 @@ the picker.
 
 **Copies editor.** `components/forms/GameCopiesEditor.jsx`, one row per copy
 owned or wanted (storefront, ownership, format, acquisition, price paid +
-currency, acquired date, remark), with a drag grip (`components/ui/Sortable.jsx`; ArrowUp / ArrowDown on it moves a row one place) and remove. It is fully
+currency, acquired date, sell price + currency, hours played, remark), with a drag grip (`components/ui/Sortable.jsx`; ArrowUp / ArrowDown on it moves a row one place) and remove. It is fully
 controlled on the `NovelUnitsEditor` contract: no internal state, the parent
 owns `items`, the array handed in is never mutated, and every change goes out
 through `onChange` with `position` renumbered 1..n. `acquired_date` is free text,
