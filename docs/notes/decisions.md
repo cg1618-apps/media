@@ -5473,3 +5473,31 @@ shown buttons that answered 401.
 - **Auto-fill does not copy it.** The Add form copies fields from an entry
   already in the catalogue, and the entry a remake is filled from is usually
   its original.
+
+### Anime's `ep_special` is text (2026-11-17)
+
+- **`ep_special` is a string**, because specials are numbered `17.5A` and
+  `17.5B`, which a float cannot hold. Revision `e1p2special3` converted each
+  value with PostgreSQL's float-to-text cast, which already writes the
+  shortest form: `17.0` became `"17"`, `17.5` `"17.5"`, NULL stayed NULL.
+- **One rule makes a value canonical wherever it arrives**
+  (`app/utils/ep_special.py`): a plain number is written in its shortest
+  form (`17.50` -> `17.5`, `007` -> `7`), anything else is kept as typed,
+  trimmed, and a blank is NULL. The API applies it on create and full
+  update, and still accepts a JSON number from an older client; a Sheets
+  Pull applies it to a cell, so a Backup taken while the column was a float
+  (`17.0`) restores as `"17"`. Without it, `17` and `17.0` would be two
+  different values to the duplicate key.
+- **Nothing sorts it or computes with it**, so no ordering rule was needed.
+  Every reader was checked: the `ep_previous` eligibility (checking,
+  derivation, sequel relations) tests only for NULL; the duplicate key
+  compares by equality; watch orders pass it through and `specialLabel`
+  prints it; the detail page, Modify and the duplicates review display it.
+  A future sort would have to order by leading number, then suffix - a
+  string sort puts `10` before `9`.
+- **The downgrade is lossy, not impossible**: text that is a plain number
+  goes back to a float, and anything else (`17.5A`) becomes NULL. Until a
+  lettered special is written the round trip is exact, so the revision is
+  not declared `irreversible`.
+- **`PATCH` writes it as sent**, like every column it touches; the Modify
+  page's payload trims it and sends a blank as null.

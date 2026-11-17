@@ -86,7 +86,10 @@ class Anime(Base, NameFallbackMixin):
 
     ep_previous = Column(Integer, nullable=True)
     ep_total = Column(Integer, nullable=True)
-    ep_special = Column(Float, nullable=True)
+    # Where a special sits among the episodes, as a label: 0, 14.5, 17.5A.
+    # Text, canonical per app/utils/ep_special.py; nothing sorts it or does
+    # arithmetic on it.
+    ep_special = Column(String, nullable=True)
     # Minutes per episode.
     runtime_min = Column(Integer, nullable=True)
 

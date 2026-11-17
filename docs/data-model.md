@@ -299,7 +299,7 @@ Model: `Anime`. CHECKs: `ck_anime_release_date_jp_iso`,
 | `original_or_remake` | String | no | `'Original'` | ANIME_ORIGINAL_OR_REMAKE (Original / Remake): whether the entry is the original work or a remake of one. A column of its own beside `is_main`, which answers a different question. Refused on a write outside the vocabulary (422, `null` and `""` included); a Sheets cell that is blank or unknown reads as `Original`. Part of the duplicate key. |
 | `ep_previous` | Integer | yes | | Episodes accumulated by prequels; **derived** by `derive_ep_previous_all_anime` after Fill/Replace. |
 | `ep_total` | Integer | yes | | |
-| `ep_special` | Float | yes | | The episode number a special sits at (0, 14.5) - a position, not a count. Part of the duplicate key. |
+| `ep_special` | String | yes | | Where a special sits among the episodes, as a label (`0`, `14.5`, `17.5A`) - a position, not a count. Canonical per `app/utils/ep_special.py`: a plain number is written in its shortest form (`17.0` -> `17`, `17.50` -> `17.5`), anything else kept as typed, trimmed, and a blank is NULL - on a create or full update, which also accepts a JSON number, and on a Sheets Pull, which reads an old numeric cell (`17.0`) the same way. Shown as written and compared by equality only (the duplicate key); nothing sorts it or does arithmetic on it. |
 | `runtime_min` | Integer | yes | | Minutes per episode. Fill writes MAL's duration, 22 to 26 stored as 24 except on a `Movie` |
 | `mal_rating` | Float | yes | | From Tenrai |
 | `mal_rank` | String | yes | | From Tenrai |

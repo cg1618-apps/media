@@ -11,6 +11,7 @@ from app.schemas.link_fields import AnimeLinkFields
 from app.schemas.release_date_field import release_date_validator
 from app.schemas.sources import SourceWriteFields
 from app.utils.constants import ANIME_ORIGINAL_OR_REMAKE
+from app.utils.ep_special import normalize_ep_special
 
 
 class AnimeBase(BaseModel):
@@ -42,7 +43,9 @@ class AnimeBase(BaseModel):
     ep_fin: Optional[int] = 0
     # "Paused at": free text, stored stripped and NULL when blank.
     time_fin: Optional[str] = None
-    ep_special: Optional[float] = None
+    # Text: specials are numbered 0, 14.5, 17.5A. A write normalizes it
+    # (AnimeWriteChecks).
+    ep_special: Optional[str] = None
     runtime_min: Optional[int] = None
 
     my_rating: Optional[str] = None
@@ -87,6 +90,13 @@ class AnimeWriteChecks(BaseModel):
                 f"{', '.join(ANIME_ORIGINAL_OR_REMAKE)}."
             )
         return v
+
+    # mode="before": a client still sending the number 17.5 gets "17.5",
+    # where a str field would refuse it.
+    @field_validator("ep_special", mode="before", check_fields=False)
+    @classmethod
+    def _ep_special(cls, v):
+        return normalize_ep_special(v)
 
 
 class AnimeCreate(AnimeWriteChecks, AnimeBase, SourceWriteFields):

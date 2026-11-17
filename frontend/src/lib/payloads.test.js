@@ -634,6 +634,18 @@ describe("anime release dates and runtime", () => {
   });
 });
 
+describe("anime ep_special", () => {
+  it("is sent as text, so a lettered special survives", () => {
+    expect(buildAnimePayload({ ep_special: "17.5A" }).ep_special).toBe("17.5A");
+    expect(buildAnimePayload({ ep_special: " 17.5 " }).ep_special).toBe("17.5");
+  });
+
+  it("sends a blank as null", () => {
+    expect(buildAnimePayload({ ep_special: "" }).ep_special).toBeNull();
+    expect(buildAnimePayload({}).ep_special).toBeNull();
+  });
+});
+
 describe("anime original or remake", () => {
   it("sends the chosen value", () => {
     const body = buildAnimePayload({ original_or_remake: "Remake" });

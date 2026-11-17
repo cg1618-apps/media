@@ -139,7 +139,7 @@ def test_movie_ova_special_and_blank_season_part_are_left_out(db_session):
     s2 = _anime(db_session, f, "Season 2", s)
     movie = _anime(db_session, f, "Season 1", s, airing_type="Movie")
     ova = _anime(db_session, f, "Season 1", s, airing_type="OVA")
-    special = _anime(db_session, f, "Season 1", s, ep_special=1)
+    special = _anime(db_session, f, "Season 1", s, ep_special="1")
     blank = _anime(db_session, f, "   ", s)
     unset = _anime(db_session, f, None, s)
 

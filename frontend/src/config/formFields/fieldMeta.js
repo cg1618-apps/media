@@ -377,9 +377,10 @@ export const TYPE_FIELD_META = {
       control: "number",
       group: "Progress",
     },
+    // Text: specials are numbered 17.5A, 17.5B.
     ep_special: {
       label: "Special Episodes",
-      control: "number",
+      control: "text",
       group: "Progress",
     },
     runtime_min: {

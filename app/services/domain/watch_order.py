@@ -141,8 +141,8 @@ def _entry_payload(entry: Any, media_type: str) -> Dict[str, Any]:
         "status": getattr(entry, _STATUS_FIELDS[media_type], None),
         # Float on novel, Integer elsewhere; the schema wants an int.
         "total_episodes": int(total) if total is not None else None,
-        # Anime only - the episode number a special sits at (0, 14.5), not a
-        # count. Left as a float: 14.5 is the point of the field. Every other
+        # Anime only - the episode a special sits at ("0", "14.5", "17.5A"),
+        # a label rather than a count, passed through as stored. Every other
         # media type simply has no such column.
         "ep_special": getattr(entry, "ep_special", None),
     }

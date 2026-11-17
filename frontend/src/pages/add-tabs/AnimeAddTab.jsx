@@ -190,7 +190,17 @@ export function AnimeFormBody({ f, u, sources, ownerId }) {
         />
       </div>
       <div className={ROW2}>
-        {count("ep_special", "EP Special", { step: "0.01" })}
+        {/* Text: specials are numbered 17.5A, 17.5B. */}
+        <Field label="EP Special">
+          <input
+            className={inputCls}
+            type="text"
+            aria-label="EP Special"
+            value={f.ep_special ?? ""}
+            onChange={(e) => u("ep_special", e.target.value)}
+            placeholder="e.g. 17.5A"
+          />
+        </Field>
         {count("runtime_min", "Runtime (min)", { placeholder: "e.g. 24" })}
       </div>
 

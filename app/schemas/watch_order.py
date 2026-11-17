@@ -63,9 +63,9 @@ class WatchOrderItemResolved(WatchOrderItemResponse):
     franchise_id: Optional[UUID] = None
     status: Optional[str] = None
     total_episodes: Optional[int] = None
-    # Anime only, and a number rather than a count - 0 and 14.5 are both real
-    # values, so consumers must test for None, never falsiness.
-    ep_special: Optional[float] = None
+    # Anime only, and a label rather than a count - "0", "14.5" and "17.5A"
+    # are all real values, so consumers must test for None, never falsiness.
+    ep_special: Optional[str] = None
 
 
 # ==========================================
@@ -171,7 +171,7 @@ class WatchOrderCandidate(BaseModel):
     franchise_id: Optional[UUID] = None
     status: Optional[str] = None
     total_episodes: Optional[int] = None
-    ep_special: Optional[float] = None
+    ep_special: Optional[str] = None
 
 
 # ==========================================

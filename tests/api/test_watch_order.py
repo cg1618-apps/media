@@ -170,13 +170,13 @@ class TestGetWatchOrderDetail:
     def test_ep_special_is_resolved_onto_the_step(
         self, client, db_session, sample_franchise, sample_list, list_row
     ):
-        """ep_special 0 is a real episode number, not an absent value."""
+        """ep_special "0" is a real episode number, not an absent value."""
         anime = models.Anime(
             system_id=uuid.uuid4(),
             franchise_id=sample_franchise.system_id,
             anime_name_en="Episode Zero",
             airing_type="Special",
-            ep_special=0,
+            ep_special="0",
         )
         db_session.add(anime)
         db_session.flush()
@@ -195,7 +195,7 @@ class TestGetWatchOrderDetail:
         items = client.get(f"/api/watch-order/lists/{sample_list.system_id}").json()[
             "items"
         ]
-        assert items[0]["ep_special"] == 0
+        assert items[0]["ep_special"] == "0"
 
     def test_importance_and_note_survive(self, client, sample_list, sample_items):
         items = client.get(f"/api/watch-order/lists/{sample_list.system_id}").json()[
@@ -938,7 +938,7 @@ class TestCandidates:
             franchise_id=sample_franchise.system_id,
             anime_name_en="Special Episode",
             airing_type="Special",
-            ep_special=14.5,
+            ep_special="17.5A",
         )
         db_session.add(special_entry)
         db_session.flush()
@@ -948,7 +948,8 @@ class TestCandidates:
             f"/api/watch-order/candidates?franchise_id={sample_franchise.system_id}"
         ).json()
         special = next(c for c in data if c["display_name"] == "Special Episode")
-        assert special["ep_special"] == 14.5
+        # Text: a lettered special comes through as written.
+        assert special["ep_special"] == "17.5A"
 
     def test_candidates_exclude_other_franchises(
         self, client, sample_anime, sample_franchise

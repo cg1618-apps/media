@@ -40,6 +40,7 @@ from app.utils.constants import (
 # Character and person gender / my_rating, folded the way the revision that
 # closed those vocabularies folded the stored rows.
 from app.utils.entity_vocab import normalize_gender, normalize_my_rating
+from app.utils.ep_special import normalize_ep_special
 from app.utils.note_sections import (
     SHAPE_STRUCTURED,
     as_link_pairs,
@@ -832,7 +833,9 @@ def parse_anime_from_sheet(raw: dict) -> dict:
         "airing_status": _airing_status_from_sheet(raw.get("airing_status")),
         "ep_previous": parse_from_sheet(raw.get("ep_previous"), int),
         "ep_total": parse_from_sheet(raw.get("ep_total"), int),
-        "ep_special": parse_from_sheet(raw.get("ep_special"), float),
+        # Text; a cell from a Backup taken while it was a float reads 17.0,
+        # which comes back as "17".
+        "ep_special": normalize_ep_special(parse_from_sheet(raw.get("ep_special"), str)),
         "runtime_min": parse_from_sheet(raw.get("runtime_min"), int),
         "is_main": parse_from_sheet(raw.get("is_main"), str),
         "original_or_remake": _original_or_remake_from_sheet(raw.get("original_or_remake")),
