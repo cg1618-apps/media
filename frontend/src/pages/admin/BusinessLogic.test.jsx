@@ -64,7 +64,7 @@ describe("BusinessLogic", () => {
     expect(sync.substeps.map((s) => s.fn)).toEqual([
       "run_sync_anime",
       "run_sync_anime_movie · run_sync_tv_show · run_sync_cartoon · run_sync_manga",
-      "run_sync_novel",
+      "run_sync_book",
       "run_sync_comic",
       "run_sync_h_comic",
       "run_sync_hentai",

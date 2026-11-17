@@ -1,5 +1,5 @@
 // Frontend: the three shared classification tags - Genre Main, Genre Sub and
-// 標籤 Label - as anime, anime-movie, movie, tv-show, cartoon, manga, novel and
+// 標籤 Label - as anime, anime-movie, movie, tv-show, cartoon, manga, book and
 // comic carry them. Game carries only Label, under its own Genre / Theme, so
 // it is not listed here.
 //
@@ -21,7 +21,7 @@ export const GENRE_LABEL_TYPES = [
   "tv-show",
   "cartoon",
   "manga",
-  "novel",
+  "book",
   "comic",
 ];
 

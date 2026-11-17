@@ -16,7 +16,7 @@ export default function Completions() {
   const tvQuery = useMediaList("tv-show", LIST_OPTIONS);
   const cartoonQuery = useMediaList("cartoon", LIST_OPTIONS);
   const mangaQuery = useMediaList("manga", LIST_OPTIONS);
-  const novelQuery = useMediaList("novel", LIST_OPTIONS);
+  const bookQuery = useMediaList("book", LIST_OPTIONS);
   const comicQuery = useMediaList("comic", LIST_OPTIONS);
   const gameQuery = useMediaList("game", LIST_OPTIONS);
   // Gated: each fetched only for a session that can see its type.
@@ -42,7 +42,7 @@ export default function Completions() {
     cartoonQuery,
     gameQuery,
     mangaQuery,
-    novelQuery,
+    bookQuery,
     comicQuery,
     hComicQuery,
     hGameQuery,
@@ -85,7 +85,7 @@ export default function Completions() {
         allTVShows={tvQuery.data || []}
         allCartoons={cartoonQuery.data || []}
         allManga={mangaQuery.data || []}
-        allNovel={novelQuery.data || []}
+        allBook={bookQuery.data || []}
         allComic={comicQuery.data || []}
         allGame={gameQuery.data || []}
         allHComic={hComicQuery.data || []}

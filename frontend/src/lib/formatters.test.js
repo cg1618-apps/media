@@ -3,7 +3,7 @@ import {
   getBahaRow,
   getReleaseFallback,
   getSourceValues,
-  getNovelProgress,
+  getBookProgress,
 } from "./formatters";
 
 describe("getReleaseFallback", () => {
@@ -204,7 +204,7 @@ describe("getSourceValues", () => {
 
     it("suggests nothing for a scope no publisher is offered on", () => {
       expect(
-        getSourceValues(scoped, { kind: "publisher", scope: "novel" }),
+        getSourceValues(scoped, { kind: "publisher", scope: "book" }),
       ).toEqual([]);
     });
 
@@ -278,9 +278,9 @@ describe("getSourceValues — usage", () => {
   });
 });
 
-describe("getNovelProgress", () => {
+describe("getBookProgress", () => {
   it("renders the two-stage arc position", () => {
-    const novel = {
+    const book = {
       progress_display: "arc_ch",
       arc_fin: 1,
       arc_total: 2,
@@ -290,11 +290,11 @@ describe("getNovelProgress", () => {
         { unit_kind: "arc", position: 2, ch_count: 112 },
       ],
     };
-    expect(getNovelProgress(novel)).toBe("arc 2 · 101/112 CH");
+    expect(getBookProgress(book)).toBe("arc 2 · 101/112 CH");
   });
 
   it("shows every arc finished as the last arc, complete", () => {
-    const novel = {
+    const book = {
       progress_display: "arc_ch",
       arc_fin: 2,
       ch_fin_in_arc: 0,
@@ -303,11 +303,11 @@ describe("getNovelProgress", () => {
         { unit_kind: "arc", position: 2, ch_count: 112 },
       ],
     };
-    expect(getNovelProgress(novel)).toBe("arc 2 · 112/112 CH");
+    expect(getBookProgress(book)).toBe("arc 2 · 112/112 CH");
   });
 
   it("shows reading past the last recorded arc as the next arc, of unknown length", () => {
-    const novel = {
+    const book = {
       progress_display: "arc_ch",
       arc_fin: 2,
       ch_fin_in_arc: 6,
@@ -316,27 +316,27 @@ describe("getNovelProgress", () => {
         { unit_kind: "arc", position: 2, ch_count: 112 },
       ],
     };
-    expect(getNovelProgress(novel)).toBe("arc 3 · 6/? CH");
+    expect(getBookProgress(book)).toBe("arc 3 · 6/? CH");
   });
 
   it("falls back to the flat chapter pair when there are no arcs", () => {
-    const novel = { progress_display: "ch", ch_fin: 120, ch_total: 300, units: [] };
-    expect(getNovelProgress(novel)).toBe("120 / 300 CH");
+    const book = { progress_display: "ch", ch_fin: 120, ch_total: 300, units: [] };
+    expect(getBookProgress(book)).toBe("120 / 300 CH");
   });
 
   it("shows the JP/KR volume label", () => {
-    const novel = { progress_display: "vol_original", vol_fin: 3, vol_total_original: 12 };
-    expect(getNovelProgress(novel)).toBe("3 / 12 VOL JP/KR");
+    const book = { progress_display: "vol_original", vol_fin: 3, vol_total_original: 12 };
+    expect(getBookProgress(book)).toBe("3 / 12 VOL JP/KR");
   });
 
   it("still shows TW volumes", () => {
-    const novel = { progress_display: "vol_tw", vol_fin: 3, vol_total_tw: 9 };
-    expect(getNovelProgress(novel)).toBe("3 / 9 VOL TW");
+    const book = { progress_display: "vol_tw", vol_fin: 3, vol_total_tw: 9 };
+    expect(getBookProgress(book)).toBe("3 / 9 VOL TW");
   });
 
   it("renders the arc-only display as finished arcs over the arc count", () => {
-    const novel = {
-      type: "Web",
+    const book = {
+      type: "網路小說",
       progress_display: "arc",
       arc_fin: 1,
       ch_fin_in_arc: 40,
@@ -346,22 +346,22 @@ describe("getNovelProgress", () => {
         { unit_kind: "arc", position: 3, ch_count: 90 },
       ],
     };
-    expect(getNovelProgress(novel)).toBe("1 / 3 ARC");
+    expect(getBookProgress(book)).toBe("1 / 3 ARC");
   });
 
-  it("ignores an arc display on a novel with no arc rows", () => {
-    const novel = { type: "Web", progress_display: "arc", ch_fin: 12, ch_total: 40, units: [] };
-    expect(getNovelProgress(novel)).toBe("12 / 40 CH");
+  it("ignores an arc display on a book with no arc rows", () => {
+    const book = { type: "網路小說", progress_display: "arc", ch_fin: 12, ch_total: 40, units: [] };
+    expect(getBookProgress(book)).toBe("12 / 40 CH");
   });
 
-  it("ignores a volume display on a Web novel", () => {
-    const novel = { type: "Web", progress_display: "vol_tw", vol_fin: 3, ch_fin: 12, ch_total: 40, units: [] };
-    expect(getNovelProgress(novel)).toBe("12 / 40 CH");
+  it("ignores a volume display on a 網路小說", () => {
+    const book = { type: "網路小說", progress_display: "vol_tw", vol_fin: 3, ch_fin: 12, ch_total: 40, units: [] };
+    expect(getBookProgress(book)).toBe("12 / 40 CH");
   });
 
-  it("a new Web novel with arc rows and no stored progress_display still renders the two-stage position (Decision G)", () => {
-    const novel = {
-      type: "Web",
+  it("a new 網路小說 with arc rows and no stored progress_display still renders the two-stage position (Decision G)", () => {
+    const book = {
+      type: "網路小說",
       progress_display: "",
       arc_fin: 1,
       arc_total: 2,
@@ -371,7 +371,7 @@ describe("getNovelProgress", () => {
         { unit_kind: "arc", position: 2, ch_count: 112 },
       ],
     };
-    expect(getNovelProgress(novel)).toBe("arc 2 · 101/112 CH");
+    expect(getBookProgress(book)).toBe("arc 2 · 101/112 CH");
   });
 });
 

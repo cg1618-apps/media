@@ -12,7 +12,7 @@ import { useStatusToggle } from "../../hooks/useStatusToggle";
 import MarkAiringModal from "../modals/MarkAiringModal";
 import { entityPath } from "../../lib/entityPath";
 import { releaseYear } from "../../lib/releaseDate";
-import { effectiveProgressDisplay } from "../../lib/novelUnits";
+import { effectiveProgressDisplay } from "../../lib/bookUnits";
 import { progressFor } from "../../lib/hComicRegion";
 import {
   getDisplayName,
@@ -23,7 +23,7 @@ import {
   formatLength,
   parseTypes,
   MEDIA_CONFIG,
-  getNovelProgress,
+  getBookProgress,
 } from "../../utils/media";
 import { focusStyle, thumbUrl } from "../../lib/covers";
 import { isFilmType, WAIT_FOR_RELEASE_STATUSES } from "../../config/fieldOptions";
@@ -39,7 +39,7 @@ const SPINE_LABEL = {
   "tv-show": "TV show",
   cartoon: "Cartoon",
   manga: "Manga",
-  novel: "Novel",
+  book: "Book",
   comic: "Comic",
   game: "Game",
   "h-comic": "H-Comic",
@@ -169,7 +169,7 @@ function PosterBadges({ type, variant, data, franchiseDict, scoreField }) {
           {data.region}
         </div>
       )}
-      {(type === "manga" || type === "novel" || type === "h-comic") &&
+      {(type === "manga" || type === "book" || type === "h-comic") &&
         data.region && (
         <div className={`absolute top-1 left-1 ${OVERLAY_CLS}`}>
           {data.region}
@@ -189,10 +189,12 @@ function PosterBadges({ type, variant, data, franchiseDict, scoreField }) {
   );
 }
 
-function yearRange(data) {
-  const start = releaseYear(data.release_date) || "?";
+// `released` is the start of the run: release_date on most types, the JP
+// date (then the TW one) on a book.
+function yearRange(data, released = data.release_date) {
+  const start = releaseYear(released) || "?";
   const end = releaseYear(data.end_date);
-  return end && end !== releaseYear(data.release_date) ? `${start} – ${end}` : start;
+  return end && end !== releaseYear(released) ? `${start} – ${end}` : start;
 }
 
 function LibraryMeta({ type, data, scoreField }) {
@@ -299,7 +301,7 @@ function LibraryMeta({ type, data, scoreField }) {
     );
   }
 
-  if (type === "novel") {
+  if (type === "book") {
     return (
       <div className="mb-1 flex items-end justify-between gap-1">
         <div className="flex flex-col gap-1 min-w-0 flex-1">
@@ -313,7 +315,7 @@ function LibraryMeta({ type, data, scoreField }) {
             </div>
           )}
           <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint truncate">
-            {yearRange(data)}
+            {yearRange(data, data.release_date_jp || data.release_date_tw)}
           </span>
         </div>
         {data[scoreField] && (
@@ -424,7 +426,7 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
     );
   }
 
-  if (type === "novel") {
+  if (type === "book") {
     const pd = effectiveProgressDisplay(data);
     if (pd === "vol_tw") {
       return (
@@ -438,7 +440,7 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
     if (pd === "arc_ch") {
       return (
         <span className="font-mono text-[10px] text-text-muted tabular-nums">
-          {getNovelProgress(data)}
+          {getBookProgress(data)}
         </span>
       );
     }
@@ -567,7 +569,7 @@ const HAS_PROGRESS = new Set([
   "tv-show",
   "cartoon",
   "manga",
-  "novel",
+  "book",
   "comic",
   "game",
   "h-comic",

@@ -1,6 +1,6 @@
 // useViewScope: which member-only surfaces the viewer may see. `ownData` is the
 // viewer's own opinion of catalogue rows - its ratings and expectations, a
-// novel unit's remark - and answers self.list, not any view.* key.
+// book unit's remark - and answers self.list, not any view.* key.
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 

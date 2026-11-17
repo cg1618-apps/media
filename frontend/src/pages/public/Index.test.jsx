@@ -77,7 +77,7 @@ it("renders one filter bar, above the Watching division", async () => {
   mount();
   await loaded();
   expect(screen.getAllByTestId("dashboard-filter")).toHaveLength(1);
-  for (const label of ["All", "Anime", "TV Show", "Cartoon", "Manga", "Novel", "Comic", "Game", "Cards", "List"]) {
+  for (const label of ["All", "Anime", "TV Show", "Cartoon", "Manga", "Book", "Comic", "Game", "Cards", "List"]) {
     expect(bar().getByRole("button", { name: label })).toBeInTheDocument();
   }
   const filterBar = screen.getByTestId("dashboard-filter");

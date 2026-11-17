@@ -34,7 +34,7 @@ function filtered(defs, rows, picks) {
 describe("characterFilterDefs", () => {
   it("offers the four cast types, with h-comic and hentai under Restricted", () => {
     const mediaType = def(characterFilterDefs(SEES_ALL), "mediaType");
-    expect(mediaType.options).toEqual(["anime", "anime-movie", "manga", "novel", NO_ENTRIES]);
+    expect(mediaType.options).toEqual(["anime", "anime-movie", "manga", "book", NO_ENTRIES]);
     expect(mediaType.parent).toEqual({
       label: "Restricted",
       children: ["h-comic", "hentai"],
@@ -160,7 +160,7 @@ describe("personFilterDefs", () => {
     const mediaType = def(personFilterDefs(SEES_ALL), "mediaType");
     expect(mediaType.options).toEqual([
       "anime", "anime-movie", "movie", "tv-show", "cartoon",
-      "manga", "novel", "comic", "game", NO_ENTRIES,
+      "manga", "book", "comic", "game", NO_ENTRIES,
     ]);
     expect(mediaType.parent.children).toEqual(["h-comic", "hentai", "h-game"]);
   });
@@ -212,7 +212,7 @@ describe("defaultEntityFilters", () => {
     const filters = defaultEntityFilters(defs);
     expect([...filters.mediaType]).toEqual([
       "anime", "anime-movie", "movie", "tv-show", "cartoon",
-      "manga", "novel", "comic", "game", NO_ENTRIES,
+      "manga", "book", "comic", "game", NO_ENTRIES,
     ]);
     expect(filters.role.size).toBe(0);
     expect(filters.myRating.size).toBe(0);
@@ -283,7 +283,7 @@ describe("publisherFilterDefs", () => {
   it("offers the six publisher types and no Restricted parent", () => {
     const mediaType = def(publisherFilterDefs(SEES_ALL), "mediaType");
     expect(mediaType.options).toEqual([
-      "anime", "anime-movie", "manga", "novel", "comic", "game", NO_ENTRIES,
+      "anime", "anime-movie", "manga", "book", "comic", "game", NO_ENTRIES,
     ]);
     expect(mediaType.parent).toBeUndefined();
   });
@@ -294,7 +294,7 @@ describe("publisherFilterDefs", () => {
       { id: "credited", media_types: ["manga"], scopes: [] },
       { id: "offered", media_types: [], scopes: ["manga"] },
       { id: "neither", media_types: [], scopes: [] },
-      { id: "novel", media_types: ["novel"], scopes: ["novel"] },
+      { id: "book", media_types: ["book"], scopes: ["book"] },
     ];
     expect(filtered(defs, rows, { mediaType: ["manga"] })).toEqual(["credited", "offered"]);
     // No entries is about credits: an offered-but-uncredited publisher has none.

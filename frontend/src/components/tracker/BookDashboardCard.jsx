@@ -12,7 +12,7 @@ import {
   arcProgressView,
   arcStep,
   effectiveProgressDisplay,
-} from "../../lib/novelUnits";
+} from "../../lib/bookUnits";
 import { entityPath } from "../../lib/entityPath";
 import { EntryRow } from "./DashboardTable";
 import LazyImage from "../ui/LazyImage";
@@ -32,8 +32,8 @@ function StepButton({ onClick, label, children }) {
   );
 }
 
-export default function NovelDashboardCard({
-  novel,
+export default function BookDashboardCard({
+  book,
   franchise,
   canTrack,
   onProgressChange,
@@ -41,26 +41,26 @@ export default function NovelDashboardCard({
 }) {
   const { showToast } = useToast();
 
-  const title = getDisplayName(novel, "novel") || "Unknown Title";
+  const title = getDisplayName(book, "book") || "Unknown Title";
 
   const subTitle = franchise
     ? getDisplayName(franchise, "franchise") || "Independent"
     : "Independent Series";
 
-  const imageUrl = getCoverUrl(novel.cover_image_file);
-  const pd = effectiveProgressDisplay(novel);
+  const imageUrl = getCoverUrl(book.cover_image_file);
+  const pd = effectiveProgressDisplay(book);
 
-  // Decision B/D: arc rows are authoritative for arc_ch novels. ch_fin and
+  // Decision B/D: arc rows are authoritative for arc_ch books. ch_fin and
   // arc_total are derived server-side from arc_fin + ch_fin_in_arc + these
-  // rows on every write (see derive_novel_progress), so the admin controls
+  // rows on every write (see derive_book_progress), so the admin controls
   // below must drive that same two-stage cursor — patching ch_fin or
   // arc_fin alone gets silently recomputed away by the very PATCH that sent
   // it, or leaves a stale ch_fin_in_arc pointing into the wrong arc.
-  const arcs = (novel.units || [])
+  const arcs = (book.units || [])
     .filter((u) => u.unit_kind === "arc")
     .sort((a, b) => a.position - b.position);
-  const arcFin = novel.arc_fin ?? 0;
-  const chInArc = novel.ch_fin_in_arc ?? 0;
+  const arcFin = book.arc_fin ?? 0;
+  const chInArc = book.ch_fin_in_arc ?? 0;
   // What the tracker shows: the arc being read, as the detail page and the
   // library card show it - not the arcs finished, which is what arc_fin holds.
   const arcView = arcProgressView(arcs, arcFin, chInArc);
@@ -68,25 +68,25 @@ export default function NovelDashboardCard({
   // ── Progress % ───────────────────────────────────────────────────
   let progressPercent = 0;
   let progressLabel = "Ongoing";
-  if (pd === "vol_tw" && novel.vol_total_tw != null) {
+  if (pd === "vol_tw" && book.vol_total_tw != null) {
     progressPercent = Math.round(
-      ((novel.vol_fin ?? 0) / novel.vol_total_tw) * 100,
+      ((book.vol_fin ?? 0) / book.vol_total_tw) * 100,
     );
     progressLabel = `${progressPercent}%`;
-  } else if (pd === "vol_original" && novel.vol_total_original != null) {
+  } else if (pd === "vol_original" && book.vol_total_original != null) {
     progressPercent = Math.round(
-      ((novel.vol_fin ?? 0) / novel.vol_total_original) * 100,
+      ((book.vol_fin ?? 0) / book.vol_total_original) * 100,
     );
     progressLabel = `${progressPercent}%`;
-  } else if (pd === "arc_ch" && novel.ch_total) {
+  } else if (pd === "arc_ch" && book.ch_total) {
     // ch_fin is derived server-side from arc_fin/ch_fin_in_arc, so it
     // already accounts for the partial arc being read — no unit maths here.
     progressPercent = Math.round(
-      Math.min(((novel.ch_fin ?? 0) / novel.ch_total) * 100, 100),
+      Math.min(((book.ch_fin ?? 0) / book.ch_total) * 100, 100),
     );
     progressLabel = `${progressPercent}%`;
-  } else if (pd === "ch" && novel.ch_total != null) {
-    progressPercent = Math.round(((novel.ch_fin ?? 0) / novel.ch_total) * 100);
+  } else if (pd === "ch" && book.ch_total != null) {
+    progressPercent = Math.round(((book.ch_fin ?? 0) / book.ch_total) * 100);
     progressLabel = `${progressPercent}%`;
   }
 
@@ -94,52 +94,52 @@ export default function NovelDashboardCard({
   function handleVolChange(newVal) {
     const target = Math.max(0, newVal);
     const maxVol =
-      pd === "vol_tw" ? novel.vol_total_tw : novel.vol_total_original;
+      pd === "vol_tw" ? book.vol_total_tw : book.vol_total_original;
     if (maxVol != null && target > maxVol) {
       showToast("error", "Cannot exceed total volumes.");
       return;
     }
-    const prev = novel.vol_fin ?? 0;
+    const prev = book.vol_fin ?? 0;
     if (target === prev) return;
-    onProgressChange(novel.system_id, { vol_fin: target }, { vol_fin: prev });
+    onProgressChange(book.system_id, { vol_fin: target }, { vol_fin: prev });
   }
 
   // The `pd === "ch"` branch renders only when there are no arc rows (see
-  // renderTracker below), but a "ch"-labelled novel CAN still have arc rows
+  // renderTracker below), but a "ch"-labelled book CAN still have arc rows
   // once one is added without a progress_display override — c80c84a fixed
   // this same snap-back for the arc_ch branch; route through the two-stage
   // cursor here too when rows exist, since _derive recomputes ch_fin from
   // them and would otherwise discard a bare ch_fin write in the same request.
   function handleChChange(newVal) {
     const target = Math.max(0, newVal);
-    if (novel.ch_total != null && target > novel.ch_total) {
+    if (book.ch_total != null && target > book.ch_total) {
       showToast("error", "Cannot exceed total chapters.");
       return;
     }
-    const prev = novel.ch_fin ?? 0;
+    const prev = book.ch_fin ?? 0;
     if (target === prev) return;
     if (arcs.length > 0) {
       const next = arcCursorForChapters(arcs, target);
       if (next.arc_fin === arcFin && next.ch_fin_in_arc === chInArc) return;
       onProgressChange(
-        novel.system_id,
+        book.system_id,
         { arc_fin: next.arc_fin, ch_fin_in_arc: next.ch_fin_in_arc },
         { arc_fin: arcFin, ch_fin_in_arc: chInArc },
       );
       return;
     }
-    onProgressChange(novel.system_id, { ch_fin: target }, { ch_fin: prev });
+    onProgressChange(book.system_id, { ch_fin: target }, { ch_fin: prev });
   }
 
-  // Chapter step buttons for arc_ch novels: one step = one chapter, folded
-  // into the right arc by arcStep (frontend/src/lib/novelUnits.js), mirroring
+  // Chapter step buttons for arc_ch books: one step = one chapter, folded
+  // into the right arc by arcStep (frontend/src/lib/bookUnits.js), mirroring
   // the server's normalize_arc_progress. Both fields go in one PATCH so the
   // server sees a coherent cursor, not a half-updated one it then "fixes".
   function handleArcChapterStep(dir) {
     const next = arcStep(arcs, arcFin, chInArc, dir);
     if (next.arc_fin === arcFin && next.ch_fin_in_arc === chInArc) return;
     onProgressChange(
-      novel.system_id,
+      book.system_id,
       { arc_fin: next.arc_fin, ch_fin_in_arc: next.ch_fin_in_arc },
       { arc_fin: arcFin, ch_fin_in_arc: chInArc },
     );
@@ -152,7 +152,7 @@ export default function NovelDashboardCard({
   function handleArcCursorInput(next) {
     if (next.arc_fin === arcFin && next.ch_fin_in_arc === chInArc) return;
     onProgressChange(
-      novel.system_id,
+      book.system_id,
       next,
       { arc_fin: arcFin, ch_fin_in_arc: chInArc },
     );
@@ -173,11 +173,11 @@ export default function NovelDashboardCard({
   // ── Progress tracker ─────────────────────────────────────────────
   function renderTracker() {
     if (pd === "vol_tw" || pd === "vol_original") {
-      const fin = novel.vol_fin ?? 0;
+      const fin = book.vol_fin ?? 0;
       const total =
         pd === "vol_tw"
-          ? (novel.vol_total_tw ?? "?")
-          : (novel.vol_total_original ?? "?");
+          ? (book.vol_total_tw ?? "?")
+          : (book.vol_total_original ?? "?");
       const unit = pd === "vol_tw" ? "vol tw" : "vol";
 
       if (canTrack) {
@@ -223,7 +223,7 @@ export default function NovelDashboardCard({
     }
 
     if (pd === "arc_ch") {
-      const arcTotal = novel.arc_total ?? arcs.length ?? "?";
+      const arcTotal = book.arc_total ?? arcs.length ?? "?";
       const chInArcTotal = arcView.arc?.ch_count ?? "?";
 
       if (canTrack) {
@@ -283,8 +283,8 @@ export default function NovelDashboardCard({
     }
 
     if (pd === "ch") {
-      const fin = novel.ch_fin ?? 0;
-      const total = novel.ch_total ?? "?";
+      const fin = book.ch_fin ?? 0;
+      const total = book.ch_total ?? "?";
 
       if (canTrack) {
         return (
@@ -329,26 +329,26 @@ export default function NovelDashboardCard({
     }
   }
 
-  const cardPath = entityPath("novel", novel);
+  const cardPath = entityPath("book", book);
 
-  // The unit follows the entry's progress_display: a novel tracked by volume
+  // The unit follows the entry's progress_display: a book tracked by volume
   // must not report its position in chapters, which is the same trap the
   // Progress column exists to avoid across types.
   if (view === "list") {
     const byVolume = pd === "vol_tw" || pd === "vol_original";
     const volTotal =
-      pd === "vol_tw" ? novel.vol_total_tw : novel.vol_total_original;
+      pd === "vol_tw" ? book.vol_total_tw : book.vol_total_original;
     const listProgress = byVolume
-      ? `${novel.vol_fin ?? 0}/${volTotal ?? "?"} vol`
-      : `${novel.ch_fin ?? 0}/${novel.ch_total ?? "?"} ch`;
+      ? `${book.vol_fin ?? 0}/${volTotal ?? "?"} vol`
+      : `${book.ch_fin ?? 0}/${book.ch_total ?? "?"} ch`;
     return (
       <EntryRow
         path={cardPath}
         title={title}
         subTitle={subTitle}
-        type="Novel"
-        status={novel.reading_status}
-        rating={novel.my_rating}
+        type="Book"
+        status={book.reading_status}
+        rating={book.my_rating}
         progress={listProgress}
         percent={progressLabel !== "Ongoing" ? progressLabel : null}
       />
@@ -368,25 +368,25 @@ export default function NovelDashboardCard({
               className="font-mono text-[9px] uppercase tracking-[0.2em] whitespace-nowrap"
               style={{ writingMode: "vertical-rl" }}
             >
-              Novel
+              Book
             </span>
           </div>
           <div className="relative w-20 h-full bg-surface-2 overflow-hidden">
             <RatingStamp
-              rating={novel.my_rating}
+              rating={book.my_rating}
               size="sm"
               className="absolute top-1.5 right-1.5 z-10"
             />
-            {novel.region && (
+            {book.region && (
               <div className="absolute bottom-0 right-0 bg-black/60 text-white px-1 py-0.5 font-mono text-[8px] uppercase tracking-[0.12em] z-10">
-                {novel.region}
+                {book.region}
               </div>
             )}
             <LazyImage
               src={thumbUrl(imageUrl)}
               alt="Cover"
               className="w-full h-full object-cover"
-              style={focusStyle(novel.cover_image_focus)}
+              style={focusStyle(book.cover_image_focus)}
               onError={(e) => {
                 e.target.src = FALLBACK_SVG;
               }}
@@ -414,9 +414,9 @@ export default function NovelDashboardCard({
             {subTitle}
           </p>
           <div className="flex items-center flex-wrap gap-1.5 mt-auto">
-            {novel.serialization_status && (
+            {book.serialization_status && (
               <Chip tone="ink" className="truncate max-w-[130px]">
-                {novel.serialization_status}
+                {book.serialization_status}
               </Chip>
             )}
           </div>

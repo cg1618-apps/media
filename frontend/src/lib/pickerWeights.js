@@ -80,7 +80,7 @@ const MANGA_SERIALIZATION = { 完結: 1.5, 連載中: 1.3, 停更: 1.0, 腰斬: 
 export const SERIALIZATION_WEIGHTS = {
   manga: MANGA_SERIALIZATION,
   "h-comic": { 完結: 1.2, 連載中: 1.0, 停更: 1.0, 腰斬: 0.3 },
-  novel: {
+  book: {
     ...MANGA_SERIALIZATION,
     "連載中 (不穩定)": 0.7,
     "連載中 (有生之年)": 0.3,

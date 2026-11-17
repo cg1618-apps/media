@@ -1,41 +1,41 @@
-// Frontend: modify tab page file for NovelModifyTab.
+// Frontend: modify tab page file for BookModifyTab.
 //
-// NovelAddTab exports the novel's form body and lineage pickers, so the two
+// BookAddTab exports the book's form body and lineage pickers, so the two
 // tabs share one definition and cannot drift (the Game pattern). Modify adds
 // the entry's Structured Notes below the form; the franchise ribbon is
 // Modify.jsx's, above the editor card.
 import { SectionHeader } from "../../components/forms/FormField";
-import { NovelFormBody, NovelLineageFields } from "../add-tabs/NovelAddTab";
-import NovelNotes from "../detail/NovelNotes";
+import { BookFormBody, BookLineageFields } from "../add-tabs/BookAddTab";
+import BookNotes from "../detail/BookNotes";
 
-export default function NovelModifyTab({
+export default function BookModifyTab({
   franchiseCollections,
   cnvf,
   unv,
   allFranchises,
-  seriesItemsForNovel,
+  seriesItemsForBook,
   editingItem,
   sources,
 }) {
   return (
     <>
       <SectionHeader icon="fa-tag" title="Titles & Naming" />
-      <NovelLineageFields
+      <BookLineageFields
         f={cnvf}
         u={unv}
         allFranchises={allFranchises}
-        seriesItemsForNovel={seriesItemsForNovel}
+        seriesItemsForBook={seriesItemsForBook}
         franchiseCollections={franchiseCollections}
       />
-      <NovelFormBody
+      <BookFormBody
         f={cnvf}
         u={unv}
         sources={sources}
         ownerId={editingItem?.system_id}
       />
       <SectionHeader icon="fa-book-open" title="Structured Notes" />
-      <NovelNotes
-        novel={editingItem ?? {}}
+      <BookNotes
+        book={editingItem ?? {}}
       />
     </>
   );

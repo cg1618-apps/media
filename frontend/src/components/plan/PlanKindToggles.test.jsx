@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import PlanKindToggles, { kindLabel } from "./PlanKindToggles";
 
-const ALL = ["anime", "movie", "tv-show", "novel"];
+const ALL = ["anime", "movie", "tv-show", "book"];
 
 describe("PlanKindToggles", () => {
   it("offers only types the kind allows at that scope", () => {
@@ -19,7 +19,7 @@ describe("PlanKindToggles", () => {
     // Anime rewatches at franchise scope only, so it must not appear here.
     expect(screen.queryByLabelText("Anime")).toBeNull();
     expect(screen.getByLabelText("Movie")).toBeInTheDocument();
-    expect(screen.getByLabelText("Novel")).toBeInTheDocument();
+    expect(screen.getByLabelText("Book")).toBeInTheDocument();
   });
 
   it("renders nothing when the group holds no applicable type", () => {
@@ -56,11 +56,11 @@ describe("PlanKindToggles", () => {
 
 describe("kindLabel", () => {
   it("says reread when every type is a read type", () => {
-    expect(kindLabel("rewatch", ["novel", "comic"])).toBe("To Reread");
+    expect(kindLabel("rewatch", ["book", "comic"])).toBe("To Reread");
   });
 
   it("says rewatch when any type is watched", () => {
-    expect(kindLabel("rewatch", ["novel", "movie"])).toBe("To Rewatch");
+    expect(kindLabel("rewatch", ["book", "movie"])).toBe("To Rewatch");
   });
 });
 

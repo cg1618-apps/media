@@ -87,7 +87,7 @@ describe("GameCompletionBlock", () => {
   });
 
   it("renders nothing at all for a logged-out visitor", () => {
-    // Same gate as MyTrackerCard and NovelTrackerBlock: these are one person's
+    // Same gate as MyTrackerCard and BookTrackerBlock: these are one person's
     // answers, so with nobody signed in there is no "my" to show.
     mockAuth.username = null;
     const { container } = render(

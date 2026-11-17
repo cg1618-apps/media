@@ -488,7 +488,7 @@ export default function Fav3x3ModifyTab({ lists, setList }) {
       ...(lists["tv-show"] || []).map((e) => ({ ...e, _type: "tv_show" })),
       ...(lists.cartoon || []).map((e) => ({ ...e, _type: "cartoon" })),
       ...(lists.manga || []).map((e) => ({ ...e, _type: "manga" })),
-      ...(lists.novel || []).map((e) => ({ ...e, _type: "novel" })),
+      ...(lists.book || []).map((e) => ({ ...e, _type: "book" })),
       ...(lists.comic || []).map((e) => ({ ...e, _type: "comic" })),
       ...(lists.game || []).map((e) => ({ ...e, _type: "game" })),
       ...(lists["h-game"] || []).map((e) => ({ ...e, _type: "h_game" })),

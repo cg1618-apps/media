@@ -87,7 +87,7 @@ function withBucket(row, { franchiseMap, seriesMap, entriesById, allEntriesByFra
 const SELF_GROUP_COLUMN = {
   comic: "issue_total",
   manga: "serialization_status",
-  novel: "type",
+  book: "type",
 };
 
 function selfGroupValue(mediaType, entry) {
@@ -114,7 +114,7 @@ export default function usePlanData(reloadKey = 0) {
   const tvQuery = useMediaList("tv-show", LIST_OPTIONS);
   const cartoonQuery = useMediaList("cartoon", LIST_OPTIONS);
   const mangaQuery = useMediaList("manga", LIST_OPTIONS);
-  const novelQuery = useMediaList("novel", LIST_OPTIONS);
+  const bookQuery = useMediaList("book", LIST_OPTIONS);
   const comicQuery = useMediaList("comic", LIST_OPTIONS);
   const gameQuery = useMediaList("game", LIST_OPTIONS);
   // Gated: each fetched only for a session that can see its type. For anyone
@@ -152,7 +152,7 @@ export default function usePlanData(reloadKey = 0) {
   const allTVShows = tvQuery.data || [];
   const allCartoons = cartoonQuery.data || [];
   const allManga = mangaQuery.data || [];
-  const allNovel = novelQuery.data || [];
+  const allBook = bookQuery.data || [];
   const allComics = comicQuery.data || [];
   const allGames = gameQuery.data || [];
   const allHComics = hComicQuery.data || [];
@@ -186,7 +186,7 @@ export default function usePlanData(reloadKey = 0) {
       ...allTVShows.map((entry) => ({ ...entry, _type: "tv_show" })),
       ...allCartoons.map((entry) => ({ ...entry, _type: "cartoon" })),
       ...allManga.map((entry) => ({ ...entry, _type: "manga" })),
-      ...allNovel.map((entry) => ({ ...entry, _type: "novel" })),
+      ...allBook.map((entry) => ({ ...entry, _type: "book" })),
     ];
     const byFranchise = {};
     allEntries.forEach((entry) => {
@@ -203,7 +203,7 @@ export default function usePlanData(reloadKey = 0) {
     allTVShows,
     allCartoons,
     allManga,
-    allNovel,
+    allBook,
   ]);
 
   // Per-type arrays keyed the same hyphenated way as plan_next.media_type, for
@@ -216,7 +216,7 @@ export default function usePlanData(reloadKey = 0) {
       "tv-show": allTVShows,
       cartoon: allCartoons,
       manga: allManga,
-      novel: allNovel,
+      book: allBook,
       comic: allComics,
       game: allGames,
       "h-comic": allHComics,
@@ -230,7 +230,7 @@ export default function usePlanData(reloadKey = 0) {
       allTVShows,
       allCartoons,
       allManga,
-      allNovel,
+      allBook,
       allComics,
       allGames,
       allHComics,
@@ -278,7 +278,7 @@ export default function usePlanData(reloadKey = 0) {
     tvQuery,
     cartoonQuery,
     mangaQuery,
-    novelQuery,
+    bookQuery,
     gameQuery,
     hComicQuery,
     hGameQuery,
@@ -297,7 +297,7 @@ export default function usePlanData(reloadKey = 0) {
     allTVShows,
     allCartoons,
     allManga,
-    allNovel,
+    allBook,
     allEntriesByFranchise,
     franchiseMap,
     loading: queries.some((query) => query.isLoading),

@@ -1,7 +1,7 @@
-// Regression coverage for Finding 2 (novel-units final review): MediaCard's
-// novel progress branch must agree with getNovelProgress / NovelDashboardCard
-// on which pair a novel renders, via the shared effectiveProgressDisplay
-// helper (frontend/src/lib/novelUnits.js), rather than branching on the raw
+// Regression coverage for Finding 2 (book-units final review): MediaCard's
+// book progress branch must agree with getBookProgress / BookDashboardCard
+// on which pair a book renders, via the shared effectiveProgressDisplay
+// helper (frontend/src/lib/bookUnits.js), rather than branching on the raw
 // progress_display column directly.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -40,7 +40,7 @@ function mockAuthFetch(permissions = []) {
 
 afterEach(() => vi.unstubAllGlobals());
 
-function mount(data, type = "novel", isAdmin = false, variant = "library", extra = {}) {
+function mount(data, type = "book", isAdmin = false, variant = "library", extra = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
@@ -61,14 +61,14 @@ function mount(data, type = "novel", isAdmin = false, variant = "library", extra
   );
 }
 
-describe("MediaCard — novel progress (Decision G)", () => {
-  it("a Web novel with arc rows and no stored progress_display renders the two-stage position, not a volume counter", async () => {
+describe("MediaCard — book progress (Decision G)", () => {
+  it("a 網路小說 with arc rows and no stored progress_display renders the two-stage position, not a volume counter", async () => {
     mockAuthFetch();
     mount({
       system_id: "n1",
-      type: "Web",
+      type: "網路小說",
       progress_display: "",
-      novel_name_en: "Test Novel",
+      book_name_en: "Test Book",
       reading_status: "Reading",
       arc_fin: 1,
       arc_total: 2,

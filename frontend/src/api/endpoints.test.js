@@ -11,7 +11,7 @@ describe("resource() endpoints (derived from MEDIA_CONFIG)", () => {
     "tv-show": "/api/tv-shows",
     cartoon: "/api/cartoon",
     manga: "/api/manga",
-    novel: "/api/novel",
+    book: "/api/book",
     comic: "/api/comic",
     game: "/api/game",
     franchise: "/api/franchise",
@@ -134,9 +134,9 @@ describe("named endpoint groups", () => {
       "/api/anime-movie/search-mal?q=a%20b&limit=5",
     );
     expect(endpoints.manga.searchMal("x")).toBe("/api/manga/search-mal?q=x&limit=10");
-    expect(endpoints.novel.searchMal("x")).toBe("/api/novel/search-mal?q=x&limit=10");
-    expect(endpoints.novel.searchOpenLibrary("dune")).toBe(
-      "/api/novel/search-openlibrary?q=dune&limit=10",
+    expect(endpoints.book.searchMal("x")).toBe("/api/book/search-mal?q=x&limit=10");
+    expect(endpoints.book.searchOpenLibrary("dune")).toBe(
+      "/api/book/search-openlibrary?q=dune&limit=10",
     );
     expect(endpoints.person.searchMal("kana")).toBe(
       "/api/person/search-mal?q=kana&limit=10",
@@ -201,10 +201,10 @@ describe("named endpoint groups", () => {
     expect(endpoints.gameChoice.markEdge("X")).toBe("/api/game-choice/edges/X/mark");
   });
 
-  it("me: the caller's own ratings, novel-unit opinions and highlight group order", () => {
+  it("me: the caller's own ratings, book-unit opinions and highlight group order", () => {
     expect(endpoints.me.rating("franchise", "F1")).toBe("/api/me/ratings/franchise/F1");
     expect(endpoints.me.rating("studio", "S1")).toBe("/api/me/ratings/studio/S1");
-    expect(endpoints.me.novelUnit("U1")).toBe("/api/me/novel-units/U1");
+    expect(endpoints.me.bookUnit("U1")).toBe("/api/me/book-units/U1");
     expect(endpoints.me.highlightGroupOrder("H1")).toBe("/api/me/highlight-group-order/H1");
     expect(endpoints.me.favorite("quote", "Q1")).toBe("/api/me/favorites/quote/Q1");
     expect(endpoints.me.favorite("meme", "M1")).toBe("/api/me/favorites/meme/M1");

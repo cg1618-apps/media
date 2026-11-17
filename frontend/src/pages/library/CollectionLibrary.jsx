@@ -44,7 +44,7 @@ export default function CollectionLibrary() {
           fetch("/api/tv-shows/?limit=2000", { credentials: "include" }),
           fetch("/api/cartoon/?limit=2000", { credentials: "include" }),
           fetch("/api/manga/?limit=2000", { credentials: "include" }),
-          fetch("/api/novel/?limit=2000", { credentials: "include" }),
+          fetch("/api/book/?limit=2000", { credentials: "include" }),
           fetch("/api/comic/?limit=2000", { credentials: "include" }),
         ]);
         if (responses.some((r) => !r.ok)) throw new Error("Failed to load data");
@@ -58,7 +58,7 @@ export default function CollectionLibrary() {
           tvShows,
           cartoons,
           mangas,
-          novels,
+          books,
           comics,
         ] = await Promise.all(responses.map((r) => r.json()));
 
@@ -71,7 +71,7 @@ export default function CollectionLibrary() {
           ...withMediaType(tvShows, "tv-show"),
           ...withMediaType(cartoons, "cartoon"),
           ...withMediaType(mangas, "manga"),
-          ...withMediaType(novels, "novel"),
+          ...withMediaType(books, "book"),
           ...withMediaType(comics, "comic"),
         ];
 

@@ -18,7 +18,8 @@ const COMPLETION_TABS = [
   { key: "tv-show", label: "TV show" },
   { key: "cartoon", label: "Cartoon" },
   { key: "manga", label: "Manga" },
-  { key: "novel", label: "Novel" },
+  // The Novel section: books of the novel types only (NOVEL_BOOK_TYPES).
+  { key: "book", label: "Novel" },
   { key: "comic", label: "Comic" },
   { key: "game", label: "Game" },
   // Gated: offered through visibleByType only.
@@ -30,6 +31,7 @@ import { Button, Eyebrow, RatingStamp } from "../../components/ui/primitives";
 import LazyImage from "../../components/ui/LazyImage";
 import { entityPath } from "../../lib/entityPath";
 import { focusStyle, thumbUrl } from "../../lib/covers";
+import { novelsOnly } from "../../utils/statsUtils";
 
 const PAGE_SIZE = 10;
 
@@ -146,7 +148,7 @@ export default function StatsCompletions({
   allTVShows,
   allCartoons,
   allManga,
-  allNovel,
+  allBook,
   allComic,
   allGame,
   allHComic,
@@ -1175,8 +1177,8 @@ export default function StatsCompletions({
           );
         })()}
 
-      {/* Novel tab */}
-      {completionsTab === "novel" &&
+      {/* Novel tab: the books of a novel type, not guides or other books */}
+      {completionsTab === "book" &&
         (() => {
           const NOVEL_GROUPS = [
             { key: "JP", label: "JP" },
@@ -1186,7 +1188,7 @@ export default function StatsCompletions({
             { key: "Western", label: "Western" },
             { key: "others", label: "Others" },
           ];
-          const completed = allNovel
+          const completed = novelsOnly(allBook)
             .filter((n) =>
                 COMPLETED_STATUSES.includes(n.reading_status) &&
                 n.completed_at)
@@ -1249,9 +1251,9 @@ export default function StatsCompletions({
                         const franchise =
                           franchiseMap[String(n.franchise_id)];
                         const name =
-                          n.novel_name_cn ||
-                          n.novel_name_en ||
-                          n.novel_name_roman ||
+                          n.book_name_cn ||
+                          n.book_name_en ||
+                          n.book_name_roman ||
                           "—";
                         const franchiseName = franchise
                           ? franchise.franchise_name_cn ||
@@ -1267,7 +1269,7 @@ export default function StatsCompletions({
                         });
                         // Empty when the row carries no public_id: the entry renders as a
                         // plain row rather than a link to nowhere.
-                        const path = entityPath("novel", n);
+                        const path = entityPath("book", n);
                         const Wrapper = path ? Link : "div";
                         const wrapperProps = path ? { to: path } : {};
                         return (
@@ -2005,7 +2007,7 @@ export default function StatsCompletions({
         "tv-show",
         "cartoon",
         "manga",
-        "novel",
+        "book",
         "comic",
         "game",
         "h-comic",

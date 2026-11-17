@@ -146,7 +146,7 @@ describe("Add page — what a save sends", () => {
   // Modify's save sends it, never as 0.
   it.each([
     ["manga", "Manga", "manga_name_en", ["vol_fin", "vol_fin_page", "ch_fin"]],
-    ["novel", "Novel", "novel_name_en", ["vol_fin", "arc_fin", "ch_fin"]],
+    ["book", "Book", "book_name_en", ["vol_fin", "arc_fin", "ch_fin"]],
     ["comic", "Comic", "comic_name_en", ["issue_fin"]],
   ])("%s sends a blank finished count as null", async (type, label, nameKey, counts) => {
     const fetchMock = mockFetch(

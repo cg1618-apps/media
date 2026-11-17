@@ -44,13 +44,13 @@ function getTitle(item, type) {
       item.series_name_alt ||
       "Unknown"
     );
-  if (type === "novel")
+  if (type === "book")
     return (
-      item.novel_name_cn ||
-      item.novel_name_en ||
-      item.novel_name_roman ||
-      item.novel_name_jp ||
-      item.novel_name_alt ||
+      item.book_name_cn ||
+      item.book_name_en ||
+      item.book_name_roman ||
+      item.book_name_jp ||
+      item.book_name_alt ||
       "Unknown"
     );
   // EN first, unlike every other type above: Western comic runs are known by
@@ -122,7 +122,9 @@ function DeletedTable({ records, onRefresh }) {
         <span className="text-text-faint text-xs">Type: {d.franchise_type}</span>
       );
     }
-    if (["Anime", "TV Show", "Movie", "Cartoon", "Manga", "Novel"].includes(d.type)) {
+    // A tombstone keeps the label it was written under, so a book deleted
+    // before the type was renamed still reads "Novel".
+    if (["Anime", "TV Show", "Movie", "Cartoon", "Manga", "Book", "Novel"].includes(d.type)) {
       return (
         <div className="text-xs text-text-faint space-y-0.5">
           {d.franchise_cn && <div>Franchise: {d.franchise_cn}</div>}
@@ -273,7 +275,7 @@ export default function DataHistory() {
     anime: [],
     franchises: [],
     series: [],
-    novels: [],
+    books: [],
     comics: [],
   });
 
@@ -294,15 +296,15 @@ export default function DataHistory() {
         fetch("/api/anime/", { credentials: "include" }),
         fetch("/api/franchise/", { credentials: "include" }),
         fetch("/api/series/", { credentials: "include" }),
-        fetch("/api/novel/", { credentials: "include" }),
+        fetch("/api/book/", { credentials: "include" }),
         fetch("/api/comic/", { credentials: "include" }),
       ]);
       const anime = aRes.ok ? await aRes.json() : [];
       const franchises = fRes.ok ? await fRes.json() : [];
       const series = sRes.ok ? await sRes.json() : [];
-      const novels = nvRes.ok ? await nvRes.json() : [];
+      const books = nvRes.ok ? await nvRes.json() : [];
       const comics = cmRes.ok ? await cmRes.json() : [];
-      setHistoryData({ anime, franchises, series, novels, comics });
+      setHistoryData({ anime, franchises, series, books, comics });
     } catch {
       /* ignore */
     }
@@ -341,11 +343,11 @@ export default function DataHistory() {
       __name: getTitle(a, "anime"),
       __link: entityPath("anime", a),
     })),
-    ...(historyData.novels || []).map((n) => ({
+    ...(historyData.books || []).map((n) => ({
       ...n,
-      __type: "Novel",
-      __name: getTitle(n, "novel"),
-      __link: entityPath("novel", n),
+      __type: "Book",
+      __name: getTitle(n, "book"),
+      __link: entityPath("book", n),
     })),
     ...(historyData.comics || []).map((c) => ({
       ...c,
@@ -573,7 +575,7 @@ export default function DataHistory() {
                     const badgeCls =
                       item.__type === "Anime"
                         ? "text-text-muted border-border-strong"
-                        : item.__type === "Novel"
+                        : item.__type === "Book"
                           ? "text-text-muted border-border-strong"
                           : "text-text-muted border-border-strong";
                     return (

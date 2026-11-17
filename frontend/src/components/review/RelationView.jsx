@@ -31,7 +31,7 @@ const TYPE_LABELS = {
   "tv-show": "TV Show",
   cartoon: "Cartoon",
   manga: "Manga",
-  novel: "Novel",
+  book: "Book",
   comic: "Comic",
   game: "Game",
   "h-comic": "H-Comic",

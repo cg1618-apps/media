@@ -1500,7 +1500,7 @@ export default function Admin() {
                 { label: "TV Show", url: "/api/data-control/fill/tv-show" },
                 { label: "Cartoon", url: "/api/data-control/fill/cartoon" },
                 { label: "Manga", url: "/api/data-control/fill/manga" },
-                { label: "Novel", url: "/api/data-control/fill/novel" },
+                { label: "Book", url: "/api/data-control/fill/book" },
                 // Deliberately absent from Fill All: Comic Vine allows only
                 // ~200 requests/hour, so a bulk comic fill is triggered on
                 // purpose rather than riding along with every full run.
@@ -1566,7 +1566,7 @@ export default function Admin() {
                 { label: "TV Show", url: "/api/data-control/replace/tv-show" },
                 { label: "Cartoon", url: "/api/data-control/replace/cartoon" },
                 { label: "Manga", url: "/api/data-control/replace/manga" },
-                { label: "Novel", url: "/api/data-control/replace/novel" },
+                { label: "Book", url: "/api/data-control/replace/book" },
                 // Replace for games runs IGDB (fill-only - nothing in it
                 // drifts) and then Steam: the Metacritic score and this
                 // collection's own playtime and achievements.
@@ -1626,7 +1626,7 @@ export default function Admin() {
                   <option value="TV Shows">TV Show</option>
                   <option value="Cartoons">Cartoon</option>
                   <option value="Manga">Manga</option>
-                  <option value="Novel">Novel</option>
+                  <option value="Book">Book</option>
                   <option value="Comic">Comic</option>
                   <option value="Collection">Collection</option>
                   <option value="Franchise">Franchise</option>

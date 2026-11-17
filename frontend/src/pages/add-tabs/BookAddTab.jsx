@@ -1,16 +1,16 @@
-// Frontend: add tab page file for NovelAddTab.
+// Frontend: add tab page file for BookAddTab.
 //
-// NovelFormBody and NovelLineageFields are the novel's one form, shared by
-// this tab and NovelModifyTab (the Game pattern): the two pages differ only in
+// BookFormBody and BookLineageFields are the book's one form, shared by
+// this tab and BookModifyTab (the Game pattern): the two pages differ only in
 // the boxes above the form here, the Structured Notes below it there, and the
 // `ownerId` Modify passes in.
 import GenreLabelFields from "../../components/forms/GenreLabelFields";
-import NovelUnitsEditor from "../../components/forms/NovelUnitsEditor";
+import BookUnitsEditor from "../../components/forms/BookUnitsEditor";
 import {
   countsChapters,
   countsVolumes,
   progressDisplayOptions,
-} from "../../lib/novelUnits";
+} from "../../lib/bookUnits";
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import CastEditor from "../../components/forms/CastEditor";
@@ -31,9 +31,9 @@ import { getSourceValues, parseTypes } from "../../utils/media";
 import {
   IS_MAIN,
   MY_RATINGS,
-  NOVEL_REGIONS,
-  NOVEL_SERIALIZATION_STATUSES as SERIALIZATION_STATUSES,
-  NOVEL_TYPES,
+  BOOK_REGIONS,
+  BOOK_SERIALIZATION_STATUSES as SERIALIZATION_STATUSES,
+  BOOK_TYPES,
   READING_STATUSES,
   withLegacyProgressDisplay,
 } from "../../config/fieldOptions";
@@ -42,17 +42,17 @@ import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
 import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
 import { endpoints } from "../../api/endpoints";
 
-export { defaultNovel } from "../../config/formFactories";
+export { defaultBook } from "../../config/formFactories";
 
 const FLAGS = [
   ["read_next", "Read Next", "Add to Read Next list"],
   ["to_reread", "To Reread", "Mark for reread"],
 ];
 
-// A novel sits in a Novel, Anime or Manga franchise, or an untyped one.
-const NOVEL_FRANCHISE_TYPES = ["Novel", "Anime", "Manga"];
-const acceptsNovelFranchise = (type) =>
-  !type || parseTypes(type).some((t) => NOVEL_FRANCHISE_TYPES.includes(t));
+// A book sits in a Book, Anime or Manga franchise, or an untyped one.
+const BOOK_FRANCHISE_TYPES = ["Book", "Anime", "Manga"];
+const acceptsBookFranchise = (type) =>
+  !type || parseTypes(type).some((t) => BOOK_FRANCHISE_TYPES.includes(t));
 
 function NumberInput({ f, u, name, label, hint, placeholder = "0" }) {
   return (
@@ -89,21 +89,21 @@ function SelectInput({ f, u, name, label, options }) {
   );
 }
 
-/** The franchise and series pickers, shared by both novel tabs. */
-export function NovelLineageFields({
+/** The franchise and series pickers, shared by both book tabs. */
+export function BookLineageFields({
   f,
   u,
   allFranchises,
-  seriesItemsForNovel,
+  seriesItemsForBook,
   franchiseCollections,
 }) {
   return (
     <FamilyLineageFields
       f={f}
       u={u}
-      accepts={acceptsNovelFranchise}
+      accepts={acceptsBookFranchise}
       allFranchises={allFranchises}
-      seriesItems={seriesItemsForNovel ?? []}
+      seriesItems={seriesItemsForBook ?? []}
       franchiseCollections={franchiseCollections}
     />
   );
@@ -111,13 +111,13 @@ export function NovelLineageFields({
 
 /**
  * Every field below the franchise/series pickers, shared verbatim by the
- * Modify tab. `ownerId` is the novel's id on Modify and absent on Add - the
+ * Modify tab. `ownerId` is the book's id on Modify and absent on Add - the
  * only difference the body knows about (cover attach, cast and tag replace).
  */
-export function NovelFormBody({ f, u, sources, ownerId }) {
+export function BookFormBody({ f, u, sources, ownerId }) {
   const publisherOptions = getSourceValues(sources, {
     kind: "publisher",
-    scope: "novel",
+    scope: "book",
   });
   const publisherItems = publisherOptions.map((v) => ({ id: v, label: v }));
   const chapters = countsChapters(f);
@@ -128,8 +128,8 @@ export function NovelFormBody({ f, u, sources, ownerId }) {
       <EntryNameFields
         f={f}
         u={u}
-        prefix="novel"
-        label="Novel"
+        prefix="book"
+        label="Book"
         names={["cn", "en", "roman", "jp", "alt"]}
       />
 
@@ -168,7 +168,7 @@ export function NovelFormBody({ f, u, sources, ownerId }) {
         </Field>
       </div>
       {/* Arc and chapter counters exist only for the types that count them.
-          A Light Novel or a Novel counts volumes, and the server clears these
+          A 輕小說 or a 小說 counts volumes, and the server clears these
           columns on save, so offering the inputs would invite an edit that is
           discarded. Follows the Type dropdown live. */}
       {chapters && (
@@ -183,7 +183,7 @@ export function NovelFormBody({ f, u, sources, ownerId }) {
           </div>
         </>
       )}
-      {/* Volume counters. Hidden for Web, which is read in chapters - the
+      {/* Volume counters. Hidden for 網路小說, which is read in chapters - the
           columns keep whatever they hold (a later print run, or a type change
           back) but are not edited from here. */}
       {volumes && (
@@ -202,8 +202,8 @@ export function NovelFormBody({ f, u, sources, ownerId }) {
 
       <SectionHeader icon="fa-info-circle" title="Information" />
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <SelectInput f={f} u={u} name="region" label="Region" options={NOVEL_REGIONS} />
-        <SelectInput f={f} u={u} name="type" label="Type" options={NOVEL_TYPES} />
+        <SelectInput f={f} u={u} name="region" label="Region" options={BOOK_REGIONS} />
+        <SelectInput f={f} u={u} name="type" label="Type" options={BOOK_TYPES} />
         <SelectInput f={f} u={u} name="is_main" label="Is Main" options={IS_MAIN} />
         <Field label="Version">
           <input
@@ -223,11 +223,16 @@ export function NovelFormBody({ f, u, sources, ownerId }) {
           options={SERIALIZATION_STATUSES}
         />
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <ReleaseDateInput
-          label="Release Date"
-          value={f.release_date}
-          onChange={(v) => u("release_date", v)}
+          label="Release Date JP"
+          value={f.release_date_jp}
+          onChange={(v) => u("release_date_jp", v)}
+        />
+        <ReleaseDateInput
+          label="Release Date TW"
+          value={f.release_date_tw}
+          onChange={(v) => u("release_date_tw", v)}
         />
         <ReleaseDateInput
           label="End Date"
@@ -237,7 +242,7 @@ export function NovelFormBody({ f, u, sources, ownerId }) {
       </div>
 
       <GenreLabelFields
-        mediaType="novel"
+        mediaType="book"
         values={f}
         onChange={u}
         sources={sources}
@@ -253,7 +258,7 @@ export function NovelFormBody({ f, u, sources, ownerId }) {
             options={getSourceValues(sources, {
               kind: "person",
               role: "author",
-              scope: "novel",
+              scope: "book",
             })}
             value={f.author ?? ""}
             onChange={(v) => u("author", v)}
@@ -265,7 +270,7 @@ export function NovelFormBody({ f, u, sources, ownerId }) {
             options={getSourceValues(sources, {
               kind: "person",
               role: "illustrator",
-              scope: "novel",
+              scope: "book",
             })}
             value={f.illustrator ?? ""}
             onChange={(v) => u("illustrator", v)}
@@ -291,11 +296,11 @@ export function NovelFormBody({ f, u, sources, ownerId }) {
       </div>
 
       {/* Cast: character/role rows (no seiyuu column - nobody voices anyone
-          in a novel), saved through PUT /api/casting/novel/{id} separately
+          in a book), saved through PUT /api/casting/book/{id} separately
           from the entry's own payload - on Add once the entry exists. */}
       <SectionHeader icon="fa-users" title="Cast" />
       <CastEditor
-        mediaType="novel"
+        mediaType="book"
         franchiseId={f.franchise_id}
         malLink={f.mal_link}
         entryId={ownerId}
@@ -304,9 +309,9 @@ export function NovelFormBody({ f, u, sources, ownerId }) {
       />
 
       <SectionHeader icon="fa-book-open" title="Units" />
-      <NovelUnitsEditor
+      <BookUnitsEditor
         items={f.units}
-        novelType={f.type}
+        bookType={f.type}
         onChange={(val) => u("units", val)}
       />
 
@@ -359,7 +364,7 @@ export function NovelFormBody({ f, u, sources, ownerId }) {
           options={getSourceValues(sources, {
             kind: "option",
             category: "Serialization Platform",
-            scope: "novel",
+            scope: "book",
           })}
           value={f.serialization_platform ?? ""}
           onChange={(v) => u("serialization_platform", v)}
@@ -369,64 +374,64 @@ export function NovelFormBody({ f, u, sources, ownerId }) {
       <SourcesEditor
         value={f.sources}
         onChange={(rows) => u("sources", rows)}
-        mediaType="novel"
+        mediaType="book"
         sources={sources}
       />
 
-      <CoverFields f={f} u={u} ownerType="novel" ownerId={ownerId} />
+      <CoverFields f={f} u={u} ownerType="book" ownerId={ownerId} />
     </>
   );
 }
 
-export default function NovelAddTab({
+export default function BookAddTab({
   franchiseCollections,
   nvf,
   unv,
-  allNovels,
-  novelsLoading = false,
-  applyNovelEntryAutofill,
+  allBooks,
+  booksLoading = false,
+  applyBookEntryAutofill,
   applyMalPick,
   applyOpenLibraryPick,
   allFranchises,
-  seriesItemsForNovel,
+  seriesItemsForBook,
   sources,
 }) {
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-2">
       <EntryAutofillSearch
-        items={allNovels}
+        items={allBooks}
         names={(n) => [
-          n.novel_name_cn,
-          n.novel_name_en,
-          n.novel_name_roman,
-          n.novel_name_jp,
-          n.novel_name_alt,
+          n.book_name_cn,
+          n.book_name_en,
+          n.book_name_roman,
+          n.book_name_jp,
+          n.book_name_alt,
         ]}
-        title={(n) => n.novel_name_cn || n.novel_name_en}
+        title={(n) => n.book_name_cn || n.book_name_en}
         franchises={allFranchises}
         badge={(n) => n.region}
-        onPick={applyNovelEntryAutofill}
-        loading={novelsLoading}
+        onPick={applyBookEntryAutofill}
+        loading={booksLoading}
       />
       <ExternalSearchBox
         source="MAL"
-        searchUrl={endpoints.novel.searchMal}
+        searchUrl={endpoints.book.searchMal}
         onPick={applyMalPick}
       />
       <ExternalSearchBox
         source="Open Library"
-        searchUrl={endpoints.novel.searchOpenLibrary}
+        searchUrl={endpoints.book.searchOpenLibrary}
         onPick={applyOpenLibraryPick}
       />
       <SectionHeader icon="fa-tag" title="Titles & Naming" />
-      <NovelLineageFields
+      <BookLineageFields
         f={nvf}
         u={unv}
         allFranchises={allFranchises}
-        seriesItemsForNovel={seriesItemsForNovel}
+        seriesItemsForBook={seriesItemsForBook}
         franchiseCollections={franchiseCollections}
       />
-      <NovelFormBody f={nvf} u={unv} sources={sources} />
+      <BookFormBody f={nvf} u={unv} sources={sources} />
     </div>
   );
 }

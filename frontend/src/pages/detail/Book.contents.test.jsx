@@ -1,7 +1,7 @@
-// Novel detail page - the browser tab title and the table of contents, the
+// Book detail page - the browser tab title and the table of contents, the
 // two mechanisms every media-type detail page shares (usePageTitle,
 // DetailContents / TocSection). Anime.contents.test.jsx pins the loading,
-// not-found and left-out-section cases; this pins Novel's own sections.
+// not-found and left-out-section cases; this pins Book's own sections.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -10,24 +10,26 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../../contexts/AuthContext";
 import { PageTitleProvider } from "../../contexts/PageTitleContext";
 import { ToastProvider } from "../../hooks/useToast";
-import Novel from "./Novel";
+import Book from "./Book";
 
 // Every optional main-column card has something to show: genre tags, an
 // author for Production, one unit and one cast row.
-const NOVEL = {
+const BOOK = {
   system_id: "n1",
   public_id: 1,
-  novel_name_cn: "測試小說",
-  novel_name_en: "Test Novel",
-  novel_name_roman: null,
+  book_name_cn: "測試小說",
+  book_name_en: "Test Book",
+  book_name_roman: null,
   franchise_id: null,
   series_id: null,
   region: "JP",
-  type: "Web",
+  type: "網路小說",
   genre_main: "Fantasy",
   author: "Author",
   ch_fin: 3,
   ch_total: 10,
+  release_date_jp: "2019-04",
+  release_date_tw: "2020",
   cover_image_file: null,
   units: [{ system_id: "u1", display_key: "Vol. 1", unit_kind: "volume", position: 1 }],
 };
@@ -50,8 +52,8 @@ function mockFetch() {
     "fetch",
     vi.fn((url) => {
       const u = String(url);
-      if (u.startsWith("/api/casting/novel/")) return ok({ cast: [CAST_ROW] });
-      if (u.startsWith("/api/novel/")) return ok(NOVEL);
+      if (u.startsWith("/api/casting/book/")) return ok({ cast: [CAST_ROW] });
+      if (u.startsWith("/api/book/")) return ok(BOOK);
       if (u.startsWith("/api/auth/me")) {
         return ok({ username: "reader", role: "user", permissions: ["view.character", "self.list"] });
       }
@@ -68,10 +70,10 @@ function mount() {
     <QueryClientProvider client={client}>
       <AuthProvider>
         <ToastProvider>
-          <MemoryRouter initialEntries={["/novel/1"]}>
+          <MemoryRouter initialEntries={["/book/1"]}>
             <PageTitleProvider>
               <Routes>
-                <Route path="/novel/:publicId/:slug?" element={<Novel />} />
+                <Route path="/book/:publicId/:slug?" element={<Book />} />
               </Routes>
             </PageTitleProvider>
           </MemoryRouter>
@@ -86,7 +88,7 @@ const rows = () =>
     .getAllByRole("button")
     .map((b) => b.textContent);
 
-describe("Novel detail page - tab title", () => {
+describe("Book detail page - tab title", () => {
   it("is the entry's displayed title, the one the heading shows", async () => {
     mockFetch();
     mount();
@@ -95,7 +97,7 @@ describe("Novel detail page - tab title", () => {
   });
 });
 
-describe("Novel detail page - table of contents", () => {
+describe("Book detail page - table of contents", () => {
   it("lists the main-column sections in page order", async () => {
     mockFetch();
     mount();
@@ -111,5 +113,25 @@ describe("Novel detail page - table of contents", () => {
         "Units",
       ]),
     );
+  });
+});
+
+describe("Book detail page - Information", () => {
+  const information = async () =>
+    within(
+      await screen
+        .findByRole("heading", { level: 3, name: "Information" })
+        .then((h) => h.closest("section")),
+    );
+
+  it("shows the JP and TW release dates verbatim, and no plain Release Date", async () => {
+    mockFetch();
+    mount();
+    const card = await information();
+    expect(card.getByText("Release Date JP")).toBeInTheDocument();
+    expect(card.getByText("2019-04")).toBeInTheDocument();
+    expect(card.getByText("Release Date TW")).toBeInTheDocument();
+    expect(card.getByText("2020")).toBeInTheDocument();
+    expect(card.queryByText("Release Date")).toBeNull();
   });
 });

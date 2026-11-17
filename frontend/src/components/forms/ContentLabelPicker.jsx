@@ -175,7 +175,7 @@ export const LABELLABLE_TABS = [
   "tv-show",
   "cartoon",
   "manga",
-  "novel",
+  "book",
   "comic",
   "game",
   "h-comic",

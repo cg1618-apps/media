@@ -1,5 +1,5 @@
 // Anime detail page — cast section (Task 10): a read-only rendering of
-// useCasting's rows, following Novel.test.jsx's setup (providers, mocking,
+// useCasting's rows, following Book.test.jsx's setup (providers, mocking,
 // router wrapping).
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, within } from "@testing-library/react";
@@ -40,7 +40,7 @@ function respond(url, isAdmin) {
       username: isAdmin ? "cg1618" : "reader",
       role: isAdmin ? "super" : "user",
       // A member's keys: entity names link (the four entity keys). The guest
-      // view is pinned in CastSection.test, StudioLinks.test and Novel's own
+      // view is pinned in CastSection.test, StudioLinks.test and Book's own
       // guest case below.
       permissions: [
         "view.studio",

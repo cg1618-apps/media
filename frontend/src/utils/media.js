@@ -27,7 +27,7 @@ export {
   getSourceValues,
   formatLength,
   parseTypes,
-  getNovelProgress,
+  getBookProgress,
 } from "../lib/formatters";
 export {
   buildAnimeMoviePayload,
@@ -42,6 +42,6 @@ export {
   hentaiFieldsPayload,
   mangaFieldsPayload,
   movieFieldsPayload,
-  novelFieldsPayload,
+  bookFieldsPayload,
   tvShowFieldsPayload,
 } from "../lib/payloads";

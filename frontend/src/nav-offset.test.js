@@ -47,7 +47,7 @@ it("Index.jsx measures the division header instead of guessing its height", () =
 
 it.each([
   "components/tracker/DashboardCard.jsx",
-  "components/tracker/NovelDashboardCard.jsx",
+  "components/tracker/BookDashboardCard.jsx",
   "components/tracker/ComicDashboardCard.jsx",
   "components/tracker/GameDashboardCard.jsx",
 ])("%s isolates its stacking so steppers stay under sticky headers", (card) => {

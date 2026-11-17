@@ -32,13 +32,13 @@
 // unrelated entry, at every branch count above one.
 //
 // ROWS ARE OPENED, NOT SKIPPED. A work that is itself a branch has branches of
-// its own - a novel adapted into an anime, with its own side stories - and the
+// its own - a book adapted into an anime, with its own side stories - and the
 // row it would hang them from is already the anime's. Scanning on for the next
 // free row puts them on the far side of the anime's whole spine and draws
 // their connectors across it, so the row is made instead: everything from
 // there outwards moves over by one.
 //
-// That stretches the relations which already spanned the row - the novel is
+// That stretches the relations which already spanned the row - the book is
 // now two rows above the anime, not one - so before anything is placed in a
 // newly opened row, the column each of those connectors passes down is
 // reserved. It is why a fan of side stories starts one column right of the
@@ -303,7 +303,7 @@ function walkCluster(cluster, { forward, backward, sideways }, chain, hubs) {
   /**
    * Keeps a column of `row` clear for every connector that now crosses it.
    *
-   * Opening a row stretches the relations that already spanned it - the novel
+   * Opening a row stretches the relations that already spanned it - the book
    * a series was adapted from stops being one row above it and becomes two -
    * and their connectors are then drawn straight through whatever the new row
    * puts in the way. So the rank each of them passes through is reserved
@@ -335,7 +335,7 @@ function walkCluster(cluster, { forward, backward, sideways }, chain, hubs) {
    * one row from the work it hangs off: a connector turns at the midpoint
    * between its two ends, so at one row that turn falls in the empty gutter,
    * and at two it falls inside whatever row was skipped over. Skipping is how
-   * a novel's side stories ended up on the far side of the anime spine, with
+   * a book's side stories ended up on the far side of the anime spine, with
    * their connectors drawn straight across it.
    */
   function openRow(row, dir, rank) {

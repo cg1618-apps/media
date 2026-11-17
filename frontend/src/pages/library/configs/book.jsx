@@ -10,35 +10,41 @@ import {
   readButtonColumn,
 } from "../../../components/layout/libraryColumns";
 import { releaseScore } from "../../../lib/releaseDate";
-import { READING_STATUS_GROUP, getNovelProgress } from "../../../utils/media";
+import { READING_STATUS_GROUP, getBookProgress } from "../../../utils/media";
 
 function getTitle(n)   {
-  return n.novel_name_cn || n.novel_name_en || n.novel_name_roman
-      || n.novel_name_jp  || n.novel_name_alt || "";
+  return n.book_name_cn || n.book_name_en || n.book_name_roman
+      || n.book_name_jp  || n.book_name_alt || "";
 }
+// Release date sort score: the JP date, then the TW one, first-of-period for
+// the precision an entry does not carry.
+function getReleaseSortScore(n) {
+  return releaseScore(n.release_date_jp || n.release_date_tw);
+}
+
 function getSortKey(n) {
-  return n.novel_name_en || n.novel_name_roman || n.novel_name_cn
-      || n.novel_name_jp  || n.novel_name_alt  || "";
+  return n.book_name_en || n.book_name_roman || n.book_name_cn
+      || n.book_name_jp  || n.book_name_alt  || "";
 }
 
 // ---------------------------------------------------------------------------
-// Novel library config
+// Book library config
 // ---------------------------------------------------------------------------
-const NOVEL_LIBRARY_CONFIG = {
+const BOOK_LIBRARY_CONFIG = {
   usesSeries: true,
-  navPath: "/novel",
+  navPath: "/book",
   defaultSort: "title",
-  searchPlaceholder: "Search novels, franchise, series...",
+  searchPlaceholder: "Search books, franchise, series...",
 
   buildSearchString(item, franchiseDict, seriesDict) {
     const f = franchiseDict[item.franchise_id];
     const s = seriesDict[item.series_id];
     return [
-      item.novel_name_cn, item.novel_name_en, item.novel_name_roman,
-      item.novel_name_jp, item.novel_name_alt,
+      item.book_name_cn, item.book_name_en, item.book_name_roman,
+      item.book_name_jp, item.book_name_alt,
       f?.franchise_name_cn, f?.franchise_name_en, f?.franchise_name_roman,
       s?.series_name_cn,   s?.series_name_en,   s?.series_name_alt,
-      String(item.release_date ?? ""),
+      item.release_date_jp, item.release_date_tw,
     ].filter(Boolean).join(" ");
   },
 
@@ -88,7 +94,7 @@ const NOVEL_LIBRARY_CONFIG = {
     {
       key: "release_date",
       label: "Release Date",
-      compare: (a, b) => releaseScore(b.release_date) - releaseScore(a.release_date),
+      compare: (a, b) => getReleaseSortScore(b) - getReleaseSortScore(a),
     },
     {
       key: "end_date",
@@ -114,7 +120,7 @@ const NOVEL_LIBRARY_CONFIG = {
       header: "Title EN",
       thClass: "hidden md:table-cell",
       tdClass: "text-xs text-text-faint hidden md:table-cell",
-      render: (item) => item.novel_name_en || item.novel_name_roman || "-",
+      render: (item) => item.book_name_en || item.book_name_roman || "-",
     },
     {
       key: "status",
@@ -129,7 +135,7 @@ const NOVEL_LIBRARY_CONFIG = {
       personal: true,
       thClass: "hidden lg:table-cell",
       tdClass: "text-xs text-center font-mono text-text-muted hidden lg:table-cell",
-      render: (item) => getNovelProgress(item),
+      render: (item) => getBookProgress(item),
     },
     myRatingColumn(),
     malRatingColumn(),
@@ -139,4 +145,4 @@ const NOVEL_LIBRARY_CONFIG = {
   ],
 };
 
-export default NOVEL_LIBRARY_CONFIG;
+export default BOOK_LIBRARY_CONFIG;

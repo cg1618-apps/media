@@ -33,7 +33,7 @@ export const LIBRARY_MEDIA_TYPE_PERMISSIONS = [
   "media_type.anime",
   "media_type.anime-movie",
   "media_type.manga",
-  "media_type.novel",
+  "media_type.book",
   "media_type.game",
   "media_type.tv-show",
   "media_type.movie",
@@ -130,10 +130,10 @@ export const NAV_SECTIONS = [
             matches: ["/manga"],
           },
           {
-            label: "Novel",
+            label: "Book",
             icon: "fas fa-book-open",
-            to: "/library/novel",
-            matches: ["/novel"],
+            to: "/library/book",
+            matches: ["/book"],
           },
           {
             label: "Game",

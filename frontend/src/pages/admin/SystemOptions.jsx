@@ -72,14 +72,14 @@ const TIER3_ROWS = [
     home: "person",
     roleKey: "author",
     detail:
-      "one role, three labels: 原作 on manga, Author on a novel, Writer on a comic",
+      "one role, three labels: 原作 on manga, Author on a book, Writer on a comic",
   },
   {
     oldCategories: ["Manga Author", "Novel Illustrator", "Comic Artist"],
     home: "person",
     roleKey: "illustrator",
     detail:
-      "作畫 on manga, Illustrator on a novel, Artist on a comic. Manga Author covered this half too before the split",
+      "作畫 on manga, Illustrator on a book, Artist on a comic. Manga Author covered this half too before the split",
   },
 ];
 
@@ -324,7 +324,7 @@ function Tier1({ constants, sections }) {
         tier="1"
         title="Closed Enums"
         source="app/utils/constants.py"
-        subtitle="Values the business logic compares against — Not Yet Aired makes Fill skip mal_rating, 完結 gates the novel volume checks. They live in code, not the database, so a rename cannot silently break a branch."
+        subtitle="Values the business logic compares against — Not Yet Aired makes Fill skip mal_rating, 完結 gates the book volume checks. They live in code, not the database, so a rename cannot silently break a branch."
       >
         <ReadOnlyNote>
           Not editable anywhere in the app. Changing one is a code change.

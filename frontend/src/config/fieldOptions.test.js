@@ -171,6 +171,16 @@ describe("admin-form vocabularies served from /api/constants", () => {
     expect(CONSTANTS_FALLBACK.h_game_platform).toEqual(["Steam", "DLsite", "Nintendo", "Other"]);
   });
 
+  it("carries the book vocabularies under the book_* keys", () => {
+    expect(CONSTANTS_FALLBACK.book_type).toEqual([
+      "輕小說", "小說", "網路小說", "短篇集", "指南/設定集", "其他",
+    ]);
+    expect(CONSTANTS_FALLBACK.book_region).toBeDefined();
+    expect(CONSTANTS_FALLBACK.book_serialization_status).toBeDefined();
+    expect(FRANCHISE_TYPES).toContain("Book");
+    expect(MEDIA_TYPES).toContain("book");
+  });
+
   it("carries the game copy and completion vocabularies", () => {
     expect(CONSTANTS_FALLBACK.game_storefront).toContain("Physical Store");
     expect(CONSTANTS_FALLBACK.game_storefront).not.toContain("Physical");
@@ -239,8 +249,8 @@ const LEGAL = {
   director: ["anime", "anime-movie", "movie", "game", "hentai"],
   producer: ["anime"],
   composer: ["anime", "game"],
-  author: ["manga", "novel", "comic", "h-comic", "hentai"],
-  illustrator: ["manga", "novel", "comic", "h-comic"],
+  author: ["manga", "book", "comic", "h-comic", "hentai"],
+  illustrator: ["manga", "book", "comic", "h-comic"],
   club: ["h-comic"],
 };
 
@@ -301,11 +311,11 @@ describe("person field sources", () => {
 
 // Superseded: this list used to be narrowed to {"", "vol_tw"} on the grounds
 // that type alone determined structure. Per-type option lists replaced that —
-// per-entry selects now build their own via progressDisplayOptions(novel), and
+// per-entry selects now build their own via progressDisplayOptions(book), and
 // what survives here is the full vocabulary for the Form Defaults page, which
-// spans every novel type at once.
+// spans every book type at once.
 describe("PROGRESS_DISPLAY_OPTIONS (Form Defaults vocabulary)", () => {
-  it("carries every progress display a novel can store", () => {
+  it("carries every progress display a book can store", () => {
     expect(PROGRESS_DISPLAY_OPTIONS.map((o) => o.value)).toEqual([
       "",
       "vol_original",

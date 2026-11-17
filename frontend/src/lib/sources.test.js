@@ -95,10 +95,10 @@ describe("PUBLISHER_SOURCES", () => {
     expect([...PUBLISHER_SOURCES].sort()).toEqual([
       "anime",
       "anime-movie",
+      "book",
       "comic",
       "game",
       "manga",
-      "novel",
     ]);
   });
 

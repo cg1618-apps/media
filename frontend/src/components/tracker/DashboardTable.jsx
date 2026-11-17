@@ -9,7 +9,7 @@
 // time a column changed.
 //
 // The Progress column is the one place where the types do not reconcile: an
-// anime counts episodes, a manga chapters, a novel volumes or chapters
+// anime counts episodes, a manga chapters, a book volumes or chapters
 // depending on its display mode, a comic issues, a game hours. Rather than
 // pretend one unit fits, every row carries its unit in the cell, so the
 // column reads as five honest measurements rather than one dishonest one.

@@ -1,7 +1,7 @@
 // Frontend: which h-comic fields a region uses.
 //
 // An h-comic is one type with two variants keyed on `region`, the pattern
-// novel's `type` set (lib/novelUnits.js). The catalogue columns a region does
+// book's `type` set (lib/bookUnits.js). The catalogue columns a region does
 // not use are cleared on every write path by the server (REGION_CLEARS and
 // LIST_REGION_CLEARS in app/services/domain/h_comic.py); this file is the
 // form's half of the same rule, so the Add and Modify tabs never offer a field

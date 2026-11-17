@@ -1,16 +1,16 @@
-// NovelUnitsEditor's contracts that matter for a novel_unit row's shape:
+// BookUnitsEditor's contracts that matter for a book_unit row's shape:
 // ch_count must only ever be sent for kind "arc" (the DB CHECK constraint
-// ck_novel_unit_ch_count_arc_only rejects it on any other kind), the kind
-// picker only appears when the novel's type offers more than one kind, and
+// ck_book_unit_ch_count_arc_only rejects it on any other kind), the kind
+// picker only appears when the book's type offers more than one kind, and
 // reordering moves rows and renumbers position (1-based) rather than
 // reassigning kind or content.
 import { fireEvent, render, screen } from "@testing-library/react";
 
-import NovelUnitsEditor from "./NovelUnitsEditor";
+import BookUnitsEditor from "./BookUnitsEditor";
 
 it("adds a new row using the type's first kind and next position", () => {
   const onChange = vi.fn();
-  render(<NovelUnitsEditor items={[]} novelType="Web" onChange={onChange} />);
+  render(<BookUnitsEditor items={[]} bookType="網路小說" onChange={onChange} />);
 
   fireEvent.click(screen.getByText(/\+ Add arc/));
 
@@ -21,9 +21,9 @@ it("adds a new row using the type's first kind and next position", () => {
 
 it("does not show a kind selector when the type offers only one kind", () => {
   render(
-    <NovelUnitsEditor
+    <BookUnitsEditor
       items={[{ unit_kind: "volume", position: 1, unit_key: "", name_cn: "", name_en: "", remark: "" }]}
-      novelType="Light Novel"
+      bookType="輕小說"
       onChange={() => {}}
     />,
   );
@@ -34,9 +34,9 @@ it("does not show a kind selector when the type offers only one kind", () => {
 
 it("shows a kind selector when the type offers multiple kinds", () => {
   render(
-    <NovelUnitsEditor
+    <BookUnitsEditor
       items={[{ unit_kind: "volume", position: 1, unit_key: "", name_cn: "", name_en: "", remark: "" }]}
-      novelType="Other"
+      bookType="其他"
       onChange={() => {}}
     />,
   );
@@ -47,12 +47,12 @@ it("shows a kind selector when the type offers multiple kinds", () => {
 
 it("shows the chapters input only for an arc row", () => {
   render(
-    <NovelUnitsEditor
+    <BookUnitsEditor
       items={[
         { unit_kind: "arc", position: 1, unit_key: "", name_cn: "", name_en: "", remark: "", ch_count: "" },
         { unit_kind: "volume", position: 2, unit_key: "", name_cn: "", name_en: "", remark: "" },
       ]}
-      novelType="Other"
+      bookType="其他"
       onChange={() => {}}
     />,
   );
@@ -67,7 +67,7 @@ it("moves a row with its drag handle and renumbers position", () => {
     { unit_kind: "volume", position: 2, unit_key: "B", name_cn: "", name_en: "", remark: "" },
     { unit_kind: "volume", position: 3, unit_key: "C", name_cn: "", name_en: "", remark: "" },
   ];
-  render(<NovelUnitsEditor items={items} novelType="Novel" onChange={onChange} />);
+  render(<BookUnitsEditor items={items} bookType="小說" onChange={onChange} />);
 
   // Moving the first row up is a no-op.
   fireEvent.keyDown(screen.getByLabelText("Reorder A"), { key: "ArrowUp" });
@@ -92,7 +92,7 @@ it("removing a row renumbers the remaining rows", () => {
     { unit_kind: "volume", position: 1, unit_key: "A", name_cn: "", name_en: "", remark: "" },
     { unit_kind: "volume", position: 2, unit_key: "B", name_cn: "", name_en: "", remark: "" },
   ];
-  render(<NovelUnitsEditor items={items} novelType="Novel" onChange={onChange} />);
+  render(<BookUnitsEditor items={items} bookType="小說" onChange={onChange} />);
 
   fireEvent.click(screen.getAllByLabelText("Remove")[0]);
 
@@ -106,7 +106,7 @@ it("clears ch_count when a row's kind is changed away from arc", () => {
   const items = [
     { unit_kind: "arc", position: 1, unit_key: "", name_cn: "", name_en: "", remark: "", ch_count: "12" },
   ];
-  render(<NovelUnitsEditor items={items} novelType="Other" onChange={onChange} />);
+  render(<BookUnitsEditor items={items} bookType="其他" onChange={onChange} />);
 
   fireEvent.change(screen.getByLabelText(/^Kind for /), { target: { value: "volume" } });
 
@@ -116,14 +116,14 @@ it("clears ch_count when a row's kind is changed away from arc", () => {
 });
 
 it("does not force-clear ch_count when a row's kind is changed to arc", () => {
-  // Only "Web" offers "arc", and it offers nothing else, so the only way to
-  // reach an arc target via the select is a stranded non-arc row on a Web
-  // novel (see the "stranded kind" annotated-option test below).
+  // Only "網路小說" offers "arc", and it offers nothing else, so the only way to
+  // reach an arc target via the select is a stranded non-arc row on a 網路小說
+  // book (see the "stranded kind" annotated-option test below).
   const onChange = vi.fn();
   const items = [
     { unit_kind: "volume", position: 1, unit_key: "", name_cn: "", name_en: "", remark: "", ch_count: "7" },
   ];
-  render(<NovelUnitsEditor items={items} novelType="Web" onChange={onChange} />);
+  render(<BookUnitsEditor items={items} bookType="網路小說" onChange={onChange} />);
 
   fireEvent.change(screen.getByLabelText(/^Kind for /), { target: { value: "arc" } });
 
@@ -134,14 +134,14 @@ it("does not force-clear ch_count when a row's kind is changed to arc", () => {
 
 it("shows a disabled, annotated option for a stranded kind the current type no longer offers", () => {
   render(
-    <NovelUnitsEditor
+    <BookUnitsEditor
       items={[{ unit_kind: "arc", position: 1, unit_key: "", name_cn: "", name_en: "", remark: "", ch_count: "5" }]}
-      novelType="Light Novel"
+      bookType="輕小說"
       onChange={() => {}}
     />,
   );
 
-  // Light Novel offers only "volume", yet the stranded "arc" row still gets
+  // 輕小說 offers only "volume", yet the stranded "arc" row still gets
   // a reachable selector, with its own current kind shown disabled.
   const select = screen.getByLabelText(/^Kind for /);
   expect(select.value).toBe("arc");
@@ -150,13 +150,13 @@ it("shows a disabled, annotated option for a stranded kind the current type no l
 });
 
 // A unit's rating and remark are each reader's own, written through
-// /api/me/novel-units from the detail page. The catalogue editor offers no
+// /api/me/book-units from the detail page. The catalogue editor offers no
 // control for either, and a row it adds carries neither key.
 it("offers no rating or remark control on a row", () => {
   render(
-    <NovelUnitsEditor
+    <BookUnitsEditor
       items={[{ unit_kind: "arc", position: 1, unit_key: "", name_cn: "", name_en: "", my_rating: "S", remark: "x" }]}
-      novelType="Web"
+      bookType="網路小說"
       onChange={() => {}}
     />,
   );
@@ -168,7 +168,7 @@ it("offers no rating or remark control on a row", () => {
 
 it("adds a row with no personal keys", () => {
   const onChange = vi.fn();
-  render(<NovelUnitsEditor items={[]} novelType="Web" onChange={onChange} />);
+  render(<BookUnitsEditor items={[]} bookType="網路小說" onChange={onChange} />);
 
   fireEvent.click(screen.getByText(/\+ Add arc/));
 
