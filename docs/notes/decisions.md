@@ -5369,3 +5369,12 @@ shown buttons that answered 401.
 - **Cartoon's `length_ep_min` is `runtime_min`**, the name anime and TV
   show use, and cartoon's airing types lose `OVA`: no cartoon used it.
 - **Novel's `read_order` is gone**, values included. Comic keeps its own.
+
+### Comic remarks are wiped (2026-11-17)
+
+- **Revision `c1o2micrmk3` deletes every `備註` and `備註列表` row owned by a
+  Comic**, shared and personal, for every account, at the owner's request.
+  Nothing was kept and no dump was taken for it, so the revision is
+  `irreversible`. H-Comic and the groups a comic sits in are untouched, and
+  comics keep both sections. It ran ahead of the remark-list rework so that
+  rework had no comic rows to carry.
