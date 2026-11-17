@@ -68,7 +68,7 @@ def apply_single_replace_anime(
     """
     Core 'Replace' logic for a single anime entry.
     When bulk=False (single-entry update), also derives ep_previous across every
-    acg franchise. When bulk=True (batch replace), the caller does that once
+    franchise holding an anime. When bulk=True (batch replace), the caller does that once
     after the loop instead of per entry.
     """
     apply_extract_mal_id_anime(anime)
@@ -323,7 +323,7 @@ def game_post_processing(game: Game, db: Session) -> None:
 
 
 def derive_ep_previous_all_anime(db: Session) -> None:
-    """Derives ep_previous for every acg franchise.
+    """Derives ep_previous for every franchise holding an anime.
 
     Was derive_related_anime, which also assigned watch_order. Ordering moved
     to watch_order_list / watch_order_item, where it is curated rather than

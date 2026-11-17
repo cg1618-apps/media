@@ -1,7 +1,7 @@
 // Frontend: the manga form. Add and Modify render one MangaFormBody, so this
 // pins both: the canonical section order, CN-first names with "Romaji",
 // the AniList ranks Modify could not edit before, the Add-only search boxes,
-// the entry id Modify hands its pickers, the ACG/Manga franchise filter, and
+// the entry id Modify hands its pickers, the Manga franchise filter, and
 // that a franchise change drops the series chosen under the old one.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
@@ -25,7 +25,7 @@ vi.mock("../detail/MangaNotes", () => ({
 
 const SOURCES = { options: [], studios: [], publishers: {}, people: {} };
 const FRANCHISES = [
-  { system_id: "f1", franchise_name_en: "ACG Franchise", franchise_type: "ACG" },
+  { system_id: "f1", franchise_name_en: "Anime Franchise", franchise_type: "Anime" },
   { system_id: "f2", franchise_name_en: "Manga Franchise", franchise_type: "Manga" },
   { system_id: "f3", franchise_name_en: "Untyped Franchise", franchise_type: null },
   { system_id: "f4", franchise_name_en: "Film Franchise", franchise_type: "Movie" },
@@ -159,16 +159,18 @@ describe("Manga form", () => {
   });
 
   it.each(["add", "modify"])(
-    "%s: offers ACG, Manga and untyped franchises, and a pick clears the series",
+    "%s: offers Manga and untyped franchises, and a pick clears the series",
     async (mode) => {
       const user = userEvent.setup();
       renderTab(mode, { series_id: "s1", series_text: "Old Series" });
       await user.click(screen.getByRole("combobox", { name: "Franchise" }));
       const offered = (await screen.findAllByRole("option")).map((o) => o.textContent);
       expect(offered).toEqual(
-        expect.arrayContaining(["ACG Franchise", "Manga Franchise", "Untyped Franchise"]),
+        expect.arrayContaining(["Manga Franchise", "Untyped Franchise"]),
       );
       expect(offered).not.toContain("Film Franchise");
+      // The other half of AniManga is not a manga's franchise.
+      expect(offered).not.toContain("Anime Franchise");
       await user.click(screen.getByRole("option", { name: "Manga Franchise" }));
       const s = state();
       expect(s.franchise_id).toBe("f2");

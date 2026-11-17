@@ -89,9 +89,14 @@ class FranchiseType(str, Enum):
     TV = "TV"
     CARTOON = "Cartoon"
     COMIC = "Comic"
-    # The one type for anime and manga franchises: an anime, an anime movie,
-    # a series and a manga all auto-create their franchise as ACG.
-    ACG = "ACG"
+    # The anime franchise type: an anime, an anime movie and a series
+    # auto-create their franchise as Anime.
+    ANIME = "Anime"
+    # The manga franchise type: a manga auto-creates its franchise as Manga.
+    # Anime and Manga together are the AniManga group, which the statistics
+    # and the favourite grid count as one (ANIMANGA_FRANCHISE_TYPES in
+    # frontend/src/config/fieldOptions.js); it is not a franchise type.
+    MANGA = "Manga"
     NOVEL = "Novel"
     GAME = "Game"
     # The franchise type of the adult comics type. An h-comic only ever sits
@@ -223,7 +228,8 @@ MUSIC_TYPE_STATUS_DEFAULT = "Not Done"
 # is a type the dropdown offers. Do not collapse these back into `_values(c.FranchiseType)` /
 # `_values(c.AnimeAiringType)` without first reconciling the two lists.
 FRANCHISE_TYPES: tuple[str, ...] = (
-    "ACG",
+    "Anime",
+    "Manga",
     "Anime Movie",
     "TV",
     "Movie",

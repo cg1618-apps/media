@@ -19,7 +19,7 @@ from app import models
 def _franchise(db, name="Kind Test Franchise"):
     f = models.Franchise(
         system_id=uuid.uuid4(),
-        franchise_type="ACG",
+        franchise_type="Anime",
         franchise_name_en=name,
     )
     db.add(f)

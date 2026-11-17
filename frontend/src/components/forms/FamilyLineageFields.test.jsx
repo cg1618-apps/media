@@ -13,7 +13,7 @@ import { busiestFirst } from "../../hooks/useEntryLists";
 
 const FRANCHISES = [
   { system_id: "fr-h", franchise_name_en: "Doujin Circle", franchise_type: "H-Comic, Hentai" },
-  { system_id: "fr-acg", franchise_name_en: "Shonen Saga", franchise_type: "ACG" },
+  { system_id: "fr-acg", franchise_name_en: "Shonen Saga", franchise_type: "Anime" },
   { system_id: "fr-movie", franchise_name_en: "Heist Films", franchise_type: "Movie" },
   { system_id: "fr-none", franchise_name_en: "Untyped Thing", franchise_type: null },
 ];

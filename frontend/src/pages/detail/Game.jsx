@@ -150,7 +150,7 @@ function copyPrice(copy) {
  * Copies are created and edited in the Add/Modify form (GameCopiesEditor);
  * the detail page only shows them, which is why there is no inline editor
  * here. Renders nothing when there are no copies - the rule CastSection
- * follows on the ACG pages, since an empty "Copies" slip is a title over a
+ * follows on the AniManga pages, since an empty "Copies" slip is a title over a
  * blank box. The Info card's "Copies" figure counts these same rows.
  */
 export function GameCopiesSection({ copies }) {

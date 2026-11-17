@@ -20,7 +20,7 @@ URL = "/api/data-control/check/alone-groups"
 
 
 def _franchise(db_session, name):
-    f = models.Franchise(system_id=uuid.uuid4(), franchise_type="ACG", franchise_name_en=name)
+    f = models.Franchise(system_id=uuid.uuid4(), franchise_type="Anime", franchise_name_en=name)
     db_session.add(f)
     db_session.flush()
     return f

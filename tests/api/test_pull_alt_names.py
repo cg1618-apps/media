@@ -28,7 +28,7 @@ def franchise(db_session):
         system_id=uuid.uuid4(),
         franchise_name_en="Cowboy Bebop",
         franchise_name_alt="CB, Space Cowboys",
-        franchise_type="ACG",
+        franchise_type="Anime",
     )
     db_session.add(f)
     db_session.flush()
@@ -67,7 +67,7 @@ def test_a_franchise_row_naming_its_collection_by_an_alt_fragment_resolves(
     db_session.flush()
     sheet(
         ["franchise_name_en", "franchise_type", "collection_id"],
-        [["Gundam", "ACG", "サンライズ"], ["Trigun", "ACG", "Sunrise, サンライズ"]],
+        [["Gundam", "Anime", "サンライズ"], ["Trigun", "Anime", "Sunrise, サンライズ"]],
     )
     result = pull.execute_pull_specific(db_session, "Franchise", log_action=False)
     assert result["status"] == "success", result

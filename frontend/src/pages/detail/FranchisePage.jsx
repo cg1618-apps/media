@@ -400,10 +400,11 @@ export default function FranchisePage() {
     () => parseTypes(franchise?.franchise_type),
     [franchise],
   );
-  const hasACG = useMemo(() => types.includes("ACG"), [types]);
+  const hasAnime = useMemo(() => types.includes("Anime"), [types]);
+  const hasManga = useMemo(() => types.includes("Manga"), [types]);
   const hasNovel = useMemo(
-    () => types.includes("Novel") || types.includes("ACG"),
-    [types],
+    () => types.includes("Novel") || hasAnime || hasManga,
+    [types, hasAnime, hasManga],
   );
   const hasAnimeMovie = useMemo(() => types.includes("Anime Movie"), [types]);
   const hasMovie = useMemo(() => types.includes("Movie"), [types]);
@@ -438,8 +439,8 @@ export default function FranchisePage() {
 
   // Media types this franchise actually holds entries for, driven by the
   // per-type entry lists rather than franchise_type (which is multi-valued
-  // and bundles types together: ACG alone covers anime, anime movies, manga
-  // and novels).
+  // and bundles types together: Anime alone covers anime, anime movies and
+  // novels).
   const franchiseMediaTypes = useMemo(() => {
     const list = [];
     if (animeList.length) list.push("anime");
@@ -488,14 +489,14 @@ export default function FranchisePage() {
   } = useMemo(() => {
     if (!franchise) return buildMediaTabs([]);
     return buildMediaTabs([
-      { label: "Anime", type: "anime", entries: animeList, offered: hasACG },
+      { label: "Anime", type: "anime", entries: animeList, offered: hasAnime },
       {
         label: "Anime Movies",
         type: "anime-movie",
         entries: animeMovieList,
-        offered: hasACG || hasAnimeMovie,
+        offered: hasAnime || hasAnimeMovie,
       },
-      { label: "Manga", type: "manga", entries: mangaList, offered: hasACG },
+      { label: "Manga", type: "manga", entries: mangaList, offered: hasManga },
       { label: "Novel", type: "novel", entries: novelList, offered: hasNovel },
       { label: "Comic", type: "comic", entries: comicList, offered: hasComic },
       { label: "Game", type: "game", entries: gameList, offered: hasGame },
@@ -508,7 +509,8 @@ export default function FranchisePage() {
     ]);
   }, [
     franchise,
-    hasACG,
+    hasAnime,
+    hasManga,
     hasNovel,
     hasComic,
     hasGame,

@@ -23,12 +23,11 @@ function getExpectationWeight(exp) {
   return EXPECTATION_WEIGHT[exp] ?? 4;
 }
 
-function getFilterCategories(franchise, animeSet, mangaSet) {
+function getFilterCategories(franchise) {
   const types = parseTypes(franchise.franchise_type);
-  const isACG = types.includes("ACG");
   const cats = [];
-  if (isACG && animeSet.has(franchise.system_id)) cats.push("Anime");
-  if (isACG && mangaSet.has(franchise.system_id)) cats.push("Manga");
+  if (types.includes("Anime")) cats.push("Anime");
+  if (types.includes("Manga")) cats.push("Manga");
   if (types.includes("Novel")) cats.push("Novel");
   if (types.includes("Anime Movie")) cats.push("Anime Movie");
   if (types.includes("Movie")) cats.push("Movie");
@@ -231,8 +230,6 @@ export default function FranchiseLibrary() {
   const [allEntriesDict, setAllEntriesDict] = useState({});
   const [allEntriesByFranchise, setAllEntriesByFranchise] = useState({});
   const [collectionDict, setCollectionDict] = useState({});
-  const [animesByFranchise, setAnimesByFranchise] = useState(new Set());
-  const [mangasByFranchise, setMangasByFranchise] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -263,9 +260,6 @@ export default function FranchiseLibrary() {
         const allEntries = sources.flatMap(([type], i) =>
           withMediaType(entryLists[i], type),
         );
-        const byType = Object.fromEntries(
-          sources.map(([type], i) => [type, entryLists[i]]),
-        );
         setAllFranchises(franchises);
         setCollectionDict(
           Object.fromEntries(collections.map((c) => [c.system_id, c])),
@@ -280,16 +274,6 @@ export default function FranchiseLibrary() {
           byFranchise[e.franchise_id].push(e);
         }
         setAllEntriesByFranchise(byFranchise);
-        setAnimesByFranchise(
-          new Set(
-            byType.anime.filter((a) => a.franchise_id).map((a) => a.franchise_id),
-          ),
-        );
-        setMangasByFranchise(
-          new Set(
-            byType.manga.filter((m) => m.franchise_id).map((m) => m.franchise_id),
-          ),
-        );
       } catch (e) {
         setError(e.message);
       } finally {
@@ -330,7 +314,7 @@ export default function FranchiseLibrary() {
       }
 
       if (filters.franchiseType.size > 0) {
-        const cats = getFilterCategories(f, animesByFranchise, mangasByFranchise);
+        const cats = getFilterCategories(f);
         if (!cats.some((c) => filters.franchiseType.has(c))) return false;
       }
 
@@ -357,7 +341,7 @@ export default function FranchiseLibrary() {
     });
 
     return result;
-  }, [allFranchises, searchQuery, currentSort, showPersonal, filters, animesByFranchise, mangasByFranchise]);
+  }, [allFranchises, searchQuery, currentSort, showPersonal, filters]);
 
   if (loading) {
     return (

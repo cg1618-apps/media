@@ -24,7 +24,7 @@ const FRANCHISES = [
     public_id: 1,
     franchise_name_en: "Attack on Titan",
     franchise_name_cn: "進撃の巨人",
-    franchise_type: "ACG",
+    franchise_type: "Anime",
     collection_id: "c1",
     franchise_expectation: "Highest",
     my_rating: "10",

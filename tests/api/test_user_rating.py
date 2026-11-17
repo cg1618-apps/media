@@ -105,7 +105,7 @@ def owners(db_session):
     )
     franchise = models.Franchise(
         system_id=uuid.uuid4(),
-        franchise_type="ACG",
+        franchise_type="Anime",
         franchise_name_en="Ratable Franchise",
     )
     db_session.add_all([collection, franchise])
@@ -378,7 +378,7 @@ def test_a_hidden_franchise_is_404_on_write(db_session, client):
     `erotica`, not `nsfw`: a member's `normal` mode shows nsfw."""
     erotica = ensure_label(db_session, "erotica")
     hidden = models.Franchise(
-        system_id=uuid.uuid4(), franchise_type="ACG", franchise_name_en="Hidden"
+        system_id=uuid.uuid4(), franchise_type="Anime", franchise_name_en="Hidden"
     )
     db_session.add(hidden)
     db_session.flush()
@@ -408,7 +408,7 @@ def test_a_catalogue_write_ignores_a_rating(db_session, owner_client, owners):
     assert r.status_code == 200
     r = owner_client.put(
         f"/api/franchise/{fid}",
-        json={"franchise_name_en": "Ratable Franchise", "franchise_type": "ACG",
+        json={"franchise_name_en": "Ratable Franchise", "franchise_type": "Anime",
               "my_rating": "S", "franchise_expectation": "High"},
     )
     assert r.status_code == 200

@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 from app import models
 from app.utils.character_roles import CHARACTER_ROLES
 
-# The ACG media types character_casting.media_type may hold - a subset of
+# The AniManga media types character_casting.media_type may hold - a subset of
 # MEDIA_TABLES. h-comic casts real character rows like manga does (D6); it has
 # no voice acting, so ck_casting_voice_scope already refuses a seiyuu there.
 # hentai is animated, so it is cast the way anime is, seiyuu included.

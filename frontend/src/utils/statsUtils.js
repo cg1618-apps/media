@@ -5,7 +5,8 @@ import { getDisplayName as getEntityName } from "../lib/naming";
 import { entityPath } from "../lib/entityPath";
 
 const TYPE_TO_ENTRY_TYPES = {
-  ACG: ["anime", "manga"],
+  Anime: ["anime", "anime_movie"],
+  Manga: ["manga"],
   "Anime Movie": ["anime_movie"],
   TV: ["tv_show"],
   Movie: ["movie"],
@@ -119,13 +120,14 @@ export function favoriteCover(row, grid, { byFranchise, bySeries }) {
 }
 
 // Everything a grid may hold. Franchises are filtered on the type they
-// declare; a series on whether it actually holds an entry of the grid's type,
+// declare - any of the grid's franchiseTypes, else its key; a series on whether it actually holds an entry of the grid's type,
 // because a series declares no type of its own; an entry list arrives already
 // narrowed to its type.
 export function favoritePool(grid, { franchises, series, bySeries, entries }) {
   if (grid.tier === "franchise") {
+    const wanted = grid.franchiseTypes || [grid.key];
     return (franchises || []).filter((f) =>
-      parseTypes(f.franchise_type).includes(grid.key),
+      parseTypes(f.franchise_type).some((t) => wanted.includes(t)),
     );
   }
   if (grid.tier === "series") {

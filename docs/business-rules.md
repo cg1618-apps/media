@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-11-14
+Last verified: 2026-11-17
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -997,11 +997,11 @@ cells.
 
 | Media type                       | Auto-created `franchise_type` |
 | -------------------------------- | ----------------------------- |
-| anime, anime-movie, series       | `ACG`                         |
+| anime, anime-movie, series       | `Anime`                       |
 | movie                            | `Movie`                       |
 | tv-show                          | `TV`                          |
 | cartoon                          | `Cartoon`                     |
-| manga                            | `ACG`                         |
+| manga                            | `Manga`                       |
 | novel                            | `Novel`                       |
 | comic                            | `Comic`                       |
 | game                             | `Game`                        |
@@ -1037,16 +1037,36 @@ A franchise gets the content label of each gated type its type list names - a
 `h-game` - on auto-create here, and on every franchise write
 (`app/services/domain/gated_labels.py`).
 
-`ACG` is the one franchise type for anime and manga franchises: an anime, an
-anime movie, a series and a manga all stamp it, and every type in the table is
-one the `FRANCHISE_TYPES` dropdown offers. `Anime` is not a franchise type.
-A Franchise tab that still carries it is folded onto `ACG` on Pull
-(`normalize_franchise_type`, applied by `parse_franchise_from_sheet`):
-token-wise inside the comma list, other tokens keeping their order and the
-separators their spacing, and a value that already names `ACG` keeping its
-first `ACG` rather than listing it twice - `"Game, Anime"` becomes
-`"Game, ACG"`, `"ACG, Anime"` becomes `"ACG"`. `Anime Movie` is its own type
-and is left alone.
+Anime and manga franchises have a type each, matching the media types: an
+anime, an anime movie and a series stamp `Anime`, a manga stamps `Manga`, and a
+franchise holding both carries both (`"Anime, Manga"`). Every type in the table
+is one the `FRANCHISE_TYPES` dropdown offers. Together `Anime` and `Manga` are
+the **AniManga** group (`ANIMANGA_FRANCHISE_TYPES`,
+`frontend/src/config/fieldOptions.js`), which is not a franchise
+type: the aggregate views - the statistics page's AniManga franchise rating
+card and the favourite AniManga franchises grid - count a franchise of either
+type as one of theirs.
+
+Which franchises an entry is offered in follows the same split (the Add and
+Modify pickers, `MangaAddTab.jsx` / `NovelAddTab.jsx`): a manga sits in a
+`Manga` franchise or an untyped one; a novel in a `Novel`, `Anime` or `Manga`
+franchise or an untyped one. The franchise hub lists anime on an `Anime`
+franchise, anime movies on an `Anime` or `Anime Movie` one, manga on a `Manga`
+one, and novels on a `Novel`, `Anime` or `Manga` one.
+
+`ACG` is not a franchise type. An older sheet backup's Franchise tab may
+still carry it, and Pull splits it (`split_acg_franchise_types`,
+`app/services/domain/hierarchy.py`) by what each franchise holds: `Anime` for
+a franchise with any anime or anime movie, `Manga` for one with any manga,
+`Anime, Manga` for both, and `Anime` for neither. Token-wise inside the comma
+list: the replacement takes the `ACG` token's place, other tokens keep their
+order and the separators their spacing, and a type the value already names is
+not listed twice - `"Game, ACG"` holding a manga becomes `"Game, Manga"`,
+`"ACG, Manga"` holding both becomes `"Anime, Manga"`. `Anime Movie` is its own
+type and is left alone. A `type_covers` choice filed under `ACG` moves to the
+type of the entry it names. The split decides by the entries, so Pull All runs
+it once, after every tab; pulling the Franchise tab alone runs it against the
+entries already in the database.
 
 **Series** (`resolve_series`): a UUID passes through; a non-empty string is
 looked up the same way across `series_name_en/cn/alt`, each fragment of
@@ -1127,9 +1147,10 @@ intermediate the viewer may not see is **removed**, not blanked.
 ### The sequel seed (`seed_sequel_relations`)
 
 Relations are curated by hand, except for one seed Calculate All runs: the
-anime sequel chains of an ACG franchise that has no relations yet.
+anime sequel chains of an Anime franchise that has no relations yet.
 
-- **Franchises**: `franchise_type` holds the token `ACG`.
+- **Franchises**: `franchise_type` holds the token `Anime` (a `Manga`
+  franchise is not seeded).
 - **Gate**: a franchise is skipped whole if any `media_relation` row names any
   of its entries (any media type, via `media.franchise_id`) at either end. A
   seeded franchise therefore never seeds again, and a later season is linked
@@ -1341,7 +1362,7 @@ about; the live name is shown while it exists.
 
 | Rule / column                                                    | Migration                                                       | Replaced by                                                                                          |
 | ---------------------------------------------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `prequel_id`, `sequel_id`, `alternative`, `derive_related` columns on every media table, and the prequel/sequel derivation from release order | `media_relation_drop_legacy.py`                                 | `media_relation` rows, hand-curated (section 13), plus a one-time sequel seed for uncurated ACG franchises that orders by season/part rather than release order. The derivation guessed wrong too often — it could not tell a sequel from a side story. |
+| `prequel_id`, `sequel_id`, `alternative`, `derive_related` columns on every media table, and the prequel/sequel derivation from release order | `media_relation_drop_legacy.py`                                 | `media_relation` rows, hand-curated (section 13), plus a one-time sequel seed for uncurated Anime franchises that orders by season/part rather than release order. The derivation guessed wrong too often — it could not tell a sequel from a side story. |
 | Watch-order derivation (`derive_related_anime` assigning `watch_order`)   | (function removed; `derive_ep_previous_all_anime` is what is left) | `watch_order_list` / `watch_order_section` / `watch_order_item`, curated by hand                 |
 | `watch_next` / `read_next` boolean columns; `franchise.watch_next_group`  | `b872c435410b_add_plan_next_table.py`                           | `plan_next` rows with `kind="next"`; `watch_next_group` values were copied into `size_group_manual.anime` |
 | `to_rewatch` (franchise, series, anime_movies, movies, tv_shows, cartoons) and `to_reread` (manga, novel, comic) columns | `9b0bcb763e8c_add_plan_next_kind_and_drop_rewatch_.py` | `plan_next` rows with `kind="rewatch"` (section 14)                                             |
