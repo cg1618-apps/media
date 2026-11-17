@@ -50,16 +50,6 @@ export default function CollectionAddTab({ cf, uf }) {
         </Field>
       </div>
 
-      <SectionHeader icon="fa-info-circle" title="Other Information" />
-      <Field label="Remark">
-        <textarea
-          className={inputCls}
-          rows={3}
-          value={cf.remark}
-          onChange={(e) => uf("remark", e.target.value)}
-        />
-      </Field>
-
       <p className="text-xs text-text-faint pt-2 border-t border-border">
         <i className="fas fa-info-circle mr-1"></i>
         A Collection groups related franchises. Assign franchises to it from the

@@ -14,8 +14,8 @@ entry it could not see.
 
 Deliberately narrow. Every write here is the caller's own - its list row, its
 plan flags - and none can address anyone else's, because no route takes a
-user id. Catalogue writes stay where they are, the remark among them; nothing
-here can touch a detail table.
+user id. Catalogue writes stay where they are; nothing here can touch a
+detail table.
 
 The payload keys are the type's own, not the storage column names: an anime
 takes `watching_status` and a manga `reading_status`, exactly as the entry

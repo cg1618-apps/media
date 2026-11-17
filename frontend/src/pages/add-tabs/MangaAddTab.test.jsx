@@ -39,7 +39,7 @@ const SECTIONS = [
   "Production",
   "Cast",
   "Links & Sources",
-  "Cover & Remark",
+  "Cover",
 ];
 
 function Harness({ mode, initial }) {

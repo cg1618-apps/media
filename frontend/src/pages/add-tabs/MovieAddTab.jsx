@@ -5,7 +5,7 @@
 // links the new entry to its IMDb id. Below them sit the lineage pickers and
 // the form body, both exported for MovieModifyTab, so the two pages render
 // one definition of the movie form and differ only in the wrapper.
-import CoverRemarkFields from "../../components/forms/CoverRemarkFields";
+import CoverFields from "../../components/forms/CoverFields";
 import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
 import EntryFlags from "../../components/forms/EntryFlags";
 import EntryNameFields from "../../components/forms/EntryNameFields";
@@ -216,7 +216,7 @@ export function MovieFormBody({ f, u, sources, ownerId }) {
         sources={sources}
       />
 
-      <CoverRemarkFields f={f} u={u} ownerType="movie" ownerId={ownerId} />
+      <CoverFields f={f} u={u} ownerType="movie" ownerId={ownerId} />
     </>
   );
 }

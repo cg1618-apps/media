@@ -1,7 +1,7 @@
 // Frontend: statistics page file for SeasonCountsModal.
 //
 // Every season's anime count, opened by "Show all" under Anime by season. The
-// app's own modal chrome (the shape of ConfirmModal and RemarkModal): Escape,
+// app's own modal chrome (the shape of ConfirmModal): Escape,
 // the close button and a press that starts and ends on the backdrop all
 // close it. The list is long and each row is narrow, so it is laid out as a
 // grid of season/count pairs - two columns on a phone, up to six on a wide

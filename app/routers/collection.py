@@ -16,7 +16,6 @@ from app import models, schemas
 from app.database import get_taipei_now
 from app.dependencies import get_db
 from app.routers._patching import apply_column_patch
-from app.services.domain import attach_remark, pop_remark, upsert_remark
 from app.services.domain.content_labels import attach_group_content_labels
 from app.services.domain.user_rating import attach_ratings
 from app.services.rbac.enforcement import (
@@ -97,7 +96,6 @@ def get_collection_by_id(
         db, viewer, db_collection.system_id
     ):
         raise HTTPException(status_code=404, detail="Collection not found.")
-    attach_remark(db, "collection", db_collection)
     attach_group_content_labels(db, "collection", db_collection)
     attach_ratings(db, "collection", db_collection, viewer.user_id)
     return db_collection
@@ -121,7 +119,7 @@ def create_collection(
     try:
         # Build from the validated payload rather than field-by-field, so newly
         # added schema fields persist automatically instead of being dropped.
-        data, remark, has_remark = pop_remark(payload.model_dump(exclude_unset=True))
+        data = payload.model_dump(exclude_unset=True)
         new_collection = models.Collection(
             **data,
             system_id=uuid.uuid4(),
@@ -132,15 +130,6 @@ def create_collection(
         db.add(new_collection)
         db.commit()
         db.refresh(new_collection)
-
-        if has_remark:
-            upsert_remark(
-                db, "collection", new_collection.system_id, remark, viewer.user_id
-            )
-            db.commit()
-            db.refresh(new_collection)
-
-        attach_remark(db, "collection", new_collection)
 
         attach_ratings(db, "collection", new_collection, viewer.user_id)
 
@@ -178,19 +167,14 @@ def update_collection(
     ):
         raise HTTPException(status_code=404, detail="Collection not found.")
 
-    update_data, remark, has_remark = pop_remark(payload.model_dump(exclude_unset=True))
+    update_data = payload.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_collection, key, value)
-    if has_remark:
-        upsert_remark(
-            db, "collection", db_collection.system_id, remark, viewer.user_id
-        )
 
     db_collection.updated_at = get_taipei_now()
     db.commit()
     db.refresh(db_collection)
 
-    attach_remark(db, "collection", db_collection)
     attach_group_content_labels(db, "collection", db_collection)
 
     attach_ratings(db, "collection", db_collection, viewer.user_id)
@@ -221,18 +205,12 @@ def patch_collection(
     ):
         raise HTTPException(status_code=404, detail="Collection not found.")
 
-    payload, remark, has_remark = pop_remark(payload)
     apply_column_patch(db_collection, payload)
-    if has_remark:
-        upsert_remark(
-            db, "collection", db_collection.system_id, remark, viewer.user_id
-        )
 
     db_collection.updated_at = get_taipei_now()
     db.commit()
     db.refresh(db_collection)
 
-    attach_remark(db, "collection", db_collection)
     attach_group_content_labels(db, "collection", db_collection)
 
     attach_ratings(db, "collection", db_collection, viewer.user_id)

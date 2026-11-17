@@ -306,14 +306,6 @@ export default function SeriesModifyTab({
           />
         </Field>
       )}
-      <Field label="Remark">
-        <textarea
-          className={inputCls}
-          rows={3}
-          value={sf.remark}
-          onChange={(e) => us("remark", e.target.value)}
-        />
-      </Field>
     </>
   );
 }

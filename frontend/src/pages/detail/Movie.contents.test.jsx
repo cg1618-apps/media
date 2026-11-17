@@ -25,7 +25,6 @@ const ENTRY = {
   release_status: "Released",
   watching_status: "Completed",
   genre_main: "Drama",
-  remark: "Seen twice",
 };
 
 const ok = (body) => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
@@ -87,7 +86,7 @@ describe("Movie detail page - tab title and contents", () => {
     mockFetch();
     mount();
     await waitFor(() =>
-      expect(rows()).toEqual(["My tracker", "Naming", "Information", "Genres", "Remarks"]),
+      expect(rows()).toEqual(["My tracker", "Naming", "Information", "Genres"]),
     );
   });
 });

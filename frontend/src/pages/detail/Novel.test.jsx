@@ -34,7 +34,6 @@ const BASE_NOVEL = {
   ch_fin: 0,
   my_rating: null,
   cover_image_file: null,
-  remark: null,
   units: [],
 };
 

@@ -6,7 +6,7 @@
 // boxes on top: EntryAutofillSearch copies fields from an anime already in
 // the catalogue, the MAL search links the new entry to its MAL record.
 import CastEditor from "../../components/forms/CastEditor";
-import CoverRemarkFields from "../../components/forms/CoverRemarkFields";
+import CoverFields from "../../components/forms/CoverFields";
 import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
 import EntryFlags from "../../components/forms/EntryFlags";
 import EntryNameFields from "../../components/forms/EntryNameFields";
@@ -273,7 +273,7 @@ export function AnimeFormBody({ f, u, sources, ownerId }) {
         sources={sources}
       />
 
-      <CoverRemarkFields f={f} u={u} ownerType="anime" ownerId={ownerId} />
+      <CoverFields f={f} u={u} ownerType="anime" ownerId={ownerId} />
     </>
   );
 }

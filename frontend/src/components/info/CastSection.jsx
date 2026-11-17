@@ -170,7 +170,8 @@ function CastRow({ row }) {
 }
 
 // The whole cast, every role, in a dialog. Same backdrop rule as
-// RemarkModal: only a press that starts on the backdrop dismisses it.
+// ImagePicker's: only a press that starts on the backdrop dismisses it, so a
+// selection drag released past the panel edge does not.
 function FullCastModal({ cast, onClose, identityToggle }) {
   const pressedBackdrop = useRef(false);
   useEffect(() => {

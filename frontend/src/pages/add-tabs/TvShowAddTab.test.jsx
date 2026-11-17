@@ -93,7 +93,7 @@ describe("TvShowAddTab", () => {
       "Information",
       "Genres & Labels",
       "Links & Sources",
-      "Cover & Remark",
+      "Cover",
     ]);
   });
 

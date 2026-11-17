@@ -209,7 +209,7 @@ not its franchise or its sibling series.
 | `PATCH`  | `/{system_id}` | Admin  | Partial update. Body: raw JSON dict. The viewer's rating and expectation go through `PUT /api/me/ratings/series/{id}`. |
 | `DELETE` | `/{system_id}` | Admin  | Delete a series. Linked `anime.series_id` set to `NULL`. Logs to `deleted_record`. |
 
-**`SeriesCreate` / `SeriesUpdate` body (= `SeriesBase`):** `franchise_id`, `series_name_en`, `series_name_cn`, `series_name_roman`, `series_name_jp`, `series_name_alt`, `cover_entry_id`, `type_slots`, `size_group_derived`, `size_group_manual`, `remark`. No `to_rewatch` field — `series` has no rewatch column or virtual field at all; a series' rewatch marks are read and written through `POST` / `DELETE /api/plan-next/target` with `scope=series` directly (see Plan Next below).
+**`SeriesCreate` / `SeriesUpdate` body (= `SeriesBase`):** `franchise_id`, `series_name_en`, `series_name_cn`, `series_name_roman`, `series_name_jp`, `series_name_alt`, `cover_entry_id`, `type_slots`, `size_group_derived`, `size_group_manual`. No `to_rewatch` field — `series` has no rewatch column or virtual field at all; a series' rewatch marks are read and written through `POST` / `DELETE /api/plan-next/target` with `scope=series` directly (see Plan Next below).
 
 **Response model:** `SeriesResponse` — `SeriesCreate`/`SeriesUpdate` fields above plus `system_id`, `created_at`, `updated_at`, `entry_count` (list only), the viewer's own `my_rating` and `series_expectation` (null without a rating row), and `content_labels`, the series' own labels, read-only here: the only writer is `PUT /api/content-labels/series/{series_id}`.
 
@@ -493,7 +493,7 @@ then E-Hentai (keyed on the gallery in `ehentai_link`), both fill-only
 `ch_total`, `ch_behind`, `release_date`, `end_date`, `mal_id`, `mal_link`,
 `ehentai_link`, the personal `reading_status` (default `Might Read`),
 `my_rating`, `page_fin`, `ch_fin`, `usefulness`, `completed_at`, the plan flags
-`read_next` / `to_reread`, `remark`, `cover_image_file`, `cover_image_focus`, and `sources`.
+`read_next` / `to_reread`, `cover_image_file`, `cover_image_focus`, and `sources`.
 `region`, `originality`, `animation_status` and `usefulness` are checked
 against their vocabularies ([options.md](options.md)) - a blank string reads as
 `null`, anything else unknown is 422.
@@ -566,7 +566,7 @@ media-entry surface, with no additions.
 `originality`, `series_number`, `airing_status`, `release_date`, `mal_id`,
 `mal_link`, the personal `watching_status` (default `Might Watch`),
 `my_rating`, `usefulness`, `completed_at`, the plan flags `watch_next` /
-`to_rewatch`, `remark`, `cover_image_file`, `cover_image_focus`, and `sources`. `source_material`
+`to_rewatch`, `cover_image_file`, `cover_image_focus`, and `sources`. `source_material`
 (`HENTAI_SOURCE_MATERIALS`), `originality` (`H_COMIC_ORIGINALITY`),
 `airing_status` (`AiringStatus`) and `usefulness` (`H_COMIC_USEFULNESS`) are
 checked against their vocabularies ([options.md](options.md)) - a blank string
@@ -618,7 +618,7 @@ the six `price_*`, `language_availability`, `dialogue_audio` (list),
 `dlsite_link_jp` / `_tw`,
 `type_slots`, `cover_image_file`, `cover_image_focus`, the personal `playing_status` (default
 `Might Play`), `my_rating`, `usefulness`, `completed_at`, the plan flags
-`play_next` / `to_replay`, `remark`, `sources` and `copies` (Game's
+`play_next` / `to_replay`, `sources` and `copies` (Game's
 `GameCopyIO` rows and contract).
 
 `playstyle`, `language_availability` and `usefulness` are single values from
@@ -1376,8 +1376,8 @@ Sorting in SQL rather than after the fact means an exact match cannot be cut by
 **Entry rows.** A media bucket's rows are the rows that type's list endpoint
 returns, with the same non-column fields attached by the same helper
 (`attach_entry_list_fields`, `app/services/domain/entry_fields.py`): the
-caller's own status, progress and rating, sources, content labels, plan flags,
-remark and game copies. A search card and a library card therefore cannot
+caller's own status, progress and rating, sources, content labels, plan flags
+and game copies. A search card and a library card therefore cannot
 disagree; a logged-out caller gets the personal fields empty, as on the list
 routes.
 
@@ -2467,7 +2467,7 @@ see [authorization.md](authorization.md) for why that is accepted.
 | `GET`    | `/check/alone-groups`                | Every franchise and series holding exactly one media entry (any of the twelve types), less those whose lone entry was marked reviewed: `{franchise: [...], series: [...]}`, each `{system_id, public_id, display_name, entry: {system_id, media_type, public_id, display_name}}`. |
 | `POST`   | `/check/alone-groups/{kind}/{system_id}/reviewed` | `kind` is `franchise` or `series` (422 otherwise). Records the group's current lone entry in `alone_reviewed_media_id`, so the group is listed again once that entry is replaced. Returns `{system_id, alone_reviewed_media_id}`; 404 for an unknown group, 409 when it no longer holds exactly one entry. |
 | `GET`    | `/check/music`                       | Every anime whose music is waiting: a song list or a song on Need, Pending or No Full Version. One row per anime with `system_id`, `public_id`, `anime_name_cn`, `anime_name_en`, `display_name`, the flagged `lists` (`[{kind, status}]`) and the flagged `songs` (`[{section, title, status, locator}]`). **Per caller**: the songs and lists are catalogue rows, but each status is the caller's own note mark, so only the caller's own statuses list an anime, and a caller without the `music_status` feature is listed nothing. |
-| `GET`    | `/check/remarks`                     | Every non-empty catalogue remark on an entry (`section = 'remark'` only, whoever wrote it), one key per media type — all twelve. Each row carries `system_id`, `public_id`, its type's name columns and disambiguating columns, the caller's status (`watching_status` / `reading_status` / `playing_status`, read from `user_media_list`) and `remark`; a movie row carries `release_date` (USA, else TW). |
+| `GET`    | `/check/remarks`                     | Every entry holding at least one non-empty catalogue remark (`section = 'remark'` only, whoever wrote it), one key per media type — all twelve. One row per entry, however many remarks it holds. Each row carries `system_id`, `public_id`, its type's name columns and disambiguating columns, the caller's status (`watching_status` / `reading_status` / `playing_status`, read from `user_media_list`) and `remarks`, every one of the entry's remark texts in the notes page's order; a movie row carries `release_date` (USA, else TW). |
 
 **SSE response format** (streaming endpoints): `text/event-stream` — each event is a JSON string with `{status, current_entry, processed, total}`.
 

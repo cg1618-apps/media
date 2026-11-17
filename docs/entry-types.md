@@ -409,7 +409,7 @@ All entry finders except anime skip rows whose `franchise_id` is null. Report ke
 
 ### Notes sections (`app/utils/note_sections.py`)
 
-Sections every owner has (all twelve types plus `series`, `franchise`, `collection`): `remark`, `remark_list`, `public_reviews`, `personal_reviews`, `resources`. The gated types are left out of the rest of the shared sections: `introduction`, `advantages`, `disadvantages`, `double_edged`, `analysis` and `questions` reach every owner but h-comic and hentai; `memes` every owner but h-comic, hentai and h-game; `quotes` every media type but those three. So an h-comic's or a hentai's 評論 card holds only 大眾評價 Public Reviews and 我的評價 Personal Reviews. Hentai has nothing else, so it appears in none of the columns below. The type-specific sections:
+Sections every owner has (all twelve types plus `series`, `franchise`, `collection`): `remark`, `personal_notes`, `public_reviews`, `personal_reviews`, `resources`. The gated types are left out of the rest of the shared sections: `introduction`, `advantages`, `disadvantages`, `double_edged`, `analysis` and `questions` reach every owner but h-comic and hentai; `memes` every owner but h-comic, hentai and h-game; `quotes` every media type but those three. So an h-comic's or a hentai's 評論 card holds only 大眾評價 Public Reviews and 我的評價 Personal Reviews. Hentai has nothing else, so it appears in none of the columns below. The type-specific sections:
 
 | Section key | `anime` | `anime-movie` | `movie` | `tv-show` | `cartoon` | `manga` | `novel` | `comic` | `game` | `h-comic` | `h-game` | series / franchise |
 |---|---|---|---|---|---|---|---|---|---|---| --- |---|

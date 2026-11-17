@@ -10,7 +10,6 @@ import NotesTemplate from "../notes/NotesTemplate";
 
 export default function HComicNotes({
   hComic,
-  hideSections,
   nameSuggestions,
   onGroupOrderChange,
   series,
@@ -20,7 +19,6 @@ export default function HComicNotes({
     <NotesTemplate
       ownerType="h-comic"
       ownerId={hComic.system_id}
-      hideSections={hideSections}
       series={series}
       franchise={franchise}
       owner={hComic}

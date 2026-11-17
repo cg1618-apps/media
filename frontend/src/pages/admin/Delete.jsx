@@ -1302,11 +1302,6 @@ export default function Delete() {
                     {getFranchiseTitle(selectedAnime.franchise_id)} /{" "}
                     {getSeriesTitle(selectedAnime.series_id)}
                   </p>
-                  {selectedAnime.remark && (
-                    <p className="text-xs italic text-text-faint mt-1">
-                      {selectedAnime.remark}
-                    </p>
-                  )}
                   <p className="text-xs font-mono text-text-faint">
                     {selectedAnime.system_id}
                   </p>
@@ -1391,11 +1386,6 @@ export default function Delete() {
                   <p className="text-xs text-text-faint mt-1">
                     {getFranchiseTitle(selectedAnimeMovie.franchise_id)}
                   </p>
-                  {selectedAnimeMovie.remark && (
-                    <p className="text-xs italic text-text-faint mt-1">
-                      {selectedAnimeMovie.remark}
-                    </p>
-                  )}
                   <p className="text-xs font-mono text-text-faint">
                     {selectedAnimeMovie.system_id}
                   </p>
@@ -1487,11 +1477,6 @@ export default function Delete() {
                     {selectedMovie.series_id &&
                       ` / ${getSeriesTitle(selectedMovie.series_id)}`}
                   </p>
-                  {selectedMovie.remark && (
-                    <p className="text-xs italic text-text-faint mt-1">
-                      {selectedMovie.remark}
-                    </p>
-                  )}
                   <p className="text-xs font-mono text-text-faint">
                     {selectedMovie.system_id}
                   </p>
@@ -1583,11 +1568,6 @@ export default function Delete() {
                     {selectedTvShow.season_part &&
                       ` · ${selectedTvShow.season_part}`}
                   </p>
-                  {selectedTvShow.remark && (
-                    <p className="text-xs italic text-text-faint mt-1">
-                      {selectedTvShow.remark}
-                    </p>
-                  )}
                   <p className="text-xs font-mono text-text-faint">
                     {selectedTvShow.system_id}
                   </p>
@@ -1674,11 +1654,6 @@ export default function Delete() {
                     {selectedCartoon.season_part &&
                       ` · ${selectedCartoon.season_part}`}
                   </p>
-                  {selectedCartoon.remark && (
-                    <p className="text-xs italic text-text-faint mt-1">
-                      {selectedCartoon.remark}
-                    </p>
-                  )}
                   <p className="text-xs font-mono text-text-faint">
                     {selectedCartoon.system_id}
                   </p>
@@ -1772,11 +1747,6 @@ export default function Delete() {
                     {selectedManga.series_id &&
                       ` / ${getSeriesTitle(selectedManga.series_id)}`}
                   </p>
-                  {selectedManga.remark && (
-                    <p className="text-xs italic text-text-faint mt-1">
-                      {selectedManga.remark}
-                    </p>
-                  )}
                   <p className="text-xs font-mono text-text-faint">
                     {selectedManga.system_id}
                   </p>
@@ -1876,11 +1846,6 @@ export default function Delete() {
                     {selectedNovel.series_id &&
                       ` / ${getSeriesTitle(selectedNovel.series_id)}`}
                   </p>
-                  {selectedNovel.remark && (
-                    <p className="text-xs italic text-text-faint mt-1">
-                      {selectedNovel.remark}
-                    </p>
-                  )}
                   <p className="text-xs font-mono text-text-faint">
                     {selectedNovel.system_id}
                   </p>
@@ -1977,11 +1942,6 @@ export default function Delete() {
                     {selectedComic.series_id &&
                       ` / ${getSeriesTitle(selectedComic.series_id)}`}
                   </p>
-                  {selectedComic.remark && (
-                    <p className="text-xs italic text-text-faint mt-1">
-                      {selectedComic.remark}
-                    </p>
-                  )}
                   <p className="text-xs font-mono text-text-faint">
                     {selectedComic.system_id}
                   </p>

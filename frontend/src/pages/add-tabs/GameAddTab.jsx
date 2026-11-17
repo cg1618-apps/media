@@ -10,7 +10,7 @@
 // GameModifyTab too, so the two pages share one form in the canonical
 // entry-form section order.
 import ComboBox from "../../components/forms/ComboBox";
-import CoverRemarkFields from "../../components/forms/CoverRemarkFields";
+import CoverFields from "../../components/forms/CoverFields";
 import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
 import EntryFlags from "../../components/forms/EntryFlags";
 import EntryNameFields from "../../components/forms/EntryNameFields";
@@ -67,7 +67,7 @@ function Options({ values }) {
  *
  * `ownerId` is only passed by GameModifyTab, where the game row already
  * exists. Without it a picked cover waits in `pending_image_id` for the Add
- * page to attach once the game is saved (CoverRemarkFields).
+ * page to attach once the game is saved (CoverFields).
  */
 export function GameFormBody({ f, u, allGames, excludeGameId, sources, ownerId }) {
   const { has } = useAuth();
@@ -421,7 +421,7 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources, ownerId }
         showAccess={false}
       />
 
-      <CoverRemarkFields f={f} u={u} ownerType="game" ownerId={ownerId} />
+      <CoverFields f={f} u={u} ownerType="game" ownerId={ownerId} />
     </>
   );
 }

@@ -48,8 +48,7 @@ const SHAPES = {
   structured: StructuredSection,
 };
 
-// The first of two deliberate, scoped exceptions to "the frontend never names
-// sections". (The second is the `hideSections` prop on NotesBlocks.)
+// A deliberate, scoped exception to "the frontend never names sections".
 // The shapes above are fully registry-driven: the backend can add, drop or
 // relabel a `text` section and this file never changes. An `external` section
 // cannot work that way - quotes and memes are backed by their own tables, their
@@ -362,9 +361,8 @@ export function NotesProvider({
   }, [groupKey]);
 
   // One section's rows from each group that has any, series first. A
-  // singleton (備註 Remark) takes none: it is one editable textarea, not a
-  // list a group's row could join, and the entry's detail page hides it
-  // anyway. Hidden and external sections never reach here.
+  // singleton section takes none: it is one editable textarea, not a list a
+  // group's row could join. Hidden and external sections never reach here.
   const groupNotesFor = (section) => {
     if (section.singleton || section.shape === "external" || section.hidden) return [];
     return groupRows

@@ -18,7 +18,7 @@ import GameCopiesEditor from "../../components/forms/GameCopiesEditor";
 import MultiSelect from "../../components/forms/MultiSelect";
 import SourcesEditor from "../../components/forms/SourcesEditor";
 import TagReplace from "../../components/forms/TagReplace";
-import CoverRemarkFields from "../../components/forms/CoverRemarkFields";
+import CoverFields from "../../components/forms/CoverFields";
 import EntryFlags from "../../components/forms/EntryFlags";
 import EntryNameFields from "../../components/forms/EntryNameFields";
 import {
@@ -390,7 +390,7 @@ export function HGameFormBody({ f, u, allHGames = [], excludeId, sources, ownerI
         showAccess={false}
       />
 
-      <CoverRemarkFields f={f} u={u} ownerType="h-game" ownerId={ownerId} />
+      <CoverFields f={f} u={u} ownerType="h-game" ownerId={ownerId} />
     </>
   );
 }

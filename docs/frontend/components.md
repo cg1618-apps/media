@@ -37,7 +37,6 @@ src/
 | `api/mutations/useResourceMutations.js` | `useCreateResource`, `usePatchResource`, `useDeleteResource`, `useReorderResources`: `useMutation` wrappers for `/api/resources` that invalidate `RESOURCES_QUERY_KEY` (`["resources"]`) when they settle. The reorder one also applies the move to the cache first (`applyReorder`) and restores the previous tree on failure. |
 | `api/mutations/useRequestMutations.js` | Requests and reports. `useMyRequests(status?)` reads `GET /api/requests/mine` under `["requests", "mine", status ?? "all"]`; `useRequestInbox(status = "open")` reads `GET /api/requests?status=` under `["requests", "inbox", status]`. `useFileRequest` (POST), `useEditRequest` (`{id, data}`, PATCH), `useSetRequestStatus` (`{id, status, response?}`, PUT `/status`) and `useDeleteRequest` (`id`) each invalidate the whole `["requests"]` prefix when they settle, so both pages and every status filter refetch. |
 | `api/mutations/useMyRatingMutations.js` | The caller's own ratings. `useSaveMyRating()` sends `PUT /api/me/ratings/{owner_type}/{owner_id}` with a partial `{my_rating?, expectation?}` and invalidates `["media-list", ownerType]` and `["api", "search"]`; `useMyRatingSaver(ownerType, ownerId, setRow)` wraps it for one page, folding the answer into the page's row (`applyMyRating`, which writes `expectation` back under the tier's own field, `EXPECTATION_FIELD`) and toasting. `useSaveMyNovelUnit(novelId)` sends `PUT /api/me/novel-units/{unit_id}` `{my_rating?, remark?}` and invalidates the novel's list and detail; the novel detail page's Units card calls it, with the novel's `public_id`, from each unit's rating select and remark field. |
-| `api/mutations/useRemark.js` | The catalogue remark on an entry or a group. `useSaveRemark()` sends the owner's own `PATCH` (`endpoints.resource(ownerType).patch(ownerId)`) with `{remark}` (an empty one as null) and invalidates `["media-item", ownerType]` and `["media-list", ownerType]`; `useRemarkSaver(ownerType, ownerId, setRow)` wraps it for one page, folding the answered row's `remark` into the page's row, toasting "Remark saved" or the error, and resolving to the saved remark (`undefined` on failure). Every entry detail page's Remarks slip and the franchise, series and collection hubs' Remark box save through it, for a holder of `manage.catalog` only; `owner_type` is the hyphenated media type or the tier. |
 | `api/mutations/useGameChoiceMutations.js` | One game's choice graph. `useChoiceGraph(gameId)` reads `GET /api/game-choice/graph?game_id=` (idle without a game id) under `choiceGraphQueryKey(gameId)` = `["game-choice-graph", gameId]`; `useCreateChoiceNode`, `usePatchChoiceNode`, `useDeleteChoiceNode`, `useCreateChoiceEdge`, `usePatchChoiceEdge`, `useDeleteChoiceEdge`, `useCreateNextPart` (`POST /edges/{id}/next`: a branch's new next block, answering `{node, edge}`) and `useSetChoiceMark` (`{target: "node" \| "edge", id, done, note}`, a PUT) each invalidate that key when they settle. No optimistic update: the graph is small and its layout a pure function of the rows. |
 | `hooks/useApiQuery(key, url, {params})` | `useQuery` wrapper; key becomes `[...key, params]` when params exist. |
 | `hooks/useMediaList(type, {params})` | List query keyed `["media-list", type, params]`; `LIST_OPTIONS = { params: { limit: 2000 } }` is the full-table convention. |
@@ -566,8 +565,8 @@ columns.
   manga and novel - MAL rating, MAL rank as text, AniList rating, rank and
   popularity rank), `EntryFlags` (`{ f, u, flags }`: the plan-flag checkboxes
   that close My Tracker, `flags` as `[[key, label, caption], ...]`, no
-  header), `CoverRemarkFields` (`{ f, u, ownerType, ownerId }`: the **Cover &
-  Remark** section, header included, that closes every entry form; without
+  header), `CoverFields` (`{ f, u, ownerType, ownerId }`: the **Cover**
+  section, header included, that closes every entry form; without
   `ownerId` a picked image is kept as `pending_image_id` for the Add page to
   attach after the save), `ChoiceChips` (a
   multi-choice field over a fixed vocabulary as toggle chips, for the h-game
@@ -655,9 +654,9 @@ columns.
   fields of `QuoteForm` and `MemeForm`. It opens `rows` high (2 by default),
   fits its height to the text on every change, and stops at `max-h-80`, past
   which it scrolls; manual resize is off. The height comes from `scrollHeight`
-  rather than CSS `field-sizing: content`, which Firefox lacks. The Remark
-  section's large box keeps its fixed 10 rows and drag handle.
-- **`components/modals`** — `AnnouncementModal`, `RemarkModal`,
+  rather than CSS `field-sizing: content`, which Firefox lacks. A singleton
+  text section's large box keeps its fixed 10 rows and drag handle.
+- **`components/modals`** — `AnnouncementModal`,
   `MarkAiringModal`, `ReleaseDetailsModal` (the optional release date /
   broadcast slot / watch day prompt the detail pages' release button opens -
   see `pages.md`, Detail pages), `CreateNewEntityModal`, `FranchiseCreateModal`,
@@ -741,7 +740,7 @@ columns.
   the viewer's saves and reloads them after deleting a block.
   `useOptionalNotes()` is `useNotes()` that answers null outside a provider,
   for a component that may sit on a notes page or off it. `NotesTemplate.jsx` holds the layout —
-  `NotesBlocks` (every card, minus `hideSections` / `hideGroups`), `NotesGroup`
+  `NotesBlocks` (every card, minus `hideGroups`), `NotesGroup`
   (one group's sections with no card, for a screen placing it elsewhere) and
   the default export that wraps a provider around blocks. The split exists for
   the game detail page, which renders 待辦 Todo in its Progress slip and the

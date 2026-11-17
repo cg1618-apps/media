@@ -103,7 +103,6 @@ class GameBase(BaseModel):
     # an undeclared field is dropped without a word.
     play_next: Optional[bool] = None
     to_replay: Optional[bool] = None
-    remark: Optional[str] = None
     completed_at: Optional[datetime] = None
 
     _validate_release_dates = release_date_validator("release_date")

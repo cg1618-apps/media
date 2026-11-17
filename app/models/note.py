@@ -208,28 +208,6 @@ class Note(Base):
             "series_id",
             "section",
         ),
-        # `remark` is a singleton per owner: a catalogue-scope section, one
-        # shared row per entry or group whoever wrote it, which upsert_remark
-        # and the notes router's singleton check both rely on.
-        #
-        # Declared here as well as in the database so autogenerate does not
-        # propose dropping it and so create_all-built schemas (the test DB)
-        # enforce it too. Mirrors revision r1e2mcatalog3 - keep the name and
-        # the predicate identical.
-        #
-        # NULLS NOT DISTINCT is required because three of the four owner
-        # columns are always NULL; Postgres would otherwise treat every row as
-        # unique.
-        Index(
-            "ix_note_one_remark_per_owner",
-            "media_id",
-            "collection_id",
-            "franchise_id",
-            "series_id",
-            unique=True,
-            postgresql_nulls_not_distinct=True,
-            postgresql_where=text("section = 'remark'"),
-        ),
         # `music_status` is one row per anime per song list, the list named
         # by `kind`. Catalog-scope and anime-only, so media_id is the whole
         # owner. Mirrors revision m1s2ongstat3 - keep the name and the

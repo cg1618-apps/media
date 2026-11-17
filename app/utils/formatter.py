@@ -2355,12 +2355,14 @@ def _note_fields(raw: dict):
     return fields
 
 
-# Sections that left the registry, and where their rows went. A sheet backed
-# up before the move still names the old key, and Pull files each row where
-# the migration filed the local ones.
+# Sections that left the registry or were renamed, and where their rows went.
+# A sheet backed up before the move still names the old key, and Pull files
+# each row where the migration filed the local ones.
 _RETIRED_NOTE_SECTIONS = {
     # The gated types' one list of reviews became their 大眾評價.
     "reviews_and_comments": "public_reviews",
+    # 備註列表 Remark List was renamed 個人筆記 Personal Notes.
+    "remark_list": "personal_notes",
 }
 
 

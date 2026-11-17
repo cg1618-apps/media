@@ -20,11 +20,6 @@ from app.models.media import Media
 from app.models.user_media_list import UserMediaList
 from app.routers._patching import apply_column_patch
 from app.schemas.image_focus import coerce_image_focus
-from app.services.domain import (
-    attach_remark,
-    pop_remark,
-    upsert_remark,
-)
 from app.services.domain.content_labels import attach_content_labels
 from app.services.domain.credits import attach_link_fields
 from app.services.domain.entry_fields import attach_entry_list_fields
@@ -226,9 +221,6 @@ def make_media_router(spec) -> APIRouter:
         # An h-comic's animation status is derived from its hentai
         # adaptations at read time. No-op for every other type.
         attach_animation_status(db, spec.owner_type, entry)
-        # The catalogue remark, a note row rather than a column - see
-        # app/models/__init__.py. A path that forgets this call shows none.
-        attach_remark(db, spec.owner_type, entry)
         # The viewer's own highlight group order, read per viewer. No-op for
         # every type but h-comic and h-game.
         attach_group_orders(db, spec.owner_type, entry, viewer_user_id(viewer))
@@ -352,8 +344,7 @@ def make_media_router(spec) -> APIRouter:
         admin: Viewer = Depends(require_manage_catalog),
         viewer: Viewer = Depends(get_viewer),
     ):
-        payload, remark, has_remark = pop_remark(data.model_dump())
-        payload, plan_flags = pop_plan_flag(spec.owner_type, payload)
+        payload, plan_flags = pop_plan_flag(spec.owner_type, data.model_dump())
         nested = _pop_nested(payload)
         payload, personal = split_list_payload(spec.owner_type, payload)
         _check_family(db, payload.get("franchise_id"))
@@ -390,13 +381,6 @@ def make_media_router(spec) -> APIRouter:
 
         await _run_write_hook(db, entry)
         db.refresh(entry)
-
-        if has_remark:
-            upsert_remark(
-                db, spec.owner_type, entry.system_id, remark, viewer.user_id
-            )
-            db.commit()
-            db.refresh(entry)
         return _finish(db, entry, viewer)
 
     @router.put("/{entry_id}", response_model=spec.response_schema, summary=f"Update {spec.label}")
@@ -408,8 +392,9 @@ def make_media_router(spec) -> APIRouter:
         viewer: Viewer = Depends(get_viewer),
     ):
         entry = _get_or_404(db, entry_id, viewer)
-        payload, remark, has_remark = pop_remark(data.model_dump(exclude_unset=True))
-        payload, plan_flags = pop_plan_flag(spec.owner_type, payload)
+        payload, plan_flags = pop_plan_flag(
+            spec.owner_type, data.model_dump(exclude_unset=True)
+        )
         nested = _pop_nested(payload)
         payload, personal = split_list_payload(spec.owner_type, payload)
         _check_family(db, payload.get("franchise_id"))
@@ -425,10 +410,6 @@ def make_media_router(spec) -> APIRouter:
                 bool(planned),
                 kind=kind,
                 user_id=viewer_user_id(viewer),
-            )
-        if has_remark:
-            upsert_remark(
-                db, spec.owner_type, entry.system_id, remark, viewer.user_id
             )
 
         _write_list(db, entry, personal, viewer)
@@ -452,7 +433,6 @@ def make_media_router(spec) -> APIRouter:
         viewer: Viewer = Depends(get_viewer),
     ):
         entry = _get_or_404(db, entry_id, viewer)
-        payload, remark, has_remark = pop_remark(payload)
         payload, plan_flags = pop_plan_flag(spec.owner_type, payload)
         nested = _pop_nested(payload)
         payload, personal = split_list_payload(spec.owner_type, payload)
@@ -470,10 +450,6 @@ def make_media_router(spec) -> APIRouter:
                 bool(planned),
                 kind=kind,
                 user_id=viewer_user_id(viewer),
-            )
-        if has_remark:
-            upsert_remark(
-                db, spec.owner_type, entry.system_id, remark, viewer.user_id
             )
 
         _write_list(db, entry, personal, viewer, complete_on_total=True)

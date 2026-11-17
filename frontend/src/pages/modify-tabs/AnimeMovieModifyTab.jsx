@@ -31,13 +31,9 @@ export default function AnimeMovieModifyTab({
       <AnimeMovieFormBody f={amf} u={uam} sources={sources} ownerId={ownerId} />
 
       <SectionHeader icon="fa-book-open" title="Structured Notes" />
-      {/* `remark` is hidden here: the form's Remark field edits the same
-          singleton note row, and two editors for one row overwrite each
-          other on Save Changes. */}
       <AnimeMovieNotes
         key={ownerId}
         movie={editingItem ?? {}}
-        hideSections={["remark"]}
       />
     </>
   );

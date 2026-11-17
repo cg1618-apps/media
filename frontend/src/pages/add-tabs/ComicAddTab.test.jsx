@@ -24,7 +24,7 @@ const COMIC_SECTIONS = [
   "Production",
   "Read Order",
   "Links & Sources",
-  "Cover & Remark",
+  "Cover",
 ];
 
 function renderTab(props = {}) {

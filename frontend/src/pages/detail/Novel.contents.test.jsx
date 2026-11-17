@@ -13,7 +13,7 @@ import { ToastProvider } from "../../hooks/useToast";
 import Novel from "./Novel";
 
 // Every optional main-column card has something to show: genre tags, an
-// author for Production, a remark, one unit and one cast row.
+// author for Production, one unit and one cast row.
 const NOVEL = {
   system_id: "n1",
   public_id: 1,
@@ -28,7 +28,6 @@ const NOVEL = {
   author: "Author",
   ch_fin: 3,
   ch_total: 10,
-  remark: "My remark",
   cover_image_file: null,
   units: [{ system_id: "u1", display_key: "Vol. 1", unit_kind: "volume", position: 1 }],
 };
@@ -109,7 +108,6 @@ describe("Novel detail page - table of contents", () => {
         "Genres",
         "Production",
         "Cast",
-        "Remarks",
         "Units",
       ]),
     );

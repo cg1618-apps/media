@@ -144,8 +144,6 @@ deleting a group leaves its members in place and simply ungrouped.
   `plan_next.kind`, `media_credit.role`, ...) are plain `String`s validated
   in the API layer against the registries in [`options.md`](options.md), so
   adding a value never needs a migration.
-- **`remark` is virtual on twelve tables** - see
-  [Virtual fields](#virtual-fields-on-media-entries).
 
 ---
 
@@ -171,7 +169,7 @@ stats. Model: `Collection` (`app/models/collection.py`).
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 Relationships: `franchises` (Franchise.collection_id), `cover_franchise`.
-Virtual: `remark`, `display_name`, `content_labels` (its own rows in
+Virtual: `display_name`, `content_labels` (its own rows in
 [`collection_content_label`](#collection_content_label)), and the viewer's own `my_rating` and
 `collection_expectation` (from [`user_rating`](#user_rating)).
 
@@ -194,7 +192,7 @@ missing). Model: `Franchise` (`app/models/franchise.py`).
 | `created_at` / `updated_at` | DateTime | yes | now | |
 | `alone_reviewed_media_id` | UUID | yes | | The `media.system_id` of the lone entry that was reviewed and kept on the review queue's single-entry check. The franchise is listed again whenever its one entry is any other id. No FK, like `cover_entry_id`: a stale id matches nothing (see [notes/decisions.md](notes/decisions.md)). |
 
-Relationships: `series`, `collection`, `animes`. Virtual: `remark`,
+Relationships: `series`, `collection`, `animes`. Virtual:
 `display_name`, `content_labels` (its own rows in
 [`franchise_content_label`](#franchise_content_label)), and the viewer's own `my_rating` and `franchise_expectation`
 (from [`user_rating`](#user_rating)).
@@ -217,7 +215,7 @@ deliberate grouping). Model: `Series` (`app/models/franchise.py`).
 | `created_at` / `updated_at` | DateTime | yes | now | |
 | `alone_reviewed_media_id` | UUID | yes | | As on franchise: the reviewed lone entry of a single-entry series. No FK. |
 
-Relationships: `franchise`, `animes`. Virtual: `remark`, `display_name`,
+Relationships: `franchise`, `animes`. Virtual: `display_name`,
 `names_dict`, `content_labels` (its own rows in
 [`series_content_label`](#series_content_label)), and the viewer's own `my_rating` and `series_expectation` (from
 [`user_rating`](#user_rating)).
@@ -315,7 +313,7 @@ Model: `Anime`. CHECKs: `ck_anime_release_date_jp_iso`,
 | `mal_id` | Integer | yes | | Derived from `mal_link` by `apply_extract_mal_id_anime` |
 | `mal_link` | String | yes | | |
 
-Relationships: `franchise`, `series`. Virtual: `remark`, `watch_next`,
+Relationships: `franchise`, `series`. Virtual: `watch_next`,
 `cum_ep_fin`, `cum_ep_total`, `display_name`, `names_dict`, credit/tag link
 fields.
 
@@ -341,7 +339,7 @@ Model: `AnimeMovies`. CHECKs: `ck_anime_movies_release_date_jp_iso`,
 | `mal_id` | Integer | yes | | |
 | `mal_link` | String | yes | | |
 
-Virtual: `remark`, `watch_next`, `to_rewatch`, `display_name`, `names_dict`,
+Virtual: `watch_next`, `to_rewatch`, `display_name`, `names_dict`,
 credit/tag link fields - `genre_main` / `genre_sub` / `label` among them, each under its own key since no
 legacy column held them on this type - including `distributor_tw`, the one genuinely new
 column the publisher migration added: anime_movies never carried a distributor
@@ -366,7 +364,7 @@ Live-action and animated (non-anime) films. Model: `Movies`. CHECKs:
 | `imdb_link` | String | yes | | |
 | `type_slots` | JSONB | yes | | Which favourite 3×3 grid slot this row holds, as `{gridKey: 1..9}` - see [frontend/pages.md](frontend/pages.md#statistics--statistics--completions--completions). One grid is keyed here, Movie - the favourite *movies*, which is a different grid from the favourite movie *franchises* that key "Movie" on `franchise`. |
 
-Virtual: `remark`, `watch_next`, `to_rewatch`, `display_name`, `director`,
+Virtual: `watch_next`, `to_rewatch`, `display_name`, `director`,
 `genre_main` / `genre_sub` / `label`, `original_source` (tag link fields; on a movie the
 `original_source` field is labelled **Exclusive Source** everywhere it is shown, while
 TV Show, Cartoon and H-Comic call it Original Source - the key, the sheet header and
@@ -394,7 +392,7 @@ Live-action / scripted TV. Model: `TVShows`. CHECK: `ck_tv_shows_release_date_is
 | `release_date` | String | yes | | |
 | `imdb_id` / `imdb_link` | String | yes | | |
 
-Virtual: `remark`, `watch_next`, `to_rewatch`, `display_name`,
+Virtual: `watch_next`, `to_rewatch`, `display_name`,
 `genre_main` / `genre_sub` / `label` (tag link fields under their own keys),
 `source_official` (the response attribute for the `original_source` tag
 field - `tv-show` kept its pre-rename sheet header, see the response-attribute
@@ -418,7 +416,7 @@ Western animation. Model: `Cartoon`. CHECK: `ck_cartoons_release_date_iso`.
 | `release_date` | String | yes | | |
 | `imdb_id` / `imdb_link` | String | yes | | |
 
-Virtual: `remark`, `watch_next`, `display_name`, `genre_main` / `genre_sub` / `label` (tag link
+Virtual: `watch_next`, `display_name`, `genre_main` / `genre_sub` / `label` (tag link
 fields under their own keys), `source_official` (the response attribute for
 the `original_source` tag field - `cartoon` also kept its pre-rename sheet
 header).
@@ -446,7 +444,7 @@ Manga, manhwa, manhua. Model: `Manga`. CHECKs: `ck_manga_release_date_iso`,
 | `mal_id` | Integer | yes | | Derived from `mal_link` (`MAL_MANGA_ID_PATTERN`) |
 | `mal_link` | String | yes | | |
 
-Virtual: `remark`, `read_next`, `to_reread`, `display_name`,
+Virtual: `read_next`, `to_reread`, `display_name`,
 `author_plot` / `author_draw` / `publisher_tw` / `serialization_platform` /
 `genre_main` / `genre_sub` / `label` link fields. `serialization_platform` was a real column until Task 11 of the
 media-sources migration backfilled it into `media_tag` and dropped it - it is
@@ -487,7 +485,7 @@ Alembic revision `nv1u2n3i4t5s`.
 | `openlibrary_id` | String | yes | | Open Library work id (`"OL5738148W"`). **String**, unlike `comicvine_id`'s `Integer` - the trailing letter distinguishes a work (`OL…W`) from an edition (`OL…M`) or an author (`OL…A`), which a bare integer would discard |
 | `openlibrary_link` | String | yes | | The pasted Open Library work URL; `openlibrary_id` is derived from it |
 
-Virtual: `remark`, `read_next`, `to_reread`, `display_name`,
+Virtual: `read_next`, `to_reread`, `display_name`,
 `author` / `illustrator` / `publisher_tw` / `serialization_platform` /
 `genre_main` / `genre_sub` / `label` link fields (`publisher_tw` is the header a `publisher` credit is written under -
 see manga above), `units`
@@ -559,7 +557,7 @@ titles).
 | `comicvine_id` | Integer | yes | | Derived from `comicvine_link` by Fill, or written beside it by the Add tab's Comic Vine picker; what Fill fetches on and what duplicate detection treats as conclusive |
 | `comicvine_link` | String | yes | | |
 
-Virtual: `remark`, `read_next`, `to_reread`, `display_name`,
+Virtual: `read_next`, `to_reread`, `display_name`,
 `writer` / `artist` / `publisher` / `imprint` / `continuity` / `era` /
 `events` / `genre_main` / `genre_sub` / `label` link fields. `publisher` is now a credit rather than the retired
 `comic_publisher` tag, under the same header; comic's unused `publisher_tw`
@@ -602,7 +600,7 @@ CHECKs beyond the date one: `ck_games_base_no_parent`
 (`game_type <> 'Base Game' OR base_game_id IS NULL`) and
 `ck_games_not_self_parent` (`base_game_id <> system_id`).
 
-Virtual: `remark`, `play_next`, `to_replay`, `display_name`, `copies`,
+Virtual: `play_next`, `to_replay`, `display_name`, `copies`,
 `ownership` (see `game_copy`), and the `studio` / `publisher` / `director` /
 `composer` / `game_genre` / `game_theme` / `game_mode` / `combat_mode` /
 `game_platform` / `label` link fields.
@@ -798,7 +796,7 @@ Constraints and wiring, as for every entry table: composite FK `fk_h_comic_media
 `h_comic_public_id_seq`, and the AFTER DELETE trigger
 `trg_h_comic_delete_media`.
 
-Virtual: `remark`, `read_next`, `to_reread`, `display_name`,
+Virtual: `read_next`, `to_reread`, `display_name`,
 `animation_status_source` (`"derived"` / `"manual"`, null on KR), and the
 `illustrator` / `author` / `club` / `original_source` / `h_genre_plot` /
 `h_genre_appearance` / `h_genre_relation` link fields. Personal columns:
@@ -855,7 +853,7 @@ Constraints and wiring, as for every entry table: composite FK `fk_h_game_media`
 `ck_h_game_base_no_parent` (a `Base Game` has no parent) and
 `ck_h_game_not_self_parent`.
 
-Virtual: `remark`, `play_next`, `to_replay`, `display_name`, `base_game`,
+Virtual: `play_next`, `to_replay`, `display_name`, `base_game`,
 `copies`, `ownership`, and the `studio` / `game_genre` / `game_theme` /
 `h_genre_plot` / `h_genre_appearance` / `h_genre_relation` link fields.
 Personal columns: `playing_status`, `my_rating`, `usefulness`, `completed_at`
@@ -891,7 +889,7 @@ Constraints and wiring, as for every entry table: composite FK `fk_hentai_media`
 `ck_hentai_media_type` (`media_type = 'hentai'`), the sequence
 `hentai_public_id_seq`, and the AFTER DELETE trigger `trg_hentai_delete_media`.
 
-Virtual: `remark`, `watch_next`, `to_rewatch`, `display_name`, and the
+Virtual: `watch_next`, `to_rewatch`, `display_name`, and the
 `studio` / `studio_refs` / `director` / `author` / `h_genre_plot` /
 `h_genre_appearance` / `h_genre_relation` link fields. Personal columns: `watching_status`,
 `my_rating`, `ep_fin`, `time_fin`, `usefulness`, `completed_at` on
@@ -901,12 +899,12 @@ Virtual: `remark`, `watch_next`, `to_rewatch`, `display_name`, and the
 
 ## Virtual fields on media entries
 
-These appear in API responses (and, for `remark`, on the ORM instance) but
-are not columns on the entry tables.
+These appear in API responses but are not columns on the entry tables. An
+entry's or a group's 備註 remarks are not among them: they are `note` rows,
+read and written through the notes API like any other section.
 
 | Field | Where it comes from | Tables |
 |---|---|---|
-| `remark` | A **plain attribute**, defaulted to `None` on the class and set per request by `app.services.domain.remark_field.attach_remark`, which reads `note` (`section = 'remark'`) filtered on `note.author_id` - one query per page. Writes go through `upsert_remark`, which finds *this author's* row. **It is not a SQL expression**, so it cannot appear in a `filter` or `order_by` - `find_all_remarks` queries `note` directly for that reason. It must not become a `column_property` again: a scalar subquery cannot know who is asking, and would serve one person's remark to everybody. | all entries + series, franchise, collection |
 | `display_name` | `NameFallbackMixin` property, first non-empty name in language order. | all entries and tiers |
 | `ownership` | Derived from a game's `game_copy` rows by `derive_game_ownership`; never stored. Declared on `GameResponse` but **not yet populated by any read path** - the list filter `?ownership=` is an EXISTS over `game_copy` and does not need it. | games, h_game |
 | `copies` | The game's `game_copy` rows, in `position` order, through the ORM relationship; written back through the `copies` payload key (`nested_collections`). | games, h_game |
@@ -1751,21 +1749,12 @@ returns; see [systems/notes.md](systems/notes.md#scope) and
 [authorization.md](authorization.md#note-scope).
 
 Indexes: `ix_note_owner_section` (the four owner columns + `section`) - the
-notes page's only read path; **`ix_note_one_remark_per_owner`** - partial
-UNIQUE over the four owner columns, **NULLS NOT DISTINCT**,
-`WHERE section = 'remark'`; **`ix_note_one_music_status_per_kind`**
+notes page's only read path; **`ix_note_one_music_status_per_kind`**
 - partial UNIQUE over `(media_id, kind)`, `WHERE section = 'music_status'`,
 because each song list of an anime has one row for its status to hang on
 (and `music_status` is anime-only, so `media_id` is the whole owner). The
-status itself is each viewer's own note mark.
-
-The second is keyed per owner, because `remark` is a catalogue-scope
-singleton: one shared row per entry or group, whoever wrote it, read by
-everyone through `attach_remark`.
-
-NULLS NOT DISTINCT is required because three of the four owner columns are
-always NULL, so without it Postgres treats every row as unique and the index
-enforces nothing.
+status itself is each viewer's own note mark. No other section is limited
+in how many rows an owner holds: `remark` is a list like the rest.
 
 ### `note_mark`
 

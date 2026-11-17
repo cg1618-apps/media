@@ -291,6 +291,9 @@ export const COMMON_FIELD_META = {
     autofillable: false,
     group: "Media",
   },
+  // The studio, publisher, person and character forms' own column. The media
+  // types and the groups have no remark field: theirs is the 備註 Remark
+  // list in the Notes card.
   remark: { label: "Remark", control: "textarea", group: "Notes" },
 };
 

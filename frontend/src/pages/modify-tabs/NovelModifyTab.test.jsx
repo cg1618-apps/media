@@ -195,7 +195,7 @@ describe("NovelModifyTab — the shared body", () => {
       "Cast",
       "Units",
       "Links & Sources",
-      "Cover & Remark",
+      "Cover",
       "Structured Notes",
     ]);
   });

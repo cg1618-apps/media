@@ -848,32 +848,23 @@ def _story_list_sections() -> tuple["NoteSection", ...]:
 # Order here is display order.
 NOTE_SECTIONS: tuple[NoteSection, ...] = (
     NoteSection(
-        # The catalogue's one block of prose about an entry or a group: one
-        # row per owner, shared, written by a manage.catalog holder and read
-        # by everyone who can see the owner. A viewer's own short notes go in
-        # 備註列表 below, which is personal.
+        # The catalogue's remarks on an entry or a group: shared, written by a
+        # manage.catalog holder and read by everyone who can see the owner.
+        # A list, one remark per row, each with the links it rests on. A
+        # viewer's own notes go in 個人筆記 below, which is personal.
         key="remark",
-        shape=SHAPE_TEXT,
+        shape=SHAPE_TEXT_LINKS,
         label="備註 Remark",
         owners=ALL_OWNERS,
         scope=SCOPE_CATALOG,
-        singleton=True,
     ),
     NoteSection(
-        # 備註 above is ONE block of prose, and stays one: a long remark wants
-        # to be written as a paragraph, not as bullets. This is the other half
-        # - the short things, one per row, that a single block turns into a
-        # wall. They are deliberately NOT merged: a list whose first item is
-        # three paragraphs reads as badly as a paragraph made of bullets.
-        #
-        # Personal, unlike 備註, and non-singleton, which is the whole point:
-        # 備註 is the catalogue's, and this is where each viewer keeps their
-        # own. Every owner, like 備註: the need came from games, but nothing
-        # about a short note is game-shaped, and the two sections are read as
-        # a pair wherever 備註 appears.
-        key="remark_list",
+        # The personal half of 備註: the same list shape, but each viewer
+        # keeps their own rows and reads nobody else's. Every owner, like
+        # 備註, and drawn beside it wherever 備註 appears.
+        key="personal_notes",
         shape=SHAPE_TEXT_LINKS,
-        label="備註列表 Remark List",
+        label="個人筆記 Personal Notes",
         owners=ALL_OWNERS,
         scope=SCOPE_PERSONAL,
     ),

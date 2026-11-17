@@ -253,7 +253,7 @@ def ensure_list_row(db: Session, user_id: UUID, media_id: UUID, media_type: str)
     """
     The user's row for this entry, created at the type's default status if it
     does not exist. Added to the session but not committed - the caller owns
-    the transaction, exactly as upsert_remark does.
+    the transaction.
     """
     row = list_row(db, user_id, media_id)
     if row is not None:

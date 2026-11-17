@@ -72,7 +72,6 @@ class TestCreateCollection:
             "collection_name_jp": "全",
             "collection_name_alt": "Alt",
             "cover_franchise_id": str(sample_franchise.system_id),
-            "remark": "a remark",
         }
         data = owner_client.post("/api/collection/", json=payload).json()
         for key, expected in payload.items():

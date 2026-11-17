@@ -1,9 +1,9 @@
-// Frontend: the Cover & Remark section that closes every entry form. The
+// Frontend: the Cover section that closes every entry form. The
 // rule that matters is the cover's: on Add the row does not exist yet, so a
 // picked image waits in `pending_image_id` for the page to attach after the
 // save; on Modify (`ownerId` given) ImagePicker attaches it at once and
 // nothing is left pending.
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -24,7 +24,7 @@ vi.mock("./ImagePicker", () => ({
   },
 }));
 
-import CoverRemarkFields from "./CoverRemarkFields";
+import CoverFields from "./CoverFields";
 
 beforeEach(() => {
   pickerProps.length = 0;
@@ -33,20 +33,19 @@ beforeEach(() => {
 function renderFields(props = {}) {
   const u = vi.fn();
   const { container } = render(
-    <CoverRemarkFields f={{ cover_image_file: "old.jpg" }} u={u} ownerType="manga" {...props} />,
+    <CoverFields f={{ cover_image_file: "old.jpg" }} u={u} ownerType="manga" {...props} />,
   );
   return { u, container };
 }
 
-describe("CoverRemarkFields", () => {
-  it("opens its own Cover & Remark section, cover first", () => {
+describe("CoverFields", () => {
+  it("opens its own Cover section, holding the cover alone", () => {
     const { container } = renderFields();
     expect(
       [...container.querySelectorAll("[data-form-section]")].map((h) => h.dataset.formSection),
-    ).toEqual(["Cover & Remark"]);
+    ).toEqual(["Cover"]);
     expect([...container.querySelectorAll("label")].map((l) => l.textContent)).toEqual([
       "Cover Image",
-      "Remark",
     ]);
   });
 
@@ -73,14 +72,15 @@ describe("CoverRemarkFields", () => {
     expect(u).toHaveBeenCalledWith("pending_image_id", null);
   });
 
-  it("writes the focus point and the remark under their own keys", async () => {
+  it("writes the focus point under its own key", async () => {
     const { u } = renderFields();
     await userEvent.click(screen.getByRole("button", { name: "Simulate focus" }));
     expect(u).toHaveBeenCalledWith("cover_image_focus", { x: 0.2, y: 0.8 });
-    const remark = screen.getByRole("textbox", { name: "Remark" });
-    expect(remark).toHaveValue("");
-    fireEvent.change(remark, { target: { value: "note" } });
-    expect(u).toHaveBeenLastCalledWith("remark", "note");
+  });
+
+  it("offers no remark field: the remark lives in the Notes card", () => {
+    renderFields();
+    expect(screen.queryByRole("textbox", { name: "Remark" })).toBeNull();
   });
 
   it("writes nothing on mount", () => {

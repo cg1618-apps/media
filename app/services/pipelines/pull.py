@@ -203,7 +203,7 @@ TABS_IN_ORDER = TAB_NAMES
 # occupies - which rolls back the whole tab. So for these tabs the sheet's uuid
 # is only a hint; what actually identifies the row across databases is the
 # natural key its UNIQUE constraint already names. Same reasoning, and the same
-# keep-the-local-uuid handling, as the Note remark block further down.
+# keep-the-local-uuid handling, as the Note one-row block further down.
 # ---------------------------------------------------------------------------
 
 # tab -> the columns of that table's natural-key UNIQUE constraint.
@@ -478,7 +478,7 @@ def drop_non_columns(model, payload: dict) -> dict:
     and series_id are association proxies onto the entry's media row, and
     dropping them here would silently strip the franchise this very module
     just resolved by name a few hundred lines above. Relationships and
-    read-only column_properties (media_row, remark) are NOT included - only
+    read-only column_properties (media_row) are NOT included - only
     columns and proxies.
     """
     allowed = {c.name for c in model.__table__.columns} | {
@@ -2111,18 +2111,14 @@ def execute_pull_specific(
                 clean_header_dict.pop(pk_field, None)
                 pk_value = None
 
-        # A remark note is a singleton per owner - ix_note_one_remark_per_owner
-        # forbids a second row - so a blind INSERT is fatal to the WHOLE tab:
-        # the IntegrityError surfaces at db.commit() below, which rolls back
-        # every row and returns {"status": "error"}. A sheet remark row whose
-        # system_id is missing locally takes exactly that path, and that is the
-        # normal case rather than a rare one: the r1e2m3a4r5k6 migration minted
-        # fresh UUIDs for every migrated remark, and clearing then re-typing a
-        # remark after a backup mints another. So retarget such a row at the
-        # remark row the owner already has and update it in place, keeping the
-        # local system_id (popped from the payload so it is not overwritten).
+        # A section that holds one row per owner (`singleton`) or per owner
+        # and kind (`one_per_kind`) cannot take a blind INSERT of a sheet row
+        # whose system_id is missing locally: a unique index forbids the second
+        # row, and the IntegrityError at db.commit() below rolls back the WHOLE
+        # tab. So such a row is retargeted at the row the owner already has and
+        # updates it in place, keeping the local system_id (popped from the
+        # payload so it is not overwritten).
         #
-        # A one_per_kind section takes the same path per (owner, kind):
         # music_status holds one row per anime per song list
         # (ix_note_one_music_status_per_kind), and its revision minted those
         # rows separately on every database, so the sheet's copy of a list's
@@ -2149,7 +2145,7 @@ def execute_pull_specific(
                 rk_filters = [*rk_owner, Note.section == singleton.key]
                 # A personal-scope singleton would be one row per owner per
                 # author, so the fold must not land one account's row on
-                # another's. `remark` is catalogue: one row per owner.
+                # another's.
                 if singleton.scope == SCOPE_PERSONAL:
                     rk_filters.append(
                         Note.author_id == clean_header_dict.get("author_id")

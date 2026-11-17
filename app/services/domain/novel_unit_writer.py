@@ -3,8 +3,8 @@ Nested write for a novel's units.
 
 The media-router factory builds an entry with spec.model(**payload) and
 assigns updates with a blind setattr loop, so a nested list has to come out
-of the payload first — the same escape hatch pop_remark and pop_plan_flag
-use. This module owns what happens to that list.
+of the payload first — the same escape hatch pop_plan_flag uses. This
+module owns what happens to that list.
 """
 
 import uuid

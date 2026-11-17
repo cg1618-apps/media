@@ -182,7 +182,6 @@ function animeToForm(anime, allFranchises, allSeries, defaults) {
     watch_next: anime.watch_next ?? false,
     cover_image_file: anime.cover_image_file || "",
     cover_image_focus: anime.cover_image_focus || null,
-    remark: anime.remark || "",
   };
 }
 
@@ -194,7 +193,6 @@ function collectionToForm(c) {
     collection_name_jp: c.collection_name_jp || "",
     collection_name_alt: c.collection_name_alt || "",
     cover_franchise_id: c.cover_franchise_id ?? null,
-    remark: c.remark || "",
   };
 }
 
@@ -214,7 +212,6 @@ function franchiseToForm(f, allCollections = []) {
     type_slots: f.type_slots ?? null,
     size_group_derived: f.size_group_derived ?? null,
     size_group_manual: f.size_group_manual ?? null,
-    remark: f.remark || "",
   };
 }
 
@@ -231,7 +228,6 @@ function seriesToForm(s, allFranchises) {
     cover_entry_id: s.cover_entry_id ?? null,
     size_group_derived: s.size_group_derived ?? null,
     size_group_manual: s.size_group_manual ?? null,
-    remark: s.remark || "",
   };
 }
 
@@ -269,7 +265,6 @@ function movieToForm(movie, allFranchises, defaults) {
     to_rewatch: movie.to_rewatch ?? false,
     cover_image_file: movie.cover_image_file || "",
     cover_image_focus: movie.cover_image_focus || null,
-    remark: movie.remark || "",
   };
 }
 
@@ -748,7 +743,6 @@ export default function Modify() {
       to_rewatch: m.to_rewatch ?? false,
       cover_image_file: m.cover_image_file || "",
       cover_image_focus: m.cover_image_focus || null,
-      remark: m.remark || "",
     };
   }
 
@@ -788,7 +782,6 @@ export default function Modify() {
       sources: t.sources || [],
       cover_image_file: t.cover_image_file || "",
       cover_image_focus: t.cover_image_focus || null,
-      remark: t.remark || "",
     };
   }
 
@@ -826,7 +819,6 @@ export default function Modify() {
       watch_next: c.watch_next ?? false,
       cover_image_file: c.cover_image_file || "",
       cover_image_focus: c.cover_image_focus || null,
-      remark: c.remark || "",
     };
   }
 
@@ -874,7 +866,6 @@ export default function Modify() {
       to_reread: m.to_reread ?? false,
       cover_image_file: m.cover_image_file || "",
       cover_image_focus: m.cover_image_focus || null,
-      remark: m.remark || "",
     };
   }
 
@@ -927,7 +918,6 @@ export default function Modify() {
       to_reread: n.to_reread ?? false,
       cover_image_file: n.cover_image_file || "",
       cover_image_focus: n.cover_image_focus || null,
-      remark: n.remark || "",
     };
   }
 
@@ -964,7 +954,6 @@ export default function Modify() {
       to_reread: c.to_reread ?? false,
       cover_image_file: c.cover_image_file || "",
       cover_image_focus: c.cover_image_focus || null,
-      remark: c.remark || "",
     };
   }
 
@@ -1024,7 +1013,6 @@ export default function Modify() {
       to_replay: g.to_replay ?? false,
       cover_image_file: g.cover_image_file || "",
       cover_image_focus: g.cover_image_focus || null,
-      remark: g.remark || "",
     };
   }
 
@@ -1096,7 +1084,6 @@ export default function Modify() {
       to_replay: g.to_replay ?? false,
       cover_image_file: g.cover_image_file || "",
       cover_image_focus: g.cover_image_focus || null,
-      remark: g.remark || "",
     };
   }
 
@@ -1141,7 +1128,6 @@ export default function Modify() {
       to_reread: h.to_reread ?? false,
       cover_image_file: h.cover_image_file || "",
       cover_image_focus: h.cover_image_focus || null,
-      remark: h.remark || "",
     };
   }
 
@@ -1182,7 +1168,6 @@ export default function Modify() {
       to_rewatch: h.to_rewatch ?? false,
       cover_image_file: h.cover_image_file || "",
       cover_image_focus: h.cover_image_focus || null,
-      remark: h.remark || "",
     };
   }
 
@@ -1330,9 +1315,9 @@ export default function Modify() {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
           franchiseType: "Anime",
-          onConfirm: (rem) => {
+          onConfirm: () => {
             setFranchiseCreateModal(null);
-            resolve({ confirmed: true, remark: rem });
+            resolve({ confirmed: true });
           },
           onCancel: () => {
             setFranchiseCreateModal(null);
@@ -1351,7 +1336,6 @@ export default function Modify() {
           franchise_name_jp: af.anime_name_jp || null,
           franchise_name_alt: af.anime_name_alt || null,
           franchise_type: "Anime",
-          remark: result.remark || null,
         }),
         credentials: "include",
       });
@@ -1447,7 +1431,6 @@ export default function Modify() {
         collection_name_jp: colf.collection_name_jp || null,
         collection_name_alt: colf.collection_name_alt || null,
         cover_franchise_id: colf.cover_franchise_id || null,
-        remark: colf.remark || null,
       }),
       credentials: "include",
     });
@@ -1489,7 +1472,6 @@ export default function Modify() {
         type_covers: ff.type_covers || null,
         type_slots: ff.type_slots || null,
         size_group_manual: ff.size_group_manual || null,
-        remark: ff.remark || null,
       }),
       credentials: "include",
     });
@@ -1529,9 +1511,9 @@ export default function Modify() {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
           franchiseType: "Anime",
-          onConfirm: (rem) => {
+          onConfirm: () => {
             setFranchiseCreateModal(null);
-            resolve({ confirmed: true, remark: rem });
+            resolve({ confirmed: true });
           },
           onCancel: () => {
             setFranchiseCreateModal(null);
@@ -1546,7 +1528,6 @@ export default function Modify() {
         body: JSON.stringify({
           franchise_name_en: sf.franchise_text,
           franchise_type: "Anime",
-          remark: result.remark || null,
         }),
         credentials: "include",
       });
@@ -1570,7 +1551,6 @@ export default function Modify() {
         series_name_alt: sf.series_name_alt || null,
         cover_entry_id: sf.cover_entry_id || null,
         size_group_manual: sf.size_group_manual || null,
-        remark: sf.remark || null,
       }),
       credentials: "include",
     });
@@ -1635,9 +1615,9 @@ export default function Modify() {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
           franchiseType: "Anime",
-          onConfirm: (rem) => {
+          onConfirm: () => {
             setFranchiseCreateModal(null);
-            resolve({ confirmed: true, remark: rem });
+            resolve({ confirmed: true });
           },
           onCancel: () => {
             setFranchiseCreateModal(null);
@@ -1656,7 +1636,6 @@ export default function Modify() {
           franchise_name_jp: amf.anime_movie_name_jp || null,
           franchise_name_alt: amf.anime_movie_name_alt || null,
           franchise_type: "Anime",
-          remark: result.remark || null,
         }),
         credentials: "include",
       });
@@ -1710,9 +1689,9 @@ export default function Modify() {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
           franchiseType: "Movie",
-          onConfirm: (rem) => {
+          onConfirm: () => {
             setFranchiseCreateModal(null);
-            resolve({ confirmed: true, remark: rem });
+            resolve({ confirmed: true });
           },
           onCancel: () => {
             setFranchiseCreateModal(null);
@@ -1729,7 +1708,6 @@ export default function Modify() {
           franchise_name_cn: mmf.movie_name_cn || null,
           franchise_name_alt: mmf.movie_name_alt || null,
           franchise_type: "Movie",
-          remark: result.remark || null,
         }),
         credentials: "include",
       });
@@ -1817,9 +1795,9 @@ export default function Modify() {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
           franchiseType: "TV",
-          onConfirm: (rem) => {
+          onConfirm: () => {
             setFranchiseCreateModal(null);
-            resolve({ confirmed: true, remark: rem });
+            resolve({ confirmed: true });
           },
           onCancel: () => {
             setFranchiseCreateModal(null);
@@ -1836,7 +1814,6 @@ export default function Modify() {
           franchise_name_cn: tvmf.tv_name_cn || null,
           franchise_name_alt: tvmf.tv_name_alt || null,
           franchise_type: "TV",
-          remark: result.remark || null,
         }),
         credentials: "include",
       });
@@ -1924,9 +1901,9 @@ export default function Modify() {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
           franchiseType: "Cartoon",
-          onConfirm: (rem) => {
+          onConfirm: () => {
             setFranchiseCreateModal(null);
-            resolve({ confirmed: true, remark: rem });
+            resolve({ confirmed: true });
           },
           onCancel: () => {
             setFranchiseCreateModal(null);
@@ -1943,7 +1920,6 @@ export default function Modify() {
           franchise_name_cn: cmf.cartoon_name_cn || null,
           franchise_name_alt: cmf.cartoon_name_alt || null,
           franchise_type: "Cartoon",
-          remark: result.remark || null,
         }),
         credentials: "include",
       });
@@ -2035,9 +2011,9 @@ export default function Modify() {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
           franchiseType: "Manga",
-          onConfirm: (rem) => {
+          onConfirm: () => {
             setFranchiseCreateModal(null);
-            resolve({ confirmed: true, remark: rem });
+            resolve({ confirmed: true });
           },
           onCancel: () => {
             setFranchiseCreateModal(null);
@@ -2056,7 +2032,6 @@ export default function Modify() {
           franchise_name_jp: cmgf.manga_name_jp || null,
           franchise_name_alt: cmgf.manga_name_alt || null,
           franchise_type: "Manga",
-          remark: result.remark || null,
         }),
         credentials: "include",
       });
@@ -2149,9 +2124,9 @@ export default function Modify() {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
           franchiseType: "Novel",
-          onConfirm: (rem) => {
+          onConfirm: () => {
             setFranchiseCreateModal(null);
-            resolve({ confirmed: true, remark: rem });
+            resolve({ confirmed: true });
           },
           onCancel: () => {
             setFranchiseCreateModal(null);
@@ -2170,7 +2145,6 @@ export default function Modify() {
           franchise_name_jp: cnvf.novel_name_jp || null,
           franchise_name_alt: cnvf.novel_name_alt || null,
           franchise_type: "Novel",
-          remark: result.remark || null,
         }),
         credentials: "include",
       });
@@ -2275,9 +2249,9 @@ export default function Modify() {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
           franchiseType: "Comic",
-          onConfirm: (rem) => {
+          onConfirm: () => {
             setFranchiseCreateModal(null);
-            resolve({ confirmed: true, remark: rem });
+            resolve({ confirmed: true });
           },
           onCancel: () => {
             setFranchiseCreateModal(null);
@@ -2294,7 +2268,6 @@ export default function Modify() {
           franchise_name_cn: ccmf.comic_name_cn || null,
           franchise_name_alt: ccmf.comic_name_alt || null,
           franchise_type: "Comic",
-          remark: result.remark || null,
         }),
         credentials: "include",
       });
@@ -2415,9 +2388,9 @@ export default function Modify() {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
           franchiseType: "Game",
-          onConfirm: (rem) => {
+          onConfirm: () => {
             setFranchiseCreateModal(null);
-            resolve({ confirmed: true, remark: rem });
+            resolve({ confirmed: true });
           },
           onCancel: () => {
             setFranchiseCreateModal(null);
@@ -2436,7 +2409,6 @@ export default function Modify() {
           franchise_name_jp: cgmf.game_name_jp || null,
           franchise_name_alt: cgmf.game_name_alt || null,
           franchise_type: "Game",
-          remark: result.remark || null,
         }),
         credentials: "include",
       });
@@ -2566,9 +2538,9 @@ export default function Modify() {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
           franchiseType: H_COMIC_FRANCHISE_TYPE,
-          onConfirm: (rem) => {
+          onConfirm: () => {
             setFranchiseCreateModal(null);
-            resolve({ confirmed: true, remark: rem });
+            resolve({ confirmed: true });
           },
           onCancel: () => {
             setFranchiseCreateModal(null);
@@ -2586,7 +2558,6 @@ export default function Modify() {
           franchise_name_jp: chcf.h_comic_name_jp || null,
           franchise_name_alt: chcf.h_comic_name_alt || null,
           franchise_type: H_COMIC_FRANCHISE_TYPE,
-          remark: result.remark || null,
         }),
         credentials: "include",
       });
@@ -2682,9 +2653,9 @@ export default function Modify() {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
           franchiseType: H_GAME_FRANCHISE_TYPE,
-          onConfirm: (rem) => {
+          onConfirm: () => {
             setFranchiseCreateModal(null);
-            resolve({ confirmed: true, remark: rem });
+            resolve({ confirmed: true });
           },
           onCancel: () => {
             setFranchiseCreateModal(null);
@@ -2703,7 +2674,6 @@ export default function Modify() {
           franchise_name_jp: chgf.h_game_name_jp || null,
           franchise_name_alt: chgf.h_game_name_alt || null,
           franchise_type: H_GAME_FRANCHISE_TYPE,
-          remark: result.remark || null,
         }),
         credentials: "include",
       });
@@ -2793,9 +2763,9 @@ export default function Modify() {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
           franchiseType: HENTAI_FRANCHISE_TYPE,
-          onConfirm: (rem) => {
+          onConfirm: () => {
             setFranchiseCreateModal(null);
-            resolve({ confirmed: true, remark: rem });
+            resolve({ confirmed: true });
           },
           onCancel: () => {
             setFranchiseCreateModal(null);
@@ -2814,7 +2784,6 @@ export default function Modify() {
           franchise_name_jp: chtf.hentai_name_jp || null,
           franchise_name_alt: chtf.hentai_name_alt || null,
           franchise_type: HENTAI_FRANCHISE_TYPE,
-          remark: result.remark || null,
         }),
         credentials: "include",
       });

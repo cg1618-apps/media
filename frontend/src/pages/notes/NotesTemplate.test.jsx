@@ -1,12 +1,5 @@
-// Frontend: tests for NotesTemplate's `hideSections` opt-out.
-//
-// `remark` is a singleton note row, and the Add form, the Modify tabs and the
-// hub pages all keep a dedicated remark editor writing that same row through
-// the owner router. Rendering this page's `remark` section next to one of them
-// puts two editors on one row, and the dedicated one submits page-load state -
-// silently reverting, or (when the entry had no remark at load) deleting it.
-// So the embedding screens pass hideSections={["remark"]}, and the section must
-// disappear without taking any other section with it.
+// Frontend: tests for NotesTemplate - which registry sections it draws, and
+// where: the Notes card, a group card, or a card of its own.
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
 import NotesTemplate from "./NotesTemplate";
@@ -23,7 +16,7 @@ vi.mock("../../contexts/AuthContext", () => ({
 }));
 
 const SECTIONS = [
-  { key: "remark", shape: "text", label: "Remark", kinds: [], singleton: true },
+  { key: "remark", shape: "text_links", label: "Remark", kinds: [] },
   { key: "overview", shape: "text", label: "Overview", kinds: [] },
   { key: "trivia", shape: "text", label: "Trivia", kinds: [] },
 ];
@@ -43,22 +36,19 @@ const renderTemplate = (props = {}) =>
     <NotesTemplate ownerType="anime" ownerId="abc" {...props} />,
   );
 
-describe("NotesTemplate hideSections", () => {
-  it("renders every registry section when nothing is hidden", async () => {
+describe("NotesTemplate sections", () => {
+  it("renders every registry section", async () => {
     renderTemplate();
     await waitFor(() => expect(screen.getByText("Remark")).toBeInTheDocument());
     expect(screen.getByText("Overview")).toBeInTheDocument();
     expect(screen.getByText("Trivia")).toBeInTheDocument();
   });
 
-  it("omits a hidden section and keeps the rest", async () => {
-    renderTemplate({ hideSections: ["remark"] });
-    await waitFor(() =>
-      expect(screen.getByText("Overview")).toBeInTheDocument(),
-    );
-    expect(screen.getByText("Trivia")).toBeInTheDocument();
-    expect(screen.queryByText("Remark")).not.toBeInTheDocument();
-    // The row itself is untouched - only its duplicate editor is gone.
+  // 備註 Remark is a list like any other: its row is drawn as an item, not
+  // loaded into a single editable box.
+  it("draws a remark row as a list item", async () => {
+    renderTemplate();
+    await waitFor(() => expect(screen.getByText("keep me")).toBeInTheDocument());
     expect(screen.queryByDisplayValue("keep me")).not.toBeInTheDocument();
   });
 });

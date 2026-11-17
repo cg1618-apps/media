@@ -70,7 +70,6 @@ export const defaultAnime = () => ({
   cover_image_file: "",
   cover_image_focus: null,
   pending_image_id: null,
-  remark: "",
 });
 
 export const defaultAnimeMovie = () => ({
@@ -109,7 +108,6 @@ export const defaultAnimeMovie = () => ({
   cover_image_file: "",
   cover_image_focus: null,
   pending_image_id: null,
-  remark: "",
 });
 
 export const defaultMovie = () => ({
@@ -143,7 +141,6 @@ export const defaultMovie = () => ({
   cover_image_file: "",
   cover_image_focus: null,
   pending_image_id: null,
-  remark: "",
 });
 
 export const defaultTvShow = () => ({
@@ -180,7 +177,6 @@ export const defaultTvShow = () => ({
   cover_image_file: "",
   cover_image_focus: null,
   pending_image_id: null,
-  remark: "",
 });
 
 export const defaultCartoon = () => ({
@@ -215,7 +211,6 @@ export const defaultCartoon = () => ({
   cover_image_file: "",
   cover_image_focus: null,
   pending_image_id: null,
-  remark: "",
 });
 
 export const defaultManga = () => ({
@@ -261,7 +256,6 @@ export const defaultManga = () => ({
   cover_image_file: "",
   cover_image_focus: null,
   pending_image_id: null,
-  remark: "",
 });
 
 export const defaultNovel = () => ({
@@ -314,7 +308,6 @@ export const defaultNovel = () => ({
   cover_image_file: "",
   cover_image_focus: null,
   pending_image_id: null,
-  remark: "",
 });
 
 export const defaultComic = () => ({
@@ -354,7 +347,6 @@ export const defaultComic = () => ({
   cover_image_file: "",
   cover_image_focus: null,
   pending_image_id: null,
-  remark: "",
 });
 
 export const defaultGame = () => ({
@@ -421,7 +413,6 @@ export const defaultGame = () => ({
   cover_image_file: "",
   cover_image_focus: null,
   pending_image_id: null,
-  remark: "",
 });
 
 // The gated h-comic type. `region` starts unset on purpose: every
@@ -472,7 +463,6 @@ export const defaultHComic = () => ({
   cover_image_file: "",
   cover_image_focus: null,
   pending_image_id: null,
-  remark: "",
 });
 
 // The gated h-game type: Game's form minus the columns h_game does not have
@@ -542,7 +532,6 @@ export const defaultHGame = () => ({
   cover_image_file: "",
   cover_image_focus: null,
   pending_image_id: null,
-  remark: "",
 });
 
 // The gated hentai type. Tracked like a cartoon: ep_total and ep_fin, no
@@ -586,7 +575,6 @@ export const defaultHentai = () => ({
   cover_image_file: "",
   cover_image_focus: null,
   pending_image_id: null,
-  remark: "",
 });
 
 export const defaultCollection = () => ({
@@ -595,7 +583,6 @@ export const defaultCollection = () => ({
   collection_name_roman: "",
   collection_name_jp: "",
   collection_name_alt: "",
-  remark: "",
 });
 
 export const defaultFranchise = () => ({
@@ -607,7 +594,6 @@ export const defaultFranchise = () => ({
   franchise_name_jp: "",
   franchise_name_alt: "",
   franchise_type: "",
-  remark: "",
 });
 
 export const defaultSeries = () => ({
@@ -619,7 +605,6 @@ export const defaultSeries = () => ({
   series_name_jp: "",
   series_name_alt: "",
   cover_entry_id: null,
-  remark: "",
 });
 
 // The three Entity-group forms. An entity is credited ON entries rather than

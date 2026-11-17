@@ -430,14 +430,6 @@ export default function FranchiseModifyTab({
           />
         </Field>
       )}
-      <Field label="Remark">
-        <textarea
-          className={inputCls}
-          rows={3}
-          value={ff.remark}
-          onChange={(e) => uf("remark", e.target.value)}
-        />
-      </Field>
     </>
   );
 }

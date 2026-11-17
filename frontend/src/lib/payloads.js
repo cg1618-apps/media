@@ -288,7 +288,6 @@ export function buildAnimeMoviePayload(amf, { franchiseId } = {}) {
     to_rewatch: amf.to_rewatch ?? false,
     cover_image_file: amf.cover_image_file || null,
     cover_image_focus: amf.cover_image_focus || null,
-    remark: amf.remark || null,
   };
 }
 
@@ -339,7 +338,6 @@ export function buildAnimePayload(af, { franchiseId, seriesId } = {}) {
     watch_next: af.watch_next ?? null,
     cover_image_file: af.cover_image_file || null,
     cover_image_focus: af.cover_image_focus || null,
-    remark: af.remark || null,
   };
 }
 
@@ -415,7 +413,6 @@ export function gameFieldsPayload(f) {
     to_replay: f.to_replay ?? false,
     cover_image_file: f.cover_image_file || null,
     cover_image_focus: f.cover_image_focus || null,
-    remark: f.remark || null,
   };
 }
 
@@ -465,7 +462,6 @@ export function movieFieldsPayload(f, { defaultStatus } = {}) {
     to_rewatch: f.to_rewatch ?? false,
     cover_image_file: f.cover_image_file || null,
     cover_image_focus: f.cover_image_focus || null,
-    remark: f.remark || null,
   };
 }
 
@@ -495,7 +491,6 @@ export function tvShowFieldsPayload(f, { defaultStatus } = {}) {
     to_rewatch: f.to_rewatch ?? false,
     cover_image_file: f.cover_image_file || null,
     cover_image_focus: f.cover_image_focus || null,
-    remark: f.remark || null,
   };
 }
 
@@ -523,7 +518,6 @@ export function cartoonFieldsPayload(f, { defaultStatus } = {}) {
     watch_next: f.watch_next ?? null,
     cover_image_file: f.cover_image_file || null,
     cover_image_focus: f.cover_image_focus || null,
-    remark: f.remark || null,
   };
 }
 
@@ -561,7 +555,6 @@ export function mangaFieldsPayload(f, { defaultStatus } = {}) {
     to_reread: f.to_reread ?? false,
     cover_image_file: f.cover_image_file || null,
     cover_image_focus: f.cover_image_focus || null,
-    remark: f.remark || null,
   };
 }
 
@@ -637,7 +630,6 @@ export function novelFieldsPayload(f, { defaultStatus } = {}) {
     to_reread: f.to_reread ?? false,
     cover_image_file: f.cover_image_file || null,
     cover_image_focus: f.cover_image_focus || null,
-    remark: f.remark || null,
   };
 }
 
@@ -665,7 +657,6 @@ export function comicFieldsPayload(f, { defaultStatus } = {}) {
     to_reread: f.to_reread ?? false,
     cover_image_file: f.cover_image_file || null,
     cover_image_focus: f.cover_image_focus || null,
-    remark: f.remark || null,
   };
 }
 
@@ -720,7 +711,6 @@ export function hComicFieldsPayload(f) {
     to_reread: f.to_reread ?? false,
     cover_image_file: f.cover_image_file || null,
     cover_image_focus: f.cover_image_focus || null,
-    remark: f.remark || null,
   };
 }
 
@@ -839,7 +829,6 @@ export function hGameFieldsPayload(f) {
     to_replay: f.to_replay ?? false,
     cover_image_file: f.cover_image_file || null,
     cover_image_focus: f.cover_image_focus || null,
-    remark: f.remark || null,
   };
 }
 
@@ -885,6 +874,5 @@ export function hentaiFieldsPayload(f) {
     to_rewatch: f.to_rewatch ?? false,
     cover_image_file: f.cover_image_file || null,
     cover_image_focus: f.cover_image_focus || null,
-    remark: f.remark || null,
   };
 }

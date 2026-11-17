@@ -40,7 +40,6 @@ class MovieBase(BaseModel):
 
     watch_next: Optional[bool] = None
     to_rewatch: Optional[bool] = None
-    remark: Optional[str] = None
     cover_image_file: Optional[str] = None
     cover_image_focus: ImageFocus = None
     completed_at: Optional[datetime] = None

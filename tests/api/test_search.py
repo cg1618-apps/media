@@ -429,7 +429,7 @@ class TestPersonalFields:
             r for r in owner_client.get("/api/anime/").json() if r["system_id"] == tracked_anime
         )
         searched = self._row(owner_client, tracked_anime)
-        for field in ("watching_status", "ep_fin", "my_rating", "sources", "remark"):
+        for field in ("watching_status", "ep_fin", "my_rating", "sources"):
             assert searched.get(field) == listed.get(field), field
 
     def test_a_stranger_sees_no_status(self, owner_client, guest_reader, tracked_anime):

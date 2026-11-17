@@ -48,14 +48,12 @@ class TestCreateSeries:
             "series_name_roman": "Shin Series",
             "series_name_jp": "新シリーズ",
             "series_name_alt": "NS",
-            "remark": "a remark",
         }
         response = owner_client.post("/api/series/", json=payload)
         assert response.status_code in (200, 201)
         data = response.json()
         assert data["series_name_roman"] == "Shin Series"
         assert data["series_name_jp"] == "新シリーズ"
-        assert data["remark"] == "a remark"
 
     def test_a_rating_and_expectation_in_the_payload_are_ignored(
         self, owner_client, sample_franchise

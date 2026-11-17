@@ -45,7 +45,6 @@ import CastSection from "../../components/info/CastSection";
 import LazyImage from "../../components/ui/LazyImage";
 import { useViewScope } from "../../hooks/useViewScope";
 import ProgressInput from "../../components/tracker/ProgressInput";
-import { useRemarkSaver } from "../../api/mutations/useRemark";
 
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
@@ -287,7 +286,6 @@ export default function Manga() {
   // changed. Resolved from the fetched row so the two can never disagree.
   const system_id = mangaQuery.data?.system_id;
   const { ownData } = useViewScope();
-  const saveRemark = useRemarkSaver("manga", system_id, setManga);
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const allMangaQuery = useMediaList("manga", LIST_OPTIONS);
@@ -734,35 +732,10 @@ export default function Manga() {
             <CastSection cast={cast} />
           </TocSection>
 
-          {/* Remarks */}
-          <TocSection id="remarks" label="Remarks">
-            {manga.remark && (
-              <Slip title="Remarks">
-                <textarea
-                  key={manga.system_id}
-                  defaultValue={manga.remark || ""}
-                  readOnly={!isAdmin}
-                  onBlur={(e) => {
-                    if (isAdmin && e.target.value !== (manga.remark || ""))
-                      saveRemark(e.target.value);
-                  }}
-                  rows={4}
-                  placeholder="Add remarks…"
-                  className={selectCls}
-                ></textarea>
-              </Slip>
-            )}
-          </TocSection>
-
           {/* Structured Notes */}
-          {/* The dedicated remark textarea above renders whenever a remark
-              exists - editable for a holder of manage.catalog, read-only for
-              everyone else; hide the notes page's `remark` section exactly
-              then, so the one row never has two editors on one screen. */}
           <MangaNotes
             key={manga.system_id}
             manga={manga}
-            hideSections={manga.remark ? ["remark"] : []}
             series={series}
             franchise={franchise}
           />

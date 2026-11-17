@@ -69,7 +69,7 @@ function mount(type, Page) {
 const card = (title) => screen.getByRole("heading", { name: title }).closest("section");
 
 describe.each(PAGES)("$name detail page — Genres card", ({ type, Page, entry }) => {
-  const base = { system_id: "x1", public_id: "x1", remark: null, ...entry };
+  const base = { system_id: "x1", public_id: "x1", ...entry };
 
   it("shows the tags in the Genres card, not in Information", async () => {
     mockFetch(type, { ...base, ...TAGS });

@@ -1,10 +1,12 @@
-// Frontend: the "have remark" review - every entry the caller has written a
-// remark on, one tab per media type.
+// Frontend: the "have remark" review - every entry with at least one shared
+// 備註 Remark row in its notes, one tab per media type.
 //
 // Drawn by the Remarks block of /review-queue and by the Control Center's
 // Remarks modal, so the two cannot drift apart. The rows come from
 // GET /api/data-control/check/remarks (app/services/domain/remarks.py); each
-// carries public_id, so a row opens its entry.
+// carries public_id, so a row opens its entry, and `remarks`, every one of
+// the entry's remark rows in their sort order - one entry, one table row,
+// however many remarks it has. The counts are of entries, not of remarks.
 //
 // The gated types' tabs (h-comic, hentai, h-game) are drawn only for a
 // session that may see the type (lib/gatedTypes.js), like every other type
@@ -141,7 +143,13 @@ function RemarkTable({ tab }) {
               </td>
             ))}
             <td className="px-5 py-3 text-text-muted text-xs max-w-[400px]">
-              {e.remark}
+              <ul className="space-y-1">
+                {(e.remarks || []).map((text, i) => (
+                  <li key={i} className="whitespace-pre-wrap">
+                    {text}
+                  </li>
+                ))}
+              </ul>
             </td>
           </tr>
         ))}

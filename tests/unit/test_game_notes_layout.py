@@ -2,7 +2,7 @@
 Where a game's notes RENDER, as opposed to what they hold.
 
 Three changes share this file because all three are layout: 解析 Analysis
-moves into 評論 Reviews for games alone, 備註列表 joins 備註 in the Notes card,
+moves into 評論 Reviews for games alone, 個人筆記 joins 備註 in the Notes card,
 and 待辦 Todo is rendered by the game detail page inside its Progress slip
 (the frontend half of that is Game.test.jsx).
 """
@@ -101,45 +101,33 @@ def test_a_game_has_no_analysis_card_left_to_render():
     ]
 
 
-# --- 5: 備註列表 Remark List ----------------------------------------------
+# --- 5: 個人筆記 Personal Notes -------------------------------------------
 
 
-def test_the_remark_list_sits_beside_the_remark_and_is_not_a_group():
-    section = ns.section_by_key("remark_list")
+def test_personal_notes_sit_beside_the_remark_and_are_not_a_group():
+    section = ns.section_by_key("personal_notes")
     assert section.group is None
     assert section.standalone is False
 
     keys = [s.key for s in sections_out("game")]
-    assert keys.index("remark_list") == keys.index("remark") + 1
+    assert keys.index("personal_notes") == keys.index("remark") + 1
 
 
-def test_the_remark_list_is_personal_and_takes_many_rows():
-    section = ns.section_by_key("remark_list")
-    assert section.scope == ns.SCOPE_PERSONAL
-    # The whole point of it. 備註 is the singleton; this is the list.
-    assert section.singleton is False
-    assert ns.section_by_key("remark").singleton is True
-
-
-def test_the_remark_and_the_remark_list_are_both_kept():
-    # Deliberately not merged: a list whose first item is three paragraphs
-    # reads as badly as a paragraph made of bullets.
-    game = {s.key for s in sections_out("game")}
-    assert {"remark", "remark_list"} <= game
-    assert ns.section_by_key("remark").singleton
-    assert not ns.section_by_key("remark_list").singleton
-
-
-def test_the_remark_list_reaches_every_owner_that_has_a_remark():
-    # The need came from games, but nothing about a short note is game-shaped,
-    # and the two are read as a pair wherever 備註 appears - so they share an
-    # owners tuple as well as a scope.
+def test_the_remark_is_shared_and_personal_notes_are_personal_both_lists():
     remark = ns.section_by_key("remark")
-    assert ns.section_by_key("remark_list").owners == remark.owners
+    personal = ns.section_by_key("personal_notes")
+    assert remark.scope == ns.SCOPE_CATALOG
+    assert personal.scope == ns.SCOPE_PERSONAL
+    for section in (remark, personal):
+        assert section.singleton is False
+        assert section.shape == ns.SHAPE_TEXT_LINKS
+
+
+def test_personal_notes_reach_every_owner_that_has_a_remark():
+    # The two are read as a pair wherever 備註 appears - so they share an
+    # owners tuple as well as a shape.
+    remark = ns.section_by_key("remark")
+    assert ns.section_by_key("personal_notes").owners == remark.owners
     for owner in ("anime", "novel", "series", "collection", "game"):
         keys = {s.key for s in sections_out(owner)}
-        assert {"remark", "remark_list"} <= keys, owner
-
-
-def test_the_remark_list_can_carry_a_link():
-    assert ns.section_by_key("remark_list").shape == ns.SHAPE_TEXT_LINKS
+        assert {"remark", "personal_notes"} <= keys, owner

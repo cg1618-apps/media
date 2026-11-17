@@ -97,38 +97,24 @@ export function NotesGroup({ groupKey }) {
 /**
  * Every card of the notes page, minus whatever the screen renders itself.
  *
- * `hideSections` is the second scoped exception to "the frontend never names
- * sections". It lets an embedding screen suppress a section it already renders
- * itself. Only `remark` needs it today, and it needs it badly - `remark` is a
- * singleton row, and the Add form, the Modify tabs and the hub pages all keep
- * a dedicated remark editor that writes the SAME row through the owner router.
- * Rendering this page's `remark` section beside one of those puts two editors
- * on one row: the dedicated editor submits state captured at page load, so it
- * silently reverts anything typed in the notes box - and when the entry had no
- * remark at load, it submits null and DELETES the row outright. Suppressing
- * the duplicate is what keeps that from happening.
- *
- * `hideGroups` is the same idea one level up, for a screen rendering a whole
- * group elsewhere with `NotesGroup`. The registry still owns the structure in
- * both cases: a caller names something it renders itself, never something new.
+ * `hideGroups` lets a screen that renders a whole group elsewhere with
+ * `NotesGroup` keep it out of the run of cards, so it appears exactly once.
+ * The registry still owns the structure: a caller names a group it renders
+ * itself, never something new.
  */
-export function NotesBlocks({ hideSections = [], hideGroups = [] }) {
+export function NotesBlocks({ hideGroups = [] }) {
   // Each top-level card is a TocSection, so a detail page's table of contents
   // lists the Notes card, every group card and every standalone section - and
   // never a group's own sections, which sit inside its card.
   const { sections, loading, error, renderSection, blockCount } = useNotes();
 
-  // Callers pass fresh array literals on every render, so the joins keep this
+  // Callers pass fresh array literals on every render, so the join keeps this
   // memo from recomputing on identity alone.
-  const hiddenKey = hideSections.join(",");
   const hiddenGroupKey = hideGroups.join(",");
   const visibleSections = useMemo(() => {
-    const hidden = new Set(hiddenKey ? hiddenKey.split(",") : []);
     const hiddenGroups = new Set(hiddenGroupKey ? hiddenGroupKey.split(",") : []);
-    return sections.filter(
-      (s) => !hidden.has(s.key) && !hiddenGroups.has(s.group),
-    );
-  }, [sections, hiddenKey, hiddenGroupKey]);
+    return sections.filter((s) => !hiddenGroups.has(s.group));
+  }, [sections, hiddenGroupKey]);
 
   const { flat, groups, standalone } = useMemo(
     () => splitBlocks(visibleSections),
@@ -148,11 +134,9 @@ export function NotesBlocks({ hideSections = [], hideGroups = [] }) {
       {/* The Notes card wears the group chrome so it collapses when empty like
           every other card - minus the count badge, which it has never had.
 
-          Held back entirely when it owns no section. An owner type whose only
-          ungrouped section is `remark` - comic is the one today - ends up with
-          nothing here once an embedding page hides `remark` via hideSections,
-          and a headed card with no body inside it reads as a bug beside the
-          group cards that do have one. */}
+          Held back entirely when it owns no section: a headed card with no
+          body inside it reads as a bug beside the group cards that do have
+          one. */}
       {loading ? (
         <Spinner />
       ) : (
@@ -199,7 +183,6 @@ export function NotesBlocks({ hideSections = [], hideGroups = [] }) {
 export default function NotesTemplate({
   ownerType,
   ownerId,
-  hideSections = [],
   hideGroups = [],
   owner,
   nameSuggestions,
@@ -219,7 +202,7 @@ export default function NotesTemplate({
       series={series}
       franchise={franchise}
     >
-      <NotesBlocks hideSections={hideSections} hideGroups={hideGroups} />
+      <NotesBlocks hideGroups={hideGroups} />
     </NotesProvider>
   );
 }

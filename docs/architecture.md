@@ -1,6 +1,6 @@
 # Architecture
 
-Last verified: 2026-11-14
+Last verified: 2026-11-17
 
 **What this is for.** A map of the backend: how a request travels through the
 `app/` package, where each kind of code lives, and the two generator patterns
@@ -151,7 +151,7 @@ that differ only in the hooks they declare.
 | --- | --- | --- | --- |
 | GET | `/api/<route>/` | viewer | list; `list_filters`, `extra_filters`, `search_query`; visibility applied via `apply_entry_visibility`; link fields and plan flags attached |
 | GET | `/api/<route>/{id}` | viewer | 404 for missing **and** for hidden entries (indistinguishable by design) |
-| POST | `/api/<route>/` | admin | resolve parents, pop remark/plan flag, `pre_commit_hook`, commit, `write_hook` |
+| POST | `/api/<route>/` | admin | resolve parents, pop plan flags, `pre_commit_hook`, commit, `write_hook` |
 | PUT | `/api/<route>/{id}` | admin | full update, same hook sequence |
 | PATCH | `/api/<route>/{id}` | admin | column patch through `_patching.apply_column_patch` (whitelisted columns) |
 | POST | `/api/<route>/{id}/complete` | admin | `mark_completed` + `apply_completion_timestamp` |

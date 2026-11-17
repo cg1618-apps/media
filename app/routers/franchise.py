@@ -16,7 +16,6 @@ from app import models, schemas
 from app.database import get_taipei_now
 from app.dependencies import get_db
 from app.routers._patching import apply_column_patch
-from app.services.domain import attach_remark, pop_remark, upsert_remark
 from app.services.domain.content_labels import attach_franchise_content_labels
 from app.services.domain.gated_labels import ensure_franchise_labels
 from app.services.domain.group_counts import attach_entry_counts
@@ -127,7 +126,6 @@ def get_franchise_by_id(
     # from one that was never there.
     if not franchise_visible(db, viewer, db_franchise.system_id):
         raise HTTPException(status_code=404, detail="Franchise not found.")
-    attach_remark(db, "franchise", db_franchise)
     attach_ratings(db, "franchise", db_franchise, viewer.user_id)
     attach_franchise_content_labels(db, db_franchise)
     return db_franchise
@@ -153,7 +151,7 @@ def create_franchise(
         # explicit form silently dropped cover_entry_id, type_covers, type_slots
         # and watch_next_group on every create.
         # Explicitly assign UUID and Timestamps in Python to bypass missing database default constraints
-        data, remark, has_remark = pop_remark(payload.model_dump(exclude_unset=True))
+        data = payload.model_dump(exclude_unset=True)
         new_franchise = models.Franchise(
             **data,
             system_id=uuid.uuid4(),
@@ -169,15 +167,6 @@ def create_franchise(
         ensure_franchise_labels(db, new_franchise)
         db.commit()
         db.refresh(new_franchise)
-
-        if has_remark:
-            upsert_remark(
-                db, "franchise", new_franchise.system_id, remark, viewer.user_id
-            )
-            db.commit()
-            db.refresh(new_franchise)
-
-        attach_remark(db, "franchise", new_franchise)
 
         attach_ratings(db, "franchise", new_franchise, viewer.user_id)
 
@@ -209,22 +198,16 @@ def update_franchise(
     if not db_franchise or not franchise_visible(db, viewer, db_franchise.system_id):
         raise HTTPException(status_code=404, detail="Franchise not found.")
 
-    update_data, remark, has_remark = pop_remark(payload.model_dump(exclude_unset=True))
+    update_data = payload.model_dump(exclude_unset=True)
     _check_type_family(db, db_franchise.system_id, update_data)
     for key, value in update_data.items():
         setattr(db_franchise, key, value)
-    if has_remark:
-        upsert_remark(
-            db, "franchise", db_franchise.system_id, remark, viewer.user_id
-        )
 
     db_franchise.updated_at = get_taipei_now()
     # A type that GAINS a gated franchise type (H-Comic, Hentai) gains its label.
     ensure_franchise_labels(db, db_franchise)
     db.commit()
     db.refresh(db_franchise)
-
-    attach_remark(db, "franchise", db_franchise)
 
     attach_ratings(db, "franchise", db_franchise, viewer.user_id)
 
@@ -250,21 +233,14 @@ def patch_franchise(
     if not db_franchise or not franchise_visible(db, viewer, db_franchise.system_id):
         raise HTTPException(status_code=404, detail="Franchise not found.")
 
-    payload, remark, has_remark = pop_remark(payload)
     _check_type_family(db, db_franchise.system_id, payload)
     apply_column_patch(db_franchise, payload)
-    if has_remark:
-        upsert_remark(
-            db, "franchise", db_franchise.system_id, remark, viewer.user_id
-        )
 
     db_franchise.updated_at = get_taipei_now()
     # A type that GAINS a gated franchise type (H-Comic, Hentai) gains its label.
     ensure_franchise_labels(db, db_franchise)
     db.commit()
     db.refresh(db_franchise)
-
-    attach_remark(db, "franchise", db_franchise)
 
     attach_ratings(db, "franchise", db_franchise, viewer.user_id)
 

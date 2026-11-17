@@ -145,7 +145,7 @@ describe("GameAddTab layout", () => {
       "Prices",
       "Copies",
       "Links & Sources",
-      "Cover & Remark",
+      "Cover",
     ]);
   });
 

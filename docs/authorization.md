@@ -317,7 +317,7 @@ The matrix above is the grants; this is what holding one means.
 | rate a collection, franchise, series, character, person, studio or publisher, set a tier's expectation, rate and remark on a novel unit (`self.list`) | — | **never** | yes | yes | **never** |
 | read their own account settings — username and role | — (no account) | through the API; the SPA's `/settings` route asks `self.list`, so it is not drawn | yes | yes | yes, through the API; the SPA's `/settings` route asks `self.list`, so it is not drawn for `admin` |
 | change their own password (`self.password`) — the admin sets its own, and a shared account's, on `/users` | — | **never** | **always** | **always** | **never** |
-| write a personal note — a review or a 備註列表 Remark List row | — | **never** | yes | yes | **never** |
+| write a personal note — a review or a 個人筆記 Personal Notes row | — | **never** | yes | yes | **never** |
 | file a request or report, and read and edit their own (`self.requests`) | — | **always** | **always** | **always** | **never** |
 | handle requests — the inbox: mark done or declined, reopen, delete (`manage.requests`) | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **always** |
 | write the catalogue — entries, groups, people, credits, relations, watch orders, a game's choice graph, quotes, memes, catalogue notes - the 備註 remark among them - form and picker defaults (`manage.catalog`) | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **never** |
@@ -1396,10 +1396,9 @@ request".
 - **No field group names a note section.** Personal sections - the
   highlight sections among them - are filtered by author in
   `app/routers/note.py` - see [Note scope](#note-scope).
-- **`remark` is not gated here at all.** It is a catalogue-scope note,
-  attached to every read of an entry or a group by
-  `app.services.domain.remark_field.attach_remark` and read by everyone who
-  can see the owner. See [business-rules.md](business-rules.md).
+- **`remark` is not gated here at all.** It is a catalogue-scope note
+  section, read through the notes API by everyone who can see the owner. See
+  [business-rules.md](business-rules.md).
 
 ## Ratings and expectations (`user_rating`)
 
@@ -1717,11 +1716,11 @@ and the page decides from the scope who may write it. An h-comic's and
 h-game's highlight group order is per account too, in
 `user_highlight_group_order`, written under `self.personal_notes`.
 
-**A remark is the catalogue's.** `remark` is one shared row per owner
-(`ix_note_one_remark_per_owner`), written under `manage.catalog` and read by
-everyone who can see the owner, a logged-out visitor included. A member's
-own short notes on an entry or a group go in 備註列表 `remark_list`, which is
-personal; there is no per-account remark route.
+**A remark is the catalogue's.** `remark` is a shared list - any number of
+rows per owner - written under `manage.catalog` and read by everyone who can
+see the owner, a logged-out visitor included. A member's own notes on an
+entry or a group go in 個人筆記 `personal_notes`, which is personal; there is
+no per-account remark route.
 
 ## Admin routes
 

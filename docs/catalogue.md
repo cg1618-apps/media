@@ -57,7 +57,7 @@ that type, or a group (collection, franchise, series).
 | Section | On | Yours or shared |
 | --- | --- | --- |
 | 備註 Remark | every type; every group | shared |
-| 備註列表 Remark List | every type; every group | **yours** |
+| 個人筆記 Personal Notes | every type; every group | **yours** |
 | 介紹 Introduction | every type but H-Comic, Hentai; every group | shared |
 | 優點 Advantages | every type but H-Comic, Hentai; every group | **yours** |
 | 缺點 Disadvantages | every type but H-Comic, Hentai; every group | **yours** |

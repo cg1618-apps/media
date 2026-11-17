@@ -92,7 +92,7 @@ class MediaTypeSpec:
 
     key: str                       # internal key, e.g. "cartoon"
     # The hyphenated OWNER_TABLES key, which differs from `key` for tv_show.
-    # Notes and remarks are addressed by this, never by `key`.
+    # Notes are addressed by this, never by `key`.
     owner_type: str
     label: str                     # human label used in messages/tags, e.g. "Cartoon"
     route: str                     # URL segment, e.g. "cartoon" -> /api/cartoon

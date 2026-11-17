@@ -28,7 +28,6 @@ const ENTRY = {
   watching_status: "Completed",
   ep_fin: 1,
   ep_total: 2,
-  remark: "Seen twice",
 };
 
 const CAST_ROW = {
@@ -104,7 +103,7 @@ describe("Hentai detail page - tab title and contents", () => {
     mount();
     await screen.findByText("Protagonist");
     await waitFor(() =>
-      expect(rows()).toEqual(["My tracker", "Naming", "Information", "Credits", "Cast", "Genres", "Remarks"]),
+      expect(rows()).toEqual(["My tracker", "Naming", "Information", "Credits", "Cast", "Genres"]),
     );
   });
 });
