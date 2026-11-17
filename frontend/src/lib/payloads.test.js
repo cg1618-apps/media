@@ -140,6 +140,19 @@ describe("the publisher field posts a credit, not a tag", () => {
 // The IGDB numeric id is Fill's only handle on a game, and the public
 // www.igdb.com link the picker stores carries a slug rather than the id - so
 // the id the admin picked has to travel in the payload of its own accord.
+describe("game copies", () => {
+  it("carry the sale price, its currency and the hours played", () => {
+    const { copies } = gameFieldsPayload({
+      copies: [
+        { storefront: "Steam", sell_price: "7.5", sell_currency: "EUR", hours_played: "12.5" },
+        { storefront: "GOG", sell_price: "", sell_currency: "", hours_played: "" },
+      ],
+    });
+    expect(copies[0]).toMatchObject({ sell_price: 7.5, sell_currency: "EUR", hours_played: 12.5 });
+    expect(copies[1]).toMatchObject({ sell_price: null, sell_currency: null, hours_played: null });
+  });
+});
+
 describe("game igdb_id", () => {
   it("is sent alongside the link", () => {
     const payload = gameFieldsPayload({

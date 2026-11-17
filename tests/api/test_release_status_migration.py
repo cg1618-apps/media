@@ -123,6 +123,33 @@ def test_upgrade_rewrites_the_stored_movie_defaults(revision, pre_revision):
     }
 
 
+def test_upgrade_retires_a_stored_rumored_default_on_an_airing_type(revision, db_session):
+    """The anime default is what bites; the TV default on another value is the
+    mirror that proves only Rumored moves."""
+    db_session.add_all(
+        [
+            models.SystemConfigs(
+                config_key="form_defaults:anime",
+                config_value=json.dumps({"defaults": {"airing_status": "Rumored"}}),
+            ),
+            models.SystemConfigs(
+                config_key="form_defaults:tv-show",
+                config_value=json.dumps({"defaults": {"airing_status": "Airing"}}),
+            ),
+        ]
+    )
+    db_session.flush()
+    revision.rewrite(db_session.connection())
+
+    def stored(key):
+        row = db_session.query(models.SystemConfigs).filter_by(config_key=key).one()
+        db_session.refresh(row)
+        return json.loads(row.config_value)["defaults"]
+
+    assert stored("form_defaults:anime") == {"airing_status": "Not Yet Aired"}
+    assert stored("form_defaults:tv-show") == {"airing_status": "Airing"}
+
+
 def test_upgrade_is_idempotent(revision, pre_revision):
     db, _ = pre_revision
     revision.rewrite(db.connection())

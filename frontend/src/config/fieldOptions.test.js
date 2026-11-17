@@ -70,9 +70,9 @@ describe("applyConstants", () => {
 });
 
 describe("release vocabularies", () => {
-  it("has no Rumored on the airing types, while games keep theirs", () => {
+  it("has no Rumored on the airing types, nor on games", () => {
     expect(AIRING_STATUSES).toEqual(["Not Yet Aired", "Airing", "Finished Airing", "Canceled"]);
-    expect(GAME_RELEASE_STATUSES).toContain("Rumored");
+    expect(GAME_RELEASE_STATUSES).not.toContain("Rumored");
   });
 
   it("serves the films' release status and the anime movie release type", () => {

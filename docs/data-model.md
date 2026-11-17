@@ -582,7 +582,7 @@ same table carrying a `base_game_id`, not a row in a second table. Model:
 | `all_collected` | String | yes | | GAME_COMPLETION_FLAGS: every in-game collectible found, or `Inapplicable` for a game that hides none |
 | `steam_progress_sync` | Boolean | yes | | A tristate boolean, and the one flag here that is NOT a completion axis - it is about the source, not the game, so it kept its type when the three above became a vocabulary. `NULL`/`true` = Steam is the authority for `hours_played` and `achievements_earned`; `false` blocks Steam from writing either, for a game owned on Steam but played elsewhere. Governs those two columns only - prices and the Metacritic score ignore it entirely. |
 | `achievements_earned` / `achievements_total` | Integer | yes | | A count, independent of `all_achievements`. `achievements_earned` is Steam-fillable and overwrite, guarded by `steam_progress_sync` and a zero/unknown check - see [external-apis.md](external-apis.md#steam); `achievements_total` is fill-only. |
-| `release_status` | String | yes | | GAME_RELEASE_STATUSES (Rumored / Unreleased / Early Access / Released / Ongoing / Discontinued / Cancelled) |
+| `release_status` | String | yes | | GAME_RELEASE_STATUSES (Unreleased / Early Access / Released / Ongoing / Discontinued / Cancelled) |
 | `release_date` | String | yes | | Truncated ISO-8601, CHECK `ck_games_release_date_iso` |
 | `current_patch` | String | yes | | What is installed, not what changed in it: "1.6.1", "Update 7" |
 | `hours_played` | Float | yes | | Steam-fillable, overwrite, guarded by `steam_progress_sync` and a zero/unknown check (minutes ÷ 60 from `GetOwnedGames`) - see [external-apis.md](external-apis.md#steam) |
@@ -633,6 +633,9 @@ joined on its own table's `system_id`.
 | `price_paid` | Numeric(10,2) | yes | | What **I** paid |
 | `price_currency` | String | yes | | |
 | `acquired_date` | String | yes | | Truncated ISO-8601, CHECK `ck_game_copy_acquired_date_iso` |
+| `sell_price` | Numeric(10,2) | yes | | What the copy sold for. A record only: no statistic reads it |
+| `sell_currency` | String | yes | | The same vocabulary as `price_currency` |
+| `hours_played` | Float | yes | | Decimal hours on this copy (`12.5`). A record only: it does not roll up into `games.hours_played` |
 | `remark` | String | yes | | A plain column here, not a `note` row |
 | `position` | Integer | **no** | `0` (server default too) | Order within the game |
 | `created_at` | DateTime | yes | now | No `updated_at` |

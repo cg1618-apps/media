@@ -10,10 +10,13 @@ name: Tests
 #   as a `merge_group` run, on `dev` plus every pull request queued ahead of
 #   it, and lands only if that passes - so the combination that reaches `dev`
 #   is exactly the one tested, without bringing branches up to date by hand.
-# - `main` takes one release pull request at a time, and the ruleset requires
-#   it to be up to date with `main` before it merges
-#   (`strict_required_status_checks_policy`), so its run tested the tree that
-#   deploys.
+# - `main` takes one release pull request at a time, and moves only when one
+#   merges. A pull request's run tests its head merged onto the base, so
+#   with nothing else able to move `main` while it runs, that run tested the
+#   tree that deploys. The ruleset therefore does not also require the
+#   branch to be up to date: every release merge leaves a merge commit on
+#   `main` that `dev` never receives, and the strict rule would count those
+#   and block the next release for no change in content.
 #
 # A re-run on push would test a tree one of those two had just tested. Putting
 # a push trigger back is only needed if either guarantee is removed.

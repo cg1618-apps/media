@@ -121,6 +121,21 @@ describe("FollowedOrderPanel", () => {
     expect(screen.getByText("watch the OVA first")).toBeInTheDocument();
   });
 
+  it("names the feature Play Order on a game and Watch Order elsewhere", async () => {
+    respond({
+      "GET /api/watch-order/follows/entry/A": [
+        { list: LIST, owner: OWNER, total: 1, occurrences: [{ step: step(1, "Here") }] },
+      ],
+    });
+    const { unmount } = renderWith(<FollowedOrderPanel entryId="A" mediaType="game" />);
+    expect(await screen.findByText("Following Play Order")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Followed play orders" })).toBeInTheDocument();
+    unmount();
+
+    renderWith(<FollowedOrderPanel entryId="A" mediaType="anime" />);
+    expect(await screen.findByText("Following Watch Order")).toBeInTheDocument();
+  });
+
   it("renders nothing when no followed order holds the entry", async () => {
     respond({ "GET /api/watch-order/follows/entry/A": [] });
     const { container } = renderWith(<FollowedOrderPanel entryId="A" />);

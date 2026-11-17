@@ -63,13 +63,13 @@ The same entry may appear in several items of one list (a split run). A **dangli
 
 | Name | Value | Where |
 | --- | --- | --- |
-| `MEDIA_TYPE_MODELS` | anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, game | domain |
+| `MEDIA_TYPE_MODELS` | anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, game, h-comic, hentai, h-game | domain |
 | `ITEM_IMPORTANCE` | `("Essential", "Recommended", "Normal", "Optional")`; `DEFAULT_IMPORTANCE = "Normal"` | domain; mirrored in `WatchOrderEditor.jsx` |
 | `BUILT_IN_KINDS` | `release` → "Release Order", all types; `release-anime` → "Release Order (Anime)", anime only | router |
 | `MIN_ENTRIES_FOR_RELEASE` | `2` — an owner with fewer entries in scope gets no built-in order | router |
 | `_SINGLE_WINNER_FLAGS` | `is_default`, `is_most_recommended` | router |
 | `_TOTAL_FIELDS` | anime/tv-show/cartoon → `ep_total`; manga/novel → `ch_total`; comic → `issue_total`; movie types have none | domain |
-| `_STATUS_FIELDS` | watching_status for the five watched types, reading_status for manga/novel/comic | domain |
+| `_STATUS_FIELDS` | watching_status for the five watched types and hentai, reading_status for manga/novel/comic/h-comic, playing_status for game/h-game | domain |
 
 ## Rules
 
@@ -95,7 +95,7 @@ The same entry may appear in several items of one list (a split run). A **dangli
 
 ### Range fields and units
 
-`ep_start`/`ep_end` are generic integers; what they count depends on the step's media type. The unit and the "whole-only" rule live in `frontend/src/components/tracker/WatchOrderGuide.jsx` (the `frontend/src/utils/watchOrderRange.js` path does not exist; its test is `frontend/src/components/tracker/watchOrderRange.test.js`):
+`ep_start`/`ep_end` are generic integers; what they count depends on the step's media type. The unit, the "whole-only" rule and `TYPE_LABELS` (each type's name, read by the editor's type filter too) live in `frontend/src/components/tracker/WatchOrderGuide.jsx` (the `frontend/src/utils/watchOrderRange.js` path does not exist; its test is `frontend/src/components/tracker/watchOrderRange.test.js`):
 
 | Media type | Range unit label | Range inputs offered? (`supportsEpisodeRange`) |
 | --- | --- | --- |
@@ -103,6 +103,7 @@ The same entry may appear in several items of one list (a split run). A **dangli
 | comic | `#` (issue) | yes |
 | manga, novel | `Ch` | **no** — `WHOLE_ONLY_TYPES` |
 | movie, anime-movie | `Ep` (never shown) | **no** — `WHOLE_ONLY_TYPES` |
+| game | `Ep` (never shown) | **no** — `WHOLE_ONLY_TYPES`: a game is one whole entry, done or not by its `playing_status` |
 | h-comic, h-game, hentai | `Ep` (never shown) | **no** — `WHOLE_ONLY_TYPES` (a hentai step names the entry, never a range of its episodes); each offered in the editor's type filter only to a session that can see it |
 | unknown / null | `Ep` | yes (nothing is lost for an unrecognised type) |
 
@@ -208,7 +209,7 @@ The unit count is `UNIT_FIELDS`: `ep_fin` for anime, TV show, cartoon and hentai
 | Surface | File | Notes |
 | --- | --- | --- |
 | Follow / Following toggle | `frontend/src/components/tracker/FollowOrderButton.jsx` | On `WatchOrderPage.jsx`'s header and beside the selected order in `WatchOrderSection.jsx`. The section marks the group's followed order "Following" in its chips, its dropdown and its single-order label. Drawn only for `has("self.list")` |
-| Entry detail panel | `frontend/src/components/tracker/FollowedOrderPanel.jsx` | Mounted directly under the `<header>` of all twelve entry detail pages. A brand-ruled band, deliberately not a `Slip` like Relations in the left column. "Following: order (group) · step N / total", then per occurrence the previous step, this step and the next, each with its range, importance chip, part name and note. Renders nothing when no followed order holds the entry |
+| Entry detail panel | `frontend/src/components/tracker/FollowedOrderPanel.jsx` | Mounted directly under the `<header>` of all twelve entry detail pages. Its eyebrow names the feature by the page's `mediaType` (`orderNoun`, `frontend/src/lib/orderNoun.js`): "Following Play Order" on the Game page, "Following Watch Order" everywhere else - one feature and one kind of order underneath. A brand-ruled band, deliberately not a `Slip` like Relations in the left column. "Following Watch Order: order (group) · step N / total", then per occurrence the previous step, this step and the next, each with its range, importance chip, part name and note. Renders nothing when no followed order holds the entry |
 | Dashboard | `frontend/src/components/tracker/FollowedOrders.jsx` | "Followed watch orders (n)", directly under Coming Next on `/`, collapsed by default, gated on `self.list` as Coming Next is, and listed in the contents as "Followed orders" (`schedule-follows`). One row per order: group · order (linked), `done / total` with a progress rule, every **Now** step and the **Next** step, notes left to the order page |
 | Shared step line | `frontend/src/components/tracker/FollowedStep.jsx` | Used by the panel and the dashboard so a step reads the same in both; the range label is `rangeLabel` from `WatchOrderGuide.jsx` |
 

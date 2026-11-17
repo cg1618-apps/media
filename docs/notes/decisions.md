@@ -5256,14 +5256,40 @@ shown buttons that answered 401.
   valid per-author rows and a moved 備註列表 row cannot be told from a typed
   one.
 
+### Game copies record a sale and hours; Rumored leaves games; a game's order is a Play Order (2026-11-17)
+
+- **A copy's sale and hours are records, not inputs.** `game_copy.sell_price`
+  / `sell_currency` mirror the price paid, and `game_copy.hours_played` is
+  decimal hours on that copy. Nothing rolls the copy hours into
+  `games.hours_played`, and the statistics page and the two list-price checks
+  do not read either - the owner asked for the fields with no business logic.
+  Both live on the shared table, so an h-game copy carries them too.
+- **Rumored is not a game status.** Every game and h-game row holding it (the
+  two share `GAME_RELEASE_STATUSES`) became `Unreleased`, as did a stored
+  Add-form default, and Pull reads a `Rumored` cell from an older backup as
+  `Unreleased`. The downgrade does not bring it back: nothing records which
+  rows held it. `AiringStatus` keeps its own `Rumored`.
+- **Games were already in watch orders on the backend.** `MEDIA_TYPE_MODELS`
+  listed `game`, the candidates endpoint offered games and progress counted a
+  game by `playing_status` alone. What was missing was the frontend: the
+  editor's type filter had no Game, a game step showed its raw slug, and it
+  was offered an episode range. `game` joined `TYPE_LABELS` (now one map,
+  exported from `WatchOrderGuide.jsx`) and `WHOLE_ONLY_TYPES`.
+- **"Play Order" is a label, not a second feature.** The Game page's follow
+  panel says "Following Play Order"; every other type, h-game included, says
+  "Following Watch Order". One model, one route, one editor - `orderNoun`
+  picks the word from the page's media type.
+
 ### A film has a release status, not an airing status; Rumored goes; an anime movie is Cinema or ONA (2026-11-17)
 
 - **Rumored leaves `AiringStatus`.** Revision `r1l2status34` turns every
   `Rumored` on anime, TV shows, cartoons and hentai into `Not Yet Aired`.
   Hentai is included even though the request named five types, because
   `hentai.airing_status` is checked against the enum on every write: leaving
-  a hentai on `Rumored` would make its next edit fail. Games' own `Rumored`
-  (`GAME_RELEASE_STATUSES`) is a separate vocabulary and stays.
+  a hentai on `Rumored` would make its next edit fail. With games' `Rumored`
+  retired by the entry above, no vocabulary carries `Rumored` any more, and
+  Pull reads an older backup's `Rumored` per type: `Not Yet Aired` on an
+  airing type, `Not Released` on a film, `Unreleased` on a game.
 - **Movie and Anime Movie get `release_status`, with its own vocabulary**
   (`FILM_RELEASE_STATUSES`: `Not Released`, `Released`, `Canceled`). A film
   is released once, so it has no `Airing`. Old values map as `Not Yet Aired`

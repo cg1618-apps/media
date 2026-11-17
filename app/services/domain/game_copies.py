@@ -87,6 +87,9 @@ def write_game_copies(db, entry, copies, viewer=None) -> None:
             "price_paid": data.get("price_paid"),
             "price_currency": data.get("price_currency"),
             "acquired_date": data.get("acquired_date"),
+            "sell_price": data.get("sell_price"),
+            "sell_currency": data.get("sell_currency"),
+            "hours_played": data.get("hours_played"),
             "remark": data.get("remark"),
             "position": data.get("position") or 0,
         }

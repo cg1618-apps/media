@@ -1,7 +1,8 @@
 """Movie and Anime Movie: release_status and release_type; Rumored goes
 
 `Rumored` leaves the airing vocabulary. An anime, TV show, cartoon or hentai
-holding it becomes `Not Yet Aired`.
+holding it becomes `Not Yet Aired`, and so does a stored Add-form default of
+those four types.
 
 A film is released, not aired, so `movies.airing_status` and
 `anime_movies.airing_status` become `release_status`, over a vocabulary of
@@ -29,7 +30,7 @@ It cannot tell which film was `Rumored` or `Airing` before, and it does not
 need to: the previous revision accepts every value it writes.
 
 Revision ID: r1l2status34
-Revises: r1e2mcatalog3
+Revises: g1s2ellrumor3
 Create Date: 2026-11-17 00:00:00.000000
 
 """
@@ -43,7 +44,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "r1l2status34"
-down_revision: Union[str, Sequence[str], None] = "r1e2mcatalog3"
+down_revision: Union[str, Sequence[str], None] = "g1s2ellrumor3"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -53,6 +54,12 @@ AIRING_TABLES = ("anime", "tv_shows", "cartoons", "hentai")
 RELEASE_TABLES = ("movies", "anime_movies")
 RELEASE_MEDIA_TYPES = ("movie", "anime-movie")
 FORM_DEFAULT_KEYS = ("form_defaults:movie", "form_defaults:anime-movie")
+AIRING_FORM_DEFAULT_KEYS = (
+    "form_defaults:anime",
+    "form_defaults:tv-show",
+    "form_defaults:cartoon",
+    "form_defaults:hentai",
+)
 
 # Frozen copies of the vocabularies, so the revision does not change when the
 # app does.
@@ -124,6 +131,30 @@ def _map_form_defaults(bind, old_key: str, new_key: str, mapping: dict, old_watc
     return changed
 
 
+def _retire_rumored_defaults(bind) -> int:
+    """An airing type's stored Add-form default of Rumored becomes Not Yet Aired."""
+    changed = 0
+    rows = bind.execute(
+        sa.text(
+            "SELECT config_key, config_value FROM system_configs "
+            "WHERE config_key IN :keys"
+        ).bindparams(sa.bindparam("keys", expanding=True)),
+        {"keys": list(AIRING_FORM_DEFAULT_KEYS)},
+    ).all()
+    for key, raw in rows:
+        blob = json.loads(raw)
+        defaults = blob.get("defaults") or {}
+        if defaults.get("airing_status") != "Rumored":
+            continue
+        defaults["airing_status"] = "Not Yet Aired"
+        bind.execute(
+            sa.text("UPDATE system_configs SET config_value = :v WHERE config_key = :k"),
+            {"v": json.dumps(blob, ensure_ascii=False), "k": key},
+        )
+        changed += 1
+    return changed
+
+
 def rewrite(bind) -> dict:
     """
     The data half of the upgrade, run after the columns are renamed.
@@ -131,7 +162,10 @@ def rewrite(bind) -> dict:
     Split out so tests can run the SHIPPED code against the test session,
     whose schema already has the new columns.
     """
-    counts = {"rumored": 0, "release_status": 0, "list_rows": 0, "form_defaults": 0}
+    counts = {
+        "rumored": 0, "rumored_defaults": 0, "release_status": 0, "list_rows": 0,
+        "form_defaults": 0,
+    }
     for table in AIRING_TABLES:
         counts["rumored"] += bind.execute(
             sa.text(
@@ -139,6 +173,7 @@ def rewrite(bind) -> dict:
                 "WHERE airing_status = 'Rumored'"
             )
         ).rowcount
+    counts["rumored_defaults"] = _retire_rumored_defaults(bind)
     for table in RELEASE_TABLES:
         counts["release_status"] += _map_column(bind, table, TO_RELEASE)
     counts["list_rows"] = _map_list_status(bind, WHEN_AIRS, WHEN_RELEASED)

@@ -151,7 +151,7 @@ describe("releaseAction", () => {
 
   describe("games", () => {
     it.each(["game", "h-game"])("%s: unreleased -> Mark released", (type) => {
-      for (const s of ["Rumored", "Unreleased", "Early Access"]) {
+      for (const s of ["Unreleased", "Early Access"]) {
         const a = releaseAction(type, { release_status: s });
         expect(a.label).toBe("Mark released");
         expect(a.payload).toEqual({ release_status: "Released" });

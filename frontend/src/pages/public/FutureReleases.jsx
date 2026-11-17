@@ -119,7 +119,7 @@ function FutureCard({ ownData, ...cardProps }) {
 
 // A game is "future" while it is one of these. "Early Access" is already
 // out, and "Cancelled" is never coming - neither belongs on this page.
-const GAME_UNRELEASED_STATUSES = ["Rumored", "Unreleased"];
+const GAME_UNRELEASED_STATUSES = ["Unreleased"];
 
 // games.release_date is ISO and may be a bare year, a year-month or a full
 // date (ck_games_release_date_iso), so the year is always its first four

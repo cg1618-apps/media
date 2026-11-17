@@ -429,7 +429,9 @@ position, and the same derived-identity treatment, its two siblings have.
 belongs to a game or an h-game - so it is the `Media` tab that must land
 first, and a copy naming an h-game restores from the same tab as any other. `Game Copy` is not a `media_type` tab: it carries no
 credit or tag link columns, since a copy is a purchase record rather than an
-entry.
+entry. A sheet backed up before `sell_price`, `sell_currency` and
+`hours_played` existed lacks those headers, and its rows restore with the
+three empty.
 
 The choice graph's three tabs follow `Game Copy`, for the same reason: each
 table's `game_id` is a real FK onto `media.system_id`. `Game Choice Node`

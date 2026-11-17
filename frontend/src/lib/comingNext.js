@@ -82,7 +82,7 @@ function inSeason(entry, mediaType, season) {
 // out yet". Games and the two films both carry release_status, each with its
 // own vocabulary (GAME_RELEASE_STATUSES, FILM_RELEASE_STATUSES); the airing
 // types carry airing_status.
-const GAME_UNRELEASED = { field: "release_status", values: ["Unreleased", "Rumored"] };
+const GAME_UNRELEASED = { field: "release_status", values: ["Unreleased"] };
 const FILM_UNRELEASED = { field: "release_status", values: ["Not Released"] };
 const AIRING_UNRELEASED = { field: "airing_status", values: ["Not Yet Aired"] };
 
