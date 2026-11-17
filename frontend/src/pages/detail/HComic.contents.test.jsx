@@ -13,7 +13,7 @@ import { PageTitleProvider } from "../../contexts/PageTitleContext";
 import { ToastProvider } from "../../hooks/useToast";
 import HComic from "./HComic";
 
-// A remark and one cast row, so every optional main-column card shows.
+// One cast row, so every optional main-column card shows.
 const H_COMIC = {
   // No public_id: useCanonicalPath would otherwise rewrite the URL to it,
   // and the mock below answers for the system_id only.
@@ -26,7 +26,6 @@ const H_COMIC = {
   sources: [],
   content_labels: [],
   credit_refs: {},
-  remark: "My remark",
 };
 
 const CAST_ROW = {
@@ -110,7 +109,6 @@ describe("H-Comic detail page - table of contents", () => {
         "Credits",
         "Genres",
         "Cast",
-        "Remarks",
       ]),
     );
   });

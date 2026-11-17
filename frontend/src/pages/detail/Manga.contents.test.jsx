@@ -13,7 +13,7 @@ import { ToastProvider } from "../../hooks/useToast";
 import Manga from "./Manga";
 
 // Every optional main-column card has something to show: genre tags, an
-// author for Production, a remark, and one cast row.
+// author for Production, and one cast row.
 const MANGA = {
   system_id: "m1",
   public_id: 1,
@@ -27,7 +27,6 @@ const MANGA = {
   author_plot: "Author",
   ch_fin: 3,
   ch_total: 10,
-  remark: "My remark",
   cover_image_file: null,
 };
 
@@ -107,7 +106,6 @@ describe("Manga detail page - table of contents", () => {
         "Genres",
         "Production",
         "Cast",
-        "Remarks",
       ]),
     );
   });

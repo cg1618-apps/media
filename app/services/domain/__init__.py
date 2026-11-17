@@ -177,12 +177,6 @@ from app.services.domain.post_processing import (
     manga_post_processing,
     tv_show_post_processing,
 )
-from app.services.domain.remark_field import (
-    REMARK_SECTION,
-    attach_remark,
-    pop_remark,
-    upsert_remark,
-)
 from app.services.domain.remarks import (
     find_all_remarks,
 )
@@ -273,14 +267,10 @@ __all__ = [
     "mark_game_list",
     "apply_list_completion_timestamp",
     "find_all_remarks",
-    "REMARK_SECTION",
     "attach_content_labels",
     "attach_franchise_content_labels",
-    "attach_remark",
     "label_keys_for_entry",
     "label_keys_for_franchise",
-    "pop_remark",
-    "upsert_remark",
     "find_duplicate_franchises",
     "find_duplicate_series",
     "find_duplicate_anime",

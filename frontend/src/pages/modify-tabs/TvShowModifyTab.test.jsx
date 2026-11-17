@@ -88,7 +88,7 @@ describe("TvShowModifyTab", () => {
       "Information",
       "Genres & Labels",
       "Links & Sources",
-      "Cover & Remark",
+      "Cover",
       "Structured Notes",
     ]);
     expect(screen.getByTestId("notes")).toHaveTextContent("tv-1");

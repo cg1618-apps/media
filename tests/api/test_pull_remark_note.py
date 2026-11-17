@@ -1,12 +1,10 @@
 """
-Pulling the Note tab must survive a backup whose remark rows carry system_ids
-the local database no longer has.
+Pulling the Note tab's 備註 Remark and 個人筆記 Personal Notes rows.
 
-`remark` is a singleton per owner (ix_note_one_remark_per_owner), and remark
-rows were re-keyed by the r1e2m3a4r5k6 migration - so a pre-migration backup,
-or a remark cleared and re-typed after a backup, hands Pull a remark row with an
-unknown PK for an owner that already has one. Inserting it blindly raises
-IntegrityError at commit, which rolls back and fails the ENTIRE tab.
+`remark` is a list: a sheet remark row the local database does not hold is
+one more row for its owner, never a replacement for the one already there.
+And a sheet backed up while 個人筆記 was still 備註列表 names its rows
+`remark_list`, which Pull files under `personal_notes`.
 
 Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
@@ -63,18 +61,16 @@ def sheet(monkeypatch):
     return _install
 
 
-def _remarks(db_session, owner_id):
+def _section(db_session, owner_id, section):
     return (
         db_session.query(models.Note)
-        .filter(
-            models.Note.media_id == owner_id,
-            models.Note.section == "remark",
-        )
+        .filter(models.Note.media_id == owner_id, models.Note.section == section)
+        .order_by(models.Note.content)
         .all()
     )
 
 
-def test_pull_updates_the_existing_remark_instead_of_inserting_a_second(
+def test_pull_adds_a_remark_beside_the_one_the_owner_has(
     db_session, sample_anime, sheet, owner_user,
 ):
     owner_id = sample_anime.system_id
@@ -83,72 +79,52 @@ def test_pull_updates_the_existing_remark_instead_of_inserting_a_second(
         media_id=owner_id,
         section="remark",
         content="local text",
+        links=[],
         sort_index=0,
     )
     db_session.add(local)
     db_session.flush()
     local_id = local.system_id
 
-    # The backup's remark row for the same owner carries a stale system_id.
     sheet([_row(uuid.uuid4(), owner_id, "remark", "from the backup")])
 
     result = pull.execute_pull_specific(db_session, "Note", log_action=False)
 
     assert result["status"] == "success"
-    rows = _remarks(db_session, owner_id)
-    assert len(rows) == 1
-    # Updated in place: the local PK survives, the sheet's content lands.
-    assert rows[0].system_id == local_id
-    assert rows[0].content == "from the backup"
+    rows = _section(db_session, owner_id, "remark")
+    assert [r.content for r in rows] == ["from the backup", "local text"]
+    # The local row is untouched, not overwritten by the sheet's.
+    assert local_id in {r.system_id for r in rows}
 
 
-def test_pull_does_not_fail_the_whole_tab_on_a_stale_remark_id(
-    db_session, sample_anime, sheet, owner_user,
-):
-    """The other rows of the tab must still land - the old bug lost them all."""
+def test_pull_inserts_every_remark_of_one_owner(db_session, sample_anime, sheet):
     owner_id = sample_anime.system_id
-    db_session.add(
-        models.Note(
-            author_id=owner_user.id,
-            media_id=owner_id,
-            section="remark",
-            content="local text",
-            sort_index=0,
-        )
-    )
-    db_session.flush()
-
     sheet(
         [
-            _row(uuid.uuid4(), owner_id, "remark", "from the backup"),
-            _row(uuid.uuid4(), owner_id, "overview", "an overview note"),
+            _row(uuid.uuid4(), owner_id, "remark", "first"),
+            _row(uuid.uuid4(), owner_id, "remark", "second"),
         ]
     )
 
     result = pull.execute_pull_specific(db_session, "Note", log_action=False)
 
     assert result["status"] == "success"
-    others = (
-        db_session.query(models.Note)
-        .filter(
-            models.Note.media_id == owner_id,
-            models.Note.section == "overview",
-        )
-        .all()
-    )
-    assert len(others) == 1
-    assert others[0].content == "an overview note"
+    assert [r.content for r in _section(db_session, owner_id, "remark")] == [
+        "first",
+        "second",
+    ]
 
 
-def test_pull_still_inserts_a_remark_for_an_owner_that_has_none(
+def test_an_old_sheets_remark_list_row_lands_in_personal_notes(
     db_session, sample_anime, sheet
 ):
     owner_id = sample_anime.system_id
-    sheet([_row(uuid.uuid4(), owner_id, "remark", "brand new")])
+    sheet([_row(uuid.uuid4(), owner_id, "remark_list", "my own note")])
 
     result = pull.execute_pull_specific(db_session, "Note", log_action=False)
 
     assert result["status"] == "success"
-    rows = _remarks(db_session, owner_id)
-    assert len(rows) == 1
-    assert rows[0].content == "brand new"
+    assert [r.content for r in _section(db_session, owner_id, "personal_notes")] == [
+        "my own note"
+    ]
+    assert _section(db_session, owner_id, "remark_list") == []

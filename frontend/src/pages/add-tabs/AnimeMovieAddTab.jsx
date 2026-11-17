@@ -7,7 +7,7 @@
 // movie already in the catalogue, the MAL search links the new entry to its
 // MAL record. An anime movie has a franchise but no series.
 import CastEditor from "../../components/forms/CastEditor";
-import CoverRemarkFields from "../../components/forms/CoverRemarkFields";
+import CoverFields from "../../components/forms/CoverFields";
 import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
 import EntryFlags from "../../components/forms/EntryFlags";
 import EntryNameFields from "../../components/forms/EntryNameFields";
@@ -275,7 +275,7 @@ export function AnimeMovieFormBody({ f, u, sources, ownerId }) {
         sources={sources}
       />
 
-      <CoverRemarkFields f={f} u={u} ownerType="anime-movie" ownerId={ownerId} />
+      <CoverFields f={f} u={u} ownerType="anime-movie" ownerId={ownerId} />
     </>
   );
 }

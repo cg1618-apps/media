@@ -54,7 +54,7 @@ describe("GameModifyTab layout", () => {
       "Prices",
       "Copies",
       "Links & Sources",
-      "Cover & Remark",
+      "Cover",
       "Structured Notes",
     ]);
   });

@@ -94,7 +94,7 @@ describe("MovieAddTab", () => {
       "Genres & Labels",
       "Production",
       "Links & Sources",
-      "Cover & Remark",
+      "Cover",
     ]);
   });
 

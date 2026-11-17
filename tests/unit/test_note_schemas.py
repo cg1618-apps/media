@@ -433,9 +433,15 @@ def test_any_link_carrying_section_takes_titled_pairs(section, owner):
 
 def test_a_section_that_takes_no_links_refuses_one():
     # The mirror, on a section whose rows are not empty without the link.
-    validate_note_payload(_payload(section="remark", content="x"))
+    validate_note_payload(
+        _payload(section="guide_notes", owner_type="game", content="x")
+    )
     with pytest.raises(ValueError, match="takes no links"):
-        validate_note_payload(_payload(section="remark", content="x", links=[_pair()]))
+        validate_note_payload(
+            _payload(
+                section="guide_notes", owner_type="game", content="x", links=[_pair()]
+            )
+        )
 
 
 def test_a_link_pair_with_an_unknown_key_is_refused():
@@ -808,7 +814,7 @@ def test_saves_and_every_other_section_offer_no_move_targets():
     # Saves shares the 待辦 card and is not a bucket, so it is not a target
     # either: the non-empty mirror above proves the resolver finds targets.
     assert section_out(section_by_key("saves"), "game").move_targets == []
-    assert section_out(section_by_key("remark_list"), "game").move_targets == []
+    assert section_out(section_by_key("personal_notes"), "game").move_targets == []
     targets = section_out(section_by_key("todo_now"), "game").move_targets
     assert "saves" not in {t.key for t in targets}
 

@@ -271,7 +271,7 @@ describe("HComicAddTab layout", () => {
       "Production",
       "Cast",
       "Links & Sources",
-      "Cover & Remark",
+      "Cover",
     ]);
   });
 

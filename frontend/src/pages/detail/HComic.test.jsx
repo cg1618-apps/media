@@ -36,7 +36,7 @@ const HIGHLIGHTS = {
   ],
 };
 
-const REMARK = { key: "remark", shape: "text", label: "Remark", owner_where: {} };
+const REMARK = { key: "remark", shape: "text_links", label: "Remark", owner_where: {} };
 
 // A highlight row. The notes API would never return one for a JP entry (the
 // server refuses the write), so handing it to the JP page as well proves the

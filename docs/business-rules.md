@@ -941,33 +941,21 @@ Episode ratings come from the viewers who rate single episodes, who tend to be
 the show's fans, so a season's rating usually sits above the show's. Compare
 seasons with seasons.
 
-## 11. Remark as a note (`remark_field.py`)
+## 11. Remark as a note
 
-`remark` is not a column on the owner tables: it is the `note` row with
-`section = "remark"` for that owner.
+`remark` is not a column on the owner tables: an entry's or a group's
+remarks are the `note` rows with `section = "remark"` for that owner.
 
-**A remark is the catalogue's.** It is a catalogue-scope singleton - one
-shared row per owner, enforced by `ix_note_one_remark_per_owner` - written
-under `manage.catalog` and read by everyone who can see the owner, a
-logged-out visitor included. A viewer's own short notes on an owner go in
-備註列表 `remark_list`, which is personal.
+**A remark is the catalogue's, and there may be any number of them.** 備註
+is a catalogue-scope list section (`text_links`, like every other list): each
+row is one remark with the links it rests on, written under `manage.catalog`
+through the notes API and read by everyone who can see the owner, a
+logged-out visitor included. A viewer's own notes on an owner go in 個人筆記
+`personal_notes`, which is personal.
 
-- `attach_remark(db, owner_type, entries)` is the read. One query per page,
-  the same for every viewer, called beside the other `attach_*` helpers on
-  every read path: the detail routes and the list route in
-  `routers/_factory.py`, the card lists through `entry_fields`, and the
-  collection / franchise / series routers. `remark` is a **plain
-  attribute**, defaulted to `None` on the class, so a path that forgets the
-  call serialises null rather than raising.
-- `pop_remark(payload)` → `(rest, value, was_present)`. A PATCH that never
-  mentions `remark` leaves the note alone; a PUT that sends `null` clears it.
-- `upsert_remark(db, owner_type, owner_id, text, author_id)` finds the
-  owner's one row, whoever wrote it. Empty / whitespace-only text **deletes**
-  it (no blank sections on the notes page); otherwise update in place
-  (stamping `updated_at`, keeping the row's `author_id`) or insert with
-  `sort_index = 0.0` and `author_id` the writer. Text is stored as typed —
-  only the emptiness test is stripped. Every caller sits behind
-  `manage.catalog`: the owner's create, update and patch routes.
+An entry's and a group's own routes neither take nor return a `remark`: a
+`remark` key in their create, update or patch body is ignored, like any
+other key that is not a field.
 
 ## 12. Hierarchy resolution (`hierarchy.py`)
 
@@ -1363,5 +1351,5 @@ about; the live name is shown while it exists.
 | `to_rewatch` (franchise, series, anime_movies, movies, tv_shows, cartoons) and `to_reread` (manga, novel, comic) columns | `9b0bcb763e8c_add_plan_next_kind_and_drop_rewatch_.py` | `plan_next` rows with `kind="rewatch"` (section 14)                                             |
 | `director` (anime, anime_movies, movies), `writer` / `artist` / `publisher` (comic), `publisher_tw` (manga, novel, comic) text columns | `d1r2o3p4c5o6l_drop_legacy_credit_columns.py`                   | `media_credit` / `media_tag` link rows; Fill checks them through `*_LINK_FIELDS_TO_FILL` (section 5) |
 | `publisher_tw` and `comic_publisher` tag fields, and the `Publisher / Distributor TW` and `Comic Publisher` `system_option` categories | `pb2m3i4g5r8_publisher_entity_migration.py` | `media_credit` rows with `role="publisher"` pointing at the `publisher` table, plus `publisher_scope` rows saying where each is offered. One-way: the revision's `downgrade` raises. Sheet headers unchanged |
-| `remark` columns on `series` and `system_option` (and the other owner tables) | `f1a2b3c4d5e6_add_remark_to_series.py`, `so1p2t3i4o5n_reshape_system_option.py`, `r1e2m3a4r5k6…` | the singleton `note` row with `section="remark"` (section 11)                        |
+| `remark` columns on `series` and `system_option` (and the other owner tables) | `f1a2b3c4d5e6_add_remark_to_series.py`, `so1p2t3i4o5n_reshape_system_option.py`, `r1e2m3a4r5k6…` | `note` rows with `section="remark"` (section 11)                                     |
 | `"JUL 2001"` release-date format and integer `release_year` columns       | release-date migration                                          | truncated ISO strings (section 1); `normalize` still accepts the old shapes on read                |

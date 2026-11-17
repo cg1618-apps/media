@@ -66,7 +66,6 @@ class HComicBase(BaseModel):
 
     read_next: Optional[bool] = None
     to_reread: Optional[bool] = None
-    remark: Optional[str] = None
     cover_image_file: Optional[str] = None
     cover_image_focus: ImageFocus = None
 

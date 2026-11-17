@@ -117,7 +117,7 @@ def test_the_section_is_offered_to_h_comic_with_its_grouping(owner_client):
             "h-comic",
             [
                 "remark",
-                "remark_list",
+                "personal_notes",
                 "public_reviews",
                 "personal_reviews",
                 SECTION,
@@ -126,7 +126,7 @@ def test_the_section_is_offered_to_h_comic_with_its_grouping(owner_client):
         ),
         (
             "hentai",
-            ["remark", "remark_list", "public_reviews", "personal_reviews", "resources"],
+            ["remark", "personal_notes", "public_reviews", "personal_reviews", "resources"],
         ),
     ],
 )

@@ -5412,3 +5412,42 @@ shown buttons that answered 401.
   that was skipped for want of `admin.authz` toasts as a warning rather than
   a success.
 
+
+### 備註 is a shared list; 備註列表 is 個人筆記 Personal Notes (2026-11-17)
+
+- **備註 Remark became a list** (`text_links`, like every other list
+  section), still catalogue-scope and on every owner. One block of prose per
+  owner had turned into walls of unrelated points; a list lets each point be
+  its own row with the links it rests on. Revision `p1n2otesrmk3` dropped
+  `ix_note_one_remark_per_owner`.
+- **Each existing remark stayed one row, text unchanged, line breaks kept.**
+  Splitting on line breaks was rejected: a remark's lines are sometimes one
+  point wrapped by hand and sometimes several points, and nothing in the text
+  says which. Instead the revision logs every remark whose trimmed text runs
+  to more than one line - owner type, name, public id, ids and the full text -
+  before it changes anything, and `multiline_remarks(conn)` returns the same
+  list for a report outside a migration run. The owner splits those by hand.
+- **The virtual `remark` attribute went with the singleton.**
+  `attach_remark` / `upsert_remark` / `pop_remark` existed only to map one
+  row onto one string; with several rows there is no string to map, and two
+  editors of one row (the form's textarea and the Notes card) were already a
+  last-write-wins hazard. Entry and group schemas carry no `remark`, a
+  `remark` key sent to their routes is ignored, and the Remark textarea left
+  every Add and Modify form and every detail page: remarks are written in the
+  Notes card. The admin Remarks review returns `remarks`, every text of an
+  entry, one row per entry.
+- **備註列表 Remark List was renamed 個人筆記 Personal Notes** (`remark_list`
+  → `personal_notes`), still personal and still a list. With 備註 a list too,
+  "the list half of 備註" no longer told the two apart; who owns the rows
+  does. Pull files an older sheet's `remark_list` rows under the new key
+  (`_RETIRED_NOTE_SECTIONS`).
+- **The generic `singleton` flag stays**, unused by any section for now: the
+  notes router's and Pull's one-row checks are shared with `one_per_kind`
+  (`music_status`), and the frontend's structured sections honour it.
+- **Downgrade folds instead of refusing.** Putting the singleton index back
+  needs one remark row per owner, so the downgrade keeps the first row (the
+  notes page's order) and gives it every row's text, blank-line separated,
+  with links appended as `title: url` lines; the rest are deleted. Declaring
+  the revision `irreversible` was rejected, since a rollback can carry the
+  text; moving the extra rows to 備註列表 was rejected, since that would turn
+  shared catalogue text into one account's private notes.

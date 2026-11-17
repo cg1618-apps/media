@@ -1,5 +1,5 @@
 // Frontend: page component file for FranchisePage.
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { releaseScore, releaseYear } from "../../lib/releaseDate";
 import { useParams, Link } from "react-router-dom";
 import { endpoints } from "../../api/endpoints";
@@ -41,10 +41,8 @@ import {
   RatingStamp,
   Chip,
   ProgressRule,
-  Button,
 } from "../../components/ui/primitives";
 import MediaCard from "../../components/cards/MediaCard";
-import RemarkModal from "../../components/modals/RemarkModal";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import WatchOrderSection from "../../components/tracker/WatchOrderSection";
 import HubCharacters from "../../components/hub/HubCharacters";
@@ -63,7 +61,6 @@ import { useViewScope } from "../../hooks/useViewScope";
 import { useMyRatingSaver } from "../../api/mutations/useMyRatingMutations";
 import { entityPath } from "../../lib/entityPath";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
-import { useRemarkSaver } from "../../api/mutations/useRemark";
 
 function GroupRail({ label, count }) {
   return (
@@ -111,7 +108,6 @@ function tvDateScore(t) {
   return releaseScore(t.release_date);
 }
 
-
 export default function FranchisePage() {
   const { publicId } = useParams();
   const { isAdmin, has } = useAuth();
@@ -147,10 +143,6 @@ export default function FranchisePage() {
   const [expectation, setExpectation] = useState("");
   const [plannedTypes, setPlannedTypes] = useState(new Set());
   const [rewatchMarked, setRewatchMarked] = useState(new Set());
-  const [remark, setRemark] = useState("");
-  const [showRemark, setShowRemark] = useState(false);
-  const [remarkClipped, setRemarkClipped] = useState(false);
-  const remarkRef = useRef(null);
 
   // ── tab ───────────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState(null);
@@ -225,7 +217,6 @@ export default function FranchisePage() {
   // Everything past the lookup still speaks UUIDs; only the URL segment
   // changed. Resolved from the fetched row so the two can never disagree.
   const system_id = franchise?.system_id;
-  const saveCatalogueRemark = useRemarkSaver("franchise", system_id, setFranchise);
   const saveMyRating = useMyRatingSaver("franchise", system_id, setFranchise);
 
   useCanonicalPath("franchise", franchise);
@@ -384,7 +375,6 @@ export default function FranchisePage() {
         );
         setRating(franchiseData.my_rating || "");
         setExpectation(franchiseData.franchise_expectation || "");
-        setRemark(franchiseData.remark || "");
       } catch (e) {
         if (!cancelled) setError(e.message);
       } finally {
@@ -651,17 +641,6 @@ export default function FranchisePage() {
     };
   }, [franchise?.collection_id]);
 
-  // The inline box stays a fixed three rows; "Show all" is only worth offering
-  // when the text actually runs past it.
-  useEffect(() => {
-    const el = remarkRef.current;
-    if (!el) {
-      setRemarkClipped(false);
-      return;
-    }
-    setRemarkClipped(el.scrollHeight > el.clientHeight + 1);
-  }, [remark, loading]);
-
   async function saveField(field, value) {
     try {
       const res = await fetch(endpoints.resource("franchise").patch(system_id), {
@@ -737,12 +716,6 @@ export default function FranchisePage() {
       "size_group_manual",
       Object.keys(nextManual).length > 0 ? nextManual : null,
     );
-  }
-
-  // Shared by the inline box and the full-view modal, which edit one draft.
-  function saveRemark() {
-    if (isAdmin && remark !== (franchise?.remark || ""))
-      saveCatalogueRemark(remark);
   }
 
   function toggleSetFilter(setFn, group, value) {
@@ -1530,37 +1503,6 @@ export default function FranchisePage() {
                   </>
                 )}
               </div>
-            </Slip>
-          )}
-
-          {/* The catalogue remark: drawn for a holder of manage.catalog, who
-              edits it, and read-only for everyone else once one exists. */}
-          {(isAdmin || franchise.remark) && (
-            <Slip
-              title="Remark"
-              actions={
-                remarkClipped && (
-                  <Button
-                    kind="ghost"
-                    size="sm"
-                    type="button"
-                    onClick={() => setShowRemark(true)}
-                  >
-                    Show all
-                  </Button>
-                )
-              }
-            >
-              <textarea
-                ref={remarkRef}
-                value={remark}
-                onChange={(e) => setRemark(e.target.value)}
-                onBlur={() => saveRemark()}
-                readOnly={!isAdmin}
-                rows={3}
-                placeholder="Overview notes, watch order guides or remarks for the whole franchise"
-                className="w-full border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none transition border-border bg-surface text-text"
-              />
             </Slip>
           )}
         </div>
@@ -2709,11 +2651,8 @@ export default function FranchisePage() {
           title="Notes"
           subtitle="Structured notes belonging to the whole franchise"
         >
-          {/* The hero remark editor above edits the same singleton note row, so
-              hide the duplicate `remark` section wherever that editor renders. */}
           <FranchiseNotes
             franchise={franchise}
-            hideSections={isAdmin || franchise.remark ? ["remark"] : []}
           />
         </Section>
       )}
@@ -2728,18 +2667,6 @@ export default function FranchisePage() {
             Nothing is filed under this franchise yet. Assign entries to it from the Modify page.
           </p>
         </section>
-      )}
-
-      {showRemark && (
-        <RemarkModal
-          value={remark}
-          canEdit={isAdmin}
-          onChange={setRemark}
-          onClose={() => {
-            saveRemark();
-            setShowRemark(false);
-          }}
-        />
       )}
     </HubShell>
   );

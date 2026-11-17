@@ -48,12 +48,9 @@ import ContentLabelChips from "../../components/info/ContentLabelChips";
 import LazyImage from "../../components/ui/LazyImage";
 import { focusStyle } from "../../lib/covers";
 import { useViewScope } from "../../hooks/useViewScope";
-import { useRemarkSaver } from "../../api/mutations/useRemark";
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
-const textareaCls =
-  "block w-full border border-border-strong bg-surface text-text px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand disabled:bg-surface-2 disabled:text-text-faint disabled:cursor-not-allowed";
 const lineageLinkCls =
   "text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition";
 
@@ -210,7 +207,6 @@ export default function Game() {
   // changed. Resolved from the fetched row so the two can never disagree.
   const system_id = gameQuery.data?.system_id;
   const { ownData } = useViewScope();
-  const saveRemark = useRemarkSaver("game", system_id, setGame);
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const { setMediaItem, fetchMediaItem, invalidateMedia } = useMediaCacheUpdate("game", publicId);
@@ -697,27 +693,7 @@ export default function Game() {
               <GameCopiesSection copies={game.copies} />
             </TocSection>
 
-            <TocSection id="remarks" label="Remarks">
-              {game.remark && (
-                <Slip title="Remarks">
-                  <textarea
-                    key={game.system_id}
-                    defaultValue={game.remark || ""}
-                    readOnly={!isAdmin}
-                    onBlur={(e) => {
-                      if (isAdmin && e.target.value !== (game.remark || ""))
-                        saveRemark(e.target.value);
-                    }}
-                    rows={4}
-                    placeholder="Add remarks…"
-                    className={textareaCls}
-                  ></textarea>
-                </Slip>
-              )}
-            </TocSection>
-
             <NotesBlocks
-              hideSections={game.remark ? ["remark"] : []}
               // Rendered in the Progress slip at the top instead.
               hideGroups={["todo"]}
             />

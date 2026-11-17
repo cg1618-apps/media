@@ -1,7 +1,7 @@
 // Frontend: the modify tabs that used to lack it - comic, game and the three
 // gated types - carry the Structured Notes section every other media type's
-// tab has, with the `remark` section hidden: the form's own Remark field edits
-// that same row.
+// tab has, with nothing hidden: 備註 Remark is edited there, as a list, like
+// every other section.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
@@ -13,14 +13,13 @@ import HGameModifyTab from "./HGameModifyTab";
 import HentaiModifyTab from "./HentaiModifyTab";
 
 // The notes wrappers fetch on mount; these tests are about whether the tab
-// renders one, for which owner, and with what hidden.
+// renders one, and for which owner.
 function notesStub(testId, ownerProp) {
   return {
     default: (props) => (
       <div
         data-testid={testId}
         data-owner-id={props[ownerProp]?.system_id}
-        data-hidden={(props.hideSections || []).join(",")}
       />
     ),
   };
@@ -112,11 +111,10 @@ const TABS = [
 ];
 
 describe("modify tabs — Structured Notes", () => {
-  it.each(TABS)("%s renders the entry's notes, remark hidden", (_, tab) => {
+  it.each(TABS)("%s renders the entry's notes", (_, tab) => {
     renderTab(tab());
     expect(screen.getByText("Structured Notes")).toBeInTheDocument();
     const notes = screen.getByTestId("notes");
     expect(notes).toHaveAttribute("data-owner-id", "e1");
-    expect(notes).toHaveAttribute("data-hidden", "remark");
   });
 });

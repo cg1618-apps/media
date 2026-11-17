@@ -32,7 +32,7 @@ const NOVEL_SECTIONS = [
   "Cast",
   "Units",
   "Links & Sources",
-  "Cover & Remark",
+  "Cover",
 ];
 
 function renderTab(props = {}) {

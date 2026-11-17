@@ -3,12 +3,11 @@
 // component with a different owner.
 import NotesTemplate from "../notes/NotesTemplate";
 
-export default function SeriesNotes({ series, hideSections }) {
+export default function SeriesNotes({ series }) {
   return (
     <NotesTemplate
       ownerType="series"
       ownerId={series.system_id}
-      hideSections={hideSections}
     />
   );
 }

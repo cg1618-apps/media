@@ -1,8 +1,10 @@
 """Remark review query."""
 
 import logging
+from collections import defaultdict
 from dataclasses import dataclass
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -38,7 +40,7 @@ class _RemarkTab:
 
 # Names first, in the order the page shows them, then the type's own
 # disambiguating columns. Every row also carries system_id, public_id, the
-# type's status and the remark (see _row). EN leads for comic, whose display
+# type's status and its remarks (see _row). EN leads for comic, whose display
 # name falls back EN -> CN -> Alt; every other type leads with CN.
 _TABS: tuple[_RemarkTab, ...] = (
     _RemarkTab("anime", "anime", Anime,
@@ -67,7 +69,7 @@ _TABS: tuple[_RemarkTab, ...] = (
 )
 
 
-def _row(tab: _RemarkTab, entry, remark: str) -> dict:
+def _row(tab: _RemarkTab, entry, remarks: list[str]) -> dict:
     status_field = STATUS_FIELD[tab.media_type]
     row = {"system_id": str(entry.system_id), "public_id": entry.public_id}
     row.update({name: getattr(entry, name) for name in tab.fields})
@@ -76,36 +78,44 @@ def _row(tab: _RemarkTab, entry, remark: str) -> dict:
         # invented day (release_display).
         row["release_date"] = release_display(entry, "movie")
     row[status_field] = getattr(entry, status_field)
-    row["remark"] = remark
+    row["remarks"] = remarks
     return row
 
 
 def find_all_remarks(db: Session, viewer_id=None) -> dict:
     """
-    Every entry carrying a non-empty remark, grouped by media type - all twelve.
+    Every entry carrying at least one non-empty remark, grouped by media type
+    - all twelve. Each row's `remarks` lists every one of the entry's 備註
+    rows, in the order the notes page shows them.
 
-    `remark` is a catalogue-scope note, one shared row per owner, so the
-    remarks are the same for every caller. Only `section == 'remark'` counts:
-    備註列表 Remark List and the other personal sections are not remarks,
-    however much they read like one.
+    `remark` is a catalogue-scope list section, shared, so the remarks are the
+    same for every caller. Only `section == 'remark'` counts: 個人筆記
+    Personal Notes and the other personal sections are not remarks, however
+    much they read like one.
 
     The status is the CALLER's (viewer_id), read from `user_media_list`
     through `attach_list_fields`: no detail table has a status column, so an
     instance loaded here carries none until that runs. An entry the caller
     never listed reads its type's default status.
 
-    The two-step query is not an oversight. The remark is a note row, not a
+    The two-step query is not an oversight. A remark is a note row, not a
     column, so the ids come from `note` first and the entries second.
     """
-    remarks: dict = {
-        owner_id: content
-        for owner_id, content in db.query(Note.media_id, Note.content).filter(
+    remarks: dict = defaultdict(list)
+    rows = (
+        db.query(Note.media_id, Note.content)
+        .filter(
             Note.section == "remark",
             Note.media_id.isnot(None),
             Note.content.isnot(None),
             Note.content != "",
         )
-    }
+        # The notes page's order (note._ordered): a NULL sort_index reads as
+        # 0. created_at only makes a tie deterministic.
+        .order_by(func.coalesce(Note.sort_index, 0), Note.created_at)
+    )
+    for owner_id, content in rows:
+        remarks[owner_id].append(content)
 
     result: dict = {}
     for tab in _TABS:

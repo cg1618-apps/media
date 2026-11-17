@@ -14,7 +14,7 @@ import { ToastProvider } from "../../hooks/useToast";
 import HGame from "./HGame";
 
 // Every optional main-column card has something to show: a time-to-beat
-// estimate, a copy and a remark.
+// estimate and a copy.
 const ENTRY = {
   // No public_id: useCanonicalPath would otherwise rewrite the URL to it,
   // and the mock below answers for the system_id only.
@@ -28,7 +28,6 @@ const ENTRY = {
   credit_refs: {},
   hltb_main: 40,
   copies: [{ system_id: "c1", position: 1, storefront: "Steam" }],
-  remark: "My remark",
 };
 
 const ok = (body) => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
@@ -107,7 +106,6 @@ describe("H-Game detail page - table of contents", () => {
         "Prices",
         "Library",
         "Copies",
-        "Remarks",
       ]),
     );
   });

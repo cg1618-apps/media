@@ -1,18 +1,17 @@
 // Frontend: modal component file for FranchiseCreateModal.
 //
-// Confirms the quick-create of a franchise from an entry's names and takes its
-// remark. It asks no expectation: an expectation is the viewer's own, set on
-// the franchise's page, and the catalogue write does not carry one.
-import { useState } from "react";
-import { inputCls } from "../forms/FormField";
-import { Button, Eyebrow } from "../ui/primitives";
+// Confirms the quick-create of a franchise from an entry's names before the
+// entry is saved, so a new franchise is never minted without a yes. It asks
+// nothing else: an expectation is the
+// viewer's own, set on the franchise's page, and a 備註 Remark is added in the
+// franchise's Notes card once it exists.
+import { Button } from "../ui/primitives";
 
 export default function FranchiseCreateModal({
   onConfirm,
   onCancel,
   franchiseType = "Anime",
 }) {
-  const [remark, setRemark] = useState("");
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
       <div
@@ -25,28 +24,16 @@ export default function FranchiseCreateModal({
             Create new franchise
           </h3>
         </div>
-        <div className="px-6 py-5 space-y-4">
+        <div className="px-6 py-5">
           <p className="text-sm text-text-muted">
             A new franchise will be created using the names you filled in,
             with type set to{" "}
             <span className="font-semibold text-text">{franchiseType}</span>.
           </p>
-          <div>
-            <Eyebrow as="label" className="block mb-1">
-              Remark
-            </Eyebrow>
-            <textarea
-              value={remark}
-              onChange={(e) => setRemark(e.target.value)}
-              className={inputCls}
-              rows={3}
-              placeholder="Optional notes about this franchise"
-            />
-          </div>
         </div>
         <div className="px-6 py-3 border-t border-border flex gap-2 justify-end">
           <Button onClick={onCancel}>Cancel</Button>
-          <Button kind="primary" onClick={() => onConfirm(remark)}>
+          <Button kind="primary" onClick={() => onConfirm()}>
             Create and proceed
           </Button>
         </div>

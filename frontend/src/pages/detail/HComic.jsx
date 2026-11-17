@@ -53,7 +53,6 @@ import CastSection from "../../components/info/CastSection";
 import LazyImage from "../../components/ui/LazyImage";
 import { useViewScope } from "../../hooks/useViewScope";
 import ProgressInput from "../../components/tracker/ProgressInput";
-import { useRemarkSaver } from "../../api/mutations/useRemark";
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
@@ -274,7 +273,6 @@ export default function HComic() {
   // the URL segment and the id can never disagree.
   const system_id = itemQuery.data?.system_id;
   const { ownData } = useViewScope();
-  const saveRemark = useRemarkSaver("h-comic", system_id, setHComic);
   // The highlight group order is the viewer's own (self.personal_notes).
   const saveGroupOrder = useHighlightGroupOrderSaver("h-comic", system_id, setHComic);
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
@@ -635,33 +633,9 @@ export default function HComic() {
             <CastSection cast={cast} />
           </TocSection>
 
-          <TocSection id="remarks" label="Remarks">
-            {hComic.remark && (
-              <Slip title="Remarks">
-                <textarea
-                  key={hComic.system_id}
-                  defaultValue={hComic.remark || ""}
-                  readOnly={!isAdmin}
-                  onBlur={(e) => {
-                    if (isAdmin && e.target.value !== (hComic.remark || ""))
-                      saveRemark(e.target.value);
-                  }}
-                  rows={4}
-                  placeholder="Add remarks…"
-                  className={selectCls}
-                ></textarea>
-              </Slip>
-            )}
-          </TocSection>
-
-          {/* The dedicated remark textarea above renders whenever a remark
-              exists - editable for a holder of manage.catalog, read-only for
-              everyone else; hide the notes page's `remark` section exactly
-              then, so the one row never has two editors on one screen. */}
           <HComicNotes
             key={hComic.system_id}
             hComic={hComic}
-            hideSections={hComic.remark ? ["remark"] : []}
             series={series}
             franchise={franchise}
             nameSuggestions={castNames}

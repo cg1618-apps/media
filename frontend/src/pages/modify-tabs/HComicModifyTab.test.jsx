@@ -55,7 +55,7 @@ describe("HComicModifyTab layout", () => {
       "Production",
       "Cast",
       "Links & Sources",
-      "Cover & Remark",
+      "Cover",
       "Structured Notes",
     ]);
   });

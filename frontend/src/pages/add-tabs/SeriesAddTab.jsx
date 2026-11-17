@@ -79,21 +79,13 @@ export default function SeriesAddTab({
           />
         </Field>
       </div>
-      <SectionHeader icon="fa-info-circle" title="Other Information" />
       {/*
-        No Main Cover control here: a series that does not exist yet has no
-        entries to choose from. It lives on the Modify tab only, exactly as
-        franchise does. To Rewatch is absent for the same reason - it targets
-        an entry group by system_id, which does not exist until save.
+        No Other Information section here: a series that does not exist yet
+        has no entries to choose a Main Cover from, so that control lives on
+        the Modify tab only, exactly as franchise's does. To Rewatch is absent
+        for the same reason - it targets an entry group by system_id, which
+        does not exist until save.
       */}
-      <Field label="Remark">
-        <textarea
-          className={inputCls}
-          rows={3}
-          value={sf.remark}
-          onChange={(e) => us("remark", e.target.value)}
-        />
-      </Field>
     </div>
   );
 }

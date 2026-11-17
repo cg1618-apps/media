@@ -17,45 +17,7 @@ document exists — under `superpowers/specs/` while it is being built — the
 item points at it instead, and the present-tense pages take over once it
 ships.
 
-## 1. 備註 becomes a shared list; 備註列表 becomes 個人筆記 Personal Notes
-
-**The shared `備註 Remark` stops being one block of prose per owner and
-becomes a list, and the personal `備註列表 Remark List` is renamed
-`個人筆記 Personal Notes`.** Both keep every owner (every type, every
-group). Today's definitions are the first two entries of `NOTE_SECTIONS` in
-`app/utils/note_sections.py`.
-
-- **`備註` (key `remark`)** keeps its label and its catalogue scope, and
-  takes the list shape `備註列表` has today (`SHAPE_TEXT_LINKS`, not a
-  singleton). The partial unique index `ix_note_one_remark_per_owner` is
-  dropped.
-- **Migration: each existing remark becomes one list row, text unchanged,
-  line breaks kept.** Nothing is split automatically. **Every remark whose
-  text runs to more than one line is listed in an artifact for the owner**:
-  owner type, entry or group name, and the full text. The owner splits those
-  by hand. Produce it when the migration is run.
-- **`備註列表` → `個人筆記 Personal Notes`**: key `remark_list` →
-  `personal_notes`, label, and the rows' `section` value in the migration.
-  Still personal, still a list. A Pull of a sheet written before this
-  carries `remark_list` rows, so Pull maps the old key onto the new one.
-- **The Remark textarea leaves every add and edit form.** The shared "Cover
-  & Remark" section (`components/forms/CoverRemarkFields.jsx`) becomes
-  "Cover" only, so its misleading "Private notes..." placeholder goes with
-  it. Remarks are written in the Notes card, like every other list section.
-- **The virtual `remark` attribute goes with the singleton.** That means
-  `attach_remark` / `upsert_remark` / `pop_remark`
-  (`app/services/domain/remark_field.py`), the `remark` field on entry and
-  group create/update/response schemas and form payloads, and every place
-  that reads it. Grep for them rather than trusting this list.
-- **The admin Remarks review** (`GET /api/data-control/check/remarks`,
-  `find_all_remarks` in `app/services/domain/remarks.py`,
-  `components/review/RemarksView.jsx`) keeps its job: it lists entries that
-  have shared `備註` rows, now possibly several each.
-- `docs/catalogue.md`, `docs/data-model.md` (`remark` virtual and the
-  `note` indexes), `docs/systems/notes.md` and `docs/api.md` are updated in
-  the same change.
-
-## 2. Anime: Original or Remake
+## 1. Anime: Original or Remake
 
 **Anime gets a new field saying whether the entry is the original work or a
 remake: `Original` (the default) or `Remake`.** It is modelled on game's
@@ -65,7 +27,7 @@ column of its own, because anime's `is_main` already means
 Existing rows are set to `Original`. It is on the anime form, the detail
 page and the Anime sheet tab.
 
-## 3. `ep_special` is text
+## 2. `ep_special` is text
 
 **Anime's `ep_special` becomes a string**, because specials are numbered like
 `17.5A` and `17.5B`. Today it is a `Float` (`app/models/anime.py`), entered
@@ -75,7 +37,7 @@ Existing values convert without a trailing `.0`: `17.0` → `"17"`, `17.5`
 `WatchOrderGuide.jsx`). Check every reader that sorts or does arithmetic on
 it.
 
-## 4. Every progress number is a float, and +/− steps to the next integer
+## 3. Every progress number is a float, and +/− steps to the next integer
 
 **Every progress count and total becomes a float**: `ep_fin`, `ep_total`,
 `ep_previous`, `issue_fin`, `issue_total`, `page_fin`, `page_total`, and
@@ -89,7 +51,7 @@ steps by one, as now (`2` + → `3`). The rule holds for every progress
 counter, including manga's and novel's, which are already floats. Whole
 values display without `.0`.
 
-## 5. Novel becomes Book
+## 4. Novel becomes Book
 
 **The Novel type is renamed Book throughout, not just in the UI**: table
 `novel` → `book`, `media_type` `'novel'` → `'book'`, route `/api/novel` →
@@ -121,7 +83,7 @@ It comes after every item above it because the remark rework and the
 float change touch the novel code, and a rename running alongside them
 would conflict everywhere.
 
-## 6. Upcoming books and manga volumes on Future Releases
+## 5. Upcoming books and manga volumes on Future Releases
 
 **Each book unit gets a JP and a TW release date, manga gets the next
 volume's JP and TW release dates, and Future Releases shows both.**
@@ -148,7 +110,7 @@ volume's JP and TW release dates, and Future Releases shows both.**
 - Data entry is by hand. Automatic sources are being researched; see
   open-items.md, "Automatic book release data".
 
-## 7. A content label chip says who sees it
+## 6. A content label chip says who sees it
 
 **The chip a detail page draws for each content label gets a tooltip that
 says which modes show the label and which label it also carries, generated

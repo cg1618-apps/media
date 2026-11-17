@@ -184,8 +184,9 @@ function PickBlockForm({ label, submitLabel, nodes, exclude, busy, error, onSubm
 }
 
 // The viewer's own done box and note on one block or branch. The box saves as
-// it is ticked; the note saves on blur, like the remark box on the detail
-// pages. Keyed by the caller on the saved mark, so a refetch re-seeds it.
+// it is ticked; the note saves on blur, like the remark box on the person,
+// studio, publisher and character pages. Keyed by the caller on the saved
+// mark, so a refetch re-seeds it.
 function MarkEditor({ target, id, mark, gameId }) {
   const setMark = useSetChoiceMark(gameId);
   const { error, run } = useAction();

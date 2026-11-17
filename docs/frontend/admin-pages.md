@@ -153,12 +153,13 @@ h-game) is drawn only for a session that may see the type
 (`visibleByType`, `lib/gatedTypes.js`); the server does not filter by access
 mode (the data-control router is gated on `manage.pipelines` alone).
 
-- **Entries with remarks** — `GET /check/remarks` (`RemarksView`): the
-  caller's own `remark` notes, one tab per media type, all twelve. Each row
-  shows the names, the type's disambiguating column, the caller's status and
-  the remark; clicking a row opens the entry's detail page (by `public_id`).
-  The remark is read-only here: it is edited on the entry or its notes page
-  (see [../systems/notes.md](../systems/notes.md)).
+- **Entries with remarks** — `GET /check/remarks` (`RemarksView`): every
+  entry holding a shared 備註 remark, one tab per media type, all twelve. Each
+  row shows the names, the type's disambiguating column, the caller's status
+  and every one of the entry's remarks, one list item each; clicking a row
+  opens the entry's detail page (by `public_id`). The remarks are read-only
+  here: they are written in the entry's Notes card (see
+  [../systems/notes.md](../systems/notes.md)).
 - **Potential duplicates** — `GET /check/duplicates` (`DuplicatesView`):
   clusters per tab (see `find_all_duplicates` in
   [../business-rules.md](../business-rules.md)) — franchise, series, every
@@ -380,7 +381,7 @@ every type; a type leaves out what it lacks:
    (comic), **Units** (novel).
 9. **Links & Sources** (`fa-external-link-alt`) — each external id beside its
    link, the official or exclusive source, then the Sources editor.
-10. **Cover & Remark** (`fa-image`).
+10. **Cover** (`fa-image`).
 11. **Structured Notes** — Modify only.
 
 `SectionHeader` carries its title as `data-form-section`, and
@@ -450,9 +451,7 @@ entry's `system_id`, so the form cannot hold them before the entry exists.
 Once a media submit succeeds, the page keeps the created row beside the
 "Added" banner and renders `add-tabs/AddedEntryNotes.jsx` under it: the same
 `NotesTemplate` the Modify tabs embed, pointed at the new entry, so every
-section that type has is listed and each saves on its own. It hides nothing,
-`remark` included — the form has already reset to a blank entry, so its Remark
-field no longer edits this row. For h-comic and h-game the created row feeds
+section that type has is listed and each saves on its own. For h-comic and h-game the created row feeds
 `owner_where`, and the viewer's own 亮點 Highlights group order, which a
 holder of `self.personal_notes` saves by a header drag through
 `PUT /api/me/highlight-group-order/{system_id}`. Each section's write
@@ -603,7 +602,7 @@ too, and a family stays picked while one of its consoles is
 (`lib/gamePlatforms.js`); Genre, Theme and Label; Production (Developer
 is a **studio** row, Publisher a **publisher** row; director and composer are
 people scoped to `game`); the three **Prices** (the MSRP per region); **Copies**; the IGDB and Steam
-ids and links with the sources; cover and remark. Submit needs a CN or EN name, `POST /api/game/` then
+ids and links with the sources; cover. Submit needs a CN or EN name, `POST /api/game/` then
 `saveCredits`; **games are never enriched on Add** — the toast is a plain "Game
 appended successfully."
 
@@ -668,7 +667,7 @@ three H Genre fields; **Presentation** - art style, H 演出 art style, H
 (`[]`) and Unknown (`null`) as separate answers; one credit, the
 **Developer** (a studio row); the six prices; **Copies** (Game's
 `GameCopiesEditor`, gated on `self.list` as on Game); IGDB id and link, Steam
-appid and link, the two **DLsite** links and the sources; cover and remark.
+appid and link, the two **DLsite** links and the sources; cover.
 No hours played,
 Metacritic, All Achievements or All Collected - `h_game` has none of them.
 Submit needs a CN or EN name, quick-creates the developer and tag values
@@ -694,7 +693,7 @@ release date; watching status, rating and **usefulness**; total and
 finished episodes and **Paused at**; the **MAL link** -
 there is no MAL id input, since the write hook derives `mal_id` from the link
 and `hentaiFieldsPayload` sends an id only beside one; sources, Watch Next /
-To Rewatch, cover and remark. Submit needs a CN or EN name and a franchise,
+To Rewatch and cover. Submit needs a CN or EN name and a franchise,
 quick-creates the studio, director, author and genre values through `hentaiSourceFields`, then
 `POST /api/hentai/`, the credits and the labels, without enrichment (Fill and
 Replace fetch from Tenrai and AniDB later); the `hentai` label is checked and locked in
@@ -1037,8 +1036,8 @@ only land in its own grid. The swap is a draft until **Save Grid**.
 - **Structured Notes.** Every media type's tab ends with the entry's notes
   page (`<Type>Notes`) under a **Structured Notes** header, below the form
   body, with the whole open row as the owner, so the KR-only 亮點 Highlights
-  appears on a KR h-comic alone. `remark` is hidden there: the form's Remark
-  field writes the same singleton row. Highlights groups show in their stored
+  appears on a KR h-comic alone. Remarks are written there, in the Notes
+  card, like every list section. Highlights groups show in their stored
   order; reordering them is the detail page's.
 - **Franchise / Series tabs** also expose the plan-next / rewatch toggles
   (`PlanKindToggles`) and size-group overrides (`SizeGroupControls`).
