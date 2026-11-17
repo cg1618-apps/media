@@ -316,7 +316,6 @@ GAME_ACHIEVEMENT_FLAGS: tuple[str, ...] = ("Fully", "Yes", "No", "Inapplicable")
 # shut down, or support and sales ended). "Cancelled" is death before release,
 # "Discontinued" death after it.
 GAME_RELEASE_STATUSES: tuple[str, ...] = (
-    "Rumored",
     "Unreleased",
     "Early Access",
     "Released",

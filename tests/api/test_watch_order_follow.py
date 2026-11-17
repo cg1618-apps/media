@@ -471,6 +471,48 @@ class TestVisibility:
         assert row["total"] == 2
 
 
+class TestGameStep:
+    """A game is one whole entry: done or not by its playing status alone.
+
+    A stored range on a game step (the editor offers none, the backend does
+    not refuse one) never decides anything, because a game has no unit count.
+    """
+
+    @pytest.fixture
+    def games(self, db_session, sample_franchise, plain_user):
+        f = sample_franchise
+        done = _entry(db_session, models.Game, f, game_name_en="Done")
+        playing = _entry(db_session, models.Game, f, game_name_en="Playing")
+        planned = _entry(db_session, models.Game, f, game_name_en="Planned")
+        uid = plain_user.id
+        _own(db_session, uid, done, "Completed")
+        _own(db_session, uid, playing, "Active Playing")
+        _own(db_session, uid, planned, "Plan to Play")
+        lst = _list(db_session, f, "Play order")
+        _step(db_session, lst, done, 1)
+        _step(db_session, lst, playing, 2, ep_start=1, ep_end=1)
+        _step(db_session, lst, planned, 3)
+        return lst
+
+    def test_a_game_step_counts_as_one_whole_unit(self, user_client, games):
+        _follow(user_client, games)
+        (row,) = _follows(user_client)
+        assert (row["done"], row["total"]) == (1, 3)
+        assert [s["display_name"] for s in row["now"]] == ["Playing"]
+        assert row["up_next"]["display_name"] == "Planned"
+
+    def test_a_game_is_offered_as_a_candidate(
+        self, owner_client, db_session, sample_franchise
+    ):
+        game = _entry(db_session, models.Game, sample_franchise, game_name_en="Pick me")
+        response = owner_client.get(
+            f"/api/watch-order/candidates?franchise_id={sample_franchise.system_id}"
+        )
+        assert response.status_code == 200, response.text
+        picked = [c for c in response.json() if c["entry_id"] == str(game.system_id)]
+        assert [c["media_type"] for c in picked] == ["game"]
+
+
 class TestBuiltInOrder:
     def test_a_generated_order_can_be_followed(
         self, user_client, db_session, sample_franchise, anime_a, movie_b, plain_user

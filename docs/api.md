@@ -434,7 +434,9 @@ entirely (`null`) means "not supplied" and leaves the rows alone; `[]` clears
 them. `uq_game_copy_row` (`user_id`, `game_id`, `storefront`, `copy_format`)
 rejects the same edition bought twice on the same store by the same person —
 `user_id` leads, so two accounts can each own Hollow Knight, Digital, on
-Steam.
+Steam. Beside the purchase, a copy carries `sell_price` / `sell_currency`
+and `hours_played` (decimal hours); both are stored as sent and nothing
+reads them back into the game's own `hours_played` or the spend checks.
 
 **The `copies` array carries only the acting user's rows**, on the read side
 of both the list and the detail route (`attach_own_copies`). A copy is a

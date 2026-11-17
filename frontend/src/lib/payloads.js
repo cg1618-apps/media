@@ -402,20 +402,7 @@ export function gameFieldsPayload(f) {
     steam_appid: int(f.steam_appid),
     steam_link: f.steam_link || null,
     sources: sourcesPayload(f.sources),
-    copies: (f.copies || [])
-      .filter((c) => c.storefront || c.ownership || c.copy_format)
-      .map((c, i) => ({
-        ...(c.system_id ? { system_id: c.system_id } : {}),
-        storefront: c.storefront || null,
-        ownership: c.ownership || null,
-        copy_format: c.copy_format || null,
-        acquisition: c.acquisition || null,
-        price_paid: num(c.price_paid),
-        price_currency: c.price_currency || null,
-        acquired_date: c.acquired_date || null,
-        remark: c.remark || null,
-        position: i + 1,
-      })),
+    copies: copiesPayload(f.copies),
     play_next: f.play_next ?? false,
     to_replay: f.to_replay ?? false,
     cover_image_file: f.cover_image_file || null,
@@ -759,6 +746,9 @@ function copiesPayload(rows) {
       price_paid: num(c.price_paid),
       price_currency: c.price_currency || null,
       acquired_date: c.acquired_date || null,
+      sell_price: num(c.sell_price),
+      sell_currency: c.sell_currency || null,
+      hours_played: num(c.hours_played),
       remark: c.remark || null,
       position: i + 1,
     }));

@@ -43,7 +43,6 @@ def test_game_vocabularies():
         "Completionist",
     )
     assert c.GAME_RELEASE_STATUSES == (
-        "Rumored",
         "Unreleased",
         "Early Access",
         "Released",

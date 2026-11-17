@@ -20,6 +20,8 @@ describe("supportsEpisodeRange", () => {
     expect(supportsEpisodeRange("anime-movie")).toBe(false);
     expect(supportsEpisodeRange("manga")).toBe(false);
     expect(supportsEpisodeRange("novel")).toBe(false);
+    // A game is one whole entry: no partial progress to step through.
+    expect(supportsEpisodeRange("game")).toBe(false);
   });
 
   // An item's media_type is nullable, and an unrecognised value should not

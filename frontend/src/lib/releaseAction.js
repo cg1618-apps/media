@@ -32,7 +32,7 @@ const AIR_PENDING = ["Not Yet Aired", "Rumored"];
 
 const SERIALIZING = ["連載中", "連載中 (不穩定)", "連載中 (有生之年)"];
 
-const GAME_PENDING = ["Rumored", "Unreleased", "Early Access"];
+const GAME_PENDING = ["Unreleased", "Early Access"];
 
 function step(field, label, value, toast, ask = false) {
   return { label, payload: { [field]: value }, toast, ask };

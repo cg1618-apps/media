@@ -80,7 +80,7 @@ function inSeason(entry, mediaType, season) {
 // release_status (GAME_RELEASE_STATUSES); the watched types airing_status.
 const UNRELEASED_STATUSES = {
   airing_status: ["Not Yet Aired", "Rumored"],
-  release_status: ["Unreleased", "Rumored"],
+  release_status: ["Unreleased"],
 };
 
 function dateScore(date) {

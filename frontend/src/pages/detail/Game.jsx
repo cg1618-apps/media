@@ -139,9 +139,16 @@ function money(amount, currency) {
  * while a copy carries its own and may carry none. A price recorded without
  * a currency is still worth showing; a currency with no price is not.
  */
-function copyPrice(copy) {
-  if (copy.price_paid == null || copy.price_paid === "") return null;
-  return [copy.price_currency, copy.price_paid].filter(Boolean).join(" ");
+function copyPrice(copy, amountKey = "price_paid", currencyKey = "price_currency") {
+  const amount = copy[amountKey];
+  if (amount == null || amount === "") return null;
+  return [copy[currencyKey], amount].filter(Boolean).join(" ");
+}
+
+/** What a copy sold for, read as "sold EUR 7.50"; same rules as copyPrice. */
+function copySale(copy) {
+  const sale = copyPrice(copy, "sell_price", "sell_currency");
+  return sale ? `sold ${sale}` : null;
 }
 
 /**
@@ -173,6 +180,12 @@ export function GameCopiesSection({ copies }) {
             )}
             {copy.acquired_date && (
               <span className="text-xs font-mono text-text-faint">{copy.acquired_date}</span>
+            )}
+            {copySale(copy) && (
+              <span className="text-xs font-mono text-text-faint">{copySale(copy)}</span>
+            )}
+            {copy.hours_played != null && copy.hours_played !== "" && (
+              <span className="text-xs font-mono text-text-faint">{`${copy.hours_played} h`}</span>
             )}
             {copy.remark && <span className="text-xs text-text-faint">{copy.remark}</span>}
           </div>
@@ -485,7 +498,7 @@ export default function Game() {
 
             {/* Where this entry sits in the watch orders the viewer follows. */}
             <TocSection id="watch-orders" label="Watch orders">
-              <FollowedOrderPanel entryId={game.system_id} />
+              <FollowedOrderPanel entryId={game.system_id} mediaType="game" />
             </TocSection>
 
             {/* My Tracker — no stepper: a game has no unit to count off, so the

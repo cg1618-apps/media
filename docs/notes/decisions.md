@@ -5221,3 +5221,27 @@ shown buttons that answered 401.
   retired `Anime` token onto `ACG` is gone: `Anime` is a type again.
 - **Rejected: keep `ACG` and add `Anime`/`Manga` beside it.** Two ways to say
   the same franchise would split every type test in two.
+
+### Game copies record a sale and hours; Rumored leaves games; a game's order is a Play Order (2026-11-17)
+
+- **A copy's sale and hours are records, not inputs.** `game_copy.sell_price`
+  / `sell_currency` mirror the price paid, and `game_copy.hours_played` is
+  decimal hours on that copy. Nothing rolls the copy hours into
+  `games.hours_played`, and the statistics page and the two list-price checks
+  do not read either - the owner asked for the fields with no business logic.
+  Both live on the shared table, so an h-game copy carries them too.
+- **Rumored is not a game status.** Every game and h-game row holding it (the
+  two share `GAME_RELEASE_STATUSES`) became `Unreleased`, as did a stored
+  Add-form default, and Pull reads a `Rumored` cell from an older backup as
+  `Unreleased`. The downgrade does not bring it back: nothing records which
+  rows held it. `AiringStatus` keeps its own `Rumored`.
+- **Games were already in watch orders on the backend.** `MEDIA_TYPE_MODELS`
+  listed `game`, the candidates endpoint offered games and progress counted a
+  game by `playing_status` alone. What was missing was the frontend: the
+  editor's type filter had no Game, a game step showed its raw slug, and it
+  was offered an episode range. `game` joined `TYPE_LABELS` (now one map,
+  exported from `WatchOrderGuide.jsx`) and `WHOLE_ONLY_TYPES`.
+- **"Play Order" is a label, not a second feature.** The Game page's follow
+  panel says "Following Play Order"; every other type, h-game included, says
+  "Following Watch Order". One model, one route, one editor - `orderNoun`
+  picks the word from the page's media type.
