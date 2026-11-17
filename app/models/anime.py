@@ -76,6 +76,13 @@ class Anime(Base, NameFallbackMixin):
     airing_type = Column(String, nullable=True)
     airing_status = Column(String, nullable=True)
     is_main = Column(String, nullable=True)
+    # ANIME_ORIGINAL_OR_REMAKE - Original / Remake. Not is_main's question
+    # (本傳 / 外傳 / ...), so a column of its own. Never NULL: a row that says
+    # nothing is the original. No CHECK constraint, matching is_main; the
+    # write schemas refuse anything else.
+    original_or_remake = Column(
+        String, nullable=False, default="Original", server_default="Original"
+    )
 
     ep_previous = Column(Integer, nullable=True)
     ep_total = Column(Integer, nullable=True)

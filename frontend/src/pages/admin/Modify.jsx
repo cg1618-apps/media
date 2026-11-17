@@ -150,6 +150,7 @@ function animeToForm(anime, allFranchises, allSeries, defaults) {
     airing_status: anime.airing_status || "",
     watching_status: anime.watching_status || defaults.watching_status,
     is_main: anime.is_main || "",
+    original_or_remake: anime.original_or_remake || "Original",
     ep_previous: anime.ep_previous ?? "",
     ep_total: anime.ep_total ?? "",
     ep_fin: anime.ep_fin ?? "",

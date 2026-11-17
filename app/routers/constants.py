@@ -134,6 +134,8 @@ def _constants() -> dict[str, list[str]]:
         "is_main": list(c.IS_MAIN),
         # Game and h-game's is_main reads its own vocabulary, not IS_MAIN.
         "game_is_main": list(c.GAME_IS_MAIN),
+        # Anime's Original / Remake, a column beside its is_main.
+        "anime_original_or_remake": list(c.ANIME_ORIGINAL_OR_REMAKE),
         "movie_type": list(c.MOVIE_TYPES),
         "tv_region": list(c.TV_REGIONS),
         "manga_region": list(c.MANGA_REGIONS),

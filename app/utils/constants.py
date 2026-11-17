@@ -302,6 +302,14 @@ GAME_TYPES: tuple[str, ...] = ("Base Game", "DLC", "Expansion", "Bundle")
 # remake / remaster relation kinds.
 GAME_IS_MAIN: tuple[str, ...] = ("Main", "Remake", "Remaster")
 
+# anime.original_or_remake: whether the entry is the original work or a remake
+# of one. A column of its own rather than a reading of is_main, which already
+# answers 本傳 / 外傳 / 前傳 / 後傳 / 總集篇 for anime. Never empty: the first
+# value is the column's default, so a row that says nothing is the original.
+# Anime only - anime movies and the other types do not carry it. Like
+# GAME_IS_MAIN it is a plain label, with no tie to the `remake` relation kind.
+ANIME_ORIGINAL_OR_REMAKE: tuple[str, ...] = ("Original", "Remake")
+
 # How deep a finish went. Deliberately a ladder of content depth only: whether
 # every ending was seen, every achievement earned and every collectible found
 # (games.all_endings / all_achievements / all_collected, which carry

@@ -36,6 +36,8 @@ export const defaultAnime = () => ({
   airing_status: "Not Yet Aired",
   watching_status: "Might Watch",
   is_main: "本傳",
+  // ANIME_ORIGINAL_OR_REMAKE: never empty, and a new anime is the original.
+  original_or_remake: "Original",
   ep_previous: "",
   ep_total: "",
   ep_fin: "",

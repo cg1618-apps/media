@@ -634,6 +634,21 @@ describe("anime release dates and runtime", () => {
   });
 });
 
+describe("anime original or remake", () => {
+  it("sends the chosen value", () => {
+    const body = buildAnimePayload({ original_or_remake: "Remake" });
+    expect(body.original_or_remake).toBe("Remake");
+  });
+
+  it("never sends it empty: a blank is the original", () => {
+    // The column is NOT NULL, so a null would be refused on the way in.
+    expect(buildAnimePayload({}).original_or_remake).toBe("Original");
+    expect(buildAnimePayload({ original_or_remake: "" }).original_or_remake).toBe(
+      "Original",
+    );
+  });
+});
+
 describe("novel read order", () => {
   it("is no longer sent; comic keeps its own", () => {
     expect("read_order" in novelFieldsPayload({ read_order: "1" })).toBe(false);

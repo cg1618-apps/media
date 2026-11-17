@@ -5451,3 +5451,25 @@ shown buttons that answered 401.
   the revision `irreversible` was rejected, since a rollback can carry the
   text; moving the extra rows to 備註列表 was rejected, since that would turn
   shared catalogue text into one account's private notes.
+
+### Anime says whether it is the original or a remake (2026-11-17)
+
+- **A new column, `anime.original_or_remake`, over its own vocabulary
+  `ANIME_ORIGINAL_OR_REMAKE` (`Original` / `Remake`).** Anime's `is_main`
+  already answers 本傳 / 外傳 / 前傳 / 後傳 / 總集篇, so folding Remake into
+  it the way game's `is_main` carries Main / Remake / Remaster would have
+  mixed two questions in one column. The name is not `originality`:
+  h-comic's and hentai's `originality` already means 原版 / 同人.
+- **Never empty.** Unlike game's `is_main`, which stays NULL until someone
+  answers it, an anime that says nothing is the original: the column is NOT
+  NULL with a server default of `Original`, so revision `a1n2remake34`
+  filled every existing row as it added the column. A write naming `null`
+  or `""` is a 422 rather than a silent `Original`, and the form's select
+  has no blank. A Sheets cell that is blank or unknown reads as `Original`
+  instead of aborting the tab; a tab without the header keeps the default.
+- **Anime only**, not anime movie or any other type.
+- **It joins the anime duplicate key**, as `is_main` does game's: a remake
+  usually shares its original's name exactly.
+- **Auto-fill does not copy it.** The Add form copies fields from an entry
+  already in the catalogue, and the entry a remake is filled from is usually
+  its original.

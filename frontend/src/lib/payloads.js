@@ -311,6 +311,8 @@ export function buildAnimePayload(af, { franchiseId, seriesId } = {}) {
     airing_status: af.airing_status || null,
     watching_status: af.watching_status || "Might Watch",
     is_main: af.is_main || null,
+    // Never null: the column is NOT NULL and a blank means the original.
+    original_or_remake: af.original_or_remake || "Original",
     ep_previous: af.ep_previous !== "" ? parseInt(af.ep_previous) : null,
     ep_total: af.ep_total !== "" ? parseInt(af.ep_total) : null,
     ep_fin: af.ep_fin !== "" ? parseInt(af.ep_fin, 10) : null,

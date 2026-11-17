@@ -226,7 +226,7 @@ not its franchise or its sibling series.
 | `GET`    | `/mal-prefill/{mal_id}` | `manage.catalog` | The Add form's fields from one MAL anime record — see [MAL prefill](#mal-prefill). 404 for an id MAL does not have, 502 when Tenrai fails. Read-only. |
 | `GET`    | `/{entry_id}` | Public | Get a single anime entry by UUID.                                                                              |
 | `POST`   | `/`            | Admin  | Create an anime entry. Runs episode math and domain rules. Body: `AnimeCreate`.                                |
-| `PUT`    | `/{entry_id}` | Admin  | Full update. Runs episode math and domain rules. Body: `AnimeUpdate`.                                          |
+| `PUT`    | `/{entry_id}` | Admin  | Full update. Runs episode math and domain rules. Body: `AnimeUpdate`. `AnimeCreate` and `AnimeUpdate` check `original_or_remake` against `ANIME_ORIGINAL_OR_REMAKE` (422 otherwise, `null` included); a create that omits it is `Original`. |
 | `PATCH`  | `/{entry_id}` | Admin  | Partial update (e.g. +1 episode). Body: raw JSON dict — see the shared PATCH semantics above.    |
 | `POST`   | `/{entry_id}/complete` | Admin  | Sets completion fields (watching status to "Completed", episodes finished, timestamps).             |
 | `DELETE` | `/{entry_id}` | Admin  | Delete an anime entry. Cleans up local cover image. Logs to `deleted_record`.                                  |
@@ -1511,7 +1511,7 @@ value means; this endpoint just serves them.
 Keys served: `watching_status`, `reading_status`, `airing_status`,
 `film_release_status`, `anime_movie_release_type`,
 `anime_airing_type`, `cartoon_airing_type`, `tv_show_airing_type`, `franchise_type`,
-`franchise_expectation`, `my_rating`, `gender`, `character_role`, `is_main`, `game_is_main`, `movie_type`, `tv_region`,
+`franchise_expectation`, `my_rating`, `gender`, `character_role`, `is_main`, `game_is_main`, `anime_original_or_remake`, `movie_type`, `tv_region`,
 `manga_region`, `novel_region`, `novel_type`, `comic_type`,
 `playing_status`, `game_type`, `completion_level`, `game_completion_flag`,
 `game_achievement_flag`, `game_release_status`, `game_storefront`,

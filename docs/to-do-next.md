@@ -17,17 +17,7 @@ document exists — under `superpowers/specs/` while it is being built — the
 item points at it instead, and the present-tense pages take over once it
 ships.
 
-## 1. Anime: Original or Remake
-
-**Anime gets a new field saying whether the entry is the original work or a
-remake: `Original` (the default) or `Remake`.** It is modelled on game's
-`is_main` (`GAME_IS_MAIN` in `app/utils/constants.py`), but it is a new
-column of its own, because anime's `is_main` already means
-本傳/外傳/前傳/後傳/總集篇. Anime only: not Anime Movie or any other type.
-Existing rows are set to `Original`. It is on the anime form, the detail
-page and the Anime sheet tab.
-
-## 2. `ep_special` is text
+## 1. `ep_special` is text
 
 **Anime's `ep_special` becomes a string**, because specials are numbered like
 `17.5A` and `17.5B`. Today it is a `Float` (`app/models/anime.py`), entered
@@ -37,7 +27,7 @@ Existing values convert without a trailing `.0`: `17.0` → `"17"`, `17.5`
 `WatchOrderGuide.jsx`). Check every reader that sorts or does arithmetic on
 it.
 
-## 3. Every progress number is a float, and +/− steps to the next integer
+## 2. Every progress number is a float, and +/− steps to the next integer
 
 **Every progress count and total becomes a float**: `ep_fin`, `ep_total`,
 `ep_previous`, `issue_fin`, `issue_total`, `page_fin`, `page_total`, and
@@ -51,7 +41,7 @@ steps by one, as now (`2` + → `3`). The rule holds for every progress
 counter, including manga's and novel's, which are already floats. Whole
 values display without `.0`.
 
-## 4. Novel becomes Book
+## 3. Novel becomes Book
 
 **The Novel type is renamed Book throughout, not just in the UI**: table
 `novel` → `book`, `media_type` `'novel'` → `'book'`, route `/api/novel` →
@@ -83,7 +73,7 @@ It comes after every item above it because the remark rework and the
 float change touch the novel code, and a rename running alongside them
 would conflict everywhere.
 
-## 5. Upcoming books and manga volumes on Future Releases
+## 4. Upcoming books and manga volumes on Future Releases
 
 **Each book unit gets a JP and a TW release date, manga gets the next
 volume's JP and TW release dates, and Future Releases shows both.**
@@ -110,7 +100,7 @@ volume's JP and TW release dates, and Future Releases shows both.**
 - Data entry is by hand. Automatic sources are being researched; see
   open-items.md, "Automatic book release data".
 
-## 6. A content label chip says who sees it
+## 5. A content label chip says who sees it
 
 **The chip a detail page draws for each content label gets a tooltip that
 says which modes show the label and which label it also carries, generated

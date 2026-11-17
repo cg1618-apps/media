@@ -30,6 +30,7 @@ import { broadcastTimeOptions } from "../../config/broadcastTimes";
 import {
   AIRING_STATUSES,
   ANIME_AIRING_TYPES,
+  ANIME_ORIGINAL_OR_REMAKE,
   IS_MAIN,
   MY_RATINGS,
   PART_NUMS,
@@ -149,8 +150,24 @@ export function AnimeFormBody({ f, u, sources, ownerId }) {
       {/* Season and Part are form-only: the payload derives season_part
           from them. */}
       <SectionHeader icon="fa-info-circle" title="Information" />
-      <div className={ROW3}>
+      <div className={ROW4}>
         {select("is_main", "Main / Spinoff", IS_MAIN)}
+        {/* ANIME_ORIGINAL_OR_REMAKE has no blank: the column is never
+            empty, and an anime that says nothing is the original. */}
+        <Field label="Original / Remake">
+          <select
+            className={selectCls}
+            aria-label="Original / Remake"
+            value={f.original_or_remake || "Original"}
+            onChange={(e) => u("original_or_remake", e.target.value)}
+          >
+            {ANIME_ORIGINAL_OR_REMAKE.map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
+        </Field>
         {select("season_num", "Season", SEASON_NUMS, (n) => `Season ${n}`)}
         {select("part_num", "Part", PART_NUMS, (n) => `Part ${n}`)}
       </div>

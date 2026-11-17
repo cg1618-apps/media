@@ -90,6 +90,10 @@ export const GAME_TYPES = ["Base Game", "DLC", "Expansion", "Bundle"];
 // to the Remake / Remaster relation kinds.
 export const GAME_IS_MAIN = ["Main", "Remake", "Remaster"];
 
+// Anime's original_or_remake (ANIME_ORIGINAL_OR_REMAKE in app/utils/constants.py).
+// A column beside anime's is_main, never empty: a new anime is the original.
+export const ANIME_ORIGINAL_OR_REMAKE = ["Original", "Remake"];
+
 export const COMPLETION_LEVELS = [
   "Main Story",
   "Main + Extras",
@@ -522,6 +526,7 @@ export const CONSTANTS_FALLBACK = {
   character_role: CHARACTER_ROLES,
   is_main: IS_MAIN,
   game_is_main: GAME_IS_MAIN,
+  anime_original_or_remake: ANIME_ORIGINAL_OR_REMAKE,
   movie_type: MOVIE_TYPES,
   tv_region: TV_REGIONS,
   manga_region: MANGA_REGIONS,

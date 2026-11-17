@@ -296,6 +296,7 @@ Model: `Anime`. CHECKs: `ck_anime_release_date_jp_iso`,
 | `airing_type` | String | yes | | ANIME_AIRING_TYPES |
 | `airing_status` | String | yes | | AiringStatus |
 | `is_main` | String | yes | | IS_MAIN (本傳/外傳/...) |
+| `original_or_remake` | String | no | `'Original'` | ANIME_ORIGINAL_OR_REMAKE (Original / Remake): whether the entry is the original work or a remake of one. A column of its own beside `is_main`, which answers a different question. Refused on a write outside the vocabulary (422, `null` and `""` included); a Sheets cell that is blank or unknown reads as `Original`. Part of the duplicate key. |
 | `ep_previous` | Integer | yes | | Episodes accumulated by prequels; **derived** by `derive_ep_previous_all_anime` after Fill/Replace. |
 | `ep_total` | Integer | yes | | |
 | `ep_special` | Float | yes | | The episode number a special sits at (0, 14.5) - a position, not a count. Part of the duplicate key. |

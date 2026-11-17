@@ -112,15 +112,18 @@ def find_duplicate_series(db: Session) -> list[list[dict]]:
 
 def _anime_duplicate_key(a: Anime) -> tuple:
     return (_ref(a.franchise_id), _ref(a.series_id), a.airing_type,
-            _season(a.season_part), a.is_main, a.ep_special)
+            _season(a.season_part), a.is_main, a.original_or_remake, a.ep_special)
 
 
 def find_duplicate_anime(db: Session) -> list[list[dict]]:
-    """Same franchise, series, airing type, season, main flag, special flag + a shared name."""
+    """Same franchise, series, airing type, season, main flag, original or
+    remake, special flag + a shared name. A remake usually shares its
+    original's name exactly, so the two never collide."""
     return _find(
         db.query(Anime).all(),
         key=_anime_duplicate_key,
-        fields=("franchise_id", "series_id", "airing_type", "season_part", "is_main", "ep_special",
+        fields=("franchise_id", "series_id", "airing_type", "season_part", "is_main",
+                "original_or_remake", "ep_special",
                 "anime_name_en", "anime_name_cn", "anime_name_roman", "anime_name_jp", "anime_name_alt"),
     )
 

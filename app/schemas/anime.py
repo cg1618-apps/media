@@ -4,12 +4,13 @@ from datetime import datetime, time
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, computed_field
+from pydantic import BaseModel, ConfigDict, computed_field, field_validator
 
 from app.schemas.image_focus import ImageFocus
 from app.schemas.link_fields import AnimeLinkFields
 from app.schemas.release_date_field import release_date_validator
 from app.schemas.sources import SourceWriteFields
+from app.utils.constants import ANIME_ORIGINAL_OR_REMAKE
 
 
 class AnimeBase(BaseModel):
@@ -32,6 +33,9 @@ class AnimeBase(BaseModel):
     airing_status: Optional[str] = None
     watching_status: str = "Might Watch"
     is_main: Optional[str] = None
+    # ANIME_ORIGINAL_OR_REMAKE. Never empty; checked on a write by
+    # AnimeWriteChecks.
+    original_or_remake: str = "Original"
 
     ep_previous: Optional[int] = None
     ep_total: Optional[int] = None
@@ -67,11 +71,29 @@ class AnimeBase(BaseModel):
     _validate_release_dates = release_date_validator("release_date_jp", "release_date_tw")
 
 
-class AnimeCreate(AnimeBase, SourceWriteFields):
+class AnimeWriteChecks(BaseModel):
+    """
+    The anime vocabulary checked on a write. Response schemas do not mix this
+    in: a stored row is served as it is, and a read must never 500 on a value
+    a Pull restored.
+    """
+
+    @field_validator("original_or_remake", check_fields=False)
+    @classmethod
+    def _original_or_remake(cls, v):
+        if v not in ANIME_ORIGINAL_OR_REMAKE:
+            raise ValueError(
+                f"'{v}' is not a valid original_or_remake; expected one of "
+                f"{', '.join(ANIME_ORIGINAL_OR_REMAKE)}."
+            )
+        return v
+
+
+class AnimeCreate(AnimeWriteChecks, AnimeBase, SourceWriteFields):
     pass
 
 
-class AnimeUpdate(AnimeBase, SourceWriteFields):
+class AnimeUpdate(AnimeWriteChecks, AnimeBase, SourceWriteFields):
     pass
 
 
