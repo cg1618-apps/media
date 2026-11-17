@@ -30,25 +30,12 @@ the designs for it, which come from the owner. The same holds for every
 customised page: its general version is settled in that discussion, and its
 detail waits for this.
 
-## Books that are not novels, and per-volume releases — next discussion
+## Automatic book release data
 
-**How the catalogue holds books that are not novels is undecided, and it is
-the design discussion that follows to-do-next items 1–6.** Today they go
-under Novel because most books are novels. These ones do not fit:
-
-- a guidebook — 《Re: 從零開始的異世界生活》公式書;
-- a bonus short story — 無職轉生's 特典短篇, which is not even a book;
-- Gravity Falls' companion books — *Journal 3*, *The Book of Bill*, *The Art
-  of Gravity Falls*, *Lost Legends*, and the like.
-
-The options on the table: widen the Novel type, or add a new type (Books).
-
-**Coupled with it: tracking future releases of manga and novels.** There is
-no per-volume release date today. One idea: a new table holding the bare
-minimum per book (names, volume or arc number, release status and date,
-cover image), attached to a novel or manga entry. If that works out, it
-replaces the manually edited Units section (`novel_unit`,
-`NovelUnitsEditor.jsx`).
+**Whether book-unit and manga-volume release dates can be filled from a free
+API is undecided.** to-do-next item 8 builds manual entry. A research pass on
+free sources with JP and TW coverage is under way. What it finds, and
+whether a Fill-style pipeline is worth building on it, is the open question.
 
 ## Deployment
 
