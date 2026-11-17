@@ -28,6 +28,7 @@ ANIME_RESULT = {
     "score": 8.5,
     "rank": 42,
     "episodes": 12,
+    "duration": "23 min per ep",
 }
 
 MANGA_RESULT = {
@@ -54,7 +55,9 @@ def make_anime(**kwargs):
         airing_type=None,
         airing_status=None,
         release_season=None,
-        release_date=None,
+        release_date_jp=None,
+        release_date_tw=None,
+        runtime_min=None,
         ep_total=None,
         official_link=None,
         twitter_link=None,
@@ -115,16 +118,58 @@ def patched_manga(monkeypatch):
 
 
 class TestAnimeReleaseDateFill:
-    def test_fills_the_iso_release_date(self, patched_anime):
+    def test_a_series_fills_both_jp_and_tw(self, patched_anime):
         anime = make_anime()
         autofill_anime_from_mal(anime)
-        assert anime.release_date == "2023-01-07"
+        assert anime.release_date_jp == "2023-01-07"
+        assert anime.release_date_tw == "2023-01-07"
         assert anime.release_season == "WIN"
 
-    def test_does_not_overwrite_an_admin_entered_date(self, patched_anime):
-        anime = make_anime(release_date="2023-01")
+    def test_a_movie_fills_jp_only(self, patched_anime):
+        # The entry's own airing type decides, not MAL's.
+        anime = make_anime(airing_type="Movie")
         autofill_anime_from_mal(anime)
-        assert anime.release_date == "2023-01"
+        assert anime.release_date_jp == "2023-01-07"
+        assert anime.release_date_tw is None
+
+    def test_does_not_overwrite_an_admin_entered_date(self, patched_anime):
+        anime = make_anime(release_date_jp="2023-01", release_date_tw="2024")
+        autofill_anime_from_mal(anime)
+        assert anime.release_date_jp == "2023-01"
+        assert anime.release_date_tw == "2024"
+
+
+class TestAnimeRuntimeFill:
+    def test_fills_the_runtime_inside_the_band_as_24(self, patched_anime):
+        anime = make_anime()
+        autofill_anime_from_mal(anime)
+        assert anime.runtime_min == 24
+
+    def test_a_movie_keeps_mal_minutes(self, monkeypatch):
+        # The entry's own airing type decides, as for the TW date: MAL calls
+        # this a TV series, the entry is typed Movie, so 22 stays 22.
+        result = {**ANIME_RESULT, "duration": "22 min per ep"}
+        monkeypatch.setattr(
+            autofill_module, "fetch_tenrai_anime_data", lambda mal_id: result
+        )
+        anime = make_anime(airing_type="Movie")
+        autofill_anime_from_mal(anime)
+        assert anime.runtime_min == 22
+
+    def test_a_series_at_22_is_stored_as_24(self, monkeypatch):
+        # The mirror: same record, entry typed TV, so the band applies.
+        result = {**ANIME_RESULT, "duration": "22 min per ep"}
+        monkeypatch.setattr(
+            autofill_module, "fetch_tenrai_anime_data", lambda mal_id: result
+        )
+        anime = make_anime(airing_type="TV")
+        autofill_anime_from_mal(anime)
+        assert anime.runtime_min == 24
+
+    def test_does_not_overwrite_a_typed_runtime(self, patched_anime):
+        anime = make_anime(runtime_min=23)
+        autofill_anime_from_mal(anime)
+        assert anime.runtime_min == 23
 
     def test_no_longer_writes_the_split_year_and_month(self, patched_anime):
         anime = make_anime()

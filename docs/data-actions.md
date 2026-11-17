@@ -235,6 +235,17 @@ or an anime movie's `Watch When Airs` reads as `Watch When Released`. Backup
 writes the current headers from A1 and clears the columns past them, so the
 next Backup leaves no old header on the sheet.
 
+A tab backed up before a column was renamed still restores. `RENAMED_COLUMNS`
+in `pull.py` names the old header and the columns its parser reads it into -
+the Anime tab's single `release_date` into both `release_date_jp` and
+`release_date_tw`, the Cartoons tab's `length_ep_min` into `runtime_min` - and
+Pull keeps those values past its header filter only when the sheet carries
+none of the new headers, so a current sheet is read exactly as written. Both
+old headers are in `RENAMED_HEADERS`, and the Novel tab's dropped `read_order`
+is in `RETIRED_HEADERS`, so `unexpected_headers` reports none of the three.
+A TV Shows tab with no `airing_type` header leaves an existing show's value
+as it is and gives a new one the column default, `TV`.
+
 **`Users`** carries `id`, `username`, `is_installation_owner`, `status`, `open_request_limit`, `mode_ceiling`, `mode_default`, the four feature switches (`feature_quotes_memes`, `feature_favourites`, `feature_music_status`, `feature_mod_status`) and `role`.
 An older sheet whose Users tab still has a `list_is_public` header Pulls
 cleanly: `RETIRED_HEADERS` in `pull.py` names it, so `unexpected_headers` does

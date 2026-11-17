@@ -96,7 +96,8 @@ type it serves is seeable.
 | `ANIME_MOVIE_RELEASE_TYPES` | `Cinema`, `ONA` | `anime_movies.release_type`, checked on every write. `Cinema` (`ANIME_MOVIE_RELEASE_TYPE_DEFAULT`) on a new entry; an `ONA` has one release date, held in both `release_date_jp` and `release_date_tw` | `anime_movie_release_type` |
 | `AnimeAiringType` (Enum) | `TV`, `ONA`, `OVA`, `OAD`, `Special`, `Movie` | backend-internal only | not served |
 | `ANIME_AIRING_TYPES` | `TV`, `Movie`, `ONA`, `OVA`, `OAD`, `Special`, `Other` | `anime.airing_type` dropdown | `anime_airing_type` |
-| `CARTOON_AIRING_TYPES` | `TV`, `Movie`, `OVA`, `Special` | `cartoons.airing_type` dropdown (Fill only handles `TV` and `Movie`, see business-rules.md section 17) | `cartoon_airing_type` |
+| `CARTOON_AIRING_TYPES` | `TV`, `Movie`, `Special` | `cartoons.airing_type` dropdown (Fill only handles `TV` and `Movie`, see business-rules.md section 17) | `cartoon_airing_type` |
+| `TV_SHOW_AIRING_TYPES` | `TV`, `Special` | `tv_shows.airing_type` dropdown; `TV` is the column's default | `tv_show_airing_type` |
 | `FranchiseType` (Enum) | `Movie`, `TV`, `Cartoon`, `Comic`, `Anime`, `Manga`, `Novel`, `Game`, `H-Comic`, `H-Game`, `Hentai` | backend-internal only | not served |
 | `FRANCHISE_TYPES` | `Anime`, `Manga`, `Anime Movie`, `TV`, `Movie`, `Cartoon`, `Comic`, `Novel`, `Game`, `H-Comic`, `H-Game`, `Hentai` | `franchise.franchise_type` dropdown. `H-Comic`, `H-Game` and `Hentai` are the types code branches on: a franchise carrying one carries that gated type's label and only entries of its family resolve into it ([entry-types.md](entry-types.md#franchise_type-values)) | `franchise_type` |
 | `FRANCHISE_FAMILY_FOR_TYPE` | `H-Comic`, `Hentai` and `H-Game` -> `restricted` (`RESTRICTED_FAMILY`); any other type is `mainstream` (`MAINSTREAM_FAMILY`) | which franchise types may share a franchise, and which franchises an entry may sit in. A franchise type list spanning two families is refused (422) | not served |
@@ -1053,11 +1054,11 @@ are no longer columns.
 
 | Constant | Fields |
 |---|---|
-| `ANIME_FIELDS_TO_FILL` | `airing_type`, `airing_status`, `release_date`, `release_season`, `mal_rating`, `mal_rank`, `ep_total`, `cover_image_file` (`official_link`/`twitter_link` were dropped columns and are deliberately not listed — Fill writes them as `media_source` reference rows now) |
+| `ANIME_FIELDS_TO_FILL` | `airing_type`, `airing_status`, `release_date_jp`, `release_season`, `mal_rating`, `mal_rank`, `ep_total`, `runtime_min`, `cover_image_file` (`official_link`/`twitter_link` were dropped columns and are deliberately not listed — Fill writes them as `media_source` reference rows now) |
 | `ANIME_MOVIE_FIELDS_TO_FILL` | `release_status`, `release_date_jp`, `mal_rating`, `mal_rank`, `cover_image_file` (same `official_link`/`twitter_link` exclusion) |
 | `MOVIE_FIELDS_TO_FILL` | `length_min`, `release_status`, `release_date_usa`, `imdb_rating`, `cover_image_file` |
 | `MOVIE_LINK_FIELDS_TO_FILL` | `("credit", "director")` |
-| `TV_SHOW_FIELDS_TO_FILL` | `airing_status`, `release_date`, `imdb_rating`, `imdb_series_rating`, `ep_total`, `cover_image_file` |
+| `TV_SHOW_FIELDS_TO_FILL` | `airing_status`, `release_date`, `imdb_rating`, `imdb_series_rating`, `ep_total`, `runtime_min`, `cover_image_file` |
 | `CARTOON_TV_FIELDS_TO_FILL` | `airing_status`, `release_date`, `imdb_rating`, `imdb_series_rating`, `ep_total`, `cover_image_file` |
 | `CARTOON_MOVIE_FIELDS_TO_FILL` | `airing_status`, `release_date`, `imdb_rating`, `cover_image_file` |
 | `MANGA_FIELDS_TO_FILL` | `serialization_status`, `release_date`, `end_date`, `mal_rating`, `mal_rank`, `cover_image_file` |
@@ -1073,6 +1074,7 @@ first column with a value represents the entry):
 
 | Media type | Columns, in order |
 |---|---|
+| `anime` | `release_date_jp`, `release_date_tw` |
 | `anime-movie` | `release_date_jp`, `release_date_tw` |
 | `movie` | `release_date_tw`, `release_date_usa` |
 | all others | `release_date` |
@@ -1148,7 +1150,7 @@ Carried over on purpose; do not "fix" one side without reconciling both.
   `frontend/src/config/fieldOptions.js`, not served.
 - **Anime airing type.** `AnimeAiringType` Enum lacks the trailing `Other`
   that `ANIME_AIRING_TYPES` (served) carries.
-- **Cartoon airing type.** The dropdown offers `TV`, `Movie`, `OVA`, `Special`,
+- **Cartoon airing type.** The dropdown offers `TV`, `Movie`, `Special`,
   but Fill only fetches `TV` and `Movie` (business-rules.md section 17).
 - **`MUSIC_STATUSES` and `MUSIC_TYPE_STATUSES`** are defined once in
   `constants.py` (the registry imports them) and once more each in

@@ -113,6 +113,10 @@ def test_movie_priority_puts_taiwan_first():
     assert RELEASE_PRIORITY["movie"] == ("release_date_tw", "release_date_usa")
 
 
+def test_anime_priority_puts_japan_first():
+    assert RELEASE_PRIORITY["anime"] == ("release_date_jp", "release_date_tw")
+
+
 def test_anime_movie_priority_puts_japan_first():
     assert RELEASE_PRIORITY["anime-movie"] == ("release_date_jp", "release_date_tw")
 

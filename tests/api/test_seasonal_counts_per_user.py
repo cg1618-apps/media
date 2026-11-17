@@ -42,7 +42,7 @@ def other_user(db_session):
 @pytest.fixture
 def winter_anime(db_session, sample_anime):
     sample_anime.release_season = "WIN"
-    sample_anime.release_date = "2026-01-10"
+    sample_anime.release_date_jp = "2026-01-10"
     sample_anime.airing_type = "TV"
     db_session.flush()
     return sample_anime

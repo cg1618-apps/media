@@ -39,6 +39,7 @@ class AnimeBase(BaseModel):
     # "Paused at": free text, stored stripped and NULL when blank.
     time_fin: Optional[str] = None
     ep_special: Optional[float] = None
+    runtime_min: Optional[int] = None
 
     my_rating: Optional[str] = None
     mal_rating: Optional[float] = None
@@ -48,7 +49,8 @@ class AnimeBase(BaseModel):
     anilist_popularity_rank: Optional[int] = None
 
     release_season: Optional[str] = None
-    release_date: Optional[str] = None
+    release_date_jp: Optional[str] = None
+    release_date_tw: Optional[str] = None
 
     broadcast_day: Optional[str] = None
     broadcast_time: Optional[time] = None
@@ -63,7 +65,7 @@ class AnimeBase(BaseModel):
     cover_image_focus: ImageFocus = None
     completed_at: Optional[datetime] = None
 
-    _validate_release_dates = release_date_validator("release_date")
+    _validate_release_dates = release_date_validator("release_date_jp", "release_date_tw")
 
 
 class AnimeCreate(AnimeBase, SourceWriteFields):

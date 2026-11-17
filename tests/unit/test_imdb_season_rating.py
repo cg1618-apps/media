@@ -87,6 +87,7 @@ def make_entry(**kwargs):
         airing_status="Finished Airing",
         release_date="2020-01-01",
         ep_total=10,
+        runtime_min=None,
         imdb_rating=None,
         imdb_series_rating=None,
         cover_image_file="already-there.jpg",

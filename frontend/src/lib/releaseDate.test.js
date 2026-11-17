@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isValidReleaseDate, formatReleaseDate } from "./releaseDate";
+import { isValidReleaseDate, formatReleaseDate, primaryReleaseValue } from "./releaseDate";
 
 describe("isValidReleaseDate", () => {
   it("accepts the three legal shapes", () => {
@@ -41,5 +41,15 @@ describe("formatReleaseDate", () => {
   it("shows TBA when there is nothing stored", () => {
     expect(formatReleaseDate("")).toBe("TBA");
     expect(formatReleaseDate(null)).toBe("TBA");
+  });
+});
+
+describe("primaryReleaseValue", () => {
+  it("reads an anime's JP date first, then its TW one", () => {
+    expect(
+      primaryReleaseValue("anime", { release_date_jp: "2024-04", release_date_tw: "2024-05" }),
+    ).toBe("2024-04");
+    expect(primaryReleaseValue("anime", { release_date_tw: "2024-05" })).toBe("2024-05");
+    expect(primaryReleaseValue("anime", { release_date: "2020" })).toBeNull();
   });
 });

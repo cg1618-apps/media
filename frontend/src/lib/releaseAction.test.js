@@ -189,7 +189,8 @@ describe("releaseDetailFields", () => {
 
   it("anime asks for the date, broadcast slot and watch day", () => {
     expect(names("anime", {})).toEqual([
-      "release_date",
+      "release_date_jp",
+      "release_date_tw",
       "broadcast_day",
       "broadcast_time",
       "my_watch_day",
@@ -197,7 +198,10 @@ describe("releaseDetailFields", () => {
   });
 
   it("a movie-format anime has no broadcast slot to ask for", () => {
-    expect(names("anime", { airing_type: "Movie" })).toEqual(["release_date"]);
+    expect(names("anime", { airing_type: "Movie" })).toEqual([
+      "release_date_jp",
+      "release_date_tw",
+    ]);
   });
 
   it("asks every release column the type has", () => {
@@ -219,7 +223,8 @@ describe("releaseDetailFields", () => {
   it("leaves out what is already filled", () => {
     expect(
       names("anime", {
-        release_date: "2026-10",
+        release_date_jp: "2026-10",
+        release_date_tw: "2026-10",
         broadcast_day: "Friday",
         broadcast_time: "",
         my_watch_day: null,

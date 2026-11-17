@@ -22,11 +22,13 @@ class TVShowBase(BaseModel):
 
     region: Optional[str] = None
     season_part: Optional[str] = None
+    airing_type: Optional[str] = "TV"
     airing_status: Optional[str] = None
     watching_status: str = "Might Watch"
     is_main: Optional[str] = None
 
     ep_total: Optional[int] = None
+    runtime_min: Optional[int] = None
     ep_fin: Optional[int] = 0
     # "Paused at": free text, stored stripped and NULL when blank.
     time_fin: Optional[str] = None

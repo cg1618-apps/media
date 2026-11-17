@@ -22,12 +22,13 @@ describe("MarkReleaseButton", () => {
   it("asks for the missing details, then writes only what was filled", async () => {
     const { onPatch, user } = setup("anime", {
       airing_status: "Not Yet Aired",
-      release_date: "2026-10",
+      release_date_jp: "2026-10",
+      release_date_tw: "2026-10",
     });
     await user.click(screen.getByRole("button", { name: "Mark airing" }));
 
     const dialog = screen.getByRole("dialog");
-    expect(screen.queryByText("Release date")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Release date/)).not.toBeInTheDocument();
     expect(within(dialog).getByText("Broadcast day")).toBeInTheDocument();
     // Fields render in order: broadcast day, broadcast time, my watch day.
     await user.selectOptions(within(dialog).getAllByRole("combobox")[0], "Friday");

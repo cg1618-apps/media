@@ -46,6 +46,7 @@ const SERVED = [
   "reading_status",
   "tag_categories",
   "tv_region",
+  "tv_show_airing_type",
   "watch_order_importance",
   "watching_status",
 ];
@@ -56,6 +57,7 @@ describe("groupTier1Keys", () => {
     expect(entry.keys).toEqual([
       "anime_airing_type",
       "cartoon_airing_type",
+      "tv_show_airing_type",
       "movie_type",
       "anime_movie_release_type",
       "novel_type",

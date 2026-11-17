@@ -96,8 +96,8 @@ Media-type keys are the hyphenated values in `MEDIA_TABLES` (`app/utils/media_re
 | `anime` | `anime` | One Japanese animation entry per season/cour or per OVA/special/movie-format release. `airing_type` is one of `"TV"`, `"ONA"`, `"OVA"`, `"OAD"`, `"Special"`, `"Movie"` (enum) — the dropdown adds `"Other"`. |
 | `anime-movie` | `anime_movies` | A theatrical anime film tracked in its **own table**, with MAL metadata and no series link. |
 | `movie` | `movies` | "Live-action and animated movie entries." `movie_type` is `"Reality"` or `"Animation"`. |
-| `tv-show` | `tv_shows` | "Live-action and scripted TV show entries." One entry per season (`season_part`). |
-| `cartoon` | `cartoons` | "Western animated TV show entries." `airing_type` is one of `"TV"`, `"Movie"`, `"OVA"`, `"Special"`. |
+| `tv-show` | `tv_shows` | "Live-action and scripted TV show entries." One entry per season (`season_part`). `airing_type` is `"TV"` (the default) or `"Special"`. |
+| `cartoon` | `cartoons` | "Western animated TV show entries." `airing_type` is one of `"TV"`, `"Movie"`, `"Special"`. |
 | `manga` | `manga` | "Manga, manhwa, and manhua entries." |
 | `novel` | `novel` | "Light novel, web novel, and book entries." `novel_type` is `"Light Novel"`, `"Novel"`, `"Web"` or `"Other"`. |
 | `comic` | `comic` | "Western comic runs, Marvel-focused. One entry is one numbered run." `comic_type` is `"Ongoing"`, `"Limited"`, `"One-Shot"` or `"Annual"`. |

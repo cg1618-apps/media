@@ -16,23 +16,23 @@ def _cell(model_cls, instance, column_name):
 
 
 def test_a_full_date_is_escaped():
-    anime = Anime(anime_name_en="X", release_date="2024-05-17")
-    assert _cell(Anime, anime, "release_date") == "'2024-05-17"
+    anime = Anime(anime_name_en="X", release_date_jp="2024-05-17")
+    assert _cell(Anime, anime, "release_date_jp") == "'2024-05-17"
 
 
 def test_a_month_precision_date_is_escaped():
-    anime = Anime(anime_name_en="X", release_date="2024-05")
-    assert _cell(Anime, anime, "release_date") == "'2024-05"
+    anime = Anime(anime_name_en="X", release_date_jp="2024-05")
+    assert _cell(Anime, anime, "release_date_jp") == "'2024-05"
 
 
 def test_a_year_only_date_is_escaped():
-    anime = Anime(anime_name_en="X", release_date="2024")
-    assert _cell(Anime, anime, "release_date") == "'2024"
+    anime = Anime(anime_name_en="X", release_date_jp="2024")
+    assert _cell(Anime, anime, "release_date_jp") == "'2024"
 
 
 def test_an_empty_date_is_not_escaped():
-    anime = Anime(anime_name_en="X", release_date=None)
-    assert _cell(Anime, anime, "release_date") == ""
+    anime = Anime(anime_name_en="X", release_date_jp=None)
+    assert _cell(Anime, anime, "release_date_jp") == ""
 
 
 def test_both_regional_columns_are_escaped():
@@ -44,7 +44,7 @@ def test_both_regional_columns_are_escaped():
 
 
 def test_a_non_date_column_is_untouched():
-    anime = Anime(anime_name_en="Cowboy Bebop", release_date="1998-04")
+    anime = Anime(anime_name_en="Cowboy Bebop", release_date_jp="1998-04")
     assert _cell(Anime, anime, "anime_name_en") == "Cowboy Bebop"
 
 

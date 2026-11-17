@@ -446,8 +446,13 @@ export default function TV() {
                       label: "Total Ep",
                       value: show.ep_total != null ? String(show.ep_total) : null,
                     },
+                    {
+                      label: "Runtime (min)",
+                      value: show.runtime_min != null ? String(show.runtime_min) : null,
+                    },
                   ],
                   [
+                    { label: "Airing Type", value: show.airing_type },
                     { label: "Airing Status", value: show.airing_status },
                     { label: "Release Date", value: show.release_date },
                   ],

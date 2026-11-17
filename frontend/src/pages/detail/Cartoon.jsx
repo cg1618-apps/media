@@ -452,8 +452,8 @@ export default function Cartoon() {
                     {
                       label: "Runtime Per Ep (min)",
                       value:
-                        cartoon.length_ep_min != null
-                          ? String(cartoon.length_ep_min)
+                        cartoon.runtime_min != null
+                          ? String(cartoon.runtime_min)
                           : null,
                     },
                   ],

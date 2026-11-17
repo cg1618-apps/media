@@ -176,12 +176,11 @@ export default function Anime() {
     ? series.series_name_cn || series.series_name_en || series.series_name_alt
     : null;
 
+  // The season names the JP broadcast, so its year is the JP date's.
   const releaseSeasonYear =
-    anime.release_season && anime.release_date
-      ? `${anime.release_season} ${releaseYear(anime.release_date)}`
+    anime.release_season && anime.release_date_jp
+      ? `${anime.release_season} ${releaseYear(anime.release_date_jp)}`
       : anime.release_season || null;
-  // Shown verbatim: a year-only date must not be dressed up as a month.
-  const releaseDate = anime.release_date || null;
 
   const eyebrow = [
     "Anime",
@@ -431,12 +430,22 @@ export default function Anime() {
                     { label: "Season Part", value: anime.season_part },
                     { label: "Special Episodes", value: anime.ep_special },
                     { label: "Total Episodes", value: epTotalDisplay },
+                    {
+                      label: "Runtime (min)",
+                      value:
+                        anime.runtime_min != null ? String(anime.runtime_min) : null,
+                    },
                   ],
                   [
                     { label: "Airing Type", value: anime.airing_type },
                     { label: "Airing Status", value: anime.airing_status },
                     { label: "Release Season", value: releaseSeasonYear },
-                    { label: "Release Date", value: releaseDate },
+                  ],
+                  // Shown verbatim: a year-only date must not be dressed up
+                  // as a month.
+                  [
+                    { label: "Release Date JP", value: anime.release_date_jp || null },
+                    { label: "Release Date TW", value: anime.release_date_tw || null },
                   ],
                   { label: "Genre (Main)", value: anime.genre_main },
                   { label: "Genre (Sub)", value: anime.genre_sub },

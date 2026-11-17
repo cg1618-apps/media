@@ -6,10 +6,10 @@ from app.services.domain.seasonal import create_missing_seasonal
 
 def test_seasonal_entries_are_created_from_release_date(db_session):
     db_session.add(
-        Anime(anime_name_en="Test A", release_season="WIN", release_date="2026-01")
+        Anime(anime_name_en="Test A", release_season="WIN", release_date_jp="2026-01")
     )
     db_session.add(
-        Anime(anime_name_en="Test B", release_season="SUM", release_date="2025")
+        Anime(anime_name_en="Test B", release_season="SUM", release_date_jp="2025")
     )
     db_session.commit()
 
@@ -22,7 +22,7 @@ def test_seasonal_entries_are_created_from_release_date(db_session):
 
 def test_an_anime_with_no_release_date_creates_no_seasonal(db_session):
     db_session.add(
-        Anime(anime_name_en="Test C", release_season="WIN", release_date=None)
+        Anime(anime_name_en="Test C", release_season="WIN", release_date_jp=None)
     )
     db_session.commit()
 
@@ -38,7 +38,7 @@ def test_the_airing_season_filter_matches_on_the_year_prefix(client, db_session)
         Anime(
             anime_name_en="Filter Me",
             release_season="WIN",
-            release_date="2026-01-15",
+            release_date_jp="2026-01-15",
         )
     )
     db_session.commit()

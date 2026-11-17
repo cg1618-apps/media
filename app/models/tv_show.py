@@ -58,10 +58,14 @@ class TVShows(Base, NameFallbackMixin):
 
     region = Column(String, nullable=True)
     season_part = Column(String, nullable=True)
+    # TV_SHOW_AIRING_TYPES; a show is a TV season unless it says otherwise.
+    airing_type = Column(String, nullable=True, default="TV", server_default="TV")
     airing_status = Column(String, nullable=True)
     is_main = Column(String, nullable=True)
 
     ep_total = Column(Integer, nullable=True)
+    # Minutes per episode.
+    runtime_min = Column(Integer, nullable=True)
 
     # A season's own rating (its episodes' mean); the show's is beside it.
     imdb_rating = Column(String, nullable=True)

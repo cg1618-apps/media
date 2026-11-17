@@ -49,14 +49,14 @@ def create_missing_seasonal(db: Session) -> None:
     Ensure every user has a row for every season the catalogue mentions.
 
     The seasons are a CATALOGUE fact - they come from anime.release_season and
-    the year prefix of anime.release_date - but a seasonal row is a PER-USER
+    the year prefix of anime.release_date_jp - but a seasonal row is a PER-USER
     fact, so it is the cross product that has to exist. A user with nothing in
     that season gets a row of zeroes, which is what the Seasonal page shows.
     """
-    year_expr = func.substr(Anime.release_date, 1, 4)
+    year_expr = func.substr(Anime.release_date_jp, 1, 4)
     unique_combinations = (
         db.query(Anime.release_season, year_expr)
-        .filter(Anime.release_season.isnot(None), Anime.release_date.isnot(None))
+        .filter(Anime.release_season.isnot(None), Anime.release_date_jp.isnot(None))
         .distinct()
         .all()
     )
@@ -117,21 +117,21 @@ def sync_seasonal_counts(db: Session) -> None:
             UserMediaList.user_id,
             UserMediaList.status,
             Anime.release_season,
-            Anime.release_date,
+            Anime.release_date_jp,
         )
         .join(Media, Media.system_id == UserMediaList.media_id)
         .join(Anime, Anime.system_id == Media.system_id)
         .filter(
             Media.media_type == "anime",
             Anime.release_season.isnot(None),
-            Anime.release_date.isnot(None),
+            Anime.release_date_jp.isnot(None),
             Anime.airing_type.in_(list(_SEASONAL_AIRING_TYPES)),
         )
         .all()
     )
 
-    for user_id, status, release_season, release_date in rows:
-        s = seasonal_map.get((user_id, f"{release_season} {str(release_date)[:4]}"))
+    for user_id, status, release_season, release_date_jp in rows:
+        s = seasonal_map.get((user_id, f"{release_season} {str(release_date_jp)[:4]}"))
         if not s:
             continue
         if status in COMPLETED_WATCH_STATUSES:

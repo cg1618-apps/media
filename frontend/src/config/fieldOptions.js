@@ -183,7 +183,9 @@ export const ANIME_AIRING_TYPES = [
   "Other",
 ];
 
-export const CARTOON_AIRING_TYPES = ["TV", "Movie", "OVA", "Special"];
+export const CARTOON_AIRING_TYPES = ["TV", "Movie", "Special"];
+
+export const TV_SHOW_AIRING_TYPES = ["TV", "Special"];
 
 export const MOVIE_TYPES = ["Reality", "Animation"];
 
@@ -512,6 +514,7 @@ export const CONSTANTS_FALLBACK = {
   anime_movie_release_type: ANIME_MOVIE_RELEASE_TYPES,
   anime_airing_type: ANIME_AIRING_TYPES,
   cartoon_airing_type: CARTOON_AIRING_TYPES,
+  tv_show_airing_type: TV_SHOW_AIRING_TYPES,
   franchise_type: FRANCHISE_TYPES,
   franchise_expectation: FRANCHISE_EXPECTATIONS,
   my_rating: MY_RATINGS,

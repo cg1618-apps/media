@@ -38,11 +38,11 @@ def anime_season_counts(db: Session, viewer: Optional[Viewer]) -> list[dict]:
     One row per season present among the anime the viewer may see, newest
     first: `{"season": "SPR 2024", "entry_count": 3}`.
 
-    A season is `release_season` plus the year of `release_date`, the same
+    A season is `release_season` plus the year of `release_date_jp`, the same
     pair `?airing_season=` filters the anime list on (registry.py). An anime
     missing either is in no season.
     """
-    year = func.substr(models.Anime.release_date, 1, 4)
+    year = func.substr(models.Anime.release_date_jp, 1, 4)
     query = db.query(
         models.Anime.release_season, year, func.count(models.Anime.system_id)
     )
@@ -50,8 +50,8 @@ def anime_season_counts(db: Session, viewer: Optional[Viewer]) -> list[dict]:
     rows = (
         query.filter(
             models.Anime.release_season.isnot(None),
-            models.Anime.release_date.isnot(None),
-            func.length(models.Anime.release_date) >= 4,
+            models.Anime.release_date_jp.isnot(None),
+            func.length(models.Anime.release_date_jp) >= 4,
         )
         .group_by(models.Anime.release_season, year)
         .all()

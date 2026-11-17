@@ -27,10 +27,12 @@ function seasonRawToKey(raw) {
 }
 
 function getAnimeSeasonKey(anime) {
-  const year = releaseYear(anime.release_date) || null;
+  // The season names the JP broadcast, so only the JP year pairs with it.
+  const jpYear = releaseYear(anime.release_date_jp) || null;
   const season = anime.release_season;
-  if (year && season && SEASON_ORDER[season] !== undefined)
-    return `S_${year}_${SEASON_ORDER[season]}`;
+  if (jpYear && season && SEASON_ORDER[season] !== undefined)
+    return `S_${jpYear}_${SEASON_ORDER[season]}`;
+  const year = jpYear || releaseYear(anime.release_date_tw) || null;
   if (year) return `Y_${year}`;
   return "Z_TBD";
 }
@@ -55,7 +57,8 @@ function isFutureRelease(entry, currentSeasonKey) {
 
 function getEntryYear(entry) {
   if (entry._type === "anime") {
-    return releaseYear(entry.release_date) ? String(releaseYear(entry.release_date)) : "TBD";
+    const year = releaseYear(entry.release_date_jp || entry.release_date_tw);
+    return year ? String(year) : "TBD";
   }
   if (entry._type === "anime_movie") {
     const d = entry.release_date_jp || entry.release_date_tw;

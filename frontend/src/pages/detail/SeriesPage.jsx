@@ -79,8 +79,9 @@ function getWatchingGroup(status) {
   return "Might Watch";
 }
 
+// JP first, matching the stored release priority for anime.
 function animeDateScore(a) {
-  return releaseScore(a.release_date);
+  return releaseScore(a.release_date_jp || a.release_date_tw);
 }
 
 // TW first, matching the stored release priority for movies.

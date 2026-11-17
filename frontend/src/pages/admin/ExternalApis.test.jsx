@@ -53,7 +53,7 @@ const PAYLOAD = {
           source: "tenrai",
           label: "Tenrai (MyAnimeList)",
           writes: [
-            { field: "release_date", target: "column", rule: "fill-only", note: "" },
+            { field: "release_date_jp", target: "column", rule: "fill-only", note: "" },
             { field: "mal_rating", target: "column", rule: "overwrite", note: "" },
           ],
         },
@@ -114,7 +114,7 @@ describe("ExternalApis", () => {
   it("marks the overwritten field differently from the fill-only one", async () => {
     renderPage();
     const overwritten = await screen.findByTestId("write-anime-mal_rating");
-    const filled = screen.getByTestId("write-anime-release_date");
+    const filled = screen.getByTestId("write-anime-release_date_jp");
     expect(within(overwritten).getByText(/overwrite/i)).toBeInTheDocument();
     expect(within(filled).getByText(/fill-only/i)).toBeInTheDocument();
   });

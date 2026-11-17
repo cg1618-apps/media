@@ -243,9 +243,10 @@ def apply_extract_season_from_title(entry: Union[Anime, TVShows, Cartoon]) -> bo
 
 def apply_calculate_seasonal_from_month(anime: Anime) -> bool:
     """
-    Fills release_season from the month component of release_date.
+    Fills release_season from the month component of release_date_jp - the
+    season is the Japanese airing's.
 
-    Only fires when release_date carries month-or-better precision and no
+    Only fires when release_date_jp carries month-or-better precision and no
     season is already set. A year-only date leaves the season exactly as it
     is: autofill writes release_season straight from the Tenrai response,
     independently of any month, so an anime can legitimately carry a season
@@ -255,10 +256,10 @@ def apply_calculate_seasonal_from_month(anime: Anime) -> bool:
     """
     if anime.release_season is not None:
         return False
-    if not anime.release_date or len(str(anime.release_date)) < 7:
+    if not anime.release_date_jp or len(str(anime.release_date_jp)) < 7:
         return False
 
-    key = release_date.sort_key(anime.release_date)
+    key = release_date.sort_key(anime.release_date_jp)
     if key is None:
         return False
 
