@@ -440,3 +440,11 @@ class TestAnimeRuntimeBand:
 
     def test_no_duration_maps_to_no_runtime(self):
         assert map_tenrai_to_anime_data({})["runtime_min"] is None
+
+    @pytest.mark.parametrize("mal_minutes", [22, 24, 26])
+    def test_a_movie_keeps_mal_minutes_inside_the_band(self, mal_minutes):
+        # A film's length is its own, not a TV slot: the band skips a Movie.
+        raw = make_full_tenrai_response()
+        raw["type"] = "Movie"
+        raw["duration"] = f"{mal_minutes} min"
+        assert map_tenrai_to_anime_data(raw)["runtime_min"] == mal_minutes

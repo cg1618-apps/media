@@ -5359,9 +5359,10 @@ shown buttons that answered 401.
   same length read as different. Checked against 50 real Tenrai records:
   normal TV series sat at 23 (Kimetsu no Yaiba, Naruto, Death Note), 24, 25
   (Bakemonogatari, GTO) and 26 (Angel Beats!), and none landed just outside.
-  The band is `TV_EPISODE_BAND` in `tenrai_utils.py`, applies to autofill
-  only, and applies whatever the entry's type: a movie listed per segment at
-  22 minutes (Byousoku 5 Centimeter) is stored as 24 too.
+  The band is `TV_EPISODE_BAND` in `tenrai_utils.py` and applies to autofill
+  only. **A `Movie` skips it** (the owner's call): a film's length is its own,
+  not a TV slot, so a movie MAL lists at 22 minutes (Byousoku 5 Centimeter)
+  stays 22. As with the TW date, the entry's own `airing_type` decides.
 - **A TV show's airing type is `TV` or `Special`, default `TV`.** The column
   carries a server default, so every existing show became `TV` when it was
   added, and a sheet with no such header restores new shows as `TV`.

@@ -145,6 +145,27 @@ class TestAnimeRuntimeFill:
         autofill_anime_from_mal(anime)
         assert anime.runtime_min == 24
 
+    def test_a_movie_keeps_mal_minutes(self, monkeypatch):
+        # The entry's own airing type decides, as for the TW date: MAL calls
+        # this a TV series, the entry is typed Movie, so 22 stays 22.
+        result = {**ANIME_RESULT, "duration": "22 min per ep"}
+        monkeypatch.setattr(
+            autofill_module, "fetch_tenrai_anime_data", lambda mal_id: result
+        )
+        anime = make_anime(airing_type="Movie")
+        autofill_anime_from_mal(anime)
+        assert anime.runtime_min == 22
+
+    def test_a_series_at_22_is_stored_as_24(self, monkeypatch):
+        # The mirror: same record, entry typed TV, so the band applies.
+        result = {**ANIME_RESULT, "duration": "22 min per ep"}
+        monkeypatch.setattr(
+            autofill_module, "fetch_tenrai_anime_data", lambda mal_id: result
+        )
+        anime = make_anime(airing_type="TV")
+        autofill_anime_from_mal(anime)
+        assert anime.runtime_min == 24
+
     def test_does_not_overwrite_a_typed_runtime(self, patched_anime):
         anime = make_anime(runtime_min=23)
         autofill_anime_from_mal(anime)

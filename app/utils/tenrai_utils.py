@@ -178,7 +178,9 @@ def _aired_release_date(aired: Optional[Dict[str, Any]]) -> Optional[str]:
 # (sampled: 23 for Kimetsu no Yaiba and Naruto, 25 for Bakemonogatari, 26 for
 # Angel Beats!). A duration inside this band, inclusive, is stored as
 # TV_EPISODE_MINUTES so those entries read alike; one outside it is stored as
-# MAL gives it. Autofill only: a runtime typed by hand is stored as typed.
+# MAL gives it. A Movie skips the band: a film's length is its own, not a TV
+# slot, so MAL's minutes are kept. Autofill only: a runtime typed by hand is
+# stored as typed.
 TV_EPISODE_BAND = (22, 26)
 TV_EPISODE_MINUTES = 24
 
@@ -205,11 +207,14 @@ def parse_mal_duration_minutes(text: Optional[str]) -> Optional[int]:
     return max(1, (seconds + 30) // 60)
 
 
-def _runtime_min(duration: Optional[str]) -> Optional[int]:
-    """The anime's runtime_min from MAL's duration, with the TV band applied."""
+def anime_runtime_min(duration: Optional[str], airing_type: Optional[str]) -> Optional[int]:
+    """
+    The anime's runtime_min from MAL's duration: the TV band applied, except
+    on a Movie, which keeps MAL's minutes.
+    """
     minutes = parse_mal_duration_minutes(duration)
-    if minutes is None:
-        return None
+    if minutes is None or airing_type == "Movie":
+        return minutes
     low, high = TV_EPISODE_BAND
     return TV_EPISODE_MINUTES if low <= minutes <= high else minutes
 
@@ -259,7 +264,7 @@ def map_tenrai_to_anime_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
         # and autofill_anime_from_mal for where TW is decided per entry.
         "release_date_jp": release_date,
         "release_date_tw": anime_release_date_tw(release_date, airing_type),
-        "runtime_min": _runtime_min(raw_data.get("duration")),
+        "runtime_min": anime_runtime_min(raw_data.get("duration"), airing_type),
         "mal_rating": raw_data.get("score"),
         "mal_rank": mal_rank,
         "ep_total": raw_data.get("episodes"),

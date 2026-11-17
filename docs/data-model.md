@@ -301,7 +301,7 @@ Model: `Anime`. CHECKs: `ck_anime_release_date_jp_iso`,
 | `ep_previous` | Integer | yes | | Episodes accumulated by prequels; **derived** by `derive_ep_previous_all_anime` after Fill/Replace. |
 | `ep_total` | Integer | yes | | |
 | `ep_special` | Float | yes | | The episode number a special sits at (0, 14.5) - a position, not a count. Part of the duplicate key. |
-| `runtime_min` | Integer | yes | | Minutes per episode. Fill writes MAL's duration, 22 to 26 stored as 24 |
+| `runtime_min` | Integer | yes | | Minutes per episode. Fill writes MAL's duration, 22 to 26 stored as 24 except on a `Movie` |
 | `mal_rating` | Float | yes | | From Tenrai |
 | `mal_rank` | String | yes | | From Tenrai |
 | `anilist_rating` | Integer | yes | | AniList `averageScore`, keyed on `mal_id`. From AniList - see [external-apis.md](external-apis.md#anilist) |

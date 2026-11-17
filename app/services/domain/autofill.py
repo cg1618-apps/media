@@ -81,6 +81,7 @@ from app.utils.steam_utils import (
 )
 from app.utils.tenrai_utils import (
     anime_release_date_tw,
+    anime_runtime_min,
     map_tenrai_credits,
     map_tenrai_to_anime_data,
     map_tenrai_to_anime_movie_data,
@@ -221,8 +222,11 @@ def autofill_anime_from_mal(
             )
         if anime.ep_total is None:
             anime.ep_total = j_data.get("ep_total")
+        # The runtime band skips a Movie, decided by the entry's type too.
         if anime.runtime_min is None:
-            anime.runtime_min = j_data.get("runtime_min")
+            anime.runtime_min = anime_runtime_min(
+                raw_data.get("duration"), anime.airing_type
+            )
         _write_tenrai_reference_rows(db, "anime", anime, j_data)
         _write_mal_credits(db, "anime", anime, raw_data)
 
