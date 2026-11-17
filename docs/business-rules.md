@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-11-14
+Last verified: 2026-11-17
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -941,37 +941,31 @@ seasons with seasons.
 
 ## 11. Remark as a note (`remark_field.py`)
 
-`remark` is no longer a column on the owner tables: it is the `note` row with
-`section = "remark"` for that owner **and that author**.
+`remark` is not a column on the owner tables: it is the `note` row with
+`section = "remark"` for that owner.
 
-**A remark belongs to its author.** It is a personal-scope
-section, so two accounts may each hold one on the same entry and each reads
-back their own; a viewer with none reads `null`, never somebody else's.
+**A remark is the catalogue's.** It is a catalogue-scope singleton - one
+shared row per owner, enforced by `ix_note_one_remark_per_owner` - written
+under `manage.catalog` and read by everyone who can see the owner, a
+logged-out visitor included. A viewer's own short notes on an owner go in
+備註列表 `remark_list`, which is personal.
 
-- `attach_remark(db, owner_type, entries, user_id)` is the read. One query per
-  page, filtered on `note.author_id`, called beside the other `attach_*`
-  helpers on every read path: the ten detail routes and the list route in
-  `routers/_factory.py`, and the collection / franchise / series routers.
-  `remark` is a **plain attribute**, defaulted to `None` on the class, so a
-  path that forgets the call serialises null rather than raising — and shows
-  nothing rather than the wrong thing.
+- `attach_remark(db, owner_type, entries)` is the read. One query per page,
+  the same for every viewer, called beside the other `attach_*` helpers on
+  every read path: the detail routes and the list route in
+  `routers/_factory.py`, the card lists through `entry_fields`, and the
+  collection / franchise / series routers. `remark` is a **plain
+  attribute**, defaulted to `None` on the class, so a path that forgets the
+  call serialises null rather than raising.
 - `pop_remark(payload)` → `(rest, value, was_present)`. A PATCH that never
   mentions `remark` leaves the note alone; a PUT that sends `null` clears it.
-- `upsert_remark(db, owner_type, owner_id, text, author_id)` finds **this
-  author's** row, not the first one for the owner. Empty / whitespace-only
-  text **deletes** it (no blank sections on the notes page); otherwise update
-  in place (stamping `updated_at`) or insert with `sort_index = 0.0`. Text is
-  stored as typed — only the emptiness test is stripped.
-
-**The index and the read path are one mechanism.** A class-level
-`column_property` is a scalar subquery and cannot know who is asking, so it
-would serve one person's private assessment to everybody — and
-`ix_note_one_remark_per_owner` would have to be per-OWNER to keep that
-subquery single-valued, which makes the database refuse a second account's
-remark outright. Relaxing the index without a viewer-aware read turns that
-**loud refusal into an accepted-then-invisible write**, which is a data-loss
-shape and strictly worse than doing neither. Change one and you change both,
-in the same commit.
+- `upsert_remark(db, owner_type, owner_id, text, author_id)` finds the
+  owner's one row, whoever wrote it. Empty / whitespace-only text **deletes**
+  it (no blank sections on the notes page); otherwise update in place
+  (stamping `updated_at`, keeping the row's `author_id`) or insert with
+  `sort_index = 0.0` and `author_id` the writer. Text is stored as typed —
+  only the emptiness test is stripped. Every caller sits behind
+  `manage.catalog`: the owner's create, update and patch routes.
 
 ## 12. Hierarchy resolution (`hierarchy.py`)
 

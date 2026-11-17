@@ -71,8 +71,8 @@ beforeEach(() => {
           expectation: body.expectation ?? franchise.franchise_expectation ?? null,
         });
       }
-      if (init.method === "PUT" && u.startsWith("/api/me/remarks/")) {
-        return jsonRes({ remark: JSON.parse(init.body).remark });
+      if (init.method === "PATCH" && u.startsWith("/api/franchise/FR001")) {
+        return jsonRes({ ...franchise, ...JSON.parse(init.body) });
       }
       if (u.startsWith("/api/franchise/FR001")) return jsonRes(franchise);
       if (u.startsWith("/api/game/")) return jsonRes(GAMES);
@@ -250,46 +250,53 @@ describe("FranchisePage for a guest", () => {
   });
 });
 
-// The hero remark is the viewer's own: a holder of self.list writes it through
-// /api/me/remarks, never the catalogue's PATCH. The franchise carries a remark
-// in both cases, so the box's absence without self.list is the permission's
-// doing and not an empty row's.
-describe("FranchisePage own remark", () => {
+// The hero remark is the catalogue's: a holder of manage.catalog edits it
+// through the franchise's own PATCH; everyone else reads it, read-only, once
+// one exists. The read-only cases carry the same remark the editor edits.
+describe("FranchisePage remark", () => {
+  const EDITOR = { username: "editor", role: "super", is_admin: true, permissions: ["manage.catalog"] };
   const LISTER = { username: "reader", role: "user", is_admin: false, permissions: ["self.list"] };
-  const NO_LIST = { ...LISTER, permissions: [] };
   const remarked = { ...FRANCHISE, remark: "Watch the films first." };
-  const remarkBox = () => screen.queryByPlaceholderText(/Private overview notes/);
-  const putCalls = () =>
-    fetch.mock.calls.filter(
-      ([url, init]) => init?.method === "PUT" && String(url).startsWith("/api/me/remarks/"),
-    );
-  const patchCalls = () => fetch.mock.calls.filter(([, init]) => init?.method === "PATCH");
+  const remarkBox = () => screen.queryByPlaceholderText(/Overview notes/);
+  const writes = () =>
+    fetch.mock.calls.filter(([, init]) => init?.method === "PATCH" || init?.method === "PUT");
 
-  it("lets a holder of self.list edit it, saved through /api/me/remarks", async () => {
+  it("lets an editor edit it, saved through the franchise's PATCH", async () => {
     franchise = remarked;
-    me = LISTER;
+    me = EDITOR;
     renderPage();
-    const box = await screen.findByPlaceholderText(/Private overview notes/);
+    const box = await screen.findByPlaceholderText(/Overview notes/);
     expect(box).toHaveValue("Watch the films first.");
-    expect(box).toBeEnabled();
+    expect(box).not.toHaveAttribute("readonly");
 
     await userEvent.clear(box);
     await userEvent.type(box, "Start with the games.");
     fireEvent.blur(box);
-    await waitFor(() => expect(putCalls()).toHaveLength(1));
-    expect(putCalls()[0][0]).toBe("/api/me/remarks/franchise/FR001");
-    expect(JSON.parse(putCalls()[0][1].body)).toEqual({ remark: "Start with the games." });
+    await waitFor(() => expect(writes()).toHaveLength(1));
+    expect(writes()[0][0]).toBe("/api/franchise/FR001");
+    expect(writes()[0][1].method).toBe("PATCH");
+    expect(JSON.parse(writes()[0][1].body)).toEqual({ remark: "Start with the games." });
 
     await userEvent.clear(box);
     fireEvent.blur(box);
-    await waitFor(() => expect(putCalls()).toHaveLength(2));
-    expect(JSON.parse(putCalls()[1][1].body)).toEqual({ remark: null });
-    expect(patchCalls()).toHaveLength(0);
+    await waitFor(() => expect(writes()).toHaveLength(2));
+    expect(JSON.parse(writes()[1][1].body)).toEqual({ remark: null });
   });
 
-  it("does not draw the box without self.list", async () => {
+  it("shows a member the remark read-only and saves nothing", async () => {
     franchise = remarked;
-    me = NO_LIST;
+    me = LISTER;
+    renderPage();
+    const box = await screen.findByPlaceholderText(/Overview notes/);
+    expect(box).toHaveValue("Watch the films first.");
+    expect(box).toHaveAttribute("readonly");
+    fireEvent.blur(box);
+    expect(writes()).toHaveLength(0);
+  });
+
+  it("draws no box for a non-editor when the franchise has no remark", async () => {
+    franchise = FRANCHISE;
+    me = LISTER;
     renderPage();
     expect(await screen.findByRole("button", { name: /^Game\s*2$/ })).toBeInTheDocument();
     expect(remarkBox()).toBeNull();

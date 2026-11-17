@@ -1,14 +1,12 @@
 """
-Write-through for the `remark` field.
+Write-through and read-back for the `remark` field.
 
-`remark` is no longer a column on the ten owner tables: it is the singleton
-`remark` row in `note`. The Add form, the Modify form and the hub RemarkModal
-still post a plain `remark` string to the owner's own endpoint, so every write
-path pops it out of the payload and lands it here instead.
-
-Reads go the other way, through the `remark` column_property attached in
-app/models/__init__.py. That property is read-only by construction, which is
-why assigning to it must never be attempted.
+An entry's or a group's `remark` is the singleton catalogue `remark` row in
+`note`, not a column on the owner tables. The Add form, the Modify form and
+the detail pages post a plain `remark` string to the owner's own endpoint,
+behind manage.catalog, so every write path pops it out of the payload and
+lands it here (upsert_remark). Reads attach it per request (attach_remark),
+onto the plain `remark` attribute app/models/__init__.py defaults to None.
 """
 
 import uuid
@@ -65,12 +63,12 @@ def upsert_remark(
     one, so a cleared remark leaves no empty section on the notes page. The
     text itself is stored as typed - only the emptiness test is stripped.
 
-    `remark` is a personal-scope section, so a row belongs to its author and
-    this looks up THIS author's row - not the first one for the owner. That
-    author filter is half of decision 12 and must not be removed without the
-    other half: ix_note_one_remark_per_owner is per-owner-per-author now, so
-    without it a second account's write would silently overwrite the first
-    account's remark instead of creating its own.
+    `remark` is a catalogue-scope section: one shared row per owner, which
+    ix_note_one_remark_per_owner enforces. So this looks the row up by owner
+    alone, and whoever writes it edits that one row. `author_id` is stamped on
+    a row this creates and left alone on one it edits, as every catalogue note
+    keeps the account that first wrote it. Every caller sits behind
+    manage.catalog; this function does not check it.
     """
     owner_columns = _owner_columns(owner_type, owner_id)
     row = (
@@ -78,7 +76,6 @@ def upsert_remark(
         .filter(
             *[getattr(Note, name) == value for name, value in owner_columns.items()],
             Note.section == REMARK_SECTION,
-            Note.author_id == author_id,
         )
         .first()
     )
@@ -110,35 +107,27 @@ def upsert_remark(
 # ---------------------------------------------------------------------------
 
 
-def attach_remark(db: Session, owner_type: str, entries, user_id) -> None:
+def attach_remark(db: Session, owner_type: str, entries) -> None:
     """
-    Set `remark` on one entry or a page of them, filtered to this viewer.
+    Set `remark` on one entry or a page of them.
 
-    `remark` is a personal-scope section, so it belongs to its author. It used
-    to be a class-level column_property on the ten owner models, and a scalar
-    subquery cannot know who is asking - so one person's private assessment
-    was served to everybody, and the database refused a second account's
-    remark outright to keep that subquery single-valued. Decision 12 replaced
-    both halves at once.
+    `remark` is a catalogue-scope section, so every viewer - a logged-out one
+    included - reads the same row. Whether the viewer may see the owner at all
+    is the calling route's check, made before this runs.
 
     ONE query for the whole page, never one per entry - the rule
     attach_list_fields and attach_link_fields already follow.
 
     Every entry is blanked FIRST and then filled from the query. An entry the
     query does not match must read None, not keep whatever a previous request
-    left on a cached instance - and `remark` is a plain attribute now, not a
+    left on a cached instance - and `remark` is a plain attribute, not a
     mapped column, so nothing else would clear it.
-
-    A viewer with no remark, and a guest (user_id None), get None. Never
-    somebody else's.
     """
     rows = entries if isinstance(entries, list) else [entries]
     if not rows:
         return
     for entry in rows:
         entry.remark = None
-    if user_id is None:
-        return
 
     column = _TIER_COLUMNS.get(owner_type, "media_id")
     ids = [entry.system_id for entry in rows]
@@ -148,7 +137,6 @@ def attach_remark(db: Session, owner_type: str, entries, user_id) -> None:
         for owner_id, content in db.query(owner_column, Note.content).filter(
             owner_column.in_(ids),
             Note.section == REMARK_SECTION,
-            Note.author_id == user_id,
         )
     }
     for entry in rows:

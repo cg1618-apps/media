@@ -118,11 +118,11 @@ def test_upsert_leaves_other_sections_alone(db_session, sample_anime, owner_user
 
 def test_a_second_remark_row_is_rejected_by_the_database(db_session, sample_anime, owner_user):
     """
-    The singleton rule is load-bearing, not advisory: the read side is a scalar
-    subquery, so two remark rows for one owner would make every read of that
-    anime raise. `ix_note_one_remark_per_owner` is declared on the model as well
-    as in revision r1e2m3a4r5k6, so it reaches this create_all-built schema too -
-    if that declaration is ever lost, this test fails.
+    The singleton rule is load-bearing, not advisory: upsert_remark and
+    attach_remark both read one row per owner. `ix_note_one_remark_per_owner`
+    is declared on the model as well as in revision r1e2mcatalog3, so it
+    reaches this create_all-built schema too - if that declaration is ever
+    lost, this test fails.
     """
     upsert_remark(db_session, "anime", sample_anime.system_id, "the one remark", owner_user.id)
     db_session.flush()

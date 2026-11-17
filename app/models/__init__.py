@@ -167,33 +167,21 @@ __all__ = [
 # ---------------------------------------------------------------------------
 # `remark`, read side
 # ---------------------------------------------------------------------------
-# `remark` used to be a Text column on each of these ten tables, then the
-# singleton `remark` row in `note` mapped back on with a scalar-subquery
-# column_property. That property is GONE as of decision 12.
-#
-# It could not be made per-viewer. `remark` is a personal-scope section, so a
-# row belongs to its author, and a class-level scalar subquery cannot know who
-# is asking - it served one person's private assessment to everybody, and it
-# forced ix_note_one_remark_per_owner to stay per-owner so the subquery could
-# never return two rows, which in turn made the database refuse a second
-# account's remark outright.
-#
-# The read is now per request:
-#     app.services.domain.remark_field.attach_remark(db, owner_type, entries,
-#                                                    user_id)
-# called beside the other attach_* helpers on every read path - the nine
-# detail routes and the list route in routers/_factory.py, and the three tier
-# routers. One query per page, filtered by author.
+# `remark` is the singleton catalogue `remark` row in `note`, not a column on
+# these tables. It is read per request:
+#     app.services.domain.remark_field.attach_remark(db, owner_type, entries)
+# called beside the other attach_* helpers on every read path - the detail
+# routes and the list route in routers/_factory.py, entry_fields for the card
+# lists, and the three tier routers. One query per page.
 #
 # `remark` is therefore a PLAIN attribute, not a mapped one. It is defaulted
 # to None on the class below so that every response schema can read it even on
-# a path that forgot to attach it: a missing remark must serialise as null,
-# never raise, and never show somebody else's. A path that forgets the call
-# shows nothing rather than the wrong thing - the fail-safe direction.
+# a path that forgot to attach it: a missing remark serialises as null and
+# never raises.
 #
-# One consequence worth knowing: `Model.remark` is no longer a SQL expression,
-# so it cannot appear in a filter or an order_by. find_all_remarks queries
-# `note` directly for exactly that reason.
+# One consequence worth knowing: `Model.remark` is not a SQL expression, so it
+# cannot appear in a filter or an order_by. find_all_remarks queries `note`
+# directly for exactly that reason.
 from sqlalchemy import select  # noqa: E402
 from sqlalchemy.orm import column_property  # noqa: E402
 

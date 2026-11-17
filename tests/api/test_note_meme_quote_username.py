@@ -128,12 +128,12 @@ def _remark(owner_id, content, username):
     return ["", "anime", str(owner_id), "remark", content, "0", username]
 
 
-def test_two_accounts_remarks_on_one_entry_come_back_as_two_rows(
+def test_two_sheet_remarks_on_one_entry_fold_into_its_one_row(
     db, sheets, sample_anime, owner_user, kana
 ):
-    """remark is one row per owner PER AUTHOR. Once authors round-trip, the
-    remark fold in Pull must match on the author too - or the second remark
-    is written over the first."""
+    """remark is one catalogue row per owner, whoever wrote it, so a second
+    remark row in the sheet for the same entry folds onto the first rather
+    than failing the tab on ix_note_one_remark_per_owner."""
     owner = sample_anime.system_id
     sheets({
         "Note": [
@@ -146,23 +146,23 @@ def test_two_accounts_remarks_on_one_entry_come_back_as_two_rows(
     result = pull.execute_pull_specific(db, "Note", log_action=False)
 
     assert result["status"] == "success"
-    remarks = {
-        n.author_id: n.content
+    remarks = [
+        n.content
         for n in db.query(models.Note).filter(
             models.Note.media_id == owner, models.Note.section == "remark"
         )
-    }
-    assert remarks == {owner_user.id: "admin's remark", kana.id: "kana's remark"}
+    ]
+    assert remarks == ["kana's remark"]
 
 
-def test_a_remark_folds_onto_the_same_authors_local_row(
-    db, sheets, sample_anime, kana
+def test_a_remark_folds_onto_the_local_row_whoever_wrote_it(
+    db, sheets, sample_anime, owner_user, kana
 ):
-    """The fold itself still works: kana's remark in the sheet, with a stale
-    system_id, updates kana's local remark in place."""
+    """The local remark is the owner account's, the sheet's is kana's, with a
+    stale system_id: it updates the one local row in place."""
     owner = sample_anime.system_id
     local = models.Note(
-        author_id=kana.id, media_id=owner, section="remark",
+        author_id=owner_user.id, media_id=owner, section="remark",
         content="local", sort_index=0,
     )
     db.add(local)

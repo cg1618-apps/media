@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-11-16
+Last verified: 2026-11-17
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -1741,23 +1741,19 @@ returns; see [systems/notes.md](systems/notes.md#scope) and
 
 Indexes: `ix_note_owner_section` (the four owner columns + `section`) - the
 notes page's only read path; **`ix_note_one_remark_per_owner`** - partial
-UNIQUE over the four owner columns **plus `author_id`**, **NULLS NOT
-DISTINCT**, `WHERE section = 'remark'`; **`ix_note_one_music_status_per_kind`**
+UNIQUE over the four owner columns, **NULLS NOT DISTINCT**,
+`WHERE section = 'remark'`; **`ix_note_one_music_status_per_kind`**
 - partial UNIQUE over `(media_id, kind)`, `WHERE section = 'music_status'`,
 because each song list of an anime has one row for its status to hang on
 (and `music_status` is anime-only, so `media_id` is the whole owner). The
 status itself is each viewer's own note mark.
 
-The second is keyed per owner **per author**, because `remark` is a
-personal-scope section: two accounts may each hold one on the same entry and
-each reads back their own. It pairs with a viewer-aware read path
-(`attach_remark`) and the two are one mechanism — narrowing the index back to
-per-owner, or reverting the read to a scalar subquery, turns a loud database
-refusal into an accepted-then-invisible write.
+The second is keyed per owner, because `remark` is a catalogue-scope
+singleton: one shared row per entry or group, whoever wrote it, read by
+everyone through `attach_remark`.
 
 NULLS NOT DISTINCT is required because three of the four owner columns are
-always NULL - and `author_id` is NULL on rows written before accounts existed
-- so without it Postgres treats every such row as unique and the index
+always NULL, so without it Postgres treats every row as unique and the index
 enforces nothing.
 
 ### `note_mark`

@@ -56,7 +56,7 @@ import { usePageTitle } from "../../contexts/PageTitleContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { useViewScope } from "../../hooks/useViewScope";
 import { useMyRatingSaver } from "../../api/mutations/useMyRatingMutations";
-import { useMyRemarkSaver } from "../../api/mutations/useMyRemark";
+import { useRemarkSaver } from "../../api/mutations/useRemark";
 
 export default function CollectionPage() {
   const { publicId } = useParams();
@@ -78,7 +78,7 @@ export default function CollectionPage() {
   // Everything past the lookup still speaks UUIDs; only the URL segment
   // changed. Resolved from the fetched row so the two can never disagree.
   const system_id = collection?.system_id;
-  const saveMyRemark = useMyRemarkSaver("collection", system_id, setCollection);
+  const saveCatalogueRemark = useRemarkSaver("collection", system_id, setCollection);
   const saveMyRating = useMyRatingSaver("collection", system_id, setCollection);
   const remarkRef = useRef(null);
 
@@ -197,8 +197,8 @@ export default function CollectionPage() {
 
   // Shared by the inline box and the full-view modal, which edit one draft.
   function saveRemark() {
-    if (ownData && remarkDraft !== (collection?.remark || ""))
-      saveMyRemark(remarkDraft);
+    if (isAdmin && remarkDraft !== (collection?.remark || ""))
+      saveCatalogueRemark(remarkDraft);
   }
 
   // The heading's name, which the browser tab shows too.
@@ -356,7 +356,9 @@ export default function CollectionPage() {
             </Slip>
           )}
 
-          {ownData && (
+          {/* The catalogue remark: drawn for a holder of manage.catalog, who
+              edits it, and read-only for everyone else once one exists. */}
+          {(isAdmin || collection.remark) && (
             <Slip
               title="Remark"
               actions={
@@ -377,6 +379,7 @@ export default function CollectionPage() {
                 value={remarkDraft}
                 onChange={(e) => setRemarkDraft(e.target.value)}
                 onBlur={() => saveRemark()}
+                readOnly={!isAdmin}
                 rows={3}
                 className="w-full border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none transition border-border bg-surface text-text"
               />
@@ -481,7 +484,7 @@ export default function CollectionPage() {
               hide the duplicate `remark` section wherever that editor renders. */}
           <CollectionNotes
             collection={collection}
-            hideSections={ownData ? ["remark"] : []}
+            hideSections={isAdmin || collection.remark ? ["remark"] : []}
           />
         </Section>
       )}
@@ -489,7 +492,7 @@ export default function CollectionPage() {
       {showRemark && (
         <RemarkModal
           value={remarkDraft}
-          canEdit={ownData}
+          canEdit={isAdmin}
           onChange={setRemarkDraft}
           onClose={() => {
             saveRemark();
