@@ -27,11 +27,11 @@ from app.utils.formatter import parse_franchise_from_sheet
         ("Game, ACG", False, True, "Game, Manga"),
         ("Game,ACG", True, False, "Game,Anime"),
         ("Game,ACG", True, True, "Game,Anime,Manga"),
-        ("ACG, Novel, Game", True, True, "Anime, Manga, Novel, Game"),
+        ("ACG, Book, Game", True, True, "Anime, Manga, Book, Game"),
         # A token already present is not repeated.
         ("ACG, Manga", True, True, "Anime, Manga"),
         ("Anime, ACG", True, False, "Anime"),
-        ("ACG, Anime, Novel", True, False, "Anime, Novel"),
+        ("ACG, Anime, Book", True, False, "Anime, Book"),
         ("ACG, ACG", False, True, "Manga"),
         # "Anime Movie" is its own type and is left alone.
         ("Anime Movie, ACG", False, True, "Anime Movie, Manga"),

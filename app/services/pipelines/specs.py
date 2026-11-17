@@ -14,6 +14,7 @@ from sqlalchemy import or_
 from app.models import (
     Anime,
     AnimeMovies,
+    Book,
     Cartoon,
     Character,
     Comic,
@@ -23,7 +24,6 @@ from app.models import (
     HGame,
     Manga,
     Movies,
-    Novel,
     Person,
     Studio,
     TVShows,
@@ -31,6 +31,7 @@ from app.models import (
 from app.services.calculation import (
     run_sync_anime,
     run_sync_anime_movie,
+    run_sync_book,
     run_sync_cartoon,
     run_sync_comic,
     run_sync_game,
@@ -38,24 +39,24 @@ from app.services.calculation import (
     run_sync_h_comic,
     run_sync_hentai,
     run_sync_manga,
-    run_sync_novel,
     run_sync_tv_show,
 )
 from app.services.domain import (
     anime_movie_post_processing,
     anime_post_processing,
+    apply_extract_book_ids,
     apply_extract_comicvine_id,
     apply_extract_game_ids,
     apply_extract_hentai_ids,
     apply_extract_imdb_id,
     apply_extract_mal_id_anime,
     apply_extract_mal_id_character,
-    apply_extract_mal_id_manga_novel,
+    apply_extract_mal_id_manga_book,
     apply_extract_mal_id_person,
     apply_extract_mal_id_studio,
-    apply_extract_novel_ids,
     apply_single_replace_anime,
     apply_single_replace_anime_movie,
+    apply_single_replace_book,
     apply_single_replace_cartoon,
     apply_single_replace_game,
     apply_single_replace_h_comic,
@@ -63,10 +64,11 @@ from app.services.domain import (
     apply_single_replace_hentai,
     apply_single_replace_manga,
     apply_single_replace_movie,
-    apply_single_replace_novel,
     apply_single_replace_tv_show,
     autofill_anime_from_mal,
     autofill_anime_movie_from_mal,
+    autofill_book_from_mal,
+    autofill_book_from_openlibrary,
     autofill_cartoon_from_imdb,
     autofill_character_from_mal,
     autofill_comic_from_comicvine,
@@ -84,8 +86,6 @@ from app.services.domain import (
     autofill_hltb_source,
     autofill_manga_from_mal,
     autofill_movie_from_imdb,
-    autofill_novel_from_mal,
-    autofill_novel_from_openlibrary,
     autofill_person_from_mal,
     autofill_studio_from_mal,
     autofill_tv_show_from_imdb,
@@ -94,6 +94,8 @@ from app.services.domain import (
     game_post_processing,
     has_missing_values_anime,
     has_missing_values_anime_movie,
+    has_missing_values_book,
+    has_missing_values_book_openlibrary,
     has_missing_values_cartoon,
     has_missing_values_character,
     has_missing_values_comic,
@@ -106,8 +108,6 @@ from app.services.domain import (
     has_missing_values_hentai_anidb,
     has_missing_values_manga,
     has_missing_values_movie,
-    has_missing_values_novel,
-    has_missing_values_novel_openlibrary,
     has_missing_values_person,
     has_missing_values_studio,
     has_missing_values_tv_show,
@@ -170,15 +170,15 @@ def _fill_manga(db, entry) -> None:
     autofill_from_anilist(entry, MANGA, db)
 
 
-def _fill_novel(db, entry) -> None:
-    # Novel keeps its two-source routing: a mal_link means Tenrai, otherwise
+def _fill_book(db, entry) -> None:
+    # Book keeps its two-source routing: a mal_link means Tenrai, otherwise
     # Open Library. AniList applies to the Tenrai branch only - an entry with
     # no mal_id has nothing for AniList to key on either.
     if entry.mal_link:
-        autofill_novel_from_mal(entry, force_replace_ratings=True, db=db)
+        autofill_book_from_mal(entry, force_replace_ratings=True, db=db)
         autofill_from_anilist(entry, MANGA, db)
     else:
-        autofill_novel_from_openlibrary(entry, db)
+        autofill_book_from_openlibrary(entry, db)
 
 
 def _fill_game(db, entry) -> None:
@@ -337,7 +337,7 @@ PIPELINES: dict[str, PipelineSpec] = {
     ),
     "manga": PipelineSpec(
         key="manga", label="Manga", model=Manga,
-        extract_id=apply_extract_mal_id_manga_novel,
+        extract_id=apply_extract_mal_id_manga_book,
         fill_eligible=lambda db, e: e.mal_id is not None and has_missing_values_manga(e),
         fill=_fill_manga,
         pre_run=lambda db: prime_anilist_cache(db, Manga, MANGA),
@@ -351,37 +351,37 @@ PIPELINES: dict[str, PipelineSpec] = {
         replace_after=(("Syncing system options...", run_sync_manga),),
         single_after=(run_sync_manga,),
     ),
-    "novel": PipelineSpec(
-        key="novel", label="Novel", model=Novel,
-        # Novel is the one type with two sources, so both extractors run.
-        extract_id=apply_extract_novel_ids,
+    "book": PipelineSpec(
+        key="book", label="Book", model=Book,
+        # Book is the one type with two sources, so both extractors run.
+        extract_id=apply_extract_book_ids,
         # A mal_link means Tenrai, which returns strictly more. Open Library
-        # covers only the novels MAL does not have. The `not e.mal_link`
+        # covers only the books MAL does not have. The `not e.mal_link`
         # guard on the second branch keeps eligibility identical to the
-        # routing below: without it, a MAL-complete novel with no author
+        # routing below: without it, a MAL-complete book with no author
         # credit would be eligible forever and never progress. Both branches
         # test mal_link (and openlibrary_id) truthily, matching `fill`'s
         # routing and the autofill's own guard, so an empty string can't
         # disagree between them the way it would under an `is not None`
         # check.
         fill_eligible=lambda db, e: bool(
-            (e.mal_link and has_missing_values_novel(e))
+            (e.mal_link and has_missing_values_book(e))
             or (
                 not e.mal_link
                 and e.openlibrary_id
-                and has_missing_values_novel_openlibrary(db, e)
+                and has_missing_values_book_openlibrary(db, e)
             )
         ),
-        fill=_fill_novel,
-        pre_run=lambda db: prime_anilist_cache(db, Novel, MANGA),
+        fill=_fill_book,
+        pre_run=lambda db: prime_anilist_cache(db, Book, MANGA),
         post_run=lambda db: reset_anilist_cache(),
         fill_sleep=MAL_PAUSE,
-        fill_after=(("Syncing system options...", run_sync_novel),),
-        replace_select=_linked(Novel, Novel.mal_id, Novel.mal_link),
-        replace=lambda db, e, bulk: apply_single_replace_novel(db, e, bulk=bulk),
+        fill_after=(("Syncing system options...", run_sync_book),),
+        replace_select=_linked(Book, Book.mal_id, Book.mal_link),
+        replace=lambda db, e, bulk: apply_single_replace_book(db, e, bulk=bulk),
         replace_sleep=MAL_PAUSE,
-        replace_after=(("Syncing system options...", run_sync_novel),),
-        single_after=(run_sync_novel,),
+        replace_after=(("Syncing system options...", run_sync_book),),
+        single_after=(run_sync_book,),
     ),
     "comic": PipelineSpec(
         key="comic", label="Comic", model=Comic,
@@ -457,7 +457,7 @@ PIPELINES: dict[str, PipelineSpec] = {
     # label on.
     "h-comic": PipelineSpec(
         key="h-comic", label="H-Comic", model=HComic,
-        extract_id=apply_extract_mal_id_manga_novel,
+        extract_id=apply_extract_mal_id_manga_book,
         fill_eligible=lambda db, e: (
             (e.mal_id is not None and has_missing_values_h_comic(e))
             or has_missing_values_h_comic_ehentai(db, e)

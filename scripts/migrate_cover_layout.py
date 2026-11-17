@@ -61,7 +61,7 @@ OWNER_SOURCES: tuple[OwnerSource, ...] = (
     OwnerSource("tv-show", models.TVShows, "cover_image_file"),
     OwnerSource("cartoon", models.Cartoon, "cover_image_file"),
     OwnerSource("manga", models.Manga, "cover_image_file"),
-    OwnerSource("novel", models.Novel, "cover_image_file"),
+    OwnerSource("book", models.Book, "cover_image_file"),
     OwnerSource("comic", models.Comic, "cover_image_file"),
     OwnerSource("game", models.Game, "cover_image_file"),
     OwnerSource("h-comic", models.HComic, "cover_image_file"),

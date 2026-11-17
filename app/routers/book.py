@@ -1,11 +1,11 @@
-"""routers/novel.py — endpoints built from the shared media-router factory.
+"""routers/book.py — endpoints built from the shared media-router factory.
 Per-type config lives in app/registry.py; endpoint logic in app/routers/_factory.py.
 
-Novel additionally exposes two searches for the Add-tab pickers, matching the
+Book additionally exposes two searches for the Add-tab pickers, matching the
 two sources Fill reads it from: MyAnimeList (light novels and novels, writing
 the pick's `mal_link`, then the picked record's form prefill - see
 app/routers/_mal_prefill.py) and Open Library (writing `openlibrary_id` and
-`openlibrary_link`, for a novel MAL does not carry).
+`openlibrary_link`, for a book MAL does not carry).
 """
 
 from typing import Any, Dict, List
@@ -25,10 +25,10 @@ from app.services.rbac.resolver import Viewer, require_manage_catalog
 
 # Declared before the factory routes are merged in: the factory registers
 # GET /{entry_id}, which would otherwise swallow these literal paths.
-router = APIRouter(tags=["Novel"])
+router = APIRouter(tags=["Book"])
 
 
-@router.get("/api/novel/search-mal", response_model=List[ExternalSearchResult])
+@router.get("/api/book/search-mal", response_model=List[ExternalSearchResult])
 def search_mal(
     q: str = SEARCH_QUERY,
     limit: int = SEARCH_LIMIT,
@@ -38,7 +38,7 @@ def search_mal(
     return run_search(search_mal_novel, q, limit)
 
 
-@router.get("/api/novel/search-openlibrary", response_model=List[ExternalSearchResult])
+@router.get("/api/book/search-openlibrary", response_model=List[ExternalSearchResult])
 def search_openlibrary(
     q: str = SEARCH_QUERY,
     limit: int = SEARCH_LIMIT,
@@ -48,14 +48,14 @@ def search_openlibrary(
     return run_search(search_openlibrary_works, q, limit)
 
 
-@router.get("/api/novel/mal-prefill/{mal_id}", response_model=Dict[str, Any])
+@router.get("/api/book/mal-prefill/{mal_id}", response_model=Dict[str, Any])
 def mal_prefill(
     mal_id: int = MAL_ID,
     db: Session = Depends(get_db),
     admin: Viewer = Depends(require_manage_catalog),
 ):
     """The Add form's fields from one MAL record; see app/services/domain/mal_prefill.py."""
-    return run_mal_prefill(db, "novel", mal_id)
+    return run_mal_prefill(db, "book", mal_id)
 
 
-router.include_router(make_media_router(MEDIA_REGISTRY["novel"]))
+router.include_router(make_media_router(MEDIA_REGISTRY["book"]))

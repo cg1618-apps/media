@@ -213,7 +213,7 @@ def test_exists_is_owner_scoped(local_covers):
 
     assert image_manager.cover_image_exists("manga", "id1") is True
     # The same id under a different owner is a different image.
-    assert image_manager.cover_image_exists("novel", "id1") is False
+    assert image_manager.cover_image_exists("book", "id1") is False
 
 
 def test_exists_does_not_match_a_flat_file(local_covers):

@@ -35,6 +35,7 @@ from app.models import (
 )
 from app.services.domain import (
     resolve_anime_movie_parent_hierarchy,
+    resolve_book_parent_hierarchy,
     resolve_cartoon_parent_hierarchy,
     resolve_comic_parent_hierarchy,
     resolve_game_parent_hierarchy,
@@ -43,7 +44,6 @@ from app.services.domain import (
     resolve_hentai_parent_hierarchy,
     resolve_manga_parent_hierarchy,
     resolve_movie_parent_hierarchy,
-    resolve_novel_parent_hierarchy,
     resolve_tv_show_parent_hierarchy,
 )
 from app.services.domain.character_tags import (
@@ -79,6 +79,11 @@ from app.services.domain.user_list import installation_owner_id, no_owner_messag
 from app.services.integrations.sheets import (
     SheetsUnavailableError,
     get_all_raw_rows,
+    sheet_tab_titles,
+)
+from app.services.pipelines.legacy_names import (
+    LEGACY_TAB_NAMES,
+    legacy_cell_values,
 )
 from app.services.pipelines.tabs import (
     AUTHZ_TABS,
@@ -344,7 +349,7 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
         "publisher_id",
     ),  # uq_user_rating_owner
     # The same shape for a reader's unit row; unit_id travels unchanged.
-    "User Novel Unit Rating": ("user_id", "unit_id"),  # uq_user_novel_unit
+    "User Book Unit Rating": ("user_id", "unit_id"),  # uq_user_book_unit
     # One row per account per quote or meme, minted wherever the favourite
     # was made; user_id is resolved from `username`, and quote_id / meme_id
     # are the Quote and Meme tabs' uuids - exactly one set, the other IS NULL.
@@ -502,6 +507,13 @@ RENAMED_COLUMNS: dict[str, dict[str, tuple[str, ...]]] = {
     # One release date became the JP and the TW one; it stood for both.
     "Anime": {"release_date": ("release_date_jp", "release_date_tw")},
     "Cartoons": {"length_ep_min": ("runtime_min",)},
+    # Novel became Book. Its one release date was the original's, so it
+    # becomes the JP one and the TW one starts empty.
+    "Book": {
+        **{f"novel_name_{s}": (f"book_name_{s}",) for s in ("en", "cn", "roman", "jp", "alt")},
+        "release_date": ("release_date_jp",),
+    },
+    "Book Unit": {"novel_id": ("book_id",)},
 }
 
 RENAMED_HEADERS: dict[str, frozenset[str]] = {
@@ -522,9 +534,33 @@ RENAMED_HEADERS: dict[str, frozenset[str]] = {
 RETIRED_HEADERS: dict[str, frozenset[str]] = {
     # users.list_is_public: everything per user is private to its account.
     "Users": frozenset({"list_is_public"}),
-    # novel.read_order was dropped with its values.
-    "Novel": frozenset({"read_order"}),
+    # book.read_order was dropped with its values.
+    "Book": frozenset({"read_order"}),
 }
+
+
+def read_sheet_tab(tab_name: str) -> list:
+    """
+    A tab's rows, from under its pre-rename title when the sheet predates the
+    rename (LEGACY_TAB_NAMES).
+
+    The current title wins whenever it holds anything: a sheet backed up after
+    the rename may still keep the old tab beside it, and that one is stale.
+    The old title is read only when the sheet has it, because reading a title
+    the sheet lacks would create it.
+    """
+    raw_matrix = get_all_raw_rows(tab_name)
+    legacy_titles = LEGACY_TAB_NAMES.get(tab_name)
+    if (raw_matrix and len(raw_matrix) >= 2) or not legacy_titles:
+        return raw_matrix
+    present = sheet_tab_titles()
+    for legacy in legacy_titles:
+        if legacy in present:
+            legacy_matrix = get_all_raw_rows(legacy)
+            if legacy_matrix and len(legacy_matrix) >= 2:
+                logger.info("Reading '%s' from its pre-rename tab '%s'.", tab_name, legacy)
+                return legacy_matrix
+    return raw_matrix
 
 
 def unexpected_headers(tab_name: str, headers: list) -> list[str]:
@@ -1082,7 +1118,7 @@ def execute_pull_specific(
     logger.info("Starting Pull Pipeline for '%s'...", tab_name)
 
     try:
-        raw_matrix = get_all_raw_rows(tab_name)
+        raw_matrix = read_sheet_tab(tab_name)
     except SheetsUnavailableError as e:
         # A tab we could not read is not a tab with nothing in it. Reporting
         # this as "no data / Success" is how a Google outage used to slip
@@ -1185,7 +1221,9 @@ def execute_pull_specific(
             rows_skipped += 1
             continue
 
-        raw_header_dict = parse_row_to_dict(headers, row)
+        raw_header_dict = legacy_cell_values(
+            tab_name, parse_row_to_dict(headers, row)
+        )
         clean_header_dict = parser(raw_header_dict)
 
         # Keep only the columns the sheet header actually carried. Every parser
@@ -1328,7 +1366,7 @@ def execute_pull_specific(
         # that row's owner is unknown, so it is skipped and reported rather
         # than quietly filed under the admin.
         #
-        # Watch Order Follow, User Rating, User Novel Unit Rating, Note Mark
+        # Watch Order Follow, User Rating, User Book Unit Rating, Note Mark
         # and User Favorite have carried `username` from their first day, so
         # they reach the fallback only for a hand-built sheet; they share the
         # block for the resolution.
@@ -1337,7 +1375,7 @@ def execute_pull_specific(
             "Seasonal",
             "Watch Order Follow",
             "User Rating",
-            "User Novel Unit Rating",
+            "User Book Unit Rating",
             "Note Mark",
             "User Favorite",
         ):
@@ -1549,19 +1587,19 @@ def execute_pull_specific(
             clean_header_dict["franchise_id"], clean_header_dict["series_id"] = (
                 resolve_manga_parent_hierarchy(db, fid, sid, name_fields)
             )
-        # Novel uses resolve_novel_parent_hierarchy (auto-creates franchise with type "Novel", looks up series)
-        elif tab_name == "Novel" and "franchise_id" in clean_header_dict:
+        # Book uses resolve_book_parent_hierarchy (auto-creates franchise with type "Book", looks up series)
+        elif tab_name == "Book" and "franchise_id" in clean_header_dict:
             fid = clean_header_dict.get("franchise_id")
             sid = clean_header_dict.get("series_id")
             name_fields = {
-                "en": clean_header_dict.get("novel_name_en"),
-                "cn": clean_header_dict.get("novel_name_cn"),
-                "roman": clean_header_dict.get("novel_name_roman"),
-                "jp": clean_header_dict.get("novel_name_jp"),
-                "alt": clean_header_dict.get("novel_name_alt"),
+                "en": clean_header_dict.get("book_name_en"),
+                "cn": clean_header_dict.get("book_name_cn"),
+                "roman": clean_header_dict.get("book_name_roman"),
+                "jp": clean_header_dict.get("book_name_jp"),
+                "alt": clean_header_dict.get("book_name_alt"),
             }
             clean_header_dict["franchise_id"], clean_header_dict["series_id"] = (
-                resolve_novel_parent_hierarchy(db, fid, sid, name_fields)
+                resolve_book_parent_hierarchy(db, fid, sid, name_fields)
             )
         # Comic uses resolve_comic_parent_hierarchy (auto-creates franchise with type "Comic", looks up series)
         elif tab_name == "Comic" and "franchise_id" in clean_header_dict:
@@ -2222,7 +2260,7 @@ def execute_pull_specific(
             # back as user_list.DEFAULT_STATUS anyway.
             #
             # The seven tabs are the ones that had a status default to lose,
-            # unchanged. Novel and Comic were never in this branch and are not
+            # unchanged. Book and Comic were never in this branch and are not
             # added here - whether they need a timestamp stamp is a separate
             # question from confining the pipelines.
             if tab_name in (

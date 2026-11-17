@@ -14,13 +14,13 @@ from sqlalchemy.orm import Session
 
 from app.models import (
     Anime,
+    Book,
     Cartoon,
     Character,
     Comic,
     Manga,
     Media,
     Movies,
-    Novel,
     Person,
     Studio,
     TVShows,
@@ -39,7 +39,7 @@ from app.utils.utils import (
     extract_imdb_id,
     extract_mal_id_anime,
     extract_mal_id_character,
-    extract_mal_id_manga_novel,
+    extract_mal_id_manga_book,
     extract_mal_id_person,
     extract_mal_id_producer,
     extract_season_from_title,
@@ -111,16 +111,16 @@ def apply_extract_mal_id_character(character: Character) -> bool:
     return False
 
 
-def apply_extract_mal_id_manga_novel(entry: Union[Manga, Novel]) -> bool:
+def apply_extract_mal_id_manga_book(entry: Union[Manga, Book]) -> bool:
     """Extracts MAL manga ID from mal_link and writes it to mal_id. Returns True if set."""
-    mal_id = extract_mal_id_manga_novel(entry.mal_link)
+    mal_id = extract_mal_id_manga_book(entry.mal_link)
     if mal_id:
         entry.mal_id = mal_id
         return True
     return False
 
 
-def apply_extract_openlibrary_id(entry: Novel) -> bool:
+def apply_extract_openlibrary_id(entry: Book) -> bool:
     """Extracts the Open Library work ID from openlibrary_link and writes it to
     openlibrary_id. Returns True if set. An unparseable link leaves any existing
     ID untouched — the ID is the fill pipeline's only handle on the entry."""
@@ -131,12 +131,12 @@ def apply_extract_openlibrary_id(entry: Novel) -> bool:
     return False
 
 
-def apply_extract_novel_ids(entry: Novel) -> bool:
-    """Novel is the one media type with two possible sources, so both extractors
-    run on every entry. Both are called before the `or`, deliberately: a novel
+def apply_extract_book_ids(entry: Book) -> bool:
+    """Book is the one media type with two possible sources, so both extractors
+    run on every entry. Both are called before the `or`, deliberately: a book
     can carry a MAL link and an Open Library link at once, and short-circuiting
     would silently skip the second."""
-    mal_found = apply_extract_mal_id_manga_novel(entry)
+    mal_found = apply_extract_mal_id_manga_book(entry)
     openlibrary_found = apply_extract_openlibrary_id(entry)
     return mal_found or openlibrary_found
 

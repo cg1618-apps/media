@@ -22,7 +22,7 @@ class HComic(Base, NameFallbackMixin):
     Adult comics, seen in the `unrestricted` access mode only.
 
     One table, two variants keyed on `region` (JP or KR), the same pattern as
-    novel's `type`. The variants share most of their columns; the ones a
+    book's `type`. The variants share most of their columns; the ones a
     region does not use are CLEARED on every write path rather than merely
     hidden by the form (app/services/domain/h_comic.py):
 

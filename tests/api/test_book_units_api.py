@@ -1,12 +1,12 @@
-"""Novel units round-trip through the media router factory."""
+"""Book units round-trip through the media router factory."""
 
 import uuid
 
 
-def _novel_payload(**overrides):
+def _book_payload(**overrides):
     payload = {
-        "novel_name_cn": "測試小說",
-        "type": "Web",
+        "book_name_cn": "測試小說",
+        "type": "網路小說",
         "units": [
             {"unit_kind": "arc", "position": 1, "unit_key": "arc 1", "ch_count": 100},
             {"unit_kind": "arc", "position": 2, "unit_key": "arc 2", "ch_count": 112},
@@ -17,7 +17,7 @@ def _novel_payload(**overrides):
 
 
 def test_create_persists_units_and_derives_totals(owner_client):
-    resp = owner_client.post("/api/novel/", json=_novel_payload(arc_fin=1, ch_fin_in_arc=101))
+    resp = owner_client.post("/api/book/", json=_book_payload(arc_fin=1, ch_fin_in_arc=101))
     assert resp.status_code == 201
     body = resp.json()
 
@@ -29,14 +29,14 @@ def test_create_persists_units_and_derives_totals(owner_client):
 
 
 def test_update_inserts_updates_and_deletes_in_one_request(owner_client):
-    created = owner_client.post("/api/novel/", json=_novel_payload()).json()
+    created = owner_client.post("/api/book/", json=_book_payload()).json()
     keep, drop = created["units"][0], created["units"][1]
 
     resp = owner_client.put(
-        f"/api/novel/{created['system_id']}",
+        f"/api/book/{created['system_id']}",
         json={
-            "novel_name_cn": "測試小說",
-            "type": "Web",
+            "book_name_cn": "測試小說",
+            "type": "網路小說",
             "units": [
                 # updated in place
                 {
@@ -63,11 +63,11 @@ def test_update_inserts_updates_and_deletes_in_one_request(owner_client):
 
 def test_patching_the_cursor_rolls_over(owner_client):
     created = owner_client.post(
-        "/api/novel/", json=_novel_payload(arc_fin=1, ch_fin_in_arc=0)
+        "/api/book/", json=_book_payload(arc_fin=1, ch_fin_in_arc=0)
     ).json()
 
     resp = owner_client.patch(
-        f"/api/novel/{created['system_id']}", json={"ch_fin_in_arc": 112}
+        f"/api/book/{created['system_id']}", json={"ch_fin_in_arc": 112}
     )
     assert resp.status_code == 200
     body = resp.json()
@@ -78,16 +78,16 @@ def test_patching_the_cursor_rolls_over(owner_client):
 
 
 def test_patch_saves_units_not_just_the_cursor(owner_client):
-    """PATCH /api/novel/{id} carrying `units` must actually write the rows and
+    """PATCH /api/book/{id} carrying `units` must actually write the rows and
     re-derive progress from them, not silently discard the key.
 
     Regression coverage for the detail-page Units editor, which patches the
-    whole novel (including `units`) rather than PUTting it."""
-    created = owner_client.post("/api/novel/", json=_novel_payload()).json()
+    whole book (including `units`) rather than PUTting it."""
+    created = owner_client.post("/api/book/", json=_book_payload()).json()
     keep, drop = created["units"][0], created["units"][1]
 
     resp = owner_client.patch(
-        f"/api/novel/{created['system_id']}",
+        f"/api/book/{created['system_id']}",
         json={
             "units": [
                 {
@@ -113,17 +113,17 @@ def test_patch_saves_units_not_just_the_cursor(owner_client):
     assert body["ch_total"] == 210
 
 
-def test_deleting_a_novel_removes_its_units(owner_client, db_session):
+def test_deleting_a_book_removes_its_units(owner_client, db_session):
     from app import models
 
-    created = owner_client.post("/api/novel/", json=_novel_payload()).json()
-    novel_id = uuid.UUID(created["system_id"])
+    created = owner_client.post("/api/book/", json=_book_payload()).json()
+    book_id = uuid.UUID(created["system_id"])
 
-    assert owner_client.delete(f"/api/novel/{novel_id}").status_code == 200
+    assert owner_client.delete(f"/api/book/{book_id}").status_code == 200
 
     remaining = (
-        db_session.query(models.NovelUnit)
-        .filter(models.NovelUnit.novel_id == novel_id)
+        db_session.query(models.BookUnit)
+        .filter(models.BookUnit.book_id == book_id)
         .count()
     )
     assert remaining == 0
@@ -131,10 +131,10 @@ def test_deleting_a_novel_removes_its_units(owner_client, db_session):
 
 def test_volume_units_do_not_touch_volume_counters(owner_client):
     resp = owner_client.post(
-        "/api/novel/",
+        "/api/book/",
         json={
-            "novel_name_cn": "輕小說",
-            "type": "Light Novel",
+            "book_name_cn": "輕小說",
+            "type": "輕小說",
             "vol_fin": 9,
             "vol_total_original": 12,
             "units": [
@@ -150,47 +150,47 @@ def test_volume_units_do_not_touch_volume_counters(owner_client):
     assert len(body["units"]) == 2
 
 
-def test_listing_novels_does_not_n_plus_one(owner_client, test_engine):
+def test_listing_books_does_not_n_plus_one(owner_client, test_engine):
     from sqlalchemy import event
 
     for _ in range(3):
-        owner_client.post("/api/novel/", json=_novel_payload())
+        owner_client.post("/api/book/", json=_book_payload())
 
     units, ratings = [], []
 
     def record(conn, cursor, statement, params, context, executemany):
-        # user_novel_unit_rating contains "novel_unit" as a substring, so the
+        # user_book_unit_rating contains "book_unit" as a substring, so the
         # two have to be told apart rather than counted together.
-        if "user_novel_unit_rating" in statement:
+        if "user_book_unit_rating" in statement:
             ratings.append(statement)
-        elif "novel_unit" in statement:
+        elif "book_unit" in statement:
             units.append(statement)
 
     event.listen(test_engine, "before_cursor_execute", record)
     try:
-        resp = owner_client.get("/api/novel/")
+        resp = owner_client.get("/api/book/")
     finally:
         event.remove(test_engine, "before_cursor_execute", record)
 
     assert resp.status_code == 200
-    # selectinload issues exactly one query for all novels' units, not one
-    # query per novel; three novels would give three if it were N+1.
+    # selectinload issues exactly one query for all books' units, not one
+    # query per book; three books would give three if it were N+1.
     assert len(units) == 1
     # attach_unit_ratings adds exactly one more for every unit on the page,
-    # not one per unit and not one per novel.
+    # not one per unit and not one per book.
     assert len(ratings) == 1
 
 
 # --- per-unit rating --------------------------------------------------------
-# A unit's rating is the reader's own (user_novel_unit_rating), written by
-# PUT /api/me/novel-units/{unit_id}; the catalogue units write ignores it.
-# tests/api/test_novel_unit_rating_is_personal.py holds the rest.
+# A unit's rating is the reader's own (user_book_unit_rating), written by
+# PUT /api/me/book-units/{unit_id}; the catalogue units write ignores it.
+# tests/api/test_book_unit_rating_is_personal.py holds the rest.
 
 
 def test_a_units_save_ignores_a_unit_rating(owner_client):
     resp = owner_client.post(
-        "/api/novel/",
-        json=_novel_payload(
+        "/api/book/",
+        json=_book_payload(
             units=[
                 {"unit_kind": "arc", "position": 1, "unit_key": "arc 1", "ch_count": 100, "my_rating": "S"},
                 {"unit_kind": "arc", "position": 2, "unit_key": "arc 2", "ch_count": 112},
@@ -202,30 +202,30 @@ def test_a_units_save_ignores_a_unit_rating(owner_client):
     assert [u["my_rating"] for u in units] == [None, None]
 
 
-def test_a_readers_unit_rating_does_not_touch_the_novels_own_rating(
+def test_a_readers_unit_rating_does_not_touch_the_books_own_rating(
     owner_client, user_client
 ):
-    created = owner_client.post("/api/novel/", json=_novel_payload()).json()
+    created = owner_client.post("/api/book/", json=_book_payload()).json()
     unit_id = created["units"][0]["system_id"]
-    r = user_client.put(f"/api/me/novel-units/{unit_id}", json={"my_rating": "S"})
+    r = user_client.put(f"/api/me/book-units/{unit_id}", json={"my_rating": "S"})
     assert r.status_code == 200, r.text
 
-    body = user_client.get(f"/api/novel/{created['system_id']}").json()
+    body = user_client.get(f"/api/book/{created['system_id']}").json()
     assert body["units"][0]["my_rating"] == "S"
     assert body["my_rating"] is None
 
 
 def test_a_volume_row_can_be_rated_too(owner_client, user_client):
     created = owner_client.post(
-        "/api/novel/",
-        json=_novel_payload(
-            type="Light Novel",
+        "/api/book/",
+        json=_book_payload(
+            type="輕小說",
             units=[{"unit_kind": "volume", "position": 1, "name_cn": "第一卷"}],
         ),
     ).json()
     unit_id = created["units"][0]["system_id"]
-    user_client.put(f"/api/me/novel-units/{unit_id}", json={"my_rating": "A+"})
+    user_client.put(f"/api/me/book-units/{unit_id}", json={"my_rating": "A+"})
 
-    body = user_client.get(f"/api/novel/{created['system_id']}").json()
+    body = user_client.get(f"/api/book/{created['system_id']}").json()
     assert body["units"][0]["my_rating"] == "A+"
     assert body["units"][0]["display_key"] == "Vol 1"

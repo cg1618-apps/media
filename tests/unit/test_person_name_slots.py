@@ -13,7 +13,7 @@ from app.utils.name_normalize import name_slot_for
 
 
 @pytest.mark.parametrize(
-    "name,role,scope,novel_type,expected",
+    "name,role,scope,book_type,expected",
     [
         # No CJK anywhere -> en, whatever the role.
         ("Ryan Coogler", "director", "movie", None, "en"),
@@ -24,21 +24,21 @@ from app.utils.name_normalize import name_slot_for
         ("荒木哲郎", "director", "anime-movie", None, "cn"),
         ("伊藤智彥", "producer", "anime", None, "cn"),
         ("梶浦由記", "composer", "anime", None, "cn"),
-        # CJK author of a plain novel -> cn; of a light/web novel -> jp.
-        ("金庸", "author", "novel", "Novel", "cn"),
-        ("金庸", "author", "novel", "Other", "cn"),
-        ("金庸", "author", "novel", None, "jp"),
-        ("鴨志田一", "author", "novel", "Light Novel", "jp"),
-        ("鴨志田一", "author", "novel", "Web", "jp"),
+        # CJK author of a plain book -> cn; of a light/web novel -> jp.
+        ("金庸", "author", "book", "小說", "cn"),
+        ("金庸", "author", "book", "其他", "cn"),
+        ("金庸", "author", "book", None, "jp"),
+        ("鴨志田一", "author", "book", "輕小說", "jp"),
+        ("鴨志田一", "author", "book", "網路小說", "jp"),
         # Every other CJK -> jp.
         ("諫山創", "author", "manga", None, "jp"),
-        ("えれっと", "illustrator", "novel", None, "jp"),
+        ("えれっと", "illustrator", "book", None, "jp"),
         ("藍本松", "illustrator", "manga", None, "jp"),
         ("北条司", "director", "movie", None, "jp"),
     ],
 )
-def test_name_slot_for(name, role, scope, novel_type, expected):
-    assert name_slot_for(name, role=role, scope=scope, novel_type=novel_type) == expected
+def test_name_slot_for(name, role, scope, book_type, expected):
+    assert name_slot_for(name, role=role, scope=scope, book_type=book_type) == expected
 
 
 def test_never_returns_alt():

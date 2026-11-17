@@ -577,7 +577,7 @@ class TestAutoFilter:
 
 class TestSingleWorkFranchisesGetNoOrder:
     """
-    A franchise holding one work - a single movie, TV series or novel - has
+    A franchise holding one work - a single movie, TV series or book - has
     nothing to order, so it is refused rather than given an order of one step.
     """
 

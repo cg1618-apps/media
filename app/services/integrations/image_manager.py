@@ -55,6 +55,62 @@ COVER_OWNERS: frozenset[str] = frozenset(MEDIA_TYPE_KEYS) | frozenset(
 THUMB_FOLDER = "thumbs"
 assert THUMB_FOLDER not in COVER_OWNERS, "the thumbnail cache would read as an owner"
 
+# Cover folders whose owner type was renamed: old folder -> new. The stored
+# keys are rewritten by the rename's migration; the files are moved here, at
+# startup, because the cover tree is a volume the migration does not own.
+LEGACY_COVER_FOLDERS: dict[str, str] = {"novel": "book"}
+
+
+def move_legacy_cover_folders(root: str = COVER_DIR) -> dict[str, int]:
+    """
+    Move every file under a renamed owner's old folder into its new one, for
+    the covers and for their cached thumbnails (`<root>/thumbs/<owner>/`).
+
+    Idempotent: with no old folder there is nothing to do, so every boot after
+    the first is a no-op. It never overwrites: a file whose name the new folder
+    already holds stays where it is, with a warning, and the old folder is
+    removed only once it is empty. Returns how many files were moved and how
+    many were left behind.
+    """
+    moved = kept = 0
+    for old, new in LEGACY_COVER_FOLDERS.items():
+        for base in (root, os.path.join(root, THUMB_FOLDER)):
+            source_dir = os.path.join(base, old)
+            if not os.path.isdir(source_dir):
+                continue
+            target_dir = os.path.join(base, new)
+            os.makedirs(target_dir, exist_ok=True)
+            folder_moved = folder_kept = 0
+            for name in sorted(os.listdir(source_dir)):
+                source = os.path.join(source_dir, name)
+                target = os.path.join(target_dir, name)
+                if os.path.lexists(target):
+                    logger.warning(
+                        "Cover %s was not moved: %s already exists.", source, target
+                    )
+                    folder_kept += 1
+                    continue
+                # A rename keeps the mtime, which the thumbnail cache's
+                # staleness check compares exactly.
+                try:
+                    os.rename(source, target)
+                except FileNotFoundError:
+                    # Another worker starting beside this one moved it first.
+                    continue
+                folder_moved += 1
+            if folder_kept == 0:
+                try:
+                    os.rmdir(source_dir)
+                except OSError:
+                    pass
+            logger.info(
+                "Moved %d cover file(s) from %s to %s; %d left behind.",
+                folder_moved, source_dir, target_dir, folder_kept,
+            )
+            moved += folder_moved
+            kept += folder_kept
+    return {"moved": moved, "kept": kept}
+
 
 def cover_key(owner_type: str, system_id: str) -> str:
     """

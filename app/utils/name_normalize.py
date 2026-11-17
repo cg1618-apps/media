@@ -30,9 +30,9 @@ def normalize_name(raw: str) -> str:
 # out even for a mostly Latin string like "Studio五組".
 _CJK = re.compile(r"[぀-ヿ㐀-䶿一-鿿豈-﫿]")
 
-# Novel types whose authors this collection records in Japanese rather than in
-# Chinese-rendered kanji. Values are app/models/novel.py's `type` column.
-_JP_NOVEL_TYPES = frozenset({"Light Novel", "Web"})
+# Book types whose authors this collection records in Japanese rather than in
+# Chinese-rendered kanji. Values are app/models/book.py's `type` column.
+_JP_BOOK_TYPES = frozenset({"輕小說", "網路小說"})
 
 # (role, scope) pairs whose CJK names this collection records in
 # Chinese-rendered kanji.
@@ -51,7 +51,7 @@ def name_slot_for(
     *,
     role: str,
     scope: str,
-    novel_type: Optional[str] = None,
+    book_type: Optional[str] = None,
 ) -> str:
     """
     Which of person's name columns a name belongs in: "en", "cn" or "jp".
@@ -65,10 +65,10 @@ def name_slot_for(
     name cannot land in one column during the migration and another the next
     day - the migration is not the only writer of a new person.
 
-    `novel_type` is only knowable where a join to `novel` exists: the migration
+    `book_type` is only knowable where a join to `book` exists: the migration
     passes it, resolve_person cannot and passes None. None therefore means
-    "assume light novel", which is the majority of this collection's novels
-    (55 Light Novel/Web against 43 that are not).
+    "assume light novel", which is the majority of this collection's books
+    (55 輕小說/網路小說 against 43 that are not).
 
     Never returns "alt". That slot means "a name that is none of these three",
     which only a human can assert; a writer guessing its way in would make the
@@ -78,8 +78,8 @@ def name_slot_for(
         return "en"
     if (role, scope) in _CN_ROLE_SCOPES:
         return "cn"
-    if role == "author" and scope == "novel":
-        return "jp" if novel_type is None or novel_type in _JP_NOVEL_TYPES else "cn"
+    if role == "author" and scope == "book":
+        return "jp" if book_type is None or book_type in _JP_BOOK_TYPES else "cn"
     return "jp"
 
 

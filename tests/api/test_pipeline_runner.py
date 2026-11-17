@@ -92,7 +92,7 @@ def test_fill_all_skips_comic_but_includes_game_and_the_non_media_types():
     # Comic is the only exclusion, and only because of Comic Vine's 200/hour
     # quota. IGDB has no such quota, so Game rides along with the rest.
     assert [s.key for s in FILL_ALL] == [
-        "anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel",
+        "anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "book",
         "game", "h-comic", "hentai", "h-game", "studio", "seiyuu", "character",
     ]
 
@@ -103,7 +103,7 @@ def test_replace_all_skips_comic_and_the_non_media_types():
     # Game now joins the rest - Steam's prices and Metacritic score drift,
     # even though nothing in an IGDB record does.
     assert [s.key for s in REPLACE_ALL] == [
-        "anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel",
+        "anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "book",
         "game", "h-comic", "hentai", "h-game",
     ]
 
@@ -126,10 +126,10 @@ def test_game_fills_from_igdb_and_bulk_replaces_via_steam():
 
 
 def test_public_entry_points_still_exist():
-    for key in ("anime", "anime_movie", "movie", "tv_show", "cartoon", "manga", "novel", "comic", "game"):
+    for key in ("anime", "anime_movie", "movie", "tv_show", "cartoon", "manga", "book", "comic", "game"):
         assert callable(getattr(fill, f"execute_fill_{key}"))
         assert callable(getattr(replace, f"execute_replace_single_{key}"))
-    for key in ("anime", "anime_movie", "movie", "tv_show", "cartoon", "manga", "novel"):
+    for key in ("anime", "anime_movie", "movie", "tv_show", "cartoon", "manga", "book"):
         assert callable(getattr(replace, f"execute_replace_{key}"))
     assert callable(fill.execute_fill_all) and callable(replace.execute_replace_all)
 

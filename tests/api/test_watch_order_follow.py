@@ -343,7 +343,7 @@ def progress_order(db_session, sample_franchise, plain_user):
     5 comic D           Temp Dropped                -> done
     6 anime E           no list row                 -> pending  (up next: a gap)
     7 tv F              Passive Watching            -> active
-    8 novel G           Completed                   -> done
+    8 book G           Completed                   -> done
     """
     f = sample_franchise
     a = _entry(db_session, models.Anime, f, anime_name_en="A", ep_total=12)
@@ -352,7 +352,7 @@ def progress_order(db_session, sample_franchise, plain_user):
     d = _entry(db_session, models.Comic, f, comic_name_en="D")
     e = _entry(db_session, models.Anime, f, anime_name_en="E")
     tv = _entry(db_session, models.TVShows, f, tv_name_en="F")
-    g = _entry(db_session, models.Novel, f, novel_name_en="G")
+    g = _entry(db_session, models.Book, f, book_name_en="G")
 
     uid = plain_user.id
     _own(db_session, uid, a, "Active Watching", ep_fin=10)

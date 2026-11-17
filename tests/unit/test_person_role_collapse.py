@@ -24,6 +24,10 @@ _spec = importlib.util.spec_from_file_location(
 migration = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(migration)
 
+# The archived revision scopes by the media-type keys of its day; `novel` has
+# since become `book` (b1o2okrename3), and its rows were renamed with it.
+SCOPE_RENAMES = {"novel": "book"}
+
 
 def test_every_rename_target_is_a_live_role():
     for target in migration.CREDIT_ROLE_RENAMES.values():
@@ -57,6 +61,7 @@ def test_the_manga_pair_lands_on_different_roles():
 def test_every_expanded_scope_is_legal_for_its_role():
     for pairs in migration.ROLE_SCOPE_EXPANSION.values():
         for role, scope in pairs:
+            scope = SCOPE_RENAMES.get(scope, scope)
             assert scope in legal_scopes(role), f"{role} cannot be scoped {scope}"
 
 

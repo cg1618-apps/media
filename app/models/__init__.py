@@ -12,6 +12,7 @@ from app.models.account_code import AccountCode
 from app.models.anime import Anime
 from app.models.anime_movie import AnimeMovies
 from app.models.base import NameFallbackMixin
+from app.models.book import Book, BookUnit
 from app.models.cartoon import Cartoon
 from app.models.character import (
     Character,
@@ -46,7 +47,6 @@ from app.models.meme import Meme
 from app.models.movie import Movies
 from app.models.note import Note
 from app.models.note_mark import NoteMark
-from app.models.novel import Novel, NovelUnit
 from app.models.plan_next import PlanNext
 from app.models.quote import Quote
 from app.models.resource import ResourceNode
@@ -72,10 +72,10 @@ from app.models.system import (
     User,
 )
 from app.models.tv_show import TVShows
+from app.models.user_book_unit_rating import UserBookUnitRating
 from app.models.user_favorite import UserFavorite
 from app.models.user_highlight_group_order import UserHighlightGroupOrder
 from app.models.user_media_list import UserMediaList
-from app.models.user_novel_unit_rating import UserNovelUnitRating
 from app.models.user_rating import UserRating
 from app.models.user_request import UserRequest
 from app.models.watch_order import (
@@ -96,7 +96,7 @@ __all__ = [
     "UserFavorite",
     "UserHighlightGroupOrder",
     "UserMediaList",
-    "UserNovelUnitRating",
+    "UserBookUnitRating",
     "UserRating",
     "Anime",
     "AnimeMovies",
@@ -109,8 +109,8 @@ __all__ = [
     "CharacterIdentity",
     "CharacterTag",
     "Manga",
-    "Novel",
-    "NovelUnit",
+    "Book",
+    "BookUnit",
     "Comic",
     "Game",
     "GameCopy",
@@ -176,8 +176,8 @@ from sqlalchemy.orm import column_property  # noqa: E402
 #     app.services.domain.user_rating.attach_ratings(db, owner_type, entries,
 #                                                    user_id)
 # puts the viewer's values back on the instances before they are serialised,
-# one query per page. A novel unit's `remark` is likewise the reader's own,
-# on user_novel_unit_rating beside its rating, attached by
+# one query per page. A book unit's `remark` is likewise the reader's own,
+# on user_book_unit_rating beside its rating, attached by
 # user_list.attach_unit_ratings.
 #
 # Plain class attributes defaulted to None, so a path that forgot to attach
@@ -187,7 +187,7 @@ for _model in (Collection, Franchise, Series, Character, Person, Studio, Publish
 Collection.collection_expectation = None
 Franchise.franchise_expectation = None
 Series.series_expectation = None
-NovelUnit.remark = None
+BookUnit.remark = None
 # An h-comic's and an h-game's highlight group order is the viewer's own too,
 # in user_highlight_group_order, attached by
 # app.services.domain.highlight_group_order.attach_group_orders.
@@ -236,7 +236,7 @@ _MEDIA_TYPES = (
     (TVShows, "tv-show"),
     (Cartoon, "cartoon"),
     (Manga, "manga"),
-    (Novel, "novel"),
+    (Book, "book"),
     (Comic, "comic"),
     (Game, "game"),
     (HComic, "h-comic"),

@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 ANILIST_URL = "https://graphql.anilist.co"
 
 # MediaType. Light novels live in AniList's manga database (distinguished by
-# `format: NOVEL`), so novel and manga query the same type.
+# `format: NOVEL`), so book and manga query the same type.
 ANIME = "ANIME"
 MANGA = "MANGA"
 

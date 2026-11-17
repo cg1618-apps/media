@@ -25,6 +25,7 @@ from app.routers import (
     anime_movie,
     announcements,
     auth,
+    book,
     cartoon,
     casting,
     character,
@@ -56,7 +57,6 @@ from app.routers import (
     meme,
     movie,
     note,
-    novel,
     options,
     person,
     plan_next,
@@ -78,7 +78,11 @@ from app.routers import (
 )
 from app.schema_guard import ensure_schema
 from app.services.domain.gated_labels import ensure_labels
-from app.services.integrations.image_manager import COVER_DIR, COVER_OWNERS
+from app.services.integrations.image_manager import (
+    COVER_DIR,
+    COVER_OWNERS,
+    move_legacy_cover_folders,
+)
 from app.services.rbac.seed import (
     ADMIN_ROLE,
     ensure_admin_accounts_modeless,
@@ -130,6 +134,15 @@ async def lifespan(app: FastAPI):
     # runs before the admin account is seeded from settings.admin_password,
     # which would otherwise bake the example password into the database.
     settings.validate_secrets()
+
+    # A renamed owner type's cover folder moves to its new name; the stored
+    # keys were rewritten by the rename's migration. A failure is logged and
+    # does not stop the start: the covers it left behind are missing images,
+    # not a reason to serve nothing.
+    try:
+        move_legacy_cover_folders(COVER_DIR)
+    except OSError as e:
+        logger.error("[System] Could not move the renamed cover folders: %s", e)
 
     db = database.SessionLocal()
     try:
@@ -301,7 +314,7 @@ app.include_router(movie.router)
 app.include_router(tv_show.router)
 app.include_router(manga.router)
 app.include_router(note.router)
-app.include_router(novel.router)
+app.include_router(book.router)
 app.include_router(comic.router)
 app.include_router(game.router)
 app.include_router(h_comic.router)

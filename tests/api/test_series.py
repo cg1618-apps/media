@@ -177,12 +177,12 @@ class TestSeriesEntryFiltering:
         assert str(matching.system_id) in ids
         assert str(other.system_id) not in ids
 
-    def test_novel_list_filters_by_series_id(self, client, db_session, sample_series, sample_franchise):
-        matching = models.Novel(franchise_id=sample_franchise.system_id, series_id=sample_series.system_id, novel_name_en="In Series")
-        other = models.Novel(franchise_id=sample_franchise.system_id, series_id=None, novel_name_en="No Series")
+    def test_book_list_filters_by_series_id(self, client, db_session, sample_series, sample_franchise):
+        matching = models.Book(franchise_id=sample_franchise.system_id, series_id=sample_series.system_id, book_name_en="In Series")
+        other = models.Book(franchise_id=sample_franchise.system_id, series_id=None, book_name_en="No Series")
         db_session.add_all([matching, other])
         db_session.flush()
-        response = client.get(f"/api/novel/?series_id={sample_series.system_id}")
+        response = client.get(f"/api/book/?series_id={sample_series.system_id}")
         assert response.status_code == 200
         ids = [n["system_id"] for n in response.json()]
         assert str(matching.system_id) in ids

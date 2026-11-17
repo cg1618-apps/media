@@ -9,14 +9,14 @@ ONE vocabulary. `media_credit.role` and `person_role.role` store the same six
 person keys plus the two company keys, `studio` and `publisher`; the key a
 credit stores IS the person role it implies. Before the collapse these were two
 lists that disagreed - 原作 and 作画 were separate credit keys sharing one
-`manga_author` dropdown, while `novel_author` and `comic_writer` were separate
+`manga_author` dropdown, while `book_author` and `comic_writer` were separate
 person roles meaning the same thing.
 
 Publishers used to be a `system_option` vocabulary rather than an entity. They
 are now the `publisher` table (app/models/staff.py), reached through the
 `publisher` credit role below, so `CreditRole.target` is a THREE-value axis.
 That role covers all six types that credit a publisher. The `publisher_tw` and
-`comic_publisher` TagFields that used to hold the anime, manga, novel and comic
+`comic_publisher` TagFields that used to hold the anime, manga, book and comic
 rows are gone: the migration moved those rows onto `media_credit` and deleted
 both vocabularies. Only the sheet headers survive them, through
 LEGACY_SHEET_COLUMN below.
@@ -25,7 +25,7 @@ One of the six, `seiyuu`, is a person role whose credits are NOT stored in
 `media_credit`: see `CreditRole.credited_via` below.
 
 What varies by media type is the LABEL, not the key: `author` reads 原作 on a
-manga, Author on a novel and Writer on a comic. credit_label() owns that.
+manga, Author on a book and Writer on a comic. credit_label() owns that.
 
 Scope is the media type. `person_role.scope` holds a hyphenated media-type key
 and is NOT NULL, so a role's `media_types` doubles as its legal scopes. The old
@@ -74,7 +74,7 @@ CREDIT_ROLES: dict[str, CreditRole] = {
     # so one company's game and manga credits stay on one entity.
     "publisher": CreditRole(
         "publisher", "Publisher", "publisher",
-        ("anime", "anime-movie", "manga", "novel", "comic", "game"),
+        ("anime", "anime-movie", "manga", "book", "comic", "game"),
     ),
     "director": CreditRole(
         "director", "Director", "person",
@@ -88,11 +88,11 @@ CREDIT_ROLES: dict[str, CreditRole] = {
     # writer, so that person's page lists both. Reads Author on both - no
     # override below - unlike manga's 原作 and comic's Writer.
     "author": CreditRole(
-        "author", "Author", "person", ("manga", "novel", "comic", "h-comic", "hentai")
+        "author", "Author", "person", ("manga", "book", "comic", "h-comic", "hentai")
     ),
     "illustrator": CreditRole(
         "illustrator", "Illustrator", "person",
-        ("manga", "novel", "comic", "h-comic"),
+        ("manga", "book", "comic", "h-comic"),
     ),
     # The circle an h-comic comes out of. Studio-like as an idea, an author as
     # a schema: a `person` row, so a club and its artists live in one table
@@ -115,7 +115,7 @@ PERSON_ROLES: tuple[str, ...] = tuple(
 )
 
 # Labels that differ by media type. One person type, three reader-facing words:
-# the same `author` is 原作 on a manga, Author on a novel and Writer on a
+# the same `author` is 原作 on a manga, Author on a book and Writer on a
 # comic. 作畫 is the traditional form, matching the site's other CJK labels
 # (標籤 Label); the pre-collapse label carried the Japanese 作画.
 # Anything absent falls back to CreditRole.label.
@@ -133,7 +133,7 @@ _LABEL_OVERRIDES: dict[tuple[str, str], str] = {
     ("publisher", "anime"): "台灣代理商",
     ("publisher", "anime-movie"): "台灣代理商",
     ("publisher", "manga"): "台灣出版商",
-    ("publisher", "novel"): "台灣出版商",
+    ("publisher", "book"): "台灣出版商",
     ("publisher", "comic"): "出版商",
     ("publisher", "game"): "發行商",
 }
@@ -167,7 +167,7 @@ class TagField:
 # eight, so a value such as 奇幻 is one row however many types use it; which
 # types a value is OFFERED on is its system_option_scope rows, not this tuple.
 GENRE_MEDIA_TYPES: tuple[str, ...] = (
-    "anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel",
+    "anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "book",
     "comic",
 )
 
@@ -204,7 +204,7 @@ TAG_FIELDS: dict[str, TagField] = {
     # field can now safely cover both media types.
     "serialization_platform": TagField(
         "serialization_platform", "Serialization Platform",
-        SERIALIZATION_CATEGORY, ("manga", "novel"),
+        SERIALIZATION_CATEGORY, ("manga", "book"),
     ),
     "comic_imprint": TagField(
         "comic_imprint", "Imprint", "Comic Imprint", ("comic",)
@@ -330,7 +330,7 @@ OPTION_CATEGORIES: tuple[str, ...] = tuple(
 # entry table. Keyed by the pair, not by the key alone, because the same key
 # can carry a different legacy header per media type - the one `publisher`
 # credit writes under "distributor_tw" on anime, "publisher_tw" on manga and
-# novel, and "publisher" on comic and game, because that is what each tab's
+# book, and "publisher" on comic and game, because that is what each tab's
 # column has always been called. The sheets predate this design and must keep
 # reading the same; only what sits behind the column changed. A pair absent
 # here (for example movie/original_source, which never had a legacy column)
@@ -356,9 +356,9 @@ LEGACY_SHEET_COLUMN: dict[tuple[str, str], str] = {
     ("manga", "author"): "author_plot",
     ("manga", "illustrator"): "author_draw",
     ("manga", "publisher"): "publisher_tw",
-    ("novel", "author"): "author",
-    ("novel", "illustrator"): "illustrator",
-    ("novel", "publisher"): "publisher_tw",
+    ("book", "author"): "author",
+    ("book", "illustrator"): "illustrator",
+    ("book", "publisher"): "publisher_tw",
     ("comic", "author"): "writer",
     ("comic", "illustrator"): "artist",
     ("comic", "publisher"): "publisher",

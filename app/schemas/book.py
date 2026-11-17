@@ -1,4 +1,4 @@
-"""Novel request/response schemas."""
+"""Book request/response schemas."""
 
 from datetime import datetime
 from typing import List, Literal, Optional
@@ -7,17 +7,17 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, computed_field
 
 from app.schemas.image_focus import ImageFocus
-from app.schemas.link_fields import NovelLinkFields
+from app.schemas.link_fields import BookLinkFields
 from app.schemas.release_date_field import release_date_validator
 from app.schemas.sources import SourceWriteFields
-from app.services.domain.novel_units import unit_display_key
+from app.services.domain.book_units import unit_display_key
 
 
-class NovelUnitWrite(BaseModel):
+class BookUnitWrite(BaseModel):
     """
     One unit as the client sends it. system_id present means "update this
     row"; absent means "insert". Rows the payload omits are deleted — see
-    write_novel_units.
+    write_book_units.
     """
 
     system_id: Optional[UUID] = None
@@ -28,11 +28,11 @@ class NovelUnitWrite(BaseModel):
     name_en: Optional[str] = None
     ch_count: Optional[float] = None
     # No my_rating or remark: they are the reader's, not the unit's, and are
-    # written by PUT /api/me/novel-units/{unit_id}. A client still sending
+    # written by PUT /api/me/book-units/{unit_id}. A client still sending
     # either has the key ignored, like every catalogue write's personal field.
 
 
-class NovelUnitResponse(BaseModel):
+class BookUnitResponse(BaseModel):
     system_id: UUID
     unit_kind: str
     position: float
@@ -52,15 +52,15 @@ class NovelUnitResponse(BaseModel):
         return unit_display_key(self.unit_kind, self.position, self.unit_key)
 
 
-class NovelBase(BaseModel):
+class BookBase(BaseModel):
     franchise_id: Optional[UUID] = None
     series_id: Optional[UUID] = None
 
-    novel_name_en: Optional[str] = None
-    novel_name_cn: Optional[str] = None
-    novel_name_roman: Optional[str] = None
-    novel_name_jp: Optional[str] = None
-    novel_name_alt: Optional[str] = None
+    book_name_en: Optional[str] = None
+    book_name_cn: Optional[str] = None
+    book_name_roman: Optional[str] = None
+    book_name_jp: Optional[str] = None
+    book_name_alt: Optional[str] = None
 
     region: Optional[str] = None
     type: Optional[str] = None
@@ -86,7 +86,8 @@ class NovelBase(BaseModel):
     anilist_rank: Optional[int] = None
     anilist_popularity_rank: Optional[int] = None
 
-    release_date: Optional[str] = None
+    release_date_jp: Optional[str] = None
+    release_date_tw: Optional[str] = None
     end_date: Optional[str] = None
 
 
@@ -97,7 +98,7 @@ class NovelBase(BaseModel):
 
     # Popped out of the payload by the router before the model is built;
     # see MediaTypeSpec.nested_collections.
-    units: Optional[List[NovelUnitWrite]] = None
+    units: Optional[List[BookUnitWrite]] = None
 
     read_next: Optional[bool] = None
     to_reread: Optional[bool] = None
@@ -105,18 +106,18 @@ class NovelBase(BaseModel):
     cover_image_focus: ImageFocus = None
     completed_at: Optional[datetime] = None
 
-    _validate_release_dates = release_date_validator("release_date", "end_date")
+    _validate_release_dates = release_date_validator("release_date_jp", "release_date_tw", "end_date")
 
 
-class NovelCreate(NovelBase, SourceWriteFields):
+class BookCreate(BookBase, SourceWriteFields):
     pass
 
 
-class NovelUpdate(NovelBase, SourceWriteFields):
+class BookUpdate(BookBase, SourceWriteFields):
     pass
 
 
-class NovelResponse(NovelBase, NovelLinkFields):
+class BookResponse(BookBase, BookLinkFields):
     # Redeclared from the base as Optional: a logged-out visitor has no
     # list, so attach_list_fields sets nothing and this arrives absent.
     # Only the READ side moves - Create/Update/SheetSync keep the base's
@@ -127,7 +128,7 @@ class NovelResponse(NovelBase, NovelLinkFields):
     # The id the SPA puts in the URL. Never gated: a viewer allowed to see the
     # entry must be able to link to it.
     public_id: int
-    units: List[NovelUnitResponse] = []
+    units: List[BookUnitResponse] = []
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -137,17 +138,17 @@ class NovelResponse(NovelBase, NovelLinkFields):
     @property
     def display_name(self) -> str:
         for val in (
-            self.novel_name_cn,
-            self.novel_name_en,
-            self.novel_name_alt,
-            self.novel_name_roman,
-            self.novel_name_jp,
+            self.book_name_cn,
+            self.book_name_en,
+            self.book_name_alt,
+            self.book_name_roman,
+            self.book_name_jp,
         ):
             if val and str(val).strip():
                 return str(val).strip()
         return ""
 
 
-class NovelSheetSync(NovelCreate):
+class BookSheetSync(BookCreate):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

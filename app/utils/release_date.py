@@ -41,7 +41,7 @@ RELEASE_PRIORITY: Dict[str, tuple] = {
     "tv-show": ("release_date",),
     "cartoon": ("release_date",),
     "manga": ("release_date",),
-    "novel": ("release_date",),
+    "book": ("release_date_jp", "release_date_tw"),
     "comic": ("release_date",),
     "game": ("release_date",),
     "h-comic": ("release_date",),
@@ -60,7 +60,7 @@ DATE_COLUMNS: Dict[str, tuple] = {
     "tv_shows": ("release_date",),
     "cartoons": ("release_date",),
     "manga": ("release_date", "end_date"),
-    "novel": ("release_date", "end_date"),
+    "book": ("release_date_jp", "release_date_tw", "end_date"),
     "comic": ("release_date", "end_date"),
     "games": ("release_date",),
     "h_comic": ("release_date", "end_date"),
@@ -110,7 +110,7 @@ def normalize(value: Any) -> Optional[str]:
     unrecognizable — the caller decides whether that is worth logging.
 
     Handles: canonical values (unchanged), the legacy "JUL 2001" format,
-    integer and float years (novel and comic stored Integer; Sheets hands back
+    integer and float years (book and comic stored Integer; Sheets hands back
     "2020.0"), and full ISO dates from TMDB and Tenrai.
     """
     if value is None:

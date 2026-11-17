@@ -13,7 +13,7 @@ from app.main import app
 from app.services.pipelines import replace
 
 MEDIA = [
-    "anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel",
+    "anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "book",
     "comic", "h-comic", "h-game", "hentai",
 ]
 # The one type with no bulk Replace: comic spends an hourly quota.

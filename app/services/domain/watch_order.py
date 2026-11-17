@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from app.models import (
     Anime,
     AnimeMovies,
+    Book,
     Cartoon,
     Comic,
     Game,
@@ -27,7 +28,6 @@ from app.models import (
     Manga,
     Media,
     Movies,
-    Novel,
     TVShows,
 )
 from app.utils import release_date
@@ -41,7 +41,7 @@ MEDIA_TYPE_MODELS = {
     "tv-show": TVShows,
     "cartoon": Cartoon,
     "manga": Manga,
-    "novel": Novel,
+    "book": Book,
     "comic": Comic,
     # A game is an entry like any other: a franchise's order may step through
     # its game beside its anime, and plan_next_kinds already gives games all
@@ -65,7 +65,7 @@ _STATUS_FIELDS = {
     "tv-show": "watching_status",
     "cartoon": "watching_status",
     "manga": "reading_status",
-    "novel": "reading_status",
+    "book": "reading_status",
     "comic": "reading_status",
     "game": "playing_status",
     "h-comic": "reading_status",
@@ -78,7 +78,7 @@ _TOTAL_FIELDS = {
     "tv-show": "ep_total",
     "cartoon": "ep_total",
     "manga": "ch_total",
-    "novel": "ch_total",
+    "book": "ch_total",
     "comic": "issue_total",
 }
 
@@ -139,7 +139,7 @@ def _entry_payload(entry: Any, media_type: str) -> Dict[str, Any]:
         "cover_image_focus": entry.cover_image_focus,
         "franchise_id": entry.franchise_id,
         "status": getattr(entry, _STATUS_FIELDS[media_type], None),
-        # Float on novel, Integer elsewhere; the schema wants an int.
+        # Float on book, Integer elsewhere; the schema wants an int.
         "total_episodes": int(total) if total is not None else None,
         # Anime only - the episode a special sits at ("0", "14.5", "17.5A"),
         # a label rather than a count, passed through as stored. Every other

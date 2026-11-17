@@ -3,7 +3,7 @@ Nested write for a game's copy rows, and the ownership derived from them.
 
 The media-router factory builds an entry with spec.model(**payload) and
 assigns updates with a blind setattr loop, so a nested list has to come out
-of the payload first - the same escape hatch write_novel_units uses. This
+of the payload first - the same escape hatch write_book_units uses. This
 module owns what happens to that list.
 """
 
@@ -40,7 +40,7 @@ def write_game_copies(db, entry, copies, viewer=None) -> None:
         # Nobody to own them. Every caller is an admin-gated request path, so
         # this is unreachable in practice - but game_copy.user_id is NOT NULL,
         # and reaching the INSERT would raise an IntegrityError that says
-        # nothing about the cause. novel_unit_writer guards the same way.
+        # nothing about the cause. book_unit_writer guards the same way.
         return
     # Somebody is acting, but may not KEEP rows of their own. A copy is a
     # personal-ownership row that happens to be written through a catalogue

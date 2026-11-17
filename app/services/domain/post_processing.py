@@ -7,17 +7,18 @@ from sqlalchemy.orm import Session
 from app.models import (
     Anime,
     AnimeMovies,
+    Book,
     Cartoon,
     Game,
     Manga,
     Media,
     Movies,
-    Novel,
     TVShows,
 )
 from app.services.domain.autofill import (
     autofill_anime_from_mal,
     autofill_anime_movie_from_mal,
+    autofill_book_from_mal,
     autofill_cartoon_from_imdb,
     autofill_cover_from_steam,
     autofill_cover_from_steam_header,
@@ -33,7 +34,6 @@ from app.services.domain.autofill import (
     autofill_hltb_source,
     autofill_manga_from_mal,
     autofill_movie_from_imdb,
-    autofill_novel_from_mal,
     autofill_tv_show_from_imdb,
 )
 from app.services.domain.checking import (
@@ -44,12 +44,12 @@ from app.services.domain.checking import (
 )
 from app.services.domain.derivation import (
     apply_calculate_seasonal_from_month,
+    apply_extract_book_ids,
     apply_extract_game_ids,
     apply_extract_hentai_ids,
     apply_extract_imdb_id,
     apply_extract_mal_id_anime,
-    apply_extract_mal_id_manga_novel,
-    apply_extract_novel_ids,
+    apply_extract_mal_id_manga_book,
     apply_extract_season_from_title,
     derive_ep_previous_anime,
     derive_season_1_anime,
@@ -107,7 +107,7 @@ def apply_single_replace_h_comic(db: Session, h_comic, bulk: bool = False) -> No
     and the label are the spec's syncs. `bulk` is kept for signature parity
     with the other media types.
     """
-    apply_extract_mal_id_manga_novel(h_comic)
+    apply_extract_mal_id_manga_book(h_comic)
     autofill_h_comic_from_mal(h_comic, db=db)
     autofill_h_comic_from_ehentai(h_comic, db)
 
@@ -166,25 +166,25 @@ def apply_single_replace_manga(db: Session, manga: Manga, bulk: bool = False) ->
     Nothing is derived franchise-wide for manga; `bulk` is accepted for
     signature parity with the other media types.
     """
-    apply_extract_mal_id_manga_novel(manga)
+    apply_extract_mal_id_manga_book(manga)
     autofill_manga_from_mal(manga, force_replace_ratings=True, db=db)
     autofill_from_anilist(manga, MANGA, db)
     manga_post_processing(manga, db)
 
 
 
-def apply_single_replace_novel(db: Session, novel: Novel, bulk: bool = False) -> None:
+def apply_single_replace_book(db: Session, book: Book, bulk: bool = False) -> None:
     """
-    Core 'Replace' logic for a single Novel entry.
-    No post_processing and nothing derived franchise-wide — novel has neither.
+    Core 'Replace' logic for a single Book entry.
+    No post_processing and nothing derived franchise-wide — book has neither.
 
     Both ids are derived, but only MAL is re-fetched: Replace is deliberately
     not wired to Open Library. Deriving openlibrary_id here anyway keeps the id
     in step with its link, so the next Fill has something to key off.
     """
-    apply_extract_novel_ids(novel)
-    autofill_novel_from_mal(novel, force_replace_ratings=True, db=db)
-    autofill_from_anilist(novel, MANGA, db)
+    apply_extract_book_ids(book)
+    autofill_book_from_mal(book, force_replace_ratings=True, db=db)
+    autofill_from_anilist(book, MANGA, db)
 
 
 def apply_single_replace_game(

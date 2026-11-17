@@ -1,12 +1,12 @@
 """
-Novel unit arithmetic — rollover, derivation, and the display-key fallback.
+Book unit arithmetic — rollover, derivation, and the display-key fallback.
 
 Pure functions: no session, no queries. They are called from the router
-(every write path) and from run_sync_novel (Calculate), so they must be
+(every write path) and from run_sync_book (Calculate), so they must be
 idempotent — running them twice on the same entry changes nothing.
 """
 
-from app.utils.constants import NOVEL_UNIT_KEY_PREFIX, NOVEL_VOLUME_ONLY_TYPES
+from app.utils.constants import BOOK_UNIT_KEY_PREFIX, BOOK_VOLUME_ONLY_TYPES
 
 
 def _num(val) -> float:
@@ -51,9 +51,9 @@ def normalize_arc_progress(arc_counts, arc_fin, ch_fin_in_arc):
 
 def clear_chapter_catalog(entry) -> None:
     """
-    Blank the work's chapter and arc totals on a volume-only novel.
+    Blank the work's chapter and arc totals on a volume-only book.
 
-    A Light Novel or a Novel is counted in volumes, so these carry no meaning
+    A 輕小說 or a 小說 is counted in volumes, so these carry no meaning
     for it. Both are nullable, so both go to None.
     """
     entry.arc_total = None
@@ -68,7 +68,7 @@ def clear_chapter_list(row) -> None:
     row.ch_fin_in_arc = 0
 
 
-def derive_novel_catalog(entry) -> None:
+def derive_book_catalog(entry) -> None:
     """
     Recompute the work's arc_total and ch_total from its arc rows.
 
@@ -80,7 +80,7 @@ def derive_novel_catalog(entry) -> None:
     Pure: no session, no queries, and idempotent, because it is called from
     every write path and from Calculate.
     """
-    if getattr(entry, "type", None) in NOVEL_VOLUME_ONLY_TYPES:
+    if getattr(entry, "type", None) in BOOK_VOLUME_ONLY_TYPES:
         clear_chapter_catalog(entry)
         return
 
@@ -96,17 +96,17 @@ def derive_novel_catalog(entry) -> None:
     entry.ch_total = float(sum(counts))
 
 
-def derive_novel_list(row, entry) -> None:
+def derive_book_list(row, entry) -> None:
     """
     Recompute one reader's arc_fin, ch_fin_in_arc and ch_fin from the work's
     arc rows and their own cursor.
 
-    The arithmetic is exactly what derive_novel_progress did; what changed is
+    The arithmetic is exactly what derive_book_progress did; what changed is
     where the answer is written. Two people reading the same web novel fold
     their own cursors through the same arc widths and land in different
     places, which is the whole point.
     """
-    if getattr(entry, "type", None) in NOVEL_VOLUME_ONLY_TYPES:
+    if getattr(entry, "type", None) in BOOK_VOLUME_ONLY_TYPES:
         clear_chapter_list(row)
         return
 
@@ -116,7 +116,7 @@ def derive_novel_list(row, entry) -> None:
     )
     if not arcs:
         # No arcs: the flat ch_fin the reader typed stands, and only the
-        # in-arc cursor is meaningless. Same rule derive_novel_progress had.
+        # in-arc cursor is meaningless. Same rule derive_book_progress had.
         row.ch_fin_in_arc = 0
         return
 
@@ -136,7 +136,7 @@ def unit_display_key(unit_kind, position, unit_key) -> str:
     """
     if unit_key and str(unit_key).strip():
         return str(unit_key).strip()
-    prefix = NOVEL_UNIT_KEY_PREFIX.get(unit_kind, "Unit")
+    prefix = BOOK_UNIT_KEY_PREFIX.get(unit_kind, "Unit")
     pos = _num(position)
     shown = int(pos) if pos == int(pos) else pos
     return f"{prefix} {shown}"

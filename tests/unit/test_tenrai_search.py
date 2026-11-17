@@ -16,7 +16,7 @@ from app.services.integrations.external_search import ExternalSearchError
 from app.utils.utils import (
     extract_mal_id_anime,
     extract_mal_id_character,
-    extract_mal_id_manga_novel,
+    extract_mal_id_manga_book,
     extract_mal_id_person,
 )
 
@@ -299,7 +299,7 @@ def test_every_link_round_trips_into_its_mal_id():
     [character] = tenrai.search_mal_characters("frieren", 1)
 
     assert extract_mal_id_anime(anime["link"]) == int(anime["external_id"])
-    assert extract_mal_id_manga_novel(manga["link"]) == int(manga["external_id"])
+    assert extract_mal_id_manga_book(manga["link"]) == int(manga["external_id"])
     assert extract_mal_id_person(person["link"]) == int(person["external_id"])
     assert extract_mal_id_character(character["link"]) == int(character["external_id"])
 

@@ -1,7 +1,7 @@
 """Turns a picked MyAnimeList search result into the Add form's prefill.
 
 ``GET /api/<type>/mal-prefill/{mal_id}`` for anime, anime movie, manga and
-novel: the shape is app/services/domain/mal_prefill.py's; this is the HTTP
+book: the shape is app/services/domain/mal_prefill.py's; this is the HTTP
 half - an unknown id is a 404, Tenrai failing a 502.
 """
 

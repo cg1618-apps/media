@@ -95,7 +95,7 @@ def _spec_and_entry(db: Session, media: models.Media):
     """
     The type's MediaSpec and detail row, which the tracker's rules read:
     progress_hook_list (h-comic's usefulness vocabulary and region clears,
-    novel's arc derivation) and the progress counter's total live on the
+    book's arc derivation) and the progress counter's total live on the
     detail table, not the `media` supertable.
     """
     spec = next(

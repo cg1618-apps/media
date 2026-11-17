@@ -418,8 +418,8 @@ def parse_user_favorite_from_sheet(raw: dict) -> dict:
     }
 
 
-def parse_user_novel_unit_rating_from_sheet(raw: dict) -> dict:
-    """One reader's rating of and remark on one novel unit; user_id as above."""
+def parse_user_book_unit_rating_from_sheet(raw: dict) -> dict:
+    """One reader's rating of and remark on one book unit; user_id as above."""
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "unit_id": _uuid_or_none(raw.get("unit_id")),
@@ -945,7 +945,7 @@ def parse_movie_from_sheet(raw: dict) -> dict:
         # its own key (renamed from source_official alongside the field key -
         # tv-show and cartoon keep the old header instead, since they DO have
         # a legacy column to stay compatible with). Popped out in pull.py
-        # before the setattr loop, exactly like the anime/manga/novel/comic
+        # before the setattr loop, exactly like the anime/manga/book/comic
         # credit columns.
         "original_source": parse_from_sheet(raw.get("original_source"), str),
         "length_min": parse_from_sheet(raw.get("length_min"), int),
@@ -1088,20 +1088,22 @@ def parse_manga_from_sheet(raw: dict) -> dict:
     return parsed
 
 
-def parse_novel_from_sheet(raw: dict) -> dict:
+def parse_book_from_sheet(raw: dict) -> dict:
     """
-    Parses a raw dictionary from the Novel sheet into typed data ready for the Database.
-    franchise_id and series_id may be a UUID or a raw string name.
+    Parses a raw dictionary from the Book sheet into typed data ready for the Database.
+    franchise_id and series_id may be a UUID or a raw string name. A tab
+    written before Novel became Book names its columns novel_name_* and
+    release_date (pull.RENAMED_COLUMNS).
     """
     parsed = {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "franchise_id": parse_from_sheet(raw.get("franchise_id"), UUID),
         "series_id": parse_from_sheet(raw.get("series_id"), UUID),
-        "novel_name_en": parse_from_sheet(raw.get("novel_name_en"), str),
-        "novel_name_cn": parse_from_sheet(raw.get("novel_name_cn"), str),
-        "novel_name_roman": parse_from_sheet(raw.get("novel_name_roman"), str),
-        "novel_name_jp": parse_from_sheet(raw.get("novel_name_jp"), str),
-        "novel_name_alt": parse_from_sheet(raw.get("novel_name_alt"), str),
+        "book_name_en": parse_from_sheet(_renamed(raw, "book_name_en", "novel_name_en"), str),
+        "book_name_cn": parse_from_sheet(_renamed(raw, "book_name_cn", "novel_name_cn"), str),
+        "book_name_roman": parse_from_sheet(_renamed(raw, "book_name_roman", "novel_name_roman"), str),
+        "book_name_jp": parse_from_sheet(_renamed(raw, "book_name_jp", "novel_name_jp"), str),
+        "book_name_alt": parse_from_sheet(_renamed(raw, "book_name_alt", "novel_name_alt"), str),
         "region": parse_from_sheet(raw.get("region"), str),
         "type": parse_from_sheet(raw.get("type"), str),
         "version": parse_from_sheet(raw.get("version"), str),
@@ -1120,7 +1122,12 @@ def parse_novel_from_sheet(raw: dict) -> dict:
         ),
         "author": parse_from_sheet(raw.get("author"), str),
         "illustrator": parse_from_sheet(raw.get("illustrator"), str),
-        "release_date": release_date.normalize(parse_from_sheet(raw.get("release_date"), str)),
+        # A tab from before Novel became Book carries one `release_date`, the
+        # original's; pull.RENAMED_COLUMNS keeps it as the JP one.
+        "release_date_jp": release_date.normalize(
+            parse_from_sheet(_renamed(raw, "release_date_jp", "release_date"), str)
+        ),
+        "release_date_tw": release_date.normalize(parse_from_sheet(raw.get("release_date_tw"), str)),
         "end_date": release_date.normalize(parse_from_sheet(raw.get("end_date"), str)),
         "publisher_tw": parse_from_sheet(raw.get("publisher_tw"), str),
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
@@ -1139,18 +1146,18 @@ def parse_novel_from_sheet(raw: dict) -> dict:
     return parsed
 
 
-def parse_novel_unit_from_sheet(raw: dict) -> dict:
+def parse_book_unit_from_sheet(raw: dict) -> dict:
     """
-    Parses a raw dictionary from the Novel Unit sheet into typed data ready
+    Parses a raw dictionary from the Book Unit sheet into typed data ready
     for the Database.
 
-    novel_id goes through _uuid_or_none: unlike the entry tabs there is no
+    book_id goes through _uuid_or_none: unlike the entry tabs there is no
     name to resolve a bad cell against, so anything unparseable must become
     NULL rather than reach Postgres as a string.
     """
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
-        "novel_id": _uuid_or_none(raw.get("novel_id")),
+        "book_id": _uuid_or_none(_renamed(raw, "book_id", "novel_id")),
         "unit_kind": parse_from_sheet(raw.get("unit_kind"), str),
         "position": parse_from_sheet(raw.get("position"), float),
         "unit_key": parse_from_sheet(raw.get("unit_key"), str),

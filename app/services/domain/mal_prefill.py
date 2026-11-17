@@ -1,6 +1,6 @@
 """
 What a MyAnimeList pick on the Add page fills into an anime, anime movie,
-manga or novel form.
+manga or book form.
 
 `mal_prefill` answers GET /api/<type>/mal-prefill/{mal_id}: a flat object of
 FORM field names to values, nulls left out. It carries exactly what that
@@ -38,13 +38,13 @@ from app.utils.tenrai_utils import (
     map_tenrai_titles,
     map_tenrai_to_anime_data,
     map_tenrai_to_anime_movie_data,
+    map_tenrai_to_book_data,
     map_tenrai_to_manga_data,
-    map_tenrai_to_novel_data,
 )
 
 logger = logging.getLogger(__name__)
 
-# The serialization status after which a manga's or novel's totals are final;
+# The serialization status after which a manga's or book's totals are final;
 # the autofills fill them only then, and so does the prefill.
 _FINISHED = "完結"
 
@@ -69,8 +69,8 @@ def _anime_movie_fields(j: dict) -> dict:
     return out
 
 
-def _serialized_fields(j: dict, totals: tuple) -> dict:
-    out = {k: j.get(k) for k in ("serialization_status", "release_date", "end_date")}
+def _serialized_fields(j: dict, totals: tuple, release: str = "release_date") -> dict:
+    out = {k: j.get(k) for k in ("serialization_status", release, "end_date")}
     if j.get("serialization_status") == _FINISHED:
         out.update({k: j.get(k) for k in totals})
     return out
@@ -88,9 +88,9 @@ _TYPES: Dict[str, tuple[Callable, Callable, Callable]] = {
         lambda i: lookup_mal_manga(i), map_tenrai_to_manga_data,
         lambda j: _serialized_fields(j, ("vol_total", "ch_total")),
     ),
-    "novel": (
-        lambda i: lookup_mal_manga(i), map_tenrai_to_novel_data,
-        lambda j: _serialized_fields(j, ("vol_total_original", "ch_total")),
+    "book": (
+        lambda i: lookup_mal_manga(i), map_tenrai_to_book_data,
+        lambda j: _serialized_fields(j, ("vol_total_original", "ch_total"), "release_date_jp"),
     ),
 }
 
@@ -99,7 +99,7 @@ _NAME_PREFIX = {
     "anime": "anime",
     "anime-movie": "anime_movie",
     "manga": "manga",
-    "novel": "novel",
+    "book": "book",
 }
 
 PREFILL_MEDIA_TYPES = tuple(_TYPES)

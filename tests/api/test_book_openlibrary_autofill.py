@@ -1,5 +1,5 @@
 """
-Tests for autofill_novel_from_openlibrary.
+Tests for autofill_book_from_openlibrary.
 
 The fetch and the cover download are both patched out — these lock down the
 fill-only semantics (never overwrite what the admin typed) and the anchor-book
@@ -14,7 +14,7 @@ import pytest
 
 from app import models
 from app.services.domain import autofill as autofill_module
-from app.services.domain.autofill import autofill_novel_from_openlibrary
+from app.services.domain.autofill import autofill_book_from_openlibrary
 from app.services.domain.credits import credit_names, replace_credits
 
 WORK_RESULT = {
@@ -24,13 +24,13 @@ WORK_RESULT = {
 }
 
 
-def make_novel(db_session, **kwargs):
-    """A real Novel row with every Open-Library-fillable field blank."""
+def make_book(db_session, **kwargs):
+    """A real Book row with every Open-Library-fillable field blank."""
     defaults = dict(
         system_id=uuid.uuid4(),
-        novel_name_en="Mistborn",
+        book_name_en="Mistborn",
         openlibrary_id="OL5738148W",
-        release_date=None,
+        release_date_jp=None,
         end_date=None,
         vol_total_original=None,
         ch_total=None,
@@ -38,10 +38,10 @@ def make_novel(db_session, **kwargs):
         cover_image_file=None,
     )
     defaults.update(kwargs)
-    novel = models.Novel(**defaults)
-    db_session.add(novel)
+    book = models.Book(**defaults)
+    db_session.add(book)
     db_session.flush()
-    return novel
+    return book
 
 
 @pytest.fixture
@@ -66,101 +66,101 @@ def patched(monkeypatch):
 
 class TestFillsBlankFields:
     def test_fills_release_date_from_the_earliest_edition(self, db_session, patched):
-        novel = make_novel(db_session)
-        autofill_novel_from_openlibrary(novel, db_session)
-        assert novel.release_date == "2006"
+        book = make_book(db_session)
+        autofill_book_from_openlibrary(book, db_session)
+        assert book.release_date_jp == "2006"
 
     def test_fills_the_cover(self, db_session, patched):
-        novel = make_novel(db_session)
-        autofill_novel_from_openlibrary(novel, db_session)
-        assert novel.cover_image_file == "downloaded.jpg"
+        book = make_book(db_session)
+        autofill_book_from_openlibrary(book, db_session)
+        assert book.cover_image_file == "downloaded.jpg"
         assert patched["download"][0][0] == (
             "https://covers.openlibrary.org/b/id/14658160-L.jpg"
         )
 
     def test_creates_the_author_credit(self, db_session, patched):
-        novel = make_novel(db_session)
-        autofill_novel_from_openlibrary(novel, db_session)
-        assert credit_names(db_session, novel.system_id, "author") == [
+        book = make_book(db_session)
+        autofill_book_from_openlibrary(book, db_session)
+        assert credit_names(db_session, book.system_id, "author") == [
             "Brandon Sanderson"
         ]
 
 
 class TestFillOnly:
     def test_keeps_an_existing_release_date(self, db_session, patched):
-        novel = make_novel(db_session, release_date="1999")
-        autofill_novel_from_openlibrary(novel, db_session)
-        assert novel.release_date == "1999"
+        book = make_book(db_session, release_date_jp="1999")
+        autofill_book_from_openlibrary(book, db_session)
+        assert book.release_date_jp == "1999"
 
     def test_keeps_an_existing_cover(self, db_session, patched):
-        novel = make_novel(db_session, cover_image_file="mine.jpg")
-        autofill_novel_from_openlibrary(novel, db_session)
-        assert novel.cover_image_file == "mine.jpg"
+        book = make_book(db_session, cover_image_file="mine.jpg")
+        autofill_book_from_openlibrary(book, db_session)
+        assert book.cover_image_file == "mine.jpg"
         assert patched["download"] == []
 
     def test_keeps_an_existing_author_credit(self, db_session, patched):
-        novel = make_novel(db_session)
-        replace_credits(db_session, "novel", novel.system_id, "author", ["Someone Else"])
-        autofill_novel_from_openlibrary(novel, db_session)
-        assert credit_names(db_session, novel.system_id, "author") == [
+        book = make_book(db_session)
+        replace_credits(db_session, "book", book.system_id, "author", ["Someone Else"])
+        autofill_book_from_openlibrary(book, db_session)
+        assert credit_names(db_session, book.system_id, "author") == [
             "Someone Else"
         ]
 
 
 class TestAnchorBookContract:
     def test_never_writes_fields_one_book_cannot_know(self, db_session, patched):
-        novel = make_novel(db_session)
-        autofill_novel_from_openlibrary(novel, db_session)
-        assert novel.end_date is None
-        assert novel.vol_total_original is None
-        assert novel.ch_total is None
-        assert novel.serialization_status is None
+        book = make_book(db_session)
+        autofill_book_from_openlibrary(book, db_session)
+        assert book.end_date is None
+        assert book.vol_total_original is None
+        assert book.ch_total is None
+        assert book.serialization_status is None
 
     def test_never_touches_the_entry_name(self, db_session, patched):
-        novel = make_novel(db_session, novel_name_en="Mistborn")
-        autofill_novel_from_openlibrary(novel, db_session)
-        assert novel.novel_name_en == "Mistborn"
+        book = make_book(db_session, book_name_en="Mistborn")
+        autofill_book_from_openlibrary(book, db_session)
+        assert book.book_name_en == "Mistborn"
 
 
 class TestConditionalFetching:
     def test_asks_for_editions_and_authors_when_both_are_missing(self, db_session, patched):
-        novel = make_novel(db_session)
-        autofill_novel_from_openlibrary(novel, db_session)
+        book = make_book(db_session)
+        autofill_book_from_openlibrary(book, db_session)
         assert patched["fetch"][0]["want_editions"] is True
         assert patched["fetch"][0]["want_authors"] is True
 
     def test_skips_editions_when_the_release_date_is_already_set(self, db_session, patched):
-        novel = make_novel(db_session, release_date="1999")
-        autofill_novel_from_openlibrary(novel, db_session)
+        book = make_book(db_session, release_date_jp="1999")
+        autofill_book_from_openlibrary(book, db_session)
         assert patched["fetch"][0]["want_editions"] is False
 
     def test_skips_authors_when_a_credit_already_exists(self, db_session, patched):
-        novel = make_novel(db_session)
-        replace_credits(db_session, "novel", novel.system_id, "author", ["Someone Else"])
-        autofill_novel_from_openlibrary(novel, db_session)
+        book = make_book(db_session)
+        replace_credits(db_session, "book", book.system_id, "author", ["Someone Else"])
+        autofill_book_from_openlibrary(book, db_session)
         assert patched["fetch"][0]["want_authors"] is False
 
 
 class TestFailureHandling:
     def test_does_nothing_without_an_id(self, db_session, patched):
-        novel = make_novel(db_session, openlibrary_id=None)
-        autofill_novel_from_openlibrary(novel, db_session)
+        book = make_book(db_session, openlibrary_id=None)
+        autofill_book_from_openlibrary(book, db_session)
         assert patched["fetch"] == []
-        assert novel.release_date is None
+        assert book.release_date_jp is None
 
     def test_survives_a_fetch_returning_none(self, db_session, monkeypatch):
         monkeypatch.setattr(
             autofill_module, "fetch_openlibrary_work", lambda *a, **k: None
         )
-        novel = make_novel(db_session)
-        autofill_novel_from_openlibrary(novel, db_session)
-        assert novel.release_date is None
+        book = make_book(db_session)
+        autofill_book_from_openlibrary(book, db_session)
+        assert book.release_date_jp is None
 
     def test_swallows_and_logs_a_fetch_exception(self, db_session, monkeypatch):
         def boom(*a, **k):
             raise RuntimeError("network down")
 
         monkeypatch.setattr(autofill_module, "fetch_openlibrary_work", boom)
-        novel = make_novel(db_session)
-        autofill_novel_from_openlibrary(novel, db_session)  # must not raise
-        assert novel.release_date is None
+        book = make_book(db_session)
+        autofill_book_from_openlibrary(book, db_session)  # must not raise
+        assert book.release_date_jp is None

@@ -1,13 +1,13 @@
-"""The novel tab's two pickers: GET /api/novel/search-mal and /search-openlibrary."""
+"""The book tab's two pickers: GET /api/book/search-mal and /search-openlibrary."""
 
 import pytest
 
-from app.routers import novel
+from app.routers import book
 from app.services.integrations.external_search import ExternalSearchError
 
 ROUTES = [
-    ("/api/novel/search-mal", "search_mal_novel"),
-    ("/api/novel/search-openlibrary", "search_openlibrary_works"),
+    ("/api/book/search-mal", "search_mal_novel"),
+    ("/api/book/search-openlibrary", "search_openlibrary_works"),
 ]
 
 ROW = {
@@ -34,7 +34,7 @@ def test_search_returns_the_shared_shape(owner_client, monkeypatch, path, func):
         calls.append((q, limit))
         return [ROW]
 
-    monkeypatch.setattr(novel, func, fake)
+    monkeypatch.setattr(book, func, fake)
     response = owner_client.get(f"{path}?q=sapiens&limit=5")
     assert response.status_code == 200
     assert response.json() == [ROW]
@@ -52,7 +52,7 @@ def test_an_upstream_failure_is_a_502(owner_client, monkeypatch, path, func):
     def fail(q, limit):
         raise ExternalSearchError("Open Library did not answer.")
 
-    monkeypatch.setattr(novel, func, fail)
+    monkeypatch.setattr(book, func, fail)
     response = owner_client.get(f"{path}?q=sapiens")
     assert response.status_code == 502
     assert response.json()["detail"] == "Open Library did not answer."

@@ -223,6 +223,26 @@ def get_google_sheet_tab(tab_name: str, *, for_read: bool = False) -> gspread.Wo
 # ==========================================
 
 
+def sheet_tab_titles() -> frozenset[str]:
+    """
+    The titles of every tab in the sheet Pull reads (GOOGLE_PULL_SHEET_ID when
+    set, otherwise GOOGLE_SHEET_ID), without creating any.
+
+    Pull asks this before reading a tab under its pre-rename title
+    (pipelines/legacy_names.LEGACY_TAB_NAMES): reading a title the sheet does
+    not have would create it on the backup sheet.
+    """
+    pull_sheet_id = settings.google_pull_sheet_id
+    try:
+        spreadsheet = _get_google_spreadsheet(pull_sheet_id or settings.google_sheet_id)
+        worksheets = _execute_with_retry(spreadsheet.worksheets)
+    except SheetsUnavailableError:
+        raise
+    except Exception as e:
+        raise SheetsUnavailableError(f"Failed to list the sheet's tabs: {e}") from e
+    return frozenset(ws.title for ws in worksheets)
+
+
 def get_all_raw_rows(tab_name: str) -> List[List[str]]:
     """
     Reads all cell values from a tab and returns them as a list of lists.

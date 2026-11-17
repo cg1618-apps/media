@@ -80,11 +80,11 @@ def test_weighting_is_on_unless_saved_off(owner_client, guest_reader, db_session
     # reads as weighted, like a mode with nothing saved.
     db_session.add(
         models.SystemConfigs(
-            config_key="random_picker_defaults:novel", config_value='{"filters": {}}'
+            config_key="random_picker_defaults:book", config_value='{"filters": {}}'
         )
     )
     db_session.commit()
-    assert guest_reader.get(f"{ROUTE}/novel").json()["weighted"] is True
+    assert guest_reader.get(f"{ROUTE}/book").json()["weighted"] is True
 
     owner_client.put(f"{ROUTE}/anime", json={"filters": {}, "weighted": False})
     assert guest_reader.get(f"{ROUTE}/anime").json()["weighted"] is False

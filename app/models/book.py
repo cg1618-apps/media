@@ -1,4 +1,4 @@
-"""Novel ORM model."""
+"""Book ORM model."""
 
 import uuid
 
@@ -20,10 +20,11 @@ from app.database import Base, get_taipei_now
 from app.models.base import NameFallbackMixin
 
 
-class Novel(Base, NameFallbackMixin):
-    """Light novel, web novel, and book entries."""
+class Book(Base, NameFallbackMixin):
+    """Books: light novels, novels, web novels, short-story collections, guides
+    and setting books - see BOOK_TYPES."""
 
-    __tablename__ = "novel"
+    __tablename__ = "book"
     __table_args__ = (
         # Pins this row to a media row of its own type: with media's
         # UNIQUE (system_id, media_type) on the other end, this table's row can
@@ -31,7 +32,7 @@ class Novel(Base, NameFallbackMixin):
         ForeignKeyConstraint(
             ["system_id", "media_type"],
             ["media.system_id", "media.media_type"],
-            name="fk_novel_media",
+            name="fk_book_media",
             ondelete="CASCADE",
             # Deferred because the parent row is written *after* this one: the
             # media row copies public_id, which a Sequence default does not
@@ -40,37 +41,41 @@ class Novel(Base, NameFallbackMixin):
             deferrable=True,
             initially="DEFERRED",
         ),
-        CheckConstraint("media_type = 'novel'", name="ck_novel_media_type"),
+        CheckConstraint("media_type = 'book'", name="ck_book_media_type"),
         CheckConstraint(
-            r"release_date ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
-            name="ck_novel_release_date_iso",
+            r"release_date_jp ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
+            name="ck_book_release_date_jp_iso",
+        ),
+        CheckConstraint(
+            r"release_date_tw ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
+            name="ck_book_release_date_tw_iso",
         ),
         CheckConstraint(
             r"end_date ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
-            name="ck_novel_end_date_iso",
+            name="ck_book_end_date_iso",
         ),
     )
     _name_fields = [
-        "novel_name_en",
-        "novel_name_cn",
-        "novel_name_roman",
-        "novel_name_jp",
-        "novel_name_alt",
+        "book_name_en",
+        "book_name_cn",
+        "book_name_roman",
+        "book_name_jp",
+        "book_name_alt",
     ]
 
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
     )
     # The discriminator half of the composite FK up to `media`. Constant per
-    # table and pinned by ck_novel_media_type; it exists so the FK can carry
+    # table and pinned by ck_book_media_type; it exists so the FK can carry
     # the type, not because a row could ever be anything else.
-    media_type = Column(String, nullable=False, server_default="novel")
+    media_type = Column(String, nullable=False, server_default="book")
 
-    novel_name_en = Column(String, nullable=True)
-    novel_name_cn = Column(String, nullable=True)
-    novel_name_roman = Column(String, nullable=True)
-    novel_name_jp = Column(String, nullable=True)
-    novel_name_alt = Column(String, nullable=True)
+    book_name_en = Column(String, nullable=True)
+    book_name_cn = Column(String, nullable=True)
+    book_name_roman = Column(String, nullable=True)
+    book_name_jp = Column(String, nullable=True)
+    book_name_alt = Column(String, nullable=True)
 
     region = Column(String, nullable=True)
     type = Column(String, nullable=True)
@@ -83,7 +88,7 @@ class Novel(Base, NameFallbackMixin):
     arc_total = Column(Float, nullable=True)
     ch_total = Column(Float, nullable=True)
     # Chapters read into the arc *currently* being read, which is the arc at
-    # position arc_fin + 1. Zero for every novel with no arc rows.
+    # position arc_fin + 1. Zero for every book with no arc rows.
 
     mal_rating = Column(Float, nullable=True)
     mal_rank = Column(String, nullable=True)
@@ -94,7 +99,10 @@ class Novel(Base, NameFallbackMixin):
     anilist_rank = Column(Integer, nullable=True)
     anilist_popularity_rank = Column(Integer, nullable=True)
 
-    release_date = Column(String, nullable=True)
+    # The original's first publication, and the Taiwanese edition's. The
+    # original is a Japanese one for most of this collection, as Anime's is.
+    release_date_jp = Column(String, nullable=True)
+    release_date_tw = Column(String, nullable=True)
     end_date = Column(String, nullable=True)
 
 
@@ -110,29 +118,29 @@ class Novel(Base, NameFallbackMixin):
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
 
     units = relationship(
-        "NovelUnit",
-        back_populates="novel",
+        "BookUnit",
+        back_populates="book",
         cascade="all, delete-orphan",
-        order_by="NovelUnit.position",
+        order_by="BookUnit.position",
     )
 
     @property
     def display_name(self) -> str:
         sequence = [
-            ("CN", self.novel_name_cn),
-            ("EN", self.novel_name_en),
-            ("Alt", self.novel_name_alt),
-            ("roman", self.novel_name_roman),
-            ("JP", self.novel_name_jp),
+            ("CN", self.book_name_cn),
+            ("EN", self.book_name_en),
+            ("Alt", self.book_name_alt),
+            ("roman", self.book_name_roman),
+            ("JP", self.book_name_jp),
         ]
         return self.get_fallback_name(sequence, "CN")
 
 
-class NovelUnit(Base):
+class BookUnit(Base):
     """
-    One volume, arc, story or chapter belonging to exactly one Novel.
+    One volume, arc, story or chapter belonging to exactly one Book.
 
-    Replaces the two parallel JSONB lists (novel_name_each_cn/_en) that could
+    Replaces the two parallel JSONB lists (book_name_each_cn/_en) that could
     drift out of alignment, because they were matched by list position and
     nothing else. One row now holds both languages.
 
@@ -142,26 +150,26 @@ class NovelUnit(Base):
     ch_count lives nowhere else.
     """
 
-    __tablename__ = "novel_unit"
+    __tablename__ = "book_unit"
     __table_args__ = (
         CheckConstraint(
             "unit_kind IN ('volume','arc','story','chapter')",
-            name="ck_novel_unit_kind",
+            name="ck_book_unit_kind",
         ),
         # ch_count is the arc's chapter count; it means nothing on other kinds.
         CheckConstraint(
             "unit_kind = 'arc' OR ch_count IS NULL",
-            name="ck_novel_unit_ch_count_arc_only",
+            name="ck_book_unit_ch_count_arc_only",
         ),
-        Index("ix_novel_unit_novel_kind_position", "novel_id", "unit_kind", "position"),
+        Index("ix_book_unit_book_kind_position", "book_id", "unit_kind", "position"),
     )
 
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
     )
-    novel_id = Column(
+    book_id = Column(
         UUID(as_uuid=True),
-        ForeignKey("novel.system_id", ondelete="CASCADE"),
+        ForeignKey("book.system_id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -178,4 +186,4 @@ class NovelUnit(Base):
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
 
-    novel = relationship("Novel", back_populates="units")
+    book = relationship("Book", back_populates="units")

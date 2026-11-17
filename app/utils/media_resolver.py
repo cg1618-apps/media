@@ -58,7 +58,7 @@ MEDIA_TABLES: dict[str, MediaRef] = {
     "tv-show": MediaRef("tv-show", "TV Show", models.TVShows, "/tv-show"),
     "cartoon": MediaRef("cartoon", "Cartoon", models.Cartoon, "/cartoon"),
     "manga": MediaRef("manga", "Manga", models.Manga, "/manga"),
-    "novel": MediaRef("novel", "Novel", models.Novel, "/novel"),
+    "book": MediaRef("book", "Book", models.Book, "/book"),
     "comic": MediaRef("comic", "Comic", models.Comic, "/comic"),
     "game": MediaRef("game", "Game", models.Game, "/game"),
     "h-comic": MediaRef("h-comic", "H-Comic", models.HComic, "/h-comic"),

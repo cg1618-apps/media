@@ -1,5 +1,5 @@
 """
-Open Library JSON to novel fields.
+Open Library JSON to book fields.
 
 Year precision is deliberate, and matches what Comic Vine already does
 (start_year -> a bare-year release_date, fill-only). The stored id names the
@@ -11,7 +11,7 @@ from datetime import date
 
 from app.utils.openlibrary_utils import (
     _earliest_edition_year,
-    map_openlibrary_to_novel_data,
+    map_openlibrary_to_book_data,
 )
 
 
@@ -49,23 +49,23 @@ class TestEarliestEditionYear:
         assert _earliest_edition_year([{"publish_date": "unknown"}, {}]) is None
 
 
-class TestMapOpenlibraryToNovelData:
+class TestMapOpenlibraryToBookData:
     def test_maps_all_three_fields(self):
-        mapped = map_openlibrary_to_novel_data(raw())
-        assert mapped["release_date"] == "2006"
+        mapped = map_openlibrary_to_book_data(raw())
+        assert mapped["release_date_jp"] == "2006"
         assert mapped["author"] == "Brandon Sanderson"
         assert mapped["cover_image_url"] == (
             "https://covers.openlibrary.org/b/id/14658160-L.jpg"
         )
 
     def test_joins_multiple_authors(self):
-        mapped = map_openlibrary_to_novel_data(
+        mapped = map_openlibrary_to_book_data(
             raw(authors=[{"name": "Kugane Maruyama"}, {"name": "so-bin"}])
         )
         assert mapped["author"] == "Kugane Maruyama, so-bin"
 
     def test_skips_the_minus_one_cover_sentinel(self):
-        mapped = map_openlibrary_to_novel_data(
+        mapped = map_openlibrary_to_book_data(
             raw(work={"title": "Mistborn", "covers": [-1, 11329782]})
         )
         assert mapped["cover_image_url"] == (
@@ -73,41 +73,41 @@ class TestMapOpenlibraryToNovelData:
         )
 
     def test_returns_no_cover_when_every_id_is_the_sentinel(self):
-        mapped = map_openlibrary_to_novel_data(raw(work={"title": "X", "covers": [-1]}))
+        mapped = map_openlibrary_to_book_data(raw(work={"title": "X", "covers": [-1]}))
         assert mapped["cover_image_url"] is None
 
     def test_returns_no_cover_when_covers_is_absent(self):
-        mapped = map_openlibrary_to_novel_data(raw(work={"title": "X"}))
+        mapped = map_openlibrary_to_book_data(raw(work={"title": "X"}))
         assert mapped["cover_image_url"] is None
 
     def test_returns_no_author_when_authors_is_empty(self):
-        assert map_openlibrary_to_novel_data(raw(authors=[]))["author"] is None
+        assert map_openlibrary_to_book_data(raw(authors=[]))["author"] is None
 
     def test_ignores_an_author_record_with_a_blank_name(self):
-        mapped = map_openlibrary_to_novel_data(
+        mapped = map_openlibrary_to_book_data(
             raw(authors=[{"name": "  "}, {"name": "Andy Weir"}])
         )
         assert mapped["author"] == "Andy Weir"
 
     def test_returns_no_release_date_when_editions_were_not_fetched(self):
-        assert map_openlibrary_to_novel_data(raw(editions=[]))["release_date"] is None
+        assert map_openlibrary_to_book_data(raw(editions=[]))["release_date_jp"] is None
 
     def test_handles_none_and_empty_input(self):
         for value in (None, {}):
-            mapped = map_openlibrary_to_novel_data(value)
+            mapped = map_openlibrary_to_book_data(value)
             assert mapped == {
-                "release_date": None,
+                "release_date_jp": None,
                 "author": None,
                 "cover_image_url": None,
             }
 
     def test_never_maps_fields_the_anchor_book_cannot_know(self):
-        mapped = map_openlibrary_to_novel_data(raw())
+        mapped = map_openlibrary_to_book_data(raw())
         for forbidden in (
             "end_date",
             "vol_total_original",
             "ch_total",
             "serialization_status",
-            "novel_name_en",
+            "book_name_en",
         ):
             assert forbidden not in mapped

@@ -29,6 +29,15 @@ from app.schemas.auth import (
     UserCreate,
     UserOut,
 )
+from app.schemas.book import (
+    BookBase,
+    BookCreate,
+    BookResponse,
+    BookSheetSync,
+    BookUnitResponse,
+    BookUnitWrite,
+    BookUpdate,
+)
 from app.schemas.cartoon import (
     CartoonBase,
     CartoonCreate,
@@ -162,15 +171,6 @@ from app.schemas.note import (
     NoteResponse,
     NoteSectionOut,
     NoteUpdate,
-)
-from app.schemas.novel import (
-    NovelBase,
-    NovelCreate,
-    NovelResponse,
-    NovelSheetSync,
-    NovelUnitResponse,
-    NovelUnitWrite,
-    NovelUpdate,
 )
 from app.schemas.plan_next import (
     PlanNextCreate,
@@ -443,13 +443,13 @@ __all__ = [
     "MangaUpdate",
     "MangaResponse",
     "MangaSheetSync",
-    "NovelBase",
-    "NovelCreate",
-    "NovelUpdate",
-    "NovelResponse",
-    "NovelSheetSync",
-    "NovelUnitResponse",
-    "NovelUnitWrite",
+    "BookBase",
+    "BookCreate",
+    "BookUpdate",
+    "BookResponse",
+    "BookSheetSync",
+    "BookUnitResponse",
+    "BookUnitWrite",
     "WatchOrderItemBase",
     "WatchOrderItemCreate",
     "WatchOrderItemUpdate",

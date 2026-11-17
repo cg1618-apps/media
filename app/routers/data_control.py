@@ -276,7 +276,7 @@ def _register_pull_route(key: str, tab_name: str) -> None:
 # Per-type shortcuts the admin page links to; every other tab goes through
 # /pull/{tab_name}.
 for _tab, _media in MEDIA_TYPE_FOR_TAB.items():
-    if _media in ("manga", "novel", "comic", "cartoon"):
+    if _media in ("manga", "book", "comic", "cartoon"):
         _register_pull_route(_media, _tab)
 
 

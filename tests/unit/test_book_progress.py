@@ -1,12 +1,12 @@
-"""Two-stage novel progress: rollover, derivation, key fallback."""
+"""Two-stage book progress: rollover, derivation, key fallback."""
 
 from types import SimpleNamespace
 
 import pytest
 
-from app.services.domain.novel_units import (
-    derive_novel_catalog,
-    derive_novel_list,
+from app.services.domain.book_units import (
+    derive_book_catalog,
+    derive_book_list,
     normalize_arc_progress,
     unit_display_key,
 )
@@ -25,8 +25,8 @@ def split(**kw):
 
 
 def derive(entry, row):
-    derive_novel_catalog(entry)
-    derive_novel_list(row, entry)
+    derive_book_catalog(entry)
+    derive_book_list(row, entry)
 
 
 def arc(position, ch_count):
@@ -85,7 +85,7 @@ def test_no_arcs_is_a_no_op():
     assert normalize_arc_progress([], 0, 0) == (0, 0)
 
 
-# --- derive_novel_catalog / derive_novel_list --------------------------------------------------
+# --- derive_book_catalog / derive_book_list --------------------------------------------------
 
 def test_derives_totals_and_absolute_chapters():
     entry, row = split(
@@ -189,15 +189,15 @@ def test_explicit_key_wins():
 
 
 # --- type gates the counters ------------------------------------------------
-# A Light Novel or a Novel counts volumes and nothing else, so its chapter and
-# arc columns are not "empty", they are meaningless. derive_novel_progress
+# A Light Novel or a Book counts volumes and nothing else, so its chapter and
+# arc columns are not "empty", they are meaningless. derive_book_progress
 # clears them on every write path (forms, tracker PATCH, Pull, Fill, Calculate)
 # so a stale value cannot come back in through any of them.
 
 
 def light_novel(**kw):
     base = dict(
-        type="Light Novel",
+        type="輕小說",
         units=[],
         arc_total=3,
         arc_fin=2,
@@ -230,8 +230,8 @@ def test_light_novel_keeps_its_volume_columns():
     assert entry.vol_total_tw == 11
 
 
-def test_novel_type_clears_chapter_and_arc_columns_too():
-    entry, row = light_novel(type="Novel")
+def test_xiaoshuo_type_clears_chapter_and_arc_columns_too():
+    entry, row = light_novel(type="小說")
     derive(entry, row)
     assert entry.ch_total is None
     assert row.ch_fin == 0
@@ -257,7 +257,7 @@ def test_arc_rows_on_a_light_novel_do_not_resurrect_chapters():
 
 
 def test_web_novel_keeps_its_flat_chapter_pair():
-    entry, row = light_novel(type="Web")
+    entry, row = light_novel(type="網路小說")
     derive(entry, row)
     assert entry.ch_total == 110
     assert row.ch_fin == 44
@@ -265,7 +265,7 @@ def test_web_novel_keeps_its_flat_chapter_pair():
 
 
 def test_web_novel_with_arcs_still_derives():
-    entry, row = light_novel(type="Web", units=[arc(1, 100), arc(2, 112)], arc_fin=1, ch_fin_in_arc=101)
+    entry, row = light_novel(type="網路小說", units=[arc(1, 100), arc(2, 112)], arc_fin=1, ch_fin_in_arc=101)
     derive(entry, row)
     assert entry.arc_total == 2
     assert entry.ch_total == 212
@@ -274,7 +274,7 @@ def test_web_novel_with_arcs_still_derives():
 
 def test_other_type_keeps_its_chapters():
     # "Other" may count volumes, chapters or stories, so nothing is cleared.
-    entry, row = light_novel(type="Other")
+    entry, row = light_novel(type="其他")
     derive(entry, row)
     assert entry.ch_total == 110
     assert row.ch_fin == 44

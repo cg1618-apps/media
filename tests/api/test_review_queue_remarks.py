@@ -103,7 +103,7 @@ def test_every_media_type_has_a_key(owner_client, db_session):
     body = _fetch(owner_client, db_session)
     assert set(body) == {
         "anime", "anime_movie", "movie", "tv_show", "cartoon", "manga",
-        "novel", "comic", "game", "h_comic", "hentai", "h_game",
+        "book", "comic", "game", "h_comic", "hentai", "h_game",
     }
 
 
