@@ -101,7 +101,7 @@ def derive_book_list(row, entry) -> None:
     Recompute one reader's arc_fin, ch_fin_in_arc and ch_fin from the work's
     arc rows and their own cursor.
 
-    The arithmetic is exactly what derive_book_progress did; what changed is
+    The arithmetic is exactly what derive_book_catalog did; what changed is
     where the answer is written. Two people reading the same web novel fold
     their own cursors through the same arc widths and land in different
     places, which is the whole point.
@@ -116,7 +116,7 @@ def derive_book_list(row, entry) -> None:
     )
     if not arcs:
         # No arcs: the flat ch_fin the reader typed stands, and only the
-        # in-arc cursor is meaningless. Same rule derive_book_progress had.
+        # in-arc cursor is meaningless. Same rule derive_book_catalog had.
         row.ch_fin_in_arc = 0
         return
 

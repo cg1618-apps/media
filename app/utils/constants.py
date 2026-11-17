@@ -183,7 +183,7 @@ BOOK_UNIT_KINDS_BY_TYPE = {
 # Types that count volumes and nothing else: chapter and arc columns are not
 # merely empty on them, they are meaningless. Derived from the map above so the
 # two cannot drift - a type that may only hold volume rows may only count
-# volumes. derive_book_progress() clears the other columns for these types.
+# volumes. derive_book_catalog() clears the other columns for these types.
 BOOK_VOLUME_ONLY_TYPES: tuple[str, ...] = tuple(
     t for t, kinds in BOOK_UNIT_KINDS_BY_TYPE.items() if kinds == ("volume",)
 )

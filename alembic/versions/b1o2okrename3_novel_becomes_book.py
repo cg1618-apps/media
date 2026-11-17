@@ -34,8 +34,8 @@ Values:
 - Stored cover paths move with the folder: media.cover_image_file `novel/...`
   and image.storage_key / thumb_key `covers/novel/...` become `book/...`, and
   a backfilled image's `legacy:novel/...` checksum follows its path. The files
-  themselves are moved by the app at startup
-  (image_manager.move_legacy_cover_folders), since the migration does not
+  themselves are copied by the app at startup
+  (image_manager.copy_legacy_cover_folders), since the migration does not
   own the cover volume.
 - system_configs `form_defaults:novel` and `random_picker_defaults:novel`
   become `...:book`, with the field names inside (novel_name_*, release_date)

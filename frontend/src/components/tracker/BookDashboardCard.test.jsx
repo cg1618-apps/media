@@ -2,7 +2,7 @@
 //
 // arc_fin/ch_fin_in_arc are the authoritative two-stage cursor; ch_fin and
 // arc_total are derived server-side from them on every write (see
-// app/services/domain/book_units.py derive_book_progress). A stepper that
+// app/services/domain/book_units.py derive_book_catalog). A stepper that
 // PATCHes ch_fin (or arc_fin) alone gets silently recomputed away by the
 // very request that sent it. The chapter stepper must instead compute the
 // next cursor with arcStep and PATCH both fields together.

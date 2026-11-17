@@ -43,7 +43,7 @@ export function kindsForType(bookType) {
 // Mirror of BOOK_VOLUME_ONLY_TYPES in app/utils/constants.py, derived the
 // same way: a type that may only hold volume rows counts volumes and nothing
 // else. Its chapter and arc columns are not empty, they are meaningless, so
-// derive_book_progress() clears them server-side and nothing renders or
+// derive_book_catalog() clears them server-side and nothing renders or
 // edits them here.
 export const BOOK_VOLUME_ONLY_TYPES = Object.entries(BOOK_UNIT_KINDS_BY_TYPE)
   .filter(([, kinds]) => kinds.length === 1 && kinds[0] === "volume")

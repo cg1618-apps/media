@@ -52,7 +52,7 @@ export default function BookDashboardCard({
 
   // Decision B/D: arc rows are authoritative for arc_ch books. ch_fin and
   // arc_total are derived server-side from arc_fin + ch_fin_in_arc + these
-  // rows on every write (see derive_book_progress), so the admin controls
+  // rows on every write (see derive_book_catalog), so the admin controls
   // below must drive that same two-stage cursor — patching ch_fin or
   // arc_fin alone gets silently recomputed away by the very PATCH that sent
   // it, or leaves a stale ch_fin_in_arc pointing into the wrong arc.

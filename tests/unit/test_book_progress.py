@@ -190,7 +190,7 @@ def test_explicit_key_wins():
 
 # --- type gates the counters ------------------------------------------------
 # A Light Novel or a Book counts volumes and nothing else, so its chapter and
-# arc columns are not "empty", they are meaningless. derive_book_progress
+# arc columns are not "empty", they are meaningless. derive_book_catalog
 # clears them on every write path (forms, tracker PATCH, Pull, Fill, Calculate)
 # so a stale value cannot come back in through any of them.
 

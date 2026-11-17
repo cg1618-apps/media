@@ -1,5 +1,5 @@
 // Frontend: the arc/chapter inputs exist only for the types that count them.
-// A 輕小說 and a 小說 count volumes; derive_book_progress() clears
+// A 輕小說 and a 小說 count volumes; derive_book_catalog() clears
 // their chapter and arc columns on save, so offering the inputs would invite
 // an edit that is silently discarded.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";

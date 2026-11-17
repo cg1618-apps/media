@@ -99,7 +99,7 @@ export default function BookTrackerBlock({
   // one, "ch" the flat pair. With arc rows present ch_fin is derived from
   // them, so every edit here - stepped or typed, in any of the three rows -
   // moves the arc cursor (arc_fin, ch_fin_in_arc) rather than ch_fin, which
-  // derive_book_progress would overwrite on the same save.
+  // derive_book_catalog would overwrite on the same save.
   const arcs = (book.units || [])
     .filter((u) => u.unit_kind === "arc")
     .sort((a, b) => a.position - b.position);
