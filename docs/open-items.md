@@ -32,10 +32,36 @@ detail waits for this.
 
 ## Automatic book release data
 
-**Whether book-unit and manga-volume release dates can be filled from a free
-API is undecided.** to-do-next item 8 builds manual entry. A research pass on
-free sources with JP and TW coverage is under way. What it finds, and
-whether a Fill-style pipeline is worth building on it, is the open question.
+**Whether book-unit and manga-volume release dates are filled from a free
+API is undecided, and is taken up again once manual entry ships** (the
+"Upcoming books and manga volumes on Future Releases" item in
+[to-do-next.md](to-do-next.md)). The free sources, as checked on
+2026-11-17:
+
+- **JP light novels: RanobeDB** (`ranobedb.org/api/v0`, no key). One
+  series lookup returns every volume with its JP date, upcoming ones
+  included, plus covers and zh-Hant dates where known. It carries MAL and
+  AniList ids, so mapping an entry to it is easy. It is non-commercial use
+  with credit, under 60 requests a minute, and the API is v0, still in
+  development.
+- **JP manga and other books: NDL Search** (`ndlsearch.ndl.go.jp`, no key).
+  Every JP book is covered, with exact upcoming dates from its JPRO 近刊
+  records. There is no series id, so volumes are grouped by title search,
+  and special editions and the same volume from several data providers
+  have to be filtered out.
+- **TW: nothing reliable.** There is no API. RanobeDB's zh-Hant data has
+  almost no upcoming dates. The only source for upcoming TW volumes is the
+  National Central Library's monthly ISBN open-data CSV, which is
+  month-precision, gives 0–4 months' notice and is matched to a series by
+  title. The newest file found was April 2026.
+- Rakuten Books (needs an applicationId and an access key, and the API
+  moved hosts in 2026), openBD (ISBN only, covers much reduced), Google
+  Books, Open Library, Wikidata, and AniList / MAL / MangaUpdates (totals
+  only) are all weaker.
+
+The shape on the table is a Fill-style action that **suggests** JP dates
+and covers for review: RanobeDB for book units, NDL for manga's next
+volume. TW dates stay manual.
 
 ## Deployment
 
