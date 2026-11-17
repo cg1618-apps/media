@@ -6,20 +6,21 @@ import SuggestInput from "../../../components/forms/SuggestInput";
 import { LinkPill, inputCls } from "./ui";
 import { pairLabel, pairsFromLinks } from "./linkPairValues";
 
-const textCls = inputCls + " sm:w-40 sm:shrink-0";
-
 // A repeatable row of optional title + URL. `textOptions` turns the title
 // into a SuggestInput over those values (a song link's "Song Source");
 // without it the title is plain text. Starts with one blank row so there is
 // something to type into.
+//
+// The title sits above the URL at full width, at every screen size: a title
+// is usually the longer of the two, and beside the URL it had no room.
 export function LinkPairsEditor({ pairs, onChange, textOptions }) {
   const list = pairs?.length ? pairs : [{ text: "", url: "" }];
   const setPair = (i, patch) =>
     onChange(list.map((p, idx) => (idx === i ? { ...p, ...patch } : p)));
   return (
-    <div className="space-y-1">
+    <div className="space-y-2">
       {list.map((pair, i) => (
-        <div key={i} className="flex flex-col sm:flex-row gap-1">
+        <div key={i} className="flex flex-col gap-1">
           {textOptions ? (
             <SuggestInput
               value={pair.text}
@@ -27,7 +28,7 @@ export function LinkPairsEditor({ pairs, onChange, textOptions }) {
               options={textOptions}
               placeholder="Title (optional)"
               aria-label="Link text"
-              className={textCls}
+              className={inputCls}
             />
           ) : (
             <input
@@ -35,7 +36,7 @@ export function LinkPairsEditor({ pairs, onChange, textOptions }) {
               onChange={(e) => setPair(i, { text: e.target.value })}
               placeholder="Title (optional)"
               aria-label="Link text"
-              className={textCls}
+              className={inputCls}
             />
           )}
           <div className="flex gap-1 flex-1 min-w-0">
@@ -78,7 +79,7 @@ export function LinkPairPills({ links, bare = false }) {
   const pairs = pairsFromLinks(links).filter((p) => p.url);
   if (!pairs.length) return null;
   const pills = pairs.map((pair, i) => (
-    <LinkPill key={i} url={pair.url} label={pairLabel(pair)} />
+    <LinkPill key={i} url={pair.url} label={pairLabel(pair)} titled={!!pair.text} />
   ));
   return bare ? pills : <div className="flex flex-wrap gap-1">{pills}</div>;
 }

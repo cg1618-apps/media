@@ -399,7 +399,12 @@ export function SaveCancel({ onSave, onCancel }) {
 
 // `label` overrides the text shown - a link's own title. Without one the pill
 // shows the link's host.
-export function LinkPill({ url, label: given }) {
+//
+// `titled` draws the label as body text instead of a small mono tag: a link
+// with its own title is usually the whole entry, so it reads like a line of
+// the note rather than like a source chip. It wraps rather than being cut to
+// a fixed width, so a long title shows as much as the row has room for.
+export function LinkPill({ url, label: given, titled = false }) {
   const label =
     given ||
     (() => {
@@ -409,6 +414,19 @@ export function LinkPill({ url, label: given }) {
         return url;
       }
     })();
+  if (titled) {
+    return (
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-baseline gap-1.5 max-w-full min-w-0 text-sm text-text hover:text-brand transition"
+      >
+        <i className="fas fa-external-link-alt text-[10px] text-text-faint shrink-0"></i>
+        <span className="min-w-0 break-words">{label}</span>
+      </a>
+    );
+  }
   return (
     <a
       href={url}
