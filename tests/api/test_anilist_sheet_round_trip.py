@@ -13,8 +13,8 @@ import pytest
 from app.utils.formatter import (
     parse_anime_from_sheet,
     parse_anime_movie_from_sheet,
+    parse_book_from_sheet,
     parse_manga_from_sheet,
-    parse_novel_from_sheet,
 )
 
 ANILIST_CELLS = {
@@ -27,7 +27,7 @@ PARSERS = [
     pytest.param(parse_anime_from_sheet, id="anime"),
     pytest.param(parse_anime_movie_from_sheet, id="anime-movie"),
     pytest.param(parse_manga_from_sheet, id="manga"),
-    pytest.param(parse_novel_from_sheet, id="novel"),
+    pytest.param(parse_book_from_sheet, id="book"),
 ]
 
 

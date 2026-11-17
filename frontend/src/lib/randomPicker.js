@@ -43,7 +43,7 @@ export const PICKER_TYPES = [
   { type: "anime", label: "Anime" },
   { type: "anime-movie", label: "Anime Movie" },
   { type: "manga", label: "Manga" },
-  { type: "novel", label: "Novel" },
+  { type: "book", label: "Book" },
   { type: "game", label: "Game" },
   { type: "tv-show", label: "TV Show" },
   { type: "movie", label: "Movie" },
@@ -150,7 +150,7 @@ export const EXTERNAL_SCORE_FIELD = {
   anime: "mal_rating",
   "anime-movie": "mal_rating",
   manga: "mal_rating",
-  novel: "mal_rating",
+  book: "mal_rating",
   movie: "imdb_rating",
   "tv-show": "imdb_rating",
   cartoon: "imdb_rating",
@@ -207,7 +207,7 @@ export const GENRE_FIELD = {
   "tv-show": "genre_main",
   cartoon: "genre_main",
   manga: "genre_main",
-  novel: "genre_main",
+  book: "genre_main",
   comic: "genre_main",
   game: "game_genre",
   "h-game": "game_genre",
@@ -314,7 +314,7 @@ export const PICKER_MODES = ["all", ...PICKER_TYPES.map((t) => t.type), FRANCHIS
  * A shared account's defs: media type and release decade, nothing else. The
  * decade is each entry's primary release date (lib/releaseDate.js
  * RELEASE_PRIORITY - release_date on most types, release_date_jp then _tw on
- * an anime and an anime movie, release_date_tw then _usa on a movie), offered as the
+ * an anime, an anime movie and a book, release_date_tw then _usa on a movie), offered as the
  * decades the pool holds, plus Unknown when an entry has no date.
  */
 export function sharedFilterDefs(types) {

@@ -18,7 +18,7 @@ ENTRY_RESOLVERS = {
     "tv-show": (h.resolve_tv_show_parent_hierarchy, FranchiseType.TV),
     "cartoon": (h.resolve_cartoon_parent_hierarchy, FranchiseType.CARTOON),
     "manga": (h.resolve_manga_parent_hierarchy, FranchiseType.MANGA),
-    "novel": (h.resolve_novel_parent_hierarchy, FranchiseType.NOVEL),
+    "book": (h.resolve_book_parent_hierarchy, FranchiseType.BOOK),
     "comic": (h.resolve_comic_parent_hierarchy, FranchiseType.COMIC),
 }
 

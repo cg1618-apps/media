@@ -54,7 +54,7 @@ def test_comic_bucket_boundaries(measure, expected):
 
 def test_unbucketed_types_have_no_bucket():
     assert bucket_for("manga", 5) is None
-    assert bucket_for("novel", 5) is None
+    assert bucket_for("book", 5) is None
     assert bucket_for("anime-movie", 5) is None
 
 

@@ -7,7 +7,7 @@ export const MEDIA_CONFIG = {
   "tv-show":     { statusField: "watching_status", apiEndpoint: "/api/tv-shows",    navPath: "/tv-show",      statusType: "watch" },
   cartoon:       { statusField: "watching_status", apiEndpoint: "/api/cartoon",     navPath: "/cartoon",      statusType: "watch" },
   manga:         { statusField: "reading_status",  apiEndpoint: "/api/manga",       navPath: "/manga",        statusType: "read"  },
-  novel:         { statusField: "reading_status",  apiEndpoint: "/api/novel",       navPath: "/novel",        statusType: "read"  },
+  book:         { statusField: "reading_status",  apiEndpoint: "/api/book",       navPath: "/book",        statusType: "read"  },
   comic:         { statusField: "reading_status",  apiEndpoint: "/api/comic",       navPath: "/comic",        statusType: "read"  },
   game:          { statusField: "playing_status",  apiEndpoint: "/api/game",        navPath: "/game",         statusType: "play"  },
   // A gated type: registered like any other, drawn only where canSeeGatedType
@@ -30,7 +30,7 @@ export const MEDIA_TYPE_LABELS = {
   "tv-show": "TV Show",
   cartoon: "Cartoon",
   manga: "Manga",
-  novel: "Novel",
+  book: "Book",
   comic: "Comic",
   game: "Game",
   "h-comic": "H-Comic",

@@ -26,10 +26,14 @@ _spec.loader.exec_module(migration)
 TYPES_AFTER_THE_BACKFILL = {"h-comic", "h-game", "hentai"}
 
 
+# Types renamed since: the migration names them as they were then.
+RENAMED_SINCE = {"novel": "book"}
+
+
 def test_the_map_covers_every_media_type():
     from app.utils.media_resolver import MEDIA_TYPE_KEYS
 
-    assert set(migration.SOURCE_COLUMNS) == (
+    assert {RENAMED_SINCE.get(t, t) for t in migration.SOURCE_COLUMNS} == (
         set(MEDIA_TYPE_KEYS) - TYPES_AFTER_THE_BACKFILL
     )
 

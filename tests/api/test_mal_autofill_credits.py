@@ -1,6 +1,6 @@
 """
 The MAL autofills credit studios (anime, anime movie) and authors (manga,
-novel) - only into a role the entry has no credits for. A role that already
+book) - only into a role the entry has no credits for. A role that already
 has credits is left as it is, but a credited row MAL names by name and that
 has no MAL id is given MAL's.
 """
@@ -12,8 +12,8 @@ from app.services.domain import autofill as autofill_module
 from app.services.domain.autofill import (
     autofill_anime_from_mal,
     autofill_anime_movie_from_mal,
+    autofill_book_from_mal,
     autofill_manga_from_mal,
-    autofill_novel_from_mal,
 )
 from app.services.domain.credits import credit_names, replace_credits
 
@@ -73,9 +73,9 @@ def anime_movie(db_session, sample_franchise):
 
 
 @pytest.fixture
-def novel(db_session, sample_franchise):
-    entry = models.Novel(
-        franchise_id=sample_franchise.system_id, novel_name_en="Novel", mal_id=21,
+def book(db_session, sample_franchise):
+    entry = models.Book(
+        franchise_id=sample_franchise.system_id, book_name_en="Book", mal_id=21,
         mal_link="https://myanimelist.net/manga/21",
     )
     db_session.add(entry)
@@ -132,9 +132,9 @@ def test_a_credited_studio_with_another_mal_id_keeps_it(db_session, sample_anime
 
 @pytest.mark.parametrize("fill, entry_fixture, author_role", [
     (autofill_manga_from_mal, "manga", "author"),
-    (autofill_novel_from_mal, "novel", "author"),
+    (autofill_book_from_mal, "book", "author"),
 ])
-def test_manga_and_novel_get_authors_and_illustrators(
+def test_manga_and_book_get_authors_and_illustrators(
     request, db_session, fill, entry_fixture, author_role
 ):
     entry = request.getfixturevalue(entry_fixture)
@@ -143,7 +143,7 @@ def test_manga_and_novel_get_authors_and_illustrators(
     assert credit_names(db_session, entry.system_id, author_role) == ["Tsugumi Ohba"]
     assert credit_names(db_session, entry.system_id, "illustrator") == ["Takeshi Obata"]
     ohba = db_session.query(models.Person).filter_by(mal_id=2619).one()
-    media_type = "manga" if entry_fixture == "manga" else "novel"
+    media_type = "manga" if entry_fixture == "manga" else "book"
     assert (author_role, media_type) in {(r.role, r.scope) for r in ohba.roles}
 
 

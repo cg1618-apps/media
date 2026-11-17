@@ -1,6 +1,12 @@
 // Frontend: root React component that wires providers and routes together.
 import { Suspense, lazy } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import {
+  BrowserRouter,
+  Navigate,
+  Routes,
+  Route,
+  useLocation,
+} from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { ToastProvider } from "./hooks/useToast";
@@ -23,7 +29,7 @@ import Movie from "./pages/detail/Movie";
 import TV from "./pages/detail/TV";
 import Cartoon from "./pages/detail/Cartoon";
 import Manga from "./pages/detail/Manga";
-import Novel from "./pages/detail/Novel";
+import Book from "./pages/detail/Book";
 import Comic from "./pages/detail/Comic";
 import Game from "./pages/detail/Game";
 import HComic from "./pages/detail/HComic";
@@ -88,6 +94,17 @@ const Users = lazy(() => import("./pages/admin/Users"));
 const ContentLabels = lazy(() => import("./pages/admin/ContentLabels"));
 
 const AccessModes = lazy(() => import("./pages/admin/AccessModes"));
+// The Book type was called Novel, and its pages lived under /novel and
+// /library/novel. An old link or bookmark lands on the same page: only the
+// type segment of the path is swapped, so the public id, slug, query and hash
+// are carried over as they were, and `replace` keeps the dead URL out of the
+// history.
+function NovelToBookRedirect() {
+  const { pathname, search, hash } = useLocation();
+  const to = pathname.replace(/^(\/library)?\/novel(?=\/|$)/, "$1/book");
+  return <Navigate to={`${to}${search}${hash}`} replace />;
+}
+
 function RouteFallback() {
   return <div className="p-8 text-sm text-text-faint">Loading…</div>;
 }
@@ -191,6 +208,9 @@ export default function App() {
                     element={<Hentai />}
                   />
                 </Route>
+                {/* Book was Novel; the old library path outranks
+                    /library/:type and sends its visitor on. */}
+                <Route path="/library/novel" element={<NovelToBookRedirect />} />
                 <Route path="/library/:type" element={<Library />} />
                 <Route path="/anime/:publicId/:slug?" element={<Anime />} />
                 <Route
@@ -201,7 +221,11 @@ export default function App() {
                 <Route path="/tv-show/:publicId/:slug?" element={<TV />} />
                 <Route path="/cartoon/:publicId/:slug?" element={<Cartoon />} />
                 <Route path="/manga/:publicId/:slug?" element={<Manga />} />
-                <Route path="/novel/:publicId/:slug?" element={<Novel />} />
+                <Route path="/book/:publicId/:slug?" element={<Book />} />
+                <Route
+                  path="/novel/:publicId/:slug?"
+                  element={<NovelToBookRedirect />}
+                />
                 <Route path="/comic/:publicId/:slug?" element={<Comic />} />
                 <Route path="/game/:publicId/:slug?" element={<Game />} />
                 <Route path="/collection/:publicId/:slug?" element={<Collection />} />

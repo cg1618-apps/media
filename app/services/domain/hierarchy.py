@@ -76,7 +76,7 @@ FRANCHISE_TYPE_FOR = {
     "tv-show": FranchiseType.TV,
     "cartoon": FranchiseType.CARTOON,
     "manga": FranchiseType.MANGA,
-    "novel": FranchiseType.NOVEL,
+    "book": FranchiseType.BOOK,
     "comic": FranchiseType.COMIC,
     "game": FranchiseType.GAME,
     "h-comic": FranchiseType.H_COMIC,
@@ -445,7 +445,7 @@ resolve_movie_parent_hierarchy = _entry_resolver("movie")
 resolve_tv_show_parent_hierarchy = _entry_resolver("tv-show")
 resolve_cartoon_parent_hierarchy = _entry_resolver("cartoon")
 resolve_manga_parent_hierarchy = _entry_resolver("manga")
-resolve_novel_parent_hierarchy = _entry_resolver("novel")
+resolve_book_parent_hierarchy = _entry_resolver("book")
 resolve_comic_parent_hierarchy = _entry_resolver("comic")
 resolve_game_parent_hierarchy = _entry_resolver("game")
 resolve_h_comic_parent_hierarchy = _entry_resolver("h-comic")

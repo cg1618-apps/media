@@ -35,11 +35,11 @@ export default function DashboardCard({
   const isTV = anime._ui_type === "TV Show";
   const isCartoon = anime._ui_type === "Cartoon";
   const isManga = anime._ui_type === "Manga";
-  const isNovel = anime._ui_type === "Novel";
-  const isReading = isManga || isNovel;
+  const isBook = anime._ui_type === "Book";
+  const isReading = isManga || isBook;
 
-  const titleType = isNovel
-    ? "novel"
+  const titleType = isBook
+    ? "book"
     : isManga
       ? "manga"
       : isCartoon

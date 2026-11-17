@@ -18,7 +18,7 @@ NINE = [
     ("tv_shows", "watching_status"),
     ("cartoons", "watching_status"),
     ("manga", "reading_status"),
-    ("novel", "reading_status"),
+    ("book", "reading_status"),
     ("comic", "reading_status"),
     ("games", "playing_status"),
 ]

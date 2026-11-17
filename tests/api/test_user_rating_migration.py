@@ -9,11 +9,18 @@ has already lost the old columns, so each test puts them back first with the
 revision's own add_old_columns - inside the test's transaction, which rolls
 back at teardown.
 
+The revision names the unit tables as they were then, novel_unit and
+user_novel_unit_rating; Novel became Book later (b1o2okrename3). Each call into
+the revision therefore runs with the two tables, and the unique constraint its
+upsert names, put back under those names, and renamed back after - again
+inside the test's transaction.
+
 Requires PostgreSQL. See tests/api/conftest.py.
 """
 
 import importlib.util
 import uuid
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -26,12 +33,58 @@ ROOT = Path(__file__).resolve().parents[2]
 REVISION = ROOT / "alembic" / "versions" / "u1r2atings3_user_rating.py"
 
 
+# (name now, name the revision knew) for each object its SQL names.
+TABLES_AT_THE_TIME = (
+    ("book_unit", "novel_unit"),
+    ("user_book_unit_rating", "user_novel_unit_rating"),
+)
+CONSTRAINT_AT_THE_TIME = ("uq_user_book_unit", "uq_user_novel_unit")
+
+
+@contextmanager
+def _as_at_the_time(conn):
+    """The unit tables under the names the revision's SQL uses, for one call."""
+    # Pending deferred checks would refuse the ALTERs; a migration runs with
+    # none queued.
+    conn.execute(text("SET CONSTRAINTS ALL IMMEDIATE"))
+    now, then = CONSTRAINT_AT_THE_TIME
+    conn.execute(text(f"ALTER TABLE user_book_unit_rating RENAME CONSTRAINT {now} TO {then}"))
+    for table_now, table_then in TABLES_AT_THE_TIME:
+        conn.execute(text(f"ALTER TABLE {table_now} RENAME TO {table_then}"))
+    try:
+        yield
+    finally:
+        for table_now, table_then in TABLES_AT_THE_TIME:
+            conn.execute(text(f"ALTER TABLE {table_then} RENAME TO {table_now}"))
+        conn.execute(
+            text(f"ALTER TABLE user_book_unit_rating RENAME CONSTRAINT {then} TO {now}")
+        )
+
+
+class _AtTheTime:
+    """The revision module, each of whose functions runs _as_at_the_time."""
+
+    def __init__(self, module):
+        self._module = module
+
+    def __getattr__(self, name):
+        attribute = getattr(self._module, name)
+        if not callable(attribute):
+            return attribute
+
+        def call(conn, *args, **kwargs):
+            with _as_at_the_time(conn):
+                return attribute(conn, *args, **kwargs)
+
+        return call
+
+
 @pytest.fixture(scope="module")
 def revision():
     spec = importlib.util.spec_from_file_location("_user_rating", REVISION)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    return module
+    return _AtTheTime(module)
 
 
 @pytest.fixture
@@ -71,15 +124,15 @@ def rated(db_session, old_schema, sample_franchise, sample_series):
     """A franchise rated and expected, a studio rated, a unit remarked - on
     the old columns, which the ORM no longer maps."""
     studio = models.Studio(system_id=uuid.uuid4(), name_en="Old Studio")
-    novel = models.Novel(
+    book = models.Book(
         system_id=uuid.uuid4(),
         franchise_id=sample_franchise.system_id,
-        novel_name_en="Old Novel",
+        book_name_en="Old Book",
     )
-    db_session.add_all([studio, novel])
+    db_session.add_all([studio, book])
     db_session.flush()
-    unit = models.NovelUnit(
-        system_id=uuid.uuid4(), novel_id=novel.system_id, unit_kind="volume", position=1
+    unit = models.BookUnit(
+        system_id=uuid.uuid4(), book_id=book.system_id, unit_kind="volume", position=1
     )
     db_session.add(unit)
     db_session.flush()
@@ -94,7 +147,7 @@ def rated(db_session, old_schema, sample_franchise, sample_series):
         {"id": studio.system_id},
     )
     conn.execute(
-        text("UPDATE novel_unit SET remark = 'a remark' WHERE system_id = :id"),
+        text("UPDATE book_unit SET remark = 'a remark' WHERE system_id = :id"),
         {"id": unit.system_id},
     )
     return {"franchise": sample_franchise, "studio": studio, "unit": unit}
@@ -124,7 +177,7 @@ def test_values_land_on_the_super_account_never_on_guest(db_session, rated, revi
         (owner.id, rated["franchise"].system_id, "A", "High"),
         (owner.id, rated["studio"].system_id, "B", None),
     }
-    unit_rows = db_session.query(models.UserNovelUnitRating).all()
+    unit_rows = db_session.query(models.UserBookUnitRating).all()
     assert [(u.user_id, u.unit_id, u.my_rating, u.remark) for u in unit_rows] == [
         (owner.id, rated["unit"].system_id, None, "a remark")
     ]
@@ -217,7 +270,7 @@ def test_an_existing_owner_unit_row_keeps_its_rating_and_gains_the_remark(
 ):
     owner = _account(db_session, "cg1618", "super")
     db_session.add(
-        models.UserNovelUnitRating(
+        models.UserBookUnitRating(
             user_id=owner.id, unit_id=rated["unit"].system_id, my_rating="S"
         )
     )
@@ -226,7 +279,7 @@ def test_an_existing_owner_unit_row_keeps_its_rating_and_gains_the_remark(
     revision.copy_to_owner(db_session.connection())
     db_session.expire_all()
 
-    row = db_session.query(models.UserNovelUnitRating).one()
+    row = db_session.query(models.UserBookUnitRating).one()
     assert (row.my_rating, row.remark) == ("S", "a remark")
 
 
@@ -247,7 +300,7 @@ def test_downgrade_restores_the_owners_values_and_drops_the_rest(
     db_session.flush()
     conn.execute(text("UPDATE franchise SET my_rating = NULL, franchise_expectation = NULL"))
     conn.execute(text("UPDATE studio SET my_rating = NULL"))
-    conn.execute(text("UPDATE novel_unit SET remark = NULL"))
+    conn.execute(text("UPDATE book_unit SET remark = NULL"))
 
     revision.copy_back_to_columns(conn)
 
@@ -261,7 +314,7 @@ def test_downgrade_restores_the_owners_values_and_drops_the_rest(
         {"id": rated["studio"].system_id},
     ).scalar() == "B"
     assert conn.execute(
-        text("SELECT remark FROM novel_unit WHERE system_id = :id"),
+        text("SELECT remark FROM book_unit WHERE system_id = :id"),
         {"id": rated["unit"].system_id},
     ).scalar() == "a remark"
     assert owner.id != other.id

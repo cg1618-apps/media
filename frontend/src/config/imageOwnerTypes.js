@@ -16,7 +16,7 @@ export const IMAGE_OWNER_TYPE_GROUPS = [
       { value: "tv-show", label: "TV Show" },
       { value: "cartoon", label: "Cartoon" },
       { value: "manga", label: "Manga" },
-      { value: "novel", label: "Novel" },
+      { value: "book", label: "Book" },
       { value: "comic", label: "Comic" },
       { value: "game", label: "Game" },
       // Gated: the owner-type pickers filter it through visibleByType.

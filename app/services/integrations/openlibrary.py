@@ -3,7 +3,7 @@ openlibrary.py
 Handles all HTTP interactions with the Open Library API.
 Strictly responsible for fetching raw external JSON data.
 
-An Open Library *work* is one book. A novel entry may span several books
+An Open Library *work* is one book. A book entry may span several books
 (Mistborn is one entry and three novels), so the stored work id names the
 entry's anchor book — see the design spec, Decision A.
 

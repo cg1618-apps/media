@@ -60,7 +60,7 @@ export function creditValue(item, role, legacyValue) {
  * What this credit is called on this media type, from the refs themselves.
  *
  * credit_label() on the backend owns the vocabulary (原作 on a manga, Author on
- * a novel, Writer on a comic); a page that hard-coded its own heading would be
+ * a book, Writer on a comic); a page that hard-coded its own heading would be
  * a second copy of it. Falls back to what the page passes when there are no
  * refs to read a label from.
  */

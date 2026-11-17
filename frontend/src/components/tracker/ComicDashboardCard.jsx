@@ -40,7 +40,7 @@ export default function ComicDashboardCard({
   const imageUrl = getCoverUrl(comic.cover_image_file);
 
   // Comic has exactly one progress mode - issues - so there is no tracker
-  // branching here the way Novel needs for its progress_display modes.
+  // branching here the way Book needs for its progress_display modes.
   const fin = comic.issue_fin ?? 0;
   const total = parseProgressTotal(comic.issue_total);
   const hasTotal = total !== null;

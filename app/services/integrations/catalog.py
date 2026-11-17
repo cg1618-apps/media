@@ -669,7 +669,7 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
         ),
     ),
     Coverage(
-        key="novel",
+        key="book",
         keyed_by="mal_id",
         combination="either-or",
         requests_per_entry=(
@@ -678,13 +678,13 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
         ),
         note=(
             "A mal_link routes to Tenrai, which returns strictly more. Open "
-            "Library covers only the novels MAL does not have, and its stored "
+            "Library covers only the books MAL does not have, and its stored "
             "work id names the entry's anchor book rather than the whole entry - "
             "which is why it writes so little. Bulk Replace only selects "
-            "MAL-linked rows, so an Open-Library-only novel is never re-fetched; "
+            "MAL-linked rows, so an Open-Library-only book is never re-fetched; "
             "every Open Library write is fill-only, so there is nothing for "
             "Replace to redo. AniList accompanies the Tenrai branch only - a "
-            "novel filled via Open Library never queries AniList."
+            "book filled via Open Library never queries AniList."
         ),
         sources=(
             SourceBlock(
@@ -696,7 +696,7 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                         "fill-only",
                         "adds 未出 for Not yet published, which manga does not take",
                     ),
-                    Write("release_date", "column", "fill-only"),
+                    Write("release_date_jp", "column", "fill-only"),
                     Write("end_date", "column", "fill-only"),
                     Write(
                         "vol_total_original",
@@ -733,7 +733,7 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                 source="openlibrary",
                 writes=(
                     Write(
-                        "release_date",
+                        "release_date_jp",
                         "column",
                         "fill-only",
                         "the earliest edition year; the editions call is skipped "

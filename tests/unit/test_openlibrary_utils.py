@@ -9,11 +9,11 @@ and a bare id all fail closed. This mirrors extract_comicvine_id, which rejects
 
 import types
 
-from app.services.domain import apply_extract_novel_ids, apply_extract_openlibrary_id
+from app.services.domain import apply_extract_book_ids, apply_extract_openlibrary_id
 from app.utils.openlibrary_utils import extract_openlibrary_id
 
 
-def make_novel(**kwargs):
+def make_book(**kwargs):
     defaults = dict(
         openlibrary_id=None,
         openlibrary_link="https://openlibrary.org/works/OL5738148W/The_Final_Empire",
@@ -52,40 +52,40 @@ class TestExtractOpenlibraryId:
 
 class TestApplyExtractOpenlibraryId:
     def test_writes_the_id_parsed_from_the_link(self):
-        novel = make_novel()
-        assert apply_extract_openlibrary_id(novel) is True
-        assert novel.openlibrary_id == "OL5738148W"
+        book = make_book()
+        assert apply_extract_openlibrary_id(book) is True
+        assert book.openlibrary_id == "OL5738148W"
 
     def test_returns_false_when_the_link_is_missing(self):
-        novel = make_novel(openlibrary_link=None)
-        assert apply_extract_openlibrary_id(novel) is False
-        assert novel.openlibrary_id is None
+        book = make_book(openlibrary_link=None)
+        assert apply_extract_openlibrary_id(book) is False
+        assert book.openlibrary_id is None
 
     def test_does_not_clobber_an_existing_id_when_the_link_is_unparseable(self):
-        novel = make_novel(openlibrary_id="OL5738148W", openlibrary_link="not a url")
-        assert apply_extract_openlibrary_id(novel) is False
-        assert novel.openlibrary_id == "OL5738148W"
+        book = make_book(openlibrary_id="OL5738148W", openlibrary_link="not a url")
+        assert apply_extract_openlibrary_id(book) is False
+        assert book.openlibrary_id == "OL5738148W"
 
 
-class TestApplyExtractNovelIds:
+class TestApplyExtractBookIds:
     def test_runs_both_extractors_when_both_links_are_present(self):
-        novel = make_novel(mal_link="https://myanimelist.net/manga/23390/")
-        assert apply_extract_novel_ids(novel) is True
-        assert novel.mal_id == 23390
-        assert novel.openlibrary_id == "OL5738148W"
+        book = make_book(mal_link="https://myanimelist.net/manga/23390/")
+        assert apply_extract_book_ids(book) is True
+        assert book.mal_id == 23390
+        assert book.openlibrary_id == "OL5738148W"
 
     def test_extracts_open_library_even_when_mal_is_absent(self):
-        novel = make_novel(mal_link=None)
-        assert apply_extract_novel_ids(novel) is True
-        assert novel.openlibrary_id == "OL5738148W"
+        book = make_book(mal_link=None)
+        assert apply_extract_book_ids(book) is True
+        assert book.openlibrary_id == "OL5738148W"
 
     def test_extracts_mal_even_when_open_library_is_absent(self):
-        novel = make_novel(
+        book = make_book(
             openlibrary_link=None, mal_link="https://myanimelist.net/manga/23390/"
         )
-        assert apply_extract_novel_ids(novel) is True
-        assert novel.mal_id == 23390
+        assert apply_extract_book_ids(book) is True
+        assert book.mal_id == 23390
 
     def test_returns_false_when_neither_link_is_present(self):
-        novel = make_novel(openlibrary_link=None, mal_link=None)
-        assert apply_extract_novel_ids(novel) is False
+        book = make_book(openlibrary_link=None, mal_link=None)
+        assert apply_extract_book_ids(book) is False

@@ -39,7 +39,7 @@ def test_every_watching_type_owns_time_fin(media_type):
 
 
 @pytest.mark.parametrize(
-    "media_type", ("manga", "novel", "comic", "game", "h-comic", "h-game")
+    "media_type", ("manga", "book", "comic", "game", "h-comic", "h-game")
 )
 def test_no_other_type_owns_time_fin(media_type):
     assert "time_fin" not in LIST_FIELDS[media_type]

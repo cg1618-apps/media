@@ -119,7 +119,7 @@ describe("releaseAction", () => {
   });
 
   describe("serialization types", () => {
-    it.each(["manga", "comic", "h-comic", "novel"])(
+    it.each(["manga", "comic", "h-comic", "book"])(
       "%s: serializing -> Mark finished serializing",
       (type) => {
         const a = releaseAction(type, { serialization_status: "連載中" });
@@ -128,16 +128,16 @@ describe("releaseAction", () => {
       },
     );
 
-    it("novel: 未出 -> Mark serializing", () => {
-      const a = releaseAction("novel", { serialization_status: "未出" });
+    it("book: 未出 -> Mark serializing", () => {
+      const a = releaseAction("book", { serialization_status: "未出" });
       expect(a.label).toBe("Mark serializing");
       expect(a.payload).toEqual({ serialization_status: "連載中" });
     });
 
-    it("novel: every 連載中 variant can finish", () => {
+    it("book: every 連載中 variant can finish", () => {
       for (const s of ["連載中 (不穩定)", "連載中 (有生之年)"]) {
         expect(
-          releaseAction("novel", { serialization_status: s }).payload,
+          releaseAction("book", { serialization_status: s }).payload,
         ).toEqual({ serialization_status: "完結" });
       }
     });
@@ -169,7 +169,7 @@ describe("releaseAction", () => {
     for (const s of ["Finished Airing", "Canceled", null, undefined]) {
       expect(releaseAction("anime", { airing_status: s })).toBeNull();
     }
-    expect(releaseAction("novel", {})).toBeNull();
+    expect(releaseAction("book", {})).toBeNull();
     expect(releaseAction("game", {})).toBeNull();
   });
 });
@@ -178,8 +178,8 @@ describe("release step asks; finishing step does not", () => {
   it("flags only the release step", () => {
     expect(releaseAction("anime", { airing_status: "Not Yet Aired" }).ask).toBe(true);
     expect(releaseAction("anime", { airing_status: "Airing" }).ask).toBe(false);
-    expect(releaseAction("novel", { serialization_status: "未出" }).ask).toBe(true);
-    expect(releaseAction("novel", { serialization_status: "連載中" }).ask).toBe(false);
+    expect(releaseAction("book", { serialization_status: "未出" }).ask).toBe(true);
+    expect(releaseAction("book", { serialization_status: "連載中" }).ask).toBe(false);
     expect(releaseAction("game", { release_status: "Unreleased" }).ask).toBe(true);
   });
 });
@@ -212,6 +212,7 @@ describe("releaseDetailFields", () => {
     ]);
     expect(names("movie", {})).toEqual(["release_date_tw", "release_date_usa"]);
     expect(names("game", {})).toEqual(["release_date"]);
+    expect(names("book", {})).toEqual(["release_date_jp", "release_date_tw"]);
   });
 
   it("an ONA anime movie asks for its one release date", () => {

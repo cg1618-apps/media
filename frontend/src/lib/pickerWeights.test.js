@@ -134,8 +134,8 @@ describe("entryFactors", () => {
     ).toBe(1.2);
     expect(
       entryFactors(
-        { type: "novel", item: { serialization_status: "連載中 (有生之年)" } },
-        { mode: "novel" }
+        { type: "book", item: { serialization_status: "連載中 (有生之年)" } },
+        { mode: "book" }
       ).serialization
     ).toBe(0.3);
     expect(entryFactors(manga("m"), { mode: "manga" }).serialization).toBe(1);

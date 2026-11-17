@@ -198,7 +198,7 @@ class TestMediaTypeMap:
             "tv-show",
             "cartoon",
             "manga",
-            "novel",
+            "book",
             "comic",
             "game",
             "h-comic",
@@ -315,20 +315,20 @@ class TestResolveItems:
         assert result["status"] == "Completed"
 
     def test_float_total_is_coerced_to_int(self):
-        """novel.ch_total is a Float column; the schema wants an int."""
+        """book.ch_total is a Float column; the schema wants an int."""
         entry_id = uuid.uuid4()
-        novel = SimpleNamespace(
+        book = SimpleNamespace(
             system_id=entry_id,
-            display_name="Some Novel",
+            display_name="Some Book",
             cover_image_file=None,
             cover_image_focus=None,
             franchise_id=uuid.uuid4(),
             reading_status="Might Read",
             ch_total=120.0,
         )
-        db = FakeSession({MEDIA_TYPE_MODELS["novel"]: [novel]})
+        db = FakeSession({MEDIA_TYPE_MODELS["book"]: [book]})
 
-        result = resolve_items(db, [make_item("novel", entry_id)], _viewer(FAKE_ADMIN.id))[0]
+        result = resolve_items(db, [make_item("book", entry_id)], _viewer(FAKE_ADMIN.id))[0]
 
         assert result["total_episodes"] == 120
         assert isinstance(result["total_episodes"], int)

@@ -1,6 +1,6 @@
 # Design system — "the archive"
 
-Last verified: 2026-11-16
+Last verified: 2026-11-17
 
 The UI is styled as a physical media archive: paper, ink, index slips,
 spine labels and a rating stamp. It replaced the generic dashboard look
@@ -128,7 +128,7 @@ counts). `h1` is display by default.
    `hsl(330 50% 44%)` / `hsl(330 60% 72%)`, a rose more saturated than comic's
    orchid; `series` `hsl(8 60% 44%)` / `hsl(8 65% 68%)`, a brick red more
    saturated than movie's; `seasonal` `hsl(168 55% 29%)` / `hsl(168 45% 55%)`,
-   a teal between manga and novel; `person` `hsl(220 18% 40%)` /
+   a teal between manga and book; `person` `hsl(220 18% 40%)` /
    `hsl(220 18% 70%)` slate, `studio` `hsl(30 20% 38%)` / `hsl(30 22% 66%)`
    taupe, `publisher` `hsl(280 14% 42%)` / `hsl(280 16% 70%)` mauve. Nineteen
    hues cannot all sit far apart round the wheel, so the close pairs are told

@@ -13,7 +13,7 @@ MEDIA_PATHS = [
     "/api/tv-shows",
     "/api/cartoon",
     "/api/manga",
-    "/api/novel",
+    "/api/book",
     "/api/comic",
     "/api/game",
 ]

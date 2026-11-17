@@ -25,7 +25,7 @@ def test_clean_tabs_are_the_fifteen_in_scope():
         "TV Shows",
         "Cartoons",
         "Manga",
-        "Novel",
+        "Book",
         "Comic",
         "Game",
         "H-Comic",

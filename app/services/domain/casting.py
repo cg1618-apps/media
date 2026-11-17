@@ -6,7 +6,7 @@ read, positioned, with the display photo already resolved) and `replace_casting`
 (delete-then-insert the whole set in payload order, each casting with its
 voices), plus `fill_character_roles`, which gives a character with no role
 of its own the role its castings give it. Validation that would otherwise surface as a raw IntegrityError from
-ck_casting_voice_scope - a seiyuu on a manga/novel casting - is rejected here
+ck_casting_voice_scope - a seiyuu on a manga/book casting - is rejected here
 in Python, before any row is written, so the constraint is a backstop rather
 than the user-facing message.
 """
@@ -24,7 +24,7 @@ from app.utils.character_roles import CHARACTER_ROLES
 # no voice acting, so ck_casting_voice_scope already refuses a seiyuu there.
 # hentai is animated, so it is cast the way anime is, seiyuu included.
 CASTING_MEDIA_TYPES: tuple[str, ...] = (
-    "anime", "anime-movie", "manga", "novel", "h-comic", "hentai",
+    "anime", "anime-movie", "manga", "book", "h-comic", "hentai",
 )
 
 # Media types a seiyuu (person_id) may be attached to - the ones with voice

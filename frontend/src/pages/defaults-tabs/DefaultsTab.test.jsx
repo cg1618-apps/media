@@ -115,10 +115,10 @@ describe("DefaultsTab", () => {
     });
 
     it("picks one prefill on every other type, suggesting its optional names too", () => {
-      renderTab("novel");
+      renderTab("book");
 
       expect(screen.getByText("Restricted Prefill")).toBeInTheDocument();
-      // Novel prefills nothing built-in, so the button offers all eight names.
+      // Book prefills nothing built-in, so the button offers all eight names.
       expect(
         screen.getByRole("button", { name: /prefill suggested \(8\)/i }),
       ).toBeInTheDocument();

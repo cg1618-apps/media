@@ -5545,3 +5545,85 @@ shown buttons that answered 401.
   differently again. Display rounds to six decimals (`formatProgress`):
   enough for any fraction a person types, and short of the noise a float sum
   carries.
+
+### Novel becomes Book (2026-11-17)
+
+- **The type is renamed throughout, not just in the UI.** What the type
+  holds is broader than novels - short-story collections, guides and
+  setting books sit in it too - so the name was wrong wherever it appeared.
+  A label-only rename was rejected: it would have left the table, the
+  `media_type` key, the route, the permission, the franchise type and the
+  sheet tabs all saying `novel` under a page saying Book, which is exactly
+  the kind of mismatch "Suspect any shape that reads as uniform" warns
+  about. So: tables `book`, `book_unit`, `user_book_unit_rating`; columns
+  `book_id`, `book_name_*`; key and owner type `book`; route `/api/book`;
+  permission `media_type.book`; franchise type `Book`; tabs `Book`, `Book
+  Unit`, `User Book Unit Rating`; covers under `static/covers/book/`.
+  Revision `b1o2okrename3` (after `p1r2ogfloat3`) renames every named
+  object too - keys, indexes, checks, the `public_id` sequence and the
+  delete trigger - so the result is exactly what `create_all` builds, and
+  rewrites every stored spelling. Its downgrade reverses all of it.
+- **The `type` vocabulary becomes Chinese**: `輕小說`, `小說`, `網路小說`,
+  `短篇集`, `指南/設定集`, `其他`. The migration maps the old values one to
+  one (`Light Novel` → `輕小說`, `Novel` → `小說`, `Web` → `網路小說`,
+  `Other` → `其他`); `短篇集` and `指南/設定集` are new, and the owner moves
+  entries into them by hand - which entries belong there is not derivable
+  from anything stored. The downgrade sends both back to `Other`. The unit
+  rules follow the old mapping: `輕小說` and `小說` are volume-only as
+  `Light Novel` and `Novel` were, `網路小說` counts arcs as `Web` did, and
+  the two new types take `其他`'s rules. The JP author-name rule
+  (`name_slot_for`) follows `輕小說` and `網路小說`. *Gravity Falls: Lost
+  Legends*, a graphic novel, belongs under Comic and is moved by hand.
+- **Statistics keeps a section called Novel**, and it counts novels only:
+  books whose type is `輕小說`, `小說`, `網路小說` or `短篇集`
+  (`NOVEL_BOOK_TYPES` / `novelsOnly` in `frontend/src/utils/statsUtils.js`),
+  in both the completions tab and the rating distribution. A guide or an
+  `其他` book is a book, not a novel, and would skew a novel rating
+  distribution.
+- **The release date splits into JP and TW, as anime's did**, but the old
+  value goes to `release_date_jp` **only**; `release_date_tw` starts empty.
+  Anime copied its one date into both because it stood for both. A book's
+  stood for the original's first publication - MAL and Open Library filled
+  it, and both know only the original - so copying it into TW would have
+  invented a Taiwanese edition date. `end_date` stays one column, and
+  `RELEASE_PRIORITY["book"]` is JP then TW.
+- **Pull reads a sheet written before the rename, through a new tab-alias
+  mechanism.** Until now a renamed column was the only rename Pull knew
+  (`RENAMED_COLUMNS`); a renamed *tab* is new, and so are renamed cell
+  values. `app/services/pipelines/legacy_names.py` holds all three:
+  `LEGACY_TAB_NAMES` (`Book` may be titled `Novel`, and so on),
+  `RENAMED_COLUMNS` entries for `novel_name_*`, `novel_id` and
+  `release_date`, and `legacy_cell_values` for the `novel` key, the `Novel`
+  franchise token and `type_covers` key, `novel/` cover paths, the two
+  per-type `system_configs` keys and the fields inside them, and the old
+  type vocabulary. **The current tab title wins whenever it holds a row**:
+  a sheet backed up after the rename may keep the old tab beside the new
+  one, and that one is stale. **The old title is read only when the sheet
+  lists it**, because asking Sheets for a title it lacks creates the tab.
+  Backup writes only the new names, so the next Backup leaves nothing old
+  behind but the stale tabs, which nothing reads.
+- **Old URLs redirect**: `/novel/:publicId/:slug?` to `/book/...` and
+  `/library/novel` to `/library/book`, swapping only the type segment so the
+  id, slug, query and hash survive, with `replace` so the dead URL leaves no
+  history entry. Bookmarks and links pasted into notes keep working.
+- **The cover folders are copied at startup, not moved.** The migration
+  rewrites the stored paths but does not own the cover volume, so the app
+  copies `static/covers/novel/` and `static/covers/thumbs/novel/` into
+  `book/` when it starts (`copy_legacy_cover_folders`), never overwriting,
+  so every boot after the first copies nothing. A move was the first
+  version and was rejected before release: after a rollback the old code
+  would look for covers under `novel/` and find an empty folder. With a
+  copy the old folder is the rollback's copy; deleting it, and the copy
+  step, waits until the release has proved itself (open-items.md).
+- **Kept, on precedent.** The favourite book grid's stored `type_slots` key
+  stays `Novel`, as the ACG split left `ACG`: it is a storage key, not a
+  franchise type, and rewriting it buys nothing; the grid names its
+  franchises through `franchiseTypes: ["Book"]` instead. `deleted_record`
+  tombstones are not rewritten either - they record what was deleted at
+  the time - and DataHistory, the one reader that branches on the label,
+  accepts both `Novel` and `Book`. `type_covers` keys *are* rewritten, as ACG's were, because
+  they are franchise types. **Hentai's `Novel` source material stays**: it
+  names the genre the work adapts, not this app's type. So does genre prose
+  (light novel, web novel, visual novel, graphic novel), MAL and AniList
+  vocabulary, the retired `novel_author` / `novel_illustrator` keys, and
+  every historical revision.

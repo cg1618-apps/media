@@ -1,4 +1,4 @@
-// Frontend: the Scores section of anime, anime movie, manga and novel - the
+// Frontend: the Scores section of anime, anime movie, manga and book - the
 // MAL and AniList figures the detail page's ratings card shows, every one of
 // them editable on both pages.
 import { fireEvent, render, screen } from "@testing-library/react";

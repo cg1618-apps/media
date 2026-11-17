@@ -266,7 +266,7 @@ def make_media_router(spec) -> APIRouter:
         query = apply_entry_visibility(
             db.query(spec.model), spec.model, spec.owner_type, db, viewer
         )
-        # Only preload keys that are real ORM relationships (e.g. novel's
+        # Only preload keys that are real ORM relationships (e.g. book's
         # "units"). "sources" has no relationship - media_source rows carry no
         # FK to the entry - and is populated separately by attach_sources().
         for name in (spec.nested_collections or {}):

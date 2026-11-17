@@ -981,7 +981,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="highlight_passages",
         shape=SHAPE_TEXT,
         label="神片段",
-        owners=("novel",),
+        owners=("book",),
         scope=SCOPE_PERSONAL,
     ),
     NoteSection(
@@ -1138,7 +1138,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="craft",
         shape=SHAPE_TEXT_LINKS,
         label="巧思",
-        owners=("novel",),
+        owners=("book",),
         scope=SCOPE_CATALOG,
         group="analysis_group",
     ),
@@ -1152,7 +1152,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
             "tv-show",
             "cartoon",
             "manga",
-            "novel",
+            "book",
         )
         + _SERIES_AND_UP,
         scope=SCOPE_CATALOG,
@@ -1169,7 +1169,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
             "tv-show",
             "cartoon",
             "manga",
-            "novel",
+            "book",
         )
         + _SERIES_AND_UP,
         scope=SCOPE_CATALOG,
@@ -1191,7 +1191,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
             "tv-show",
             "cartoon",
             "manga",
-            "novel",
+            "book",
         )
         + _SERIES_AND_UP,
         scope=SCOPE_CATALOG,
@@ -1221,7 +1221,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
             "anime-movie": "Scene, e.g. 1:02:30",
             "movie": "Scene, e.g. 1:02:30",
             "manga": "Chapter(s), e.g. ch 6",
-            "novel": "Chapter(s), e.g. ch 6",
+            "book": "Chapter(s), e.g. ch 6",
             "comic": "Issue(s), e.g. #3",
             "game": "Chapter / Part, e.g. Ch 3",
         },
@@ -1232,7 +1232,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
     # Fifteen sections rather than one section with a kind, because each is a
     # list somebody actually keeps separately: which build to run is not the
     # same question as where the collectibles are. All game-only - 屬性&配點
-    # means nothing for a novel - and all catalogue: a guide is shared.
+    # means nothing for a book - and all catalogue: a guide is shared.
     #
     # `name_entries` where a row is one NAMED thing and what is known about it
     # (a quest, a build, a boss, an ending); `text_links` where it is advice
@@ -2111,10 +2111,10 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="adaptation",
         shape=SHAPE_TEXT_LINKS,
         label="改編 Adaptation",
-        owners=("anime", "anime-movie", "tv-show", "cartoon", "novel")
+        owners=("anime", "anime-movie", "tv-show", "cartoon", "book")
         + _SERIES_AND_UP,
         scope=SCOPE_CATALOG,
-        desc_required=("anime", "anime-movie", "novel"),
+        desc_required=("anime", "anime-movie", "book"),
     ),
     # --- 資源&工具 Tools & Resources ---------------------------------------
     # Things outside the game itself: somebody else's walkthrough, and the

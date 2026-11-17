@@ -282,7 +282,7 @@ def test_an_entity_write_does_not_also_need_the_read(db, client):
 # ---------------------------------------------------------------------------
 # Ratings, expectations and unit remarks are the viewer's own
 # ---------------------------------------------------------------------------
-# They live per account (user_rating, user_novel_unit_rating), so a viewer
+# They live per account (user_rating, user_book_unit_rating), so a viewer
 # reads its own and nobody else's. Each
 # null below is asserted with a row PRESENT - the member's own - so it proves
 # the read is per account rather than that nothing was rated.
@@ -441,18 +441,18 @@ def test_entities_give_the_member_its_own(db, client, rated_entities):
 
 
 @pytest.fixture
-def novel_with_remark(db, plain_user, sample_franchise):
-    novel = models.Novel(
+def book_with_remark(db, plain_user, sample_franchise):
+    book = models.Book(
         system_id=uuid.uuid4(),
         franchise_id=sample_franchise.system_id,
-        novel_name_cn="測試小說",
-        type="Web",
+        book_name_cn="測試小說",
+        type="網路小說",
     )
-    db.add(novel)
+    db.add(book)
     db.flush()
-    unit = models.NovelUnit(
+    unit = models.BookUnit(
         system_id=uuid.uuid4(),
-        novel_id=novel.system_id,
+        book_id=book.system_id,
         unit_kind="arc",
         position=1,
         ch_count=10,
@@ -460,29 +460,29 @@ def novel_with_remark(db, plain_user, sample_franchise):
     db.add(unit)
     db.flush()
     db.add(
-        models.UserNovelUnitRating(
+        models.UserBookUnitRating(
             user_id=plain_user.id, unit_id=unit.system_id, remark="這卷最好看"
         )
     )
     db.flush()
-    db.expire(novel)
-    return novel
+    db.expire(book)
+    return book
 
 
-def _units(c, novel):
-    detail = c.get(f"/api/novel/{novel.system_id}").json()
-    listed = c.get("/api/novel/").json()
-    row = next(x for x in listed if x["system_id"] == str(novel.system_id))
+def _units(c, book):
+    detail = c.get(f"/api/book/{book.system_id}").json()
+    listed = c.get("/api/book/").json()
+    row = next(x for x in listed if x["system_id"] == str(book.system_id))
     return detail["units"] + row["units"]
 
 
-def test_a_guest_gets_novel_unit_remarks_as_null(client, novel_with_remark):
-    units = _units(client, novel_with_remark)
-    assert units, "the novel must carry a unit for this to bite"
+def test_a_guest_gets_book_unit_remarks_as_null(client, book_with_remark):
+    units = _units(client, book_with_remark)
+    assert units, "the book must carry a unit for this to bite"
     assert all(u["remark"] is None for u in units)
 
 
-def test_the_member_gets_its_own_unit_remarks(user_client, novel_with_remark):
-    units = _units(user_client, novel_with_remark)
+def test_the_member_gets_its_own_unit_remarks(user_client, book_with_remark):
+    units = _units(user_client, book_with_remark)
     assert units
     assert all(u["remark"] == "這卷最好看" for u in units)

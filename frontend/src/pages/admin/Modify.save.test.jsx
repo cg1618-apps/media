@@ -104,7 +104,7 @@ describe("Modify save keeps what the entry holds", () => {
     ["anime", "/api/anime", { anime_name_en: "A" }],
     ["anime-movie", "/api/anime-movie", { anime_movie_name_en: "AM" }],
     ["manga", "/api/manga", { manga_name_en: "M" }],
-    ["novel", "/api/novel", { novel_name_en: "N" }],
+    ["book", "/api/book", { book_name_en: "N" }],
   ])("%s keeps its AniList ranks", async (type, listPath, names) => {
     const { body } = await saveAndReadBody({
       type,
@@ -119,7 +119,7 @@ describe("Modify save keeps what the entry holds", () => {
   // number turns that into NaN, which JSON sends as null.
   it.each([
     ["manga", "/api/manga", { manga_name_en: "M" }],
-    ["novel", "/api/novel", { novel_name_en: "N" }],
+    ["book", "/api/book", { book_name_en: "N" }],
   ])("%s keeps its MAL rank as text", async (type, listPath, names) => {
     const { body } = await saveAndReadBody({
       type,
@@ -133,7 +133,7 @@ describe("Modify save keeps what the entry holds", () => {
   // recorded" - on every reading type, comic's issue count included.
   it.each([
     ["manga", "/api/manga", { manga_name_en: "M" }, ["vol_fin", "vol_fin_page", "ch_fin"]],
-    ["novel", "/api/novel", { novel_name_en: "N" }, ["vol_fin", "arc_fin", "ch_fin"]],
+    ["book", "/api/book", { book_name_en: "N" }, ["vol_fin", "arc_fin", "ch_fin"]],
     ["comic", "/api/comic", { comic_name_en: "C" }, ["issue_fin"]],
   ])("%s sends a blank finished count as null", async (type, listPath, names, counts) => {
     const { body } = await saveAndReadBody({

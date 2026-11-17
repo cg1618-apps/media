@@ -92,6 +92,18 @@ than comparing two git refs. That is a better check than either of the two
 above and would replace both. Not done, because the shape that produces it is
 rare and already loud.
 
+**The old `novel` cover folders are still on disk, and the app still copies
+them at every start.** The app copies `static/covers/novel/` and
+`static/covers/thumbs/novel/` into their `book/` folders at startup
+(`copy_legacy_cover_folders`, `LEGACY_COVER_FOLDERS` in
+`app/services/integrations/image_manager.py`), and leaves the old folders
+whole: until the Book release has proved itself, the old folder is the
+rollback's copy, because the code before the rename reads its covers from
+`novel/`. Once it has, delete `static/covers/novel/` and
+`static/covers/thumbs/novel/` on the box and on both development machines,
+and remove the copy step - `LEGACY_COVER_FOLDERS`, `copy_legacy_cover_folders`
+and its call in `app/main.py`'s lifespan - with its test.
+
 **`deploy/migrations downgrade` has never run end to end in a real rollback.**
 Its parts are each proven — the gate holds, an added revision is
 detected, the `.migration` sidecar resolves the right target, the refusal on
@@ -231,9 +243,9 @@ docker exec cg1618-dev-db psql -U postgres -d media -tAc   "SELECT cl.key, count
 | `delete_studio` never calls `delete_cover_image`, so a studio logo leaks; publisher does it correctly | `app/routers/studio.py` |
 | `_STRIPPED` holds a stray backslash. `"\/"` is not an escape in Python, so the backslash survives and `clean_string` strips a character the JS `cleanString` it is kept "character-for-character in step with" does not. Warns today, and is a `SyntaxError` in a future Python | `app/services/domain/search.py:39` |
 | A Pull after a character merge done on the other machine rolls back the `Character Identity` and `Character Casting` tabs: the deferred `fk_casting_identity` fails at commit while the local cast rows still name the old character. Repeat the merge locally before running Pull | `docs/data-actions.md`, Pull All; `app/routers/character.py` merge |
-| A Pull fails with `duplicate key value violates unique constraint "uq_character_casting"` when the sheet's casting for an entry was rebuilt under new row ids while this database still holds the old rows: Pull writes the sheet's rows before removing local ones, so the same character-in-entry exists twice for a moment. Seen pulling production onto the company machine, on a novel whose casting production had re-saved. Until Pull removes the local rows of a re-cast entry first, delete that entry's local casting rows (or rebuild the database from the sheet) before pulling | `app/services/pipelines/pull.py`, the Character Casting tab |
+| A Pull fails with `duplicate key value violates unique constraint "uq_character_casting"` when the sheet's casting for an entry was rebuilt under new row ids while this database still holds the old rows: Pull writes the sheet's rows before removing local ones, so the same character-in-entry exists twice for a moment. Seen pulling production onto the company machine, on a book whose casting production had re-saved. Until Pull removes the local rows of a re-cast entry first, delete that entry's local casting rows (or rebuild the database from the sheet) before pulling | `app/services/pipelines/pull.py`, the Character Casting tab |
 | A person, character or other public entity created on **both** machines fails Pull at commit with `duplicate key value violates unique constraint "uq_<table>_public_id"`. Each machine mints the row under its own uuid and `public_id`; Pull matches it to the local copy only by uuid or, for a person, by all four names exactly, so a copy whose names differ (one filled in from MAL, one not) restores as a second row carrying the sheet's `public_id`, which a row that exists only here may already hold. Nothing renumbers a local-only row. Until it does, delete or merge the local duplicate before pulling. A copy that does not collide still arrives as a duplicate, which the credit pass then reports as ambiguous | `app/services/pipelines/pull.py`, `_match_by_natural_key`, `resync_public_id_sequence` |
-| A Sheets Pull drops link columns that Backup writes, when the tab's parser does not name them: Pull keeps only the keys a parser emits. Game's `studio`, `publisher`, `director`, `composer`, `game_genre`, `game_theme`, `game_mode`, `combat_mode` and `game_platform`, anime's and anime-movie's `exclusive_source`, and manga's and novel's `serialization_platform` are written to the sheet and never read back. The fix is to add each key to its parser and widen `test_every_parser_reads_back_the_genre_and_label_columns_its_tab_writes` to every link header | `app/utils/formatter.py`, the `parse_*_from_sheet` functions; `app/services/pipelines/pull.py`, the header filter |
+| A Sheets Pull drops link columns that Backup writes, when the tab's parser does not name them: Pull keeps only the keys a parser emits. Game's `studio`, `publisher`, `director`, `composer`, `game_genre`, `game_theme`, `game_mode`, `combat_mode` and `game_platform`, anime's and anime-movie's `exclusive_source`, and manga's and book's `serialization_platform` are written to the sheet and never read back. The fix is to add each key to its parser and widen `test_every_parser_reads_back_the_genre_and_label_columns_its_tab_writes` to every link header | `app/utils/formatter.py`, the `parse_*_from_sheet` functions; `app/services/pipelines/pull.py`, the header filter |
 | Entry tabs may still mint entities. `credits.resolve_*` is find-or-create for the Add form too, and whether entry tabs should refuse instead is a policy call | `app/services/domain/credits.py` |
 
 ## Tooling
@@ -284,7 +296,7 @@ It is left until a run on CI goes red on one of them.
 for the owner's designs.** They are built from existing controls and the
 design system so the behaviour can be used, and their look is undecided:
 
-- the per-unit rating and remark on the novel page;
+- the per-unit rating and remark on the book page;
 - reordering highlight groups, which is the existing drag;
 - editing a personal value on a catalogue note row (collected, beaten,
   completion, my value, the music and mod statuses) and the NG reset button;

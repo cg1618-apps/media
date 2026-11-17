@@ -12,7 +12,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import MyTrackerCard from "./MyTrackerCard";
-import NovelTrackerBlock from "./NovelTrackerBlock";
+import BookTrackerBlock from "./BookTrackerBlock";
 
 const mockAuth = vi.hoisted(() => ({ username: null }));
 
@@ -20,9 +20,9 @@ vi.mock("../../contexts/AuthContext", () => ({
   useAuth: () => mockAuth,
 }));
 
-const NOVEL = {
-  system_id: "novel-1",
-  novel_type: "Novel",
+const BOOK = {
+  system_id: "book-1",
+  book_type: "小說",
   ch_fin: 3,
   vol_fin: 1,
   units: [],
@@ -43,10 +43,10 @@ describe("the tracker is withheld from a logged-out visitor", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("renders nothing at all for NovelTrackerBlock", () => {
+  it("renders nothing at all for BookTrackerBlock", () => {
     mockAuth.username = null;
     const { container } = render(
-      <NovelTrackerBlock novel={NOVEL} canTrack />,
+      <BookTrackerBlock book={BOOK} canTrack />,
     );
     expect(container).toBeEmptyDOMElement();
   });

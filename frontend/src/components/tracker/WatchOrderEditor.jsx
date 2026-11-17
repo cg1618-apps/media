@@ -313,7 +313,7 @@ function ItemRow({
         }`}
       >
         {/*
-          A movie, manga or novel step covers its entry whole, so the from/to
+          A movie, manga or book step covers its entry whole, so the from/to
           pair is omitted rather than disabled - there is nothing to fill in.
           A comic run is not in that set: its steps are numbered by issue, so
           it keeps the pair the way the episodic types do.

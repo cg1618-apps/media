@@ -18,22 +18,23 @@ from sqlalchemy import exists, func
 
 from app import models, schemas
 from app.services.domain import (
-    derive_novel_catalog,
-    derive_novel_list,
+    derive_book_catalog,
+    derive_book_list,
+    mark_book_catalog,
+    mark_book_list,
     mark_comic_catalog,
     mark_comic_list,
     mark_game_catalog,
     mark_game_list,
     mark_movie_catalog,
     mark_movie_list,
-    mark_novel_catalog,
-    mark_novel_list,
     mark_reading_catalog,
     mark_reading_list,
     mark_tv_catalog,
     mark_tv_list,
     resolve_anime_movie_parent_hierarchy,
     resolve_anime_parent_hierarchy,
+    resolve_book_parent_hierarchy,
     resolve_cartoon_parent_hierarchy,
     resolve_comic_parent_hierarchy,
     resolve_game_parent_hierarchy,
@@ -42,10 +43,9 @@ from app.services.domain import (
     resolve_hentai_parent_hierarchy,
     resolve_manga_parent_hierarchy,
     resolve_movie_parent_hierarchy,
-    resolve_novel_parent_hierarchy,
     resolve_tv_show_parent_hierarchy,
+    write_book_units,
     write_game_copies,
-    write_novel_units,
 )
 from app.services.domain.anime_movie import sync_ona_release_date
 from app.services.domain.anime_write import prepare_anime_write
@@ -73,13 +73,13 @@ from app.services.domain.hentai import (
 from app.services.domain.music_status import seed_music_status
 from app.services.domain.sources import media_sources_writer
 from app.services.pipelines import (
+    execute_replace_single_book,
     execute_replace_single_cartoon,
     execute_replace_single_comic,
     execute_replace_single_h_comic,
     execute_replace_single_hentai,
     execute_replace_single_manga,
     execute_replace_single_movie,
-    execute_replace_single_novel,
     execute_replace_single_tv_show,
     execute_save_replace_game,
     execute_save_replace_h_game,
@@ -127,17 +127,17 @@ class MediaTypeSpec:
     # music_status rows).
     create_hook: Optional[Callable] = None
     # Payload key -> writer(db, entry, value, viewer), popped before the
-    # model is built because the value is not a column (sources, novel's
+    # model is built because the value is not a column (sources, book's
     # units, game's copies) or because its write must see the stored value
     # (h-comic's animation_status).
     nested_collections: Optional[dict] = None
     # (db, entry) -> None, called in create, update AND patch, after columns
     # and nested collections are applied. Distinct from pre_commit_hook,
-    # which patch deliberately does not call. Novel derives its progress
+    # which patch deliberately does not call. Book derives its progress
     # here; anime movie keeps an ONA's two release dates equal.
     progress_hook: Optional[Callable] = None
     # (row, entry) -> None, run after a list payload is applied, on every path
-    # that writes one: the entry endpoints and PUT /api/me/list. Novel derives
+    # that writes one: the entry endpoints and PUT /api/me/list. Book derives
     # its arc cursor here; h-comic checks usefulness and clears by region. It
     # is the per-user twin of progress_hook, and it has to run after the
     # payload so it sees the reader's NEW cursor.
@@ -326,31 +326,31 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         write_hook=execute_replace_single_manga,
         nested_collections={"sources": media_sources_writer("manga")},
     ),
-    "novel": MediaTypeSpec(
-        key="novel",
-        owner_type="novel",
-        label="Novel",
-        route="novel",
-        model=models.Novel,
-        create_schema=schemas.NovelCreate,
-        update_schema=schemas.NovelUpdate,
-        response_schema=schemas.NovelResponse,
+    "book": MediaTypeSpec(
+        key="book",
+        owner_type="book",
+        label="Book",
+        route="book",
+        model=models.Book,
+        create_schema=schemas.BookCreate,
+        update_schema=schemas.BookUpdate,
+        response_schema=schemas.BookResponse,
         status_field="reading_status",
         list_filters=("franchise_id", "series_id", "reading_status", "serialization_status"),
-        hierarchy_names={"en": "novel_name_en", "cn": "novel_name_cn", "roman": "novel_name_roman",
-                         "jp": "novel_name_jp", "alt": "novel_name_alt"},
-        search_fields=("novel_name_cn", "novel_name_en", "novel_name_roman", "novel_name_jp", "novel_name_alt"),
-        resolve_hierarchy=resolve_novel_parent_hierarchy,
-        mark_completed=mark_novel_catalog,
-        mark_completed_list=mark_novel_list,
+        hierarchy_names={"en": "book_name_en", "cn": "book_name_cn", "roman": "book_name_roman",
+                         "jp": "book_name_jp", "alt": "book_name_alt"},
+        search_fields=("book_name_cn", "book_name_en", "book_name_roman", "book_name_jp", "book_name_alt"),
+        resolve_hierarchy=resolve_book_parent_hierarchy,
+        mark_completed=mark_book_catalog,
+        mark_completed_list=mark_book_list,
         progress_counter=chapter_counter,
-        write_hook=execute_replace_single_novel,
+        write_hook=execute_replace_single_book,
         nested_collections={
-            "units": write_novel_units,
-            "sources": media_sources_writer("novel"),
+            "units": write_book_units,
+            "sources": media_sources_writer("book"),
         },
-        progress_hook=lambda db, entry: derive_novel_catalog(entry),
-        progress_hook_list=lambda row, entry: derive_novel_list(row, entry),
+        progress_hook=lambda db, entry: derive_book_catalog(entry),
+        progress_hook_list=lambda row, entry: derive_book_list(row, entry),
     ),
     "comic": MediaTypeSpec(
         key="comic",

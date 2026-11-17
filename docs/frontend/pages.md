@@ -41,8 +41,10 @@ are a large share of the bundle and never needed on first paint.
 | `/library/h-comic` | `Library type="h-comic"` — same file, declared on its own inside `<ProtectedRoute gatedType="h-comic">` (matched before `/library/:type`) | eager, **gated** |
 | `/library/h-game` | `Library type="h-game"` — the same, inside `<ProtectedRoute gatedType="h-game">` | eager, **gated** |
 | `/library/hentai` | `Library type="hentai"` — the same, inside `<ProtectedRoute gatedType="hentai">` | eager, **gated** |
-| `/library/:type` | `Library` — `library/Library.jsx` (anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, game; anything else redirects to `/under-development`) | eager |
-| `/anime/:system_id` … `/game/:system_id` | `detail/Anime.jsx`, `AnimeMovie.jsx`, `Movie.jsx` (`/movie`), `TV.jsx` (`/tv-show`), `Cartoon.jsx`, `Manga.jsx`, `Novel.jsx`, `Comic.jsx`, `Game.jsx` | eager |
+| `/library/novel` | `NovelToBookRedirect` (`App.jsx`) — `<Navigate replace>` to `/library/book`, keeping the query and hash; matched before `/library/:type` | eager |
+| `/library/:type` | `Library` — `library/Library.jsx` (anime, anime-movie, movie, tv-show, cartoon, manga, book, comic, game; anything else redirects to `/under-development`) | eager |
+| `/anime/:system_id` … `/game/:system_id` | `detail/Anime.jsx`, `AnimeMovie.jsx`, `Movie.jsx` (`/movie`), `TV.jsx` (`/tv-show`), `Cartoon.jsx`, `Manga.jsx`, `Book.jsx`, `Comic.jsx`, `Game.jsx` | eager |
+| `/novel/:system_id` | `NovelToBookRedirect` — `<Navigate replace>` to `/book/:system_id`, swapping only the type segment so the id, slug, query and hash survive and the old URL leaves no history entry | eager |
 | `/h-comic/:system_id` | `detail/HComic.jsx`, inside `<ProtectedRoute gatedType="h-comic">` | eager, **gated** |
 | `/h-game/:system_id` | `detail/HGame.jsx`, inside `<ProtectedRoute gatedType="h-game">` | eager, **gated** |
 | `/hentai/:system_id` | `detail/Hentai.jsx`, inside `<ProtectedRoute gatedType="hentai">` | eager, **gated** |
@@ -113,7 +115,7 @@ anyone else has none and the server sends null — the cards' rating stamps and
 expectation chips, the franchise table's Expectation and My columns, the
 rating and expectation sorts and filters, the hubs' hero stamp, chip and
 rating editors, the entity pages' **My rating** select, the random picker's
-franchise filters and a novel unit's rating and remark controls.
+franchise filters and a book unit's rating and remark controls.
 
 Each route block asks one key, and `navigation.js` asks the same key for the
 rows that link there — the SPA's two permission surfaces have to agree, and
@@ -145,7 +147,7 @@ about styling.
 
 | Section key | Label | Shape | Contents |
 |---|---|---|---|
-| `library` | Library | mega-panel (`columns`), `requires` any of the nine ordinary `media_type.*` keys (`LIBRARY_MEDIA_TYPE_PERMISSIONS`), so a role holding none — the admin — has no Library tab. Nav only: the `/library` routes themselves stay open | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities** (each row `requires` its own kind's key, so a row whose kind is off is dropped and a viewer holding none has no Entities column): Studio `/library/studio` (also matches `/studio`; `view.studio`), Publisher `/library/publisher` (also matches `/publisher`; `view.publisher`), Person `/library/person` (also matches `/person`; `view.person`), Character `/library/character` (also matches `/character` and `/identity`; `view.character`), Seiyuu `/library/seiyuu` (`view.person`) · **AniManga**: Anime, Anime Movie, Manga, Novel, Game `/library/game` (also matches `/game`) · **Reality**: TV Show, Movie, Cartoon, Comic |
+| `library` | Library | mega-panel (`columns`), `requires` any of the nine ordinary `media_type.*` keys (`LIBRARY_MEDIA_TYPE_PERMISSIONS`), so a role holding none — the admin — has no Library tab. Nav only: the `/library` routes themselves stay open | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities** (each row `requires` its own kind's key, so a row whose kind is off is dropped and a viewer holding none has no Entities column): Studio `/library/studio` (also matches `/studio`; `view.studio`), Publisher `/library/publisher` (also matches `/publisher`; `view.publisher`), Person `/library/person` (also matches `/person`; `view.person`), Character `/library/character` (also matches `/character` and `/identity`; `view.character`), Seiyuu `/library/seiyuu` (`view.person`) · **AniManga**: Anime, Anime Movie, Manga, Book, Game `/library/game` (also matches `/game`) · **Reality**: TV Show, Movie, Cartoon, Comic |
 | `restricted` | Restricted | flat `items`, every row gated | H-Comic `/library/h-comic` (also matches `/h-comic`; `gatedType: "h-comic"`), H-Game `/library/h-game` (also matches `/h-game`; `gatedType: "h-game"`), Hentai `/library/hentai` (also matches `/hentai`; `gatedType: "hentai"`). Each is drawn only for a session that can see its type; a session that can see no gated type has every row dropped, so the tab itself is not drawn |
 | `track` | Track | flat `items` | Plan `/plan` (`requires: "self.list"` — see below), Completions `/completions` (`requires: "self.list"`). The account's own progress; a guest holds no `self.*` key, so the tab is not drawn |
 | `explore` | Explore | flat `items` | Seasonal `/seasonal` and Future Releases `/future-releases`, each `requires: LIBRARY_MEDIA_TYPE_PERMISSIONS` (any ordinary media type, so a guest's and a shared account's Explore hold both and the admin's neither), Statistics `/statistics` (`requires: "view.statistics"`, so super, user and shared and never a guest), and Random Picker `/random` (`requires: "view.random_picker"`; its `/random/<type>` pages light it too) |
@@ -241,7 +243,7 @@ debounces 250 ms, discards stale responses by request id, and calls
 `GET /api/search/?q=…&limit=8[&scope=…]` — the per-bucket `limit` is
 `MAX_RESULTS`, the most rows the dropdown shows, so no bucket sends more than
 can be used. Scopes: all, collection, franchise,
-series, anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, game,
+series, anime, anime-movie, movie, tv-show, cartoon, manga, book, comic, game,
 h-comic, h-game, hentai, seasonal, person, studio, publisher. A scope is
 offered only when the server would send its bucket (`canSearchScope`, on the
 rule in [api.md](../api.md#search--apisearch)): a media type needs
@@ -253,7 +255,7 @@ in three passes. First, every bucket's exact matches (a name column equal to
 the query after `cleanString`), so a whole-title hit is never cut by the cap
 and always sits at the top. Then, with scope `all`, `TYPE_QUOTAS` give one
 row to each title type in order — collection, franchise, series, anime,
-anime-movie, movie, tv-show, cartoon, manga, novel, comic, game, h-comic,
+anime-movie, movie, tv-show, cartoon, manga, book, comic, game, h-comic,
 h-game, hentai, seasonal — so a broad query shows as many types as fit before
 any type shows a second; person, studio and publisher have no floor. Last,
 the slots left over are filled round-robin from the buckets that still have
@@ -381,7 +383,7 @@ for `manage.announcements`. Each part asks its own key, so a role edited on
 above): `useMediaList("anime")` and
 `useApiQuery(["announcements"], "/api/announcements/")` for everyone — the
 Broadcast schedule reads the anime list alone. For a member it also loads
-`franchise`, `tv-show`, `cartoon`, `manga`, `novel`, `comic` and `game` (all
+`franchise`, `tv-show`, `cartoon`, `manga`, `book`, `comic` and `game` (all
 `LIST_OPTIONS`), which only the tracker divisions read, plus `anime-movie`,
 `movie` and `/api/seasonal/current-season` for Coming Next. The combined
 loading/error gate covers the anime list and, for a member, the seven tracker
@@ -398,11 +400,11 @@ their sub-section headers (Active watching, Passive reading, …) pin below the
 bar, which reports its measured height so they stack under it.
 
 The bar's type filter is single-select over `MEDIA_TYPES` (All / Anime / TV
-Show / Cartoon / Manga / Novel / Comic / Game); clicking the active type again
+Show / Cartoon / Manga / Book / Comic / Game); clicking the active type again
 returns to All. Picking a type does two things: each section shows only that
 type's entries, and every division that cannot hold the type is **not
 rendered at all** (`DIVISION_TYPES`: Watching holds Anime · TV Show · Cartoon,
-Reading holds Manga · Novel · Comic, Playing holds Game). So picking Game
+Reading holds Manga · Book · Comic, Playing holds Game). So picking Game
 leaves only Playing. The TOC drops the links of hidden divisions with them.
 
 **Card or list**: the same bar carries a **View** toggle (Cards / List) at its
@@ -431,7 +433,7 @@ tracker divisions):
 | `#libraries` | Libraries | viewers without a list (guest, shared): one link per Library and Restricted nav row the viewer is shown. Not drawn when there are none. |
 | `#recent` | Recently added | `view.random_picker` without a list (shared): one section per visible type, newest first — anime two rows, every other type one. |
 | `#watching` | Watching (Anime · TV Show · Cartoon) | members only, like Reading and Playing and the filter bar above them. Sections `watching-active` Active Watching, `watching-passive` Passive Watching, `watching-paused` Paused, by `watching_status`. Each groups Anime → TV Show → Cartoon, sorted by rating weight (S…F, unrated last), rendering `DashboardCard`. Shown when no type is picked or the picked type is one of its three. |
-| `#reading` | Reading (Manga · Novel · Comics) | `reading-active`, `reading-passive`, `reading-paused` by `reading_status`. Manga → `DashboardCard`, Novel → `NovelDashboardCard`, Comic → `ComicDashboardCard`. Shown when no type is picked or the picked type is one of its three. |
+| `#reading` | Reading (Manga · Book · Comics) | `reading-active`, `reading-passive`, `reading-paused` by `reading_status`. Manga → `DashboardCard`, Book → `BookDashboardCard`, Comic → `ComicDashboardCard`. Shown when no type is picked or the picked type is one of its three. |
 | `#playing` | Playing (Game) | `playing-active`, `playing-passive`, `playing-anytime`, `playing-paused` by `playing_status`, rendered by a local `PlayingSection` — simpler than `ReadingSection` because the division holds exactly one media type, so there is no per-type grouping and no progress callback. Cards are `GameDashboardCard`, whose playtime figure is read-only for everyone. Shown when no type is picked or the picked type is Game. |
 
 **Coming Next** shows what the viewer is waiting on or has planned, in two
@@ -486,7 +488,7 @@ Progress reverted.":
 |---|---|
 | `handleEpChange` (anime, TV show, cartoon; anime also recomputes `cum_ep_fin = ep_previous + ep_fin` locally) | `{ ep_fin }` |
 | `handleChChange` (manga) | `{ ch_fin }` |
-| `handleNovelProgressChange` | any of `{ vol_fin | ch_fin | arc_fin }` (the card picks by `progress_display`: `vol_tw`, `vol_original`, `arc_ch`, `ch`) |
+| `handleBookProgressChange` | any of `{ vol_fin | ch_fin | arc_fin }` (the card picks by `progress_display`: `vol_tw`, `vol_original`, `arc_ch`, `ch`) |
 | `handleComicProgressChange` | `{ issue_fin }` |
 
 Cards cap at the total and toast "Cannot exceed total episodes/volumes/…".
@@ -497,7 +499,7 @@ File `pages/public/Search.jsx`. Reads `?q`, `?scope` (default `all`) and
 `?tab`.
 `useApiQuery(["api","search"], "/api/search/", { params: { q, scope, characters: true }, enabled: hasQuery })`
 → effective key `["api","search",{q,scope,characters}]`. The response is
-`results.{collection, seasonal, franchise, series, anime, "anime-movie", movie, "tv-show", cartoon, manga, novel, comic, game, "h-comic", "h-game", hentai, person, studio, publisher, character}`
+`results.{collection, seasonal, franchise, series, anime, "anime-movie", movie, "tv-show", cartoon, manga, book, comic, game, "h-comic", "h-game", hentai, person, studio, publisher, character}`
 plus `related_franchises` (the franchises of the matched anime — used as
 filter pills, not name matches). Only `collection`, `franchise`, `series` and
 `seasonal` are always present: the server leaves out the bucket of every type
@@ -525,7 +527,7 @@ tabs, with one group labelled "Results" and a count on each tab:
   franchises/series/anime by `franchise_id`), **Franchises** (`TierCard`
   labelled "{franchise_type} Franchise"), **Series**, **Anime** (sub-grouped
   TV / ONA, Movies, Other by `airing_type`), **Anime Movies**, **Movies**,
-  **TV Shows**, **Cartoons**, **Manga**, **Novel**, **Comic**, **Game**,
+  **TV Shows**, **Cartoons**, **Manga**, **Book**, **Comic**, **Game**,
   **H-Comic**, **H-Game**, **Hentai** — all `MediaCard` grids.
 - **People & companies** — **People**, **Studios** and **Publishers**,
   `PersonCard` / `StudioCard` / `PublisherCard` grids
@@ -553,7 +555,7 @@ from `MediaCard` itself.
 ### Library — `/library/:type`
 
 Files `pages/library/Library.jsx`, `pages/library/configs/index.js` +
-`configs/{anime,animeMovie,movie,tvShow,cartoon,manga,novel,comic,game,hComic,hGame,hentai}.jsx`,
+`configs/{anime,animeMovie,movie,tvShow,cartoon,manga,book,comic,game,hComic,hGame,hentai}.jsx`,
 `components/layout/LibraryLayout.jsx`, `components/layout/libraryColumns.jsx`,
 `hooks/useLibraryState.js`.
 
@@ -595,7 +597,7 @@ publisher, person (and seiyuu) and character — use the same machinery.
 A sort may also name the figure a **grid card** shows in its score slot,
 through `cardScoreField` on the sortDef: `LibraryLayout` reads it off the
 active sort and passes it to `MediaCard` as `scoreField`, so an anime, anime
-movie, manga or novel library sorted by either AniList figure shows the
+movie, manga or book library sorted by either AniList figure shows the
 AniList score on every card instead of the MAL one. Both AniList sorts point
 at `anilist_rating` — a card has one score slot, and a popularity rank is
 not the number worth reading in it. A sort that names nothing leaves the card
@@ -648,7 +650,7 @@ viewer. In the table below the personal defs are marked *(p)*.
 | tv-show | no | airingStatus · watchingStatus *(p)* · region: set-dynamic | title, release_date, my_rating *(p)*, imdb_rating, imdb_series_rating | franchise, title, season, status, ep *(p)*, my *(p)*, imdb, imdb_show, watch *(p)*, watch_next *(p)*, to_rewatch *(p)* |
 | cartoon | yes | airingStatus · airingType: set-dynamic · watchingStatus *(p)* · officialSource: set-dynamic | title, release_date, my_rating *(p)*, imdb_rating, imdb_series_rating | franchise, title_cn, title_en, type, season, airing, ep *(p)*, source, my *(p)*, imdb, imdb_show, watch *(p)* |
 | manga | yes | serializationStatus: set-dynamic · readingStatus: set-grouped *(p)* · region: set-dynamic | title, release_date, end_date, my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title_cn, title_en, status, ch *(p)*, vol *(p)*, my *(p)*, mal, read *(p)*, read_next *(p)*, to_reread *(p)* |
-| novel | yes | serializationStatus · readingStatus *(p)* · region · type: set-dynamic | title, release_date, end_date, my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title_cn, title_en, status, progress (`getNovelProgress`) *(p)*, my *(p)*, mal, read *(p)*, read_next *(p)*, to_reread *(p)* |
+| book | yes | serializationStatus · readingStatus *(p)* · region · type: set-dynamic | title, release_date (jp→tw), end_date, my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title_cn, title_en, status, progress (`getBookProgress`) *(p)*, my *(p)*, mal, read *(p)*, read_next *(p)*, to_reread *(p)* |
 | comic | yes | comicType: set-dynamic · readingStatus *(p)* · era: set-dynamic · events: set-dynamic (multi-value via `parseTypes`) | title (EN-first), release_date, my_rating *(p)* | franchise, title_en, title_cn, volume_label, comic_type, era, progress (`issue_fin / issue_total ISS`) *(p)*, my *(p)*, read *(p)*, to_reread *(p)* |
 | game | yes | gameType: set-dynamic · playingStatus: set-grouped (Playing / Planned / Completed / Dropped / Might Play, via `PLAYING_STATUS_GROUP`) *(p)* · ownership: set-dynamic *(p)* · releaseStatus: set-dynamic | title (CN-first), release_date, hours_played ("Playtime"), metacritic_score ("Metacritic", highest first, unscored last), my_rating *(p)* | franchise, title_cn, title_en, game_type, hours_played (`32.5 h`), my *(p)*, play (`playButtonColumn`) *(p)*, to_replay *(p)* |
 
@@ -677,7 +679,7 @@ toggles.
 File `pages/library/CollectionLibrary.jsx`. Raw `fetch` in one `Promise.all`:
 `/api/collection/`, `/api/franchise/` and eight entry lists
 (`/api/anime/`, `/api/anime-movie/`, `/api/movies/`, `/api/tv-shows/`,
-`/api/cartoon/`, `/api/manga/`, `/api/novel/`, `/api/comic/`), each
+`/api/cartoon/`, `/api/manga/`, `/api/book/`, `/api/comic/`), each
 `?limit=2000`, purely to resolve a cover per collection. **Games are not among
 them**, so a game can never supply a collection cover. Search over the five
 collection names; sort `title | my_rating (default) | collection_expectation`
@@ -700,7 +702,7 @@ full set is a requirement, not a preference:
 type the caller leaves out, and the table's Entries column counts whatever
 `ENTRY_SOURCES` lists, so a gap there undercounts it.
 
-Filter panel "Type": Anime, Manga, Novel, Anime Movie, Movie, TV, Cartoon,
+Filter panel "Type": Anime, Manga, Book, Anime Movie, Movie, TV, Cartoon,
 Comic, H-Comic, H-Game, Hentai (each drawn only for a session that can see the type), Other
 (Anime and Manga are the franchise's own `Anime` and `Manga` types) — **there is no Game category**, so a Game-only franchise files
 under "Other". Sort
@@ -782,7 +784,7 @@ library. No table view.
 
 The filter panel is the studio library's, over `publisherFilterDefs(auth)`,
 open on the same default, with the same Clear all and Reset. **Entry type**
-offers the six publisher types — anime, anime movie, manga, novel, comic,
+offers the six publisher types — anime, anime movie, manga, book, comic,
 game — and No entries, with no Restricted parent (no publisher type is
 gated), and matches `media_types` **or** `scopes`: a publisher offered on
 manga but not yet credited on one is still found under Manga. No entries
@@ -873,7 +875,7 @@ all its identities, so "Conan" finds the Shinichi card too.
 
 The **Filters** button opens a `FilterPanel` over
 `characterFilterDefs(auth)` (`lib/entityFilters.js`), the person library's
-groups without Type: **Entry type** — anime, anime movie, manga, novel, No
+groups without Type: **Entry type** — anime, anime movie, manga, book, No
 entries, then a **Restricted** parent chip over h-comic and hentai (not
 h-game: nobody is cast on an h-game) — then **Role** — Main, Core,
 Important Supporting, Supporting, Other, plus Not set for null, matched against the character's
@@ -1130,11 +1132,11 @@ so the first available tab is re-picked (Collection keeps "Franchises").
 
 | | FranchisePage | SeriesPage | CollectionPage |
 |---|---|---|---|
-| Loads | `/api/franchise/{id}`; series, anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, **game** lists `?franchise_id=`, **h-comic**, **hentai** and **h-game** only when `franchise_type` names a type of the restricted family (`H-Comic`, `Hentai` or `H-Game`, `inFranchiseFamily`); `/api/plan-next/?scope=franchise`; parent collection lazily | `/api/series/{id}`; anime, movie, tv-show, cartoon, manga, novel, comic `?series_id=`, **game** included (no anime-movie — they have no series), **h-comic** in its own effect, only for a session that can see the type, **h-game** and **hentai** likewise, and only once the parent franchise has loaded and its `franchise_type` names a type of the restricted family; `/api/plan-next/?scope=series&kind=rewatch`; parent franchise | `/api/collection/{id}`; `/api/franchise/?collection_id=`; eight entry lists, covers only — game is not among them |
+| Loads | `/api/franchise/{id}`; series, anime, anime-movie, movie, tv-show, cartoon, manga, book, comic, **game** lists `?franchise_id=`, **h-comic**, **hentai** and **h-game** only when `franchise_type` names a type of the restricted family (`H-Comic`, `Hentai` or `H-Game`, `inFranchiseFamily`); `/api/plan-next/?scope=franchise`; parent collection lazily | `/api/series/{id}`; anime, movie, tv-show, cartoon, manga, book, comic `?series_id=`, **game** included (no anime-movie — they have no series), **h-comic** in its own effect, only for a session that can see the type, **h-game** and **hentai** likewise, and only once the parent franchise has loaded and its `franchise_type` names a type of the restricted family; `/api/plan-next/?scope=series&kind=rewatch`; parent franchise | `/api/collection/{id}`; `/api/franchise/?collection_id=`; eight entry lists, covers only — game is not among them |
 | Hero badges | `TierBadge` with `franchise_type`, names, my_rating, "{x} Expectation" (these two, here and on the other two hubs, the viewer's own and drawn only for a holder of `self.list`), parent collection link, "Plan Next: {type} ({bucket})", "To Rewatch/Reread: {type}", total entries, completion bar | same shape with `series_expectation`, rewatch chips, parent franchise link | names, my_rating, `collection_expectation`, "{n} Franchise(s)" |
 | Content labels | the franchise's OWN labels as `ContentLabelChips`, with a note that they hide its series and entries; no row when it carries none | the series' own, noting they hide its entries | the collection's own, noting they hide every franchise, series and entry in it |
 | Curation controls | Overall Rating and Expectation selects for a holder of `self.list` (`PUT /api/me/ratings/franchise/{id}`); for an admin, **Plan Next** `SizeGroupControls` (per-type checkbox + derived/manual size-group select → PATCH `size_group_manual`) and rewatch `PlanKindToggles` | Overall Rating and Expectation (`self.list`, `PUT /api/me/ratings/series/{id}`); rewatch `PlanKindToggles scope="series"` for an admin (no size groups at series level) | Overall Rating and Expectation (`self.list`, `PUT /api/me/ratings/collection/{id}`) |
-| Tabs | "Media" (counted): Anime, Anime Movies, Manga, Novel, Comic, **Game** ("Base games, DLC & expansions", sorted by `release_date` ascending), **H-Comic**, **H-Game** and **Hentai** (each by `series_number`, then release date; the H-Comic, H-Game and Hentai tabs each allowed by any type of the restricted family), Movies, TV Shows, Cartoons — shown when `franchise_type` allows *and* the list is non-empty; "Extras": Characters (only with `view.character`), Watch Order, Relations, Notes. Every media tab's "Sort: my rating" option is offered only with `self.list` | Media tabs by non-empty list only; same extras. Its **Game** tab carries its own sort (release_date default, then title / my_rating / hours_played) and a Game Type filter the other tabs have no equivalent of — a series usually mixes a base game with its DLC | "Members" → Franchises (`FranchiseCard`s); extras Watch Order, Relations, Notes |
+| Tabs | "Media" (counted): Anime, Anime Movies, Manga, Book, Comic, **Game** ("Base games, DLC & expansions", sorted by `release_date` ascending), **H-Comic**, **H-Game** and **Hentai** (each by `series_number`, then release date; the H-Comic, H-Game and Hentai tabs each allowed by any type of the restricted family), Movies, TV Shows, Cartoons — shown when `franchise_type` allows *and* the list is non-empty; "Extras": Characters (only with `view.character`), Watch Order, Relations, Notes. Every media tab's "Sort: my rating" option is offered only with `self.list` | Media tabs by non-empty list only; same extras. Its **Game** tab carries its own sort (release_date default, then title / my_rating / hours_played) and a Game Type filter the other tabs have no equivalent of — a series usually mixes a base game with its DLC | "Members" → Franchises (`FranchiseCard`s); extras Watch Order, Relations, Notes |
 
 Plan toggles call `POST /api/plan-next/` `{ media_type, scope, kind, target_id }`
 (409 tolerated) and `DELETE /api/plan-next/target?scope=&media_type=&kind=&target_id=`
@@ -1177,7 +1179,7 @@ to the placeholder in silence.
 ### Detail pages — `/{type}/:system_id`
 
 Files `pages/detail/Anime.jsx`, `AnimeMovie.jsx`, `Movie.jsx`, `TV.jsx`,
-`Cartoon.jsx`, `Manga.jsx`, `Novel.jsx`, `Comic.jsx`, `Game.jsx`, `HComic.jsx`,
+`Cartoon.jsx`, `Manga.jsx`, `Book.jsx`, `Comic.jsx`, `Game.jsx`, `HComic.jsx`,
 `HGame.jsx`, `Hentai.jsx`.
 
 **Tab title and contents.** The tab reads the entry's displayed title - the
@@ -1199,7 +1201,7 @@ state, `useMediaList("franchise", LIST_OPTIONS)`, `useMediaList("series")`
 whose value it is:
 
 - **The viewer's own** - status, my rating, progress counters, Paused at
-  (`time_fin`), usefulness, Novel's `progress_display` and the plan flags
+  (`time_fin`), usefulness, Book's `progress_display` and the plan flags
   (`watch_next` / `to_rewatch` and each type's spelling) - go through
   `saveOwn(fields, msg)` from `hooks/useOwnTrackerSave.js`, which calls
   `useStatusToggle(type)`: plan flags to `PUT /api/me/plan-flags/{id}`, every
@@ -1212,7 +1214,7 @@ whose value it is:
   "Update failed" and refetch.
 - **The work's** - an editor's (`isAdmin`) - go through the catalogue PATCH
   `endpoints.resource(type).patch(id)`: the release step (below), Game's and
-  H-Game's completion axes and Novel's units editor (those three pages keep a
+  H-Game's completion axes and Book's units editor (those three pages keep a
   local `performPatch` for them), with the same optimistic merge, replace and
   failure handling.
 
@@ -1239,8 +1241,8 @@ Top to bottom:
    | | `airing_status` is `Airing` | **Mark finished airing** → `Finished Airing` |
    | Movie, Anime Movie | `release_status` is `Not Released` | **Mark released** → `release_status` `Released` |
    | An Anime or Cartoon whose `airing_type` is `Movie` | `airing_status` is `Not Yet Aired` | **Mark released** → `Finished Airing` |
-   | Novel | `serialization_status` is `未出` | **Mark serializing** → `連載中` |
-   | Manga, Comic, H-Comic, Novel | `serialization_status` is `連載中` (on Novel also `連載中 (不穩定)` / `連載中 (有生之年)`) | **Mark finished serializing** → `完結` |
+   | Book | `serialization_status` is `未出` | **Mark serializing** → `連載中` |
+   | Manga, Comic, H-Comic, Book | `serialization_status` is `連載中` (on Book also `連載中 (不穩定)` / `連載中 (有生之年)`) | **Mark finished serializing** → `完結` |
    | Game, H-Game | `release_status` is `Unreleased` or `Early Access` | **Mark released** → `Released` |
 
    An empty status, `Canceled`/`Cancelled`, `停更`, `腰斬` and a game's
@@ -1293,14 +1295,14 @@ Top to bottom:
    popularity — every figure labelled with the source it came from, since
    AniList's score is an integer on its own 0–100 scale and MAL's is 0–10)
    on Anime,
-   AnimeMovie, Manga, Novel (Movie has an inline IMDb block; TV/Cartoon/Comic
+   AnimeMovie, Manga, Book (Movie has an inline IMDb block; TV/Cartoon/Comic
    none), then — directly under the header, on all twelve entry types —
    `FollowedOrderPanel` (the viewer's followed watch orders that step
    through this entry: order, group, step N / total, previous and next step;
    nothing when none does, or for a viewer without `self.list`; its eyebrow
    reads "Following Watch Order", and "Following Play Order" on the Game page,
    which passes `mediaType="game"` - `orderNoun` in `lib/orderNoun.js`), the tracker,
-   `NamingCard`, `InfoCard "Information"`, on Manga, Novel, Movie, TV and
+   `NamingCard`, `InfoCard "Information"`, on Manga, Book, Movie, TV and
    Cartoon a **Genres** card (`GenresCard`: Genre (Main), Genre (Sub) and
    標籤 Label in a card of their own, directly after Information and not
    repeated inside it, left out when none of the three is set), `InfoCard
@@ -1312,12 +1314,12 @@ Top to bottom:
    comma-joined `studio` string when there are none, which is what a viewer
    without the Credits permission and an entry whose studio never resolved to
    a row both get — and beside it, on **all six** types that credit a publisher
-   (Anime, AnimeMovie, Manga, Novel, Comic, Game), `publisherValue()`: the same
+   (Anime, AnimeMovie, Manga, Book, Comic, Game), `publisherValue()`: the same
    rule over `publisher_refs` with the route swapped to `/publisher`, under a
    heading `publisherLabel(entry, fallback)` reads off `publisher_refs[0].label`
    — the backend's `credit_label("publisher", media_type)`, so no page
    hard-codes 台灣代理商 or 發行商 and the fallback literal only shows on an
-   entry with no publisher credited yet — a **Cast** slip (Anime, AnimeMovie, Manga, Novel; GET
+   entry with no publisher credited yet — a **Cast** slip (Anime, AnimeMovie, Manga, Book; GET
    `/api/casting/{media_type}/{entry_id}` via `useCasting`), drawn by the
    shared `components/info/CastSection.jsx` and rendered only when the entry
    has a cast. Rows are sorted by role in `CHARACTER_ROLES` order — Main,
@@ -1374,7 +1376,7 @@ editor's: a select for `isAdmin`, written through the catalogue PATCH, and a
 read-only `Chip` for any other signed-in viewer; nothing at all for a
 logged-out visitor.
 Manga uses a local `MangaTrackerBlock` (`ch_fin`, `vol_fin`, `vol_fin_page`,
-`read_next`, `to_reread`); Novel uses `components/tracker/NovelTrackerBlock`
+`read_next`, `to_reread`); Book uses `components/tracker/BookTrackerBlock`
 (`ch_fin/vol_fin/arc_fin` by `progress_display`); H-Comic and Hentai use the
 local blocks described below. All take `canTrack` and draw nothing without
 it. **Mark completed** stays in the editor's toolbar: `POST /{id}/complete`
@@ -1392,7 +1394,7 @@ status select, which goes through `/api/me/list`.
 | TV | 本傳/外傳, Season, Total Ep, Official Source, Airing Type/Status, Release Date, Runtime (min) | — | **Genres** card (`GenresCard`); IMDb block with this season's rating, and the whole show's beside it when there is one |
 | Cartoon | + Airing Type, Runtime Per Ep (min) | — | **Genres** card (`GenresCard`); IMDb block as TV's |
 | Manga | Region, 本傳/外傳, Serialization Status/Platform, Release/End Date, Volume/Chapter Total | 作者 or 原作/作畫, 台灣出版商 (linked), Anime Studio (card shown only when any value) | **Genres** card (`GenresCard`), between Information and Production |
-| Novel | Region, Type, Version, 本傳/外傳, Serialization Status, Release/End Date, Vol Total (JP/KR)/TW, Arc Total, Chapter Total | Author, Illustrator, 台灣出版商 (linked, conditional) | **Genres** card (`GenresCard`), between Information and Production; **Units** card (`NovelUnitsEditor` over the `units` relationship — volume/arc/story/chapter rows with a key, CN/EN name and, on an arc, a chapter count; a `manage.catalog` holder gets the editor with drag-to-reorder/add/remove and a Save → PATCH carrying each unit's own fields only (`novelUnitPayload`), everyone else a plain list keyed by each row's server-computed `display_key`. For a holder of `self.list` each row of that list carries the viewer's own rating select (`MY_RATINGS`, saved on change) and remark field (saved on blur), both through `useSaveMyNovelUnit` → `PUT /api/me/novel-units/{unit_id}`; an account holding both keys gets the editor and, under it, that list headed **My ratings**. The admin holds no `self.list` and gets no such control. Hidden entirely for a viewer when the novel has no units) |
+| Book | Region, Type, Version, 本傳/外傳, Serialization Status, Release Date JP, Release Date TW, End Date, Vol Total (JP/KR)/TW, Arc Total, Chapter Total | Author, Illustrator, 台灣出版商 (linked, conditional) | **Genres** card (`GenresCard`), between Information and Production; **Units** card (`BookUnitsEditor` over the `units` relationship — volume/arc/story/chapter rows with a key, CN/EN name and, on an arc, a chapter count; a `manage.catalog` holder gets the editor with drag-to-reorder/add/remove and a Save → PATCH carrying each unit's own fields only (`bookUnitPayload`), everyone else a plain list keyed by each row's server-computed `display_key`. For a holder of `self.list` each row of that list carries the viewer's own rating select (`MY_RATINGS`, saved on change) and remark field (saved on blur), both through `useSaveMyBookUnit` → `PUT /api/me/book-units/{unit_id}`; an account holding both keys gets the editor and, under it, that list headed **My ratings**. The admin holds no `self.list` and gets no such control. Hidden entirely for a viewer when the book has no units) |
 | Comic | Type, Volume Label, Continuity, Era, Serialization/Reading Status, Release Year, Issue Total, Genre main/sub, 標籤 Label | Writer, Artist, 出版商 (linked, conditional), Imprint | **Events** card (red pills); no Autofill, no `RelationsSection`, no `ScoreBlock` |
 | Game | Type, Main / Remake (`is_main`), Base Game (a link to `/game/{base_game_id}`), Platform, Mode, Combat Mode — only what the game *is*; the rest sits in cards of its own, below | **Production & Release**: Developer (`studioValue`), 發行商 (`publisherValue`, labelled by `publisherLabel` rather than a bare literal), Director, Composer, Release Status, Release Date, Current Patch — always shown, with a dash for an empty field | **Genres** card (Genre, Theme, 標籤 Label — the same `Label` vocabulary anime shows); **Reception** card (Metacritic / Metacritic User, each carrying its own denominator — `96 / 100`, `8.6 / 10` — via the exported `outOf` helper, a missing score showing the card's dash rather than a zero; the public verdict, not mine, which is the stamp on the cover); **Time to Beat** card (`TimeToBeatCard`, after Reception: Main, Main + Extra and Completionist from `hltb_main`, `hltb_main_extra` and `hltb_completionist`, IGDB's time-to-beat in hours, formatted by `hours` in `lib/gameHours.js` - only the recorded figures get a field, and with none recorded the card is left out); **Library** card (Ownership, server-derived; Copies, a count; Steam Progress Sync — whether Steam may write this entry's progress, a fact about the source rather than an answer about a playthrough, so it sits with the copies while playing status and the four completion axes stay editable in the tracker and Completion blocks); **Progress** slip (`GameProgress`: playtime against `hltb_main`, achievements gated on `achievements_total` — nothing renders when neither figure exists, since "0 h / ? h" reads as "played none of it" rather than "never measured"); the **分歧 Choices** card (`ChoiceGraphCard`: a still preview of the game's choice graph and **View all**, see below); **Prices** card (MSRP in USD / JPY / TWD); **Copies** slip (`GameCopiesSection`: one row per `game_copy` — storefront and ownership as chips, then format, acquisition, price with the copy's own currency via `copyPrice`, acquired date, the sale as `sold EUR 7.50` (`copySale`), the copy's hours played as `12.5 h`, and remark — sorted by `position`, and rendered only when the game has copies, so the Library card's count is not their only trace on the page; editing still happens in the Add/Modify tab); a cover-side `ProgressRule` on `hours_played / hltb_main`; `SourcesCard` with `igdbLink` (under "Where to Look Up") and `steamLink` (under "Where to Play", since a Steam store page is a storefront rather than a reference database); no `RelationsSection`, no `ScoreBlock`, no Cast |
 
@@ -1501,7 +1503,7 @@ each only where blank, AniDB only for what MAL left blank).
 **Notes.** Each `pages/detail/*Notes.jsx` is a one-liner around
 `NotesTemplate` with `ownerType` = `anime | anime-movie | cartoon | collection
 | comic | franchise | game | h-comic | h-game | hentai | manga | movie |
-novel | series | tv-show`
+book | series | tv-show`
 (`HComicNotes` also passes `owner`, `nameSuggestions`, `groupOrder` and
 `onGroupOrderChange`; `HGameNotes` the same less `nameSuggestions`). `NotesProvider`
 (`pages/notes/NotesContext.jsx`) fetches `/api/notes/sections?owner_type=` and
@@ -1718,8 +1720,10 @@ that can see h-game), then the twelve
 "Rating distribution" bar-chart cards in one wrapping grid: my rating per
 AniManga franchise (an `Anime` or `Manga` franchise, counted once however many
 of the two it carries); MAL rating and **AniList score** over all anime; seasonal
-per season; my rating over all manga / novels / anime movies / movies /
-**comics**; and my rating per TV show / cartoon / **game** franchise - plus a
+per season; my rating over all manga / novels (the **Novel** card:
+`novelsOnly` in `utils/statsUtils.js` keeps the books whose `type` is
+`輕小說`, `小說`, `網路小說` or `短篇集`, so a guide or an 其他 book is not
+counted) / anime movies / movies / **comics**; and my rating per TV show / cartoon / **game** franchise - plus a
 thirteenth, my rating over all **h-comics**, and a fourteenth, my rating per
 **H-Game** franchise (as Game's card counts game franchises), and a fifteenth,
 my rating over all **hentai**, each only for a session that can see its type
@@ -1733,13 +1737,15 @@ the two cards sit side by side on the same cut points.
 
 **The favourite grids** are declared in `config/favoriteGrids.js`, read by
 both this page and `/modify` → Fav3x3. A grid holds one of three tiers — seven
-hold franchises (AniManga, Novel, Movie, TV, Cartoon, Game, H-Game), one holds
+hold franchises (AniManga, Book, Movie, TV, Cartoon, Game, H-Game), one holds
 series (Comic), three hold entries (Movie, Game, H-Game) — and every tier stores a slot the
 same way, a `type_slots` map of `{gridKey: 1..9}` on the row itself. A
 franchise grid holds the franchises whose type list names its key, or one of
 its `franchiseTypes` when it names them: the **Favourite AniManga franchises**
 grid holds `Anime` and `Manga` franchises together, under the stored key
-`ACG`. The
+`ACG`, and the **Favourite book franchises** grid holds `Book` franchises
+under the stored key `Novel` - a stored key keeps its spelling when the type
+it was named after does not. The
 `favorite*` helpers in `utils/statsUtils.js` (`favoriteName`, `favoriteCover`,
 `favoritePath`, `favoritePool`, `slotIn`) answer everything that differs
 between tiers (`favoriteCover`, like `getCoverForSlot` and
@@ -1775,7 +1781,8 @@ they mean different things.
 Completions renders `StatsCompletions`:
 one tab per type with paged sub-groups (anime by airing type, anime movie by
 studio bucket, movie/TV Disney/Marvel/other, cartoon by network, manga by
-region, novel by region, comic dynamic, game by `completion_level` on the
+region, book by region (the **Novel** tab, over the same novel types as the
+Novel rating card), comic dynamic, game by `completion_level` on the
 closed ladder with the unrecorded ones last, h-comic by region, h-game by
 `completion_level` as game with usefulness shown per row, hentai by
 `source_material` (Original, Manga, Novel, the unrecorded ones last) with
@@ -1856,7 +1863,7 @@ chips.
 
 **External score** (`externalScore`) is a catalogue filter of the full picker:
 chips `9+`, `8+`, `7+`, `6+` and `No score`, which OR like every chip, read
-from `mal_rating` for anime, anime movies, manga and novels and from
+from `mal_rating` for anime, anime movies, manga and books and from
 `imdb_rating` for movies, TV shows and cartoons; a null or `N/A` score, or a
 type with no score field, is `No score`. It is named "MAL Score" or "IMDb
 Score" when the mode's types share a source and "External Score" otherwise,
@@ -1921,7 +1928,7 @@ When Released and Play When Released as Might. Then one entry of that group is c
 of its entry factors: my rating and a summary completion (Completed only),
 the larger of its plan marks (next over rewatch, whether marked on the entry,
 its series or its franchise), release decade (2000s and later over earlier or
-undated), and, in the manga, novel and h-comic modes only, serialization
+undated), and, in the manga, book and h-comic modes only, serialization
 status. Because every entry factor applies inside the group already chosen,
 none can move an entry into another group's share. A status, rating or
 serialization value the tables do not name weighs 1. Status group, rating
@@ -2121,4 +2128,4 @@ lost it once `/library/seiyuu` shipped.
 - Detail-page Quick Edit for anime omits `&type=`; dashboard cards add it.
 - `useStatisticsData` loads TV/cartoon/comic/game lists Statistics never uses;
   `StatsCompletions` is rendered only by `/completions`.
-- Comic sits in the nav's Reality column with the same icon as Novel.
+- Comic sits in the nav's Reality column with the same icon as Book.

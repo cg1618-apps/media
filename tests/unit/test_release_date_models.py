@@ -3,10 +3,10 @@
 import pytest
 from sqlalchemy import String
 
-from app.models import Anime, AnimeMovies, Cartoon, Comic, Manga, Movies, Novel, TVShows
+from app.models import Anime, AnimeMovies, Book, Cartoon, Comic, Manga, Movies, TVShows
 from app.utils.release_date import DATE_COLUMNS
 
-ALL_MEDIA_MODELS = [Anime, AnimeMovies, Movies, TVShows, Cartoon, Manga, Novel, Comic]
+ALL_MEDIA_MODELS = [Anime, AnimeMovies, Movies, TVShows, Cartoon, Manga, Book, Comic]
 
 
 @pytest.mark.parametrize("model", ALL_MEDIA_MODELS)
@@ -45,7 +45,14 @@ def test_anime_still_stores_release_season():
     assert "release_season" in Anime.__table__.columns
 
 
-@pytest.mark.parametrize("model", [Manga, Novel, Comic])
+def test_book_has_a_jp_and_a_tw_release_date():
+    assert "release_date" not in Book.__table__.columns
+    assert "release_date_jp" in Book.__table__.columns
+    assert "release_date_tw" in Book.__table__.columns
+    assert "end_date" in Book.__table__.columns
+
+
+@pytest.mark.parametrize("model", [Manga, Comic])
 def test_run_types_renamed_year_columns_to_date_columns(model):
     assert "release_year" not in model.__table__.columns
     assert "end_year" not in model.__table__.columns

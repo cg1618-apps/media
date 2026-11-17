@@ -325,7 +325,7 @@ def test_easter_eggs_reaches_every_unrestricted_media_type_and_the_tiers():
         "tv-show",
         "cartoon",
         "manga",
-        "novel",
+        "book",
         "comic",
         "game",
         "series",
@@ -346,7 +346,7 @@ def test_easter_eggs_asks_for_the_locator_each_type_has():
     assert ns.locator_for(sec, "anime") == "Episode(s), e.g. ep 3"
     assert ns.locator_for(sec, "tv-show") == "Episode(s), e.g. ep 3"
     assert ns.locator_for(sec, "manga") == "Chapter(s), e.g. ch 6"
-    assert ns.locator_for(sec, "novel") == "Chapter(s), e.g. ch 6"
+    assert ns.locator_for(sec, "book") == "Chapter(s), e.g. ch 6"
     assert ns.locator_for(sec, "comic") == "Issue(s), e.g. #3"
     assert ns.locator_for(sec, "movie") == "Scene, e.g. 1:02:30"
     assert ns.locator_for(sec, "anime-movie") == "Scene, e.g. 1:02:30"
@@ -372,8 +372,8 @@ def test_the_reviews_group_holds_every_evaluative_section():
     ]
 
 
-def test_the_analysis_group_holds_cinematography_and_its_novel_twin():
-    # `craft` is the novel-only counterpart of `cinematography`, so the two
+def test_the_analysis_group_holds_cinematography_and_its_book_twin():
+    # `craft` is the book-only counterpart of `cinematography`, so the two
     # belong to the same card even though they stay separate sections.
     grouped = [s.key for s in ns.NOTE_SECTIONS if s.group == "analysis_group"]
     assert grouped == [

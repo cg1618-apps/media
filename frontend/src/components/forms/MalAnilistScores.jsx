@@ -1,5 +1,5 @@
 // Frontend: the Scores section of the four types MAL and AniList both rate -
-// anime, anime movie, manga and novel - shared by their Add and Modify bodies,
+// anime, anime movie, manga and book - shared by their Add and Modify bodies,
 // so every figure the detail page shows can be edited on both pages.
 //
 // MAL Rank is free text because the column is a string ("#1234" as MAL prints

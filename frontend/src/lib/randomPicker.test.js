@@ -35,7 +35,7 @@ it("puts the watch, read and play vocabularies into one set of status groups", (
   expect(statusGroupOf("manga", { reading_status: "Passive Reading" })).toBe("In Progress");
   expect(statusGroupOf("game", { playing_status: "Play Anytime" })).toBe("In Progress");
   expect(statusGroupOf("game", { playing_status: "Play When Released" })).toBe("Planned");
-  expect(statusGroupOf("novel", { reading_status: "Won't Read" })).toBe("Dropped");
+  expect(statusGroupOf("book", { reading_status: "Won't Read" })).toBe("Dropped");
   // Unset counts as "Might", as the library filters count it.
   expect(statusGroupOf("anime", {})).toBe("Might");
 });
@@ -143,7 +143,7 @@ describe("franchise mode", () => {
   const franchises = [
     { system_id: "f1", franchise_type: "Anime", franchise_expectation: "High", my_rating: "A" },
     { system_id: "f2", franchise_type: "Movie, TV", franchise_expectation: "Low" },
-    { system_id: "f3", franchise_type: "Novel" },
+    { system_id: "f3", franchise_type: "Book" },
   ];
   const lists = {
     anime: [
@@ -173,7 +173,7 @@ describe("franchise mode", () => {
   it("filters on the franchise type, each of a multi-type franchise counting", () => {
     expect(ids(withActive(defs, "franchiseType", ["TV"]))).toEqual(["f2"]);
     const typeDef = defs.find((d) => d.key === "franchiseType");
-    expect(typeDef.deriveOptions(entries)).toEqual(["Anime", "TV", "Movie", "Novel"]);
+    expect(typeDef.deriveOptions(entries)).toEqual(["Anime", "TV", "Movie", "Book"]);
   });
 
   it("filters on expectation and on my rating", () => {

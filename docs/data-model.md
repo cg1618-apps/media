@@ -18,9 +18,9 @@ Enum values are **not** repeated here: every closed vocabulary lives in
 - [The hierarchy](#the-hierarchy)
 - [Conventions shared by every table](#conventions-shared-by-every-table)
 - [Grouping tiers](#grouping-tiers): collection, franchise, series
-- [Media entries](#media-entries): anime, anime_movies, movies, tv_shows, cartoons, manga, novel, novel_unit, comic, games, game_copy, game_choice_node, game_choice_edge, game_choice_mark, h_comic, h_game, hentai
+- [Media entries](#media-entries): anime, anime_movies, movies, tv_shows, cartoons, manga, book, book_unit, comic, games, game_copy, game_choice_node, game_choice_edge, game_choice_mark, h_comic, h_game, hentai
 - [Virtual fields on media entries](#virtual-fields-on-media-entries)
-- [Personal data](#personal-data): user_media_list, user_novel_unit_rating, user_rating, user_favorite
+- [Personal data](#personal-data): user_media_list, user_book_unit_rating, user_rating, user_favorite
 - [People, studios and links](#people-studios-and-links): person, person_role, person_membership, studio, publisher, publisher_scope, character, character_tag, character_casting, character_casting_voice, media_credit, media_tag
 - [Where an entry can be watched or read](#media_source): media_source
 - [Notes, quotes and memes](#notes-quotes-and-memes): note, note_mark, quote, meme
@@ -57,7 +57,7 @@ flowchart TD
     E --- T[tv_shows]
     E --- CT[cartoons]
     E --- MG[manga]
-    E --- N[novel]
+    E --- N[book]
     E --- CM[comic]
 ```
 
@@ -72,7 +72,7 @@ carries a `series_id`:
 | `tv_shows`     | yes | yes | |
 | `cartoons`     | yes | yes | |
 | `manga`        | yes | yes | |
-| `novel`        | yes | yes | |
+| `book`         | yes | yes | |
 | `comic`        | yes | yes | |
 
 Media entries never reference a Collection directly - they reach it only through
@@ -185,8 +185,8 @@ missing). Model: `Franchise` (`app/models/franchise.py`).
 | `franchise_name_en` / `_cn` / `_roman` / `_jp` / `_alt` | String | yes | | Name variants; CN leads `display_name`. |
 | `collection_id` | UUID | yes | | FK `collection.system_id` ON DELETE SET NULL, indexed. Declared here (not at the end) so it lands as sheet column J. |
 | `cover_entry_id` | UUID | yes | | Any entry UUID of any type; no FK (six tables). |
-| `type_covers` | JSONB | yes | | Per-franchise-type cover choice (dict), keyed by the franchise type (`Anime`, `Manga`, `Novel`, ...). |
-| `type_slots` | JSONB | yes | | Which favourite 3×3 grid slot this row holds, as `{gridKey: 1..9}` - see [frontend/pages.md](frontend/pages.md#statistics--statistics--completions--completions). Six grids are keyed here (ACG, Novel, Movie, TV, Cartoon, Game); `ACG` is the favourite AniManga franchises grid's key, which holds `Anime` and `Manga` franchises - the key keeps its stored spelling. |
+| `type_covers` | JSONB | yes | | Per-franchise-type cover choice (dict), keyed by the franchise type (`Anime`, `Manga`, `Book`, ...). |
+| `type_slots` | JSONB | yes | | Which favourite 3×3 grid slot this row holds, as `{gridKey: 1..9}` - see [frontend/pages.md](frontend/pages.md#statistics--statistics--completions--completions). Six grids are keyed here (ACG, Novel, Movie, TV, Cartoon, Game); `ACG` is the favourite AniManga franchises grid's key, which holds `Anime` and `Manga` franchises, and `Novel` is the favourite book franchises grid's key, which holds `Book` franchises - each key keeps its stored spelling. |
 | `size_group_derived` | JSONB | yes | | Size bucket per media type, e.g. `{"anime": "24ep", "tv-show": "2season"}`. Written by Calculate, rewritten freely. |
 | `size_group_manual` | JSONB | yes | | Same shape, written by the admin, never touched by Calculate. Manual key wins (`app/services/domain/size_group.py`). |
 | `created_at` / `updated_at` | DateTime | yes | now | |
@@ -449,38 +449,40 @@ Virtual: `read_next`, `to_reread`, `display_name`,
 `author_plot` / `author_draw` / `publisher_tw` / `serialization_platform` /
 `genre_main` / `genre_sub` / `label` link fields. `serialization_platform` was a real column until Task 11 of the
 media-sources migration backfilled it into `media_tag` and dropped it - it is
-now a `TagField` shared with `novel` (`app/utils/credit_roles.py`).
+now a `TagField` shared with `book` (`app/utils/credit_roles.py`).
 `publisher_tw` is the response/sheet attribute name only: since the publisher
 migration the value behind it is a `publisher` **credit**, not a tag - the
 header did not move, what sits behind it did.
 
-### `novel`
+### `book`
 
-Light novels, web novels, books. Model: `Novel`. CHECKs:
-`ck_novel_release_date_iso`, `ck_novel_end_date_iso`. Progress counts are
-**Float** so half-volumes can be recorded. `novel_name_each_cn` /
-`novel_name_each_en` (the two parallel per-volume JSONB lists) are gone -
-replaced by `novel_unit` rows, one per volume/arc/story/chapter, migrated by
-Alembic revision `nv1u2n3i4t5s`.
+Books: light novels, novels, web novels, short-story collections, guides and
+setting books - see BOOK_TYPES. Model: `Book`. CHECKs:
+`ck_book_media_type`, `ck_book_release_date_jp_iso`,
+`ck_book_release_date_tw_iso`, `ck_book_end_date_iso`. Progress counts are
+**Float** so half-volumes can be recorded. Per-volume, arc, story and chapter
+names live in `book_unit` rows, one per unit.
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
-| `novel_name_en` / `_cn` / `_roman` / `_jp` / `_alt` | String | yes | | |
-| `region` | String | yes | | NOVEL_REGIONS |
-| `type` | String | yes | | NOVEL_TYPES (Light Novel / Novel / Web / Other); also selects which `novel_unit.unit_kind`s the editor offers - see `entry-types.md` |
+| `book_name_en` / `_cn` / `_roman` / `_jp` / `_alt` | String | yes | | |
+| `region` | String | yes | | BOOK_REGIONS |
+| `type` | String | yes | | BOOK_TYPES (輕小說 / 小說 / 網路小說 / 短篇集 / 指南/設定集 / 其他); also selects which `book_unit.unit_kind`s the editor offers - see `entry-types.md` - and which books Statistics' Novel section counts |
 | `version` | String | yes | | Edition (free text) |
 | `is_main` | String | yes | | |
-| `serialization_status` | String | yes | | NOVEL_SERIALIZATION_STATUSES |
-| `vol_total_original` | Float | yes | | Volumes in the original run (JP/KR). Not derived - `novel_unit` volume rows are optional enrichment and never feed this column (Decision B, see business-rules.md) |
-| `vol_total_tw` | Float | yes | | Volumes published in Taiwan. Same rule: never derived from `novel_unit` rows |
-| `arc_total` | Float | yes | | **Derived**: count of the novel's `novel_unit` rows with `unit_kind = 'arc'`, recomputed on every create/update/patch (`derive_novel_progress`, called unconditionally by the router). Still a stored column - null on a novel with no arc rows, and null on every volume-only type (see below) |
-| `ch_total` | Float | yes | | **Derived**: sum of `ch_count` over the novel's arc rows; null on every volume-only type |
+| `serialization_status` | String | yes | | BOOK_SERIALIZATION_STATUSES |
+| `vol_total_original` | Float | yes | | Volumes in the original run (JP/KR). Not derived - `book_unit` volume rows are optional enrichment and never feed this column (Decision B, see business-rules.md) |
+| `vol_total_tw` | Float | yes | | Volumes published in Taiwan. Same rule: never derived from `book_unit` rows |
+| `arc_total` | Float | yes | | **Derived**: count of the book's `book_unit` rows with `unit_kind = 'arc'`, recomputed on every create/update/patch (`derive_book_catalog`, called unconditionally by the router). Still a stored column - null on a book with no arc rows, and null on every volume-only type (see below) |
+| `ch_total` | Float | yes | | **Derived**: sum of `ch_count` over the book's arc rows; null on every volume-only type |
 | `mal_rating` | Float | yes | | |
 | `mal_rank` | String | yes | | |
 | `anilist_rating` | Integer | yes | | From AniList (queried as `MANGA`), keyed on `mal_id` - see [external-apis.md](external-apis.md#anilist) |
 | `anilist_rank` | Integer | yes | | AniList all-time rated rank |
 | `anilist_popularity_rank` | Integer | yes | | AniList all-time popularity rank |
-| `release_date` / `end_date` | String | yes | | |
+| `release_date_jp` | String | yes | | The original's first publication; MAL and Open Library fill it |
+| `release_date_tw` | String | yes | | The Taiwanese edition's first publication; entered by hand |
+| `end_date` | String | yes | | |
 | `mal_id` | Integer | yes | | |
 | `mal_link` | String | yes | | |
 | `openlibrary_id` | String | yes | | Open Library work id (`"OL5738148W"`). **String**, unlike `comicvine_id`'s `Integer` - the trailing letter distinguishes a work (`OL…W`) from an edition (`OL…M`) or an author (`OL…A`), which a bare integer would discard |
@@ -490,53 +492,53 @@ Virtual: `read_next`, `to_reread`, `display_name`,
 `author` / `illustrator` / `publisher_tw` / `serialization_platform` /
 `genre_main` / `genre_sub` / `label` link fields (`publisher_tw` is the header a `publisher` credit is written under -
 see manga above), `units`
-(`List[NovelUnitResponse]`, populated via `selectinload`).
+(`List[BookUnitResponse]`, populated via `selectinload`).
 
-### `novel_unit`
+### `book_unit`
 
-One volume, arc, story or chapter belonging to exactly one `novel`. Model:
-`NovelUnit`. Replaces the two parallel `novel_name_each_cn` /
-`novel_name_each_en` JSONB lists, which could drift out of alignment because
-they were matched by list position and nothing else - one row now holds both
-languages. CHECKs: `ck_novel_unit_kind` (`unit_kind` in
-`volume, arc, story, chapter`), `ck_novel_unit_ch_count_arc_only`
+One volume, arc, story or chapter belonging to exactly one `book`. Model:
+`BookUnit`. One row holds both languages' names, so the CN and EN names of a
+volume cannot drift out of alignment the way two parallel lists matched by
+position could. CHECKs: `ck_book_unit_kind` (`unit_kind` in
+`volume, arc, story, chapter`), `ck_book_unit_ch_count_arc_only`
 (`ch_count` is non-NULL only when `unit_kind = 'arc'`). Index
-`ix_novel_unit_novel_kind_position` on `(novel_id, unit_kind, position)`.
+`ix_book_unit_book_kind_position` on `(book_id, unit_kind, position)`.
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
-| `novel_id` | UUID | no | | FK `novel.system_id` ON DELETE CASCADE |
-| `unit_kind` | String | no | | `volume`, `arc`, `story` or `chapter` - see NOVEL_UNIT_KINDS_BY_TYPE in options.md |
-| `position` | Float | no | | Order within the novel. **Not unique** - the editor renumbers every row after a drag, and a unique constraint could fire mid-save while two rows briefly share a value |
+| `book_id` | UUID | no | | FK `book.system_id` ON DELETE CASCADE |
+| `unit_kind` | String | no | | `volume`, `arc`, `story` or `chapter` - see BOOK_UNIT_KINDS_BY_TYPE in options.md |
+| `position` | Float | no | | Order within the book. **Not unique** - the editor renumbers every row after a drag, and a unique constraint could fire mid-save while two rows briefly share a value |
 | `unit_key` | String | yes | | Explicit label (e.g. a volume subtitle's short code). When blank, the display key falls back to `"{prefix} {position}"` (`unit_display_key` / `unitDisplayKey`) |
 | `name_cn` / `name_en` | String | yes | | |
-| `ch_count` | Float | yes | | Chapters in this arc. Meaningful only on `unit_kind = 'arc'` rows (guarded by the CHECK); the sole source of `novel.ch_total` and `novel.ch_fin` |
+| `ch_count` | Float | yes | | Chapters in this arc. Meaningful only on `unit_kind = 'arc'` rows (guarded by the CHECK); the sole source of `book.ch_total` and each reader's `user_media_list.ch_fin` |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
-Written through `POST`/`PUT`/`PATCH /api/novel` via the `units` payload key
+Written through `POST`/`PUT`/`PATCH /api/book` via the `units` payload key
 (popped out before the row is touched, see `MediaTypeSpec.nested_collections`);
-reconciled by `write_novel_units` (rows with a `system_id` are updated, rows
+reconciled by `write_book_units` (rows with a `system_id` are updated, rows
 without are inserted, rows the payload omits are deleted). Every
-create/update/patch write runs `derive_novel_progress`,
-which recomputes `arc_total`/`ch_total`/`ch_fin` from the arc rows and
-normalises `arc_fin`/`ch_fin_in_arc` - see business-rules.md.
+create/update/patch write runs `derive_book_catalog`, which recomputes
+`arc_total`/`ch_total` from the arc rows, and `derive_book_list`, which
+recomputes a reader's `ch_fin` and normalises their `arc_fin`/`ch_fin_in_arc` -
+see business-rules.md.
 
-`derive_novel_progress` reads `type` first. On a **volume-only type** - one
-whose only allowed `unit_kind` is `volume`, i.e. `Light Novel` and `Novel`
-(`NOVEL_VOLUME_ONLY_TYPES` in `app/utils/constants.py`) - it derives nothing
+Both read `type` first. On a **volume-only type** - one
+whose only allowed `unit_kind` is `volume`, i.e. `輕小說` and `小說`
+(`BOOK_VOLUME_ONLY_TYPES` in `app/utils/constants.py`) - it derives nothing
 and instead blanks all five chapter and arc columns: `arc_total` and
 `ch_total` to null, `arc_fin`, `ch_fin` and `ch_fin_in_arc` to `0`. The volume
 columns are untouched. This holds on every write path, so a chapter value
 cannot re-enter from a sheet Pull or a Fill. Migration `v1o2l3o4n5l6` cleared
-the historical values once and deleted any non-`volume` `novel_unit` rows
+the historical values once and deleted any non-`volume` `book_unit` rows
 belonging to these types; its downgrade is a deliberate no-op, because nothing
 else in the schema records what those values were.
 
 A unit's `my_rating` and `remark` are NOT columns here: they are one
 reader's grade of and note on one volume or arc and live in
-[`user_novel_unit_rating`](#user_novel_unit_rating). They are still served
-as `my_rating` and `remark` on each unit of a novel's response, filled with
+[`user_book_unit_rating`](#user_book_unit_rating). They are still served
+as `my_rating` and `remark` on each unit of a book's response, filled with
 the viewer's own; the `units` write does not carry them.
 
 ### `comic`
@@ -553,7 +555,7 @@ titles).
 | `comic_type` | String | yes | | COMIC_TYPES (Ongoing / Limited / One-Shot / Annual) |
 | `release_date` / `end_date` | String | yes | | |
 | `issue_total` | Float | yes | | Also the entry's own size-bucket measure |
-| `serialization_status` | String | yes | | Same idiom as manga/novel; no dedicated tuple in `constants.py` |
+| `serialization_status` | String | yes | | Same idiom as manga/book; no dedicated tuple in `constants.py` |
 | `read_order` | Float | yes | | |
 | `comicvine_id` | Integer | yes | | Derived from `comicvine_link` by Fill, or written beside it by the Add tab's Comic Vine picker; what Fill fetches on and what duplicate detection treats as conclusive |
 | `comicvine_link` | String | yes | | |
@@ -571,7 +573,7 @@ bundle. That is how a collection is actually acquired - a DLC is bought,
 played and finished separately from its base game - so a DLC is a row in this
 same table carrying a `base_game_id`, not a row in a second table. Model:
 `Game` (`app/models/game.py`). Note the plural table name, `games`, unlike
-`manga` / `novel` / `comic`.
+`manga` / `book` / `comic`.
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
@@ -660,7 +662,7 @@ A game's **ownership is derived from these rows and stored nowhere**:
 `derive_game_ownership` (`app/services/domain/game_copies.py`) returns the
 first of Owned -> Subscription -> Wishlist -> Not Owned that any copy
 carries, and `None` when there are no copies. The rows are written as a
-nested collection by `write_game_copies`, on the `write_novel_units` contract:
+nested collection by `write_game_copies`, on the `write_book_units` contract:
 a row with a `system_id` is updated, one without is inserted, one the payload
 omits is deleted; `copies=None` means "not supplied", `copies=[]` means
 "clear them".
@@ -787,7 +789,7 @@ write path; see [authorization.md](authorization.md#gated-types).
 | `ch_total` | Float | yes | | **KR.** |
 | `ch_behind` | Integer | yes | | **KR.** Chapters behind the official source; hand-set, never derived |
 | `release_date` / `end_date` | String | yes | | Truncated ISO-8601, CHECKs `ck_h_comic_release_date_iso` / `ck_h_comic_end_date_iso` |
-| `mal_id` | Integer | yes | | Both. Extracted from `mal_link` by the write hook and every pipeline (`apply_extract_mal_id_manga_novel`); the key Tenrai is fetched on |
+| `mal_id` | Integer | yes | | Both. Extracted from `mal_link` by the write hook and every pipeline (`apply_extract_mal_id_manga_book`); the key Tenrai is fetched on |
 | `mal_link` | String | yes | | Both. The MyAnimeList manga URL, typed by hand |
 | `ehentai_link` | String | yes | | Both. The E-Hentai gallery URL (`https://e-hentai.org/g/<gid>/<token>/`, an `exhentai.org` one accepted), typed by hand. No id column: the E-Hentai fill reads the gallery id and token out of it, and fills the cover and the illustrator credit after Tenrai ([external-apis.md](external-apis.md#e-hentai)) |
 
@@ -912,10 +914,10 @@ read and written through the notes API like any other section.
 | `names_dict` | `{en, cn, roman, jp, alt}` for hierarchy resolution. | anime, anime_movies, series |
 | `cum_ep_fin`, `cum_ep_total` | Pydantic `computed_field` on `AnimeResponse`: `ep_previous + ep_fin` and `ep_previous + ep_total` (None if `ep_total` unknown). | anime |
 | `watch_next` / `read_next` / `play_next` | Boolean over `plan_next` (`kind = next`, `scope = entry`). The row's existence is the flag. | all entries |
-| `to_rewatch` / `to_reread` / `to_replay` | Boolean over `plan_next` (`kind = rewatch`, `scope = entry`). Only types with an entry-level rewatch scope have it: **not** anime, **not** cartoon (they rewatch at franchise scope). Mapping: `PLAN_FLAG_FIELDS` in `app/utils/plan_next_kinds.py`. Note that a virtual flag also has to be **declared on the response schema** - the router factory sets it, but pydantic drops an undeclared field silently, which is why `GameBase` names `play_next` / `to_replay` outright. | anime_movies, movies, tv_shows, manga, novel, comic, games, h_comic, h_game |
+| `to_rewatch` / `to_reread` / `to_replay` | Boolean over `plan_next` (`kind = rewatch`, `scope = entry`). Only types with an entry-level rewatch scope have it: **not** anime, **not** cartoon (they rewatch at franchise scope). Mapping: `PLAN_FLAG_FIELDS` in `app/utils/plan_next_kinds.py`. Note that a virtual flag also has to be **declared on the response schema** - the router factory sets it, but pydantic drops an undeclared field silently, which is why `GameBase` names `play_next` / `to_replay` outright. | anime_movies, movies, tv_shows, manga, book, comic, games, h_comic, h_game |
 | Credit / tag link fields (`studio`, `director`, `producer`, `music`, `genre_main`, `genre_sub`, `label`, `distributor_tw`, `source_official` **or** `original_source`, `author_plot`, ...) | Attached at read time by `services.domain.credits.attach_link_fields` from `media_credit` / `media_tag`; the attribute names are the legacy sheet headers in `LEGACY_SHEET_COLUMN` (`app/utils/credit_roles.py`). | per media type - see `TAG_FIELDS` / `CREDIT_ROLES` |
 | `studio_refs` | Attached by the same `attach_link_fields` pass, from the same studio credit rows as the `studio` string beside it - `{system_id, display_name}` per studio, so a page can link where the comma-joined string cannot. Ungated, like every credit field. | anime, anime_movies, games, h_game |
-| `publisher_refs` | Attached by the same `attach_link_fields` pass from the entry's `publisher` credit rows - `{system_id, display_name, label}` per publisher, the `studio_refs` idea for the third entity target plus `credit_refs`'s label, because one publisher role reads a different word per media type (`label` carries `credit_label("publisher", media_type)` - 台灣代理商, 台灣出版商, 出版商 or 發行商). Attached only for media types whose `credit_roles_for()` includes `publisher`, derived rather than hand-listed. Ungated, like every credit field. | anime, anime_movies, manga, novel, comic, games |
+| `publisher_refs` | Attached by the same `attach_link_fields` pass from the entry's `publisher` credit rows - `{system_id, display_name, label}` per publisher, the `studio_refs` idea for the third entity target plus `credit_refs`'s label, because one publisher role reads a different word per media type (`label` carries `credit_label("publisher", media_type)` - 台灣代理商, 台灣出版商, 出版商 or 發行商). Attached only for media types whose `credit_roles_for()` includes `publisher`, derived rather than hand-listed. Ungated, like every credit field. | anime, anime_movies, manga, book, comic, games |
 | `sources` | List of `SourceRef` (`app/schemas/sources.py`), attached at read time from `media_source` by `services.domain.sources.attach_sources`. Bucket-filtered per viewer before the response is built: every viewer gets `main` and `other`, and `restricted` needs the `sources_restricted` field group - see [authorization.md](authorization.md). | all entries |
 | `User.role` | `column_property` over `role.name` via `users.role_id` (read-only). | users |
 
@@ -954,7 +956,7 @@ service (`app/services/domain/user_list.py`), and `LIST_FIELDS` as the single
 place that says which keys a type actually owns. The cost is real: a game row
 carries `ch_fin_in_arc` as NULL forever. It is cheaper than the alternative.
 
-`user_novel_unit_rating` exists because a novel *unit* is not a media entry.
+`user_book_unit_rating` exists because a book *unit* is not a media entry.
 `user_media_list` is keyed by `media_id`, so a per-unit rating has nowhere to
 sit on it; a two-column join table is the smallest thing that is correct.
 
@@ -989,12 +991,12 @@ number among them is `vol_fin_page`, a page. See
 | `my_watch_day` | String | yes | | WEEKDAYS. Anime only. |
 | `ep_fin` | Float | yes | | anime, tv_shows, cartoons, hentai |
 | `time_fin` | String | yes | | **Paused at**: where playback stopped - `1:10:00` into a movie, `14:35` into the episode after `ep_fin`. The six watching types (anime, anime_movies, movies, tv_shows, cartoons, hentai). Free text, never parsed; stored stripped, a blank as NULL (`clean_time_fin`). Which episode it belongs to is `ep_fin`'s job, not this column's. Cleared when `ep_fin` goes up or the row becomes Completed - see [business-rules.md](business-rules.md#a-paused-position-is-cleared-by-progress) |
-| `vol_fin` | Float | yes | | manga, novel |
+| `vol_fin` | Float | yes | | manga, book |
 | `vol_fin_page` | Integer | yes | | manga |
-| `ch_fin` | Float | yes | | manga, novel, h_comic (KR; cleared on JP) |
-| `arc_fin` | Float | yes | | novel |
-| `ch_fin_in_arc` | Float | yes | | novel - the two-stage cursor's second stage |
-| `progress_display` | String | yes | | novel |
+| `ch_fin` | Float | yes | | manga, book, h_comic (KR; cleared on JP) |
+| `arc_fin` | Float | yes | | book |
+| `ch_fin_in_arc` | Float | yes | | book - the two-stage cursor's second stage |
+| `progress_display` | String | yes | | book |
 | `issue_fin` | Float | yes | | comic |
 | `page_fin` | Float | yes | | h_comic (JP; cleared on KR) |
 | `usefulness` | String | yes | | h_comic, h_game, hentai. H_COMIC_USEFULNESS, checked on every write; personal for the reason `my_rating` is |
@@ -1012,7 +1014,7 @@ with no list row - or a row holding NULL - reads them back as `0`
 (`LIST_FIELD_DEFAULTS`) rather than None, the value the column always held.
 `page_fin` follows the same rule. NULL is a value these columns do hold: the
 Add and Modify forms send a blank finished count as `null` ("not recorded") on
-every type, and the manga, novel, comic and h-comic schemas accept it
+every type, and the manga, book, comic and h-comic schemas accept it
 (`Optional[...] = 0`) on `POST` and `PUT` as `PATCH` always did. `ep_fin` is
 deliberately excluded from the read-back-as-`0` rule: it was nullable on
 `anime` / `tv_shows` / `cartoons`, so None is a value it always could have had,
@@ -1045,24 +1047,24 @@ query per page. When an h-comic's region becomes JP every account's row for
 it is deleted (`drop_jp_group_orders`, in the write hook and in
 `enforce_h_comic_invariants`).
 
-### `user_novel_unit_rating`
+### `user_book_unit_rating`
 
-One reader's grade of, and remark on, one novel unit. Model: `UserNovelUnitRating`
-(`app/models/user_novel_unit_rating.py`). Keyed by `(user_id, unit_id)` -
-`uq_user_novel_unit`.
+One reader's grade of, and remark on, one book unit. Model: `UserBookUnitRating`
+(`app/models/user_book_unit_rating.py`). Keyed by `(user_id, unit_id)` -
+`uq_user_book_unit`.
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
 | `user_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE |
-| `unit_id` | UUID | **no** | | FK `novel_unit.system_id` ON DELETE CASCADE |
+| `unit_id` | UUID | **no** | | FK `book_unit.system_id` ON DELETE CASCADE |
 | `my_rating` | String | yes | | MY_RATINGS |
 | `remark` | Text | yes | | The reader's own note on the unit |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 A row holding neither a rating nor a remark is **not stored**:
-`write_unit_rating` (`app/services/domain/novel_unit_writer.py`, used by
-`PUT /api/me/novel-units/{unit_id}` and the old-sheet carry in
+`write_unit_rating` (`app/services/domain/book_unit_writer.py`, used by
+`PUT /api/me/book-units/{unit_id}` and the old-sheet carry in
 `legacy_personal.py`) deletes an
 existing one rather than keeping it holding None, so "never graded" and
 "graded, then cleared" do not become two different states.
@@ -1092,7 +1094,7 @@ NOT DISTINCT**, since six of the seven are NULL on every row.
 
 A row holding neither value is **not stored**: `write_rating`
 (`app/services/domain/user_rating.py`) deletes it, as
-`user_novel_unit_rating` does. `attach_ratings` puts the viewer's values back
+`user_book_unit_rating` does. `attach_ratings` puts the viewer's values back
 on each row as `my_rating` and the tier's `collection_expectation` /
 `franchise_expectation` / `series_expectation`, one query per page; they are
 plain class attributes defaulted to `None` (`app/models/__init__.py`), not
@@ -1275,7 +1277,7 @@ and a public entity with a page of its own. Model: `Publisher`
 (`app/models/staff.py`).
 
 The `publisher` credit role covers **six** media types: anime, anime-movie,
-manga, novel, comic and game. There is no parallel `system_option`
+manga, book, comic and game. There is no parallel `system_option`
 vocabulary - every publisher value is a `media_credit` row pointing here.
 
 Deliberately a separate table rather than a `publisher` role pointing at
@@ -1504,7 +1506,7 @@ the casting, because one character may have several seiyuu in one entry.
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
 | `character_id` | UUID | no | | FK `character.system_id` **ON DELETE CASCADE**, indexed |
-| `media_type` | String | no | | Hyphenated key: one of `CASTING_MEDIA_TYPES` (`anime`, `anime-movie`, `manga`, `novel`, `h-comic`, `hentai`) |
+| `media_type` | String | no | | Hyphenated key: one of `CASTING_MEDIA_TYPES` (`anime`, `anime-movie`, `manga`, `book`, `h-comic`, `hentai`) |
 | `identity_id` | UUID | yes | | NULL is the **main identity** (the character itself); otherwise one of *this character's* [`character_identity`](#character_identity) rows, enforced by `fk_casting_identity`. Indexed |
 | `entry_id` | UUID | no | | FK-less - see [Cross-table references](#cross-table-references-without-foreign-keys) |
 | `role` | String | yes | | Optional: one of `CHARACTER_ROLES` (`Main`, `Core`, `Important Supporting`, `Supporting`, `Other`), or NULL for no role recorded - what the character is in this entry. A blank value from the API or a Sheets cell is stored as NULL. Fills a NULL `character.role`; never written from it |
@@ -1679,7 +1681,7 @@ default NULL-is-distinct rule would let them through; index
 (a list of `SourceRef`, `app/schemas/sources.py`) on every list and detail
 response; `replace_sources` rewrites an entry's whole set on
 POST/PUT/PATCH via `MediaTypeSpec.nested_collections`, the same seam
-`write_novel_units` uses. An entry's rows are removed by the `media_id`
+`write_book_units` uses. An entry's rows are removed by the `media_id`
 cascade — the hand-written `delete_sources_for` went with it. Bucket filtering
 by RBAC happens inside `attach_sources` itself, not in `field_gate.gate()`,
 because it is partial — a viewer can hold `other` and not `restricted` — see
@@ -2741,7 +2743,7 @@ tier or an entity. They resolve at read time through
 
 | Registry | Keys | Still used by |
 |---|---|---|
-| `MEDIA_TABLES` | `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, `game` (hyphenated - **not** the underscore keys of `app/registry.py`, which name router configs) | `media_relation` (both ends), `character_casting` and `character_casting_voice` (`CASTING_MEDIA_TYPES` only) |
+| `MEDIA_TABLES` | `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `book`, `comic`, `game` (hyphenated - **not** the underscore keys of `app/registry.py`, which name router configs) | `media_relation` (both ends), `character_casting` and `character_casting_voice` (`CASTING_MEDIA_TYPES` only) |
 | `OWNER_TABLES` = `MEDIA_TABLES` + `TIER_TABLES` (`series`, `franchise`, `collection`) | | Nothing stores a pair here. `note` and `meme` read it to **resolve a row's display data** and to translate the API's `owner_type` / `owner_id` parameters onto their four owner columns; `plan_next` does the same over its three. |
 | `REQUEST_TARGET_TABLES` = `OWNER_TABLES` + `ENTITY_TABLES` (`studio`, `publisher`, `person`, `character`, `identity`) | | `user_request` (`target_type`, `target_id`). A deleted target resolves `missing`, and the request falls back to its stored `target_label`. |
 

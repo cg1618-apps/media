@@ -38,7 +38,7 @@ export const SIZE_GROUPS = {
   // Game, h-comic, h-game and hentai are absent on purpose, exactly as
   // anime-movie is empty: there is no size axis any of them groups by, so
   // each Plan tab renders one ungrouped list.
-  // Manga and novel do NOT have a size bucket. They group by a column on the
+  // Manga and book do NOT have a size bucket. They group by a column on the
   // entry itself - the way the pre-plan_next Plan page did - so these two
   // vocabularies exist only here, never in app/utils/plan_next_kinds.py, which
   // is about size buckets Calculate derives. See entryBucket in
@@ -49,21 +49,22 @@ export const SIZE_GROUPS = {
     { key: "腰斬", label: "腰斬" },
     { key: "停更", label: "停更" },
   ],
-  // Keys must stay a subset of NOVEL_TYPES in frontend/src/config/fieldOptions.js,
-  // which is the form dropdown's source of truth. Only the ORDER differs: Web
-  // leads here, where the dropdown lists it third. "Web Novel" is a display
-  // relabel of the stored value "Web" and changes no data.
-  novel: [
-    { key: "Web", label: "Web Novel" },
-    { key: "Light Novel", label: "Light Novel" },
-    { key: "Novel", label: "Novel" },
-    { key: "Other", label: "Other" },
+  // Keys must stay a subset of BOOK_TYPES in frontend/src/config/fieldOptions.js,
+  // which is the form dropdown's source of truth. Only the ORDER differs: 網路小說
+  // leads here, where the dropdown lists it third.
+  book: [
+    { key: "網路小說", label: "網路小說" },
+    { key: "輕小說", label: "輕小說" },
+    { key: "小說", label: "小說" },
+    { key: "短篇集", label: "短篇集" },
+    { key: "指南/設定集", label: "指南/設定集" },
+    { key: "其他", label: "其他" },
   ],
 };
 
 // What a tab calls its trailing catch-all group. Manga has no "other" value in
 // its own vocabulary, so its empties land here under the label the old page
-// used. Novel is absent because it has a real "Other" key that entryBucket maps
+// used. Book is absent because it has a real "其他" key that entryBucket maps
 // empties onto directly - giving it a label here would produce two
 // near-identical trailing sections.
 export const UNGROUPED_LABELS = {
@@ -80,7 +81,7 @@ export const PLAN_TABS = [
   { key: "cartoon", label: "Cartoon", icon: "fa-laugh-squint" },
   { key: "comic", label: "Comic", icon: "fa-book-dead" },
   { key: "manga", label: "Manga", icon: "fa-book" },
-  { key: "novel", label: "Novel", icon: "fa-book-open" },
+  { key: "book", label: "Book", icon: "fa-book-open" },
   { key: "game", label: "Game", icon: "fa-gamepad" },
   // Gated: the Plan page filters its tabs through visibleByType.
   { key: "h-comic", label: "H-Comic", icon: "fa-book" },
@@ -109,7 +110,7 @@ export const ALLOWED_SCOPES = {
     "tv-show": ["entry", "series", "franchise"],
     cartoon: ["entry", "series", "franchise"],
     manga: ["entry"],
-    novel: ["entry"],
+    book: ["entry"],
     comic: ["entry", "series"],
     game: ["entry", "series", "franchise"],
     "h-comic": ["entry"],
@@ -119,7 +120,7 @@ export const ALLOWED_SCOPES = {
     hentai: ["entry"],
   },
   rewatch: {
-    // Anime and cartoon are rewatched as whole franchises; novels are reread
+    // Anime and cartoon are rewatched as whole franchises; books are reread
     // at every tier though they are only ever queued one book at a time.
     anime: ["franchise"],
     "anime-movie": ["entry"],
@@ -127,7 +128,7 @@ export const ALLOWED_SCOPES = {
     "tv-show": ["entry", "series", "franchise"],
     cartoon: ["franchise"],
     manga: ["entry"],
-    novel: ["entry", "series", "franchise"],
+    book: ["entry", "series", "franchise"],
     comic: ["entry", "series"],
     // A game is replayed at any tier: one DLC, a series of them, or the whole
     // franchise from the start.
@@ -147,7 +148,7 @@ export const REWATCH_TABS = [
   { key: "tv-show", label: "TV Show", icon: "fa-broadcast-tower" },
   { key: "cartoon", label: "Cartoon", icon: "fa-laugh-squint" },
   { key: "manga", label: "Manga", icon: "fa-book" },
-  { key: "novel", label: "Novel", icon: "fa-book-open" },
+  { key: "book", label: "Book", icon: "fa-book-open" },
   { key: "comic", label: "Comic", icon: "fa-book-dead" },
   { key: "game", label: "Game", icon: "fa-gamepad" },
   { key: "h-comic", label: "H-Comic", icon: "fa-book" },

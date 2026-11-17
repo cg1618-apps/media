@@ -30,7 +30,7 @@ export const LABEL_FIELD_TYPES = Object.freeze([
   "tv-show",
   "cartoon",
   "manga",
-  "novel",
+  "book",
   "comic",
   "game",
 ]);

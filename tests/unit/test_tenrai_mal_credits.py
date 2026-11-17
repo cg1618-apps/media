@@ -122,8 +122,8 @@ class TestCreditsByRole:
             assert list(credits) == ["studio"]
             assert [s["name"] for s in credits["studio"]] == ["Madhouse"]
 
-    def test_manga_and_novel_split_authors_by_role(self):
-        for media_type in ("manga", "novel"):
+    def test_manga_and_book_split_authors_by_role(self):
+        for media_type in ("manga", "book"):
             credits = map_tenrai_credits(media_type, SPLIT_CREDITS)
             assert [a["name"] for a in credits["author"]] == ["Tsugumi Ohba"]
             assert [a["name"] for a in credits["illustrator"]] == ["Takeshi Obata"]

@@ -57,7 +57,7 @@ beforeEach(() => {
 
 it("draws a tab for every ungated type, game and comic included", () => {
   mount();
-  for (const label of ["Anime", "Movie", "Comic", "Game", "Novel"]) {
+  for (const label of ["Anime", "Movie", "Comic", "Game", "Book"]) {
     expect(screen.getByRole("tab", { name: new RegExp(`^${label}\\s*\\d*$`) })).toBeInTheDocument();
   }
   expect(screen.queryByRole("tab", { name: /H-Comic/ })).not.toBeInTheDocument();

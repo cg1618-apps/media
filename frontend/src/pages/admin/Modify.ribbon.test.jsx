@@ -79,7 +79,7 @@ const CASES = [
   ["tv-show", "/api/tv-shows", "tv_name_cn"],
   ["cartoon", "/api/cartoon", "cartoon_name_cn"],
   ["manga", "/api/manga", "manga_name_cn"],
-  ["novel", "/api/novel", "novel_name_cn"],
+  ["book", "/api/book", "book_name_cn"],
   ["comic", "/api/comic", "comic_name_cn"],
   ["game", "/api/game", "game_name_cn"],
 ];

@@ -13,6 +13,7 @@ from app.config import settings
 from app.models import (
     Anime,
     AnimeMovies,
+    Book,
     Cartoon,
     Character,
     CharacterCasting,
@@ -26,7 +27,6 @@ from app.models import (
     Manga,
     Media,
     Movies,
-    Novel,
     Person,
     Publisher,
     Studio,
@@ -37,6 +37,7 @@ from app.services.domain import (
     anime_post_processing,
     autofill_anime_from_mal,
     autofill_anime_movie_from_mal,
+    autofill_book_from_mal,
     autofill_cartoon_from_imdb,
     autofill_comic_from_comicvine,
     autofill_cover_from_steam,
@@ -50,13 +51,12 @@ from app.services.domain import (
     autofill_hentai_from_mal,
     autofill_manga_from_mal,
     autofill_movie_from_imdb,
-    autofill_novel_from_mal,
     autofill_tv_show_from_imdb,
     cartoon_post_processing,
     create_missing_seasonal,
+    derive_book_catalog,
+    derive_book_list,
     derive_ep_previous_all_anime,
-    derive_novel_catalog,
-    derive_novel_list,
     extract_system_options,
     manga_post_processing,
     sync_seasonal_counts,
@@ -238,14 +238,14 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
                     }
                 )
 
-        novels = db.query(Novel).join(Novel.media_row).filter(Media.cover_image_file.isnot(None)).all()
-        for nv in novels:
-            if not cover_image_exists("novel", str(nv.system_id)):
+        books = db.query(Book).join(Book.media_row).filter(Media.cover_image_file.isnot(None)).all()
+        for nv in books:
+            if not cover_image_exists("book", str(nv.system_id)):
                 missing.append(
                     {
                         "system_id": str(nv.system_id),
                         "name": nv.display_name or str(nv.system_id),
-                        "entry_type": "novel",
+                        "entry_type": "book",
                     }
                 )
 
@@ -311,7 +311,7 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
         + len(movies)
         + len(tv_shows)
         + len(mangas)
-        + len(novels)
+        + len(books)
         + len(comics)
         + len(games)
         + len(h_comics)
@@ -457,13 +457,13 @@ def bulk_download_missing_covers(
         if manga.cover_image_file:
             downloaded += 1
 
-    novel_query = db.query(Novel).join(Novel.media_row).filter(Media.cover_image_file.isnot(None))
-    for novel in _collect(novel_query, Novel, "novel"):
+    book_query = db.query(Book).join(Book.media_row).filter(Media.cover_image_file.isnot(None))
+    for book in _collect(book_query, Book, "book"):
         total += 1
-        if novel.mal_link:
-            novel.cover_image_file = None
-            autofill_novel_from_mal(novel, force_replace_ratings=False, db=db)
-            if novel.cover_image_file:
+        if book.mal_link:
+            book.cover_image_file = None
+            autofill_book_from_mal(book, force_replace_ratings=False, db=db)
+            if book.cover_image_file:
                 downloaded += 1
         else:
             skipped += 1
@@ -610,7 +610,7 @@ def run_sync(db: Session) -> dict:
     run_sync_tv_show(db)
     run_sync_cartoon(db)
     run_sync_manga(db)
-    novel = run_sync_novel(db)
+    book = run_sync_book(db)
     run_sync_comic(db)
     run_sync_h_comic(db)
     run_sync_hentai(db)
@@ -618,10 +618,10 @@ def run_sync(db: Session) -> dict:
     run_sync_size_groups(db)
     run_sync_cast(db)
     run_sync_character_display_names(db)
-    owner_missing = novel["owner_missing"]
+    owner_missing = book["owner_missing"]
     message = "All synchronization tasks completed."
     if owner_missing:
-        message += f" {no_owner_message(owner_missing)} (novel list rows)."
+        message += f" {no_owner_message(owner_missing)} (book list rows)."
     return {
         "status": "success",
         "message": message,
@@ -732,7 +732,7 @@ def run_sync_manga(db: Session) -> dict:
     }
 
 
-def run_sync_novel(db: Session) -> dict:
+def run_sync_book(db: Session) -> dict:
     extract_system_options(db)
     # Re-derive from the unit rows so a Sheets restore, which writes rows
     # straight to the tables without going through the router, lands with
@@ -746,16 +746,16 @@ def run_sync_novel(db: Session) -> dict:
     # name rather than reporting a clean sync.
     owner = installation_owner_id(db)
     owner_missing = 0
-    for entry in db.query(Novel).options(selectinload(Novel.units)).all():
-        derive_novel_catalog(entry)
+    for entry in db.query(Book).options(selectinload(Book.units)).all():
+        derive_book_catalog(entry)
         if owner is None:
             owner_missing += 1
             continue
         row = list_row(db, owner, entry.system_id)
         if row is not None:
-            derive_novel_list(row, entry)
+            derive_book_list(row, entry)
     db.commit()
-    message = "Novel sync completed."
+    message = "Book sync completed."
     if owner_missing:
         message += f" {no_owner_message(owner_missing)}."
     return {
@@ -778,7 +778,7 @@ def run_sync_h_comic(db: Session) -> dict:
     Re-establish the h-comic variant rule over the whole table: the region's
     unused columns cleared, on the entries and on the reader's counters. A
     Sheets restore writes rows without going through the router, so this is
-    the net under it - the same reason run_sync_novel re-derives. The label
+    the net under it - the same reason run_sync_book re-derives. The label
     is run_sync_gated_labels', which run_sync and the h-comic pipeline spec
     run after this.
     """
@@ -854,7 +854,7 @@ def run_calculate_all(db: Session) -> dict:
         if owner_missing:
             # The run still succeeded, but part of it derived nothing; the
             # audit row carries the same named line the response does.
-            note = f"{no_owner_message(owner_missing)} (novel list rows)."
+            note = f"{no_owner_message(owner_missing)} (book list rows)."
             message += f" {note}"
             log_data_control(
                 db,

@@ -5,7 +5,7 @@ import PublisherScopePills from "./PublisherScopePills";
 describe("PublisherScopePills", () => {
   it("renders one pill per media type a publisher may be offered on", () => {
     render(<PublisherScopePills scopes={[]} setScopes={() => {}} />);
-    ["Anime", "Anime Movie", "Manga", "Novel", "Comic", "Game"].forEach((l) =>
+    ["Anime", "Anime Movie", "Manga", "Book", "Comic", "Game"].forEach((l) =>
       expect(screen.getByRole("button", { name: l })).toBeInTheDocument(),
     );
   });

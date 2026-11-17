@@ -4,7 +4,7 @@ Last verified: 2026-11-17
 
 ## What this is for
 
-Notes are the structured commentary you attach to anything in the library: a media entry (anime, comic, novel...) or one of the three grouping tiers (collection, franchise, series). Every bullet — an advantage, an episode comment, an OP you still need to find, a link to a resource — is one row in the single `note` table, and a backend registry decides which *sections* exist, which owners they apply to, and what each row may contain. The frontend notes page reads that registry and renders it; it does not know section names itself (with two narrow, documented exceptions). The old per-owner `remark` column is now just one more section, so the same table also feeds the "Remark" field on the Add/Modify forms and detail pages.
+Notes are the structured commentary you attach to anything in the library: a media entry (anime, comic, book...) or one of the three grouping tiers (collection, franchise, series). Every bullet — an advantage, an episode comment, an OP you still need to find, a link to a resource — is one row in the single `note` table, and a backend registry decides which *sections* exist, which owners they apply to, and what each row may contain. The frontend notes page reads that registry and renders it; it does not know section names itself (with two narrow, documented exceptions). The old per-owner `remark` column is now just one more section, so the same table also feeds the "Remark" field on the Add/Modify forms and detail pages.
 
 ## Model
 
@@ -277,17 +277,17 @@ is all the author's.
 | `episode_comments` | 各集評論 Episode Comments (manga: 各話評論 Chapter Comments; game: 各章評論 Part Reviews) | episode_text | reviews | anime, tv-show, cartoon, manga, game | — | — | "Episode, e.g. ep 1" (manga: "Chapter, e.g. ch 1"; game: "Chapter / Part, e.g. Ch 3") | **yes** | no | **every owner it has** |
 | `highlights` | 神回/神片段 Highlights | episode_text | flat | anime | 神回, 神片段, 神篇章 | — | "Episode(s), e.g. ep 6" | **yes** | no | no |
 | `highlight_episodes` | 神回/神片段 (manga: 神回) | episode_text | flat | tv-show, cartoon, manga | tv-show & cartoon: 神回, 神片段, 神篇章; manga: none | — | "Episode(s), e.g. ep 3" (manga: "Chapter(s), e.g. ch 6") | **yes** | no | no |
-| `highlight_passages` | 神片段 | text | flat | novel | — | — | — | no | no | no |
+| `highlight_passages` | 神片段 | text | flat | book | — | — | — | no | no | no |
 | `highlight_moments` | 神場景 Highlights | episode_text | flat | game | — | — | "Chapter / Boss, e.g. Ch 3" | **yes** | no | no |
 | `h_comic_highlights` | 亮點 Highlights | **structured** | flat | h-comic (**KR only**, `owner_where`) | — | — | *(on its `chapter` field)* | no | no | no |
 | `h_game_highlights` | 亮點 Highlights | **structured** | flat | h-game | — | — | *(on its `route_scene` field)* | no | no | no |
 | `analysis` | 解析/解惑/討論 Analysis/Discussion | text_links | analysis_group (**reviews** for game and h-game) | All but h-comic, hentai | — | — | — | no | no | no |
 | `cinematography` | 分鏡/演出/巧思/細節 | text_links | analysis_group | anime, anime-movie, tv-show, cartoon, manga, series | — | — | "Episode(s), e.g. ep 3" | no | no | no |
-| `craft` | 巧思 | text_links | analysis_group | novel | — | — | — | no | no | no |
-| `foreshadowing` | 伏筆/前後呼應 Foreshadowing | text_links | analysis_group | anime, anime-movie, tv-show, cartoon, manga, novel, series, franchise | — | — | "Episode(s), e.g. ep 3" | no | no | no |
+| `craft` | 巧思 | text_links | analysis_group | book | — | — | — | no | no | no |
+| `foreshadowing` | 伏筆/前後呼應 Foreshadowing | text_links | analysis_group | anime, anime-movie, tv-show, cartoon, manga, book, series, franchise | — | — | "Episode(s), e.g. ep 3" | no | no | no |
 | `symmetry` | 對稱 Symmetry | text_links | analysis_group | same as foreshadowing | — | — | "Episode(s), e.g. ep 3" | no | no | no |
 | `speculation` | 猜測 Speculation | text_links | analysis_group | same as foreshadowing | — | — | "Episode(s), e.g. ep 3" | no | no | no |
-| `easter_eggs` | 彩蛋/致敬 Easter Eggs/References | text_links | analysis_group (**reviews** for game) | anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, game, series, franchise | — | — | "Episode(s), e.g. ep 3" (anime-movie, movie: "Scene, e.g. 1:02:30"; manga, novel: "Chapter(s), e.g. ch 6"; comic: "Issue(s), e.g. #3"; game: "Chapter / Part, e.g. Ch 3") | no | no | no |
+| `easter_eggs` | 彩蛋/致敬 Easter Eggs/References | text_links | analysis_group (**reviews** for game) | anime, anime-movie, movie, tv-show, cartoon, manga, book, comic, game, series, franchise | — | — | "Episode(s), e.g. ep 3" (anime-movie, movie: "Scene, e.g. 1:02:30"; manga, book: "Chapter(s), e.g. ch 6"; comic: "Issue(s), e.g. #3"; game: "Chapter / Part, e.g. Ch 3") | no | no | no |
 | `beginner` | 新手 Beginner | text_links | guides | game | — | — | — | no | no | no |
 | `gameplay_systems` | 玩法系統 Gameplay Systems | **structured** | guides | game, h-game | — | — | — | no | no | no |
 | `controls` | 操作 Controls | **structured** | guides | game, h-game | — | — | — | no | no | no |
@@ -336,7 +336,7 @@ is all the author's.
 | `ost` | OST | music_track | music | anime | — | Need, Pending, No Full Version, Done | "Episode(s), e.g. ep 3" | no | no | no |
 | `op_ed_changes` | OP/ED 變動 | episode_text, **takes links** | music | anime, tv-show, cartoon | 變化OP, 變化ED, 無OP, 無ED, 特殊OP, 特殊ED | — | "Episode(s), e.g. ep 3" | **yes** | no | no |
 | `extended_episodes` | 加長 | episode_text | flat | anime, tv-show, cartoon | — | — | "Episode(s), e.g. ep 3" | **yes** | no | no |
-| `adaptation` | 改編 Adaptation | text_links | flat | anime, anime-movie, tv-show, cartoon, novel, series, franchise | — | — | — | no | no | anime, anime-movie, novel |
+| `adaptation` | 改編 Adaptation | text_links | flat | anime, anime-movie, tv-show, cartoon, book, series, franchise | — | — | — | no | no | anime, anime-movie, book |
 | `mods_and_tools` | 模組&工具 Mods & Tools | **structured** | tools | game, h-game | — | — | — | no | no | no |
 | `guide_resources` | 攻略資源 Guide Resources | **structured** | tools | game, h-game | — | — | — | no | no | no |
 | `resources` | Resources | name_links | **standalone** (**tools** for game and h-game) | All | free-text Group (`kind_is_group`) | — | — | no | no | no |

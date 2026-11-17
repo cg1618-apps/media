@@ -61,7 +61,7 @@ def test_analysis_is_a_review_subsection_for_a_game():
 
 
 def test_analysis_keeps_its_own_card_everywhere_else():
-    for owner in ("anime", "anime-movie", "tv-show", "novel", "manga", "series"):
+    for owner in ("anime", "anime-movie", "tv-show", "book", "manga", "series"):
         assert _group_of("analysis", owner) == "analysis_group", owner
 
 
@@ -75,7 +75,7 @@ def test_analysis_then_easter_eggs_read_last_in_the_reviews_card_for_a_game():
 
 def test_easter_eggs_is_a_review_subsection_for_a_game_only():
     assert _group_of("easter_eggs", "game") == "reviews"
-    for owner in ("anime", "movie", "tv-show", "manga", "novel", "comic"):
+    for owner in ("anime", "movie", "tv-show", "manga", "book", "comic"):
         assert _group_of("easter_eggs", owner) == "analysis_group", owner
 
 
@@ -128,6 +128,6 @@ def test_personal_notes_reach_every_owner_that_has_a_remark():
     # owners tuple as well as a shape.
     remark = ns.section_by_key("remark")
     assert ns.section_by_key("personal_notes").owners == remark.owners
-    for owner in ("anime", "novel", "series", "collection", "game"):
+    for owner in ("anime", "book", "series", "collection", "game"):
         keys = {s.key for s in sections_out(owner)}
         assert {"remark", "personal_notes"} <= keys, owner

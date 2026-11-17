@@ -13,7 +13,7 @@ from app.services.domain.user_list import (
 def test_all_eleven_hyphenated_media_types_are_present():
     expected = {
         "anime", "anime-movie", "movie", "tv-show", "cartoon",
-        "manga", "novel", "comic", "game", "h-comic", "h-game", "hentai",
+        "manga", "book", "comic", "game", "h-comic", "h-game", "hentai",
     }
     assert set(LIST_FIELDS) == expected
     assert set(STATUS_FIELD) == expected
@@ -29,7 +29,7 @@ def test_all_eleven_hyphenated_media_types_are_present():
         ("tv-show", "watching_status", "Might Watch"),
         ("cartoon", "watching_status", "Might Watch"),
         ("manga", "reading_status", "Might Read"),
-        ("novel", "reading_status", "Might Read"),
+        ("book", "reading_status", "Might Read"),
         ("comic", "reading_status", "Might Read"),
         ("game", "playing_status", "Might Play"),
         ("h-comic", "reading_status", "Might Read"),
@@ -55,7 +55,7 @@ def test_status_field_and_default_per_type(media_type, status_field, default):
                      "completed_at")),
         ("manga", ("reading_status", "my_rating", "vol_fin", "vol_fin_page",
                    "ch_fin", "completed_at")),
-        ("novel", ("reading_status", "my_rating", "vol_fin", "arc_fin", "ch_fin",
+        ("book", ("reading_status", "my_rating", "vol_fin", "arc_fin", "ch_fin",
                    "ch_fin_in_arc", "progress_display", "completed_at")),
         ("comic", ("reading_status", "my_rating", "issue_fin", "completed_at")),
         ("game", ("playing_status", "my_rating", "completed_at")),

@@ -27,7 +27,7 @@ const CHARACTERS = [
     name_en: "Yuki Nagato",
     display_name: "Yuki Nagato",
     casting_count: 3,
-    media_types: ["anime", "novel"],
+    media_types: ["anime", "book"],
     my_rating: "A",
     gender: "女",
     role: "Main",
@@ -186,7 +186,7 @@ describe("CharacterLibrary", () => {
     await clearAll(user);
 
     await user.click(screen.getByRole("button", { name: "Manga" }));
-    await user.click(screen.getByRole("button", { name: "Novel" }));
+    await user.click(screen.getByRole("button", { name: "Book" }));
     let cards = screen.getAllByRole("link").map((a) => a.textContent);
     expect(cards).toHaveLength(2);
 

@@ -78,7 +78,7 @@ ACTIVE_STATUSES = frozenset(
 # The user_media_list column a step's ep_start / ep_end are measured against.
 # Mirrors the range units the guide labels (frontend WatchOrderGuide.jsx):
 # episodes for the watched series types, issues for a comic, chapters for
-# manga and novels. A type not listed has no unit count, so its steps are
+# manga and books. A type not listed has no unit count, so its steps are
 # done by status alone.
 UNIT_FIELDS = {
     "anime": "ep_fin",
@@ -87,7 +87,7 @@ UNIT_FIELDS = {
     "hentai": "ep_fin",
     "comic": "issue_fin",
     "manga": "ch_fin",
-    "novel": "ch_fin",
+    "book": "ch_fin",
 }
 
 

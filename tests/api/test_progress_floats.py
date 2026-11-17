@@ -4,7 +4,7 @@ Every progress count and total is a float.
 `ep_fin`, `ep_total`, `ep_previous`, `issue_fin`, `issue_total`, `page_fin`,
 `page_total`, and manga's and H-Comic's `ch_total` and manga's `vol_total`
 hold a fraction - 2.5 episodes, 17.5 chapters - as `vol_fin`, `ch_fin` and the
-novel counters always have. Every way a value arrives keeps it: the API, the
+book counters always have. Every way a value arrives keeps it: the API, the
 viewer's own list row, a Sheets cell, and the Fill/Replace sanity clamp.
 
 Requires PostgreSQL (media_test DB). See tests/api/conftest.py.

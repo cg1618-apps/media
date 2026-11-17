@@ -35,7 +35,7 @@ SEVENTEEN = [
     (models.TVShows, {"tv_name_en": "PID TV"}),
     (models.Cartoon, {"cartoon_name_en": "PID Cartoon"}),
     (models.Manga, {"manga_name_en": "PID Manga"}),
-    (models.Novel, {"novel_name_en": "PID Novel"}),
+    (models.Book, {"book_name_en": "PID Book"}),
     (models.Comic, {"comic_name_en": "PID Comic"}),
     (models.Game, {"game_name_en": "PID Game"}),
     (models.Collection, {"collection_name_en": "PID Collection"}),
@@ -105,7 +105,10 @@ def test_migration_tables_match_models_with_a_public_id_column():
     # historic migration; and the nine detail tables it took them from no
     # longer carry the column. Everything else must still line up exactly.
     tables_with_public_id.discard("media")
-    assert set(_migration.TABLES) - MOVED_TO_MEDIA == (
+    # The historic migration names tables as they were then; novel has since
+    # been renamed book (b1o2okrename3).
+    historic = {RENAMED_SINCE.get(t, t) for t in _migration.TABLES}
+    assert historic - MOVED_TO_MEDIA == (
         tables_with_public_id - ADDED_BY_A_LATER_REVISION
     )
 
@@ -115,10 +118,12 @@ def test_migration_tables_match_models_with_a_public_id_column():
 # checked from zero by test_migrations_build_the_schema.py.
 ADDED_BY_A_LATER_REVISION = {"character_identity"}
 
+RENAMED_SINCE = {"novel": "book"}
+
 
 MOVED_TO_MEDIA = {
     "anime", "anime_movies", "movies", "tv_shows", "cartoons",
-    "manga", "novel", "comic", "games",
+    "manga", "book", "comic", "games",
     # Never had the column: created after the move, on the same pattern.
     "h_comic",
     "hentai",
@@ -191,7 +196,7 @@ _MEDIA_ROUTES = [
     ("/api/tv-shows", models.TVShows, {"tv_name_cn": "路由測試"}),
     ("/api/cartoon", models.Cartoon, {"cartoon_name_cn": "路由測試"}),
     ("/api/manga", models.Manga, {"manga_name_cn": "路由測試"}),
-    ("/api/novel", models.Novel, {"novel_name_cn": "路由測試"}),
+    ("/api/book", models.Book, {"book_name_cn": "路由測試"}),
     ("/api/comic", models.Comic, {"comic_name_cn": "路由測試"}),
     ("/api/game", models.Game, {"game_name_cn": "路由測試"}),
 ]

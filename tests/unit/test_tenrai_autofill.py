@@ -12,8 +12,8 @@ import pytest
 from app.services.domain import autofill as autofill_module
 from app.services.domain.autofill import (
     autofill_anime_from_mal,
+    autofill_book_from_mal,
     autofill_manga_from_mal,
-    autofill_novel_from_mal,
 )
 
 ANIME_RESULT = {
@@ -86,12 +86,12 @@ def make_manga(**kwargs):
     return types.SimpleNamespace(**defaults)
 
 
-def make_novel(**kwargs):
+def make_book(**kwargs):
     defaults = dict(
         system_id="33333333-3333-3333-3333-333333333333",
         mal_id="3",
         serialization_status=None,
-        release_date=None,
+        release_date_jp=None,
         end_date=None,
         vol_total_original=None,
         ch_total=None,
@@ -192,15 +192,15 @@ class TestMangaReleaseDateFill:
         assert manga.end_date == "2011"
 
 
-class TestNovelReleaseDateFill:
+class TestBookReleaseDateFill:
     def test_fills_both_ends_of_the_run(self, patched_manga):
-        novel = make_novel()
-        autofill_novel_from_mal(novel)
-        assert novel.release_date == "1997-07-22"
-        assert novel.end_date == "2011-11-18"
+        book = make_book()
+        autofill_book_from_mal(book)
+        assert book.release_date_jp == "1997-07-22"
+        assert book.end_date == "2011-11-18"
 
     def test_does_not_overwrite_admin_entered_dates(self, patched_manga):
-        novel = make_novel(release_date="1997", end_date="2011")
-        autofill_novel_from_mal(novel)
-        assert novel.release_date == "1997"
-        assert novel.end_date == "2011"
+        book = make_book(release_date_jp="1997", end_date="2011")
+        autofill_book_from_mal(book)
+        assert book.release_date_jp == "1997"
+        assert book.end_date == "2011"

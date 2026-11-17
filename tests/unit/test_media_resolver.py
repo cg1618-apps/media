@@ -59,7 +59,7 @@ class TestMediaTables:
             "tv-show",
             "cartoon",
             "manga",
-            "novel",
+            "book",
             "comic",
             "game",
             "h-comic",

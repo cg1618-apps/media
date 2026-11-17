@@ -20,7 +20,7 @@ import HGameAddTab from "./HGameAddTab";
 import HentaiAddTab from "./HentaiAddTab";
 import MangaAddTab from "./MangaAddTab";
 import MovieAddTab from "./MovieAddTab";
-import NovelAddTab from "./NovelAddTab";
+import BookAddTab from "./BookAddTab";
 import TvShowAddTab from "./TvShowAddTab";
 import AnimeModifyTab from "../modify-tabs/AnimeModifyTab";
 import AnimeMovieModifyTab from "../modify-tabs/AnimeMovieModifyTab";
@@ -32,7 +32,7 @@ import HGameModifyTab from "../modify-tabs/HGameModifyTab";
 import HentaiModifyTab from "../modify-tabs/HentaiModifyTab";
 import MangaModifyTab from "../modify-tabs/MangaModifyTab";
 import MovieModifyTab from "../modify-tabs/MovieModifyTab";
-import NovelModifyTab from "../modify-tabs/NovelModifyTab";
+import BookModifyTab from "../modify-tabs/BookModifyTab";
 import TvShowModifyTab from "../modify-tabs/TvShowModifyTab";
 import {
   defaultAnime,
@@ -45,7 +45,7 @@ import {
   defaultHentai,
   defaultManga,
   defaultMovie,
-  defaultNovel,
+  defaultBook,
   defaultTvShow,
 } from "../../config/formFactories";
 
@@ -74,7 +74,7 @@ vi.mock("../detail/MovieNotes", notes);
 vi.mock("../detail/TVShowNotes", notes);
 vi.mock("../detail/CartoonNotes", notes);
 vi.mock("../detail/MangaNotes", notes);
-vi.mock("../detail/NovelNotes", notes);
+vi.mock("../detail/BookNotes", notes);
 vi.mock("../detail/ComicNotes", notes);
 vi.mock("../detail/GameNotes", notes);
 vi.mock("../detail/HGameNotes", notes);
@@ -154,14 +154,14 @@ const TYPES = [
     ),
   },
   {
-    name: "Novel",
-    factory: defaultNovel,
+    name: "Book",
+    factory: defaultBook,
     sections: ["Titles & Naming", "Scores", "My Tracker", "Information", "Genres & Labels", "Production", "Cast", "Units", "Links & Sources", "Cover"],
     add: (f) => (
-      <NovelAddTab {...common} nvf={f} unv={noop} allNovels={[]} applyNovelEntryAutofill={noop} applyMalPick={noop} applyOpenLibraryPick={noop} seriesItemsForNovel={[]} />
+      <BookAddTab {...common} nvf={f} unv={noop} allBooks={[]} applyBookEntryAutofill={noop} applyMalPick={noop} applyOpenLibraryPick={noop} seriesItemsForBook={[]} />
     ),
     modify: (f) => (
-      <NovelModifyTab {...common} cnvf={f} unv={noop} seriesItemsForNovel={[]} editingItem={{ system_id: "e1" }} />
+      <BookModifyTab {...common} cnvf={f} unv={noop} seriesItemsForBook={[]} editingItem={{ system_id: "e1" }} />
     ),
   },
   {

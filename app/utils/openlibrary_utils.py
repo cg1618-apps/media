@@ -1,6 +1,6 @@
 """
 openlibrary_utils.py
-Pure transformations of Open Library JSON into the shapes the novel autofill
+Pure transformations of Open Library JSON into the shapes the book autofill
 writes. No HTTP here — the client lives in
 app/services/integrations/openlibrary.py.
 """
@@ -67,7 +67,7 @@ def _pick_cover_url(work: Dict[str, Any]) -> Optional[str]:
     return None
 
 
-def map_openlibrary_to_novel_data(raw: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+def map_openlibrary_to_book_data(raw: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     """
     The three things an anchor book can tell us about the whole entry: when the
     entry starts, who wrote it, and what it looks like.
@@ -86,7 +86,7 @@ def map_openlibrary_to_novel_data(raw: Optional[Dict[str, Any]]) -> Dict[str, An
     names = [name for name in names if name]
 
     return {
-        "release_date": normalize(_earliest_edition_year(payload.get("editions"))),
+        "release_date_jp": normalize(_earliest_edition_year(payload.get("editions"))),
         "author": ", ".join(names) or None,
         "cover_image_url": _pick_cover_url(work),
     }

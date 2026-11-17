@@ -17,7 +17,7 @@ const ENTRY_TYPES = [
   "tv-show",
   "cartoon",
   "manga",
-  "novel",
+  "book",
   "comic",
   "game",
   // The server leaves a gated type's bucket out for a session that cannot

@@ -87,13 +87,13 @@ function getDisplayTitle(item, type) {
       item.manga_name_alt ||
       "Unknown"
     );
-  if (type === "novel")
+  if (type === "book")
     return (
-      item.novel_name_cn ||
-      item.novel_name_en ||
-      item.novel_name_roman ||
-      item.novel_name_jp ||
-      item.novel_name_alt ||
+      item.book_name_cn ||
+      item.book_name_en ||
+      item.book_name_roman ||
+      item.book_name_jp ||
+      item.book_name_alt ||
       "Unknown"
     );
   if (type === "comic")
@@ -335,7 +335,7 @@ export default function Delete() {
   // orphan checks count all of them: the old anime-only counts offered to
   // delete franchises that still held movies/comics and cascaded past
   // non-anime children, leaving them with franchise_id = NULL.
-  const MEDIA_KEYS = ["anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel", "comic", "game", "h-comic", "h-game", "hentai"];
+  const MEDIA_KEYS = ["anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "book", "comic", "game", "h-comic", "h-game", "hentai"];
   const entriesIn = (field, id) =>
     MEDIA_KEYS.reduce((n, k) => n + db[k].filter((e) => e[field] === id).length, 0);
 
@@ -345,7 +345,7 @@ export default function Delete() {
   const [selectedTvShow, setSelectedTvShow] = useState(null);
   const [selectedCartoon, setSelectedCartoon] = useState(null);
   const [selectedManga, setSelectedManga] = useState(null);
-  const [selectedNovel, setSelectedNovel] = useState(null);
+  const [selectedBook, setSelectedBook] = useState(null);
   const [selectedComic, setSelectedComic] = useState(null);
   const [selectedGame, setSelectedGame] = useState(null);
   const [selectedHComic, setSelectedHComic] = useState(null);
@@ -934,12 +934,12 @@ export default function Delete() {
         return;
       }
 
-      if (type === "novel") {
-        const res = await fetch(`/api/novel/${item.system_id}`, {
+      if (type === "book") {
+        const res = await fetch(`/api/book/${item.system_id}`, {
           method: "DELETE",
           credentials: "include",
         });
-        if (!res.ok) throw new Error("Failed to delete novel");
+        if (!res.ok) throw new Error("Failed to delete book");
         if (orphanSeriesChecked && item.series_id) {
           await fetch(`/api/series/${item.series_id}`, {
             method: "DELETE",
@@ -952,7 +952,7 @@ export default function Delete() {
             credentials: "include",
           });
         }
-        setSelectedNovel(null);
+        setSelectedBook(null);
         showToast("success", "Deletion successful");
         await Promise.all([loadDb(), reloadLoaded()]);
         setModal(null);
@@ -1186,7 +1186,7 @@ export default function Delete() {
           setSelectedTvShow(null);
           setSelectedCartoon(null);
           setSelectedManga(null);
-          setSelectedNovel(null);
+          setSelectedBook(null);
           setSelectedComic(null);
           setSelectedGame(null);
           setSelectedHComic(null);
@@ -1771,37 +1771,39 @@ export default function Delete() {
         </div>
       )}
 
-      {/* NOVEL TAB */}
-      {tab === "novel" && (
+      {/* BOOK TAB */}
+      {tab === "book" && (
         <div className="space-y-4">
           <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
             <SearchBox
-              placeholder="Search novel to delete..."
-              items={db.novel}
-              type="novel"
-              onSelect={setSelectedNovel}
+              placeholder="Search book to delete..."
+              items={db.book}
+              type="book"
+              onSelect={setSelectedBook}
               renderItem={(item) => (
                 <div>
                   <div className="font-bold text-text text-sm">
-                    {getDisplayTitle(item, "novel")}
+                    {getDisplayTitle(item, "book")}
                   </div>
                   <div className="text-[11px] text-text-faint">
                     {getFranchiseTitle(item.franchise_id)}
                     {item.type ? ` · ${item.type}` : ""}
-                    {item.release_date ? ` · ${item.release_date}` : ""}
+                    {item.release_date_jp || item.release_date_tw
+                      ? ` · ${item.release_date_jp || item.release_date_tw}`
+                      : ""}
                   </div>
                 </div>
               )}
             />
           </div>
 
-          {selectedNovel && (
+          {selectedBook && (
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
                 <LazyImage
-                  src={getCoverUrl(selectedNovel.cover_image_file)}
+                  src={getCoverUrl(selectedBook.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
-                  style={focusStyle(selectedNovel.cover_image_focus)}
+                  style={focusStyle(selectedBook.cover_image_focus)}
                   onError={(e) => {
                     e.target.src = FALLBACK_SVG;
                   }}
@@ -1809,56 +1811,56 @@ export default function Delete() {
                 />
                 <div className="flex-1 min-w-0">
                   <h3 className="font-black text-text text-base truncate">
-                    {getDisplayTitle(selectedNovel, "novel")}
+                    {getDisplayTitle(selectedBook, "book")}
                   </h3>
                   <p className="text-sm text-text-faint">
-                    {selectedNovel.novel_name_en || "-"}
+                    {selectedBook.book_name_en || "-"}
                   </p>
-                  {selectedNovel.novel_name_jp && (
+                  {selectedBook.book_name_jp && (
                     <p className="text-xs text-text-faint">
-                      {selectedNovel.novel_name_jp}
+                      {selectedBook.book_name_jp}
                     </p>
                   )}
-                  {selectedNovel.novel_name_alt && (
+                  {selectedBook.book_name_alt && (
                     <p className="text-xs text-text-faint">
-                      {selectedNovel.novel_name_alt}
+                      {selectedBook.book_name_alt}
                     </p>
                   )}
                   <div className="flex gap-2 mt-2 flex-wrap">
-                    {selectedNovel.type && (
+                    {selectedBook.type && (
                       <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
-                        {selectedNovel.type}
+                        {selectedBook.type}
                       </span>
                     )}
-                    {selectedNovel.reading_status && (
+                    {selectedBook.reading_status && (
                       <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
-                        {selectedNovel.reading_status}
+                        {selectedBook.reading_status}
                       </span>
                     )}
-                    {selectedNovel.region && (
+                    {selectedBook.region && (
                       <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
-                        {selectedNovel.region}
+                        {selectedBook.region}
                       </span>
                     )}
                   </div>
                   <p className="text-xs text-text-faint mt-1">
-                    {getFranchiseTitle(selectedNovel.franchise_id)}
-                    {selectedNovel.series_id &&
-                      ` / ${getSeriesTitle(selectedNovel.series_id)}`}
+                    {getFranchiseTitle(selectedBook.franchise_id)}
+                    {selectedBook.series_id &&
+                      ` / ${getSeriesTitle(selectedBook.series_id)}`}
                   </p>
                   <p className="text-xs font-mono text-text-faint">
-                    {selectedNovel.system_id}
+                    {selectedBook.system_id}
                   </p>
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setSelectedNovel(null)}
+                    onClick={() => setSelectedBook(null)}
                     className="text-text-faint hover:text-text-muted w-8 h-8 rounded-lg hover:bg-surface-2 flex items-center justify-center transition"
                   >
                     <i className="fas fa-times"></i>
                   </button>
                   <button
-                    onClick={() => initDelete("novel", selectedNovel)}
+                    onClick={() => initDelete("book", selectedBook)}
                     className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1"
                   >
                     <i className="fas fa-trash-alt"></i> Delete
@@ -3677,8 +3679,8 @@ export default function Delete() {
                   </label>
                 )}
 
-              {/* Orphan series warning (novel) */}
-              {modal.type === "novel" &&
+              {/* Orphan series warning (book) */}
+              {modal.type === "book" &&
                 modal.item.series_id &&
                 entriesIn("series_id", modal.item.series_id) === 1 && (
                   <label className="flex items-start gap-3 bg-surface-2 border border-border rounded-xl p-3 cursor-pointer">
@@ -3700,8 +3702,8 @@ export default function Delete() {
                   </label>
                 )}
 
-              {/* Orphan franchise warning (novel) */}
-              {modal.type === "novel" &&
+              {/* Orphan franchise warning (book) */}
+              {modal.type === "book" &&
                 modal.item.franchise_id &&
                 entriesIn("franchise_id", modal.item.franchise_id) === 1 &&
                 (db.series.filter(

@@ -17,44 +17,13 @@ document exists — under `superpowers/specs/` while it is being built — the
 item points at it instead, and the present-tense pages take over once it
 ships.
 
-## 1. Novel becomes Book
-
-**The Novel type is renamed Book throughout, not just in the UI**: table
-`novel` → `book`, `media_type` `'novel'` → `'book'`, route `/api/novel` →
-`/api/book`, registry and SPA keys, the `Novel` franchise type → `Book`, and
-the sheet tabs `Novel` / `Novel Unit` / `User Novel Unit Rating` → `Book` /
-`Book Unit` / `User Book Unit Rating`, along with `novel_unit` and
-`user_novel_unit_rating`, their columns (`novel_id` → `book_id`) and the
-`novel_name_*` columns. Pull accepts a sheet written before the rename and
-maps the old tab and column names onto the new ones. About 280 files mention
-`novel`, so grep for it rather than trusting a list. Prose in docs that
-means the *genre* (a light novel, a web novel) stays.
-
-- **The type vocabulary becomes Chinese**: `輕小說` (Light Novel), `小說`
-  (Novel), `網路小說` (Web), `短篇集`, `指南/設定集`, `其他`. The migration
-  maps the existing values one-to-one (`Light Novel` → `輕小說`, `Novel` →
-  `小說`, `Web` → `網路小說`, `Other` → `其他`). **The owner moves entries
-  that belong under `短篇集` or `指南/設定集` by hand**, after the migration.
-- **Statistics keeps a Novel section, and it counts novels only**: books of
-  type `輕小說`, `小說`, `網路小說` and `短篇集`. `指南/設定集`, `其他` and
-  an unset type are left out of it.
-- **A book's release date splits into JP and TW**, as anime's does:
-  `release_date` → `release_date_jp`, plus a new `release_date_tw`, both in
-  the existing partial-ISO format (`YYYY`, `YYYY-MM`, `YYYY-MM-DD`).
-  `end_date` stays one column.
-- *Gravity Falls: Lost Legends* is a graphic novel and goes under Comic. The
-  owner moves it by hand; nothing in code depends on it.
-
-It comes after the remark rework and the progress floats, which both touch
-the novel code: a rename running alongside them would conflict everywhere.
-
-## 2. Upcoming books and manga volumes on Future Releases
+## 1. Upcoming books and manga volumes on Future Releases
 
 **Each book unit gets a JP and a TW release date, manga gets the next
 volume's JP and TW release dates, and Future Releases shows both.**
 
 - **Book units** (`book_unit`, the Units section,
-  `NovelUnitsEditor.jsx` before the Book rename) gain `release_date_jp`,
+  `BookUnitsEditor.jsx`) gain `release_date_jp`,
   `release_date_tw` and a cover image. The dates use the same partial-ISO
   format, are nullable, and are allowed on every unit kind. **There is no
   per-unit release status**: a unit is upcoming when one of its dates is in

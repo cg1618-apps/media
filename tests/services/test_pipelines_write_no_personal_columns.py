@@ -89,7 +89,7 @@ def test_no_sheet_parser_for_a_media_tab_parses_a_personal_column():
         formatter.parse_tv_show_from_sheet,
         formatter.parse_cartoon_from_sheet,
         formatter.parse_manga_from_sheet,
-        formatter.parse_novel_from_sheet,
+        formatter.parse_book_from_sheet,
         formatter.parse_comic_from_sheet,
         formatter.parse_game_from_sheet,
     ]

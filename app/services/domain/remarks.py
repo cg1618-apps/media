@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.models import (
     Anime,
     AnimeMovies,
+    Book,
     Cartoon,
     Comic,
     Game,
@@ -19,7 +20,6 @@ from app.models import (
     Manga,
     Movies,
     Note,
-    Novel,
     TVShows,
 )
 from app.services.domain.user_list import STATUS_FIELD, attach_list_fields
@@ -54,8 +54,8 @@ _TABS: tuple[_RemarkTab, ...] = (
                ("cartoon_name_cn", "cartoon_name_en", "airing_type")),
     _RemarkTab("manga", "manga", Manga,
                ("manga_name_cn", "manga_name_en", "is_main")),
-    _RemarkTab("novel", "novel", Novel,
-               ("novel_name_cn", "novel_name_en", "is_main")),
+    _RemarkTab("book", "book", Book,
+               ("book_name_cn", "book_name_en", "is_main")),
     _RemarkTab("comic", "comic", Comic,
                ("comic_name_en", "comic_name_cn", "volume_label")),
     _RemarkTab("game", "game", Game,

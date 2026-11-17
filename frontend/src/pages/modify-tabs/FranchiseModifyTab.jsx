@@ -28,7 +28,7 @@ const TYPE_TO_ENTRY_TYPES = {
   TV: ["tv-show"],
   Movie: ["movie"],
   Cartoon: ["cartoon"],
-  Novel: ["novel"],
+  Book: ["book"],
   Comic: ["comic"],
 };
 
@@ -51,7 +51,7 @@ export default function FranchiseModifyTab({
   allTvShows,
   allCartoons,
   allMangas,
-  allNovels,
+  allBooks,
   allComics,
   collectionItems,
   editingItem,
@@ -187,9 +187,9 @@ export default function FranchiseModifyTab({
     ...(allMangas || [])
       .filter((e) => e.franchise_id === franchiseId)
       .map((e) => ({ ...e, _type: "manga" })),
-    ...(allNovels || [])
+    ...(allBooks || [])
       .filter((e) => e.franchise_id === franchiseId)
-      .map((e) => ({ ...e, _type: "novel" })),
+      .map((e) => ({ ...e, _type: "book" })),
     ...(allComics || [])
       .filter((e) => e.franchise_id === franchiseId)
       .map((e) => ({ ...e, _type: "comic" })),

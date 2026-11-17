@@ -17,6 +17,7 @@ see THUMB_FOLDER and `cover_thumbnail`.
 
 import logging
 import os
+import shutil
 import tempfile
 from typing import Optional
 
@@ -54,6 +55,52 @@ COVER_OWNERS: frozenset[str] = frozenset(MEDIA_TYPE_KEYS) | frozenset(
 # can be rebuilt from its cover.
 THUMB_FOLDER = "thumbs"
 assert THUMB_FOLDER not in COVER_OWNERS, "the thumbnail cache would read as an owner"
+
+# Cover folders whose owner type was renamed: old folder -> new. The stored
+# keys are rewritten by the rename's migration; the files are moved here, at
+# startup, because the cover tree is a volume the migration does not own.
+LEGACY_COVER_FOLDERS: dict[str, str] = {"novel": "book"}
+
+
+def copy_legacy_cover_folders(root: str = COVER_DIR) -> dict[str, int]:
+    """
+    Copy every file under a renamed owner's old folder into its new one, for
+    the covers and for their cached thumbnails (`<root>/thumbs/<owner>/`).
+
+    A copy, not a move: the old folder is left whole, so the code from before
+    the rename still finds every cover if the release is rolled back. It never
+    overwrites, so a cover saved under the new folder since wins, and every boot
+    after the first copies nothing. Returns how many files were copied and how
+    many the new folder already held.
+    """
+    copied = present = 0
+    for old, new in LEGACY_COVER_FOLDERS.items():
+        for base in (root, os.path.join(root, THUMB_FOLDER)):
+            source_dir = os.path.join(base, old)
+            if not os.path.isdir(source_dir):
+                continue
+            target_dir = os.path.join(base, new)
+            os.makedirs(target_dir, exist_ok=True)
+            folder_copied = 0
+            for name in sorted(os.listdir(source_dir)):
+                source = os.path.join(source_dir, name)
+                target = os.path.join(target_dir, name)
+                if not os.path.isfile(source):
+                    continue
+                if os.path.lexists(target):
+                    present += 1
+                    continue
+                # copy2 keeps the mtime, which the thumbnail cache's
+                # staleness check compares exactly.
+                shutil.copy2(source, target)
+                folder_copied += 1
+            if folder_copied:
+                logger.info(
+                    "Copied %d cover file(s) from %s to %s.",
+                    folder_copied, source_dir, target_dir,
+                )
+            copied += folder_copied
+    return {"copied": copied, "present": present}
 
 
 def cover_key(owner_type: str, system_id: str) -> str:

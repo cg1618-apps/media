@@ -45,7 +45,7 @@ KINDS: tuple[str, ...] = ("next", "rewatch")
 
 # Which scopes each media type may use, per kind. The two maps differ on
 # purpose: anime is queued one season at a time but rewatched as a whole
-# franchise, and novels are reread at every tier though they are only ever
+# franchise, and books are reread at every tier though they are only ever
 # queued one book at a time.
 ALLOWED_SCOPES: dict[str, dict[str, frozenset[str]]] = {
     "next": {
@@ -56,7 +56,7 @@ ALLOWED_SCOPES: dict[str, dict[str, frozenset[str]]] = {
         "comic": frozenset({"entry", "series"}),
         "anime-movie": frozenset({"entry"}),
         "manga": frozenset({"entry"}),
-        "novel": frozenset({"entry"}),
+        "book": frozenset({"entry"}),
         "game": frozenset({"entry", "series", "franchise"}),
         "h-comic": frozenset({"entry"}),
         "hentai": frozenset({"entry"}),
@@ -70,7 +70,7 @@ ALLOWED_SCOPES: dict[str, dict[str, frozenset[str]]] = {
         "comic": frozenset({"entry", "series"}),
         "anime-movie": frozenset({"entry"}),
         "manga": frozenset({"entry"}),
-        "novel": frozenset({"entry", "series", "franchise"}),
+        "book": frozenset({"entry", "series", "franchise"}),
         "game": frozenset({"entry", "series", "franchise"}),
         "h-comic": frozenset({"entry"}),
         "hentai": frozenset({"entry"}),
@@ -161,7 +161,7 @@ PLAN_FLAG_FIELDS: dict[str, tuple[tuple[str, str], ...]] = {
     "tv-show": (("watch_next", "next"), ("to_rewatch", "rewatch")),
     "cartoon": (("watch_next", "next"),),
     "manga": (("read_next", "next"), ("to_reread", "rewatch")),
-    "novel": (("read_next", "next"), ("to_reread", "rewatch")),
+    "book": (("read_next", "next"), ("to_reread", "rewatch")),
     "comic": (("read_next", "next"), ("to_reread", "rewatch")),
     "game": (("play_next", "next"), ("to_replay", "rewatch")),
     "h-comic": (("read_next", "next"), ("to_reread", "rewatch")),

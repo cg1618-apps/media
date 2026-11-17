@@ -28,7 +28,7 @@ export default function useStatisticsData() {
   const tvQuery = useMediaList("tv-show", LIST_OPTIONS);
   const cartoonQuery = useMediaList("cartoon", LIST_OPTIONS);
   const mangaQuery = useMediaList("manga", LIST_OPTIONS);
-  const novelQuery = useMediaList("novel", LIST_OPTIONS);
+  const bookQuery = useMediaList("book", LIST_OPTIONS);
   const comicQuery = useMediaList("comic", LIST_OPTIONS);
   const gameQuery = useMediaList("game", LIST_OPTIONS);
   // Gated: each asked for only by a session that can see its type, and
@@ -66,7 +66,7 @@ export default function useStatisticsData() {
   const allTVShows = tvQuery.data || [];
   const allCartoons = cartoonQuery.data || [];
   const allManga = mangaQuery.data || [];
-  const allNovel = novelQuery.data || [];
+  const allBook = bookQuery.data || [];
   const allComic = comicQuery.data || [];
   const allGame = gameQuery.data || [];
   const allHComic = canSeeHComic ? hComicQuery.data || [] : null;
@@ -90,7 +90,7 @@ export default function useStatisticsData() {
       ...allTVShows.map((entry) => ({ ...entry, _type: "tv_show" })),
       ...allCartoons.map((entry) => ({ ...entry, _type: "cartoon" })),
       ...allManga.map((entry) => ({ ...entry, _type: "manga" })),
-      ...allNovel.map((entry) => ({ ...entry, _type: "novel" })),
+      ...allBook.map((entry) => ({ ...entry, _type: "book" })),
       ...allComic.map((entry) => ({ ...entry, _type: "comic" })),
       ...allGame.map((entry) => ({ ...entry, _type: "game" })),
       ...(allHComic || []).map((entry) => ({ ...entry, _type: "h_comic" })),
@@ -104,7 +104,7 @@ export default function useStatisticsData() {
       allTVShows,
       allCartoons,
       allManga,
-      allNovel,
+      allBook,
       allComic,
       allGame,
       allHComic,
@@ -146,7 +146,7 @@ export default function useStatisticsData() {
     tvQuery,
     cartoonQuery,
     mangaQuery,
-    novelQuery,
+    bookQuery,
     comicQuery,
     gameQuery,
     hComicQuery,
@@ -167,7 +167,7 @@ export default function useStatisticsData() {
     allTVShows,
     allCartoons,
     allManga,
-    allNovel,
+    allBook,
     allComic,
     allGame,
     allHComic,

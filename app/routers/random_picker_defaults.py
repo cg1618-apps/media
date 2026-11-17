@@ -53,7 +53,7 @@ VALID_MODES = frozenset(
         "tv-show",
         "cartoon",
         "manga",
-        "novel",
+        "book",
         "comic",
         "game",
         "h-comic",

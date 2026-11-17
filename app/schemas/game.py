@@ -20,7 +20,7 @@ class GameCopyIO(BaseModel):
     One copy row, in both directions.
 
     system_id present means "update this row"; absent means "insert". Rows the
-    payload omits are deleted - the same contract write_novel_units uses.
+    payload omits are deleted - the same contract write_book_units uses.
     """
 
     system_id: Optional[UUID] = None
@@ -123,7 +123,7 @@ class GameWriteChecks(BaseModel):
 
 class GameCreate(GameWriteChecks, GameBase, SourceWriteFields):
     # None means "not supplied", [] means "clear them" - the contract
-    # write_novel_units established for a nested collection.
+    # write_book_units established for a nested collection.
     copies: Optional[List[GameCopyIO]] = None
 
 

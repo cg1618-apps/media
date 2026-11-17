@@ -17,7 +17,7 @@ export const OWNER_TYPE_OPTIONS = [
   { value: "tv-show", label: "TV Show", tier: false },
   { value: "cartoon", label: "Cartoon", tier: false },
   { value: "manga", label: "Manga", tier: false },
-  { value: "novel", label: "Novel", tier: false },
+  { value: "book", label: "Book", tier: false },
   { value: "comic", label: "Comic", tier: false },
   { value: "series", label: "Series", tier: true },
   { value: "franchise", label: "Franchise", tier: true },

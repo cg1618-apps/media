@@ -1,4 +1,4 @@
-// Frontend: the copies editor is controlled, the way NovelUnitsEditor is.
+// Frontend: the copies editor is controlled, the way BookUnitsEditor is.
 //
 // The contract these lock: the parent owns the array, every mutation goes out
 // through onChange, the component never writes to the array it was handed,

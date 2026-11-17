@@ -38,7 +38,7 @@ class TestMarkComicCompleted:
         """The reader's own position wins when it is ahead of the total.
 
         The original also raised issue_total to match, taking the higher of
-        the two the way Novel handles vol counts. It cannot any more: one
+        the two the way Book handles vol counts. It cannot any more: one
         reader being ahead of the recorded issue count is not evidence about
         how many issues were published, and mark_comic_catalog may not learn
         the work's length from somebody's progress.

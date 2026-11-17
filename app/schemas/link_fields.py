@@ -96,7 +96,7 @@ class PersonRef(BaseModel):
     One credited person a page can link to.
 
     `label` is what the credit is called ON THIS MEDIA TYPE - the same person
-    role reads as 原作 on a manga, Author on a novel and Writer on a comic - so
+    role reads as 原作 on a manga, Author on a book and Writer on a comic - so
     a page can render the heading without knowing the vocabulary.
     credit_label() in app/utils/credit_roles.py owns that mapping.
     """
@@ -188,11 +188,11 @@ class MangaLinkFields(AttachedFields):
     label: Optional[str] = None
 
 
-class NovelLinkFields(AttachedFields):
+class BookLinkFields(AttachedFields):
     credit_refs: dict[str, list[PersonRef]] = {}
     author: Optional[str] = None
     illustrator: Optional[str] = None
-    # The publisher credit under the header novel has always used - see
+    # The publisher credit under the header book has always used - see
     # AnimeLinkFields.
     publisher_tw: Optional[str] = None
     publisher_refs: list[PublisherRef] = []
@@ -286,7 +286,7 @@ LINK_FIELD_MIXINS: dict[str, type[BaseModel]] = {
     "tv-show": TvShowLinkFields,
     "cartoon": CartoonLinkFields,
     "manga": MangaLinkFields,
-    "novel": NovelLinkFields,
+    "book": BookLinkFields,
     "comic": ComicLinkFields,
     "game": GameLinkFields,
     "h-comic": HComicLinkFields,

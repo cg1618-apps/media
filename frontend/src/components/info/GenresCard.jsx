@@ -1,6 +1,6 @@
 // Frontend: info component file for GenresCard.
 //
-// The "Genres" InfoCard of the movie, TV, cartoon, manga and novel detail
+// The "Genres" InfoCard of the movie, TV, cartoon, manga and book detail
 // pages - five of the types that carry the three shared classification tags
 // (GENRE_LABEL_TYPES in lib/genreLabelFields.js; anime, anime movie and comic
 // carry them too but their pages do not draw this card):

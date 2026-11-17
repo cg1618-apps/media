@@ -163,12 +163,12 @@ def test_a_current_column_is_still_stored(db, sheets):
     [
         ("Anime", models.Anime, "anime_name_cn"),
         ("Comic", models.Comic, "comic_name_cn"),
-        ("Novel", models.Novel, "novel_name_cn"),
+        ("Book", models.Book, "book_name_cn"),
     ],
 )
 def test_a_sheet_still_carrying_is_main_entry_pulls(db, sheets, tab, model, name_column):
     """
-    is_main_entry was dropped from anime, comic and novel; the relation kind
+    is_main_entry was dropped from anime, comic and book; the relation kind
     `alternative` replaced it. A sheet backed up before that still carries the
     header until its next Backup, and must pull: the row is stored, the value
     is discarded, and the header is named once in the run's report.

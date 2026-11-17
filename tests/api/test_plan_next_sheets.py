@@ -8,12 +8,12 @@ franchise fields the parser omitted were silently wiped by every Pull.
 import uuid
 
 from app.utils.formatter import (
+    parse_book_from_sheet,
     parse_cartoon_from_sheet,
     parse_comic_from_sheet,
     parse_franchise_from_sheet,
     parse_manga_from_sheet,
     parse_movie_from_sheet,
-    parse_novel_from_sheet,
     parse_plan_next_from_sheet,
     parse_series_from_sheet,
     parse_tv_show_from_sheet,
@@ -114,8 +114,8 @@ class TestDroppedRewatchColumns:
     def test_manga_parser_drops_to_reread(self):
         assert "to_reread" not in parse_manga_from_sheet({"to_reread": "TRUE"})
 
-    def test_novel_parser_drops_to_reread(self):
-        assert "to_reread" not in parse_novel_from_sheet({"to_reread": "TRUE"})
+    def test_book_parser_drops_to_reread(self):
+        assert "to_reread" not in parse_book_from_sheet({"to_reread": "TRUE"})
 
     def test_comic_parser_drops_to_reread(self):
         assert "to_reread" not in parse_comic_from_sheet({"to_reread": "TRUE"})

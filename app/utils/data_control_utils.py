@@ -337,10 +337,10 @@ def log_deleted_record(db: Session, entry: Any, entry_type: str):
                 )
                 franchise_cn = _cn(f, "franchise")
 
-        elif entry_type == "Novel":
-            name_cn = _cn(entry, "novel")
-            if _has_cn(entry, "novel"):
-                name_en = _en(entry, "novel")
+        elif entry_type == "Book":
+            name_cn = _cn(entry, "book")
+            if _has_cn(entry, "book"):
+                name_en = _en(entry, "book")
             if getattr(entry, "series_id", None):
                 s = db.query(Series).filter(Series.system_id == entry.series_id).first()
                 series_cn = _cn(s, "series")

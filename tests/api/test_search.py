@@ -48,7 +48,7 @@ class TestQueryHandling:
         payload = guest_reader.get("/api/search/?q=Test").json()
         for key in (
             "collection", "franchise", "series", "anime", "anime-movie",
-            "movie", "tv-show", "cartoon", "manga", "novel", "comic", "seasonal",
+            "movie", "tv-show", "cartoon", "manga", "book", "comic", "seasonal",
             "person", "studio",
         ):
             assert key in payload["results"]

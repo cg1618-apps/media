@@ -78,12 +78,12 @@ def mark_game_list(row, entry) -> None:
     row.status = "Completed"
 
 
-def mark_novel_catalog(entry) -> None:
+def mark_book_catalog(entry) -> None:
     """
-    Novel's catalogue half: the serialization is finished, and the three
+    Book's catalogue half: the serialization is finished, and the three
     volume totals agree on the largest figure any of them holds.
 
-    vol_fin is NOT read here even though the original mark_novel_completed
+    vol_fin is NOT read here even though the original mark_book_completed
     took the max across it as well - it is one reader's progress and cannot
     be allowed to set the work's published length.
     """
@@ -105,13 +105,13 @@ def mark_novel_catalog(entry) -> None:
         entry.ch_total = float(sum(float(u.ch_count or 0) for u in arcs))
 
 
-def mark_novel_list(row, entry) -> None:
+def mark_book_list(row, entry) -> None:
     """
-    Novel's personal half: read to the end of whatever the catalogue says
+    Book's personal half: read to the end of whatever the catalogue says
     exists.
 
-    Arc-structured novels close every recorded arc and take the derived
-    chapter count; a flat novel takes the larger of its own ch_fin and the
+    Arc-structured books close every recorded arc and take the derived
+    chapter count; a flat book takes the larger of its own ch_fin and the
     work's ch_total, which is what the original did.
     """
     row.status = "Completed"

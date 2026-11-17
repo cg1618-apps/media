@@ -56,13 +56,21 @@ Representative files: `test_utils.py`, `test_tenrai_utils.py`,
 `test_derivations.py`, `test_checking_rules.py`, `test_security.py`,
 `test_release_date*.py`, `test_note_*.py`, `test_rbac_permissions.py`,
 `test_rbac_viewer.py`, `test_field_groups.py`, `test_link_fields_schema.py`,
-`test_sheets_retry.py`. Novel units: `test_novel_unit_model.py` (columns, kind vocabulary),
-`test_novel_unit_schemas.py` (`NovelUnitWrite`/`Response`, `display_key`),
-`test_novel_progress.py` (`normalize_arc_progress` rollover,
-`derive_novel_progress`, `unit_display_key`), `test_novel_completion.py`
-(`mark_novel_completed` with and without arc rows), `test_novel_unit_migration.py`
-(the `nv1u2n3i4t5s` data migration's list-to-rows conversion), `test_formatter_novel_unit.py`
-(`parse_novel_unit_from_sheet`, the "Novel Unit" sheet tab).
+`test_sheets_retry.py`. Book units: `test_book_unit_model.py` (columns, kind vocabulary),
+`test_book_unit_schemas.py` (`BookUnitWrite`/`Response`, `display_key`),
+`test_book_progress.py` (`normalize_arc_progress` rollover,
+`derive_book_catalog`, `derive_book_list`, `unit_display_key`), `test_book_completion.py`
+(`mark_book_completed` with and without arc rows), `test_novel_unit_migration.py`
+(the `nv1u2n3i4t5s` data migration's list-to-rows conversion), `test_formatter_book_unit.py`
+(`parse_book_unit_from_sheet`, the "Book Unit" sheet tab).
+`test_book_vocabulary.py` covers the `type` vocabulary and the rules that
+branch on it, and `legacy_names.py`'s mapping of an older sheet's values;
+`test_copy_legacy_cover_folders.py` covers the startup copy of the old
+`novel/` cover folders (copied, never moved or overwritten). Their API-tier
+partners are `test_novel_becomes_book_migration.py`, which runs revision
+`b1o2okrename3`'s own downgrade and upgrade inside the test transaction, and
+`test_pull_pre_book_sheet.py`, which Pulls a sheet still carrying the `Novel`
+tab titles, headers and cell values.
 
 ### API (`tests/api/`)
 
@@ -107,10 +115,10 @@ PostgreSQL database. `tests/api/conftest.py` does the following:
 
 The `anyio` marker in `test_pipeline_runner.py` is served by the `anyio`
 plugin that ships with Starlette/httpx; `pytest-asyncio` was removed.
-`test_novel_units_api.py` covers `units` on `POST`/`PUT /api/novel`
-(insert/update/delete-by-omission via `write_novel_units`, `display_key` on
+`test_book_units_api.py` covers `units` on `POST`/`PUT /api/book`
+(insert/update/delete-by-omission via `write_book_units`, `display_key` on
 the response, derived `arc_total`/`ch_total`/`ch_fin`, volume rows never
-touching the volume counters, cascade delete on the parent novel, and
+touching the volume counters, cascade delete on the parent book, and
 `selectinload` avoiding N+1 on list), plus `PATCH` rolling the
 `arc_fin`/`ch_fin_in_arc` cursor over an arc boundary.
 
@@ -120,13 +128,13 @@ Vitest with jsdom and Testing Library. Roughly half the files test pure
 modules (`lib/`, `utils/`, `config/`, `api/endpoints`), the rest render
 components with `@testing-library/react` and drive them with
 `@testing-library/user-event`; 22 files stub modules or fetch with
-`vi.mock`/`vi.fn`/`vi.spyOn`. `src/config/novelUnitKinds.test.js` is a
+`vi.mock`/`vi.fn`/`vi.spyOn`. `src/config/bookUnitKinds.test.js` is a
 drift guard in the `planNext.test.js` style — it reads
 `app/utils/constants.py` off disk (not a duplicated JS copy) and fails if
-`NOVEL_UNIT_KINDS_BY_TYPE` in `lib/novelUnits.js` diverges from it, guarded
+`BOOK_UNIT_KINDS_BY_TYPE` in `lib/bookUnits.js` diverges from it, guarded
 against a hollow pass by asserting the parsed map is non-empty and contains
-all four novel types before comparing. `components/forms/NovelUnitsEditor.test.jsx`
-covers the editor; `components/tracker/NovelDashboardCard.test.jsx` covers
+all six book types before comparing. `components/forms/BookUnitsEditor.test.jsx`
+covers the editor; `components/tracker/BookDashboardCard.test.jsx` covers
 the two-stage cursor stepper.
 
 ## Fixtures in `tests/api/conftest.py`

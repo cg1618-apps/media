@@ -13,7 +13,7 @@ const DETAIL_TYPES = [
   "movie",
   "cartoon",
   "manga",
-  "novel",
+  "book",
   "comic",
   "game",
   "collection",

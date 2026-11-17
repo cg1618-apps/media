@@ -31,7 +31,7 @@ export const MEDIA_TYPE_FILTERS = [
   { value: "tv-show", label: "TV Show" },
   { value: "cartoon", label: "Cartoon" },
   { value: "manga", label: "Manga" },
-  { value: "novel", label: "Novel" },
+  { value: "book", label: "Book" },
   { value: "comic", label: "Comic" },
   { value: "game", label: "Game" },
   // Gated: callers render this list through visibleByType.

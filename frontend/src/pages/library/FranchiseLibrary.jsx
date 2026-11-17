@@ -28,7 +28,7 @@ function getFilterCategories(franchise) {
   const cats = [];
   if (types.includes("Anime")) cats.push("Anime");
   if (types.includes("Manga")) cats.push("Manga");
-  if (types.includes("Novel")) cats.push("Novel");
+  if (types.includes("Book")) cats.push("Book");
   if (types.includes("Anime Movie")) cats.push("Anime Movie");
   if (types.includes("Movie")) cats.push("Movie");
   if (types.includes("TV")) cats.push("TV");
@@ -54,7 +54,7 @@ const ENTRY_SOURCES = [
   ["tv-show", "/api/tv-shows/"],
   ["cartoon", "/api/cartoon/"],
   ["manga", "/api/manga/"],
-  ["novel", "/api/novel/"],
+  ["book", "/api/book/"],
   ["comic", "/api/comic/"],
   ["game", "/api/game/"],
   // Gated: each fetched only for a session that can see its type (see the
@@ -479,7 +479,7 @@ export default function FranchiseLibrary() {
               <div className="flex flex-wrap gap-1.5">
                 <FilterTag value="Anime" label="Anime" />
                 <FilterTag value="Manga" label="Manga" />
-                <FilterTag value="Novel" label="Novel" />
+                <FilterTag value="Book" label="Book" />
                 <FilterTag value="Anime Movie" label="Anime movie" />
                 <FilterTag value="Movie" label="Movie" />
                 <FilterTag value="TV" label="TV" />

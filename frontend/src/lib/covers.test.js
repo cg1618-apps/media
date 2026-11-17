@@ -223,10 +223,10 @@ describe("getFranchiseCover", () => {
     };
     const recent = {
       system_id: "e2",
-      media_type: "novel",
+      media_type: "book",
       release_date: "2020-01-01",
     };
-    expect(getFranchiseCover(franchise, {}, { f1: [old, recent] })).toEqual({ url: "/api/covers/novel/e2.jpg", focus: null });
+    expect(getFranchiseCover(franchise, {}, { f1: [old, recent] })).toEqual({ url: "/api/covers/book/e2.jpg", focus: null });
   });
 
   it("returns the placeholder when the newest member entry has no media_type", () => {

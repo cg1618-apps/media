@@ -530,7 +530,7 @@ tv-show        18 MB    198 files
 cartoon        12 MB    127 files
 manga         8.3 MB    193 files
 game          7.0 MB     98 files
-novel         2.1 MB     47 files
+book          2.1 MB     47 files
 anime-movie   1.2 MB     32 files
 ```
 

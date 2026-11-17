@@ -117,7 +117,7 @@ class FranchiseType(str, Enum):
     # and the favourite grid count as one (ANIMANGA_FRANCHISE_TYPES in
     # frontend/src/config/fieldOptions.js); it is not a franchise type.
     MANGA = "Manga"
-    NOVEL = "Novel"
+    BOOK = "Book"
     GAME = "Game"
     # The franchise type of the adult comics type. An h-comic only ever sits
     # in a franchise of the restricted family (FRANCHISE_FAMILY_FOR_TYPE
@@ -158,33 +158,38 @@ MOVIE_TYPES: tuple[str, ...] = ("Reality", "Animation")
 # Formerly the "Region (TV Show)" / "Region (Manga)" option categories.
 TV_REGIONS: tuple[str, ...] = ("歐美劇", "韓劇", "日劇", "陸劇", "台劇", "動畫")
 MANGA_REGIONS: tuple[str, ...] = ("日漫", "韓漫", "國漫", "台漫", "其他")
-NOVEL_REGIONS: tuple[str, ...] = ("JP", "CN", "TW", "KR", "Western")
+BOOK_REGIONS: tuple[str, ...] = ("JP", "CN", "TW", "KR", "Western")
 
-NOVEL_TYPES: tuple[str, ...] = ("Light Novel", "Novel", "Web", "Other")
+# A book's `type`. The three kinds of novel and 短篇集 are what the statistics
+# count as their Novel section; a guide or setting book, and 其他, are books
+# that are not novels.
+BOOK_TYPES: tuple[str, ...] = ("輕小說", "小說", "網路小說", "短篇集", "指南/設定集", "其他")
 
-# Unit kinds a novel can hold. A plain map rather than a system_option
+# Unit kinds a book can hold. A plain map rather than a system_option
 # category: code branches on these (which kinds the editor offers, which
 # counter pair the tracker renders), and docs/options.md reserves
 # system_option for values nothing branches on.
-NOVEL_UNIT_KINDS = ("volume", "arc", "story", "chapter")
+BOOK_UNIT_KINDS = ("volume", "arc", "story", "chapter")
 
-NOVEL_UNIT_KINDS_BY_TYPE = {
-    "Light Novel": ("volume",),
-    "Novel": ("volume",),
-    "Web": ("arc",),
-    "Other": ("volume", "story", "chapter"),
+BOOK_UNIT_KINDS_BY_TYPE = {
+    "輕小說": ("volume",),
+    "小說": ("volume",),
+    "網路小說": ("arc",),
+    "短篇集": ("volume", "story", "chapter"),
+    "指南/設定集": ("volume", "story", "chapter"),
+    "其他": ("volume", "story", "chapter"),
 }
 
 # Types that count volumes and nothing else: chapter and arc columns are not
 # merely empty on them, they are meaningless. Derived from the map above so the
 # two cannot drift - a type that may only hold volume rows may only count
-# volumes. derive_novel_progress() clears the other columns for these types.
-NOVEL_VOLUME_ONLY_TYPES: tuple[str, ...] = tuple(
-    t for t, kinds in NOVEL_UNIT_KINDS_BY_TYPE.items() if kinds == ("volume",)
+# volumes. derive_book_catalog() clears the other columns for these types.
+BOOK_VOLUME_ONLY_TYPES: tuple[str, ...] = tuple(
+    t for t, kinds in BOOK_UNIT_KINDS_BY_TYPE.items() if kinds == ("volume",)
 )
 
 # Prefix used when a unit has no unit_key of its own.
-NOVEL_UNIT_KEY_PREFIX = {
+BOOK_UNIT_KEY_PREFIX = {
     "volume": "Vol",
     "arc": "Arc",
     "story": "Story",
@@ -194,7 +199,7 @@ NOVEL_UNIT_KEY_PREFIX = {
 COMIC_TYPES: tuple[str, ...] = ("Ongoing", "Limited", "One-Shot", "Annual")
 
 MANGA_SERIALIZATION_STATUSES: tuple[str, ...] = ("連載中", "停更", "腰斬", "完結")
-NOVEL_SERIALIZATION_STATUSES: tuple[str, ...] = (
+BOOK_SERIALIZATION_STATUSES: tuple[str, ...] = (
     "連載中",
     "連載中 (不穩定)",
     "連載中 (有生之年)",
@@ -258,7 +263,7 @@ FRANCHISE_TYPES: tuple[str, ...] = (
     "Movie",
     "Cartoon",
     "Comic",
-    "Novel",
+    "Book",
     "Game",
     "H-Comic",
     "Hentai",
@@ -387,7 +392,7 @@ GAME_ACQUISITION_KINDS: tuple[str, ...] = (
 
 # ---------------------------------------------------------------------------
 # h-comic. One type with two variants keyed on `region`, the same pattern as
-# novel's `type`: the columns a region does not use are cleared on every write
+# book's `type`: the columns a region does not use are cleared on every write
 # path (H_COMIC_REGION_CLEARS in app/services/domain/h_comic.py), not merely
 # hidden by the form.
 # ---------------------------------------------------------------------------

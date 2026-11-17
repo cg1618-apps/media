@@ -227,7 +227,7 @@ describe("SourcesEditor", () => {
 
     it("offers the names but no prefill when every one is optional", () => {
       render(
-        <SourcesEditor value={[row("")]} onChange={vi.fn()} mediaType="novel" sources={sources} />,
+        <SourcesEditor value={[row("")]} onChange={vi.fn()} mediaType="book" sources={sources} />,
       );
       expect(screen.queryByRole("button", { name: /prefill suggested/i })).toBeNull();
       expect(offered(screen.getByRole("combobox", { name: "Restricted Sources name" }))).not.toEqual(

@@ -5,7 +5,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import { getSortName } from "../../lib/naming";
 import DashboardCard from "../../components/tracker/DashboardCard";
-import NovelDashboardCard from "../../components/tracker/NovelDashboardCard";
+import BookDashboardCard from "../../components/tracker/BookDashboardCard";
 import ComicDashboardCard from "../../components/tracker/ComicDashboardCard";
 import GameDashboardCard from "../../components/tracker/GameDashboardCard";
 import { DashboardTable } from "../../components/tracker/DashboardTable";
@@ -56,8 +56,8 @@ const RATING_WEIGHT = {
 // different prefix. Kept here rather than delegated to getSortName because
 // manga's fallback order puts jp ahead of cn, which getSortName reverses.
 function readingSortName(item) {
-  if (item._ui_type === "Novel")
-    return item.novel_name_en || item.novel_name_roman || item.novel_name_cn || "";
+  if (item._ui_type === "Book")
+    return item.book_name_en || item.book_name_roman || item.book_name_cn || "";
   if (item._ui_type === "Comic")
     return item.comic_name_en || item.comic_name_cn || item.comic_name_alt || "";
   return (
@@ -75,7 +75,7 @@ const MEDIA_TYPES = [
   "TV Show",
   "Cartoon",
   "Manga",
-  "Novel",
+  "Book",
   "Comic",
   "Game",
 ];
@@ -84,7 +84,7 @@ const MEDIA_TYPES = [
 // division that can hold the picked type.
 const DIVISION_TYPES = {
   watching: ["Anime", "TV Show", "Cartoon"],
-  reading: ["Manga", "Novel", "Comic"],
+  reading: ["Manga", "Book", "Comic"],
   playing: ["Game"],
 };
 
@@ -335,7 +335,7 @@ function ReadingSection({
   franchiseData,
   canTrack,
   onChChange,
-  onNovelProgressChange,
+  onBookProgressChange,
   onComicProgressChange,
   headerTop,
   view,
@@ -377,14 +377,14 @@ function ReadingSection({
                   />
                 );
               }
-              if (item._ui_type === "Novel") {
+              if (item._ui_type === "Book") {
                 return (
-                  <NovelDashboardCard
+                  <BookDashboardCard
                     key={item.system_id}
-                    novel={item}
+                    book={item}
                     franchise={franchise}
                     canTrack={canTrack}
-                    onProgressChange={onNovelProgressChange}
+                    onProgressChange={onBookProgressChange}
                     view="list"
                   />
                 );
@@ -404,7 +404,7 @@ function ReadingSection({
         </div>
       ) : (
         <div className="pt-4 space-y-6">
-          {["Manga", "Novel", "Comic"].map((type) => {
+          {["Manga", "Book", "Comic"].map((type) => {
             const typeItems = items.filter((i) => i._ui_type === type);
             if (!typeItems.length) return null;
             const sorted = [...typeItems].sort((a, b) => {
@@ -434,15 +434,15 @@ function ReadingSection({
                         canTrack={canTrack}
                         onProgressChange={onComicProgressChange}
                       />
-                    ) : item._ui_type === "Novel" ? (
-                      <NovelDashboardCard
+                    ) : item._ui_type === "Book" ? (
+                      <BookDashboardCard
                         key={item.system_id}
-                        novel={item}
+                        book={item}
                         franchise={franchiseData.find(
                           (f) => f.system_id === item.franchise_id,
                         )}
                         canTrack={canTrack}
-                        onProgressChange={onNovelProgressChange}
+                        onProgressChange={onBookProgressChange}
                       />
                     ) : (
                       <DashboardCard
@@ -578,7 +578,7 @@ function CatalogueDashboard() {
   const tvQuery = useMediaList("tv-show", memberListOptions);
   const cartoonQuery = useMediaList("cartoon", memberListOptions);
   const mangaQuery = useMediaList("manga", memberListOptions);
-  const novelQuery = useMediaList("novel", memberListOptions);
+  const bookQuery = useMediaList("book", memberListOptions);
   const comicQuery = useMediaList("comic", memberListOptions);
   const gameQuery = useMediaList("game", memberListOptions);
   // Coming Next reads the viewer's own statuses, so it is drawn only for a
@@ -614,7 +614,7 @@ function CatalogueDashboard() {
   const tvData = tvQuery.data || [];
   const cartoonData = cartoonQuery.data || [];
   const mangaData = mangaQuery.data || [];
-  const novelData = novelQuery.data || [];
+  const bookData = bookQuery.data || [];
   const comicData = comicQuery.data || [];
   const gameData = gameQuery.data || [];
   // The combined loading/error state covers the lists the visible parts
@@ -626,7 +626,7 @@ function CatalogueDashboard() {
         tvQuery,
         cartoonQuery,
         mangaQuery,
-        novelQuery,
+        bookQuery,
         comicQuery,
         gameQuery,
       ]
@@ -767,19 +767,19 @@ function CatalogueDashboard() {
     }
   }
 
-  async function handleNovelProgressChange(
+  async function handleBookProgressChange(
     sysId,
     fieldUpdates,
     prevFieldUpdates,
   ) {
-    updateCachedList("novel", (n) =>
+    updateCachedList("book", (n) =>
       n.system_id === sysId ? { ...n, ...fieldUpdates } : n,
     );
     try {
       const saved = await putMyListRow(sysId, fieldUpdates);
-      settleProgress("novel", novelData, sysId, saved, "Progress updated!");
+      settleProgress("book", bookData, sysId, saved, "Progress updated!");
     } catch {
-      updateCachedList("novel", (n) =>
+      updateCachedList("book", (n) =>
         n.system_id === sysId ? { ...n, ...prevFieldUpdates } : n,
       );
       showToast("error", "Network error. Progress reverted.");
@@ -809,7 +809,7 @@ function CatalogueDashboard() {
   const tvTagged = tvData.map((t) => ({ ...t, _ui_type: "TV Show" }));
   const cartoonTagged = cartoonData.map((c) => ({ ...c, _ui_type: "Cartoon" }));
   const mangaTagged = mangaData.map((m) => ({ ...m, _ui_type: "Manga" }));
-  const novelTagged = novelData.map((n) => ({ ...n, _ui_type: "Novel" }));
+  const bookTagged = bookData.map((n) => ({ ...n, _ui_type: "Book" }));
   const comicTagged = comicData.map((c) => ({ ...c, _ui_type: "Comic" }));
   const gameTagged = gameData.map((g) => ({ ...g, _ui_type: "Game" }));
 
@@ -872,7 +872,7 @@ function CatalogueDashboard() {
   );
   const paused = watchShown.filter((a) => a.watching_status === "Paused");
 
-  const readingSorted = [...mangaTagged, ...novelTagged, ...comicTagged].sort(
+  const readingSorted = [...mangaTagged, ...bookTagged, ...comicTagged].sort(
     (a, b) => {
       const ratingDiff =
         (RATING_WEIGHT[a.my_rating || "Unrated"] ?? 8) -
@@ -1089,7 +1089,7 @@ function CatalogueDashboard() {
                 <div id="reading">
                   <div className="flex items-end justify-between gap-3 pb-2 border-b border-border-strong">
                     <div>
-                      <Eyebrow className="mb-1">Manga · Novel · Comic</Eyebrow>
+                      <Eyebrow className="mb-1">Manga · Book · Comic</Eyebrow>
                       <h2 className="font-display text-3xl font-semibold text-text leading-none">
                         Reading
                       </h2>
@@ -1112,7 +1112,7 @@ function CatalogueDashboard() {
                       view={view}
                       canTrack={canTrack}
                       onChChange={handleChChange}
-                      onNovelProgressChange={handleNovelProgressChange}
+                      onBookProgressChange={handleBookProgressChange}
                       onComicProgressChange={handleComicProgressChange}
                     />
                     <ReadingSection
@@ -1125,7 +1125,7 @@ function CatalogueDashboard() {
                       view={view}
                       canTrack={canTrack}
                       onChChange={handleChChange}
-                      onNovelProgressChange={handleNovelProgressChange}
+                      onBookProgressChange={handleBookProgressChange}
                       onComicProgressChange={handleComicProgressChange}
                     />
                     <ReadingSection
@@ -1138,7 +1138,7 @@ function CatalogueDashboard() {
                       view={view}
                       canTrack={canTrack}
                       onChChange={handleChChange}
-                      onNovelProgressChange={handleNovelProgressChange}
+                      onBookProgressChange={handleBookProgressChange}
                       onComicProgressChange={handleComicProgressChange}
                     />
                   </div>

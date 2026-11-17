@@ -20,7 +20,7 @@ OWN_ID_TABS = {
 # seat in the sheet moved.
 MEDIA_TABS = {
     "Anime", "Anime Movie", "Movies", "TV Shows", "Cartoons", "Manga",
-    "Novel", "Comic", "Game",
+    "Book", "Comic", "Game",
 }
 
 PUBLIC_ID_TABS = OWN_ID_TABS | {"Media"}

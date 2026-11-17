@@ -95,5 +95,5 @@ def test_the_old_columns_are_gone():
     assert not hasattr(models.Cartoon, "watch_next")
     assert not hasattr(models.AnimeMovies, "watch_next")
     assert not hasattr(models.Manga, "read_next")
-    assert not hasattr(models.Novel, "read_next")
+    assert not hasattr(models.Book, "read_next")
     assert not hasattr(models.Comic, "read_next")
