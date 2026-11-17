@@ -14,7 +14,7 @@ import {
 } from "./restrictedSources";
 
 const KR_ONLY = ["污汙漫畫", "漫小肆ikanhm", "ToonGod", "Anime Planet", "MANGA18", "MANGADNA"];
-const NOVEL = [
+const BOOK = [
   "bili嗶哩輕小說",
   "無限輕小說",
   "無限小說",
@@ -42,7 +42,7 @@ describe("restrictedSourcesFor", () => {
     ["movie", ["Gimy"], []],
     ["cartoon", ["Gimy"], []],
     ["manga", ["漫畫櫃 (電腦版)", "漫畫櫃 (手機版)", "漫畫人"], ["包子漫畫"]],
-    ["novel", [], NOVEL],
+    ["book", [], BOOK],
     ["comic", ["BatCave"], ["GlobalComix", "Read Comics Online"]],
     ["hentai", ["Hanime1"], []],
   ])("%s prefills its every-entry names and offers the rest after them", (type, prefill, optional) => {
@@ -110,8 +110,8 @@ describe("prefillVariants", () => {
   });
 
   it("offers one variant on every other type, optional names included", () => {
-    expect(prefillVariants("novel")).toEqual([
-      { key: "all", label: "Every entry", names: NOVEL, builtIn: [] },
+    expect(prefillVariants("book")).toEqual([
+      { key: "all", label: "Every entry", names: BOOK, builtIn: [] },
     ]);
   });
 
@@ -145,8 +145,8 @@ describe("defaultRestrictedSources", () => {
     ]);
   });
 
-  it("starts a novel empty, since every one of its names is optional", () => {
-    expect(defaultRestrictedSources("novel")).toEqual([]);
+  it("starts a book empty, since every one of its names is optional", () => {
+    expect(defaultRestrictedSources("book")).toEqual([]);
   });
 });
 

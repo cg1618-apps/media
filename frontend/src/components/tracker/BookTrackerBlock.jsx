@@ -1,4 +1,4 @@
-// Frontend: tracker component file for NovelTrackerBlock.
+// Frontend: tracker component file for BookTrackerBlock.
 import { useAuth } from "../../contexts/AuthContext";
 import { Button, Eyebrow, Slip } from "../ui/primitives";
 import { SELECT_CLS, STEP_INPUT_CLS } from "./MyTrackerCard";
@@ -19,7 +19,7 @@ import {
   progressDisplayOptions,
   unitDisplayKey,
   wholeArcStep,
-} from "../../lib/novelUnits";
+} from "../../lib/bookUnits";
 import { stepDown, stepUp } from "../../lib/progressStep";
 
 // A typed number: an empty or unparseable box reads as 0, as the volume and
@@ -58,8 +58,8 @@ function TrackerRow({ isHighlighted, label, children }) {
   );
 }
 
-export default function NovelTrackerBlock({
-  novel,
+export default function BookTrackerBlock({
+  book,
   canTrack,
   onChChange,
   onVolChange,
@@ -81,15 +81,15 @@ export default function NovelTrackerBlock({
   const { username } = useAuth();
   if (!username || !canTrack) return null;
 
-  const pd = effectiveProgressDisplay(novel);
+  const pd = effectiveProgressDisplay(book);
   const volHighlighted = pd === "vol_original" || pd === "vol_tw";
   const chHighlighted = pd === "ch" || pd === "arc" || pd === "arc_ch";
 
-  const volFin = novel.vol_fin ?? 0;
-  const volTotalTw = novel.vol_total_tw ?? null;
-  const volTotalOrig = novel.vol_total_original ?? null;
-  const chFin = novel.ch_fin ?? 0;
-  const chTotal = novel.ch_total ?? null;
+  const volFin = book.vol_fin ?? 0;
+  const volTotalTw = book.vol_total_tw ?? null;
+  const volTotalOrig = book.vol_total_original ?? null;
+  const chFin = book.ch_fin ?? 0;
+  const chTotal = book.ch_total ?? null;
 
   const primaryIsTw = pd === "vol_tw";
   const primaryVolTotal = primaryIsTw ? volTotalTw : volTotalOrig;
@@ -99,12 +99,12 @@ export default function NovelTrackerBlock({
   // one, "ch" the flat pair. With arc rows present ch_fin is derived from
   // them, so every edit here - stepped or typed, in any of the three rows -
   // moves the arc cursor (arc_fin, ch_fin_in_arc) rather than ch_fin, which
-  // derive_novel_progress would overwrite on the same save.
-  const arcs = (novel.units || [])
+  // derive_book_progress would overwrite on the same save.
+  const arcs = (book.units || [])
     .filter((u) => u.unit_kind === "arc")
     .sort((a, b) => a.position - b.position);
-  const arcFin = novel.arc_fin ?? 0;
-  const chInArc = novel.ch_fin_in_arc ?? 0;
+  const arcFin = book.arc_fin ?? 0;
+  const chInArc = book.ch_fin_in_arc ?? 0;
   // What the rows show: the arc being read, not the arcs finished.
   const view = arcProgressView(arcs, arcFin, chInArc);
   const chIsDerived = arcs.length > 0;
@@ -122,8 +122,8 @@ export default function NovelTrackerBlock({
   }
 
   function handleArcChapterStep(dir) {
-    const next = arcStep(arcs, novel.arc_fin ?? 0, chInArc, dir);
-    if (next.arc_fin === (novel.arc_fin ?? 0) && next.ch_fin_in_arc === chInArc) {
+    const next = arcStep(arcs, book.arc_fin ?? 0, chInArc, dir);
+    if (next.arc_fin === (book.arc_fin ?? 0) && next.ch_fin_in_arc === chInArc) {
       return;
     }
     onArcProgressChange(next);
@@ -151,7 +151,7 @@ export default function NovelTrackerBlock({
               Reading status
             </Eyebrow>
             <select
-              value={novel.reading_status || ""}
+              value={book.reading_status || ""}
               onChange={(e) => onStatusChange(e.target.value)}
               className={SELECT_CLS}
             >
@@ -163,7 +163,7 @@ export default function NovelTrackerBlock({
               Rating
             </Eyebrow>
             <select
-              value={novel.my_rating || ""}
+              value={book.my_rating || ""}
               onChange={(e) => onRatingChange(e.target.value)}
               className={SELECT_CLS}
             >
@@ -178,14 +178,14 @@ export default function NovelTrackerBlock({
               Progress display
             </Eyebrow>
             <select
-              value={novel.progress_display || ""}
+              value={book.progress_display || ""}
               onChange={(e) => onProgressDisplayChange(e.target.value)}
               className={SELECT_CLS}
               aria-label="Progress display"
             >
               {withLegacyProgressDisplay(
-                progressDisplayOptions(novel),
-                novel.progress_display,
+                progressDisplayOptions(book),
+                book.progress_display,
               ).map(
                 ({ value, label }) => (
                   <option key={value} value={value}>{label}</option>
@@ -195,10 +195,10 @@ export default function NovelTrackerBlock({
           </div>
         </div>
 
-        {/* Vol tracker. Not for Web: a web novel is read in chapters, and its
+        {/* Vol tracker. Not for 網路小說: a web novel is read in chapters, and its
             volume columns are kept only so a later print run (or a type
             change back) is not lost — see countsVolumes(). */}
-        {countsVolumes(novel) && (
+        {countsVolumes(book) && (
         <TrackerRow isHighlighted={volHighlighted} label="Volumes">
           <div className="flex items-center gap-1.5 w-fit">
             <StepButton onClick={() => handleVolStep(-1)} label="Previous volume">−</StepButton>
@@ -242,14 +242,14 @@ export default function NovelTrackerBlock({
         </TrackerRow>
         )}
 
-        {/* Chapter-side tracker. Volume-only types (Light Novel, Novel) count
+        {/* Chapter-side tracker. Volume-only types (輕小說, 小說) count
             volumes and nothing else, so nothing here renders for them — the
             server clears those columns, and an empty "Chapters 0 / ?" row
             would only advertise a counter the type does not have.
 
             Otherwise the chosen display picks the row: "arc_ch" the two-stage
             stepper, "arc" the whole-arc one, "ch" the flat pair. */}
-        {!countsChapters(novel) ? null : pd === "arc_ch" ? (
+        {!countsChapters(book) ? null : pd === "arc_ch" ? (
           <TrackerRow isHighlighted label="Arc / Chapter">
             <div className="flex items-center gap-2">
               <span className="font-mono text-sm flex items-center gap-1 whitespace-nowrap">
@@ -355,7 +355,7 @@ export default function NovelTrackerBlock({
             </div>
           </TrackerRow>
         ) : (
-          /* Ch tracker (flat, editable) — novels with no arc rows */
+          /* Ch tracker (flat, editable) — books with no arc rows */
           <TrackerRow isHighlighted={chHighlighted} label="Chapters">
             <div className="flex items-center gap-1.5 w-fit">
               <StepButton onClick={() => handleChStep(-1)} label="Previous chapter">−</StepButton>
@@ -387,7 +387,7 @@ export default function NovelTrackerBlock({
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                checked={!!novel.read_next}
+                checked={!!book.read_next}
                 onChange={(e) =>
                   onReadNextChange(
                     e.target.checked,
@@ -404,7 +404,7 @@ export default function NovelTrackerBlock({
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                checked={!!novel.to_reread}
+                checked={!!book.to_reread}
                 onChange={(e) =>
                   onToRerereadChange(
                     e.target.checked,

@@ -21,7 +21,7 @@ export const MEDIA_LIST_TYPES = [
   "tv-show",
   "cartoon",
   "manga",
-  "novel",
+  "book",
   "comic",
   "game",
   // Gated. Only fetched by a tab that reads them - the type's own tab, and

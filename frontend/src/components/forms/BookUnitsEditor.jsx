@@ -1,9 +1,9 @@
-// Frontend: form component for a novel's units (volumes, arcs, stories).
+// Frontend: form component for a book's units (volumes, arcs, stories).
 //
 // The catalogue half only. A unit's rating and remark are each reader's own,
-// written through PUT /api/me/novel-units/{unit_id} from the novel's detail
+// written through PUT /api/me/book-units/{unit_id} from the book's detail
 // page, so this editor has no control for either and its rows carry neither.
-import { kindsForType, unitDisplayKey } from "../../lib/novelUnits";
+import { kindsForType, unitDisplayKey } from "../../lib/bookUnits";
 import { DragHandle, SortableItem, SortableList, arrayMove } from "../ui/Sortable";
 
 const baseCls =
@@ -13,8 +13,8 @@ const nameInputCls = baseCls + " flex-1 min-w-0";
 const numInputCls = baseCls + " w-24 shrink-0";
 const kindSelectCls = baseCls + " w-28 shrink-0";
 
-export default function NovelUnitsEditor({ items, novelType, onChange }) {
-  const kinds = kindsForType(novelType);
+export default function BookUnitsEditor({ items, bookType, onChange }) {
+  const kinds = kindsForType(bookType);
   const rows = items || [];
 
   const addEntry = () =>
@@ -64,8 +64,8 @@ export default function NovelUnitsEditor({ items, novelType, onChange }) {
               label={unitDisplayKey(entry.unit_kind, entry.position, entry.unit_key)}
             />
 
-            {/* A row can be stranded when the novel's Type changes and the
-                stored unit_kind is no longer offered (e.g. Web -> Other
+            {/* A row can be stranded when the book's Type changes and the
+                stored unit_kind is no longer offered (e.g. 網路小說 -> 其他
                 leaves an "arc" row around). The server re-normalises on
                 write and the row stays valid, but the select must still be
                 reachable so the user can see and fix the mismatch — so it

@@ -39,8 +39,8 @@ import {
   MY_RATINGS,
   GENDERS,
   CHARACTER_ROLES,
-  NOVEL_REGIONS,
-  NOVEL_SERIALIZATION_STATUSES,
+  BOOK_REGIONS,
+  BOOK_SERIALIZATION_STATUSES,
   GAME_IS_MAIN,
   GAME_RELEASE_STATUSES,
   GAME_TYPES,
@@ -51,7 +51,7 @@ import {
   H_GAME_LANGUAGE_AVAILABILITY,
   H_GAME_PLAYSTYLES,
   HENTAI_SOURCE_MATERIALS,
-  NOVEL_TYPES,
+  BOOK_TYPES,
   PART_NUMS,
   PLAYING_STATUSES,
   PROGRESS_DISPLAY_OPTIONS,
@@ -687,13 +687,13 @@ export const TYPE_FIELD_META = {
     },
   },
 
-  novel: {
-    ...genreLabelMeta("novel"),
-    novel_name_cn: { label: "Name (CN)", group: "Names" },
-    novel_name_en: { label: "Name (EN)", group: "Names" },
-    novel_name_roman: { label: "Name (Romaji)", group: "Names" },
-    novel_name_jp: { label: "Name (JP)", group: "Names" },
-    novel_name_alt: { label: "Name (Alt)", group: "Names" },
+  book: {
+    ...genreLabelMeta("book"),
+    book_name_cn: { label: "Name (CN)", group: "Names" },
+    book_name_en: { label: "Name (EN)", group: "Names" },
+    book_name_roman: { label: "Name (Romaji)", group: "Names" },
+    book_name_jp: { label: "Name (JP)", group: "Names" },
+    book_name_alt: { label: "Name (Alt)", group: "Names" },
     units: {
       label: "Units (Volumes / Arcs)",
       control: "none",
@@ -703,20 +703,20 @@ export const TYPE_FIELD_META = {
     region: {
       label: "Region",
       control: "select",
-      options: NOVEL_REGIONS,
+      options: BOOK_REGIONS,
       group: "Classification",
     },
     type: {
       label: "Type",
       control: "select",
-      options: NOVEL_TYPES,
+      options: BOOK_TYPES,
       group: "Classification",
     },
     version: { label: "Version", group: "Classification" },
     serialization_status: {
       label: "Serialization Status",
       control: "select",
-      options: NOVEL_SERIALIZATION_STATUSES,
+      options: BOOK_SERIALIZATION_STATUSES,
       group: "Status",
     },
     progress_display: {
@@ -737,16 +737,28 @@ export const TYPE_FIELD_META = {
     },
     arc_total: { label: "Total Arcs", control: "number", group: "Progress" },
     arc_fin: { label: "Arcs Finished", control: "number", group: "Progress" },
+    // Free text, not control: "date" - a native picker cannot express the
+    // year-only and month-only precisions the columns support.
+    release_date_jp: {
+      label: "Release Date (JP)",
+      control: "text",
+      group: "Release",
+    },
+    release_date_tw: {
+      label: "Release Date (TW)",
+      control: "text",
+      group: "Release",
+    },
     author: {
       label: "Author",
       control: "tags",
-      source: { kind: "person", role: "author", scope: "novel" },
+      source: { kind: "person", role: "author", scope: "book" },
       group: "Credits",
     },
     illustrator: {
       label: "Illustrator",
       control: "tags",
-      source: { kind: "person", role: "illustrator", scope: "novel" },
+      source: { kind: "person", role: "illustrator", scope: "book" },
       group: "Credits",
     },
     serialization_platform: {
@@ -755,7 +767,7 @@ export const TYPE_FIELD_META = {
       source: {
         kind: "option",
         category: "Serialization Platform",
-        scope: "novel",
+        scope: "book",
       },
       group: "Sources",
     },
@@ -763,10 +775,10 @@ export const TYPE_FIELD_META = {
     publisher_tw: {
       label: "Publisher TW",
       control: "tags",
-      source: { kind: "publisher", scope: "novel" },
+      source: { kind: "publisher", scope: "book" },
       group: "Credits",
     },
-    // Novels with no MAL link have no other source. Fill reads
+    // Books with no MAL link have no other source. Fill reads
     // openlibrary_id; apply_extract_openlibrary_id rewrites it from the link
     // on every run, so whenever a link is set the link is the truth. The id
     // stays editable anyway (as mal_id is): with no link there is nothing to
@@ -1884,12 +1896,12 @@ export const BUILTIN_AUTOFILL = {
     "genre_main",
     "genre_sub",
   ],
-  novel: [
-    "novel_name_cn",
-    "novel_name_en",
-    "novel_name_roman",
-    "novel_name_jp",
-    "novel_name_alt",
+  book: [
+    "book_name_cn",
+    "book_name_en",
+    "book_name_roman",
+    "book_name_jp",
+    "book_name_alt",
     "franchise_id",
     "series_id",
     "region",

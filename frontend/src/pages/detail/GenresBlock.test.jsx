@@ -13,12 +13,12 @@ import { ToastProvider } from "../../hooks/useToast";
 import Cartoon from "./Cartoon";
 import Manga from "./Manga";
 import Movie from "./Movie";
-import Novel from "./Novel";
+import Book from "./Book";
 import TV from "./TV";
 
 const PAGES = [
   { name: "Manga", type: "manga", Page: Manga },
-  { name: "Novel", type: "novel", Page: Novel, entry: { units: [] } },
+  { name: "Book", type: "book", Page: Book, entry: { units: [] } },
   { name: "Movie", type: "movie", Page: Movie },
   { name: "TV", type: "tv-show", Page: TV },
   { name: "Cartoon", type: "cartoon", Page: Cartoon },

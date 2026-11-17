@@ -11,13 +11,23 @@ const TYPE_TO_ENTRY_TYPES = {
   TV: ["tv_show"],
   Movie: ["movie"],
   Cartoon: ["cartoon"],
-  Novel: ["novel"],
+  Book: ["book"],
   Comic: ["comic"],
   Game: ["game"],
   "H-Comic": ["h_comic"],
   "H-Game": ["h_game"],
   Hentai: ["hentai"],
 };
+
+// The book types the Statistics Novel section counts. A guide, an art book
+// or anything else filed under 指南/設定集 or 其他 is a book but not a novel,
+// and a book with no type is not counted either.
+export const NOVEL_BOOK_TYPES = ["輕小說", "小說", "網路小說", "短篇集"];
+
+/** The books the Novel section counts: those of a novel type only. */
+export function novelsOnly(books) {
+  return (books || []).filter((book) => NOVEL_BOOK_TYPES.includes(book?.type));
+}
 
 export function getDisplayName(f) {
   return (

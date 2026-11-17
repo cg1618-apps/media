@@ -87,7 +87,7 @@ const CREDITS_FIELD_MAP = {
       label: "label",
     },
   },
-  novel: {
+  book: {
     credits: {
       author: "author",
       illustrator: "illustrator",
@@ -422,7 +422,7 @@ export function gameFieldsPayload(f) {
 }
 
 // ---------------------------------------------------------------------------
-// Movie, TV show, cartoon, manga, novel, comic
+// Movie, TV show, cartoon, manga, book, comic
 // ---------------------------------------------------------------------------
 //
 // One body per type, built the same way by Add's create and Modify's save.
@@ -564,13 +564,13 @@ export function mangaFieldsPayload(f, { defaultStatus } = {}) {
 }
 
 /**
- * One unit as NovelUnitWrite takes it: the unit's own columns, renumbered by
+ * One unit as BookUnitWrite takes it: the unit's own columns, renumbered by
  * its place in the list. A read row also carries the viewer's own `my_rating`
  * and `remark` and the server's `display_key`; none of them is the unit's, so
  * none is sent - a reader's rating and remark go through
- * PUT /api/me/novel-units/{unit_id}.
+ * PUT /api/me/book-units/{unit_id}.
  */
-export function novelUnitPayload(u, i) {
+export function bookUnitPayload(u, i) {
   const payload = {
     unit_kind: u.unit_kind,
     position: i + 1,
@@ -584,17 +584,17 @@ export function novelUnitPayload(u, i) {
 }
 
 /**
- * Novel counts are floats throughout - a half volume is a real position.
- * `units` follows NovelUnitWrite's nested-collection contract: rows the
+ * Book counts are floats throughout - a half volume is a real position.
+ * `units` follows BookUnitWrite's nested-collection contract: rows the
  * payload omits are deleted, so a row with nothing in it is dropped here.
  */
-export function novelFieldsPayload(f, { defaultStatus } = {}) {
+export function bookFieldsPayload(f, { defaultStatus } = {}) {
   return {
-    novel_name_cn: f.novel_name_cn || null,
-    novel_name_en: f.novel_name_en || null,
-    novel_name_roman: f.novel_name_roman || null,
-    novel_name_jp: f.novel_name_jp || null,
-    novel_name_alt: f.novel_name_alt || null,
+    book_name_cn: f.book_name_cn || null,
+    book_name_en: f.book_name_en || null,
+    book_name_roman: f.book_name_roman || null,
+    book_name_jp: f.book_name_jp || null,
+    book_name_alt: f.book_name_alt || null,
     region: f.region || null,
     type: f.type || null,
     version: f.version || null,
@@ -615,7 +615,8 @@ export function novelFieldsPayload(f, { defaultStatus } = {}) {
     anilist_rating: int(f.anilist_rating),
     anilist_rank: int(f.anilist_rank),
     anilist_popularity_rank: int(f.anilist_popularity_rank),
-    release_date: f.release_date || null,
+    release_date_jp: f.release_date_jp || null,
+    release_date_tw: f.release_date_tw || null,
     end_date: f.end_date || null,
     units: (f.units || [])
       .filter(
@@ -625,7 +626,7 @@ export function novelFieldsPayload(f, { defaultStatus } = {}) {
           (u.name_en && u.name_en.trim()) ||
           u.ch_count !== "",
       )
-      .map((u, i) => novelUnitPayload(u, i)),
+      .map((u, i) => bookUnitPayload(u, i)),
     mal_id: int(f.mal_id),
     mal_link: f.mal_link || null,
     openlibrary_link: f.openlibrary_link || null,

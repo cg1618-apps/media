@@ -17,7 +17,7 @@ import {
   hentaiFieldsPayload,
   mangaFieldsPayload,
   movieFieldsPayload,
-  novelFieldsPayload,
+  bookFieldsPayload,
   tvShowFieldsPayload,
 } from "../../utils/media";
 import { clearedForRegion } from "../../lib/hComicRegion";
@@ -44,7 +44,7 @@ import AliasTab from "../../components/forms/AliasTab";
 import { categoryHasUsages } from "../../components/forms/UsagePicker";
 import OptionsModifyTab from "../modify-tabs/OptionsModifyTab";
 import MangaModifyTab from "../modify-tabs/MangaModifyTab";
-import NovelModifyTab from "../modify-tabs/NovelModifyTab";
+import BookModifyTab from "../modify-tabs/BookModifyTab";
 import ComicModifyTab from "../modify-tabs/ComicModifyTab";
 import GameModifyTab from "../modify-tabs/GameModifyTab";
 import FranchiseRibbon from "../../components/forms/FranchiseRibbon";
@@ -115,7 +115,7 @@ const CAST_MEDIA_TYPES = new Set([
   "anime",
   "anime-movie",
   "manga",
-  "novel",
+  "book",
   "h-comic",
   "hentai",
 ]);
@@ -297,7 +297,7 @@ export default function Modify() {
   const allTvShows = lists["tv-show"];
   const allCartoons = lists.cartoon;
   const allMangas = lists.manga;
-  const allNovels = lists.novel;
+  const allBooks = lists.book;
   const allComics = lists.comic;
   const allGames = lists.game;
   const allHComics = lists["h-comic"];
@@ -315,7 +315,7 @@ export default function Modify() {
   const setAllTvShows = (v) => setList("tv-show", v);
   const setAllCartoons = (v) => setList("cartoon", v);
   const setAllMangas = (v) => setList("manga", v);
-  const setAllNovels = (v) => setList("novel", v);
+  const setAllBooks = (v) => setList("book", v);
   const setAllComics = (v) => setList("comic", v);
   const setAllGames = (v) => setList("game", v);
   const setAllHComics = (v) => setList("h-comic", v);
@@ -401,7 +401,7 @@ export default function Modify() {
     "tv-show": [tvmf, setTvmf],
     cartoon: [cmf, setCmf],
     manga: [cmgf, setCmgf],
-    novel: [cnvf, setCnvf],
+    book: [cnvf, setCnvf],
     comic: [ccmf, setCcmf],
     game: [cgmf, setCgmf],
   };
@@ -570,7 +570,7 @@ export default function Modify() {
   const umg = syncUpdater("manga", (k, v) =>
     setCmgf((p) => ({ ...p, [k]: v })),
   );
-  const unv = syncUpdater("novel", (k, v) =>
+  const unv = syncUpdater("book", (k, v) =>
     setCnvf((p) => ({ ...p, [k]: v })),
   );
   const ucm = syncUpdater("comic", (k, v) =>
@@ -610,7 +610,7 @@ export default function Modify() {
     else if (castMediaType === "anime-movie")
       setAmf((p) => ({ ...p, cast: rows }));
     else if (castMediaType === "manga") setCmgf((p) => ({ ...p, cast: rows }));
-    else if (castMediaType === "novel") setCnvf((p) => ({ ...p, cast: rows }));
+    else if (castMediaType === "book") setCnvf((p) => ({ ...p, cast: rows }));
     else if (castMediaType === "h-comic") setChcf((p) => ({ ...p, cast: rows }));
     else if (castMediaType === "hentai") setChtf((p) => ({ ...p, cast: rows }));
   }, [castMediaType, editingItem, castData]);
@@ -870,17 +870,17 @@ export default function Modify() {
     };
   }
 
-  function novelToForm(n, allFranchises, seriesList) {
+  function bookToForm(n, allFranchises, seriesList) {
     const f = allFranchises.find((x) => x.system_id === n.franchise_id);
     const s = (seriesList || allSeries).find(
       (x) => x.system_id === n.series_id,
     );
     return {
-      novel_name_cn: n.novel_name_cn || "",
-      novel_name_en: n.novel_name_en || "",
-      novel_name_roman: n.novel_name_roman || "",
-      novel_name_jp: n.novel_name_jp || "",
-      novel_name_alt: n.novel_name_alt || "",
+      book_name_cn: n.book_name_cn || "",
+      book_name_en: n.book_name_en || "",
+      book_name_roman: n.book_name_roman || "",
+      book_name_jp: n.book_name_jp || "",
+      book_name_alt: n.book_name_alt || "",
       franchise_id: n.franchise_id || null,
       franchise_text: f ? getDisplayName(f, "franchise") : "",
       series_id: n.series_id || null,
@@ -890,7 +890,7 @@ export default function Modify() {
       version: n.version || "",
       is_main: n.is_main || "",
       serialization_status: n.serialization_status || "",
-      reading_status: n.reading_status || md("novel").reading_status,
+      reading_status: n.reading_status || md("book").reading_status,
       progress_display: n.progress_display || "",
       vol_total_original: n.vol_total_original ?? "",
       vol_total_tw: n.vol_total_tw ?? "",
@@ -906,8 +906,9 @@ export default function Modify() {
       anilist_rank: n.anilist_rank ?? "",
       anilist_popularity_rank: n.anilist_popularity_rank ?? "",
       // author, illustrator, publisher_tw: see the comment in animeToForm -
-      // loaded from GET /api/credits/novel/{id} via loadCreditsIntoForm().
-      release_date: n.release_date ?? "",
+      // loaded from GET /api/credits/book/{id} via loadCreditsIntoForm().
+      release_date_jp: n.release_date_jp ?? "",
+      release_date_tw: n.release_date_tw ?? "",
       end_date: n.end_date ?? "",
       units: n.units || [],
       mal_id: n.mal_id ?? "",
@@ -1202,9 +1203,9 @@ export default function Modify() {
     } else if (type === "manga") {
       setCmgf(mangaToForm(item, franchises, series));
       loadCreditsIntoForm("manga", item.system_id, setCmgf);
-    } else if (type === "novel") {
-      setCnvf(novelToForm(item, franchises, series));
-      loadCreditsIntoForm("novel", item.system_id, setCnvf);
+    } else if (type === "book") {
+      setCnvf(bookToForm(item, franchises, series));
+      loadCreditsIntoForm("book", item.system_id, setCnvf);
     } else if (type === "comic") {
       setCcmf(comicToForm(item, franchises, series));
       loadCreditsIntoForm("comic", item.system_id, setCcmf);
@@ -1250,7 +1251,7 @@ export default function Modify() {
       anime: af,
       "anime-movie": amf,
       manga: cmgf,
-      novel: cnvf,
+      book: cnvf,
       "h-comic": chcf,
       hentai: chtf,
     }[editingType];
@@ -1286,7 +1287,7 @@ export default function Modify() {
       else if (editingType === "tv-show") await saveTvShow();
       else if (editingType === "cartoon") await saveCartoon();
       else if (editingType === "manga") await saveManga();
-      else if (editingType === "novel") await saveNovel();
+      else if (editingType === "book") await saveBook();
       else if (editingType === "comic") await saveComic();
       else if (editingType === "game") await saveGame();
       else if (editingType === "h-comic") await saveHComic();
@@ -2119,12 +2120,12 @@ export default function Modify() {
     else showToast("warning", "Updated, but enrichment failed - run Replace later.");
   }
 
-  async function saveNovel() {
+  async function saveBook() {
     let franchiseId = cnvf.franchise_id;
     if (!franchiseId && (cnvf.franchise_text || "").trim()) {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
-          franchiseType: "Novel",
+          franchiseType: "Book",
           onConfirm: () => {
             setFranchiseCreateModal(null);
             resolve({ confirmed: true });
@@ -2140,12 +2141,12 @@ export default function Modify() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          franchise_name_en: cnvf.novel_name_en || null,
-          franchise_name_cn: cnvf.novel_name_cn || null,
-          franchise_name_roman: cnvf.novel_name_roman || null,
-          franchise_name_jp: cnvf.novel_name_jp || null,
-          franchise_name_alt: cnvf.novel_name_alt || null,
-          franchise_type: "Novel",
+          franchise_name_en: cnvf.book_name_en || null,
+          franchise_name_cn: cnvf.book_name_cn || null,
+          franchise_name_roman: cnvf.book_name_roman || null,
+          franchise_name_jp: cnvf.book_name_jp || null,
+          franchise_name_alt: cnvf.book_name_alt || null,
+          franchise_type: "Book",
         }),
         credentials: "include",
       });
@@ -2179,9 +2180,9 @@ export default function Modify() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           franchise_id: franchiseId,
-          series_name_en: cnvf.novel_name_en || null,
-          series_name_cn: cnvf.novel_name_cn || null,
-          series_name_alt: cnvf.novel_name_alt || null,
+          series_name_en: cnvf.book_name_en || null,
+          series_name_cn: cnvf.book_name_cn || null,
+          series_name_alt: cnvf.book_name_alt || null,
         }),
         credentials: "include",
       });
@@ -2196,28 +2197,28 @@ export default function Modify() {
     // Auto-create missing entities for author, illustrator and the publisher
     await ensureSourceValues([
       {
-        source: { kind: "person", role: "author", scope: "novel" },
+        source: { kind: "person", role: "author", scope: "book" },
         values: splitTags(cnvf.author),
       },
       {
-        source: { kind: "person", role: "illustrator", scope: "novel" },
+        source: { kind: "person", role: "illustrator", scope: "book" },
         values: splitTags(cnvf.illustrator),
       },
       {
-        source: { kind: "publisher", scope: "novel" },
+        source: { kind: "publisher", scope: "book" },
         values: splitTags(cnvf.publisher_tw),
       },
-      ...genreLabelSourceFields("novel", cnvf, splitTags),
+      ...genreLabelSourceFields("book", cnvf, splitTags),
     ]);
 
     const payload = {
-      ...novelFieldsPayload(cnvf, {
-        defaultStatus: md("novel").reading_status,
+      ...bookFieldsPayload(cnvf, {
+        defaultStatus: md("book").reading_status,
       }),
       franchise_id: franchiseId || null,
       series_id: seriesId || null,
     };
-    const res = await fetch(`/api/novel/${editingItem.system_id}`, {
+    const res = await fetch(`/api/book/${editingItem.system_id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -2232,14 +2233,14 @@ export default function Modify() {
       return;
     }
     const updated = await res.json();
-    await saveCredits("novel", updated.system_id, cnvf);
-    await saveCast("novel", updated.system_id, cnvf);
-    setAllNovels((prev) =>
+    await saveCredits("book", updated.system_id, cnvf);
+    await saveCast("book", updated.system_id, cnvf);
+    setAllBooks((prev) =>
       prev.map((n) => (n.system_id === updated.system_id ? updated : n)),
     );
     setEditingItem(updated);
-    setCnvf(novelToForm(updated, allFranchises, allSeries));
-    loadCreditsIntoForm("novel", updated.system_id, setCnvf);
+    setCnvf(bookToForm(updated, allFranchises, allSeries));
+    loadCreditsIntoForm("book", updated.system_id, setCnvf);
     window.scrollTo(0, 0);
     showToast("success", "Update successful.");
   }
@@ -2901,13 +2902,13 @@ export default function Modify() {
         item.manga_name_alt ||
         "Unknown"
       );
-    if (type === "novel")
+    if (type === "book")
       return (
-        item.novel_name_cn ||
-        item.novel_name_en ||
-        item.novel_name_roman ||
-        item.novel_name_jp ||
-        item.novel_name_alt ||
+        item.book_name_cn ||
+        item.book_name_en ||
+        item.book_name_roman ||
+        item.book_name_jp ||
+        item.book_name_alt ||
         "Unknown"
       );
     if (type === "comic")
@@ -3028,15 +3029,15 @@ export default function Modify() {
           ].some((n) => n && cleanString(n).includes(q)),
         )
         .slice(0, 10);
-    if (activeTab === "novel")
-      return allNovels
+    if (activeTab === "book")
+      return allBooks
         .filter((n) =>
           [
-            n.novel_name_cn,
-            n.novel_name_en,
-            n.novel_name_roman,
-            n.novel_name_jp,
-            n.novel_name_alt,
+            n.book_name_cn,
+            n.book_name_en,
+            n.book_name_roman,
+            n.book_name_jp,
+            n.book_name_alt,
           ].some((name) => name && cleanString(name).includes(q)),
         )
         .slice(0, 10);
@@ -3121,7 +3122,7 @@ export default function Modify() {
     if (activeTab === "cartoon")
       return [...allCartoons].sort(sort).slice(0, 12);
     if (activeTab === "manga") return [...allMangas].sort(sort).slice(0, 12);
-    if (activeTab === "novel") return [...allNovels].sort(sort).slice(0, 12);
+    if (activeTab === "book") return [...allBooks].sort(sort).slice(0, 12);
     if (activeTab === "comic") return [...allComics].sort(sort).slice(0, 12);
     if (activeTab === "game") return [...allGames].sort(sort).slice(0, 12);
     if (activeTab === "h-comic")
@@ -3240,7 +3241,7 @@ export default function Modify() {
       .join(" "),
   }));
 
-  const seriesItemsForNovel = (
+  const seriesItemsForBook = (
     cnvf.franchise_id
       ? allSeries.filter((s) => s.franchise_id === cnvf.franchise_id)
       : allSeries
@@ -3332,7 +3333,7 @@ export default function Modify() {
     "tv-show": { entries: allTvShows, franchiseId: tvmf.franchise_id },
     cartoon: { entries: allCartoons, franchiseId: cmf.franchise_id },
     manga: { entries: allMangas, franchiseId: cmgf.franchise_id },
-    novel: { entries: allNovels, franchiseId: cnvf.franchise_id },
+    book: { entries: allBooks, franchiseId: cnvf.franchise_id },
     comic: { entries: allComics, franchiseId: ccmf.franchise_id },
     game: {
       entries: allGames,
@@ -3703,7 +3704,7 @@ export default function Modify() {
                 allTvShows={allTvShows}
                 allCartoons={allCartoons}
                 allMangas={allMangas}
-                allNovels={allNovels}
+                allBooks={allBooks}
                 allComics={allComics}
                 editingItem={editingItem}
               />
@@ -3721,7 +3722,7 @@ export default function Modify() {
                 allTvShows={allTvShows}
                 allCartoons={allCartoons}
                 allMangas={allMangas}
-                allNovels={allNovels}
+                allBooks={allBooks}
                 allComics={allComics}
                 editingItem={editingItem}
               />
@@ -3791,14 +3792,14 @@ export default function Modify() {
               />
             )}
 
-            {/* ── NOVEL EDITOR ── */}
-            {editingType === "novel" && (
-              <NovelModifyTab
+            {/* ── BOOK EDITOR ── */}
+            {editingType === "book" && (
+              <BookModifyTab
                 franchiseCollections={franchiseCollections}
                 cnvf={cnvf}
                 unv={unv}
                 allFranchises={allFranchises}
-                seriesItemsForNovel={seriesItemsForNovel}
+                seriesItemsForBook={seriesItemsForBook}
                 editingItem={editingItem}
                 sources={formSources}
               />

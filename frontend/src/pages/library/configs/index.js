@@ -6,7 +6,7 @@ import movie from "./movie";
 import tvShow from "./tvShow";
 import cartoon from "./cartoon";
 import manga from "./manga";
-import novel from "./novel";
+import book from "./book";
 import comic from "./comic";
 import game from "./game";
 import hComic from "./hComic";
@@ -20,7 +20,7 @@ export const LIBRARY_CONFIGS = {
   "tv-show": tvShow,
   cartoon,
   manga,
-  novel,
+  book,
   comic,
   game,
   // Gated: App.jsx routes /library/h-comic through <ProtectedRoute gatedType>

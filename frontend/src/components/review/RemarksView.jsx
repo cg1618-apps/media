@@ -43,8 +43,8 @@ export const REMARK_TABS = [
   { key: "manga", type: "manga", label: "Manga",
     names: ["manga_name_cn", "manga_name_en"],
     extra: [{ label: "Is main", field: "is_main" }, READING] },
-  { key: "novel", type: "novel", label: "Novel",
-    names: ["novel_name_cn", "novel_name_en"],
+  { key: "book", type: "book", label: "Book",
+    names: ["book_name_cn", "book_name_en"],
     extra: [{ label: "Is main", field: "is_main" }, READING] },
   // EN leads: comic's display name falls back EN -> CN -> Alt, the reverse
   // of every other tab here.

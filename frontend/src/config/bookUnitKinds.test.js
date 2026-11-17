@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { NOVEL_UNIT_KINDS_BY_TYPE } from "../lib/novelUnits";
+import { BOOK_UNIT_KINDS_BY_TYPE } from "../lib/bookUnits";
 
 // Reads the Python source rather than importing it: the guard has to fail
 // when the backend map changes, which a duplicated JS copy could never do.
@@ -10,10 +10,10 @@ const constants = fs.readFileSync(
   "utf8",
 );
 
-describe("novel unit kinds", () => {
+describe("book unit kinds", () => {
   it("matches the backend map", () => {
     const block = constants.match(
-      /NOVEL_UNIT_KINDS_BY_TYPE = \{([\s\S]*?)\n\}/,
+      /BOOK_UNIT_KINDS_BY_TYPE = \{([\s\S]*?)\n\}/,
     );
     expect(block).not.toBeNull();
 
@@ -31,10 +31,10 @@ describe("novel unit kinds", () => {
     // constants.py) must fail loudly rather than vacuously passing an
     // {} === {} comparison.
     expect(Object.keys(parsed).length).toBeGreaterThan(0);
-    for (const novelType of ["Light Novel", "Novel", "Web", "Other"]) {
-      expect(parsed).toHaveProperty(novelType);
+    for (const bookType of ["輕小說", "小說", "網路小說", "短篇集", "指南/設定集", "其他"]) {
+      expect(parsed).toHaveProperty(bookType);
     }
 
-    expect(parsed).toEqual(NOVEL_UNIT_KINDS_BY_TYPE);
+    expect(parsed).toEqual(BOOK_UNIT_KINDS_BY_TYPE);
   });
 });

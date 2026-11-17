@@ -15,7 +15,7 @@ import {
   hentaiFieldsPayload,
   mangaFieldsPayload,
   movieFieldsPayload,
-  novelFieldsPayload,
+  bookFieldsPayload,
   tvShowFieldsPayload,
 } from "../../utils/media";
 import { clearedForRegion } from "../../lib/hComicRegion";
@@ -73,7 +73,7 @@ import { genreLabelSourceFields } from "../../lib/genreLabelFields";
 import { useReplaceCasting } from "../../hooks/useCasting";
 import { castIdentityProblem } from "../../lib/castOrder";
 import MangaAddTab, { defaultManga } from "../add-tabs/MangaAddTab";
-import NovelAddTab, { defaultNovel } from "../add-tabs/NovelAddTab";
+import BookAddTab, { defaultBook } from "../add-tabs/BookAddTab";
 import ComicAddTab, { defaultComic } from "../add-tabs/ComicAddTab";
 import GameAddTab, { defaultGame } from "../add-tabs/GameAddTab";
 import HComicAddTab, {
@@ -138,7 +138,7 @@ export default function Add() {
   const allTvShows = lists["tv-show"];
   const allCartoons = lists.cartoon;
   const allMangas = lists.manga;
-  const allNovels = lists.novel;
+  const allBooks = lists.book;
   const allComics = lists.comic;
   const allGames = lists.game;
   const allHComics = lists["h-comic"];
@@ -155,7 +155,7 @@ export default function Add() {
   const setAllTvShows = (v) => setList("tv-show", v);
   const setAllCartoons = (v) => setList("cartoon", v);
   const setAllMangas = (v) => setList("manga", v);
-  const setAllNovels = (v) => setList("novel", v);
+  const setAllBooks = (v) => setList("book", v);
   const setAllComics = (v) => setList("comic", v);
   const setAllGames = (v) => setList("game", v);
   const setAllHComics = (v) => setList("h-comic", v);
@@ -198,7 +198,7 @@ export default function Add() {
   const [tvf, setTvf] = useState(defaultTvShow());
   const [cf, setCf] = useState(defaultCartoon());
   const [mgf, setMgf] = useState(defaultManga());
-  const [nvf, setNvf] = useState(defaultNovel());
+  const [nvf, setNvf] = useState(defaultBook());
   const [cmf, setCmf] = useState(defaultComic());
   const [gmf, setGmf] = useState(defaultGame());
   const [hcf, setHcf] = useState(defaultHComic());
@@ -260,7 +260,7 @@ export default function Add() {
       "tv-show": [tvf, setTvf],
       cartoon: [cf, setCf],
       manga: [mgf, setMgf],
-      novel: [nvf, setNvf],
+      book: [nvf, setNvf],
       comic: [cmf, setCmf],
       game: [gmf, setGmf],
     },
@@ -289,7 +289,7 @@ export default function Add() {
   const umg = syncUpdater("manga", (k, v) =>
     setMgf((p) => ({ ...p, [k]: v })),
   );
-  const unv = syncUpdater("novel", (k, v) =>
+  const unv = syncUpdater("book", (k, v) =>
     setNvf((p) => ({ ...p, [k]: v })),
   );
   const ucm = syncUpdater("comic", (k, v) =>
@@ -434,7 +434,7 @@ export default function Add() {
       setTvf(resolveDefaults("tv-show", fd));
       setCf(resolveDefaults("cartoon", fd));
       setMgf(resolveDefaults("manga", fd));
-      setNvf(resolveDefaults("novel", fd));
+      setNvf(resolveDefaults("book", fd));
       setCmf(resolveDefaults("comic", fd));
       setGmf(resolveDefaults("game", fd));
       setHcf(resolveDefaults("h-comic", fd));
@@ -483,7 +483,7 @@ export default function Add() {
   const applyTvShowEntryAutofill = applyEntryAutofill(setTvf, "tv-show");
   const applyCartoonEntryAutofill = applyEntryAutofill(setCf, "cartoon");
   const applyMangaEntryAutofill = applyEntryAutofill(setMgf, "manga");
-  const applyNovelEntryAutofill = applyEntryAutofill(setNvf, "novel");
+  const applyBookEntryAutofill = applyEntryAutofill(setNvf, "book");
   const applyComicEntryAutofill = applyEntryAutofill(setCmf, "comic");
   const applyGameEntryAutofill = applyEntryAutofill(setGmf, "game");
 
@@ -491,7 +491,7 @@ export default function Add() {
   // A pick always writes the id and link (lib/externalPick.js) and writes a
   // name only where the admin left it blank, and only into the column that
   // name actually is:
-  //   - MAL's title is the romaji one, so anime, anime movie, manga and novel
+  //   - MAL's title is the romaji one, so anime, anime movie, manga and book
   //     get it in their Romaji column. Their pick then fetches the type's
   //     mal-prefill (makeMalPick) and fills every field still blank with what
   //     the save's MAL autofill would write - plus the English and Japanese
@@ -518,17 +518,17 @@ export default function Add() {
     prefillUrl: endpoints.manga.malPrefill,
     defaults: freshForm("manga"),
   });
-  const applyNovelMalPick = makeMalPick(setNvf, showToast, {
-    nameField: "novel_name_roman",
-    prefillUrl: endpoints.novel.malPrefill,
-    defaults: freshForm("novel"),
+  const applyBookMalPick = makeMalPick(setNvf, showToast, {
+    nameField: "book_name_roman",
+    prefillUrl: endpoints.book.malPrefill,
+    defaults: freshForm("book"),
   });
-  const applyNovelOpenLibraryPick = makeExternalPick(setNvf, showToast, {
+  const applyBookOpenLibraryPick = makeExternalPick(setNvf, showToast, {
     source: "Open Library",
     idField: "openlibrary_id",
     cast: toStringId,
     linkField: "openlibrary_link",
-    nameField: "novel_name_en",
+    nameField: "book_name_en",
   });
   // Person and character forms carry only mal_link; the server derives
   // mal_id from it on save.
@@ -584,7 +584,7 @@ export default function Add() {
       anime: af,
       "anime-movie": amf,
       manga: mgf,
-      novel: nvf,
+      book: nvf,
       "h-comic": hcf,
       hentai: htf,
     }[activeTab];
@@ -604,7 +604,7 @@ export default function Add() {
       else if (activeTab === "tv-show") await submitTvShow();
       else if (activeTab === "cartoon") await submitCartoon();
       else if (activeTab === "manga") await submitManga();
-      else if (activeTab === "novel") await submitNovel();
+      else if (activeTab === "book") await submitBook();
       else if (activeTab === "comic") await submitComic();
       else if (activeTab === "game") await submitGame();
       else if (activeTab === "h-comic") await submitHComic();
@@ -1950,8 +1950,8 @@ export default function Add() {
     setAllMangas((prev) => [...prev, created]);
   }
 
-  async function submitNovel() {
-    if (!nvf.novel_name_cn && !nvf.novel_name_en) {
+  async function submitBook() {
+    if (!nvf.book_name_cn && !nvf.book_name_en) {
       showToast("error", "Please provide at least a CN or EN title.");
       return;
     }
@@ -1964,7 +1964,7 @@ export default function Add() {
     if (!franchiseId && nvf.franchise_text.trim()) {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
-          franchiseType: "Novel",
+          franchiseType: "Book",
           onConfirm: () => {
             setFranchiseCreateModal(null);
             resolve({ confirmed: true });
@@ -1980,12 +1980,12 @@ export default function Add() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          franchise_name_en: nvf.novel_name_en || null,
-          franchise_name_cn: nvf.novel_name_cn || null,
-          franchise_name_roman: nvf.novel_name_roman || null,
-          franchise_name_jp: nvf.novel_name_jp || null,
-          franchise_name_alt: nvf.novel_name_alt || null,
-          franchise_type: "Novel",
+          franchise_name_en: nvf.book_name_en || null,
+          franchise_name_cn: nvf.book_name_cn || null,
+          franchise_name_roman: nvf.book_name_roman || null,
+          franchise_name_jp: nvf.book_name_jp || null,
+          franchise_name_alt: nvf.book_name_alt || null,
+          franchise_type: "Book",
         }),
         credentials: "include",
       });
@@ -2020,9 +2020,9 @@ export default function Add() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           franchise_id: franchiseId,
-          series_name_en: nvf.novel_name_en || null,
-          series_name_cn: nvf.novel_name_cn || null,
-          series_name_alt: nvf.novel_name_alt || null,
+          series_name_en: nvf.book_name_en || null,
+          series_name_cn: nvf.book_name_cn || null,
+          series_name_alt: nvf.book_name_alt || null,
         }),
         credentials: "include",
       });
@@ -2038,29 +2038,29 @@ export default function Add() {
     // Auto-create missing entities for author, illustrator and the publisher
     await ensureSourceValues([
       {
-        source: { kind: "person", role: "author", scope: "novel" },
+        source: { kind: "person", role: "author", scope: "book" },
         values: splitTags(nvf.author),
       },
       {
-        source: { kind: "person", role: "illustrator", scope: "novel" },
+        source: { kind: "person", role: "illustrator", scope: "book" },
         values: splitTags(nvf.illustrator),
       },
       {
-        source: { kind: "publisher", scope: "novel" },
+        source: { kind: "publisher", scope: "book" },
         values: splitTags(nvf.publisher_tw),
       },
-      ...genreLabelSourceFields("novel", nvf, splitTags),
+      ...genreLabelSourceFields("book", nvf, splitTags),
     ]);
 
     const payload = {
-      ...novelFieldsPayload(nvf, {
-        defaultStatus: freshForm("novel").reading_status,
+      ...bookFieldsPayload(nvf, {
+        defaultStatus: freshForm("book").reading_status,
       }),
       franchise_id: franchiseId || null,
       series_id: seriesId || null,
     };
 
-    const res = await fetch("/api/novel/", {
+    const res = await fetch("/api/book/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -2077,20 +2077,20 @@ export default function Add() {
     const created = await res.json();
     await attachPendingImage(
       nvf.pending_image_id,
-      "novel",
+      "book",
       created.system_id,
       "cover",
       "Entry",
     );
-    await saveCredits("novel", created.system_id, nvf);
-    await saveCast("novel", created.system_id, nvf);
+    await saveCredits("book", created.system_id, nvf);
+    await saveCast("book", created.system_id, nvf);
     window.scrollTo(0, 0);
-    showToast("success", "Novel appended successfully.");
-    setLastAdded(created.novel_name_cn || created.novel_name_en || "New Novel");
-    setNvf(freshForm("novel"));
-    setLastCreated({ ownerType: "novel", entry: created });
+    showToast("success", "Book appended successfully.");
+    setLastAdded(created.book_name_cn || created.book_name_en || "New Book");
+    setNvf(freshForm("book"));
+    setLastCreated({ ownerType: "book", entry: created });
     setContentLabels([]);
-    setAllNovels((prev) => [...prev, created]);
+    setAllBooks((prev) => [...prev, created]);
   }
 
   async function submitComic() {
@@ -2904,7 +2904,7 @@ export default function Add() {
       .join(" "),
   }));
 
-  const seriesItemsForNovel = (
+  const seriesItemsForBook = (
     nvf.franchise_id
       ? allSeries.filter((s) => s.franchise_id === nvf.franchise_id)
       : allSeries
@@ -3143,19 +3143,19 @@ export default function Add() {
           />
         )}
 
-        {/* ═══ NOVEL TAB ═══ */}
-        {activeTab === "novel" && (
-          <NovelAddTab
+        {/* ═══ BOOK TAB ═══ */}
+        {activeTab === "book" && (
+          <BookAddTab
             franchiseCollections={franchiseCollections}
             nvf={nvf}
             unv={unv}
-            allNovels={allNovels}
-            novelsLoading={isLoading("novel")}
-            applyNovelEntryAutofill={applyNovelEntryAutofill}
-            applyMalPick={applyNovelMalPick}
-            applyOpenLibraryPick={applyNovelOpenLibraryPick}
+            allBooks={allBooks}
+            booksLoading={isLoading("book")}
+            applyBookEntryAutofill={applyBookEntryAutofill}
+            applyMalPick={applyBookMalPick}
+            applyOpenLibraryPick={applyBookOpenLibraryPick}
             allFranchises={allFranchises}
-            seriesItemsForNovel={seriesItemsForNovel}
+            seriesItemsForBook={seriesItemsForBook}
             sources={formSources}
           />
         )}

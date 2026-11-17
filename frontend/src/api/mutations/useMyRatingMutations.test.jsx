@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   applyMyRating,
   useMyRatingSaver,
-  useSaveMyNovelUnit,
+  useSaveMyBookUnit,
   useSaveMyRating,
 } from "./useMyRatingMutations";
 import { ToastProvider } from "../../hooks/useToast";
@@ -113,17 +113,17 @@ describe("applyMyRating", () => {
   });
 });
 
-describe("useSaveMyNovelUnit", () => {
-  it("PUTs the partial body to /api/me/novel-units/{unit_id}", async () => {
+describe("useSaveMyBookUnit", () => {
+  it("PUTs the partial body to /api/me/book-units/{unit_id}", async () => {
     global.fetch = vi.fn(() => okJson({ unit_id: "U1", my_rating: null, remark: "x" }));
-    const { result } = renderHook(() => useSaveMyNovelUnit("N1"), {
+    const { result } = renderHook(() => useSaveMyBookUnit("N1"), {
       wrapper: wrapperWith(new QueryClient()),
     });
 
     await act(() => result.current.mutateAsync({ unitId: "U1", data: { remark: "x" } }));
 
     const [url, init] = global.fetch.mock.calls[0];
-    expect(url).toBe("/api/me/novel-units/U1");
+    expect(url).toBe("/api/me/book-units/U1");
     expect(init.method).toBe("PUT");
     expect(JSON.parse(init.body)).toEqual({ remark: "x" });
   });

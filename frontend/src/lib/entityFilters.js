@@ -35,9 +35,9 @@ export const TAGS_NOT_SET = "Not set";
 // The entry-type chip for a row whose media_types is empty.
 export const NO_ENTRIES = "No entries";
 
-// A character is cast on an anime, an anime movie, a manga or a novel, and
+// A character is cast on an anime, an anime movie, a manga or a book, and
 // on the h-comic and hentai the gated side offers. H-game has no cast.
-export const CHARACTER_MEDIA_TYPES = ["anime", "anime-movie", "manga", "novel"];
+export const CHARACTER_MEDIA_TYPES = ["anime", "anime-movie", "manga", "book"];
 export const CHARACTER_RESTRICTED_TYPES = ["h-comic", "hentai"];
 
 // A person can be credited on every type.
@@ -48,7 +48,7 @@ export const PERSON_MEDIA_TYPES = [
   "tv-show",
   "cartoon",
   "manga",
-  "novel",
+  "book",
   "comic",
   "game",
 ];

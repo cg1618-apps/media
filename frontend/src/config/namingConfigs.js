@@ -25,12 +25,12 @@ export const NAMING_CONFIGS = {
     "manga_name_jp",
     "manga_name_alt",
   ],
-  novel: [
-    "novel_name_cn",
-    "novel_name_en",
-    "novel_name_roman",
-    "novel_name_jp",
-    "novel_name_alt",
+  book: [
+    "book_name_cn",
+    "book_name_en",
+    "book_name_roman",
+    "book_name_jp",
+    "book_name_alt",
   ],
   // CN first on the naming card, like every other type. The display and
   // sort names still lead with EN (getDisplayName / getSortName in

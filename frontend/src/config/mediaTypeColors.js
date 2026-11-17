@@ -16,7 +16,7 @@ export const MEDIA_TYPE_COLORS = Object.fromEntries(
     "tv-show",
     "cartoon",
     "manga",
-    "novel",
+    "book",
     "comic",
     "game",
     "h-comic",

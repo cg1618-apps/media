@@ -3,7 +3,7 @@
 // ExternalSearchBox hands over one ExternalSearchResult row; these turn it
 // into form fields. A pick always identifies the entry - the id and link
 // columns are overwritten - and touches a name only where the admin left that
-// name blank. A MAL pick on anime, anime movie, manga or novel then asks the
+// name blank. A MAL pick on anime, anime movie, manga or book then asks the
 // server for the rest of MAL's record (makeMalPick) and fills only the fields
 // still blank. Everything else is the Fill pipeline's job (or, for a seiyuu or
 // character, the create path's own MAL autofill).
@@ -112,7 +112,7 @@ export function blankOnlyPatch(form, prefill, defaults = {}) {
 }
 
 /**
- * A MAL pick for anime, anime movie, manga and novel. The id, link and romaji
+ * A MAL pick for anime, anime movie, manga and book. The id, link and romaji
  * name land at once, exactly as makeExternalPick writes them; then
  * `prefillUrl(id)` (GET /api/<type>/mal-prefill/{id}) is fetched and merged
  * into the fields the admin has not filled (blankOnlyPatch: blank, or still

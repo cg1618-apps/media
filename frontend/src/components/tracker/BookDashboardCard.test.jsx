@@ -2,7 +2,7 @@
 //
 // arc_fin/ch_fin_in_arc are the authoritative two-stage cursor; ch_fin and
 // arc_total are derived server-side from them on every write (see
-// app/services/domain/novel_units.py derive_novel_progress). A stepper that
+// app/services/domain/book_units.py derive_book_progress). A stepper that
 // PATCHes ch_fin (or arc_fin) alone gets silently recomputed away by the
 // very request that sent it. The chapter stepper must instead compute the
 // next cursor with arcStep and PATCH both fields together.
@@ -10,28 +10,28 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
-import NovelDashboardCard from "./NovelDashboardCard";
+import BookDashboardCard from "./BookDashboardCard";
 import { ToastProvider } from "../../hooks/useToast";
 
-function renderCard(novel, onProgressChange = vi.fn()) {
+function renderCard(book, onProgressChange = vi.fn()) {
   render(
     <MemoryRouter>
       <ToastProvider>
-        <NovelDashboardCard novel={novel} canTrack onProgressChange={onProgressChange} />
+        <BookDashboardCard book={book} canTrack onProgressChange={onProgressChange} />
       </ToastProvider>
     </MemoryRouter>,
   );
   return onProgressChange;
 }
 
-describe("NovelDashboardCard — arc_ch chapter stepper", () => {
+describe("BookDashboardCard — arc_ch chapter stepper", () => {
   const units = [
     { unit_kind: "arc", position: 1, ch_count: 100 },
     { unit_kind: "arc", position: 2, ch_count: 112 },
   ];
 
   it("steps a chapter forward and PATCHes both arc_fin and ch_fin_in_arc together", () => {
-    const novel = {
+    const book = {
       system_id: "n1",
       progress_display: "arc_ch",
       units,
@@ -41,7 +41,7 @@ describe("NovelDashboardCard — arc_ch chapter stepper", () => {
       ch_total: 212,
       ch_fin: 201,
     };
-    const onProgressChange = renderCard(novel);
+    const onProgressChange = renderCard(book);
 
     fireEvent.click(screen.getByLabelText("One chapter forward"));
 
@@ -53,7 +53,7 @@ describe("NovelDashboardCard — arc_ch chapter stepper", () => {
   });
 
   it("rolls over into the next arc when the step crosses the arc's chapter count", () => {
-    const novel = {
+    const book = {
       system_id: "n1",
       progress_display: "arc_ch",
       units,
@@ -63,7 +63,7 @@ describe("NovelDashboardCard — arc_ch chapter stepper", () => {
       ch_total: 212,
       ch_fin: 211,
     };
-    const onProgressChange = renderCard(novel);
+    const onProgressChange = renderCard(book);
 
     fireEvent.click(screen.getByLabelText("One chapter forward"));
 
@@ -75,16 +75,16 @@ describe("NovelDashboardCard — arc_ch chapter stepper", () => {
   });
 });
 
-describe("NovelDashboardCard — Decision G effective display mode", () => {
+describe("BookDashboardCard — Decision G effective display mode", () => {
   const units = [
     { unit_kind: "arc", position: 1, ch_count: 100 },
     { unit_kind: "arc", position: 2, ch_count: 112 },
   ];
 
-  it("a new Web novel with arc rows and no stored progress_display renders the two-stage tracker, not a volume counter", () => {
-    const novel = {
+  it("a new 網路小說 with arc rows and no stored progress_display renders the two-stage tracker, not a volume counter", () => {
+    const book = {
       system_id: "n4",
-      type: "Web",
+      type: "網路小說",
       progress_display: "",
       units,
       arc_fin: 0,
@@ -95,16 +95,16 @@ describe("NovelDashboardCard — Decision G effective display mode", () => {
       vol_fin: 0,
       vol_total_original: null,
     };
-    renderCard(novel);
+    renderCard(book);
 
     expect(screen.getByLabelText("One chapter forward")).toBeInTheDocument();
     expect(screen.queryByLabelText("One volume forward")).not.toBeInTheDocument();
   });
 
-  it("a novel stuck on the legacy `ch` display that has since grown arc rows still routes the chapter stepper through the two-stage cursor (c80c84a's fix, reachable through this branch too)", () => {
-    const novel = {
+  it("a book stuck on the legacy `ch` display that has since grown arc rows still routes the chapter stepper through the two-stage cursor (c80c84a's fix, reachable through this branch too)", () => {
+    const book = {
       system_id: "n5",
-      type: "Web",
+      type: "網路小說",
       progress_display: "ch",
       units,
       arc_fin: 0,
@@ -113,7 +113,7 @@ describe("NovelDashboardCard — Decision G effective display mode", () => {
       ch_total: 212,
       ch_fin: 99,
     };
-    const onProgressChange = renderCard(novel);
+    const onProgressChange = renderCard(book);
 
     fireEvent.click(screen.getByLabelText("One chapter forward"));
 
@@ -127,16 +127,16 @@ describe("NovelDashboardCard — Decision G effective display mode", () => {
   });
 });
 
-describe("NovelDashboardCard — non-derived paths are unaffected", () => {
-  it("still PATCHes ch_fin directly for a novel with no arc rows", () => {
-    const novel = {
+describe("BookDashboardCard — non-derived paths are unaffected", () => {
+  it("still PATCHes ch_fin directly for a book with no arc rows", () => {
+    const book = {
       system_id: "n2",
       progress_display: "ch",
       units: [],
       ch_fin: 5,
       ch_total: 300,
     };
-    const onProgressChange = renderCard(novel);
+    const onProgressChange = renderCard(book);
 
     fireEvent.click(screen.getByLabelText("One chapter forward"));
 
@@ -148,14 +148,14 @@ describe("NovelDashboardCard — non-derived paths are unaffected", () => {
   });
 
   it("still PATCHes vol_fin directly for the volume stepper", () => {
-    const novel = {
+    const book = {
       system_id: "n3",
       progress_display: "vol_original",
       units: [],
       vol_fin: 2,
       vol_total_original: 10,
     };
-    const onProgressChange = renderCard(novel);
+    const onProgressChange = renderCard(book);
 
     fireEvent.click(screen.getByLabelText("One volume forward"));
 
@@ -167,12 +167,12 @@ describe("NovelDashboardCard — non-derived paths are unaffected", () => {
   });
 });
 
-describe("NovelDashboardCard — the arc + chapter numbers name the arc being read", () => {
+describe("BookDashboardCard — the arc + chapter numbers name the arc being read", () => {
   const units = [
     { unit_kind: "arc", position: 1, ch_count: 100 },
     { unit_kind: "arc", position: 2, ch_count: 40 },
   ];
-  const novel = (extra) => ({
+  const book = (extra) => ({
     system_id: "n6",
     progress_display: "arc_ch",
     units,
@@ -182,19 +182,19 @@ describe("NovelDashboardCard — the arc + chapter numbers name the arc being re
   });
 
   it("shows the current arc, not the arcs finished", () => {
-    renderCard(novel({ arc_fin: 1, ch_fin_in_arc: 7 }));
+    renderCard(book({ arc_fin: 1, ch_fin_in_arc: 7 }));
     expect(screen.getByLabelText("Arc being read")).toHaveValue(2);
     expect(screen.getByLabelText("Chapters read in this arc")).toHaveValue(7);
   });
 
   it("shows every arc finished as the last arc, complete", () => {
-    renderCard(novel({ arc_fin: 2, ch_fin_in_arc: 0 }));
+    renderCard(book({ arc_fin: 2, ch_fin_in_arc: 0 }));
     expect(screen.getByLabelText("Arc being read")).toHaveValue(2);
     expect(screen.getByLabelText("Chapters read in this arc")).toHaveValue(40);
   });
 
   it("a typed arc starts at its beginning", () => {
-    const onProgressChange = renderCard(novel({ arc_fin: 0, ch_fin_in_arc: 7 }));
+    const onProgressChange = renderCard(book({ arc_fin: 0, ch_fin_in_arc: 7 }));
     fireEvent.change(screen.getByLabelText("Arc being read"), { target: { value: "2" } });
     fireEvent.blur(screen.getByLabelText("Arc being read"));
     expect(onProgressChange).toHaveBeenCalledWith(
@@ -205,7 +205,7 @@ describe("NovelDashboardCard — the arc + chapter numbers name the arc being re
   });
 
   it("a typed chapter past the arc's end carries into the next arc", () => {
-    const onProgressChange = renderCard(novel({ arc_fin: 0, ch_fin_in_arc: 7 }));
+    const onProgressChange = renderCard(book({ arc_fin: 0, ch_fin_in_arc: 7 }));
     fireEvent.change(screen.getByLabelText("Chapters read in this arc"), {
       target: { value: "103" },
     });

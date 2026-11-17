@@ -71,45 +71,52 @@ describe("entryBucket: manga groups by serialization status", () => {
   });
 });
 
-describe("entryBucket: novel groups by type", () => {
+describe("entryBucket: book groups by type", () => {
   it("uses the entry's own type", () => {
-    expect(entryBucket("novel", "Web", null, null)).toBe("Web");
-    expect(entryBucket("novel", "Light Novel", null, null)).toBe("Light Novel");
-    expect(entryBucket("novel", "Novel", null, null)).toBe("Novel");
-    expect(entryBucket("novel", "Other", null, null)).toBe("Other");
+    expect(entryBucket("book", "網路小說", null, null)).toBe("網路小說");
+    expect(entryBucket("book", "輕小說", null, null)).toBe("輕小說");
+    expect(entryBucket("book", "小說", null, null)).toBe("小說");
+    expect(entryBucket("book", "短篇集", null, null)).toBe("短篇集");
+    expect(entryBucket("book", "指南/設定集", null, null)).toBe("指南/設定集");
+    expect(entryBucket("book", "其他", null, null)).toBe("其他");
   });
 
-  it("folds a missing or unknown type into Other, unlike manga", () => {
-    expect(entryBucket("novel", null, null, null)).toBe("Other");
-    expect(entryBucket("novel", "Serial", null, null)).toBe("Other");
+  it("folds the old English vocabulary into 其他", () => {
+    expect(entryBucket("book", "Other", null, null)).toBe("其他");
+    expect(entryBucket("book", "Web", null, null)).toBe("其他");
+  });
+
+  it("folds a missing or unknown type into 其他, unlike manga", () => {
+    expect(entryBucket("book", null, null, null)).toBe("其他");
+    expect(entryBucket("book", "Serial", null, null)).toBe("其他");
   });
 
   it("never inherits from its series or franchise", () => {
-    const series = { size_group_derived: { novel: "Web" }, size_group_manual: null };
-    expect(entryBucket("novel", "Novel", series, null)).toBe("Novel");
+    const series = { size_group_derived: { book: "網路小說" }, size_group_manual: null };
+    expect(entryBucket("book", "小說", series, null)).toBe("小說");
   });
 });
 
-describe("groupByBucket: manga and novel vocabularies", () => {
+describe("groupByBucket: manga and book vocabularies", () => {
   it("keys manga in vocabulary order plus a trailing ungrouped pile", () => {
     expect(Object.keys(groupByBucket([], "manga"))).toEqual([
       "完結", "連載中", "腰斬", "停更", "ungrouped",
     ]);
   });
 
-  it("leads novel with Web, unlike the form dropdown order", () => {
-    expect(Object.keys(groupByBucket([], "novel"))).toEqual([
-      "Web", "Light Novel", "Novel", "Other", "ungrouped",
+  it("leads book with 網路小說, unlike the form dropdown order", () => {
+    expect(Object.keys(groupByBucket([], "book"))).toEqual([
+      "網路小說", "輕小說", "小說", "短篇集", "指南/設定集", "其他", "ungrouped",
     ]);
   });
 
-  it("files a statusless manga into ungrouped and a typeless novel into Other", () => {
+  it("files a statusless manga into ungrouped and a typeless book into 其他", () => {
     const manga = groupByBucket([{ id: 1, bucket: entryBucket("manga", null) }], "manga");
     expect(manga.ungrouped).toHaveLength(1);
 
-    const novel = groupByBucket([{ id: 1, bucket: entryBucket("novel", null) }], "novel");
-    expect(novel.Other).toHaveLength(1);
-    expect(novel.ungrouped).toHaveLength(0);
+    const book = groupByBucket([{ id: 1, bucket: entryBucket("book", null) }], "book");
+    expect(book["其他"]).toHaveLength(1);
+    expect(book.ungrouped).toHaveLength(0);
   });
 });
 
@@ -132,7 +139,7 @@ describe("groupByBucket", () => {
   });
 
   // anime-movie is the only type with no grouping at all: the five size-bucket
-  // types inherit one, and comic/manga/novel each group by their own column.
+  // types inherit one, and comic/manga/book each group by their own column.
   it("puts everything in ungrouped for an unbucketed media type", () => {
     const grouped = groupByBucket([{ id: 1, bucket: null }], "anime-movie");
     expect(Object.keys(grouped)).toEqual(["ungrouped"]);
@@ -168,7 +175,7 @@ describe("scopesFor", () => {
     ["rewatch", "tv-show", ["entry", "series", "franchise"]],
     ["rewatch", "cartoon", ["franchise"]],
     ["rewatch", "manga", ["entry"]],
-    ["rewatch", "novel", ["entry", "series", "franchise"]],
+    ["rewatch", "book", ["entry", "series", "franchise"]],
     ["rewatch", "comic", ["entry", "series"]],
     ["next", "game", ["entry", "series", "franchise"]],
     ["rewatch", "game", ["entry", "series", "franchise"]],
@@ -201,7 +208,7 @@ describe("REWATCH_TABS", () => {
       "tv-show",
       "cartoon",
       "manga",
-      "novel",
+      "book",
       "comic",
       "game",
       "h-comic",

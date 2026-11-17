@@ -1,5 +1,5 @@
-// Novel detail page: renders novel_units (Task 8/9's `units` relationship)
-// instead of the retired novel_name_each_cn/_en parallel lists, using each
+// Book detail page: renders book_units (Task 8/9's `units` relationship)
+// instead of the retired book_name_each_cn/_en parallel lists, using each
 // unit's server-computed display_key.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor } from "@testing-library/react";
@@ -9,19 +9,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthProvider } from "../../contexts/AuthContext";
 import { ToastProvider } from "../../hooks/useToast";
-import Novel from "./Novel";
+import Book from "./Book";
 
-const BASE_NOVEL = {
+const BASE_BOOK = {
   system_id: "n1",
-  novel_name_cn: "測試小說",
-  novel_name_en: "Test Novel",
-  novel_name_roman: null,
-  novel_name_jp: null,
-  novel_name_alt: null,
+  book_name_cn: "測試小說",
+  book_name_en: "Test Book",
+  book_name_roman: null,
+  book_name_jp: null,
+  book_name_alt: null,
   franchise_id: null,
   series_id: null,
   region: "JP",
-  type: "Web",
+  type: "網路小說",
   serialization_status: "連載中",
   reading_status: "Reading",
   progress_display: null,
@@ -60,14 +60,14 @@ function respond(url, isAdmin) {
   return [];
 }
 
-function mockFetch(novel, { isAdmin = false, onPatch, onUnitPut } = {}) {
+function mockFetch(book, { isAdmin = false, onPatch, onUnitPut } = {}) {
   vi.stubGlobal(
     "fetch",
     vi.fn((url, options) => {
       const u = String(url);
-      if (u.startsWith("/api/me/novel-units/") && options?.method === "PUT") {
+      if (u.startsWith("/api/me/book-units/") && options?.method === "PUT") {
         const body = JSON.parse(options.body);
-        const unitId = u.slice("/api/me/novel-units/".length);
+        const unitId = u.slice("/api/me/book-units/".length);
         onUnitPut?.(unitId, body);
         return Promise.resolve({
           ok: true,
@@ -75,20 +75,20 @@ function mockFetch(novel, { isAdmin = false, onPatch, onUnitPut } = {}) {
           json: () => Promise.resolve({ unit_id: unitId, my_rating: null, remark: null, ...body }),
         });
       }
-      if (u.startsWith("/api/novel/n1")) {
+      if (u.startsWith("/api/book/n1")) {
         if (options?.method === "PATCH") {
           const body = JSON.parse(options.body);
           onPatch?.(body);
           return Promise.resolve({
             ok: true,
             status: 200,
-            json: () => Promise.resolve({ ...novel, ...body }),
+            json: () => Promise.resolve({ ...book, ...body }),
           });
         }
         return Promise.resolve({
           ok: true,
           status: 200,
-          json: () => Promise.resolve(novel),
+          json: () => Promise.resolve(book),
         });
       }
       return Promise.resolve({
@@ -111,9 +111,9 @@ function mount() {
     <QueryClientProvider client={client}>
       <AuthProvider>
         <ToastProvider>
-          <MemoryRouter initialEntries={["/novel/n1"]}>
+          <MemoryRouter initialEntries={["/book/n1"]}>
             <Routes>
-              <Route path="/novel/:publicId/:slug?" element={<Novel />} />
+              <Route path="/book/:publicId/:slug?" element={<Book />} />
             </Routes>
           </MemoryRouter>
         </ToastProvider>
@@ -122,10 +122,10 @@ function mount() {
   );
 }
 
-describe("Novel detail page — units", () => {
+describe("Book detail page — units", () => {
   it("renders a unit's server-provided display_key even with no key or name", async () => {
     mockFetch({
-      ...BASE_NOVEL,
+      ...BASE_BOOK,
       units: [
         {
           system_id: "u1",
@@ -147,8 +147,8 @@ describe("Novel detail page — units", () => {
 
   it("renders a named unit's key alongside its title and the viewer's own rating and remark", async () => {
     mockFetch({
-      ...BASE_NOVEL,
-      type: "Light Novel",
+      ...BASE_BOOK,
+      type: "輕小說",
       units: [
         {
           system_id: "u1",
@@ -176,7 +176,7 @@ describe("Novel detail page — units", () => {
     let patched = false;
     mockFetch(
       {
-        ...BASE_NOVEL,
+        ...BASE_BOOK,
         units: [
           {
             system_id: "u1",
@@ -222,7 +222,7 @@ describe("Novel detail page — units", () => {
     // manage.catalog and self.list together: the super role's shape.
     mockFetch(
       {
-        ...BASE_NOVEL,
+        ...BASE_BOOK,
         units: [
           {
             system_id: "u1",
@@ -253,8 +253,8 @@ describe("Novel detail page — units", () => {
     // remark of its own, and the row must not draw one even if it arrives.
     viewPermissions = MEMBER_VIEW.filter((p) => p !== "self.list");
     mockFetch({
-      ...BASE_NOVEL,
-      type: "Light Novel",
+      ...BASE_BOOK,
+      type: "輕小說",
       units: [
         {
           system_id: "u1",
@@ -282,17 +282,17 @@ describe("Novel detail page — units", () => {
     expect(screen.queryByLabelText("My remark for Vol.1")).toBeNull();
   });
 
-  it("does not render an empty Units card for a novel with no units", async () => {
-    mockFetch({ ...BASE_NOVEL, units: [] });
+  it("does not render an empty Units card for a book with no units", async () => {
+    mockFetch({ ...BASE_BOOK, units: [] });
     mount();
     // Wait for the page to finish loading before asserting an absence.
-    await screen.findByRole("heading", { name: "Test Novel" });
+    await screen.findByRole("heading", { name: "Test Book" });
     expect(screen.queryByText("Units")).not.toBeInTheDocument();
   });
 
   it("shows the genre and label tags on the Genres card", async () => {
     mockFetch({
-      ...BASE_NOVEL,
+      ...BASE_BOOK,
       genre_main: "Fantasy, Romance",
       genre_sub: "Isekai",
       label: "必看",
@@ -307,7 +307,7 @@ describe("Novel detail page — units", () => {
   });
 
   it('labels the original-volumes total "JP/KR"', async () => {
-    mockFetch({ ...BASE_NOVEL, vol_total_original: 5 });
+    mockFetch({ ...BASE_BOOK, vol_total_original: 5 });
     mount();
     await waitFor(() =>
       expect(screen.getByText("Total Volumes (JP/KR)")).toBeInTheDocument(),
@@ -318,8 +318,8 @@ describe("Novel detail page — units", () => {
     let patchedBody = null;
     mockFetch(
       {
-        ...BASE_NOVEL,
-        type: "Light Novel",
+        ...BASE_BOOK,
+        type: "輕小說",
         units: [
           {
             system_id: "u1",
@@ -372,10 +372,10 @@ describe("Novel detail page — units", () => {
   });
 });
 
-describe("Novel detail page — sources", () => {
+describe("Book detail page — sources", () => {
   it("renders the Open Library link in the Sources card", async () => {
     mockFetch({
-      ...BASE_NOVEL,
+      ...BASE_BOOK,
       openlibrary_link: "https://openlibrary.org/works/OL5738148W",
     });
     mount();
@@ -383,20 +383,20 @@ describe("Novel detail page — sources", () => {
   });
 
   it("renders no Open Library row when the link is absent", async () => {
-    mockFetch({ ...BASE_NOVEL, openlibrary_link: null });
+    mockFetch({ ...BASE_BOOK, openlibrary_link: null });
     mount();
-    await screen.findByRole("heading", { name: "Test Novel" });
+    await screen.findByRole("heading", { name: "Test Book" });
     expect(screen.queryByText("Open Library")).not.toBeInTheDocument();
   });
 });
 
-describe("Novel detail page — Production", () => {
+describe("Book detail page — Production", () => {
   // An empty publisher_refs is what bites: `[].length` is 0, and React prints
   // a bare 0 where a false condition prints nothing.
   it("prints no stray zero when nobody is credited", async () => {
-    mockFetch({ ...BASE_NOVEL, publisher_refs: [] });
+    mockFetch({ ...BASE_BOOK, publisher_refs: [] });
     mount();
-    await screen.findByRole("heading", { name: "Test Novel" });
+    await screen.findByRole("heading", { name: "Test Book" });
     expect(screen.queryByText("0")).toBeNull();
     expect(screen.queryByText("Production")).toBeNull();
   });

@@ -1,6 +1,6 @@
 // Misc display/data helpers: length, release, progress, ratings, options, type parsing.
 import { formatReleaseDate } from "./releaseDate";
-import { arcProgressView, effectiveProgressDisplay } from "./novelUnits";
+import { arcProgressView, effectiveProgressDisplay } from "./bookUnits";
 import { byAppearances, usageCounts } from "./suggestionOrder";
 
 // The Bahamut row lives in `sources` (kind "access", bucket "main") rather
@@ -149,35 +149,35 @@ export function parseTypes(franchiseType) {
 }
 
 /**
- * Human-readable progress for a novel, branching on progress_display.
+ * Human-readable progress for a book, branching on progress_display.
  *
  * The arc_ch case is two-stage: the arc being read and the chapters read
  * inside it (arcProgressView), so the denominator is that arc's own ch_count
- * rather than the whole novel's chapter total.
+ * rather than the whole book's chapter total.
  */
-export function getNovelProgress(novel) {
-  switch (effectiveProgressDisplay(novel)) {
+export function getBookProgress(book) {
+  switch (effectiveProgressDisplay(book)) {
     case "vol_tw":
-      return `${novel.vol_fin ?? 0} / ${novel.vol_total_tw ?? "?"} VOL TW`;
+      return `${book.vol_fin ?? 0} / ${book.vol_total_tw ?? "?"} VOL TW`;
     case "vol_original":
-      return `${novel.vol_fin ?? 0} / ${novel.vol_total_original ?? "?"} VOL JP/KR`;
+      return `${book.vol_fin ?? 0} / ${book.vol_total_original ?? "?"} VOL JP/KR`;
     case "arc": {
       // Finished arcs over the arc count — the same "how far through" reading
       // the volume displays give, one level up from arc_ch's chapter cursor.
-      const arcs = (novel.units || []).filter((u) => u.unit_kind === "arc");
-      return `${novel.arc_fin ?? 0} / ${arcs.length} ARC`;
+      const arcs = (book.units || []).filter((u) => u.unit_kind === "arc");
+      return `${book.arc_fin ?? 0} / ${arcs.length} ARC`;
     }
     case "arc_ch": {
-      const arcs = (novel.units || [])
+      const arcs = (book.units || [])
         .filter((u) => u.unit_kind === "arc")
         .sort((a, b) => a.position - b.position);
       if (arcs.length === 0) {
-        return `${novel.ch_fin ?? 0} / ${novel.ch_total ?? "?"} CH`;
+        return `${book.ch_fin ?? 0} / ${book.ch_total ?? "?"} CH`;
       }
-      const view = arcProgressView(arcs, novel.arc_fin, novel.ch_fin_in_arc);
+      const view = arcProgressView(arcs, book.arc_fin, book.ch_fin_in_arc);
       return `arc ${view.arcNumber} · ${view.chInArc}/${view.arc?.ch_count ?? "?"} CH`;
     }
     default:
-      return `${novel.ch_fin ?? 0} / ${novel.ch_total ?? "?"} CH`;
+      return `${book.ch_fin ?? 0} / ${book.ch_total ?? "?"} CH`;
   }
 }

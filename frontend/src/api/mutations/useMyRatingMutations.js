@@ -10,8 +10,8 @@
 // the row a page holds, and every list that sorts or filters on those fields
 // is invalidated to refetch.
 //
-// A novel unit's own rating and remark go through PUT
-// /api/me/novel-units/{unit_id} the same way.
+// A book unit's own rating and remark go through PUT
+// /api/me/book-units/{unit_id} the same way.
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { fetchJson, jsonBody } from "../client";
@@ -72,18 +72,18 @@ export function useMyRatingSaver(ownerType, ownerId, setRow) {
 }
 
 /** `{ unitId, data: { my_rating?, remark? } }` → the saved values. */
-export function useSaveMyNovelUnit(novelId) {
+export function useSaveMyBookUnit(bookId) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ unitId, data }) =>
-      fetchJson(endpoints.me.novelUnit(unitId), {
+      fetchJson(endpoints.me.bookUnit(unitId), {
         method: "PUT",
         ...jsonBody(data),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["media-list", "novel"] });
-      if (novelId)
-        queryClient.invalidateQueries({ queryKey: mediaItemQueryKey("novel", novelId) });
+      queryClient.invalidateQueries({ queryKey: ["media-list", "book"] });
+      if (bookId)
+        queryClient.invalidateQueries({ queryKey: mediaItemQueryKey("book", bookId) });
     },
   });
 }

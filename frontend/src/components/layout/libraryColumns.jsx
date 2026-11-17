@@ -184,7 +184,7 @@ export function watchButtonColumn() {
   });
 }
 
-/** Same for reading_status (manga, novel, comic). Collapses below xl. */
+/** Same for reading_status (manga, book, comic). Collapses below xl. */
 export function readButtonColumn() {
   return statusToggleColumn({
     key: "read",

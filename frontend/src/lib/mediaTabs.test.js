@@ -40,7 +40,7 @@ describe("buildMediaTabs", () => {
   it("totals every listed entry and judges each by its own status field", () => {
     const { total, completed } = buildMediaTabs([
       row("Anime", "anime", [{ watching_status: "Completed" }, { watching_status: "Paused" }]),
-      row("Novel", "novel", [{ reading_status: "Completed (解說)" }]),
+      row("Book", "book", [{ reading_status: "Completed (解說)" }]),
       row("Game", "game", [{ playing_status: "Completed" }, { playing_status: "Plan to Play" }]),
     ]);
     expect(total).toBe(5);

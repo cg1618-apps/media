@@ -11,6 +11,7 @@ import {
 } from "../../components/ui/primitives";
 import RatingDistributionCard from "./RatingDistributionCard";
 import StatsSectionHeader from "./StatsSectionHeader";
+import { novelsOnly } from "../../utils/statsUtils";
 
 const RATING_ORDER = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
@@ -116,7 +117,7 @@ export default function StatsFranchiseSummary({
   allAnimeMovies,
   allMovies,
   allManga,
-  allNovel,
+  allBook,
   allComic,
   // null for a session that cannot see the gated type: no card at all.
   allHComic = null,
@@ -157,8 +158,9 @@ export default function StatsFranchiseSummary({
   // Entry-level distributions
   const { rows: mangaRows, ratedCount: mangaRatedCount } =
     computeRatingRows(allManga);
+  // The Novel section counts the books of a novel type only.
   const { rows: novelRows, ratedCount: novelRatedCount } =
-    computeRatingRows(allNovel);
+    computeRatingRows(novelsOnly(allBook));
   const { rows: animeMovieRows, ratedCount: animeMovieRatedCount } =
     computeRatingRows(allAnimeMovies);
   const { rows: movieRows, ratedCount: movieRatedCount } =

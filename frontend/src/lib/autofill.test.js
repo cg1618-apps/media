@@ -129,34 +129,34 @@ describe("buildAutofillPatch — parity with the old per-type functions", () => 
     });
   });
 
-  it("copies the novel field set, including type", () => {
+  it("copies the book field set, including type", () => {
     const source = {
-      novel_name_cn: "重生",
-      novel_name_en: "Rebirth",
-      novel_name_roman: "",
-      novel_name_jp: "",
-      novel_name_alt: "",
+      book_name_cn: "重生",
+      book_name_en: "Rebirth",
+      book_name_roman: "",
+      book_name_jp: "",
+      book_name_alt: "",
       franchise_id: null,
       series_id: null,
       region: "JP",
-      type: "Light Novel",
+      type: "輕小說",
       is_main: "本傳",
       genre_main: "Fantasy",
       genre_sub: "Isekai",
     };
 
-    expect(patchFor(source, "novel")).toEqual({
-      novel_name_cn: "重生",
-      novel_name_en: "Rebirth",
-      novel_name_roman: "",
-      novel_name_jp: "",
-      novel_name_alt: "",
+    expect(patchFor(source, "book")).toEqual({
+      book_name_cn: "重生",
+      book_name_en: "Rebirth",
+      book_name_roman: "",
+      book_name_jp: "",
+      book_name_alt: "",
       franchise_id: null,
       franchise_text: "",
       series_id: null,
       series_text: "",
       region: "JP",
-      type: "Light Novel",
+      type: "輕小說",
       is_main: "本傳",
       genre_main: "Fantasy",
       genre_sub: "Isekai",

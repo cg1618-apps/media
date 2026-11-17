@@ -1,4 +1,4 @@
-// Frontend: page component file for Novel.
+// Frontend: page component file for Book.
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
@@ -18,15 +18,15 @@ import {
   publisherValue,
 } from "../../components/info/StudioLinks";
 import NamingCard from "../../components/info/NamingCard";
-import NovelTrackerBlock from "../../components/tracker/NovelTrackerBlock";
+import BookTrackerBlock from "../../components/tracker/BookTrackerBlock";
 import SourcesCard from "../../components/info/SourcesCard";
 import ScoreBlock from "../../components/info/ScoreBlock";
-import NovelNotes from "./NovelNotes";
-import NovelUnitsEditor from "../../components/forms/NovelUnitsEditor";
+import BookNotes from "./BookNotes";
+import BookUnitsEditor from "../../components/forms/BookUnitsEditor";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import DetailContents, { TocSection } from "../../components/layout/DetailContents";
 import { usePageTitle } from "../../contexts/PageTitleContext";
-import { effectiveProgressDisplay } from "../../lib/novelUnits";
+import { effectiveProgressDisplay } from "../../lib/bookUnits";
 import {
   Button,
   Chip,
@@ -47,21 +47,21 @@ import { focusStyle } from "../../lib/covers";
 import CastSection from "../../components/info/CastSection";
 import LazyImage from "../../components/ui/LazyImage";
 import { useViewScope } from "../../hooks/useViewScope";
-import { useSaveMyNovelUnit } from "../../api/mutations/useMyRatingMutations";
+import { useSaveMyBookUnit } from "../../api/mutations/useMyRatingMutations";
 import { SELECT_CLS } from "../../components/hub/HubChrome";
 import { MY_RATINGS } from "../../config/fieldOptions";
-import { novelUnitPayload } from "../../lib/payloads";
+import { bookUnitPayload } from "../../lib/payloads";
 
 const lineageLinkCls =
   "text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition";
 
 
 // The viewer's own rating of and remark on one unit, saved through
-// PUT /api/me/novel-units/{unit_id} (self.list): the rating as soon as it is
+// PUT /api/me/book-units/{unit_id} (self.list): the rating as soon as it is
 // picked, the remark when the field loses focus. Neither is the unit's, so the
 // catalogue editor has no control for either.
-function UnitPersonalControls({ unit, novelPublicId }) {
-  const { mutateAsync } = useSaveMyNovelUnit(novelPublicId);
+function UnitPersonalControls({ unit, bookPublicId }) {
+  const { mutateAsync } = useSaveMyBookUnit(bookPublicId);
   const { showToast } = useToast();
   const [rating, setRating] = useState(unit.my_rating || "");
   const [remark, setRemark] = useState(unit.remark || "");
@@ -112,31 +112,31 @@ function UnitPersonalControls({ unit, novelPublicId }) {
   );
 }
 
-// The novel's units: the catalogue editor for a manage.catalog holder, and
+// The book's units: the catalogue editor for a manage.catalog holder, and
 // the list of units for everyone else. A self.list holder's list carries a
 // rating and a remark control on each unit, so an account holding both keys
 // gets the editor and that list.
-function NovelUnitsCard({ novel, isAdmin, onSave }) {
+function BookUnitsCard({ book, isAdmin, onSave }) {
   const { ownData } = useViewScope();
-  const [items, setItems] = useState(novel.units || []);
+  const [items, setItems] = useState(book.units || []);
   const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
-    setItems(novel.units || []);
+    setItems(book.units || []);
     setDirty(false);
-  }, [novel.units]);
+  }, [book.units]);
 
   function handleSave() {
-    onSave({ units: items.map(novelUnitPayload) });
+    onSave({ units: items.map(bookUnitPayload) });
     setDirty(false);
   }
 
   function handleCancel() {
-    setItems(novel.units || []);
+    setItems(book.units || []);
     setDirty(false);
   }
 
-  const hasUnits = (novel.units || []).length > 0;
+  const hasUnits = (book.units || []).length > 0;
   // Read-only viewers see nothing when there are no units — an empty
   // "Units" card would just be a title over a blank box. Admins still get
   // the editor (with its own "+ Add" control) so they can create the first
@@ -149,9 +149,9 @@ function NovelUnitsCard({ novel, isAdmin, onSave }) {
       <div className="space-y-4">
         {isAdmin && (
           <>
-            <NovelUnitsEditor
+            <BookUnitsEditor
               items={items}
-              novelType={novel.type}
+              bookType={book.type}
               onChange={(v) => {
                 setItems(v);
                 setDirty(true);
@@ -174,7 +174,7 @@ function NovelUnitsCard({ novel, isAdmin, onSave }) {
             className={`space-y-1.5${isAdmin ? " pt-3 border-t border-border" : ""}`}
           >
             {isAdmin && <Eyebrow>My ratings</Eyebrow>}
-            {(novel.units || []).map((u) => (
+            {(book.units || []).map((u) => (
               <div key={u.system_id} className="flex items-center gap-2">
                 <Chip className="shrink-0">{u.display_key}</Chip>
                 {(u.name_cn || u.name_en) && (
@@ -191,7 +191,7 @@ function NovelUnitsCard({ novel, isAdmin, onSave }) {
                   <UnitPersonalControls
                     key={`${u.my_rating ?? ""}|${u.remark ?? ""}`}
                     unit={u}
-                    novelPublicId={novel.public_id}
+                    bookPublicId={book.public_id}
                   />
                 )}
               </div>
@@ -204,53 +204,53 @@ function NovelUnitsCard({ novel, isAdmin, onSave }) {
 }
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
-export default function Novel() {
+export default function Book() {
   const { publicId } = useParams();
   const navigate = useNavigate();
   const { isAdmin, has } = useAuth();
   const { showToast } = useToast();
 
-  const [novel, setNovel] = useState(null);
+  const [book, setBook] = useState(null);
   const [autofilling, setAutofilling] = useState(false);
 
-  const novelQuery = useMediaItem("novel", publicId);
-  useCanonicalPath("novel", novelQuery.data);
+  const bookQuery = useMediaItem("book", publicId);
+  useCanonicalPath("book", bookQuery.data);
   // Everything past the lookup still speaks UUIDs; only the URL segment
   // changed. Resolved from the fetched row so the two can never disagree.
-  const system_id = novelQuery.data?.system_id;
+  const system_id = bookQuery.data?.system_id;
   const { ownData } = useViewScope();
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const seriesQuery = useMediaList("series", LIST_OPTIONS);
-  const allNovelsQuery = useMediaList("novel", LIST_OPTIONS);
+  const allBooksQuery = useMediaList("book", LIST_OPTIONS);
   const { setMediaItem, fetchMediaItem, invalidateMedia } =
-    useMediaCacheUpdate("novel", publicId);
-  const castingQuery = useCasting("novel", novel?.system_id);
+    useMediaCacheUpdate("book", publicId);
+  const castingQuery = useCasting("book", book?.system_id);
   const cast = castingQuery.data?.cast || [];
 
   useEffect(() => {
-    if (novelQuery.data) setNovel(novelQuery.data);
-  }, [novelQuery.data]);
+    if (bookQuery.data) setBook(bookQuery.data);
+  }, [bookQuery.data]);
 
   const franchises = franchiseQuery.data || [];
   const seriesList = seriesQuery.data || [];
   const franchise = useMemo(
     () =>
-      novel?.franchise_id
-        ? franchises.find((f) => f.system_id === novel.franchise_id) || null
+      book?.franchise_id
+        ? franchises.find((f) => f.system_id === book.franchise_id) || null
         : null,
-    [franchises, novel?.franchise_id],
+    [franchises, book?.franchise_id],
   );
   const series = useMemo(
     () =>
-      novel?.series_id
-        ? seriesList.find((s) => s.system_id === novel.series_id) || null
+      book?.series_id
+        ? seriesList.find((s) => s.system_id === book.series_id) || null
         : null,
-    [novel?.series_id, seriesList],
+    [book?.series_id, seriesList],
   );
   const loading =
-    novelQuery.isLoading || franchiseQuery.isLoading || seriesQuery.isLoading;
+    bookQuery.isLoading || franchiseQuery.isLoading || seriesQuery.isLoading;
   const error =
-    novelQuery.error?.message ||
+    bookQuery.error?.message ||
     franchiseQuery.error?.message ||
     seriesQuery.error?.message ||
     null;
@@ -258,18 +258,18 @@ export default function Novel() {
   // The viewer's own values (status, rating, progress, plan flags) go through /api/me;
   // saveRelease is the toolbar's release step, the work's half through the
   // catalogue PATCH. performPatch below is that PATCH, for the units editor.
-  const { saveOwn, saveRelease } = useOwnTrackerSave("novel", {
-    entry: novel,
-    setEntry: setNovel,
+  const { saveOwn, saveRelease } = useOwnTrackerSave("book", {
+    entry: book,
+    setEntry: setBook,
     setMediaItem,
     fetchMediaItem,
   });
 
   async function performPatch(payload, msg) {
     if (!isAdmin) return;
-    setNovel((prev) => ({ ...prev, ...payload }));
+    setBook((prev) => ({ ...prev, ...payload }));
     try {
-      const res = await fetch(endpoints.resource("novel").patch(system_id), {
+      const res = await fetch(endpoints.resource("book").patch(system_id), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -277,10 +277,10 @@ export default function Novel() {
       });
       if (!res.ok) throw new Error("Sync failed");
       const updated = await res.json();
-      // `novel` is still the pre-write row here: this closure never saw the
+      // `book` is still the pre-write row here: this closure never saw the
       // optimistic update. A progress step can finish the entry.
-      showToast("success", progressToast(novel, updated, msg || "Saved"));
-      setNovel(updated);
+      showToast("success", progressToast(book, updated, msg || "Saved"));
+      setBook(updated);
       setMediaItem(updated);
     } catch {
       showToast("error", "Update failed");
@@ -292,7 +292,7 @@ export default function Novel() {
     setAutofilling(true);
     try {
       const res = await fetch(
-        endpoints.dataControl.replaceSingle("novel", system_id),
+        endpoints.dataControl.replaceSingle("book", system_id),
         {
           method: "POST",
           credentials: "include",
@@ -311,12 +311,12 @@ export default function Novel() {
   }
 
   // The heading's title, which the browser tab shows too.
-  const titleMain = novel
-    ? novel.novel_name_cn ||
-      novel.novel_name_en ||
-      novel.novel_name_roman ||
-      novel.novel_name_jp ||
-      novel.novel_name_alt ||
+  const titleMain = book
+    ? book.book_name_cn ||
+      book.book_name_en ||
+      book.book_name_roman ||
+      book.book_name_jp ||
+      book.book_name_alt ||
       "Unknown"
     : null;
   usePageTitle(loading || error ? null : titleMain);
@@ -325,21 +325,21 @@ export default function Novel() {
     return <MediaLoadingState isLoading loadingText="Loading details..." />;
   }
 
-  if (error || !novel) {
+  if (error || !book) {
     return (
       <MediaLoadingState
-        error={error || "Novel not found"}
-        errorTitle="Error Loading Novel"
+        error={error || "Book not found"}
+        errorTitle="Error Loading Book"
       />
     );
   }
 
   const titleSub =
-    novel.novel_name_en && novel.novel_name_en !== titleMain
-      ? novel.novel_name_en
+    book.book_name_en && book.book_name_en !== titleMain
+      ? book.book_name_en
       : null;
 
-  const imageUrl = getCoverUrl(novel.cover_image_file);
+  const imageUrl = getCoverUrl(book.cover_image_file);
 
   const franchiseName = franchise
     ? franchise.franchise_name_cn ||
@@ -350,18 +350,18 @@ export default function Novel() {
   // The rule along the cover shows whichever counter the entry is set to.
   // It used to read ch_fin/ch_total unconditionally, which is how a finished
   // 11-volume light novel came to display "CHAPTERS 0 / 110".
-  const progressMode = effectiveProgressDisplay(novel);
-  const arcCount = (novel.units || []).filter((u) => u.unit_kind === "arc").length;
+  const progressMode = effectiveProgressDisplay(book);
+  const arcCount = (book.units || []).filter((u) => u.unit_kind === "arc").length;
   const [progressLabel, progressFin, progressTotal] =
     progressMode === "vol_tw"
-      ? ["Volumes", novel.vol_fin ?? 0, novel.vol_total_tw ?? novel.vol_total_original ?? null]
+      ? ["Volumes", book.vol_fin ?? 0, book.vol_total_tw ?? book.vol_total_original ?? null]
       : progressMode === "vol_original"
-        ? ["Volumes", novel.vol_fin ?? 0, novel.vol_total_original ?? novel.vol_total_tw ?? null]
+        ? ["Volumes", book.vol_fin ?? 0, book.vol_total_original ?? book.vol_total_tw ?? null]
         : progressMode === "arc"
-          ? ["Arcs", novel.arc_fin ?? 0, arcCount || null]
+          ? ["Arcs", book.arc_fin ?? 0, arcCount || null]
           : // "ch" and "arc_ch" both read the absolute chapter pair; with arc
             // rows it is derived from them, so the two agree by construction.
-            ["Chapters", novel.ch_fin ?? 0, novel.ch_total ?? null];
+            ["Chapters", book.ch_fin ?? 0, book.ch_total ?? null];
   const progress = progressTotal
     ? progressFin / progressTotal
     : progressFin > 0
@@ -369,7 +369,7 @@ export default function Novel() {
       : 0;
   const progressPct = progressTotal ? Math.round(progress * 100) : null;
 
-  const eyebrow = ["Novel", novel.region, novel.type, novel.serialization_status]
+  const eyebrow = ["Book", book.region, book.type, book.serialization_status]
     .filter(Boolean)
     .join("  ·  ");
 
@@ -381,8 +381,8 @@ export default function Novel() {
           className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint min-w-0 flex items-center gap-3"
           aria-label="Breadcrumb"
         >
-          <Link to="/library/novel" className="hover:text-brand transition">
-            Novel
+          <Link to="/library/book" className="hover:text-brand transition">
+            Book
           </Link>
           <span aria-hidden="true">/</span>
           <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
@@ -390,7 +390,7 @@ export default function Novel() {
           </span>
         </nav>
         <ReportProblemButton
-          targetType="novel"
+          targetType="book"
           targetId={system_id}
           targetLabel={titleMain}
         />
@@ -403,14 +403,14 @@ export default function Novel() {
             Admin
           </Eyebrow>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => navigate(`/modify?id=${system_id}&type=novel`)}>
+            <Button onClick={() => navigate(`/modify?id=${system_id}&type=book`)}>
               Quick edit
             </Button>
             <Button
               onClick={async () => {
                 if (!isAdmin) return;
                 try {
-                  const res = await fetch(endpoints.resource("novel").complete(system_id), {
+                  const res = await fetch(endpoints.resource("book").complete(system_id), {
                     method: "POST",
                     credentials: "include",
                   });
@@ -425,7 +425,7 @@ export default function Novel() {
             >
               Mark completed
             </Button>
-            <MarkReleaseButton type="novel" entry={novel} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
+            <MarkReleaseButton type="book" entry={book} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
             <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
               {autofilling ? "Autofilling…" : "Autofill & update"}
             </Button>
@@ -444,7 +444,7 @@ export default function Novel() {
                 className="font-mono text-[10px] uppercase tracking-[0.2em] whitespace-nowrap"
                 style={{ writingMode: "vertical-rl" }}
               >
-                Novel{novel.type ? ` · ${novel.type}` : ""}
+                Book{book.type ? ` · ${book.type}` : ""}
               </span>
               {/* Cosmetic only: the id is this page's own URL, so hiding it
                   tidies the spine rather than concealing the value. Shown to
@@ -454,13 +454,13 @@ export default function Novel() {
                   className="font-mono text-[9px] tracking-[0.1em] opacity-60 whitespace-nowrap"
                   style={{ writingMode: "vertical-rl" }}
                 >
-                  {novel.system_id}
+                  {book.system_id}
                 </span>
               )}
             </div>
             <div className="relative flex-1 min-w-0">
               <RatingStamp
-                rating={novel.my_rating}
+                rating={book.my_rating}
                 size="md"
                 tilt
                 className="absolute top-2 right-2 z-10"
@@ -470,7 +470,7 @@ export default function Novel() {
                   src={imageUrl}
                   alt="Cover"
                   className="w-full h-full object-cover"
-                  style={focusStyle(novel.cover_image_focus)}
+                  style={focusStyle(book.cover_image_focus)}
                   onError={(e) => {
                     e.target.src = FALLBACK_SVG;
                   }}
@@ -490,15 +490,15 @@ export default function Novel() {
 
           {/* Sources */}
           <SourcesCard
-            sources={novel.sources}
+            sources={book.sources}
             coverUrl={imageUrl}
-            mediaType="novel"
-            malLink={novel.mal_link}
-            openLibraryLink={novel.openlibrary_link}
-            serializationPlatform={novel.serialization_platform}
+            mediaType="book"
+            malLink={book.mal_link}
+            openLibraryLink={book.openlibrary_link}
+            serializationPlatform={book.serialization_platform}
           />
 
-          <RelationsSection mediaType="novel" entryId={novel.system_id} />
+          <RelationsSection mediaType="book" entryId={book.system_id} />
         </div>
 
         {/* ========== RIGHT COLUMN ========== */}
@@ -519,7 +519,7 @@ export default function Novel() {
             {/* What restricts this entry, if anything. Its franchise's
                 own labels are shown on the franchise, where they can be
                 changed. */}
-            <ContentLabelChips labels={novel.content_labels} className="mb-6" />
+            <ContentLabelChips labels={book.content_labels} className="mb-6" />
 
 
             {/* Franchise / Series lineage */}
@@ -550,23 +550,23 @@ export default function Novel() {
 
             {/* Score Block */}
             <ScoreBlock
-              malScore={novel.mal_rating}
-              malRank={novel.mal_rank}
-              anilistScore={novel.anilist_rating}
-              anilistRank={novel.anilist_rank}
-              anilistPopularityRank={novel.anilist_popularity_rank}
+              malScore={book.mal_rating}
+              malRank={book.mal_rank}
+              anilistScore={book.anilist_rating}
+              anilistRank={book.anilist_rank}
+              anilistPopularityRank={book.anilist_popularity_rank}
             />
           </header>
 
           {/* Where this entry sits in the watch orders the viewer follows. */}
           <TocSection id="watch-orders" label="Watch orders">
-            <FollowedOrderPanel entryId={novel.system_id} />
+            <FollowedOrderPanel entryId={book.system_id} />
           </TocSection>
 
           {/* My Tracker Block */}
           <TocSection id="tracker" label="My tracker">
-            <NovelTrackerBlock
-              novel={novel}
+            <BookTrackerBlock
+              book={book}
               canTrack={ownData}
               onChChange={(v) =>
                 saveOwn({ ch_fin: v }, "Chapter progress saved")
@@ -594,47 +594,44 @@ export default function Novel() {
           {/* Detail Cards */}
           <div className="space-y-6">
             <TocSection id="naming" label="Naming">
-              <NamingCard type="novel" item={novel} />
+              <NamingCard type="book" item={book} />
             </TocSection>
             <TocSection id="information" label="Information">
               <InfoCard
                 title="Information"
                 fields={[
                   [
-                    { label: "Region", value: novel.region },
-                    { label: "Type", value: novel.type },
-                    { label: "Version", value: novel.version },
+                    { label: "Region", value: book.region },
+                    { label: "Type", value: book.type },
+                    { label: "Version", value: book.version },
                   ],
                   [
-                    { label: "本傳 / 外傳", value: novel.is_main },
+                    { label: "本傳 / 外傳", value: book.is_main },
                     {
                       label: "Serialization Status",
-                      value: novel.serialization_status,
+                      value: book.serialization_status,
                     },
                   ],
+                  // Shown verbatim: a year-only date must not be dressed up
+                  // as a month.
                   [
-                    {
-                      label: "Release Date",
-                      value: novel.release_date || null,
-                    },
-                    {
-                      label: "End Date",
-                      value: novel.end_date || null,
-                    },
+                    { label: "Release Date JP", value: book.release_date_jp || null },
+                    { label: "Release Date TW", value: book.release_date_tw || null },
+                    { label: "End Date", value: book.end_date || null },
                   ],
                   [
                     {
                       label: "Total Volumes (JP/KR)",
                       value:
-                        novel.vol_total_original != null
-                          ? String(novel.vol_total_original)
+                        book.vol_total_original != null
+                          ? String(book.vol_total_original)
                           : null,
                     },
                     {
                       label: "Vol Total (TW)",
                       value:
-                        novel.vol_total_tw != null
-                          ? String(novel.vol_total_tw)
+                        book.vol_total_tw != null
+                          ? String(book.vol_total_tw)
                           : null,
                     },
                   ],
@@ -642,58 +639,58 @@ export default function Novel() {
                     {
                       label: "Arc Total",
                       value:
-                        novel.arc_total != null ? String(novel.arc_total) : null,
+                        book.arc_total != null ? String(book.arc_total) : null,
                     },
                     {
                       label: "Chapter Total",
                       value:
-                        novel.ch_total != null ? String(novel.ch_total) : null,
+                        book.ch_total != null ? String(book.ch_total) : null,
                     },
                   ],
                 ]}
               />
             </TocSection>
             <TocSection id="genres" label="Genres">
-              <GenresCard item={novel} />
+              <GenresCard item={book} />
             </TocSection>
             {/* Production Card */}
             <TocSection id="production" label="Production">
-              {(novel.author ||
-                novel.illustrator ||
-                novel.publisher_tw ||
-                novel.publisher_refs?.length > 0) && (
+              {(book.author ||
+                book.illustrator ||
+                book.publisher_tw ||
+                book.publisher_refs?.length > 0) && (
                 <InfoCard
                   title="Production"
                   fields={[
-                    ...(novel.author
+                    ...(book.author
                       ? [
                           {
-                            label: creditLabel(novel, "author", "Author"),
-                            value: creditValue(novel, "author", novel.author),
+                            label: creditLabel(book, "author", "Author"),
+                            value: creditValue(book, "author", book.author),
                           },
                         ]
                       : []),
-                    ...(novel.illustrator
+                    ...(book.illustrator
                       ? [
                           {
                             label: creditLabel(
-                              novel,
+                              book,
                               "illustrator",
                               "Illustrator",
                             ),
                             value: creditValue(
-                              novel,
+                              book,
                               "illustrator",
-                              novel.illustrator,
+                              book.illustrator,
                             ),
                           },
                         ]
                       : []),
-                    ...(novel.publisher_tw || novel.publisher_refs?.length
+                    ...(book.publisher_tw || book.publisher_refs?.length
                       ? [
                           {
-                            label: publisherLabel(novel, "台灣出版商"),
-                            value: publisherValue(novel),
+                            label: publisherLabel(book, "台灣出版商"),
+                            value: publisherValue(book),
                           },
                         ]
                       : []),
@@ -710,17 +707,17 @@ export default function Novel() {
 
           {/* Units */}
           <TocSection id="units" label="Units">
-            <NovelUnitsCard
-              novel={novel}
+            <BookUnitsCard
+              book={book}
               isAdmin={isAdmin}
               onSave={(payload) => performPatch(payload, "Units saved")}
             />
           </TocSection>
 
           {/* Structured Notes */}
-          <NovelNotes
-            key={novel.system_id}
-            novel={novel}
+          <BookNotes
+            key={book.system_id}
+            book={book}
             series={series}
             franchise={franchise}
           />

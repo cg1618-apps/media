@@ -66,7 +66,7 @@ const CALCULATE_ALL = {
       title: "Per-entry checks",
       fn: "run_post_processing",
       summary:
-        "Walks every anime, anime movie, TV show, cartoon and manga and tidies each one on its own, saving after each type. Movie, novel, comic, game and the restricted types have nothing to do here. Nobody's watch or read progress is touched — that belongs to each user's own list.",
+        "Walks every anime, anime movie, TV show, cartoon and manga and tidies each one on its own, saving after each type. Movie, book, comic, game and the restricted types have nothing to do here. Nobody's watch or read progress is touched — that belongs to each user's own list.",
       points: [
         "Anime, TV show, cartoon: the episode total is made a whole number, never below zero; a value that is not a number is cleared.",
         "Manga: the same for the volume total and the chapter total.",
@@ -123,10 +123,10 @@ const CALCULATE_ALL = {
           summary: "Each refreshes the option scopes and nothing else.",
         },
         {
-          title: "Novel: totals from the arcs",
-          fn: "run_sync_novel",
+          title: "Book: totals from the arcs",
+          fn: "run_sync_book",
           summary:
-            "Refreshes the option scopes, then recomputes each novel's arc and chapter totals from its arc rows (a volume-only novel has them cleared), and the owner's own arc and chapter progress on their list row. A list row is never created for a novel nobody has touched.",
+            "Refreshes the option scopes, then recomputes each book's arc and chapter totals from its arc rows (a volume-only book has them cleared), and the owner's own arc and chapter progress on their list row. A list row is never created for a book nobody has touched.",
         },
         {
           title: "Comic",

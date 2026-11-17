@@ -1,13 +1,13 @@
-// Frontend: the novel's one form body, as the Add tab renders it - the
+// Frontend: the book's one form body, as the Add tab renders it - the
 // canonical section order, CN-first names with "Romaji", the two search boxes
 // that only Add carries, and a franchise change dropping the series.
-// NovelModifyTab.test.jsx covers the same body as Modify renders it.
+// BookModifyTab.test.jsx covers the same body as Modify renders it.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import NovelAddTab from "./NovelAddTab";
-import { defaultNovel } from "../../config/formFactories";
+import BookAddTab from "./BookAddTab";
+import { defaultBook } from "../../config/formFactories";
 
 // Stand-ins that expose what the body hands them: the owner the cover is
 // attached to and the entry the cast is saved under.
@@ -22,7 +22,7 @@ vi.mock("../../components/forms/CastEditor", () => ({
   ),
 }));
 
-const NOVEL_SECTIONS = [
+const BOOK_SECTIONS = [
   "Titles & Naming",
   "Scores",
   "My Tracker",
@@ -41,16 +41,16 @@ function renderTab(props = {}) {
   });
   return render(
     <QueryClientProvider client={client}>
-      <NovelAddTab
+      <BookAddTab
         franchiseCollections={{}}
-        nvf={defaultNovel()}
+        nvf={defaultBook()}
         unv={() => {}}
-        allNovels={[]}
-        applyNovelEntryAutofill={() => {}}
+        allBooks={[]}
+        applyBookEntryAutofill={() => {}}
         applyMalPick={() => {}}
         applyOpenLibraryPick={() => {}}
         allFranchises={[]}
-        seriesItemsForNovel={[]}
+        seriesItemsForBook={[]}
         sources={[]}
         {...props}
       />
@@ -70,23 +70,23 @@ beforeEach(() => {
   );
 });
 
-describe("NovelAddTab — layout", () => {
+describe("BookAddTab — layout", () => {
   it("renders the canonical sections in order", () => {
     const { container } = renderTab();
-    expect(sections(container)).toEqual(NOVEL_SECTIONS);
+    expect(sections(container)).toEqual(BOOK_SECTIONS);
   });
 
   it("puts CN first and labels the romanised name Romaji", () => {
     renderTab();
     const names = screen
-      .getAllByLabelText(/^Novel Name /)
+      .getAllByLabelText(/^Book Name /)
       .map((el) => el.getAttribute("aria-label"));
     expect(names).toEqual([
-      "Novel Name CN",
-      "Novel Name EN",
-      "Novel Name Romaji",
-      "Novel Name JP",
-      "Novel Name Alt",
+      "Book Name CN",
+      "Book Name EN",
+      "Book Name Romaji",
+      "Book Name JP",
+      "Book Name Alt",
     ]);
     expect(screen.queryByText(/Name Roman$/)).not.toBeInTheDocument();
   });
@@ -106,7 +106,7 @@ describe("NovelAddTab — layout", () => {
   });
 });
 
-describe("NovelAddTab — Add-only pieces", () => {
+describe("BookAddTab — Add-only pieces", () => {
   it("shows the auto-fill box and both external searches", () => {
     renderTab();
     expect(
@@ -125,12 +125,12 @@ describe("NovelAddTab — Add-only pieces", () => {
   });
 });
 
-describe("NovelAddTab — lineage", () => {
+describe("BookAddTab — lineage", () => {
   it("clears the series when the franchise changes", () => {
     const unv = vi.fn();
     renderTab({
       unv,
-      nvf: { ...defaultNovel(), series_id: "s1", series_text: "Arc" },
+      nvf: { ...defaultBook(), series_id: "s1", series_text: "Arc" },
     });
     fireEvent.change(screen.getByRole("combobox", { name: "Franchise" }), {
       target: { value: "New" },
@@ -139,10 +139,10 @@ describe("NovelAddTab — lineage", () => {
     expect(unv).toHaveBeenCalledWith("series_text", "");
   });
 
-  it("offers Novel, Anime, Manga and untyped franchises only", () => {
+  it("offers Book, Anime, Manga and untyped franchises only", () => {
     renderTab({
       allFranchises: [
-        { system_id: "a", franchise_name_en: "Novel One", franchise_type: "Novel" },
+        { system_id: "a", franchise_name_en: "Book One", franchise_type: "Book" },
         { system_id: "b", franchise_name_en: "Anime One", franchise_type: "Anime" },
         { system_id: "e", franchise_name_en: "Manga One", franchise_type: "Game, Manga" },
         { system_id: "c", franchise_name_en: "Untyped One", franchise_type: null },
@@ -152,7 +152,7 @@ describe("NovelAddTab — lineage", () => {
     const box = screen.getByRole("combobox", { name: "Franchise" });
     fireEvent.focus(box);
     fireEvent.change(box, { target: { value: "One" } });
-    expect(screen.getByText("Novel One")).toBeInTheDocument();
+    expect(screen.getByText("Book One")).toBeInTheDocument();
     expect(screen.getByText("Anime One")).toBeInTheDocument();
     expect(screen.getByText("Manga One")).toBeInTheDocument();
     expect(screen.getByText("Untyped One")).toBeInTheDocument();
@@ -160,12 +160,48 @@ describe("NovelAddTab — lineage", () => {
   });
 });
 
-describe("NovelAddTab — progress display", () => {
+describe("BookAddTab — progress display", () => {
   it("keeps a stored value the list no longer offers, marked legacy", () => {
-    renderTab({ nvf: { ...defaultNovel(), type: "Web", progress_display: "vol_tw" } });
+    renderTab({ nvf: { ...defaultBook(), type: "網路小說", progress_display: "vol_tw" } });
     const values = [
       ...screen.getByLabelText("Progress display").options,
     ].map((o) => o.value);
     expect(values).toContain("vol_tw");
+  });
+});
+
+// A book's release date is split by edition, as anime's is: the JP date and
+// the TW one, both free text taking YYYY, YYYY-MM or YYYY-MM-DD, next to the
+// one end date.
+describe("BookAddTab — release dates", () => {
+  const input = (container, label) =>
+    [...container.querySelectorAll("label")]
+      .find((l) => l.textContent === label)
+      ?.parentElement.querySelector("input");
+
+  it("offers Release Date JP, Release Date TW and End Date, and no plain Release Date", () => {
+    const { container } = renderTab();
+    const labels = [...container.querySelectorAll("label")].map((l) => l.textContent);
+    expect(labels).toEqual(
+      expect.arrayContaining(["Release Date JP", "Release Date TW", "End Date"]),
+    );
+    expect(labels).not.toContain("Release Date");
+  });
+
+  it("writes each date to its own field", () => {
+    const unv = vi.fn();
+    const { container } = renderTab({ unv });
+    fireEvent.change(input(container, "Release Date JP"), { target: { value: "2019" } });
+    expect(unv).toHaveBeenCalledWith("release_date_jp", "2019");
+    fireEvent.change(input(container, "Release Date TW"), { target: { value: "2020-03" } });
+    expect(unv).toHaveBeenCalledWith("release_date_tw", "2020-03");
+  });
+
+  it("shows the stored dates", () => {
+    const { container } = renderTab({
+      nvf: { ...defaultBook(), release_date_jp: "2019-01", release_date_tw: "2020" },
+    });
+    expect(input(container, "Release Date JP").value).toBe("2019-01");
+    expect(input(container, "Release Date TW").value).toBe("2020");
   });
 });

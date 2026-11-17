@@ -86,6 +86,11 @@ function movieDateScore(m) {
   return releaseScore(m.release_date_tw || m.release_date_usa);
 }
 
+// JP first, matching the stored release priority for books.
+function bookDateScore(n) {
+  return releaseScore(n.release_date_jp || n.release_date_tw);
+}
+
 function tvDateScore(t) {
   return releaseScore(t.release_date);
 }
@@ -128,7 +133,7 @@ export default function SeriesPage() {
   const [tvShowList, setTvShowList] = useState([]);
   const [cartoonList, setCartoonList] = useState([]);
   const [mangaList, setMangaList] = useState([]);
-  const [novelList, setNovelList] = useState([]);
+  const [bookList, setBookList] = useState([]);
   const [comicList, setComicList] = useState([]);
   const [gameList, setGameList] = useState([]);
   const [hComicList, setHComicList] = useState([]);
@@ -162,9 +167,9 @@ export default function SeriesPage() {
     region: new Set(),
   });
 
-  // ── Novel tab state ───────────────────────────────────────────────────────
-  const [novelSort, setNovelSort] = useState("title");
-  const [novelFilters, setNovelFilters] = useState({
+  // ── Book tab state ───────────────────────────────────────────────────────
+  const [bookSort, setBookSort] = useState("title");
+  const [bookFilters, setBookFilters] = useState({
     serializationStatus: new Set(),
     readingStatus: new Set(),
     region: new Set(),
@@ -257,7 +262,7 @@ export default function SeriesPage() {
           fetch(buildUrl(endpoints.resource("manga").list(), { series_id: resolvedId }), {
             credentials: "include",
           }),
-          fetch(buildUrl(endpoints.resource("novel").list(), { series_id: resolvedId }), {
+          fetch(buildUrl(endpoints.resource("book").list(), { series_id: resolvedId }), {
             credentials: "include",
           }),
           fetch(buildUrl(endpoints.resource("comic").list(), { series_id: resolvedId }), {
@@ -281,7 +286,7 @@ export default function SeriesPage() {
         setTvShowList(tv);
         setCartoonList(c);
         setMangaList(mg);
-        setNovelList(nv);
+        setBookList(nv);
         setComicList(cm);
         setGameList(gm);
         setRewatchMarked(
@@ -369,7 +374,7 @@ export default function SeriesPage() {
 
   // Media types this series actually holds entries for. PlanKindToggles
   // further filters this down to what rewatch allows at series scope (movie,
-  // tv-show, novel, comic - anime and cartoon rewatch at franchise scope only).
+  // tv-show, book, comic - anime and cartoon rewatch at franchise scope only).
   const seriesMediaTypes = useMemo(() => {
     const list = [];
     if (animeList.length) list.push("anime");
@@ -377,7 +382,7 @@ export default function SeriesPage() {
     if (tvShowList.length) list.push("tv-show");
     if (cartoonList.length) list.push("cartoon");
     if (mangaList.length) list.push("manga");
-    if (novelList.length) list.push("novel");
+    if (bookList.length) list.push("book");
     if (comicList.length) list.push("comic");
     if (gameList.length) list.push("game");
     if (hComicList.length) list.push("h-comic");
@@ -390,7 +395,7 @@ export default function SeriesPage() {
     tvShowList,
     cartoonList,
     mangaList,
-    novelList,
+    bookList,
     comicList,
     gameList,
     hComicList,
@@ -417,7 +422,7 @@ export default function SeriesPage() {
     return buildMediaTabs([
       { label: "Anime", type: "anime", entries: animeList },
       { label: "Manga", type: "manga", entries: mangaList },
-      { label: "Novel", type: "novel", entries: novelList },
+      { label: "Book", type: "book", entries: bookList },
       { label: "Comic", type: "comic", entries: comicList },
       { label: "Game", type: "game", entries: gameList },
       { label: "H-Comic", type: "h-comic", entries: hComicList },
@@ -431,7 +436,7 @@ export default function SeriesPage() {
     series,
     animeList,
     mangaList,
-    novelList,
+    bookList,
     comicList,
     gameList,
     hComicList,
@@ -490,9 +495,9 @@ export default function SeriesPage() {
       setMangaList((p) => p.map((m) => (m.system_id === u.system_id ? u : m))),
     [],
   );
-  const handleNovelUpdated = useCallback(
+  const handleBookUpdated = useCallback(
     (u) =>
-      setNovelList((p) => p.map((n) => (n.system_id === u.system_id ? u : n))),
+      setBookList((p) => p.map((n) => (n.system_id === u.system_id ? u : n))),
     [],
   );
 
@@ -683,20 +688,20 @@ export default function SeriesPage() {
     return result;
   }, [mangaList, mangaFilters, mangaSort]);
 
-  // ── Novel memos ───────────────────────────────────────────────────────────
-  const filteredAndSortedNovel = useMemo(() => {
-    let result = novelList.filter((n) => {
+  // ── Book memos ───────────────────────────────────────────────────────────
+  const filteredAndSortedBook = useMemo(() => {
+    let result = bookList.filter((n) => {
       if (
-        novelFilters.serializationStatus.size > 0 &&
-        !novelFilters.serializationStatus.has(n.serialization_status || "")
+        bookFilters.serializationStatus.size > 0 &&
+        !bookFilters.serializationStatus.has(n.serialization_status || "")
       )
         return false;
       if (
-        novelFilters.region.size > 0 &&
-        !novelFilters.region.has(n.region || "")
+        bookFilters.region.size > 0 &&
+        !bookFilters.region.has(n.region || "")
       )
         return false;
-      if (novelFilters.readingStatus.size > 0) {
+      if (bookFilters.readingStatus.size > 0) {
         const rs = n.reading_status || "Might Read";
         let group = "Might Read";
         if (rs === "Plan to Read") group = "Planned";
@@ -706,30 +711,28 @@ export default function SeriesPage() {
           group = "Completed";
         else if (["Temp Dropped", "Dropped", "Won't Read"].includes(rs))
           group = "Dropped";
-        if (!novelFilters.readingStatus.has(group)) return false;
+        if (!bookFilters.readingStatus.has(group)) return false;
       }
       return true;
     });
     result.sort((a, b) => {
-      if (novelSort === "my_rating")
+      if (bookSort === "my_rating")
         return getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating);
-      if (novelSort === "mal_rating") {
+      if (bookSort === "mal_rating") {
         const wA = a.mal_rating != null ? parseFloat(a.mal_rating) : -1;
         const wB = b.mal_rating != null ? parseFloat(b.mal_rating) : -1;
         if (wA !== wB) return wB - wA;
       }
-      if (novelSort === "release_date")
-        return (
-          releaseScore(a.release_date) - releaseScore(b.release_date)
-        );
-      if (novelSort === "end_date")
+      if (bookSort === "release_date")
+        return bookDateScore(a) - bookDateScore(b);
+      if (bookSort === "end_date")
         return releaseScore(a.end_date) - releaseScore(b.end_date);
-      return (a.novel_name_cn || a.novel_name_en || "").localeCompare(
-        b.novel_name_cn || b.novel_name_en || "",
+      return (a.book_name_cn || a.book_name_en || "").localeCompare(
+        b.book_name_cn || b.book_name_en || "",
       );
     });
     return result;
-  }, [novelList, novelFilters, novelSort]);
+  }, [bookList, bookFilters, bookSort]);
 
   // ── Comic memos ───────────────────────────────────────────────────────────
   // Mirrors the manga memo minus the two things comic has no column for: no
@@ -991,7 +994,7 @@ export default function SeriesPage() {
     ...tvShowList,
     ...cartoonList,
     ...mangaList,
-    ...novelList,
+    ...bookList,
     ...comicList,
     ...gameList,
     ...hComicList,
@@ -1392,18 +1395,18 @@ export default function SeriesPage() {
         </Section>
       )}
 
-      {/* ── Novel tab content ────────────────────────────────────────────── */}
-      {activeTab === "Novel" && novelList.length > 0 && (
+      {/* ── Book tab content ────────────────────────────────────────────── */}
+      {activeTab === "Book" && bookList.length > 0 && (
         <Section
-          title="Novel"
-          subtitle="Light Novel · Web Novel · Novel"
-          count={filteredAndSortedNovel.length}
+          title="Book"
+          subtitle="輕小說 · 小說 · 網路小說 · 短篇集 · 指南/設定集 · 其他"
+          count={filteredAndSortedBook.length}
         >
 
           <div className="flex flex-wrap gap-2 mb-4 items-center">
             <select
-              value={novelSort}
-              onChange={(e) => setNovelSort(e.target.value)}
+              value={bookSort}
+              onChange={(e) => setBookSort(e.target.value)}
               className={SELECT_CLS}
             >
               <option value="title">Sort: title</option>
@@ -1421,9 +1424,9 @@ export default function SeriesPage() {
               <button
                 key={v}
                 onClick={() =>
-                  toggleSetFilter(setNovelFilters, "serializationStatus", v)
+                  toggleSetFilter(setBookFilters, "serializationStatus", v)
                 }
-                className={pillCls(novelFilters.serializationStatus.has(v))}
+                className={pillCls(bookFilters.serializationStatus.has(v))}
               >
                 {v}
               </button>
@@ -1436,9 +1439,9 @@ export default function SeriesPage() {
                 <button
                   key={v}
                   onClick={() =>
-                    toggleSetFilter(setNovelFilters, "readingStatus", v)
+                    toggleSetFilter(setBookFilters, "readingStatus", v)
                   }
-                  className={pillCls(novelFilters.readingStatus.has(v))}
+                  className={pillCls(bookFilters.readingStatus.has(v))}
                 >
                   {v}
                 </button>
@@ -1450,24 +1453,24 @@ export default function SeriesPage() {
             {["JP", "CN", "TW", "KR", "Western"].map((v) => (
               <button
                 key={v}
-                onClick={() => toggleSetFilter(setNovelFilters, "region", v)}
-                className={pillCls(novelFilters.region.has(v))}
+                onClick={() => toggleSetFilter(setBookFilters, "region", v)}
+                className={pillCls(bookFilters.region.has(v))}
               >
                 {v}
               </button>
             ))}
           </div>
 
-          {filteredAndSortedNovel.length === 0 ? (
+          {filteredAndSortedBook.length === 0 ? (
             <FilterEmpty />
           ) : (
             <div className={GRID_CLS}>
-              {filteredAndSortedNovel.map((n) => (
+              {filteredAndSortedBook.map((n) => (
                 <MediaCard
                   key={n.system_id}
-                  type="novel"
+                  type="book"
                   data={n}
-                  onUpdated={handleNovelUpdated}
+                  onUpdated={handleBookUpdated}
                 />
               ))}
             </div>

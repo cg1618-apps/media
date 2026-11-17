@@ -43,7 +43,7 @@ export const RELEASE_PRIORITY = {
   "tv-show": ["release_date"],
   cartoon: ["release_date"],
   manga: ["release_date"],
-  novel: ["release_date"],
+  book: ["release_date_jp", "release_date_tw"],
   comic: ["release_date"],
   game: ["release_date"],
   "h-comic": ["release_date"],

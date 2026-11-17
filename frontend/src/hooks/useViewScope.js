@@ -9,7 +9,7 @@
 // only its own rows.
 //
 // `ownData` is the viewer's own opinion of catalogue rows - its rating of a
-// group or an entity, its expectation of a tier, a novel unit's remark. Those
+// group or an entity, its expectation of a tier, a book unit's remark. Those
 // are kept per account and written under self.list, so they are drawn for a
 // holder of self.list; anyone else has none, and the server answers null.
 //

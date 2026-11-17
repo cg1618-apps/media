@@ -1,10 +1,10 @@
 // Frontend: tests for the two-stage arc/chapter tracker row and the
-// arc-less flat chapter fallback (Decision G: a Web novel with no arc rows
+// arc-less flat chapter fallback (Decision G: a 網路小說 with no arc rows
 // yet still needs a working chapter stepper).
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import NovelTrackerBlock from "./NovelTrackerBlock";
+import BookTrackerBlock from "./BookTrackerBlock";
 
 // The block hides itself when nobody is signed in - a guest has no tracker -
 // and these tests are about what it renders for somebody who is. Mocked rather
@@ -17,7 +17,7 @@ const noop = () => {};
 
 function baseProps(overrides = {}) {
   return {
-    novel: { system_id: "n1", type: "Web", units: [] },
+    book: { system_id: "n1", type: "網路小說", units: [] },
     canTrack: true,
     onChChange: noop,
     onVolChange: noop,
@@ -31,13 +31,13 @@ function baseProps(overrides = {}) {
   };
 }
 
-describe("NovelTrackerBlock — arc-less flat chapter stepper", () => {
+describe("BookTrackerBlock — arc-less flat chapter stepper", () => {
   it("renders the flat Chapters row and steps it via onChChange when there are no arc rows", () => {
     const onChChange = vi.fn();
     render(
-      <NovelTrackerBlock
+      <BookTrackerBlock
         {...baseProps({
-          novel: { system_id: "n1", type: "Web", units: [], ch_fin: 5, ch_total: 300 },
+          book: { system_id: "n1", type: "網路小說", units: [], ch_fin: 5, ch_total: 300 },
           onChChange,
         })}
       />,
@@ -51,7 +51,7 @@ describe("NovelTrackerBlock — arc-less flat chapter stepper", () => {
   });
 });
 
-describe("NovelTrackerBlock — two-stage arc/chapter stepper", () => {
+describe("BookTrackerBlock — two-stage arc/chapter stepper", () => {
   const units = [
     { unit_kind: "arc", position: 1, ch_count: 100 },
     { unit_kind: "arc", position: 2, ch_count: 112 },
@@ -59,9 +59,9 @@ describe("NovelTrackerBlock — two-stage arc/chapter stepper", () => {
 
   it("renders the Arc / Chapter row instead of separate Arc and Chapter rows", () => {
     render(
-      <NovelTrackerBlock
+      <BookTrackerBlock
         {...baseProps({
-          novel: { system_id: "n1", type: "Web", units, arc_fin: 1, ch_fin_in_arc: 101 },
+          book: { system_id: "n1", type: "網路小說", units, arc_fin: 1, ch_fin_in_arc: 101 },
         })}
       />,
     );
@@ -74,9 +74,9 @@ describe("NovelTrackerBlock — two-stage arc/chapter stepper", () => {
   it("steps up across an arc boundary via onArcProgressChange", () => {
     const onArcProgressChange = vi.fn();
     render(
-      <NovelTrackerBlock
+      <BookTrackerBlock
         {...baseProps({
-          novel: { system_id: "n1", type: "Web", units, arc_fin: 0, ch_fin_in_arc: 100 },
+          book: { system_id: "n1", type: "網路小說", units, arc_fin: 0, ch_fin_in_arc: 100 },
           onArcProgressChange,
         })}
       />,
@@ -89,9 +89,9 @@ describe("NovelTrackerBlock — two-stage arc/chapter stepper", () => {
   it("does not clamp ch_fin_in_arc when arc_fin is already at the last recorded arc (Decision D)", () => {
     const onArcProgressChange = vi.fn();
     render(
-      <NovelTrackerBlock
+      <BookTrackerBlock
         {...baseProps({
-          novel: { system_id: "n1", type: "Web", units, arc_fin: 2, ch_fin_in_arc: 5 },
+          book: { system_id: "n1", type: "網路小說", units, arc_fin: 2, ch_fin_in_arc: 5 },
           onArcProgressChange,
         })}
       />,
@@ -104,9 +104,9 @@ describe("NovelTrackerBlock — two-stage arc/chapter stepper", () => {
   it("does not go negative when stepping down from arc_fin 0, ch_fin_in_arc 0", () => {
     const onArcProgressChange = vi.fn();
     render(
-      <NovelTrackerBlock
+      <BookTrackerBlock
         {...baseProps({
-          novel: { system_id: "n1", type: "Web", units, arc_fin: 0, ch_fin_in_arc: 0 },
+          book: { system_id: "n1", type: "網路小說", units, arc_fin: 0, ch_fin_in_arc: 0 },
           onArcProgressChange,
         })}
       />,
@@ -117,17 +117,17 @@ describe("NovelTrackerBlock — two-stage arc/chapter stepper", () => {
   });
 });
 
-// A Light Novel and a Novel are counted in volumes. The chapter and arc
+// A 輕小說 and a 小說 are counted in volumes. The chapter and arc
 // columns are meaningless for them (the server clears them), so no chapter
 // row may render - not even an empty one.
-describe("NovelTrackerBlock — volume-only types have no chapter row", () => {
-  it.each(["Light Novel", "Novel"])(
+describe("BookTrackerBlock — volume-only types have no chapter row", () => {
+  it.each(["輕小說", "小說"])(
     "renders Volumes but no chapter row for %s",
     (type) => {
       render(
-        <NovelTrackerBlock
+        <BookTrackerBlock
           {...baseProps({
-            novel: {
+            book: {
               system_id: "n1",
               type,
               units: [],
@@ -146,11 +146,11 @@ describe("NovelTrackerBlock — volume-only types have no chapter row", () => {
 
   it("hides the chapter row even when stale chapter values are still on the row", () => {
     render(
-      <NovelTrackerBlock
+      <BookTrackerBlock
         {...baseProps({
-          novel: {
+          book: {
             system_id: "n1",
-            type: "Light Novel",
+            type: "輕小說",
             units: [],
             ch_fin: 0,
             ch_total: 110,
@@ -165,11 +165,11 @@ describe("NovelTrackerBlock — volume-only types have no chapter row", () => {
 
   it("hides the two-stage row too when arc rows arrived from a Pull", () => {
     render(
-      <NovelTrackerBlock
+      <BookTrackerBlock
         {...baseProps({
-          novel: {
+          book: {
             system_id: "n1",
-            type: "Novel",
+            type: "小說",
             units: [{ unit_kind: "arc", position: 1, ch_count: 100 }],
             arc_fin: 0,
             ch_fin_in_arc: 5,
@@ -181,11 +181,11 @@ describe("NovelTrackerBlock — volume-only types have no chapter row", () => {
     expect(screen.queryByText("Arc / Chapter")).not.toBeInTheDocument();
   });
 
-  it("still renders the chapter row for Other, which may count chapters", () => {
+  it("still renders the chapter row for 其他, which may count chapters", () => {
     render(
-      <NovelTrackerBlock
+      <BookTrackerBlock
         {...baseProps({
-          novel: { system_id: "n1", type: "Other", units: [], ch_fin: 4, ch_total: 20 },
+          book: { system_id: "n1", type: "其他", units: [], ch_fin: 4, ch_total: 20 },
         })}
       />,
     );
@@ -197,14 +197,14 @@ describe("NovelTrackerBlock — volume-only types have no chapter row", () => {
 // A web novel is read in chapters. Its volume columns are kept (a print run
 // may exist) but never rendered, and its progress-display choice is limited
 // to the counters it actually has.
-describe("NovelTrackerBlock — Web hides volumes", () => {
-  it("renders no Volumes row for a Web novel", () => {
+describe("BookTrackerBlock — 網路小說 hides volumes", () => {
+  it("renders no Volumes row for a 網路小說", () => {
     render(
-      <NovelTrackerBlock
+      <BookTrackerBlock
         {...baseProps({
-          novel: {
+          book: {
             system_id: "n1",
-            type: "Web",
+            type: "網路小說",
             units: [],
             vol_fin: 3,
             vol_total_tw: 11,
@@ -219,10 +219,10 @@ describe("NovelTrackerBlock — Web hides volumes", () => {
     expect(screen.getByText("Chapters")).toBeInTheDocument();
   });
 
-  it("still renders Volumes for Other, which may count either", () => {
+  it("still renders Volumes for 其他, which may count either", () => {
     render(
-      <NovelTrackerBlock
-        {...baseProps({ novel: { system_id: "n1", type: "Other", units: [] } })}
+      <BookTrackerBlock
+        {...baseProps({ book: { system_id: "n1", type: "其他", units: [] } })}
       />,
     );
 
@@ -232,8 +232,8 @@ describe("NovelTrackerBlock — Web hides volumes", () => {
 
   it("offers only the chapter counters in the progress-display select", () => {
     render(
-      <NovelTrackerBlock
-        {...baseProps({ novel: { system_id: "n1", type: "Web", units: [] } })}
+      <BookTrackerBlock
+        {...baseProps({ book: { system_id: "n1", type: "網路小說", units: [] } })}
       />,
     );
 
@@ -244,17 +244,17 @@ describe("NovelTrackerBlock — Web hides volumes", () => {
   });
 });
 
-describe("NovelTrackerBlock — the whole-arc stepper", () => {
+describe("BookTrackerBlock — the whole-arc stepper", () => {
   const units = [
     { unit_kind: "arc", position: 1, ch_count: 100, unit_key: "", name_cn: "小丑" },
     { unit_kind: "arc", position: 2, ch_count: 112, unit_key: "", name_cn: "序曲" },
     { unit_kind: "arc", position: 3, ch_count: 90, unit_key: "", name_cn: "詭秘" },
   ];
 
-  function webNovel(overrides = {}) {
+  function webBook(overrides = {}) {
     return {
       system_id: "n1",
-      type: "Web",
+      type: "網路小說",
       units,
       arc_fin: 1,
       ch_fin_in_arc: 40,
@@ -264,7 +264,7 @@ describe("NovelTrackerBlock — the whole-arc stepper", () => {
   }
 
   it("renders the Arcs row with the current arc's position and name", () => {
-    render(<NovelTrackerBlock {...baseProps({ novel: webNovel() })} />);
+    render(<BookTrackerBlock {...baseProps({ book: webBook() })} />);
 
     expect(screen.getByText("Arcs")).toBeInTheDocument();
     expect(screen.queryByText("Arc / Chapter")).not.toBeInTheDocument();
@@ -280,8 +280,8 @@ describe("NovelTrackerBlock — the whole-arc stepper", () => {
   it("steps a whole arc and resets the in-arc cursor", () => {
     const onArcProgressChange = vi.fn();
     render(
-      <NovelTrackerBlock
-        {...baseProps({ novel: webNovel(), onArcProgressChange })}
+      <BookTrackerBlock
+        {...baseProps({ book: webBook(), onArcProgressChange })}
       />,
     );
 
@@ -295,8 +295,8 @@ describe("NovelTrackerBlock — the whole-arc stepper", () => {
   it("steps back a whole arc", () => {
     const onArcProgressChange = vi.fn();
     render(
-      <NovelTrackerBlock
-        {...baseProps({ novel: webNovel(), onArcProgressChange })}
+      <BookTrackerBlock
+        {...baseProps({ book: webBook(), onArcProgressChange })}
       />,
     );
 
@@ -308,7 +308,7 @@ describe("NovelTrackerBlock — the whole-arc stepper", () => {
   });
 
   it("offers all three chapter counters once arc rows exist", () => {
-    render(<NovelTrackerBlock {...baseProps({ novel: webNovel() })} />);
+    render(<BookTrackerBlock {...baseProps({ book: webBook() })} />);
 
     const values = [...screen.getByLabelText("Progress display").options].map(
       (o) => o.value,
@@ -317,16 +317,16 @@ describe("NovelTrackerBlock — the whole-arc stepper", () => {
   });
 });
 
-describe("NovelTrackerBlock — flat chapters derived from arcs", () => {
+describe("BookTrackerBlock — flat chapters derived from arcs", () => {
   const units = [{ unit_kind: "arc", position: 1, ch_count: 100 }];
 
   it("shows the derived pair, labelled as coming from the arcs, when 'ch' is chosen with arc rows", () => {
     render(
-      <NovelTrackerBlock
+      <BookTrackerBlock
         {...baseProps({
-          novel: {
+          book: {
             system_id: "n1",
-            type: "Web",
+            type: "網路小說",
             units,
             arc_fin: 0,
             ch_fin_in_arc: 30,
@@ -344,18 +344,18 @@ describe("NovelTrackerBlock — flat chapters derived from arcs", () => {
   });
 });
 
-describe("NovelTrackerBlock — typing progress on a web novel with arcs", () => {
+describe("BookTrackerBlock — typing progress on a web novel with arcs", () => {
   const units = [
     { unit_kind: "arc", position: 1, ch_count: 100 },
     { unit_kind: "arc", position: 2, ch_count: 40 },
   ];
-  const novel = (extra) => ({ system_id: "n1", type: "Web", units, ...extra });
+  const book = (extra) => ({ system_id: "n1", type: "網路小說", units, ...extra });
 
   it("shows the arc being read, and a typed arc starts at its beginning", () => {
     const onArcProgressChange = vi.fn();
     render(
-      <NovelTrackerBlock
-        {...baseProps({ novel: novel({ arc_fin: 1, ch_fin_in_arc: 7 }), onArcProgressChange })}
+      <BookTrackerBlock
+        {...baseProps({ book: book({ arc_fin: 1, ch_fin_in_arc: 7 }), onArcProgressChange })}
       />,
     );
     const arc = screen.getByLabelText("Arc being read");
@@ -370,8 +370,8 @@ describe("NovelTrackerBlock — typing progress on a web novel with arcs", () =>
   it("a typed chapter stays in the arc shown, and carries past its end", () => {
     const onArcProgressChange = vi.fn();
     render(
-      <NovelTrackerBlock
-        {...baseProps({ novel: novel({ arc_fin: 0, ch_fin_in_arc: 7 }), onArcProgressChange })}
+      <BookTrackerBlock
+        {...baseProps({ book: book({ arc_fin: 0, ch_fin_in_arc: 7 }), onArcProgressChange })}
       />,
     );
     const ch = screen.getByLabelText("Chapters read in this arc");
@@ -384,7 +384,7 @@ describe("NovelTrackerBlock — typing progress on a web novel with arcs", () =>
   });
 
   it("shows every arc finished as the last arc, complete", () => {
-    render(<NovelTrackerBlock {...baseProps({ novel: novel({ arc_fin: 2, ch_fin_in_arc: 0 }) })} />);
+    render(<BookTrackerBlock {...baseProps({ book: book({ arc_fin: 2, ch_fin_in_arc: 0 }) })} />);
     expect(screen.getByLabelText("Arc being read")).toHaveValue(2);
     expect(screen.getByLabelText("Chapters read in this arc")).toHaveValue(40);
   });
@@ -392,9 +392,9 @@ describe("NovelTrackerBlock — typing progress on a web novel with arcs", () =>
   it("types the arc in the whole-arc display", () => {
     const onArcProgressChange = vi.fn();
     render(
-      <NovelTrackerBlock
+      <BookTrackerBlock
         {...baseProps({
-          novel: novel({ progress_display: "arc", arc_fin: 0, ch_fin_in_arc: 0 }),
+          book: book({ progress_display: "arc", arc_fin: 0, ch_fin_in_arc: 0 }),
           onArcProgressChange,
         })}
       />,
@@ -408,9 +408,9 @@ describe("NovelTrackerBlock — typing progress on a web novel with arcs", () =>
     const onArcProgressChange = vi.fn();
     const onChChange = vi.fn();
     render(
-      <NovelTrackerBlock
+      <BookTrackerBlock
         {...baseProps({
-          novel: novel({ progress_display: "ch", arc_fin: 0, ch_fin_in_arc: 3, ch_fin: 3, ch_total: 140 }),
+          book: book({ progress_display: "ch", arc_fin: 0, ch_fin_in_arc: 3, ch_fin: 3, ch_total: 140 }),
           onArcProgressChange,
           onChChange,
         })}
@@ -426,14 +426,14 @@ describe("NovelTrackerBlock — typing progress on a web novel with arcs", () =>
   });
 });
 
-describe("NovelTrackerBlock without self.list", () => {
+describe("BookTrackerBlock without self.list", () => {
   it("draws nothing: every field is the viewer's own", () => {
-    const { container } = render(<NovelTrackerBlock {...baseProps({ canTrack: false })} />);
+    const { container } = render(<BookTrackerBlock {...baseProps({ canTrack: false })} />);
     expect(container).toBeEmptyDOMElement();
   });
 
   it("draws the controls, enabled, for a holder of self.list", () => {
-    render(<NovelTrackerBlock {...baseProps()} />);
+    render(<BookTrackerBlock {...baseProps()} />);
     expect(screen.getByLabelText("Progress display")).toBeEnabled();
     expect(screen.getByRole("button", { name: "Next chapter" })).toBeEnabled();
   });
