@@ -97,7 +97,7 @@ def get_collection_by_id(
         db, viewer, db_collection.system_id
     ):
         raise HTTPException(status_code=404, detail="Collection not found.")
-    attach_remark(db, "collection", db_collection, viewer.user_id)
+    attach_remark(db, "collection", db_collection)
     attach_group_content_labels(db, "collection", db_collection)
     attach_ratings(db, "collection", db_collection, viewer.user_id)
     return db_collection
@@ -140,7 +140,7 @@ def create_collection(
             db.commit()
             db.refresh(new_collection)
 
-        attach_remark(db, "collection", new_collection, viewer.user_id)
+        attach_remark(db, "collection", new_collection)
 
         attach_ratings(db, "collection", new_collection, viewer.user_id)
 
@@ -190,7 +190,7 @@ def update_collection(
     db.commit()
     db.refresh(db_collection)
 
-    attach_remark(db, "collection", db_collection, viewer.user_id)
+    attach_remark(db, "collection", db_collection)
     attach_group_content_labels(db, "collection", db_collection)
 
     attach_ratings(db, "collection", db_collection, viewer.user_id)
@@ -232,7 +232,7 @@ def patch_collection(
     db.commit()
     db.refresh(db_collection)
 
-    attach_remark(db, "collection", db_collection, viewer.user_id)
+    attach_remark(db, "collection", db_collection)
     attach_group_content_labels(db, "collection", db_collection)
 
     attach_ratings(db, "collection", db_collection, viewer.user_id)

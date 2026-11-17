@@ -501,10 +501,8 @@ def check_remarks(
     db: Session = Depends(get_db),
     viewer: Viewer = Depends(require_manage_pipelines),
 ):
-    # The CALLER's own remarks. A remark is a personal-scope note and belongs
-    # to its author (decision 12), and this screen shows one per entry - a
-    # shape that only means something once an author is fixed. Identical to
-    # the old answer on a single-account installation.
+    # The catalogue remarks, the same for every caller; the status beside
+    # each is the caller's own.
     return JSONResponse(content=find_all_remarks(db, viewer.user_id))
 
 
@@ -516,7 +514,7 @@ def check_music(
     # Every anime with a song list or a song the CALLER has on Need, Pending
     # or No Full Version. Per caller: the songs and lists are catalogue rows,
     # but each status on them is the caller's own note mark (music_review.py),
-    # so the queue is the caller's own, like the remarks block above.
+    # so the queue is the caller's own.
     return find_flagged_music(db, viewer)
 
 

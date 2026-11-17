@@ -1,6 +1,6 @@
 # Design decisions
 
-Last verified: 2026-11-16
+Last verified: 2026-11-17
 
 ## What this is for
 
@@ -5221,3 +5221,37 @@ shown buttons that answered 401.
   retired `Anime` token onto `ACG` is gone: `Anime` is a type again.
 - **Rejected: keep `ACG` and add `Anime`/`Manga` beside it.** Two ways to say
   the same franchise would split every type test in two.
+
+### 備註 Remark is the catalogue's; the remarks it held move to 備註列表 (2026-11-17)
+
+- **The owner's call, and it reverses the per-author remark** recorded under
+  "Authorization redesign". 備註 had become a personal-scope singleton - one
+  row per owner per author, read back only by its author - which left the
+  catalogue with no shared block of prose on an entry or a group, and gave
+  each member a second personal place to write beside 備註列表. Now 備註 is
+  one catalogue row per owner, written under `manage.catalog` and read by
+  everyone who can see the owner, a guest included; a member's own short
+  notes go in 備註列表, which stays personal.
+- **The per-account write route is retired, not kept read-only.**
+  `PUT /api/me/remarks/{owner_type}/{owner_id}` existed only to let a
+  `self.list` holder write their own remark; with the remark shared there is
+  nothing of theirs for it to write, and a route that refuses everything is
+  an inert surface. The detail pages and hubs save through the owner's own
+  `PATCH`, behind `manage.catalog`, and draw the remark read-only for
+  everyone else.
+- **Every existing remark becomes a 備註列表 row of its own author, in place**
+  (revision `r1e2mcatalog3`). Publishing them as the new catalogue remark
+  was rejected: they were written as private assessments, and turning one
+  into a guest-readable page would publish it without its author choosing
+  to. Re-authoring them to one account was rejected too - a remark is never
+  handed to an account that did not write it. Updating the row rather than
+  inserting a copy keeps its `system_id`, timestamps and any mark on it.
+  Each lands first in its author's list on that owner, since it was the
+  owner's one block of prose and reads best at the top.
+- **The index and the read path change together, as before.** Per-owner
+  `ix_note_one_remark_per_owner` and an unfiltered `attach_remark` are one
+  mechanism, as the per-author pair was. The upgrade drops the index, moves
+  the rows, and recreates it per owner; the downgrade only puts the
+  per-author index back, because the catalogue remarks written since are
+  valid per-author rows and a moved 備註列表 row cannot be told from a typed
+  one.

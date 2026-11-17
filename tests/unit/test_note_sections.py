@@ -770,9 +770,9 @@ def test_insert_songs_is_anime_only():
 # Sections backed by their own table (quotes, memes) store no note row and so
 # have no scope to declare.
 PERSONAL_KEYS = {
-    "remark",
     # The other half of 備註: the short things, one per row, that a single
-    # block of prose turns into a wall. Personal for the same reason 備註 is.
+    # block of prose turns into a wall. 備註 itself is the catalogue's; this
+    # is where each viewer keeps their own.
     "remark_list",
     "advantages",
     "disadvantages",
@@ -802,6 +802,8 @@ PERSONAL_KEYS = {
 }
 
 CATALOG_KEYS = {
+    # 備註: the catalogue's one block of prose per owner.
+    "remark",
     "introduction",
     "music_status",
     "op",
@@ -915,7 +917,6 @@ def test_the_two_scopes_partition_every_stored_section():
 def test_sections_by_scope_returns_registry_order():
     keys = [s.key for s in ns.sections_by_scope(ns.SCOPE_PERSONAL)]
     assert keys == [
-        "remark",
         "remark_list",
         "advantages",
         "disadvantages",
