@@ -152,9 +152,9 @@ export function MediaScopeLine({ mediaTypes, className = "", short = false }) {
 }
 
 /**
- * "Ep. Special 0", "Ep. Special 14.5" — the episode number a special sits at,
- * not a count. 0 is a real value, so this tests for null rather than falsiness.
- * Anime is the only type with the column.
+ * "Ep. Special 0", "Ep. Special 17.5A" — the episode a special sits at, a
+ * label shown as written, not a count. It arrives as text; this tests for null
+ * rather than falsiness all the same. Anime is the only type with the column.
  */
 export function specialLabel(item) {
   if (item.ep_special == null) return null;

@@ -427,6 +427,7 @@ export default function Anime() {
                 fields={[
                   [
                     { label: "本傳/外傳", value: anime.is_main },
+                    { label: "Original / Remake", value: anime.original_or_remake },
                     { label: "Season Part", value: anime.season_part },
                     { label: "Special Episodes", value: anime.ep_special },
                     { label: "Total Episodes", value: epTotalDisplay },

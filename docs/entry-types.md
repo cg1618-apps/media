@@ -93,7 +93,7 @@ Media-type keys are the hyphenated values in `MEDIA_TABLES` (`app/utils/media_re
 
 | Key | Table | Model docstring / purpose |
 |---|---|---|
-| `anime` | `anime` | One Japanese animation entry per season/cour or per OVA/special/movie-format release. `airing_type` is one of `"TV"`, `"ONA"`, `"OVA"`, `"OAD"`, `"Special"`, `"Movie"` (enum) — the dropdown adds `"Other"`. |
+| `anime` | `anime` | One Japanese animation entry per season/cour or per OVA/special/movie-format release. `airing_type` is one of `"TV"`, `"ONA"`, `"OVA"`, `"OAD"`, `"Special"`, `"Movie"` (enum) — the dropdown adds `"Other"`. `original_or_remake` is `"Original"` (the default) or `"Remake"` (`ANIME_ORIGINAL_OR_REMAKE`), a column beside `is_main` and never empty. |
 | `anime-movie` | `anime_movies` | A theatrical anime film tracked in its **own table**, with MAL metadata and no series link. |
 | `movie` | `movies` | "Live-action and animated movie entries." `movie_type` is `"Reality"` or `"Animation"`. |
 | `tv-show` | `tv_shows` | "Live-action and scripted TV show entries." One entry per season (`season_part`). `airing_type` is `"TV"` (the default) or `"Special"`. |
@@ -392,7 +392,7 @@ Every finder is the same rule: rows that agree exactly on the key **and** share 
 |---|---|---|
 | franchise | `franchise_type` (each comma-separated token separately) | — |
 | series | `franchise_id` | — |
-| `anime` | `franchise_id`, `series_id`, `airing_type`, `season_part` (lower-cased), `is_main`, `ep_special` | — |
+| `anime` | `franchise_id`, `series_id`, `airing_type`, `season_part` (lower-cased), `is_main`, `original_or_remake`, `ep_special` | — |
 | `anime-movie` | `franchise_id` | — |
 | `movie` | `franchise_id`, `series_id` | — |
 | `tv-show` | `franchise_id`, `series_id`, `season_part` (lower-cased), `is_main` | — |

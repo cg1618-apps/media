@@ -1384,7 +1384,7 @@ status select, which goes through `/api/me/list`.
 
 | Page | Information card | Production card | Extras |
 |---|---|---|---|
-| Anime | 本傳/外傳, Season Part, Special Episodes, Total Episodes (with cumulative), Airing Type/Status, Runtime (min), Release Season, Release Date JP/TW, Genre main/sub, 標籤 Label | Studio, 台灣代理商 (linked `publisher_refs`), Director, Producer, Music | remark lives only in Notes (no textarea); Cast placeholder |
+| Anime | 本傳/外傳, Original / Remake, Season Part, Special Episodes, Total Episodes (with cumulative), Airing Type/Status, Runtime (min), Release Season, Release Date JP/TW, Genre main/sub, 標籤 Label | Studio, 台灣代理商 (linked `publisher_refs`), Director, Producer, Music | remark lives only in Notes (no textarea); Cast placeholder |
 | AnimeMovie | Airing Status, Runtime, Release Date JP/TW, Genre main/sub, 標籤 Label | Studio, 台灣代理商 (linked; the row this page gained in the publisher migration — it had none before), Director | no series query; Cast placeholder |
 | Movie | 本傳/外傳, Airing Status, Runtime, Director, Release Date TW/USA | — | **Genres** card (`GenresCard`); inline IMDb score block |
 | TV | 本傳/外傳, Season, Total Ep, Official Source, Airing Type/Status, Release Date, Runtime (min) | — | **Genres** card (`GenresCard`); IMDb block with this season's rating, and the whole show's beside it when there is one |

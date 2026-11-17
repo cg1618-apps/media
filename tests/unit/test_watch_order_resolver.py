@@ -399,8 +399,8 @@ class TestResolveItems:
 
 class TestEpSpecial:
     """
-    ep_special is the episode number a special sits at (0, 14.5), not a count,
-    and only anime has the column.
+    ep_special is the episode a special sits at ("0", "14.5", "17.5A"), a
+    label rather than a count, and only anime has the column.
     """
 
     def _resolve(self, entry, entry_id, media_type="anime"):
@@ -409,14 +409,14 @@ class TestEpSpecial:
 
     def test_value_is_surfaced(self):
         entry_id = uuid.uuid4()
-        result = self._resolve(make_anime(entry_id, ep_special=14.5), entry_id)
-        assert result["ep_special"] == 14.5
+        result = self._resolve(make_anime(entry_id, ep_special="17.5A"), entry_id)
+        assert result["ep_special"] == "17.5A"
 
     def test_zero_survives(self):
         """A falsiness check would drop episode 0, which is a real value."""
         entry_id = uuid.uuid4()
-        result = self._resolve(make_anime(entry_id, ep_special=0), entry_id)
-        assert result["ep_special"] == 0
+        result = self._resolve(make_anime(entry_id, ep_special="0"), entry_id)
+        assert result["ep_special"] == "0"
         assert result["ep_special"] is not None
 
     def test_absent_value_is_none(self):

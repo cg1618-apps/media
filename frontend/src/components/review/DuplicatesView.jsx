@@ -37,6 +37,7 @@ export const DUPLICATE_TABS = [
     names: [["CN", "series_name_cn"], ["EN", "series_name_en"], ["Alt", "series_name_alt"]] },
   { key: "anime", type: "anime", label: "Anime",
     shared: [FRANCHISE, SERIES, { label: "Type", field: "airing_type" }, SEASON, MAIN,
+      { label: "Original / Remake", field: "original_or_remake" },
       { label: "Special", field: "ep_special" }],
     names: [["CN", "anime_name_cn"], ["EN", "anime_name_en"]] },
   { key: "anime_movie", type: "anime-movie", label: "Anime Movie", shared: [FRANCHISE],

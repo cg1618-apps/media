@@ -311,11 +311,15 @@ export function buildAnimePayload(af, { franchiseId, seriesId } = {}) {
     airing_status: af.airing_status || null,
     watching_status: af.watching_status || "Might Watch",
     is_main: af.is_main || null,
+    // Never null: the column is NOT NULL and a blank means the original.
+    original_or_remake: af.original_or_remake || "Original",
     ep_previous: af.ep_previous !== "" ? parseInt(af.ep_previous) : null,
     ep_total: af.ep_total !== "" ? parseInt(af.ep_total) : null,
     ep_fin: af.ep_fin !== "" ? parseInt(af.ep_fin, 10) : null,
     time_fin: af.time_fin || null,
-    ep_special: af.ep_special !== "" ? parseFloat(af.ep_special) : null,
+    // Text, not a number: specials are numbered 17.5A, 17.5B. The server
+    // writes a plain number in its shortest form (17.0 -> "17").
+    ep_special: String(af.ep_special ?? "").trim() || null,
     runtime_min: int(af.runtime_min),
     my_rating: af.my_rating || null,
     mal_rating: af.mal_rating !== "" ? parseFloat(af.mal_rating) : null,

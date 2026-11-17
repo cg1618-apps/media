@@ -26,6 +26,7 @@
 import {
   AIRING_STATUSES,
   ANIME_AIRING_TYPES,
+  ANIME_ORIGINAL_OR_REMAKE,
   CARTOON_AIRING_TYPES,
   TV_SHOW_AIRING_TYPES,
   COMIC_TYPES,
@@ -344,6 +345,15 @@ export const TYPE_FIELD_META = {
       options: ANIME_AIRING_TYPES,
       group: "Classification",
     },
+    // ANIME_ORIGINAL_OR_REMAKE, a column beside is_main rather than its
+    // vocabulary. Not in BUILTIN_AUTOFILL: copying it from the entry a
+    // remake is filled from would mark the remake as the original.
+    original_or_remake: {
+      label: "Original / Remake",
+      control: "select",
+      options: ANIME_ORIGINAL_OR_REMAKE,
+      group: "Classification",
+    },
     genre_main: {
       label: "Genre Main",
       control: "tags",
@@ -367,9 +377,10 @@ export const TYPE_FIELD_META = {
       control: "number",
       group: "Progress",
     },
+    // Text: specials are numbered 17.5A, 17.5B.
     ep_special: {
       label: "Special Episodes",
-      control: "number",
+      control: "text",
       group: "Progress",
     },
     runtime_min: {
