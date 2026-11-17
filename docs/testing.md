@@ -1,6 +1,6 @@
 # Testing
 
-Last verified: 2026-11-14
+Last verified: 2026-11-17
 
 ## What this is for
 
@@ -454,17 +454,29 @@ to `ALLOWED_FILES` or `ALLOWED_CLASSES` only for a deliberate exception.
 ## What CI runs
 
 `.github/workflows/ci.yml` (workflow name `Tests`) runs on **every pull
-request**, and on nothing else: a push to a feature branch, to `dev` or to
-`main` runs no CI at all, which is why every branch reaches `dev` by pull
-request (`CLAUDE.md`, "Git Branches").
+request and every merge-queue run** (`pull_request` and `merge_group`), and on
+nothing else: a push to a feature branch, to `dev` or to `main` runs no CI at
+all, which is why every branch reaches `dev` by pull request (`CLAUDE.md`, "Git
+Branches").
 
-**The pull request is therefore the only place tests run, and the ruleset is
-what makes that sound.** `test` is a required check on both `main` and `dev`,
-and `strict_required_status_checks_policy` requires a branch to be up to date
-before merging — so a green tick cannot refer to a base that has since moved.
-Without that, merging a second pull request first would land a combination
-nothing had tested, which is the gap a re-run on `main` used to cover after the
-fact.
+**A pull request's own run says the change works by itself; what lands is
+tested again.** `test` is a required check on both `main` and `dev`, and what
+makes the merged tree a tested tree differs by branch:
+
+- **`dev` merges through a merge queue.** `gh pr merge <n> --auto` (or "Merge
+  when ready") queues a pull request once its own run is green. The queue
+  builds a temporary branch of `dev` plus every pull request queued ahead of
+  it plus this one, runs `test` on that as a `merge_group` run, and merges
+  only if it passes. Three pull requests queued together are tested as `dev
+  + A`, `dev + A + B` and `dev + A + B + C` at once; if B fails, B leaves the
+  queue and C is retested as `dev + A + C`. A branch is never brought up to
+  date by hand, so landing one pull request does not re-run the others.
+- **`main` requires a branch to be up to date before merging**
+  (`strict_required_status_checks_policy`) and has no queue. A release is one
+  pull request at a time, so nothing ahead of it moves the base.
+
+Without one of those, merging a second pull request first would land a
+combination nothing had tested.
 
 There is one job, `test`:
 
@@ -477,19 +489,28 @@ There is one job, `test`:
    changes anything but documentation (below). Every later step runs only if
    it does.
 3. Python 3.13 (same as the Docker image), `pip install -r requirements-dev.txt`.
-4. `ruff check .`
-5. `shellcheck deploy/migrations deploy/backup/*.sh`
-6. `pytest -q -p no:cacheprovider` (unit + API).
-7. Node 20, `npm ci` in `frontend/`.
-8. `npm run lint`
-9. `npm run test:run`
-10. `npm run build`
+4. **One Alembic head**: `alembic heads` must print exactly one line. Two
+   revisions parented on one revision merge cleanly in git and collide only
+   in Alembic's graph; in a merge-queue run that is the combination under
+   test, and this step fails within seconds instead of at
+   `test_migrations_build_the_schema.py` near the end. It reads the revision
+   files and needs no database.
+5. `ruff check .`
+6. `shellcheck deploy/migrations deploy/backup/*.sh`
+7. `pytest -q -p no:cacheprovider` (unit + API).
+8. Node 20, `npm ci` in `frontend/`.
+9. `npm run lint`
+10. `npm run test:run`
+11. `npm run build`
 
 ### A documentation-only pull request skips the job
 
 The job's first step after the checkout diffs the pull request against its base
 (`git diff --name-only <base>...<head>`, with the checkout at `fetch-depth: 0`
-so the base is present). When every changed path is under `docs/` or ends in
+so the base is present). A merge-queue run has no pull request payload, so it
+diffs the merge group's own base and head instead — the whole queued
+combination, which is documentation only when every pull request in it is.
+When every changed path is under `docs/` or ends in
 `.md` — `README.md` and `CLAUDE.md` included, wherever they sit — every other
 step is skipped, and `test` reports passed within seconds. One changed file of
 any other kind runs the whole job, and so does an empty diff: the fast path is
