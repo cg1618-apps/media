@@ -73,7 +73,7 @@ class Comic(Base, NameFallbackMixin):
     release_date = Column(String, nullable=True)
     end_date = Column(String, nullable=True)
 
-    issue_total = Column(Integer, nullable=True)
+    issue_total = Column(Float, nullable=True)
     serialization_status = Column(String, nullable=True)
     read_order = Column(Float, nullable=True)
 

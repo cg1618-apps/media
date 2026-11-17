@@ -38,7 +38,7 @@ _DERIVABLE = {
 _SERIES_ONLY = {"comic"}
 
 
-def _measure(entries: list, media_type: str) -> Optional[int]:
+def _measure(entries: list, media_type: str) -> Optional[float]:
     """The number this type's thresholds are read against."""
     kind = SIZE_MEASURE[media_type]
     if kind == "count":

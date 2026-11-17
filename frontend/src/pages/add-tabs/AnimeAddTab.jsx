@@ -40,6 +40,7 @@ import {
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
 import { endpoints } from "../../api/endpoints";
+import { FLOAT_PROGRESS_FIELDS } from "../../lib/progressStep";
 
 export { defaultAnime } from "../../config/formFactories";
 
@@ -76,6 +77,7 @@ export function AnimeFormBody({ f, u, sources, ownerId }) {
         className={inputCls}
         type="number"
         min="0"
+        step={FLOAT_PROGRESS_FIELDS.has(key) ? "any" : undefined}
         aria-label={label}
         value={f[key] ?? ""}
         onChange={(e) => u(key, e.target.value)}

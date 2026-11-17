@@ -20,17 +20,11 @@ import {
   unitDisplayKey,
   wholeArcStep,
 } from "../../lib/novelUnits";
+import { stepDown, stepUp } from "../../lib/progressStep";
 
 // A typed number: an empty or unparseable box reads as 0, as the volume and
 // chapter boxes always have.
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
-
-function stepUp(v) {
-  return Math.floor(v) + 1;
-}
-function stepDown(v) {
-  return Math.ceil(v) - 1;
-}
 
 const UNIT_CLS =
   "font-mono text-[9px] uppercase tracking-[0.12em] text-text-faint ml-1.5";
@@ -116,10 +110,9 @@ export default function NovelTrackerBlock({
   const chIsDerived = arcs.length > 0;
 
   function handleVolStep(dir) {
-    const next = dir > 0 ? stepUp(volFin) : stepDown(volFin);
-    const bounded = primaryVolTotal !== null ? Math.min(next, primaryVolTotal) : next;
-    if (bounded < 0 || bounded === volFin) return;
-    onVolChange(bounded);
+    const next = dir > 0 ? stepUp(volFin, primaryVolTotal) : stepDown(volFin);
+    if (next === volFin) return;
+    onVolChange(next);
   }
 
   function handleWholeArcStep(dir) {
@@ -143,10 +136,9 @@ export default function NovelTrackerBlock({
   }
 
   function handleChStep(dir) {
-    const next = dir > 0 ? stepUp(chFin) : stepDown(chFin);
-    const bounded = chTotal !== null ? Math.min(next, chTotal) : next;
-    if (bounded < 0 || bounded === chFin) return;
-    onChChange(bounded);
+    const next = dir > 0 ? stepUp(chFin, chTotal) : stepDown(chFin);
+    if (next === chFin) return;
+    onChChange(next);
   }
 
   return (

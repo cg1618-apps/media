@@ -297,8 +297,8 @@ Model: `Anime`. CHECKs: `ck_anime_release_date_jp_iso`,
 | `airing_status` | String | yes | | AiringStatus |
 | `is_main` | String | yes | | IS_MAIN (本傳/外傳/...) |
 | `original_or_remake` | String | no | `'Original'` | ANIME_ORIGINAL_OR_REMAKE (Original / Remake): whether the entry is the original work or a remake of one. A column of its own beside `is_main`, which answers a different question. Refused on a write outside the vocabulary (422, `null` and `""` included); a Sheets cell that is blank or unknown reads as `Original`. Part of the duplicate key. |
-| `ep_previous` | Integer | yes | | Episodes accumulated by prequels; **derived** by `derive_ep_previous_all_anime` after Fill/Replace. |
-| `ep_total` | Integer | yes | | |
+| `ep_previous` | Float | yes | | Episodes accumulated by prequels; **derived** by `derive_ep_previous_all_anime` after Fill/Replace. |
+| `ep_total` | Float | yes | | |
 | `ep_special` | String | yes | | Where a special sits among the episodes, as a label (`0`, `14.5`, `17.5A`) - a position, not a count. Canonical per `app/utils/ep_special.py`: a plain number is written in its shortest form (`17.0` -> `17`, `17.50` -> `17.5`), anything else kept as typed, trimmed, and a blank is NULL - on a create or full update, which also accepts a JSON number, and on a Sheets Pull, which reads an old numeric cell (`17.0`) the same way. Shown as written and compared by equality only (the duplicate key); nothing sorts it or does arithmetic on it. |
 | `runtime_min` | Integer | yes | | Minutes per episode. Fill writes MAL's duration, 22 to 26 stored as 24 except on a `Movie` |
 | `mal_rating` | Float | yes | | From Tenrai |
@@ -386,7 +386,7 @@ Live-action / scripted TV. Model: `TVShows`. CHECK: `ck_tv_shows_release_date_is
 | `airing_type` | String | yes | `TV` | TV_SHOW_AIRING_TYPES (`TV`, `Special`) |
 | `airing_status` | String | yes | | |
 | `is_main` | String | yes | | |
-| `ep_total` | Integer | yes | | |
+| `ep_total` | Float | yes | | |
 | `runtime_min` | Integer | yes | | Minutes per episode. Fill writes TMDB's season runtime |
 | `imdb_rating` | String | yes | | This season's own: the mean of its episodes' ratings (see `business-rules.md` §10c) |
 | `imdb_series_rating` | String | yes | | The whole show's, every season of it alike |
@@ -410,7 +410,7 @@ Western animation. Model: `Cartoon`. CHECK: `ck_cartoons_release_date_iso`.
 | `airing_type` | String | yes | | CARTOON_AIRING_TYPES. Fill/Replace only touch `TV` and `Movie`. |
 | `airing_status` | String | yes | | |
 | `is_main` | String | yes | | |
-| `ep_total` | Integer | yes | | |
+| `ep_total` | Float | yes | | |
 | `runtime_min` | Integer | yes | | Minutes per episode |
 | `imdb_rating` | String | yes | | A `TV` cartoon's is this season's own (see `business-rules.md` §10c); any other's is the title's |
 | `imdb_series_rating` | String | yes | | The whole show's on a `TV` cartoon; empty on any other |
@@ -433,8 +433,8 @@ Manga, manhwa, manhua. Model: `Manga`. CHECKs: `ck_manga_release_date_iso`,
 | `region` | String | yes | | MANGA_REGIONS |
 | `is_main` | String | yes | | |
 | `serialization_status` | String | yes | | MANGA_SERIALIZATION_STATUSES |
-| `vol_total` | Integer | yes | | |
-| `ch_total` | Integer | yes | | |
+| `vol_total` | Float | yes | | |
+| `ch_total` | Float | yes | | |
 | `mal_rating` | Float | yes | | |
 | `mal_rank` | String | yes | | |
 | `anilist_rating` | Integer | yes | | From AniList (queried as `MANGA`), keyed on `mal_id` - see [external-apis.md](external-apis.md#anilist) |
@@ -552,7 +552,7 @@ titles).
 | `volume_label` | String | yes | | Run designator: "Vol. 5", "(2018)", "Legacy". Free text - Marvel run labels are not consistently numbered. |
 | `comic_type` | String | yes | | COMIC_TYPES (Ongoing / Limited / One-Shot / Annual) |
 | `release_date` / `end_date` | String | yes | | |
-| `issue_total` | Integer | yes | | Also the entry's own size-bucket measure |
+| `issue_total` | Float | yes | | Also the entry's own size-bucket measure |
 | `serialization_status` | String | yes | | Same idiom as manga/novel; no dedicated tuple in `constants.py` |
 | `read_order` | Float | yes | | |
 | `comicvine_id` | Integer | yes | | Derived from `comicvine_link` by Fill, or written beside it by the Add tab's Comic Vine picker; what Fill fetches on and what duplicate detection treats as conclusive |
@@ -783,8 +783,8 @@ write path; see [authorization.md](authorization.md#gated-types).
 | `animation_status` | String | yes | | **JP.** H_COMIC_ANIMATION_STATUSES (Not Animated / Announced / Animated), the hand-set value. While the entry has `adaptation` relations from hentai entries, the API serves a **derived** value instead and this column keeps the hand-set one ([entry-types.md](entry-types.md#h-comic-animation-status-attach_animation_status-appservicesdomainh_comicpy)) |
 | `series_number` | Integer | yes | | **JP.** The entry's position in its series, like a volume number |
 | `serialization_status` | String | yes | | Both. MANGA_SERIALIZATION_STATUSES |
-| `page_total` | Integer | yes | | **JP.** |
-| `ch_total` | Integer | yes | | **KR.** |
+| `page_total` | Float | yes | | **JP.** |
+| `ch_total` | Float | yes | | **KR.** |
 | `ch_behind` | Integer | yes | | **KR.** Chapters behind the official source; hand-set, never derived |
 | `release_date` / `end_date` | String | yes | | Truncated ISO-8601, CHECKs `ck_h_comic_release_date_iso` / `ck_h_comic_end_date_iso` |
 | `mal_id` | Integer | yes | | Both. Extracted from `mal_link` by the write hook and every pipeline (`apply_extract_mal_id_manga_novel`); the key Tenrai is fetched on |
@@ -878,7 +878,7 @@ write path; see [authorization.md](authorization.md#gated-types).
 | `series_number` | Integer | yes | | The entry's position in its series |
 | `airing_status` | String | yes | | AiringStatus, anime's vocabulary. Filled by Tenrai when blank, then by AniDB (derived from its dates) |
 | `release_date` | String | yes | | Truncated ISO-8601, CHECK `ck_hentai_release_date_iso`. Filled by Tenrai when blank, then by AniDB's `startdate` |
-| `ep_total` | Integer | yes | | The episode count. Filled by Tenrai (MAL's `episodes`) when blank, then by AniDB's `episodecount` (never its unknown `0`); clamped by `apply_validate_episode_math` on Replace |
+| `ep_total` | Float | yes | | The episode count. Filled by Tenrai (MAL's `episodes`) when blank, then by AniDB's `episodecount` (never its unknown `0`); clamped by `apply_validate_episode_math` on Replace |
 | `mal_id` / `mal_link` | Integer / String | yes | | The MyAnimeList entry; `mal_id` is extracted from `mal_link` as for anime. Tenrai reads it for airing status, release date, episode count and cover only |
 | `anidb_id` / `anidb_link` | Integer / String | yes | | The AniDB anime; `anidb_id` is extracted from `anidb_link` (`https://anidb.net/anime/<aid>` or the old `animedb.pl?show=anime&aid=<aid>`), as `mal_id` is from `mal_link`. AniDB fills airing status, release date, episode count and cover after Tenrai, only where they are still blank, and only while `ANIDB_CLIENT` / `ANIDB_CLIENTVER` are set |
 
@@ -972,6 +972,12 @@ Keyed by `(user_id, media_id)` - `uq_user_media`. `media_id` points at the
 [`media` supertable](#the-media-supertable), not at a detail table, so one row
 shape serves all twelve types and a deleted entry takes its list rows with it.
 
+Every progress count here is a Float, as is every progress total on the
+entries (`ep_total`, `ep_previous`, `issue_total`, `page_total`, `vol_total`,
+`ch_total`): a viewer can be 2.5 episodes or 17.5 chapters in. The one whole
+number among them is `vol_fin_page`, a page. See
+[business-rules.md](business-rules.md#progress-numbers-are-floats).
+
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
@@ -981,16 +987,16 @@ shape serves all twelve types and a deleted entry takes its list rows with it.
 | `my_rating` | String | yes | | MY_RATINGS - a letter grade, never a number |
 | `completed_at` | DateTime | yes | | Stamped when the status becomes a completed one (`apply_list_completion_timestamp`) |
 | `my_watch_day` | String | yes | | WEEKDAYS. Anime only. |
-| `ep_fin` | Integer | yes | | anime, tv_shows, cartoons, hentai |
+| `ep_fin` | Float | yes | | anime, tv_shows, cartoons, hentai |
 | `time_fin` | String | yes | | **Paused at**: where playback stopped - `1:10:00` into a movie, `14:35` into the episode after `ep_fin`. The six watching types (anime, anime_movies, movies, tv_shows, cartoons, hentai). Free text, never parsed; stored stripped, a blank as NULL (`clean_time_fin`). Which episode it belongs to is `ep_fin`'s job, not this column's. Cleared when `ep_fin` goes up or the row becomes Completed - see [business-rules.md](business-rules.md#a-paused-position-is-cleared-by-progress) |
-| `vol_fin` | Float | yes | | manga, novel. Float because novel counts in halves. |
+| `vol_fin` | Float | yes | | manga, novel |
 | `vol_fin_page` | Integer | yes | | manga |
 | `ch_fin` | Float | yes | | manga, novel, h_comic (KR; cleared on JP) |
 | `arc_fin` | Float | yes | | novel |
 | `ch_fin_in_arc` | Float | yes | | novel - the two-stage cursor's second stage |
 | `progress_display` | String | yes | | novel |
-| `issue_fin` | Integer | yes | | comic |
-| `page_fin` | Integer | yes | | h_comic (JP; cleared on KR) |
+| `issue_fin` | Float | yes | | comic |
+| `page_fin` | Float | yes | | h_comic (JP; cleared on KR) |
 | `usefulness` | String | yes | | h_comic, h_game, hentai. H_COMIC_USEFULNESS, checked on every write; personal for the reason `my_rating` is |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 

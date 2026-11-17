@@ -5501,3 +5501,47 @@ shown buttons that answered 401.
   not declared `irreversible`.
 - **`PATCH` writes it as sent**, like every column it touches; the Modify
   page's payload trims it and sends a blank as null.
+
+### Progress numbers are floats (2026-11-17)
+
+- **Every progress count and total is a float**: `ep_fin`, `ep_total`,
+  `ep_previous`, `issue_fin`, `issue_total`, `page_fin`, `page_total`, and
+  manga's and H-Comic's `ch_total` and manga's `vol_total` joined the
+  counters that were float already (`vol_fin`, `ch_fin`, `arc_fin`,
+  `ch_fin_in_arc`, novel's totals). Half an episode watched, or a total of
+  12.5 for a season with a recap half-episode, is a real value, and one
+  numeric type for every counter means one stepping rule. Not
+  `achievements_total` (a game's achievements are whole), and not
+  `vol_fin_page` (a page).
+- **Revision `p1r2ogfloat3`** alters the thirteen columns to double
+  precision; every integer converts exactly. **The downgrade floors**
+  (`floor(col)::integer`): a partial unit is not a finished one, so 2.5
+  episodes reads as 2 rather than rounding up to an episode nobody watched.
+- **Manga's `vol_fin` / `ch_fin` and H-Comic's `ch_fin` were float columns
+  behind `int` schemas**, so the API refused the fraction the column could
+  hold. Every schema now says `Optional[float]`.
+- **The Fill/Replace clamp stopped truncating.** `validate_episode_math`,
+  `validate_vol_math` and `validate_ch_math` parsed with `int(float(...))`,
+  which would have turned a total of 12.5 into 12 on the next Replace. They
+  share one float parser that also treats `nan` / `inf` as no value.
+- **+ and − go to the next integer in their direction**, not ±1: + is
+  `floor(x) + 1`, − is `ceil(x) - 1`. Adding one to 2.5 gives 3.5, a value
+  nobody stepping a counter means; and the dashboard cards' old
+  `Math.round(fin) ± 1` took 2.5 + to 4. The alternative of rounding a
+  fraction away on the first step was rejected because − from 2.5 should be
+  2, not 1.
+- **A tolerance of `1e-9`** lets a value that is an integer but for float
+  noise (2.0000000001, a sum like 0.1 + 0.2) step as that integer, so a step
+  never stalls or skips one.
+- **+ stops at the total without passing it**, a fractional one included
+  (2 + with a total of 2.5 → 2.5), and does nothing at the total. Some
+  cards used to toast "Cannot exceed total" on + at the total; the cap makes
+  that press a no-op instead, as `EpisodeStepper` and the manga and h-comic
+  steppers already behaved. Typing over the total is still refused with the
+  toast.
+- **One helper, `frontend/src/lib/progressStep.js`**, holds the rule, the
+  display formatter and the field list for every stepper, the novel arc
+  cursor included, so the cards and the detail pages cannot step
+  differently again. Display rounds to six decimals (`formatProgress`):
+  enough for any fraction a person types, and short of the noise a float sum
+  carries.

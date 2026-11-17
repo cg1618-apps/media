@@ -469,9 +469,11 @@ own, so a guest's would always be empty.
 
 **The steppers are the viewer's own** (cards read `canTrack`, which is
 `has("self.list")`, not `isAdmin`): −/input/+ progress steppers. A typed
-count saves on blur or Enter and Escape reverts it; − and + save at once
-(`ProgressInput`, see [components.md](components.md)). A viewer without a
-list sees a read-only counter.
+count saves on blur or Enter and Escape reverts it, a fraction included;
+− and + save at once, going to the next whole number in that direction and
+stopping at the total (`ProgressInput` and `lib/progressStep.js`, see
+[components.md](components.md)). A viewer without a list sees a read-only
+counter.
 
 **Optimistic handlers.** Each handler patches every `["media-list", type]`
 cache with `queryClient.setQueriesData`, writes the caller's own row through

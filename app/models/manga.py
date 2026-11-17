@@ -73,8 +73,8 @@ class Manga(Base, NameFallbackMixin):
     is_main = Column(String, nullable=True)
     serialization_status = Column(String, nullable=True)
 
-    vol_total = Column(Integer, nullable=True)
-    ch_total = Column(Integer, nullable=True)
+    vol_total = Column(Float, nullable=True)
+    ch_total = Column(Float, nullable=True)
 
     mal_rating = Column(Float, nullable=True)
     mal_rank = Column(String, nullable=True)

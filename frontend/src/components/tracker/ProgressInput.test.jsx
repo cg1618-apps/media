@@ -130,3 +130,17 @@ describe("EpisodeStepper", () => {
     expect(onEpChange).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("ProgressInput shows a float count cleanly", () => {
+  it("shows a sum without its float noise", () => {
+    const { input } = draw({ value: 0.1 + 0.2, decimal: true });
+    expect(input.value).toBe("0.3");
+  });
+
+  it("saves a typed fraction when decimal", () => {
+    const { onCommit, input } = draw({ value: 2, decimal: true });
+    fireEvent.change(input, { target: { value: "2.5" } });
+    fireEvent.blur(input);
+    expect(onCommit).toHaveBeenCalledWith(2.5);
+  });
+});

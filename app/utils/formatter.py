@@ -539,15 +539,15 @@ def parse_user_media_list_from_sheet(raw: dict) -> dict:
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
         "my_watch_day": parse_from_sheet(raw.get("my_watch_day"), str),
-        "ep_fin": parse_from_sheet(raw.get("ep_fin"), int),
+        "ep_fin": parse_from_sheet(raw.get("ep_fin"), float),
         "vol_fin": parse_from_sheet(raw.get("vol_fin"), float),
         "vol_fin_page": parse_from_sheet(raw.get("vol_fin_page"), int),
         "ch_fin": parse_from_sheet(raw.get("ch_fin"), float),
         "arc_fin": parse_from_sheet(raw.get("arc_fin"), float),
         "ch_fin_in_arc": parse_from_sheet(raw.get("ch_fin_in_arc"), float),
         "progress_display": parse_from_sheet(raw.get("progress_display"), str),
-        "issue_fin": parse_from_sheet(raw.get("issue_fin"), int),
-        "page_fin": parse_from_sheet(raw.get("page_fin"), int),
+        "issue_fin": parse_from_sheet(raw.get("issue_fin"), float),
+        "page_fin": parse_from_sheet(raw.get("page_fin"), float),
         "usefulness": parse_from_sheet(raw.get("usefulness"), str),
         "time_fin": _text_cell_from_sheet(raw.get("time_fin")),
     }
@@ -831,8 +831,8 @@ def parse_anime_from_sheet(raw: dict) -> dict:
         "season_part": parse_from_sheet(raw.get("season_part"), str),
         "airing_type": parse_from_sheet(raw.get("airing_type"), str),
         "airing_status": _airing_status_from_sheet(raw.get("airing_status")),
-        "ep_previous": parse_from_sheet(raw.get("ep_previous"), int),
-        "ep_total": parse_from_sheet(raw.get("ep_total"), int),
+        "ep_previous": parse_from_sheet(raw.get("ep_previous"), float),
+        "ep_total": parse_from_sheet(raw.get("ep_total"), float),
         # Text; a cell from a Backup taken while it was a float reads 17.0,
         # which comes back as "17".
         "ep_special": normalize_ep_special(parse_from_sheet(raw.get("ep_special"), str)),
@@ -985,7 +985,7 @@ def parse_tv_show_from_sheet(raw: dict) -> dict:
         "airing_type": parse_from_sheet(raw.get("airing_type"), str),
         "airing_status": _airing_status_from_sheet(raw.get("airing_status")),
         "is_main": parse_from_sheet(raw.get("is_main"), str),
-        "ep_total": parse_from_sheet(raw.get("ep_total"), int),
+        "ep_total": parse_from_sheet(raw.get("ep_total"), float),
         "runtime_min": parse_from_sheet(raw.get("runtime_min"), int),
         "imdb_rating": parse_from_sheet(raw.get("imdb_rating"), str),
         "imdb_series_rating": parse_from_sheet(raw.get("imdb_series_rating"), str),
@@ -1021,7 +1021,7 @@ def parse_cartoon_from_sheet(raw: dict) -> dict:
         "airing_type": parse_from_sheet(raw.get("airing_type"), str),
         "airing_status": _airing_status_from_sheet(raw.get("airing_status")),
         "is_main": parse_from_sheet(raw.get("is_main"), str),
-        "ep_total": parse_from_sheet(raw.get("ep_total"), int),
+        "ep_total": parse_from_sheet(raw.get("ep_total"), float),
         "runtime_min": parse_from_sheet(
             _renamed(raw, "runtime_min", "length_ep_min"), int
         ),
@@ -1059,8 +1059,8 @@ def parse_manga_from_sheet(raw: dict) -> dict:
         "region": parse_from_sheet(raw.get("region"), str),
         "is_main": parse_from_sheet(raw.get("is_main"), str),
         "serialization_status": parse_from_sheet(raw.get("serialization_status"), str),
-        "vol_total": parse_from_sheet(raw.get("vol_total"), int),
-        "ch_total": parse_from_sheet(raw.get("ch_total"), int),
+        "vol_total": parse_from_sheet(raw.get("vol_total"), float),
+        "ch_total": parse_from_sheet(raw.get("ch_total"), float),
         "mal_rating": parse_from_sheet(raw.get("mal_rating"), float),
         "mal_rank": parse_from_sheet(raw.get("mal_rank"), str),
         "anilist_rating": parse_from_sheet(raw.get("anilist_rating"), int),
@@ -1194,7 +1194,7 @@ def parse_comic_from_sheet(raw: dict) -> dict:
         # never used, and left the Comic tab with the migration. A stale sheet
         # still carrying the column is ignored rather than restored - the
         # comic publisher is the `publisher` column above.
-        "issue_total": parse_from_sheet(raw.get("issue_total"), int),
+        "issue_total": parse_from_sheet(raw.get("issue_total"), float),
         "serialization_status": parse_from_sheet(raw.get("serialization_status"), str),
         "read_order": parse_from_sheet(raw.get("read_order"), float),
         "comicvine_id": parse_from_sheet(raw.get("comicvine_id"), int),
@@ -1325,8 +1325,8 @@ def parse_h_comic_from_sheet(raw: dict) -> dict:
         "serialization_status": parse_from_sheet(
             raw.get("serialization_status"), str
         ),
-        "page_total": parse_from_sheet(raw.get("page_total"), int),
-        "ch_total": parse_from_sheet(raw.get("ch_total"), int),
+        "page_total": parse_from_sheet(raw.get("page_total"), float),
+        "ch_total": parse_from_sheet(raw.get("ch_total"), float),
         "ch_behind": parse_from_sheet(raw.get("ch_behind"), int),
         "release_date": release_date.normalize(
             parse_from_sheet(raw.get("release_date"), str)
@@ -1382,7 +1382,7 @@ def parse_hentai_from_sheet(raw: dict) -> dict:
         "release_date": release_date.normalize(
             parse_from_sheet(raw.get("release_date"), str)
         ),
-        "ep_total": parse_from_sheet(raw.get("ep_total"), int),
+        "ep_total": parse_from_sheet(raw.get("ep_total"), float),
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),
         "anidb_id": parse_from_sheet(raw.get("anidb_id"), int),

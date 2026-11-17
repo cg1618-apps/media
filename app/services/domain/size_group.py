@@ -27,7 +27,7 @@ from app.utils.plan_next_kinds import SIZE_THRESHOLDS
 GroupMaps = Optional[tuple[Optional[dict], Optional[dict]]]
 
 
-def bucket_for(media_type: str, measure: Optional[int]) -> Optional[str]:
+def bucket_for(media_type: str, measure: Optional[float]) -> Optional[str]:
     """
     The bucket key for a measured size, or None.
 
@@ -59,7 +59,7 @@ def effective_bucket(
 
 def entry_bucket(
     media_type: str,
-    issue_total: Optional[int],
+    issue_total: Optional[float],
     series_maps: GroupMaps,
     franchise_maps: GroupMaps,
 ) -> Optional[str]:

@@ -134,3 +134,23 @@ def test_episode_math_no_longer_touches_progress():
     apply_validate_episode_math(entry)
     assert entry.ep_total in (0, None)
     assert not hasattr(entry, "ep_fin")
+
+
+def test_episode_math_keeps_a_fractional_total():
+    """A total is a float: Fill and Replace clamp it, never truncate it."""
+    from app.models import Anime
+    from app.services.domain.checking import apply_validate_episode_math
+
+    entry = Anime(ep_total=12.5)
+    assert apply_validate_episode_math(entry) is False
+    assert entry.ep_total == 12.5
+
+
+def test_manga_math_keeps_fractional_totals():
+    from app.models import Manga
+    from app.services.domain.checking import apply_validate_ch_math, apply_validate_vol_math
+
+    entry = Manga(vol_total=10.5, ch_total=95.5)
+    assert apply_validate_vol_math(entry) is False
+    assert apply_validate_ch_math(entry) is False
+    assert (entry.vol_total, entry.ch_total) == (10.5, 95.5)

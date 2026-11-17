@@ -13,9 +13,14 @@
 // to 0 there. A refused commit leaves nothing to undo here, because the draft
 // is dropped either way and the box shows `value` again.
 //
+// Every progress count is a float, so a counter that can hold a fraction
+// passes `decimal`. The saved value is shown through formatProgress: a sum's
+// float noise (0.1 + 0.2) shows as 0.3 and a whole value without `.0`.
+//
 // The − / + buttons beside it are not this component's business: they keep
 // calling their handler directly and save at once.
 import { useRef, useState } from "react";
+import { formatProgress } from "../../lib/progressStep";
 
 export default function ProgressInput({
   value,
@@ -49,7 +54,7 @@ export default function ProgressInput({
       type="number"
       inputMode={decimal ? "decimal" : "numeric"}
       enterKeyHint="done"
-      value={draft ?? value ?? ""}
+      value={draft ?? formatProgress(value) ?? ""}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={(e) => {
         commit();

@@ -26,8 +26,8 @@ class CartoonBase(BaseModel):
     watching_status: str = "Might Watch"
     is_main: Optional[str] = None
 
-    ep_total: Optional[int] = None
-    ep_fin: Optional[int] = 0
+    ep_total: Optional[float] = None
+    ep_fin: Optional[float] = 0
     # "Paused at": free text, stored stripped and NULL when blank.
     time_fin: Optional[str] = None
     runtime_min: Optional[int] = None

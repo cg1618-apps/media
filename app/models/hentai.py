@@ -6,6 +6,7 @@ from sqlalchemy import (
     CheckConstraint,
     Column,
     DateTime,
+    Float,
     ForeignKeyConstraint,
     Integer,
     String,
@@ -87,7 +88,7 @@ class Hentai(Base, NameFallbackMixin):
     airing_status = Column(String, nullable=True)
     release_date = Column(String, nullable=True)
 
-    ep_total = Column(Integer, nullable=True)
+    ep_total = Column(Float, nullable=True)
 
     # The MyAnimeList entry Tenrai fills this entry from. mal_id is extracted from mal_link, as for anime.
     mal_id = Column(Integer, nullable=True)

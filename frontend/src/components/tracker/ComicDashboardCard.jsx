@@ -11,6 +11,12 @@ import { entityPath } from "../../lib/entityPath";
 import { EntryRow } from "./DashboardTable";
 import LazyImage from "../ui/LazyImage";
 import ProgressInput from "./ProgressInput";
+import {
+  formatProgress,
+  parseProgressTotal,
+  stepDown,
+  stepUp,
+} from "../../lib/progressStep";
 import { focusStyle, thumbUrl } from "../../lib/covers";
 
 const STEPPER_INPUT =
@@ -36,8 +42,8 @@ export default function ComicDashboardCard({
   // Comic has exactly one progress mode - issues - so there is no tracker
   // branching here the way Novel needs for its progress_display modes.
   const fin = comic.issue_fin ?? 0;
-  const total = comic.issue_total;
-  const hasTotal = total != null;
+  const total = parseProgressTotal(comic.issue_total);
+  const hasTotal = total !== null;
   const progressPercent = hasTotal
     ? Math.min(100, Math.round((fin / Math.max(total, 1)) * 100))
     : 0;
@@ -70,7 +76,7 @@ export default function ComicDashboardCard({
         type="Comic"
         status={comic.reading_status}
         rating={comic.my_rating}
-        progress={`${fin}/${hasTotal ? total : "?"} iss`}
+        progress={`${formatProgress(fin)}/${hasTotal ? formatProgress(total) : "?"} iss`}
         percent={hasTotal ? `${progressPercent}%` : null}
       />
     );
@@ -181,7 +187,7 @@ export default function ComicDashboardCard({
             <Button
               kind="outline"
               size="sm"
-              onClick={() => handleIssueChange(fin - 1)}
+              onClick={() => handleIssueChange(stepDown(fin))}
               title="One issue back"
               aria-label="One issue back"
             >
@@ -189,6 +195,7 @@ export default function ComicDashboardCard({
             </Button>
             <div className="font-mono text-[13px] flex items-baseline justify-center select-none flex-1 whitespace-nowrap">
               <ProgressInput
+                decimal
                 className={STEPPER_INPUT}
                 value={fin}
                 onCommit={handleIssueChange}
@@ -196,14 +203,14 @@ export default function ComicDashboardCard({
               />
               <span className="text-text-faint mx-1 text-xs">/</span>
               <span className="text-text-faint w-12 text-center">
-                {hasTotal ? total : "?"}
+                {hasTotal ? formatProgress(total) : "?"}
               </span>
               <span className={`${UNIT} ml-1`}>iss</span>
             </div>
             <Button
               kind="outline"
               size="sm"
-              onClick={() => handleIssueChange(fin + 1)}
+              onClick={() => handleIssueChange(stepUp(fin, total))}
               title="One issue forward"
               aria-label="One issue forward"
             >
@@ -213,10 +220,10 @@ export default function ComicDashboardCard({
         ) : (
           <div className="flex items-center justify-center border border-border h-[36px]">
             <div className="font-mono text-[13px] flex items-baseline justify-center select-none w-full px-1">
-              <span className="text-text w-14 text-center">{fin}</span>
+              <span className="text-text w-14 text-center">{formatProgress(fin)}</span>
               <span className="text-text-faint mx-0.5 text-xs">/</span>
               <span className="text-text-faint w-14 text-center">
-                {hasTotal ? total : "?"}
+                {hasTotal ? formatProgress(total) : "?"}
               </span>
               <span className={`${UNIT} ml-1`}>iss</span>
             </div>

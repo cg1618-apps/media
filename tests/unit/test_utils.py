@@ -10,7 +10,9 @@ from app.utils.utils import (
     calculate_seasonal_from_month,
     extract_mal_id_anime,
     extract_season_from_title,
+    validate_ch_math,
     validate_episode_math,
+    validate_vol_math,
 )
 
 
@@ -38,10 +40,26 @@ class TestValidateEpisodeMath:
         total, fin = validate_episode_math("?", 0)
         assert total is None
 
-    def test_float_string_coerced_to_int(self):
+    def test_float_string_parsed(self):
         total, fin = validate_episode_math("12.0", "5.0")
         assert total == 12
         assert fin == 5
+
+    def test_a_fraction_is_kept(self):
+        # Progress counts are floats: 2.5 episodes is not 2.
+        total, fin = validate_episode_math(12.5, "2.5")
+        assert total == 12.5
+        assert fin == 2.5
+
+    def test_fin_clamped_to_a_fractional_total(self):
+        total, fin = validate_episode_math("12.5", 13)
+        assert total == 12.5
+        assert fin == 12.5
+
+    def test_a_non_finite_value_is_no_value(self):
+        total, fin = validate_episode_math("nan", "inf")
+        assert total is None
+        assert fin == 0
 
     def test_none_fin_defaults_to_zero(self):
         total, fin = validate_episode_math(12, None)
@@ -73,6 +91,21 @@ class TestValidateEpisodeMath:
         total, fin = validate_episode_math("24", "10")
         assert total == 24
         assert fin == 10
+
+
+@pytest.mark.parametrize("validate", [validate_vol_math, validate_ch_math])
+class TestValidateVolAndChMath:
+    def test_a_fraction_is_kept(self, validate):
+        assert validate(10.5, 3.5) == (10.5, 3.5)
+
+    def test_fin_clamped_to_the_total(self, validate):
+        assert validate(10.5, 99) == (10.5, 10.5)
+
+    def test_negatives_clamped_to_zero(self, validate):
+        assert validate(-2.5, -1.5) == (0, 0)
+
+    def test_blank_total_is_unknown(self, validate):
+        assert validate("", 3.5) == (None, 3.5)
 
 
 class TestExtractMalId:

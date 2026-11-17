@@ -5,6 +5,7 @@ Handles pure math, date logic, and regex string parsing.
 Must NOT import from models or schemas to prevent circular imports.
 """
 
+import math
 import re
 from typing import Any, Optional, Tuple
 
@@ -235,76 +236,57 @@ H_GAME_DLSITE_LINK_FIELDS_TO_FILL = [("credit", "studio")]
 # ==========================================
 
 
-def validate_episode_math(ep_total: Any, ep_fin: Any) -> Tuple[Optional[int], int]:
+def _progress_number(value: Any, blanks: tuple = (None, "")) -> Optional[float]:
+    """A progress count or total as a float, or None when it is not one.
+
+    Progress numbers are floats - 2.5 episodes, 17.5 chapters - so nothing
+    here truncates. A blank, an unparseable value and a non-finite one
+    (nan, inf) are all "no value".
+    """
+    if value in blanks:
+        return None
+    try:
+        number = float(value)
+    except (ValueError, TypeError):
+        return None
+    return number if math.isfinite(number) else None
+
+
+def _clamp_progress(
+    total: Any, fin: Any, blanks: tuple = (None, "")
+) -> Tuple[Optional[float], float]:
+    """Clamps both at 0 and the finished count at the total."""
+    safe_total = _progress_number(total, blanks)
+    safe_fin = _progress_number(fin) or 0
+
+    if safe_total is not None and safe_total < 0:
+        safe_total = 0
+    if safe_fin < 0:
+        safe_fin = 0
+
+    if safe_total is not None and safe_fin > safe_total:
+        safe_fin = safe_total
+
+    return safe_total, safe_fin
+
+
+def validate_episode_math(ep_total: Any, ep_fin: Any) -> Tuple[Optional[float], float]:
     """
     Sanitizes episode inputs and enforces logical bounds.
     Ensures finished episodes do not fall below zero or exceed total episodes.
+    A "?" total is unknown.
     """
-    try:
-        safe_total = int(float(ep_total)) if ep_total not in (None, "", "?") else None
-    except (ValueError, TypeError):
-        safe_total = None
-
-    try:
-        safe_fin = int(float(ep_fin)) if ep_fin not in (None, "") else 0
-    except (ValueError, TypeError):
-        safe_fin = 0
-
-    if safe_total is not None and safe_total < 0:
-        safe_total = 0
-    if safe_fin < 0:
-        safe_fin = 0
-
-    if safe_total is not None and safe_fin > safe_total:
-        safe_fin = safe_total
-
-    return safe_total, safe_fin
+    return _clamp_progress(ep_total, ep_fin, blanks=(None, "", "?"))
 
 
-def validate_vol_math(vol_total: Any, vol_fin: Any) -> Tuple[Optional[int], int]:
+def validate_vol_math(vol_total: Any, vol_fin: Any) -> Tuple[Optional[float], float]:
     """Sanitizes volume inputs and clamps vol_fin <= vol_total."""
-    try:
-        safe_total = int(float(vol_total)) if vol_total not in (None, "") else None
-    except (ValueError, TypeError):
-        safe_total = None
-
-    try:
-        safe_fin = int(float(vol_fin)) if vol_fin not in (None, "") else 0
-    except (ValueError, TypeError):
-        safe_fin = 0
-
-    if safe_total is not None and safe_total < 0:
-        safe_total = 0
-    if safe_fin < 0:
-        safe_fin = 0
-
-    if safe_total is not None and safe_fin > safe_total:
-        safe_fin = safe_total
-
-    return safe_total, safe_fin
+    return _clamp_progress(vol_total, vol_fin)
 
 
-def validate_ch_math(ch_total: Any, ch_fin: Any) -> Tuple[Optional[int], int]:
+def validate_ch_math(ch_total: Any, ch_fin: Any) -> Tuple[Optional[float], float]:
     """Sanitizes chapter inputs and clamps ch_fin <= ch_total."""
-    try:
-        safe_total = int(float(ch_total)) if ch_total not in (None, "") else None
-    except (ValueError, TypeError):
-        safe_total = None
-
-    try:
-        safe_fin = int(float(ch_fin)) if ch_fin not in (None, "") else 0
-    except (ValueError, TypeError):
-        safe_fin = 0
-
-    if safe_total is not None and safe_total < 0:
-        safe_total = 0
-    if safe_fin < 0:
-        safe_fin = 0
-
-    if safe_total is not None and safe_fin > safe_total:
-        safe_fin = safe_total
-
-    return safe_total, safe_fin
+    return _clamp_progress(ch_total, ch_fin)
 
 
 # ==========================================

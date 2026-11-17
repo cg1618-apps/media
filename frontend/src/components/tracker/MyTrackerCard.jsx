@@ -15,6 +15,12 @@ import { useAuth } from "../../contexts/AuthContext";
 import { Button, Chip, Eyebrow, Slip } from "../ui/primitives";
 import StatusOptions from "../ui/StatusOptions";
 import ProgressInput from "./ProgressInput";
+import {
+  formatProgress,
+  parseProgressTotal,
+  stepDown,
+  stepUp,
+} from "../../lib/progressStep";
 
 export const SELECT_CLS =
   "block w-full bg-surface border border-border-strong text-text text-sm px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand disabled:bg-surface-2 disabled:text-text-faint disabled:cursor-not-allowed";
@@ -23,8 +29,9 @@ export const STEP_INPUT_CLS =
   "font-mono text-text text-sm w-12 text-right bg-surface border border-border-strong px-1 py-1 focus:outline-none focus:ring-2 focus:ring-brand appearance-none disabled:opacity-60";
 
 /**
- * The episode stepper: − / input / + around `epFin` of `epTotal`, clamped to
- * the total. Exported for a tracker that lays out its own fields (hentai's)
+ * The episode stepper: − / input / + around `epFin` of `epTotal`. Episodes
+ * are floats; − and + go to the next whole episode and + stops at the total
+ * (lib/progressStep.js). Exported for a tracker that lays out its own fields (hentai's)
  * but steps episodes exactly as this card does. Not drawn without `canTrack`.
  */
 export function EpisodeStepper({
@@ -38,19 +45,17 @@ export function EpisodeStepper({
 }) {
   if (!canTrack) return null;
 
-  function stepEp(delta) {
+  const total = parseProgressTotal(epTotal);
+
+  function stepEp(direction) {
     const cur = epFin || 0;
-    const total =
-      epTotal != null && epTotal !== "?" ? parseInt(epTotal, 10) : null;
-    let next = cur + delta;
-    if (total !== null && next > total) next = total;
-    if (next < 0) next = 0;
+    const next = direction > 0 ? stepUp(cur, total) : stepDown(cur);
     if (next === cur) return;
     onEpChange(next);
   }
 
   function handleTyped(v) {
-    if (epTotal !== "?" && epTotal != null && v > parseInt(epTotal)) return;
+    if (total !== null && v > total) return;
     onEpChange(Math.max(0, v));
   }
 
@@ -58,7 +63,7 @@ export function EpisodeStepper({
     <div className="flex items-center gap-1.5">
       {hasCum && (
         <Chip tone="muted" title="Cumulative episodes" className="mr-1">
-          Cum {cumFin}/{cumTotal}
+          Cum {formatProgress(cumFin)}/{formatProgress(cumTotal)}
         </Chip>
       )}
       <Button
@@ -71,13 +76,14 @@ export function EpisodeStepper({
       </Button>
       <div className="font-mono text-sm flex items-center gap-1 whitespace-nowrap">
         <ProgressInput
+          decimal
           value={epFin}
           onCommit={handleTyped}
           className={STEP_INPUT_CLS}
           aria-label="Episodes finished"
         />
         <span className="text-text-faint text-xs">/</span>
-        <span className="text-text-muted">{epTotal}</span>
+        <span className="text-text-muted">{formatProgress(epTotal)}</span>
       </div>
       <Button
         size="sm"

@@ -6,6 +6,7 @@ from sqlalchemy import (
     CheckConstraint,
     Column,
     DateTime,
+    Float,
     ForeignKeyConstraint,
     Integer,
     String,
@@ -63,7 +64,7 @@ class TVShows(Base, NameFallbackMixin):
     airing_status = Column(String, nullable=True)
     is_main = Column(String, nullable=True)
 
-    ep_total = Column(Integer, nullable=True)
+    ep_total = Column(Float, nullable=True)
     # Minutes per episode.
     runtime_min = Column(Integer, nullable=True)
 

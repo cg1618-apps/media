@@ -17,6 +17,7 @@ import { entityPath } from "../../lib/entityPath";
 import { EntryRow } from "./DashboardTable";
 import LazyImage from "../ui/LazyImage";
 import ProgressInput from "./ProgressInput";
+import { formatProgress, stepDown, stepUp } from "../../lib/progressStep";
 import { focusStyle, thumbUrl } from "../../lib/covers";
 
 const STEPPER_INPUT =
@@ -183,7 +184,7 @@ export default function NovelDashboardCard({
         return (
           <div className="flex items-center justify-between gap-2 relative z-20">
             <StepButton
-              onClick={() => handleVolChange(Math.round(fin) - 1)}
+              onClick={() => handleVolChange(stepDown(fin))}
               label="One volume back"
             >
               <i className="fas fa-minus text-[10px]"></i>
@@ -197,11 +198,11 @@ export default function NovelDashboardCard({
                 aria-label="Volumes read"
               />
               <span className="text-text-faint mx-1 text-xs">/</span>
-              <span className="text-text-faint w-12 text-center">{total}</span>
+              <span className="text-text-faint w-12 text-center">{formatProgress(total)}</span>
               <span className={`${UNIT} ml-1`}>{unit}</span>
             </div>
             <StepButton
-              onClick={() => handleVolChange(Math.round(fin) + 1)}
+              onClick={() => handleVolChange(stepUp(fin, total))}
               label="One volume forward"
             >
               <i className="fas fa-plus text-[10px]"></i>
@@ -212,9 +213,9 @@ export default function NovelDashboardCard({
       return (
         <div className="flex items-center justify-center border border-border h-[36px]">
           <div className="font-mono text-[13px] flex items-baseline justify-center select-none w-full px-1">
-            <span className="text-text w-12 text-center">{fin}</span>
+            <span className="text-text w-12 text-center">{formatProgress(fin)}</span>
             <span className="text-text-faint mx-0.5 text-xs">/</span>
-            <span className="text-text-faint w-12 text-center">{total}</span>
+            <span className="text-text-faint w-12 text-center">{formatProgress(total)}</span>
             <span className={`${UNIT} ml-1`}>{unit}</span>
           </div>
         </div>
@@ -289,7 +290,7 @@ export default function NovelDashboardCard({
         return (
           <div className="flex items-center justify-between gap-2 relative z-20">
             <StepButton
-              onClick={() => handleChChange(Math.round(fin) - 1)}
+              onClick={() => handleChChange(stepDown(fin))}
               label="One chapter back"
             >
               <i className="fas fa-minus text-[10px]"></i>
@@ -303,11 +304,11 @@ export default function NovelDashboardCard({
                 aria-label="Chapters read"
               />
               <span className="text-text-faint mx-1 text-xs">/</span>
-              <span className="text-text-faint w-12 text-center">{total}</span>
+              <span className="text-text-faint w-12 text-center">{formatProgress(total)}</span>
               <span className={`${UNIT} ml-1`}>ch</span>
             </div>
             <StepButton
-              onClick={() => handleChChange(Math.round(fin) + 1)}
+              onClick={() => handleChChange(stepUp(fin, total))}
               label="One chapter forward"
             >
               <i className="fas fa-plus text-[10px]"></i>
@@ -318,9 +319,9 @@ export default function NovelDashboardCard({
       return (
         <div className="flex items-center justify-center border border-border h-[36px]">
           <div className="font-mono text-[13px] flex items-baseline justify-center select-none w-full px-1">
-            <span className="text-text w-14 text-center">{fin}</span>
+            <span className="text-text w-14 text-center">{formatProgress(fin)}</span>
             <span className="text-text-faint mx-0.5 text-xs">/</span>
-            <span className="text-text-faint w-14 text-center">{total}</span>
+            <span className="text-text-faint w-14 text-center">{formatProgress(total)}</span>
             <span className={`${UNIT} ml-1`}>ch</span>
           </div>
         </div>

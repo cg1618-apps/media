@@ -30,6 +30,7 @@ import { isFilmType, WAIT_FOR_RELEASE_STATUSES } from "../../config/fieldOptions
 import { Chip, RatingStamp } from "../ui/primitives";
 import PlatformIcons from "./PlatformIcons";
 import LazyImage from "../ui/LazyImage";
+import { formatProgress, parseProgressTotal } from "../../lib/progressStep";
 
 const SPINE_LABEL = {
   anime: "Anime",
@@ -370,7 +371,8 @@ const UNIT_CLS = "text-[9px] text-text-faint uppercase tracking-[0.12em] ml-1";
 function Count({ fin, total, unit }) {
   return (
     <div className={COUNT_CLS}>
-      {fin} <span className="text-text-faint">/</span> {total}
+      {formatProgress(fin)} <span className="text-text-faint">/</span>{" "}
+      {formatProgress(total)}
       <span className={UNIT_CLS}>{unit}</span>
     </div>
   );
@@ -379,19 +381,13 @@ function Count({ fin, total, unit }) {
 function ProgressDisplay({ type, data, showVol, onToggleVol }) {
   if (type === "anime") {
     const localFin = data.ep_fin || 0;
-    const localTotal =
-      data.ep_total != null && data.ep_total !== ""
-        ? parseInt(data.ep_total, 10)
-        : "?";
+    const localTotal = parseProgressTotal(data.ep_total) ?? "?";
     return <Count fin={localFin} total={localTotal} unit="ep" />;
   }
 
   if (type === "tv-show" || type === "cartoon" || type === "hentai") {
     const epFin = data.ep_fin ?? 0;
-    const epTotal =
-      data.ep_total != null && data.ep_total !== ""
-        ? parseInt(data.ep_total, 10)
-        : "?";
+    const epTotal = parseProgressTotal(data.ep_total) ?? "?";
     return <Count fin={epFin} total={epTotal} unit="ep" />;
   }
 
@@ -412,13 +408,13 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
         </button>
         {showVol ? (
           <div className={COUNT_CLS}>
-            {volFin}
+            {formatProgress(volFin)}
             {volFinPage > 0 && (
               <span className="text-[9px] text-text-faint ml-0.5">
                 p{volFinPage}
               </span>
             )}{" "}
-            <span className="text-text-faint">/</span> {volTotal}
+            <span className="text-text-faint">/</span> {formatProgress(volTotal)}
             <span className={UNIT_CLS}>vol</span>
           </div>
         ) : (

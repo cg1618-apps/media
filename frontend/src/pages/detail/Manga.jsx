@@ -45,6 +45,7 @@ import CastSection from "../../components/info/CastSection";
 import LazyImage from "../../components/ui/LazyImage";
 import { useViewScope } from "../../hooks/useViewScope";
 import ProgressInput from "../../components/tracker/ProgressInput";
+import { formatProgress, stepDown, stepUp } from "../../lib/progressStep";
 
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
@@ -78,18 +79,16 @@ function MangaTrackerBlock({
   // not drawn at all.
   if (!canTrack) return null;
 
-  function stepCh(delta) {
-    let next = (chFin || 0) + delta;
-    if (chTotal !== null && next > chTotal) next = chTotal;
-    if (next < 0) next = 0;
+  // Chapters and volumes are floats: a step goes to the next whole one, and
+  // + stops at the total (lib/progressStep.js).
+  function stepCh(direction) {
+    const next = direction > 0 ? stepUp(chFin, chTotal) : stepDown(chFin);
     if (next === chFin) return;
     onChChange(next);
   }
 
-  function stepVol(delta) {
-    let next = (volFin || 0) + delta;
-    if (volTotal !== null && next > volTotal) next = volTotal;
-    if (next < 0) next = 0;
+  function stepVol(direction) {
+    const next = direction > 0 ? stepUp(volFin, volTotal) : stepDown(volFin);
     if (next === volFin) return;
     onVolChange(next);
   }
@@ -110,6 +109,7 @@ function MangaTrackerBlock({
             </button>
             <div className="font-mono text-sm flex items-baseline justify-center px-2 min-w-[90px] whitespace-nowrap border-l border-r border-border">
               <ProgressInput
+                decimal
                 value={chFin}
                 aria-label="Chapters read"
                 onCommit={(v) => {
@@ -120,7 +120,7 @@ function MangaTrackerBlock({
               />
               <span className="text-text-faint mx-1 text-xs">/</span>
               <span className="text-text-faint text-sm leading-none">
-                {chTotal ?? "?"}
+                {formatProgress(chTotal) ?? "?"}
               </span>
               <span className="text-[9px] text-text-faint ml-1.5 uppercase">
                 ch
@@ -150,6 +150,7 @@ function MangaTrackerBlock({
               </button>
               <div className="font-mono text-sm flex items-baseline justify-center px-2 min-w-[90px] whitespace-nowrap border-l border-r border-border">
                 <ProgressInput
+                  decimal
                   value={volFin}
                   aria-label="Volumes read"
                   onCommit={(v) => {
@@ -160,7 +161,7 @@ function MangaTrackerBlock({
                 />
                 <span className="text-text-faint mx-1 text-xs">/</span>
                 <span className="text-text-faint text-sm leading-none">
-                  {volTotal ?? "?"}
+                  {formatProgress(volTotal) ?? "?"}
                 </span>
                 <span className="text-[9px] text-text-faint ml-1.5 uppercase">
                   vol
@@ -189,9 +190,9 @@ function MangaTrackerBlock({
           </div>
           {(volFin > 0 || volFinPage > 0) && (
             <div className="font-mono text-[11px] text-text-faint mt-1.5">
-              Vol. {volFin}
+              Vol. {formatProgress(volFin)}
               {volFinPage > 0 ? ` Page ${volFinPage}` : ""}{" "}
-              {volTotal != null ? `/ Vol. ${volTotal}` : ""}
+              {volTotal != null ? `/ Vol. ${formatProgress(volTotal)}` : ""}
             </div>
           )}
         </div>
