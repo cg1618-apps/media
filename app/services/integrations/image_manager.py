@@ -17,6 +17,7 @@ see THUMB_FOLDER and `cover_thumbnail`.
 
 import logging
 import os
+import shutil
 import tempfile
 from typing import Optional
 
@@ -61,18 +62,18 @@ assert THUMB_FOLDER not in COVER_OWNERS, "the thumbnail cache would read as an o
 LEGACY_COVER_FOLDERS: dict[str, str] = {"novel": "book"}
 
 
-def move_legacy_cover_folders(root: str = COVER_DIR) -> dict[str, int]:
+def copy_legacy_cover_folders(root: str = COVER_DIR) -> dict[str, int]:
     """
-    Move every file under a renamed owner's old folder into its new one, for
+    Copy every file under a renamed owner's old folder into its new one, for
     the covers and for their cached thumbnails (`<root>/thumbs/<owner>/`).
 
-    Idempotent: with no old folder there is nothing to do, so every boot after
-    the first is a no-op. It never overwrites: a file whose name the new folder
-    already holds stays where it is, with a warning, and the old folder is
-    removed only once it is empty. Returns how many files were moved and how
-    many were left behind.
+    A copy, not a move: the old folder is left whole, so the code from before
+    the rename still finds every cover if the release is rolled back. It never
+    overwrites, so a cover saved under the new folder since wins, and every boot
+    after the first copies nothing. Returns how many files were copied and how
+    many the new folder already held.
     """
-    moved = kept = 0
+    copied = present = 0
     for old, new in LEGACY_COVER_FOLDERS.items():
         for base in (root, os.path.join(root, THUMB_FOLDER)):
             source_dir = os.path.join(base, old)
@@ -80,36 +81,26 @@ def move_legacy_cover_folders(root: str = COVER_DIR) -> dict[str, int]:
                 continue
             target_dir = os.path.join(base, new)
             os.makedirs(target_dir, exist_ok=True)
-            folder_moved = folder_kept = 0
+            folder_copied = 0
             for name in sorted(os.listdir(source_dir)):
                 source = os.path.join(source_dir, name)
                 target = os.path.join(target_dir, name)
+                if not os.path.isfile(source):
+                    continue
                 if os.path.lexists(target):
-                    logger.warning(
-                        "Cover %s was not moved: %s already exists.", source, target
-                    )
-                    folder_kept += 1
+                    present += 1
                     continue
-                # A rename keeps the mtime, which the thumbnail cache's
+                # copy2 keeps the mtime, which the thumbnail cache's
                 # staleness check compares exactly.
-                try:
-                    os.rename(source, target)
-                except FileNotFoundError:
-                    # Another worker starting beside this one moved it first.
-                    continue
-                folder_moved += 1
-            if folder_kept == 0:
-                try:
-                    os.rmdir(source_dir)
-                except OSError:
-                    pass
-            logger.info(
-                "Moved %d cover file(s) from %s to %s; %d left behind.",
-                folder_moved, source_dir, target_dir, folder_kept,
-            )
-            moved += folder_moved
-            kept += folder_kept
-    return {"moved": moved, "kept": kept}
+                shutil.copy2(source, target)
+                folder_copied += 1
+            if folder_copied:
+                logger.info(
+                    "Copied %d cover file(s) from %s to %s.",
+                    folder_copied, source_dir, target_dir,
+                )
+            copied += folder_copied
+    return {"copied": copied, "present": present}
 
 
 def cover_key(owner_type: str, system_id: str) -> str:

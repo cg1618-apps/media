@@ -81,7 +81,7 @@ from app.services.domain.gated_labels import ensure_labels
 from app.services.integrations.image_manager import (
     COVER_DIR,
     COVER_OWNERS,
-    move_legacy_cover_folders,
+    copy_legacy_cover_folders,
 )
 from app.services.rbac.seed import (
     ADMIN_ROLE,
@@ -135,14 +135,15 @@ async def lifespan(app: FastAPI):
     # which would otherwise bake the example password into the database.
     settings.validate_secrets()
 
-    # A renamed owner type's cover folder moves to its new name; the stored
-    # keys were rewritten by the rename's migration. A failure is logged and
-    # does not stop the start: the covers it left behind are missing images,
-    # not a reason to serve nothing.
+    # A renamed owner type's cover folder is copied to its new name; the
+    # stored keys were rewritten by the rename's migration. The old folder
+    # stays whole so a rolled-back release still finds its covers. A failure
+    # is logged and does not stop the start: the covers it did not copy are
+    # missing images, not a reason to serve nothing.
     try:
-        move_legacy_cover_folders(COVER_DIR)
+        copy_legacy_cover_folders(COVER_DIR)
     except OSError as e:
-        logger.error("[System] Could not move the renamed cover folders: %s", e)
+        logger.error("[System] Could not copy the renamed cover folders: %s", e)
 
     db = database.SessionLocal()
     try:

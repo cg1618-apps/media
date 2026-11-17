@@ -118,15 +118,15 @@ def test_engine():
 @pytest.fixture(autouse=True)
 def _no_real_cover_moves(monkeypatch):
     """
-    Stop the lifespan moving the developer's real cover folders.
+    Stop the lifespan copying the developer's real cover folders.
 
-    Every `with TestClient(app)` runs the lifespan, which moves a renamed owner
+    Every `with TestClient(app)` runs the lifespan, which copies a renamed owner
     type's folder under static/covers - the developer's real covers, whose
     stored keys in the development database the test run does not migrate.
-    The move itself is tested against tmp_path in
-    tests/unit/test_move_legacy_cover_folders.py.
+    The copy itself is tested against tmp_path in
+    tests/unit/test_copy_legacy_cover_folders.py.
     """
-    monkeypatch.setattr(app_main, "move_legacy_cover_folders", lambda *a, **k: None)
+    monkeypatch.setattr(app_main, "copy_legacy_cover_folders", lambda *a, **k: None)
 
 
 @pytest.fixture(autouse=True)

@@ -19,8 +19,10 @@ From `docs/to-do-next.md` (owner) plus the owner's answers of 2026-11-17:
 - **Old URLs redirect**: `/novel/:publicId/:slug?` → `/book/...`,
   `/library/novel` → `/library/book`.
 - **Covers move on disk**: `static/covers/novel/` and `static/covers/thumbs/novel/`
-  → `book/`. The migration rewrites stored paths; the app moves the files itself
-  at startup when the old folder exists (idempotent; refuses to overwrite).
+  → `book/`. The migration rewrites stored paths; the app copies the files itself
+  at startup when the old folder exists (idempotent; never overwrites). A copy,
+  not a move, so a rolled-back release still finds its covers; the old folder
+  is deleted by hand once the release has proved itself (open-items.md).
 - **Hentai source material `Novel` stays** — it names the genre adapted from.
 - Genre prose stays (light novel, web novel, visual novel, graphic novel), as do
   MAL/AniList vocabulary and every historical alembic revision.
