@@ -360,6 +360,32 @@ reader's position and only that reader's own write may conclude from it. What
 a pipeline may say is that the **work** has finished airing, and only when the
 source it fetched from says so — which `autofill` writes.
 
+### Progress numbers are floats
+
+Every progress count and total is a float: `ep_fin`, `ep_total`,
+`ep_previous`, `issue_fin`, `issue_total`, `page_fin`, `page_total`,
+`vol_fin`, `vol_total`, `ch_fin`, `ch_total`, and novel's `arc_fin`,
+`ch_fin_in_arc` and totals. A viewer can be 2.5 episodes into a show whose
+total is 12.5. Not `achievements_total`, and not `vol_fin_page`, which is a
+page. Every way a value arrives keeps the fraction: the API schemas, the
+viewer's `PUT /api/me/list`, a Pull (`parse_from_sheet(..., float)`), and the
+Fill/Replace clamp above.
+
+**The tracker's + and − go to the next integer in that direction**: + is
+`floor(x) + 1` and − is `ceil(x) - 1`, so `1.2` + → `2`, `1.2` − → `1`,
+`2.5` + → `3`, `2.5` − → `2`, and an integer steps by one (`2` + → `3`).
+A value within `1e-9` of an integer counts as that integer, so float noise
+never makes a step skip one. − stops at 0. + stops at the total and never
+passes it, a fractional one included: `2` + with a total of `2.5` → `2.5`;
+at the total it does nothing. The rule is one helper,
+`frontend/src/lib/progressStep.js`, and every stepper uses it - the detail
+pages' trackers, the dashboard cards, and novel's arc cursor (`arcStep`,
+`wholeArcStep`). Typing into a counter takes a fraction as typed.
+
+Whole values display without `.0`, and a sum's float noise is rounded away
+for display (`formatProgress`): `ep_previous` 0.1 plus `ep_fin` 0.2 shows a
+cumulative 0.3.
+
 ### A paused position is cleared by progress
 
 `time_fin` - **Paused at** in the UI - is where the viewer stopped playback in
@@ -602,9 +628,11 @@ The link checks (`_link_missing`) read `media_credit` / `media_tag` through
 `apply_validate_episode_math` (anime, TV, cartoon, hentai) and `apply_validate_vol_math`
 / `apply_validate_ch_math` (manga) sanitise the pair `(total, fin)`:
 
-- `total` in `(None, "", "?")` → `None` (episodes only accept `"?"`); non-numeric → `None`; negative → 0.
-- `fin` in `(None, "")` → 0; non-numeric → 0; negative → 0.
+- `total` in `(None, "", "?")` → `None` (episodes only accept `"?"`); non-numeric or non-finite (`nan`, `inf`) → `None`; negative → 0.
+- `fin` in `(None, "")` → 0; non-numeric or non-finite → 0; negative → 0.
 - `fin > total` → `fin = total`.
+- Both are floats and are never truncated: a total of `12.5` stays `12.5`
+  ([Progress numbers are floats](#progress-numbers-are-floats)).
 
 The episode version is skipped entirely when both values are `None`.
 

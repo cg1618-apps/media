@@ -84,8 +84,8 @@ class Anime(Base, NameFallbackMixin):
         String, nullable=False, default="Original", server_default="Original"
     )
 
-    ep_previous = Column(Integer, nullable=True)
-    ep_total = Column(Integer, nullable=True)
+    ep_previous = Column(Float, nullable=True)
+    ep_total = Column(Float, nullable=True)
     # Where a special sits among the episodes, as a label: 0, 14.5, 17.5A.
     # Text, canonical per app/utils/ep_special.py; nothing sorts it or does
     # arithmetic on it.

@@ -40,6 +40,7 @@ import { showsField } from "../../lib/hComicRegion";
 import { followRegion, restrictedSourcesFor } from "../../lib/restrictedSources";
 import { usePrefillPicks } from "../../contexts/RestrictedPrefillContext";
 import { getDisplayName, getSourceValues } from "../../utils/media";
+import { FLOAT_PROGRESS_FIELDS } from "../../lib/progressStep";
 
 export { defaultHComic } from "../../config/formFactories";
 
@@ -112,6 +113,7 @@ export function HComicFormBody({ f, u, sources, ownerId }) {
         className={inputCls}
         type="number"
         min="0"
+        step={FLOAT_PROGRESS_FIELDS.has(key) ? "any" : undefined}
         aria-label={label}
         value={f[key] ?? ""}
         onChange={(e) => u(key, e.target.value)}

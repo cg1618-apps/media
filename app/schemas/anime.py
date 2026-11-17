@@ -38,9 +38,9 @@ class AnimeBase(BaseModel):
     # AnimeWriteChecks.
     original_or_remake: str = "Original"
 
-    ep_previous: Optional[int] = None
-    ep_total: Optional[int] = None
-    ep_fin: Optional[int] = 0
+    ep_previous: Optional[float] = None
+    ep_total: Optional[float] = None
+    ep_fin: Optional[float] = 0
     # "Paused at": free text, stored stripped and NULL when blank.
     time_fin: Optional[str] = None
     # Text: specials are numbered 0, 14.5, 17.5A. A write normalizes it
@@ -127,7 +127,7 @@ class AnimeResponse(AnimeBase, AnimeLinkFields):
 
     @computed_field
     @property
-    def cum_ep_fin(self) -> int:
+    def cum_ep_fin(self) -> float:
         """Dynamically calculates cumulative finished episodes."""
         prev = self.ep_previous or 0
         curr = self.ep_fin or 0
@@ -135,7 +135,7 @@ class AnimeResponse(AnimeBase, AnimeLinkFields):
 
     @computed_field
     @property
-    def cum_ep_total(self) -> int | None:
+    def cum_ep_total(self) -> float | None:
         """Dynamically calculates cumulative total episodes. Returns None if total is unknown."""
         prev = self.ep_previous or 0
         if self.ep_total is not None:

@@ -27,6 +27,7 @@ import {
   TV_SHOW_AIRING_TYPES,
 } from "../../config/fieldOptions";
 import { endpoints } from "../../api/endpoints";
+import { FLOAT_PROGRESS_FIELDS } from "../../lib/progressStep";
 
 export { defaultTvShow } from "../../config/formFactories";
 
@@ -63,6 +64,7 @@ export function TvShowFormBody({ f, u, sources, ownerId }) {
         className={inputCls}
         type="number"
         min="0"
+        step={FLOAT_PROGRESS_FIELDS.has(key) ? "any" : undefined}
         aria-label={label}
         value={f[key] ?? ""}
         onChange={(e) => u(key, e.target.value)}

@@ -17,21 +17,7 @@ document exists — under `superpowers/specs/` while it is being built — the
 item points at it instead, and the present-tense pages take over once it
 ships.
 
-## 1. Every progress number is a float, and +/− steps to the next integer
-
-**Every progress count and total becomes a float**: `ep_fin`, `ep_total`,
-`ep_previous`, `issue_fin`, `issue_total`, `page_fin`, `page_total`, and
-manga's and H-Comic's `ch_total` and manga's `vol_total`, on top of the ones
-that are float already (`vol_fin`, `ch_fin`, `arc_fin`, `ch_fin_in_arc`,
-novel's totals). Not `achievements_total`, and not `vol_fin_page`.
-
-**The tracker's + and − go to the nearest integer in that direction**:
-`1.2` + → `2`, `1.2` − → `1`, `2.5` + → `3`, `2.5` − → `2`. An integer
-steps by one, as now (`2` + → `3`). The rule holds for every progress
-counter, including manga's and novel's, which are already floats. Whole
-values display without `.0`.
-
-## 2. Novel becomes Book
+## 1. Novel becomes Book
 
 **The Novel type is renamed Book throughout, not just in the UI**: table
 `novel` → `book`, `media_type` `'novel'` → `'book'`, route `/api/novel` →
@@ -59,11 +45,10 @@ means the *genre* (a light novel, a web novel) stays.
 - *Gravity Falls: Lost Legends* is a graphic novel and goes under Comic. The
   owner moves it by hand; nothing in code depends on it.
 
-It comes after every item above it because the remark rework and the
-float change touch the novel code, and a rename running alongside them
-would conflict everywhere.
+It comes after the remark rework and the progress floats, which both touch
+the novel code: a rename running alongside them would conflict everywhere.
 
-## 3. Upcoming books and manga volumes on Future Releases
+## 2. Upcoming books and manga volumes on Future Releases
 
 **Each book unit gets a JP and a TW release date, manga gets the next
 volume's JP and TW release dates, and Future Releases shows both.**
@@ -90,7 +75,7 @@ volume's JP and TW release dates, and Future Releases shows both.**
 - Data entry is by hand. Automatic sources are being researched; see
   open-items.md, "Automatic book release data".
 
-## 4. A content label chip says who sees it
+## 3. A content label chip says who sees it
 
 **The chip a detail page draws for each content label gets a tooltip that
 says which modes show the label and which label it also carries, generated

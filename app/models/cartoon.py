@@ -6,6 +6,7 @@ from sqlalchemy import (
     CheckConstraint,
     Column,
     DateTime,
+    Float,
     ForeignKeyConstraint,
     Integer,
     String,
@@ -61,7 +62,7 @@ class Cartoon(Base, NameFallbackMixin):
     airing_status = Column(String, nullable=True)
     is_main = Column(String, nullable=True)
 
-    ep_total = Column(Integer, nullable=True)
+    ep_total = Column(Float, nullable=True)
     runtime_min = Column(Integer, nullable=True)
 
     # A season's own rating (its episodes' mean); the show's is beside it.

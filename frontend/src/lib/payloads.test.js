@@ -860,3 +860,24 @@ describe("film release status and anime movie release type", () => {
     expect(body).toMatchObject({ release_date_jp: "2025-01", release_date_tw: "2025-03" });
   });
 });
+
+describe("progress counts and totals travel as floats", () => {
+  it.each([
+    [(f) => buildAnimePayload({ ep_previous: "", ...f }), ["ep_previous", "ep_total", "ep_fin"]],
+    [tvShowFieldsPayload, ["ep_total", "ep_fin"]],
+    [cartoonFieldsPayload, ["ep_total", "ep_fin"]],
+    [hentaiFieldsPayload, ["ep_total", "ep_fin"]],
+    [mangaFieldsPayload, ["vol_total", "vol_fin", "ch_total", "ch_fin"]],
+    [comicFieldsPayload, ["issue_total", "issue_fin"]],
+    [hComicFieldsPayload, ["page_total", "page_fin", "ch_total", "ch_fin"]],
+  ])("keeps a fraction (%#)", (build, fields) => {
+    const form = Object.fromEntries(fields.map((key) => [key, "2.5"]));
+    const body = build(form);
+    for (const key of fields) expect(body[key]).toBe(2.5);
+  });
+
+  it("keeps a page of a volume whole", () => {
+    // Mirror: vol_fin_page is not a progress count, so it stays an integer.
+    expect(mangaFieldsPayload({ vol_fin_page: "12.7" }).vol_fin_page).toBe(12);
+  });
+});

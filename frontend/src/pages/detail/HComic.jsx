@@ -53,6 +53,7 @@ import CastSection from "../../components/info/CastSection";
 import LazyImage from "../../components/ui/LazyImage";
 import { useViewScope } from "../../hooks/useViewScope";
 import ProgressInput from "../../components/tracker/ProgressInput";
+import { formatProgress, stepDown, stepUp } from "../../lib/progressStep";
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
@@ -99,10 +100,10 @@ function DerivedAnimationStatus({ hComic, adaptations }) {
 function ProgressStepper({ progress, onChange }) {
   const { fin, total, unit, label } = progress;
 
-  function step(delta) {
-    let next = (fin || 0) + delta;
-    if (total !== null && next > total) next = total;
-    if (next < 0) next = 0;
+  // Pages and chapters are floats: a step goes to the next whole one, and
+  // + stops at the total (lib/progressStep.js).
+  function step(direction) {
+    const next = direction > 0 ? stepUp(fin, total) : stepDown(fin);
     if (next === fin) return;
     onChange(next);
   }
@@ -120,6 +121,7 @@ function ProgressStepper({ progress, onChange }) {
         </button>
         <div className="font-mono text-sm flex items-baseline justify-center px-2 min-w-[90px] whitespace-nowrap border-l border-r border-border">
           <ProgressInput
+            decimal
             aria-label={`${label} read`}
             value={fin}
             onCommit={(v) => {
@@ -129,7 +131,7 @@ function ProgressStepper({ progress, onChange }) {
             className={counterInputCls}
           />
           <span className="text-text-faint mx-1 text-xs">/</span>
-          <span className="text-text-faint text-sm leading-none">{total ?? "?"}</span>
+          <span className="text-text-faint text-sm leading-none">{formatProgress(total) ?? "?"}</span>
           <span className="text-[9px] text-text-faint ml-1.5 uppercase">{unit}</span>
         </div>
         <button

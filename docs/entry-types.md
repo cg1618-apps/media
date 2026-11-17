@@ -302,6 +302,11 @@ style label). Vocabulary source and drift guard: [options.md](options.md#novel-u
 | Genre and label tag fields (Tier 2 `Genre Main` / `Genre Sub` / `Label`, one vocabulary each, shared) | `genre_main`, `genre_sub`, `label` | `genre_main`, `genre_sub`, `label` | `genre_main`, `genre_sub`, `label` | `genre_main`, `genre_sub`, `label` | `genre_main`, `genre_sub`, `label` | `genre_main`, `genre_sub`, `label` | `genre_main`, `genre_sub`, `label` | `genre_main`, `genre_sub`, `label` | `label` only - its genres are `game_genre` | — | — | — |
 | Origin/exclusivity tag field | `exclusive_source` (single) | `exclusive_source` (single) | `original_source` (multi) | `original_source` (multi) | `original_source` (multi) | `serialization_platform` (multi) | `serialization_platform` (multi) | — | — | `original_source` (multi) - the KR official source | — | — |
 
+Every progress column in the matrix above except `vol_fin_page` is a float on
+every type - a viewer can be 2.5 episodes or 17.5 chapters in - and every
+tracker's + and − go to the next whole number in that direction, stopping at
+the total ([business-rules.md](business-rules.md#progress-numbers-are-floats)).
+
 `time_fin` - **Paused at** - is the six watching types' playback position,
 free text such as `1:10:00` or `14:35`, on the viewer's list row beside
 `ep_fin`. It is not a counter: nothing derives from it, and it is cleared when

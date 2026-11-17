@@ -1,6 +1,7 @@
 // Frontend mirror of app/services/domain/novel_units.py. The editor previews
 // a generated key before anything is saved, so the fallback cannot live only
 // on the server. src/config/novelUnitKinds.test.js pins the two together.
+import { stepBy } from "./progressStep";
 
 const KEY_PREFIX = {
   volume: "Vol",
@@ -156,8 +157,7 @@ export function effectiveProgressDisplay(novel) {
  */
 export function wholeArcStep(arcs, arcFin, chInArc, direction) {
   const total = (arcs || []).length;
-  const fin = Math.max(0, Math.floor(Number(arcFin) || 0));
-  const next = Math.min(total, Math.max(0, fin + direction));
+  const next = Math.min(total, Math.max(0, stepBy(Math.max(0, Number(arcFin) || 0), direction)));
   return { arc_fin: next, ch_fin_in_arc: 0 };
 }
 
@@ -169,7 +169,8 @@ export function wholeArcStep(arcs, arcFin, chInArc, direction) {
 export function arcStep(arcs, arcFin, chInArc, direction) {
   const counts = (arcs || []).map((a) => Number(a.ch_count) || 0);
   let fin = Math.max(0, Math.floor(Number(arcFin) || 0));
-  let ch = (Number(chInArc) || 0) + direction;
+  // A step goes to the next whole chapter in its direction (progressStep.js).
+  let ch = stepBy(chInArc, direction);
 
   while (ch < 0 && fin > 0) {
     fin -= 1;

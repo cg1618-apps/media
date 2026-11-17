@@ -26,6 +26,7 @@ import {
   AIRING_WATCHING_STATUSES,
 } from "../../config/fieldOptions";
 import { endpoints } from "../../api/endpoints";
+import { FLOAT_PROGRESS_FIELDS } from "../../lib/progressStep";
 
 export { defaultCartoon } from "../../config/formFactories";
 
@@ -63,6 +64,7 @@ export function CartoonFormBody({ f, u, sources, ownerId }) {
         className={inputCls}
         type="number"
         min="0"
+        step={FLOAT_PROGRESS_FIELDS.has(key) ? "any" : undefined}
         aria-label={label}
         value={f[key] ?? ""}
         onChange={(e) => u(key, e.target.value)}

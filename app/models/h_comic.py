@@ -6,6 +6,7 @@ from sqlalchemy import (
     CheckConstraint,
     Column,
     DateTime,
+    Float,
     ForeignKeyConstraint,
     Integer,
     String,
@@ -93,8 +94,8 @@ class HComic(Base, NameFallbackMixin):
     # The entry's position in its series, like a volume number. JP.
     series_number = Column(Integer, nullable=True)
     serialization_status = Column(String, nullable=True)
-    page_total = Column(Integer, nullable=True)  # JP
-    ch_total = Column(Integer, nullable=True)  # KR
+    page_total = Column(Float, nullable=True)  # JP
+    ch_total = Column(Float, nullable=True)  # KR
     # Chapters behind the official source. Hand-set, never derived. KR.
     ch_behind = Column(Integer, nullable=True)
 

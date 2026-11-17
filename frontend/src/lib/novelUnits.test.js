@@ -98,6 +98,21 @@ describe("arcStep", () => {
     // arc 2 = 101/112, closing it (+11) lands exactly at arc 2 finished.
     expect(arcStep(arcs, 1, 101, 11)).toEqual({ arc_fin: 2, ch_fin_in_arc: 0 });
   });
+
+  // A chapter count is a float, and a step goes to the next whole chapter
+  // in its direction (lib/progressStep.js), not one chapter on.
+  it("steps a fractional chapter to the next whole one", () => {
+    expect(arcStep(arcs, 1, 2.5, 1)).toEqual({ arc_fin: 1, ch_fin_in_arc: 3 });
+    expect(arcStep(arcs, 1, 2.5, -1)).toEqual({ arc_fin: 1, ch_fin_in_arc: 2 });
+  });
+
+  it("steps half a chapter back to the arc's start without borrowing", () => {
+    expect(arcStep(arcs, 1, 0.5, -1)).toEqual({ arc_fin: 1, ch_fin_in_arc: 0 });
+  });
+
+  it("rolls into the next arc when a fractional step completes one", () => {
+    expect(arcStep(threeArcs, 0, 9.5, 1)).toEqual({ arc_fin: 1, ch_fin_in_arc: 0 });
+  });
 });
 
 describe("effectiveProgressDisplay", () => {
@@ -324,6 +339,11 @@ describe("wholeArcStep", () => {
 
   it("clamps at the last arc", () => {
     expect(wholeArcStep(arcs, 3, 0, 1)).toEqual({ arc_fin: 3, ch_fin_in_arc: 0 });
+  });
+
+  it("steps a fractional arc count to the next whole one", () => {
+    expect(wholeArcStep(arcs, 1.5, 0, 1)).toEqual({ arc_fin: 2, ch_fin_in_arc: 0 });
+    expect(wholeArcStep(arcs, 1.5, 0, -1)).toEqual({ arc_fin: 1, ch_fin_in_arc: 0 });
   });
 });
 

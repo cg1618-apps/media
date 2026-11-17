@@ -39,6 +39,7 @@ import ContentLabelChips from "../../components/info/ContentLabelChips";
 import { focusStyle } from "../../lib/covers";
 import CastSection from "../../components/info/CastSection";
 import LazyImage from "../../components/ui/LazyImage";
+import { formatProgress } from "../../lib/progressStep";
 
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
@@ -161,11 +162,11 @@ export default function Anime() {
   const epTotalDisplay =
     anime.ep_total != null
       ? hasCum && anime.cum_ep_total != null
-        ? `${anime.ep_total} (${anime.cum_ep_total})`
-        : String(anime.ep_total)
+        ? `${formatProgress(anime.ep_total)} (${formatProgress(anime.cum_ep_total)})`
+        : formatProgress(anime.ep_total)
       : null;
   const progressPct =
-    epTotal !== "?" ? Math.round((epFin / parseInt(epTotal)) * 100) : 0;
+    epTotal !== "?" ? Math.round((epFin / Number(epTotal)) * 100) : 0;
 
   const franchiseName = franchise
     ? franchise.franchise_name_cn ||

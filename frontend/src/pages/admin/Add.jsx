@@ -635,8 +635,8 @@ export default function Add() {
     }
 
     // Validate episode count
-    const epTotal = af.ep_total !== "" ? parseInt(af.ep_total) : null;
-    const epFin = af.ep_fin !== "" ? parseInt(af.ep_fin) : null;
+    const epTotal = af.ep_total !== "" ? parseFloat(af.ep_total) : null;
+    const epFin = af.ep_fin !== "" ? parseFloat(af.ep_fin) : null;
     if (epTotal !== null && epFin !== null && epFin > epTotal) {
       showToast(
         "error",

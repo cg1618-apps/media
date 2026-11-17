@@ -27,11 +27,11 @@ class MangaBase(BaseModel):
     serialization_status: Optional[str] = None
     reading_status: str = "Might Read"
 
-    vol_total: Optional[int] = None
-    vol_fin: Optional[int] = 0
+    vol_total: Optional[float] = None
+    vol_fin: Optional[float] = 0
     vol_fin_page: Optional[int] = 0
-    ch_total: Optional[int] = None
-    ch_fin: Optional[int] = 0
+    ch_total: Optional[float] = None
+    ch_fin: Optional[float] = 0
 
     my_rating: Optional[str] = None
     mal_rating: Optional[float] = None

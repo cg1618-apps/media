@@ -143,6 +143,7 @@ export function ComicFormBody({ f, u, sources, ownerId }) {
             className={inputCls}
             type="number"
             min="0"
+            step="any"
             value={f.issue_fin ?? ""}
             onChange={(e) => u("issue_fin", e.target.value)}
             placeholder="0"
@@ -153,6 +154,7 @@ export function ComicFormBody({ f, u, sources, ownerId }) {
             className={inputCls}
             type="number"
             min="0"
+            step="any"
             value={f.issue_total ?? ""}
             onChange={(e) => u("issue_total", e.target.value)}
             placeholder="0"

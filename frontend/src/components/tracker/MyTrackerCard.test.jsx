@@ -150,3 +150,41 @@ describe("MyTrackerCard's controls", () => {
     expect(container).toBeEmptyDOMElement();
   });
 });
+
+describe("EpisodeStepper steps to the next whole episode", () => {
+  beforeEach(() => {
+    mockAuth.username = "member";
+  });
+
+  it.each([
+    [2.5, 12, "Next episode", 3],
+    [2.5, 12, "Previous episode", 2],
+    [2, 2.5, "Next episode", 2.5],
+  ])("from %s of %s, %s saves %s", (epFin, epTotal, button, saved) => {
+    const onEpChange = vi.fn();
+    render(card({ epFin, epTotal, onEpChange }));
+    fireEvent.click(screen.getByRole("button", { name: button }));
+    expect(onEpChange).toHaveBeenCalledWith(saved);
+  });
+
+  it("saves nothing on + at the total", () => {
+    const onEpChange = vi.fn();
+    render(card({ epFin: 2.5, epTotal: 2.5, onEpChange }));
+    fireEvent.click(screen.getByRole("button", { name: "Next episode" }));
+    expect(onEpChange).not.toHaveBeenCalled();
+  });
+
+  it("keeps a typed fraction", () => {
+    const onEpChange = vi.fn();
+    render(card({ epFin: 2, epTotal: 12, onEpChange }));
+    const input = screen.getByLabelText("Episodes finished");
+    fireEvent.change(input, { target: { value: "2.5" } });
+    fireEvent.blur(input);
+    expect(onEpChange).toHaveBeenCalledWith(2.5);
+  });
+
+  it("shows a cumulative sum without its float noise", () => {
+    render(card({ hasCum: true, cumFin: 0.1 + 0.2, cumTotal: 26 }));
+    expect(screen.getByText("Cum 0.3/26")).toBeInTheDocument();
+  });
+});
