@@ -27,6 +27,14 @@ def test_an_anime_movie_takes_its_release_status_from_mal(mal, expected):
     assert "airing_status" not in data
 
 
+@pytest.mark.parametrize(
+    "mal_type, expected",
+    [("Movie", "Cinema"), ("ONA", "ONA"), ("TV", None), ("OVA", None), (None, None)],
+)
+def test_an_anime_movie_takes_its_release_type_from_mal(mal_type, expected):
+    assert map_tenrai_to_anime_movie_data({"type": mal_type})["release_type"] == expected
+
+
 def _list_row(media_type, status):
     return parse_user_media_list_from_sheet(
         {"media_type": media_type, "public_id": "1", "username": "u", "status": status}

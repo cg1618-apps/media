@@ -445,10 +445,30 @@ describe("MediaCard - the future variant on a film", () => {
     );
   });
 
-  it("the bolt marks the film Released and leaves its watching status", async () => {
+  it("the bolt marks a waiting film Released and starts watching it", async () => {
     const user = userEvent.setup();
     mockAuthFetch(["self.list", "manage.catalog"]);
-    mount(movie, "movie", true, "future");
+    mount({ ...movie, watching_status: "Watch When Released" }, "movie", true, "future");
+    await user.click(await screen.findByTitle("Mark as Released"));
+    const bodies = () =>
+      fetch.mock.calls.filter(([, init]) => init?.body).map(([, init]) => JSON.parse(init.body));
+    await waitFor(() =>
+      expect(bodies()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ release_status: "Released" }),
+          expect.objectContaining({ watching_status: "Active Watching" }),
+        ]),
+      ),
+    );
+    // The watching status is the viewer's own: it rides the /api/me write,
+    // never the catalogue body that carries release_status.
+    expect(bodies().some((b) => "release_status" in b && "watching_status" in b)).toBe(false);
+  });
+
+  it("the bolt marks a film on any other status Released and leaves the status", async () => {
+    const user = userEvent.setup();
+    mockAuthFetch(["self.list", "manage.catalog"]);
+    mount({ ...movie, watching_status: "Plan to Watch" }, "movie", true, "future");
     await user.click(await screen.findByTitle("Mark as Released"));
     const bodies = () =>
       fetch.mock.calls.filter(([, init]) => init?.body).map(([, init]) => JSON.parse(init.body));

@@ -18,7 +18,8 @@
 // `releaseDetailFields` lists them; an empty list means no dialog.
 //
 // Mark airing also moves a `Watch When Airs` watching status to
-// `Active Watching`, in the same write.
+// `Active Watching`, in the same write, and a film's Mark released moves
+// `Watch When Released` the same way.
 //
 // The release axis and its details are the work's; the watching status and
 // my watch day are the viewer's own list fields. RELEASE_PERSONAL_FIELDS
@@ -93,9 +94,14 @@ function serialization(entry, { pending }) {
   return null;
 }
 
-function film(entry) {
+// A film's release starts watching it when I was waiting for that release.
+function film(entry, canTrack) {
   if (!FILM_PENDING.includes(entry.release_status)) return null;
-  return step("release_status", "Mark released", "Released", "Marked as released", true);
+  const action = step("release_status", "Mark released", "Released", "Marked as released", true);
+  if (!canTrack || entry.watching_status !== "Watch When Released") return action;
+  action.payload.watching_status = "Active Watching";
+  action.toast = "Marked as released · Active Watching";
+  return action;
 }
 
 function game(entry) {
@@ -115,7 +121,7 @@ export function releaseAction(type, entry, { canTrack = true } = {}) {
       return airing(entry, { oneShot: false, canTrack });
     case "anime-movie":
     case "movie":
-      return film(entry);
+      return film(entry, canTrack);
     case "manga":
     case "comic":
     case "h-comic":

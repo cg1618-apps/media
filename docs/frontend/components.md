@@ -288,7 +288,8 @@ columns.
   unreleased — `airing_status` for the airing types, `release_status` for a
   movie, an anime movie or a game. A film's select offers Watch When Released
   where the airing types offer Watch When Airs, and its bolt writes
-  `release_status: "Released"` and moves no watching status. Its outside-score slot — the meta-line figure on anime, manga and
+  `release_status: "Released"` and moves the viewer's own `Watch When
+  Released` to `Active Watching`, any other status left alone. Its outside-score slot — the meta-line figure on anime, manga and
   novel, the cover stamp on an anime movie — reads whichever column
   `scoreField` names, defaulting to `mal_rating`, so a library sorted by an
   AniList figure can point every card at `anilist_rating` instead),

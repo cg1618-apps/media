@@ -5295,6 +5295,19 @@ shown buttons that answered 401.
   `exclusive_source` tag field, which would have had no lossless mapping for
   a movie holding several sources. The `original_source` key, its sheet
   header and its multi-value shape stay as they are on all four types.
+- **Releasing a film starts watching it, for the acting viewer only** (the
+  owner's call). "Mark released" and the future card's bolt move
+  `Watch When Released` to `Active Watching`, as Mark airing does for
+  `Watch When Airs`. The move rides `/api/me/list`, so it touches only the
+  acting account's row. Fill and a plain edit of `release_status` move
+  nothing: they are not a person saying "it is out and I am watching it".
+- **MAL's type sets `release_type` on the Add form only.** `Movie` → `Cinema`
+  and `ONA` → `ONA`, through the prefill's blank-or-default rule, which
+  replaces the untouched `Cinema` a new form starts with. The fill of a saved
+  entry never writes it. `release_type` is NOT NULL with `Cinema` as its
+  default, so a stored `Cinema` cannot be told from a chosen one. Rejected:
+  a nullable column meaning "not chosen yet", which every reader would then
+  have to treat as Cinema.
 - **Pull reads an older sheet** through `RENAMED_HEADERS` and the parsers.
   This is the same shape as Game Choice Edge's `option`, so no manual sheet
   work is needed, and the next Backup rewrites the headers.

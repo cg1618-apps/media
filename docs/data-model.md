@@ -326,7 +326,7 @@ Model: `AnimeMovies`. CHECKs: `ck_anime_movies_release_date_jp_iso`,
 |---|---|:-:|---|---|
 | `anime_movie_name_en` / `_cn` / `_roman` / `_jp` / `_alt` | String | yes | | |
 | `release_status` | String | yes | | FILM_RELEASE_STATUSES (`Not Released` / `Released` / `Canceled`); `Not Released` on a new entry |
-| `release_type` | String | no | `Cinema` | ANIME_MOVIE_RELEASE_TYPES (`Cinema` / `ONA`). An ONA has one release date, held in both `release_date_jp` and `release_date_tw`: every create, update and patch keeps the two equal (`sync_ona_release_date` in `app/services/domain/anime_movie.py` - the date the write changed wins, otherwise JP) |
+| `release_type` | String | no | `Cinema` | ANIME_MOVIE_RELEASE_TYPES (`Cinema` / `ONA`). The Add form's MAL prefill takes it from MAL's type; Fill never writes it. An ONA has one release date, held in both `release_date_jp` and `release_date_tw`: every create, update and patch keeps the two equal (`sync_ona_release_date` in `app/services/domain/anime_movie.py` - the date the write changed wins, otherwise JP) |
 | `mal_rating` | Float | yes | | |
 | `mal_rank` | String | yes | | |
 | `anilist_rating` | Integer | yes | | From AniList, keyed on `mal_id` - see [external-apis.md](external-apis.md#anilist) |

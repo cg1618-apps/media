@@ -1255,7 +1255,10 @@ Top to bottom:
    **Mark airing** also sets `watching_status` from `Watch When Airs` to
    `Active Watching` in the same write, as the future-release card's bolt
    does; any other watching status is left alone. **Mark released** on a
-   film moves no watching status, `Watch When Released` included.
+   movie or an anime movie moves `Watch When Released` to `Active Watching`
+   the same way, and leaves any other watching status alone. Either move
+   rides `PUT /api/me/list/{id}`, so it is the acting viewer's own row and
+   nobody else's. A plain edit of the status field, and Fill, move nothing.
 
    **A film's release.** Movie and Anime Movie show **Release Status**
    (`Not Released` / `Released` / `Canceled`) where the airing types show

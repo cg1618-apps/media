@@ -680,6 +680,11 @@ export default function MediaCard({
       );
       return;
     }
+    // A film waiting on its release starts with it; any other status stays.
+    if (isFilmType(type)) {
+      applyBoltAction(currentStatus === "Watch When Released" ? "Active Watching" : null);
+      return;
+    }
     if (!BOLT_PROMPTS_WATCHING.has(type)) {
       applyBoltAction(null);
       return;

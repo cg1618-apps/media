@@ -1313,7 +1313,7 @@ Japanese titles, its synonyms as the alternative name, and the credits:
 | Type | Fields |
 | --- | --- |
 | `anime` | `anime_name_en`, `anime_name_jp`, `anime_name_alt`, `airing_type`, `airing_status`, `release_season`, `release_date`, `ep_total`, `mal_rating`, `mal_rank`, `studio` |
-| `anime-movie` | `anime_movie_name_en`, `anime_movie_name_jp`, `anime_movie_name_alt`, `release_status`, `release_date_jp`, `mal_rating`, `mal_rank`, `studio` |
+| `anime-movie` | `anime_movie_name_en`, `anime_movie_name_jp`, `anime_movie_name_alt`, `release_status`, `release_date_jp`, `release_type` (MAL's `Movie` → `Cinema`, `ONA` → `ONA`, absent for any other MAL type), `release_date_tw` (an ONA only, equal to `release_date_jp`), `mal_rating`, `mal_rank`, `studio` |
 | `manga` | `manga_name_en`, `manga_name_jp`, `manga_name_alt`, `serialization_status`, `release_date`, `end_date`, `vol_total` and `ch_total` (only when the status is `完結`), `mal_rating`, `mal_rank`, `author_plot` (MAL's Story), `author_draw` (Art) |
 | `novel` | `novel_name_en`, `novel_name_jp`, `novel_name_alt`, `serialization_status`, `release_date`, `end_date`, `vol_total_original` and `ch_total` (only when `完結`), `mal_rating`, `mal_rank`, `author` (Story), `illustrator` (Art) |
 

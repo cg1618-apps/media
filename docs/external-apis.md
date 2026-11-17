@@ -203,7 +203,7 @@ entry columns — those columns were dropped by migration `dc1o2l3s4d5`. See
 
 ### Mapping for `anime_movies` — `map_tenrai_to_anime_movie_data`
 
-Same rules, except the date goes to `release_date_jp`, there is no `release_season`, and the status goes to `release_status` in the film vocabulary: `Airing` and `Finished Airing` are `Released`, `Not Yet Aired` is `Not Released`. The mapper also returns `ep_total`, but `autofill_anime_movie_from_mal` never writes it. On an ONA, the filled `release_date_jp` is carried to `release_date_tw` as well.
+Same rules, except the date goes to `release_date_jp`, there is no `release_season`, and the status goes to `release_status` in the film vocabulary: `Airing` and `Finished Airing` are `Released`, `Not Yet Aired` is `Not Released`. The mapper also returns `ep_total`, but `autofill_anime_movie_from_mal` never writes it. On an ONA, the filled `release_date_jp` is carried to `release_date_tw` as well. It also maps MAL's `type` to `release_type` (`Movie` → `Cinema`, `ONA` → `ONA`, anything else → nothing). Only the Add form's MAL prefill writes that, where it replaces the untouched `Cinema` default. The autofill of a saved entry leaves `release_type` alone, because a stored `Cinema` may be the default or a choice and nothing records which.
 
 ### Mapping for `hentai` — `map_tenrai_to_anime_data`, four fields and two links
 

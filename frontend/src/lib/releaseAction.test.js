@@ -82,6 +82,32 @@ describe("releaseAction", () => {
       }
     });
 
+    it.each(["movie", "anime-movie"])(
+      "%s: Mark released moves Watch When Released to Active Watching",
+      (type) => {
+        const a = releaseAction(type, {
+          release_status: "Not Released",
+          watching_status: "Watch When Released",
+        });
+        expect(a.payload).toEqual({
+          release_status: "Released",
+          watching_status: "Active Watching",
+        });
+        expect(a.toast).toBe("Marked as released · Active Watching");
+      },
+    );
+
+    it.each(["Plan to Watch", "Might Watch", "Watch When Airs"])(
+      "leaves %s alone on a film's Mark released",
+      (status) => {
+        const a = releaseAction("movie", {
+          release_status: "Not Released",
+          watching_status: status,
+        });
+        expect(a.payload).toEqual({ release_status: "Released" });
+      },
+    );
+
     it("reads release_status, not airing_status", () => {
       expect(releaseAction("movie", { airing_status: "Not Yet Aired" })).toBeNull();
     });
@@ -215,6 +241,17 @@ describe("a release step for a viewer without self.list", () => {
     });
     expect(releaseAction("anime", waiting).payload).toEqual({
       airing_status: "Airing",
+      watching_status: "Active Watching",
+    });
+  });
+
+  it("does not move a film's watching status either", () => {
+    const film = { release_status: "Not Released", watching_status: "Watch When Released" };
+    expect(releaseAction("movie", film, { canTrack: false }).payload).toEqual({
+      release_status: "Released",
+    });
+    expect(releaseAction("movie", film).payload).toEqual({
+      release_status: "Released",
       watching_status: "Active Watching",
     });
   });

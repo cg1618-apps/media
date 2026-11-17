@@ -71,6 +71,11 @@ def _film_release_status(airing_status: Optional[str]) -> Optional[str]:
     return None
 
 
+# MAL's type -> an anime movie's release_type. Any other MAL type says
+# nothing about how a film was released, so it maps to nothing.
+_FILM_RELEASE_TYPES = {"Movie": "Cinema", "ONA": "ONA"}
+
+
 def _convert_season(tenrai_season: Optional[str]) -> Optional[str]:
     """
     Maps lowercase season strings to 3-letter uppercase abbreviations.
@@ -240,6 +245,7 @@ def map_tenrai_to_anime_movie_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
 
     return {
         "airing_type": airing_type,
+        "release_type": _FILM_RELEASE_TYPES.get(airing_type),
         "release_status": release_status,
         "release_date_jp": release_date_jp,
         "mal_rating": raw_data.get("score"),
