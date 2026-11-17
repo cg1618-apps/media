@@ -8,6 +8,7 @@
 // other type's season is derived from the month of its primary release date,
 // so a year-only date has no season and is left out.
 import { primaryReleaseValue, releaseScore } from "./releaseDate";
+import { isFilmType, WAIT_FOR_RELEASE_STATUSES } from "../config/fieldOptions";
 
 const SEASON_CODES = ["WIN", "SPR", "SUM", "FAL"];
 
@@ -22,11 +23,12 @@ export const COMING_NEXT_TYPES = [
   { type: "game", label: "Game" },
 ];
 
-// Each sub-section's status per status field. Games say "released" where the
-// watched types say "airs".
+// Each sub-section's statuses per status field. Games and films say
+// "released" where the airing types say "airs"; a type holds only its own
+// spelling, so matching both is matching the one it has.
 const SUBSECTION_STATUS = {
-  airs: { watching_status: "Watch When Airs", playing_status: "Play When Released" },
-  planned: { watching_status: "Plan to Watch", playing_status: "Plan to Play" },
+  airs: { watching_status: WAIT_FOR_RELEASE_STATUSES, playing_status: ["Play When Released"] },
+  planned: { watching_status: ["Plan to Watch"], playing_status: ["Plan to Play"] },
 };
 
 const STATUS_FIELD = {
@@ -76,12 +78,18 @@ function inSeason(entry, mediaType, season) {
   return !!s && s.code === season.code && s.year === season.year;
 }
 
-// The airing / release statuses that mean "not out yet". Games carry
-// release_status (GAME_RELEASE_STATUSES); the watched types airing_status.
-const UNRELEASED_STATUSES = {
-  airing_status: ["Not Yet Aired", "Rumored"],
-  release_status: ["Unreleased"],
-};
+// The status column each type is released by, and the values that mean "not
+// out yet". Games and the two films both carry release_status, each with its
+// own vocabulary (GAME_RELEASE_STATUSES, FILM_RELEASE_STATUSES); the airing
+// types carry airing_status.
+const GAME_UNRELEASED = { field: "release_status", values: ["Unreleased"] };
+const FILM_UNRELEASED = { field: "release_status", values: ["Not Released"] };
+const AIRING_UNRELEASED = { field: "airing_status", values: ["Not Yet Aired"] };
+
+function unreleasedAxis(mediaType) {
+  if (mediaType === "game") return GAME_UNRELEASED;
+  return isFilmType(mediaType) ? FILM_UNRELEASED : AIRING_UNRELEASED;
+}
 
 function dateScore(date) {
   return (
@@ -91,14 +99,15 @@ function dateScore(date) {
 
 /**
  * Whether the entry has not aired or released yet as of `today`. Its
- * airing_status (release_status for games) decides when set; an entry with no
+ * airing_status (release_status for games and films) decides when set; an
+ * entry with no
  * status falls back to its primary release date lying after today, where a
  * date missing its day or month counts from the first of that period.
  */
 export function isUnreleased(entry, mediaType, today) {
-  const field = mediaType === "game" ? "release_status" : "airing_status";
+  const { field, values } = unreleasedAxis(mediaType);
   const status = entry[field];
-  if (status) return UNRELEASED_STATUSES[field].includes(status);
+  if (status) return values.includes(status);
   return (
     releaseScore(primaryReleaseValue(mediaType, entry)) > dateScore(today)
   );
@@ -115,11 +124,11 @@ export function selectComingNext(lists, season, today = null) {
   const section = (key) =>
     COMING_NEXT_TYPES.map(({ type, label }) => {
       const field = STATUS_FIELD[type] || "watching_status";
-      const status = SUBSECTION_STATUS[key][field];
+      const statuses = SUBSECTION_STATUS[key][field];
       const items = (lists[type] || [])
         .filter(
           (e) =>
-            e[field] === status &&
+            statuses.includes(e[field]) &&
             inSeason(e, type, season) &&
             (!today || isUnreleased(e, type, today)),
         )

@@ -21,7 +21,7 @@ def make_movie(db):
     m = models.Movies(
         movie_name_en="Fight Club",
         length_min=139,
-        airing_status="Finished Airing",
+        release_status="Released",
         release_date_usa="1999-10-15",
         imdb_rating="8.8",
         cover_image_file="fc.jpg",

@@ -759,3 +759,43 @@ describe("blank finished counts on the other bodies", () => {
     expect(hComicFieldsPayload({ region: "JP", page_fin: "0" }).page_fin).toBe(0);
   });
 });
+
+// The two film types carry release_status where the airing types carry
+// airing_status; an anime movie also carries its release type.
+describe("film release status and anime movie release type", () => {
+  it("movie sends release_status and no airing_status", () => {
+    const body = movieFieldsPayload({ release_status: "Released" });
+    expect(body.release_status).toBe("Released");
+    expect("airing_status" in body).toBe(false);
+  });
+
+  it("anime movie sends release_status and release_type, and no airing_status", () => {
+    const body = buildAnimeMoviePayload({ release_status: "Not Released", release_type: "ONA" });
+    expect(body.release_status).toBe("Not Released");
+    expect(body.release_type).toBe("ONA");
+    expect("airing_status" in body).toBe(false);
+    expect(buildAnimeMoviePayload({}).release_type).toBe("Cinema");
+  });
+
+  it("an ONA sends its one date in both columns, JP first", () => {
+    const ona = (jp, tw) =>
+      buildAnimeMoviePayload({ release_type: "ONA", release_date_jp: jp, release_date_tw: tw });
+    expect(ona("2025-01", "2025-03")).toMatchObject({
+      release_date_jp: "2025-01",
+      release_date_tw: "2025-01",
+    });
+    expect(ona("", "2025-03")).toMatchObject({
+      release_date_jp: "2025-03",
+      release_date_tw: "2025-03",
+    });
+  });
+
+  it("a Cinema release keeps its two dates apart", () => {
+    const body = buildAnimeMoviePayload({
+      release_type: "Cinema",
+      release_date_jp: "2025-01",
+      release_date_tw: "2025-03",
+    });
+    expect(body).toMatchObject({ release_date_jp: "2025-01", release_date_tw: "2025-03" });
+  });
+});

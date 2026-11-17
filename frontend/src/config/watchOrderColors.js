@@ -56,6 +56,7 @@ const STATUS_TONE_LISTS = {
     "Plan to Read",
     "Plan to Play",
     "Watch When Airs",
+    "Watch When Released",
     "Play When Released",
     "Might Watch",
     "Might Read",

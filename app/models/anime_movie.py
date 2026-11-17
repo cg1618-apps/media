@@ -71,7 +71,15 @@ class AnimeMovies(Base, NameFallbackMixin):
     anime_movie_name_jp = Column(String, nullable=True)
     anime_movie_name_alt = Column(String, nullable=True)
 
-    airing_status = Column(String, nullable=True)
+    # FILM_RELEASE_STATUSES: Not Released / Released / Canceled. A film is
+    # released, not aired, so it does not share AiringStatus.
+    release_status = Column(String, nullable=True)
+    # ANIME_MOVIE_RELEASE_TYPES: Cinema or ONA. An ONA has one release date,
+    # held in both release_date_jp and release_date_tw - see
+    # app/services/domain/anime_movie.py, which keeps the two in step.
+    release_type = Column(
+        String, nullable=False, default="Cinema", server_default="Cinema"
+    )
 
     mal_rating = Column(Float, nullable=True)
     mal_rank = Column(String, nullable=True)

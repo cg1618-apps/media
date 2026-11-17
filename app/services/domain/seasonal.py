@@ -21,7 +21,14 @@ from app.utils.constants import (
 logger = logging.getLogger(__name__)
 
 
-_PLANNED_STATUSES = {WatchStatus.PLAN_TO_WATCH, WatchStatus.WATCH_WHEN_AIRS}
+# Watch When Released is the film types' spelling of Watch When Airs. Only
+# anime is counted here, so it never matches, but planned means both
+# wherever statuses are grouped.
+_PLANNED_STATUSES = {
+    WatchStatus.PLAN_TO_WATCH,
+    WatchStatus.WATCH_WHEN_AIRS,
+    WatchStatus.WATCH_WHEN_RELEASED,
+}
 _WATCHING_STATUSES = {
     WatchStatus.ACTIVE_WATCHING,
     WatchStatus.PASSIVE_WATCHING,

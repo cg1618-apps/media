@@ -200,6 +200,21 @@ describe("blankOnlyPatch", () => {
     expect(blankOnlyPatch(form, prefill)).toEqual({ a: 1, b: 2, c: 3, d: 4, e: 5 });
   });
 
+  // An anime movie's release type: MAL's ONA replaces the Cinema a new form
+  // starts with, and the mirror - a form the admin set to ONA - keeps it.
+  it("replaces an untouched Cinema release type with MAL's, never a chosen one", () => {
+    const defaults = { release_type: "Cinema", release_status: "Not Released" };
+    const prefill = {
+      release_type: "ONA",
+      release_date_jp: "2024-07-01",
+      release_date_tw: "2024-07-01",
+    };
+    expect(blankOnlyPatch({ ...defaults }, prefill, defaults)).toEqual(prefill);
+    expect(
+      blankOnlyPatch({ ...defaults, release_type: "ONA" }, { release_type: "Cinema" }, defaults),
+    ).toEqual({});
+  });
+
   it("never writes a blank prefill value", () => {
     expect(blankOnlyPatch({ a: "" }, { a: "  ", b: null })).toEqual({});
   });

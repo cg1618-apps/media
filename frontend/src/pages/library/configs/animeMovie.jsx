@@ -1,5 +1,5 @@
 import {
-  airingStatusColumn,
+  releaseStatusColumn,
   anilistPopularitySort,
   anilistRatingSort,
   franchiseColumn,
@@ -14,6 +14,7 @@ import LazyImage from "../../../components/ui/LazyImage";
 import { BAHAMUT_VALUE } from "../../../lib/formatters";
 import { sourceIconUrl } from "../../../lib/sourceIcons";
 import { getBahaRow, isBaha, WATCHING_STATUS_GROUP } from "../../../utils/media";
+import { FILM_RELEASE_STATUSES } from "../../../config/fieldOptions";
 
 // ---------------------------------------------------------------------------
 // Release date sort score: year * 10000 + month * 100 + day
@@ -67,11 +68,11 @@ const ANIME_MOVIE_LIBRARY_CONFIG = {
 
   filterDefs: [
     {
-      key: "airingStatus",
-      label: "Airing Status",
+      key: "releaseStatus",
+      label: "Release Status",
       type: "set",
-      options: ["Airing", "Finished Airing", "Not Yet Aired", "Canceled", "Rumored"],
-      match: (item, active) => active.has(item.airing_status),
+      options: FILM_RELEASE_STATUSES,
+      match: (item, active) => active.has(item.release_status),
     },
     {
       key: "watchingStatus",
@@ -125,7 +126,7 @@ const ANIME_MOVIE_LIBRARY_CONFIG = {
         );
       },
     },
-    airingStatusColumn(),
+    releaseStatusColumn(),
     myRatingColumn(),
     malRatingColumn(),
     {

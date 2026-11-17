@@ -194,7 +194,7 @@ Computed on every read, per viewer, from the viewer's own `user_media_list` rows
 | --- | --- |
 | **done** | The status is in a completed set (`COMPLETED_WATCH_STATUSES`, `_READ_`, `_PLAY_`), or is `Dropped` or `Temp Dropped`; **or** the step has an `ep_end` and the viewer's unit count for the entry is at least `ep_end` |
 | **active** | The status is an in-progress one — `Active Watching`, `Passive Watching`, `Active Reading`, `Passive Reading`, `Active Playing`, `Passive Playing` — and the step is not done by its range, and the range has been reached: a step whose `ep_start` is beyond the next unit (`units + 1 < ep_start`) stays pending, so the second half of a split run is not "now" while the first half is being watched |
-| **pending** | Everything else: no list row, `Might …`, `Plan to …`, `Watch When Airs`, `Paused`, `Won't …` |
+| **pending** | Everything else: no list row, `Might …`, `Plan to …`, `Watch When Airs`, `Watch When Released`, `Paused`, `Won't …` |
 
 The unit count is `UNIT_FIELDS`: `ep_fin` for anime, TV show, cartoon and hentai; `issue_fin` for comic; `ch_fin` for manga and novel. A type with no unit count (movies, games, h-comic, h-game) is done by status alone.
 

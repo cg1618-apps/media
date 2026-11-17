@@ -19,11 +19,11 @@ import { Field, SectionHeader, inputCls, selectCls } from "../../components/form
 import StatusOptions from "../../components/ui/StatusOptions";
 import { getSourceValues, parseTypes } from "../../utils/media";
 import {
-  AIRING_STATUSES,
+  FILM_RELEASE_STATUSES,
+  FILM_WATCHING_STATUSES,
   IS_MAIN,
   MOVIE_TYPES,
   MY_RATINGS,
-  WATCHING_STATUSES,
 } from "../../config/fieldOptions";
 import { endpoints } from "../../api/endpoints";
 
@@ -86,7 +86,7 @@ export function MovieFormBody({ f, u, sources, ownerId }) {
             value={f.watching_status ?? ""}
             onChange={(e) => u("watching_status", e.target.value)}
           >
-            <StatusOptions statuses={WATCHING_STATUSES} />
+            <StatusOptions statuses={FILM_WATCHING_STATUSES} />
           </select>
         </Field>
         {choice("my_rating", "My Rating", MY_RATINGS)}
@@ -117,7 +117,7 @@ export function MovieFormBody({ f, u, sources, ownerId }) {
         {choice("is_main", "Main / Spinoff", IS_MAIN)}
         {choice("movie_type", "Movie Type", MOVIE_TYPES)}
       </div>
-      <div className={row2}>{choice("airing_status", "Airing Status", AIRING_STATUSES)}</div>
+      <div className={row2}>{choice("release_status", "Release Status", FILM_RELEASE_STATUSES)}</div>
       <div className={row2}>
         <ReleaseDateInput
           label="Release Date TW"
@@ -194,7 +194,8 @@ export function MovieFormBody({ f, u, sources, ownerId }) {
         </Field>
       </div>
       <div className={row2}>
-        <Field label="Original Source">
+        {/* Labelled Exclusive Source on movie only; the key is original_source. */}
+        <Field label="Exclusive Source">
           <MultiSelect
             options={getSourceValues(sources, {
               kind: "option",
@@ -204,7 +205,7 @@ export function MovieFormBody({ f, u, sources, ownerId }) {
             })}
             value={f.original_source ?? ""}
             onChange={(v) => u("original_source", v)}
-            placeholder="Select original platform(s)..."
+            placeholder="Select exclusive platform(s)..."
           />
         </Field>
       </div>

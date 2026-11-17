@@ -60,7 +60,10 @@ import {
   GAME_COMPLETION_FLAGS,
   TRISTATE,
   TV_REGIONS,
-  WATCHING_STATUSES,
+  AIRING_WATCHING_STATUSES,
+  ANIME_MOVIE_RELEASE_TYPES,
+  FILM_RELEASE_STATUSES,
+  FILM_WATCHING_STATUSES,
 } from "../fieldOptions";
 import { WEEKDAYS } from "../weekdays";
 import { STUDIO_NAME_FIELDS } from "../../lib/naming";
@@ -74,6 +77,19 @@ const ENTITY_DISPLAY_NAME_OPTIONS = [
   { value: "", label: "Default (English)" },
   ...STUDIO_NAME_FIELDS.map(({ key, label }) => ({ value: key, label })),
 ];
+
+// What the two film types share in place of airing_status and the airing
+// types' watching list. release_status is also a game key, with its own
+// vocabulary, so it is declared per type rather than in COMMON_FIELD_META.
+const FILM_STATUS_META = {
+  watching_status: { options: FILM_WATCHING_STATUSES },
+  release_status: {
+    label: "Release Status",
+    control: "select",
+    options: FILM_RELEASE_STATUSES,
+    group: "Status",
+  },
+};
 
 export const COMMON_FIELD_META = {
   // ---- Relations -------------------------------------------------------
@@ -118,10 +134,12 @@ export const COMMON_FIELD_META = {
     options: AIRING_STATUSES,
     group: "Status",
   },
+  // The airing types' list; the two film types override it with
+  // FILM_WATCHING_STATUSES (Watch When Released for Watch When Airs).
   watching_status: {
     label: "Watching Status",
     control: "select",
-    options: WATCHING_STATUSES,
+    options: AIRING_WATCHING_STATUSES,
     group: "Status",
   },
   reading_status: {
@@ -404,6 +422,14 @@ export const TYPE_FIELD_META = {
 
   "anime-movie": {
     ...genreLabelMeta("anime-movie"),
+    ...FILM_STATUS_META,
+    // An ONA has one release date, held in both release date columns.
+    release_type: {
+      label: "Release Type",
+      control: "select",
+      options: ANIME_MOVIE_RELEASE_TYPES,
+      group: "Classification",
+    },
     anime_movie_name_en: { label: "Name (EN)", group: "Names" },
     anime_movie_name_cn: { label: "Name (CN)", group: "Names" },
     anime_movie_name_roman: { label: "Name (Romaji)", group: "Names" },
@@ -461,9 +487,10 @@ export const TYPE_FIELD_META = {
     movie_name_en: { label: "Name (EN)", group: "Names" },
     movie_name_cn: { label: "Name (CN)", group: "Names" },
     movie_name_alt: { label: "Name (Alt)", group: "Names" },
-    // Auto-fill used to pin a literal "Not Yet Aired" here, which contradicted
-    // this tab's own default. It now falls back to whatever is configured.
-    airing_status: { autofillFallback: "default" },
+    ...FILM_STATUS_META,
+    // Auto-fill falls back to the configured default rather than blanking
+    // the status when the source entry has none.
+    release_status: { ...FILM_STATUS_META.release_status, autofillFallback: "default" },
     movie_type: {
       label: "Movie Type",
       control: "select",
@@ -478,8 +505,9 @@ export const TYPE_FIELD_META = {
       source: { kind: "person", role: "director", scope: "movie" },
       group: "Credits",
     },
+    // Labelled Exclusive Source on movie only; the key stays original_source.
     original_source: {
-      label: "Original Source",
+      label: "Exclusive Source",
       control: "tags",
       source: {
         kind: "option",
@@ -1767,7 +1795,7 @@ export const BUILTIN_AUTOFILL = {
     "franchise_id",
     "series_id",
     "is_main",
-    "airing_status",
+    "release_status",
     "movie_type",
     "genre_main",
     "genre_sub",

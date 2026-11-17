@@ -3,7 +3,8 @@
 // One button, worded per media type, that moves an entry one step along its
 // release axis. Types that run over time take two steps (Not Yet Aired ->
 // Airing -> Finished Airing; 未出 -> 連載中 -> 完結); types released all at
-// once take one (Not Yet Aired -> Finished Airing; Unreleased -> Released).
+// once take one (a film's Not Released -> Released; a movie-format anime's
+// Not Yet Aired -> Finished Airing; a game's Unreleased -> Released).
 // `releaseAction` returns null whenever there is no next step - already
 // released, cancelled, on hiatus, or no status recorded at all - and the
 // page then renders no button.
@@ -17,7 +18,8 @@
 // `releaseDetailFields` lists them; an empty list means no dialog.
 //
 // Mark airing also moves a `Watch When Airs` watching status to
-// `Active Watching`, in the same write.
+// `Active Watching`, in the same write, and a film's Mark released moves
+// `Watch When Released` the same way.
 //
 // The release axis and its details are the work's; the watching status and
 // my watch day are the viewer's own list fields. RELEASE_PERSONAL_FIELDS
@@ -28,7 +30,11 @@ import { RELEASE_PRIORITY } from "./releaseDate";
 
 export const RELEASE_PERSONAL_FIELDS = new Set(["watching_status", "my_watch_day"]);
 
-const AIR_PENDING = ["Not Yet Aired", "Rumored"];
+const AIR_PENDING = ["Not Yet Aired"];
+
+// A film's release_status (FILM_RELEASE_STATUSES) - movie and anime movie.
+// The key is shared with games, whose vocabulary is GAME_PENDING's below.
+const FILM_PENDING = ["Not Released"];
 
 const SERIALIZING = ["連載中", "連載中 (不穩定)", "連載中 (有生之年)"];
 
@@ -88,6 +94,16 @@ function serialization(entry, { pending }) {
   return null;
 }
 
+// A film's release starts watching it when I was waiting for that release.
+function film(entry, canTrack) {
+  if (!FILM_PENDING.includes(entry.release_status)) return null;
+  const action = step("release_status", "Mark released", "Released", "Marked as released", true);
+  if (!canTrack || entry.watching_status !== "Watch When Released") return action;
+  action.payload.watching_status = "Active Watching";
+  action.toast = "Marked as released · Active Watching";
+  return action;
+}
+
 function game(entry) {
   if (!GAME_PENDING.includes(entry.release_status)) return null;
   return step("release_status", "Mark released", "Released", "Marked as released", true);
@@ -105,7 +121,7 @@ export function releaseAction(type, entry, { canTrack = true } = {}) {
       return airing(entry, { oneShot: false, canTrack });
     case "anime-movie":
     case "movie":
-      return airing(entry, { oneShot: true, canTrack });
+      return film(entry, canTrack);
     case "manga":
     case "comic":
     case "h-comic":
@@ -136,14 +152,21 @@ const ANIME_SCHEDULE = [
   { field: "my_watch_day", label: "My watch day", kind: "day" },
 ];
 
+// An ONA anime movie has one release date, held in both release_date_jp and
+// release_date_tw; the server copies JP to TW on write, so only JP is asked.
+const ONA_DATE = [{ field: "release_date_jp", label: "Release date", kind: "date" }];
+
 // The empty fields the release dialog offers, in display order.
 export function releaseDetailFields(type, entry, { canTrack = true } = {}) {
   if (!entry) return [];
-  const fields = (RELEASE_PRIORITY[type] || []).map((field) => ({
-    field,
-    label: DATE_LABELS[field],
-    kind: "date",
-  }));
+  const fields =
+    type === "anime-movie" && entry.release_type === "ONA"
+      ? [...ONA_DATE]
+      : (RELEASE_PRIORITY[type] || []).map((field) => ({
+          field,
+          label: DATE_LABELS[field],
+          kind: "date",
+        }));
   if (type === "anime" && entry.airing_type !== "Movie") {
     fields.push(...ANIME_SCHEDULE);
   }

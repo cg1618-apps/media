@@ -325,15 +325,16 @@ Model: `AnimeMovies`. CHECKs: `ck_anime_movies_release_date_jp_iso`,
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `anime_movie_name_en` / `_cn` / `_roman` / `_jp` / `_alt` | String | yes | | |
-| `airing_status` | String | yes | | AiringStatus |
+| `release_status` | String | yes | | FILM_RELEASE_STATUSES (`Not Released` / `Released` / `Canceled`); `Not Released` on a new entry |
+| `release_type` | String | no | `Cinema` | ANIME_MOVIE_RELEASE_TYPES (`Cinema` / `ONA`). The Add form's MAL prefill takes it from MAL's type; Fill never writes it. An ONA has one release date, held in both `release_date_jp` and `release_date_tw`: every create, update and patch keeps the two equal (`sync_ona_release_date` in `app/services/domain/anime_movie.py` - the date the write changed wins, otherwise JP) |
 | `mal_rating` | Float | yes | | |
 | `mal_rank` | String | yes | | |
 | `anilist_rating` | Integer | yes | | From AniList, keyed on `mal_id` - see [external-apis.md](external-apis.md#anilist) |
 | `anilist_rank` | Integer | yes | | AniList all-time rated rank |
 | `anilist_popularity_rank` | Integer | yes | | AniList all-time popularity rank |
 | `length_min` | Integer | yes | | Runtime in minutes |
-| `release_date_jp` | String | yes | | Preferred release date (RELEASE_PRIORITY) |
-| `release_date_tw` | String | yes | | |
+| `release_date_jp` | String | yes | | Preferred release date (RELEASE_PRIORITY). An ONA's one date |
+| `release_date_tw` | String | yes | | Equal to `release_date_jp` on an ONA |
 | `mal_id` | Integer | yes | | |
 | `mal_link` | String | yes | | |
 
@@ -351,7 +352,7 @@ Live-action and animated (non-anime) films. Model: `Movies`. CHECKs:
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `movie_name_en` / `_cn` / `_alt` | String | yes | | Three names only |
-| `airing_status` | String | yes | | |
+| `release_status` | String | yes | | FILM_RELEASE_STATUSES (`Not Released` / `Released` / `Canceled`); `Not Released` on a new entry |
 | `imdb_rating` | String | yes | | From OMDb |
 | `movie_type` | String | yes | | MOVIE_TYPES (`Reality` / `Animation`) |
 | `is_main` | String | yes | | IS_MAIN |
@@ -363,7 +364,10 @@ Live-action and animated (non-anime) films. Model: `Movies`. CHECKs:
 | `type_slots` | JSONB | yes | | Which favourite 3×3 grid slot this row holds, as `{gridKey: 1..9}` - see [frontend/pages.md](frontend/pages.md#statistics--statistics--completions--completions). One grid is keyed here, Movie - the favourite *movies*, which is a different grid from the favourite movie *franchises* that key "Movie" on `franchise`. |
 
 Virtual: `remark`, `watch_next`, `to_rewatch`, `display_name`, `director`,
-`genre_main` / `genre_sub` / `label`, `original_source` (tag link fields; `original_source` has no
+`genre_main` / `genre_sub` / `label`, `original_source` (tag link fields; on a movie the
+`original_source` field is labelled **Exclusive Source** everywhere it is shown, while
+TV Show, Cartoon and H-Comic call it Original Source - the key, the sheet header and
+the multi-value shape are the same on all four. `original_source` has no
 `LEGACY_SHEET_COLUMN` entry for `movie`, so its response attribute is the
 field key itself - see the response-attribute note under
 [Virtual fields](#virtual-fields-on-media-entries)) and `sources`.

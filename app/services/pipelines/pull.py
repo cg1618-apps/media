@@ -486,6 +486,10 @@ RENAMED_HEADERS: dict[str, frozenset[str]] = {
     # `option` became `title`; parse_game_choice_edge_from_sheet derives the
     # edge's kind and title from it.
     "Game Choice Edge": frozenset({"option"}),
+    # A film's `airing_status` became `release_status`; the two film parsers
+    # read the old header and map its airing vocabulary onto the new one.
+    "Movies": frozenset({"airing_status"}),
+    "Anime Movie": frozenset({"airing_status"}),
 }
 
 # Headers an older sheet carries for a column that no longer exists at all and
@@ -1207,6 +1211,18 @@ def execute_pull_specific(
         ):
             for column in ("kind", "title"):
                 clean_header_dict[column] = parsed_all[column]
+
+        # And for a Movies or Anime Movie tab written before a film's
+        # airing_status became release_status: the parser reads the old
+        # column into the new one, which the header does not name. Only when
+        # the sheet carries no release_status, so a current tab is read
+        # exactly as written.
+        if (
+            tab_name in ("Movies", "Anime Movie")
+            and "airing_status" in raw_header_dict
+            and "release_status" not in raw_header_dict
+        ):
+            clean_header_dict["release_status"] = parsed_all["release_status"]
 
         # The list tab carries a natural key and never the three ids, so this
         # has to run before ANYTHING tries to match the row: the natural-key
@@ -2167,7 +2183,7 @@ def execute_pull_specific(
         # Data Sanitization (Prevent Pydantic Schema 500 Validation Errors).
         # INSERT-only: an UPDATE keeps whatever the row already holds.
         if existing is None:
-            # Blank airing_status / airing_type stay NULL: "" is in no
+            # Blank airing_status / release_status / airing_type stay NULL: "" is in no
             # vocabulary and defeats every `airing_type in {...}` check.
             #
             # The watching/reading/playing status defaults that used to live

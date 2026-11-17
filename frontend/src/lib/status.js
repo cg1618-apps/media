@@ -1,6 +1,9 @@
 // Watch/read status button/style config and status-cycle helpers.
 
-// Watching status cycle: same order as base.js
+import { isFilmType } from "../config/fieldOptions";
+
+// Watching status cycle: same order as base.js. A film cycles through Watch
+// When Released where the airing types cycle through Watch When Airs.
 const STATUS_CYCLE = [
   "Might Watch",
   "Plan to Watch",
@@ -14,6 +17,10 @@ const STATUS_CYCLE = [
   "Won't Watch",
   "Dropped",
 ];
+
+const FILM_STATUS_CYCLE = STATUS_CYCLE.map((s) =>
+  s === "Watch When Airs" ? "Watch When Released" : s,
+);
 
 const STATUS_STYLES = {
   "Active Watching": {
@@ -41,6 +48,10 @@ const STATUS_STYLES = {
     icon: "fa-bookmark",
   },
   "Watch When Airs": {
+    cls: "bg-surface text-text-muted border-border-strong",
+    icon: "fa-clock",
+  },
+  "Watch When Released": {
     cls: "bg-surface text-text-muted border-border-strong",
     icon: "fa-clock",
   },
@@ -74,6 +85,11 @@ const STATUS_BUTTON_CONFIG = {
     target: "Might Watch",
   },
   "Watch When Airs": {
+    symbol: "…",
+    cls: "bg-surface text-text-muted border-border-strong",
+    target: "Might Watch",
+  },
+  "Watch When Released": {
     symbol: "…",
     cls: "bg-surface text-text-muted border-border-strong",
     target: "Might Watch",
@@ -128,10 +144,13 @@ export function getStatusStyle(status) {
   return STATUS_STYLES[status] || STATUS_STYLES["Might Watch"];
 }
 
-export function getNextStatus(current) {
-  const idx = STATUS_CYCLE.indexOf(current);
+// `type` is the hyphenated media-type key; a film's cycle has Watch When
+// Released in Watch When Airs' place.
+export function getNextStatus(current, type) {
+  const cycle = isFilmType(type) ? FILM_STATUS_CYCLE : STATUS_CYCLE;
+  const idx = cycle.indexOf(current);
   if (idx === -1) return "Might Watch";
-  return STATUS_CYCLE[(idx + 1) % STATUS_CYCLE.length];
+  return cycle[(idx + 1) % cycle.length];
 }
 
 const READING_BUTTON_CONFIG = {

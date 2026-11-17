@@ -20,7 +20,8 @@ class MovieBase(BaseModel):
     movie_name_cn: Optional[str] = None
     movie_name_alt: Optional[str] = None
 
-    airing_status: Optional[str] = None
+    # FILM_RELEASE_STATUSES; a new movie starts Not Released.
+    release_status: Optional[str] = "Not Released"
     watching_status: str = "Might Watch"
     my_rating: Optional[str] = None
     # "Paused at": free text, stored stripped and NULL when blank.

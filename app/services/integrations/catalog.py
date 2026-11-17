@@ -393,8 +393,19 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
             SourceBlock(
                 source="tenrai",
                 writes=(
-                    Write("airing_status", "column", "fill-only"),
-                    Write("release_date_jp", "column", "fill-only"),
+                    Write(
+                        "release_status",
+                        "column",
+                        "fill-only",
+                        "MAL's Airing and Finished Airing are Released; Not "
+                        "Released counts as unfilled",
+                    ),
+                    Write(
+                        "release_date_jp",
+                        "column",
+                        "fill-only",
+                        "an ONA's release_date_tw follows it",
+                    ),
                     *_TENRAI_LINKS,
                     Write(
                         "studio",
@@ -431,11 +442,11 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                     Write("length_min", "column", "fill-only"),
                     Write("release_date_usa", "column", "fill-only"),
                     Write(
-                        "airing_status",
+                        "release_status",
                         "column",
                         "fill-only",
                         "derived, not fetched: a release date on or before today "
-                        "is Finished Airing",
+                        "is Released; Not Released counts as unfilled",
                     ),
                     Write(
                         "director",

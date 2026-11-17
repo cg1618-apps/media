@@ -227,7 +227,7 @@ describe("buildAutofillPatch — parity with the old per-type functions", () => 
       franchise_id: "f1",
       series_id: null,
       is_main: "本傳",
-      airing_status: "Finished Airing",
+      release_status: "Released",
       movie_type: "Reality",
       genre_main: "Sci-Fi",
       genre_sub: "Epic",
@@ -242,7 +242,7 @@ describe("buildAutofillPatch — parity with the old per-type functions", () => 
       series_id: null,
       series_text: "",
       is_main: "本傳",
-      airing_status: "Finished Airing",
+      release_status: "Released",
       movie_type: "Reality",
       genre_main: "Sci-Fi",
       genre_sub: "Epic",
@@ -251,16 +251,16 @@ describe("buildAutofillPatch — parity with the old per-type functions", () => 
 });
 
 describe("buildAutofillPatch — configured behavior", () => {
-  it("falls back to the configured default for movie airing_status", () => {
-    // The old code pinned a literal "Not Yet Aired" here, contradicting the
-    // Movie tab's own "Finished Airing" default. It now follows the default.
+  it("falls back to the configured default for movie release_status", () => {
+    // A source movie with no status keeps the form's configured default
+    // rather than blanking it.
     const patch = buildAutofillPatch(
-      { airing_status: null },
+      { release_status: null },
       "movie",
-      ["airing_status"],
-      { ...ctx, defaults: { airing_status: "Finished Airing" } },
+      ["release_status"],
+      { ...ctx, defaults: { release_status: "Released" } },
     );
-    expect(patch.airing_status).toBe("Finished Airing");
+    expect(patch.release_status).toBe("Released");
   });
 
   it("blanks other empty fields rather than falling back", () => {

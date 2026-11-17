@@ -201,7 +201,7 @@ def has_missing_values_h_comic_ehentai(db, entry) -> bool:
 def has_missing_values_anime_movie(anime_movie: AnimeMovies) -> bool:
     """
     Returns True if any required field is blank.
-    Skips mal_rating and mal_rank for 'Not Yet Aired' entries.
+    Skips mal_rating and mal_rank for 'Not Released' entries.
     """
     missing = []
     for field in ANIME_MOVIE_FIELDS_TO_FILL:
@@ -209,7 +209,7 @@ def has_missing_values_anime_movie(anime_movie: AnimeMovies) -> bool:
         if val is None or str(val).strip() == "":
             missing.append(field)
 
-    if anime_movie.airing_status == "Not Yet Aired":
+    if anime_movie.release_status == "Not Released":
         missing = [f for f in missing if f not in ("mal_rating", "mal_rank")]
 
     return len(missing) > 0

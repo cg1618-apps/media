@@ -29,7 +29,12 @@ from app.utils.character_roles import normalize_character_role
 
 # The vocabularies the game completion axes carry. Imported so the sheet
 # parser and the API cannot disagree about what a valid value is.
-from app.utils.constants import GAME_ACHIEVEMENT_FLAGS, GAME_COMPLETION_FLAGS
+from app.utils.constants import (
+    FILM_MEDIA_TYPES,
+    GAME_ACHIEVEMENT_FLAGS,
+    GAME_COMPLETION_FLAGS,
+    WatchStatus,
+)
 
 # Character and person gender / my_rating, folded the way the revision that
 # closed those vocabularies folded the stored rows.
@@ -463,6 +468,49 @@ def parse_user_highlight_group_order_from_sheet(raw: dict) -> dict:
     }
 
 
+# The airing vocabulary a sheet older than r1l2status34 may still carry, mapped
+# onto the one that is current. Rumored left AiringStatus.
+_RETIRED_AIRING_STATUSES = {"Rumored": "Not Yet Aired"}
+
+# A film's release status from any value a Movies or Anime Movie tab has held:
+# the current FILM_RELEASE_STATUSES, and the airing vocabulary an older tab
+# wrote under the `airing_status` header.
+_FILM_RELEASE_FROM_SHEET = {
+    "Not Released": "Not Released",
+    "Released": "Released",
+    "Canceled": "Canceled",
+    "Not Yet Aired": "Not Released",
+    "Rumored": "Not Released",
+    "Airing": "Released",
+    "Finished Airing": "Released",
+}
+
+
+def _airing_status_from_sheet(val: Any) -> Optional[str]:
+    status = parse_from_sheet(val, str)
+    return _RETIRED_AIRING_STATUSES.get(status, status)
+
+
+def _film_release_status_from_sheet(raw: dict) -> Optional[str]:
+    """
+    A film's release_status, read from an older tab's `airing_status` column
+    when the tab has no `release_status` one. pull.py puts it back after the
+    header filter, which would otherwise drop it as a column the sheet never
+    carried (RENAMED_HEADERS).
+    """
+    key = "release_status" if "release_status" in raw else "airing_status"
+    status = parse_from_sheet(raw.get(key), str)
+    return _FILM_RELEASE_FROM_SHEET.get(status, status)
+
+
+def _list_status_from_sheet(media_type: str, val: Any) -> Optional[str]:
+    """A film's Watch When Airs, from a sheet older than Watch When Released."""
+    status = parse_from_sheet(val, str)
+    if media_type in FILM_MEDIA_TYPES and status == WatchStatus.WATCH_WHEN_AIRS.value:
+        return WatchStatus.WATCH_WHEN_RELEASED.value
+    return status
+
+
 def parse_user_media_list_from_sheet(raw: dict) -> dict:
     """
     One user's list row, keyed naturally rather than by uuid.
@@ -485,7 +533,7 @@ def parse_user_media_list_from_sheet(raw: dict) -> dict:
         "media_type": media_type,
         "public_id": public_id,
         "username": username,
-        "status": parse_from_sheet(raw.get("status"), str),
+        "status": _list_status_from_sheet(media_type, raw.get("status")),
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
         "my_watch_day": parse_from_sheet(raw.get("my_watch_day"), str),
@@ -760,7 +808,7 @@ def parse_anime_from_sheet(raw: dict) -> dict:
         "anime_name_alt": parse_from_sheet(raw.get("anime_name_alt"), str),
         "season_part": parse_from_sheet(raw.get("season_part"), str),
         "airing_type": parse_from_sheet(raw.get("airing_type"), str),
-        "airing_status": parse_from_sheet(raw.get("airing_status"), str),
+        "airing_status": _airing_status_from_sheet(raw.get("airing_status")),
         "ep_previous": parse_from_sheet(raw.get("ep_previous"), int),
         "ep_total": parse_from_sheet(raw.get("ep_total"), int),
         "ep_special": parse_from_sheet(raw.get("ep_special"), float),
@@ -810,7 +858,10 @@ def parse_anime_movie_from_sheet(raw: dict) -> dict:
         ),
         "anime_movie_name_jp": parse_from_sheet(raw.get("anime_movie_name_jp"), str),
         "anime_movie_name_alt": parse_from_sheet(raw.get("anime_movie_name_alt"), str),
-        "airing_status": parse_from_sheet(raw.get("airing_status"), str),
+        "release_status": _film_release_status_from_sheet(raw),
+        # Blank or unknown reads as Cinema, the type every anime movie had
+        # before the column existed.
+        "release_type": parse_from_sheet(raw.get("release_type"), str) or "Cinema",
         "mal_rating": parse_from_sheet(raw.get("mal_rating"), float),
         "mal_rank": parse_from_sheet(raw.get("mal_rank"), str),
         "anilist_rating": parse_from_sheet(raw.get("anilist_rating"), int),
@@ -852,7 +903,7 @@ def parse_movie_from_sheet(raw: dict) -> dict:
         "movie_name_en": parse_from_sheet(raw.get("movie_name_en"), str),
         "movie_name_cn": parse_from_sheet(raw.get("movie_name_cn"), str),
         "movie_name_alt": parse_from_sheet(raw.get("movie_name_alt"), str),
-        "airing_status": parse_from_sheet(raw.get("airing_status"), str),
+        "release_status": _film_release_status_from_sheet(raw),
         "imdb_rating": parse_from_sheet(raw.get("imdb_rating"), str),
         "movie_type": parse_from_sheet(raw.get("movie_type"), str),
         "is_main": parse_from_sheet(raw.get("is_main"), str),
@@ -898,7 +949,7 @@ def parse_tv_show_from_sheet(raw: dict) -> dict:
         "region": parse_from_sheet(raw.get("region"), str),
         "season_part": parse_from_sheet(raw.get("season_part"), str),
         "source_official": parse_from_sheet(raw.get("source_official"), str),
-        "airing_status": parse_from_sheet(raw.get("airing_status"), str),
+        "airing_status": _airing_status_from_sheet(raw.get("airing_status")),
         "is_main": parse_from_sheet(raw.get("is_main"), str),
         "ep_total": parse_from_sheet(raw.get("ep_total"), int),
         "imdb_rating": parse_from_sheet(raw.get("imdb_rating"), str),
@@ -933,7 +984,7 @@ def parse_cartoon_from_sheet(raw: dict) -> dict:
         "season_part": parse_from_sheet(raw.get("season_part"), str),
         "source_official": parse_from_sheet(raw.get("source_official"), str),
         "airing_type": parse_from_sheet(raw.get("airing_type"), str),
-        "airing_status": parse_from_sheet(raw.get("airing_status"), str),
+        "airing_status": _airing_status_from_sheet(raw.get("airing_status")),
         "is_main": parse_from_sheet(raw.get("is_main"), str),
         "ep_total": parse_from_sheet(raw.get("ep_total"), int),
         "length_ep_min": parse_from_sheet(raw.get("length_ep_min"), int),
@@ -1291,7 +1342,7 @@ def parse_hentai_from_sheet(raw: dict) -> dict:
         "source_material": parse_from_sheet(raw.get("source_material"), str),
         "originality": _originality_from_sheet(raw.get("originality")),
         "series_number": parse_from_sheet(raw.get("series_number"), int),
-        "airing_status": parse_from_sheet(raw.get("airing_status"), str),
+        "airing_status": _airing_status_from_sheet(raw.get("airing_status")),
         "release_date": release_date.normalize(
             parse_from_sheet(raw.get("release_date"), str)
         ),
