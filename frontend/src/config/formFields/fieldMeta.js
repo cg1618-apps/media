@@ -227,7 +227,7 @@ export const COMMON_FIELD_META = {
   // ---- Release ---------------------------------------------------------
   release_date: { label: "Release Date", control: "text", group: "Release" },
   end_date: { label: "End Date", control: "text", group: "Release" },
-  length_min: { label: "Length (min)", control: "number", group: "Release" },
+  length_min: { label: "Runtime (min)", control: "number", group: "Release" },
 
   // ---- Derivation ------------------------------------------------------
   read_order: { label: "Read Order", control: "number", group: "Derivation" },
@@ -529,7 +529,7 @@ export const TYPE_FIELD_META = {
     },
     season_part: { label: "Season Part", group: "Classification" },
     length_ep_min: {
-      label: "Episode Length (min)",
+      label: "Episode Runtime (min)",
       control: "number",
       group: "Progress",
     },

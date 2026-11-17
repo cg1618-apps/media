@@ -129,12 +129,12 @@ export function AnimeMovieFormBody({ f, u, sources, ownerId }) {
         />
       </div>
       <div className={ROW2}>
-        <Field label="Length (min)">
+        <Field label="Runtime (min)">
           <input
             className={inputCls}
             type="number"
             min="0"
-            aria-label="Length (min)"
+            aria-label="Runtime (min)"
             value={f.length_min ?? ""}
             onChange={(e) => u("length_min", e.target.value)}
             placeholder="e.g. 120"
