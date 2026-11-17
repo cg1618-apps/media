@@ -1,6 +1,6 @@
 # Switching between development environments
 
-Last verified: 2026-11-14
+Last verified: 2026-11-17
 
 ## What this is for
 
@@ -298,11 +298,12 @@ production needs a password set at `/users` here before it can log in.
 
 1. **Finish or park the code.** Stage only the files belonging to your task (see
    the concurrent-sessions rule in `CLAUDE.md`), commit, and push the branch.
-2. **Leave a trail for the next session, starting with the branch name.**
-   Anything half-done goes into the relevant `docs/` file — the other machine
-   starts with an empty conversation and only sees what is written down, and
-   now that every task has its own branch, *which branch* is the first thing
-   it cannot guess.
+2. **Leave the handover in the pull request body.** The other machine starts
+   with an empty conversation and sees only what is written down. Every
+   unfinished branch has a pull request (a draft if it is not ready), and its
+   body opens with a **Status** line and a numbered **Next** list: what is
+   done, what is left, and anything owed after it merges. Status never goes
+   into a `docs/` page (the platform's `CLAUDE.md`, "Tracking work").
 3. **Back up the database** if you changed any data: admin page `/system` →
    **Backup** (or `POST /api/data-control/backup`). Wait for the success log row;
    a failed write leaves the previous backup intact, so a failure means the sheet
@@ -312,7 +313,12 @@ production needs a password set at `/users` here before it can log in.
 
 ## 4. Arriving in an environment (handoff in)
 
-
+**Read the handover before anything else.** When the owner says "continue"
+on a machine with no conversation behind it, the work in progress is in the
+open pull requests. Run `gh pr list --state open` and read every body: each
+one says its status and what comes next. The merged pull requests since the
+last release (`gh pr list --state merged --base dev`) give the rest of the
+picture.
 
 1. `git fetch origin`, then `git checkout <branch>` — the branch you left work
    on exists only on `origin` and on the other machine, so a plain `git pull`
