@@ -1800,8 +1800,10 @@ File `pages/public/FutureReleases.jsx`. `useMediaList("anime")`,
 `useMediaList("franchise")` (with a list only: it feeds the expectation sort),
 `useApiQuery(["api","seasonal","current-season"], "/api/seasonal/current-season")`,
 and lazily per tab `anime-movie`, `movie` (`{ limit: 2000, release_status: "Not Released" }`),
-`tv-show`, `cartoon`, `game`. Tabs Anime / Anime Movies / Movies / TV Shows /
-Cartoons / Games.
+`tv-show`, `cartoon`, `game`, `book`, `manga`. Tabs Anime / Anime Movies /
+Movies / TV Shows / Cartoons / Games / Books / Manga. Each type's list is the
+ordinary list endpoint, so a viewer without its `media_type.*` key reads an
+empty list and the tab says there is nothing upcoming, as every tab does.
 Anime keeps `Not Yet Aired` from the current season onward, grouped
 "Spring 2025" / year / TBD with type chips; anime movies group by release
 year; TV also includes "Airing". Games keep `release_status`
@@ -1817,6 +1819,30 @@ expectation, and under each card an **On your list** chip (any status) and a
 carries. **Without one**, every group is in release-date order
 (`primaryReleaseValue` + `releaseScore`, undated last) and no chip is
 drawn.
+
+**Books and manga** have no release status, so they are upcoming by date
+alone, against today in the viewer's own calendar
+(`isUpcomingReleaseDate` in `lib/releaseDate.js`): a partial date stays
+upcoming through the last day of the period it names - `2026-11` until
+November is over, `2026` until the year is - and a date that is today still
+counts. A date that has passed drops off; the detail page still shows it.
+
+- **Books** lists a book whose own `release_date_jp` or `release_date_tw` is
+  upcoming, and a book with a unit whose `release_date_jp` or
+  `release_date_tw` is. The units come in the book list's own payload. Under
+  the card are the book's own dates when one of them is upcoming, then each
+  upcoming unit by its name (`name_cn` / `name_en`, else its `display_key`),
+  its cover thumbnail and its dates (`components/info/BookUnitParts.jsx`). A
+  unit already out is not listed, though its book is.
+- **Manga** lists a manga whose `next_vol_release_date_jp` or
+  `next_vol_release_date_tw` is upcoming, with "Next vol." and both dates
+  under the card.
+
+Both group by the year of the row's earliest upcoming date - the book's own
+or a unit's, whichever comes first - and order a year by that date, then by
+name; every row is dated, so there is no TBD group. The cards are the
+library's `MediaCard` (its reading-status button), not the future variant,
+whose status select and release bolt are the watch and play axes'.
 
 ### RandomPicker — `/random` · `/random/:type`
 

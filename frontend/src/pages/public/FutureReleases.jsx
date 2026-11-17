@@ -4,8 +4,21 @@
 // and franchise expectation, and every card says whether the entry is on the
 // viewer's list and whether it is planned. Without one, the catalogue only:
 // each group in release-date order, with no personal marker.
+//
+// Books and manga have no release status: they are upcoming by date alone. A
+// book is listed while its own JP or TW date, or one of its units', is still
+// ahead (lib/releaseDate.js, isUpcomingReleaseDate), with those units under
+// its card; a manga while its next volume's JP or TW date is. A date that has
+// passed simply drops off.
 import { useState, useCallback, useMemo } from "react";
-import { primaryReleaseValue, releaseScore, releaseYear } from "../../lib/releaseDate";
+import {
+  earliestUpcomingReleaseDate,
+  isUpcomingReleaseDate,
+  primaryReleaseValue,
+  releaseScore,
+  releaseYear,
+  todayIso,
+} from "../../lib/releaseDate";
 import { MEDIA_CONFIG } from "../../config/mediaRegistry";
 import { PLAN_FLAG_KEYS } from "../../hooks/useStatusToggle";
 import { useViewScope } from "../../hooks/useViewScope";
@@ -15,6 +28,11 @@ import MediaCard from "../../components/cards/MediaCard";
 import { useApiQuery } from "../../hooks/useApiQuery";
 import { useMediaList } from "../../hooks/useMediaList";
 import { Chip, Eyebrow } from "../../components/ui/primitives";
+import {
+  UnitCoverThumb,
+  UnitReleaseDates,
+  unitName,
+} from "../../components/info/BookUnitParts";
 
 const SEASON_ORDER = { WIN: 0, SPR: 1, SUM: 2, FAL: 3 };
 const SEASON_LABEL = {
@@ -140,6 +158,165 @@ function byYearTbdLast(a, b) {
 
 const SPECIFIC_TYPES = ["TV", "ONA", "Movie"];
 
+// A unit is upcoming while either of its dates is.
+function isUpcomingUnit(unit, today) {
+  return (
+    isUpcomingReleaseDate(unit.release_date_jp, today) ||
+    isUpcomingReleaseDate(unit.release_date_tw, today)
+  );
+}
+
+// The books Future Releases lists, as {entry, units, date}: `units` are the
+// book's upcoming units, `date` the earliest upcoming date among the book's
+// own and theirs, which places the book on the page.
+function upcomingBooks(books, today) {
+  const rows = [];
+  for (const book of books) {
+    const units = (book.units || []).filter((unit) => isUpcomingUnit(unit, today));
+    const date = earliestUpcomingReleaseDate(
+      [
+        book.release_date_jp,
+        book.release_date_tw,
+        ...units.flatMap((unit) => [unit.release_date_jp, unit.release_date_tw]),
+      ],
+      today,
+    );
+    if (date) rows.push({ entry: book, units, date });
+  }
+  return rows;
+}
+
+// The manga whose next volume is upcoming, as {entry, date}.
+function upcomingMangas(mangas, today) {
+  const rows = [];
+  for (const manga of mangas) {
+    const date = earliestUpcomingReleaseDate(
+      [manga.next_vol_release_date_jp, manga.next_vol_release_date_tw],
+      today,
+    );
+    if (date) rows.push({ entry: manga, date });
+  }
+  return rows;
+}
+
+// {groups: {year: rows}, years} with each year's rows earliest first, then by
+// name, and the years in order. Every row is dated, so there is no TBD group.
+function groupByYear(rows) {
+  const groups = {};
+  for (const row of rows) {
+    const year = releaseGroupYear(row.date);
+    if (!groups[year]) groups[year] = [];
+    groups[year].push(row);
+  }
+  for (const year of Object.keys(groups)) {
+    groups[year].sort(
+      (a, b) =>
+        releaseScore(a.date) - releaseScore(b.date) ||
+        String(a.entry.display_name ?? "").localeCompare(String(b.entry.display_name ?? "")),
+    );
+  }
+  return { groups, years: Object.keys(groups).sort(byYearTbdLast) };
+}
+
+// The book's upcoming units under its card, each by its name.
+function UpcomingUnits({ units }) {
+  if (units.length === 0) return null;
+  return (
+    <ul className="mt-1.5 space-y-1" aria-label="Upcoming units">
+      {units.map((unit) => (
+        <li key={unit.system_id} className="flex items-start gap-1.5">
+          <UnitCoverThumb unit={unit} className="w-6 h-8" />
+          <div className="min-w-0">
+            <p className="text-xs text-text break-words">{unitName(unit)}</p>
+            <UnitReleaseDates unit={unit} />
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// A book's own dates, under its card, when one of them is what lists it.
+function UpcomingBookDates({ book, today }) {
+  const upcoming = [book.release_date_jp, book.release_date_tw].some((value) =>
+    isUpcomingReleaseDate(value, today),
+  );
+  if (!upcoming) return null;
+  return (
+    <div className="mt-1">
+      <UnitReleaseDates unit={book} />
+    </div>
+  );
+}
+
+// The manga's next volume, under its card.
+function NextVolume({ manga }) {
+  const dates = [
+    ["JP", manga.next_vol_release_date_jp],
+    ["TW", manga.next_vol_release_date_tw],
+  ].filter(([, value]) => value);
+  return (
+    <p className="mt-1 font-mono text-[11px] text-text-faint tabular-nums">
+      Next vol. {dates.map(([region, value]) => `${region} ${value}`).join(" · ")}
+    </p>
+  );
+}
+
+// The year sections of the book and manga tabs, in the other tabs' markup.
+function YearSections({ years, groups, renderRow }) {
+  return (
+    <div className="space-y-10">
+      {years.map((year) => (
+        <section key={year}>
+          <div className="flex items-center gap-3 mb-4">
+            <h2 className="font-display text-2xl font-semibold text-text leading-none">
+              {year}
+            </h2>
+            <span className="font-mono text-[11px] text-text-faint tabular-nums">
+              {groups[year].length}
+            </span>
+            <div className="flex-1 border-t border-dotted border-border-strong/60"></div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+            {groups[year].map(renderRow)}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+// A tab's loading, error or empty state, in the other tabs' markup; null once
+// there is something to list.
+function tabState({ loading, error, empty, noun }) {
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <div className="text-center">
+          <i className="fas fa-spinner fa-spin text-brand text-3xl mb-3"></i>
+          <p className="text-text-faint text-sm">Loading {noun}...</p>
+        </div>
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="text-center border border-danger text-danger p-6">
+        <p className="font-bold">Failed to load {noun}</p>
+        <p className="text-sm mt-1">{error}</p>
+      </div>
+    );
+  }
+  if (empty) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <p className="text-text-faint text-sm">No upcoming {noun} found.</p>
+      </div>
+    );
+  }
+  return null;
+}
+
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
 export default function FutureReleases() {
@@ -179,6 +356,16 @@ export default function FutureReleases() {
     params: { limit: 2000 },
     enabled: mainTab === "game",
   });
+  // A book's units come with it: the list payload carries them.
+  const bookQuery = useMediaList("book", {
+    params: { limit: 2000 },
+    enabled: mainTab === "book",
+  });
+  const mangaQuery = useMediaList("manga", {
+    params: { limit: 2000 },
+    enabled: mainTab === "manga",
+  });
+  const today = todayIso();
 
   const franchiseDict = useMemo(
     () =>
@@ -239,6 +426,14 @@ export default function FutureReleases() {
         GAME_UNRELEASED_STATUSES.includes(game.release_status),
       ),
     [gameQuery.data],
+  );
+  const bookRows = useMemo(
+    () => groupByYear(upcomingBooks(bookQuery.data || [], today)),
+    [bookQuery.data, today],
+  );
+  const mangaRows = useMemo(
+    () => groupByYear(upcomingMangas(mangaQuery.data || [], today)),
+    [mangaQuery.data, today],
   );
   const loading =
     animeQuery.isLoading || franchiseQuery.isLoading || seasonQuery.isLoading;
@@ -319,6 +514,18 @@ export default function FutureReleases() {
         : old,
     );
   }, [queryClient]);
+
+  // The book and manga cards are the library's, whose status button hands the
+  // written entry back here.
+  const replaceInList = useCallback(
+    (type) => (updated) =>
+      queryClient.setQueriesData({ queryKey: ["media-list", type] }, (old) =>
+        Array.isArray(old)
+          ? old.map((item) => (item.system_id === updated.system_id ? updated : item))
+          : old,
+      ),
+    [queryClient],
+  );
 
   const filtered = allAnime.filter((a) => {
     const t = a.airing_type || "";
@@ -434,6 +641,8 @@ export default function FutureReleases() {
           { key: "tv-show", label: "TV shows" },
           { key: "cartoon", label: "Cartoons" },
           { key: "game", label: "Games" },
+          { key: "book", label: "Books" },
+          { key: "manga", label: "Manga" },
         ].map((t) => (
           <button
             key={t.key}
@@ -752,6 +961,62 @@ export default function FutureReleases() {
           )}
         </>
       )}
+
+      {/* ── BOOK TAB ──
+          The library card, not the future variant: that one's status select
+          and release bolt are the watch and play axes', and a book has
+          neither a release status nor a waiting status to set. */}
+      {mainTab === "book" &&
+        (tabState({
+          loading: bookQuery.isLoading,
+          error: bookQuery.error?.message || null,
+          empty: bookRows.years.length === 0,
+          noun: "books",
+        }) || (
+          <YearSections
+            years={bookRows.years}
+            groups={bookRows.groups}
+            renderRow={({ entry, units }) => (
+              <div key={entry.system_id}>
+                <FutureCard
+                  ownData={ownData}
+                  type="book"
+                  data={entry}
+                  isAdmin={isAdmin}
+                  onUpdated={replaceInList("book")}
+                />
+                <UpcomingBookDates book={entry} today={today} />
+                <UpcomingUnits units={units} />
+              </div>
+            )}
+          />
+        ))}
+
+      {/* ── MANGA TAB ── */}
+      {mainTab === "manga" &&
+        (tabState({
+          loading: mangaQuery.isLoading,
+          error: mangaQuery.error?.message || null,
+          empty: mangaRows.years.length === 0,
+          noun: "manga",
+        }) || (
+          <YearSections
+            years={mangaRows.years}
+            groups={mangaRows.groups}
+            renderRow={({ entry }) => (
+              <div key={entry.system_id}>
+                <FutureCard
+                  ownData={ownData}
+                  type="manga"
+                  data={entry}
+                  isAdmin={isAdmin}
+                  onUpdated={replaceInList("manga")}
+                />
+                <NextVolume manga={entry} />
+              </div>
+            )}
+          />
+        ))}
 
       {/* ── TV SHOW TAB ── */}
       {mainTab === "tv-show" && (

@@ -27,9 +27,16 @@ class BookUnitWrite(BaseModel):
     name_cn: Optional[str] = None
     name_en: Optional[str] = None
     ch_count: Optional[float] = None
+    release_date_jp: Optional[str] = None
+    release_date_tw: Optional[str] = None
+    # No cover_image_file: the unit's cover is the image library's to write,
+    # on attach and clear (app/routers/images.py), so a units save sent from
+    # a form loaded before the cover changed cannot put the old one back.
     # No my_rating or remark: they are the reader's, not the unit's, and are
     # written by PUT /api/me/book-units/{unit_id}. A client still sending
     # either has the key ignored, like every catalogue write's personal field.
+
+    _validate_release_dates = release_date_validator("release_date_jp", "release_date_tw")
 
 
 class BookUnitResponse(BaseModel):
@@ -40,6 +47,9 @@ class BookUnitResponse(BaseModel):
     name_cn: Optional[str] = None
     name_en: Optional[str] = None
     ch_count: Optional[float] = None
+    release_date_jp: Optional[str] = None
+    release_date_tw: Optional[str] = None
+    cover_image_file: Optional[str] = None
     # The viewer's own (user_list.attach_unit_ratings); null for a guest.
     remark: Optional[str] = None
     my_rating: Optional[str] = None

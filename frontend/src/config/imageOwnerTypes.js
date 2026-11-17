@@ -2,8 +2,9 @@
 // library's owner-type filter (Images.jsx, ImagePicker's library modal).
 //
 // Mirrors app/routers/images.py's ATTACHABLE_OWNERS - the twelve media entry
-// tables plus six entity/content tables. Grouped into two optgroups rather
-// than rendered as eighteen buttons in a row.
+// tables plus eight other owners: the entity and content tables, and a
+// book's units. Grouped into two optgroups rather than rendered as twenty
+// buttons in a row.
 import { canSeeGatedType } from "../lib/gatedTypes";
 
 export const IMAGE_OWNER_TYPE_GROUPS = [
@@ -35,6 +36,7 @@ export const IMAGE_OWNER_TYPE_GROUPS = [
       { value: "studio", label: "Studio" },
       { value: "quote", label: "Quote" },
       { value: "meme", label: "Meme" },
+      { value: "book-unit", label: "Book Unit" },
     ],
   },
 ];

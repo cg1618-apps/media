@@ -708,6 +708,15 @@ describe("manga, book and comic bodies", () => {
     expect(build({ reading_status: "" }).reading_status).toBe("Might Read");
   });
 
+  it("manga sends its next volume's dates, a blank one as null", () => {
+    const body = mangaFieldsPayload({
+      next_vol_release_date_jp: "2027-01-05",
+      next_vol_release_date_tw: "",
+    });
+    expect(body.next_vol_release_date_jp).toBe("2027-01-05");
+    expect(body.next_vol_release_date_tw).toBeNull();
+  });
+
   // A blank "finished" count is "not recorded", not zero chapters read.
   it("manga sends blank finished counts as null", () => {
     const body = mangaFieldsPayload({ vol_fin: "", vol_fin_page: "", ch_fin: "" });
@@ -794,9 +803,33 @@ describe("manga, book and comic bodies", () => {
         name_cn: "",
         name_en: "",
         ch_count: 8,
+        release_date_jp: null,
+        release_date_tw: null,
         position: 1,
       },
     ]);
+  });
+
+  it("book keeps a unit row that holds only a release date", () => {
+    const body = bookFieldsPayload({
+      units: [
+        { unit_kind: "volume", unit_key: "", name_cn: "", name_en: "", ch_count: "",
+          release_date_jp: "", release_date_tw: "2027-03" },
+        { unit_kind: "volume", unit_key: "", name_cn: "", name_en: "", ch_count: "",
+          release_date_jp: "", release_date_tw: "" },
+      ],
+    });
+    expect(body.units).toEqual([
+      expect.objectContaining({ position: 1, release_date_jp: null, release_date_tw: "2027-03" }),
+    ]);
+  });
+
+  it("book never sends a unit's cover, which the image library writes", () => {
+    const body = bookFieldsPayload({
+      units: [{ system_id: "u1", unit_kind: "volume", unit_key: "1", ch_count: null,
+        cover_image_file: "library/abc.jpg" }],
+    });
+    expect(body.units[0]).not.toHaveProperty("cover_image_file");
   });
 
   it("book sends none of a unit's personal values", () => {
@@ -812,7 +845,7 @@ describe("manga, book and comic bodies", () => {
     });
     expect(body.units).toEqual([
       { system_id: "u1", unit_kind: "arc", unit_key: "a", name_cn: "", name_en: "",
-        ch_count: 10, position: 1 },
+        ch_count: 10, release_date_jp: null, release_date_tw: null, position: 1 },
     ]);
   });
 

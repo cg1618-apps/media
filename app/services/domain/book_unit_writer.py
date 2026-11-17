@@ -10,8 +10,30 @@ module owns what happens to that list.
 import uuid
 from typing import Optional
 
+from fastapi import HTTPException
+
 from app.database import get_taipei_now
 from app.models import BookUnit, UserBookUnitRating
+from app.utils import release_date
+
+# The unit's release-date fields. A PUT/POST item has been through
+# BookUnitWrite's validator already; a PATCH item is a raw dict, so
+# _release_date checks it here rather than letting the ISO CHECK
+# constraint answer with a 500.
+UNIT_DATE_FIELDS = ("release_date_jp", "release_date_tw")
+
+
+def _release_date(value) -> Optional[str]:
+    """One unit date in canonical form, None for blank, or a 422."""
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return None
+    canonical = release_date.normalize(value)
+    if canonical is None or not release_date.is_valid(canonical):
+        raise HTTPException(
+            status_code=422,
+            detail=f"{value!r} is not a release date. Use YYYY, YYYY-MM, or YYYY-MM-DD.",
+        )
+    return canonical
 
 
 def write_book_units(db, entry, units, viewer=None) -> None:
@@ -26,8 +48,12 @@ def write_book_units(db, entry, units, viewer=None) -> None:
     on a unit are theirs, not the catalogue's, and are written only through
     PUT /api/me/book-units/{unit_id} (write_unit_rating below); a units item
     naming either key has it ignored here, so a catalogue save neither files
-    the editor's opinion nor clears anybody's. `viewer` is unused: it is the
-    signature every MediaTypeSpec.nested_collections writer shares.
+    the editor's opinion nor clears anybody's. The cover is not written here
+    either: `cover_image_file` is the image library's mirror column, written on
+    attach and clear (app/routers/images.py), and a units save from a form
+    loaded before the cover changed must not put the old one back. `viewer`
+    is unused: it is the signature every MediaTypeSpec.nested_collections
+    writer shares.
     """
     if units is None:
         return
@@ -61,6 +87,7 @@ def write_book_units(db, entry, units, viewer=None) -> None:
             # client that leaves a stale count on a re-kinded row cannot trip
             # the constraint.
             "ch_count": data.get("ch_count") if data.get("unit_kind") == "arc" else None,
+            **{name: _release_date(data.get(name)) for name in UNIT_DATE_FIELDS},
         }
 
         row = existing.get(unit_id) if unit_id else None

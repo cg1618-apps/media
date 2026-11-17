@@ -42,6 +42,8 @@ class MangaBase(BaseModel):
 
     release_date: Optional[str] = None
     end_date: Optional[str] = None
+    next_vol_release_date_jp: Optional[str] = None
+    next_vol_release_date_tw: Optional[str] = None
     anime_studio: Optional[str] = None
 
     mal_id: Optional[int] = None
@@ -53,7 +55,9 @@ class MangaBase(BaseModel):
     cover_image_focus: ImageFocus = None
     completed_at: Optional[datetime] = None
 
-    _validate_release_dates = release_date_validator("release_date", "end_date")
+    _validate_release_dates = release_date_validator(
+        "release_date", "end_date", "next_vol_release_date_jp", "next_vol_release_date_tw"
+    )
 
 
 class MangaCreate(MangaBase, SourceWriteFields):

@@ -1072,6 +1072,13 @@ def parse_manga_from_sheet(raw: dict) -> dict:
         "author_draw": parse_from_sheet(raw.get("author_draw"), str),
         "release_date": release_date.normalize(parse_from_sheet(raw.get("release_date"), str)),
         "end_date": release_date.normalize(parse_from_sheet(raw.get("end_date"), str)),
+        # Absent from a tab backed up before the columns existed: None.
+        "next_vol_release_date_jp": release_date.normalize(
+            parse_from_sheet(raw.get("next_vol_release_date_jp"), str)
+        ),
+        "next_vol_release_date_tw": release_date.normalize(
+            parse_from_sheet(raw.get("next_vol_release_date_tw"), str)
+        ),
         "anime_studio": parse_from_sheet(raw.get("anime_studio"), str),
         "publisher_tw": parse_from_sheet(raw.get("publisher_tw"), str),
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
@@ -1168,6 +1175,14 @@ def parse_book_unit_from_sheet(raw: dict) -> dict:
         # (legacy_personal.LEGACY_PERSONAL_COLUMNS).
         "remark": parse_from_sheet(raw.get("remark"), str),
         "ch_count": parse_from_sheet(raw.get("ch_count"), float),
+        # Absent from a tab backed up before the columns existed: None.
+        "release_date_jp": release_date.normalize(
+            parse_from_sheet(raw.get("release_date_jp"), str)
+        ),
+        "release_date_tw": release_date.normalize(
+            parse_from_sheet(raw.get("release_date_tw"), str)
+        ),
+        "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),

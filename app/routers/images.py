@@ -23,7 +23,7 @@ from app.config import settings
 from app.dependencies import get_db
 from app.schemas.image import AttachmentIn, AttachmentOut, ImageListOut, ImageOut
 from app.services.integrations import image_library, image_manager
-from app.services.rbac.enforcement import entry_visible
+from app.services.rbac.enforcement import book_unit_visible, entry_visible
 from app.services.rbac.resolver import Viewer, require_manage_images, viewer_user_id
 from app.services.rbac.shared_visibility import (
     ENTITY_OWNER_MODELS,
@@ -35,6 +35,10 @@ from app.utils.media_resolver import MEDIA_TABLES
 
 router = APIRouter(prefix="/api/images", tags=["Images"])
 
+# One unit of a book (app/models/book.py, BookUnit). Seen exactly when its
+# book is - see enforcement.book_unit_visible.
+BOOK_UNIT_OWNER = "book-unit"
+
 MAX_UPLOAD_BYTES = settings.max_image_upload_mb * 1024 * 1024
 
 # Read in 1MB chunks so an oversized body is refused partway through rather
@@ -44,9 +48,20 @@ CHUNK_SIZE = 1024 * 1024
 # Every owner an image may be attached to. The media types come from
 # MEDIA_TABLES so the hyphen/underscore split stays in one place; the rest are
 # named explicitly. Note this is NOT the same set as image_manager.COVER_OWNERS,
-# which has no `quote` - the shape reads uniform and is not.
+# which has no `quote`, `meme` or `book-unit` - the shape reads uniform and is
+# not. Those three only ever hold an uploaded image (`library/...`): nothing
+# downloads one, so there is no `covers/<owner_type>/` folder for them.
 ATTACHABLE_OWNERS: frozenset[str] = frozenset(MEDIA_TABLES) | frozenset(
-    {"staff", "character", "character-identity", "publisher", "studio", "quote", "meme"}
+    {
+        "staff",
+        "character",
+        "character-identity",
+        "publisher",
+        "studio",
+        "quote",
+        "meme",
+        BOOK_UNIT_OWNER,
+    }
 )
 
 # The owner tables that carry a mirror column, and what that column is called.
@@ -55,7 +70,7 @@ ATTACHABLE_OWNERS: frozenset[str] = frozenset(MEDIA_TABLES) | frozenset(
 # shape is uniform - staff and character use `photo_file`, publisher and
 # studio use `logo_file` (not `cover_image_file`), and `quote` and `meme` both
 # use `image_file` and resolve against static/quotes/ rather than
-# static/covers/.
+# static/covers/. A book unit's cover is `cover_image_file` on `book_unit`.
 MIRROR_COLUMNS = {
     "staff": "photo_file",
     "character": "photo_file",
@@ -64,11 +79,13 @@ MIRROR_COLUMNS = {
     "studio": "logo_file",
     "quote": "image_file",
     "meme": "image_file",
+    BOOK_UNIT_OWNER: "cover_image_file",
 }
 
 # The focal-point column beside each mirror column, named `_file` -> `_focus`.
 # `quote` and `meme` have none: their images are shown uncropped, so there is
-# no crop to aim.
+# no crop to aim. Nor has `book-unit`: its cover is a thumbnail beside the
+# unit's name, never cropped to a frame.
 FOCUS_COLUMNS = {
     "staff": "photo_focus",
     "character": "photo_focus",
@@ -87,6 +104,7 @@ _ENTITY_MODELS = {
     "studio": models.Studio,
     "quote": models.Quote,
     "meme": models.Meme,
+    BOOK_UNIT_OWNER: models.BookUnit,
 }
 
 # Owners that attach with a role other than "cover". Everything else only
@@ -162,6 +180,7 @@ def _require_reachable_owner(db, viewer, owner_type, owner_id) -> None:
     against entry_visible and 404s exactly as a missing entry does - writes
     follow reads. An entity owner (staff, character, publisher, studio) is a
     shared record and is checked against shared_record_visible the same way.
+    A book unit is checked through its book, and 404s when it does not exist.
     """
     if owner_type not in ATTACHABLE_OWNERS:
         raise HTTPException(
@@ -172,6 +191,9 @@ def _require_reachable_owner(db, viewer, owner_type, owner_id) -> None:
             raise HTTPException(status_code=404, detail="Entry not found.")
     elif owner_type == IDENTITY_OWNER:
         if not identity_visible(db, viewer, owner_id):
+            raise HTTPException(status_code=404, detail="Entry not found.")
+    elif owner_type == BOOK_UNIT_OWNER:
+        if not book_unit_visible(db, viewer, owner_id):
             raise HTTPException(status_code=404, detail="Entry not found.")
     elif owner_type in ENTITY_OWNER_MODELS:
         model = ENTITY_OWNER_MODELS[owner_type]

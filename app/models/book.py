@@ -161,6 +161,14 @@ class BookUnit(Base):
             "unit_kind = 'arc' OR ch_count IS NULL",
             name="ck_book_unit_ch_count_arc_only",
         ),
+        CheckConstraint(
+            r"release_date_jp ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
+            name="ck_book_unit_release_date_jp_iso",
+        ),
+        CheckConstraint(
+            r"release_date_tw ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
+            name="ck_book_unit_release_date_tw_iso",
+        ),
         Index("ix_book_unit_book_kind_position", "book_id", "unit_kind", "position"),
     )
 
@@ -182,6 +190,14 @@ class BookUnit(Base):
     name_cn = Column(String, nullable=True)
     name_en = Column(String, nullable=True)
     ch_count = Column(Float, nullable=True)
+    # The unit's own publication, the original's and the Taiwanese edition's,
+    # on every kind. Future Releases lists a unit while either is still ahead;
+    # there is no release status to keep beside them.
+    release_date_jp = Column(String, nullable=True)
+    release_date_tw = Column(String, nullable=True)
+    # The image library's mirror column (app/routers/images.py,
+    # MIRROR_COLUMNS["book-unit"]): the storage key of the attached cover.
+    cover_image_file = Column(String, nullable=True)
 
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)

@@ -269,6 +269,17 @@ select and a remark field beside each unit, through
 and the book's `units` write carry neither. The rating is independent:
 nothing derives from it, and the book's own rating stays hand-set.
 
+Every unit, of every kind, may also carry its own `release_date_jp` and
+`release_date_tw` and a cover. The dates are entered by hand in the Units
+section, and there is no per-unit release status: a unit is upcoming while
+either date is still ahead, which is what puts it on Future Releases under
+its book. The cover is attached through the image library (owner type
+`book-unit`) from the same row, once the unit has been saved.
+
+Manga has no unit table. What it records about volumes still to come is its
+next volume's `next_vol_release_date_jp` and `next_vol_release_date_tw`,
+edited by hand on the manga form and shown on its detail page.
+
 Only `arc` rows are authoritative for derivation; every other kind is
 enrichment shown on the detail page via `display_key` (`unit_display_key` /
 `unitDisplayKey`: an explicit `unit_key`, or a generated `"Vol 1"`/`"Arc 2"`

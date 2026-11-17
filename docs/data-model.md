@@ -425,7 +425,8 @@ header).
 ### `manga`
 
 Manga, manhwa, manhua. Model: `Manga`. CHECKs: `ck_manga_release_date_iso`,
-`ck_manga_end_date_iso`.
+`ck_manga_end_date_iso`, `ck_manga_next_vol_release_date_jp_iso`,
+`ck_manga_next_vol_release_date_tw_iso`. Manga has no unit table.
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
@@ -441,6 +442,7 @@ Manga, manhwa, manhua. Model: `Manga`. CHECKs: `ck_manga_release_date_iso`,
 | `anilist_rank` | Integer | yes | | AniList all-time rated rank |
 | `anilist_popularity_rank` | Integer | yes | | AniList all-time popularity rank |
 | `release_date` / `end_date` | String | yes | | |
+| `next_vol_release_date_jp` / `next_vol_release_date_tw` | String | yes | | When the next volume comes out in Japan and in Taiwan, in the partial-ISO release format. Entered by hand; Future Releases lists the manga while either is still ahead, and the detail page shows both whatever the date |
 | `anime_studio` | String | yes | | Studio of the anime adaptation (plain text) |
 | `mal_id` | Integer | yes | | Derived from `mal_link` (`MAL_MANGA_ID_PATTERN`) |
 | `mal_link` | String | yes | | |
@@ -501,7 +503,8 @@ One volume, arc, story or chapter belonging to exactly one `book`. Model:
 volume cannot drift out of alignment the way two parallel lists matched by
 position could. CHECKs: `ck_book_unit_kind` (`unit_kind` in
 `volume, arc, story, chapter`), `ck_book_unit_ch_count_arc_only`
-(`ch_count` is non-NULL only when `unit_kind = 'arc'`). Index
+(`ch_count` is non-NULL only when `unit_kind = 'arc'`),
+`ck_book_unit_release_date_jp_iso`, `ck_book_unit_release_date_tw_iso`. Index
 `ix_book_unit_book_kind_position` on `(book_id, unit_kind, position)`.
 
 | Column | Type | Null | Default | Description |
@@ -513,12 +516,15 @@ position could. CHECKs: `ck_book_unit_kind` (`unit_kind` in
 | `unit_key` | String | yes | | Explicit label (e.g. a volume subtitle's short code). When blank, the display key falls back to `"{prefix} {position}"` (`unit_display_key` / `unitDisplayKey`) |
 | `name_cn` / `name_en` | String | yes | | |
 | `ch_count` | Float | yes | | Chapters in this arc. Meaningful only on `unit_kind = 'arc'` rows (guarded by the CHECK); the sole source of `book.ch_total` and each reader's `user_media_list.ch_fin` |
+| `release_date_jp` / `release_date_tw` | String | yes | | The unit's own publication, the original's and the Taiwanese edition's, in the partial-ISO release format. Allowed on every kind and entered by hand. There is no per-unit release status: Future Releases lists a unit while either date is still ahead |
+| `cover_image_file` | String | yes | | The unit's cover: the image library's mirror column for owner type `book-unit` (`MIRROR_COLUMNS`), written on attach and clear and never by the `units` write. Always an uploaded `library/...` key - nothing downloads a unit cover |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 Written through `POST`/`PUT`/`PATCH /api/book` via the `units` payload key
 (popped out before the row is touched, see `MediaTypeSpec.nested_collections`);
 reconciled by `write_book_units` (rows with a `system_id` are updated, rows
-without are inserted, rows the payload omits are deleted). Every
+without are inserted, rows the payload omits are deleted; a unit's two
+release dates are written from the payload, its cover is not). Every
 create/update/patch write runs `derive_book_catalog`, which recomputes
 `arc_total`/`ch_total` from the arc rows, and `derive_book_list`, which
 recomputes a reader's `ch_fin` and normalises their `arc_fin`/`ch_fin_in_arc` -
@@ -1929,7 +1935,7 @@ string, not a migration. Model: `ImageAttachment`.
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
 | `image_id` | UUID | no | | FK `image.system_id` ON DELETE CASCADE, indexed |
-| `owner_type` | String | no | | Hyphenated for media types (`anime-movie`, `tv-show`, matching `app/utils/media_resolver.py`), plain for the rest: `staff`, `character`, `character-identity`, `publisher`, `studio`, `quote`, `meme` |
+| `owner_type` | String | no | | Hyphenated for media types (`anime-movie`, `tv-show`, matching `app/utils/media_resolver.py`), plain for the rest: `staff`, `character`, `character-identity`, `publisher`, `studio`, `quote`, `meme`, and `book-unit` for a book unit's cover |
 | `owner_id` | UUID | no | | **Not a foreign key** - there is no single table to point at, so nothing in the database stops an attachment outliving its owner; the manager page's `unused` filter is what finds those |
 | `role` | String | no | `"cover"` | What the image is for: `cover` for every media/entity owner, `quote`/`quote-image`-shaped roles for quote and meme (see `app/routers/images.py`'s `NON_COVER_ROLE_OWNERS`) |
 | `position` | Integer | no | `0` | Reserved for a future multi-image case; always 0 today |

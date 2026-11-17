@@ -176,7 +176,10 @@ counts). `h1` is display by default.
    library's thumbnails (on `/images` and in `ImagePicker`'s library modal),
    whose focus belongs to each owner the file is attached to rather than to
    the file, and an IGDB search result on the game Add tab, which is not
-   stored at all. `src/focus-images.test.js` guards this. Quote and meme
+   stored at all. One owner's image keeps no focus either: a book unit's
+   cover (`UnitCoverThumb`), drawn only as a small thumbnail beside the
+   unit's name, where `book_unit` has no focus column to aim it, and so it
+   too says `data-focus="none"`. `src/focus-images.test.js` guards this. Quote and meme
    images are drawn uncropped, so they carry no focus.
 10. **Entry forms follow the detail page.** Every media type's Add and Modify
     form is one shared body, with its sections in the order the detail page

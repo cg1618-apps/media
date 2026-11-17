@@ -33,10 +33,11 @@ detail waits for this.
 ## Automatic book release data
 
 **Whether book-unit and manga-volume release dates are filled from a free
-API is undecided, and is taken up again once manual entry ships** (the
-"Upcoming books and manga volumes on Future Releases" item in
-[to-do-next.md](to-do-next.md)). The free sources, as checked on
-2026-11-17:
+API is undecided.** Today they are entered by hand: `book_unit`'s
+`release_date_jp` / `release_date_tw` and manga's
+`next_vol_release_date_jp` / `next_vol_release_date_tw`
+([data-model.md](data-model.md)), which Future Releases reads. The free
+sources, as checked on 2026-11-17:
 
 - **JP light novels: RanobeDB** (`ranobedb.org/api/v0`, no key). One
   series lookup returns every volume with its JP date, upcoming ones
