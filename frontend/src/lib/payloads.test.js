@@ -588,9 +588,43 @@ describe("movie, tv show and cartoon bodies", () => {
     });
   });
 
-  it("cartoon sends its episode length as a number", () => {
-    expect(cartoonFieldsPayload({ length_ep_min: "22" }).length_ep_min).toBe(22);
-    expect(cartoonFieldsPayload({ length_ep_min: "" }).length_ep_min).toBeNull();
+  it.each([
+    ["tv show", tvShowFieldsPayload],
+    ["cartoon", cartoonFieldsPayload],
+  ])("%s sends its runtime as a number", (_, build) => {
+    expect(build({ runtime_min: "22" }).runtime_min).toBe(22);
+    expect(build({ runtime_min: "" }).runtime_min).toBeNull();
+    expect("length_ep_min" in build({})).toBe(false);
+  });
+
+  it("tv show sends its airing type", () => {
+    expect(tvShowFieldsPayload({ airing_type: "Special" }).airing_type).toBe("Special");
+    expect(tvShowFieldsPayload({ airing_type: "" }).airing_type).toBeNull();
+  });
+});
+
+describe("anime release dates and runtime", () => {
+  it("sends the JP and TW release dates apart, and no plain release_date", () => {
+    const body = buildAnimePayload({
+      release_date_jp: "2024-04",
+      release_date_tw: "2024-05-01",
+    });
+    expect(body.release_date_jp).toBe("2024-04");
+    expect(body.release_date_tw).toBe("2024-05-01");
+    expect("release_date" in body).toBe(false);
+    expect(buildAnimePayload({ release_date_jp: "" }).release_date_jp).toBeNull();
+  });
+
+  it("sends its runtime as a number", () => {
+    expect(buildAnimePayload({ runtime_min: "24" }).runtime_min).toBe(24);
+    expect(buildAnimePayload({ runtime_min: "" }).runtime_min).toBeNull();
+  });
+});
+
+describe("novel read order", () => {
+  it("is no longer sent; comic keeps its own", () => {
+    expect("read_order" in novelFieldsPayload({ read_order: "1" })).toBe(false);
+    expect(comicFieldsPayload({ read_order: "2" }).read_order).toBe(2);
   });
 });
 

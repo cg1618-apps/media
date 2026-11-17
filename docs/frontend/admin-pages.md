@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-11-16
+Last verified: 2026-11-17
 
 **What this is for.** Every administrative route behind `ProtectedRoute` in
 `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -369,7 +369,7 @@ every type; a type leaves out what it lacks:
 6. **Production** (`fa-pen-nib`) — the studio, publisher and people credits.
 7. **Cast** (`fa-users`).
 8. Type extras — **Prices** and **Copies** (game, h-game), **Read Order**
-   (novel, comic), **Units** (novel).
+   (comic), **Units** (novel).
 9. **Links & Sources** (`fa-external-link-alt`) — each external id beside its
    link, the official or exclusive source, then the Sources editor.
 10. **Cover & Remark** (`fa-image`).

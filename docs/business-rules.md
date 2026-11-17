@@ -55,7 +55,7 @@ one:
 
 | Type          | Columns, most preferred first       |
 | ------------- | ----------------------------------- |
-| `anime`       | `release_date`                      |
+| `anime`       | `release_date_jp`, `release_date_tw` |
 | `anime-movie` | `release_date_jp`, `release_date_tw` |
 | `movie`       | `release_date_tw`, `release_date_usa` |
 | `tv-show`     | `release_date`                      |
@@ -73,10 +73,11 @@ apostrophe (see `docs/data-actions.md`).
 ### Season is derived only at month precision
 
 `apply_calculate_seasonal_from_month` (derivation.py) fills `anime.release_season`
-from the month of `release_date` **only when**:
+from the month of `release_date_jp` - the season is always the Japanese
+airing's, never `release_date_tw`'s - **only when**:
 
 1. `release_season` is currently `None`, and
-2. `release_date` is at least `YYYY-MM` (length ≥ 7).
+2. `release_date_jp` is at least `YYYY-MM` (length ≥ 7).
 
 A year-only date leaves the season untouched. Autofill writes `release_season`
 straight from Tenrai independently of any month, so an anime can legitimately
@@ -577,10 +578,10 @@ in `app/utils/utils.py`.
 
 | Type        | `*_FIELDS_TO_FILL`                                                                                                        | Extra rules                                                                                                                                                                                                                                                                             |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Anime       | `airing_type, airing_status, release_date, release_season, mal_rating, mal_rank, ep_total, cover_image_file` | `Not Yet Aired` entries ignore missing `mal_rating`/`mal_rank`. `ep_previous` is *added* as missing only when it is `None` **and** the entry is TV/ONA with no `ep_special` and a non-blank `season_part` (the same eligibility as section 3). Because Tenrai cannot supply `ep_previous`, an anime whose only gap is that field is re-fetched on every run. `official_link`/`twitter_link` are gone from this list on purpose: Fill now writes them as `media_source` reference rows, and the columns themselves were dropped, so naming a dropped column here would make every anime read as permanently missing. |
+| Anime       | `airing_type, airing_status, release_date_jp, release_season, mal_rating, mal_rank, ep_total, runtime_min, cover_image_file` | `Not Yet Aired` entries ignore missing `mal_rating`/`mal_rank`. `ep_previous` is *added* as missing only when it is `None` **and** the entry is TV/ONA with no `ep_special` and a non-blank `season_part` (the same eligibility as section 3). Because Tenrai cannot supply `ep_previous`, an anime whose only gap is that field is re-fetched on every run. `official_link`/`twitter_link` are gone from this list on purpose: Fill now writes them as `media_source` reference rows, and the columns themselves were dropped, so naming a dropped column here would make every anime read as permanently missing. |
 | Anime Movie | `airing_status, release_date_jp, mal_rating, mal_rank, cover_image_file`                       | `Not Yet Aired` ignores rating/rank. `ep_total` is **not** required (and autofill never writes it). Same `official_link`/`twitter_link` exclusion as Anime.                                                                                                                                                                                       |
 | Movie       | `length_min, airing_status, release_date_usa, imdb_rating, cover_image_file`                                              | Plus `MOVIE_LINK_FIELDS_TO_FILL = [("credit","director")]`: the entry is also missing if it has no `director` credit row in `media_credit`.                                                                                                                                                |
-| TV Show     | `airing_status, release_date, imdb_rating, imdb_series_rating, ep_total, cover_image_file`                                |                                                                                                                                                                                                                                                                                         |
+| TV Show     | `airing_status, release_date, imdb_rating, imdb_series_rating, ep_total, runtime_min, cover_image_file`                   |                                                                                                                                                                                                                                                                                         |
 | Cartoon     | TV: `airing_status, release_date, imdb_rating, imdb_series_rating, ep_total, cover_image_file`; Movie: `airing_status, release_date, imdb_rating, cover_image_file` | List chosen by `airing_type == "Movie"`; every other type uses the TV list. The Fill spec additionally requires `airing_type in {TV, Movie}` before queueing.                                                                                                                          |
 | Manga       | `serialization_status, release_date, end_date, mal_rating, mal_rank, cover_image_file`                                     | When `serialization_status == "完結"`, also missing if **both** `vol_total` and `ch_total` are `None`. One missing total alone does not trigger a fetch.                                                                                                                                 |
 | Novel       | same as manga                                                                                                             | Gate: `mal_link is None` → never missing (nothing to fill from). `完結` rule uses `vol_total_original` and `ch_total`, again only when **both** are `None`.                                                                                                                             |
@@ -631,7 +632,8 @@ would point at a bucket that never matches.)
 `(user_id, seasonal)`, the rating is that user's, and so are the four counters.
 
 `create_missing_seasonal` scans anime for distinct `(release_season, first 4
-chars of release_date)` pairs where both are non-null and inserts a `Seasonal`
+chars of release_date_jp)` pairs - the season is the Japanese airing's, never
+the Taiwanese one - where both are non-null and inserts a `Seasonal`
 row for **every user** and every key that does not already exist - the seasons
 are a catalogue fact, the row is a per-user one, so it is the cross product
 that has to exist. A user with nothing in that season gets a row of zeroes.
@@ -1260,19 +1262,18 @@ relying on any of them - a symbol acquires a caller.
 | `entry_bucket`                           | `size_group.py`                         | Pure function for an entry's inherited bucket; no caller in `app/` (tests only). Display-time bucket resolution is done elsewhere.                                            |
 | `size_group_keys`                        | `plan_next_kinds.py`                    | No caller.                                                                                                                                                                    |
 | `get_entry_franchise_id`                 | `watch_order.py`                        | Exported from `app/services/domain/__init__.py` but never called.                                                                                                             |
-| `length_ep_min` mapping for cartoons     | `tmdb_utils.map_tmdb_to_cartoon_data`, `imdb_utils.map_imdb_to_cartoon_data` | The mappers compute the most-common episode runtime (season) with a show-level `episode_run_time` fallback, but `autofill_cartoon_from_imdb` never writes `cartoon.length_ep_min`. The column exists and round-trips through Sheets; it is manual today. |
+| `runtime_min` mapping for cartoons       | `tmdb_utils.map_tmdb_to_cartoon_data`, `imdb_utils.map_imdb_to_cartoon_data` | The mappers compute the most-common episode runtime (season) with a show-level `episode_run_time` fallback, but `autofill_cartoon_from_imdb` never writes `cartoon.runtime_min`. The column exists and round-trips through Sheets; it is manual today. (The TV show autofill does write its own `runtime_min` from the same mapping.) |
 | `derive_ep_previous_anime(series_id=…)` explicit-series branch | `derivation.py`     | Only `prepare_anime_write` passes a series; every pipeline uses the all-groups form. Still live, just single-caller.                                                          |
 | `AiringStatus`, `ReadStatus` enums       | `constants.py`                          | `ReadStatus` feeds `COMPLETED_READ_STATUSES`; `AiringStatus` is only served by `/api/constants`. Business logic compares string literals.                                     |
 
-### Three lists that disagree about cartoon airing types
+### Cartoon airing types and Fill
 
-- `CARTOON_AIRING_TYPES = ("TV", "Movie", "OVA", "Special")` (`constants.py`) is
+- `CARTOON_AIRING_TYPES = ("TV", "Movie", "Special")` (`constants.py`) is
   what the dropdown offers via `/api/constants`.
 - The Fill spec and `autofill_cartoon_from_imdb` accept **only** `TV` and
-  `Movie`; an OVA or Special cartoon is never fetched.
-- `docs/options.md` still lists `TV / Movie / Other`.
+  `Movie`; a Special cartoon is never fetched.
 
-The code rule is: OVA/Special cartoons are storable but never autofilled.
+The code rule is: Special cartoons are storable but never autofilled.
 
 ---
 

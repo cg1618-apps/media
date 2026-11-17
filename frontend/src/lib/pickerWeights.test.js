@@ -118,8 +118,8 @@ describe("entryFactors", () => {
   });
 
   it("favours 2000 and later, counting an undated entry as earlier", () => {
-    expect(entryFactors(anime("a", { release_date: "2000-01" })).decade).toBe(1.5);
-    expect(entryFactors(anime("a", { release_date: "1999" })).decade).toBe(1);
+    expect(entryFactors(anime("a", { release_date_jp: "2000-01" })).decade).toBe(1.5);
+    expect(entryFactors(anime("a", { release_date_jp: "1999" })).decade).toBe(1);
     expect(entryFactors(anime("a")).decade).toBe(1);
   });
 
@@ -217,7 +217,7 @@ describe("personal weight inputs", () => {
   });
 
   it("still applies a catalogue input without a list", () => {
-    const dated = [anime("new", { release_date: "2015" }), anime("old", { release_date: "1990" })];
+    const dated = [anime("new", { release_date_jp: "2015" }), anime("old", { release_date_jp: "1990" })];
     const chances = chancesById(dated, { personal: false });
     expect(chances.new).toBeCloseTo(1.5 / 2.5);
     expect(chances.old).toBeCloseTo(1 / 2.5);

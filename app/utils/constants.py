@@ -185,7 +185,10 @@ NOVEL_SERIALIZATION_STATUSES: tuple[str, ...] = (
     "未出",
 )
 
-CARTOON_AIRING_TYPES: tuple[str, ...] = ("TV", "Movie", "OVA", "Special")
+CARTOON_AIRING_TYPES: tuple[str, ...] = ("TV", "Movie", "Special")
+
+# tv_shows.airing_type. TV is the default: an ordinary season of a show.
+TV_SHOW_AIRING_TYPES: tuple[str, ...] = ("TV", "Special")
 
 WEEKDAYS: tuple[str, ...] = (
     "Monday",

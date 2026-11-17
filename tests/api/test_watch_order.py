@@ -93,7 +93,7 @@ def orderable_franchise(db_session, sample_franchise, sample_anime):
             franchise_id=sample_franchise.system_id,
             anime_name_en="Second Entry",
             airing_type="TV",
-            release_date="2005",
+            release_date_jp="2005",
         )
     )
     db_session.flush()
@@ -406,7 +406,7 @@ class TestReleaseOrder:
                 franchise_id=orderable_franchise.system_id,
                 anime_name_en="Added Later",
                 airing_type="TV",
-                release_date="2030",
+                release_date_jp="2030",
             )
         )
         db_session.flush()
@@ -431,7 +431,7 @@ class TestReleaseOrder:
                     franchise_id=sample_franchise.system_id,
                     anime_name_en=name,
                     airing_type="TV",
-                    release_date=date,
+                    release_date_jp=date,
                 )
             )
         db_session.flush()
@@ -458,7 +458,7 @@ class TestReleaseOrder:
                     franchise_id=sample_franchise.system_id,
                     anime_name_en="Dated",
                     airing_type="TV",
-                    release_date="1999",
+                    release_date_jp="1999",
                 ),
             ]
         )
@@ -645,7 +645,7 @@ class TestAnimeOnlyBuiltIn:
                     franchise_id=sample_franchise.system_id,
                     anime_name_en="Second Anime",
                     airing_type="TV",
-                    release_date="2005",
+                    release_date_jp="2005",
                 ),
                 models.Manga(
                     system_id=uuid.uuid4(),
@@ -751,7 +751,7 @@ class TestSeriesOwnedBuiltIn:
                     series_id=sample_series.system_id,
                     anime_name_en=f"Series Anime {n}",
                     airing_type="TV",
-                    release_date=year,
+                    release_date_jp=year,
                 )
                 for n, year in ((1, "2010"), (2, "2012"))
             ]
@@ -777,7 +777,7 @@ class TestSeriesOwnedBuiltIn:
                 franchise_id=sample_franchise.system_id,
                 anime_name_en="Outside The Series",
                 airing_type="TV",
-                release_date="2011",
+                release_date_jp="2011",
             )
         )
         db_session.flush()
@@ -834,7 +834,7 @@ class TestCollectionOptOut:
                     franchise_id=sample_collected_franchise.system_id,
                     anime_name_en=f"Disney-ish {n}",
                     airing_type="TV",
-                    release_date="200%d" % n,
+                    release_date_jp="200%d" % n,
                 )
                 for n in (1, 2)
             ]

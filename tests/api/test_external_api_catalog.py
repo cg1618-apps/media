@@ -138,7 +138,9 @@ def _rule_for(key, source, field):
 def test_mal_ratings_are_the_overwritten_fields():
     assert _rule_for("anime", "tenrai", "mal_rating") == "overwrite"
     assert _rule_for("anime", "tenrai", "mal_rank") == "overwrite"
-    assert _rule_for("anime", "tenrai", "release_date") == "fill-only"
+    assert _rule_for("anime", "tenrai", "release_date_jp") == "fill-only"
+    assert _rule_for("anime", "tenrai", "release_date_tw") == "fill-only"
+    assert _rule_for("anime", "tenrai", "runtime_min") == "fill-only"
 
 
 def test_imdb_rating_is_overwritten_and_comes_from_omdb():

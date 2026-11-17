@@ -42,7 +42,7 @@ def _anime(db, franchise, name, season, date, mal=None, anilist=None):
         anime_name_en=name,
         airing_type="TV",
         release_season=season,
-        release_date=date,
+        release_date_jp=date,
         mal_rating=mal,
         anilist_rating=anilist,
     )

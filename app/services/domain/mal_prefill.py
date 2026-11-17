@@ -50,7 +50,8 @@ _FINISHED = "完結"
 
 def _anime_fields(j: dict) -> dict:
     return {k: j.get(k) for k in (
-        "airing_type", "airing_status", "release_season", "release_date", "ep_total",
+        "airing_type", "airing_status", "release_season", "release_date_jp",
+        "release_date_tw", "ep_total", "runtime_min",
     )}
 
 

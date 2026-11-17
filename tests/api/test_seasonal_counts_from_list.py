@@ -25,7 +25,7 @@ def _anime(db, franchise, name, season, year):
         anime_name_en=name,
         airing_type="TV",
         release_season=season,
-        release_date=f"{year}-10-01",
+        release_date_jp=f"{year}-10-01",
     )
     db.add(entry)
     db.flush()

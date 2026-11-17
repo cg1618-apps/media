@@ -160,7 +160,7 @@ export function CartoonFormBody({ f, u, sources, ownerId }) {
           value={f.release_date}
           onChange={(v) => u("release_date", v)}
         />
-        {count("length_ep_min", "Ep Runtime (min)", "22", "Minutes per episode")}
+        {count("runtime_min", "Ep Runtime (min)", "22", "Minutes per episode")}
       </div>
 
       <GenreLabelFields

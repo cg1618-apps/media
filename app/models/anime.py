@@ -26,8 +26,12 @@ class Anime(Base, NameFallbackMixin):
     __tablename__ = "anime"
     __table_args__ = (
         CheckConstraint(
-            r"release_date ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
-            name="ck_anime_release_date_iso",
+            r"release_date_jp ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
+            name="ck_anime_release_date_jp_iso",
+        ),
+        CheckConstraint(
+            r"release_date_tw ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
+            name="ck_anime_release_date_tw_iso",
         ),
         # Pins this row to a media row of its own type: with media's
         # UNIQUE (system_id, media_type) on the other end, an anime row can
@@ -76,6 +80,8 @@ class Anime(Base, NameFallbackMixin):
     ep_previous = Column(Integer, nullable=True)
     ep_total = Column(Integer, nullable=True)
     ep_special = Column(Float, nullable=True)
+    # Minutes per episode.
+    runtime_min = Column(Integer, nullable=True)
 
     mal_rating = Column(Float, nullable=True)
     mal_rank = Column(String, nullable=True)
@@ -86,8 +92,11 @@ class Anime(Base, NameFallbackMixin):
     anilist_rank = Column(Integer, nullable=True)
     anilist_popularity_rank = Column(Integer, nullable=True)
 
+    # The season is the Japanese airing's: release_season and the year of
+    # release_date_jp, never of release_date_tw.
     release_season = Column(String, nullable=True)
-    release_date = Column(String, nullable=True)
+    release_date_jp = Column(String, nullable=True)
+    release_date_tw = Column(String, nullable=True)
 
     broadcast_day = Column(String, nullable=True)
     broadcast_time = Column(Time, nullable=True)

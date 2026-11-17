@@ -361,12 +361,25 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                         "winter/spring/summer/fall to WIN/SPR/SUM/FAL",
                     ),
                     Write(
-                        "release_date",
+                        "release_date_jp",
                         "column",
                         "fill-only",
                         "precision taken from MAL's own aired string, never padded",
                     ),
+                    Write(
+                        "release_date_tw",
+                        "column",
+                        "fill-only",
+                        "the same date as JP, except on an entry typed Movie",
+                    ),
                     Write("ep_total", "column", "fill-only"),
+                    Write(
+                        "runtime_min",
+                        "column",
+                        "fill-only",
+                        "MAL's duration per episode in whole minutes; 22 to 26 is "
+                        "stored as 24",
+                    ),
                     *_TENRAI_LINKS,
                     Write(
                         "studio",
@@ -487,6 +500,13 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                         "fill-only, and skipped when the season reports zero episodes",
                     ),
                     Write(
+                        "runtime_min",
+                        "column",
+                        "fill-only",
+                        "the season's most common episode runtime, falling back to "
+                        "the show's",
+                    ),
+                    Write(
                         "airing_status",
                         "column",
                         "fill-only",
@@ -556,7 +576,7 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                     ),
                     Write("cover_image_file", "image", "if-empty"),
                     Write(
-                        "length_ep_min",
+                        "runtime_min",
                         "none",
                         "never",
                         "the mapper computes it from the season's episode runtimes, "

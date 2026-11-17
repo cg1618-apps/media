@@ -44,15 +44,24 @@ describe("seasonAfter", () => {
 });
 
 describe("entrySeason", () => {
-  it("uses anime's release_season with the year of release_date", () => {
+  it("uses anime's release_season with the year of release_date_jp", () => {
     // A late-December premiere MAL files under Winter: the column wins.
     expect(
-      entrySeason({ release_season: "WIN", release_date: "2026-12-28" }, "anime"),
+      entrySeason({ release_season: "WIN", release_date_jp: "2026-12-28" }, "anime"),
+    ).toEqual({ code: "WIN", year: 2026 });
+  });
+
+  it("takes the season's year from the JP date, not the TW one", () => {
+    expect(
+      entrySeason(
+        { release_season: "WIN", release_date_jp: "2026-12-28", release_date_tw: "2027-01-05" },
+        "anime",
+      ),
     ).toEqual({ code: "WIN", year: 2026 });
   });
 
   it("falls back to the month when an anime has no release_season", () => {
-    expect(entrySeason({ release_date: "2026-10-04" }, "anime")).toEqual({
+    expect(entrySeason({ release_date_jp: "2026-10-04" }, "anime")).toEqual({
       code: "FAL",
       year: 2026,
     });
@@ -86,7 +95,7 @@ describe("entrySeason", () => {
   it("has no season for a year-only or missing date", () => {
     expect(entrySeason({ release_date: "2026" }, "cartoon")).toBeNull();
     expect(entrySeason({ release_date: null }, "cartoon")).toBeNull();
-    expect(entrySeason({ release_date: "2026" }, "anime")).toBeNull();
+    expect(entrySeason({ release_date_jp: "2026" }, "anime")).toBeNull();
   });
 });
 
@@ -95,12 +104,12 @@ describe("selectComingNext", () => {
 
   const lists = {
     anime: [
-      { system_id: "a1", release_season: "FAL", release_date: "2026-10-03", watching_status: "Watch When Airs" },
-      { system_id: "a2", release_season: "FAL", release_date: "2026-10-01", watching_status: "Plan to Watch" },
+      { system_id: "a1", release_season: "FAL", release_date_jp: "2026-10-03", watching_status: "Watch When Airs" },
+      { system_id: "a2", release_season: "FAL", release_date_jp: "2026-10-01", watching_status: "Plan to Watch" },
       // Right status, wrong season.
-      { system_id: "a3", release_season: "SUM", release_date: "2026-07-01", watching_status: "Watch When Airs" },
+      { system_id: "a3", release_season: "SUM", release_date_jp: "2026-07-01", watching_status: "Watch When Airs" },
       // Right season, not a planning status.
-      { system_id: "a4", release_season: "FAL", release_date: "2026-10-01", watching_status: "Might Watch" },
+      { system_id: "a4", release_season: "FAL", release_date_jp: "2026-10-01", watching_status: "Might Watch" },
     ],
     "anime-movie": [],
     movie: [
@@ -143,8 +152,8 @@ describe("selectComingNext", () => {
     const { airs } = selectComingNext(
       {
         anime: [
-          { system_id: "late", release_season: "FAL", release_date: "2026-11-01", watching_status: "Watch When Airs" },
-          { system_id: "early", release_season: "FAL", release_date: "2026-10-01", watching_status: "Watch When Airs" },
+          { system_id: "late", release_season: "FAL", release_date_jp: "2026-11-01", watching_status: "Watch When Airs" },
+          { system_id: "early", release_season: "FAL", release_date_jp: "2026-10-01", watching_status: "Watch When Airs" },
         ],
       },
       FAL_2026,
@@ -161,8 +170,8 @@ describe("selectComingNext", () => {
     const today = new Date(2026, 8, 28);
     const summer = {
       anime: [
-        { system_id: "aired", release_season: "SUM", release_date: "2026-07-02", airing_status: "Finished Airing", watching_status: "Watch When Airs" },
-        { system_id: "pending", release_season: "SUM", release_date: "2026-09-30", airing_status: "Not Yet Aired", watching_status: "Watch When Airs" },
+        { system_id: "aired", release_season: "SUM", release_date_jp: "2026-07-02", airing_status: "Finished Airing", watching_status: "Watch When Airs" },
+        { system_id: "pending", release_season: "SUM", release_date_jp: "2026-09-30", airing_status: "Not Yet Aired", watching_status: "Watch When Airs" },
       ],
       game: [
         { system_id: "out", release_date: "2026-08-01", release_status: "Released", playing_status: "Plan to Play" },
@@ -200,16 +209,16 @@ describe("isUnreleased", () => {
   it("lets a set status win over the date", () => {
     // Stale date, fresh status: the status is what Fill keeps current.
     expect(
-      isUnreleased({ airing_status: "Not Yet Aired", release_date: "2026-07-01" }, "anime", today),
+      isUnreleased({ airing_status: "Not Yet Aired", release_date_jp: "2026-07-01" }, "anime", today),
     ).toBe(true);
     expect(
-      isUnreleased({ airing_status: "Airing", release_date: "2026-12-01" }, "anime", today),
+      isUnreleased({ airing_status: "Airing", release_date_jp: "2026-12-01" }, "anime", today),
     ).toBe(false);
   });
 
   it("falls back to the release date lying after today when no status is set", () => {
-    expect(isUnreleased({ release_date: "2026-09-29" }, "anime", today)).toBe(true);
-    expect(isUnreleased({ release_date: "2026-09-28" }, "anime", today)).toBe(false);
+    expect(isUnreleased({ release_date_jp: "2026-09-29" }, "anime", today)).toBe(true);
+    expect(isUnreleased({ release_date_jp: "2026-09-28" }, "anime", today)).toBe(false);
     expect(isUnreleased({ release_date_tw: "2026-10-01" }, "movie", today)).toBe(true);
     // A month-only date counts from the first of the month.
     expect(isUnreleased({ release_date: "2026-09" }, "game", today)).toBe(false);

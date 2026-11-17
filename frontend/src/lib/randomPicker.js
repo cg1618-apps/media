@@ -314,7 +314,7 @@ export const PICKER_MODES = ["all", ...PICKER_TYPES.map((t) => t.type), FRANCHIS
  * A shared account's defs: media type and release decade, nothing else. The
  * decade is each entry's primary release date (lib/releaseDate.js
  * RELEASE_PRIORITY - release_date on most types, release_date_jp then _tw on
- * an anime movie, release_date_tw then _usa on a movie), offered as the
+ * an anime and an anime movie, release_date_tw then _usa on a movie), offered as the
  * decades the pool holds, plus Unknown when an entry has no date.
  */
 export function sharedFilterDefs(types) {

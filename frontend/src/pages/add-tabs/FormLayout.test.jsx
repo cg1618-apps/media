@@ -156,7 +156,7 @@ const TYPES = [
   {
     name: "Novel",
     factory: defaultNovel,
-    sections: ["Titles & Naming", "Scores", "My Tracker", "Information", "Genres & Labels", "Production", "Cast", "Read Order", "Units", "Links & Sources", "Cover & Remark"],
+    sections: ["Titles & Naming", "Scores", "My Tracker", "Information", "Genres & Labels", "Production", "Cast", "Units", "Links & Sources", "Cover & Remark"],
     add: (f) => (
       <NovelAddTab {...common} nvf={f} unv={noop} allNovels={[]} applyNovelEntryAutofill={noop} applyMalPick={noop} applyOpenLibraryPick={noop} seriesItemsForNovel={[]} />
     ),

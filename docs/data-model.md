@@ -288,7 +288,8 @@ are
 
 TV anime, ONA/OVA/OAD/specials, and anime with `airing_type = "Movie"` that
 are tracked as part of a season run. Not the same table as `anime_movies`.
-Model: `Anime`. CHECK: `ck_anime_release_date_iso`.
+Model: `Anime`. CHECKs: `ck_anime_release_date_jp_iso`,
+`ck_anime_release_date_tw_iso`.
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
@@ -300,13 +301,15 @@ Model: `Anime`. CHECK: `ck_anime_release_date_iso`.
 | `ep_previous` | Integer | yes | | Episodes accumulated by prequels; **derived** by `derive_ep_previous_all_anime` after Fill/Replace. |
 | `ep_total` | Integer | yes | | |
 | `ep_special` | Float | yes | | The episode number a special sits at (0, 14.5) - a position, not a count. Part of the duplicate key. |
+| `runtime_min` | Integer | yes | | Minutes per episode. Fill writes MAL's duration, 22 to 26 stored as 24 |
 | `mal_rating` | Float | yes | | From Tenrai |
 | `mal_rank` | String | yes | | From Tenrai |
 | `anilist_rating` | Integer | yes | | AniList `averageScore`, keyed on `mal_id`. From AniList - see [external-apis.md](external-apis.md#anilist) |
 | `anilist_rank` | Integer | yes | | AniList all-time rated rank. Null is common - not every scored title has one |
 | `anilist_popularity_rank` | Integer | yes | | AniList all-time popularity rank |
-| `release_season` | String | yes | | e.g. `WIN 2024` (RELEASE_SEASONS) - drives `seasonal` |
-| `release_date` | String | yes | | ISO date string |
+| `release_season` | String | yes | | e.g. `WIN 2024` (RELEASE_SEASONS) - drives `seasonal`, with the year of `release_date_jp` |
+| `release_date_jp` | String | yes | | Japanese airing; preferred (RELEASE_PRIORITY) and the one the season is read from |
+| `release_date_tw` | String | yes | | Taiwanese airing. Fill writes MAL's date here too, except on an entry typed `Movie` |
 | `broadcast_day` | String | yes | | WEEKDAYS |
 | `broadcast_time` | Time | yes | | Postgres TIME, exchanged as `"HH:MM:SS"` |
 | `mal_id` | Integer | yes | | Derived from `mal_link` by `apply_extract_mal_id_anime` |
@@ -377,9 +380,11 @@ Live-action / scripted TV. Model: `TVShows`. CHECK: `ck_tv_shows_release_date_is
 | `tv_name_en` / `_cn` / `_alt` | String | yes | | |
 | `region` | String | yes | | TV_REGIONS |
 | `season_part` | String | yes | | |
+| `airing_type` | String | yes | `TV` | TV_SHOW_AIRING_TYPES (`TV`, `Special`) |
 | `airing_status` | String | yes | | |
 | `is_main` | String | yes | | |
 | `ep_total` | Integer | yes | | |
+| `runtime_min` | Integer | yes | | Minutes per episode. Fill writes TMDB's season runtime |
 | `imdb_rating` | String | yes | | This season's own: the mean of its episodes' ratings (see `business-rules.md` §10c) |
 | `imdb_series_rating` | String | yes | | The whole show's, every season of it alike |
 | `release_date` | String | yes | | |
@@ -403,7 +408,7 @@ Western animation. Model: `Cartoon`. CHECK: `ck_cartoons_release_date_iso`.
 | `airing_status` | String | yes | | |
 | `is_main` | String | yes | | |
 | `ep_total` | Integer | yes | | |
-| `length_ep_min` | Integer | yes | | Minutes per episode |
+| `runtime_min` | Integer | yes | | Minutes per episode |
 | `imdb_rating` | String | yes | | A `TV` cartoon's is this season's own (see `business-rules.md` §10c); any other's is the title's |
 | `imdb_series_rating` | String | yes | | The whole show's on a `TV` cartoon; empty on any other |
 | `release_date` | String | yes | | |
@@ -473,7 +478,6 @@ Alembic revision `nv1u2n3i4t5s`.
 | `anilist_rank` | Integer | yes | | AniList all-time rated rank |
 | `anilist_popularity_rank` | Integer | yes | | AniList all-time popularity rank |
 | `release_date` / `end_date` | String | yes | | |
-| `read_order` | Float | yes | | Manual ordering within the group |
 | `mal_id` | Integer | yes | | |
 | `mal_link` | String | yes | | |
 | `openlibrary_id` | String | yes | | Open Library work id (`"OL5738148W"`). **String**, unlike `comicvine_id`'s `Integer` - the trailing letter distinguishes a work (`OL…W`) from an edition (`OL…M`) or an author (`OL…A`), which a bare integer would discard |
@@ -2808,4 +2812,4 @@ models - use this file instead:
 | Relation kinds: 11 | 14 stored kinds, 15 dropdown labels (`prequel` → swapped `sequel`). |
 | `plan_next.kind` has no default | `server_default="next"`, and it is load-bearing for Pull. |
 | `role` / `content_label` have no timestamps | Both have `created_at` / `updated_at`. |
-| `cartoon.airing_type` values TV / Movie / Other | `CARTOON_AIRING_TYPES` = TV, Movie, OVA, Special. |
+| `cartoon.airing_type` values TV / Movie / Other | `CARTOON_AIRING_TYPES` = TV, Movie, Special. |

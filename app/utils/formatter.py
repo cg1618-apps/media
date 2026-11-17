@@ -744,6 +744,15 @@ def parse_series_from_sheet(raw: dict) -> dict:
     return parsed
 
 
+def _renamed(raw: dict, column: str, legacy: str) -> Any:
+    """
+    The cell under `column`, or under its pre-rename header `legacy` when the
+    sheet predates the rename and carries only that. pull.py's RENAMED_COLUMNS
+    keeps the value past the header filter in that case.
+    """
+    return raw.get(column) if column in raw else raw.get(legacy)
+
+
 def parse_anime_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Anime sheet into typed data ready for the Database.
@@ -764,9 +773,17 @@ def parse_anime_from_sheet(raw: dict) -> dict:
         "ep_previous": parse_from_sheet(raw.get("ep_previous"), int),
         "ep_total": parse_from_sheet(raw.get("ep_total"), int),
         "ep_special": parse_from_sheet(raw.get("ep_special"), float),
+        "runtime_min": parse_from_sheet(raw.get("runtime_min"), int),
         "is_main": parse_from_sheet(raw.get("is_main"), str),
         "release_season": parse_from_sheet(raw.get("release_season"), str),
-        "release_date": release_date.normalize(parse_from_sheet(raw.get("release_date"), str)),
+        # A tab from before the JP/TW split carries one `release_date`, which
+        # stood for both.
+        "release_date_jp": release_date.normalize(
+            parse_from_sheet(_renamed(raw, "release_date_jp", "release_date"), str)
+        ),
+        "release_date_tw": release_date.normalize(
+            parse_from_sheet(_renamed(raw, "release_date_tw", "release_date"), str)
+        ),
         "broadcast_day": parse_from_sheet(raw.get("broadcast_day"), str),
         "broadcast_time": parse_from_sheet(raw.get("broadcast_time"), time),
         "studio": parse_from_sheet(raw.get("studio"), str),
@@ -898,9 +915,11 @@ def parse_tv_show_from_sheet(raw: dict) -> dict:
         "region": parse_from_sheet(raw.get("region"), str),
         "season_part": parse_from_sheet(raw.get("season_part"), str),
         "source_official": parse_from_sheet(raw.get("source_official"), str),
+        "airing_type": parse_from_sheet(raw.get("airing_type"), str),
         "airing_status": parse_from_sheet(raw.get("airing_status"), str),
         "is_main": parse_from_sheet(raw.get("is_main"), str),
         "ep_total": parse_from_sheet(raw.get("ep_total"), int),
+        "runtime_min": parse_from_sheet(raw.get("runtime_min"), int),
         "imdb_rating": parse_from_sheet(raw.get("imdb_rating"), str),
         "imdb_series_rating": parse_from_sheet(raw.get("imdb_series_rating"), str),
         "release_date": release_date.normalize(parse_from_sheet(raw.get("release_date"), str)),
@@ -936,7 +955,9 @@ def parse_cartoon_from_sheet(raw: dict) -> dict:
         "airing_status": parse_from_sheet(raw.get("airing_status"), str),
         "is_main": parse_from_sheet(raw.get("is_main"), str),
         "ep_total": parse_from_sheet(raw.get("ep_total"), int),
-        "length_ep_min": parse_from_sheet(raw.get("length_ep_min"), int),
+        "runtime_min": parse_from_sheet(
+            _renamed(raw, "runtime_min", "length_ep_min"), int
+        ),
         "imdb_rating": parse_from_sheet(raw.get("imdb_rating"), str),
         "imdb_series_rating": parse_from_sheet(raw.get("imdb_series_rating"), str),
         "release_date": release_date.normalize(parse_from_sheet(raw.get("release_date"), str)),
@@ -1035,7 +1056,6 @@ def parse_novel_from_sheet(raw: dict) -> dict:
         "release_date": release_date.normalize(parse_from_sheet(raw.get("release_date"), str)),
         "end_date": release_date.normalize(parse_from_sheet(raw.get("end_date"), str)),
         "publisher_tw": parse_from_sheet(raw.get("publisher_tw"), str),
-        "read_order": parse_from_sheet(raw.get("read_order"), float),
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),
         "openlibrary_link": parse_from_sheet(raw.get("openlibrary_link"), str),

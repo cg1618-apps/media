@@ -4,10 +4,11 @@
 //
 // Seasons are calendar quarters (WIN Jan–Mar, SPR Apr–Jun, SUM Jul–Sep,
 // FAL Oct–Dec), matching calculate_seasonal_from_month on the backend. Anime
-// keep their own release_season, which MAL may set against the month; every
+// keep their own release_season, which MAL may set against the month, paired
+// with the year of the JP date; every
 // other type's season is derived from the month of its primary release date,
 // so a year-only date has no season and is left out.
-import { primaryReleaseValue, releaseScore } from "./releaseDate";
+import { primaryReleaseValue, releaseScore, releaseYear } from "./releaseDate";
 
 const SEASON_CODES = ["WIN", "SPR", "SUM", "FAL"];
 
@@ -60,13 +61,16 @@ export function formatSeason({ code, year }) {
 
 /** The entry's release season, or null when its date carries no month. */
 export function entrySeason(entry, mediaType) {
+  // An anime's release_season names its JP broadcast, so it pairs with the
+  // year of release_date_jp only.
+  if (mediaType === "anime" && SEASON_CODES.includes(entry.release_season)) {
+    const jpYear = releaseYear(entry.release_date_jp);
+    if (jpYear) return { code: entry.release_season, year: jpYear };
+  }
   const value = primaryReleaseValue(mediaType, entry);
   if (!value) return null;
   const [year, month] = String(value).split("-").map(Number);
   if (!year) return null;
-  if (mediaType === "anime" && SEASON_CODES.includes(entry.release_season)) {
-    return { code: entry.release_season, year };
-  }
   if (!month) return null;
   return { code: SEASON_CODES[Math.floor((month - 1) / 3)], year };
 }

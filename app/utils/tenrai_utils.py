@@ -156,6 +156,55 @@ def _aired_release_date(aired: Optional[Dict[str, Any]]) -> Optional[str]:
     return f"{int(year):04d}"
 
 
+# MAL lists a normal TV episode at anything from 22 to 26 minutes - the same
+# half-hour slot, measured with or without its recap, preview and credits
+# (sampled: 23 for Kimetsu no Yaiba and Naruto, 25 for Bakemonogatari, 26 for
+# Angel Beats!). A duration inside this band, inclusive, is stored as
+# TV_EPISODE_MINUTES so those entries read alike; one outside it is stored as
+# MAL gives it. Autofill only: a runtime typed by hand is stored as typed.
+TV_EPISODE_BAND = (22, 26)
+TV_EPISODE_MINUTES = 24
+
+_DURATION_PART = re.compile(r"(\d+)\s*(hr|min|sec)")
+_DURATION_SECONDS = {"hr": 3600, "min": 60, "sec": 1}
+
+
+def parse_mal_duration_minutes(text: Optional[str]) -> Optional[int]:
+    """
+    Whole minutes from MAL's duration string, or None when it names none.
+
+    The shapes MAL uses: "24 min per ep", "24 min", "1 hr 46 min", "2 hr",
+    "1 min 31 sec per ep", "30 sec", "Unknown". Rounded half up, and never
+    below one minute for a duration that has any length at all.
+    """
+    if not text:
+        return None
+    seconds = sum(
+        int(amount) * _DURATION_SECONDS[unit]
+        for amount, unit in _DURATION_PART.findall(str(text))
+    )
+    if seconds <= 0:
+        return None
+    return max(1, (seconds + 30) // 60)
+
+
+def _runtime_min(duration: Optional[str]) -> Optional[int]:
+    """The anime's runtime_min from MAL's duration, with the TV band applied."""
+    minutes = parse_mal_duration_minutes(duration)
+    if minutes is None:
+        return None
+    low, high = TV_EPISODE_BAND
+    return TV_EPISODE_MINUTES if low <= minutes <= high else minutes
+
+
+def anime_release_date_tw(date: Optional[str], airing_type: Optional[str]) -> Optional[str]:
+    """
+    The TW release date MAL's date stands for: the JP date itself, except on
+    a Movie, whose Taiwanese release is a separate date MAL does not know.
+    """
+    return None if airing_type == "Movie" else date
+
+
 # ==========================================
 # MASTER ORCHESTRATOR
 # ==========================================
@@ -189,7 +238,11 @@ def map_tenrai_to_anime_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
         "airing_type": airing_type,
         "airing_status": airing_status,
         "release_season": release_season,
-        "release_date": release_date,
+        # The season is the JP date's; see _anime_fields in mal_prefill.py
+        # and autofill_anime_from_mal for where TW is decided per entry.
+        "release_date_jp": release_date,
+        "release_date_tw": anime_release_date_tw(release_date, airing_type),
+        "runtime_min": _runtime_min(raw_data.get("duration")),
         "mal_rating": raw_data.get("score"),
         "mal_rank": mal_rank,
         "ep_total": raw_data.get("episodes"),
@@ -202,8 +255,8 @@ def map_tenrai_to_anime_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
 def map_tenrai_to_anime_movie_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Parses raw Tenrai JSON into the flat dict expected by AnimeMovies.
-    Differs from map_tenrai_to_anime_data: returns release_date_jp instead of
-    release_date, and no season fields.
+    Differs from map_tenrai_to_anime_data: no TW date, no runtime, and no
+    season fields.
     """
     airing_type = _convert_airing_type(raw_data.get("type"))
     airing_status = _convert_airing_status(raw_data.get("status"))

@@ -303,17 +303,6 @@ export function NovelFormBody({ f, u, sources, ownerId }) {
         onChange={(v) => u("cast", v)}
       />
 
-      <SectionHeader icon="fa-link" title="Read Order" />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <NumberInput
-          f={f}
-          u={u}
-          name="read_order"
-          label="Read Order"
-          hint="e.g. 1, 1.5, 2"
-          placeholder="1"
-        />
-      </div>
       <SectionHeader icon="fa-book-open" title="Units" />
       <NovelUnitsEditor
         items={f.units}

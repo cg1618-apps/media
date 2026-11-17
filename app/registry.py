@@ -150,7 +150,7 @@ class MediaTypeSpec:
 
 
 def _anime_airing_season(query, params, user_id=None):
-    """?airing_season=SPR 2024 -> release_season + year prefix of release_date."""
+    """?airing_season=SPR 2024 -> release_season + year prefix of release_date_jp."""
     raw = params.get("airing_season")
     if not raw:
         return query
@@ -159,7 +159,7 @@ def _anime_airing_season(query, params, user_id=None):
         return query
     return query.filter(
         models.Anime.release_season == parts[0],
-        func.substr(models.Anime.release_date, 1, 4) == parts[1],
+        func.substr(models.Anime.release_date_jp, 1, 4) == parts[1],
     )
 
 

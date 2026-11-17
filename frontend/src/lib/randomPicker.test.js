@@ -41,7 +41,7 @@ it("puts the watch, read and play vocabularies into one set of status groups", (
 });
 
 it("reads the decade from each type's primary release column", () => {
-  expect(decadeOf("anime", { release_date: "2014-04" })).toBe("2010s");
+  expect(decadeOf("anime", { release_date_jp: "2014-04" })).toBe("2010s");
   // anime-movie's primary column is release_date_jp, not release_date.
   expect(decadeOf("anime-movie", { release_date_jp: "1999" })).toBe("1990s");
   expect(decadeOf("manga", {})).toBe(UNKNOWN_DECADE);
@@ -52,8 +52,8 @@ describe("general mode", () => {
   // refuse as well as something to keep.
   const entries = [
     ...toEntries("anime", [
-      { system_id: "a1", watching_status: "Plan to Watch", my_rating: "A", release_date: "2014" },
-      { system_id: "a2", watching_status: "Completed", release_date: "2003" },
+      { system_id: "a1", watching_status: "Plan to Watch", my_rating: "A", release_date_jp: "2014" },
+      { system_id: "a2", watching_status: "Completed", release_date_jp: "2003" },
     ]),
     ...toEntries("manga", [{ system_id: "m1", reading_status: "Plan to Read", my_rating: "S" }]),
   ];
@@ -368,7 +368,7 @@ describe("the shared account's picker", () => {
   it("dates each type by its own release field", () => {
     const decade = filterDefsForMode("all", types, { personal: false, shared: true })[1];
     const entries = [
-      { type: "anime", item: { release_date: "2014-04-01" } },
+      { type: "anime", item: { release_date_jp: "2014-04-01" } },
       { type: "movie", item: { release_date_tw: "1999-12-24", release_date_usa: "2001-01-01" } },
       { type: "movie", item: { release_date_usa: "2021-05-05" } },
       { type: "manga", item: {} },

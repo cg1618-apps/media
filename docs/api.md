@@ -706,7 +706,7 @@ materializes the generated steps into a hand-built copy. `GET /lists` accepts
 hand-built ones in any cross-owner view, and `series_id` as an owner filter.
 
 Ordering reads the columns named in `release_date.RELEASE_PRIORITY` — JP then
-TW for anime movies, TW then USA for movies, and `release_date` for everything
+TW for anime and anime movies, TW then USA for movies, and `release_date` for everything
 else. A date missing precision resolves to the **first of that period**: a bare
 year is 1 January, a month and year the 1st of that month, so a year-only manga
 ties with a 1 January release rather than sorting just ahead of it, and the two
@@ -1232,7 +1232,7 @@ leaves `sort_index` ascending in the order the page draws.
 | Method  | Path              | Auth   | Description                                                                                         |
 | ------- | ----------------- | ------ | --------------------------------------------------------------------------------------------------- |
 | `GET`   | `/current-season` | Public | Returns `{current_season}` from `system_configs` (null when unset). The calendar, not anybody's data, so it answers every viewer. |
-| `GET`   | `/catalogue`      | Public | `SeasonCount[]` — `{season, entry_count}` for every season the viewer's visible anime aired in, newest first. A season is `release_season` plus the year of `release_date`, the pair `?airing_season=` filters on. Narrowed to the viewer's media types and mode. |
+| `GET`   | `/catalogue`      | Public | `SeasonCount[]` — `{season, entry_count}` for every season the viewer's visible anime aired in, newest first. A season is `release_season` plus the year of `release_date_jp`, the pair `?airing_season=` filters on. Narrowed to the viewer's media types and mode. |
 | `GET`   | `/`               | `self.list` | List the CALLER'S OWN seasonal records, ordered by `seasonal` descending.                           |
 | `GET`   | `/{seasonal_id}`  | `self.list` | Get the caller's own record for one season (e.g. `"WIN 2026"`). `404` when they have none.          |
 | `PATCH` | `/{seasonal_id}`  | `self.list` | Update `my_rating` on the caller's own row. Any real account, not just an admin - the rating is theirs. Body: `SeasonalUpdate`. |
@@ -1312,7 +1312,7 @@ Japanese titles, its synonyms as the alternative name, and the credits:
 
 | Type | Fields |
 | --- | --- |
-| `anime` | `anime_name_en`, `anime_name_jp`, `anime_name_alt`, `airing_type`, `airing_status`, `release_season`, `release_date`, `ep_total`, `mal_rating`, `mal_rank`, `studio` |
+| `anime` | `anime_name_en`, `anime_name_jp`, `anime_name_alt`, `airing_type`, `airing_status`, `release_season`, `release_date_jp`, `release_date_tw` (not on an `airing_type` of `Movie`), `ep_total`, `runtime_min`, `mal_rating`, `mal_rank`, `studio` |
 | `anime-movie` | `anime_movie_name_en`, `anime_movie_name_jp`, `anime_movie_name_alt`, `airing_status`, `release_date_jp`, `mal_rating`, `mal_rank`, `studio` |
 | `manga` | `manga_name_en`, `manga_name_jp`, `manga_name_alt`, `serialization_status`, `release_date`, `end_date`, `vol_total` and `ch_total` (only when the status is `完結`), `mal_rating`, `mal_rank`, `author_plot` (MAL's Story), `author_draw` (Art) |
 | `novel` | `novel_name_en`, `novel_name_jp`, `novel_name_alt`, `serialization_status`, `release_date`, `end_date`, `vol_total_original` and `ch_total` (only when `完結`), `mal_rating`, `mal_rank`, `author` (Story), `illustrator` (Art) |
@@ -1507,7 +1507,7 @@ value means; this endpoint just serves them.
 | `GET`  | `/external-apis` | Admin  | Which external API writes which field, and whether it fills or replaces it.  |
 
 Keys served: `watching_status`, `reading_status`, `airing_status`,
-`anime_airing_type`, `cartoon_airing_type`, `franchise_type`,
+`anime_airing_type`, `cartoon_airing_type`, `tv_show_airing_type`, `franchise_type`,
 `franchise_expectation`, `my_rating`, `gender`, `character_role`, `is_main`, `game_is_main`, `movie_type`, `tv_region`,
 `manga_region`, `novel_region`, `novel_type`, `comic_type`,
 `playing_status`, `game_type`, `completion_level`, `game_completion_flag`,

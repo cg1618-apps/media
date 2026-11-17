@@ -27,6 +27,7 @@ import {
   AIRING_STATUSES,
   ANIME_AIRING_TYPES,
   CARTOON_AIRING_TYPES,
+  TV_SHOW_AIRING_TYPES,
   COMIC_TYPES,
   COMPLETION_LEVELS,
   FRANCHISE_TYPES,
@@ -350,10 +351,28 @@ export const TYPE_FIELD_META = {
       control: "number",
       group: "Progress",
     },
+    runtime_min: {
+      label: "Runtime (min)",
+      control: "number",
+      group: "Progress",
+    },
     release_season: {
       label: "Release Season",
       control: "select",
       options: RELEASE_SEASONS,
+      group: "Release",
+    },
+    // The season is read from the JP date - the broadcast it names is the
+    // Japanese one. Free text, not control: "date", for the same reason as
+    // anime-movie's pair.
+    release_date_jp: {
+      label: "Release Date (JP)",
+      control: "text",
+      group: "Release",
+    },
+    release_date_tw: {
+      label: "Release Date (TW)",
+      control: "text",
       group: "Release",
     },
     broadcast_day: {
@@ -502,7 +521,18 @@ export const TYPE_FIELD_META = {
       options: TV_REGIONS,
       group: "Classification",
     },
+    airing_type: {
+      label: "Airing Type",
+      control: "select",
+      options: TV_SHOW_AIRING_TYPES,
+      group: "Classification",
+    },
     season_part: { label: "Season Part", group: "Classification" },
+    runtime_min: {
+      label: "Runtime (min)",
+      control: "number",
+      group: "Progress",
+    },
     original_source: {
       label: "Original Source",
       control: "tags",
@@ -528,7 +558,7 @@ export const TYPE_FIELD_META = {
       group: "Classification",
     },
     season_part: { label: "Season Part", group: "Classification" },
-    length_ep_min: {
+    runtime_min: {
       label: "Episode Runtime (min)",
       control: "number",
       group: "Progress",

@@ -5221,3 +5221,34 @@ shown buttons that answered 401.
   retired `Anime` token onto `ACG` is gone: `Anime` is a type again.
 - **Rejected: keep `ACG` and add `Anime`/`Manga` beside it.** Two ways to say
   the same franchise would split every type test in two.
+
+### Series types: anime JP/TW dates, runtimes, a TV airing type (2026-11-17)
+
+- **An anime has a JP and a TW release date, as an anime movie does.** The
+  one `release_date` became `release_date_jp` and `release_date_tw`, and
+  revision `s1e2rfields3` copied the old value into both, since it stood for
+  both. **The season is the JP airing's**: `release_season`, Seasonal, the
+  catalogue's season counts and `?airing_season=` all read the year of
+  `release_date_jp`, and `RELEASE_PRIORITY["anime"]` is JP then TW. The
+  downgrade folds the pair back JP-first and loses a TW date that differed.
+- **MAL fills both dates, except on a Movie.** MAL knows the Japanese
+  airing; for a TV series the Taiwanese simulcast lands on the same date, so
+  copying it is right far more often than leaving TW blank. A movie's
+  Taiwanese theatrical release is a separate date MAL does not know, so an
+  entry typed `Movie` gets JP only. The entry's own `airing_type` decides,
+  not MAL's, so retyping an entry changes what Fill writes.
+- **MAL runtimes from 22 to 26 minutes are stored as 24.** MAL lists the
+  same half-hour TV slot anywhere in that band - with or without recap,
+  preview and credits - so storing it verbatim would make series that are the
+  same length read as different. Checked against 50 real Tenrai records:
+  normal TV series sat at 23 (Kimetsu no Yaiba, Naruto, Death Note), 24, 25
+  (Bakemonogatari, GTO) and 26 (Angel Beats!), and none landed just outside.
+  The band is `TV_EPISODE_BAND` in `tenrai_utils.py`, applies to autofill
+  only, and applies whatever the entry's type: a movie listed per segment at
+  22 minutes (Byousoku 5 Centimeter) is stored as 24 too.
+- **A TV show's airing type is `TV` or `Special`, default `TV`.** The column
+  carries a server default, so every existing show became `TV` when it was
+  added, and a sheet with no such header restores new shows as `TV`.
+- **Cartoon's `length_ep_min` is `runtime_min`**, the name anime and TV
+  show use, and cartoon's airing types lose `OVA`: no cartoon used it.
+- **Novel's `read_order` is gone**, values included. Comic keeps its own.

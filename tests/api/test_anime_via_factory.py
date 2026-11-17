@@ -15,9 +15,9 @@ from app import models
 def test_anime_list_filters_by_airing_season(client, db_session, sample_franchise):
     fid = sample_franchise.system_id
     a = models.Anime(system_id=uuid.uuid4(), franchise_id=fid, anime_name_en="Spring One",
-                     release_season="SPR", release_date="2024-04")
+                     release_season="SPR", release_date_jp="2024-04")
     b = models.Anime(system_id=uuid.uuid4(), franchise_id=fid, anime_name_en="Winter One",
-                     release_season="WIN", release_date="2024-01")
+                     release_season="WIN", release_date_jp="2024-01")
     db_session.add_all([a, b])
     db_session.flush()
 

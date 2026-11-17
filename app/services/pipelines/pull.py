@@ -482,10 +482,22 @@ def drop_non_columns(model, payload: dict) -> dict:
 # Headers an older sheet carries for a column that has since been renamed, and
 # that the tab's parser still reads into the new column. They back no column,
 # but they are not stale either, so unexpected_headers does not report them.
+# A renamed column: the old header, and the new columns its parser reads it
+# into (formatter._renamed). Those columns are not in an old sheet's header,
+# so the header filter in execute_pull_specific would drop them; they are put
+# back when the sheet carries the old header and none of the new ones, so a
+# current sheet is read exactly as written.
+RENAMED_COLUMNS: dict[str, dict[str, tuple[str, ...]]] = {
+    # One release date became the JP and the TW one; it stood for both.
+    "Anime": {"release_date": ("release_date_jp", "release_date_tw")},
+    "Cartoons": {"length_ep_min": ("runtime_min",)},
+}
+
 RENAMED_HEADERS: dict[str, frozenset[str]] = {
     # `option` became `title`; parse_game_choice_edge_from_sheet derives the
     # edge's kind and title from it.
     "Game Choice Edge": frozenset({"option"}),
+    **{tab: frozenset(renames) for tab, renames in RENAMED_COLUMNS.items()},
 }
 
 # Headers an older sheet carries for a column that no longer exists at all and
@@ -495,6 +507,8 @@ RENAMED_HEADERS: dict[str, frozenset[str]] = {
 RETIRED_HEADERS: dict[str, frozenset[str]] = {
     # users.list_is_public: everything per user is private to its account.
     "Users": frozenset({"list_is_public"}),
+    # novel.read_order was dropped with its values.
+    "Novel": frozenset({"read_order"}),
 }
 
 
@@ -1194,6 +1208,14 @@ def execute_pull_specific(
             for key in ("_legacy_owner_type", "_legacy_owner_id"):
                 if key in parsed_all:
                     clean_header_dict[key] = parsed_all[key]
+
+        # And for a tab written before a column was renamed (RENAMED_COLUMNS).
+        for legacy, columns in RENAMED_COLUMNS.get(tab_name, {}).items():
+            if legacy in raw_header_dict and not any(
+                column in raw_header_dict for column in columns
+            ):
+                for column in columns:
+                    clean_header_dict[column] = parsed_all[column]
 
         # And for a Game Choice Edge tab written before edges had a kind: its
         # parser derives `kind` and `title` from the old `option` column, and

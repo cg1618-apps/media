@@ -51,11 +51,12 @@ MONTH_MAP = {
 ANIME_FIELDS_TO_FILL = [
     "airing_type",
     "airing_status",
-    "release_date",
+    "release_date_jp",
     "release_season",
     "mal_rating",
     "mal_rank",
     "ep_total",
+    "runtime_min",
     "cover_image_file",
 ]
 
@@ -137,6 +138,7 @@ TV_SHOW_FIELDS_TO_FILL = [
     "imdb_rating",
     "imdb_series_rating",
     "ep_total",
+    "runtime_min",
     "cover_image_file",
 ]
 

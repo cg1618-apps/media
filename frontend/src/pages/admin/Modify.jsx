@@ -155,6 +155,7 @@ function animeToForm(anime, allFranchises, allSeries, defaults) {
     ep_fin: anime.ep_fin ?? "",
     time_fin: anime.time_fin || "",
     ep_special: anime.ep_special ?? "",
+    runtime_min: anime.runtime_min ?? "",
     my_rating: anime.my_rating || "",
     mal_rating: anime.mal_rating ?? "",
     mal_rank: anime.mal_rank || "",
@@ -164,7 +165,8 @@ function animeToForm(anime, allFranchises, allSeries, defaults) {
     anilist_rank: anime.anilist_rank ?? "",
     anilist_popularity_rank: anime.anilist_popularity_rank ?? "",
     release_season: anime.release_season || "",
-    release_date: anime.release_date || "",
+    release_date_jp: anime.release_date_jp || "",
+    release_date_tw: anime.release_date_tw || "",
     broadcast_day: anime.broadcast_day || "",
     // API returns "23:00:00"; <input type="time"> wants "HH:MM".
     broadcast_time: (anime.broadcast_time || "").slice(0, 5),
@@ -763,6 +765,7 @@ export default function Modify() {
       series_id: t.series_id || null,
       series_text: s ? getDisplayName(s, "series") : "",
       season_part: t.season_part || "",
+      airing_type: t.airing_type || "",
       region: t.region || "",
       // original_source: see the comment in animeToForm - loaded from
       // GET /api/credits/tv-show/{id} via loadCreditsIntoForm(), not here.
@@ -771,6 +774,7 @@ export default function Modify() {
       watching_status: t.watching_status || md("tv-show").watching_status,
       ep_total: t.ep_total ?? "",
       ep_fin: t.ep_fin ?? "",
+      runtime_min: t.runtime_min ?? "",
       time_fin: t.time_fin || "",
       my_rating: t.my_rating || "",
       imdb_rating: t.imdb_rating || "",
@@ -811,7 +815,7 @@ export default function Modify() {
       my_rating: c.my_rating || "",
       imdb_rating: c.imdb_rating || "",
       imdb_series_rating: c.imdb_series_rating || "",
-      length_ep_min: c.length_ep_min ?? "",
+      runtime_min: c.runtime_min ?? "",
       // original_source: see the comment in animeToForm - loaded from
       // GET /api/credits/cartoon/{id} via loadCreditsIntoForm(), not here.
       release_date: c.release_date || "",
@@ -912,7 +916,6 @@ export default function Modify() {
       // loaded from GET /api/credits/novel/{id} via loadCreditsIntoForm().
       release_date: n.release_date ?? "",
       end_date: n.end_date ?? "",
-      read_order: n.read_order ?? "",
       units: n.units || [],
       mal_id: n.mal_id ?? "",
       mal_link: n.mal_link || "",

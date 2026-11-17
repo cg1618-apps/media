@@ -97,7 +97,6 @@ class Novel(Base, NameFallbackMixin):
     release_date = Column(String, nullable=True)
     end_date = Column(String, nullable=True)
 
-    read_order = Column(Float, nullable=True)
 
     mal_id = Column(Integer, nullable=True)
     mal_link = Column(String, nullable=True)
@@ -167,7 +166,7 @@ class NovelUnit(Base):
         index=True,
     )
     unit_kind = Column(String, nullable=False)
-    # Float, matching read_order and the half-volume convention on vol_fin.
+    # Float, matching the half-volume convention on vol_fin.
     # Deliberately NOT unique: the editor reorders by swapping adjacent
     # values, and a unique constraint would fire mid-swap.
     position = Column(Float, nullable=False)
