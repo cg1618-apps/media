@@ -15,9 +15,10 @@ Code map:
 | `app/services/pipelines/specs.py` | `PIPELINES` — what varies per media type (`PipelineSpec`) |
 | `app/services/pipelines/fill.py`, `replace.py` | named entry points (`execute_fill_anime`, `execute_replace_single_movie`, ...) bound to a spec |
 | `app/services/pipelines/tabs.py` | `SHEET_TABS` — the one registry of sheet tabs, in restore order |
-| `app/services/pipelines/backup.py` | `execute_backup` |
+| `app/services/pipelines/worker.py` | the advisory locks Backup and Pull hold (`claim`, every lock key) and the worker thread they run on (`start_worker`) |
+| `app/services/pipelines/backup.py` | `execute_backup`, `start_backup` |
 | `app/services/pipelines/clean.py` | `scan_orphans`, `apply_clean` — the diff against the sheet, and the reviewed delete |
-| `app/services/pipelines/pull.py` | `execute_pull_specific`, `execute_pull_all` |
+| `app/services/pipelines/pull.py` | `execute_pull_specific`, `execute_pull_all`, `start_pull` |
 | `app/services/calculation.py` | `run_calculate_all` and the cover-image bulk actions |
 | `app/utils/data_control_utils.py` | `log_data_control` (the audit row) and `log_deleted_record` |
 
@@ -29,9 +30,9 @@ All routes need **one** gate, declared on the router: `Depends(require_manage_pi
 
 `execute_backup(db, action_type)` in `backup.py`. Called automatically at the end of Fill All / Replace All (`action_type="Auto"`) and by the nightly `deploy/backup/sheets.sh`. `POST /api/data-control/backup` (`action_type="Manual"`) goes through `start_backup` instead, which runs the same steps on a worker thread (below).
 
-**One Backup at a time.** Every Backup first takes a PostgreSQL session-level advisory lock (`BACKUP_LOCK_KEY`) on a connection of its own, so the web app and the separate `sheets.sh` process exclude each other. A second Backup raises `BackupAlreadyRunning` before it reads or writes anything and logs no row; the route answers it with **409**, and a Fill All / Replace All that reaches its Auto Backup while another runs ends `Failed` with that message. Two writers on one sheet would each trim what the other wrote and share one per-minute Sheets quota. PostgreSQL drops the lock with its connection, so a process that dies cannot leave it held.
+**One Backup at a time, and never during a Pull.** Every Backup first takes a PostgreSQL session-level advisory lock (`BACKUP_LOCK_KEY`, declared in `worker.py`) on a connection of its own, so the web app and the separate `sheets.sh` process exclude each other. A second Backup — or any Backup while a Pull holds `PULL_LOCK_KEY`, since it would write a half-restored database over the sheet the Pull is reading — raises `BackupAlreadyRunning` before it reads or writes anything and logs no row; the route answers it with **409**, and a Fill All / Replace All that reaches its Auto Backup while another runs ends `Failed` with that message. Two writers on one sheet would each trim what the other wrote and share one per-minute Sheets quota. PostgreSQL drops the lock with its connection, so a process that dies cannot leave it held.
 
-**The manual route streams, and the Backup outlives it.** Production sits behind a Cloudflare Tunnel, which answers 524 to a request that sends nothing for about 100 seconds, and a full Backup (60 tabs at a few seconds each, longer through a Sheets 429 pause) takes longer than that. So `POST /backup` claims the lock, starts the Backup on a thread with its own session, and relays its progress as SSE: one `processing` event per tab (`current_entry` = tab name, `processed` / `total`), then `success` or `error`, with a `: keepalive` comment every 15 seconds (`BACKUP_KEEPALIVE_SECONDS`) while a tab is slow. The thread never waits on its listener: a reloaded page or a dropped connection stops the events, not the Backup, which finishes and writes its log row anyway — a sheet with some tabs new and some old is a worse restore point than either. The thread carries the request's context, so its log lines keep the starting request's `request_id`.
+**The manual route streams, and the Backup outlives it.** Production sits behind a Cloudflare Tunnel, which answers 524 to a request that sends nothing for about 100 seconds, and a full Backup (60 tabs at a few seconds each, longer through a Sheets 429 pause) takes longer than that. So `POST /backup` claims the lock, starts the Backup on a thread with its own session, and relays its progress as SSE: one `processing` event per tab (`current_entry` = tab name, `processed` / `total`), then `success` or `error`, with a `: keepalive` comment every 15 seconds (`STREAM_KEEPALIVE_SECONDS`) while a tab is slow. The relay is `_relay` in `data_control.py`, which Pull uses too. The thread never waits on its listener: a reloaded page or a dropped connection stops the events, not the Backup, which finishes and writes its log row anyway — a sheet with some tabs new and some old is a worse restore point than either. The thread carries the request's context, so its log lines keep the starting request's `request_id`.
 
 Steps, for each tab in `SHEET_TABS` order (section 2 lists it):
 
@@ -46,7 +47,7 @@ Outcome:
 |---|---|---|
 | all tabs written | `Backup` / `Backup` / `Success` | `execute_backup` returns `{"status": "success", "message": "All tabs backed up to Google Sheets"}`; the route streams it as the final `success` event |
 | any exception | `Backup` / `Backup` / `Failed` with `error_message` | `execute_backup` re-raises; the route streams a final `error` event with the message |
-| another Backup running | none | `BackupAlreadyRunning`; the route answers **409** |
+| another Backup, or a Pull, running | none | `BackupAlreadyRunning`; the route answers **409** |
 
 ---
 
@@ -670,11 +671,33 @@ without being able to overwrite it, and it is refused outside
 unreadable (`sheet_unavailable`) rather than empty. Procedure:
 [switching-environments.md](switching-environments.md#refreshing-a-development-database-from-production).
 
+**One Pull at a time, and never during a Backup.** `start_pull` takes
+`PULL_LOCK_KEY`, then refuses if `BACKUP_LOCK_KEY` is held — a Backup rewrites
+the sheet tab by tab, so a Pull reading it then would restore from a sheet half
+old and half new. Either refusal raises `PullAlreadyRunning` before any tab is
+read, and the route answers **409**. The held lock is read from `pg_locks`
+rather than by taking it, so checking never refuses the lock's owner. Of a
+Pull and a Backup that start in the same instant, each takes its own lock
+first and then sees the other's, so both refuse; neither can run beside the
+other.
+
+**The routes stream, and the Pull outlives them.** A Pull All reads every tab
+of the sheet, longer than the tunnel's ~100-second idle window, so `/pull`,
+`/pull/{key}` and `/pull/{tab_name}` work as Backup's route does: `start_pull`
+checks the tab name (an unknown one is **400** before anything starts), claims
+the lock, and runs the Pull on a thread with its own session, and `_relay`
+streams what it emits with the same 15-second keepalive. Pull All emits one
+`processing` event per tab in `TABS_IN_ORDER` (through `execute_pull_all`'s
+`on_progress`); a single tab emits one (1/1). The last event is the pipeline's
+own result dict, unchanged — the shapes in 3.1 and 3.2 — or `{"status":
+"error", "message"}` when Pull All raised. A dropped connection stops the
+events, not the Pull, which finishes and writes its log rows anyway.
+
 ### 3.1 One tab — `execute_pull_specific(db, tab_name, action_type, log_action)`
 
-Returns a status dict; the router turns `"status": "error"` into an HTTP error.
+Returns a status dict; the route streams it as the last event, `"status": "error"` included.
 
-1. **Unknown tab** → `{"status": "error", "message": "Unknown tab: ..."}` (400, nothing logged).
+1. **Unknown tab** → `{"status": "error", "message": "Unknown tab: ..."}` (nothing logged). The route never gets this far: `start_pull` refuses an unknown tab with **400** first.
 2. **Read** `get_all_raw_rows(tab_name)`. A `SheetsUnavailableError` (any read failure) logs `Pull {tab}` / `Failed` and returns `{"status": "error", "reason": "sheet_unavailable"}`. An outage is never mistaken for an empty tab.
 3. **Empty tab** (fewer than 2 rows) → logs `Success` and returns `processed: 0`.
    **Parents first**: a tab in `SELF_REFERENCES` (`Game` and `H-Game` on `base_game_id`, `Note` on `parent_id`) is reordered by `parents_first` so a row comes after any row of the same tab it cites. Those foreign keys are checked at once, not at commit, and Pull flushes as it goes, so a DLC the sheet lists above its base game would otherwise fail the whole tab. Rows with nothing to wait for keep the sheet's order. `Resources` is not reordered: its `parent_id` is deferred, and it reports skipped rows by sheet row number.
@@ -792,10 +815,10 @@ Skip-unreadable policy: a tab whose result has `reason == "sheet_unavailable"` i
 
 | Outcome | Master log row | Response |
 |---|---|---|
-| every tab restored | `Pull` / `Pull All` / `Success`, totals, `details_json` = `{tab: processed}` | 200 `{"status": "success", "details": {...}}` |
-| one or more tabs unreadable | `Failed`, `error_message` = `"Full Pull Pipeline incomplete. Tabs not pulled: ..."`, `details_json` = `{"pulled": ..., "unread": ...}` | raises `SheetsUnavailableError` (500) |
-| every tab pulled, some references unresolved | `Failed`, `error_message` = `"Full Pull Pipeline completed with N unresolved reference(s); those rows did not restore..."`, `details_json` = `{"pulled": ..., "unresolved_refs": [...], ...}` | 200 `{"status": "success", ..., "unresolved_refs": [...]}` |
-| any other error | `Failed` with the message - the session is rolled back first, so a flush that failed mid-tab cannot take the audit row down with it | re-raised (500) |
+| every tab restored | `Pull` / `Pull All` / `Success`, totals, `details_json` = `{tab: processed}` | last event `{"status": "success", "details": {...}}` |
+| one or more tabs unreadable | `Failed`, `error_message` = `"Full Pull Pipeline incomplete. Tabs not pulled: ..."`, `details_json` = `{"pulled": ..., "unread": ...}` | raises `SheetsUnavailableError`; last event `{"status": "error", "message"}` |
+| every tab pulled, some references unresolved | `Failed`, `error_message` = `"Full Pull Pipeline completed with N unresolved reference(s); those rows did not restore..."`, `details_json` = `{"pulled": ..., "unresolved_refs": [...], ...}` | last event `{"status": "success", ..., "unresolved_refs": [...]}` |
+| any other error | `Failed` with the message - the session is rolled back first, so a flush that failed mid-tab cannot take the audit row down with it | re-raised; last event `{"status": "error", "message"}` |
 
 `unresolved_refs` is checked **before** `credit_conflicts`, and like it the run
 is not raised: the caller needs the list to act on, and a raise would replace
@@ -1223,7 +1246,7 @@ Who logs:
 
 ## 11. SSE event shapes
 
-Fill, bulk Replace, Fill All and Replace All stream `text/event-stream`; every event is one line `data: {json}\n\n` built by `_sse(**payload)` in `runner.py`.
+Fill, bulk Replace, Fill All and Replace All stream `text/event-stream`; every event is one line `data: {json}\n\n` built by `_sse(**payload)` in `runner.py`. Backup and Pull stream the same framing through `_relay` in `data_control.py`, with `: keepalive` comments between events; their `processing` events carry the tab name as `current_entry`, and their last event is described in sections 1 and 3.
 
 | `status` | Fields | When |
 |---|---|---|
@@ -1247,10 +1270,10 @@ All routes require `manage.pipelines`, declared on the router; the access mode i
 | POST | `/fill/{key}` | — | SSE | Fill one type (all fifteen keys, studio, seiyuu and character included) |
 | POST | `/replace/{key}` | — | SSE | bulk Replace one type; **not registered for `comic`** (`replace_select is None`) or `studio` / `seiyuu` / `character` (`fill_only`) — `game` (IGDB, then Steam) and `h-game` (DLsite, IGDB, Steam) are registered |
 | POST | `/replace/{key}/{entry_id}` | path `entry_id` = `system_id` | JSON `{"status": "success", "message"}`; 404 when the entry is missing, 500 on failure | single Replace (the twelve media keys; **not registered for `studio`, `seiyuu` or `character`**) |
-| POST | `/backup` | — | SSE (`processing` per tab, then `success` / `error`; keepalive comments); **409** while another Backup runs | Backup every tab; finishes even if the client disconnects |
-| POST | `/pull` | — | JSON `{"status": "success", "details": {tab: processed}}`; 500 when any tab was unreadable or failed | Pull All |
-| POST | `/pull/manga`, `/pull/novel`, `/pull/comic`, `/pull/cartoon` | — | JSON `{"status", "processed", "rows_added", "rows_updated"}` | shortcut to the `Manga`, `Novel`, `Comic`, `Cartoons` tabs (registered from `MEDIA_TYPE_FOR_TAB` for those four media types only) |
-| POST | `/pull/{tab_name}` | path = exact tab name from section 2, URL-encoded (`/pull/Anime`, `/pull/Anime%20Movie`, `/pull/TV%20Shows`) | same as above; 400 `Unknown tab: ...` for anything else | Pull one tab |
+| POST | `/backup` | — | SSE (`processing` per tab, then `success` / `error`; keepalive comments); **409** while another Backup or a Pull runs | Backup every tab; finishes even if the client disconnects |
+| POST | `/pull` | — | SSE (`processing` per tab, then Pull All's result `{"status": "success", "details": {tab: processed}, ...}`, or `{"status": "error", "message"}` when any tab was unreadable or failed; keepalive comments); **409** while another Pull or a Backup runs | Pull All; finishes even if the client disconnects |
+| POST | `/pull/manga`, `/pull/novel`, `/pull/comic`, `/pull/cartoon` | — | SSE (one `processing`, then the tab's result `{"status", "processed", "rows_added", "rows_updated"}`, `skipped` or `error`); **409** as `/pull` | shortcut to the `Manga`, `Novel`, `Comic`, `Cartoons` tabs (registered from `MEDIA_TYPE_FOR_TAB` for those four media types only) |
+| POST | `/pull/{tab_name}` | path = exact tab name from section 2, URL-encoded (`/pull/Anime`, `/pull/Anime%20Movie`, `/pull/TV%20Shows`) | same as above; 400 `Unknown tab: ...` before the stream for anything else | Pull one tab |
 | GET | `/clean/scan` | — | JSON `{tabs, totals, last_backup_at, anomalies}`; **503** when the sheet is unreadable or a tab is empty | find rows the sheet no longer mentions; read-only, logs nothing |
 | POST | `/clean/apply` | body `{"items": [{"tab", "system_id"}]}` | JSON `{deleted, per_tab, skipped}`; **503** as above, and nothing is deleted | re-scan, then delete only the named ids that are still orphans |
 | POST | `/calculate/all` | — | JSON `{"status", "message"}`; 500 on failure | Calculate All |

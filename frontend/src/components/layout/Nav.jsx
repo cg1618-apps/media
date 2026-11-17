@@ -21,7 +21,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { canSeeGatedType } from "../../lib/gatedTypes";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useToast } from "../../hooks/useToast";
-import { backupToast, runBackup } from "../../api/backup";
+import { backupToast, runBackup } from "../../api/sheets";
 import {
   NAV_SECTIONS,
   visibleSections,

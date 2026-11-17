@@ -1,14 +1,11 @@
 """Backup pipeline: dump the database to Google Sheets."""
 
-import contextvars
 import logging
 import threading
 from typing import Callable, Optional
 
-from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.database import engine
 from app.services.domain.character_tags import (
     character_tag_sheet_headers,
     character_tag_sheet_rows,
@@ -16,6 +13,15 @@ from app.services.domain.character_tags import (
 from app.services.domain.credits import sheet_link_headers, sheet_link_rows
 from app.services.integrations.sheets import bulk_overwrite_sheet
 from app.services.pipelines.tabs import SHEET_TABS
+from app.services.pipelines.worker import (
+    BACKUP_LOCK_KEY,
+    PULL_LOCK_KEY,
+    AlreadyRunning,
+    Claim,
+    Progress,
+    claim,
+    start_worker,
+)
 from app.utils.data_control_utils import log_data_control
 from app.utils.formatter import (
     format_for_sheet,
@@ -24,63 +30,28 @@ from app.utils.formatter import (
 
 logger = logging.getLogger(__name__)
 
-# (tab name, tabs written so far, total tabs)
-Progress = Callable[[str, int, int], None]
-
 # One Backup at a time, across every process on the database: the web app and
 # the nightly `deploy/backup/sheets.sh`, which runs execute_backup in a
 # process of its own. Two writers on one sheet each trim what the other wrote
 # and share one per-minute Sheets quota, so a second run only makes the first
-# slower. A SESSION-level advisory lock on a connection of its own: it spans
-# the Backup's many commits, and PostgreSQL drops it with the connection if
-# the process dies, so it can never be left stale.
-BACKUP_LOCK_KEY = 1618_0001
+# slower. Nor while a Pull runs: the database is half restored, and writing it
+# over the sheet the Pull is reading from would lose the rest. See worker.py.
 
 
-class BackupAlreadyRunning(RuntimeError):
-    """Another Backup holds the sheet; this one was refused before writing."""
+class BackupAlreadyRunning(AlreadyRunning):
+    """Another Backup, or a Pull, holds the sheet; this one was refused before writing."""
 
 
-class BackupClaim:
-    """The held advisory lock. release() is idempotent."""
-
-    def __init__(self, connection):
-        self._connection = connection
-
-    def release(self) -> None:
-        connection, self._connection = self._connection, None
-        if connection is None:
-            return
-        try:
-            connection.execute(
-                text("SELECT pg_advisory_unlock(:key)"), {"key": BACKUP_LOCK_KEY}
-            )
-        except Exception:
-            # The lock lives on the pooled DBAPI connection. Returned to the
-            # pool still holding it, it would refuse every Backup until that
-            # connection happened to be recycled, so throw the connection away
-            # instead - PostgreSQL releases the lock when it closes.
-            logger.exception("Could not release the Backup lock; discarding its connection.")
-            connection.invalidate()
-        finally:
-            connection.close()
-
-
-def claim_backup() -> BackupClaim:
-    connection = engine.connect().execution_options(isolation_level="AUTOCOMMIT")
-    try:
-        held = connection.execute(
-            text("SELECT pg_try_advisory_lock(:key)"), {"key": BACKUP_LOCK_KEY}
-        ).scalar()
-    except Exception:
-        connection.close()
-        raise
-    if not held:
-        connection.close()
-        raise BackupAlreadyRunning(
-            "A backup is already running. Its result will appear in the Data Control log."
-        )
-    return BackupClaim(connection)
+def claim_backup() -> Claim:
+    return claim(
+        BACKUP_LOCK_KEY,
+        BackupAlreadyRunning,
+        "A backup is already running. Its result will appear in the Data Control log.",
+        excludes=[(
+            PULL_LOCK_KEY,
+            "A pull is running. Back up once it has finished.",
+        )],
+    )
 
 
 def execute_backup(
@@ -91,13 +62,13 @@ def execute_backup(
     the target tabs in Google Sheets dynamically based on the DB schema.
 
     Raises BackupAlreadyRunning, and writes and logs nothing, while another
-    Backup is in flight.
+    Backup or a Pull is in flight.
     """
-    claim = claim_backup()
+    held = claim_backup()
     try:
         return _write_backup(db, action_type, on_progress)
     finally:
-        claim.release()
+        held.release()
 
 
 def start_backup(
@@ -116,7 +87,7 @@ def start_backup(
     connection must not stop a Backup halfway, because a sheet with some tabs
     new and some old is a worse restore point than either.
     """
-    claim = claim_backup()
+    held = claim_backup()
 
     def progress(tab_name: str, done: int, total: int) -> None:
         emit({"status": "processing", "current_entry": tab_name,
@@ -131,19 +102,8 @@ def start_backup(
             emit({"status": "error", "message": str(e)})
         finally:
             db.close()
-            claim.release()
 
-    # copy_context: the worker's log lines keep the request_id of the request
-    # that started it, so one Backup reads as one run in the log viewer.
-    worker = threading.Thread(
-        target=contextvars.copy_context().run, args=(run,), name="backup", daemon=True
-    )
-    try:
-        worker.start()
-    except Exception:
-        claim.release()
-        raise
-    return worker
+    return start_worker("backup", held, run)
 
 
 def _write_backup(db: Session, action_type: str, on_progress: Optional[Progress]) -> dict:

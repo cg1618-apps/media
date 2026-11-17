@@ -2439,13 +2439,13 @@ see [authorization.md](authorization.md) for why that is accepted.
 
 | Method | Path               | Description                                                                                   |
 | ------ | ------------------ | --------------------------------------------------------------------------------------------- |
-| `POST` | `/backup`          | Backup entire DB to Google Sheets. Streams SSE progress (one event per tab, then `success` / `error`); **409** while another Backup runs. The Backup finishes and logs even if the client disconnects. |
-| `POST` | `/pull`            | Pull all tabs from Google Sheets, entities before entries (System Options → System Option Scope → Person → Person Role → Studio → System Configs → Collection → Franchise → Series → Anime → ...). Returns JSON. See `external-apis.md` for the full order and why Backup must run before Pull. |
-| `POST` | `/pull/manga`      | Pull Manga tab from Google Sheets. Returns JSON.                                              |
-| `POST` | `/pull/novel`      | Pull Novel tab from Google Sheets. Returns JSON.                                              |
-| `POST` | `/pull/comic`      | Pull Comic tab from Google Sheets. Returns JSON.                                              |
-| `POST` | `/pull/cartoon`    | Pull Cartoon tab from Google Sheets. Returns JSON.                                            |
-| `POST` | `/pull/{tab_name}` | Pull a single tab by name. Returns JSON. An unknown tab name is **400** (`Unknown tab: …`). The four literal `/pull/<type>` routes above are generated from `MEDIA_TYPE_FOR_TAB` for manga/novel/comic/cartoon and declared before this one. |
+| `POST` | `/backup`          | Backup entire DB to Google Sheets. Streams SSE progress (one event per tab, then `success` / `error`); **409** while another Backup or a Pull runs. The Backup finishes and logs even if the client disconnects. |
+| `POST` | `/pull`            | Pull all tabs from Google Sheets, entities before entries (System Options → System Option Scope → Person → Person Role → Studio → System Configs → Collection → Franchise → Series → Anime → ...). Streams SSE progress (one `processing` event per tab, then Pull All's result dict as the last event, or `{status: "error", message}`); **409** while another Pull or a Backup runs. The Pull finishes and logs even if the client disconnects. See `external-apis.md` for the full order and why Backup must run before Pull. |
+| `POST` | `/pull/manga`      | Pull Manga tab from Google Sheets. Streams SSE like `/pull/{tab_name}`.                       |
+| `POST` | `/pull/novel`      | Pull Novel tab from Google Sheets. Streams SSE like `/pull/{tab_name}`.                       |
+| `POST` | `/pull/comic`      | Pull Comic tab from Google Sheets. Streams SSE like `/pull/{tab_name}`.                       |
+| `POST` | `/pull/cartoon`    | Pull Cartoon tab from Google Sheets. Streams SSE like `/pull/{tab_name}`.                      |
+| `POST` | `/pull/{tab_name}` | Pull a single tab by name. Streams SSE: one `processing` event (1/1), then the tab's result dict (`success` with `processed` / `rows_added` / `rows_updated`, `skipped`, or `error` with `message`) as the last event; **409** as `/pull`. An unknown tab name is **400** (`Unknown tab: …`) before the stream begins. The four literal `/pull/<type>` routes above are generated from `MEDIA_TYPE_FOR_TAB` for manga/novel/comic/cartoon and declared before this one. |
 
 ### Calculate
 

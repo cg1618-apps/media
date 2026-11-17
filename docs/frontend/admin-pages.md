@@ -63,8 +63,16 @@ label reference and the RBAC pages — never the catalogue editors.
   holding the seiyuu role, from MAL's people record) and **Character**
   (`/fill/character`, characters with a MAL link, from MAL's character
   record). Fill All runs all three.
-- **Sync actions.** Backup, Pull All, Pull `<tab>`, Calculate All and the
-  cover-image maintenance endpoints are plain JSON calls with a busy state.
+- **Sync actions.** **Pull All**, Pull `<tab>` and **Push All Data**
+  (Backup) run `runPull` / `runBackup` from `api/sheets.js`, which read the
+  endpoint's event stream: the busy button counts tabs (`12/60`), and the
+  toast is success, an error naming the server's message (a failing tab, an
+  unknown tab), or a **warning** - never a failure - when the other run or
+  a second one already holds the sheet (409), when a tab was skipped for
+  want of `admin.authz`, or when the stream drops before the run ends, since
+  the run keeps going on the server and its result lands in the log table,
+  which reloads either way. Calculate All and the cover-image maintenance
+  endpoints are plain JSON calls with a busy state.
 - **Calculate & Fix.** Calculate All (`POST /api/data-control/calculate/all`),
   Sync Cast, CN Display Names, Find Duplicates, With Remarks, Check & Download
   Covers, Remove Uncast Characters, Free Games With a List Price and Bought

@@ -10,7 +10,7 @@ single actions and stay hand-written below.
 import asyncio
 import json
 import logging
-from typing import Optional
+from typing import Callable, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -53,11 +53,12 @@ from app.services.domain.uncast_characters import (
     remove_uncast_characters,
 )
 from app.services.pipelines import fill, replace
-from app.services.pipelines.backup import BackupAlreadyRunning, start_backup
+from app.services.pipelines.backup import start_backup
 from app.services.pipelines.clean import CleanAborted, apply_clean, scan_orphans
-from app.services.pipelines.pull import execute_pull_all, execute_pull_specific
+from app.services.pipelines.pull import UnknownTab, start_pull
 from app.services.pipelines.specs import PIPELINES
 from app.services.pipelines.tabs import MEDIA_TYPE_FOR_TAB
+from app.services.pipelines.worker import AlreadyRunning, Emit
 from app.services.rbac.permissions import PERM_ADMIN_AUTHZ
 from app.services.rbac.resolver import Viewer, require_manage_pipelines
 from app.utils.data_control_utils import log_data_control
@@ -182,39 +183,42 @@ for _spec in PIPELINES.values():
 
 # Production sits behind a Cloudflare Tunnel, which answers 524 to a request
 # that sends nothing for ~100 s. A tab paused on a Sheets 429 waits 60-120 s,
-# so the stream says something well inside that window even when the Backup
-# has nothing new to report.
-BACKUP_KEEPALIVE_SECONDS = 15.0
+# so the stream says something well inside that window even when the run has
+# nothing new to report.
+STREAM_KEEPALIVE_SECONDS = 15.0
 
 
-@router.post("/backup", summary="Back up every table to Google Sheets (SSE)")
-async def trigger_backup_all():
+def _relay(start: Callable[[Emit], object]) -> StreamingResponse:
     """
-    Starts the Backup on a worker of its own and relays its progress as SSE.
+    Start a worker-run pipeline and relay what it emits as SSE, until an event
+    whose status is not `processing`.
 
-    409 while another Backup runs. Once started, the Backup finishes and logs
-    its row whether or not anyone is still listening - see start_backup.
+    `start(emit)` claims and starts the run; a refusal (AlreadyRunning) is a
+    409 and an UnknownTab a 400, both before the stream begins. Once started,
+    the run finishes whether or not anyone is still listening.
     """
     loop = asyncio.get_running_loop()
     events: asyncio.Queue = asyncio.Queue()
 
     def emit(event: dict) -> None:
         # Never raise into the worker: a closed loop (the server shutting
-        # down) means nobody is listening, not that the Backup failed.
+        # down) means nobody is listening, not that the run failed.
         try:
             loop.call_soon_threadsafe(events.put_nowait, event)
         except RuntimeError:
             pass
 
     try:
-        start_backup(SessionLocal, emit, action_type="Manual")
-    except BackupAlreadyRunning as exc:
+        start(emit)
+    except AlreadyRunning as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except UnknownTab as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     async def relay():
         while True:
             try:
-                event = await asyncio.wait_for(events.get(), BACKUP_KEEPALIVE_SECONDS)
+                event = await asyncio.wait_for(events.get(), STREAM_KEEPALIVE_SECONDS)
             except asyncio.TimeoutError:
                 yield ": keepalive\n\n"
                 continue
@@ -225,38 +229,48 @@ async def trigger_backup_all():
     return _stream(relay())
 
 
-@router.post("/pull", summary="Restore every tab from Google Sheets")
-def trigger_pull_all(
-    db: Session = Depends(get_db),
-    viewer: Viewer = Depends(require_manage_pipelines),
-):
+@router.post("/backup", summary="Back up every table to Google Sheets (SSE)")
+async def trigger_backup_all():
+    """
+    Starts the Backup on a worker of its own and relays its progress as SSE.
+
+    409 while another Backup or a Pull runs. Once started, the Backup finishes
+    and logs its row whether or not anyone is still listening - see
+    start_backup.
+    """
+    return _relay(lambda emit: start_backup(SessionLocal, emit, action_type="Manual"))
+
+
+def _pull(viewer: Viewer, tab_name: Optional[str] = None) -> StreamingResponse:
     # The router-level gate already established manage.pipelines; this reads
     # the same viewer to decide whether the three authorization tabs restore
     # too. See AUTHZ_TABS in tabs.py for why they are separate.
-    return JSONResponse(
-        content=execute_pull_all(
-            db,
+    return _relay(
+        lambda emit: start_pull(
+            SessionLocal,
+            emit,
+            tab_name=tab_name,
             action_type="Manual",
             may_restore_authz=viewer.has(PERM_ADMIN_AUTHZ),
         )
     )
 
 
+@router.post("/pull", summary="Restore every tab from Google Sheets (SSE)")
+async def trigger_pull_all(viewer: Viewer = Depends(require_manage_pipelines)):
+    """
+    Starts Pull All on a worker of its own and relays its progress as SSE; the
+    last event is Pull All's result. 409 while another Pull or a Backup runs.
+    """
+    return _pull(viewer)
+
+
 def _register_pull_route(key: str, tab_name: str) -> None:
-    @router.post(f"/pull/{key}", summary=f"Restore the {tab_name} tab", name=f"pull_{key}")
-    def trigger_pull(
-        db: Session = Depends(get_db),
-        viewer: Viewer = Depends(require_manage_pipelines),
-    ):
-        return _json(
-            execute_pull_specific(
-                db,
-                tab_name,
-                action_type="Manual",
-                log_action=True,
-                may_restore_authz=viewer.has(PERM_ADMIN_AUTHZ),
-            )
-        )
+    @router.post(
+        f"/pull/{key}", summary=f"Restore the {tab_name} tab (SSE)", name=f"pull_{key}"
+    )
+    async def trigger_pull(viewer: Viewer = Depends(require_manage_pipelines)):
+        return _pull(viewer, tab_name)
 
 
 # Per-type shortcuts the admin page links to; every other tab goes through
@@ -266,21 +280,11 @@ for _tab, _media in MEDIA_TYPE_FOR_TAB.items():
         _register_pull_route(_media, _tab)
 
 
-@router.post("/pull/{tab_name}", summary="Restore one sheet tab by name")
-def trigger_pull_specific(
-    tab_name: str,
-    db: Session = Depends(get_db),
-    viewer: Viewer = Depends(require_manage_pipelines),
+@router.post("/pull/{tab_name}", summary="Restore one sheet tab by name (SSE)")
+async def trigger_pull_specific(
+    tab_name: str, viewer: Viewer = Depends(require_manage_pipelines)
 ):
-    return _json(
-        execute_pull_specific(
-            db,
-            tab_name,
-            action_type="Manual",
-            log_action=True,
-            may_restore_authz=viewer.has(PERM_ADMIN_AUTHZ),
-        )
-    )
+    return _pull(viewer, tab_name)
 
 
 # ---------------------------------------------------------------------------
