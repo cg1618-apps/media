@@ -1,21 +1,25 @@
 name: Tests
 
-# Pull requests only. There is deliberately no `push: branches: [main]` trigger.
+# Pull requests and the merge queue. There is deliberately no `push` trigger.
 #
-# It used to be here, and it was the backstop for a green check that had gone
-# stale: a pull request is tested against the base as it was when the check ran,
-# so merging a second pull request first meant the combination that actually
-# landed had been tested by nothing. The re-run on main caught that - after the
-# merge, and after the deploy, so it reported rather than prevented.
+# A pull request is tested against the base as it was when the check ran, so
+# on its own a green tick says only that the change works by itself. What
+# makes the tree that lands a tested tree differs by branch:
 #
-# The repository ruleset now sets `strict_required_status_checks_policy` on both
-# main and dev, which requires a branch to be up to date before it merges. The
-# check therefore always ran against the base as it is, the tree tested is the
-# tree that lands, and a second run on main would test a tree it had just
-# tested. Turning that off is what made removing this safe; putting it back
-# without the ruleset would leave main unverified.
+# - `dev` merges through a merge queue. A queued pull request is tested again
+#   as a `merge_group` run, on `dev` plus every pull request queued ahead of
+#   it, and lands only if that passes - so the combination that reaches `dev`
+#   is exactly the one tested, without bringing branches up to date by hand.
+# - `main` takes one release pull request at a time, and the ruleset requires
+#   it to be up to date with `main` before it merges
+#   (`strict_required_status_checks_policy`), so its run tested the tree that
+#   deploys.
+#
+# A re-run on push would test a tree one of those two had just tested. Putting
+# a push trigger back is only needed if either guarantee is removed.
 on:
   pull_request:
+  merge_group:
 
 jobs:
   test:
@@ -61,8 +65,11 @@ jobs:
       - name: Decide whether anything but documentation changed
         id: changes
         env:
-          BASE: ${{ github.event.pull_request.base.sha }}
-          HEAD: ${{ github.event.pull_request.head.sha }}
+          # A merge-queue run has no pull_request payload; its base and head
+          # are the merge group's. Without the fallback the diff would be
+          # empty, which runs the whole job - safe, but never the fast path.
+          BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
         run: |
           changed=$(git diff --name-only "$BASE...$HEAD")
           printf '%s\n' "$changed"
@@ -83,6 +90,21 @@ jobs:
       - name: Install backend dependencies
         if: steps.changes.outputs.code == 'true'
         run: pip install -r requirements-dev.txt
+
+      # Two migrations parented on the same revision merge cleanly in git and
+      # only collide in Alembic's revision graph. In a merge-queue run that is
+      # the combination being tested, and this says so in seconds rather than
+      # at the end of the suite (where test_migrations_build_the_schema.py
+      # would also fail). Needs no database: `heads` reads the revision files.
+      - name: One Alembic head
+        if: steps.changes.outputs.code == 'true'
+        run: |
+          heads=$(alembic heads)
+          echo "$heads"
+          if [ "$(echo "$heads" | grep -c .)" -ne 1 ]; then
+            echo "::error::More than one Alembic head. Reparent the newer revision's down_revision onto the other head (CLAUDE.md, \"Migrations and branches\")."
+            exit 1
+          fi
 
       - name: Lint backend
         if: steps.changes.outputs.code == 'true'
