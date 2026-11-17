@@ -264,7 +264,6 @@ function airingBadgeCls(status) {
   if (status === "Finished Airing") return "text-text-muted border border-border-strong";
   if (status === "Not Yet Aired") return "text-text-muted border border-border-strong";
   if (status === "Canceled") return "text-danger border border-danger";
-  if (status === "Rumored") return "text-text-faint border border-border";
   return "text-text-faint border border-border";
 }
 

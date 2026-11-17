@@ -35,7 +35,8 @@ const SECTIONS = [
   {
     key: "planned",
     label: "Planned",
-    statuses: ["Plan to Watch", "Watch When Airs"],
+    // Watch When Released is the films' spelling; planned counts both.
+    statuses: ["Plan to Watch", "Watch When Airs", "Watch When Released"],
   },
   {
     key: "might",

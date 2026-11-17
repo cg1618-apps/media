@@ -1,6 +1,6 @@
 # External APIs
 
-Last verified: 2026-11-16
+Last verified: 2026-11-17
 
 ## What this is for
 
@@ -203,7 +203,7 @@ entry columns — those columns were dropped by migration `dc1o2l3s4d5`. See
 
 ### Mapping for `anime_movies` — `map_tenrai_to_anime_movie_data`
 
-Same rules, except the date goes to `release_date_jp` and there is no `release_season`. The mapper also returns `ep_total`, but `autofill_anime_movie_from_mal` never writes it.
+Same rules, except the date goes to `release_date_jp`, there is no `release_season`, and the status goes to `release_status` in the film vocabulary: `Airing` and `Finished Airing` are `Released`, `Not Yet Aired` is `Not Released`. The mapper also returns `ep_total`, but `autofill_anime_movie_from_mal` never writes it. On an ONA, the filled `release_date_jp` is carried to `release_date_tw` as well.
 
 ### Mapping for `hentai` — `map_tenrai_to_anime_data`, four fields and two links
 
@@ -211,7 +211,7 @@ Hentai reads anime's record through anime's mapper, and `autofill_hentai_from_ma
 
 | Tenrai field | Column | Rule |
 |---|---|---|
-| `status` | `airing_status` | anime's mapping; fill-only |
+| `status` | `release_status` (anime movie) / `airing_status` (others) | anime's mapping, then the film vocabulary on an anime movie; fill-only |
 | `aired` | `release_date` | anime's mapping (precision from MAL's own aired string); fill-only |
 | `episodes` | `ep_total` | anime's mapping; fill-only |
 | `images` | `cover_image_file` | anime's URL choice; downloaded to `static/covers/hentai/` only when the entry has no cover |
@@ -254,6 +254,7 @@ Tenrai is the h-comic's **first** source, not its only one: [E-Hentai](#e-hentai
 | Column(s) | Rule |
 |---|---|
 | `airing_type`, `airing_status`, `release_season`, `release_date` / `release_date_jp`, `ep_total` (anime only), `serialization_status`, `release_date`, `end_date` | **Fill-only** — written only when the column is `None`. |
+| `release_status` (anime movie) | **Fill-only**, with `Not Released` - the status a new anime movie starts at - counting as unfilled, so MAL can move a film forward to `Released` but never back. |
 | Official site / Twitter (anime, anime movie only) | Not columns any more. `_write_tenrai_reference_rows` calls `upsert_main_source(db, media_type, entry.system_id, "reference", value, url)` for each of the two, which is itself fill-only at the row level: it adds a `media_source` `kind='reference', bucket='main'` row only when no such row exists yet for that vocabulary value, and never overwrites or removes one that does (even one with no `url`). |
 | `vol_total` / `vol_total_original`, `ch_total` | Fill-only, and **only when `serialization_status == "完結"`** — a running series' totals stay blank. |
 | `mal_rating`, `mal_rank` | **Overwritten** when `force_replace_ratings=True` (the default, and what every pipeline passes) and the fetched value is truthy; otherwise fill-only. |
@@ -377,7 +378,7 @@ TMDB (The Movie Database) is reached through its **Find** endpoint, so the looku
 | most common `episodes[].runtime` | `length_ep_min` | cartoon only, and **mapped but never written** — `autofill_cartoon_from_imdb` does not set the column, so it stays manual (falls back to show-level `episode_run_time[0]` inside the mapper). See [business-rules.md](business-rules.md) § known gaps. |
 | `air_date`, `episodes` | `_season_air_date`, `_episodes` | private; used by `_derive_tv_season_airing_status` |
 
-`airing_status` is **derived**, fill-only: movie / movie-cartoon compare TMDB's `release_date` with today (`<= today` → `"Finished Airing"`, else `"Not Yet Aired"`); TV / TV-cartoon use `_derive_tv_season_airing_status` — future season air date → `"Not Yet Aired"`, any episode missing a date or dated in the future → `"Airing"`, otherwise `"Finished Airing"`. Worked example: [notes/autofill-tv-show-example.md](notes/autofill-tv-show-example.md).
+A movie's `release_status` is **derived**, fill-only with `Not Released` counting as unfilled: TMDB's `release_date` on or before today → `"Released"`, else `"Not Released"`. A movie-cartoon's `airing_status` compares the same way (`<= today` → `"Finished Airing"`, else `"Not Yet Aired"`); TV / TV-cartoon use `_derive_tv_season_airing_status` — future season air date → `"Not Yet Aired"`, any episode missing a date or dated in the future → `"Airing"`, otherwise `"Finished Airing"`. Worked example: [notes/autofill-tv-show-example.md](notes/autofill-tv-show-example.md).
 
 ## OMDb
 

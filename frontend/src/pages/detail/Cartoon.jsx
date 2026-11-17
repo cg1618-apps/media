@@ -29,7 +29,7 @@ import {
 import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
-import { WATCHING_STATUSES } from "../../config/fieldOptions";
+import { AIRING_WATCHING_STATUSES } from "../../config/fieldOptions";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
@@ -426,7 +426,7 @@ export default function Cartoon() {
                   v ? "Added to Watch Next" : "Removed from Watch Next",
                 )
               }
-              statusOptions={WATCHING_STATUSES}
+              statusOptions={AIRING_WATCHING_STATUSES}
               ratingOptions={MY_RATINGS}
             />
           </TocSection>

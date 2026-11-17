@@ -44,6 +44,26 @@ describe("resolveDefaults", () => {
     expect(resolved.airing_status).toBe(defaultAnime().airing_status);
   });
 
+  it("drops a film default the film no longer has: airing_status, Watch When Airs", () => {
+    const resolved = resolveDefaults("movie", {
+      movie: {
+        defaults: {
+          airing_status: "Finished Airing",
+          watching_status: "Watch When Airs",
+          release_status: "Released",
+        },
+      },
+    });
+    expect("airing_status" in resolved).toBe(false);
+    expect(resolved.watching_status).toBe(defaultMovie().watching_status);
+    expect(resolved.release_status).toBe("Released");
+    // The mirror: the film spelling is kept.
+    expect(
+      resolveDefaults("movie", { movie: { defaults: { watching_status: "Watch When Released" } } })
+        .watching_status,
+    ).toBe("Watch When Released");
+  });
+
   it("drops stored keys that no longer exist on the form", () => {
     const resolved = resolveDefaults("anime", {
       anime: { defaults: { removed_field: "x", ep_total: "12" } },

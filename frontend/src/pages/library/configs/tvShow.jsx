@@ -37,7 +37,7 @@ const TV_LIBRARY_CONFIG = {
       key: "airingStatus",
       label: "Airing Status",
       type: "set",
-      options: ["Finished Airing", "Airing", "Not Yet Aired", "Canceled", "Rumored"],
+      options: ["Finished Airing", "Airing", "Not Yet Aired", "Canceled"],
       match: (item, active) => active.has(item.airing_status),
     },
     {

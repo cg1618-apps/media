@@ -75,7 +75,7 @@ export default function DashboardCard({
 
   const statusText = isReading
     ? anime.reading_status || "Might Read"
-    : anime.airing_status || "Unknown";
+    : anime.airing_status || anime.release_status || "Unknown";
 
   async function handleEpChange(newVal) {
     if (!canTrack) return;

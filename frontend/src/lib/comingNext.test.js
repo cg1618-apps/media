@@ -102,9 +102,11 @@ describe("selectComingNext", () => {
       // Right season, not a planning status.
       { system_id: "a4", release_season: "FAL", release_date: "2026-10-01", watching_status: "Might Watch" },
     ],
-    "anime-movie": [],
+    "anime-movie": [
+      { system_id: "am1", release_date_jp: "2026-11-13", watching_status: "Watch When Released" },
+    ],
     movie: [
-      { system_id: "m1", release_date_tw: "2026-12-20", watching_status: "Watch When Airs" },
+      { system_id: "m1", release_date_tw: "2026-12-20", watching_status: "Watch When Released" },
     ],
     "tv-show": [
       // Year only: no season, so left out.
@@ -122,10 +124,11 @@ describe("selectComingNext", () => {
   const ids = (groups) =>
     groups.map((g) => [g.type, g.items.map((i) => i.system_id)]);
 
-  it("groups Watch When Airs / Play When Released by type, types with nothing omitted", () => {
+  it("groups Watch When Airs / Released / Play When Released by type, types with nothing omitted", () => {
     const { airs } = selectComingNext(lists, FAL_2026);
     expect(ids(airs)).toEqual([
       ["anime", ["a1"]],
+      ["anime-movie", ["am1"]],
       ["movie", ["m1"]],
       ["game", ["g1"]],
     ]);
@@ -182,12 +185,22 @@ describe("selectComingNext", () => {
 describe("isUnreleased", () => {
   const today = new Date(2026, 8, 28);
 
-  it("reads airing_status for the watched types", () => {
+  it("reads airing_status for the airing types", () => {
     expect(isUnreleased({ airing_status: "Not Yet Aired" }, "anime", today)).toBe(true);
-    expect(isUnreleased({ airing_status: "Rumored" }, "movie", today)).toBe(true);
+    expect(isUnreleased({ airing_status: "Rumored" }, "anime", today)).toBe(false);
     expect(isUnreleased({ airing_status: "Airing" }, "tv-show", today)).toBe(false);
     expect(isUnreleased({ airing_status: "Finished Airing" }, "cartoon", today)).toBe(false);
     expect(isUnreleased({ airing_status: "Canceled" }, "anime", today)).toBe(false);
+  });
+
+  it("reads release_status for the two films, in their own vocabulary", () => {
+    for (const type of ["movie", "anime-movie"]) {
+      expect(isUnreleased({ release_status: "Not Released" }, type, today)).toBe(true);
+      expect(isUnreleased({ release_status: "Released" }, type, today)).toBe(false);
+      expect(isUnreleased({ release_status: "Canceled" }, type, today)).toBe(false);
+      // A game's value means nothing on a film.
+      expect(isUnreleased({ release_status: "Unreleased" }, type, today)).toBe(false);
+    }
   });
 
   it("reads release_status for games", () => {

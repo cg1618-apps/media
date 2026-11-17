@@ -26,6 +26,7 @@ import {
   getNovelProgress,
 } from "../../utils/media";
 import { focusStyle, thumbUrl } from "../../lib/covers";
+import { isFilmType, WAIT_FOR_RELEASE_STATUSES } from "../../config/fieldOptions";
 import { Chip, RatingStamp } from "../ui/primitives";
 import PlatformIcons from "./PlatformIcons";
 import LazyImage from "../ui/LazyImage";
@@ -46,19 +47,22 @@ const SPINE_LABEL = {
 };
 
 // The statuses the future variant's select offers, per status axis. A game
-// is on the play axis, so it must not be offered the watch vocabulary.
+// is on the play axis, so it must not be offered the watch vocabulary, and a
+// film waits with Watch When Released where the airing types wait with Watch
+// When Airs.
 const FUTURE_STATUS_OPTIONS = {
   watch: ["Might Watch", "Plan to Watch", "Watch When Airs"],
+  film: ["Might Watch", "Plan to Watch", "Watch When Released"],
   play: ["Might Play", "Plan to Play", "Play When Released"],
 };
 
 // What the bolt does on the future variant: the column that says a title is
-// still unreleased, and the value that says it is out. A game carries
-// release_status where the watched types carry airing_status.
+// still unreleased, and the value that says it is out. A game and a film
+// carry release_status where the airing types carry airing_status.
 const BOLT_RELEASE = {
   anime: { field: "airing_status", value: "Airing" },
-  "anime-movie": { field: "airing_status", value: "Finished Airing" },
-  movie: { field: "airing_status", value: "Finished Airing" },
+  "anime-movie": { field: "release_status", value: "Released" },
+  movie: { field: "release_status", value: "Released" },
   "tv-show": { field: "airing_status", value: "Airing" },
   cartoon: { field: "airing_status", value: "Airing" },
   game: { field: "release_status", value: "Released" },
@@ -615,7 +619,8 @@ export default function MediaCard({
   const imageUrl = getCoverUrl(data.cover_image_file);
   const currentStatus = data[statusField] || FALLBACK_STATUS[statusType];
   const btnConfig = getCardStatusConfig(type, currentStatus);
-  const futureOptions = FUTURE_STATUS_OPTIONS[statusType] || [];
+  const futureOptions =
+    FUTURE_STATUS_OPTIONS[isFilmType(type) ? "film" : statusType] || [];
   const boltRelease = BOLT_RELEASE[type];
   const needsExtra = !futureOptions.includes(currentStatus);
 
@@ -679,7 +684,8 @@ export default function MediaCard({
       applyBoltAction(null);
       return;
     }
-    if (currentStatus === "Watch When Airs") {
+    // Waiting on the release, in either spelling: the release starts it.
+    if (WAIT_FOR_RELEASE_STATUSES.includes(currentStatus)) {
       applyBoltAction("Active Watching");
       return;
     }

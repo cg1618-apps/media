@@ -78,7 +78,8 @@ function GroupRail({ label, count }) {
 }
 
 const WATCHING_STATUS_GROUPS = {
-  Planned: ["Plan to Watch", "Watch When Airs"],
+  // Watch When Released is the two films' spelling of Watch When Airs.
+  Planned: ["Plan to Watch", "Watch When Airs", "Watch When Released"],
   Watching: ["Active Watching", "Passive Watching", "Paused"],
   Completed: COMPLETED_STATUSES,
   Dropped: ["Temp Dropped", "Dropped", "Won't Watch"],
@@ -199,7 +200,7 @@ export default function FranchisePage() {
   const [movSort, setMovSort] = useState("release_date");
   const [movGroupBySeries, setMovGroupBySeries] = useState(true);
   const [movFilters, setMovFilters] = useState({
-    airingStatus: new Set(),
+    releaseStatus: new Set(),
     watchingStatus: new Set(),
   });
 
@@ -1046,8 +1047,8 @@ export default function FranchisePage() {
   const filteredAndSortedMovies = useMemo(() => {
     let result = movieList.filter((m) => {
       if (
-        movFilters.airingStatus.size > 0 &&
-        !movFilters.airingStatus.has(m.airing_status)
+        movFilters.releaseStatus.size > 0 &&
+        !movFilters.releaseStatus.has(m.release_status)
       )
         return false;
       if (movFilters.watchingStatus.size > 0) {
@@ -2299,15 +2300,15 @@ export default function FranchisePage() {
               <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
               {[
-                ["Finished", "Finished Airing"],
-                ["Not Aired", "Not Yet Aired"],
+                ["Released", "Released"],
+                ["Not Released", "Not Released"],
               ].map(([label, val]) => (
                 <button
                   key={val}
                   onClick={() =>
-                    toggleSetFilter(setMovFilters, "airingStatus", val)
+                    toggleSetFilter(setMovFilters, "releaseStatus", val)
                   }
-                  className={pillCls(movFilters.airingStatus.has(val))}
+                  className={pillCls(movFilters.releaseStatus.has(val))}
                 >
                   {label}
                 </button>

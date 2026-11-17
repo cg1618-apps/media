@@ -21,7 +21,7 @@ function respond(url) {
         system_id: "m1",
         anime_movie_name_en: "Suzume",
         franchise_id: "f1",
-        airing_status: "Finished Airing",
+        release_status: "Released",
         mal_rating: "7.81",
         watching_status: "Completed",
         my_rating: "A",
@@ -168,7 +168,7 @@ describe("a library for a viewer without a list", () => {
 
   it("shows a guest no status filter, my-rating sort, status or plan-flag column", async () => {
     await openAnimeMovieLibrary();
-    expect(screen.getByText("Airing Status")).toBeInTheDocument();
+    expect(screen.getByText("Release Status")).toBeInTheDocument();
     expect(screen.queryByText("Watch Status")).not.toBeInTheDocument();
 
     expect(sortLabels()).toContain("Sort: MAL Rating");
@@ -185,7 +185,7 @@ describe("a library for a viewer without a list", () => {
     permissions = ["self.list"];
     await openAnimeMovieLibrary();
     await waitFor(() => expect(screen.getByText("Watch Status")).toBeInTheDocument());
-    expect(screen.getByText("Airing Status")).toBeInTheDocument();
+    expect(screen.getByText("Release Status")).toBeInTheDocument();
 
     expect(sortLabels()).toContain("Sort: My Rating");
 

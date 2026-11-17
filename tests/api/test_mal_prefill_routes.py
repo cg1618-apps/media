@@ -132,7 +132,7 @@ def test_anime_movie_takes_only_what_its_autofill_writes(owner_client, tenrai):
         "anime_movie_name_en": "Frieren: Beyond Journey's End",
         "anime_movie_name_jp": "葬送のフリーレン",
         "anime_movie_name_alt": "Frieren at the Funeral, Frieren The Slayer",
-        "airing_status": "Finished Airing",
+        "release_status": "Released",
         "release_date_jp": "2023-09-29",
         "mal_rating": 9.3,
         "mal_rank": "1",

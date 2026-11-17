@@ -55,7 +55,7 @@ def _anime_fields(j: dict) -> dict:
 
 
 def _anime_movie_fields(j: dict) -> dict:
-    return {k: j.get(k) for k in ("airing_status", "release_date_jp")}
+    return {k: j.get(k) for k in ("release_status", "release_date_jp")}
 
 
 def _serialized_fields(j: dict, totals: tuple) -> dict:

@@ -163,4 +163,34 @@ describe("MovieAddTab", () => {
     await user.click(picker);
     expect(lastForm.pending_image_id).toBe("img-1");
   });
+
+  it("carries a Release Status, Not Released by default, and no Airing Status", () => {
+    renderTab();
+    const status = screen.getByRole("combobox", { name: "Release Status" });
+    expect(status).toHaveValue("Not Released");
+    expect([...status.querySelectorAll("option")].map((o) => o.value)).toEqual([
+      "",
+      "Not Released",
+      "Released",
+      "Canceled",
+    ]);
+    expect(screen.queryByRole("combobox", { name: "Airing Status" })).toBeNull();
+  });
+
+  it("offers Watch When Released, not Watch When Airs", () => {
+    renderTab();
+    const options = [
+      ...screen.getByRole("combobox", { name: "Watching Status" }).querySelectorAll("option"),
+    ].map((o) => o.value);
+    expect(options).toContain("Watch When Released");
+    expect(options).not.toContain("Watch When Airs");
+  });
+
+  it("labels the original_source picker Exclusive Source", () => {
+    const { container } = renderTab();
+    const labels = [...container.querySelectorAll("label")].map((l) => l.textContent);
+    expect(labels).toContain("Exclusive Source");
+    expect(labels).not.toContain("Original Source");
+    expect(screen.getByPlaceholderText("Select exclusive platform(s)...")).toBeInTheDocument();
+  });
 });

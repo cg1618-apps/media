@@ -47,6 +47,7 @@ from app.services.domain import (
     write_game_copies,
     write_novel_units,
 )
+from app.services.domain.anime_movie import sync_ona_release_date
 from app.services.domain.anime_write import prepare_anime_write
 from app.services.domain.completion import (
     chapter_counter,
@@ -132,7 +133,8 @@ class MediaTypeSpec:
     nested_collections: Optional[dict] = None
     # (db, entry) -> None, called in create, update AND patch, after columns
     # and nested collections are applied. Distinct from pre_commit_hook,
-    # which patch deliberately does not call. Only novel uses this.
+    # which patch deliberately does not call. Novel derives its progress
+    # here; anime movie keeps an ONA's two release dates equal.
     progress_hook: Optional[Callable] = None
     # (row, entry) -> None, run after a list payload is applied, on every path
     # that writes one: the entry endpoints and PUT /api/me/list. Novel derives
@@ -242,6 +244,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         mark_completed_list=mark_movie_list,
         has_series=False,
         nested_collections={"sources": media_sources_writer("anime-movie")},
+        progress_hook=sync_ona_release_date,
     ),
     "movie": MediaTypeSpec(
         key="movie",
@@ -253,7 +256,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         update_schema=schemas.MovieUpdate,
         response_schema=schemas.MovieResponse,
         status_field="watching_status",
-        list_filters=("franchise_id", "series_id", "watching_status", "airing_status", "movie_type"),
+        list_filters=("franchise_id", "series_id", "watching_status", "release_status", "movie_type"),
         hierarchy_names={"en": "movie_name_en", "cn": "movie_name_cn", "alt": "movie_name_alt"},
         search_fields=("movie_name_cn", "movie_name_en", "movie_name_alt"),
         resolve_hierarchy=resolve_movie_parent_hierarchy,

@@ -31,7 +31,7 @@ import { usePageTitle } from "../../contexts/PageTitleContext";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import StatusOptions from "../../components/ui/StatusOptions";
 import { Button, Eyebrow, RatingStamp, Slip } from "../../components/ui/primitives";
-import { H_COMIC_USEFULNESS, MY_RATINGS, WATCHING_STATUSES } from "../../config/fieldOptions";
+import { H_COMIC_USEFULNESS, MY_RATINGS, AIRING_WATCHING_STATUSES } from "../../config/fieldOptions";
 import { useAuth } from "../../contexts/AuthContext";
 import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
@@ -126,7 +126,7 @@ function HentaiTrackerBlock({ hentai, canTrack, onPatch }) {
             }
             className={selectCls}
           >
-            <StatusOptions statuses={WATCHING_STATUSES} />
+            <StatusOptions statuses={AIRING_WATCHING_STATUSES} />
           </select>
         </div>
         {select("hentai-rating", "Rating", "my_rating", MY_RATINGS, {

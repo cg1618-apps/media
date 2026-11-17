@@ -35,7 +35,7 @@ import {
   PART_NUMS,
   RELEASE_SEASONS,
   SEASON_NUMS,
-  WATCHING_STATUSES,
+  AIRING_WATCHING_STATUSES,
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
 import { endpoints } from "../../api/endpoints";
@@ -111,7 +111,7 @@ export function AnimeFormBody({ f, u, sources, ownerId }) {
             value={f.watching_status ?? ""}
             onChange={(e) => u("watching_status", e.target.value)}
           >
-            <StatusOptions statuses={WATCHING_STATUSES} />
+            <StatusOptions statuses={AIRING_WATCHING_STATUSES} />
           </select>
         </Field>
         {select("my_rating", "My Rating", MY_RATINGS)}

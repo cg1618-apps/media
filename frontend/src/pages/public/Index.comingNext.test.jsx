@@ -108,7 +108,7 @@ it("opens onto next season's entries, grouped by type under each sub-section", a
   await user.click(within(coming).getByRole("button", { name: "Expand" }));
 
   const next = within(coming).getByRole("region", { name: /^Next season · FAL 2026/ });
-  const airs = within(next).getByRole("heading", { name: "Watch when airs" }).parentElement.parentElement;
+  const airs = within(next).getByRole("heading", { name: "Watch when airs / released" }).parentElement.parentElement;
   expect(within(airs).getByRole("heading", { name: "Anime" })).toBeInTheDocument();
   expect(within(airs).getByText("Dandadan S3")).toBeInTheDocument();
   expect(within(airs).getByRole("heading", { name: "Game" })).toBeInTheDocument();

@@ -29,7 +29,7 @@ import { Button, Eyebrow, RatingStamp, Slip } from "../../components/ui/primitiv
 import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
-import { WATCHING_STATUSES } from "../../config/fieldOptions";
+import { FILM_WATCHING_STATUSES } from "../../config/fieldOptions";
 import { useCasting } from "../../hooks/useCasting";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
@@ -163,11 +163,15 @@ export default function AnimeMovie() {
       franchise.franchise_name_roman
     : null;
 
+  // An ONA has one release date, held in both columns.
+  const isOna = movie.release_type === "ONA";
+  const onaDate = movie.release_date_jp || movie.release_date_tw;
+
   const eyebrow = [
     "Anime movie",
-    movie.airing_status,
+    movie.release_status,
     formatLength(movie.length_min),
-    movie.release_date_jp,
+    isOna ? onaDate : movie.release_date_jp,
   ]
     .filter(Boolean)
     .join("  ·  ");
@@ -360,7 +364,7 @@ export default function AnimeMovie() {
               onToRewatchChange={(v) =>
                 saveOwn({ to_rewatch: v }, v ? "Marked for rewatch" : "Removed from rewatch")
               }
-              statusOptions={WATCHING_STATUSES}
+              statusOptions={FILM_WATCHING_STATUSES}
               ratingOptions={MY_RATINGS}
             />
           </TocSection>
@@ -375,13 +379,23 @@ export default function AnimeMovie() {
                 title="Information"
                 fields={[
                   [
-                    { label: "Airing Status", value: movie.airing_status },
-                    { label: "Runtime", value: formatLength(movie.length_min) },
+                    { label: "Release Status", value: movie.release_status },
+                    { label: "Release Type", value: movie.release_type },
                   ],
-                  [
-                    { label: "Release Date JP", value: movie.release_date_jp },
-                    { label: "Release Date TW", value: movie.release_date_tw },
-                  ],
+                  ...(isOna
+                    ? [
+                        [
+                          { label: "Release Date", value: onaDate },
+                          { label: "Runtime", value: formatLength(movie.length_min) },
+                        ],
+                      ]
+                    : [
+                        { label: "Runtime", value: formatLength(movie.length_min) },
+                        [
+                          { label: "Release Date JP", value: movie.release_date_jp },
+                          { label: "Release Date TW", value: movie.release_date_tw },
+                        ],
+                      ]),
                   { label: "Genre (Main)", value: movie.genre_main },
                   { label: "Genre (Sub)", value: movie.genre_sub },
                   { label: "標籤 Label", value: movie.label },

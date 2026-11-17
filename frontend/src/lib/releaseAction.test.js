@@ -52,17 +52,13 @@ describe("releaseAction", () => {
       expect(a.payload).toEqual({ airing_status: "Finished Airing" });
     });
 
-    it("treats Rumored as not yet aired", () => {
-      expect(releaseAction("anime", { airing_status: "Rumored" }).label).toBe(
-        "Mark airing",
-      );
+    it("offers nothing on an airing status the vocabulary no longer has", () => {
+      expect(releaseAction("anime", { airing_status: "Rumored" })).toBeNull();
     });
   });
 
   describe("one-step airing types", () => {
     it.each([
-      ["movie", {}],
-      ["anime-movie", {}],
       ["anime", { airing_type: "Movie" }],
       ["cartoon", { airing_type: "Movie" }],
     ])("%s %o: not yet aired -> Mark released", (type, extra) => {
@@ -70,9 +66,29 @@ describe("releaseAction", () => {
       expect(a.label).toBe("Mark released");
       expect(a.payload).toEqual({ airing_status: "Finished Airing" });
     });
+  });
 
-    it("offers no finishing step on a movie that is somehow Airing", () => {
-      expect(releaseAction("movie", { airing_status: "Airing" })).toBeNull();
+  describe("films", () => {
+    it.each(["movie", "anime-movie"])("%s: Not Released -> Mark released", (type) => {
+      const a = releaseAction(type, { release_status: "Not Released" });
+      expect(a.label).toBe("Mark released");
+      expect(a.payload).toEqual({ release_status: "Released" });
+      expect(a.ask).toBe(true);
+    });
+
+    it.each(["movie", "anime-movie"])("%s: no step once Released or Canceled", (type) => {
+      for (const s of ["Released", "Canceled", null, undefined]) {
+        expect(releaseAction(type, { release_status: s })).toBeNull();
+      }
+    });
+
+    it("reads release_status, not airing_status", () => {
+      expect(releaseAction("movie", { airing_status: "Not Yet Aired" })).toBeNull();
+    });
+
+    it("does not take a game's pending values", () => {
+      expect(releaseAction("movie", { release_status: "Unreleased" })).toBeNull();
+      expect(releaseAction("game", { release_status: "Not Released" })).toBeNull();
     });
   });
 
@@ -160,8 +176,18 @@ describe("releaseDetailFields", () => {
 
   it("asks every release column the type has", () => {
     expect(names("anime-movie", {})).toEqual(["release_date_jp", "release_date_tw"]);
+    expect(names("anime-movie", { release_type: "Cinema" })).toEqual([
+      "release_date_jp",
+      "release_date_tw",
+    ]);
     expect(names("movie", {})).toEqual(["release_date_tw", "release_date_usa"]);
     expect(names("game", {})).toEqual(["release_date"]);
+  });
+
+  it("an ONA anime movie asks for its one release date", () => {
+    const fields = releaseDetailFields("anime-movie", { release_type: "ONA" });
+    expect(fields).toEqual([{ field: "release_date_jp", label: "Release date", kind: "date" }]);
+    expect(names("anime-movie", { release_type: "ONA", release_date_jp: "2026-10" })).toEqual([]);
   });
 
   it("leaves out what is already filled", () => {

@@ -60,7 +60,9 @@ class Movies(Base, NameFallbackMixin):
     movie_name_cn = Column(String, nullable=True)
     movie_name_alt = Column(String, nullable=True)
 
-    airing_status = Column(String, nullable=True)
+    # FILM_RELEASE_STATUSES: Not Released / Released / Canceled. A film is
+    # released, not aired, so it does not share AiringStatus.
+    release_status = Column(String, nullable=True)
     imdb_rating = Column(String, nullable=True)
     movie_type = Column(String, nullable=True)
     is_main = Column(String, nullable=True)

@@ -5,6 +5,10 @@ class WatchStatus(str, Enum):
     MIGHT_WATCH = "Might Watch"
     PLAN_TO_WATCH = "Plan to Watch"
     WATCH_WHEN_AIRS = "Watch When Airs"
+    # WATCH_WHEN_AIRS's spelling for the two film types, movie and anime
+    # movie: a film is released, not aired. The other watching types never
+    # hold it, and every grouping that counts one as planned counts both.
+    WATCH_WHEN_RELEASED = "Watch When Released"
     ACTIVE_WATCHING = "Active Watching"
     PASSIVE_WATCHING = "Passive Watching"
     PAUSED = "Paused"
@@ -72,7 +76,23 @@ class AiringStatus(str, Enum):
     AIRING = "Airing"
     FINISHED_AIRING = "Finished Airing"
     CANCELED = "Canceled"
-    RUMORED = "Rumored"
+
+
+# movies.release_status and anime_movies.release_status. A film is released
+# once, so it has no Airing; the airing types keep AiringStatus.
+FILM_RELEASE_STATUSES: tuple[str, ...] = ("Not Released", "Released", "Canceled")
+FILM_RELEASE_STATUS_DEFAULT = "Not Released"
+
+# The two film types, which carry release_status and Watch When Released
+# where the other watching types carry airing_status and Watch When Airs.
+FILM_MEDIA_TYPES: tuple[str, ...] = ("movie", "anime-movie")
+
+# anime_movies.release_type. An ONA streams on one date everywhere, so it has
+# one release date, held in both release_date_jp and release_date_tw; a
+# Cinema release keeps the two apart.
+ANIME_MOVIE_RELEASE_TYPES: tuple[str, ...] = ("Cinema", "ONA")
+ANIME_MOVIE_RELEASE_TYPE_DEFAULT = "Cinema"
+ANIME_MOVIE_ONA = "ONA"
 
 
 class AnimeAiringType(str, Enum):

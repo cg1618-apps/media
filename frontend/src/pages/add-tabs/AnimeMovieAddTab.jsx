@@ -27,9 +27,11 @@ import {
 import { getSourceValues } from "../../utils/media";
 import { getIdleSourceValues } from "../../lib/formatters";
 import {
-  AIRING_STATUSES,
+  ANIME_MOVIE_ONA,
+  ANIME_MOVIE_RELEASE_TYPES,
+  FILM_RELEASE_STATUSES,
+  FILM_WATCHING_STATUSES,
   MY_RATINGS,
-  WATCHING_STATUSES,
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
 import { endpoints } from "../../api/endpoints";
@@ -37,6 +39,19 @@ import { endpoints } from "../../api/endpoints";
 export { defaultAnimeMovie } from "../../config/formFactories";
 
 const ROW2 = "grid grid-cols-1 md:grid-cols-2 gap-4";
+
+/**
+ * Switches the form's release type. An ONA has one release date, held in
+ * both columns, so switching to ONA makes them one: JP is kept, and TW is
+ * used only when JP is blank.
+ */
+export function setReleaseType(f, u, value) {
+  u("release_type", value);
+  if (value !== ANIME_MOVIE_ONA) return;
+  const date = f.release_date_jp || f.release_date_tw || "";
+  u("release_date_jp", date);
+  u("release_date_tw", date);
+}
 
 /**
  * Every field below the franchise picker. `f` is the form state and `u` its
@@ -88,7 +103,7 @@ export function AnimeMovieFormBody({ f, u, sources, ownerId }) {
             value={f.watching_status ?? ""}
             onChange={(e) => u("watching_status", e.target.value)}
           >
-            <StatusOptions statuses={WATCHING_STATUSES} />
+            <StatusOptions statuses={FILM_WATCHING_STATUSES} />
           </select>
         </Field>
         {select("my_rating", "My Rating", MY_RATINGS)}
@@ -115,18 +130,48 @@ export function AnimeMovieFormBody({ f, u, sources, ownerId }) {
       />
 
       <SectionHeader icon="fa-info-circle" title="Information" />
-      <div className={ROW2}>{select("airing_status", "Airing Status", AIRING_STATUSES)}</div>
       <div className={ROW2}>
-        <ReleaseDateInput
-          label="Release Date JP"
-          value={f.release_date_jp}
-          onChange={(v) => u("release_date_jp", v)}
-        />
-        <ReleaseDateInput
-          label="Release Date TW"
-          value={f.release_date_tw}
-          onChange={(v) => u("release_date_tw", v)}
-        />
+        {select("release_status", "Release Status", FILM_RELEASE_STATUSES)}
+        <Field label="Release Type">
+          <select
+            className={selectCls}
+            aria-label="Release Type"
+            value={f.release_type ?? ""}
+            onChange={(e) => setReleaseType(f, u, e.target.value)}
+          >
+            {ANIME_MOVIE_RELEASE_TYPES.map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </div>
+      <div className={ROW2}>
+        {f.release_type === ANIME_MOVIE_ONA ? (
+          // One date, written to both columns.
+          <ReleaseDateInput
+            label="Release Date"
+            value={f.release_date_jp || f.release_date_tw}
+            onChange={(v) => {
+              u("release_date_jp", v);
+              u("release_date_tw", v);
+            }}
+          />
+        ) : (
+          <>
+            <ReleaseDateInput
+              label="Release Date JP"
+              value={f.release_date_jp}
+              onChange={(v) => u("release_date_jp", v)}
+            />
+            <ReleaseDateInput
+              label="Release Date TW"
+              value={f.release_date_tw}
+              onChange={(v) => u("release_date_tw", v)}
+            />
+          </>
+        )}
       </div>
       <div className={ROW2}>
         <Field label="Runtime (min)">

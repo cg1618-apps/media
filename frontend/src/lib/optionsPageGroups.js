@@ -25,6 +25,7 @@ export const TIER1_GROUPS = [
       "anime_airing_type",
       "cartoon_airing_type",
       "movie_type",
+      "anime_movie_release_type",
       "novel_type",
       "comic_type",
       "game_type",
@@ -38,6 +39,7 @@ export const TIER1_GROUPS = [
     title: "Publication Status",
     keys: [
       "airing_status",
+      "film_release_status",
       "manga_serialization_status",
       "novel_serialization_status",
       "game_release_status",

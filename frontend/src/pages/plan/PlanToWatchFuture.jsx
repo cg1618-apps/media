@@ -4,10 +4,13 @@ import { releaseYear } from "../../lib/releaseDate";
 import { useAuth } from "../../contexts/AuthContext";
 import MediaCard from "../../components/cards/MediaCard";
 import { Eyebrow } from "../../components/ui/primitives";
+import { WAIT_FOR_RELEASE_STATUSES } from "../../config/fieldOptions";
 
+// The first tab holds both waiting spellings: Watch When Airs on the airing
+// types, Watch When Released on the two films.
 const MAIN_TABS = [
-  { key: "Watch When Airs", label: "Watch when airs" },
-  { key: "Plan to Watch", label: "Plan to watch" },
+  { key: "waiting", label: "Watch when airs / released", statuses: WAIT_FOR_RELEASE_STATUSES },
+  { key: "planned", label: "Plan to watch", statuses: ["Plan to Watch"] },
 ];
 
 const TYPE_ORDER = ["anime", "anime_movie", "movie", "tv_show", "cartoon"];
@@ -32,8 +35,17 @@ function getAnimeSeasonKey(anime) {
   return "Z_TBD";
 }
 
+// A film is not out yet while Not Released; the airing types while Not Yet
+// Aired.
+function isNotOutYet(entry) {
+  if (entry._type === "movie" || entry._type === "anime_movie") {
+    return entry.release_status === "Not Released";
+  }
+  return entry.airing_status === "Not Yet Aired";
+}
+
 function isFutureRelease(entry, currentSeasonKey) {
-  if (entry.airing_status !== "Not Yet Aired") return false;
+  if (!isNotOutYet(entry)) return false;
   if (entry._type === "anime" && currentSeasonKey) {
     const key = getAnimeSeasonKey(entry);
     if (key.startsWith("S_") && key < currentSeasonKey) return false;
@@ -91,7 +103,8 @@ export default function PlanToWatchFuture({
   onUpdated,
 }) {
   const { isAdmin } = useAuth();
-  const [activeTab, setActiveTab] = useState("Watch When Airs");
+  const [activeTab, setActiveTab] = useState("waiting");
+  const tab = MAIN_TABS.find((t) => t.key === activeTab);
   const [currentSeasonKey, setCurrentSeasonKey] = useState(null);
 
   useEffect(() => {
@@ -114,8 +127,8 @@ export default function PlanToWatchFuture({
 
   const grouped = useMemo(() => {
     const filtered = combined.filter((e) => {
-      if (e.watching_status !== activeTab) return false;
-      if (activeTab === "Plan to Watch") return isFutureRelease(e, currentSeasonKey);
+      if (!tab.statuses.includes(e.watching_status)) return false;
+      if (activeTab === "planned") return isFutureRelease(e, currentSeasonKey);
       return true;
     });
     const groups = {};
@@ -137,7 +150,7 @@ export default function PlanToWatchFuture({
       return Number(a) - Number(b);
     });
     return sortedYears.map((year) => ({ year, entries: groups[year] }));
-  }, [combined, activeTab, currentSeasonKey]);
+  }, [combined, activeTab, tab, currentSeasonKey]);
 
   const totalCount = grouped.reduce((sum, g) => sum + g.entries.length, 0);
 
@@ -187,7 +200,7 @@ export default function PlanToWatchFuture({
         <div className="text-center py-12 border border-dashed border-border-strong">
           <Eyebrow className="mb-1">Empty</Eyebrow>
           <p className="text-text-muted text-sm">
-            No entries with &ldquo;{activeTab}&rdquo; status.
+            No entries with &ldquo;{tab.label}&rdquo; status.
           </p>
           <p className="text-text-faint text-xs mt-1">
             Set watching status on an entry to see it here.

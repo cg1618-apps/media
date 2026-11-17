@@ -4,7 +4,8 @@
 // helper (frontend/src/lib/novelUnits.js), rather than branching on the raw
 // progress_display column directly.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -405,5 +406,60 @@ describe("MediaCard - the status control is the viewer's own", () => {
     expect(options.method).toBe("PUT");
     expect(Object.keys(JSON.parse(options.body))).toEqual(["watching_status"]);
     expect(fetch.mock.calls.some(([, o]) => o?.method === "PATCH")).toBe(false);
+  });
+});
+
+// A film waits with Watch When Released where the airing types wait with
+// Watch When Airs, and its bolt sets release_status - a film has no airing.
+describe("MediaCard - the future variant on a film", () => {
+  const movie = {
+    system_id: "6f1d5e77-2a4b-4c6d-8e9f-0a1b2c3d4e5f",
+    public_id: 21,
+    movie_name_en: "Test Film",
+    watching_status: "Watch When Released",
+    release_status: "Not Released",
+  };
+
+  it.each(["movie", "anime-movie"])("%s offers Watch When Released, not Watch When Airs", async (type) => {
+    mockAuthFetch(["self.list"]);
+    mount({ ...movie, anime_movie_name_en: "Test Film" }, type, false, "future");
+    await screen.findByText("Test Film");
+    expect([...screen.getByRole("combobox").options].map((o) => o.value)).toEqual([
+      "Might Watch",
+      "Plan to Watch",
+      "Watch When Released",
+    ]);
+  });
+
+  it("an anime keeps Watch When Airs", async () => {
+    mockAuthFetch(["self.list"]);
+    mount(
+      { system_id: "a9", anime_name_en: "Test Show", watching_status: "Plan to Watch" },
+      "anime",
+      false,
+      "future",
+    );
+    await screen.findByText("Test Show");
+    expect([...screen.getByRole("combobox").options].map((o) => o.value)).toContain(
+      "Watch When Airs",
+    );
+  });
+
+  it("the bolt marks the film Released and leaves its watching status", async () => {
+    const user = userEvent.setup();
+    mockAuthFetch(["self.list", "manage.catalog"]);
+    mount(movie, "movie", true, "future");
+    await user.click(await screen.findByTitle("Mark as Released"));
+    const bodies = () =>
+      fetch.mock.calls.filter(([, init]) => init?.body).map(([, init]) => JSON.parse(init.body));
+    await waitFor(() =>
+      expect(bodies()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ release_status: "Released" }),
+        ]),
+      ),
+    );
+    expect(bodies().some((b) => "airing_status" in b)).toBe(false);
+    expect(bodies().some((b) => "watching_status" in b)).toBe(false);
   });
 });
