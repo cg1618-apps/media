@@ -24,7 +24,7 @@ too, and stay; the moved rows stay in 備註列表, because a remark_list row th
 migration moved cannot be told from one somebody typed.
 
 Revision ID: r1e2mcatalog3
-Revises: n1l2inkpairs3
+Revises: a1n2imanga4
 Create Date: 2026-11-17 00:00:00.000000
 
 """
@@ -37,7 +37,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "r1e2mcatalog3"
-down_revision: Union[str, Sequence[str], None] = "n1l2inkpairs3"
+down_revision: Union[str, Sequence[str], None] = "a1n2imanga4"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
