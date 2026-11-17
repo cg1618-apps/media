@@ -11,7 +11,7 @@ s1e2rfields3.
 Downgrade drops the column and its values.
 
 Revision ID: a1n2remake34
-Revises: c1o2micrmk3
+Revises: p1n2otesrmk3
 Create Date: 2026-11-17 00:00:00.000000
 
 """
@@ -22,7 +22,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "a1n2remake34"
-down_revision: Union[str, Sequence[str], None] = "c1o2micrmk3"
+down_revision: Union[str, Sequence[str], None] = "p1n2otesrmk3"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
