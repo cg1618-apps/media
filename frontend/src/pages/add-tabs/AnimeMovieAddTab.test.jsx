@@ -188,4 +188,62 @@ describe("Anime movie form", () => {
     expect(s.franchise_id).toBe("f2");
     expect(s.series_text).toBe("untouched");
   });
+
+  it("defaults a new entry to Not Released and Cinema", () => {
+    renderTab("add");
+    expect(screen.getByRole("combobox", { name: "Release Status" })).toHaveValue("Not Released");
+    expect(screen.getByRole("combobox", { name: "Release Type" })).toHaveValue("Cinema");
+    expect(screen.queryByRole("combobox", { name: "Airing Status" })).toBeNull();
+  });
+
+  it("offers Watch When Released, not Watch When Airs", () => {
+    renderTab("add");
+    const options = [
+      ...screen.getByRole("combobox", { name: "Watching Status" }).querySelectorAll("option"),
+    ].map((o) => o.value);
+    expect(options).toContain("Watch When Released");
+    expect(options).not.toContain("Watch When Airs");
+  });
+
+  it("a Cinema release shows the JP and TW dates", () => {
+    const { container } = renderTab("modify");
+    expect(labels(container)).toEqual(
+      expect.arrayContaining(["Release Date JP", "Release Date TW"]),
+    );
+    expect(labels(container)).not.toContain("Release Date");
+  });
+
+  it.each(["add", "modify"])(
+    "%s: an ONA shows one Release Date, and an edit writes both columns",
+    async (mode) => {
+      const user = userEvent.setup();
+      const { container } = renderTab(mode, { release_type: "ONA" });
+      expect(labels(container)).toContain("Release Date");
+      expect(labels(container)).not.toContain("Release Date JP");
+      expect(labels(container)).not.toContain("Release Date TW");
+      const input = [...container.querySelectorAll("label")]
+        .find((l) => l.textContent === "Release Date")
+        .parentElement.querySelector("input");
+      await user.type(input, "2025");
+      expect(state()).toMatchObject({ release_date_jp: "2025", release_date_tw: "2025" });
+    },
+  );
+
+  it("switching to ONA copies JP into TW", async () => {
+    const user = userEvent.setup();
+    renderTab("modify", { release_date_jp: "2024-07", release_date_tw: "2024-09" });
+    await user.selectOptions(screen.getByRole("combobox", { name: "Release Type" }), "ONA");
+    expect(state()).toMatchObject({
+      release_type: "ONA",
+      release_date_jp: "2024-07",
+      release_date_tw: "2024-07",
+    });
+  });
+
+  it("switching to ONA with no JP date keeps the TW one in both", async () => {
+    const user = userEvent.setup();
+    renderTab("modify", { release_date_jp: "", release_date_tw: "2024-09" });
+    await user.selectOptions(screen.getByRole("combobox", { name: "Release Type" }), "ONA");
+    expect(state()).toMatchObject({ release_date_jp: "2024-09", release_date_tw: "2024-09" });
+  });
 });

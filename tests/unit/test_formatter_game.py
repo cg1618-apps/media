@@ -146,3 +146,12 @@ def test_the_metacritic_scores_keep_their_two_scales():
     blank = parse_game_from_sheet({})
     assert blank["metacritic_score"] is None
     assert blank["metacritic_user_score"] is None
+
+
+def test_an_older_sheets_rumored_release_status_reads_as_unreleased():
+    """Rumored left GAME_RELEASE_STATUSES; a backup taken before that still
+    holds it, and Pull restores it as the status the migration moved it to."""
+    assert parse_game_from_sheet({"release_status": "Rumored"})["release_status"] == "Unreleased"
+    assert parse_h_game_from_sheet({"release_status": "Rumored"})["release_status"] == "Unreleased"
+    # Mirror: a current status passes through untouched.
+    assert parse_game_from_sheet({"release_status": "Released"})["release_status"] == "Released"

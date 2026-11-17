@@ -446,12 +446,14 @@ Each block has the same two sub-sections, each grouped by media type (Anime,
 Anime Movie, Movie, TV Show, Cartoon, Game; a type with nothing is omitted) and
 sorted by release date:
 
-- **Watch when airs** — `Watch When Airs`, and `Play When Released` for games.
+- **Watch when airs / released** — `Watch When Airs`, `Watch When Released`
+  (the film types' spelling of it), and `Play When Released` for games.
 - **Planned to** — `Plan to Watch`, and `Plan to Play` for games.
 
-"Not out yet" (`isUnreleased`) reads the entry's `airing_status` —
-`Not Yet Aired` or `Rumored` — or, for games, its `release_status` —
-`Unreleased` or `Rumored`; any other set status means it is out. An entry with
+"Not out yet" (`isUnreleased`) reads each type's own status: an airing
+type's `airing_status` of `Not Yet Aired`, a movie's or an anime movie's
+`release_status` of `Not Released`, or a game's `release_status` of
+`Unreleased`; any other set status means it is out. An entry with
 no status falls back to its primary release date lying after today, a date
 missing its day or month counting from the first of that period.
 
@@ -1232,12 +1234,13 @@ Top to bottom:
 
    | Type | Shown when | Label → writes |
    | --- | --- | --- |
-   | Anime, TV Show, Cartoon, Hentai | `airing_status` is `Not Yet Aired` or `Rumored` | **Mark airing** → `Airing` |
+   | Anime, TV Show, Cartoon, Hentai | `airing_status` is `Not Yet Aired` | **Mark airing** → `Airing` |
    | | `airing_status` is `Airing` | **Mark finished airing** → `Finished Airing` |
-   | Movie, Anime Movie, and an Anime or Cartoon whose `airing_type` is `Movie` | `airing_status` is `Not Yet Aired` or `Rumored` | **Mark released** → `Finished Airing` |
+   | Movie, Anime Movie | `release_status` is `Not Released` | **Mark released** → `release_status` `Released` |
+   | An Anime or Cartoon whose `airing_type` is `Movie` | `airing_status` is `Not Yet Aired` | **Mark released** → `Finished Airing` |
    | Novel | `serialization_status` is `未出` | **Mark serializing** → `連載中` |
    | Manga, Comic, H-Comic, Novel | `serialization_status` is `連載中` (on Novel also `連載中 (不穩定)` / `連載中 (有生之年)`) | **Mark finished serializing** → `完結` |
-   | Game, H-Game | `release_status` is `Rumored`, `Unreleased` or `Early Access` | **Mark released** → `Released` |
+   | Game, H-Game | `release_status` is `Unreleased` or `Early Access` | **Mark released** → `Released` |
 
    An empty status, `Canceled`/`Cancelled`, `停更`, `腰斬` and a game's
    `Ongoing` show no button: none of them has a next step. Manga, Comic and
@@ -1251,7 +1254,21 @@ Top to bottom:
    with nothing missing the button writes at once.
    **Mark airing** also sets `watching_status` from `Watch When Airs` to
    `Active Watching` in the same write, as the future-release card's bolt
-   does; any other watching status is left alone.
+   does; any other watching status is left alone. **Mark released** on a
+   movie or an anime movie moves `Watch When Released` to `Active Watching`
+   the same way, and leaves any other watching status alone. Either move
+   rides `PUT /api/me/list/{id}`, so it is the acting viewer's own row and
+   nobody else's. A plain edit of the status field, and Fill, move nothing.
+
+   **A film's release.** Movie and Anime Movie show **Release Status**
+   (`Not Released` / `Released` / `Canceled`) where the airing types show
+   Airing Status, in the eyebrow line and the Information card, and their
+   status picker offers **Watch When Released** where the airing types offer
+   Watch When Airs. Anime Movie also shows **Release Type** (Cinema / ONA).
+   An ONA has one release date: its Information card shows one **Release
+   Date** row (`release_date_jp`, falling back to `release_date_tw`) in
+   place of the JP and TW rows, and the release dialog asks for that one
+   date. Movie's `original_source` tags are labelled **Exclusive Source**.
    **Autofill & Update** → `POST /api/data-control/replace/{type}/{id}`
    with a spinner. On Game and H-Game it runs both sources: IGDB, fill-only
    (release date, times, credits, tags, cover, the Steam pair when the entry
@@ -1279,7 +1296,9 @@ Top to bottom:
    none), then — directly under the header, on all twelve entry types —
    `FollowedOrderPanel` (the viewer's followed watch orders that step
    through this entry: order, group, step N / total, previous and next step;
-   nothing when none does, or for a viewer without `self.list`), the tracker,
+   nothing when none does, or for a viewer without `self.list`; its eyebrow
+   reads "Following Watch Order", and "Following Play Order" on the Game page,
+   which passes `mediaType="game"` - `orderNoun` in `lib/orderNoun.js`), the tracker,
    `NamingCard`, `InfoCard "Information"`, on Manga, Novel, Movie, TV and
    Cartoon a **Genres** card (`GenresCard`: Genre (Main), Genre (Sub) and
    標籤 Label in a card of their own, directly after Information and not
@@ -1378,7 +1397,7 @@ status select, which goes through `/api/me/list`.
 | Manga | Region, 本傳/外傳, Serialization Status/Platform, Release/End Date, Volume/Chapter Total | 作者 or 原作/作畫, 台灣出版商 (linked), Anime Studio (card shown only when any value) | **Genres** card (`GenresCard`), between Information and Production |
 | Novel | Region, Type, Version, 本傳/外傳, Serialization Status, Release/End Date, Vol Total (JP/KR)/TW, Arc Total, Chapter Total | Author, Illustrator, 台灣出版商 (linked, conditional) | **Genres** card (`GenresCard`), between Information and Production; **Units** card (`NovelUnitsEditor` over the `units` relationship — volume/arc/story/chapter rows with a key, CN/EN name and, on an arc, a chapter count; a `manage.catalog` holder gets the editor with drag-to-reorder/add/remove and a Save → PATCH carrying each unit's own fields only (`novelUnitPayload`), everyone else a plain list keyed by each row's server-computed `display_key`. For a holder of `self.list` each row of that list carries the viewer's own rating select (`MY_RATINGS`, saved on change) and remark field (saved on blur), both through `useSaveMyNovelUnit` → `PUT /api/me/novel-units/{unit_id}`; an account holding both keys gets the editor and, under it, that list headed **My ratings**. The admin holds no `self.list` and gets no such control. Hidden entirely for a viewer when the novel has no units) |
 | Comic | Type, Volume Label, Continuity, Era, Serialization/Reading Status, Release Year, Issue Total, Genre main/sub, 標籤 Label | Writer, Artist, 出版商 (linked, conditional), Imprint | **Events** card (red pills); no Autofill, no `RelationsSection`, no `ScoreBlock` |
-| Game | Type, Main / Remake (`is_main`), Base Game (a link to `/game/{base_game_id}`), Platform, Mode, Combat Mode — only what the game *is*; the rest sits in cards of its own, below | **Production & Release**: Developer (`studioValue`), 發行商 (`publisherValue`, labelled by `publisherLabel` rather than a bare literal), Director, Composer, Release Status, Release Date, Current Patch — always shown, with a dash for an empty field | **Genres** card (Genre, Theme, 標籤 Label — the same `Label` vocabulary anime shows); **Reception** card (Metacritic / Metacritic User, each carrying its own denominator — `96 / 100`, `8.6 / 10` — via the exported `outOf` helper, a missing score showing the card's dash rather than a zero; the public verdict, not mine, which is the stamp on the cover); **Time to Beat** card (`TimeToBeatCard`, after Reception: Main, Main + Extra and Completionist from `hltb_main`, `hltb_main_extra` and `hltb_completionist`, IGDB's time-to-beat in hours, formatted by `hours` in `lib/gameHours.js` - only the recorded figures get a field, and with none recorded the card is left out); **Library** card (Ownership, server-derived; Copies, a count; Steam Progress Sync — whether Steam may write this entry's progress, a fact about the source rather than an answer about a playthrough, so it sits with the copies while playing status and the four completion axes stay editable in the tracker and Completion blocks); **Progress** slip (`GameProgress`: playtime against `hltb_main`, achievements gated on `achievements_total` — nothing renders when neither figure exists, since "0 h / ? h" reads as "played none of it" rather than "never measured"); the **分歧 Choices** card (`ChoiceGraphCard`: a still preview of the game's choice graph and **View all**, see below); **Prices** card (MSRP in USD / JPY / TWD); **Copies** slip (`GameCopiesSection`: one row per `game_copy` — storefront and ownership as chips, then format, acquisition, price with the copy's own currency via `copyPrice`, acquired date and remark — sorted by `position`, and rendered only when the game has copies, so the Library card's count is not their only trace on the page; editing still happens in the Add/Modify tab); a cover-side `ProgressRule` on `hours_played / hltb_main`; a Remarks slip, the catalogue remark, that appears whenever the game has one - editable for a holder of `manage.catalog`, read-only for everyone else; `SourcesCard` with `igdbLink` (under "Where to Look Up") and `steamLink` (under "Where to Play", since a Steam store page is a storefront rather than a reference database); no `RelationsSection`, no `ScoreBlock`, no Cast |
+| Game | Type, Main / Remake (`is_main`), Base Game (a link to `/game/{base_game_id}`), Platform, Mode, Combat Mode — only what the game *is*; the rest sits in cards of its own, below | **Production & Release**: Developer (`studioValue`), 發行商 (`publisherValue`, labelled by `publisherLabel` rather than a bare literal), Director, Composer, Release Status, Release Date, Current Patch — always shown, with a dash for an empty field | **Genres** card (Genre, Theme, 標籤 Label — the same `Label` vocabulary anime shows); **Reception** card (Metacritic / Metacritic User, each carrying its own denominator — `96 / 100`, `8.6 / 10` — via the exported `outOf` helper, a missing score showing the card's dash rather than a zero; the public verdict, not mine, which is the stamp on the cover); **Time to Beat** card (`TimeToBeatCard`, after Reception: Main, Main + Extra and Completionist from `hltb_main`, `hltb_main_extra` and `hltb_completionist`, IGDB's time-to-beat in hours, formatted by `hours` in `lib/gameHours.js` - only the recorded figures get a field, and with none recorded the card is left out); **Library** card (Ownership, server-derived; Copies, a count; Steam Progress Sync — whether Steam may write this entry's progress, a fact about the source rather than an answer about a playthrough, so it sits with the copies while playing status and the four completion axes stay editable in the tracker and Completion blocks); **Progress** slip (`GameProgress`: playtime against `hltb_main`, achievements gated on `achievements_total` — nothing renders when neither figure exists, since "0 h / ? h" reads as "played none of it" rather than "never measured"); the **分歧 Choices** card (`ChoiceGraphCard`: a still preview of the game's choice graph and **View all**, see below); **Prices** card (MSRP in USD / JPY / TWD); **Copies** slip (`GameCopiesSection`: one row per `game_copy` — storefront and ownership as chips, then format, acquisition, price with the copy's own currency via `copyPrice`, acquired date, the sale as `sold EUR 7.50` (`copySale`), the copy's hours played as `12.5 h`, and remark — sorted by `position`, and rendered only when the game has copies, so the Library card's count is not their only trace on the page; editing still happens in the Add/Modify tab); a cover-side `ProgressRule` on `hours_played / hltb_main`; a Remarks slip, the catalogue remark, that appears whenever the game has one - editable for a holder of `manage.catalog`, read-only for everyone else; `SourcesCard` with `igdbLink` (under "Where to Look Up") and `steamLink` (under "Where to Play", since a Steam store page is a storefront rather than a reference database); no `RelationsSection`, no `ScoreBlock`, no Cast |
 
 **H-Comic** (`pages/detail/HComic.jsx`) is a gated type's page: App.jsx
 routes to it only for a session that can see h-comic
@@ -1778,19 +1797,19 @@ controls on either page.
 File `pages/public/FutureReleases.jsx`. `useMediaList("anime")`,
 `useMediaList("franchise")` (with a list only: it feeds the expectation sort),
 `useApiQuery(["api","seasonal","current-season"], "/api/seasonal/current-season")`,
-and lazily per tab `anime-movie`, `movie` (`{ limit: 2000, airing_status: "Not Yet Aired" }`),
+and lazily per tab `anime-movie`, `movie` (`{ limit: 2000, release_status: "Not Released" }`),
 `tv-show`, `cartoon`, `game`. Tabs Anime / Anime Movies / Movies / TV Shows /
 Cartoons / Games.
 Anime keeps `Not Yet Aired` from the current season onward, grouped
 "Spring 2025" / year / TBD with type chips; anime movies group by release
-year; TV also includes "Airing". Games keep `release_status` of `Rumored` or
+year; TV also includes "Airing". Games keep `release_status`
 `Unreleased` — `Early Access` is already out and `Cancelled` is never coming —
 grouped by the year of `release_date` with TBD last, and sorted inside a year
 by that date, so a full date precedes a bare year. Cards are `MediaCard`: the status select
 is drawn for a holder of `self.list` and the release bolt for an editor
 (`isAdmin`); `onUpdated` patches the `["media-list", type]` caches.
 **With a list**, anime and anime-movie groups are ordered by the viewer's
-status (Watch When Airs, Plan to Watch, Might Watch) and then franchise
+status (Watch When Airs or Watch When Released, Plan to Watch, Might Watch) and then franchise
 expectation, and under each card an **On your list** chip (any status) and a
 **Planned** chip (any plan flag) are drawn from the fields the list response
 carries. **Without one**, every group is in release-date order
@@ -1902,8 +1921,8 @@ off) has two stages. First a status group is chosen among the groups the
 filtered pool holds, in fixed proportions (In Progress, Planned, Might,
 Completed, Dropped, heaviest first), so a group's share of the draw does not
 grow with its size. The weighting groups statuses as the Status filter does,
-except that Temp Dropped counts as In Progress and Watch When Airs and Play
-When Released as Might. Then one entry of that group is chosen by the product
+except that Temp Dropped counts as In Progress and Watch When Airs, Watch
+When Released and Play When Released as Might. Then one entry of that group is chosen by the product
 of its entry factors: my rating and a summary completion (Completed only),
 the larger of its plan marks (next over rewatch, whether marked on the entry,
 its series or its franchise), release decade (2000s and later over earlier or
@@ -1934,7 +1953,8 @@ Sections: **Watch Next** (`PLAN_TABS`, `kind === "next"`, grouped by
 every existing bucket keys off a count and a game would key off hours; **H-Comic**,
 **H-Game** and **Hentai** are ungrouped the same way and each drawn only for a session that can see the type; hentai is queued at entry scope only), **To Rewatch**
 (`REWATCH_TABS`, scopes Franchise → Series → Entries via `scopesFor`; h-comic and hentai at entry scope only, h-game at all three as game),
-**Plan to Watch for Future Releases** (Watch When Airs / Plan to Watch,
+**Plan to Watch for Future Releases** (Watch when airs / released - both
+statuses - / Plan to Watch,
 grouped by year, `MediaCard variant="future"`; an update bumps `reloadKey`
 which invalidates `["media-list"]` and `["plan-next"]`). Toggling plan flags
 happens on hubs, detail pages and Modify, not here. See systems/plan-next.md.

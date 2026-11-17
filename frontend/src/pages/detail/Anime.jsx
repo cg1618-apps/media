@@ -31,7 +31,7 @@ import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
 import { Button, RatingStamp, ProgressRule, Eyebrow } from "../../components/ui/primitives";
-import { WATCHING_STATUSES } from "../../config/fieldOptions";
+import { AIRING_WATCHING_STATUSES } from "../../config/fieldOptions";
 import { useCasting } from "../../hooks/useCasting";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
@@ -411,7 +411,7 @@ export default function Anime() {
               onTimeFinChange={(v) =>
                 saveOwn({ time_fin: v }, "Paused position saved")
               }
-              statusOptions={WATCHING_STATUSES}
+              statusOptions={AIRING_WATCHING_STATUSES}
               ratingOptions={MY_RATINGS}
             />
           </TocSection>

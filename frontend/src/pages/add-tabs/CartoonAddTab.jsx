@@ -23,7 +23,7 @@ import {
   CARTOON_AIRING_TYPES,
   IS_MAIN,
   MY_RATINGS,
-  WATCHING_STATUSES,
+  AIRING_WATCHING_STATUSES,
 } from "../../config/fieldOptions";
 import { endpoints } from "../../api/endpoints";
 
@@ -116,7 +116,7 @@ export function CartoonFormBody({ f, u, sources, ownerId }) {
             value={f.watching_status ?? ""}
             onChange={(e) => u("watching_status", e.target.value)}
           >
-            <StatusOptions statuses={WATCHING_STATUSES} />
+            <StatusOptions statuses={AIRING_WATCHING_STATUSES} />
           </select>
         </Field>
         {choice("my_rating", "My Rating", MY_RATINGS)}

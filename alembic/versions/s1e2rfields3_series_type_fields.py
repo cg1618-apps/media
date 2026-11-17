@@ -19,7 +19,7 @@ first, so a TW date that differed from JP is lost; drops the new columns; puts
 `length_ep_min` back under its old name; and adds `read_order` back empty.
 
 Revision ID: s1e2rfields3
-Revises: r1e2mcatalog3
+Revises: r1l2status34
 Create Date: 2026-11-17 00:00:00.000000
 
 """
@@ -31,7 +31,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "s1e2rfields3"
-down_revision: Union[str, Sequence[str], None] = "r1e2mcatalog3"
+down_revision: Union[str, Sequence[str], None] = "r1l2status34"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

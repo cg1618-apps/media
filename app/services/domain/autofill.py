@@ -19,6 +19,7 @@ from app.models import (
     Studio,
     TVShows,
 )
+from app.services.domain.anime_movie import sync_ona_release_date
 from app.services.domain.credits import (
     AmbiguousNameError,
     credit_names,
@@ -512,10 +513,15 @@ def autofill_anime_movie_from_mal(
 
         j_data = map_tenrai_to_anime_movie_data(raw_data)
 
-        if anime_movie.airing_status is None:
-            anime_movie.airing_status = j_data.get("airing_status")
+        # Fill-only, with Not Released - the status a new anime movie starts
+        # at - counting as unfilled: MAL may only ever move it forward.
+        if anime_movie.release_status in (None, "Not Released") and j_data.get(
+            "release_status"
+        ):
+            anime_movie.release_status = j_data["release_status"]
         if anime_movie.release_date_jp is None:
             anime_movie.release_date_jp = j_data.get("release_date_jp")
+            sync_ona_release_date(db, anime_movie)
         _write_tenrai_reference_rows(db, "anime-movie", anime_movie, j_data)
         _write_mal_credits(db, "anime-movie", anime_movie, raw_data)
 
@@ -753,16 +759,17 @@ def autofill_movie_from_imdb(movie: Movies, db: Session) -> None:
         if fetched_rating is not None:
             movie.imdb_rating = fetched_rating
 
-        # Derive airing_status from raw release_date (fill-only)
-        if movie.airing_status is None and tmdb_raw is not None:
+        # Derive release_status from raw release_date. Fill-only, with Not
+        # Released - the status a new movie starts at - counting as unfilled.
+        if movie.release_status in (None, "Not Released") and tmdb_raw is not None:
             raw_date = tmdb_raw.get("release_date")
             if raw_date:
                 try:
                     release_date = date.fromisoformat(raw_date)
-                    movie.airing_status = (
-                        "Finished Airing"
+                    movie.release_status = (
+                        "Released"
                         if release_date <= date.today()
-                        else "Not Yet Aired"
+                        else "Not Released"
                     )
                 except (ValueError, TypeError):
                     pass

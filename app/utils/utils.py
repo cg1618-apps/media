@@ -114,7 +114,7 @@ H_COMIC_EHENTAI_FIELDS_TO_FILL = ["cover_image_file"]
 H_COMIC_EHENTAI_LINK_FIELDS_TO_FILL = [("credit", "illustrator")]
 
 ANIME_MOVIE_FIELDS_TO_FILL = [
-    "airing_status",
+    "release_status",
     "release_date_jp",
     "mal_rating",
     "mal_rank",
@@ -126,7 +126,7 @@ ANIME_MOVIE_FIELDS_TO_FILL = [
 # "missing" on every Fill run.
 MOVIE_FIELDS_TO_FILL = [
     "length_min",
-    "airing_status",
+    "release_status",
     "release_date_usa",
     "imdb_rating",
     "cover_image_file",

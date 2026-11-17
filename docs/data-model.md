@@ -328,15 +328,16 @@ Model: `AnimeMovies`. CHECKs: `ck_anime_movies_release_date_jp_iso`,
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `anime_movie_name_en` / `_cn` / `_roman` / `_jp` / `_alt` | String | yes | | |
-| `airing_status` | String | yes | | AiringStatus |
+| `release_status` | String | yes | | FILM_RELEASE_STATUSES (`Not Released` / `Released` / `Canceled`); `Not Released` on a new entry |
+| `release_type` | String | no | `Cinema` | ANIME_MOVIE_RELEASE_TYPES (`Cinema` / `ONA`). The Add form's MAL prefill takes it from MAL's type; Fill never writes it. An ONA has one release date, held in both `release_date_jp` and `release_date_tw`: every create, update and patch keeps the two equal (`sync_ona_release_date` in `app/services/domain/anime_movie.py` - the date the write changed wins, otherwise JP) |
 | `mal_rating` | Float | yes | | |
 | `mal_rank` | String | yes | | |
 | `anilist_rating` | Integer | yes | | From AniList, keyed on `mal_id` - see [external-apis.md](external-apis.md#anilist) |
 | `anilist_rank` | Integer | yes | | AniList all-time rated rank |
 | `anilist_popularity_rank` | Integer | yes | | AniList all-time popularity rank |
 | `length_min` | Integer | yes | | Runtime in minutes |
-| `release_date_jp` | String | yes | | Preferred release date (RELEASE_PRIORITY) |
-| `release_date_tw` | String | yes | | |
+| `release_date_jp` | String | yes | | Preferred release date (RELEASE_PRIORITY). An ONA's one date |
+| `release_date_tw` | String | yes | | Equal to `release_date_jp` on an ONA |
 | `mal_id` | Integer | yes | | |
 | `mal_link` | String | yes | | |
 
@@ -354,7 +355,7 @@ Live-action and animated (non-anime) films. Model: `Movies`. CHECKs:
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `movie_name_en` / `_cn` / `_alt` | String | yes | | Three names only |
-| `airing_status` | String | yes | | |
+| `release_status` | String | yes | | FILM_RELEASE_STATUSES (`Not Released` / `Released` / `Canceled`); `Not Released` on a new entry |
 | `imdb_rating` | String | yes | | From OMDb |
 | `movie_type` | String | yes | | MOVIE_TYPES (`Reality` / `Animation`) |
 | `is_main` | String | yes | | IS_MAIN |
@@ -366,7 +367,10 @@ Live-action and animated (non-anime) films. Model: `Movies`. CHECKs:
 | `type_slots` | JSONB | yes | | Which favourite 3×3 grid slot this row holds, as `{gridKey: 1..9}` - see [frontend/pages.md](frontend/pages.md#statistics--statistics--completions--completions). One grid is keyed here, Movie - the favourite *movies*, which is a different grid from the favourite movie *franchises* that key "Movie" on `franchise`. |
 
 Virtual: `remark`, `watch_next`, `to_rewatch`, `display_name`, `director`,
-`genre_main` / `genre_sub` / `label`, `original_source` (tag link fields; `original_source` has no
+`genre_main` / `genre_sub` / `label`, `original_source` (tag link fields; on a movie the
+`original_source` field is labelled **Exclusive Source** everywhere it is shown, while
+TV Show, Cartoon and H-Comic call it Original Source - the key, the sheet header and
+the multi-value shape are the same on all four. `original_source` has no
 `LEGACY_SHEET_COLUMN` entry for `movie`, so its response attribute is the
 field key itself - see the response-attribute note under
 [Virtual fields](#virtual-fields-on-media-entries)) and `sources`.
@@ -582,7 +586,7 @@ same table carrying a `base_game_id`, not a row in a second table. Model:
 | `all_collected` | String | yes | | GAME_COMPLETION_FLAGS: every in-game collectible found, or `Inapplicable` for a game that hides none |
 | `steam_progress_sync` | Boolean | yes | | A tristate boolean, and the one flag here that is NOT a completion axis - it is about the source, not the game, so it kept its type when the three above became a vocabulary. `NULL`/`true` = Steam is the authority for `hours_played` and `achievements_earned`; `false` blocks Steam from writing either, for a game owned on Steam but played elsewhere. Governs those two columns only - prices and the Metacritic score ignore it entirely. |
 | `achievements_earned` / `achievements_total` | Integer | yes | | A count, independent of `all_achievements`. `achievements_earned` is Steam-fillable and overwrite, guarded by `steam_progress_sync` and a zero/unknown check - see [external-apis.md](external-apis.md#steam); `achievements_total` is fill-only. |
-| `release_status` | String | yes | | GAME_RELEASE_STATUSES (Rumored / Unreleased / Early Access / Released / Ongoing / Discontinued / Cancelled) |
+| `release_status` | String | yes | | GAME_RELEASE_STATUSES (Unreleased / Early Access / Released / Ongoing / Discontinued / Cancelled) |
 | `release_date` | String | yes | | Truncated ISO-8601, CHECK `ck_games_release_date_iso` |
 | `current_patch` | String | yes | | What is installed, not what changed in it: "1.6.1", "Update 7" |
 | `hours_played` | Float | yes | | Steam-fillable, overwrite, guarded by `steam_progress_sync` and a zero/unknown check (minutes ÷ 60 from `GetOwnedGames`) - see [external-apis.md](external-apis.md#steam) |
@@ -633,6 +637,9 @@ joined on its own table's `system_id`.
 | `price_paid` | Numeric(10,2) | yes | | What **I** paid |
 | `price_currency` | String | yes | | |
 | `acquired_date` | String | yes | | Truncated ISO-8601, CHECK `ck_game_copy_acquired_date_iso` |
+| `sell_price` | Numeric(10,2) | yes | | What the copy sold for. A record only: no statistic reads it |
+| `sell_currency` | String | yes | | The same vocabulary as `price_currency` |
+| `hours_played` | Float | yes | | Decimal hours on this copy (`12.5`). A record only: it does not roll up into `games.hours_played` |
 | `remark` | String | yes | | A plain column here, not a `note` row |
 | `position` | Integer | **no** | `0` (server default too) | Order within the game |
 | `created_at` | DateTime | yes | now | No `updated_at` |

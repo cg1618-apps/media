@@ -22,7 +22,7 @@ const ENTRY = {
   movie_name_cn: "測試電影",
   movie_name_en: "Test Movie",
   movie_name_alt: null,
-  airing_status: "Released",
+  release_status: "Released",
   watching_status: "Completed",
   genre_main: "Drama",
   remark: "Seen twice",
@@ -89,5 +89,17 @@ describe("Movie detail page - tab title and contents", () => {
     await waitFor(() =>
       expect(rows()).toEqual(["My tracker", "Naming", "Information", "Genres", "Remarks"]),
     );
+  });
+});
+
+describe("Movie detail page - release status", () => {
+  it("shows Release Status in the Information card, not Airing Status", async () => {
+    mockFetch();
+    mount();
+    const heading = await screen.findByRole("heading", { level: 3, name: "Information" });
+    const card = within(heading.closest("section"));
+    expect(card.getByText("Release Status")).toBeInTheDocument();
+    expect(card.getByText("Released")).toBeInTheDocument();
+    expect(card.queryByText("Airing Status")).toBeNull();
   });
 });

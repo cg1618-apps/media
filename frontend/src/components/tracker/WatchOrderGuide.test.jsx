@@ -6,7 +6,7 @@
 // anything, and an unfiled step may sit before, between or after them.
 import { describe, expect, it } from "vitest";
 
-import { buildBlocks } from "./WatchOrderGuide";
+import { buildBlocks, mediaScope } from "./WatchOrderGuide";
 
 const step = (id, position, section_id = null) => ({
   system_id: id,
@@ -143,5 +143,14 @@ describe("buildBlocks", () => {
       );
       expect(shape(blocks)).toEqual(["part:Part 1:a", "part:Part 2:"]);
     });
+  });
+});
+
+describe("mediaScope", () => {
+  // A game was resolved by the backend but had no label here, so a games-only
+  // order read "game only" and a cross-type one listed the raw slug.
+  it("names a game step's type", () => {
+    expect(mediaScope(["game"]).short).toBe("Game only");
+    expect(mediaScope(["anime", "game"]).full).toBe("Cross-type · Anime · Game");
   });
 });

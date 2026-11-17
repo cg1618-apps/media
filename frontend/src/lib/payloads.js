@@ -250,6 +250,11 @@ function formValue(field, values) {
 }
 
 export function buildAnimeMoviePayload(amf, { franchiseId } = {}) {
+  // An ONA has one release date, held in both columns. The form already
+  // writes both; this keeps a form that reached the payload any other way
+  // (a MAL prefill fills JP alone) from sending two.
+  const ona = amf.release_type === "ONA";
+  const onaDate = amf.release_date_jp || amf.release_date_tw || null;
   return {
     anime_movie_name_en: amf.anime_movie_name_en || null,
     anime_movie_name_cn: amf.anime_movie_name_cn || null,
@@ -260,7 +265,8 @@ export function buildAnimeMoviePayload(amf, { franchiseId } = {}) {
       franchiseId !== undefined
         ? franchiseId || null
         : amf.franchise_id || null,
-    airing_status: amf.airing_status || null,
+    release_status: amf.release_status || null,
+    release_type: amf.release_type || "Cinema",
     watching_status: amf.watching_status || "Might Watch",
     my_rating: amf.my_rating || null,
     time_fin: amf.time_fin || null,
@@ -272,8 +278,8 @@ export function buildAnimeMoviePayload(amf, { franchiseId } = {}) {
       amf.anilist_popularity_rank !== ""
         ? parseInt(amf.anilist_popularity_rank)
         : null,
-    release_date_jp: amf.release_date_jp || null,
-    release_date_tw: amf.release_date_tw || null,
+    release_date_jp: ona ? onaDate : amf.release_date_jp || null,
+    release_date_tw: ona ? onaDate : amf.release_date_tw || null,
     length_min: amf.length_min !== "" ? parseInt(amf.length_min) : null,
     mal_id: amf.mal_id !== "" ? parseInt(amf.mal_id) : null,
     mal_link: amf.mal_link || null,
@@ -404,20 +410,7 @@ export function gameFieldsPayload(f) {
     steam_appid: int(f.steam_appid),
     steam_link: f.steam_link || null,
     sources: sourcesPayload(f.sources),
-    copies: (f.copies || [])
-      .filter((c) => c.storefront || c.ownership || c.copy_format)
-      .map((c, i) => ({
-        ...(c.system_id ? { system_id: c.system_id } : {}),
-        storefront: c.storefront || null,
-        ownership: c.ownership || null,
-        copy_format: c.copy_format || null,
-        acquisition: c.acquisition || null,
-        price_paid: num(c.price_paid),
-        price_currency: c.price_currency || null,
-        acquired_date: c.acquired_date || null,
-        remark: c.remark || null,
-        position: i + 1,
-      })),
+    copies: copiesPayload(f.copies),
     play_next: f.play_next ?? false,
     to_replay: f.to_replay ?? false,
     cover_image_file: f.cover_image_file || null,
@@ -454,7 +447,7 @@ export function movieFieldsPayload(f, { defaultStatus } = {}) {
     movie_name_cn: f.movie_name_cn || null,
     movie_name_alt: f.movie_name_alt || null,
     is_main: f.is_main || null,
-    airing_status: f.airing_status || null,
+    release_status: f.release_status || null,
     watching_status: f.watching_status || defaultStatus || "Might Watch",
     my_rating: f.my_rating || null,
     time_fin: f.time_fin || null,
@@ -762,6 +755,9 @@ function copiesPayload(rows) {
       price_paid: num(c.price_paid),
       price_currency: c.price_currency || null,
       acquired_date: c.acquired_date || null,
+      sell_price: num(c.sell_price),
+      sell_currency: c.sell_currency || null,
+      hours_played: num(c.hours_played),
       remark: c.remark || null,
       position: i + 1,
     }));

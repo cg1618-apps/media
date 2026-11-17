@@ -31,6 +31,9 @@ class GameCopyIO(BaseModel):
     price_paid: Optional[Decimal] = None
     price_currency: Optional[str] = None
     acquired_date: Optional[str] = None
+    sell_price: Optional[Decimal] = None
+    sell_currency: Optional[str] = None
+    hours_played: Optional[float] = None
     remark: Optional[str] = None
     position: Optional[int] = None
 

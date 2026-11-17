@@ -133,12 +133,40 @@ def test_anime_movie_takes_only_what_its_autofill_writes(owner_client, tenrai):
         "anime_movie_name_en": "Frieren: Beyond Journey's End",
         "anime_movie_name_jp": "葬送のフリーレン",
         "anime_movie_name_alt": "Frieren at the Funeral, Frieren The Slayer",
-        "airing_status": "Finished Airing",
+        "release_status": "Released",
         "release_date_jp": "2023-09-29",
         "mal_rating": 9.3,
         "mal_rank": "1",
         "studio": "Madhouse",
     }
+
+
+@pytest.mark.parametrize("mal_type, release_type", [("Movie", "Cinema"), ("ONA", "ONA")])
+def test_anime_movie_takes_its_release_type_from_mal(owner_client, monkeypatch, mal_type, release_type):
+    raw = {**ANIME_RAW, "type": mal_type}
+    monkeypatch.setattr(prefill_module, "lookup_mal_anime", lambda mal_id: raw)
+    data = owner_client.get(f"{PATHS['anime-movie']}/52991").json()
+    assert data["release_type"] == release_type
+
+
+def test_an_ona_prefill_holds_its_one_date_in_both_columns(owner_client, monkeypatch):
+    raw = {**ANIME_RAW, "type": "ONA"}
+    monkeypatch.setattr(prefill_module, "lookup_mal_anime", lambda mal_id: raw)
+    data = owner_client.get(f"{PATHS['anime-movie']}/52991").json()
+    assert data["release_date_jp"] == data["release_date_tw"] == "2023-09-29"
+
+
+def test_a_cinema_prefill_leaves_the_tw_date_to_the_admin(owner_client, monkeypatch):
+    raw = {**ANIME_RAW, "type": "Movie"}
+    monkeypatch.setattr(prefill_module, "lookup_mal_anime", lambda mal_id: raw)
+    data = owner_client.get(f"{PATHS['anime-movie']}/52991").json()
+    assert "release_date_tw" not in data
+
+
+def test_any_other_mal_type_leaves_the_release_type_alone(owner_client, tenrai):
+    """ANIME_RAW is a TV record: MAL says nothing about Cinema or ONA."""
+    data = owner_client.get(f"{PATHS['anime-movie']}/52991").json()
+    assert "release_type" not in data
 
 
 def test_manga(owner_client, tenrai):

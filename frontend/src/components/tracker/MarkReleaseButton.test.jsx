@@ -53,6 +53,24 @@ describe("MarkReleaseButton", () => {
     expect(onPatch).toHaveBeenCalledWith({ release_status: "Released" }, "Marked as released");
   });
 
+  it("marks a Not Released film Released, through release_status", async () => {
+    const { onPatch, user } = setup("movie", { release_status: "Not Released" });
+    await user.click(screen.getByRole("button", { name: "Mark released" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(
+      screen.getAllByRole("button", { name: "Mark released" }).find((b) => dialog.contains(b)),
+    );
+    expect(onPatch).toHaveBeenCalledWith({ release_status: "Released" }, "Marked as released");
+  });
+
+  it("asks an ONA anime movie for its one release date", async () => {
+    const { user } = setup("anime-movie", { release_status: "Not Released", release_type: "ONA" });
+    await user.click(screen.getByRole("button", { name: "Mark released" }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("Release date")).toBeInTheDocument();
+    expect(within(dialog).queryByText("Release date (TW)")).not.toBeInTheDocument();
+  });
+
   it("cancel writes nothing", async () => {
     const { onPatch, user } = setup("game", { release_status: "Unreleased" });
     await user.click(screen.getByRole("button", { name: "Mark released" }));

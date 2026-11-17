@@ -13,12 +13,14 @@ import {
 const SERVED = [
   "airing_status",
   "anime_airing_type",
+  "anime_movie_release_type",
   "cartoon_airing_type",
   "character_role",
   "comic_type",
   "completion_level",
   "day_of_week",
   "franchise_expectation",
+  "film_release_status",
   "franchise_type",
   "game_acquisition",
   "game_copy_format",
@@ -57,6 +59,7 @@ describe("groupTier1Keys", () => {
       "cartoon_airing_type",
       "tv_show_airing_type",
       "movie_type",
+      "anime_movie_release_type",
       "novel_type",
       "comic_type",
       "game_type",
@@ -67,6 +70,7 @@ describe("groupTier1Keys", () => {
     const sections = groupTier1Keys(SERVED);
     const at = (title) => sections.find((s) => s.title === title).keys;
     expect(at("Publication Status")).toContain("game_release_status");
+    expect(at("Publication Status")).toContain("film_release_status");
     expect(at("My Progress")).toContain("playing_status");
     expect(at("Game")).toEqual([
       "completion_level",

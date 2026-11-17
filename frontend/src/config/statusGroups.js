@@ -12,6 +12,7 @@ export const COMPLETED_STATUSES = ["Completed", "Completed (解說)"];
 export const WATCHING_STATUS_GROUP = {
   "Plan to Watch":    "Planned",
   "Watch When Airs":  "Planned",
+  "Watch When Released": "Planned",
   "Active Watching":  "Watching",
   "Passive Watching": "Watching",
   Paused:             "Watching",
@@ -65,7 +66,6 @@ export const AIRING_STATUS_CLS = {
   "Finished Airing": "text-text-muted border border-border-strong",
   "Not Yet Aired":   "text-text-muted border border-border-strong",
   Canceled:          "text-text-muted border border-border-strong",
-  Rumored:           "text-text-muted border border-border-strong",
   _default:          "text-text-faint bg-surface-2",
 };
 
@@ -86,6 +86,7 @@ export const STATUS_PICKER_GROUP = {
   "Might Watch":      "Not Released",
   "Plan to Watch":    "Not Released",
   "Watch When Airs":  "Not Released",
+  "Watch When Released": "Not Released",
   "Might Read":       "Not Released",
   "Plan to Read":     "Not Released",
   "Might Play":       "Not Released",
@@ -111,8 +112,9 @@ export const STATUS_PICKER_GROUP = {
 /**
  * Splits a status vocabulary into [{ label, statuses }] for <optgroup>s,
  * keeping the source array's own order inside each group. Groups with no
- * members are dropped, so the same helper serves the watching list (which
- * has "Watch When Airs") and the reading list (which does not).
+ * members are dropped, so the same helper serves the watching lists (which
+ * have "Watch When Airs" or, on a film, "Watch When Released") and the
+ * reading list (which has neither).
  *
  * A value with no group — /api/constants is the real source of these arrays,
  * so it can serve one this map has never heard of — lands in a trailing

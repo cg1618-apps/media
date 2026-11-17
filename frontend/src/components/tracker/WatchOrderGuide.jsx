@@ -20,7 +20,8 @@ import { getCoverUrl, FALLBACK_SVG, focusStyle, thumbUrl } from "../../lib/cover
 import { Chip, Eyebrow } from "../ui/primitives";
 import LazyImage from "../ui/LazyImage";
 
-const TYPE_LABELS = {
+// The one map of a step's type to its name; the editor reads it too.
+export const TYPE_LABELS = {
   anime: "Anime",
   "anime-movie": "Anime Movie",
   movie: "Movie",
@@ -29,6 +30,7 @@ const TYPE_LABELS = {
   manga: "Manga",
   novel: "Novel",
   comic: "Comic",
+  game: "Game",
   "h-comic": "H-Comic",
   "h-game": "H-Game",
   hentai: "Hentai",
@@ -37,7 +39,7 @@ const TYPE_LABELS = {
 // Types a step always covers whole, so an admin is never offered a from/to.
 // A movie is one sitting; a hentai step names the entry, never a range of
 // its episodes; manga and novels are stepped through as a unit here rather than by
-// chapter; an h-game step names the work, never a range of it, as the
+// chapter; a game or h-game step names the work, never a range of it, as the
 // backend's watch-order resolver has it. Anything not listed - including a
 // null media_type - keeps the inputs, so an unrecognised type loses no
 // control.
@@ -46,6 +48,7 @@ const WHOLE_ONLY_TYPES = new Set([
   "anime-movie",
   "manga",
   "novel",
+  "game",
   "h-comic",
   "h-game",
   "hentai",

@@ -12,12 +12,13 @@ import {
   WATCHING_STATUSES,
   READING_STATUSES,
   PLAYING_STATUSES,
+  watchingStatusesFor,
 } from "./fieldOptions";
-import { PLAYING_STATUS_GROUP } from "./statusGroups";
+import { PLAYING_STATUS_GROUP, WATCHING_STATUS_GROUP } from "./statusGroups";
 
 describe("groupStatusOptions", () => {
-  it("splits the watching vocabulary into the three picker groups", () => {
-    expect(groupStatusOptions(WATCHING_STATUSES)).toEqual([
+  it("splits the airing types' watching vocabulary into the three picker groups", () => {
+    expect(groupStatusOptions(watchingStatusesFor("anime"))).toEqual([
       {
         label: "Not Released",
         statuses: ["Might Watch", "Plan to Watch", "Watch When Airs"],
@@ -36,6 +37,13 @@ describe("groupStatusOptions", () => {
         statuses: ["Completed", "Completed (解說)", "Dropped", "Won't Watch"],
       },
     ]);
+  });
+
+  it("splits a film's watching vocabulary, with Watch When Released for Watch When Airs", () => {
+    expect(groupStatusOptions(watchingStatusesFor("movie"))[0]).toEqual({
+      label: "Not Released",
+      statuses: ["Might Watch", "Plan to Watch", "Watch When Released"],
+    });
   });
 
   it("splits the reading vocabulary, which has no 'Watch When Airs'", () => {
@@ -74,6 +82,19 @@ describe("groupStatusOptions", () => {
   it("returns nothing for an empty or missing list", () => {
     expect(groupStatusOptions([])).toEqual([]);
     expect(groupStatusOptions(undefined)).toEqual([]);
+  });
+});
+
+describe("the watching vocabulary", () => {
+  it("files both waiting-on-a-release spellings under Planned", () => {
+    expect(WATCHING_STATUS_GROUP["Watch When Airs"]).toBe("Planned");
+    expect(WATCHING_STATUS_GROUP["Watch When Released"]).toBe("Planned");
+  });
+
+  it("maps every watching status to a library display group", () => {
+    for (const status of WATCHING_STATUSES) {
+      expect(WATCHING_STATUS_GROUP[status], status).toBeDefined();
+    }
   });
 });
 

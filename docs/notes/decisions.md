@@ -5256,6 +5256,88 @@ shown buttons that answered 401.
   valid per-author rows and a moved 備註列表 row cannot be told from a typed
   one.
 
+### Game copies record a sale and hours; Rumored leaves games; a game's order is a Play Order (2026-11-17)
+
+- **A copy's sale and hours are records, not inputs.** `game_copy.sell_price`
+  / `sell_currency` mirror the price paid, and `game_copy.hours_played` is
+  decimal hours on that copy. Nothing rolls the copy hours into
+  `games.hours_played`, and the statistics page and the two list-price checks
+  do not read either - the owner asked for the fields with no business logic.
+  Both live on the shared table, so an h-game copy carries them too.
+- **Rumored is not a game status.** Every game and h-game row holding it (the
+  two share `GAME_RELEASE_STATUSES`) became `Unreleased`, as did a stored
+  Add-form default, and Pull reads a `Rumored` cell from an older backup as
+  `Unreleased`. The downgrade does not bring it back: nothing records which
+  rows held it. `AiringStatus` keeps its own `Rumored`.
+- **Games were already in watch orders on the backend.** `MEDIA_TYPE_MODELS`
+  listed `game`, the candidates endpoint offered games and progress counted a
+  game by `playing_status` alone. What was missing was the frontend: the
+  editor's type filter had no Game, a game step showed its raw slug, and it
+  was offered an episode range. `game` joined `TYPE_LABELS` (now one map,
+  exported from `WatchOrderGuide.jsx`) and `WHOLE_ONLY_TYPES`.
+- **"Play Order" is a label, not a second feature.** The Game page's follow
+  panel says "Following Play Order"; every other type, h-game included, says
+  "Following Watch Order". One model, one route, one editor - `orderNoun`
+  picks the word from the page's media type.
+
+### A film has a release status, not an airing status; Rumored goes; an anime movie is Cinema or ONA (2026-11-17)
+
+- **Rumored leaves `AiringStatus`.** Revision `r1l2status34` turns every
+  `Rumored` on anime, TV shows, cartoons and hentai into `Not Yet Aired`.
+  Hentai is included even though the request named five types, because
+  `hentai.airing_status` is checked against the enum on every write: leaving
+  a hentai on `Rumored` would make its next edit fail. With games' `Rumored`
+  retired by the entry above, no vocabulary carries `Rumored` any more, and
+  Pull reads an older backup's `Rumored` per type: `Not Yet Aired` on an
+  airing type, `Not Released` on a film, `Unreleased` on a game.
+- **Movie and Anime Movie get `release_status`, with its own vocabulary**
+  (`FILM_RELEASE_STATUSES`: `Not Released`, `Released`, `Canceled`). A film
+  is released once, so it has no `Airing`. Old values map as `Not Yet Aired`
+  / `Rumored` → `Not Released`, `Airing` / `Finished Airing` → `Released`.
+  The column is renamed rather than added beside the old one, so there is
+  only one way to say it. The key is the same one games use, over a
+  different vocabulary; every reader that branches on `release_status`
+  across types reads each type's own pending value.
+- **`Not Released` counts as unfilled for Fill.** A new film now starts at
+  `Not Released` rather than blank. Strict fill-only would therefore never
+  let TMDB or MAL mark it `Released`. The fills write when the status is blank
+  or `Not Released` and only move a film forward, never back.
+- **`Watch When Released` is the film types' spelling of `Watch When Airs`.**
+  One `WatchStatus` holds both; a film offers only the first, the airing
+  types only the second, and every grouping that counts one as planned
+  counts both. Rejected: one shared status re-labelled per type in the UI.
+  The stored value would then not say what the viewer sees, and the sheet
+  would carry a word no page shows.
+- **An ONA's one release date is held in both columns**, kept equal on every
+  write by `sync_ona_release_date` (registered as the anime movie's
+  `progress_hook`, so create, update and patch all run it). The date the
+  write changed wins, otherwise JP, the date MAL fills. Rejected: storing it
+  only in JP and teaching every reader of `release_date_tw` about ONA. Coming
+  Next, the library, the sheet and `RELEASE_PRIORITY` all read the columns
+  directly. `release_type` is checked (`Literal`); `release_status`, like
+  `airing_status`, is not.
+- **Movie's "Original Source" becomes "Exclusive Source" by label only.** The
+  owner chose this over moving movies onto the single-valued
+  `exclusive_source` tag field, which would have had no lossless mapping for
+  a movie holding several sources. The `original_source` key, its sheet
+  header and its multi-value shape stay as they are on all four types.
+- **Releasing a film starts watching it, for the acting viewer only** (the
+  owner's call). "Mark released" and the future card's bolt move
+  `Watch When Released` to `Active Watching`, as Mark airing does for
+  `Watch When Airs`. The move rides `/api/me/list`, so it touches only the
+  acting account's row. Fill and a plain edit of `release_status` move
+  nothing: they are not a person saying "it is out and I am watching it".
+- **MAL's type sets `release_type` on the Add form only.** `Movie` → `Cinema`
+  and `ONA` → `ONA`, through the prefill's blank-or-default rule, which
+  replaces the untouched `Cinema` a new form starts with. The fill of a saved
+  entry never writes it. `release_type` is NOT NULL with `Cinema` as its
+  default, so a stored `Cinema` cannot be told from a chosen one. Rejected:
+  a nullable column meaning "not chosen yet", which every reader would then
+  have to treat as Cinema.
+- **Pull reads an older sheet** through `RENAMED_HEADERS` and the parsers.
+  This is the same shape as Game Choice Edge's `option`, so no manual sheet
+  work is needed, and the next Backup rewrites the headers.
+
 ### Series types: anime JP/TW dates, runtimes, a TV airing type (2026-11-17)
 
 - **An anime has a JP and a TW release date, as an anime movie does.** The

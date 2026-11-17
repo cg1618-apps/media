@@ -24,7 +24,7 @@ import { Button, Eyebrow, RatingStamp, Slip } from "../../components/ui/primitiv
 import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
-import { WATCHING_STATUSES } from "../../config/fieldOptions";
+import { FILM_WATCHING_STATUSES } from "../../config/fieldOptions";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
@@ -167,7 +167,7 @@ export default function Movie() {
   const eyebrow = [
     "Movie",
     movie.movie_type,
-    movie.airing_status,
+    movie.release_status,
     formatLength(movie.length_min),
   ]
     .filter(Boolean)
@@ -388,7 +388,7 @@ export default function Movie() {
               onToRewatchChange={(v) =>
                 saveOwn({ to_rewatch: v }, v ? "Marked for rewatch" : "Removed from rewatch")
               }
-              statusOptions={WATCHING_STATUSES}
+              statusOptions={FILM_WATCHING_STATUSES}
               ratingOptions={MY_RATINGS}
             />
           </TocSection>
@@ -404,7 +404,7 @@ export default function Movie() {
                 fields={[
                   [
                     { label: "本傳 / 外傳", value: movie.is_main },
-                    { label: "Airing Status", value: movie.airing_status },
+                    { label: "Release Status", value: movie.release_status },
                     { label: "Runtime", value: formatLength(movie.length_min) },
                   ],
                   {

@@ -8,7 +8,7 @@ import { formatSeason, selectComingNext } from "../../lib/comingNext";
 import { Chip, Slip } from "../ui/primitives";
 
 const SUBSECTIONS = [
-  { key: "airs", title: "Watch when airs" },
+  { key: "airs", title: "Watch when airs / released" },
   { key: "planned", title: "Planned to" },
 ];
 
@@ -101,7 +101,7 @@ function SeasonPart({ title, sections, empty }) {
 }
 
 /**
- * What the viewer is waiting on (Watch When Airs / Play When Released) and has
+ * What the viewer is waiting on (Watch When Airs / Released, Play When Released) and has
  * planned (Plan to Watch / Plan to Play), grouped by media type, in two
  * separate blocks: `currentSeason`'s entries that have not aired or released
  * by `today`, then `season`'s (next season's) entries. `lists` maps a

@@ -1,7 +1,7 @@
 """Anime Movie request/response schemas."""
 
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -21,7 +21,11 @@ class AnimeMovieBase(BaseModel):
     anime_movie_name_jp: Optional[str] = None
     anime_movie_name_alt: Optional[str] = None
 
-    airing_status: Optional[str] = None
+    # FILM_RELEASE_STATUSES; a new anime movie starts Not Released.
+    release_status: Optional[str] = "Not Released"
+    # ANIME_MOVIE_RELEASE_TYPES. An ONA's two release dates are one date -
+    # app/services/domain/anime_movie.py keeps them equal on every write.
+    release_type: Literal["Cinema", "ONA"] = "Cinema"
     watching_status: str = "Might Watch"
     my_rating: Optional[str] = None
     # "Paused at": free text, stored stripped and NULL when blank.

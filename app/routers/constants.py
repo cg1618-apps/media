@@ -112,6 +112,9 @@ def _constants() -> dict[str, list[str]]:
         "reading_status": _values(c.ReadStatus),
         "playing_status": _values(c.PlayStatus),
         "airing_status": _values(c.AiringStatus),
+        # movies.release_status and anime_movies.release_status.
+        "film_release_status": list(c.FILM_RELEASE_STATUSES),
+        "anime_movie_release_type": list(c.ANIME_MOVIE_RELEASE_TYPES),
         # Served from the FRANCHISE_TYPES / ANIME_AIRING_TYPES tuples, not the
         # enum, because the frontend dropdown has diverged from the Enum
         # class. See the comment above those tuples in app/utils/constants.py

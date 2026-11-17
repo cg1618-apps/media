@@ -63,6 +63,9 @@ export default function GameCopiesEditor({ items, onChange }) {
           price_paid: "",
           price_currency: "",
           acquired_date: "",
+          sell_price: "",
+          sell_currency: "",
+          hours_played: "",
           remark: "",
         },
       ]),
@@ -155,6 +158,35 @@ export default function GameCopiesEditor({ items, onChange }) {
                   aria-label={`Acquired date for ${name}`}
                   value={entry.acquired_date ?? ""}
                   onChange={(e) => updateEntry(i, "acquired_date", e.target.value)}
+                />
+
+                {/* Records only: neither rolls up into the game's own hours
+                    played or into the spend statistics. */}
+                <input
+                  className={priceCls}
+                  type="number"
+                  step="any"
+                  placeholder="sold"
+                  aria-label={`Sell price for ${name}`}
+                  value={entry.sell_price ?? ""}
+                  onChange={(e) => updateEntry(i, "sell_price", e.target.value)}
+                />
+                <Select
+                  label={`Sell currency for ${name}`}
+                  value={entry.sell_currency}
+                  options={PRICE_CURRENCIES}
+                  onChange={(v) => updateEntry(i, "sell_currency", v)}
+                  className={priceCls}
+                />
+                <input
+                  className={priceCls}
+                  type="number"
+                  step="any"
+                  min="0"
+                  placeholder="hours"
+                  aria-label={`Hours played for ${name}`}
+                  value={entry.hours_played ?? ""}
+                  onChange={(e) => updateEntry(i, "hours_played", e.target.value)}
                 />
 
                 <input

@@ -694,7 +694,7 @@ the picker.
 
 **Copies editor.** `components/forms/GameCopiesEditor.jsx`, one row per copy
 owned or wanted (storefront, ownership, format, acquisition, price paid +
-currency, acquired date, remark), with a drag grip (`components/ui/Sortable.jsx`; ArrowUp / ArrowDown on it moves a row one place) and remove. It is fully
+currency, acquired date, sell price + currency, hours played, remark), with a drag grip (`components/ui/Sortable.jsx`; ArrowUp / ArrowDown on it moves a row one place) and remove. It is fully
 controlled on the `NovelUnitsEditor` contract: no internal state, the parent
 owns `items`, the array handed in is never mutated, and every change goes out
 through `onChange` with `position` renumbered 1..n. `acquired_date` is free text,

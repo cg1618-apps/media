@@ -26,6 +26,7 @@ describe("weightGroupOf", () => {
     expect(weightGroupOf("anime", { watching_status: "Temp Dropped" })).toBe("In Progress");
     expect(weightGroupOf("anime", { watching_status: "Paused" })).toBe("In Progress");
     expect(weightGroupOf("anime", { watching_status: "Watch When Airs" })).toBe("Might");
+    expect(weightGroupOf("movie", { watching_status: "Watch When Released" })).toBe("Might");
     expect(weightGroupOf("game", { playing_status: "Play When Released" })).toBe("Might");
   });
 

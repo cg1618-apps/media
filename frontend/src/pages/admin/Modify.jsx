@@ -245,7 +245,8 @@ function movieToForm(movie, allFranchises, defaults) {
     anime_movie_name_alt: movie.anime_movie_name_alt || "",
     franchise_id: movie.franchise_id || null,
     franchise_text: f ? getDisplayName(f, "franchise") : "",
-    airing_status: movie.airing_status || "",
+    release_status: movie.release_status || "",
+    release_type: movie.release_type || "Cinema",
     watching_status: movie.watching_status || defaults.watching_status,
     my_rating: movie.my_rating || "",
     time_fin: movie.time_fin || "",
@@ -728,7 +729,7 @@ export default function Modify() {
       franchise_text: f ? getDisplayName(f, "franchise") : "",
       series_id: m.series_id || null,
       series_text: s ? getDisplayName(s, "series") : "",
-      airing_status: m.airing_status || "",
+      release_status: m.release_status || "",
       watching_status: m.watching_status || md("movie").watching_status,
       my_rating: m.my_rating || "",
       imdb_rating: m.imdb_rating || "",
@@ -3620,7 +3621,7 @@ export default function Modify() {
                       : activeTab === "franchise"
                         ? item.franchise_type
                         : activeTab === "anime-movie"
-                          ? item.airing_status
+                          ? item.release_status
                           : "";
                   return (
                     <button

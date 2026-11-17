@@ -11,6 +11,7 @@ import { Link } from "react-router-dom";
 import { useEntryFollows } from "../../api/mutations/useWatchOrderFollows";
 import { useAuth } from "../../contexts/AuthContext";
 import { entityPath } from "../../lib/entityPath";
+import { orderNoun } from "../../lib/orderNoun";
 import { Eyebrow } from "../ui/primitives";
 import FollowedStep from "./FollowedStep";
 
@@ -20,7 +21,7 @@ export function stepPosition(occurrences, total) {
   return `${numbers.length > 1 ? "steps" : "step"} ${numbers.join(", ")} / ${total}`;
 }
 
-function FollowedOrder({ context }) {
+function FollowedOrder({ context, noun }) {
   const { list, owner, total, occurrences } = context;
   const orderPath = entityPath("watch-order", list);
   const ownerPath = entityPath(owner.tier, owner);
@@ -28,7 +29,7 @@ function FollowedOrder({ context }) {
   return (
     <div className="bg-surface border border-border border-l-2 border-l-brand px-4 py-3">
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <Eyebrow className="text-brand">Following</Eyebrow>
+        <Eyebrow className="text-brand">{`Following ${noun}`}</Eyebrow>
         {orderPath ? (
           <Link
             to={orderPath}
@@ -75,14 +76,16 @@ function FollowedOrder({ context }) {
   );
 }
 
-export default function FollowedOrderPanel({ entryId }) {
+/** `mediaType` is the page's own entry type, which picks the feature's name. */
+export default function FollowedOrderPanel({ entryId, mediaType }) {
   const { has } = useAuth();
   const { data } = useEntryFollows(entryId, has("self.list"));
   if (!data?.length) return null;
+  const noun = orderNoun(mediaType);
   return (
-    <section aria-label="Followed watch orders" className="space-y-3">
+    <section aria-label={`Followed ${noun.toLowerCase()}s`} className="space-y-3">
       {data.map((context) => (
-        <FollowedOrder key={context.list.system_id} context={context} />
+        <FollowedOrder key={context.list.system_id} context={context} noun={noun} />
       ))}
     </section>
   );

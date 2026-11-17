@@ -252,6 +252,22 @@ describe("getNextStatus", () => {
       expect(getNextStatus(status)).toBe(expected);
     });
   });
+
+  it.each(["movie", "anime-movie"])(
+    "cycles a %s through Watch When Released, never Watch When Airs",
+    (type) => {
+      expect(getNextStatus("Plan to Watch", type)).toBe("Watch When Released");
+      expect(getNextStatus("Watch When Released", type)).toBe("Active Watching");
+    },
+  );
+
+  it.each(["anime", "tv-show", "cartoon", "hentai"])(
+    "cycles a %s through Watch When Airs, never Watch When Released",
+    (type) => {
+      expect(getNextStatus("Plan to Watch", type)).toBe("Watch When Airs");
+      expect(getNextStatus("Watch When Released", type)).toBe("Might Watch");
+    },
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -260,7 +276,7 @@ describe("getNextStatus", () => {
 
 describe("getStatusButtonConfig", () => {
   it("returns config object with symbol and cls for each status", () => {
-    STATUS_CYCLE.forEach((status) => {
+    [...STATUS_CYCLE, "Watch When Released"].forEach((status) => {
       const config = getStatusButtonConfig(status);
       expect(config).toHaveProperty("symbol");
       expect(config).toHaveProperty("cls");

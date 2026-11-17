@@ -243,10 +243,10 @@ not its franchise or its sibling series.
 | `GET`    | `/search-mal`  | `manage.catalog` | `?q=`, `limit`. Searches MAL anime of type Movie. Returns `ExternalSearchResult[]` (see [Add-tab picker searches](#add-tab-picker-searches)); 502 with a `detail` when the source fails. |
 | `GET`    | `/mal-prefill/{mal_id}` | `manage.catalog` | The Add form's fields from one MAL anime record — see [MAL prefill](#mal-prefill). 404 / 502 as anime's. Read-only. |
 | `GET`    | `/{entry_id}` | Public | Get a single anime movie entry by UUID.                                                    |
-| `POST`   | `/`            | Admin  | Create an anime movie entry. Body: `AnimeMovieCreate`.                                     |
+| `POST`   | `/`            | Admin  | Create an anime movie entry. Body: `AnimeMovieCreate`: `release_status` defaults to `Not Released` and `release_type` to `Cinema` (422 on anything but `Cinema` / `ONA`). On an ONA, create, `PUT` and `PATCH` all keep `release_date_jp` and `release_date_tw` equal - the date the body changed wins, otherwise JP. |
 | `PUT`    | `/{entry_id}` | Admin  | Full update. Body: `AnimeMovieUpdate`.                                                     |
 | `PATCH`  | `/{entry_id}` | Admin  | Partial update (e.g. watching status, rating). Body: raw JSON dict.                        |
-| `POST`   | `/{entry_id}/complete` | Admin  | Sets completion fields (watching status to "Completed", timestamps).                    |
+| `POST`   | `/{entry_id}/complete` | Admin  | Sets completion fields (watching status to "Completed", timestamps); `release_status` becomes `Released`. |
 | `DELETE` | `/{entry_id}` | Admin  | Delete an anime movie entry. Cleans up local cover image. Logs to `deleted_record`.        |
 
 **Response model:** `AnimeMovieResponse`
@@ -257,15 +257,15 @@ not its franchise or its sibling series.
 
 | Method   | Path                   | Auth   | Description                                                                                                             |
 | -------- | ---------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/`                    | Public | List all movie entries. Optional params: `franchise_id`, `series_id`, `watching_status`, `airing_status`, `movie_type`. |
+| `GET`    | `/`                    | Public | List all movie entries. Optional params: `franchise_id`, `series_id`, `watching_status`, `release_status`, `movie_type`. |
 | `GET`    | `/search-tmdb`         | `manage.catalog` | `?q=`, `limit`. Searches TMDB movies; `external_id` is a TMDB ref such as `movie/603`. Returns `ExternalSearchResult[]` (see [Add-tab picker searches](#add-tab-picker-searches)); 502 with a `detail` when the source fails. |
 | `GET`    | `/tmdb-imdb-id`        | `manage.catalog` | `?ref=movie/603`. Resolves a picked TMDB ref to `{imdb_id, imdb_link}`. 422 on a malformed ref, 404 when TMDB has no IMDb id, 502 when TMDB fails. |
 | `GET`    | `/{entry_id}`          | Public | Get a single movie entry by UUID.                                                                                       |
-| `POST`   | `/`                    | Admin  | Create a movie entry. Auto-runs `execute_replace_single_movie` after creation. Body: `MovieCreate`.                     |
+| `POST`   | `/`                    | Admin  | Create a movie entry. Auto-runs `execute_replace_single_movie` after creation. Body: `MovieCreate`; `release_status` defaults to `Not Released`. |
 | `PUT`    | `/{entry_id}`          | Admin  | Full update of a movie entry. Auto-runs `execute_replace_single_movie` after update. Body: `MovieUpdate`.               |
 | `PATCH`  | `/{entry_id}`          | Admin  | Partial update (e.g. watching status, rating). Does not re-run pipeline. Body: raw JSON dict.                           |
 | `DELETE` | `/{entry_id}`          | Admin  | Delete a movie entry. Removes the cover image file from `static/covers/` if present. Logs to `deleted_record`.                                |
-| `POST`   | `/{entry_id}/complete` | Admin  | Sets completion fields (watching status to "Completed", timestamps).                                                    |
+| `POST`   | `/{entry_id}/complete` | Admin  | Sets completion fields (watching status to "Completed", timestamps); `release_status` becomes `Released`.               |
 
 **Response model:** `MovieResponse`
 
@@ -434,7 +434,9 @@ entirely (`null`) means "not supplied" and leaves the rows alone; `[]` clears
 them. `uq_game_copy_row` (`user_id`, `game_id`, `storefront`, `copy_format`)
 rejects the same edition bought twice on the same store by the same person —
 `user_id` leads, so two accounts can each own Hollow Knight, Digital, on
-Steam.
+Steam. Beside the purchase, a copy carries `sell_price` / `sell_currency`
+and `hours_played` (decimal hours); both are stored as sent and nothing
+reads them back into the game's own `hours_played` or the spend checks.
 
 **The `copies` array carries only the acting user's rows**, on the read side
 of both the list and the detail route (`attach_own_copies`). A copy is a
@@ -556,7 +558,7 @@ media-entry surface, with no additions.
 | `POST`   | `/`                    | Admin  | Create. Body: `HentaiCreate`. Auto-runs `execute_replace_single_hentai`: extracts `mal_id` from `mal_link` and `anidb_id` from `anidb_link`, fills `airing_status`, `release_date`, the cover and the Official site / Twitter reference rows from Tenrai where blank, then whatever of those is still blank from AniDB (while `ANIDB_CLIENT` / `ANIDB_CLIENTVER` are set), then runs `run_sync_hentai` and `run_sync_gated_labels`. |
 | `PUT`    | `/{entry_id}`          | Admin  | Full update. Body: `HentaiUpdate`. Same write hook. |
 | `PATCH`  | `/{entry_id}`          | Admin  | Partial update, raw JSON dict. The hentai vocabularies are checked here too (422). |
-| `POST`   | `/{entry_id}/complete` | Admin  | `watching_status = "Completed"`; `airing_status` becomes `Finished Airing` (movie's rule). |
+| `POST`   | `/{entry_id}/complete` | Admin  | `watching_status = "Completed"`; `airing_status` becomes `Finished Airing` (the TV rule, `mark_tv_catalog`). |
 | `DELETE` | `/{entry_id}`          | Admin  | Delete. Logs to `deleted_record` under type `Hentai`. |
 
 **Payload fields** (`HentaiBase`): `franchise_id`, `series_id`,
@@ -1313,7 +1315,7 @@ Japanese titles, its synonyms as the alternative name, and the credits:
 | Type | Fields |
 | --- | --- |
 | `anime` | `anime_name_en`, `anime_name_jp`, `anime_name_alt`, `airing_type`, `airing_status`, `release_season`, `release_date_jp`, `release_date_tw` (not on an `airing_type` of `Movie`), `ep_total`, `runtime_min`, `mal_rating`, `mal_rank`, `studio` |
-| `anime-movie` | `anime_movie_name_en`, `anime_movie_name_jp`, `anime_movie_name_alt`, `airing_status`, `release_date_jp`, `mal_rating`, `mal_rank`, `studio` |
+| `anime-movie` | `anime_movie_name_en`, `anime_movie_name_jp`, `anime_movie_name_alt`, `release_status`, `release_date_jp`, `release_type` (MAL's `Movie` → `Cinema`, `ONA` → `ONA`, absent for any other MAL type), `release_date_tw` (an ONA only, equal to `release_date_jp`), `mal_rating`, `mal_rank`, `studio` |
 | `manga` | `manga_name_en`, `manga_name_jp`, `manga_name_alt`, `serialization_status`, `release_date`, `end_date`, `vol_total` and `ch_total` (only when the status is `完結`), `mal_rating`, `mal_rank`, `author_plot` (MAL's Story), `author_draw` (Art) |
 | `novel` | `novel_name_en`, `novel_name_jp`, `novel_name_alt`, `serialization_status`, `release_date`, `end_date`, `vol_total_original` and `ch_total` (only when `完結`), `mal_rating`, `mal_rank`, `author` (Story), `illustrator` (Art) |
 
@@ -1507,6 +1509,7 @@ value means; this endpoint just serves them.
 | `GET`  | `/external-apis` | Admin  | Which external API writes which field, and whether it fills or replaces it.  |
 
 Keys served: `watching_status`, `reading_status`, `airing_status`,
+`film_release_status`, `anime_movie_release_type`,
 `anime_airing_type`, `cartoon_airing_type`, `tv_show_airing_type`, `franchise_type`,
 `franchise_expectation`, `my_rating`, `gender`, `character_role`, `is_main`, `game_is_main`, `movie_type`, `tv_region`,
 `manga_region`, `novel_region`, `novel_type`, `comic_type`,

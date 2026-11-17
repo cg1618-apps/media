@@ -1382,7 +1382,7 @@ export default function Delete() {
                   )}
                   <div className="flex gap-2 mt-2">
                     <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
-                      {selectedAnimeMovie.airing_status || "Unknown"}
+                      {selectedAnimeMovie.release_status || "Unknown"}
                     </span>
                     <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
                       {selectedAnimeMovie.watching_status || "Unset"}
@@ -1476,7 +1476,7 @@ export default function Delete() {
                       </span>
                     )}
                     <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
-                      {selectedMovie.airing_status || "Unknown"}
+                      {selectedMovie.release_status || "Unknown"}
                     </span>
                     <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
                       {selectedMovie.watching_status || "Unset"}
