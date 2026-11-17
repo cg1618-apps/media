@@ -192,7 +192,6 @@ describe("isUnreleased", () => {
 
   it("reads release_status for games", () => {
     expect(isUnreleased({ release_status: "Unreleased" }, "game", today)).toBe(true);
-    expect(isUnreleased({ release_status: "Rumored" }, "game", today)).toBe(true);
     expect(isUnreleased({ release_status: "Early Access" }, "game", today)).toBe(false);
     expect(isUnreleased({ release_status: "Released" }, "game", today)).toBe(false);
   });

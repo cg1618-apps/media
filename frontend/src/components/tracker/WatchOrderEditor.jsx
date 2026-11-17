@@ -28,6 +28,7 @@ import {
   MediaScopeLine,
   specialLabel,
   supportsEpisodeRange,
+  TYPE_LABELS,
 } from "./WatchOrderGuide";
 import {
   buildTokens,
@@ -58,21 +59,6 @@ export const LIST_TYPES = [
   "Release",
   "Recommended",
 ];
-
-const TYPE_LABELS = {
-  anime: "Anime",
-  "anime-movie": "Anime Movie",
-  movie: "Movie",
-  "tv-show": "TV Show",
-  cartoon: "Cartoon",
-  manga: "Manga",
-  novel: "Novel",
-  comic: "Comic",
-  // Gated: each offered as a filter only to a session that can see its type.
-  "h-comic": "H-Comic",
-  "h-game": "H-Game",
-  hentai: "Hentai",
-};
 
 // Steps and parts are dragged on dnd-kit's pointer events, not native HTML5
 // drag: a native drag swallows the mouse wheel on Windows, and a guide can run
@@ -523,6 +509,7 @@ function EntryPicker({ candidates, items, onAdd, disabled, target, onClearTarget
           className="px-2 py-1.5 text-xs border border-border-strong bg-surface text-text placeholder:text-text-faint focus:outline-none focus:ring-2 focus:ring-brand"
         >
           <option value="">All types</option>
+          {/* The gated types are offered only to a session that can see them. */}
           {Object.entries(TYPE_LABELS)
             .filter(([slug]) => canSeeGatedType(auth, slug))
             .map(([slug, label]) => (

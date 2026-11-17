@@ -75,7 +75,6 @@ export const COMPLETION_LEVELS = [
 ];
 
 export const GAME_RELEASE_STATUSES = [
-  "Rumored",
   "Unreleased",
   "Early Access",
   "Released",

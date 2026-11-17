@@ -6,6 +6,7 @@ from sqlalchemy import (
     CheckConstraint,
     Column,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -76,6 +77,12 @@ class GameCopy(Base):
     price_paid = Column(Numeric(10, 2), nullable=True)
     price_currency = Column(String, nullable=True)
     acquired_date = Column(String, nullable=True)
+    # What the copy was sold on for, in the same currency vocabulary as the
+    # price paid, and how long this copy was played. Records only: nothing
+    # rolls them up into games.hours_played, and no statistic reads them.
+    sell_price = Column(Numeric(10, 2), nullable=True)
+    sell_currency = Column(String, nullable=True)
+    hours_played = Column(Float, nullable=True)
     remark = Column(String, nullable=True)
 
     position = Column(Integer, nullable=False, default=0, server_default="0")

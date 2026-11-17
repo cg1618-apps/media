@@ -1124,6 +1124,17 @@ def parse_comic_from_sheet(raw: dict) -> dict:
     return parsed
 
 
+# A release status that left GAME_RELEASE_STATUSES, read as the status its
+# rows were moved to, so a backup taken before the change restores cleanly.
+_LEGACY_GAME_RELEASE_STATUSES = {"Rumored": "Unreleased"}
+
+
+def _game_release_status_from_sheet(val: Any) -> Optional[str]:
+    """games / h_game release_status, with a retired value read as its successor."""
+    status = parse_from_sheet(val, str)
+    return _LEGACY_GAME_RELEASE_STATUSES.get(status, status)
+
+
 def parse_game_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Game sheet into typed data ready for the
@@ -1154,7 +1165,7 @@ def parse_game_from_sheet(raw: dict) -> dict:
         "steam_progress_sync": parse_from_sheet(raw.get("steam_progress_sync"), bool),
         "achievements_earned": parse_from_sheet(raw.get("achievements_earned"), int),
         "achievements_total": parse_from_sheet(raw.get("achievements_total"), int),
-        "release_status": parse_from_sheet(raw.get("release_status"), str),
+        "release_status": _game_release_status_from_sheet(raw.get("release_status")),
         "release_date": release_date.normalize(
             parse_from_sheet(raw.get("release_date"), str)
         ),
@@ -1357,7 +1368,7 @@ def parse_h_game_from_sheet(raw: dict) -> dict:
         "game_type": parse_from_sheet(raw.get("game_type"), str),
         "is_main": _single_choice_from_sheet(raw.get("is_main"), "is_main"),
         "base_game_id": parse_from_sheet(raw.get("base_game_id"), UUID),
-        "release_status": parse_from_sheet(raw.get("release_status"), str),
+        "release_status": _game_release_status_from_sheet(raw.get("release_status")),
         "release_date": release_date.normalize(
             parse_from_sheet(raw.get("release_date"), str)
         ),
@@ -1466,6 +1477,11 @@ def parse_game_copy_from_sheet(raw: dict) -> dict:
         "acquired_date": release_date.normalize(
             parse_from_sheet(raw.get("acquired_date"), str)
         ),
+        # Absent from a sheet backed up before the columns existed, which
+        # reads as None like any blank cell.
+        "sell_price": parse_from_sheet(raw.get("sell_price"), Decimal),
+        "sell_currency": parse_from_sheet(raw.get("sell_currency"), str),
+        "hours_played": parse_from_sheet(raw.get("hours_played"), float),
         "remark": parse_from_sheet(raw.get("remark"), str),
         "position": parse_from_sheet(raw.get("position"), int) or 0,
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
