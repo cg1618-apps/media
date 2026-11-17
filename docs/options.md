@@ -284,8 +284,8 @@ out. What the three gated types keep is in
 
 | Key | Shape | Label | Owners | Group | Kinds / statuses |
 |---|---|---|---|---|---|
-| `remark` | text | 備註 Remark | All | | singleton |
-| `remark_list` | text_links | 備註列表 Remark List | All | | Personal scope, many rows - 備註 is the singleton block |
+| `remark` | text | 備註 Remark | All | | Catalogue scope, singleton - one shared row per owner |
+| `remark_list` | text_links | 備註列表 Remark List | All | | Personal scope, many rows - each viewer's own beside the catalogue's 備註 |
 | `introduction` | text_links | 介紹 Introduction | All but h-comic, hentai | reviews | First in the 評論 card; shaped and scoped like 解析 |
 | `advantages` | text_links | 優點 Advantages | All but h-comic, hentai | reviews | |
 | `disadvantages` | text_links | 缺點 Disadvantages | All but h-comic, hentai | reviews | |

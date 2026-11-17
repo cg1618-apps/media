@@ -1,6 +1,6 @@
 # Open items
 
-Last verified: 2026-11-14
+Last verified: 2026-11-17
 
 Known defects, unmade decisions and blocked work. **Everything here is open by
 definition** — there is no status column, no claiming, and no lifecycle. An item
@@ -82,6 +82,14 @@ The sheet holds exactly one version of the data, and it is in the current
 shape: its `Note` tab carries `parent_id` and `fields`, and a Pull All from it
 restores every tab on the company machine. Arrival procedure is
 [switching-environments.md](switching-environments.md).
+
+**A sheet backed up before `r1e2mcatalog3` turns private remarks public.**
+Its `Note` tab holds every 備註 Remark as a personal row, and a Pull reads
+`remark` as catalogue scope now, so each one comes back as the entry's shared
+remark, readable by guests. Nothing in a row says which side of the migration
+wrote it, so Pull cannot reshape it. Until Backup has run on a database past
+that revision, do not Pull All from the sheet. Closed by that first Backup, or
+by Pull learning to tell the two apart.
 
 **The company machine's owner flag is applied; whether every row followed is
 unverified.** That database is now at head, it has the

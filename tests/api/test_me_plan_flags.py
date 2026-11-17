@@ -1,9 +1,6 @@
 """
-The caller's own plan flags and remarks, under /api/me.
-
-Both used to be writable only through the entry's catalogue endpoint, behind
-manage.catalog, so a `user` was shown the controls and refused. These routes
-are behind self.list and write the caller's rows only.
+The caller's own plan flags, under /api/me: behind self.list, writing the
+caller's rows only.
 
 Each refusal test asserts the mirror with the same setup: a guest refused
 where a member succeeds; a second account's row untouched where the caller's
@@ -25,12 +22,6 @@ def flags(client, media_id, **body):
     return client.put(f"/api/me/plan-flags/{media_id}", json=body)
 
 
-def remark(client, owner_type, owner_id, text):
-    return client.put(
-        f"/api/me/remarks/{owner_type}/{owner_id}", json={"remark": text}
-    )
-
-
 def _plan_rows(db, user, media_id):
     db.expire_all()
     return {
@@ -40,20 +31,6 @@ def _plan_rows(db, user, media_id):
             models.PlanNext.media_id == media_id,
         )
     }
-
-
-def _remark_of(db, user, owner_id):
-    db.expire_all()
-    row = (
-        db.query(models.Note)
-        .filter(
-            models.Note.section == "remark",
-            models.Note.author_id == user.id,
-            models.Note.media_id == owner_id,
-        )
-        .one_or_none()
-    )
-    return row.content if row else None
 
 
 @pytest.fixture
@@ -126,58 +103,3 @@ def test_an_entry_of_a_type_the_viewer_lacks_is_404(
         db_session, client, "withanime", default_guest_permissions() | {PERM_SELF_LIST}
     )
     assert flags(member, sample_anime.system_id, watch_next=True).status_code == 200
-
-
-# ---------------------------------------------------------------------------
-# Remarks
-# ---------------------------------------------------------------------------
-
-
-def test_a_member_writes_its_own_remark(user_client, db_session, plain_user, movie):
-    r = remark(user_client, "movie", movie.system_id, "Worth a rewatch.")
-    assert r.status_code == 200, r.text
-    assert r.json() == {"remark": "Worth a rewatch."}
-    assert _remark_of(db_session, plain_user, movie.system_id) == "Worth a rewatch."
-
-    assert remark(user_client, "movie", movie.system_id, "").json() == {"remark": None}
-    assert _remark_of(db_session, plain_user, movie.system_id) is None
-
-
-def test_a_guest_cannot_write_a_remark(client, user_client, movie):
-    assert remark(client, "movie", movie.system_id, "x").status_code == 401
-    assert remark(user_client, "movie", movie.system_id, "x").status_code == 200
-
-
-def test_another_accounts_remark_is_untouched(
-    user_client, super_client, db_session, plain_user, super_user, movie
-):
-    assert remark(super_client, "movie", movie.system_id, "Super's own.").status_code == 200
-    assert remark(user_client, "movie", movie.system_id, "Mine.").status_code == 200
-    assert _remark_of(db_session, super_user, movie.system_id) == "Super's own."
-    assert _remark_of(db_session, plain_user, movie.system_id) == "Mine."
-
-
-def test_a_remark_on_a_group(user_client, sample_franchise):
-    r = remark(user_client, "franchise", sample_franchise.system_id, "Start here.")
-    assert r.status_code == 200
-    assert r.json() == {"remark": "Start here."}
-
-
-@pytest.mark.parametrize("owner_type", ["anime", "nonsense", "franchise"])
-def test_a_wrong_owner_is_404(user_client, movie, owner_type):
-    """The id is a movie's: naming it as another type, as a group, or as an
-    unknown type finds nothing. Mirror: the right type writes."""
-    assert remark(user_client, owner_type, movie.system_id, "x").status_code == 404
-    assert remark(user_client, "movie", movie.system_id, "x").status_code == 200
-
-
-def test_a_remark_body_is_text_or_null(user_client, movie):
-    r = user_client.put(
-        f"/api/me/remarks/movie/{movie.system_id}", json={"remark": 3}
-    )
-    assert r.status_code == 422
-    r = user_client.put(
-        f"/api/me/remarks/movie/{movie.system_id}", json={"text": "x"}
-    )
-    assert r.status_code == 422
-    assert remark(user_client, "movie", movie.system_id, None).status_code == 200

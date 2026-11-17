@@ -98,7 +98,7 @@ def get_series_by_id(
     # from one that was never there.
     if not db_series or not series_visible(db, viewer, db_series.system_id):
         raise HTTPException(status_code=404, detail="Series not found.")
-    attach_remark(db, "series", db_series, viewer.user_id)
+    attach_remark(db, "series", db_series)
     attach_group_content_labels(db, "series", db_series)
     attach_ratings(db, "series", db_series, viewer.user_id)
     return db_series
@@ -139,7 +139,7 @@ def create_series(
         db.commit()
         db.refresh(new_series)
 
-    attach_remark(db, "series", new_series, viewer.user_id)
+    attach_remark(db, "series", new_series)
 
     attach_ratings(db, "series", new_series, viewer.user_id)
 
@@ -178,7 +178,7 @@ def update_series(
     db.commit()
     db.refresh(db_series)
 
-    attach_remark(db, "series", db_series, viewer.user_id)
+    attach_remark(db, "series", db_series)
     attach_group_content_labels(db, "series", db_series)
 
     attach_ratings(db, "series", db_series, viewer.user_id)
@@ -217,7 +217,7 @@ def patch_series(
     db.commit()
     db.refresh(db_series)
 
-    attach_remark(db, "series", db_series, viewer.user_id)
+    attach_remark(db, "series", db_series)
     attach_group_content_labels(db, "series", db_series)
 
     attach_ratings(db, "series", db_series, viewer.user_id)

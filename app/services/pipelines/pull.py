@@ -2114,9 +2114,9 @@ def execute_pull_specific(
             rk_owner = _note_owner_filters(clean_header_dict)
             if rk_owner:
                 rk_filters = [*rk_owner, Note.section == singleton.key]
-                # A personal-scope singleton is one row per owner PER AUTHOR
-                # (ix_note_one_remark_per_owner carries author_id), so the
-                # fold must not land one account's remark on another's.
+                # A personal-scope singleton would be one row per owner per
+                # author, so the fold must not land one account's row on
+                # another's. `remark` is catalogue: one row per owner.
                 if singleton.scope == SCOPE_PERSONAL:
                     rk_filters.append(
                         Note.author_id == clean_header_dict.get("author_id")

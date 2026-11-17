@@ -48,7 +48,7 @@ import { focusStyle } from "../../lib/covers";
 import CastSection from "../../components/info/CastSection";
 import LazyImage from "../../components/ui/LazyImage";
 import { useViewScope } from "../../hooks/useViewScope";
-import { useMyRemarkSaver } from "../../api/mutations/useMyRemark";
+import { useRemarkSaver } from "../../api/mutations/useRemark";
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
@@ -166,7 +166,7 @@ export default function Hentai() {
   // the URL segment and the id can never disagree.
   const system_id = itemQuery.data?.system_id;
   const { ownData } = useViewScope();
-  const saveMyRemark = useMyRemarkSaver("hentai", system_id, setHentai);
+  const saveRemark = useRemarkSaver("hentai", system_id, setHentai);
   const castingQuery = useCasting("hentai", system_id);
   const cast = castingQuery.data?.cast || [];
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
@@ -462,14 +462,15 @@ export default function Hentai() {
           </div>
 
           <TocSection id="remarks" label="Remarks">
-            {ownData && hentai.remark && (
+            {hentai.remark && (
               <Slip title="Remarks">
                 <textarea
                   key={hentai.system_id}
                   defaultValue={hentai.remark || ""}
+                  readOnly={!isAdmin}
                   onBlur={(e) => {
-                    if (e.target.value !== (hentai.remark || ""))
-                      saveMyRemark(e.target.value);
+                    if (isAdmin && e.target.value !== (hentai.remark || ""))
+                      saveRemark(e.target.value);
                   }}
                   rows={4}
                   placeholder="Add remarks…"
@@ -479,14 +480,14 @@ export default function Hentai() {
             )}
           </TocSection>
 
-          {/* The dedicated remark textarea above renders only for a holder of
-              self.list who has a remark; hide the notes page's `remark`
-              section exactly then, so the viewer's own row never has two
-              editors on one screen. */}
+          {/* The dedicated remark textarea above renders whenever a remark
+              exists - editable for a holder of manage.catalog, read-only for
+              everyone else; hide the notes page's `remark` section exactly
+              then, so the one row never has two editors on one screen. */}
           <HentaiNotes
             key={hentai.system_id}
             hentai={hentai}
-            hideSections={ownData && hentai.remark ? ["remark"] : []}
+            hideSections={hentai.remark ? ["remark"] : []}
             series={series}
             franchise={franchise}
           />

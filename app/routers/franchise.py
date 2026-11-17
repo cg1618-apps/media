@@ -127,7 +127,7 @@ def get_franchise_by_id(
     # from one that was never there.
     if not franchise_visible(db, viewer, db_franchise.system_id):
         raise HTTPException(status_code=404, detail="Franchise not found.")
-    attach_remark(db, "franchise", db_franchise, viewer.user_id)
+    attach_remark(db, "franchise", db_franchise)
     attach_ratings(db, "franchise", db_franchise, viewer.user_id)
     attach_franchise_content_labels(db, db_franchise)
     return db_franchise
@@ -177,7 +177,7 @@ def create_franchise(
             db.commit()
             db.refresh(new_franchise)
 
-        attach_remark(db, "franchise", new_franchise, viewer.user_id)
+        attach_remark(db, "franchise", new_franchise)
 
         attach_ratings(db, "franchise", new_franchise, viewer.user_id)
 
@@ -224,7 +224,7 @@ def update_franchise(
     db.commit()
     db.refresh(db_franchise)
 
-    attach_remark(db, "franchise", db_franchise, viewer.user_id)
+    attach_remark(db, "franchise", db_franchise)
 
     attach_ratings(db, "franchise", db_franchise, viewer.user_id)
 
@@ -264,7 +264,7 @@ def patch_franchise(
     db.commit()
     db.refresh(db_franchise)
 
-    attach_remark(db, "franchise", db_franchise, viewer.user_id)
+    attach_remark(db, "franchise", db_franchise)
 
     attach_ratings(db, "franchise", db_franchise, viewer.user_id)
 
