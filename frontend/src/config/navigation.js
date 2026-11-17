@@ -109,7 +109,7 @@ export const NAV_SECTIONS = [
         ],
       },
       {
-        heading: "ACG",
+        heading: "AniManga",
         items: [
           {
             label: "Anime",

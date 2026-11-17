@@ -1,4 +1,4 @@
-// Frontend: the read-only cast list every ACG detail page shows.
+// Frontend: the read-only cast list every AniManga detail page shows.
 import { Fragment, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 

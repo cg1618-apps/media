@@ -64,8 +64,8 @@ describe("the list filters", () => {
   });
 
   it("drop the H-Comic franchise type with its media type", () => {
-    const fts = ["ACG", "Game", "H-Comic"];
-    expect(visibleFranchiseTypes(narrow, fts)).toEqual(["ACG", "Game"]);
+    const fts = ["Anime", "Game", "H-Comic"];
+    expect(visibleFranchiseTypes(narrow, fts)).toEqual(["Anime", "Game"]);
     expect(visibleFranchiseTypes(unrestricted, fts)).toEqual(fts);
   });
 });
@@ -113,9 +113,9 @@ describe("hentai", () => {
   });
 
   it("drops the Hentai franchise type with its media type", () => {
-    const fts = ["ACG", "H-Comic", "Hentai"];
-    expect(visibleFranchiseTypes(narrow, fts)).toEqual(["ACG"]);
-    expect(visibleFranchiseTypes(hentaiOnly, fts)).toEqual(["ACG", "Hentai"]);
+    const fts = ["Anime", "H-Comic", "Hentai"];
+    expect(visibleFranchiseTypes(narrow, fts)).toEqual(["Anime"]);
+    expect(visibleFranchiseTypes(hentaiOnly, fts)).toEqual(["Anime", "Hentai"]);
     expect(visibleFranchiseTypes(both, fts)).toEqual(fts);
   });
 
@@ -150,8 +150,8 @@ describe("franchise families", () => {
   });
 
   it("leaves a mainstream franchise out of it", () => {
-    expect(inFranchiseFamily("ACG", RESTRICTED_FAMILY)).toBe(false);
-    expect(inFranchiseFamily("ACG, Game", RESTRICTED_FAMILY)).toBe(false);
+    expect(inFranchiseFamily("Anime", RESTRICTED_FAMILY)).toBe(false);
+    expect(inFranchiseFamily("Anime, Game", RESTRICTED_FAMILY)).toBe(false);
     expect(inFranchiseFamily("Game", RESTRICTED_FAMILY)).toBe(false);
     expect(inFranchiseFamily(null, RESTRICTED_FAMILY)).toBe(false);
   });
@@ -165,8 +165,8 @@ describe("required labels", () => {
 
   it("names it for a franchise whose types include H-Comic", () => {
     expect(requiredLabelsForFranchiseType("H-Comic")).toEqual(["h-comic"]);
-    expect(requiredLabelsForFranchiseType("ACG, H-Comic")).toEqual(["h-comic"]);
-    expect(requiredLabelsForFranchiseType("ACG, Game")).toEqual([]);
+    expect(requiredLabelsForFranchiseType("Anime, H-Comic")).toEqual(["h-comic"]);
+    expect(requiredLabelsForFranchiseType("Anime, Game")).toEqual([]);
     expect(requiredLabelsForFranchiseType(null)).toEqual([]);
   });
 });

@@ -147,7 +147,7 @@ describe("HComicAddTab", () => {
     const user = userEvent.setup();
     renderTab({
       franchises: [
-        { system_id: "f1", franchise_name_en: "Mainstream Fate", franchise_type: "ACG" },
+        { system_id: "f1", franchise_name_en: "Mainstream Fate", franchise_type: "Anime" },
         { system_id: "f2", franchise_name_en: "Adult Fate", franchise_type: "H-Comic" },
         // The same family: an h-comic may share its hentai adaptation's, or a
         // doujin franchise holding h-games.

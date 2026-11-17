@@ -6,8 +6,10 @@
 import { describe, expect, it } from "vitest";
 
 import { FALLBACK_SVG } from "../lib/covers";
+import { FAVORITE_GRIDS } from "../config/favoriteGrids";
 import {
   favoriteCover,
+  favoritePool,
   getCoverForSlot,
   getSeriesCoverForSlot,
 } from "./statsUtils";
@@ -52,7 +54,7 @@ describe("getCoverForSlot", () => {
 describe("getSeriesCoverForSlot", () => {
   it("honours the type filter and keeps the focus", () => {
     expect(
-      getSeriesCoverForSlot({ system_id: "s1" }, { s1: [old, recent] }, "ACG"),
+      getSeriesCoverForSlot({ system_id: "s1" }, { s1: [old, recent] }, "Anime"),
     ).toEqual({ url: "/api/covers/anime/e1.jpg", focus: "90% 90%" });
   });
 });
@@ -70,5 +72,26 @@ describe("favoriteCover", () => {
       url: FALLBACK_SVG,
       focus: null,
     });
+  });
+});
+
+describe("favoritePool", () => {
+  const franchises = [
+    { system_id: "a", franchise_type: "Anime" },
+    { system_id: "m", franchise_type: "Game, Manga" },
+    { system_id: "n", franchise_type: "Novel" },
+    { system_id: "am", franchise_type: "Anime Movie" },
+  ];
+  const ids = (rows) => rows.map((r) => r.system_id);
+
+  it("the AniManga grid holds Anime and Manga franchises together", () => {
+    const grid = FAVORITE_GRIDS.find((g) => g.id === "animanga-franchises");
+    expect(grid.key).toBe("ACG");
+    expect(ids(favoritePool(grid, { franchises }))).toEqual(["a", "m"]);
+  });
+
+  it("a grid naming no franchiseTypes filters on its key", () => {
+    const grid = FAVORITE_GRIDS.find((g) => g.id === "novel-franchises");
+    expect(ids(favoritePool(grid, { franchises }))).toEqual(["n"]);
   });
 });

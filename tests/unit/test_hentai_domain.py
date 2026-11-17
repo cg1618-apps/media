@@ -71,12 +71,12 @@ def test_the_family_map_is_the_agreed_one():
     [
         (None, {"mainstream"}),
         ("", {"mainstream"}),
-        ("ACG, Anime", {"mainstream"}),
+        ("Anime, Manga", {"mainstream"}),
         ("H-Comic", {"restricted"}),
         ("H-Comic, Hentai", {"restricted"}),
         ("H-Comic, Hentai, H-Game", {"restricted"}),
-        ("ACG, Hentai", {"mainstream", "restricted"}),
-        ("ACG, H-Game", {"mainstream", "restricted"}),
+        ("Anime, Hentai", {"mainstream", "restricted"}),
+        ("Anime, H-Game", {"mainstream", "restricted"}),
     ],
 )
 def test_franchise_families(value, families):
@@ -87,10 +87,10 @@ def test_a_mixed_franchise_type_is_refused_and_one_family_is_not():
     with pytest.raises(ValueError):
         check_franchise_type_family("Anime, Hentai")
     with pytest.raises(ValueError):
-        check_franchise_type_family("ACG, H-Game")
+        check_franchise_type_family("Anime, H-Game")
     check_franchise_type_family("H-Comic, Hentai")
     check_franchise_type_family("H-Comic, Hentai, H-Game")
-    check_franchise_type_family("ACG, Anime")
+    check_franchise_type_family("Anime, Manga")
 
 
 def test_entry_families():
@@ -103,4 +103,4 @@ def test_entry_families():
 def test_a_franchise_brings_the_label_of_each_gated_type_it_holds():
     both = SimpleNamespace(franchise_type="H-Comic, Hentai")
     assert gated_labels.franchise_label_keys(both) == ["h-comic", "hentai"]
-    assert gated_labels.franchise_label_keys(SimpleNamespace(franchise_type="ACG")) == []
+    assert gated_labels.franchise_label_keys(SimpleNamespace(franchise_type="Anime")) == []

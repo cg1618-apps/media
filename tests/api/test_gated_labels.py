@@ -159,7 +159,7 @@ def _franchise(db, franchise_type, name):
 
 
 def test_a_gated_franchise_refuses_a_set_without_its_label(db_session):
-    franchise = _franchise(db_session, "ACG, H-Comic", "Zvornik Gated Franchise")
+    franchise = _franchise(db_session, "Anime, H-Comic", "Zvornik Gated Franchise")
     with pytest.raises(HTTPException) as exc:
         gated_labels.refuse_label_removal_on_franchise(db_session, franchise.system_id, [])
     assert exc.value.status_code == 422
@@ -171,7 +171,7 @@ def test_a_gated_franchise_refuses_a_set_without_its_label(db_session):
 
 
 def test_an_ungated_franchise_accepts_any_set(db_session):
-    franchise = _franchise(db_session, "ACG", "Zvornik Plain Franchise")
+    franchise = _franchise(db_session, "Anime", "Zvornik Plain Franchise")
     gated_labels.refuse_label_removal_on_franchise(db_session, franchise.system_id, [])
 
 
@@ -187,8 +187,8 @@ def unlabelled_rows(db_session, sample_franchise):
     that must stay unlabelled - and an h-comic that already carries it, so the
     label exists and is attached somewhere before the pass runs.
     """
-    gated_franchise = _franchise(db_session, "ACG, H-Comic", "Zvornik Pass Franchise")
-    plain_franchise = _franchise(db_session, "ACG", "Zvornik Plain Pass Franchise")
+    gated_franchise = _franchise(db_session, "Anime, H-Comic", "Zvornik Pass Franchise")
+    plain_franchise = _franchise(db_session, "Anime", "Zvornik Plain Pass Franchise")
     bare = models.HComic(h_comic_name_cn="Zvornik Bare", region="JP")
     labelled = models.HComic(h_comic_name_cn="Zvornik Labelled", region="JP")
     anime = models.Anime(

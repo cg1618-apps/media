@@ -22,7 +22,8 @@ import PlanKindToggles, {
 import { scopesFor } from "../../config/planNextGroups";
 
 const TYPE_TO_ENTRY_TYPES = {
-  ACG: ["anime", "manga"],
+  Anime: ["anime", "anime_movie"],
+  Manga: ["manga"],
   "Anime Movie": ["anime_movie"],
   TV: ["tv-show"],
   Movie: ["movie"],

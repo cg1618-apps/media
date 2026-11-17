@@ -16,7 +16,7 @@ from app import models
 
 def _franchise(db_session, name="Zvornik Franchise"):
     franchise = models.Franchise(
-        system_id=uuid.uuid4(), franchise_type="ACG", franchise_name_en=name
+        system_id=uuid.uuid4(), franchise_type="Anime", franchise_name_en=name
     )
     db_session.add(franchise)
     db_session.flush()

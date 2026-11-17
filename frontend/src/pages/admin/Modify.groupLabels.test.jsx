@@ -47,7 +47,7 @@ const TIERS = {
   },
   franchise: {
     listPath: "/api/franchise",
-    entry: { system_id: "c1", franchise_name_en: "Avengers", franchise_type: "ACG" },
+    entry: { system_id: "c1", franchise_name_en: "Avengers", franchise_type: "Anime" },
     hides: "this franchise and every series and entry in it",
     note: /a labelled franchise is hidden.*every series and entry in it/i,
   },

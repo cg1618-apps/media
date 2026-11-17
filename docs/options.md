@@ -95,8 +95,8 @@ type it serves is seeable.
 | `AnimeAiringType` (Enum) | `TV`, `ONA`, `OVA`, `OAD`, `Special`, `Movie` | backend-internal only | not served |
 | `ANIME_AIRING_TYPES` | `TV`, `Movie`, `ONA`, `OVA`, `OAD`, `Special`, `Other` | `anime.airing_type` dropdown | `anime_airing_type` |
 | `CARTOON_AIRING_TYPES` | `TV`, `Movie`, `OVA`, `Special` | `cartoons.airing_type` dropdown (Fill only handles `TV` and `Movie`, see business-rules.md section 17) | `cartoon_airing_type` |
-| `FranchiseType` (Enum) | `Movie`, `TV`, `Cartoon`, `Comic`, `ACG`, `Novel`, `Game`, `H-Comic`, `H-Game`, `Hentai` | backend-internal only | not served |
-| `FRANCHISE_TYPES` | `ACG`, `Anime Movie`, `TV`, `Movie`, `Cartoon`, `Comic`, `Novel`, `Game`, `H-Comic`, `H-Game`, `Hentai` | `franchise.franchise_type` dropdown. `H-Comic`, `H-Game` and `Hentai` are the types code branches on: a franchise carrying one carries that gated type's label and only entries of its family resolve into it ([entry-types.md](entry-types.md#franchise_type-values)) | `franchise_type` |
+| `FranchiseType` (Enum) | `Movie`, `TV`, `Cartoon`, `Comic`, `Anime`, `Manga`, `Novel`, `Game`, `H-Comic`, `H-Game`, `Hentai` | backend-internal only | not served |
+| `FRANCHISE_TYPES` | `Anime`, `Manga`, `Anime Movie`, `TV`, `Movie`, `Cartoon`, `Comic`, `Novel`, `Game`, `H-Comic`, `H-Game`, `Hentai` | `franchise.franchise_type` dropdown. `H-Comic`, `H-Game` and `Hentai` are the types code branches on: a franchise carrying one carries that gated type's label and only entries of its family resolve into it ([entry-types.md](entry-types.md#franchise_type-values)) | `franchise_type` |
 | `FRANCHISE_FAMILY_FOR_TYPE` | `H-Comic`, `Hentai` and `H-Game` -> `restricted` (`RESTRICTED_FAMILY`); any other type is `mainstream` (`MAINSTREAM_FAMILY`) | which franchise types may share a franchise, and which franchises an entry may sit in. A franchise type list spanning two families is refused (422) | not served |
 | `FRANCHISE_EXPECTATIONS` | `Highest`, `High`, `Medium`, `Low` | `user_rating.expectation`, the viewer's own expectation of a collection, franchise or series (served as `collection_expectation` / `franchise_expectation` / `series_expectation`). **Enforced** by `PUT /api/me/ratings`: anything else is a 422 | `franchise_expectation` |
 | `MY_RATINGS` | `S`, `A+`, `A`, `B`, `C`, `D`, `E`, `F` | `my_rating` on `user_media_list` (entries), `seasonal`, `user_novel_unit_rating` and `user_rating` (collection, franchise, series, person, character, studio, publisher). **Enforced** on every `user_rating` and unit write through `PUT /api/me/ratings` and `PUT /api/me/novel-units`: a write naming anything else is a 422 and `""` is NULL (`check_my_rating`, `app/utils/entity_vocab.py`) | `my_rating` |
@@ -1137,9 +1137,13 @@ Carried over on purpose; do not "fix" one side without reconciling both.
 - **Franchise type.** `FRANCHISE_TYPES` (served, shown in the dropdown) has
   `Anime Movie`, which the `FranchiseType` Enum does not. Every Enum value is
   in `FRANCHISE_TYPES`, so a franchise auto-creation stamps is always one the
-  dropdown offers. `ACG` is the one type for anime and manga franchises;
-  there is no `Anime` franchise type, and Pull folds one restored from an old
-  sheet onto `ACG` (business-rules.md, "Franchise").
+  dropdown offers. Anime franchises are `Anime` and manga franchises
+  `Manga`; there is no `ACG` franchise type, and Pull splits one restored from
+  an old sheet into `Anime` and/or `Manga` by what the franchise holds
+  (business-rules.md, "Franchise"). The AniManga group - `Anime` and
+  `Manga` counted as one by the statistics and the favourite AniManga
+  franchises grid - is frontend-only: `ANIMANGA_FRANCHISE_TYPES` in
+  `frontend/src/config/fieldOptions.js`, not served.
 - **Anime airing type.** `AnimeAiringType` Enum lacks the trailing `Other`
   that `ANIME_AIRING_TYPES` (served) carries.
 - **Cartoon airing type.** The dropdown offers `TV`, `Movie`, `OVA`, `Special`,

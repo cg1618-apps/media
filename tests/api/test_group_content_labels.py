@@ -43,7 +43,7 @@ def tree(db_session, owner_user):
     db_session.flush()
     franchise = models.Franchise(
         system_id=uuid.uuid4(),
-        franchise_type="ACG",
+        franchise_type="Anime",
         franchise_name_en="Tree Franchise",
         collection_id=collection.system_id,
     )

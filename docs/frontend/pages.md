@@ -145,7 +145,7 @@ about styling.
 
 | Section key | Label | Shape | Contents |
 |---|---|---|---|
-| `library` | Library | mega-panel (`columns`), `requires` any of the nine ordinary `media_type.*` keys (`LIBRARY_MEDIA_TYPE_PERMISSIONS`), so a role holding none — the admin — has no Library tab. Nav only: the `/library` routes themselves stay open | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities** (each row `requires` its own kind's key, so a row whose kind is off is dropped and a viewer holding none has no Entities column): Studio `/library/studio` (also matches `/studio`; `view.studio`), Publisher `/library/publisher` (also matches `/publisher`; `view.publisher`), Person `/library/person` (also matches `/person`; `view.person`), Character `/library/character` (also matches `/character` and `/identity`; `view.character`), Seiyuu `/library/seiyuu` (`view.person`) · **ACG**: Anime, Anime Movie, Manga, Novel, Game `/library/game` (also matches `/game`) · **Reality**: TV Show, Movie, Cartoon, Comic |
+| `library` | Library | mega-panel (`columns`), `requires` any of the nine ordinary `media_type.*` keys (`LIBRARY_MEDIA_TYPE_PERMISSIONS`), so a role holding none — the admin — has no Library tab. Nav only: the `/library` routes themselves stay open | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities** (each row `requires` its own kind's key, so a row whose kind is off is dropped and a viewer holding none has no Entities column): Studio `/library/studio` (also matches `/studio`; `view.studio`), Publisher `/library/publisher` (also matches `/publisher`; `view.publisher`), Person `/library/person` (also matches `/person`; `view.person`), Character `/library/character` (also matches `/character` and `/identity`; `view.character`), Seiyuu `/library/seiyuu` (`view.person`) · **AniManga**: Anime, Anime Movie, Manga, Novel, Game `/library/game` (also matches `/game`) · **Reality**: TV Show, Movie, Cartoon, Comic |
 | `restricted` | Restricted | flat `items`, every row gated | H-Comic `/library/h-comic` (also matches `/h-comic`; `gatedType: "h-comic"`), H-Game `/library/h-game` (also matches `/h-game`; `gatedType: "h-game"`), Hentai `/library/hentai` (also matches `/hentai`; `gatedType: "hentai"`). Each is drawn only for a session that can see its type; a session that can see no gated type has every row dropped, so the tab itself is not drawn |
 | `track` | Track | flat `items` | Plan `/plan` (`requires: "self.list"` — see below), Completions `/completions` (`requires: "self.list"`). The account's own progress; a guest holds no `self.*` key, so the tab is not drawn |
 | `explore` | Explore | flat `items` | Seasonal `/seasonal` and Future Releases `/future-releases`, each `requires: LIBRARY_MEDIA_TYPE_PERMISSIONS` (any ordinary media type, so a guest's and a shared account's Explore hold both and the admin's neither), Statistics `/statistics` (`requires: "view.statistics"`, so super, user and shared and never a guest), and Random Picker `/random` (`requires: "view.random_picker"`; its `/random/<type>` pages light it too) |
@@ -176,7 +176,7 @@ hands back the original item objects, since Nav marks the current row by
 identity. Every gate is `has()` from `useAuth()`, a plain membership test,
 so a tab or row is drawn only for a role that holds its key.
 
-A guest is therefore shown two tabs: Library, holding Groups, ACG and
+A guest is therefore shown two tabs: Library, holding Groups, AniManga and
 Reality, and Explore, holding Seasonal and Future Releases. A shared
 account's Explore adds the Random Picker and Statistics. The admin is shown no
 Library, Restricted, Track or Explore tab, Extras holding Resources alone,
@@ -698,8 +698,7 @@ type the caller leaves out, and the table's Entries column counts whatever
 
 Filter panel "Type": Anime, Manga, Novel, Anime Movie, Movie, TV, Cartoon,
 Comic, H-Comic, H-Game, Hentai (each drawn only for a session that can see the type), Other
-(Anime/Manga only count when the type is ACG *and* the franchise actually has
-such entries) — **there is no Game category**, so a Game-only franchise files
+(Anime and Manga are the franchise's own `Anime` and `Manga` types) — **there is no Game category**, so a Game-only franchise files
 under "Other". Sort
 `title (default) | my_rating | franchise_expectation`, shared by both views;
 the last two are the viewer's own, offered only to a holder of `self.list`,
@@ -1372,10 +1371,10 @@ status select, which goes through `/api/me/list`.
 | Page | Information card | Production card | Extras |
 |---|---|---|---|
 | Anime | 本傳/外傳, Season Part, Special Episodes, Total Episodes (with cumulative), Airing Type/Status, Release Season, Release Date, Genre main/sub, 標籤 Label | Studio, 台灣代理商 (linked `publisher_refs`), Director, Producer, Music | remark lives only in Notes (no textarea); Cast placeholder |
-| AnimeMovie | Airing Status, Length, Release Date JP/TW, Genre main/sub, 標籤 Label | Studio, 台灣代理商 (linked; the row this page gained in the publisher migration — it had none before), Director | no series query; Cast placeholder |
-| Movie | 本傳/外傳, Airing Status, Length, Director, Release Date TW/USA | — | **Genres** card (`GenresCard`); inline IMDb score block |
+| AnimeMovie | Airing Status, Runtime, Release Date JP/TW, Genre main/sub, 標籤 Label | Studio, 台灣代理商 (linked; the row this page gained in the publisher migration — it had none before), Director | no series query; Cast placeholder |
+| Movie | 本傳/外傳, Airing Status, Runtime, Director, Release Date TW/USA | — | **Genres** card (`GenresCard`); inline IMDb score block |
 | TV | 本傳/外傳, Season, Total Ep, Official Source, Airing Status, Release Date | — | **Genres** card (`GenresCard`); IMDb block with this season's rating, and the whole show's beside it when there is one |
-| Cartoon | + Airing Type, Length Per Ep (min) | — | **Genres** card (`GenresCard`); IMDb block as TV's |
+| Cartoon | + Airing Type, Runtime Per Ep (min) | — | **Genres** card (`GenresCard`); IMDb block as TV's |
 | Manga | Region, 本傳/外傳, Serialization Status/Platform, Release/End Date, Volume/Chapter Total | 作者 or 原作/作畫, 台灣出版商 (linked), Anime Studio (card shown only when any value) | **Genres** card (`GenresCard`), between Information and Production |
 | Novel | Region, Type, Version, 本傳/外傳, Serialization Status, Release/End Date, Vol Total (JP/KR)/TW, Arc Total, Chapter Total | Author, Illustrator, 台灣出版商 (linked, conditional) | **Genres** card (`GenresCard`), between Information and Production; **Units** card (`NovelUnitsEditor` over the `units` relationship — volume/arc/story/chapter rows with a key, CN/EN name and, on an arc, a chapter count; a `manage.catalog` holder gets the editor with drag-to-reorder/add/remove and a Save → PATCH carrying each unit's own fields only (`novelUnitPayload`), everyone else a plain list keyed by each row's server-computed `display_key`. For a holder of `self.list` each row of that list carries the viewer's own rating select (`MY_RATINGS`, saved on change) and remark field (saved on blur), both through `useSaveMyNovelUnit` → `PUT /api/me/novel-units/{unit_id}`; an account holding both keys gets the editor and, under it, that list headed **My ratings**. The admin holds no `self.list` and gets no such control. Hidden entirely for a viewer when the novel has no units) |
 | Comic | Type, Volume Label, Continuity, Era, Serialization/Reading Status, Release Year, Issue Total, Genre main/sub, 標籤 Label | Writer, Artist, 出版商 (linked, conditional), Imprint | **Events** card (red pills); no Autofill, no `RelationsSection`, no `ScoreBlock` |
@@ -1703,7 +1702,8 @@ at one size — so the page has exactly one `<h1>`, its own.
 Statistics renders the favourite 3×3 grids (nine, and eleven for a session
 that can see h-game), then the twelve
 "Rating distribution" bar-chart cards in one wrapping grid: my rating per
-anime franchise; MAL rating and **AniList score** over all anime; seasonal
+AniManga franchise (an `Anime` or `Manga` franchise, counted once however many
+of the two it carries); MAL rating and **AniList score** over all anime; seasonal
 per season; my rating over all manga / novels / anime movies / movies /
 **comics**; and my rating per TV show / cartoon / **game** franchise - plus a
 thirteenth, my rating over all **h-comics**, and a fourteenth, my rating per
@@ -1719,9 +1719,13 @@ the two cards sit side by side on the same cut points.
 
 **The favourite grids** are declared in `config/favoriteGrids.js`, read by
 both this page and `/modify` → Fav3x3. A grid holds one of three tiers — seven
-hold franchises (ACG, Novel, Movie, TV, Cartoon, Game, H-Game), one holds
+hold franchises (AniManga, Novel, Movie, TV, Cartoon, Game, H-Game), one holds
 series (Comic), three hold entries (Movie, Game, H-Game) — and every tier stores a slot the
-same way, a `type_slots` map of `{gridKey: 1..9}` on the row itself. The
+same way, a `type_slots` map of `{gridKey: 1..9}` on the row itself. A
+franchise grid holds the franchises whose type list names its key, or one of
+its `franchiseTypes` when it names them: the **Favourite AniManga franchises**
+grid holds `Anime` and `Manga` franchises together, under the stored key
+`ACG`. The
 `favorite*` helpers in `utils/statsUtils.js` (`favoriteName`, `favoriteCover`,
 `favoritePath`, `favoritePool`, `slotIn`) answer everything that differs
 between tiers (`favoriteCover`, like `getCoverForSlot` and

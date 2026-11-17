@@ -117,7 +117,7 @@ export function requiredLabelsForType(mediaType) {
 
 /**
  * The labels a franchise of this `franchise_type` must carry. The column is a
- * comma-joined list ("ACG, Game"), and a franchise that names a gated
+ * comma-joined list ("Anime, Game"), and a franchise that names a gated
  * franchise type anywhere in it carries that type's label.
  */
 export function requiredLabelsForFranchiseType(franchiseType) {

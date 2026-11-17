@@ -44,7 +44,7 @@ export const NAMING_CONFIGS = {
     "game_name_jp",
     "game_name_alt",
   ],
-  // CN first like every ACG type. The fourth name is the region's own: JP
+  // CN first like every AniManga type. The fourth name is the region's own: JP
   // for a JP entry, KR for a KR one - see namingFieldsFor() below.
   "h-comic": [
     "h_comic_name_cn",

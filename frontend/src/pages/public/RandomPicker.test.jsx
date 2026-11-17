@@ -57,8 +57,8 @@ function respond(url) {
     return [{ system_id: "m1", manga_name_en: "Yotsuba", franchise_id: "f2", release_date: "2003-03-21" }];
   if (url.startsWith("/api/franchise/"))
     return [
-      { system_id: "f1", public_id: 1, franchise_name_en: "Steins Gate", franchise_type: "ACG" },
-      { system_id: "f2", public_id: 2, franchise_name_en: "Yotsuba Franchise", franchise_type: "ACG" },
+      { system_id: "f1", public_id: 1, franchise_name_en: "Steins Gate", franchise_type: "Anime" },
+      { system_id: "f2", public_id: 2, franchise_name_en: "Yotsuba Franchise", franchise_type: "Anime" },
     ];
   return [];
 }

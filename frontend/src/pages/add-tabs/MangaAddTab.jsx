@@ -41,11 +41,9 @@ export { defaultManga } from "../../config/formFactories";
 const ROW2 = "grid grid-cols-1 md:grid-cols-2 gap-4";
 const ROW3 = "grid grid-cols-1 md:grid-cols-3 gap-4";
 
-/** A manga sits in an ACG or Manga franchise, or an untyped one. */
-const acceptsMangaFranchise = (type) => {
-  const types = parseTypes(type);
-  return !type || types.includes("ACG") || types.includes("Manga");
-};
+/** A manga sits in a Manga franchise, or an untyped one. */
+const acceptsMangaFranchise = (type) =>
+  !type || parseTypes(type).includes("Manga");
 
 /**
  * Every field below the franchise/series pickers. `f` is the form state and

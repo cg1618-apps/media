@@ -484,7 +484,7 @@ def test_an_auto_created_franchise_is_typed_and_labelled(owner_client, db_sessio
 
 def test_an_h_comic_never_attaches_to_a_mainstream_franchise(owner_client, db_session):
     mainstream = models.Franchise(
-        system_id=uuid.uuid4(), franchise_type="ACG", franchise_name_en="Fate"
+        system_id=uuid.uuid4(), franchise_type="Anime", franchise_name_en="Fate"
     )
     db_session.add(mainstream)
     db_session.flush()
@@ -518,7 +518,7 @@ def test_a_mainstream_entry_never_attaches_to_an_h_comic_franchise(owner_client,
 
 def test_a_mainstream_franchise_named_by_id_is_refused(owner_client, db_session):
     mainstream = models.Franchise(
-        system_id=uuid.uuid4(), franchise_type="ACG", franchise_name_en="Fate"
+        system_id=uuid.uuid4(), franchise_type="Anime", franchise_name_en="Fate"
     )
     db_session.add(mainstream)
     db_session.flush()
@@ -539,12 +539,12 @@ def test_an_h_comic_franchise_hides_from_a_guest(client, owner_client, db_sessio
 
 def test_a_franchise_gaining_the_type_gains_the_label(owner_client, db_session):
     created = owner_client.post(
-        "/api/franchise/", json={"franchise_name_en": "Zvornik F", "franchise_type": "ACG"}
+        "/api/franchise/", json={"franchise_name_en": "Zvornik F", "franchise_type": "Anime"}
     ).json()
     franchise_id = uuid.UUID(created["system_id"])
     assert label_keys_for_franchise(db_session, franchise_id) == []
 
-    # To H-Comic alone: "ACG, H-Comic" spans two families and is refused
+    # To H-Comic alone: "Anime, H-Comic" spans two families and is refused
     # (test_franchise_family.py).
     response = owner_client.patch(
         f"/api/franchise/{franchise_id}", json={"franchise_type": "H-Comic"}

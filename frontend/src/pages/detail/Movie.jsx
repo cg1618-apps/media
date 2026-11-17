@@ -405,7 +405,7 @@ export default function Movie() {
                   [
                     { label: "本傳 / 外傳", value: movie.is_main },
                     { label: "Airing Status", value: movie.airing_status },
-                    { label: "Length", value: formatLength(movie.length_min) },
+                    { label: "Runtime", value: formatLength(movie.length_min) },
                   ],
                   {
                     label: "Director",

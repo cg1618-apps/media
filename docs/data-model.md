@@ -187,8 +187,8 @@ missing). Model: `Franchise` (`app/models/franchise.py`).
 | `franchise_name_en` / `_cn` / `_roman` / `_jp` / `_alt` | String | yes | | Name variants; CN leads `display_name`. |
 | `collection_id` | UUID | yes | | FK `collection.system_id` ON DELETE SET NULL, indexed. Declared here (not at the end) so it lands as sheet column J. |
 | `cover_entry_id` | UUID | yes | | Any entry UUID of any type; no FK (six tables). |
-| `type_covers` | JSONB | yes | | Per-media-type cover choice (dict). |
-| `type_slots` | JSONB | yes | | Which favourite 3×3 grid slot this row holds, as `{gridKey: 1..9}` - see [frontend/pages.md](frontend/pages.md#statistics--statistics--completions--completions). Six grids are keyed here (ACG, Novel, Movie, TV, Cartoon, Game). |
+| `type_covers` | JSONB | yes | | Per-franchise-type cover choice (dict), keyed by the franchise type (`Anime`, `Manga`, `Novel`, ...). |
+| `type_slots` | JSONB | yes | | Which favourite 3×3 grid slot this row holds, as `{gridKey: 1..9}` - see [frontend/pages.md](frontend/pages.md#statistics--statistics--completions--completions). Six grids are keyed here (ACG, Novel, Movie, TV, Cartoon, Game); `ACG` is the favourite AniManga franchises grid's key, which holds `Anime` and `Manga` franchises - the key keeps its stored spelling. |
 | `size_group_derived` | JSONB | yes | | Size bucket per media type, e.g. `{"anime": "24ep", "tv-show": "2season"}`. Written by Calculate, rewritten freely. |
 | `size_group_manual` | JSONB | yes | | Same shape, written by the admin, never touched by Calculate. Manual key wins (`app/services/domain/size_group.py`). |
 | `created_at` / `updated_at` | DateTime | yes | now | |

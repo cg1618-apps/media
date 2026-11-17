@@ -1,10 +1,10 @@
 # Media Relations
 
-Last verified: 2026-11-14
+Last verified: 2026-11-17
 
 ## What this is for
 
-A media relation is a typed link between two entries — "this anime is the Sequel of that one", "this movie is the Adaptation of that manga" — that can cross any of the seven media tables and any franchise. Relations are curated by hand on the admin `/relations` canvas, read on every detail page's "Related Entries" card, and drawn read-only on the collection, franchise and series hubs. Nothing derives them, with one exception: Calculate All seeds the anime sequel chains of an ACG franchise that has no relations at all yet, once ([Sequel seed](#sequel-seed--seed_sequel_relations-in-appservicesdomainmedia_relationpy)). One value is derived *from* them - an h-comic's served `animation_status`, from `hentai -adaptation-> h-comic` rows ([../entry-types.md](../entry-types.md#h-comic-animation-status-attach_animation_status-appservicesdomainh_comicpy)). This document describes the table, the vocabulary, the write and read rules, the API, the canvas and the Sheets round trip, citing the code that implements each piece; where an older doc (`../frontend/pages.md`, `docs/api.md`, `../business-rules.md`, `../data-model.md`) disagrees with this one, the code and this file are current.
+A media relation is a typed link between two entries — "this anime is the Sequel of that one", "this movie is the Adaptation of that manga" — that can cross any of the seven media tables and any franchise. Relations are curated by hand on the admin `/relations` canvas, read on every detail page's "Related Entries" card, and drawn read-only on the collection, franchise and series hubs. Nothing derives them, with one exception: Calculate All seeds the anime sequel chains of an Anime franchise that has no relations at all yet, once ([Sequel seed](#sequel-seed--seed_sequel_relations-in-appservicesdomainmedia_relationpy)). One value is derived *from* them - an h-comic's served `animation_status`, from `hentai -adaptation-> h-comic` rows ([../entry-types.md](../entry-types.md#h-comic-animation-status-attach_animation_status-appservicesdomainh_comicpy)). This document describes the table, the vocabulary, the write and read rules, the API, the canvas and the Sheets round trip, citing the code that implements each piece; where an older doc (`../frontend/pages.md`, `docs/api.md`, `../business-rules.md`, `../data-model.md`) disagrees with this one, the code and this file are current.
 
 Every relation is a `media_relation` row. There are no `prequel_id` / `sequel_id` / `alternative` columns on the entry tables and no derivation keeps relations in step with the entries - both were deliberately retired, and a relation exists because somebody entered it or because the one-time sequel seed wrote it into a franchise nobody had curated yet.
 
@@ -95,7 +95,7 @@ A one-time seed of the obvious anime sequel chains, run by Calculate All (`run_s
 
 | Rule | Behaviour |
 | --- | --- |
-| Which franchises | `franchise_type` has the token `ACG` (`franchise_type_tokens`, so `Game, ACG` counts) |
+| Which franchises | `franchise_type` has the token `Anime` (`franchise_type_tokens`, so `Game, Anime` counts; a `Manga` franchise is not seeded) |
 | Whole-franchise gate | A franchise is skipped if any `media_relation` row names any of its entries - every media type, found through `media.franchise_id` - at either end. One curated row anywhere in it, even a manga's adaptation link, means nothing is written |
 | Eligible entries | Anime with `airing_type` `TV` or `ONA`, a non-blank `season_part` and `ep_special` NULL - the entries `derive_ep_previous_anime` chains |
 | Groups | Partitioned by `series_id`; entries with no series form one group of their own, also in a franchise that has series. Never chained across groups |

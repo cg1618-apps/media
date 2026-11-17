@@ -5181,6 +5181,47 @@ shown buttons that answered 401.
   世界觀, overrides it back to `compendium`, which keeps the registry's
   group runs adjacent.
 
+### ACG splits into Anime and Manga; the grouping is called AniManga (2026-11-17)
+
+- **A franchise type per media type.** `ACG` was the one franchise type for
+  anime and manga franchises, so nothing on a franchise said whether it held
+  anime, manga or both, and every place that cared (the franchise hub's
+  lists, the library's Type filter) had to read the entries instead.
+  `Anime` and `Manga` match the media types: an anime, an anime movie and a
+  series stamp `Anime`, a manga stamps `Manga`, and a franchise holding both
+  says `Anime, Manga`. The existing `Anime Movie` type stays as it is.
+- **The aggregate views keep one group.** The statistics page's franchise
+  rating card and the favourite franchises grid counted ACG franchises; they
+  now count `Anime` and `Manga` franchises together, a franchise carrying
+  both once. That group is `ANIMANGA_FRANCHISE_TYPES` (`config/fieldOptions.js`;
+  only the frontend aggregates over it) and is not a franchise type, and everywhere the
+  text "ACG" was shown - the Library's column heading, the grid's title, the
+  statistics card, code comments and docs - it reads "AniManga". The Library
+  column still also lists Novel and Game; only its heading was renamed.
+- **The favourite grid's storage key stays `ACG`.** It is the key inside
+  `franchise.type_slots`, in every stored row and every sheet backup.
+  Renaming it would need a JSONB rewrite plus a fold on Pull for every older
+  sheet, for a key nobody sees; the grid instead says which franchises it
+  holds (`franchiseTypes`), separate from where it stores its slot.
+- **Revision `a1n2imanga4` splits the stored values by what each franchise
+  holds**, not by a blanket rename: `Anime` for any anime or anime movie,
+  `Manga` for any manga, both for both, and `Anime` for an empty franchise,
+  since ACG was what anime and series creation stamped. Token-wise, in the
+  ACG token's place, no duplicates. A `type_covers` choice under `ACG` moves
+  to the type of the entry it names - otherwise it would be orphaned, since
+  the editor offers a cover per franchise type. It is reversible: the
+  downgrade folds `Anime` and `Manga` back into one `ACG`, which is exactly
+  the vocabulary the previous head expects (no franchise was typed `Anime`
+  or `Manga` under it); only which half each franchise was is forgotten.
+- **Pull splits too, after the entries.** A sheet backed up before the
+  split still says `ACG`, and the split decides by entries, which the
+  Franchise tab restores before. So Pull All splits once after its last tab
+  (`split_acg_franchise_types`), and a Franchise-tab Pull alone splits
+  against the entries already in the database. The parser's old fold of a
+  retired `Anime` token onto `ACG` is gone: `Anime` is a type again.
+- **Rejected: keep `ACG` and add `Anime`/`Manga` beside it.** Two ways to say
+  the same franchise would split every type test in two.
+
 ### 備註 Remark is the catalogue's; the remarks it held move to 備註列表 (2026-11-17)
 
 - **The owner's call, and it reverses the per-author remark** recorded under

@@ -10,7 +10,7 @@ import { Button, Eyebrow } from "../ui/primitives";
 export default function FranchiseCreateModal({
   onConfirm,
   onCancel,
-  franchiseType = "ACG",
+  franchiseType = "Anime",
 }) {
   const [remark, setRemark] = useState("");
   return (

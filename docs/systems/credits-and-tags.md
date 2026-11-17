@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-11-16
+Last verified: 2026-11-17
 
 ## What this is for
 
@@ -570,7 +570,7 @@ the restored values; `uq_system_option_value` cannot collide with a value
 stored spelling and `System Options` matches on the exact `(category, value)`.
 
 Deferred, deliberately, past this shape: a `language` column / dub casts, a
-`field_group` gating cast per role, and characters on the four non-ACG media
+`field_group` gating cast per role, and characters on the four non-AniManga media
 types.
 
 ### Identities

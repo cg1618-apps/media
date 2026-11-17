@@ -73,7 +73,7 @@ def type_counts(db: Session, viewer: Optional[Viewer]) -> list[dict]:
     visible entries, counted through `media.franchise_id` in the same grouped
     query, so it is narrowed exactly as the entry count is. Not
     `franchise.franchise_type`: that is a free comma-joined string with its
-    own vocabulary (ACG, "TV, Movie") which does not map onto the media types,
+    own vocabulary ("Anime, Manga", "TV, Movie") which does not map onto the media types,
     and it knows nothing about visibility.
     """
     query = db.query(

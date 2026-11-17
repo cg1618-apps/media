@@ -184,7 +184,7 @@ _SEED_AIRING_TYPES = ("TV", "ONA")
 
 def seed_sequel_relations(db: Session) -> Dict[str, int]:
     """
-    Writes the obvious anime sequel chains into ACG franchises that have no
+    Writes the obvious anime sequel chains into Anime franchises that have no
     relations at all yet.
 
     Relations are curated by hand; this is a one-time seed, not a derivation.
@@ -211,13 +211,13 @@ def seed_sequel_relations(db: Session) -> Dict[str, int]:
         "groups_skipped_tied": 0,
     }
 
-    acg = FranchiseType.ACG.value
+    anime = FranchiseType.ANIME.value
     franchise_ids = [
         fid
         for fid, franchise_type in db.query(
             Franchise.system_id, Franchise.franchise_type
         ).all()
-        if acg in franchise_type_tokens(franchise_type)
+        if anime in franchise_type_tokens(franchise_type)
     ]
     if not franchise_ids:
         return counts

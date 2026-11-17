@@ -65,16 +65,17 @@ FRANCHISE_NAME_COLUMNS = (
 )
 SERIES_NAME_COLUMNS = (Series.series_name_en, Series.series_name_cn, Series.series_name_alt)
 
-# Type stamped on an auto-created franchise, per media type. ACG is the one
-# type for anime and manga franchises, whichever of them created it.
+# Type stamped on an auto-created franchise, per media type. Anime franchises
+# are typed Anime, whichever of anime, anime movie or series created them;
+# manga franchises are typed Manga.
 FRANCHISE_TYPE_FOR = {
-    "anime": FranchiseType.ACG,
-    "anime-movie": FranchiseType.ACG,
-    "series": FranchiseType.ACG,
+    "anime": FranchiseType.ANIME,
+    "anime-movie": FranchiseType.ANIME,
+    "series": FranchiseType.ANIME,
     "movie": FranchiseType.MOVIE,
     "tv-show": FranchiseType.TV,
     "cartoon": FranchiseType.CARTOON,
-    "manga": FranchiseType.ACG,
+    "manga": FranchiseType.MANGA,
     "novel": FranchiseType.NOVEL,
     "comic": FranchiseType.COMIC,
     "game": FranchiseType.GAME,
@@ -90,36 +91,153 @@ def franchise_type_tokens(value) -> list[str]:
     return [t.strip() for t in raw.split(",") if t.strip()]
 
 
-# Not a franchise type: a franchise_type value restored from a Franchise tab
-# that still carries it is folded onto ACG (normalize_franchise_type).
-_RETIRED_ANIME_TYPE = "Anime"
+# Not a franchise type: the one type anime and manga franchises shared before
+# it split into Anime and Manga. A franchise_type restored from a Franchise tab
+# that still carries it is split by split_acg_franchise_types.
+RETIRED_ACG_TYPE = "ACG"
+
+# The media types whose entries decide which half of ACG a franchise gets.
+_ANIME_MEDIA_TYPES = ("anime", "anime-movie")
+_MANGA_MEDIA_TYPES = ("manga",)
 
 
-def normalize_franchise_type(value):
+def acg_replacement(has_anime: bool, has_manga: bool) -> list[str]:
     """
-    A restored franchise_type with any "Anime" token folded onto "ACG".
+    The franchise types an ACG token becomes: Anime for a franchise holding
+    any anime or anime movie, Manga for one holding any manga, both for one
+    holding both, and Anime for one holding neither - ACG was what anime and
+    series creation stamped.
+    """
+    out = []
+    if has_anime or not has_manga:
+        out.append(FranchiseType.ANIME.value)
+    if has_manga:
+        out.append(FranchiseType.MANGA.value)
+    return out
+
+
+def split_acg_franchise_type(value, has_anime: bool, has_manga: bool):
+    """
+    One franchise_type value with its ACG token split (acg_replacement).
 
     Token-wise inside the comma list: the other tokens keep their order and
-    the separators their spacing, and a value that already names ACG keeps its
-    first ACG rather than listing it twice. "Anime Movie" is its own token and
-    is left alone. Anything that is not a string passes through.
+    the separators their spacing, the replacement takes the ACG token's place,
+    and a type the value already names is not listed twice. "Anime Movie" is
+    its own type and is left alone. Anything that is not a string passes
+    through.
     """
     if not isinstance(value, str):
         return value
-    acg = FranchiseType.ACG.value
+    pieces = value.split(",")
+    if RETIRED_ACG_TYPE not in (p.strip() for p in pieces):
+        return value
+    # Two tokens written for one: spaced like the value's own separators.
+    sep = "," if len(pieces) > 1 and not any(
+        p[:1].isspace() for p in pieces[1:]
+    ) else ", "
+    present = {p.strip() for p in pieces}
+    replacement = [
+        t for t in acg_replacement(has_anime, has_manga) if t not in present
+    ]
     out: list[str] = []
-    seen_acg = False
-    for piece in value.split(","):
-        token = piece.strip()
-        if token == _RETIRED_ANIME_TYPE:
-            piece = piece.replace(_RETIRED_ANIME_TYPE, acg)
-            token = acg
-        if token == acg:
-            if seen_acg:
-                continue
-            seen_acg = True
-        out.append(piece)
+    replaced = False
+    for piece in pieces:
+        if piece.strip() != RETIRED_ACG_TYPE:
+            out.append(piece)
+            continue
+        if replaced or not replacement:
+            continue
+        replaced = True
+        lead = piece[: len(piece) - len(piece.lstrip())]
+        out.append(lead + sep.join(replacement))
+    if out:
+        out[0] = out[0].lstrip()
     return ",".join(out)
+
+
+def split_acg_franchise_types(db: Session) -> Dict[str, int]:
+    """
+    Retypes every franchise still carrying the retired ACG type, by the
+    entries it holds (split_acg_franchise_type). A type_covers choice filed
+    under ACG moves to the type of the entry it names - Anime for an anime or
+    an anime movie, Manga for a manga, otherwise the first type ACG became -
+    and never overwrites a choice already made for that type.
+
+    The same rule as the revision that split the type (a1n2imanga4); this is
+    the copy a Pull runs, since a sheet backed up before the split still says
+    ACG. It must run after the entries have restored, or every franchise
+    comes out Anime. Idempotent. Commits nothing; the caller does. Returns
+    franchises_split and how many became anime, manga and both.
+    """
+    counts = {"franchises_split": 0, "anime": 0, "manga": 0, "both": 0}
+    rows = (
+        db.query(Franchise)
+        .filter(
+            or_(
+                Franchise.franchise_type.like(f"%{RETIRED_ACG_TYPE}%"),
+                Franchise.type_covers.has_key(RETIRED_ACG_TYPE),
+            )
+        )
+        .all()
+    )
+    rows = [
+        f
+        for f in rows
+        if RETIRED_ACG_TYPE in franchise_type_tokens(f.franchise_type)
+        or RETIRED_ACG_TYPE in (f.type_covers or {})
+    ]
+    if not rows:
+        return counts
+
+    held: Dict[Any, set] = {}
+    for franchise_id, media_type in (
+        db.query(Media.franchise_id, Media.media_type)
+        .filter(Media.franchise_id.in_([f.system_id for f in rows]))
+        .distinct()
+        .all()
+    ):
+        held.setdefault(franchise_id, set()).add(media_type)
+
+    for franchise in rows:
+        types = held.get(franchise.system_id, set())
+        has_anime = bool(types.intersection(_ANIME_MEDIA_TYPES))
+        has_manga = bool(types.intersection(_MANGA_MEDIA_TYPES))
+        if RETIRED_ACG_TYPE in franchise_type_tokens(franchise.franchise_type):
+            franchise.franchise_type = split_acg_franchise_type(
+                franchise.franchise_type, has_anime, has_manga
+            )
+            counts["franchises_split"] += 1
+            if has_anime and has_manga:
+                counts["both"] += 1
+            elif has_manga:
+                counts["manga"] += 1
+            else:
+                counts["anime"] += 1
+        covers = dict(franchise.type_covers or {})
+        if RETIRED_ACG_TYPE in covers:
+            chosen = covers.pop(RETIRED_ACG_TYPE)
+            target = _cover_type(db, chosen) or acg_replacement(has_anime, has_manga)[0]
+            covers.setdefault(target, chosen)
+            franchise.type_covers = covers or None
+    db.flush()
+    logger.info("Split the ACG franchise type: %s", counts)
+    return counts
+
+
+def _cover_type(db: Session, entry_id) -> Optional[str]:
+    """The half of ACG a type_covers entry id belongs to, or None."""
+    try:
+        media_id = uuid.UUID(str(entry_id))
+    except (TypeError, ValueError):
+        return None
+    media_type = (
+        db.query(Media.media_type).filter(Media.system_id == media_id).scalar()
+    )
+    if media_type in _ANIME_MEDIA_TYPES:
+        return FranchiseType.ANIME.value
+    if media_type in _MANGA_MEDIA_TYPES:
+        return FranchiseType.MANGA.value
+    return None
 
 
 def family_of_type(franchise_type: str) -> str:

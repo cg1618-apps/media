@@ -57,7 +57,7 @@ def test_admin_counts_every_entry_of_a_series(owner_client, two_in_series):
 
 def test_an_empty_franchise_counts_zero(owner_client, db_session):
     empty = models.Franchise(
-        system_id=uuid.uuid4(), franchise_type="ACG", franchise_name_en="Empty"
+        system_id=uuid.uuid4(), franchise_type="Anime", franchise_name_en="Empty"
     )
     db_session.add(empty)
     db_session.flush()
