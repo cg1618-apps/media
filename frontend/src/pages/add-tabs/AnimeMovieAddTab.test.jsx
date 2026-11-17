@@ -34,7 +34,7 @@ const SOURCES = {
   },
 };
 const FRANCHISES = [
-  { system_id: "f1", franchise_name_en: "ACG Franchise", franchise_type: "ACG" },
+  { system_id: "f1", franchise_name_en: "Anime Franchise", franchise_type: "Anime" },
   { system_id: "f2", franchise_name_en: "Film Franchise", franchise_type: "Movie" },
 ];
 const SECTIONS = [
@@ -182,7 +182,7 @@ describe("Anime movie form", () => {
     // A marker the lineage pickers would overwrite if they wrote series keys.
     renderTab("add", { series_text: "untouched" });
     await user.click(screen.getByRole("combobox", { name: "Franchise" }));
-    expect(await screen.findByRole("option", { name: "ACG Franchise" })).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: "Anime Franchise" })).toBeInTheDocument();
     await user.click(screen.getByRole("option", { name: "Film Franchise" }));
     const s = state();
     expect(s.franchise_id).toBe("f2");

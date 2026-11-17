@@ -47,6 +47,9 @@ const H_GAMES = [
   },
 ];
 
+const ANIME = [{ system_id: "AN001", anime_name_en: "Season 1", airing_type: "TV" }];
+const MANGA = [{ system_id: "MG001", manga_name_en: "Volume 1" }];
+
 function jsonRes(body) {
   return Promise.resolve({ ok: true, json: () => Promise.resolve(body) });
 }
@@ -77,6 +80,8 @@ beforeEach(() => {
       if (u.startsWith("/api/franchise/FR001")) return jsonRes(franchise);
       if (u.startsWith("/api/game/")) return jsonRes(GAMES);
       if (u.startsWith("/api/h-game/")) return jsonRes(H_GAMES);
+      if (u.startsWith("/api/anime/")) return jsonRes(ANIME);
+      if (u.startsWith("/api/manga/")) return jsonRes(MANGA);
       return jsonRes([]);
     }),
   );
@@ -115,6 +120,27 @@ describe("FranchisePage tab counts", () => {
     expect(
       await screen.findByRole("button", { name: /^Game\s*2$/ }),
     ).toBeInTheDocument();
+  });
+});
+
+// Anime and Manga are separate franchise types: each offers its own list.
+describe("FranchisePage AniManga tabs", () => {
+  it("a Manga franchise offers the Manga list and not the Anime one", async () => {
+    franchise = { ...FRANCHISE, franchise_type: "Manga" };
+    renderPage();
+    expect(
+      await screen.findByRole("button", { name: /^Manga\s*1$/ }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Anime\s*1$/ })).toBeNull();
+  });
+
+  it("an Anime, Manga franchise offers both", async () => {
+    franchise = { ...FRANCHISE, franchise_type: "Anime, Manga" };
+    renderPage();
+    expect(
+      await screen.findByRole("button", { name: /^Anime\s*1$/ }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Manga\s*1$/ })).toBeInTheDocument();
   });
 });
 

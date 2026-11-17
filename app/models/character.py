@@ -431,7 +431,7 @@ class CharacterCastingVoice(Base):
             onupdate="CASCADE",
         ),
         UniqueConstraint("casting_id", "person_id", name="uq_casting_voice"),
-        # Characters reach the ACG types (CASTING_MEDIA_TYPES); seiyuu reach
+        # Characters reach the AniManga types (CASTING_MEDIA_TYPES); seiyuu reach
         # only the ones with voice acting (VOICED_MEDIA_TYPES).
         # Enforced here rather than by convention because the Fill pipeline and
         # any future migration write these rows without going through the API.

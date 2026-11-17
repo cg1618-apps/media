@@ -32,7 +32,7 @@ def _create(owner_client, franchise_type, name="Zvornik Family"):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("franchise_type", ["ACG, Hentai", "Anime, H-Comic", "ACG, H-Game"])
+@pytest.mark.parametrize("franchise_type", ["Anime, Hentai", "Anime, H-Comic", "Anime, H-Game"])
 def test_create_refuses_a_franchise_spanning_two_families(
     owner_client, db_session, franchise_type
 ):
@@ -50,14 +50,14 @@ def test_create_refuses_a_franchise_spanning_two_families(
 def test_update_and_patch_refuse_a_type_spanning_two_families(
     owner_client, db_session, method
 ):
-    created = _create(owner_client, "ACG").json()
+    created = _create(owner_client, "Anime").json()
     response = getattr(owner_client, method)(
-        f"{ROUTE}/{created['system_id']}", json={"franchise_type": "ACG, Hentai"}
+        f"{ROUTE}/{created['system_id']}", json={"franchise_type": "Anime, Hentai"}
     )
     assert response.status_code == 422
     row = db_session.get(models.Franchise, uuid.UUID(created["system_id"]))
     db_session.refresh(row)
-    assert row.franchise_type == "ACG"
+    assert row.franchise_type == "Anime"
 
 
 @pytest.mark.parametrize("franchise_type", ["H-Comic, Hentai", "H-Comic, Hentai, H-Game"])
@@ -78,7 +78,7 @@ def test_a_franchise_holding_a_hentai_cannot_become_mainstream(
     assert entry.status_code == 201, entry.text
 
     response = getattr(owner_client, method)(
-        f"{ROUTE}/{created['system_id']}", json={"franchise_type": "ACG"}
+        f"{ROUTE}/{created['system_id']}", json={"franchise_type": "Anime"}
     )
     assert response.status_code == 422, response.text
     # Within the family it may be retyped: the refusal is about the family.
@@ -154,7 +154,7 @@ def test_neither_label_can_be_removed_from_a_franchise_holding_both(
 
 def test_a_mainstream_franchise_can_clear_its_labels(owner_client, db_session, nsfw_label):
     """The mirror: the refusal is for gated types' labels only."""
-    created = _create(owner_client, "ACG").json()
+    created = _create(owner_client, "Anime").json()
     franchise_id = created["system_id"]
     assert owner_client.put(
         f"/api/content-labels/franchise/{franchise_id}", json={"label_keys": ["nsfw"]}
@@ -214,4 +214,4 @@ def test_a_mainstream_entry_does_not_match_a_franchise_of_any_restricted_type(
     db_session.flush()
     body = owner_client.post("/api/manga/", json={"manga_name_en": "Zvornik Gated Only"}).json()
     created = db_session.get(models.Franchise, uuid.UUID(body["franchise_id"]))
-    assert created.franchise_type == "ACG"
+    assert created.franchise_type == "Manga"

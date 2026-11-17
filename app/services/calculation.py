@@ -600,7 +600,7 @@ def run_derive_ep_previous(db: Session) -> dict:
     derive_ep_previous_all_anime(db)
     return {
         "status": "success",
-        "message": "Derived ep_previous for all acg franchises.",
+        "message": "Derived ep_previous for all anime franchises.",
     }
 
 
@@ -828,7 +828,7 @@ def run_sync_game(db: Session) -> dict:
 
 def run_seed_sequel_relations(db: Session) -> dict:
     """
-    The one-time seed of anime sequel chains in ACG franchises with no
+    The one-time seed of anime sequel chains in Anime franchises with no
     relations yet (seed_sequel_relations, app/services/domain/media_relation.py).
     """
     counts = seed_sequel_relations(db)

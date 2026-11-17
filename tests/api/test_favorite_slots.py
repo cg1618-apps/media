@@ -111,8 +111,9 @@ class TestSlotsSurviveTheRoundTrip:
     ):
         """
         `type_slots` is a single column holding every grid the row appears in,
-        so the editor patches the whole map. A franchise can sit in the ACG
-        grid and the Game grid at once, and saving one must not clear the other.
+        so the editor patches the whole map. A franchise can sit in the AniManga
+        grid (stored under its key, `ACG`) and the Game grid at once, and
+        saving one must not clear the other.
         """
         _patch_slots(
             owner_client, "/api/franchise", sample_franchise, {"ACG": 1, "Game": 5}

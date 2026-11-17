@@ -26,7 +26,7 @@ vi.mock("../detail/AnimeNotes", () => ({
 
 const SOURCES = { options: [], studios: [], publishers: {}, people: {} };
 const FRANCHISES = [
-  { system_id: "f1", franchise_name_en: "First Franchise", franchise_type: "ACG" },
+  { system_id: "f1", franchise_name_en: "First Franchise", franchise_type: "Anime" },
   { system_id: "f2", franchise_name_en: "Second Franchise", franchise_type: "Movie" },
 ];
 const SECTIONS = [

@@ -1,6 +1,6 @@
 # Entry types and grouping tiers
 
-Last verified: 2026-11-16
+Last verified: 2026-11-17
 
 ## What this is for
 
@@ -24,10 +24,10 @@ Two lists exist on purpose (see the comment above `FRANCHISE_TYPES` in `app/util
 
 | Where | Values |
 |---|---|
-| `FranchiseType` enum (backend logic, auto-creation) | `"Movie"`, `"TV"`, `"Cartoon"`, `"Comic"`, `"ACG"`, `"Novel"`, `"Game"`, `"H-Comic"`, `"H-Game"`, `"Hentai"` |
-| `FRANCHISE_TYPES` tuple (what `/api/constants` serves to the dropdown) | `"ACG"`, `"Anime Movie"`, `"TV"`, `"Movie"`, `"Cartoon"`, `"Comic"`, `"Novel"`, `"Game"`, `"H-Comic"`, `"H-Game"`, `"Hentai"` |
+| `FranchiseType` enum (backend logic, auto-creation) | `"Movie"`, `"TV"`, `"Cartoon"`, `"Comic"`, `"Anime"`, `"Manga"`, `"Novel"`, `"Game"`, `"H-Comic"`, `"H-Game"`, `"Hentai"` |
+| `FRANCHISE_TYPES` tuple (what `/api/constants` serves to the dropdown) | `"Anime"`, `"Manga"`, `"Anime Movie"`, `"TV"`, `"Movie"`, `"Cartoon"`, `"Comic"`, `"Novel"`, `"Game"`, `"H-Comic"`, `"H-Game"`, `"Hentai"` |
 
-A franchise may carry a comma-separated list of types; duplicate detection buckets it under each one. `"ACG"` is the one type for anime and manga franchises; `"Anime"` is not a franchise type, and Pull folds it onto `"ACG"` ([business-rules.md](business-rules.md)).
+A franchise may carry a comma-separated list of types; duplicate detection buckets it under each one. Anime franchises are `"Anime"` and manga franchises `"Manga"`, matching the media types; a franchise holding both carries both. The two together are the **AniManga** group (`ANIMANGA_FRANCHISE_TYPES` in `frontend/src/config/fieldOptions.js`), which the statistics and the favourite AniManga franchises grid count as one; it is not a franchise type. `"ACG"` is not a franchise type either: Pull splits one restored from an older sheet into `"Anime"` and/or `"Manga"` by what the franchise holds ([business-rules.md](business-rules.md)).
 
 #### Franchise families (`FRANCHISE_FAMILY_FOR_TYPE`, `app/utils/constants.py`)
 
@@ -37,7 +37,7 @@ list is `mainstream`. An untyped franchise is mainstream. Families are kept
 apart in both directions:
 
 - **A franchise spans one family.** A `franchise_type` mixing two
-  (`"ACG, H-Comic"`, `"ACG, Hentai"`, `"ACG, H-Game"`, `"Game, H-Game"`) is
+  (`"Anime, H-Comic"`, `"Manga, Hentai"`, `"Anime, H-Game"`, `"Game, H-Game"`) is
   refused (422) on create, update and patch (`check_franchise_type_family`),
   and so is retyping a franchise into another family than an entry it holds
   (`check_franchise_entries_family`). Any list of the three restricted types -
@@ -71,13 +71,13 @@ apart in both directions:
 
 | Media / owner key | Stamped `franchise_type` |
 |---|---|
-| `"anime"` | `FranchiseType.ACG` (`"ACG"`) |
-| `"anime-movie"` | `FranchiseType.ACG` (`"ACG"`) |
-| `"series"` | `FranchiseType.ACG` (`"ACG"`) |
+| `"anime"` | `FranchiseType.ANIME` (`"Anime"`) |
+| `"anime-movie"` | `FranchiseType.ANIME` (`"Anime"`) |
+| `"series"` | `FranchiseType.ANIME` (`"Anime"`) |
 | `"movie"` | `FranchiseType.MOVIE` (`"Movie"`) |
 | `"tv-show"` | `FranchiseType.TV` (`"TV"`) |
 | `"cartoon"` | `FranchiseType.CARTOON` (`"Cartoon"`) |
-| `"manga"` | `FranchiseType.ACG` (`"ACG"`) |
+| `"manga"` | `FranchiseType.MANGA` (`"Manga"`) |
 | `"novel"` | `FranchiseType.NOVEL` (`"Novel"`) |
 | `"comic"` | `FranchiseType.COMIC` (`"Comic"`) |
 | `"game"` | `FranchiseType.GAME` (`"Game"`) |

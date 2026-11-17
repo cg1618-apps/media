@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-11-16
+Last verified: 2026-11-17
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -165,7 +165,7 @@ To list a collection's members, use `GET /api/franchise/?collection_id=<uuid>`.
 **Franchise families.** A `franchise_type` whose types span two families
 (`FRANCHISE_FAMILY_FOR_TYPE`, see
 [entry-types.md](entry-types.md#franchise-families-franchise_family_for_type-apputilsconstantspy)) is **422** on `POST`,
-`PUT` and `PATCH` - `"ACG, H-Comic"`, `"ACG, Hentai"` and `"ACG, H-Game"` mix
+`PUT` and `PATCH` - `"Anime, H-Comic"`, `"Manga, Hentai"` and `"Anime, H-Game"` mix
 mainstream and restricted, while any list of `H-Comic`, `Hentai` and `H-Game`
 (`"H-Comic, Hentai, H-Game"`) is the one `restricted` family and accepted. So
 is a `PUT` or `PATCH` that retypes a franchise into another family than an
@@ -635,7 +635,7 @@ list, is **422**.
 like an existing h-comic or hentai franchise joins it, and otherwise
 auto-creates one of type `H-Game`, labelled. A `franchise_id` naming an
 `H-Comic` or `Hentai` franchise is accepted; one naming a mainstream franchise
-(`Game`, `ACG`, ...) is **422**.
+(`Game`, `Anime`, ...) is **422**.
 
 **`highlight_group_order`** is a response field only, the viewer's own order
 of the highlight groups, as on h-comic; every h-game takes one.

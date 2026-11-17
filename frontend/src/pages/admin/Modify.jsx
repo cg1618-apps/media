@@ -1325,7 +1325,7 @@ export default function Modify() {
     if (!franchiseId && af.franchise_text.trim()) {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
-          franchiseType: "ACG",
+          franchiseType: "Anime",
           onConfirm: (rem) => {
             setFranchiseCreateModal(null);
             resolve({ confirmed: true, remark: rem });
@@ -1346,7 +1346,7 @@ export default function Modify() {
           franchise_name_roman: af.anime_name_roman || null,
           franchise_name_jp: af.anime_name_jp || null,
           franchise_name_alt: af.anime_name_alt || null,
-          franchise_type: "ACG",
+          franchise_type: "Anime",
           remark: result.remark || null,
         }),
         credentials: "include",
@@ -1524,7 +1524,7 @@ export default function Modify() {
     if (!franchiseId && sf.franchise_text.trim()) {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
-          franchiseType: "ACG",
+          franchiseType: "Anime",
           onConfirm: (rem) => {
             setFranchiseCreateModal(null);
             resolve({ confirmed: true, remark: rem });
@@ -1541,7 +1541,7 @@ export default function Modify() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           franchise_name_en: sf.franchise_text,
-          franchise_type: "ACG",
+          franchise_type: "Anime",
           remark: result.remark || null,
         }),
         credentials: "include",
@@ -1630,7 +1630,7 @@ export default function Modify() {
     if (!franchiseId && amf.franchise_text.trim()) {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
-          franchiseType: "ACG",
+          franchiseType: "Anime",
           onConfirm: (rem) => {
             setFranchiseCreateModal(null);
             resolve({ confirmed: true, remark: rem });
@@ -1651,7 +1651,7 @@ export default function Modify() {
           franchise_name_roman: amf.anime_movie_name_roman || null,
           franchise_name_jp: amf.anime_movie_name_jp || null,
           franchise_name_alt: amf.anime_movie_name_alt || null,
-          franchise_type: "ACG",
+          franchise_type: "Anime",
           remark: result.remark || null,
         }),
         credentials: "include",
@@ -2030,7 +2030,7 @@ export default function Modify() {
     if (!franchiseId && (cmgf.franchise_text || "").trim()) {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
-          franchiseType: "ACG",
+          franchiseType: "Manga",
           onConfirm: (rem) => {
             setFranchiseCreateModal(null);
             resolve({ confirmed: true, remark: rem });
@@ -2051,7 +2051,7 @@ export default function Modify() {
           franchise_name_roman: cmgf.manga_name_roman || null,
           franchise_name_jp: cmgf.manga_name_jp || null,
           franchise_name_alt: cmgf.manga_name_alt || null,
-          franchise_type: "ACG",
+          franchise_type: "Manga",
           remark: result.remark || null,
         }),
         credentials: "include",

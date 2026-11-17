@@ -44,7 +44,7 @@ def labelled_tree(db_session, nsfw_label):
     db_session.flush()
     franchise = models.Franchise(
         system_id=uuid.uuid4(),
-        franchise_type="ACG",
+        franchise_type="Anime",
         franchise_name_en="Hidden Owner Franchise",
         collection_id=open_collection.system_id,
     )

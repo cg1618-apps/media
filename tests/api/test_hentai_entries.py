@@ -438,7 +438,7 @@ def test_a_hentai_attaches_to_the_h_comic_franchise_of_its_name(owner_client, db
 
 
 def test_a_hentai_never_attaches_to_a_mainstream_franchise(owner_client, db_session):
-    mainstream = _franchise(db_session, "ACG")
+    mainstream = _franchise(db_session, "Anime")
     body = _create(owner_client, hentai_name_cn=None, hentai_name_en="Fate")
     assert body["franchise_id"] != str(mainstream.system_id)
     created = db_session.get(models.Franchise, uuid.UUID(body["franchise_id"]))
@@ -452,7 +452,7 @@ def test_a_mainstream_entry_never_attaches_to_a_hentai_franchise(owner_client, d
 
 
 def test_a_mainstream_franchise_named_by_id_is_refused(owner_client, db_session):
-    mainstream = _franchise(db_session, "ACG")
+    mainstream = _franchise(db_session, "Anime")
     response = owner_client.post(
         f"{ROUTE}/",
         json={"hentai_name_cn": TITLE, "franchise_id": str(mainstream.system_id)},
@@ -464,7 +464,7 @@ def test_a_mainstream_franchise_named_by_id_is_refused_on_the_update(
     owner_client, db_session
 ):
     body = _create(owner_client)
-    mainstream = _franchise(db_session, "ACG")
+    mainstream = _franchise(db_session, "Anime")
     response = owner_client.put(
         f"{ROUTE}/{body['system_id']}", json={"franchise_id": str(mainstream.system_id)}
     )

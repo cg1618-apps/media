@@ -38,7 +38,7 @@ def gated_franchise(db_session):
 
 @pytest.fixture
 def mainstream_franchise(db_session):
-    return _franchise(db_session, "ACG")
+    return _franchise(db_session, "Anime")
 
 
 def _manga(owner_client, **fields):
@@ -107,7 +107,7 @@ def test_a_mainstream_entry_cannot_be_moved_into_a_gated_franchise(
 def test_a_mainstream_entry_can_be_moved_within_its_family(
     owner_client, mainstream_franchise, db_session, method
 ):
-    other = _franchise(db_session, "ACG", name="Zvornik Other")
+    other = _franchise(db_session, "Anime", name="Zvornik Other")
     created = _manga(owner_client, franchise_id=str(mainstream_franchise.system_id))
     entry_id = created.json()["system_id"]
 
@@ -126,7 +126,7 @@ def test_a_mainstream_entry_can_be_moved_within_its_family(
 def test_a_franchise_cannot_be_created_spanning_two_families(owner_client):
     response = owner_client.post(
         "/api/franchise/",
-        json={"franchise_name_en": "Zvornik Mixed", "franchise_type": "ACG, H-Comic"},
+        json={"franchise_name_en": "Zvornik Mixed", "franchise_type": "Anime, H-Comic"},
     )
     assert response.status_code == 422, response.text
 
@@ -134,7 +134,7 @@ def test_a_franchise_cannot_be_created_spanning_two_families(owner_client):
 def test_a_franchise_can_be_created_with_two_types_of_one_family(owner_client):
     response = owner_client.post(
         "/api/franchise/",
-        json={"franchise_name_en": "Zvornik Pair", "franchise_type": "ACG, Anime"},
+        json={"franchise_name_en": "Zvornik Pair", "franchise_type": "Anime, Manga"},
     )
     assert response.status_code == 200, response.text
 
@@ -145,7 +145,7 @@ def test_a_franchise_cannot_be_updated_to_span_two_families(
 ):
     response = getattr(owner_client, method)(
         f"/api/franchise/{mainstream_franchise.system_id}",
-        json={"franchise_type": "ACG, H-Comic"},
+        json={"franchise_type": "Anime, H-Comic"},
     )
     assert response.status_code == 422, response.text
 

@@ -141,7 +141,7 @@ describe("stored defaults", () => {
 
 describe("franchise mode", () => {
   const franchises = [
-    { system_id: "f1", franchise_type: "ACG", franchise_expectation: "High", my_rating: "A" },
+    { system_id: "f1", franchise_type: "Anime", franchise_expectation: "High", my_rating: "A" },
     { system_id: "f2", franchise_type: "Movie, TV", franchise_expectation: "Low" },
     { system_id: "f3", franchise_type: "Novel" },
   ];
@@ -173,7 +173,7 @@ describe("franchise mode", () => {
   it("filters on the franchise type, each of a multi-type franchise counting", () => {
     expect(ids(withActive(defs, "franchiseType", ["TV"]))).toEqual(["f2"]);
     const typeDef = defs.find((d) => d.key === "franchiseType");
-    expect(typeDef.deriveOptions(entries)).toEqual(["ACG", "TV", "Movie", "Novel"]);
+    expect(typeDef.deriveOptions(entries)).toEqual(["Anime", "TV", "Movie", "Novel"]);
   });
 
   it("filters on expectation and on my rating", () => {

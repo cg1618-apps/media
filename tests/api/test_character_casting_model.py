@@ -64,7 +64,7 @@ def test_one_casting_per_character_per_entry(db_session, anime, character):
 def test_a_manga_casting_cannot_name_a_seiyuu(db_session, manga, character, person):
     """
     ck_casting_voice_scope, on character_casting_voice. Characters reach the
-    four ACG types; seiyuu reach only the voiced ones. Nobody voices anyone in
+    four AniManga types; seiyuu reach only the voiced ones. Nobody voices anyone in
     a manga. The casting itself is legal (see
     test_a_manga_casting_without_a_seiyuu_is_fine), so the refusal below is
     the voice row's.

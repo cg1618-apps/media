@@ -91,7 +91,7 @@ const CALCULATE_ALL = {
       title: "Seed sequel relations",
       fn: "run_seed_sequel_relations",
       summary:
-        "Writes the obvious anime sequel chains into ACG franchises that have no relations yet. Relations are curated by hand; this is a one-time starting point, not a derivation.",
+        "Writes the obvious anime sequel chains into Anime franchises that have no relations yet. Relations are curated by hand; this is a one-time starting point, not a derivation.",
       points: [
         "A franchise is skipped if any relation touches any of its entries, of any type, at either end — someone has started curating it.",
         "The same anime as the step above (TV or ONA, a season part, no special), grouped by series and ordered by season. Each neighbouring pair becomes one sequel relation.",

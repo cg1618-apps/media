@@ -198,13 +198,13 @@ describe("Nav panels", () => {
     expect(tab("explore")).toHaveFocus();
   });
 
-  it("groups Collection and Franchise away from ACG and Reality", async () => {
+  it("groups Collection and Franchise away from AniManga and Reality", async () => {
     const user = userEvent.setup();
     renderNav("/");
 
     await user.click(tab("library"));
     const panel = document.querySelector("[data-nav-panel]");
-    const columns = ["Groups", "ACG", "Reality"];
+    const columns = ["Groups", "AniManga", "Reality"];
     for (const heading of columns) {
       expect(within(panel).getByText(heading)).toBeInTheDocument();
     }
