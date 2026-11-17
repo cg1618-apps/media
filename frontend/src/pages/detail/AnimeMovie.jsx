@@ -38,7 +38,7 @@ import { focusStyle } from "../../lib/covers";
 import CastSection from "../../components/info/CastSection";
 import LazyImage from "../../components/ui/LazyImage";
 import { useViewScope } from "../../hooks/useViewScope";
-import { useMyRemarkSaver } from "../../api/mutations/useMyRemark";
+import { useRemarkSaver } from "../../api/mutations/useRemark";
 
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
@@ -73,7 +73,7 @@ export default function AnimeMovie() {
   // changed. Resolved from the fetched row so the two can never disagree.
   const system_id = movieQuery.data?.system_id;
   const { ownData } = useViewScope();
-  const saveMyRemark = useMyRemarkSaver("anime-movie", system_id, setMovie);
+  const saveRemark = useRemarkSaver("anime-movie", system_id, setMovie);
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const { setMediaItem, fetchMediaItem, invalidateMedia } =
     useMediaCacheUpdate("anime-movie", publicId);
@@ -376,7 +376,7 @@ export default function AnimeMovie() {
                 fields={[
                   [
                     { label: "Airing Status", value: movie.airing_status },
-                    { label: "Length", value: formatLength(movie.length_min) },
+                    { label: "Runtime", value: formatLength(movie.length_min) },
                   ],
                   [
                     { label: "Release Date JP", value: movie.release_date_jp },
@@ -415,14 +415,15 @@ export default function AnimeMovie() {
 
           {/* Remarks */}
           <TocSection id="remarks" label="Remarks">
-            {ownData && movie.remark && (
+            {movie.remark && (
               <Slip title="Remarks">
                 <textarea
                   key={movie.system_id}
                   defaultValue={movie.remark || ""}
+                  readOnly={!isAdmin}
                   onBlur={(e) => {
-                    if (e.target.value !== (movie.remark || ""))
-                      saveMyRemark(e.target.value);
+                    if (isAdmin && e.target.value !== (movie.remark || ""))
+                      saveRemark(e.target.value);
                   }}
                   rows={4}
                   placeholder="Add remarks…"
@@ -433,14 +434,14 @@ export default function AnimeMovie() {
           </TocSection>
 
           {/* Structured Notes */}
-          {/* The dedicated remark textarea above renders only for a holder of
-              self.list who has a remark; hide the notes page's `remark`
-              section exactly then, so the viewer's own row never has two
-              editors on one screen. */}
+          {/* The dedicated remark textarea above renders whenever a remark
+              exists - editable for a holder of manage.catalog, read-only for
+              everyone else; hide the notes page's `remark` section exactly
+              then, so the one row never has two editors on one screen. */}
           <AnimeMovieNotes
             key={movie.system_id}
             movie={movie}
-            hideSections={ownData && movie.remark ? ["remark"] : []}
+            hideSections={movie.remark ? ["remark"] : []}
             franchise={franchise}
           />
         </div>

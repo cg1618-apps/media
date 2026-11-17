@@ -131,12 +131,12 @@ export function MovieFormBody({ f, u, sources, ownerId }) {
         />
       </div>
       <div className={row2}>
-        <Field label="Length (min)">
+        <Field label="Runtime (min)">
           <input
             className={inputCls}
             type="number"
             min="0"
-            aria-label="Length (min)"
+            aria-label="Runtime (min)"
             value={f.length_min ?? ""}
             onChange={(e) => u("length_min", e.target.value)}
             placeholder="120"

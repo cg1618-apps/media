@@ -8,7 +8,7 @@ admin-only, matching watch orders.
 Replaces the prequel_id / sequel_id / alternative columns. Nothing here derives
 relations automatically: they are curated on the /relations admin page. The one
 exception lives outside this router - Calculate All's one-time sequel seed for
-ACG franchises with no relations yet (seed_sequel_relations).
+Anime franchises with no relations yet (seed_sequel_relations).
 """
 
 import logging

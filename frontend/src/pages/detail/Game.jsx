@@ -48,7 +48,7 @@ import ContentLabelChips from "../../components/info/ContentLabelChips";
 import LazyImage from "../../components/ui/LazyImage";
 import { focusStyle } from "../../lib/covers";
 import { useViewScope } from "../../hooks/useViewScope";
-import { useMyRemarkSaver } from "../../api/mutations/useMyRemark";
+import { useRemarkSaver } from "../../api/mutations/useRemark";
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
@@ -150,7 +150,7 @@ function copyPrice(copy) {
  * Copies are created and edited in the Add/Modify form (GameCopiesEditor);
  * the detail page only shows them, which is why there is no inline editor
  * here. Renders nothing when there are no copies - the rule CastSection
- * follows on the ACG pages, since an empty "Copies" slip is a title over a
+ * follows on the AniManga pages, since an empty "Copies" slip is a title over a
  * blank box. The Info card's "Copies" figure counts these same rows.
  */
 export function GameCopiesSection({ copies }) {
@@ -197,7 +197,7 @@ export default function Game() {
   // changed. Resolved from the fetched row so the two can never disagree.
   const system_id = gameQuery.data?.system_id;
   const { ownData } = useViewScope();
-  const saveMyRemark = useMyRemarkSaver("game", system_id, setGame);
+  const saveRemark = useRemarkSaver("game", system_id, setGame);
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const { setMediaItem, fetchMediaItem, invalidateMedia } = useMediaCacheUpdate("game", publicId);
@@ -685,14 +685,15 @@ export default function Game() {
             </TocSection>
 
             <TocSection id="remarks" label="Remarks">
-              {ownData && game.remark && (
+              {game.remark && (
                 <Slip title="Remarks">
                   <textarea
                     key={game.system_id}
                     defaultValue={game.remark || ""}
+                    readOnly={!isAdmin}
                     onBlur={(e) => {
-                      if (e.target.value !== (game.remark || ""))
-                        saveMyRemark(e.target.value);
+                      if (isAdmin && e.target.value !== (game.remark || ""))
+                        saveRemark(e.target.value);
                     }}
                     rows={4}
                     placeholder="Add remarks…"
@@ -703,7 +704,7 @@ export default function Game() {
             </TocSection>
 
             <NotesBlocks
-              hideSections={ownData && game.remark ? ["remark"] : []}
+              hideSections={game.remark ? ["remark"] : []}
               // Rendered in the Progress slip at the top instead.
               hideGroups={["todo"]}
             />

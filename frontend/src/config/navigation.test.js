@@ -109,7 +109,7 @@ describe("activeSectionKey", () => {
 });
 
 describe("NAV_SECTIONS", () => {
-  it("groups Collection and Franchise apart from ACG and Reality", () => {
+  it("groups Collection and Franchise apart from AniManga and Reality", () => {
     const library = NAV_SECTIONS.find((s) => s.key === "library");
     const groups = library.columns.find((c) => c.heading === "Groups");
     expect(groups.items.map((i) => i.label)).toEqual([
@@ -130,17 +130,17 @@ describe("NAV_SECTIONS", () => {
     ]);
   });
 
-  it("lists Seiyuu with the entities, not under ACG", () => {
+  it("lists Seiyuu with the entities, not under AniManga", () => {
     const library = NAV_SECTIONS.find((s) => s.key === "library");
-    const acg = library.columns.find((c) => c.heading === "ACG");
-    expect(acg.items.map((i) => i.label)).not.toContain("Seiyuu");
+    const animanga = library.columns.find((c) => c.heading === "AniManga");
+    expect(animanga.items.map((i) => i.label)).not.toContain("Seiyuu");
     expect(activeItem("/library/seiyuu").item.label).toBe("Seiyuu");
   });
 
-  it("lists Game in the ACG column - ACG is anime, comic and games", () => {
+  it("lists Game in the AniManga column", () => {
     const library = NAV_SECTIONS.find((s) => s.key === "library");
-    const acg = library.columns.find((c) => c.heading === "ACG");
-    expect(acg.items.map((i) => i.label)).toContain("Game");
+    const animanga = library.columns.find((c) => c.heading === "AniManga");
+    expect(animanga.items.map((i) => i.label)).toContain("Game");
     expect(activeItem("/library/game").item.label).toBe("Game");
     expect(activeItem("/game/12").item.label).toBe("Game");
   });
@@ -558,7 +558,7 @@ describe("visibleSections - the guest scope", () => {
     const [library] = visibleSections(NAV_SECTIONS, holdsNothing);
     expect(library.columns.map((c) => c.heading)).toEqual([
       "Groups",
-      "ACG",
+      "AniManga",
       "Reality",
     ]);
     const forMember = visibleSections(NAV_SECTIONS, holdsMember).find(

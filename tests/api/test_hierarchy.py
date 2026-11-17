@@ -13,11 +13,11 @@ from app.services.domain import hierarchy as h
 from app.utils.constants import FranchiseType
 
 ENTRY_RESOLVERS = {
-    "anime": (h.resolve_anime_parent_hierarchy, FranchiseType.ACG),
+    "anime": (h.resolve_anime_parent_hierarchy, FranchiseType.ANIME),
     "movie": (h.resolve_movie_parent_hierarchy, FranchiseType.MOVIE),
     "tv-show": (h.resolve_tv_show_parent_hierarchy, FranchiseType.TV),
     "cartoon": (h.resolve_cartoon_parent_hierarchy, FranchiseType.CARTOON),
-    "manga": (h.resolve_manga_parent_hierarchy, FranchiseType.ACG),
+    "manga": (h.resolve_manga_parent_hierarchy, FranchiseType.MANGA),
     "novel": (h.resolve_novel_parent_hierarchy, FranchiseType.NOVEL),
     "comic": (h.resolve_comic_parent_hierarchy, FranchiseType.COMIC),
 }
@@ -25,7 +25,7 @@ ENTRY_RESOLVERS = {
 
 @pytest.fixture
 def existing(db_session):
-    f = models.Franchise(system_id=uuid.uuid4(), franchise_name_en="Cowboy Bebop", franchise_type="ACG")
+    f = models.Franchise(system_id=uuid.uuid4(), franchise_name_en="Cowboy Bebop", franchise_type="Anime")
     s = models.Series(system_id=uuid.uuid4(), franchise_id=f.system_id, series_name_en="Bebop Movies")
     db_session.add_all([f, s])
     db_session.flush()
@@ -84,21 +84,22 @@ def test_series_entries_resolve_their_franchise_by_the_series_names(db_session, 
     assert h.resolve_series_parent_hierarchy(db_session, None, {"en": "cowboy bebop"}) == f.system_id
 
 
-def test_an_anime_movie_creates_an_acg_franchise(db_session):
+def test_an_anime_movie_creates_an_anime_franchise(db_session):
     fid = h.resolve_anime_movie_parent_hierarchy(db_session, None, {"en": "Brand New Film"})
-    assert db_session.get(models.Franchise, fid).franchise_type == "ACG"
+    assert db_session.get(models.Franchise, fid).franchise_type == "Anime"
 
 
-def test_a_series_creates_an_acg_franchise(db_session):
+def test_a_series_creates_an_anime_franchise(db_session):
     fid = h.resolve_series_parent_hierarchy(db_session, None, {"en": "Brand New Series"})
-    assert db_session.get(models.Franchise, fid).franchise_type == "ACG"
+    assert db_session.get(models.Franchise, fid).franchise_type == "Anime"
 
 
-def test_anime_is_not_a_franchise_type():
-    """One type for anime and manga franchises: "Anime" is not a member."""
-    assert "Anime" not in {t.value for t in FranchiseType}
-    for media_type in ("anime", "anime-movie", "series", "manga"):
-        assert h.FRANCHISE_TYPE_FOR[media_type] is FranchiseType.ACG
+def test_acg_is_not_a_franchise_type():
+    """ACG split into Anime and Manga, matching the media types."""
+    assert "ACG" not in {t.value for t in FranchiseType}
+    for media_type in ("anime", "anime-movie", "series"):
+        assert h.FRANCHISE_TYPE_FOR[media_type] is FranchiseType.ANIME
+    assert h.FRANCHISE_TYPE_FOR["manga"] is FranchiseType.MANGA
 
 
 def test_every_auto_created_type_is_one_the_dropdown_offers():
@@ -119,7 +120,7 @@ def listed(db_session):
         system_id=uuid.uuid4(),
         franchise_name_en="Cowboy Bebop",
         franchise_name_alt="CB, Space Cowboys",
-        franchise_type="ACG",
+        franchise_type="Anime",
     )
     s = models.Series(
         system_id=uuid.uuid4(),

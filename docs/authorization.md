@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-11-14
+Last verified: 2026-11-17
 
 ## What this is for
 
@@ -317,10 +317,10 @@ The matrix above is the grants; this is what holding one means.
 | rate a collection, franchise, series, character, person, studio or publisher, set a tier's expectation, rate and remark on a novel unit (`self.list`) | — | **never** | yes | yes | **never** |
 | read their own account settings — username and role | — (no account) | through the API; the SPA's `/settings` route asks `self.list`, so it is not drawn | yes | yes | yes, through the API; the SPA's `/settings` route asks `self.list`, so it is not drawn for `admin` |
 | change their own password (`self.password`) — the admin sets its own, and a shared account's, on `/users` | — | **never** | **always** | **always** | **never** |
-| write a personal note — a review or a remark | — | **never** | yes | yes | **never** |
+| write a personal note — a review or a 備註列表 Remark List row | — | **never** | yes | yes | **never** |
 | file a request or report, and read and edit their own (`self.requests`) | — | **always** | **always** | **always** | **never** |
 | handle requests — the inbox: mark done or declined, reopen, delete (`manage.requests`) | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **always** |
-| write the catalogue — entries, groups, people, credits, relations, watch orders, a game's choice graph, quotes, memes, catalogue notes, form and picker defaults (`manage.catalog`) | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **never** |
+| write the catalogue — entries, groups, people, credits, relations, watch orders, a game's choice graph, quotes, memes, catalogue notes - the 備註 remark among them - form and picker defaults (`manage.catalog`) | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **never** |
 | write, edit and remove announcements (`manage.announcements`) | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **always** |
 | read the Note pages' inventories — System Options, Alias Conversion, External APIs (`manage.options`); an option itself is written under `manage.catalog` | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **always** |
 | manage the image library, `/images` (`manage.images`) | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **always** |
@@ -1396,14 +1396,10 @@ request".
 - **No field group names a note section.** Personal sections - the
   highlight sections among them - are filtered by author in
   `app/routers/note.py` - see [Note scope](#note-scope).
-- **`remark` is not gated here at all.** It is a personal-scope note, read
-  per viewer by `app.services.domain.remark_field.attach_remark`, filtered on
-  `note.author_id`. It must never become a class-level `column_property`: a
-  scalar subquery cannot know who is asking, so it would serve one person's
-  private assessment to everybody and would force
-  `ix_note_one_remark_per_owner` back to per-owner, which makes the database
-  refuse a second account's remark outright. See
-  [business-rules.md](business-rules.md).
+- **`remark` is not gated here at all.** It is a catalogue-scope note,
+  attached to every read of an entry or a group by
+  `app.services.domain.remark_field.attach_remark` and read by everyone who
+  can see the owner. See [business-rules.md](business-rules.md).
 
 ## Ratings and expectations (`user_rating`)
 
@@ -1721,12 +1717,11 @@ and the page decides from the scope who may write it. An h-comic's and
 h-game's highlight group order is per account too, in
 `user_highlight_group_order`, written under `self.personal_notes`.
 
-**A remark belongs to its author.** `remark` is read per viewer by
-`attach_remark`, filtered on `note.author_id`, and
-`ix_note_one_remark_per_owner` carries `author_id`, so two accounts may each
-hold a remark on one entry and each reads back their own. The index and the
-read path are one mechanism: narrowing the index without a viewer-aware read
-turns a loud refusal into an accepted-then-invisible write.
+**A remark is the catalogue's.** `remark` is one shared row per owner
+(`ix_note_one_remark_per_owner`), written under `manage.catalog` and read by
+everyone who can see the owner, a logged-out visitor included. A member's
+own short notes on an entry or a group go in 備註列表 `remark_list`, which is
+personal; there is no per-account remark route.
 
 ## Admin routes
 
@@ -2044,9 +2039,9 @@ matters is enforced server-side.
 | `tests/api/test_hentai_shared_records.py` | a studio, director or author credited only on hentai is hidden (the author from guest and from an h-comic-only session alike), one also on an anime is not, and an author also on the h-comic the hentai adapts is seen through the h-comic alone by an h-comic-only session and through both by `unrestricted`; an H Genre value used only by hentai is hidden; `/api/constants` for a session seeing neither gated type and for one seeing h-comic only (`unrestricted` with `hentai` denied, both labels present) |
 | `tests/api/test_hentai_label_migration.py` | the hentai revision's own `settle_label`: the label leaves an anime and stays on a hentai, adopted not duplicated |
 | `tests/api/test_franchise_family.py` | franchise families: a `franchise_id` of another family refused on create, `PUT` and `PATCH`, in both directions, a franchise type spanning two families refused, a franchise holding mainstream entries not retyped into the gated family - each with its accepted mirror |
-| `tests/api/test_franchise_families.py` | the restricted family: `"ACG, Hentai"` and `"ACG, H-Game"` refused on every write path and `"H-Comic, Hentai"` and `"H-Comic, Hentai, H-Game"` accepted, a franchise holding a hentai not retyped mainstream, both gated labels on an `H-Comic, Hentai` franchise and neither removable, all three on an `H-Comic, Hentai, H-Game` one, an h-comic and its hentai resolving to one franchise, a mainstream entry matching no restricted franchise |
+| `tests/api/test_franchise_families.py` | the restricted family: `"Anime, Hentai"` and `"Anime, H-Game"` refused on every write path and `"H-Comic, Hentai"` and `"H-Comic, Hentai, H-Game"` accepted, a franchise holding a hentai not retyped mainstream, both gated labels on an `H-Comic, Hentai` franchise and neither removable, all three on an `H-Comic, Hentai, H-Game` one, an h-comic and its hentai resolving to one franchise, a mainstream entry matching no restricted franchise |
 | `tests/unit/test_search_gated_buckets.py` | every gated type's `SearchBuckets` field defaults to absent, so a new gated type cannot put its key back |
-| `tests/api/test_h_game_entries.py` | h-game: CRUD and the vocabularies (422 on create, update and the tracker PATCH), the DLC chain, purchase records on h-game and still on game, the `h-game` label stamped on every write path and refused removal (422) and deletion (no route), guest / `normal` / `borderline` 404 while `unrestricted` sees it, the restricted family: an h-game refused from a `Game` or `ACG` franchise both ways, by name and by id, and `"ACG, H-Game"` refused, each mirrored by an h-game accepted into an `H-Game`, `H-Comic` or `Hentai` franchise, by name and by id, and by `"H-Comic, Hentai, H-Game"` accepted with all three labels |
+| `tests/api/test_h_game_entries.py` | h-game: CRUD and the vocabularies (422 on create, update and the tracker PATCH), the DLC chain, purchase records on h-game and still on game, the `h-game` label stamped on every write path and refused removal (422) and deletion (no route), guest / `normal` / `borderline` 404 while `unrestricted` sees it, the restricted family: an h-game refused from a `Game` or `Anime` franchise both ways, by name and by id, and `"Anime, H-Game"` refused, each mirrored by an h-game accepted into an `H-Game`, `H-Comic` or `Hentai` franchise, by name and by id, and by `"H-Comic, Hentai, H-Game"` accepted with all three labels |
 | `tests/api/test_h_game_shared_records.py` | a studio, a game genre and an H Genre value connected only to h-game are hidden; an unused game genre stays visible; the notes registry, `/api/constants` and the external-API catalogue leave h-game out for a narrow session, with the `unrestricted` mirror |
 | `tests/api/test_h_comic_shared_records.py` | people in every h-comic role, a club with no credit, characters and vocabulary values connected only to h-comic are hidden; club membership filters hidden members and reveals nobody |
 | `tests/api/test_visibility.py` | label hiding on lists/detail — asserts on `response.text` so an id cannot leak through any field |
@@ -2142,9 +2137,10 @@ of a session.
   default status, because a default status is a claim about a person.
 - **A class-level read path cannot know the viewer.** A `column_property` is a
   scalar subquery: it cannot take a viewer, so anything per-user needs a read
-  path that does — `attach_remark` is the worked example. The constraint
-  protecting such a read path has to move in the same commit, because
-  relaxing it alone turns a loud database refusal into a silent loss.
+  path that does — `attach_list_fields` is the worked example. A unique
+  constraint over per-user rows has to change in the same commit as the read
+  path, because relaxing it alone turns a loud database refusal into a silent
+  loss.
 - **Per-user data has to cross machines.** A new per-user table needs a
   `username` column on its sheet tab, and Pull's header filter drops any
   parsed key the sheet's header row did not carry.

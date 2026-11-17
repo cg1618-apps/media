@@ -235,7 +235,8 @@ export const RELEASE_MONTHS = [
 ];
 
 export const FRANCHISE_TYPES = [
-  "ACG",
+  "Anime",
+  "Manga",
   "Anime Movie",
   "TV",
   "Movie",
@@ -250,6 +251,12 @@ export const FRANCHISE_TYPES = [
   "H-Game",
   "Hentai",
 ];
+
+// The AniManga group: the franchise types an aggregate view - the statistics,
+// the favourite AniManga franchises grid - counts as one. Not a franchise
+// type itself; a franchise is typed Anime, Manga or both. Only the frontend
+// aggregates over it, so the backend has no copy.
+export const ANIMANGA_FRANCHISE_TYPES = ["Anime", "Manga"];
 
 export const FRANCHISE_EXPECTATIONS = ["Highest", "High", "Medium", "Low"];
 

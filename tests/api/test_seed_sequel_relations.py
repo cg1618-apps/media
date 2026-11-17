@@ -1,6 +1,6 @@
 """
 Tests for seed_sequel_relations: the one-time seed of anime sequel chains in
-ACG franchises that have no relations yet, run by Calculate All.
+Anime franchises that have no relations yet, run by Calculate All.
 
 Every refusal test here builds a franchise that WOULD be seeded beside the one
 that is refused, and asserts both. A seed that writes nothing at all would
@@ -19,7 +19,7 @@ from app.services.domain.media_relation import seed_sequel_relations
 # ---------------------------------------------------------------------------
 
 
-def _franchise(db, franchise_type="ACG"):
+def _franchise(db, franchise_type="Anime"):
     f = models.Franchise(
         system_id=uuid.uuid4(),
         franchise_type=franchise_type,
@@ -252,21 +252,28 @@ def test_a_relation_at_the_from_end_refuses_too(db_session):
     assert _chain(db_session, [f1, f2]) == {(f2.system_id, f1.system_id)}
 
 
-def test_a_franchise_that_is_not_acg_gets_nothing(db_session):
+def test_a_franchise_that_is_not_anime_gets_nothing(db_session):
     tv = _franchise(db_session, "TV")
     ts = _series(db_session, tv)
     t1 = _anime(db_session, tv, "Season 1", ts)
     t2 = _anime(db_session, tv, "Season 2", ts)
 
-    # ACG as one token of several still counts.
-    acg = _franchise(db_session, "Game, ACG")
-    a_s = _series(db_session, acg)
-    a1 = _anime(db_session, acg, "Season 1", a_s)
-    a2 = _anime(db_session, acg, "Season 2", a_s)
+    # Manga is the other half of AniManga, and is not seeded either.
+    manga = _franchise(db_session, "Manga")
+    ms = _series(db_session, manga)
+    m1 = _anime(db_session, manga, "Season 1", ms)
+    m2 = _anime(db_session, manga, "Season 2", ms)
+
+    # Anime as one token of several still counts.
+    anime = _franchise(db_session, "Game, Anime")
+    a_s = _series(db_session, anime)
+    a1 = _anime(db_session, anime, "Season 1", a_s)
+    a2 = _anime(db_session, anime, "Season 2", a_s)
 
     seed_sequel_relations(db_session)
 
     assert _chain(db_session, [t1, t2]) == set()
+    assert _chain(db_session, [m1, m2]) == set()
     assert _chain(db_session, [a1, a2]) == {(a2.system_id, a1.system_id)}
 
 

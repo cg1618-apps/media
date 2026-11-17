@@ -31,9 +31,7 @@ function mockFetch(
     vi.fn((url, init) => {
       const u = String(url);
       let body = [];
-      if (init?.method === "PUT" && u.startsWith("/api/me/remarks/")) {
-        body = { remark: JSON.parse(init.body).remark };
-      } else if (init?.method === "PUT" && u.startsWith("/api/me/list/")) {
+      if (init?.method === "PUT" && u.startsWith("/api/me/list/")) {
         // The row as /api/me/list answers it, in its envelope.
         const sent = JSON.parse(init.body);
         body = { media_id: entry.system_id, media_type: "hentai", ...(listed ? listed(sent) : sent) };
@@ -226,47 +224,63 @@ describe("Hentai detail page", () => {
   });
 });
 
-// The Remarks box is the viewer's own remark: drawn for a holder of self.list
-// and written through /api/me/remarks, never the catalogue's PATCH. The entry
-// carries a remark in both cases, so the box's absence without self.list is
-// the permission's doing and not an empty row's.
-describe("Hentai detail page own remark", () => {
+// The Remarks box is the catalogue remark: drawn whenever the entry has one,
+// editable for a holder of manage.catalog (an editor) and saved through the
+// entry's own PATCH, read-only for everyone else. The read-only cases carry
+// the same remark the editor edits, so a box that does not save is the
+// permission's doing and not an empty row's.
+describe("Hentai detail page remark", () => {
   const remarked = { ...ENTRY, remark: "Skip the second episode." };
   const remarkBox = () => screen.queryByPlaceholderText("Add remarks…");
-  const putCalls = () =>
-    fetch.mock.calls.filter(
-      ([url, init]) => init?.method === "PUT" && String(url).startsWith("/api/me/remarks/"),
-    );
-  const patchCalls = () => fetch.mock.calls.filter(([, init]) => init?.method === "PATCH");
+  const writes = () =>
+    fetch.mock.calls.filter(([, init]) => init?.method === "PATCH" || init?.method === "PUT");
 
-  it("lets a holder of self.list edit it, saved through /api/me/remarks", async () => {
-    mockFetch(remarked, [], { permissions: [...MEMBER_KEYS, "self.list"] });
+  it("lets an editor edit it, saved through the entry's PATCH", async () => {
+    mockFetch(remarked, [], {
+      admin: true,
+      permissions: [...MEMBER_KEYS, "manage.catalog"],
+      patched: (sent) => ({ ...remarked, ...sent }),
+    });
     mount(remarked);
     const box = await screen.findByPlaceholderText("Add remarks…");
     expect(box).toHaveValue("Skip the second episode.");
-    expect(box).toBeEnabled();
+    expect(box).not.toHaveAttribute("readonly");
 
     await userEvent.clear(box);
     await userEvent.type(box, "Watch both.");
     fireEvent.blur(box);
-    await waitFor(() => expect(putCalls()).toHaveLength(1));
-    expect(putCalls()[0][0]).toBe("/api/me/remarks/hentai/h1");
-    expect(JSON.parse(putCalls()[0][1].body)).toEqual({ remark: "Watch both." });
+    await waitFor(() => expect(writes()).toHaveLength(1));
+    const [url, init] = writes()[0];
+    expect(url).toBe("/api/hentai/h1");
+    expect(init.method).toBe("PATCH");
+    expect(JSON.parse(init.body)).toEqual({ remark: "Watch both." });
     expect(await screen.findByText("Remark saved")).toBeInTheDocument();
-    expect(patchCalls()).toHaveLength(0);
   });
 
   it("sends an unchanged remark nowhere", async () => {
-    mockFetch(remarked, [], { permissions: ["self.list"] });
+    mockFetch(remarked, [], { admin: true, permissions: ["manage.catalog"] });
     mount(remarked);
     fireEvent.blur(await screen.findByPlaceholderText("Add remarks…"));
-    expect(putCalls()).toHaveLength(0);
-    expect(patchCalls()).toHaveLength(0);
+    expect(writes()).toHaveLength(0);
   });
 
-  it("does not draw the box without self.list", async () => {
-    mockFetch(remarked, [], { permissions: [] });
+  it.each([
+    ["a member", LIST_KEYS],
+    ["a guest", []],
+  ])("shows %s the remark read-only and saves nothing", async (_who, permissions) => {
+    mockFetch(remarked, [], { permissions });
     mount(remarked);
+    const box = await screen.findByPlaceholderText("Add remarks…");
+    expect(box).toHaveValue("Skip the second episode.");
+    expect(box).toHaveAttribute("readonly");
+    fireEvent.change(box, { target: { value: "Mine now." } });
+    fireEvent.blur(box);
+    expect(writes()).toHaveLength(0);
+  });
+
+  it("draws no box for a non-editor when the entry has no remark", async () => {
+    mockFetch(ENTRY, [], { permissions: LIST_KEYS });
+    mount(ENTRY);
     await screen.findByRole("heading", { name: "中文名" });
     await screen.findByRole("heading", { name: "Notes" });
     expect(remarkBox()).toBeNull();

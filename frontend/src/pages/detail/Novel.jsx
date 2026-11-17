@@ -51,7 +51,7 @@ import { useSaveMyNovelUnit } from "../../api/mutations/useMyRatingMutations";
 import { SELECT_CLS } from "../../components/hub/HubChrome";
 import { MY_RATINGS } from "../../config/fieldOptions";
 import { novelUnitPayload } from "../../lib/payloads";
-import { useMyRemarkSaver } from "../../api/mutations/useMyRemark";
+import { useRemarkSaver } from "../../api/mutations/useRemark";
 
 const textareaCls =
   "block w-full border border-border-strong bg-surface text-text px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand disabled:bg-surface-2 disabled:text-text-faint disabled:cursor-not-allowed";
@@ -222,7 +222,7 @@ export default function Novel() {
   // changed. Resolved from the fetched row so the two can never disagree.
   const system_id = novelQuery.data?.system_id;
   const { ownData } = useViewScope();
-  const saveMyRemark = useMyRemarkSaver("novel", system_id, setNovel);
+  const saveRemark = useRemarkSaver("novel", system_id, setNovel);
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const allNovelsQuery = useMediaList("novel", LIST_OPTIONS);
@@ -714,14 +714,15 @@ export default function Novel() {
 
           {/* Remarks */}
           <TocSection id="remarks" label="Remarks">
-            {ownData && novel.remark && (
+            {novel.remark && (
               <Slip title="Remarks">
                 <textarea
                   key={novel.system_id}
                   defaultValue={novel.remark || ""}
+                  readOnly={!isAdmin}
                   onBlur={(e) => {
-                    if (e.target.value !== (novel.remark || ""))
-                      saveMyRemark(e.target.value);
+                    if (isAdmin && e.target.value !== (novel.remark || ""))
+                      saveRemark(e.target.value);
                   }}
                   rows={4}
                   placeholder="Add remarks…"
@@ -741,14 +742,14 @@ export default function Novel() {
           </TocSection>
 
           {/* Structured Notes */}
-          {/* The dedicated remark textarea above renders only for a holder of
-              self.list who has a remark; hide the notes page's `remark`
-              section exactly then, so the viewer's own row never has two
-              editors on one screen. */}
+          {/* The dedicated remark textarea above renders whenever a remark
+              exists - editable for a holder of manage.catalog, read-only for
+              everyone else; hide the notes page's `remark` section exactly
+              then, so the one row never has two editors on one screen. */}
           <NovelNotes
             key={novel.system_id}
             novel={novel}
-            hideSections={ownData && novel.remark ? ["remark"] : []}
+            hideSections={novel.remark ? ["remark"] : []}
             series={series}
             franchise={franchise}
           />

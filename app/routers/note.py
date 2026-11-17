@@ -299,8 +299,7 @@ def _reject_second_singleton(
     if section.one_per_kind:
         query = query.filter(models.Note.kind == payload.kind)
     if section.scope == SCOPE_PERSONAL and author_id is not None:
-        # One remark per owner PER AUTHOR. See Task 9 of the Step 5 plan for
-        # why the database's index is still per-owner.
+        # A personal singleton would hold one row per owner per author.
         query = query.filter(models.Note.author_id == author_id)
     if exclude_id:
         query = query.filter(models.Note.system_id != exclude_id)

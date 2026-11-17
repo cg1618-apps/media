@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-11-14
+Last verified: 2026-11-17
 
 **What this is for.** This is the map of every page outside the admin
 tabs — what a guest can open, what a member adds (see "The guest scope"
@@ -145,7 +145,7 @@ about styling.
 
 | Section key | Label | Shape | Contents |
 |---|---|---|---|
-| `library` | Library | mega-panel (`columns`), `requires` any of the nine ordinary `media_type.*` keys (`LIBRARY_MEDIA_TYPE_PERMISSIONS`), so a role holding none — the admin — has no Library tab. Nav only: the `/library` routes themselves stay open | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities** (each row `requires` its own kind's key, so a row whose kind is off is dropped and a viewer holding none has no Entities column): Studio `/library/studio` (also matches `/studio`; `view.studio`), Publisher `/library/publisher` (also matches `/publisher`; `view.publisher`), Person `/library/person` (also matches `/person`; `view.person`), Character `/library/character` (also matches `/character` and `/identity`; `view.character`), Seiyuu `/library/seiyuu` (`view.person`) · **ACG**: Anime, Anime Movie, Manga, Novel, Game `/library/game` (also matches `/game`) · **Reality**: TV Show, Movie, Cartoon, Comic |
+| `library` | Library | mega-panel (`columns`), `requires` any of the nine ordinary `media_type.*` keys (`LIBRARY_MEDIA_TYPE_PERMISSIONS`), so a role holding none — the admin — has no Library tab. Nav only: the `/library` routes themselves stay open | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities** (each row `requires` its own kind's key, so a row whose kind is off is dropped and a viewer holding none has no Entities column): Studio `/library/studio` (also matches `/studio`; `view.studio`), Publisher `/library/publisher` (also matches `/publisher`; `view.publisher`), Person `/library/person` (also matches `/person`; `view.person`), Character `/library/character` (also matches `/character` and `/identity`; `view.character`), Seiyuu `/library/seiyuu` (`view.person`) · **AniManga**: Anime, Anime Movie, Manga, Novel, Game `/library/game` (also matches `/game`) · **Reality**: TV Show, Movie, Cartoon, Comic |
 | `restricted` | Restricted | flat `items`, every row gated | H-Comic `/library/h-comic` (also matches `/h-comic`; `gatedType: "h-comic"`), H-Game `/library/h-game` (also matches `/h-game`; `gatedType: "h-game"`), Hentai `/library/hentai` (also matches `/hentai`; `gatedType: "hentai"`). Each is drawn only for a session that can see its type; a session that can see no gated type has every row dropped, so the tab itself is not drawn |
 | `track` | Track | flat `items` | Plan `/plan` (`requires: "self.list"` — see below), Completions `/completions` (`requires: "self.list"`). The account's own progress; a guest holds no `self.*` key, so the tab is not drawn |
 | `explore` | Explore | flat `items` | Seasonal `/seasonal` and Future Releases `/future-releases`, each `requires: LIBRARY_MEDIA_TYPE_PERMISSIONS` (any ordinary media type, so a guest's and a shared account's Explore hold both and the admin's neither), Statistics `/statistics` (`requires: "view.statistics"`, so super, user and shared and never a guest), and Random Picker `/random` (`requires: "view.random_picker"`; its `/random/<type>` pages light it too) |
@@ -176,7 +176,7 @@ hands back the original item objects, since Nav marks the current row by
 identity. Every gate is `has()` from `useAuth()`, a plain membership test,
 so a tab or row is drawn only for a role that holds its key.
 
-A guest is therefore shown two tabs: Library, holding Groups, ACG and
+A guest is therefore shown two tabs: Library, holding Groups, AniManga and
 Reality, and Explore, holding Seasonal and Future Releases. A shared
 account's Explore adds the Random Picker and Statistics. The admin is shown no
 Library, Restricted, Track or Explore tab, Extras holding Resources alone,
@@ -698,8 +698,7 @@ type the caller leaves out, and the table's Entries column counts whatever
 
 Filter panel "Type": Anime, Manga, Novel, Anime Movie, Movie, TV, Cartoon,
 Comic, H-Comic, H-Game, Hentai (each drawn only for a session that can see the type), Other
-(Anime/Manga only count when the type is ACG *and* the franchise actually has
-such entries) — **there is no Game category**, so a Game-only franchise files
+(Anime and Manga are the franchise's own `Anime` and `Manga` types) — **there is no Game category**, so a Game-only franchise files
 under "Other". Sort
 `title (default) | my_rating | franchise_expectation`, shared by both views;
 the last two are the viewer's own, offered only to a holder of `self.list`,
@@ -1131,7 +1130,7 @@ so the first available tab is re-picked (Collection keeps "Franchises").
 | Hero badges | `TierBadge` with `franchise_type`, names, my_rating, "{x} Expectation" (these two, here and on the other two hubs, the viewer's own and drawn only for a holder of `self.list`), parent collection link, "Plan Next: {type} ({bucket})", "To Rewatch/Reread: {type}", total entries, completion bar | same shape with `series_expectation`, rewatch chips, parent franchise link | names, my_rating, `collection_expectation`, "{n} Franchise(s)" |
 | Content labels | the franchise's OWN labels as `ContentLabelChips`, with a note that they hide its series and entries; no row when it carries none | the series' own, noting they hide its entries | the collection's own, noting they hide every franchise, series and entry in it |
 | Curation controls | Overall Rating and Expectation selects for a holder of `self.list` (`PUT /api/me/ratings/franchise/{id}`); for an admin, **Plan Next** `SizeGroupControls` (per-type checkbox + derived/manual size-group select → PATCH `size_group_manual`) and rewatch `PlanKindToggles` | Overall Rating and Expectation (`self.list`, `PUT /api/me/ratings/series/{id}`); rewatch `PlanKindToggles scope="series"` for an admin (no size groups at series level) | Overall Rating and Expectation (`self.list`, `PUT /api/me/ratings/collection/{id}`) |
-| Remark | the viewer's own remark: a textarea drawn, editable, for a holder of `self.list` and not drawn at all without it; "Show all" opens `RemarkModal` (editable on the same key); saved on blur / modal close via `PUT /api/me/remarks/franchise/{id}` `{ remark }` (`useMyRemarkSaver`; emptied is null, untouched saves nothing) | same, `PUT /api/me/remarks/series/{id}` | same, `PUT /api/me/remarks/collection/{id}` |
+| Remark | the catalogue remark: a textarea drawn for a holder of `manage.catalog`, who edits it, and drawn read-only for everyone else once the franchise has a remark; "Show all" opens `RemarkModal` (editable on the same key); an editor's blur / modal close saves through `PATCH /api/franchise/{id}` `{ remark }` (`useRemarkSaver`; emptied is null, untouched saves nothing); the Notes tab's `remark` section is hidden whenever the box is drawn | same, `PATCH /api/series/{id}` | same, `PATCH /api/collection/{id}` |
 | Tabs | "Media" (counted): Anime, Anime Movies, Manga, Novel, Comic, **Game** ("Base games, DLC & expansions", sorted by `release_date` ascending), **H-Comic**, **H-Game** and **Hentai** (each by `series_number`, then release date; the H-Comic, H-Game and Hentai tabs each allowed by any type of the restricted family), Movies, TV Shows, Cartoons — shown when `franchise_type` allows *and* the list is non-empty; "Extras": Characters (only with `view.character`), Watch Order, Relations, Notes. Every media tab's "Sort: my rating" option is offered only with `self.list` | Media tabs by non-empty list only; same extras. Its **Game** tab carries its own sort (release_date default, then title / my_rating / hours_played) and a Game Type filter the other tabs have no equivalent of — a series usually mixes a base game with its DLC | "Members" → Franchises (`FranchiseCard`s); extras Watch Order, Relations, Notes |
 
 Plan toggles call `POST /api/plan-next/` `{ media_type, scope, kind, target_id }`
@@ -1327,11 +1326,11 @@ Top to bottom:
    persisted. An identity row whose character has no main row is how that
    character appears at all, so it is always shown and never counted in N.
    The tiers and their counts are worked out over the rows the toggle leaves
-   visible — the viewer's own remark textarea (rendered only for a holder of
-   `self.list` who already has a remark, with the Notes `remark` section
-   hidden exactly then so the row never has two editors; blur-saves a changed
-   value through `useMyRemarkSaver` → `PUT /api/me/remarks/{owner_type}/{system_id}`
-   `{remark}`, never the entry's PATCH), then `{Type}Notes` →
+   visible — the catalogue remark textarea (rendered whenever the entry has
+   a remark, editable for a holder of `manage.catalog` and read-only for
+   everyone else, with the Notes `remark` section hidden exactly then so the
+   row never has two editors; an editor's blur saves a changed value through
+   `useRemarkSaver` → the entry's own `PATCH` `{remark}`), then `{Type}Notes` →
    `pages/notes/NotesTemplate.jsx` — except Game, which composes
    `NotesProvider` / `NotesGroup` / `NotesBlocks` itself (see **Notes** below).
 
@@ -1372,14 +1371,14 @@ status select, which goes through `/api/me/list`.
 | Page | Information card | Production card | Extras |
 |---|---|---|---|
 | Anime | 本傳/外傳, Season Part, Special Episodes, Total Episodes (with cumulative), Airing Type/Status, Release Season, Release Date, Genre main/sub, 標籤 Label | Studio, 台灣代理商 (linked `publisher_refs`), Director, Producer, Music | remark lives only in Notes (no textarea); Cast placeholder |
-| AnimeMovie | Airing Status, Length, Release Date JP/TW, Genre main/sub, 標籤 Label | Studio, 台灣代理商 (linked; the row this page gained in the publisher migration — it had none before), Director | no series query; Cast placeholder |
-| Movie | 本傳/外傳, Airing Status, Length, Director, Release Date TW/USA | — | **Genres** card (`GenresCard`); inline IMDb score block |
+| AnimeMovie | Airing Status, Runtime, Release Date JP/TW, Genre main/sub, 標籤 Label | Studio, 台灣代理商 (linked; the row this page gained in the publisher migration — it had none before), Director | no series query; Cast placeholder |
+| Movie | 本傳/外傳, Airing Status, Runtime, Director, Release Date TW/USA | — | **Genres** card (`GenresCard`); inline IMDb score block |
 | TV | 本傳/外傳, Season, Total Ep, Official Source, Airing Status, Release Date | — | **Genres** card (`GenresCard`); IMDb block with this season's rating, and the whole show's beside it when there is one |
-| Cartoon | + Airing Type, Length Per Ep (min) | — | **Genres** card (`GenresCard`); IMDb block as TV's |
+| Cartoon | + Airing Type, Runtime Per Ep (min) | — | **Genres** card (`GenresCard`); IMDb block as TV's |
 | Manga | Region, 本傳/外傳, Serialization Status/Platform, Release/End Date, Volume/Chapter Total | 作者 or 原作/作畫, 台灣出版商 (linked), Anime Studio (card shown only when any value) | **Genres** card (`GenresCard`), between Information and Production |
 | Novel | Region, Type, Version, 本傳/外傳, Serialization Status, Release/End Date, Vol Total (JP/KR)/TW, Arc Total, Chapter Total | Author, Illustrator, 台灣出版商 (linked, conditional) | **Genres** card (`GenresCard`), between Information and Production; **Units** card (`NovelUnitsEditor` over the `units` relationship — volume/arc/story/chapter rows with a key, CN/EN name and, on an arc, a chapter count; a `manage.catalog` holder gets the editor with drag-to-reorder/add/remove and a Save → PATCH carrying each unit's own fields only (`novelUnitPayload`), everyone else a plain list keyed by each row's server-computed `display_key`. For a holder of `self.list` each row of that list carries the viewer's own rating select (`MY_RATINGS`, saved on change) and remark field (saved on blur), both through `useSaveMyNovelUnit` → `PUT /api/me/novel-units/{unit_id}`; an account holding both keys gets the editor and, under it, that list headed **My ratings**. The admin holds no `self.list` and gets no such control. Hidden entirely for a viewer when the novel has no units) |
 | Comic | Type, Volume Label, Continuity, Era, Serialization/Reading Status, Release Year, Issue Total, Genre main/sub, 標籤 Label | Writer, Artist, 出版商 (linked, conditional), Imprint | **Events** card (red pills); no Autofill, no `RelationsSection`, no `ScoreBlock` |
-| Game | Type, Main / Remake (`is_main`), Base Game (a link to `/game/{base_game_id}`), Platform, Mode, Combat Mode — only what the game *is*; the rest sits in cards of its own, below | **Production & Release**: Developer (`studioValue`), 發行商 (`publisherValue`, labelled by `publisherLabel` rather than a bare literal), Director, Composer, Release Status, Release Date, Current Patch — always shown, with a dash for an empty field | **Genres** card (Genre, Theme, 標籤 Label — the same `Label` vocabulary anime shows); **Reception** card (Metacritic / Metacritic User, each carrying its own denominator — `96 / 100`, `8.6 / 10` — via the exported `outOf` helper, a missing score showing the card's dash rather than a zero; the public verdict, not mine, which is the stamp on the cover); **Time to Beat** card (`TimeToBeatCard`, after Reception: Main, Main + Extra and Completionist from `hltb_main`, `hltb_main_extra` and `hltb_completionist`, IGDB's time-to-beat in hours, formatted by `hours` in `lib/gameHours.js` - only the recorded figures get a field, and with none recorded the card is left out); **Library** card (Ownership, server-derived; Copies, a count; Steam Progress Sync — whether Steam may write this entry's progress, a fact about the source rather than an answer about a playthrough, so it sits with the copies while playing status and the four completion axes stay editable in the tracker and Completion blocks); **Progress** slip (`GameProgress`: playtime against `hltb_main`, achievements gated on `achievements_total` — nothing renders when neither figure exists, since "0 h / ? h" reads as "played none of it" rather than "never measured"); the **分歧 Choices** card (`ChoiceGraphCard`: a still preview of the game's choice graph and **View all**, see below); **Prices** card (MSRP in USD / JPY / TWD); **Copies** slip (`GameCopiesSection`: one row per `game_copy` — storefront and ownership as chips, then format, acquisition, price with the copy's own currency via `copyPrice`, acquired date and remark — sorted by `position`, and rendered only when the game has copies, so the Library card's count is not their only trace on the page; editing still happens in the Add/Modify tab); a cover-side `ProgressRule` on `hours_played / hltb_main`; a Remarks slip, the viewer's own remark, that appears only for a holder of `self.list` who already has one; `SourcesCard` with `igdbLink` (under "Where to Look Up") and `steamLink` (under "Where to Play", since a Steam store page is a storefront rather than a reference database); no `RelationsSection`, no `ScoreBlock`, no Cast |
+| Game | Type, Main / Remake (`is_main`), Base Game (a link to `/game/{base_game_id}`), Platform, Mode, Combat Mode — only what the game *is*; the rest sits in cards of its own, below | **Production & Release**: Developer (`studioValue`), 發行商 (`publisherValue`, labelled by `publisherLabel` rather than a bare literal), Director, Composer, Release Status, Release Date, Current Patch — always shown, with a dash for an empty field | **Genres** card (Genre, Theme, 標籤 Label — the same `Label` vocabulary anime shows); **Reception** card (Metacritic / Metacritic User, each carrying its own denominator — `96 / 100`, `8.6 / 10` — via the exported `outOf` helper, a missing score showing the card's dash rather than a zero; the public verdict, not mine, which is the stamp on the cover); **Time to Beat** card (`TimeToBeatCard`, after Reception: Main, Main + Extra and Completionist from `hltb_main`, `hltb_main_extra` and `hltb_completionist`, IGDB's time-to-beat in hours, formatted by `hours` in `lib/gameHours.js` - only the recorded figures get a field, and with none recorded the card is left out); **Library** card (Ownership, server-derived; Copies, a count; Steam Progress Sync — whether Steam may write this entry's progress, a fact about the source rather than an answer about a playthrough, so it sits with the copies while playing status and the four completion axes stay editable in the tracker and Completion blocks); **Progress** slip (`GameProgress`: playtime against `hltb_main`, achievements gated on `achievements_total` — nothing renders when neither figure exists, since "0 h / ? h" reads as "played none of it" rather than "never measured"); the **分歧 Choices** card (`ChoiceGraphCard`: a still preview of the game's choice graph and **View all**, see below); **Prices** card (MSRP in USD / JPY / TWD); **Copies** slip (`GameCopiesSection`: one row per `game_copy` — storefront and ownership as chips, then format, acquisition, price with the copy's own currency via `copyPrice`, acquired date and remark — sorted by `position`, and rendered only when the game has copies, so the Library card's count is not their only trace on the page; editing still happens in the Add/Modify tab); a cover-side `ProgressRule` on `hours_played / hltb_main`; a Remarks slip, the catalogue remark, that appears whenever the game has one - editable for a holder of `manage.catalog`, read-only for everyone else; `SourcesCard` with `igdbLink` (under "Where to Look Up") and `steamLink` (under "Where to Play", since a Steam store page is a storefront rather than a reference database); no `RelationsSection`, no `ScoreBlock`, no Cast |
 
 **H-Comic** (`pages/detail/HComic.jsx`) is a gated type's page: App.jsx
 routes to it only for a session that can see h-comic
@@ -1478,9 +1477,10 @@ toolbar has Quick edit, Mark completed and **Autofill & update**, the
 single-entry Tenrai and AniDB fetch (`replaceSingle("hentai")`: airing
 status, release date, episode count, cover and the Official site / Twitter
 reference rows,
-each only where blank, AniDB only for what MAL left blank). A Remarks slip appears only for a
-holder of `self.list` who has a remark, and `HentaiNotes.jsx` is the plain wrapper - the type has no
-notes section of its own - with the `remark` section hidden exactly then.
+each only where blank, AniDB only for what MAL left blank). A Remarks slip appears whenever the
+entry has a remark - editable for a holder of `manage.catalog`, read-only for everyone else - and
+`HentaiNotes.jsx` is the plain wrapper - the type has no notes section of its own - with the
+`remark` section hidden exactly then.
 
 `MarkAiringModal` is not used by any detail page; only `MediaCard` opens it.
 
@@ -1500,8 +1500,9 @@ are dropped from the registry the page draws, before either component can
 fetch `/api/quote` or `/api/meme`. A personal section needs no such rule:
 the registry lists it for every viewer, and `/api/notes` returns only the
 viewer's own rows in it. Write controls are gated **per section**, from its
-`scope`: a catalogue section (and Quotes and Memes) for a holder of
-`manage.catalog`, a personal one - 備註 Remark, the reviews and advantages,
+`scope`: a catalogue section - 備註 Remark among them - and Quotes and Memes
+for a holder of `manage.catalog`, a personal one - 備註列表 Remark List, the
+reviews and advantages,
 the highlight sections, the 待辦 todos, 存檔 Saves and 下周目目標 NG+ Goals
 among them - for a holder of `self.personal_notes`; the admin holds neither
 key and is drawn no control (components.md, `pages/notes`).
@@ -1701,7 +1702,8 @@ at one size — so the page has exactly one `<h1>`, its own.
 Statistics renders the favourite 3×3 grids (nine, and eleven for a session
 that can see h-game), then the twelve
 "Rating distribution" bar-chart cards in one wrapping grid: my rating per
-anime franchise; MAL rating and **AniList score** over all anime; seasonal
+AniManga franchise (an `Anime` or `Manga` franchise, counted once however many
+of the two it carries); MAL rating and **AniList score** over all anime; seasonal
 per season; my rating over all manga / novels / anime movies / movies /
 **comics**; and my rating per TV show / cartoon / **game** franchise - plus a
 thirteenth, my rating over all **h-comics**, and a fourteenth, my rating per
@@ -1717,9 +1719,13 @@ the two cards sit side by side on the same cut points.
 
 **The favourite grids** are declared in `config/favoriteGrids.js`, read by
 both this page and `/modify` → Fav3x3. A grid holds one of three tiers — seven
-hold franchises (ACG, Novel, Movie, TV, Cartoon, Game, H-Game), one holds
+hold franchises (AniManga, Novel, Movie, TV, Cartoon, Game, H-Game), one holds
 series (Comic), three hold entries (Movie, Game, H-Game) — and every tier stores a slot the
-same way, a `type_slots` map of `{gridKey: 1..9}` on the row itself. The
+same way, a `type_slots` map of `{gridKey: 1..9}` on the row itself. A
+franchise grid holds the franchises whose type list names its key, or one of
+its `franchiseTypes` when it names them: the **Favourite AniManga franchises**
+grid holds `Anime` and `Manga` franchises together, under the stored key
+`ACG`. The
 `favorite*` helpers in `utils/statsUtils.js` (`favoriteName`, `favoriteCover`,
 `favoritePath`, `favoritePool`, `slotIn`) answer everything that differs
 between tiers (`favoriteCover`, like `getCoverForSlot` and

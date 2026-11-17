@@ -49,11 +49,10 @@ const FLAGS = [
   ["to_reread", "To Reread", "Mark for reread"],
 ];
 
-// A novel sits in a Novel or ACG franchise, or an untyped one.
+// A novel sits in a Novel, Anime or Manga franchise, or an untyped one.
+const NOVEL_FRANCHISE_TYPES = ["Novel", "Anime", "Manga"];
 const acceptsNovelFranchise = (type) =>
-  !type ||
-  parseTypes(type).includes("Novel") ||
-  parseTypes(type).includes("ACG");
+  !type || parseTypes(type).some((t) => NOVEL_FRANCHISE_TYPES.includes(t));
 
 function NumberInput({ f, u, name, label, hint, placeholder = "0" }) {
   return (

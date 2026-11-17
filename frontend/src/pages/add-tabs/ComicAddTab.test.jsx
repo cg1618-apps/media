@@ -126,7 +126,7 @@ describe("ComicAddTab — lineage", () => {
       allFranchises: [
         { system_id: "a", franchise_name_en: "Comic One", franchise_type: "Comic" },
         { system_id: "b", franchise_name_en: "Untyped One", franchise_type: null },
-        { system_id: "c", franchise_name_en: "ACG One", franchise_type: "ACG" },
+        { system_id: "c", franchise_name_en: "Anime One", franchise_type: "Anime" },
       ],
     });
     const box = screen.getByRole("combobox", { name: "Franchise" });
@@ -134,6 +134,6 @@ describe("ComicAddTab — lineage", () => {
     fireEvent.change(box, { target: { value: "One" } });
     expect(screen.getByText("Comic One")).toBeInTheDocument();
     expect(screen.getByText("Untyped One")).toBeInTheDocument();
-    expect(screen.queryByText("ACG One")).not.toBeInTheDocument();
+    expect(screen.queryByText("Anime One")).not.toBeInTheDocument();
   });
 });

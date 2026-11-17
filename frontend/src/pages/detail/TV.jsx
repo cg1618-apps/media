@@ -36,7 +36,7 @@ import ContentLabelChips from "../../components/info/ContentLabelChips";
 import LazyImage from "../../components/ui/LazyImage";
 import { focusStyle } from "../../lib/covers";
 import { useViewScope } from "../../hooks/useViewScope";
-import { useMyRemarkSaver } from "../../api/mutations/useMyRemark";
+import { useRemarkSaver } from "../../api/mutations/useRemark";
 
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 const LIST_OPTIONS = { params: { limit: 2000 } };
@@ -61,7 +61,7 @@ export default function TV() {
   // changed. Resolved from the fetched row so the two can never disagree.
   const system_id = showQuery.data?.system_id;
   const { ownData } = useViewScope();
-  const saveMyRemark = useMyRemarkSaver("tv-show", system_id, setShow);
+  const saveRemark = useRemarkSaver("tv-show", system_id, setShow);
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const allShowsQuery = useMediaList("tv-show", LIST_OPTIONS);
@@ -461,14 +461,15 @@ export default function TV() {
 
           {/* Remarks */}
           <TocSection id="remarks" label="Remarks">
-            {ownData && show.remark && (
+            {show.remark && (
               <Slip title="Remarks">
                 <textarea
                   key={show.system_id}
                   defaultValue={show.remark || ""}
+                  readOnly={!isAdmin}
                   onBlur={(e) => {
-                    if (e.target.value !== (show.remark || ""))
-                      saveMyRemark(e.target.value);
+                    if (isAdmin && e.target.value !== (show.remark || ""))
+                      saveRemark(e.target.value);
                   }}
                   rows={4}
                   placeholder="Add remarks…"
@@ -479,14 +480,14 @@ export default function TV() {
           </TocSection>
 
           {/* Structured Notes */}
-          {/* The dedicated remark textarea above renders only for a holder of
-              self.list who has a remark; hide the notes page's `remark`
-              section exactly then, so the viewer's own row never has two
-              editors on one screen. */}
+          {/* The dedicated remark textarea above renders whenever a remark
+              exists - editable for a holder of manage.catalog, read-only for
+              everyone else; hide the notes page's `remark` section exactly
+              then, so the one row never has two editors on one screen. */}
           <TVShowNotes
             key={show.system_id}
             show={show}
-            hideSections={ownData && show.remark ? ["remark"] : []}
+            hideSections={show.remark ? ["remark"] : []}
             series={series}
             franchise={franchise}
           />

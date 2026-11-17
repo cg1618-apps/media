@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { parseTypes } from "../../utils/media";
+import { ANIMANGA_FRANCHISE_TYPES } from "../../config/fieldOptions";
 import {
   Button,
   Chip,
@@ -129,12 +130,13 @@ export default function StatsFranchiseSummary({
 }) {
   const [seasonalPage, setSeasonalPage] = useState(0);
 
-  // Anime (ACG) franchise rating distribution — counts franchises, not entries
-  const animeFranchises = franchises.filter((f) =>
-    parseTypes(f.franchise_type).includes("ACG"),
+  // AniManga franchise rating distribution - Anime and Manga franchises
+  // counted together, franchises not entries.
+  const aniMangaFranchises = franchises.filter((f) =>
+    parseTypes(f.franchise_type).some((t) => ANIMANGA_FRANCHISE_TYPES.includes(t)),
   );
-  const { rows: animeRows, ratedCount: animeRatedCount } =
-    computeRatingRows(animeFranchises);
+  const { rows: aniMangaRows, ratedCount: aniMangaRatedCount } =
+    computeRatingRows(aniMangaFranchises);
 
   // MAL and AniList score distributions (all anime)
   const { rows: malRows, scoredCount: totalWithMal } = computeScoreRows(
@@ -202,9 +204,9 @@ export default function StatsFranchiseSummary({
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <RatingDistributionCard
             title="My rating"
-            subtitle="Anime franchises"
-            rows={animeRows}
-            total={animeRatedCount}
+            subtitle="AniManga franchises"
+            rows={aniMangaRows}
+            total={aniMangaRatedCount}
           />
           <RatingDistributionCard
             title="MAL rating"

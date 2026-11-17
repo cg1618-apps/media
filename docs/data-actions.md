@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-11-16
+Last verified: 2026-11-17
 
 ## What this is for
 
@@ -682,7 +682,7 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
      | everything else (incl. `Novel`, `Comic`, `Watch Order Item`) | no natural key — an id-less row always inserts |
 
      If matched, the local PK is used; otherwise the PK key is dropped so the database mints one.
-   - **Singleton notes** (`remark`): a `Note` row in a singleton section is retargeted at the existing row in that section for the same owner **and the same author** (`ix_note_one_remark_per_owner` allows one per owner per author, `remark` being personal-scope), keeping the local `system_id`. Two accounts' remarks on one entry therefore come back as two rows.
+   - **Singleton notes** (`remark`): a `Note` row in a singleton section is retargeted at the existing row in that section for the same owner, whoever wrote it (`ix_note_one_remark_per_owner` allows one per owner, `remark` being catalogue-scope), keeping the local `system_id`. Two remark rows for one entry in the sheet therefore fold into one, the later winning.
    - **Music status notes** (`music_status`): the same, per owner **and list** - a row is retargeted at the anime's existing `music_status` row with the same `kind` (`ix_note_one_music_status_per_kind` allows one per list), keeping the local `system_id`. Revision `m1s2ongstat3` minted those rows separately on every database, so this is what folds the two machines' copies together instead of failing the tab at commit. `ost` rows are songs and are never folded.
    - **Old-shape music rows**: an `ost` row carrying a type comes from a backup taken while the OST was one row per anime (an OST song has no type); it is read as that anime's `music_status` row for `ost`, its status kept when it is one of `MUSIC_STATUSES` (Need, Pending, No Full Version, Done) and `Not Done` otherwise, and folded as above. Note links that arrive as URL strings, on any section, are read as titled links with no title, and a `fields` blob on a section that is not `structured` is dropped.
    - **Old-shape note rows**: a row of 操作 Controls, 職業 Classes, 地理 Geography, 各集評論, 主線劇情, 支線劇情, 角色劇情 or 小知識 from a backup taken before revision `n1l2inkpairs3` is reshaped as that revision reshaped the local rows - see [systems/notes.md](systems/notes.md), Google Sheets, "Old-shape note rows". A row already in the new shape pulls unchanged.
@@ -745,10 +745,18 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
        a missing tag is added and a tag with no label behind it is removed,
        because the label decides visibility and the sheet's tag column is a
        copy of it.
+     - When the tab is `Franchise` and the call's `split_acg_types` is True
+       (the default), `split_acg_franchise_types`
+       (`app/services/domain/hierarchy.py`): a franchise an older sheet still
+       types `ACG` is retyped `Anime`, `Manga` or `Anime, Manga` by the entries
+       this database holds for it, and a `type_covers` choice under `ACG`
+       moves to the chosen entry's type (business-rules.md, "Franchise").
 
 ### 3.2 Pull All — `execute_pull_all(db, action_type)`
 
 Runs `execute_pull_specific` for every tab in `TABS_IN_ORDER` (= `TAB_NAMES`), each with `action_type="Manual"` and `log_action=True`, so **every tab logs its own row** in addition to the master `Pull All` row.
+
+Each tab runs with `split_acg_types=False`, and `split_acg_franchise_types` runs **once, after the last tab**, and commits: the split decides by a franchise's entries, and the Franchise tab restores before the entry tabs, so splitting there would find no manga and type every franchise `Anime`. A tab that could not be read leaves the split working from what did restore; the next Pull brings the `ACG` back from the Franchise tab and splits it again.
 
 Skip-unreadable policy: a tab whose result has `reason == "sheet_unavailable"` is recorded in `unread_tabs` and the run **continues**; any other error stops the run (`Exception("Pull failed on tab ...")`).
 
@@ -966,7 +974,7 @@ The manual route `POST /replace/{key}/{entry_id}` calls the same function with `
 |---|---|---|
 | 1 | `run_post_processing` | `anime_post_processing` for every Anime, `anime_movie_post_processing` for every AnimeMovies, `tv_show_post_processing` for every TVShows, `cartoon_post_processing` for every Cartoon, `manga_post_processing` for every Manga; commit after each type. (Movies, Novel and Comic have no post-processing.) |
 | 2 | `run_derive_ep_previous` | `derive_ep_previous_all_anime(db)` — anime is the only type with a franchise-wide derived field left |
-| 3 | `run_seed_sequel_relations` | `seed_sequel_relations(db)` + commit — in every ACG franchise no `media_relation` row touches yet, one `sequel` row per adjacent pair of TV/ONA anime in each series, ordered by season/part; a group with a tied season/part is skipped. A seeded franchise has rows, so later runs skip it ([systems/relations.md](systems/relations.md#sequel-seed--seed_sequel_relations-in-appservicesdomainmedia_relationpy)) |
+| 3 | `run_seed_sequel_relations` | `seed_sequel_relations(db)` + commit — in every Anime franchise no `media_relation` row touches yet, one `sequel` row per adjacent pair of TV/ONA anime in each series, ordered by season/part; a group with a tied season/part is skipped. A seeded franchise has rows, so later runs skip it ([systems/relations.md](systems/relations.md#sequel-seed--seed_sequel_relations-in-appservicesdomainmedia_relationpy)) |
 | 4 | `run_sync` | `run_sync_anime` (`create_missing_seasonal`, `sync_seasonal_counts`, `extract_system_options`), then `run_sync_anime_movie`, `run_sync_tv_show`, `run_sync_cartoon`, `run_sync_manga`, `run_sync_novel`, `run_sync_comic` (each just `extract_system_options`), `run_sync_h_comic` (`extract_system_options`, then `enforce_h_comic_invariants` - the region clears over the whole table - and a commit), `run_sync_hentai` (just `extract_system_options`), `run_sync_gated_labels` (`enforce_gated_label_invariants` - every gated type's label on every entry of the type and every franchise of its franchise type - and a commit), `run_sync_size_groups` (`derive_size_groups` + commit), then `run_sync_cast` (`fill_cast_and_characters`, `app/services/domain/casting_sync.py` - empty character and identity role, remark and photo from their cast rows, then empty cast role and seiyuu from their originals, never overwriting - a cast row's remark is never filled, since a remark travels from cast row to original and not back; see [systems/credits-and-tags.md](systems/credits-and-tags.md#a-cast-row-and-its-original) - and a commit), then `run_sync_character_display_names` (`prefer_cn_display_names`, `app/services/domain/character_display_names.py` - every character and identity with a NULL `display_name_field` and a filled `name_cn` is set to `cn`; an explicit choice is never changed - and a commit) |
 | 5 | `bulk_check_cover_image(db)` | runs the cover check; its result is discarded |
 | 6 | log | `Calculate` / `Calculate All` / `Manual` / `Success` |

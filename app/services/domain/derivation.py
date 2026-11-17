@@ -294,7 +294,7 @@ def derive_ep_previous_anime(
     db: Session, franchise_id: Any, series_id: Any = _SERIES_UNSET
 ) -> None:
     """
-    Derives ep_previous for eligible anime entries within an acg franchise.
+    Derives ep_previous for eligible anime entries within one franchise.
     Eligible: same franchise+series, airing_type TV/ONA, ep_special null, season_part set.
     Each series forms its own sibling group; no-series entries form their own group.
     When series_id is provided (including None for no-series), only that group is processed.

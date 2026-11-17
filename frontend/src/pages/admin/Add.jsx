@@ -674,7 +674,7 @@ export default function Add() {
     if (!franchiseId) {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
-          franchiseType: "ACG",
+          franchiseType: "Anime",
           onConfirm: (remark) => {
             setFranchiseCreateModal(null);
             resolve({ confirmed: true, remark });
@@ -695,7 +695,7 @@ export default function Add() {
           franchise_name_roman: af.anime_name_roman || null,
           franchise_name_jp: af.anime_name_jp || null,
           franchise_name_alt: af.anime_name_alt || null,
-          franchise_type: "ACG",
+          franchise_type: "Anime",
           remark: result.remark || null,
         }),
         credentials: "include",
@@ -1337,7 +1337,7 @@ export default function Add() {
     if (!franchiseId) {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
-          franchiseType: "ACG",
+          franchiseType: "Anime",
           onConfirm: (remark) => {
             setFranchiseCreateModal(null);
             resolve({ confirmed: true, remark });
@@ -1358,7 +1358,7 @@ export default function Add() {
           franchise_name_roman: amf.anime_movie_name_roman || null,
           franchise_name_jp: amf.anime_movie_name_jp || null,
           franchise_name_alt: amf.anime_movie_name_alt || null,
-          franchise_type: "ACG",
+          franchise_type: "Anime",
           remark: result.remark || null,
         }),
         credentials: "include",
@@ -1845,7 +1845,7 @@ export default function Add() {
     if (!franchiseId && mgf.franchise_text.trim()) {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
-          franchiseType: "ACG",
+          franchiseType: "Manga",
           onConfirm: (remark) => {
             setFranchiseCreateModal(null);
             resolve({ confirmed: true, remark });
@@ -1866,7 +1866,7 @@ export default function Add() {
           franchise_name_roman: mgf.manga_name_roman || null,
           franchise_name_jp: mgf.manga_name_jp || null,
           franchise_name_alt: mgf.manga_name_alt || null,
-          franchise_type: "ACG",
+          franchise_type: "Manga",
           remark: result.remark || null,
         }),
         credentials: "include",

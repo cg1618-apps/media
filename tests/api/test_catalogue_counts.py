@@ -28,7 +28,7 @@ STATS = "/api/statistics/catalogue"
 
 def _franchise(db, name):
     franchise = models.Franchise(
-        system_id=uuid.uuid4(), franchise_name_en=name, franchise_type="ACG"
+        system_id=uuid.uuid4(), franchise_name_en=name, franchise_type="Anime"
     )
     db.add(franchise)
     db.flush()

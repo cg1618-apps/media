@@ -8,32 +8,38 @@
 // it may hold and how one is drawn. `tier` says which table that row is in:
 //
 //   franchise - a row of `franchise`, offered when its comma-separated
-//               franchise_type carries `typeKey`.
+//               franchise_type carries one of `franchiseTypes`, or `key`
+//               when the grid names none.
 //   series    - a row of `series`, offered when it holds at least one entry
 //               of `entryType`.
 //   entry     - a row of one media type's own table, offered when it is of
 //               `entryType`.
 //
 // `key` is the key inside that row's `type_slots`. The franchise keys are the
-// ones already in the database and must not be renamed. A key is only ever
-// read alongside its tier, so "Movie" on a franchise and "Movie" on a movie
+// ones already in the database and must not be renamed - so the AniManga
+// grid's key is "ACG", the spelling every stored row and every sheet backup
+// carries, while `franchiseTypes` says which franchises it holds. A key is
+// only ever read alongside its tier, so "Movie" on a franchise and "Movie" on a movie
 // entry are different slots and do not collide.
 //
 // `forType` picks which of a group's covers to show (see getCoverForSlot).
-// null means "any entry under it", which is what the ACG grid wants.
+// null means "any entry under it", which is what the AniManga grid wants.
 //
 // `gatedType` marks a grid that holds only a gated media type's rows. It is
 // drawn - on the statistics page, in its sidebar and in the admin editor -
 // only for a session that can see that type: visibleFavoriteGrids below.
 import { canSeeGatedType } from "../lib/gatedTypes";
+import { ANIMANGA_FRANCHISE_TYPES } from "./fieldOptions";
 
 export const FAVORITE_GRIDS = [
   {
-    id: "acg-franchises",
+    id: "animanga-franchises",
+    // The stored type_slots key; see the note above.
     key: "ACG",
     tier: "franchise",
-    title: "Favourite ACG franchises",
-    short: "ACG",
+    franchiseTypes: ANIMANGA_FRANCHISE_TYPES,
+    title: "Favourite AniManga franchises",
+    short: "AniManga",
     forType: null,
   },
   {

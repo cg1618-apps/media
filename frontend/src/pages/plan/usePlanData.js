@@ -57,7 +57,7 @@ function withBucket(row, { franchiseMap, seriesMap, entriesById, allEntriesByFra
       bucket: entryBucket(row.media_type, null, null, f),
       // The tab media_type vocabulary ("anime", "tv-show", ...) does not line
       // up with getCoverForSlot's forType vocabulary (TYPE_TO_ENTRY_TYPES:
-      // "ACG", "TV", ...), so no forType is passed rather than a wrong one -
+      // "Anime", "TV", ...), so no forType is passed rather than a wrong one -
       // getCoverForSlot falls back to cover_entry_id / newest-entry-with-cover.
       cover: f ? getCoverForSlot(f, allEntriesByFranchise) : null,
     };

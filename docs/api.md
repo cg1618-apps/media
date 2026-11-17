@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-11-16
+Last verified: 2026-11-17
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -165,7 +165,7 @@ To list a collection's members, use `GET /api/franchise/?collection_id=<uuid>`.
 **Franchise families.** A `franchise_type` whose types span two families
 (`FRANCHISE_FAMILY_FOR_TYPE`, see
 [entry-types.md](entry-types.md#franchise-families-franchise_family_for_type-apputilsconstantspy)) is **422** on `POST`,
-`PUT` and `PATCH` - `"ACG, H-Comic"`, `"ACG, Hentai"` and `"ACG, H-Game"` mix
+`PUT` and `PATCH` - `"Anime, H-Comic"`, `"Manga, Hentai"` and `"Anime, H-Game"` mix
 mainstream and restricted, while any list of `H-Comic`, `Hentai` and `H-Game`
 (`"H-Comic, Hentai, H-Game"`) is the one `restricted` family and accepted. So
 is a `PUT` or `PATCH` that retypes a franchise into another family than an
@@ -635,7 +635,7 @@ list, is **422**.
 like an existing h-comic or hentai franchise joins it, and otherwise
 auto-creates one of type `H-Game`, labelled. A `franchise_id` naming an
 `H-Comic` or `Hentai` franchise is accepted; one naming a mainstream franchise
-(`Game`, `ACG`, ...) is **422**.
+(`Game`, `Anime`, ...) is **422**.
 
 **`highlight_group_order`** is a response field only, the viewer's own order
 of the highlight groups, as on h-comic; every h-game takes one.
@@ -2464,7 +2464,7 @@ see [authorization.md](authorization.md) for why that is accepted.
 | `GET`    | `/check/alone-groups`                | Every franchise and series holding exactly one media entry (any of the twelve types), less those whose lone entry was marked reviewed: `{franchise: [...], series: [...]}`, each `{system_id, public_id, display_name, entry: {system_id, media_type, public_id, display_name}}`. |
 | `POST`   | `/check/alone-groups/{kind}/{system_id}/reviewed` | `kind` is `franchise` or `series` (422 otherwise). Records the group's current lone entry in `alone_reviewed_media_id`, so the group is listed again once that entry is replaced. Returns `{system_id, alone_reviewed_media_id}`; 404 for an unknown group, 409 when it no longer holds exactly one entry. |
 | `GET`    | `/check/music`                       | Every anime whose music is waiting: a song list or a song on Need, Pending or No Full Version. One row per anime with `system_id`, `public_id`, `anime_name_cn`, `anime_name_en`, `display_name`, the flagged `lists` (`[{kind, status}]`) and the flagged `songs` (`[{section, title, status, locator}]`). **Per caller**: the songs and lists are catalogue rows, but each status is the caller's own note mark, so only the caller's own statuses list an anime, and a caller without the `music_status` feature is listed nothing. |
-| `GET`    | `/check/remarks`                     | The **caller's own** non-empty remarks (`section = 'remark'` only), one key per media type — all twelve. A remark belongs to its author, so the response carries one per entry. Each row carries `system_id`, `public_id`, its type's name columns and disambiguating columns, the caller's status (`watching_status` / `reading_status` / `playing_status`, read from `user_media_list`) and `remark`; a movie row carries `release_date` (USA, else TW). |
+| `GET`    | `/check/remarks`                     | Every non-empty catalogue remark on an entry (`section = 'remark'` only, whoever wrote it), one key per media type — all twelve. Each row carries `system_id`, `public_id`, its type's name columns and disambiguating columns, the caller's status (`watching_status` / `reading_status` / `playing_status`, read from `user_media_list`) and `remark`; a movie row carries `release_date` (USA, else TW). |
 
 **SSE response format** (streaming endpoints): `text/event-stream` — each event is a JSON string with `{status, current_entry, processed, total}`.
 
@@ -2563,7 +2563,6 @@ which keys a type owns.
 | GET | `/api/me/list/{media_id}` | The caller's row. Never creates one: an entry they have never touched reads back the type's default status and `null` for the rest, the same values `attach_list_fields` puts on an untouched entry. 404 on an unknown `media_id`. |
 | PUT | `/api/me/list/{media_id}` | Upsert. A key this media type does not own is **422**, not silently dropped. 404 on an unknown `media_id`. Runs the type's `progress_hook_list` after the payload, as the entry endpoints do: an h-comic's `usefulness` outside its vocabulary is **422** and the counter its region does not use is cleared; a novel's arc cursor is derived. The `time_fin` rules apply here as on the entry endpoints: stripped, a blank stored as `null`, and cleared when `ep_fin` goes up or the status becomes Completed ([business-rules.md](business-rules.md#a-paused-position-is-cleared-by-progress)). A Completed status stamps `completed_at`, and a write that carries the progress counter up to its total finishes the caller's row as a catalogue `PATCH` does ([business-rules.md](business-rules.md#reaching-the-total-completes)) - the row's half only, never the work's airing or serialization status. |
 | PUT | `/api/me/plan-flags/{media_id}` | The caller's plan flags on one entry, by the type's own keys (`watch_next`, `to_rewatch`, `read_next`, `to_reread`, `play_next`, `to_replay`, as `PLAN_FLAG_FIELDS` gives each type). Body `{key: bool}`; a key left out is untouched, a key the type lacks is **422**. Returns every flag the type has as the caller now holds it. 404 on an unknown or hidden entry. |
-| PUT | `/api/me/remarks/{owner_type}/{owner_id}` | The caller's remark on an entry (`owner_type` a media type) or a group (`collection`, `franchise`, `series`). Body `{"remark": text}`; empty or null clears it. Returns `{remark}`. Another account's remark on the same owner is untouched. 404 when the id is not an owner of that type, or is hidden from the caller; 422 on any other body. |
 
 Neither route takes a user id, so there is no shape of request that writes
 somebody else's list. Catalogue writes are unaffected and stay behind

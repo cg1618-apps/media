@@ -42,18 +42,18 @@ class TestGetFranchiseById:
 
 class TestCreateFranchise:
     def test_admin_can_create(self, owner_client):
-        payload = {"franchise_type": "ACG", "franchise_name_en": "New Franchise"}
+        payload = {"franchise_type": "Anime", "franchise_name_en": "New Franchise"}
         response = owner_client.post("/api/franchise/", json=payload)
         assert response.status_code in (200, 201)
         assert response.json()["franchise_name_en"] == "New Franchise"
 
     def test_guest_cannot_create(self, client):
-        payload = {"franchise_type": "ACG", "franchise_name_en": "Unauthorized"}
+        payload = {"franchise_type": "Anime", "franchise_name_en": "Unauthorized"}
         response = client.post("/api/franchise/", json=payload)
         assert response.status_code == 401
 
     def test_created_franchise_has_system_id(self, owner_client):
-        payload = {"franchise_type": "ACG", "franchise_name_en": "Has UUID"}
+        payload = {"franchise_type": "Anime", "franchise_name_en": "Has UUID"}
         response = owner_client.post("/api/franchise/", json=payload)
         data = response.json()
         assert "system_id" in data
@@ -63,7 +63,7 @@ class TestCreateFranchise:
 class TestUpdateFranchise:
     def test_admin_can_update(self, owner_client, sample_franchise):
         payload = {
-            "franchise_type": "ACG",
+            "franchise_type": "Anime",
             "franchise_name_en": "Updated Name",
         }
         response = owner_client.put(f"/api/franchise/{sample_franchise.system_id}", json=payload)
@@ -71,12 +71,12 @@ class TestUpdateFranchise:
         assert response.json()["franchise_name_en"] == "Updated Name"
 
     def test_guest_cannot_update(self, client, sample_franchise):
-        payload = {"franchise_type": "ACG", "franchise_name_en": "Blocked"}
+        payload = {"franchise_type": "Anime", "franchise_name_en": "Blocked"}
         response = client.put(f"/api/franchise/{sample_franchise.system_id}", json=payload)
         assert response.status_code == 401
 
     def test_update_nonexistent_returns_404(self, owner_client):
-        response = owner_client.put(f"/api/franchise/{uuid.uuid4()}", json={"franchise_type": "ACG"})
+        response = owner_client.put(f"/api/franchise/{uuid.uuid4()}", json={"franchise_type": "Anime"})
         assert response.status_code == 404
 
 

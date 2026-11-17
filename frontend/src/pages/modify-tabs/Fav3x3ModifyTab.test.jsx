@@ -35,27 +35,27 @@ describe("swapSlots", () => {
 
 const LISTS = {
   franchise: [
-    { system_id: "f1", franchise_name_en: "Alpha", franchise_type: "ACG", type_slots: { ACG: 1 } },
-    { system_id: "f2", franchise_name_en: "Beta", franchise_type: "ACG", type_slots: { ACG: 2 } },
+    { system_id: "f1", franchise_name_en: "Alpha", franchise_type: "Anime", type_slots: { ACG: 1 } },
+    { system_id: "f2", franchise_name_en: "Beta", franchise_type: "Manga", type_slots: { ACG: 2 } },
   ],
   series: [],
 };
 
-function acgGrid() {
+function aniMangaGrid() {
   render(
     <ToastProvider>
       <Fav3x3ModifyTab lists={LISTS} setList={() => {}} />
     </ToastProvider>,
   );
   return within(
-    screen.getByRole("heading", { name: "Favourite ACG franchises" }).closest("section"),
+    screen.getByRole("heading", { name: "Favourite AniManga franchises" }).closest("section"),
   );
 }
 
 describe("Fav3x3ModifyTab keyboard swap", () => {
   it("ArrowDown swaps a row with the slot below and focus follows it", async () => {
     const user = userEvent.setup();
-    const grid = acgGrid();
+    const grid = aniMangaGrid();
     expect(grid.queryByRole("button", { name: /save grid/i })).toBeNull();
 
     grid.getByLabelText("Slot 1: Alpha").focus();
@@ -68,7 +68,7 @@ describe("Fav3x3ModifyTab keyboard swap", () => {
 
   it("swapping into an empty slot leaves the old one empty", async () => {
     const user = userEvent.setup();
-    const grid = acgGrid();
+    const grid = aniMangaGrid();
 
     grid.getByLabelText("Slot 2: Beta").focus();
     await user.keyboard("{ArrowDown}");
@@ -79,7 +79,7 @@ describe("Fav3x3ModifyTab keyboard swap", () => {
 
   it("ArrowUp on slot 1 does nothing", async () => {
     const user = userEvent.setup();
-    const grid = acgGrid();
+    const grid = aniMangaGrid();
 
     grid.getByLabelText("Slot 1: Alpha").focus();
     await user.keyboard("{ArrowUp}");

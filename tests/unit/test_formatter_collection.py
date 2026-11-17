@@ -52,14 +52,14 @@ class TestFranchisePreviouslyDroppedFields:
         parsed = parse_franchise_from_sheet(
             {
                 "cover_entry_id": str(cover),
-                "type_covers": '{"ACG": "abc"}',
+                "type_covers": '{"Anime": "abc"}',
                 "type_slots": '{"slot": 1}',
                 "size_group_derived": '{"anime": "24ep"}',
                 "size_group_manual": '{"anime": "12ep"}',
             }
         )
         assert parsed["cover_entry_id"] == cover
-        assert parsed["type_covers"] == {"ACG": "abc"}
+        assert parsed["type_covers"] == {"Anime": "abc"}
         assert parsed["type_slots"] == {"slot": 1}
         assert parsed["size_group_derived"] == {"anime": "24ep"}
         assert parsed["size_group_manual"] == {"anime": "12ep"}

@@ -105,24 +105,26 @@ def test_every_media_type_has_a_key(owner_client, db_session):
     }
 
 
-def test_another_authors_remark_and_other_sections_are_not_listed(
+def test_a_remark_by_another_account_is_listed_and_other_sections_are_not(
     owner_client, db_session, owner_user, plain_user
 ):
-    # The mirror case: the same entry IS listed once the caller's own remark
-    # exists, so an empty answer here is the filter working, not an empty set.
-    anime = _entry(db_session, models.Anime, anime_name_en="Somebody Else's")
-    _remark(db_session, plain_user, anime, "not mine")
-    db_session.add(
-        models.Note(
-            author_id=owner_user.id,
-            media_id=anime.system_id,
-            section="personal_reviews",
-            content="a review, not a remark",
+    """The remark is catalogue: whoever wrote it, it is the entry's. A
+    personal section beside it, by the caller, is not a remark."""
+    remarked = _entry(db_session, models.Anime, anime_name_en="Written by Another")
+    _remark(db_session, plain_user, remarked, "the catalogue remark")
+    reviewed = _entry(db_session, models.Anime, anime_name_en="Only Reviewed")
+    for section in ("personal_reviews", "remark_list"):
+        db_session.add(
+            models.Note(
+                author_id=owner_user.id,
+                media_id=reviewed.system_id,
+                section=section,
+                content="not a remark",
+            )
         )
-    )
     db_session.flush()
-    assert _fetch(owner_client, db_session)["anime"] == []
 
-    anime = db_session.get(models.Anime, anime.system_id)
-    _remark(db_session, owner_user, anime, "mine")
-    assert [r["remark"] for r in _fetch(owner_client, db_session)["anime"]] == ["mine"]
+    rows = _fetch(owner_client, db_session)["anime"]
+    assert [(r["public_id"], r["remark"]) for r in rows] == [
+        (remarked.public_id, "the catalogue remark")
+    ]

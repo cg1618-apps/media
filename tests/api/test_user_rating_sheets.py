@@ -52,7 +52,7 @@ def world(db):
                      role_id=role_id_for(db, "super"), is_installation_owner=True)
     kana = models.User(username="kana", hashed_password="!",
                        role_id=role_id_for(db, "user"))
-    franchise = models.Franchise(system_id=uuid.uuid4(), franchise_type="ACG",
+    franchise = models.Franchise(system_id=uuid.uuid4(), franchise_type="Anime",
                                  franchise_name_en="Sheet Franchise")
     person = models.Person(system_id=uuid.uuid4(), name_en="Sheet Person")
     novel = models.Novel(system_id=uuid.uuid4(), novel_name_en="Sheet Novel")

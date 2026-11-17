@@ -140,11 +140,12 @@ describe("NovelAddTab — lineage", () => {
     expect(unv).toHaveBeenCalledWith("series_text", "");
   });
 
-  it("offers Novel, ACG and untyped franchises only", () => {
+  it("offers Novel, Anime, Manga and untyped franchises only", () => {
     renderTab({
       allFranchises: [
         { system_id: "a", franchise_name_en: "Novel One", franchise_type: "Novel" },
-        { system_id: "b", franchise_name_en: "ACG One", franchise_type: "ACG" },
+        { system_id: "b", franchise_name_en: "Anime One", franchise_type: "Anime" },
+        { system_id: "e", franchise_name_en: "Manga One", franchise_type: "Game, Manga" },
         { system_id: "c", franchise_name_en: "Untyped One", franchise_type: null },
         { system_id: "d", franchise_name_en: "Movie One", franchise_type: "Movie" },
       ],
@@ -153,7 +154,8 @@ describe("NovelAddTab — lineage", () => {
     fireEvent.focus(box);
     fireEvent.change(box, { target: { value: "One" } });
     expect(screen.getByText("Novel One")).toBeInTheDocument();
-    expect(screen.getByText("ACG One")).toBeInTheDocument();
+    expect(screen.getByText("Anime One")).toBeInTheDocument();
+    expect(screen.getByText("Manga One")).toBeInTheDocument();
     expect(screen.getByText("Untyped One")).toBeInTheDocument();
     expect(screen.queryByText("Movie One")).not.toBeInTheDocument();
   });

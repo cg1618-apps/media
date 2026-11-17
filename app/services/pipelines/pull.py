@@ -64,7 +64,7 @@ from app.services.domain.h_comic import (
     enforce_h_comic_invariants,
     normalize_group_order,
 )
-from app.services.domain.hierarchy import find_by_names
+from app.services.domain.hierarchy import find_by_names, split_acg_franchise_types
 from app.services.domain.highlight_group_order import GROUP_ORDER_TYPES
 from app.services.domain.label_tags import LABEL_FIELD_TYPES, reconcile_label_tags
 from app.services.domain.legacy_personal import (
@@ -994,10 +994,17 @@ def execute_pull_specific(
     action_type: str = "Manual",
     log_action: bool = True,
     may_restore_authz: bool = False,
+    split_acg_types: bool = True,
 ) -> dict:
     """
     Pulls data from a specific Google Sheet tab and gracefully Upserts it into PostgreSQL.
     Tracks exact rows added vs updated for logging.
+
+    `split_acg_types` says whether pulling the Franchise tab splits a retired
+    ACG franchise type straight away (split_acg_franchise_types), against the
+    entries already in this database. Pull All passes False and splits once
+    after every tab, because its Franchise tab restores before the entries
+    the split decides by.
 
     `may_restore_authz` says whether the caller holds `admin.authz`. Three tabs
     carry authorization rather than catalogue data - Users, Content Label and
@@ -1479,7 +1486,7 @@ def execute_pull_specific(
             clean_header_dict["franchise_id"], clean_header_dict["series_id"] = (
                 resolve_cartoon_parent_hierarchy(db, fid, sid, name_fields)
             )
-        # Manga uses resolve_manga_parent_hierarchy (auto-creates franchise with type "ACG", looks up series)
+        # Manga uses resolve_manga_parent_hierarchy (auto-creates franchise with type "Manga", looks up series)
         elif tab_name == "Manga" and "franchise_id" in clean_header_dict:
             fid = clean_header_dict.get("franchise_id")
             sid = clean_header_dict.get("series_id")
@@ -2091,9 +2098,9 @@ def execute_pull_specific(
             rk_owner = _note_owner_filters(clean_header_dict)
             if rk_owner:
                 rk_filters = [*rk_owner, Note.section == singleton.key]
-                # A personal-scope singleton is one row per owner PER AUTHOR
-                # (ix_note_one_remark_per_owner carries author_id), so the
-                # fold must not land one account's remark on another's.
+                # A personal-scope singleton would be one row per owner per
+                # author, so the fold must not land one account's row on
+                # another's. `remark` is catalogue: one row per owner.
                 if singleton.scope == SCOPE_PERSONAL:
                     rk_filters.append(
                         Note.author_id == clean_header_dict.get("author_id")
@@ -2382,6 +2389,11 @@ def execute_pull_specific(
     if tab_name in GATED_LABEL_INVARIANT_TABS:
         enforce_gated_label_invariants(db)
         db.commit()
+    # A Franchise tab backed up before the AniManga split may still type a
+    # franchise ACG; split it against the entries this database holds.
+    if tab_name == "Franchise" and split_acg_types:
+        split_acg_franchise_types(db)
+        db.commit()
     elif tab_name in LABEL_TAG_RECONCILE_TABS:
         reconcile_label_tags(db)
         db.commit()
@@ -2454,6 +2466,7 @@ def execute_pull_all(
                 action_type="Manual",
                 log_action=True,
                 may_restore_authz=may_restore_authz,
+                split_acg_types=False,
             )
 
             if res.get("status") == "error":
@@ -2475,6 +2488,14 @@ def execute_pull_all(
             created_entities.extend(res.get("created_entities", []))
             unresolved_refs.extend(res.get("unresolved_refs", []))
             skipped_tabs.extend(res.get("skipped_tabs", []))
+
+        # A sheet backed up before the AniManga split may still type a
+        # franchise ACG. Split it now that every entry tab has restored -
+        # the split decides by the entries, which the Franchise tab precedes.
+        # A tab that could not be read is re-pulled later, and its Franchise
+        # tab brings the ACG back to be split again.
+        split_acg_franchise_types(db)
+        db.commit()
 
     except Exception as e:
         logger.error("Full Pull Pipeline crashed: %s", e)

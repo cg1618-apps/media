@@ -96,8 +96,8 @@ def test_a_blank_vocabulary_value_reads_as_none():
 
 
 def test_franchise_types_are_split_on_commas():
-    assert h_comic.is_h_comic_franchise(SimpleNamespace(franchise_type="ACG, H-Comic"))
-    assert not h_comic.is_h_comic_franchise(SimpleNamespace(franchise_type="ACG"))
+    assert h_comic.is_h_comic_franchise(SimpleNamespace(franchise_type="Anime, H-Comic"))
+    assert not h_comic.is_h_comic_franchise(SimpleNamespace(franchise_type="Anime"))
     assert not h_comic.is_h_comic_franchise(SimpleNamespace(franchise_type=None))
 
 

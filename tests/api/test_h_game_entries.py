@@ -466,9 +466,9 @@ def test_an_auto_created_franchise_is_typed_and_labelled(owner_client, db_sessio
 # The restricted family is H-Comic, Hentai and H-Game together, so an h-game
 # shares a franchise with h-comics and hentai and with nothing mainstream.
 # Every refusal below names a franchise that exists and is of the mainstream
-# family (`Game`, `ACG`), so there is something to refuse; each is paired with
+# family (`Game`, `Anime`), so there is something to refuse; each is paired with
 # the same write into a franchise of the restricted family, which succeeds.
-MAINSTREAM_TYPES = ["Game", "ACG"]
+MAINSTREAM_TYPES = ["Game", "Anime"]
 RESTRICTED_TYPES = ["H-Game", "H-Comic", "Hentai", "H-Comic, Hentai, H-Game"]
 
 
@@ -543,7 +543,7 @@ def test_an_h_game_franchise_named_by_id_from_an_h_comic_is_accepted(owner_clien
     assert response.json()["franchise_id"] == str(own.system_id)
 
 
-@pytest.mark.parametrize("franchise_type", ["Game, H-Game", "ACG, H-Game"])
+@pytest.mark.parametrize("franchise_type", ["Game, H-Game", "Anime, H-Game"])
 def test_a_franchise_mixing_h_game_with_a_mainstream_type_is_refused(
     owner_client, db_session, franchise_type
 ):
