@@ -40,6 +40,7 @@ import Hentai from "./pages/detail/Hentai";
 import CollectionLibrary from "./pages/library/CollectionLibrary";
 import Library from "./pages/library/Library";
 import FranchiseLibrary from "./pages/library/FranchiseLibrary";
+import SeriesLibrary from "./pages/library/SeriesLibrary";
 const StudioLibrary = lazy(() => import("./pages/library/StudioLibrary"));
 const Studio = lazy(() => import("./pages/detail/Studio"));
 const PublisherLibrary = lazy(
@@ -147,6 +148,7 @@ export default function App() {
                   path="/library/franchise"
                   element={<FranchiseLibrary />}
                 />
+                <Route path="/library/series" element={<SeriesLibrary />} />
                 {/* The gated h-comic type: both of its routes ask the same
                     question navigation.js asks for its nav row -
                     canSeeGatedType - so a session that cannot see the type

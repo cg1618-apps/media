@@ -1,4 +1,5 @@
 // Frontend: add tab page file for SeriesAddTab.
+import GroupRatingFields from "../../components/forms/GroupRatingFields";
 import ComboBox from "../../components/forms/ComboBox";
 import {
   CollectionNote,
@@ -6,6 +7,7 @@ import {
   SectionHeader,
   inputCls,
 } from "../../components/forms/FormField";
+import { useViewScope } from "../../hooks/useViewScope";
 
 export { defaultSeries } from "../../config/formFactories";
 
@@ -15,6 +17,7 @@ export default function SeriesAddTab({
   franchiseItems,
   franchiseCollections,
 }) {
+  const { ownData } = useViewScope();
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-4">
       <SectionHeader icon="fa-layer-group" title="Titles & Naming" />
@@ -80,12 +83,22 @@ export default function SeriesAddTab({
         </Field>
       </div>
       {/*
-        No Other Information section here: a series that does not exist yet
-        has no entries to choose a Main Cover from, so that control lives on
-        the Modify tab only, exactly as franchise's does. To Rewatch is absent
+        Other Information holds only the viewer's own rating and expectation (self.list),
+        saved through /api/me/ratings once the series exists - see
+        submitSeries in Add.jsx. A series that does not exist yet has no
+        entries to choose a Main Cover from, so that control lives on the
+        Modify tab only, exactly as franchise's does. To Rewatch is absent
         for the same reason - it targets an entry group by system_id, which
         does not exist until save.
       */}
+      {ownData && (
+        <>
+          <SectionHeader icon="fa-info-circle" title="Other Information" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <GroupRatingFields kind="series" form={sf} update={us} />
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -411,7 +411,8 @@ export default function SeriesPage() {
   // Only this group filters which media entries are listed. It is shown under
   // its own label, apart from the extras below. A series carries no type, so
   // a tab appears purely because its list holds something. The tab's count
-  // and the hero's totals come from the same rows.
+  // and the hero's totals come from the same rows. Game is the last ungated
+  // tab; the gated types follow it.
   const {
     tabs: mediaTabs,
     countOf: getTabCount,
@@ -424,13 +425,14 @@ export default function SeriesPage() {
       { label: "Manga", type: "manga", entries: mangaList },
       { label: "Book", type: "book", entries: bookList },
       { label: "Comic", type: "comic", entries: comicList },
-      { label: "Game", type: "game", entries: gameList },
-      { label: "H-Comic", type: "h-comic", entries: hComicList },
-      { label: "H-Game", type: "h-game", entries: hGameList },
-      { label: "Hentai", type: "hentai", entries: hentaiList },
       { label: "Movies", type: "movie", entries: movieList },
       { label: "TV Shows", type: "tv-show", entries: tvShowList },
       { label: "Cartoons", type: "cartoon", entries: cartoonList },
+      { label: "Game", type: "game", entries: gameList },
+      // Gated types last, after every ungated one.
+      { label: "H-Comic", type: "h-comic", entries: hComicList },
+      { label: "H-Game", type: "h-game", entries: hGameList },
+      { label: "Hentai", type: "hentai", entries: hentaiList },
     ]);
   }, [
     series,

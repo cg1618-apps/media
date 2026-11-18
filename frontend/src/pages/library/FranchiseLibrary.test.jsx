@@ -154,7 +154,37 @@ describe("FranchiseLibrary without self.list", () => {
     expect(within(sort).getAllByRole("option").map((o) => o.value)).toEqual([
       "title",
       "my_rating",
-      "franchise_expectation",
+      "expectation",
     ]);
+  });
+});
+
+describe("FranchiseLibrary expectation sort", () => {
+  it("breaks an expectation tie by my rating, then by title", async () => {
+    const tied = [
+      { system_id: "t1", public_id: 11, franchise_name_en: "Mid", franchise_expectation: "High", my_rating: null },
+      { system_id: "t2", public_id: 12, franchise_name_en: "Beta", franchise_expectation: "High", my_rating: "B" },
+      { system_id: "t3", public_id: 13, franchise_name_en: "Zeta", franchise_expectation: "High", my_rating: "S" },
+      { system_id: "t4", public_id: 14, franchise_name_en: "Alpha", franchise_expectation: "High", my_rating: "B" },
+      { system_id: "t5", public_id: 15, franchise_name_en: "Top", franchise_expectation: "Highest", my_rating: "F" },
+    ];
+    global.fetch = vi.fn((url) =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(url.startsWith("/api/franchise/") ? tied : []),
+      }),
+    );
+    render(
+      <MemoryRouter>
+        <FranchiseLibrary />
+      </MemoryRouter>,
+    );
+    await screen.findByText("Zeta");
+    await userEvent.selectOptions(screen.getByRole("combobox"), "expectation");
+    await userEvent.click(screen.getByRole("button", { name: "Table view" }));
+    const names = within(screen.getByRole("table"))
+      .getAllByRole("link")
+      .map((a) => a.textContent);
+    expect(names).toEqual(["Top", "Zeta", "Alpha", "Beta", "Mid"]);
   });
 });

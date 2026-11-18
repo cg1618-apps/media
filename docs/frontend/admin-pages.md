@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-11-17
+Last verified: 2026-11-18
 
 **What this is for.** Every administrative route behind `ProtectedRoute` in
 `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -561,6 +561,18 @@ Content labels reset only after a successful submit; a validation
 early-return or a failed POST keeps the selection. Network failures surface
 as an error toast.
 
+**A group's own rating.** The Collection, Franchise and Series tabs draw a
+**My Rating** select (`MY_RATINGS`) and an **Expectation** select
+(`FRANCHISE_EXPECTATIONS`, the one vocabulary all three tiers share), under
+Other Information (`GroupRatingFields`) - only for a
+viewer who keeps a list (`useViewScope().ownData`, `self.list`). Both are the
+viewer's own, not columns of the group, so the create call never carries
+them: once it has returned the new id, the values chosen are sent as
+`PUT /api/me/ratings/<tier>/<id>` (`useSaveMyRating`), before the group's
+content labels, and nothing is sent when none was chosen. If that PUT fails
+the group is still created, and an error toast says "<Tier> saved, but your
+rating did not save."
+
 **Game tab.** `GameAddTab.jsx`. Two boxes, like every media tab:
 `EntryAutofillSearch` over the loaded games (`applyEntryAutofill(setGmf,
 "game")`, so the Game tab's auto-fill ticks on `/defaults` decide what it
@@ -1041,6 +1053,18 @@ only land in its own grid. The swap is a draft until **Save Grid**.
   order; reordering them is the detail page's.
 - **Franchise / Series tabs** also expose the plan-next / rewatch toggles
   (`PlanKindToggles`) and size-group overrides (`SizeGroupControls`).
+- **A group's own rating.** The Collection, Franchise and Series tabs draw
+  **My Rating** and **Expectation** under Other Information for a viewer who
+  keeps a list, as on `/add`. `collectionToForm`, `franchiseToForm` and
+  `seriesToForm` seed them from the row's `my_rating` and its tier's
+  `*_expectation`. The save `PATCH`es the group
+  without them, then sends `PUT /api/me/ratings/<tier>/<id>` with only the
+  keys that differ from the row it opened (`groupRatingChanges`; a cleared
+  value is `null`) - none, no PUT - and before the label set, which can hide
+  the group from the saving session. The answer is folded into the saved
+  row (`applyMyRating`), so the series form, which reloads from that row,
+  keeps the new rating. A failed PUT leaves the group saved and toasts
+  "<Tier> saved, but your rating did not save."
 - **Studio tab (Entity).** `StudioModifyTab.jsx` bypasses the search / open /
   save machinery above, which is shaped around media entries and the grouping
   tiers: it owns its own `useQuery` over `/api/studio/`, its own picker and

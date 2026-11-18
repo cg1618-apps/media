@@ -108,6 +108,12 @@ import { castIdentityProblem, orderLoadedCast } from "../../lib/castOrder";
 import useLabelTagSync from "../../hooks/useLabelTagSync";
 import { hasLabelField } from "../../lib/labelTags";
 import { SuggestItem, SuggestList } from "../../components/forms/SuggestList";
+import {
+  EXPECTATION_FIELD,
+  applyMyRating,
+  useSaveMyRating,
+} from "../../api/mutations/useMyRatingMutations";
+import { useViewScope } from "../../hooks/useViewScope";
 
 // The media types whose editor carries a cast (CASTING_MEDIA_TYPES on the
 // backend holds these and more), in their hyphenated key form.
@@ -194,6 +200,8 @@ function collectionToForm(c) {
     collection_name_jp: c.collection_name_jp || "",
     collection_name_alt: c.collection_name_alt || "",
     cover_franchise_id: c.cover_franchise_id ?? null,
+    my_rating: c.my_rating || "",
+    collection_expectation: c.collection_expectation || "",
   };
 }
 
@@ -213,6 +221,8 @@ function franchiseToForm(f, allCollections = []) {
     type_slots: f.type_slots ?? null,
     size_group_derived: f.size_group_derived ?? null,
     size_group_manual: f.size_group_manual ?? null,
+    my_rating: f.my_rating || "",
+    franchise_expectation: f.franchise_expectation || "",
   };
 }
 
@@ -229,7 +239,22 @@ function seriesToForm(s, allFranchises) {
     cover_entry_id: s.cover_entry_id ?? null,
     size_group_derived: s.size_group_derived ?? null,
     size_group_manual: s.size_group_manual ?? null,
+    my_rating: s.my_rating || "",
+    series_expectation: s.series_expectation || "",
   };
+}
+
+// The body of PUT /api/me/ratings for a group form: only the values the form
+// changed from the row it loaded, as null when cleared. Empty when nothing
+// changed, so an untouched rating writes nothing.
+function groupRatingChanges(ownerType, form, loaded) {
+  const data = {};
+  if ((form.my_rating || null) !== (loaded?.my_rating || null))
+    data.my_rating = form.my_rating || null;
+  const field = EXPECTATION_FIELD[ownerType];
+  if ((form[field] || null) !== (loaded?.[field] || null))
+    data.expectation = form[field] || null;
+  return data;
 }
 
 function movieToForm(movie, allFranchises, defaults) {
@@ -338,6 +363,25 @@ export default function Modify() {
   // request after that - cast, enrichment, the reload - would answer 404.
   const pendingLabels = useRef(null);
   const auth = useAuth();
+  const { ownData } = useViewScope();
+  const { mutateAsync: putMyRating } = useSaveMyRating();
+
+  // The viewer's own rating and expectation of a group, which
+  // the group's PATCH does not carry: PUT to /api/me/ratings once the group
+  // has saved, and only what changed from `loaded`. Answers `row` with the
+  // saved values folded in, or `row` as it was when nothing was sent or the
+  // PUT failed - in which case the group still saved, and the toast says so.
+  async function saveGroupRating(ownerType, row, form, loaded, noun) {
+    const data = groupRatingChanges(ownerType, form, loaded);
+    if (!ownData || Object.keys(data).length === 0) return row;
+    try {
+      const saved = await putMyRating({ ownerType, ownerId: row.system_id, data });
+      return applyMyRating(row, saved);
+    } catch {
+      showToast("error", `${noun} saved, but your rating did not save.`);
+      return row;
+    }
+  }
   // An entity deep link (?type=character|person|studio|publisher) opens on its tab from the
   // first paint; the tab itself loads the id (entityDeepLink below).
   const [activeTab, setActiveTab] = useState(() => {
@@ -1439,7 +1483,15 @@ export default function Modify() {
       credentials: "include",
     });
     if (res.ok) {
-      const updated = await res.json();
+      // The rating goes before the labels: a label can hide the collection
+      // from this session's mode, and the PUT would then be refused.
+      const updated = await saveGroupRating(
+        "collection",
+        await res.json(),
+        colf,
+        editingItem,
+        "Collection",
+      );
       setAllCollections((prev) =>
         prev.map((c) => (c.system_id === updated.system_id ? updated : c)),
       );
@@ -1480,7 +1532,14 @@ export default function Modify() {
       credentials: "include",
     });
     if (res.ok) {
-      const updated = await res.json();
+      // The rating goes before the labels, as in saveCollection.
+      const updated = await saveGroupRating(
+        "franchise",
+        await res.json(),
+        ff,
+        editingItem,
+        "Franchise",
+      );
       setAllFranchises((prev) =>
         prev.map((f) => (f.system_id === updated.system_id ? updated : f)),
       );
@@ -1559,7 +1618,15 @@ export default function Modify() {
       credentials: "include",
     });
     if (res.ok) {
-      const updated = await res.json();
+      // The rating goes before the labels, as in saveCollection, and is
+      // folded into the row before the form reloads from it below.
+      const updated = await saveGroupRating(
+        "series",
+        await res.json(),
+        sf,
+        editingItem,
+        "Series",
+      );
       setAllSeries((prev) =>
         prev.map((s) => (s.system_id === updated.system_id ? updated : s)),
       );

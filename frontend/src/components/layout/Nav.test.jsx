@@ -198,21 +198,22 @@ describe("Nav panels", () => {
     expect(tab("explore")).toHaveFocus();
   });
 
-  it("groups Collection and Franchise away from AniManga and Reality", async () => {
+  it("groups Collection, Franchise and Series away from ACG and Reality", async () => {
     const user = userEvent.setup();
     renderNav("/");
 
     await user.click(tab("library"));
     const panel = document.querySelector("[data-nav-panel]");
-    const columns = ["Groups", "AniManga", "Reality"];
+    const columns = ["Groups", "ACG", "Reality"];
     for (const heading of columns) {
       expect(within(panel).getByText(heading)).toBeInTheDocument();
     }
     // Collection sits in the Groups column, not under Reality.
     const groupsColumn = within(panel).getByText("Groups").parentElement;
-    expect(
-      within(groupsColumn).getByRole("link", { name: /collection/i }),
-    ).toBeInTheDocument();
+    for (const name of [/collection/i, /franchise/i, /series/i]) {
+      expect(within(groupsColumn).getByRole("link", { name })).toBeInTheDocument();
+    }
+    expect(within(panel).queryByText("AniManga")).toBeNull();
   });
 });
 

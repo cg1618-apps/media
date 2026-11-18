@@ -478,6 +478,7 @@ export default function FranchisePage() {
   // row made "Memes" read as just another entry type. Each row names its tab,
   // its media type, the list behind it and whether the franchise's type
   // offers it; the tab's count and the hero's totals come from the same rows.
+  // Game is the last ungated tab; the gated types follow it.
   const {
     tabs: mediaTabs,
     countOf: getTabCount,
@@ -496,13 +497,14 @@ export default function FranchisePage() {
       { label: "Manga", type: "manga", entries: mangaList, offered: hasManga },
       { label: "Book", type: "book", entries: bookList, offered: hasBook },
       { label: "Comic", type: "comic", entries: comicList, offered: hasComic },
-      { label: "Game", type: "game", entries: gameList, offered: hasGame },
-      { label: "H-Comic", type: "h-comic", entries: hComicList, offered: hasHComic },
-      { label: "H-Game", type: "h-game", entries: hGameList, offered: hasHGame },
-      { label: "Hentai", type: "hentai", entries: hentaiList, offered: hasHentai },
       { label: "Movies", type: "movie", entries: movieList, offered: hasMovie },
       { label: "TV Shows", type: "tv-show", entries: tvShowList, offered: hasTV },
       { label: "Cartoons", type: "cartoon", entries: cartoonList, offered: hasCartoon },
+      { label: "Game", type: "game", entries: gameList, offered: hasGame },
+      // Gated types last, after every ungated one.
+      { label: "H-Comic", type: "h-comic", entries: hComicList, offered: hasHComic },
+      { label: "H-Game", type: "h-game", entries: hGameList, offered: hasHGame },
+      { label: "Hentai", type: "hentai", entries: hentaiList, offered: hasHentai },
     ]);
   }, [
     franchise,

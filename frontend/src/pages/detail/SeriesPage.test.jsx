@@ -291,3 +291,28 @@ describe("SeriesPage content labels", () => {
     expect(screen.queryByText("Content")).toBeNull();
   });
 });
+
+// Game is the last of the ungated media tabs; the gated ones follow it.
+describe("SeriesPage media tab order", () => {
+  it("puts Game after Movies, TV Shows and Cartoons", async () => {
+    global.fetch.mockImplementation((url) => {
+      const u = String(url);
+      if (u.startsWith("/api/series/")) return jsonRes(SERIES);
+      if (u.startsWith("/api/game/")) return jsonRes(GAMES);
+      if (u.startsWith("/api/movies/"))
+        return jsonRes([{ system_id: "MV001", movie_name_en: "Film" }]);
+      if (u.startsWith("/api/cartoon/"))
+        return jsonRes([{ system_id: "CT001", cartoon_name_en: "Toon" }]);
+      return jsonRes([]);
+    });
+    renderPage();
+    await screen.findByRole("button", { name: gameTab });
+    await screen.findByRole("button", { name: /^Cartoons/ });
+    const names = screen
+      .getAllByRole("button")
+      .map((b) => b.textContent.trim())
+      .filter((n) => /^(Movies|Cartoons|Game)\s*\d+$/.test(n))
+      .map((n) => n.replace(/\s*\d+$/, ""));
+    expect(names).toEqual(["Movies", "Cartoons", "Game"]);
+  });
+});
