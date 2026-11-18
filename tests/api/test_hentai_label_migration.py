@@ -17,7 +17,7 @@ The conftest seeds the label session-wide; each test here first puts the
 database into the state the owner's home database was in - the label on an
 anime - so every removal has something to remove.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import importlib.util

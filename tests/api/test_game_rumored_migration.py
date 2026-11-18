@@ -6,7 +6,7 @@ vocabulary - and rewrites a stored Add-form default the same way.
 Runs the shipped revision's own `retire_rumored()` against the test session -
 the suite has no Alembic harness for data.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import importlib.util

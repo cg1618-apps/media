@@ -4,7 +4,7 @@ still typed "ACG" - restored from a sheet backed up before the type split - is
 retyped by the entries it holds, and Pull All runs it once every tab has
 restored, so the entries it decides by are there.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

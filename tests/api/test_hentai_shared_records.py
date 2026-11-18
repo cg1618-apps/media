@@ -20,7 +20,7 @@ the API, which stamps it - and is paired with `owner_client`, sitting in
 that sees h-comic and not hentai - is `unrestricted` with the `hentai` label
 denied, so both labels exist and one of them is hidden.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

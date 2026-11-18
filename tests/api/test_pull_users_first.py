@@ -12,7 +12,7 @@ This asserts the order Pull All actually iterates, not the registry it is
 meant to follow - test_users_sheet.py pins Users at SHEET_TABS[0], which
 proves nothing if Pull walked some other list.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 from app.services.pipelines import pull

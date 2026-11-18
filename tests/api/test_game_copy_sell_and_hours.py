@@ -5,7 +5,7 @@ A game copy records what it sold for and how long it was played.
 `hours_played` is decimal hours. They are records only: nothing rolls them up
 into the game's own `hours_played`, and the spend statistics do not read them.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

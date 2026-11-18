@@ -7,7 +7,7 @@ Unit Rating, their headers say novel_name_* / novel_id / release_date, and its
 cells say `novel`, `Novel` and the old type vocabulary. Pull reads it as if it
 were current (app/services/pipelines/legacy_names.py).
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import json

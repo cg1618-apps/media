@@ -5,7 +5,7 @@ One function serves both types (`apply_single_replace_game`), and it backs the
 detail page's Autofill button, the single and bulk Replace routes and the
 write hook. Every fetch and the cover download are patched out.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

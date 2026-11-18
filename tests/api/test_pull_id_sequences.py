@@ -8,7 +8,7 @@ that lets the sequence pick a value dies on
 `duplicate key value violates unique constraint "person_role_pkey"` - over and
 over, because the sequence only creeps forward one collision at a time.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import pytest

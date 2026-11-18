@@ -8,12 +8,12 @@ database.py, security.py, dependencies.py, auth.py, main.py, and the service
 modules. Import `settings` from here instead of reading os.environ directly.
 """
 
-import urllib.parse
 from functools import lru_cache
 from typing import Optional
 
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import URL
 
 # --- The production signal -------------------------------------------------
 # Which runtime this is. A named environment variable is the standard
@@ -239,11 +239,19 @@ class Settings(BaseSettings):
         if self.database_url:
             return self.database_url
 
-        password = urllib.parse.quote_plus(self.postgres_password.strip())
-        return (
-            f"postgresql://{self.postgres_user}:{password}"
-            f"@localhost:5432/{self.postgres_db}"
-        )
+        # 127.0.0.1, not localhost: the dev database publishes on the IPv4
+        # loopback only, and Windows resolves localhost to ::1 first, so every
+        # new connection waited out a 21-second timeout before falling back.
+        # URL.create escapes the parts the way the URL parser reads them back
+        # (quote_plus turned a space into a literal "+").
+        return URL.create(
+            "postgresql",
+            username=self.postgres_user,
+            password=self.postgres_password.strip(),
+            host="127.0.0.1",
+            port=5432,
+            database=self.postgres_db,
+        ).render_as_string(hide_password=False)
 
 
 @lru_cache

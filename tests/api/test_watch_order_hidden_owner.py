@@ -14,7 +14,7 @@ with the owner labelled `nsfw` - the label is what makes refusal possible. Its
 mirror is `user_client`, whose mode (`unrestricted`) carries every label, so a
 404 or an absence proves the label did the hiding.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

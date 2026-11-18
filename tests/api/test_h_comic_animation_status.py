@@ -8,7 +8,7 @@ the status is `Animated` if any hentai has aired and `Announced` otherwise;
 with none, the stored hand-set value stands. The column keeps the hand-set
 value throughout, so removing the relation restores it.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

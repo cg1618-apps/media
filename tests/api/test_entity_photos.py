@@ -9,7 +9,7 @@ carries a label the guest's mode lacks, and the h-comic is stamped with its
 gated label by the API - and read the SAME record back through `owner_client`,
 whose mode carries every label, so a green proves the gate did the hiding.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

@@ -9,7 +9,7 @@ test session, as test_netflix_disney_scope_migration.py does: the suite
 builds its schema with create_all, so a test restating the SQL would pass
 while the shipped migration was wrong.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import importlib.util

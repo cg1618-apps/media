@@ -10,7 +10,7 @@ all) stops the run.
 Tenrai, AniDB and the cover download are all patched out - no test here
 reaches the network.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import dataclasses

@@ -6,7 +6,7 @@ Each refusal has the label present - the entries are created through the API,
 which stamps it - and is paired with `owner_client`, sitting in
 `unrestricted`, reading the same record back.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

@@ -1,18 +1,20 @@
 """
 API test fixtures.
 
-Requires PostgreSQL to be running (docker-compose up -d).
-Uses the 'media_test' database (set in tests/conftest.py).
-
-Setup: createdb -U postgres media_test  (run once)
+Requires PostgreSQL to be running (the platform's dev-db). The run creates and
+drops its own database, named in tests/conftest.py - see tests/databases.py.
 """
 
+import os
+import subprocess
+import sys
 import uuid
 from datetime import timedelta
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 import app.main as app_main
@@ -45,6 +47,7 @@ from app.services.rbac.seed_modes import (
     mode_rank,
 )
 from app.services.security import create_access_token, get_password_hash
+from tests import databases
 
 
 def role_id_for(db, name):
@@ -70,16 +73,11 @@ def test_engine():
     db_name = SQLALCHEMY_DATABASE_URL.rsplit("/", 1)[-1].split("?")[0]
     assert "test" in db_name, f"Refusing to reset non-test database: {db_name!r}"
 
+    # The run's own database, created empty by tests/conftest.py's
+    # pytest_configure - so there is no stale schema to reset, and no other
+    # run's tables to wipe. create_all is a no-op if app.main's import-time
+    # ensure_schema already built it.
     engine = create_engine(SQLALCHEMY_DATABASE_URL)
-
-    # Start from a guaranteed-clean schema. create_all never ALTERs existing
-    # tables, so stale tables from an earlier run (columns since renamed/dropped
-    # by migrations) would otherwise linger and break tests. A full schema reset
-    # is the only reliable way to rebuild from the current models.
-    with engine.begin() as conn:
-        conn.execute(text("DROP SCHEMA public CASCADE"))
-        conn.execute(text("CREATE SCHEMA public"))
-
     Base.metadata.create_all(bind=engine)
 
     # The roles migration A seeds. conftest never runs Alembic, so they are
@@ -112,7 +110,88 @@ def test_engine():
     seeding.close()
 
     yield engine
-    Base.metadata.drop_all(bind=engine)
+    engine.dispose()
+
+
+# ---------------------------------------------------------------------------
+# Migrated databases - the real `alembic upgrade head`, built once per run
+# ---------------------------------------------------------------------------
+
+ROOT = Path(__file__).resolve().parents[2]
+
+
+def run_alembic(database: str, *args: str) -> subprocess.CompletedProcess:
+    """Alembic as a SUBPROCESS, pointed at one database.
+
+    `alembic/env.py` imports the URL from `app.database` at module scope and
+    ignores alembic.ini's, so pointing it at another database means setting
+    POSTGRES_DB before that import - which an already-running test process
+    cannot do. A subprocess is also what a human runs.
+    """
+    return subprocess.run(
+        [sys.executable, "-m", "alembic", *args],
+        cwd=ROOT,
+        env={**os.environ, "POSTGRES_DB": database},
+        capture_output=True,
+        text=True,
+    )
+
+
+@pytest.fixture(scope="session")
+def migrated_head():
+    """A database built from empty by `alembic upgrade head`, once per run.
+
+    Building the chain from zero is the most expensive thing the suite does,
+    so every generic guard reads this one. It is READ-ONLY: a test that
+    downgrades or seeds takes `migrated_head_copy` instead.
+    """
+    with databases.scratch() as name:
+        result = run_alembic(name, "upgrade", "head")
+        assert result.returncode == 0, (
+            f"alembic upgrade head failed on an empty database:\n"
+            f"{result.stdout[-3000:]}\n{result.stderr[-3000:]}"
+        )
+        yield name
+
+
+@pytest.fixture
+def migrated_head_copy(migrated_head):
+    """A private copy of `migrated_head`, free to downgrade or write to.
+
+    `CREATE DATABASE ... TEMPLATE` copies files rather than replaying the
+    chain, so it costs seconds. It needs no connection open to the template,
+    which is why every reader of `migrated_head` disposes its engine.
+    """
+    with databases.scratch(template=migrated_head) as name:
+        yield name
+
+
+@pytest.fixture(scope="session")
+def created_from_models():
+    """A database built by `Base.metadata.create_all`, once per run - the
+    other side of every comparison with `migrated_head`. Read-only."""
+    with databases.scratch() as name:
+        engine = create_engine(databases.server_url(name))
+        try:
+            Base.metadata.create_all(bind=engine)
+        finally:
+            engine.dispose()
+        yield name
+
+
+@pytest.fixture
+def scratch_database():
+    """One empty database for a test that builds its own chain."""
+    with databases.scratch() as name:
+        yield name
+
+
+@pytest.fixture
+def scratch_databases():
+    """Two empty databases, for the revision tests that compare a migrated
+    database with a create_all one."""
+    with databases.scratch() as first, databases.scratch() as second:
+        yield first, second
 
 
 @pytest.fixture(autouse=True)
@@ -1330,3 +1409,32 @@ def features_follow_personal_notes(monkeypatch):
         return viewer.user_id is not None and viewer.has(PERM_SELF_PERSONAL_NOTES)
 
     monkeypatch.setattr(features, "has_feature", has_feature)
+
+
+# ---------------------------------------------------------------------------
+# Cover files - under tmp_path, never the developer's real static/covers
+# ---------------------------------------------------------------------------
+
+COVER_PIXEL = b"\xff\xd8\xff\xe0 not really a jpeg, but bytes on disk"
+
+
+@pytest.fixture
+def cover_on_disk(tmp_path, monkeypatch):
+    """Write a cover file for one owner, where the cover route will look for it.
+
+    The cover root is moved under tmp_path, for the route and for
+    image_manager alike, so no test writes into the real static/covers and two
+    runs can never see each other's files. Returns the gated URL.
+    """
+    root = tmp_path / "static" / "covers"
+    monkeypatch.setattr("app.routers.covers.COVER_DIR", str(root))
+    monkeypatch.setattr(image_manager, "COVER_DIR", str(root))
+
+    def _write(owner_type, system_id):
+        key = image_manager.cover_key(owner_type, str(system_id))
+        path = root.joinpath(*key.split("/"))
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(COVER_PIXEL)
+        return f"/api/covers/{key}"
+
+    return _write

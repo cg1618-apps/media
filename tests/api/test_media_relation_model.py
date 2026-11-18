@@ -2,8 +2,8 @@
 Database-level tests for the media_relation table.
 
 Lives under tests/api/ rather than tests/unit/ because it needs a real
-PostgreSQL session to exercise the constraints. Requires the media_test
-DB — see tests/api/conftest.py.
+PostgreSQL session to exercise the constraints. Requires the run's own
+test database — see tests/api/conftest.py.
 """
 
 import uuid

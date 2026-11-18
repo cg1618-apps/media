@@ -6,7 +6,7 @@ entry through association proxies, so apply_column_patch - which writes only
 the detail table's own columns - would drop them. The Modify page saves
 entries by PATCH, so a series picked there has to survive the round trip.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

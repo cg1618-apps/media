@@ -11,7 +11,7 @@ Pull must still read a Movies or Anime Movie tab written before the rename:
 its `airing_status` column, in the airing vocabulary, restores into
 `release_status` and is not reported as a stale header.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import pytest

@@ -12,7 +12,7 @@ Every refusal here has a gated franchise in the database, so there is
 something to refuse, and a mirror that the same path accepts a franchise of
 the entry's own family.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

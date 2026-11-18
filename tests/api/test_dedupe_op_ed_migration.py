@@ -8,7 +8,7 @@ every copy after the first; rows that differ in anything must all survive.
 Runs the shipped revision's own `dedupe()` against the test session - the
 suite has no Alembic harness.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import importlib.util

@@ -10,7 +10,7 @@ A tag write changes who can see the entry, so the visibility tests pair the
 refusal (`narrow`, in `safe`, sees no label) with its mirror (`owner_client`,
 `unrestricted`, sees every label) on the same entry.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import importlib.util

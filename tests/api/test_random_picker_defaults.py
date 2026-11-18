@@ -7,7 +7,7 @@ gated type's mode is refused to a session that may not see the type: that
 refusal is tested with the hentai label EXISTING (an entry carries it), since
 a label nobody has created gates nothing and the refusal would pass vacuously.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

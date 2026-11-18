@@ -8,7 +8,7 @@ The Tenrai fetch and the cover download are both patched out; no test here
 reaches the network. The payload is the shape Tenrai serves for an Rx title
 from the same anime endpoint anime uses.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

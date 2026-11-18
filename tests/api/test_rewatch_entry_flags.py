@@ -2,7 +2,7 @@
 Entry-level to_rewatch / to_reread are virtual fields over plan_next rows
 with kind='rewatch'.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

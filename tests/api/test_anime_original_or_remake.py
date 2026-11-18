@@ -6,7 +6,7 @@ original work or a remake of one is a column of its own, over its own
 vocabulary ANIME_ORIGINAL_OR_REMAKE. It is never empty: a row that says
 nothing is the original, and revision a1n2remake34 set every existing row so.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import importlib.util

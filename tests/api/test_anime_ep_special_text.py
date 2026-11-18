@@ -7,7 +7,7 @@ a Sheets cell, the revision that converted the old floats: a plain number is
 written without a trailing `.0` (`17.0` -> `17`), and anything else is kept as
 typed, trimmed.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import importlib.util

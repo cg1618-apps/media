@@ -3,7 +3,7 @@ A Game Platform console brings its family: tagging Switch stores Nintendo
 beside it, whichever path wrote the tags. replace_tags is that one path, so
 these drive it through the credits API and directly.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

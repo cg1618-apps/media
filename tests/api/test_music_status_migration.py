@@ -7,7 +7,7 @@ Runs the shipped revision's own data steps against the test session - the
 suite has no Alembic harness, and the schema here is create_all's, which
 already carries the new index rather than the old one.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import importlib.util

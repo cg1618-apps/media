@@ -12,7 +12,7 @@ are imported by file path and run against the test session, as
 test_view_random_picker_migration.py does, since the suite builds its schema
 with create_all and never runs Alembic.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import importlib.util
