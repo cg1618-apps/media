@@ -1,9 +1,9 @@
 // Frontend: the viewer's own rating of a grouping tier on the Add page.
 //
-// A rating, and a franchise's expectation, are the viewer's own, kept per
+// A rating and an expectation of a tier are the viewer's own, kept per
 // account and written through PUT /api/me/ratings under self.list; the
 // catalogue write carries neither. So the Collection, Franchise and Series
-// tabs draw a My Rating field (and the Franchise tab an Expectation) only for
+// tabs draw My Rating and Expectation fields only for
 // a viewer who keeps a list, the create call never carries them, and the PUT
 // goes to the new row once the create has returned its id. The franchise an
 // entry's save quick-creates carries no expectation either.
@@ -134,37 +134,37 @@ describe("Add page — a viewer who keeps a list rates the group it creates", ()
     expect(body).not.toHaveProperty("expectation");
   });
 
-  it("the Collection tab PUTs a rating and offers no expectation", async () => {
+  it("the Collection tab PUTs a rating and an expectation", async () => {
     const user = userEvent.setup();
     mount();
     await openTab(user, "Collection");
     await user.type(inputUnder("Collection Name EN"), "Marvel");
-    expect(screen.queryByLabelText("Expectation")).not.toBeInTheDocument();
     await user.selectOptions(screen.getByLabelText("My Rating"), "S");
+    await user.selectOptions(screen.getByLabelText("Expectation"), "Low");
     await user.click(screen.getByRole("button", { name: /append entry/i }));
 
     await waitFor(() => expect(ratingPuts()).toHaveLength(1));
     expect(ratingPuts()[0]).toEqual({
       url: "/api/me/ratings/collection/c-new",
-      body: { my_rating: "S" },
+      body: { my_rating: "S", expectation: "Low" },
     });
   });
 
-  it("the Series tab PUTs a rating and offers no expectation", async () => {
+  it("the Series tab PUTs a rating and an expectation", async () => {
     const user = userEvent.setup();
     mount();
     await openTab(user, "Series");
     await user.type(screen.getByPlaceholderText("Search existing franchises..."), "Test");
     await user.click(await screen.findByText("Test Franchise"));
     await user.type(inputUnder("Series Name EN"), "Saga");
-    expect(screen.queryByLabelText("Expectation")).not.toBeInTheDocument();
     await user.selectOptions(screen.getByLabelText("My Rating"), "B");
+    await user.selectOptions(screen.getByLabelText("Expectation"), "Medium");
     await user.click(screen.getByRole("button", { name: /append entry/i }));
 
     await waitFor(() => expect(ratingPuts()).toHaveLength(1));
     expect(ratingPuts()[0]).toEqual({
       url: "/api/me/ratings/series/s-new",
-      body: { my_rating: "B" },
+      body: { my_rating: "B", expectation: "Medium" },
     });
   });
 

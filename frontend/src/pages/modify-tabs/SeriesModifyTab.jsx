@@ -265,10 +265,10 @@ export default function SeriesModifyTab({
         </Field>
       </div>
       <SectionHeader icon="fa-info-circle" title="Other Information" />
-      {/* The viewer's own rating (self.list), saved through /api/me/ratings
+      {/* The viewer's own rating and expectation (self.list), saved through /api/me/ratings
           after the series itself - see saveSeries in Modify.jsx. */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <GroupRatingFields form={sf} update={us} />
+          <GroupRatingFields kind="series" form={sf} update={us} />
         </div>
       <SectionHeader icon="fa-image" title="Cover Images" />
       <Field

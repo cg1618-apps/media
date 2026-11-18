@@ -114,7 +114,7 @@ export default function FranchiseAddTab({ ff, uf, collectionItems }) {
         {/* The viewer's own rating and expectation (self.list), saved
             through /api/me/ratings once the franchise exists - see
             submitFranchise in Add.jsx. */}
-        <GroupRatingFields form={ff} update={uf} expectationField="franchise_expectation" />
+        <GroupRatingFields kind="franchise" form={ff} update={uf} />
       </div>
     </div>
   );

@@ -53,13 +53,13 @@ export default function CollectionAddTab({ cf, uf }) {
         </Field>
       </div>
 
-      {/* The viewer's own rating (self.list), saved through /api/me/ratings
+      {/* The viewer's own rating and expectation (self.list), saved through /api/me/ratings
           once the collection exists - see submitCollection in Add.jsx. */}
       {ownData && (
         <>
           <SectionHeader icon="fa-info-circle" title="Other Information" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <GroupRatingFields form={cf} update={uf} />
+            <GroupRatingFields kind="collection" form={cf} update={uf} />
           </div>
         </>
       )}

@@ -83,7 +83,7 @@ export default function SeriesAddTab({
         </Field>
       </div>
       {/*
-        Other Information holds only the viewer's own rating (self.list),
+        Other Information holds only the viewer's own rating and expectation (self.list),
         saved through /api/me/ratings once the series exists - see
         submitSeries in Add.jsx. A series that does not exist yet has no
         entries to choose a Main Cover from, so that control lives on the
@@ -95,7 +95,7 @@ export default function SeriesAddTab({
         <>
           <SectionHeader icon="fa-info-circle" title="Other Information" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <GroupRatingFields form={sf} update={us} />
+            <GroupRatingFields kind="series" form={sf} update={us} />
           </div>
         </>
       )}

@@ -315,7 +315,7 @@ export default function FranchiseModifyTab({
         {/* The viewer's own rating and expectation (self.list), saved
             through /api/me/ratings after the franchise itself - see
             saveFranchise in Modify.jsx. */}
-        <GroupRatingFields form={ff} update={uf} expectationField="franchise_expectation" />
+        <GroupRatingFields kind="franchise" form={ff} update={uf} />
       </div>
       {franchiseTypes.length > 0 && (
         <div className="space-y-3 mt-4">

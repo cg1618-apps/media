@@ -1,5 +1,5 @@
-// Frontend: Modify edits the viewer's own rating of a collection, franchise
-// or series, and a franchise's expectation.
+// Frontend: Modify edits the viewer's own rating and expectation of a
+// collection, franchise or series.
 //
 // Both are kept per account and written through PUT /api/me/ratings under
 // self.list, never in the group's PATCH. So the fields are drawn only for a
@@ -46,7 +46,12 @@ const failed = () =>
 const TIERS = {
   collection: {
     listPath: "/api/collection",
-    entry: { system_id: "c1", collection_name_en: "Marvel", my_rating: "B" },
+    entry: {
+      system_id: "c1",
+      collection_name_en: "Marvel",
+      my_rating: "B",
+      collection_expectation: "Medium",
+    },
     noun: "Collection",
   },
   franchise: {
@@ -63,7 +68,13 @@ const TIERS = {
   series: {
     listPath: "/api/series",
     // A series save refuses one with no franchise, so it has one.
-    entry: { system_id: "c1", series_name_en: "Saga", franchise_id: "f1", my_rating: "B" },
+    entry: {
+      system_id: "c1",
+      series_name_en: "Saga",
+      franchise_id: "f1",
+      my_rating: "B",
+      series_expectation: "Medium",
+    },
     noun: "Series",
   },
 };
@@ -83,7 +94,7 @@ function mockFetch(tier, { ratingFails = false } = {}) {
         owner_id: "c1",
         my_rating: "my_rating" in body ? body.my_rating : entry.my_rating,
         expectation:
-          "expectation" in body ? body.expectation : (entry.franchise_expectation ?? null),
+          "expectation" in body ? body.expectation : (entry[`${tier}_expectation`] ?? null),
       });
     }
     if (method === "GET" && u.startsWith(`${listPath}/?`)) return ok([entry]);
@@ -225,7 +236,7 @@ describe("Modify franchise — rating and expectation are the viewer's own", () 
 });
 
 describe.each(["collection", "series"])("Modify %s — the viewer's own rating", (tier) => {
-  it("draws a rating and no expectation, and PUTs a changed rating", async () => {
+  it("draws both, loaded from the row, and PUTs what changed", async () => {
     const fetchMock = mockFetch(tier);
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
@@ -233,20 +244,22 @@ describe.each(["collection", "series"])("Modify %s — the viewer's own rating",
 
     const rating = await screen.findByLabelText("My Rating");
     expect(rating).toHaveValue("B");
-    expect(screen.queryByLabelText("Expectation")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Expectation")).toHaveValue("Medium");
 
     await user.selectOptions(rating, "A+");
+    await user.selectOptions(screen.getByLabelText("Expectation"), "Highest");
     await user.click(screen.getByRole("button", { name: /save changes/i }));
 
     await waitFor(() => expect(callsTo(fetchMock, "PUT", ratingPath(tier))).toHaveLength(1));
     const [, init] = callsTo(fetchMock, "PUT", ratingPath(tier))[0];
-    expect(JSON.parse(init.body)).toEqual({ my_rating: "A+" });
+    expect(JSON.parse(init.body)).toEqual({ my_rating: "A+", expectation: "Highest" });
     // The saved rating survives the form reloading from the saved row (a
     // series save does reload it).
     await waitFor(() =>
       expect(showToast).toHaveBeenCalledWith("success", "Update successful."),
     );
     expect(screen.getByLabelText("My Rating")).toHaveValue("A+");
+    expect(screen.getByLabelText("Expectation")).toHaveValue("Highest");
   });
 
   it("draws no rating for a viewer without a list", async () => {
@@ -258,5 +271,6 @@ describe.each(["collection", "series"])("Modify %s — the viewer's own rating",
       await screen.findByDisplayValue(TIERS[tier].entry[`${tier}_name_en`]),
     ).toBeInTheDocument();
     expect(screen.queryByLabelText("My Rating")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Expectation")).not.toBeInTheDocument();
   });
 });

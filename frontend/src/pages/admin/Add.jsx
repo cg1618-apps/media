@@ -111,7 +111,10 @@ import {
   toStringId,
 } from "../../lib/externalPick";
 import { ADMIN_TABS } from "../../config/adminTabs";
-import { useSaveMyRating } from "../../api/mutations/useMyRatingMutations";
+import {
+  EXPECTATION_FIELD,
+  useSaveMyRating,
+} from "../../api/mutations/useMyRatingMutations";
 import { useViewScope } from "../../hooks/useViewScope";
 import { PERSON_NAME_FIELDS, STUDIO_NAME_FIELDS } from "../../lib/naming";
 import { CHARACTER_NAME_FIELDS } from "../add-tabs/CharacterAddTab";
@@ -128,15 +131,14 @@ export default function Add() {
   const { ownData } = useViewScope();
   const { mutateAsync: putMyRating } = useSaveMyRating();
 
-  // The viewer's own rating (and a franchise's expectation) of a group just
-  // created, which the create call does not carry: PUT to /api/me/ratings
+  // The viewer's own rating and expectation of a group just created, which the create call does not carry: PUT to /api/me/ratings
   // with the new id, and only the values the form chose. A failure leaves
   // the group created, and the toast says so.
   async function saveGroupRating(ownerType, ownerId, form, noun) {
     const data = {};
     if (form.my_rating) data.my_rating = form.my_rating;
-    if (ownerType === "franchise" && form.franchise_expectation)
-      data.expectation = form.franchise_expectation;
+    if (form[EXPECTATION_FIELD[ownerType]])
+      data.expectation = form[EXPECTATION_FIELD[ownerType]];
     if (!ownData || Object.keys(data).length === 0) return;
     try {
       await putMyRating({ ownerType, ownerId, data });

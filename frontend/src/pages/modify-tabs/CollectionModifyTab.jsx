@@ -68,10 +68,10 @@ export default function CollectionModifyTab({
       </div>
 
       <SectionHeader icon="fa-info-circle" title="Other Information" />
-      {/* The viewer's own rating (self.list), saved through /api/me/ratings
+      {/* The viewer's own rating and expectation (self.list), saved through /api/me/ratings
           after the collection itself - see saveCollection in Modify.jsx. */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <GroupRatingFields form={cf} update={uf} />
+          <GroupRatingFields kind="collection" form={cf} update={uf} />
         </div>
 
       <SectionHeader icon="fa-image" title="Cover" />

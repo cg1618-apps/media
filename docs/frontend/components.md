@@ -506,9 +506,9 @@ columns.
   and the app has none), `SuggestList` (see "Dropdown lists" below),
   `ReleaseDateInput`, `ScopePicker`, `OptionSubTabBar`,
   `OptionCategorySelect`,
-  `GroupRatingFields` (the viewer's own **My Rating** and, given
-  `expectationField`, **Expectation** selects on the six Add and Modify group
-  tabs; renders nothing without `self.list`, and only edits the form - the
+  `GroupRatingFields` (`kind` = the tier; the viewer's own **My Rating** and
+  **Expectation** selects on the six Add and Modify group tabs, the
+  expectation held under the tier's `EXPECTATION_FIELD`; renders nothing without `self.list`, and only edits the form - the
   page saves the values through `/api/me/ratings`),
   `ContentLabelPicker` (one owner-agnostic control for both Add and Modify —
   it takes `owner={{kind, mediaType?, id}}`, `kind` being `entry`,

@@ -201,6 +201,7 @@ function collectionToForm(c) {
     collection_name_alt: c.collection_name_alt || "",
     cover_franchise_id: c.cover_franchise_id ?? null,
     my_rating: c.my_rating || "",
+    collection_expectation: c.collection_expectation || "",
   };
 }
 
@@ -239,6 +240,7 @@ function seriesToForm(s, allFranchises) {
     size_group_derived: s.size_group_derived ?? null,
     size_group_manual: s.size_group_manual ?? null,
     my_rating: s.my_rating || "",
+    series_expectation: s.series_expectation || "",
   };
 }
 
@@ -250,7 +252,7 @@ function groupRatingChanges(ownerType, form, loaded) {
   if ((form.my_rating || null) !== (loaded?.my_rating || null))
     data.my_rating = form.my_rating || null;
   const field = EXPECTATION_FIELD[ownerType];
-  if (ownerType === "franchise" && (form[field] || null) !== (loaded?.[field] || null))
+  if ((form[field] || null) !== (loaded?.[field] || null))
     data.expectation = form[field] || null;
   return data;
 }
@@ -364,7 +366,7 @@ export default function Modify() {
   const { ownData } = useViewScope();
   const { mutateAsync: putMyRating } = useSaveMyRating();
 
-  // The viewer's own rating (and a franchise's expectation) of a group, which
+  // The viewer's own rating and expectation of a group, which
   // the group's PATCH does not carry: PUT to /api/me/ratings once the group
   // has saved, and only what changed from `loaded`. Answers `row` with the
   // saved values folded in, or `row` as it was when nothing was sent or the
