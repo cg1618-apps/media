@@ -1721,7 +1721,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
             ),
             NoteField(key="name", label="Name", column="title"),
             NoteField(key="region", label="Region"),
-            NoteField(key="cautions", label="Cautions", type=FIELD_TEXTAREA),
+            NoteField(key="cautions", label="注意事項 Cautions", type=FIELD_TEXTAREA),
             NoteField(key="prerequisite", label="Prerequisite"),
             # Both NPC fields are names, not character ids, suggested from the
             # names of the owner's own 角色 Characters rows (`suggest_from`).
