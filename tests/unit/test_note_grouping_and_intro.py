@@ -35,7 +35,6 @@ GROUPABLE = {
     # Groups its roots too: a quest chain is one type.
     "side_quests": "type",
     "ng_carried_over": "type",
-    "ng_reset": "type",
     "ng_before_starting": "type",
     "mods_and_tools": "type",
     "guide_resources": "group",

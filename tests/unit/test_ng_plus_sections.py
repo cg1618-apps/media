@@ -1,5 +1,5 @@
 """
-The NG 多周目 card: four structured catalogue sections about starting a game
+The NG 多周目 card: three structured catalogue sections about starting a game
 over, and 下周目目標, a personal list of what to do on the next run.
 """
 
@@ -8,7 +8,7 @@ import pytest
 from app.schemas.note import sections_out
 from app.utils import note_sections as ns
 
-NG_PLUS_KEYS = ["ng_flow", "ng_carried_over", "ng_reset", "ng_before_starting"]
+NG_PLUS_KEYS = ["ng_flow", "ng_carried_over", "ng_before_starting"]
 TYPED_KEYS = NG_PLUS_KEYS[1:]
 GROUP_KEYS = NG_PLUS_KEYS + ["ng_goals"]
 
@@ -20,7 +20,7 @@ def test_the_group_sits_below_worldbuilding():
     assert group.label == "NG 多周目"
 
 
-def test_the_group_holds_five_sections_in_order():
+def test_the_group_holds_four_sections_in_order():
     assert [s.key for s in ns.NOTE_SECTIONS if s.group == "ng_plus"] == GROUP_KEYS
 
 
@@ -38,7 +38,6 @@ def test_the_labels():
     assert labels == [
         "流程 Flow",
         "繼承內容 Carried Over",
-        "重置內容 Reset",
         "新周目前需完成 Before Starting",
     ]
 

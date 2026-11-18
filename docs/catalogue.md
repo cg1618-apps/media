@@ -1,6 +1,6 @@
 # The catalogue and your data
 
-Last verified: 2026-11-17
+Last verified: 2026-11-19
 
 ## What this is for
 
@@ -111,7 +111,6 @@ that type, or a group (collection, franchise, series).
 | 其他 Other | Game | shared |
 | 流程 Flow | Game, H-Game | shared |
 | 繼承內容 Carried Over | Game, H-Game | shared |
-| 重置內容 Reset | Game, H-Game | shared |
 | 新周目前需完成 Before Starting | Game, H-Game | shared |
 | 下周目目標 NG+ Goals | Game, H-Game | **yours** |
 | 現在進行 Doing now | Game, H-Game | **yours** |
