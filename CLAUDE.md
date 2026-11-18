@@ -1,7 +1,7 @@
 # CLAUDE.md — the media tracker
 
 **The generic rules are not in this file.** Git workflow, branch and pull
-request discipline, concurrent sessions, the machine-wide test lock, the
+request discipline, concurrent sessions, how test runs share the server, the
 credentials rule, worktrees and documentation discipline live in
 `cg1618-apps/platform`'s `CLAUDE.md`, one directory up. Claude Code loads it
 first and this file second, so everything there applies here unless this file
@@ -95,8 +95,10 @@ Three rules follow:
 - **Each run has its own database, so two `media` runs never collide.**
   `tests/conftest.py` creates `media_test_<epoch>_<hex>` and drops it at the
   end; scratch databases follow the same rule (`docs/testing.md`, "One
-  database per run"). The platform's machine-wide lock still applies until
-  every app has switched - its `CLAUDE.md` says when it goes.
+  database per run"), so any number of runs may go at once and there is no
+  lock to take (the platform's `CLAUDE.md`, "Test runs are isolated by
+  database"). A test that names a fixed database or writes outside `tmp_path`
+  is a defect, because it brings the collisions back for every app.
 - **When estimating work, include the CI runs.** A pull request into `dev`
   runs a selected backend suite (`scripts/pr_tests.py`: unit, services, the
   API files it touches, the migration guards when it touches the schema; the

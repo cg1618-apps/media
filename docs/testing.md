@@ -267,9 +267,11 @@ repository, "How an app's tests use the shared server").
   timeout - and the suite opens one per scratch database and per Alembic
   subprocess.
 
-The suite therefore needs no lock of its own. The platform's machine-wide
-pytest lock stays until every app on the box has switched; its `CLAUDE.md`
-says when it goes.
+So any number of runs may go at once, in this app or alongside the others on
+the same server, and there is no lock to take (the platform's `CLAUDE.md`,
+"Test runs are isolated by database"). A new test that names a fixed
+database, writes outside `tmp_path` or creates a cluster-wide object brings
+the collisions back for every app, so it is a defect.
 
 ## Migration tests
 
