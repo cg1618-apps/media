@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-11-18
+Last verified: 2026-11-19
 
 **What this is for.** This is the map of every page outside the admin
 tabs — what a guest can open, what a member adds (see "The guest scope"
@@ -1486,7 +1486,7 @@ IGDB and Steam fill, through `replaceSingle("h-game")`). What differs:
 | Completion block | `GameCompletionBlock` with `H_GAME_COMPLETION_AXES`: Completion Level, All Endings, **All CG** - the work's, an editor's through the catalogue PATCH - and **usefulness**, the viewer's own (marked `personal` in the axes), drawn for `self.list` and written through `saveOwn` (`onOwnChange`) - no All Achievements or All Collected |
 | Progress | `HGameProgress`: the main-story estimate and achievements - there is no playtime, so the cover's progress rule is achievements earned against the total |
 | Information card | Type, Main / Remake (`is_main`), Base Game (an h-game), Series Number, Play Style, Platform, Language. A multi-choice list reads "None" when it is `[]` and a dash when it is `null` (`choiceText`) |
-| Genres card | Genre, Theme, Genre Plot / Appearance / Relation |
+| Genres card | Genre, Theme, Genre Plot, Genre Appearance and Genre Relation, a row each; no 標籤 Label |
 | Presentation card | Art Style, H 演出 Art Style, H 演出形式, Dialogue Audio, Sound Effect — how it looks and sounds |
 | Production & Release card | Developer (`studioValue`), Release Status / Date, Current Patch — always shown |
 | Time to Beat card | `TimeToBeatCard`, as on Game - Main, Main + Extra, Completionist, only the recorded ones, and left out when none is |
