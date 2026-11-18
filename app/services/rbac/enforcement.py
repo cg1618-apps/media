@@ -403,6 +403,21 @@ def entry_visible(
     )
 
 
+def book_unit_visible(db: Session, viewer: Optional[Viewer], unit_id) -> bool:
+    """
+    Whether one book unit may be seen: exactly when its book may. A unit that
+    does not exist is not visible, so callers 404 on it as on a hidden one.
+    """
+    book_id = (
+        db.query(models.BookUnit.book_id)
+        .filter(models.BookUnit.system_id == unit_id)
+        .scalar()
+    )
+    if book_id is None:
+        return False
+    return entry_visible(db, viewer, "book", book_id)
+
+
 def require_visible_media(
     db: Session,
     viewer: Optional[Viewer],

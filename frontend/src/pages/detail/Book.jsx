@@ -23,6 +23,7 @@ import SourcesCard from "../../components/info/SourcesCard";
 import ScoreBlock from "../../components/info/ScoreBlock";
 import BookNotes from "./BookNotes";
 import BookUnitsEditor from "../../components/forms/BookUnitsEditor";
+import { UnitCoverThumb, UnitReleaseDates } from "../../components/info/BookUnitParts";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import DetailContents, { TocSection } from "../../components/layout/DetailContents";
 import { usePageTitle } from "../../contexts/PageTitleContext";
@@ -175,7 +176,8 @@ function BookUnitsCard({ book, isAdmin, onSave }) {
           >
             {isAdmin && <Eyebrow>My ratings</Eyebrow>}
             {(book.units || []).map((u) => (
-              <div key={u.system_id} className="flex items-center gap-2">
+              <div key={u.system_id} className="flex flex-wrap items-center gap-2">
+                <UnitCoverThumb unit={u} />
                 <Chip className="shrink-0">{u.display_key}</Chip>
                 {(u.name_cn || u.name_en) && (
                   <span className="text-sm text-text">
@@ -187,6 +189,7 @@ function BookUnitsCard({ book, isAdmin, onSave }) {
                     {u.ch_count} ch
                   </span>
                 )}
+                <UnitReleaseDates unit={u} />
                 {ownData && (
                   <UnitPersonalControls
                     key={`${u.my_rating ?? ""}|${u.remark ?? ""}`}

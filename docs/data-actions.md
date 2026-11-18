@@ -236,6 +236,15 @@ or an anime movie's `Watch When Airs` reads as `Watch When Released`. Backup
 writes the current headers from A1 and clears the columns past them, so the
 next Backup leaves no old header on the sheet.
 
+**`Book Unit`** carries each unit's `release_date_jp`, `release_date_tw` and
+`cover_image_file`, and **`Manga`** its next volume's
+`next_vol_release_date_jp` and `next_vol_release_date_tw`. The four dates are
+written as text cells, as every release date is (`DATE_COLUMNS` in
+`app/utils/release_date.py`), and read back through `release_date.normalize`.
+A tab backed up before these columns existed has no such header: its parser
+reads each missing cell as `null`, so the tab still restores, with those
+values empty.
+
 A tab backed up before a column was renamed still restores. `RENAMED_COLUMNS`
 in `pull.py` names the old header and the columns its parser reads it into -
 the Anime tab's single `release_date` into both `release_date_jp` and

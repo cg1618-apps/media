@@ -70,3 +70,37 @@ export function releaseScore(value) {
   if (!year) return 0;
   return year * 10000 + (month || 1) * 100 + (day || 1);
 }
+
+// The last day a stored value can mean, as YYYY-MM-DD: a bare year runs to
+// 31 December, a year-month to the month's last day. Null for an empty or
+// malformed value.
+function periodEnd(value) {
+  if (!value || !isValidReleaseDate(value)) return null;
+  const [year, month, day] = String(value).split("-").map(Number);
+  const pad = (n) => String(n).padStart(2, "0");
+  if (day) return `${year}-${pad(month)}-${pad(day)}`;
+  if (month) return `${year}-${pad(month)}-${pad(new Date(year, month, 0).getDate())}`;
+  return `${year}-12-31`;
+}
+
+// Today in the viewer's own calendar, as YYYY-MM-DD.
+export function todayIso(now = new Date()) {
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+// Whether a stored release date is still ahead: nothing the value can mean
+// has passed. A partial date stays upcoming through the last day of the
+// period it names - "2026-11" until the month is over - and a date that is
+// today is still upcoming. An empty or malformed value is never upcoming.
+export function isUpcomingReleaseDate(value, today = todayIso()) {
+  const end = periodEnd(value);
+  return end !== null && end >= today;
+}
+
+// The earliest of `values` that is still upcoming, or null when none is.
+export function earliestUpcomingReleaseDate(values, today = todayIso()) {
+  const upcoming = values.filter((v) => isUpcomingReleaseDate(v, today));
+  if (upcoming.length === 0) return null;
+  return upcoming.reduce((a, b) => (releaseScore(b) < releaseScore(a) ? b : a));
+}

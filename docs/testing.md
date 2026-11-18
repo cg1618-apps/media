@@ -70,7 +70,13 @@ branch on it, and `legacy_names.py`'s mapping of an older sheet's values;
 partners are `test_novel_becomes_book_migration.py`, which runs revision
 `b1o2okrename3`'s own downgrade and upgrade inside the test transaction, and
 `test_pull_pre_book_sheet.py`, which Pulls a sheet still carrying the `Novel`
-tab titles, headers and cell values.
+tab titles, headers and cell values. `test_upcoming_volumes.py` (API tier)
+covers a unit's release dates and a manga's next volume's through the API,
+each refusal of a malformed date beside the same write with a good one; a
+unit's cover through the image library, refused to a writer who cannot see
+its labelled book and taken from one who can; the Book Unit and Manga tabs
+round-tripping through Backup and Pull, and each still pulling from a tab
+without the columns; and revision `u1p2coming3`'s own downgrade and upgrade.
 
 ### API (`tests/api/`)
 

@@ -31,7 +31,17 @@ const BOOK = {
   release_date_jp: "2019-04",
   release_date_tw: "2020",
   cover_image_file: null,
-  units: [{ system_id: "u1", display_key: "Vol. 1", unit_kind: "volume", position: 1 }],
+  units: [
+    {
+      system_id: "u1",
+      display_key: "Vol. 1",
+      unit_kind: "volume",
+      position: 1,
+      release_date_jp: "2027-03",
+      release_date_tw: "2027-09-15",
+      cover_image_file: "library/unit.jpg",
+    },
+  ],
 };
 
 const CAST_ROW = {
@@ -133,5 +143,14 @@ describe("Book detail page - Information", () => {
     expect(card.getByText("Release Date TW")).toBeInTheDocument();
     expect(card.getByText("2020")).toBeInTheDocument();
     expect(card.queryByText("Release Date")).toBeNull();
+  });
+});
+
+describe("Book detail page - Units", () => {
+  it("shows each unit's release dates and cover", async () => {
+    mockFetch();
+    mount();
+    expect(await screen.findByText("JP 2027-03 · TW 2027-09-15")).toBeInTheDocument();
+    expect(screen.getByAltText("Cover of Vol. 1")).toBeInTheDocument();
   });
 });

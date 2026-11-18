@@ -17,6 +17,9 @@ def test_book_unit_columns():
         "name_cn",
         "name_en",
         "ch_count",
+        "release_date_jp",
+        "release_date_tw",
+        "cover_image_file",
         "created_at",
         "updated_at",
     }

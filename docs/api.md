@@ -326,6 +326,12 @@ not its franchise or its sibling series.
 
 **Response model:** `MangaResponse`
 
+`next_vol_release_date_jp` and `next_vol_release_date_tw` - when the next
+volume comes out - are ordinary optional fields on every body and the
+response, in the partial-ISO release format and validated by the same
+`release_date_validator` as `release_date`: a value that is not `YYYY`,
+`YYYY-MM` or `YYYY-MM-DD` (after normalising) is a 422, and a blank is `null`.
+
 ---
 
 ## Book — `/api/book`
@@ -363,6 +369,20 @@ existing rows untouched; an empty array `[]` deletes them all. Each item:
   router (`write_book_units`) forces it to `null` on any other kind before
   the row is written, regardless of what the client sent, so a re-kinded row
   cannot trip `ck_book_unit_ch_count_arc_only`.
+- `release_date_jp`, `release_date_tw` (optional strings, any kind) — the
+  unit's own release dates in the partial-ISO format. A malformed value is a
+  422 on every write: `BookUnitWrite`'s `release_date_validator` answers it on
+  `POST` / `PUT`, and `write_book_units` on `PATCH`, whose body is a raw dict.
+  A blank is `null`.
+
+Each unit in a response also carries `cover_image_file`, the unit's cover. It
+is not a `units` item field: the cover is set and removed through the image
+library ([`/api/images`](#images--apiimages), owner type `book-unit`), and a
+units save leaves it as it is.
+
+The list (`GET /`) carries every book's `units`, dates and covers included,
+which is all Future Releases needs to list upcoming units under their books;
+there is no separate units read.
 
 An item carries **no** `my_rating` or `remark`: a unit's rating and remark
 are each reader's own, written through
@@ -1066,7 +1086,7 @@ read, and `manage.catalog` alone does not open it. The Auth column's
 | -------- | ----------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | `POST`   | `/`                           | Images | Upload one file (`multipart/form-data`, field `file`). Validates, re-encodes to JPEG, stores it, and returns the `image` row. Attaches it to nothing — upload and attach are separate calls. 413 over `MAX_IMAGE_UPLOAD_MB` (default 10), 422 if the bytes are not a PNG/JPEG/WebP image. |
 | `GET`    | `/`                           | Images | The library, paginated (`limit` ≤200, `offset`). `?q=` matches `original_filename`; `?unused=true` restricts to images with no attachment and no cast row using them as a photo; `?missing=true` restricts to images whose file is not on this machine; `?duplicates=true` is always empty (checksum is unique) and exists to prove dedup rather than to filter anything. |
-| `POST`   | `/{image_id}/attach`          | Images | Body: `{owner_type, owner_id, role}`. Points an owner at this image; re-attaching the same `(owner_type, owner_id, role)` replaces rather than duplicating. 400 on an `owner_type` outside `ATTACHABLE_OWNERS`. |
+| `POST`   | `/{image_id}/attach`          | Images | Body: `{owner_type, owner_id, role}`. Points an owner at this image; re-attaching the same `(owner_type, owner_id, role)` replaces rather than duplicating. 400 on an `owner_type` outside `ATTACHABLE_OWNERS` - the twelve media types, `staff`, `character`, `character-identity`, `publisher`, `studio`, `quote`, `meme` and `book-unit`. |
 | `DELETE` | `/{image_id}/attach/{attachment_id}` | Images | Detach. An uploaded image (`uploaded_by` set) stays in the library for reuse. A downloaded one is deleted with its file once its last attachment goes: its file is keyed on the owner it was downloaded for, so the next download for that owner overwrites it, and kept in the library it would alias that owner's live cover. |
 | `DELETE` | `/owners/{owner_type}/{owner_id}/{role}` | Images | Clear an owner's image, so it has none — the picker's **Remove**. Clears the attachment if there is one (by the rule detach follows), the mirror column, and — for `role` `cover` on a `COVER_OWNERS` type — the file downloaded for the owner at `covers/<owner_type>/<owner_id>.jpg`, unless an `image` row attached elsewhere still points at it. Keyed on the owner because a cover downloaded after the library was introduced has no `image` row to detach. The next Replace downloads the cover of whatever external id the entry holds then. 204 when there was nothing to clear; 400 on an `owner_type` outside `ATTACHABLE_OWNERS`. |
 | `DELETE` | `/{image_id}`                 | Images | Delete the file and its row. 409 while any attachment or cast photo still points at it, unless `?force=true`; a forced delete empties those owners' mirror columns and those cast rows' `photo_file`, and NULLs the focus beside each. |
@@ -1082,7 +1102,12 @@ the same way through `shared_record_visible`, with the same 404; a
 (`identity_visible`), with the same 404. `character-identity` is in
 `ATTACHABLE_OWNERS` and `COVER_OWNERS`, mirrors to `photo_file` and
 `photo_focus`, and its covers live under `static/covers/character-identity/`.
-`quote`/`meme` carry no content label and skip the check.
+A `book-unit` owner is asked through its book (`book_unit_visible`, which
+calls `entry_visible` with type `book`), with the same 404, and a unit id that
+does not exist answers the same way. `book-unit` is in `ATTACHABLE_OWNERS`
+but not `COVER_OWNERS` - a unit's cover is always an upload, so there is no
+`static/covers/book-unit/` - and mirrors to `book_unit.cover_image_file`, with
+no focus column. `quote`/`meme` carry no content label and skip the check.
 
 **Cast photos.** A cast row's `photo_file` holds an image's storage key
 directly, with no attachment: castings are deleted and re-inserted on every
@@ -1097,8 +1122,8 @@ delete write the owner's mirror column through `mirror_to_owner_column`;
 whenever that changes the key, the owner's focus column
 (`cover_image_focus`, `photo_focus`, `logo_focus`) goes back to `null` in the
 same write, because a focal point belongs to the picture it was set on.
-Re-attaching the image the owner already shows keeps it. `quote` and `meme`
-have no focus column. See
+Re-attaching the image the owner already shows keeps it. `quote`, `meme`
+and `book-unit` have no focus column. See
 [data-model.md](data-model.md#image-focal-points).
 
 **Response models:** `ImageOut` (adds `missing` — computed per request from

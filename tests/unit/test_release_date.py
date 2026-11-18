@@ -130,6 +130,7 @@ def test_date_columns_cover_every_table_with_truncated_iso_dates():
         "cartoons",
         "manga",
         "book",
+        "book_unit",
         "comic",
         "games",
         "game_copy",
@@ -141,7 +142,12 @@ def test_date_columns_cover_every_table_with_truncated_iso_dates():
 
 
 def test_date_columns_include_the_run_end_columns():
-    assert DATE_COLUMNS["manga"] == ("release_date", "end_date")
+    assert DATE_COLUMNS["manga"][:2] == ("release_date", "end_date")
     assert DATE_COLUMNS["book"] == ("release_date_jp", "release_date_tw", "end_date")
     assert DATE_COLUMNS["comic"] == ("release_date", "end_date")
     assert DATE_COLUMNS["h_comic"] == ("release_date", "end_date")
+
+
+def test_the_upcoming_volume_columns_are_release_columns():
+    assert DATE_COLUMNS["manga"][2:] == ("next_vol_release_date_jp", "next_vol_release_date_tw")
+    assert DATE_COLUMNS["book_unit"] == ("release_date_jp", "release_date_tw")

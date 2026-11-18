@@ -859,6 +859,8 @@ export default function Modify() {
       // (it points at the adaptation, not a credit) and stays.
       release_date: m.release_date ?? "",
       end_date: m.end_date ?? "",
+      next_vol_release_date_jp: m.next_vol_release_date_jp ?? "",
+      next_vol_release_date_tw: m.next_vol_release_date_tw ?? "",
       anime_studio: m.anime_studio || "",
       mal_id: m.mal_id ?? "",
       mal_link: m.mal_link || "",

@@ -638,6 +638,22 @@ export const TYPE_FIELD_META = {
       group: "Status",
     },
     vol_total: { label: "Total Volumes", control: "number", group: "Progress" },
+    // When the next volume comes out. Free text for the partial precisions,
+    // and per manga by nature, so neither a default nor copied by auto-fill.
+    next_vol_release_date_jp: {
+      label: "Next Volume (JP)",
+      control: "text",
+      group: "Release",
+      defaultable: false,
+      autofillable: false,
+    },
+    next_vol_release_date_tw: {
+      label: "Next Volume (TW)",
+      control: "text",
+      group: "Release",
+      defaultable: false,
+      autofillable: false,
+    },
     vol_fin_page: {
       label: "Page in Current Volume",
       control: "number",

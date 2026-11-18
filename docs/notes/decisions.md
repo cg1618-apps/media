@@ -5627,3 +5627,65 @@ shown buttons that answered 401.
   (light novel, web novel, visual novel, graphic novel), MAL and AniList
   vocabulary, the retired `novel_author` / `novel_illustrator` keys, and
   every historical revision.
+
+### Upcoming books and manga volumes (2026-11-17)
+
+- **Upcoming is a date, not a status.** A book unit carries its own
+  `release_date_jp` and `release_date_tw`, on every kind, and manga its
+  next volume's `next_vol_release_date_jp` and `next_vol_release_date_tw`.
+  Nothing records that a unit or a volume is out: it is upcoming while one of
+  its dates is still ahead, and a passed date drops it off Future Releases on
+  its own. A per-unit release status was rejected with the owner: it would
+  be a second statement of what the date already says, and the two would
+  disagree the day the date passes and nobody edits the status. The detail
+  pages keep showing a passed date until it is edited.
+- **Manga gets two columns, not the unit table.** What a manga reader waits
+  for is the next volume, one at a time; a table of every future volume
+  would be data nobody enters. Revision `u1p2coming3` adds the four date
+  columns (each with the `ck_<table>_<column>_iso` check every release
+  column has) and the unit's `cover_image_file`, all empty; its downgrade
+  drops them.
+- **"Ahead" for a partial date is the end of the period it names.** `2026`
+  stays upcoming until 31 December, `2026-11` until 30 November, and a date
+  that is today still counts (`isUpcomingReleaseDate`). The alternative,
+  reading a partial date as the first of its period - which is how
+  `releaseScore` *sorts* it - would drop a book announced for "2026-11" on
+  the first of the month, while it is still to come. Today is the viewer's
+  own calendar date, computed in the browser, which is where the page
+  decides.
+- **The filter runs in the browser, over the ordinary list endpoints.** The
+  book list already carries every book's `units` (`selectinload`), so a
+  unit's dates reach Future Releases with no new endpoint and no request per
+  book, and the per-type visibility - `media_type.book`, `media_type.manga`,
+  content labels - is the list endpoint's, exactly as every other tab of the
+  page gets it. A dedicated "upcoming" endpoint was not built: the other
+  tabs filter client-side too, and a second read path would need its own
+  copy of the gates.
+- **A unit's cover belongs to the image library, not to the units write.**
+  `book-unit` is an attachable owner (`ATTACHABLE_OWNERS`, mirror column
+  `book_unit.cover_image_file`), gated through its book
+  (`book_unit_visible`). `BookUnitWrite` has no cover field and
+  `write_book_units` never writes one, so a units save sent from a form
+  loaded before a cover was attached or removed cannot put the old value
+  back. That is why the picker appears only on a saved unit: the attach
+  needs an id. Entries differ - their cover rides in the entry body - but an
+  entry form is loaded and saved as one, where the units editor sits beside
+  an immediate attach on the same page.
+- **`book-unit` is not a `COVER_OWNERS` folder.** Like `quote` and `meme`,
+  a unit only ever holds an uploaded `library/...` image; nothing downloads
+  one, so a `static/covers/book-unit/` folder would always be empty, and
+  the gated cover route, the orphan scan and the cover-layout script would
+  each carry a type that never has a file. No focus column either: the cover
+  is drawn only as a thumbnail beside the unit's name.
+- **The books and manga tabs use the library card.** `MediaCard`'s future
+  variant is built for the watch and play axes - a Watch/Play When Released
+  select and a release bolt - and a book has neither a waiting status nor a
+  release status, so its tab draws the ordinary card with the reading-status
+  button, and the dates that list it underneath. A book is placed by its
+  earliest upcoming date, its own or a unit's, so a book with a volume due
+  next month and another next year appears once, in the nearer year, with
+  both volumes under it.
+- **PATCH checks a unit's dates in the writer.** The PATCH body is a raw
+  dict, so without the check a malformed unit date reached the ISO
+  constraint and answered 500; `write_book_units` now answers 422 with the
+  validator's message, as `POST` and `PUT` do.

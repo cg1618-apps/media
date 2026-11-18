@@ -244,6 +244,8 @@ export const defaultManga = () => ({
   author_draw: "",
   release_date: "",
   end_date: "",
+  next_vol_release_date_jp: "",
+  next_vol_release_date_tw: "",
   anime_studio: "",
   serialization_platform: "",
   publisher_tw: "",

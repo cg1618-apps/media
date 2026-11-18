@@ -646,6 +646,18 @@ export default function Manga() {
                       value: manga.end_date || null,
                     },
                   ],
+                  // Shown whatever the date: a passed one drops off Future
+                  // Releases, not off the entry, until it is edited.
+                  [
+                    {
+                      label: "Next Volume (JP)",
+                      value: manga.next_vol_release_date_jp || null,
+                    },
+                    {
+                      label: "Next Volume (TW)",
+                      value: manga.next_vol_release_date_tw || null,
+                    },
+                  ],
                   [
                     {
                       label: "Volume Total",

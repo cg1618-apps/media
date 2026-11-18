@@ -552,6 +552,8 @@ export function mangaFieldsPayload(f, { defaultStatus } = {}) {
     anilist_popularity_rank: int(f.anilist_popularity_rank),
     release_date: f.release_date || null,
     end_date: f.end_date || null,
+    next_vol_release_date_jp: f.next_vol_release_date_jp || null,
+    next_vol_release_date_tw: f.next_vol_release_date_tw || null,
     anime_studio: f.anime_studio || null,
     mal_id: int(f.mal_id),
     mal_link: f.mal_link || null,
@@ -568,7 +570,8 @@ export function mangaFieldsPayload(f, { defaultStatus } = {}) {
  * its place in the list. A read row also carries the viewer's own `my_rating`
  * and `remark` and the server's `display_key`; none of them is the unit's, so
  * none is sent - a reader's rating and remark go through
- * PUT /api/me/book-units/{unit_id}.
+ * PUT /api/me/book-units/{unit_id}. Nor is `cover_image_file`: the image
+ * library writes it when a cover is attached or cleared.
  */
 export function bookUnitPayload(u, i) {
   const payload = {
@@ -578,6 +581,8 @@ export function bookUnitPayload(u, i) {
     name_cn: u.name_cn ?? null,
     name_en: u.name_en ?? null,
     ch_count: u.ch_count === "" || u.ch_count == null ? null : Number(u.ch_count),
+    release_date_jp: u.release_date_jp || null,
+    release_date_tw: u.release_date_tw || null,
   };
   if (u.system_id) payload.system_id = u.system_id;
   return payload;
@@ -624,6 +629,8 @@ export function bookFieldsPayload(f, { defaultStatus } = {}) {
           (u.unit_key && u.unit_key.trim()) ||
           (u.name_cn && u.name_cn.trim()) ||
           (u.name_en && u.name_en.trim()) ||
+          u.release_date_jp ||
+          u.release_date_tw ||
           u.ch_count !== "",
       )
       .map((u, i) => bookUnitPayload(u, i)),

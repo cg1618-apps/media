@@ -8,6 +8,16 @@ import { fireEvent, render, screen } from "@testing-library/react";
 
 import BookUnitsEditor from "./BookUnitsEditor";
 
+// The picker's own behaviour is ImagePicker's tests'; here only which owner
+// it is handed matters.
+vi.mock("./ImagePicker", () => ({
+  default: ({ ownerType, ownerId, value }) => (
+    <div data-testid="unit-cover-picker" data-owner-type={ownerType} data-owner-id={ownerId}>
+      {value}
+    </div>
+  ),
+}));
+
 it("adds a new row using the type's first kind and next position", () => {
   const onChange = vi.fn();
   render(<BookUnitsEditor items={[]} bookType="網路小說" onChange={onChange} />);
@@ -175,4 +185,86 @@ it("adds a row with no personal keys", () => {
   const [[row]] = onChange.mock.calls[0];
   expect(row).not.toHaveProperty("my_rating");
   expect(row).not.toHaveProperty("remark");
+});
+
+describe("release dates and cover", () => {
+  const saved = {
+    system_id: "u1",
+    unit_kind: "volume",
+    position: 1,
+    unit_key: "5",
+    name_cn: "",
+    name_en: "",
+    release_date_jp: "2027-03",
+    release_date_tw: "",
+    cover_image_file: "library/abc.jpg",
+  };
+
+  it("edits a unit's JP and TW release dates", () => {
+    const onChange = vi.fn();
+    render(<BookUnitsEditor items={[saved]} bookType="輕小說" onChange={onChange} />);
+
+    expect(screen.getByLabelText("JP release for 5")).toHaveValue("2027-03");
+    fireEvent.change(screen.getByLabelText("TW release for 5"), {
+      target: { value: "2027-09-15" },
+    });
+
+    expect(onChange).toHaveBeenCalledWith([
+      expect.objectContaining({ release_date_jp: "2027-03", release_date_tw: "2027-09-15" }),
+    ]);
+  });
+
+  it("offers the dates on every kind, not only volumes", () => {
+    render(
+      <BookUnitsEditor
+        items={[{ ...saved, unit_kind: "arc", unit_key: "arc 2", ch_count: "" }]}
+        bookType="網路小說"
+        onChange={() => {}}
+      />,
+    );
+
+    expect(screen.getByLabelText("JP release for arc 2")).toBeInTheDocument();
+    expect(screen.getByLabelText("TW release for arc 2")).toBeInTheDocument();
+  });
+
+  it("marks a malformed date and leaves a partial one alone", () => {
+    render(
+      <BookUnitsEditor
+        items={[{ ...saved, release_date_jp: "next spring", release_date_tw: "2027" }]}
+        bookType="輕小說"
+        onChange={() => {}}
+      />,
+    );
+
+    expect(screen.getByLabelText("JP release for 5")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("TW release for 5")).not.toHaveAttribute("aria-invalid");
+  });
+
+  it("gives a saved unit a cover picker owned by that unit", () => {
+    render(<BookUnitsEditor items={[saved]} bookType="輕小說" onChange={() => {}} />);
+
+    const picker = screen.getByTestId("unit-cover-picker");
+    expect(picker).toHaveAttribute("data-owner-type", "book-unit");
+    expect(picker).toHaveAttribute("data-owner-id", "u1");
+    expect(picker).toHaveTextContent("library/abc.jpg");
+  });
+
+  it("asks for a save before a new unit can take a cover", () => {
+    const { system_id: _unsaved, ...fresh } = saved;
+    render(<BookUnitsEditor items={[fresh]} bookType="輕小說" onChange={() => {}} />);
+
+    expect(screen.queryByTestId("unit-cover-picker")).toBeNull();
+    expect(screen.getByText("Cover after saving")).toBeInTheDocument();
+  });
+
+  it("starts a new row with empty dates", () => {
+    const onChange = vi.fn();
+    render(<BookUnitsEditor items={[]} bookType="輕小說" onChange={onChange} />);
+
+    fireEvent.click(screen.getByText(/\+ Add volume/));
+
+    expect(onChange).toHaveBeenCalledWith([
+      expect.objectContaining({ release_date_jp: "", release_date_tw: "" }),
+    ]);
+  });
 });

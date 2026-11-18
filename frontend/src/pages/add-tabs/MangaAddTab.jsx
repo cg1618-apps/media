@@ -157,6 +157,18 @@ export function MangaFormBody({ f, u, sources, ownerId }) {
           onChange={(v) => u("end_date", v)}
         />
       </div>
+      <div className={ROW2}>
+        <ReleaseDateInput
+          label="Next Volume (JP)"
+          value={f.next_vol_release_date_jp}
+          onChange={(v) => u("next_vol_release_date_jp", v)}
+        />
+        <ReleaseDateInput
+          label="Next Volume (TW)"
+          value={f.next_vol_release_date_tw}
+          onChange={(v) => u("next_vol_release_date_tw", v)}
+        />
+      </div>
 
       <GenreLabelFields
         mediaType="manga"
