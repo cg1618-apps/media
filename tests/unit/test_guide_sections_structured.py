@@ -123,9 +123,9 @@ def test_no_guide_card_is_left_holding_one_section():
 
 
 def test_endings_is_no_longer_a_guide_section():
-    # It is a story OUTCOME, so it moved to 劇情 Story - see
-    # test_story_list_sections.py, which owns its spec now.
-    assert ns.section_by_key("endings").group == "story"
+    # It is a story OUTCOME, so it is in 劇情&任務 Story & Quests - see
+    # test_story_list_sections.py, which owns its spec.
+    assert ns.section_by_key("endings").group == "story_list"
 
 
 def test_every_guide_section_is_game_only_and_catalogue():

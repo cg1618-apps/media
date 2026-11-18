@@ -122,8 +122,7 @@ def test_link_title_suggestions_are_confined_to_the_songs():
         ("op", True),
         ("op_ed_changes", True),
         ("trivia", True),
-        ("character_arcs", True),
-        ("main_plot", True),
+        ("side_quests", True),
         ("controls", False),
         ("classes", False),
         ("geography", False),
@@ -205,6 +204,7 @@ def test_note_option_categories_come_from_the_registry():
         "Collectible Type",
         "Character Group",
         "Enemy Tier",
+        "Side Quest Type",
         "Geography Group",
         "Song Type",
         "Song Source",
@@ -212,15 +212,16 @@ def test_note_option_categories_come_from_the_registry():
 
 
 def test_note_suggestion_categories_are_the_field_level_ones():
-    # Exactly the six the owner settled, in registry order. Geography Group,
-    # Weapon & Gear Type and Enemy Tier are in it with no seeded value: the
-    # constant, not a row, puts them in pickers.
+    # Exactly the seven the owner settled, in registry order. Geography
+    # Group, Weapon & Gear Type and Enemy Tier are in it with no seeded value:
+    # the constant, not a row, puts them in pickers.
     assert ns.NOTE_SUGGESTION_CATEGORIES == (
         "Weapon & Gear Type",
         "Item Type",
         "Collectible Type",
         "Character Group",
         "Enemy Tier",
+        "Side Quest Type",
         "Geography Group",
     )
     assert set(ns.NOTE_SUGGESTION_CATEGORIES) <= set(ns.NOTE_OPTION_CATEGORIES)
@@ -237,6 +238,7 @@ def test_each_suggestion_category_sits_on_the_field_it_names():
     # Weapons share the spec, and have a category of their own.
     assert category("weapons_and_gear", "type") == "Weapon & Gear Type"
     assert category("enemies", "tier") == "Enemy Tier"
+    assert category("side_quests", "type") == "Side Quest Type"
     assert category("guide_resources", "group") is None
 
 
@@ -458,13 +460,7 @@ def test_grouped_sections_are_adjacent():
             runs.append(sec.group)
         elif not sec.group and runs and runs[-1] is not None:
             runs.append(None)
-    # 結局 Endings is the one exception: it closes 劇情 for a game and for an
-    # h-game, whose 劇情 is its Story List (see `_story_list_sections`), so it
-    # is declared after those four lists and the 劇情 run resumes there.
     named = [g for g in runs if g]
-    assert named.count("story") == 2
-    assert [s.key for s in ns.NOTE_SECTIONS if s.group == "story"][-1] == "endings"
-    named.remove("story")
     assert len(named) == len(set(named))
 
 
@@ -850,10 +846,9 @@ CATALOG_KEYS = {
     "mods_and_tools",
     "guide_resources",
     "geography",
-    # 劇情 Story
-    "main_plot",
-    "side_plot",
-    "character_arcs",
+    # 劇情&任務 Story & Quests
+    "side_quests",
+    # 世界觀 Worldbuilding
     "lore",
     "story_terms",
     "timeline",
@@ -911,7 +906,7 @@ def test_the_catalog_sections_are_exactly_these():
 
 def test_the_two_scopes_partition_every_stored_section():
     stored = {s.key for s in ns.NOTE_SECTIONS if s.shape in ns.STORED_SHAPES}
-    assert len(stored) == 75
+    assert len(stored) == 73
     assert ns.PERSONAL_SECTIONS | ns.CATALOG_SECTIONS == stored
     assert not (ns.PERSONAL_SECTIONS & ns.CATALOG_SECTIONS)
 

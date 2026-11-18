@@ -1,11 +1,9 @@
 """
-The game 劇情 and 待辦 sections, and the name_entries shape.
+The game 劇情&任務, 世界觀 and 待辦 sections, and the name_entries shape.
 
-The 攻略 Guides group moved onto the `structured` shape, and its order, field
-specs, owners and scope live in test_guide_sections_structured.py. What stays
-here is everything that did not move, plus `side_quests` - the one guide
-section still shaped `name_entries`, and so the one that keeps that shape's
-validation honest until it moves into 劇情列表 Story List.
+The 攻略 Guides group's order, field specs, owners and scope live in
+test_guide_sections_structured.py, and the 劇情&任務 card's own sections in
+test_story_list_sections.py. What stays here is the cards around them.
 """
 
 import dataclasses
@@ -16,16 +14,17 @@ from app.schemas.note import NoteCreate, validate_note_payload
 from app.utils import note_sections as ns
 
 STORY_KEYS = [
-    "main_plot",
-    "side_plot",
-    "character_arcs",
+    "story_list_main",
+    "story_list_side",
+    "story_list_character",
+    "story_list_event",
+    "side_quests",
     # An ending is a story OUTCOME rather than a guide topic, so it is the
-    # last strand of the plot rather than a 攻略 section.
+    # last of the story card rather than a 攻略 section.
     "endings",
 ]
 
-# The world the plot happens in, split out of 劇情 so that card holds only
-# what happens and to whom.
+# The world the plot happens in, a card of its own after 劇情&任務.
 STORY_SETTING_KEYS = [
     "lore",
     # A glossary of the story's own vocabulary, beside the lore it names.
@@ -55,12 +54,9 @@ def test_the_groups_exist_in_order():
         "builds",
         "gear",
         "compendium",
-        "story",
-        # 劇情 is the story as prose; 劇情列表 is the same story as a
-        # structure. Adjacent on purpose, and separate on purpose.
+        # 劇情&任務: the story as a structure, the quests, the endings.
         "story_list",
-        # The world the story happens in. After 劇情列表 so the two tellings
-        # of the story stay a pair.
+        # The world the story happens in.
         "worldbuilding",
         # Starting over, read once the story has been seen through.
         "ng_plus",
@@ -72,8 +68,8 @@ def test_the_groups_exist_in_order():
     ]
 
 
-def test_the_story_group_holds_the_four_plot_strands_in_order():
-    assert [s.key for s in ns.NOTE_SECTIONS if s.group == "story"] == STORY_KEYS
+def test_the_story_card_holds_the_strands_the_quests_and_the_endings_in_order():
+    assert [s.key for s in ns.NOTE_SECTIONS if s.group == "story_list"] == STORY_KEYS
 
 
 def test_the_worldbuilding_group_holds_six_sections_in_order():
@@ -196,13 +192,9 @@ def test_a_save_needs_a_number_or_a_name():
     )
 
 
-def test_the_new_sections_are_game_only():
-    # 結局 and the todo buckets reach h-game; the prose strands do not - an
-    # h-game's 劇情 is its Story List.
-    for key in ["endings"] + TODO_KEYS:
+def test_the_story_card_and_the_todo_buckets_reach_h_game():
+    for key in STORY_KEYS + TODO_KEYS:
         assert ns.section_by_key(key).owners == ns.GAME_OWNERS, key
-    for key in ["main_plot", "side_plot", "character_arcs"]:
-        assert ns.section_by_key(key).owners == ("game",), key
 
 
 def test_the_worldbuilding_sections_are_game_only():
@@ -244,29 +236,9 @@ def test_no_story_or_todo_section_has_a_dropdown():
     assert with_kinds == []
 
 
-def test_the_plot_sections_anchor_to_a_chapter_without_requiring_one():
-    """
-    The opposite of episode_comments and highlight_moments, which require a
-    locator. A plot beat remembered without its chapter number is still a plot
-    beat; a per-chapter comment about nothing in particular is not.
-
-    The chapter is a FIELD now rather than the section's locator - the two
-    sections became `structured` when they gained links - so the placeholder
-    moved onto the field with it. The column did not change, so neither did
-    any row.
-    """
-    for key in ("main_plot", "side_plot"):
-        section = ns.section_by_key(key)
-        assert section.locator_required is False, key
-        chapter = ns.field_by_key(section, "chapter")
-        assert chapter.column == "locator", key
-        assert chapter.placeholder == "Chapter / Part, e.g. Ch 3", key
-
-
 def test_no_story_or_todo_section_carries_a_section_level_locator():
     """
-    `main_plot` and `side_plot` were the only two, and their chapter is a
-    field now - a structured section's placeholders come from its spec, so a
+    A structured section's placeholders come from its spec, so a
     section-level one would be read by nothing.
     """
     anchored = [

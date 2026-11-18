@@ -1195,7 +1195,9 @@ carry URL-string links - `op_ed_changes`), `singleton`, `desc_required`, and for
 graph - a block, never a branch - also under `fields[key]` (a value naming
 another game's block, or none, is a 422 on POST and PATCH); a free-text
 `select` may carry `option_category`, the option category suggesting its
-values (suggestions only - the value stays free text) - `require_any`, `hierarchical`, `group_by` (the `names` field
+values (suggestions only - the value stays free text), and a `text` or
+`names` field may carry `suggest_from`, the key of a section whose rows'
+names (`title`) the page suggests (suggestions only, likewise) - `require_any`, `hierarchical`, `group_by` (the `names` field
 the read view groups by, or `null`), `groupable_by` (the `select` field the
 reader may toggle a one-group-per-value view on, or `null`; on a
 `hierarchical` section only a top-level row may carry it, and a child

@@ -1,9 +1,10 @@
 """
-The 劇情列表 Story List group, and the links the 劇情 sections gained.
+The 劇情&任務 Story & Quests group: the four story strands, 支線任務 Side
+Quests and 結局 Endings.
 
-Story List holds the first hierarchical sections in the registry, so what is
-pinned here is as much about `hierarchical` and `require_any` working at all
-as it is about these four sections.
+The strands are hierarchical sections, so what is pinned here is as much
+about `hierarchical` and `require_any` working at all as it is about these
+sections.
 """
 
 import pytest
@@ -17,6 +18,7 @@ STORY_LIST_KEYS = [
     "story_list_character",
     "story_list_event",
 ]
+CARD = [*STORY_LIST_KEYS, "side_quests", "endings"]
 
 OWNER = "00000000-0000-0000-0000-000000000001"
 
@@ -28,23 +30,26 @@ def _payload(section: str, **kwargs) -> NoteCreate:
 # --- The group ------------------------------------------------------------
 
 
-def test_the_group_exists_and_renders_below_story():
-    assert ns.group_by_key("story_list") is not None
+def test_the_group_is_story_and_quests_and_story_is_gone():
+    assert ns.group_by_key("story_list").label == "劇情&任務 Story & Quests"
+    assert ns.group_by_key("story") is None
     keys = [g.key for g in ns.NOTE_GROUPS]
-    assert keys.index("story_list") == keys.index("story") + 1
-
-    # Card order is registry position - `splitBlocks` emits one card per group
-    # in first-appearance order - so the group label is not what puts this
-    # card below 劇情. Where its first section sits is.
-    order = [s.key for s in ns.NOTE_SECTIONS]
-    assert order.index("story_list_main") > order.index("character_arcs")
-    assert order.index("story_list_event") < order.index("todo_now")
+    assert keys.index("worldbuilding") == keys.index("story_list") + 1
+    for key in ("main_plot", "side_plot", "character_arcs"):
+        assert ns.section_by_key(key) is None, key
+    assert not [s.key for s in ns.NOTE_SECTIONS if s.group == "story"]
 
 
-def test_the_group_holds_four_strands_in_order():
+def test_the_card_holds_the_strands_then_side_quests_then_endings():
+    assert [s.key for s in ns.NOTE_SECTIONS if s.group == "story_list"] == CARD
+
+
+@pytest.mark.parametrize("owner", ["game", "h-game"])
+def test_both_owners_read_the_same_card(owner):
+    """No per-owner group: an h-game's strands are in this card too."""
     assert [
-        s.key for s in ns.NOTE_SECTIONS if s.group == "story_list"
-    ] == STORY_LIST_KEYS
+        s.key for s in ns.sections_for(owner) if ns.group_for(s, owner) == "story_list"
+    ] == CARD
 
 
 def test_every_strand_is_game_only_catalogue_and_nestable():
@@ -54,6 +59,7 @@ def test_every_strand_is_game_only_catalogue_and_nestable():
         assert section.scope == ns.SCOPE_CATALOG, key
         assert section.hierarchical is True, key
         assert section.shape == ns.SHAPE_STRUCTURED, key
+        assert section.groups_by_owner == {}, key
 
 
 def test_every_strand_declares_the_same_four_fields():
@@ -76,12 +82,14 @@ def test_the_order_number_is_free_text_on_the_locator_column():
     assert field.column == "locator"
 
 
-def test_story_list_and_geography_are_the_only_hierarchical_ones():
+def test_the_hierarchical_sections_are_the_strands_side_quests_and_geography():
     # 地理 Geography nests too - a region holding areas holding rooms - and is
-    # declared with 世界觀 Worldbuilding, after the story lists.
-    assert [
-        s.key for s in ns.NOTE_SECTIONS if s.hierarchical
-    ] == [*STORY_LIST_KEYS, "geography"]
+    # declared with 世界觀 Worldbuilding, after this card.
+    assert [s.key for s in ns.NOTE_SECTIONS if s.hierarchical] == [
+        *STORY_LIST_KEYS,
+        "side_quests",
+        "geography",
+    ]
 
 
 # --- require_any, which is what makes an entry an entry -------------------
@@ -127,64 +135,14 @@ def test_the_sections_endpoint_reports_the_nesting_and_the_rule():
     assert out.require_any == [["order", "name"]]
 
 
-# --- 3: the 劇情 sections gained links -------------------------------------
+# --- 結局 Endings ------------------------------------------------------
 
 
-def test_the_two_plot_sections_are_a_chapter_and_its_links():
-    for key in ("main_plot", "side_plot"):
-        section = ns.section_by_key(key)
-        assert section.shape == ns.SHAPE_STRUCTURED, key
-        assert [f.key for f in section.fields] == ["chapter", "links"], key
-        # The chapter keeps the column it held as an episode_text section.
-        assert ns.field_by_key(section, "chapter").column == "locator", key
-
-
-def test_a_plot_row_takes_no_description():
-    validate_note_payload(_payload("main_plot", locator="Ch 3"))
-    with pytest.raises(ValueError, match="takes no 'content'"):
-        validate_note_payload(_payload("main_plot", locator="Ch 3", content="x"))
-
-
-def test_a_character_arc_is_titled_links_and_needs_one():
-    section = ns.section_by_key("character_arcs")
-    assert section.shape == ns.SHAPE_STRUCTURED
-    assert [f.key for f in section.fields] == ["links"]
-    validate_note_payload(
-        _payload(
-            "character_arcs",
-            links=[{"text": "Perlica", "url": "https://a.example"}],
-        )
-    )
-    with pytest.raises(ValueError, match="Links is required"):
-        validate_note_payload(_payload("character_arcs", links=[]))
-    with pytest.raises(ValueError, match="takes no 'content'"):
-        validate_note_payload(
-            _payload(
-                "character_arcs",
-                content="Perlica's arc",
-                links=[{"text": None, "url": "https://a.example"}],
-            )
-        )
-
-
-def test_a_plot_beat_still_needs_no_chapter():
-    # The opposite of episode_comments and highlight_moments: a beat
-    # remembered without its chapter number is still a beat.
-    validate_note_payload(
-        _payload("main_plot", links=[{"text": "The tree burns", "url": "https://a.example"}])
-    )
-    assert ns.section_by_key("main_plot").locator_required is False
-
-
-def test_endings_are_the_last_strand_of_the_story():
-    """
-    An ending is what the story DOES rather than a guide topic, so it belongs
-    to 劇情 Story, as the strand after the character arcs.
-    """
+def test_endings_are_last_of_the_card():
     section = ns.section_by_key("endings")
-    assert section.group == "story"
-
-    keys = [s.key for s in ns.NOTE_SECTIONS if s.group == "story"]
+    assert section.group == "story_list"
+    assert section.groups_by_owner == {}
+    keys = [s.key for s in ns.NOTE_SECTIONS if s.group == "story_list"]
     assert keys[-1] == "endings"
 
 
@@ -207,32 +165,147 @@ def test_the_timeline_carries_links():
     assert ns.section_by_key("timeline").shape == ns.SHAPE_TEXT_LINKS
 
 
-def test_every_story_section_can_hold_a_link():
-    # The whole of item 3: no subsection of 劇情 is left unable to cite.
-    for section in ns.NOTE_SECTIONS:
-        if section.group != "story":
-            continue
-        if section.shape == ns.SHAPE_STRUCTURED:
-            assert any(
-                f.type == ns.FIELD_LINKS for f in section.fields
-            ), section.key
-        else:
-            assert section.shape == ns.SHAPE_TEXT_LINKS, section.key
+# --- 支線任務 Side Quests -------------------------------------------------
 
 
-# --- 6-2: side_quests is gone ---------------------------------------------
+def _quest(**kwargs) -> NoteCreate:
+    return _payload("side_quests", **kwargs)
 
 
-def test_side_quests_is_retired():
-    assert ns.section_by_key("side_quests") is None
-    assert "side_quests" not in {s.key for s in ns.sections_for("game")}
+def test_side_quests_shape():
+    section = ns.section_by_key("side_quests")
+    assert section.label == "支線任務 Side Quests"
+    assert section.owners == ns.GAME_OWNERS
+    assert section.scope == ns.SCOPE_CATALOG
+    assert section.shape == ns.SHAPE_STRUCTURED
+    assert section.hierarchical is True
+    assert section.groupable_by == "type"
+    assert section.require_any == (("name",),)
+    spec = {f.key: f for f in section.fields}
+    assert list(spec) == [
+        "type",
+        "name",
+        "region",
+        "cautions",
+        "prerequisite",
+        "core_npc",
+        "other_npcs",
+        "rewards",
+        "remark",
+        "links",
+        "done",
+    ]
+    assert (spec["type"].column, spec["type"].type, spec["type"].options) == (
+        "kind",
+        ns.FIELD_SELECT,
+        (),
+    )
+    assert spec["type"].option_category == "Side Quest Type"
+    assert spec["name"].column == "title"
+    assert spec["remark"].column == "content"
+    assert spec["links"].column == "links"
+    for key in ("region", "cautions", "prerequisite", "core_npc", "other_npcs", "rewards"):
+        assert spec[key].column is None, key
+    assert spec["other_npcs"].type == ns.FIELD_NAMES
+    assert spec["rewards"].type == ns.FIELD_LIST
+    assert [f.key for f in spec["rewards"].item_fields] == ["text"]
+
+
+def test_the_done_status_is_personal_ng_reset_and_starts_on_to_do():
+    done = ns.field_by_key(ns.section_by_key("side_quests"), "done")
+    assert done.column == "status"
+    assert done.personal is True
+    assert done.ng_resets is True
+    assert done.default == "to do"
+    assert done.options == ns.QUEST_STATUSES
+    assert {"to do", "done"} <= set(done.options)
+
+
+def test_both_npc_fields_suggest_from_the_characters():
+    section = ns.section_by_key("side_quests")
+    for key in ("core_npc", "other_npcs"):
+        assert ns.field_by_key(section, key).suggest_from == "characters_guide", key
+    out = {f.key: f for f in section_out(section, "h-game").fields}
+    assert out["core_npc"].suggest_from == "characters_guide"
+    assert out["other_npcs"].suggest_from == "characters_guide"
+    assert out["region"].suggest_from is None
+
+
+def test_a_quest_needs_a_name():
+    with pytest.raises(ValueError, match="at least one of: Name"):
+        validate_note_payload(_quest(fields={"region": "Valley IV"}))
+    validate_note_payload(_quest(title="Lost Cargo"))
+
+
+def test_a_full_quest_validates_and_free_text_npcs_are_accepted():
+    validate_note_payload(
+        _quest(
+            kind="委託",
+            title="Lost Cargo",
+            content="worth it",
+            links=[{"text": "Wiki", "url": "https://a.example"}],
+            fields={
+                "region": "Valley IV",
+                "cautions": "missable after chapter 3",
+                "prerequisite": "Finish Act I",
+                "core_npc": "Somebody with no character row",
+                "other_npcs": ["Perlica", "Chen Qianyu"],
+                "rewards": [{"text": "500 gold"}, {"text": "A key"}],
+            },
+        )
+    )
+
+
+def test_a_step_nests_under_its_chain():
+    validate_note_payload(_quest(title="Step 1", parent_id=OWNER))
+
+
+def test_a_blank_other_npc_is_refused():
+    with pytest.raises(ValueError, match="non-empty names"):
+        validate_note_payload(_quest(title="x", fields={"other_npcs": ["  "]}))
+
+
+def _section(owners, field):
+    return ns.NoteSection(
+        key="x",
+        shape=ns.SHAPE_STRUCTURED,
+        label="x",
+        owners=owners,
+        scope=ns.SCOPE_CATALOG,
+        fields=(field,),
+    )
+
+
+def test_suggest_from_is_checked_at_import():
+    npc = ns.NoteField(key="npc", label="NPC", suggest_from="characters_guide")
+    # characters_guide is a game and h-game section only.
+    with pytest.raises(ValueError, match="holds no named rows"):
+        ns._check_suggest_from(_section(("game", "anime"), npc))
+    closed = ns.NoteField(
+        key="npc",
+        label="NPC",
+        type=ns.FIELD_SELECT,
+        options=("a",),
+        suggest_from="characters_guide",
+    )
+    with pytest.raises(ValueError, match="not a free-text field"):
+        ns._check_suggest_from(_section(("game",), closed))
+    # The mirror: the same text field on game alone passes.
+    ns._check_suggest_from(_section(("game",), npc))
+
+
+def test_the_side_quest_type_category_is_a_suggestion_category():
+    assert "Side Quest Type" in ns.NOTE_SUGGESTION_CATEGORIES
+
+
+# --- name_entries ---------------------------------------------------------
 
 
 def test_nothing_uses_the_name_entries_shape_any_more():
     """
-    `side_quests` was its last owner. The shape, its column, its component and
-    its Sheets parsing all stay: rows written before this change are still in
-    the database and still have to Pull, and a future section may want it.
+    The shape, its column, its component and its Sheets parsing all stay:
+    rows written in it before are still in the database and still have to
+    Pull, and a future section may want it.
     """
     assert ns.SHAPE_NAME_ENTRIES in ns.STORED_SHAPES
     assert [s.key for s in ns.NOTE_SECTIONS if s.shape == ns.SHAPE_NAME_ENTRIES] == []

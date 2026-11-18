@@ -31,6 +31,12 @@
 //   - a free-text `select` naming an `option_category` suggests that
 //     category's values (`optionValues`, fetched by NotesContext) as it is
 //     typed in. It stays free text;
+//   - a `text` or `names` field naming `suggest_from` (a section key)
+//     suggests the names of the owner's rows of that section instead -
+//     `sectionTitles`, which NotesContext builds from the rows it already
+//     holds, so a side quest's NPCs are offered from its 角色 Characters. It
+//     stays free text too, and a `names` field suggests these rather than the
+//     cast;
 //   - a field naming `shown_when` ({field, value}) is drawn - in the form and
 //     on the read view - only while that field of the same row holds that
 //     value, a missing value reading as its default (`shownFor`). Display
@@ -129,6 +135,9 @@ const OwnerIdContext = createContext(null);
 // The values of every suggestion category the page fetched, by category name,
 // for a free-text select naming an `option_category`.
 const OptionValuesContext = createContext({});
+// {section key: [names]} - the owner's rows' titles per section, for a field
+// naming `suggest_from`.
+const SectionTitlesContext = createContext({});
 
 const isBlank = (v) =>
   v == null ||
@@ -381,6 +390,19 @@ function ListEditor({ field, rows, onChange }) {
 function ScalarInput({ field, value, onChange, ariaLabel }) {
   const label = ariaLabel || field.label;
   const optionValues = useContext(OptionValuesContext);
+  const sectionTitles = useContext(SectionTitlesContext);
+  if (field.type === "text" && field.suggest_from) {
+    return (
+      <SuggestInput
+        value={value}
+        onChange={onChange}
+        options={sectionTitles?.[field.suggest_from] || []}
+        aria-label={label}
+        placeholder={field.placeholder || field.label}
+        className={inputCls}
+      />
+    );
+  }
   if (field.type === "select" && !field.options.length && field.option_category) {
     return (
       <SuggestInput
@@ -451,6 +473,7 @@ function ChoiceNodeInput({ field, value, onChange }) {
 // ones it changed beside the catalogue save (`editMarks`). The saved row's
 // inline controls set them too, without opening the form.
 function StructuredForm({ section, val, setVal, nameSuggestions, withPersonal = false }) {
+  const sectionTitles = useContext(SectionTitlesContext);
   const shown = (withPersonal ? section.fields : catalogueFields(section)).filter(
     (f) => shownFor(section, f, (key) => val[key]),
   );
@@ -465,7 +488,11 @@ function StructuredForm({ section, val, setVal, nameSuggestions, withPersonal = 
               label={field.label}
               value={val[field.key] || []}
               onChange={set}
-              suggestions={nameSuggestions}
+              suggestions={
+                field.suggest_from
+                  ? sectionTitles?.[field.suggest_from] || []
+                  : nameSuggestions
+              }
             />
           );
         }
@@ -1279,18 +1306,23 @@ function useGroupToggle(sectionKey) {
 }
 
 const EMPTY_OPTION_VALUES = {};
+const EMPTY_SECTION_TITLES = {};
 
 // `ownerId` is the owner row's id, which only a `choice_node` field reads;
-// `optionValues` is what a field naming an `option_category` suggests.
+// `optionValues` is what a field naming an `option_category` suggests, and
+// `sectionTitles` what a field naming `suggest_from` does.
 export default function StructuredSection({
   ownerId = null,
   optionValues = EMPTY_OPTION_VALUES,
+  sectionTitles = EMPTY_SECTION_TITLES,
   ...props
 }) {
   return (
     <OwnerIdContext.Provider value={ownerId}>
       <OptionValuesContext.Provider value={optionValues}>
-        <StructuredSectionBody {...props} />
+        <SectionTitlesContext.Provider value={sectionTitles}>
+          <StructuredSectionBody {...props} />
+        </SectionTitlesContext.Provider>
       </OptionValuesContext.Provider>
     </OwnerIdContext.Provider>
   );

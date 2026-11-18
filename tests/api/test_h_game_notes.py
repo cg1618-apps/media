@@ -49,9 +49,6 @@ GAME_ONLY = {
     "beginner",
     "trivia",
     "player_terms",
-    "main_plot",
-    "side_plot",
-    "character_arcs",
     "lore",
     "story_terms",
     "timeline",
@@ -79,19 +76,25 @@ def test_the_game_labels_and_placeholders_carry_over(owner_client):
         assert h_game[key].get("locator_placeholder") == game[key].get("locator_placeholder"), key
 
 
-def test_the_story_list_is_the_h_game_story(owner_client):
-    """No prose 劇情, so the four lists render in the 劇情 card with 結局."""
-    h_game = _sections(owner_client, "h-game")
-    game = _sections(owner_client, "game")
-    story = [k for k, s in h_game.items() if s.get("group") == "story"]
-    assert story == [
+def test_game_and_h_game_read_one_story_and_quests_card(owner_client):
+    """The four strands, the side quests and the endings, in that order, in
+    one card labelled 劇情&任務 for both owners."""
+    expected = [
         "story_list_main",
         "story_list_side",
         "story_list_character",
         "story_list_event",
+        "side_quests",
         "endings",
     ]
-    assert game["story_list_main"]["group"] == "story_list"
+    for owner_type in ("game", "h-game"):
+        sections = _sections(owner_client, owner_type)
+        card = [k for k, s in sections.items() if s.get("group") == "story_list"]
+        assert card == expected, owner_type
+        assert {sections[k]["group_label"] for k in card} == {
+            "劇情&任務 Story & Quests"
+        }, owner_type
+        assert not [k for k, s in sections.items() if s.get("group") == "story"]
 
 
 def test_the_highlights_section_shape(owner_client):

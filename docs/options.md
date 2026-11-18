@@ -267,8 +267,7 @@ can only hold URLs and `text_links` has no title, so neither could say
 | `builds` | 養成&流派 Builds & Growth |
 | `gear` | 物品 Items & Gear |
 | `compendium` | 圖鑑與名詞 Compendium & Terms (characters, enemies, terms; for an h-game also geography) |
-| `story` | 劇情 Story (for an h-game, the four Story List strands and 結局) |
-| `story_list` | 劇情列表 Story List (game only) |
+| `story_list` | 劇情&任務 Story & Quests (the four story strands, 支線任務 Side Quests, 結局 Endings; game and h-game alike) |
 | `worldbuilding` | 世界觀 Worldbuilding (game only; holds 地理 Geography above 時間線) |
 | `ng_plus` | NG 多周目 |
 | `todo` | 待辦 Todo (rendered inside the game page's Progress slip) |
@@ -325,14 +324,12 @@ out. What the three gated types keep is in
 | `enemies` | structured | 敵人 Enemies | game, h-game | compendium | tier (suggested from `Enemy Tier`), region, name, alias, description, beaten status (default `to beat`; personal); groupable by tier |
 | `game_terms` | structured | 遊戲名詞 Game Terms | game, h-game | compendium | name (CN), alt name, description |
 | `player_terms` | structured | 玩家術語 Player Terms | game | compendium | name (CN), alt name, description |
-| `main_plot` | structured | 主線劇情 Main Plot | game | story | chapter (`locator`, optional), titled links; no description |
-| `side_plot` | structured | 支線劇情 Side Stories | game | story | chapter (`locator`, optional), titled links; no description |
-| `character_arcs` | structured | 角色劇情 Character Arcs | game | story | one or more titled links (required), nothing else |
-| `endings` | structured | 結局 Endings | game, h-game | story | name, completion status (personal), description, links |
-| `story_list_main` | structured | 主線 Main | game, h-game | story_list; **story** for h-game | order, name, description, links; nestable |
-| `story_list_side` | structured | 支線 Side | game, h-game | story_list; **story** for h-game | order, name, description, links; nestable |
-| `story_list_character` | structured | 角色 Character | game, h-game | story_list; **story** for h-game | order, name, description, links; nestable |
-| `story_list_event` | structured | 事件 Event | game, h-game | story_list; **story** for h-game | order, name, description, links; nestable |
+| `story_list_main` | structured | 主線 Main | game, h-game | story_list | order, name, description, links; nestable |
+| `story_list_side` | structured | 支線 Side | game, h-game | story_list | order, name, description, links; nestable |
+| `story_list_character` | structured | 角色 Character | game, h-game | story_list | order, name, description, links; nestable |
+| `story_list_event` | structured | 事件 Event | game, h-game | story_list | order, name, description, links; nestable |
+| `side_quests` | structured | 支線任務 Side Quests | game, h-game | story_list | type (suggested from `Side Quest Type`), name (required), region, cautions, prerequisite, core NPC and other NPCs (suggested from the owner's 角色 Characters), rewards (list), remark, links, status (`QUEST_STATUSES`, default `to do`; personal, NG-reset); nestable, groupable by type |
+| `endings` | structured | 結局 Endings | game, h-game | story_list | name, completion status (personal), description, links |
 | `lore` | text_links | 設定 Lore | game | worldbuilding | |
 | `story_terms` | structured | 劇情名詞 Story Terms | game | worldbuilding | name (CN), alt name, description |
 | `geography` | structured | 地理 Geography | game, h-game | worldbuilding; **compendium** for h-game | group (suggested from `Geography Group`, top-level rows only), name, description; no links; nestable; groupable by group. Above 時間線 for a game |
@@ -632,12 +629,12 @@ Comic vocabularies name an outside party. A new category is therefore not automa
 
 `NOTE_SUGGESTION_CATEGORIES` (`app/utils/note_sections.py`, served as
 `/api/constants` `note_suggestion_categories`): `Weapon & Gear Type`, `Item
-Type`, `Collectible Type`, `Character Group`, `Enemy Tier`, `Geography Group`
-— the categories a note field's
+Type`, `Collectible Type`, `Character Group`, `Enemy Tier`, `Side Quest Type`,
+`Geography Group` — the categories a note field's
 `option_category` names, which the same three admin pages offer under a third
 sub-tab, **Note Suggestions**, rather than under Options. Navigation only, like
-the Tags split. Derived from the registry, so it holds exactly the six the
-registry names: a seventh is a registry edit, not an admin action. `Song Type`
+the Tags split. Derived from the registry, so it holds exactly the seven the
+registry names: an eighth is a registry edit, not an admin action. `Song Type`
 and `Song Source` are named by a section rather than by a field, so they stay
 under Options. See [systems/notes.md](systems/notes.md#suggestion-categories).
 
@@ -647,11 +644,11 @@ backs `media_source` `kind='reference'` rows directly, resolved by
 `option_id` the same way `main`-bucket access rows are, never through
 `media_tag`). `NOTE_OPTION_CATEGORIES` (`app/utils/note_sections.py`):
 `Weapon & Gear Type`, `Item Type`, `Collectible Type`, `Character Group`,
-`Enemy Tier`, `Geography Group`, `Song Type` and `Song Source`, derived from the note sections that name them (a field's
+`Enemy Tier`, `Side Quest Type`, `Geography Group`, `Song Type` and `Song Source`, derived from the note sections that name them (a field's
 `option_category`, a section's `kind_category` and `link_text_category`)
 rather than listed, so a section that names a new category offers it with no
 second edit. `OPTION_CATEGORIES` = the tag-field categories, the two character
-tag categories (`CHARACTER_OPTION_CATEGORIES`) and these ten,
+tag categories (`CHARACTER_OPTION_CATEGORIES`) and these eleven,
 served as `/api/constants` `option_categories` and unioned with the
 categories present in the stored options to build the category picker on the
 Add and Modify pages. Without it a declared category holding no values yet
@@ -762,6 +759,7 @@ twenty-seven in `OPTION_CATEGORIES`:
 | `Item Type` | unscoped (read by game and h-game notes) | suggestions for a 道具 Items row's type (`items`, `note.kind`); `重要道具`, `任務道具` seeded by `n1o2tesrwk3`. Suggestions only |
 | `Weapon & Gear Type` | unscoped (read by game and h-game notes) | suggestions for a 武器&裝備 Weapons & Gear row's type (`weapons_and_gear`, `note.kind`); ships empty. Suggestions only |
 | `Enemy Tier` | unscoped (read by game and h-game notes) | suggestions for a 敵人 Enemies row's tier (`enemies`, `note.kind`); ships empty. Suggestions only |
+| `Side Quest Type` | unscoped (read by game and h-game notes) | suggestions for a 支線任務 Side Quests row's type (`side_quests`, `note.kind`); `主要支線`, `委託`, `懸賞`, `角色任務`, `活動任務`, `隱藏任務`, `收集` seeded by `s1q2uests345`. Suggestions only |
 | `Geography Group` | unscoped (read by game and h-game notes) | suggestions for a 地理 Geography row's group (`geography`, `note.kind`); ships empty. Suggestions only |
 
 **h-comic has Platform values of its own**, scoped to `h-comic` alone and

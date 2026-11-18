@@ -422,6 +422,20 @@ export function NotesProvider({
     return map;
   }, [notes, allSections]);
 
+  // {section key: [names]}: the distinct, non-blank titles of the owner's
+  // rows in each section, in row order - what a structured field naming
+  // `suggest_from` suggests (a side quest's NPCs, from 角色 Characters). Built
+  // from the rows already loaded, so it costs no request and follows every
+  // edit.
+  const sectionTitles = useMemo(() => {
+    const map = {};
+    for (const [key, rows] of Object.entries(bySection)) {
+      const names = rows.map((n) => (n.title || "").trim()).filter(Boolean);
+      map[key] = [...new Set(names)];
+    }
+    return map;
+  }, [bySection]);
+
   const handlers = useMemo(
     () => ({
       // `marks` are the viewer's own personal values chosen in the create
@@ -558,6 +572,7 @@ export function NotesProvider({
         section={section}
         notes={bySection[section.key] || []}
         optionValues={optionValues}
+        sectionTitles={sectionTitles}
         typeStatusNote={typeStatusNote}
         {...accessFor(section)}
         canMark={canMark(section)}

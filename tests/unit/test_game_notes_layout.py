@@ -30,17 +30,12 @@ def test_analysis_is_the_only_section_with_a_per_owner_group():
     # keeping rare: a reader of NOTE_SECTIONS sees `group` and would have to
     # notice the override to be right about where a section lands.
     #
-    # The Story List sections are h-game's: an h-game has no prose 劇情, so
-    # for it they ARE 劇情. 地理 is h-game's too - it has no 世界觀 - and
-    # Resources joins 資源&工具 on both game owners.
+    # 地理 is h-game's - it has no 世界觀 - and Resources joins 資源&工具 on
+    # both game owners.
     overridden = [s.key for s in ns.NOTE_SECTIONS if s.groups_by_owner]
     assert overridden == [
         "analysis",
         "easter_eggs",
-        "story_list_main",
-        "story_list_side",
-        "story_list_character",
-        "story_list_event",
         "geography",
         "resources",
     ]

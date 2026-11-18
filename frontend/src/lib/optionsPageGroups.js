@@ -145,7 +145,7 @@ export const TIER2_GROUPS = [
   },
   // What the game guide note sections' free-text fields suggest - a
   // character's group, a collectible's, an item's or a weapon's type, an
-  // enemy's tier, a place's group.
+  // enemy's tier, a side quest's type, a place's group.
   {
     title: "Note Suggestions",
     categories: [
@@ -154,6 +154,7 @@ export const TIER2_GROUPS = [
       "Item Type",
       "Weapon & Gear Type",
       "Enemy Tier",
+      "Side Quest Type",
       "Geography Group",
     ],
   },
