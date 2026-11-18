@@ -153,3 +153,13 @@ it("the contents sidebar drops the links of hidden divisions", async () => {
   expect(toc.getByRole("button", { name: "Playing" })).toBeInTheDocument();
   expect(toc.getByRole("button", { name: "Schedule" })).toBeInTheDocument();
 });
+
+it("draws the contents column on the right, after the divisions, as the detail pages do", async () => {
+  mount();
+  await loaded();
+  const contents = screen.getByRole("navigation", { name: "Contents" });
+  const watching = document.getElementById("watching");
+  // DOCUMENT_POSITION_FOLLOWING: the column comes after the divisions in a
+  // left-to-right flex row, so it is drawn on the right.
+  expect(watching.compareDocumentPosition(contents) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});

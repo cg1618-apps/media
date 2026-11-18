@@ -420,7 +420,7 @@ view has **no stepper** — tracking stays in card view and on the entry page.
 The table scrolls sideways inside its own wrapper below ~640px so the page
 itself never does.
 
-**Layout** (an `xl:`-only sticky left TOC, the shared `TableOfContents`
+**Layout** (an `xl:`-only sticky TOC on the right, as on the detail pages, the shared `TableOfContents`
 with `useScrollSpy` - see
 [components.md](components.md#in-page-table-of-contents) - tracks the active
 section with a threshold at the bottom of whatever sticky header covers it —

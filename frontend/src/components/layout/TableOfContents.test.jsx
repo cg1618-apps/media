@@ -41,6 +41,9 @@ describe("TableOfContents", () => {
     expect(nav.className).toContain("sticky");
     expect(nav.className).toContain("max-h-[calc(100vh-var(--nav-h)-2rem)]");
     expect(nav.className).toContain("overflow-y-auto");
+    // Its scrollbar is always drawn: Windows' overlay scrollbars stay hidden
+    // until hovered, which left no sign that the list goes on.
+    expect(nav.className).toContain("scrollbar-visible");
     // Every row is in the list, however far down the page.
     expect(screen.getByRole("button", { name: "Section 29" })).toBeInTheDocument();
   });

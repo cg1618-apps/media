@@ -1149,7 +1149,10 @@ One component draws every sticky contents column: **`TableOfContents`**
 (`components/layout/TableOfContents.jsx`) takes `items` (`{ id, label,
 level }`; level 2 is a smaller mono sub-row), `activeId` and `offsetFor(id)`,
 and scrolls the clicked anchor to just below whatever covers it
-(`scrollToAnchor`). Which row is current comes from **`useScrollSpy(ids, {
+(`scrollToAnchor`). The column sits on the page's right, is capped to the
+space under the nav, scrolls inside itself with an always-drawn scrollbar
+(the `scrollbar-visible` utility in `index.css`), and keeps the current row
+in view (`keepInView`). Which row is current comes from **`useScrollSpy(ids, {
 offsetFor, enabled })`** (`hooks/useScrollSpy.js`): the last anchor whose top
 has passed `offsetFor(id)` plus 16 px. `offsetFor` defaults to the nav's
 height (`navOffset`); the dashboard passes its own, because its anchors sit

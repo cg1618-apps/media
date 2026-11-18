@@ -345,3 +345,16 @@ button:disabled,
   .xl\:table-cell { display: table-cell; }
   .xl\:hidden { display: none; }
 }
+
+/*
+ * A scrollbar that is always drawn. Windows 11 renders overlay scrollbars
+ * that stay hidden until the pointer is over them, so a list that scrolls
+ * inside itself - the Contents column - gave no sign it went on. A standard
+ * scrollbar-color/scrollbar-width opts out of the overlay style; the gutter
+ * keeps the rows from shifting when the bar appears.
+ */
+@utility scrollbar-visible {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+  scrollbar-gutter: stable;
+}

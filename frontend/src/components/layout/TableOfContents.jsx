@@ -1,14 +1,15 @@
 // Frontend: a page's sticky table of contents.
 //
-// The list of in-page anchors that sits beside a long page: the dashboard's on
-// the left, a detail page's on the right (DetailContents). It draws the rows
+// The list of in-page anchors that sits on the right of a long page: the
+// dashboard's, and a detail page's (DetailContents). It draws the rows
 // and scrolls to the one clicked; which row is current comes from the caller's
 // useScrollSpy, so the highlight and the scroll agree on the same offset.
 // Level 2 rows are sub-entries, set smaller in mono.
 //
 // It stays pinned under the nav, but is never taller than the space under
 // it: a list longer than the screen scrolls inside itself, so every row can
-// be reached from anywhere on the page. As the page scrolls, the current row
+// be reached from anywhere on the page, and its scrollbar is always drawn
+// (`scrollbar-visible`) so the list says it goes on. As the page scrolls, the current row
 // is kept in view inside the list - by moving the list's own scroll, never
 // the page's.
 import { useEffect, useRef } from "react";
@@ -46,7 +47,7 @@ export default function TableOfContents({ items, activeId, offsetFor = navOffset
     <nav
       ref={listRef}
       aria-label="Contents"
-      className="sticky top-[calc(var(--nav-h)+1rem)] max-h-[calc(100vh-var(--nav-h)-2rem)] overflow-y-auto overscroll-contain space-y-0.5"
+      className="sticky top-[calc(var(--nav-h)+1rem)] max-h-[calc(100vh-var(--nav-h)-2rem)] overflow-y-auto overscroll-contain scrollbar-visible space-y-0.5"
     >
       <Eyebrow className="px-2 mb-3">Contents</Eyebrow>
       {items.map(({ id, label, level = 1 }) => {

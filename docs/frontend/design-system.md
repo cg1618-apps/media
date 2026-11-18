@@ -1,6 +1,6 @@
 # Design system — "the archive"
 
-Last verified: 2026-11-17
+Last verified: 2026-11-18
 
 The UI is styled as a physical media archive: paper, ink, index slips,
 spine labels and a rating stamp. It replaced the generic dashboard look
@@ -277,9 +277,11 @@ column is already the cover, the sources and the relations; it is drawn on
 `xl:` and up only, and the page container widens there (`max-w-7xl` →
 `88rem`) by about the column's width so the cover column is not squeezed.
 Rows are display-face text with a 2 px left rule, `brand` on the current
-row - the same `TableOfContents` the dashboard uses on its left. It is never
-taller than the space under the nav: a longer list scrolls inside the column
-and follows the current row.
+row - the same `TableOfContents` the dashboard draws, also on its right. It
+is never taller than the space under the nav: a longer list scrolls inside the
+column and follows the current row, and its scrollbar is always drawn
+(`scrollbar-visible` in `index.css`) - Windows' overlay scrollbars otherwise
+stay hidden until hovered, and nothing would say the list goes on.
 
 Cards (`components/cards/*.jsx`): cover with a thin ink spine on the left
 carrying the media type; the rating stamp top-right; title in display

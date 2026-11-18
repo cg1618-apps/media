@@ -922,15 +922,6 @@ function CatalogueDashboard() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex gap-8">
-        {/* TOC Sidebar — visible on xl+ screens */}
-        <aside className="hidden xl:block w-48 shrink-0">
-          <TableOfContents
-            items={tocItems}
-            activeId={activeSection}
-            offsetFor={stickyOffset}
-          />
-        </aside>
-
         {/* Main Content */}
         <div className="flex-1 min-w-0 space-y-16">
           {/* What waits for a handler: a member holding manage.requests
@@ -1207,6 +1198,15 @@ function CatalogueDashboard() {
             </div>
           )}
         </div>
+
+        {/* Contents column, on the right as on the detail pages - xl+ only */}
+        <aside className="hidden xl:block w-48 shrink-0">
+          <TableOfContents
+            items={tocItems}
+            activeId={activeSection}
+            offsetFor={stickyOffset}
+          />
+        </aside>
       </div>
     </div>
   );
