@@ -229,6 +229,31 @@ describe("HGame detail page", () => {
     expect((await card("Library")).getByText("Owned")).toBeInTheDocument();
   });
 
+  it("gives Genre, Theme and each h-genre a row of their own on the Genres card", async () => {
+    mockFetch(
+      {
+        ...ENTRY,
+        game_genre: "ADV",
+        game_theme: "Fantasy",
+        h_genre_plot: "Romance",
+        h_genre_appearance: "Elf",
+        h_genre_relation: "Couple",
+      },
+      []
+    );
+    mount();
+
+    const body = (await screen.findByRole("heading", { name: "Genres" }))
+      .nextElementSibling;
+    expect([...body.children].map((row) => row.textContent)).toEqual([
+      "GenreADV",
+      "ThemeFantasy",
+      "Genre PlotRomance",
+      "Genre AppearanceElf",
+      "Genre RelationCouple",
+    ]);
+  });
+
   it("shows the recorded time-to-beat figures on a Time to Beat card", async () => {
     mockFetch(
       { ...ENTRY, hltb_main: null, hltb_main_extra: 12, hltb_completionist: 20.5 },

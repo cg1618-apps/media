@@ -527,10 +527,8 @@ export default function HGame() {
                 <InfoCard
                   title="Genres"
                   fields={[
-                    [
-                      { label: "Genre", value: hGame.game_genre },
-                      { label: "Theme", value: hGame.game_theme },
-                    ],
+                    { label: "Genre", value: hGame.game_genre },
+                    { label: "Theme", value: hGame.game_theme },
                     { label: "Genre Plot", value: hGame.h_genre_plot },
                     { label: "Genre Appearance", value: hGame.h_genre_appearance },
                     { label: "Genre Relation", value: hGame.h_genre_relation },

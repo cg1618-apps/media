@@ -93,19 +93,17 @@ that type, or a group (collection, franchise, series).
 | 收集物 Collectibles | Game, H-Game | shared, **and yours** |
 | 角色 Characters | Game, H-Game | shared, **and yours** |
 | 敵人 Enemies | Game, H-Game | shared, **and yours** |
-| 地理 Geography | Game, H-Game | shared, **and yours** |
 | 遊戲名詞 Game Terms | Game, H-Game | shared |
 | 玩家術語 Player Terms | Game | shared |
-| 主線劇情 Main Plot | Game | shared |
-| 支線劇情 Side Stories | Game | shared |
-| 角色劇情 Character Arcs | Game | shared |
 | 主線 Main | Game, H-Game | shared |
 | 支線 Side | Game, H-Game | shared |
 | 角色 Character | Game, H-Game | shared |
 | 事件 Event | Game, H-Game | shared |
+| 支線任務 Side Quests | Game, H-Game | shared |
 | 結局 Endings | Game, H-Game | shared |
 | 設定 Lore | Game | shared |
 | 劇情名詞 Story Terms | Game | shared |
+| 地理 Geography | Game, H-Game | shared, **and yours** |
 | 時間線 Timeline | Game | shared |
 | 未解之謎 Mysteries | Game | shared |
 | 其他 Other | Game | shared |
@@ -118,6 +116,7 @@ that type, or a group (collection, franchise, series).
 | 未來 To do in the future | Game, H-Game | **yours** |
 | 可能 Might do | Game, H-Game | **yours** |
 | 存檔 Saves | Game, H-Game | **yours** |
+| 音樂狀態 Music Status | Anime | shared |
 | OP | Anime | shared |
 | ED | Anime | shared |
 | 插入曲 Insert Song | Anime | shared |
@@ -133,14 +132,14 @@ that type, or a group (collection, franchise, series).
 | 梗/迷因 Memes | every type but H-Comic, Hentai, H-Game; every group | shared |
 
 **Shared rows with a part that is yours.** Some shared sections hold a
-shared row — the item, enemy, ending, stat, song or mod — with your own
+shared row — the item, enemy, quest, ending, stat, song or mod — with your own
 progress on it, which nobody else sees and which every account keeps
 separately: collected and the amount collected on 武器&裝備 Weapons & Gear,
-道具 Items and 收集物 Collectibles, beaten on 敵人 Enemies, completion on 結局
-Endings, and your value on 屬性&配點 Stats & Points. Until you set one it
-reads as its starting value — not collected, to beat — or blank. The status
-of each song and each song list on OP, ED, 插入曲 Insert Song and OST, and
-the status on 模組&工具 Mods & Tools, are yours too, but only for accounts
+道具 Items and 收集物 Collectibles, beaten on 敵人 Enemies, done on 支線任務 Side
+Quests, completion on 結局 Endings, and your value on 屬性&配點 Stats & Points. Until you set one it
+reads as its starting value — not collected, to beat, to do — or blank. The status
+of each song on OP, ED, 插入曲 Insert Song and OST, of each song list on
+音樂狀態 Music Status, and the status on 模組&工具 Mods & Tools, are yours too, but only for accounts
 the music status or mod status feature is turned on for; an account without
 it does not see those statuses at all. OP/ED 變動 has no such part.
 
@@ -155,8 +154,9 @@ to be added. Collected, the amount collected and beaten work on your own
 rows as on the shared ones.
 
 **NG reset.** Starting a game over clears your own collected status and
-amount collected on every 物品 row whose NG Reset says yes, and your beaten
-on every enemy — on the shared rows and on your own. Nobody else's progress,
+amount collected on every 物品 row whose NG Reset says yes, your beaten on
+every enemy, and your done on every side quest — on the shared rows and on
+your own. Nobody else's progress,
 and none of the rows, change.
 
 Nobody else sees your **yours** sections. Quotes and memes are not notes
