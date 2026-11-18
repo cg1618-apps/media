@@ -37,12 +37,17 @@ def test_every_parsed_image_column_has_its_focus_beside_it():
     """
     The drift guard: a parser that restores an image key must restore its
     focus too. quote and meme are the deliberate exceptions - their images
-    are shown uncropped, so they have no focus column.
+    are shown uncropped, so they have no focus column. So is book_unit: its
+    cover is a small thumbnail beside the unit's name and keeps no focus
+    (docs/frontend/design-system.md).
     """
     image_keys = {"cover_image_file", "photo_file", "logo_file"}
+    no_focus = {"parse_book_unit_from_sheet"}
     missing = []
     for name in dir(formatter):
         if not (name.startswith("parse_") and name.endswith("_from_sheet")):
+            continue
+        if name in no_focus:
             continue
         parser = getattr(formatter, name)
         try:
