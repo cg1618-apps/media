@@ -4,7 +4,7 @@ character with no casting, and calculate/remove-uncast-characters deletes the
 ticked ones with their identities and images.
 
 Fixtures `character`, `second_character` and `character_with_castings` live
-in tests/api/conftest.py. Requires PostgreSQL (media_test DB).
+in tests/api/conftest.py. Requires PostgreSQL (the run's own database).
 """
 
 import uuid

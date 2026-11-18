@@ -12,7 +12,7 @@ The narrow viewers:
   client              anonymous, resolves to `safe`
   mode_client(...)    a signed-in account sitting in `normal` or `borderline`
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

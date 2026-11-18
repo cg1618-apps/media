@@ -7,7 +7,7 @@ tags and options of every other field and category must survive.
 Runs the shipped revision's own `remove_quality()` against the test session -
 the suite has no Alembic harness.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import importlib.util

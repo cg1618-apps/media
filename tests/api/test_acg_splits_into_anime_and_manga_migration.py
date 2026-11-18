@@ -5,7 +5,7 @@ into "Anime" and "Manga" by what each franchise holds.
 Runs the shipped revision's own `rewrite()` and `fold()` against the test
 session - the suite has no Alembic harness for data.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import importlib.util

@@ -14,7 +14,7 @@ the uuids the link tabs cite. `media_content_label.label_id`
 additionally cites the OTHER database's label uuid and must be translated
 through the `Content Label` tab before it is stored.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

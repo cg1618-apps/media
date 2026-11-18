@@ -22,7 +22,7 @@ reads - the shape the admin has, holding no manage.catalog.
 Form defaults and picker defaults are the other way round: catalogue-editing
 tools, so manage.catalog still opens them and manage.options does not.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import io

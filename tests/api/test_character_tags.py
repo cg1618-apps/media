@@ -6,7 +6,7 @@ categories "Character Appearance" and "Character Trait" (CHARACTER_TAG_FIELDS
 in app/utils/credit_roles.py) and stored in `character_tag`. One vocabulary
 each, for every character: no gated distinction and no scopes.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

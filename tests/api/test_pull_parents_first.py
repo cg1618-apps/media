@@ -7,7 +7,7 @@ checked at once, not at COMMIT. The sheet keeps whatever order the Backup wrote
 row reaching the database before its parent failed the whole tab with
 `Key (base_game_id)=(...) is not present in table "games"`.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

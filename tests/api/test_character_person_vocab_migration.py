@@ -12,7 +12,7 @@ it to user_rating), so the `old_rating_columns` fixture puts it back inside
 the test's transaction for the revision to work on, and the rating test
 reads and writes it with SQL.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import importlib.util

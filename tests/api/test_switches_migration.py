@@ -18,10 +18,9 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 from sqlalchemy import text
 
-from tests.api.test_migrations_build_the_schema import (  # noqa: F401 - fixture
+from tests.api.test_migrations_build_the_schema import (
     ROOT,
     _server_url,
-    scratch_databases,
 )
 
 THIS = "s1w2itches345"

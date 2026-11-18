@@ -13,7 +13,7 @@ label (the hidden_anime fixture's nsfw label is carried only by wide modes)
 and owner_client's carries it, so the same row read twice proves the label
 filter, not an empty table, is what dropped the count.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

@@ -17,7 +17,7 @@ The two names below differ as strings but normalize to the same key, which is
 what a real duplicate looks like: studio's unique constraint covers the four
 name columns, so two rows cannot hold the identical string.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 from app import models

@@ -3,7 +3,7 @@ The h-game notes: game's sections less the ones an h-game has no use for,
 plus the highlights section and its group order, and the one list of reviews
 and comments it shares with h-comic and hentai.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 

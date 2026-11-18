@@ -9,7 +9,7 @@ Some groups are legitimately single, so a group can be marked reviewed: its
 `alone_reviewed_media_id` records WHICH lone entry was reviewed, and the group
 stays hidden only while that same entry is still its only one.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

@@ -8,7 +8,7 @@ endpoints, POST /complete, a PATCH that carries ep_fin to its total, and the
 caller's own PUT /api/me/list. Every clearing test seeds a row that HOLDS a
 paused position, and the mirror writes prove the clear is the rule's doing.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

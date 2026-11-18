@@ -1,6 +1,6 @@
 # Switching between development environments
 
-Last verified: 2026-11-17
+Last verified: 2026-11-18
 
 ## What this is for
 
@@ -222,10 +222,13 @@ Read from the machines rather than from memory. A row for
 such file exists there — a dump the page asserts and the disk does not have is
 worse than no row at all, because it reads as a rollback somebody has.
 
-**Scratch test databases are not tracked.** Each worktree gets its own from
-`worktree.ps1` and drops it when the branch merges, and
-`tests/api/conftest.py` refuses any database whose name lacks `test`, because
-its fixture runs `DROP SCHEMA public CASCADE`.
+**Test databases are not tracked.** Every test run creates its own
+`media_test_<epoch>_<hex>` and drops it at the end, and a crashed run's is
+dropped by a later run once it is two hours old with nothing connected
+([testing.md](testing.md#one-database-per-run)). A worktree's own development
+database comes from `worktree.ps1` and is dropped when the branch merges. A
+fixed `media_test` left on a machine from before is unused and can be dropped
+once no tree there is on a branch older than the per-run databases.
 
 ---
 

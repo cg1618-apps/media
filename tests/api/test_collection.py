@@ -2,7 +2,7 @@
 API integration tests for /api/collection endpoints.
 
 Collection is the optional umbrella tier above Franchise.
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

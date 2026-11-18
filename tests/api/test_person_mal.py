@@ -6,7 +6,7 @@ Tenrai and the photo download are patched at the autofill module's own names,
 so these exercise the real router -> autofill and pipeline -> autofill wiring
 without a network call.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

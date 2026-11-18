@@ -11,7 +11,7 @@ Every refusal below runs against a row that is THERE - an entry, a member's
 note - and is paired with the account that may do the same thing, so a
 refusal is the admin's and not an empty table's.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

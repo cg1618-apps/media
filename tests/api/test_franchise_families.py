@@ -8,7 +8,7 @@ The family mechanism itself - every write path, both directions, retyping a
 franchise with entries - is tests/api/test_franchise_family.py. This file
 keeps only what the second gated type adds.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

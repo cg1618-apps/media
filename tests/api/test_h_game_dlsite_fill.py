@@ -10,7 +10,7 @@ game takes IGDB, else Steam's capsule, else Steam's header, and never DLsite.
 Every fetch and the cover download are patched out - these tests lock down
 behaviour, not the network layer.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

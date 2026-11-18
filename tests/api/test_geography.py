@@ -8,7 +8,7 @@ its ROOTS, so a child carrying a group of its own would be a value nothing
 reads. Every refusal below has its mirror - the same child without a group -
 so a 422 is the group rule's and not some other rule's.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import pytest

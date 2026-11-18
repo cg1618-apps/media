@@ -8,7 +8,7 @@ there first - so the hidden set is never empty and the gate has something to
 refuse. Each refusal is paired with its mirror: `owner_client` sits in
 `unrestricted`, which carries every label, and reads the same entry back.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

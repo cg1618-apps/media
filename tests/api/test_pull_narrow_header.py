@@ -14,7 +14,7 @@ had, and applies the INSERT defaults only when inserting.
 A blank cell is NOT the same as an absent column: a present-but-empty cell
 still means "clear this value" and must still wipe.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

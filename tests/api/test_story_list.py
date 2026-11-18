@@ -9,7 +9,7 @@ the same rules against a section that declares it.
 Also covers the side_quests migration, by running the shipped revision's own
 `reshape()` against the test session - the suite has no Alembic harness.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import importlib.util

@@ -7,7 +7,7 @@ hold a fraction - 2.5 episodes, 17.5 chapters - as `vol_fin`, `ch_fin` and the
 book counters always have. Every way a value arrives keeps it: the API, the
 viewer's own list row, a Sheets cell, and the Fill/Replace sanity clamp.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import importlib.util

@@ -7,7 +7,7 @@ in `fields["choice_node"]` still resolves after the round trip. Marks are
 personal and file under the installation owner on Pull, the way Game Copy
 rows do.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

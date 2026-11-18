@@ -7,7 +7,7 @@ covered: the API (and its refusal of a malformed date, beside the same write
 with a good one), the image library's attach, and the Google Sheets tabs in
 both directions - including a tab backed up before the columns existed.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import importlib.util

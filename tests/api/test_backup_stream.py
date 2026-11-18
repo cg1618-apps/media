@@ -8,7 +8,7 @@ few seconds each, so a single blocking request outlived that window: the
 browser reported "Backup failed" while the server finished and logged Success.
 Those three properties are what close it.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import json

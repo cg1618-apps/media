@@ -1,7 +1,7 @@
 """
 Calculate-time derivation of size_group_derived.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

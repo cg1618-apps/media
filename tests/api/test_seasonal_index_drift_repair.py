@@ -23,10 +23,8 @@ has to be recreated by hand here; that hand-written index IS the fixture.
 import os
 import subprocess
 import sys
-import uuid
 from pathlib import Path
 
-import pytest
 import sqlalchemy as sa
 from sqlalchemy import text
 
@@ -58,32 +56,6 @@ def _alembic(database: str, *args: str) -> subprocess.CompletedProcess:
         capture_output=True,
         text=True,
     )
-
-
-@pytest.fixture
-def scratch_database():
-    name = f"anime_drift_{uuid.uuid4().hex[:8]}"
-    admin = sa.create_engine(_server_url("postgres"), isolation_level="AUTOCOMMIT")
-    try:
-        with admin.connect() as conn:
-            conn.execute(text(f'CREATE DATABASE "{name}"'))
-    except sa.exc.SQLAlchemyError as exc:  # pragma: no cover - environment
-        admin.dispose()
-        pytest.skip(f"cannot create a scratch database here: {exc}")
-
-    try:
-        yield name
-    finally:
-        with admin.connect() as conn:
-            conn.execute(
-                text(
-                    "select pg_terminate_backend(pid) from pg_stat_activity "
-                    "where datname = :n and pid <> pg_backend_pid()"
-                ),
-                {"n": name},
-            )
-            conn.execute(text(f'DROP DATABASE IF EXISTS "{name}"'))
-        admin.dispose()
 
 
 def test_upgrade_drops_a_legacy_unique_seasonal_index(scratch_database):

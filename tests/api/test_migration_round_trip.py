@@ -1,7 +1,12 @@
 """Every revision must come back, or say out loud that it cannot.
 
 `test_migrations_build_the_schema.py` proves the chain builds FORWARD from an
-empty database. Nothing proved it comes back, and no `downgrade()` in this
+empty database. This proves the RELEASE comes back: it downgrades to the
+revision `origin/main` is at - what a rollback of the release does - and
+upgrades again. Concurrent sessions put several revisions into one release, so
+one step back would leave every earlier one in it unexercised until the day it
+is needed. When the branch holds no revision beyond `main`, it falls back to
+one step. Nothing proved it comes back, and no `downgrade()` in this
 repository had ever been executed by anything - which stopped being an academic
 gap the moment the deploy pipeline began leaning on `alembic downgrade` as tier
 2 of its rollback ladder. A rollback that calls a function nobody has ever run
@@ -18,20 +23,16 @@ The marker is for migrations that cannot be reversed in PRINCIPLE. A
 `downgrade()` that is merely wrong is a defect to fix, not to declare.
 """
 
-import os
 import re
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 
-from tests.api.test_migrations_build_the_schema import (  # noqa: F401
-    OBJECTS_SQL,
-    _read,
-    _server_url,
-    scratch_databases,
-)
+from tests.api.conftest import run_alembic
+from tests.api.test_migrations_build_the_schema import OBJECTS_SQL, _read, _server_url
 
 ROOT = Path(__file__).resolve().parents[2]
 VERSIONS = ROOT / "alembic" / "versions"
@@ -59,72 +60,97 @@ ASSIGNS_IRREVERSIBLE = re.compile(r"(?i)^\s*irreversible\s*=")
 MARKER_LINE = "irreversible = True"
 
 
-def _alembic(args: list[str], database: str) -> subprocess.CompletedProcess:
-    """Alembic as a SUBPROCESS, for the reason given in the sibling module.
-
-    `alembic/env.py` imports the URL from `app.database` at module scope and
-    ignores alembic.ini's, so pointing it at another database means setting
-    POSTGRES_DB before that import - which an already-running test process
-    cannot do. A subprocess is also what a human runs.
-    """
-    return subprocess.run(
-        [sys.executable, "-m", "alembic", *args],
-        cwd=ROOT,
-        env={**os.environ, "POSTGRES_DB": database},
-        capture_output=True,
-        text=True,
-    )
-
-
 def _revision_files() -> list[Path]:
     return sorted(p for p in VERSIONS.glob("*.py") if p.name != "__init__.py")
 
 
-def _head_revision_file() -> Path:
-    """The file declaring the current head, found by its own `revision =` line.
+def release_downgrade_target(
+    head: str,
+    parent: dict[str, str | None],
+    on_main: set[str],
+    irreversible: set[str],
+) -> str | None:
+    """Where a rollback of this release would downgrade to, or None for nowhere.
 
-    Not `sorted(...)[-1]`: revision ids are not ordered by filename, and the
-    head is whatever no other revision names as its down_revision.
+    Walks down from `head` through every revision `main` does not hold, and
+    stops at the first one `main` does - main's head, the release's base. When
+    `head` is itself on main the release adds nothing, and the range is the one
+    step below it. A revision declaring `irreversible = True` cannot be stepped
+    through, so the walk stops above it; if that is the head, there is nothing
+    to round-trip and the answer is None.
     """
-    heads = _alembic(["heads"], os.environ.get("POSTGRES_DB", "postgres"))
-    match = re.search(r"^([0-9a-zA-Z_]+)\s+\(head\)", heads.stdout, re.M)
-    assert match, f"could not read a single head from:\n{heads.stdout}\n{heads.stderr}"
-    head = match.group(1)
+    if head in on_main:
+        return None if head in irreversible else parent[head]
+    revision = head
+    while revision not in on_main:
+        if revision in irreversible:
+            return None if revision == head else revision
+        below = parent[revision]
+        if below is None:
+            return None  # the whole chain is new - nothing on main to return to
+        revision = below
+    return revision
 
-    for path in _revision_files():
-        if re.search(rf"^revision(?::\s*str)?\s*=\s*['\"]{head}['\"]", path.read_text(encoding="utf-8"), re.M):
-            return path
-    raise AssertionError(f"no revision file declares revision = {head!r}")
+
+def _main_revision_files() -> set[str]:
+    """Basenames of the revision files on `origin/main`.
+
+    Loud rather than a quiet fallback: CI checks out the whole history, and a
+    local clone has origin/main, so failing to read it means the check would
+    otherwise test less than it says.
+    """
+    result = subprocess.run(
+        ["git", "ls-tree", "--name-only", "origin/main", "alembic/versions/"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, (
+        f"cannot read origin/main ({result.stderr.strip()}); run `git fetch origin`"
+    )
+    return {Path(line).name for line in result.stdout.splitlines()}
 
 
-def test_the_chain_survives_a_downgrade_and_a_second_upgrade(scratch_databases):
-    """upgrade head -> downgrade one -> upgrade head, against a real database.
+def _release_range() -> tuple[str, str | None]:
+    """(head, target) for this checkout against origin/main."""
+    script = ScriptDirectory.from_config(Config(str(ROOT / "alembic.ini")))
+    (head,) = script.get_heads()
+    on_main_files = _main_revision_files()
+    parent, on_main, irreversible = {}, set(), set()
+    for rev in script.walk_revisions():
+        assert not isinstance(rev.down_revision, tuple), f"merge revision {rev.revision}"
+        parent[rev.revision] = rev.down_revision
+        if Path(rev.path).name in on_main_files:
+            on_main.add(rev.revision)
+        if MARKER.search(Path(rev.path).read_text(encoding="utf-8")):
+            irreversible.add(rev.revision)
+    return head, release_downgrade_target(head, parent, on_main, irreversible)
 
-    One step back rather than all the way to base: the baseline revision drops
+
+def test_the_release_survives_a_downgrade_and_a_second_upgrade(migrated_head_copy):
+    """head -> the release's base -> head, against a real database.
+
+    To main's head rather than all the way to base: the baseline revision drops
     every table by design, so a full downgrade proves nothing about the
     revisions layered on top of it and costs far more time.
     """
-    migrated_db, _ = scratch_databases
+    head, target = _release_range()
+    if target is None:
+        pytest.skip(f"{head} declares irreversible = True; there is nothing to round-trip")
 
-    up = _alembic(["upgrade", "head"], migrated_db)
-    assert up.returncode == 0, f"{up.stdout[-2000:]}\n{up.stderr[-2000:]}"
-
-    if MARKER.search(_head_revision_file().read_text(encoding="utf-8")):
-        pytest.skip(f"{_head_revision_file().name} declares irreversible = True")
-
-    before = _read(_server_url(migrated_db), OBJECTS_SQL)
+    before = _read(_server_url(migrated_head_copy), OBJECTS_SQL)
     assert len(before) > 100, "the migrated schema is empty; this check is vacuous"
 
-    down = _alembic(["downgrade", "-1"], migrated_db)
+    down = run_alembic(migrated_head_copy, "downgrade", target)
     assert down.returncode == 0, (
-        "The head revision's downgrade() failed. Either fix it, or - only if the\n"
-        "migration cannot be reversed in principle - declare\n"
-        "`irreversible = True` at module scope in that revision, which also\n"
-        "tells deploy/migrations not to attempt a downgrade for it.\n"
+        f"Downgrading from {head} to {target} failed. Either fix the failing\n"
+        "revision's downgrade(), or - only if the migration cannot be reversed\n"
+        "in principle - declare `irreversible = True` at module scope in it,\n"
+        "which also tells deploy/migrations not to attempt a downgrade for it.\n"
         f"{down.stdout[-2000:]}\n{down.stderr[-2000:]}"
     )
 
-    again = _alembic(["upgrade", "head"], migrated_db)
+    again = run_alembic(migrated_head_copy, "upgrade", "head")
     assert again.returncode == 0, f"{again.stdout[-2000:]}\n{again.stderr[-2000:]}"
 
     # Exit codes alone would pass for a downgrade/upgrade pair that runs cleanly
@@ -132,12 +158,36 @@ def test_the_chain_survives_a_downgrade_and_a_second_upgrade(scratch_databases):
     # left behind. Tier 2 of the rollback ladder puts the box into exactly this
     # state and then serves traffic from it, so "it ran" is not the property
     # that matters; "it returned to where it was" is.
-    after = _read(_server_url(migrated_db), OBJECTS_SQL)
+    after = _read(_server_url(migrated_head_copy), OBJECTS_SQL)
     assert after == before, (
         "the round trip did not restore the schema.\n"
         f"lost: {sorted(before - after)}\n"
         f"gained: {sorted(after - before)}"
     )
+
+
+# A chain a <- b <- c <- d, with main holding a and b. Pure: no database.
+CHAIN = {"a": None, "b": "a", "c": "b", "d": "c"}
+
+
+@pytest.mark.parametrize(
+    ("head", "on_main", "irreversible", "expected"),
+    [
+        # The release adds c and d: both downgrades run, back to main's head.
+        ("d", {"a", "b"}, set(), "b"),
+        # Nothing beyond main: one step, as before.
+        ("b", {"a", "b"}, set(), "a"),
+        # c cannot come back, so the walk stops above it and d alone runs.
+        ("d", {"a", "b"}, {"c"}, "c"),
+        # The head itself cannot come back: nothing to round-trip.
+        ("d", {"a", "b"}, {"d"}, None),
+        ("b", {"a", "b"}, {"b"}, None),
+        # An irreversible revision already on main is never in the range.
+        ("d", {"a", "b"}, {"b"}, "b"),
+    ],
+)
+def test_the_release_range_is_what_a_rollback_would_undo(head, on_main, irreversible, expected):
+    assert release_downgrade_target(head, CHAIN, on_main, irreversible) == expected
 
 
 @pytest.mark.parametrize("path", _revision_files(), ids=lambda p: p.name)

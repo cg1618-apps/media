@@ -49,32 +49,6 @@ def _alembic(database: str, *args: str) -> subprocess.CompletedProcess:
     )
 
 
-@pytest.fixture
-def scratch_database():
-    name = f"anime_branch_{uuid.uuid4().hex[:8]}"
-    admin = sa.create_engine(_server_url("postgres"), isolation_level="AUTOCOMMIT")
-    try:
-        with admin.connect() as conn:
-            conn.execute(text(f'CREATE DATABASE "{name}"'))
-    except sa.exc.SQLAlchemyError as exc:  # pragma: no cover - environment
-        admin.dispose()
-        pytest.skip(f"cannot create a scratch database here: {exc}")
-
-    try:
-        yield name
-    finally:
-        with admin.connect() as conn:
-            conn.execute(
-                text(
-                    "select pg_terminate_backend(pid) from pg_stat_activity "
-                    "where datname = :n and pid <> pg_backend_pid()"
-                ),
-                {"n": name},
-            )
-            conn.execute(text(f'DROP DATABASE IF EXISTS "{name}"'))
-        admin.dispose()
-
-
 def _version(engine) -> str:
     with engine.connect() as conn:
         return conn.execute(text("select version_num from alembic_version")).scalar()

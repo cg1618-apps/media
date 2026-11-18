@@ -5,7 +5,7 @@ Pull registered the tab as "Anime Movies" while its name-resolution and
 id-less dedup branches compared against "Anime Movie", so neither ever ran:
 a franchise given by name skipped the row, and a re-import duplicated it.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import pytest

@@ -7,7 +7,7 @@ The rows are catalogue; every status on them - a song's, a list's - is each
 viewer's own note mark (test_note_marks.py), so a catalogue write carrying
 one stores none.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

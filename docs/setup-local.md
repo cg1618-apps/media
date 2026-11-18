@@ -1,6 +1,6 @@
 # Local Development Setup
 
-Last verified: 2026-11-14
+Last verified: 2026-11-18
 
 **What this is for.** This page takes a machine with nothing on it to a working
 copy of the CG1618 Media Tracker: backend on :8000, Vite dev server on :5173,
@@ -49,8 +49,11 @@ installs `libpq-dev` because it builds wheels itself).
 
 ## 3. PostgreSQL
 
-The app connects to `localhost:5432` with `POSTGRES_USER` / `POSTGRES_PASSWORD`
+The app connects to `127.0.0.1:5432` with `POSTGRES_USER` / `POSTGRES_PASSWORD`
 / `POSTGRES_DB` from `.env` (see `app/config.py`, `sqlalchemy_database_url`).
+`127.0.0.1` rather than `localhost`: the dev database publishes on the IPv4
+loopback only, and Windows resolves `localhost` to `::1` first, so every new
+connection would wait out a 21-second timeout before falling back.
 
 **Use docker-compose.** It is the only supported way on both
 machines, pinned to the same version the CI runner and the planned self-hosted
@@ -66,17 +69,10 @@ It used to be this app's `docker-compose.yml`, which meant a `docker compose
 down` here removed the database `food`, `travel` and `art` were also using.
 
 It reads `POSTGRES_USER/PASSWORD/DB` from the platform's `.env` and creates only
-the one maintenance database on first start, so you still have to create
-the test database inside the container:
-
-```powershell
-docker-compose up -d
-docker exec cg1618-dev-db createdb -U postgres media_test
-```
-
-`media` is the dev database Alembic manages. `media_test` is
-wiped and rebuilt (`DROP SCHEMA public CASCADE`) at the start of every API test
-session, so never point it at real data.
+the one maintenance database on first start. `media` is the dev database
+Alembic manages. The tests need nothing created by hand: every test run creates
+its own `media_test_<epoch>_<hex>` database and drops it at the end (see
+[testing.md](testing.md#one-database-per-run)).
 
 `dev.ps1` assumes this setup: it runs `docker-compose up -d` and waits for
 `pg_isready` in the container. It also **aborts if a native PostgreSQL service
@@ -278,7 +274,7 @@ pass before a branch can be merged. Nothing is deployed — see
 ## 9. Tests
 
 ```powershell
-# backend: unit (no DB) + api (needs media_test)
+# backend: unit (no DB) + api (creates and drops its own database)
 venv\Scripts\python.exe -m pytest
 venv\Scripts\python.exe -m pytest tests/unit            # DB-free subset
 venv\Scripts\python.exe -m pytest tests/api -q
@@ -290,9 +286,10 @@ npm run test          # watch mode
 ```
 
 How the backend tests find the database: `tests/conftest.py` runs before any
-`app` module is imported and does `os.environ.setdefault(...)` for
-`POSTGRES_DB=media_test`, `POSTGRES_USER=postgres`, a test
-`JWT_SECRET_KEY` and `ADMIN_PASSWORD`, and `APP_ENV=development`. It deliberately does **not** default
+`app` module is imported, sets `POSTGRES_DB` to a fresh `media_test_<epoch>_<hex>`
+name and creates that database, and does `os.environ.setdefault(...)` for
+`POSTGRES_USER=postgres`, a test `JWT_SECRET_KEY` and `ADMIN_PASSWORD`, and
+`APP_ENV=development`. It deliberately does **not** default
 `POSTGRES_PASSWORD`; pydantic-settings reads that from your `.env` (or from the
 CI job environment). If `.env` has a wrong password the API tests fail at
 `test_engine` setup with an authentication error. `tests/api/conftest.py`
@@ -302,7 +299,7 @@ Details of the tiers and fixtures are in `testing.md`.
 
 ## 10. Quick verification checklist
 
-1. `venv\Scripts\python.exe -c "from app.config import settings; print(settings.sqlalchemy_database_url)"` prints a `localhost:5432/media` URL.
+1. `venv\Scripts\python.exe -c "from app.config import settings; print(settings.sqlalchemy_database_url)"` prints a `127.0.0.1:5432/media` URL.
 2. `alembic upgrade head` finishes without error; `alembic current` shows a head revision.
 3. `uvicorn app.main:app --reload --reload-dir app` logs `Admin account verified` or `Admin user 'admin' created`.
 4. `http://127.0.0.1:8000/docs` lists the routers; `http://localhost:5173/` shows the site.

@@ -3,7 +3,7 @@ API integration tests for /api/watch-order endpoints.
 
 Watch Orders are named, ordered, cross-media-type viewing guides owned by a
 Franchise or a Collection.
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

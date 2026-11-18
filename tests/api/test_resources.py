@@ -6,7 +6,7 @@ super's alone. Groups nest to any depth, and groups and items share one
 order inside their parent, which PATCH /reorder rewrites - including moving a
 node into another group.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid
