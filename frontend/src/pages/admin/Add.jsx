@@ -111,6 +111,8 @@ import {
   toStringId,
 } from "../../lib/externalPick";
 import { ADMIN_TABS } from "../../config/adminTabs";
+import { useSaveMyRating } from "../../api/mutations/useMyRatingMutations";
+import { useViewScope } from "../../hooks/useViewScope";
 import { PERSON_NAME_FIELDS, STUDIO_NAME_FIELDS } from "../../lib/naming";
 import { CHARACTER_NAME_FIELDS } from "../add-tabs/CharacterAddTab";
 import { OPTION_CATEGORIES } from "../../config/fieldOptions";
@@ -123,6 +125,25 @@ import useLabelTagSync from "../../hooks/useLabelTagSync";
 
 export default function Add() {
   const { showToast } = useToast();
+  const { ownData } = useViewScope();
+  const { mutateAsync: putMyRating } = useSaveMyRating();
+
+  // The viewer's own rating (and a franchise's expectation) of a group just
+  // created, which the create call does not carry: PUT to /api/me/ratings
+  // with the new id, and only the values the form chose. A failure leaves
+  // the group created, and the toast says so.
+  async function saveGroupRating(ownerType, ownerId, form, noun) {
+    const data = {};
+    if (form.my_rating) data.my_rating = form.my_rating;
+    if (ownerType === "franchise" && form.franchise_expectation)
+      data.expectation = form.franchise_expectation;
+    if (!ownData || Object.keys(data).length === 0) return;
+    try {
+      await putMyRating({ ownerType, ownerId, data });
+    } catch {
+      showToast("error", `${noun} saved, but your rating did not save.`);
+    }
+  }
   const replaceCasting = useReplaceCasting();
 
   // Entry lists are fetched per tab, not all twelve up front - see
@@ -821,6 +842,9 @@ export default function Add() {
           created.collection_name_en ||
           "New Collection",
       );
+      // The rating goes before the labels: a label can hide the new
+      // collection from this session's mode, and the PUT would be refused.
+      await saveGroupRating("collection", created.system_id, colf, "Collection");
       try {
         await saveCollectionLabels(created.system_id, contentLabels);
       } catch {
@@ -874,6 +898,8 @@ export default function Add() {
           created.franchise_name_en ||
           "New Franchise",
       );
+      // Before the labels, as in submitCollection.
+      await saveGroupRating("franchise", created.system_id, ff, "Franchise");
       try {
         await saveFranchiseLabels(
           created.system_id,
@@ -933,6 +959,8 @@ export default function Add() {
       setLastAdded(
         created.series_name_cn || created.series_name_en || "New Series",
       );
+      // Before the labels, as in submitCollection.
+      await saveGroupRating("series", created.system_id, sf, "Series");
       try {
         await saveSeriesLabels(created.system_id, contentLabels);
       } catch {

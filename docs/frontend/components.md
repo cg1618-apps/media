@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-11-17
+Last verified: 2026-11-18
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -297,9 +297,11 @@ columns.
   `MediaCard`'s poster and `DashboardCard`'s chip row; a row with a url links
   to it, one without is faded, a value with no icon is skipped, and regional
   variants sharing one icon — `Toptoon TW` and `Toptoon KR` — draw it once),
-  `FranchiseCard` and `CollectionCard` (each takes `cover`, a resolved
-  `{ url, focus }`, and draws the viewer's own rating stamp and expectation
-  chip of the tier only for a holder of `self.list`), `CharacterCard` (one card of `lib/characterCards.js` - a
+  `CollectionCard`, `FranchiseCard` and `SeriesCard` (thin wrappers over one
+  `GroupCard` body; each takes `cover`, a resolved `{ url, focus }`, and draws
+  the viewer's own rating stamp and expectation chip of the tier only for a
+  holder of `self.list`; `CollectionCard` adds its member count through
+  `GroupCard`'s `badge` and `children`), `CharacterCard` (one card of `lib/characterCards.js` - a
   character, or one of its identities drawn dashed; the character library,
   the hubs' Characters tab and `/search`'s Characters tab draw it), and `StaffCard`
   (`PersonCard` / `StudioCard` / `PublisherCard` over one shared body — the
@@ -504,6 +506,10 @@ columns.
   and the app has none), `SuggestList` (see "Dropdown lists" below),
   `ReleaseDateInput`, `ScopePicker`, `OptionSubTabBar`,
   `OptionCategorySelect`,
+  `GroupRatingFields` (the viewer's own **My Rating** and, given
+  `expectationField`, **Expectation** selects on the six Add and Modify group
+  tabs; renders nothing without `self.list`, and only edits the form - the
+  page saves the values through `/api/me/ratings`),
   `ContentLabelPicker` (one owner-agnostic control for both Add and Modify —
   it takes `owner={{kind, mediaType?, id}}`, `kind` being `entry`,
   `collection`, `franchise` or `series`, and reads and writes that owner's
