@@ -1,13 +1,8 @@
 // Frontend: page component file for FranchiseLibrary.
 import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  getDisplayName,
-  getSortName,
-  getRatingWeight,
-  cleanString,
-  parseTypes,
-} from "../../utils/media";
+import { getDisplayName, cleanString, parseTypes } from "../../utils/media";
+import { compareGroups } from "../../lib/groupSort";
 import { getFranchiseCover, withMediaType } from "../../lib/covers";
 import { entityPath } from "../../lib/entityPath";
 import FranchiseCard from "../../components/cards/FranchiseCard";
@@ -16,12 +11,6 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useViewScope } from "../../hooks/useViewScope";
 import { canSeeGatedType } from "../../lib/gatedTypes";
 import { withoutPersonal } from "../../lib/libraryScope";
-
-const EXPECTATION_WEIGHT = { Highest: 0, High: 1, Medium: 2, Low: 3 };
-
-function getExpectationWeight(exp) {
-  return EXPECTATION_WEIGHT[exp] ?? 4;
-}
 
 function getFilterCategories(franchise) {
   const types = parseTypes(franchise.franchise_type);
@@ -324,21 +313,7 @@ export default function FranchiseLibrary() {
     // A personal sort left selected by a viewer who cannot see the values
     // would order by nothing; it reads as Title instead.
     const sort = showPersonal ? currentSort : "title";
-    result.sort((a, b) => {
-      if (sort === "my_rating") {
-        const diff =
-          getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating);
-        if (diff !== 0) return diff;
-      } else if (sort === "franchise_expectation") {
-        const diff =
-          getExpectationWeight(a.franchise_expectation) -
-          getExpectationWeight(b.franchise_expectation);
-        if (diff !== 0) return diff;
-      }
-      return getSortName(a, "franchise").localeCompare(
-        getSortName(b, "franchise"),
-      );
-    });
+    result.sort((a, b) => compareGroups(a, b, sort, "franchise"));
 
     return result;
   }, [allFranchises, searchQuery, currentSort, showPersonal, filters]);
@@ -431,7 +406,7 @@ export default function FranchiseLibrary() {
                   {showPersonal && (
                     <>
                       <option value="my_rating">My rating</option>
-                      <option value="franchise_expectation">Expectation</option>
+                      <option value="expectation">Expectation</option>
                     </>
                   )}
                 </select>

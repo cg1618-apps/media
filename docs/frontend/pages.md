@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-11-17
+Last verified: 2026-11-18
 
 **What this is for.** This is the map of every page outside the admin
 tabs — what a guest can open, what a member adds (see "The guest scope"
@@ -33,6 +33,7 @@ are a large share of the bundle and never needed on first paint.
 | `/search` | `Search` — `public/Search.jsx` | eager, **`view.search`** |
 | `/library/collection` | `CollectionLibrary` — `library/CollectionLibrary.jsx` | eager |
 | `/library/franchise` | `FranchiseLibrary` — `library/FranchiseLibrary.jsx` | eager |
+| `/library/series` | `SeriesLibrary` — `library/SeriesLibrary.jsx` | eager |
 | `/library/studio` | `StudioLibrary` — `library/StudioLibrary.jsx` (matched before `/library/:type`) | lazy, **`view.studio`** |
 | `/library/publisher` | `PublisherLibrary` — `library/PublisherLibrary.jsx` (matched before `/library/:type`) | lazy, **`view.publisher`** |
 | `/library/person` | `PersonLibrary` — `library/PersonLibrary.jsx` (matched before `/library/:type`) | lazy, **`view.person`** |
@@ -87,7 +88,7 @@ carries the label.
 A guest — a logged-out visitor, or any account on the `guest` role — browses
 the media and the groups and nothing else: the dashboard's Announcements and
 Broadcast schedule, the `/library/:type` lists, `/library/collection`,
-`/library/franchise`, and the entry, collection, franchise, series and
+`/library/franchise`, `/library/series`, and the entry, collection, franchise, series and
 watch-order pages they lead to. Everything else a member reads is behind a
 `view.*` permission, which `super` holds, `guest` does not hold as seeded,
 and the `admin` role never holds — the admin reads no catalogue at all. `user`
@@ -147,7 +148,7 @@ about styling.
 
 | Section key | Label | Shape | Contents |
 |---|---|---|---|
-| `library` | Library | mega-panel (`columns`), `requires` any of the nine ordinary `media_type.*` keys (`LIBRARY_MEDIA_TYPE_PERMISSIONS`), so a role holding none — the admin — has no Library tab. Nav only: the `/library` routes themselves stay open | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities** (each row `requires` its own kind's key, so a row whose kind is off is dropped and a viewer holding none has no Entities column): Studio `/library/studio` (also matches `/studio`; `view.studio`), Publisher `/library/publisher` (also matches `/publisher`; `view.publisher`), Person `/library/person` (also matches `/person`; `view.person`), Character `/library/character` (also matches `/character` and `/identity`; `view.character`), Seiyuu `/library/seiyuu` (`view.person`) · **AniManga**: Anime, Anime Movie, Manga, Book, Game `/library/game` (also matches `/game`) · **Reality**: TV Show, Movie, Cartoon, Comic |
+| `library` | Library | mega-panel (`columns`), `requires` any of the nine ordinary `media_type.*` keys (`LIBRARY_MEDIA_TYPE_PERMISSIONS`), so a role holding none — the admin — has no Library tab. Nav only: the `/library` routes themselves stay open | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` (also matches `/franchise` and `/watch-order`), Series `/library/series` (also matches `/series`) · **Entities** (each row `requires` its own kind's key, so a row whose kind is off is dropped and a viewer holding none has no Entities column): Studio `/library/studio` (also matches `/studio`; `view.studio`), Publisher `/library/publisher` (also matches `/publisher`; `view.publisher`), Person `/library/person` (also matches `/person`; `view.person`), Character `/library/character` (also matches `/character` and `/identity`; `view.character`), Seiyuu `/library/seiyuu` (`view.person`) · **ACG**: Anime, Anime Movie, Manga, Book, Game `/library/game` (also matches `/game`) · **Reality**: TV Show, Movie, Cartoon, Comic |
 | `restricted` | Restricted | flat `items`, every row gated | H-Comic `/library/h-comic` (also matches `/h-comic`; `gatedType: "h-comic"`), H-Game `/library/h-game` (also matches `/h-game`; `gatedType: "h-game"`), Hentai `/library/hentai` (also matches `/hentai`; `gatedType: "hentai"`). Each is drawn only for a session that can see its type; a session that can see no gated type has every row dropped, so the tab itself is not drawn |
 | `track` | Track | flat `items` | Plan `/plan` (`requires: "self.list"` — see below), Completions `/completions` (`requires: "self.list"`). The account's own progress; a guest holds no `self.*` key, so the tab is not drawn |
 | `explore` | Explore | flat `items` | Seasonal `/seasonal` and Future Releases `/future-releases`, each `requires: LIBRARY_MEDIA_TYPE_PERMISSIONS` (any ordinary media type, so a guest's and a shared account's Explore hold both and the admin's neither), Statistics `/statistics` (`requires: "view.statistics"`, so super, user and shared and never a guest), and Random Picker `/random` (`requires: "view.random_picker"`; its `/random/<type>` pages light it too) |
@@ -178,7 +179,7 @@ hands back the original item objects, since Nav marks the current row by
 identity. Every gate is `has()` from `useAuth()`, a plain membership test,
 so a tab or row is drawn only for a role that holds its key.
 
-A guest is therefore shown two tabs: Library, holding Groups, AniManga and
+A guest is therefore shown two tabs: Library, holding Groups, ACG and
 Reality, and Explore, holding Seasonal and Future Releases. A shared
 account's Explore adds the Random Picker and Statistics. The admin is shown no
 Library, Restricted, Track or Explore tab, Extras holding Resources alone,
@@ -706,9 +707,11 @@ Filter panel "Type": Anime, Manga, Book, Anime Movie, Movie, TV, Cartoon,
 Comic, H-Comic, H-Game, Hentai (each drawn only for a session that can see the type), Other
 (Anime and Manga are the franchise's own `Anime` and `Manga` types) — **there is no Game category**, so a Game-only franchise files
 under "Other". Sort
-`title (default) | my_rating | franchise_expectation`, shared by both views;
-the last two are the viewer's own, offered only to a holder of `self.list`,
-and without it the list sorts by title.
+`title (default) | my_rating | expectation`, shared by both views, through
+`compareGroups` in `lib/groupSort.js`: each key falls through to the next on a
+tie - expectation, then my rating, then title; my rating, then title. The last
+two are the viewer's own, offered only to a holder of `self.list`, and without
+it the list sorts by title.
 
 Grid renders `FranchiseCard`. Table view renders the file's `TABLE_COLUMNS`,
 whose markup and class names mirror the table in `LibraryLayout.jsx` so the
@@ -721,11 +724,33 @@ column collapses, so Franchise, Entries and My are what survives at phone
 width; the wrapper is `overflow-auto`, so a wider table scrolls inside itself
 rather than widening the page. Clicking a row navigates to the franchise.
 
+### SeriesLibrary — `/library/series`
+
+File `pages/library/SeriesLibrary.jsx`, laid out as `FranchiseLibrary` is, one
+tier down. Raw `fetch` of `/api/series/`, `/api/franchise/` (for the parent's
+name) and every entry list a series can hold that the session may see, each
+`?limit=2000`, from its own `ENTRY_SOURCES` table: anime, manga, book, comic,
+movie, TV show, cartoon, game, and the gated h-comic, h-game and hentai only
+for a session that can see the type. `anime_movies` has no `series_id`, so it
+is not fetched. The full set feeds `getSeriesCover()` and the Entries count,
+as in `FranchiseLibrary`.
+
+Search runs over all five name fields. A series carries no type, so the
+filter panel ("Holds") lists the media types the session can see, and a
+series passes when its entries include any chosen one. Sort is the franchise
+library's: `title (default) | my_rating | expectation` through
+`compareGroups`, the last two only for a holder of `self.list`.
+
+Grid renders `SeriesCard`. Table view: Series (a `Link` built by
+`entityPath`), Franchise (`md`), Types (`lg`, the media types its entries
+are), Entries, Expectation (`lg`), My; Expectation and My carry `personal:
+true`. Clicking a row navigates to the series.
+
 ### StudioLibrary — `/library/studio`
 
 File `pages/library/StudioLibrary.jsx`. A studio is a public **entity**, not a
 media type, so this sits outside `LIBRARY_CONFIGS` as its own component,
-alongside `CollectionLibrary` and `FranchiseLibrary`; its route is declared
+alongside `CollectionLibrary`, `FranchiseLibrary` and `SeriesLibrary`; its route is declared
 before `/library/:type` so the generic library page never claims it.
 
 Raw `fetch` of `/api/studio/` alone — the response already carries
@@ -1136,7 +1161,7 @@ so the first available tab is re-picked (Collection keeps "Franchises").
 | Hero badges | `TierBadge` with `franchise_type`, names, my_rating, "{x} Expectation" (these two, here and on the other two hubs, the viewer's own and drawn only for a holder of `self.list`), parent collection link, "Plan Next: {type} ({bucket})", "To Rewatch/Reread: {type}", total entries, completion bar | same shape with `series_expectation`, rewatch chips, parent franchise link | names, my_rating, `collection_expectation`, "{n} Franchise(s)" |
 | Content labels | the franchise's OWN labels as `ContentLabelChips`, with a note that they hide its series and entries; no row when it carries none | the series' own, noting they hide its entries | the collection's own, noting they hide every franchise, series and entry in it |
 | Curation controls | Overall Rating and Expectation selects for a holder of `self.list` (`PUT /api/me/ratings/franchise/{id}`); for an admin, **Plan Next** `SizeGroupControls` (per-type checkbox + derived/manual size-group select → PATCH `size_group_manual`) and rewatch `PlanKindToggles` | Overall Rating and Expectation (`self.list`, `PUT /api/me/ratings/series/{id}`); rewatch `PlanKindToggles scope="series"` for an admin (no size groups at series level) | Overall Rating and Expectation (`self.list`, `PUT /api/me/ratings/collection/{id}`) |
-| Tabs | "Media" (counted): Anime, Anime Movies, Manga, Book, Comic, **Game** ("Base games, DLC & expansions", sorted by `release_date` ascending), **H-Comic**, **H-Game** and **Hentai** (each by `series_number`, then release date; the H-Comic, H-Game and Hentai tabs each allowed by any type of the restricted family), Movies, TV Shows, Cartoons — shown when `franchise_type` allows *and* the list is non-empty; "Extras": Characters (only with `view.character`), Watch Order, Relations, Notes. Every media tab's "Sort: my rating" option is offered only with `self.list` | Media tabs by non-empty list only; same extras. Its **Game** tab carries its own sort (release_date default, then title / my_rating / hours_played) and a Game Type filter the other tabs have no equivalent of — a series usually mixes a base game with its DLC | "Members" → Franchises (`FranchiseCard`s); extras Watch Order, Relations, Notes |
+| Tabs | "Media" (counted): Anime, Anime Movies, Manga, Book, Comic, Movies, TV Shows, Cartoons, **Game** ("Base games, DLC & expansions", sorted by `release_date` ascending) - the last ungated tab - then **H-Comic**, **H-Game** and **Hentai** (each by `series_number`, then release date; the H-Comic, H-Game and Hentai tabs each allowed by any type of the restricted family) — shown when `franchise_type` allows *and* the list is non-empty; "Extras": Characters (only with `view.character`), Watch Order, Relations, Notes. Every media tab's "Sort: my rating" option is offered only with `self.list` | Media tabs by non-empty list only; same extras. Its **Game** tab carries its own sort (release_date default, then title / my_rating / hours_played) and a Game Type filter the other tabs have no equivalent of — a series usually mixes a base game with its DLC | "Members" → Franchises (`FranchiseCard`s); extras Watch Order, Relations, Notes |
 
 Plan toggles call `POST /api/plan-next/` `{ media_type, scope, kind, target_id }`
 (409 tolerated) and `DELETE /api/plan-next/target?scope=&media_type=&kind=&target_id=`
