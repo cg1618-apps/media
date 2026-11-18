@@ -16,7 +16,7 @@ Copies are seeded as rows rather than through the entry form: the form writes
 a copy only for an account holding `self.list`, which is a question for
 test_game_copy_is_personal.py, not this file.
 
-Requires PostgreSQL (media_test DB).
+Requires PostgreSQL (the run's own database).
 """
 
 import uuid

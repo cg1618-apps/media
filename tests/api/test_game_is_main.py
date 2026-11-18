@@ -6,7 +6,7 @@ The other types' `is_main` reads the shared IS_MAIN vocabulary (本傳 / 外傳 
 remake or remaster of one - so it has GAME_IS_MAIN instead, and has nothing to
 do with the relation system or with game_type.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

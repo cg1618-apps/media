@@ -277,7 +277,7 @@ column is already the cover, the sources and the relations; it is drawn on
 `xl:` and up only, and the page container widens there (`max-w-7xl` →
 `88rem`) by about the column's width so the cover column is not squeezed.
 Rows are display-face text with a 2 px left rule, `brand` on the current
-row - the same `TableOfContents` the dashboard uses on its left. It is never
+row - the same `TableOfContents` the dashboard draws, also on its right. It is never
 taller than the space under the nav: a longer list scrolls inside the column
 and follows the current row.
 

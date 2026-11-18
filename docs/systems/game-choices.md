@@ -1,6 +1,6 @@
 # Game Choices
 
-Last verified: 2026-11-14
+Last verified: 2026-11-18
 
 ## What this is for
 
@@ -244,6 +244,6 @@ The full tab list and its ordering contract are in [../data-actions.md](../data-
 
 ## Related
 
-- Tests: `tests/api/test_game_choice.py` (gates with both the allow and the refuse case, the branch and link rules, deletes and save links, marks), `tests/api/test_game_choice_sheets.py` (the round trip, an older edge tab, and a whole older graph), `tests/api/test_game_choice_branches_migration.py` (the revision both ways, and the downgrade's refusal), `tests/unit/test_game_note_sections.py` (the `choice_node` field); frontend `frontend/src/lib/choiceLayout.test.js`, the `*.test.jsx` files in `frontend/src/components/game-choices/`, and `frontend/src/pages/notes/sections/StructuredSection.choiceNode.test.jsx`.
+- Tests: `tests/api/test_game_choice.py` (gates with both the allow and the refuse case, the branch and link rules, deletes and save links, marks), `tests/api/test_game_choice_sheets.py` (the round trip, an older edge tab, and a whole older graph), `tests/unit/test_game_note_sections.py` (the `choice_node` field); frontend `frontend/src/lib/choiceLayout.test.js`, the `*.test.jsx` files in `frontend/src/components/game-choices/`, and `frontend/src/pages/notes/sections/StructuredSection.choiceNode.test.jsx`.
 - Why the graph has tables of its own, why it is shared while marks are personal, why no positions are stored, why the save link is a note field, why branches are drawn items with nullable targets, and why the revision is irreversible: [../notes/decisions.md](../notes/decisions.md) ("A game's choice graph is three tables; the graph is shared, the marks personal").
 - The notes registry and the Saves section: [notes.md](notes.md). The relations canvas this is modelled on: [relations.md](relations.md).

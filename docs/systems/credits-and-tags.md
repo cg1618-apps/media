@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-11-17
+Last verified: 2026-11-18
 
 ## What this is for
 
@@ -847,7 +847,7 @@ counts the list's queries.
 `test_person_router.py`, `test_person_entries.py`, `test_studio_router.py`,
 `test_options_router.py`, `test_entry_link_fields.py` (including the
 query-count guard on `credit_refs`), `test_field_gating.py`;
-`tests/unit/test_person_role_collapse.py`, `test_person_name_slots.py`;
+`tests/unit/test_person_name_slots.py`;
 `frontend/src/lib/ensureSourceValues.test.js`,
 `src/lib/naming.test.js`, `src/components/forms/PersonSubTabBar.test.jsx`,
 `src/pages/library/PersonLibrary.test.jsx`.
@@ -909,8 +909,7 @@ Vocabularies, PATCH and the photo fallback:
 `tests/unit/test_entity_vocab.py` (the write schemas refuse a gender outside
 its vocabulary and carry no rating, `""` is null, and a Pull folds old free
 text),
-`tests/api/test_character_person_vocab_migration.py` (the revision's own
-folding and its downgrade), `test_character_person_patch.py` (PATCH on both,
+`tests/api/test_character_person_patch.py` (PATCH on both,
 the at-least-one-name rule, server columns, non-admins refused, and the
 fallback-must-be-linked check on `PUT`, `PATCH` and `POST`),
 `test_entity_photos.py` ([Photo fallback](#photo-fallback)), and in

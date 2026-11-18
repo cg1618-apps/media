@@ -2,7 +2,7 @@
 API integration tests for /api/franchise endpoints.
 
 Tests public reads and admin-protected writes.
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

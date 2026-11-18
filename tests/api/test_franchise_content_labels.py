@@ -17,7 +17,7 @@ existing one on an entry or a franchise is `manage.catalog`, which `super`
 holds. The refusal tests below run against a vocabulary that is NOT empty - a
 401 on an empty catalogue would prove nothing about the gate.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

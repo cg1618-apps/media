@@ -10,7 +10,8 @@ revision ever created, and on an empty database the transaction aborted and
 rolled back to zero tables. Every installation had come from `create_all`
 instead, and the migrations were never the thing being run.
 
-So this test runs the real command against a scratch database and compares the
+So this test runs the real command against a scratch database (the run's
+shared `migrated_head`, built once in tests/api/conftest.py) and compares the
 result to `create_all`'s, object by object and column by column. Two specific
 failures it would have caught on the day the baseline was written, both silent:
 
@@ -29,18 +30,12 @@ setting POSTGRES_DB before that import, which an already-running test process
 cannot do - and a subprocess is what a human runs anyway.
 """
 
-import os
-import subprocess
-import sys
-import uuid
 from pathlib import Path
 
-import pytest
 import sqlalchemy as sa
 from sqlalchemy import text
 
-from app import models
-from app.config import settings
+from tests import databases
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -76,51 +71,8 @@ ALEMBIC_OWN = {"con:alembic_version_pkc", "ix:alembic_version_pkc"}
 
 
 def _server_url(database: str) -> str:
-    """The configured server, pointed at one named database.
-
-    `render_as_string(hide_password=False)` rather than `str()`: SQLAlchemy's
-    URL.__str__ masks the password as `***`, so str() hands back a URL that
-    connects to the right host as the right user and fails authentication.
-    That failure arrives here as a skip, not a red test, which is the worst
-    shape it could take - the guard would sit green and never run.
-    """
-    url = sa.engine.url.make_url(settings.sqlalchemy_database_url)
-    return url.set(database=database).render_as_string(hide_password=False)
-
-
-@pytest.fixture
-def scratch_databases():
-    """Two empty databases, dropped afterwards whatever happens.
-
-    Named with a uuid so a concurrent run in another worktree cannot collide -
-    the pytest lock covers the suite, not somebody's manual session.
-    """
-    suffix = uuid.uuid4().hex[:8]
-    names = (f"anime_mig_{suffix}", f"anime_create_{suffix}")
-
-    admin = sa.create_engine(_server_url("postgres"), isolation_level="AUTOCOMMIT")
-    try:
-        with admin.connect() as conn:
-            for name in names:
-                conn.execute(text(f'CREATE DATABASE "{name}"'))
-    except sa.exc.SQLAlchemyError as exc:  # pragma: no cover - environment
-        admin.dispose()
-        pytest.skip(f"cannot create a scratch database here: {exc}")
-
-    try:
-        yield names
-    finally:
-        with admin.connect() as conn:
-            for name in names:
-                conn.execute(
-                    text(
-                        "select pg_terminate_backend(pid) from pg_stat_activity "
-                        "where datname = :n and pid <> pg_backend_pid()"
-                    ),
-                    {"n": name},
-                )
-                conn.execute(text(f'DROP DATABASE IF EXISTS "{name}"'))
-        admin.dispose()
+    """The configured server, pointed at one named database."""
+    return databases.server_url(database)
 
 
 def _read(url: str, statement) -> set[str]:
@@ -132,35 +84,18 @@ def _read(url: str, statement) -> set[str]:
         engine.dispose()
 
 
-def test_upgrade_head_on_an_empty_database_matches_the_models(scratch_databases):
-    migrated_db, created_db = scratch_databases
+def test_upgrade_head_on_an_empty_database_matches_the_models(
+    migrated_head, created_from_models
+):
+    """Every named object, both ways round.
 
-    result = subprocess.run(
-        [sys.executable, "-m", "alembic", "upgrade", "head"],
-        cwd=ROOT,
-        env={**os.environ, "POSTGRES_DB": migrated_db},
-        capture_output=True,
-        text=True,
-    )
-    # The original defect surfaced as a non-zero exit with the schema rolled
-    # back, so the exit code alone is a real assertion - but the tables check
-    # below is what makes an empty success impossible to mistake for a pass.
-    assert result.returncode == 0, (
-        f"alembic upgrade head failed on an empty database:\n"
-        f"{result.stdout[-3000:]}\n{result.stderr[-3000:]}"
-    )
-
-    migrated_url = _server_url(migrated_db)
-    created_url = _server_url(created_db)
-
-    created_engine = sa.create_engine(created_url)
-    try:
-        models.Base.metadata.create_all(bind=created_engine)
-    finally:
-        created_engine.dispose()
-
-    migrated_objects = _read(migrated_url, OBJECTS_SQL) - ALEMBIC_OWN
-    created_objects = _read(created_url, OBJECTS_SQL)
+    `migrated_head` asserted the upgrade exited 0. The original defect surfaced
+    as a non-zero exit with the schema rolled back, so the exit code alone is a
+    real assertion - but the check below is what makes an empty success
+    impossible to mistake for a pass.
+    """
+    migrated_objects = _read(_server_url(migrated_head), OBJECTS_SQL) - ALEMBIC_OWN
+    created_objects = _read(_server_url(created_from_models), OBJECTS_SQL)
 
     # Non-emptiness first. Both sides of a set comparison are satisfied by two
     # empty sets, and an empty set is exactly what the rolled-back run left
@@ -180,31 +115,14 @@ def test_upgrade_head_on_an_empty_database_matches_the_models(scratch_databases)
     )
 
 
-def test_the_migrated_columns_match_the_models(scratch_databases):
+def test_the_migrated_columns_match_the_models(migrated_head, created_from_models):
     """Types, nullability and defaults, not just the object names.
 
     A table can exist under both paths and still differ in a column default or
     a nullable flag, which the object-name comparison above would pass.
     """
-    migrated_db, created_db = scratch_databases
-
-    result = subprocess.run(
-        [sys.executable, "-m", "alembic", "upgrade", "head"],
-        cwd=ROOT,
-        env={**os.environ, "POSTGRES_DB": migrated_db},
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode == 0, result.stderr[-2000:]
-
-    created_engine = sa.create_engine(_server_url(created_db))
-    try:
-        models.Base.metadata.create_all(bind=created_engine)
-    finally:
-        created_engine.dispose()
-
-    migrated = _read(_server_url(migrated_db), COLUMNS_SQL)
-    created = _read(_server_url(created_db), COLUMNS_SQL)
+    migrated = _read(_server_url(migrated_head), COLUMNS_SQL)
+    created = _read(_server_url(created_from_models), COLUMNS_SQL)
 
     assert len(created) > 300, "create_all built no columns; the check is vacuous"
     assert created - migrated == set(), sorted(created - migrated)[:20]

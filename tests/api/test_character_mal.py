@@ -7,7 +7,7 @@ imports them by, so these exercise the real router -> autofill and router ->
 mal_cast wiring without a network call. The payloads are trimmed real Tenrai
 v1 responses (/characters/11/full, /anime/5114/characters).
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

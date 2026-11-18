@@ -7,7 +7,7 @@ Fixtures `anime`, `character`, `character_with_castings`,
 `seiyuu_with_one_casting`, `hidden_anime` and `catalog_writer` live in
 tests/api/conftest.py.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

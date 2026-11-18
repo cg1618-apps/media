@@ -139,10 +139,6 @@ GAME_ONLY_SECTIONS = {
     "beginner",
     "trivia",
     "player_terms",
-    # 劇情: its Story List is its story.
-    "main_plot",
-    "side_plot",
-    "character_arcs",
     # 世界觀, whole.
     "lore",
     "story_terms",

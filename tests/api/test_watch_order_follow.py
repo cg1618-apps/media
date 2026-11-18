@@ -6,7 +6,7 @@ or collection that owns it), and the follow reports where that member stands
 in the order, computed from their own list rows. See docs/systems/watch-orders.md,
 "Following".
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

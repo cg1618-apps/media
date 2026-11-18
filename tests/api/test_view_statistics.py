@@ -1,23 +1,15 @@
 """
 view.statistics: the Statistics page and its catalogue counts.
 
-super, user and shared hold it by lock, and guest and admin never do. Until
-this key the page opened on any ordinary `media_type.*`, which reached the
-guest. Every refusal reads a catalogue with an entry in it, so a 401 cannot be
-an empty table answering, and each is mirrored by a holder reading the same
-counts.
+super, user and shared hold it by lock, and guest and admin never do - an
+ordinary `media_type.*`, which the guest holds, does not open the page. Every
+refusal reads a catalogue with an entry in it, so a 401 cannot be an empty
+table answering, and each is mirrored by a holder reading the same counts.
 
-The s1t2atistics3 revision grants it to the three holders; its own functions
-are imported by file path and run against the test session, as
-test_view_random_picker_migration.py does, since the suite builds its schema
-with create_all and never runs Alembic.
-
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
-import importlib.util
 import uuid
-from pathlib import Path
 
 import pytest
 
@@ -40,8 +32,6 @@ from app.services.security import create_access_token, get_password_hash
 from tests.api.conftest import role_id_for
 
 STATS = "/api/statistics/catalogue"
-ROOT = Path(__file__).resolve().parents[2]
-REVISION = ROOT / "alembic" / "versions" / "s1t2atistics3_view_statistics.py"
 HOLDERS = ("super", "user", "shared")
 
 
@@ -165,64 +155,3 @@ def test_each_holder_reads_them(db_session, client, an_entry, role_name):
 def test_the_admin_cannot_read_them(admin_client, an_entry):
     assert admin_client.get(STATS).status_code == 401
 
-
-# ---------------------------------------------------------------------------
-# The revision
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture(scope="module")
-def revision():
-    spec = importlib.util.spec_from_file_location("_view_statistics", REVISION)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-def _holds(db, role_name):
-    role = db.query(models.Role).filter(models.Role.name == role_name).one()
-    return (
-        db.query(models.RolePermission)
-        .filter_by(role_id=role.system_id, permission=PERM_VIEW_STATISTICS)
-        .count()
-    )
-
-
-@pytest.fixture
-def pre_revision(db_session, client):
-    """The state before the revision: nobody holds the key."""
-    db_session.query(models.RolePermission).filter_by(
-        permission=PERM_VIEW_STATISTICS
-    ).delete(synchronize_session=False)
-    db_session.flush()
-    return db_session
-
-
-def test_the_frozen_name_matches(revision):
-    assert revision.STATISTICS == PERM_VIEW_STATISTICS
-
-
-def test_upgrade_grants_the_three_holders_and_not_guest_or_admin(revision, pre_revision):
-    db = pre_revision
-    assert all(_holds(db, name) == 0 for name in HOLDERS)
-    revision.apply_upgrade(db.connection())
-    for name in HOLDERS:
-        assert _holds(db, name) == 1, name
-    for name in ("guest", "admin"):
-        assert _holds(db, name) == 0, name
-
-
-def test_upgrade_is_idempotent(revision, pre_revision):
-    db = pre_revision
-    revision.apply_upgrade(db.connection())
-    revision.apply_upgrade(db.connection())
-    for name in HOLDERS:
-        assert _holds(db, name) == 1, name
-
-
-def test_downgrade_takes_it_off_everyone(revision, pre_revision):
-    db = pre_revision
-    revision.apply_upgrade(db.connection())
-    revision.apply_downgrade(db.connection())
-    for name in (*HOLDERS, "guest", "admin"):
-        assert _holds(db, name) == 0, name

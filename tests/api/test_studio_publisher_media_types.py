@@ -13,7 +13,7 @@ Publishers are never credited on a gated type through the API - no gated type
 is a legal publisher scope - so the publisher's gated credit is written
 straight to media_credit. It is what makes the publisher refusal test bite.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

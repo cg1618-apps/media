@@ -18,7 +18,6 @@ Each refusal is mirrored by a session that gets the same file, so a 404 is the
 gate and not a missing file.
 """
 
-import os
 import uuid
 from datetime import timedelta
 
@@ -26,12 +25,10 @@ import pytest
 from sqlalchemy import event
 
 from app import models
-from app.services.integrations.image_manager import COVER_DIR, cover_key
 from app.services.rbac import cache, cover_viewer
 from app.services.rbac.resolver import Viewer
 from app.services.security import create_access_token
-
-PIXEL = b"\xff\xd8\xff\xe0 not really a jpeg, but bytes on disk"
+from tests.api.conftest import COVER_PIXEL as PIXEL
 
 # Statements that belong to resolving WHO is asking, as opposed to the image.
 VIEWER_TABLES = (
@@ -42,29 +39,6 @@ VIEWER_TABLES = (
     "FROM content_label ",
     "FROM content_label\n",
 )
-
-
-@pytest.fixture
-def cover_on_disk():
-    """Write a cover file for one owner, and take it away again afterwards."""
-    written = []
-
-    def _write(owner_type, system_id):
-        key = cover_key(owner_type, str(system_id))
-        path = os.path.join(COVER_DIR, *key.split("/"))
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "wb") as fh:
-            fh.write(PIXEL)
-        written.append(path)
-        return f"/api/covers/{key}"
-
-    yield _write
-
-    for path in written:
-        try:
-            os.remove(path)
-        except FileNotFoundError:
-            pass
 
 
 @pytest.fixture

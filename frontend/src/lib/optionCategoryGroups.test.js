@@ -60,6 +60,7 @@ describe("isNoteSuggestionCategory", () => {
       "Item Type",
       "Weapon & Gear Type",
       "Enemy Tier",
+      "Side Quest Type",
       "Geography Group",
     ]) {
       expect(isNoteSuggestionCategory(c)).toBe(true);

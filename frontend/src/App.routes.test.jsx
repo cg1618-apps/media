@@ -28,6 +28,7 @@ vi.mock("./pages/public/Register", () => stub("register"));
 vi.mock("./pages/public/Search", () => stub("search"));
 vi.mock("./pages/library/Library", () => stub("media library"));
 vi.mock("./pages/library/FranchiseLibrary", () => stub("franchise library"));
+vi.mock("./pages/library/SeriesLibrary", () => stub("series library"));
 vi.mock("./pages/library/CollectionLibrary", () => stub("collection library"));
 vi.mock("./pages/detail/Franchise", () => stub("franchise"));
 vi.mock("./pages/detail/Anime", () => stub("anime"));
@@ -246,6 +247,7 @@ describe("a guest's open routes", () => {
     "/": "dashboard",
     "/library/anime": "media library",
     "/library/franchise": "franchise library",
+    "/library/series": "series library",
     "/library/collection": "collection library",
     "/franchise/1": "franchise",
     "/anime/1": "anime",

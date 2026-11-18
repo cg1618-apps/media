@@ -9,7 +9,7 @@ one that `attach_list_fields` put there - which is how a review queue reading
 `entry.watching_status` directly passed its old test and answered 500 against
 a real database.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

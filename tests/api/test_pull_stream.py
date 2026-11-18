@@ -6,7 +6,7 @@ The same tunnel window that made Backup stream applies here: a Pull All reads
 every tab of the sheet, longer than the ~100 s a silent request survives behind
 Cloudflare. See test_backup_stream.py for the Backup half.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import json

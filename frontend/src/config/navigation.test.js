@@ -109,13 +109,18 @@ describe("activeSectionKey", () => {
 });
 
 describe("NAV_SECTIONS", () => {
-  it("groups Collection and Franchise apart from AniManga and Reality", () => {
+  it("groups Collection, Franchise and Series apart from ACG and Reality", () => {
     const library = NAV_SECTIONS.find((s) => s.key === "library");
     const groups = library.columns.find((c) => c.heading === "Groups");
     expect(groups.items.map((i) => i.label)).toEqual([
       "Collection",
       "Franchise",
+      "Series",
     ]);
+    // A series page lights up the Series item, not Franchise.
+    expect(activeItem("/library/series").item.label).toBe("Series");
+    expect(activeItem("/series/7").item.label).toBe("Series");
+    expect(activeItem("/franchise/7").item.label).toBe("Franchise");
   });
 
   it("keeps the credited entities in their own column, not Groups", () => {
@@ -130,16 +135,16 @@ describe("NAV_SECTIONS", () => {
     ]);
   });
 
-  it("lists Seiyuu with the entities, not under AniManga", () => {
+  it("lists Seiyuu with the entities, not under ACG", () => {
     const library = NAV_SECTIONS.find((s) => s.key === "library");
-    const animanga = library.columns.find((c) => c.heading === "AniManga");
+    const animanga = library.columns.find((c) => c.heading === "ACG");
     expect(animanga.items.map((i) => i.label)).not.toContain("Seiyuu");
     expect(activeItem("/library/seiyuu").item.label).toBe("Seiyuu");
   });
 
-  it("lists Game in the AniManga column", () => {
+  it("lists Game in the ACG column", () => {
     const library = NAV_SECTIONS.find((s) => s.key === "library");
-    const animanga = library.columns.find((c) => c.heading === "AniManga");
+    const animanga = library.columns.find((c) => c.heading === "ACG");
     expect(animanga.items.map((i) => i.label)).toContain("Game");
     expect(activeItem("/library/game").item.label).toBe("Game");
     expect(activeItem("/game/12").item.label).toBe("Game");
@@ -558,7 +563,7 @@ describe("visibleSections - the guest scope", () => {
     const [library] = visibleSections(NAV_SECTIONS, holdsNothing);
     expect(library.columns.map((c) => c.heading)).toEqual([
       "Groups",
-      "AniManga",
+      "ACG",
       "Reality",
     ]);
     const forMember = visibleSections(NAV_SECTIONS, holdsMember).find(

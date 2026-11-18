@@ -5,7 +5,7 @@ label itself.
 
 Every test stubs get_all_raw_rows; nothing reaches a real sheet.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

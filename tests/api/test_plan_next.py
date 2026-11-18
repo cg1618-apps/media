@@ -1,7 +1,7 @@
 """
 API integration tests for /api/plan-next.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 
 The client here is `super_client`, not `owner_client`: since 2026-09-12 an
 administrative account holds no `self.*` grant and every route in this prefix

@@ -24,25 +24,23 @@ The scope-half tests here register a gated type of their own by pointing an
 existing type key (`manga`) at `nsfw`, so they stay independent of h-comic;
 tests/api/test_h_comic_shared_records.py covers the real gated type.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
-import os
 import uuid
 
 import pytest
 
 from app import models
 from app.services.domain import credits as credits_service
-from app.services.integrations.image_manager import COVER_DIR, cover_key
 from app.services.rbac import gated_types
 from app.services.rbac.permissions import media_type_perm
 from app.services.rbac.seed import default_guest_permissions
 from tests.api.conftest import ALL_VIEW_PERMISSIONS, make_viewer, nsfw_label  # noqa: F401
+from tests.api.conftest import COVER_PIXEL as PIXEL
 
 HIDDEN_TITLE = "Zvornik Shared Hidden Anime"
 VISIBLE_TITLE = "Zvornik Shared Visible Manga"
-PIXEL = b"\xff\xd8\xff\xe0 bytes on disk"
 
 
 # ---------------------------------------------------------------------------
@@ -92,29 +90,6 @@ def hidden_only_director(db_session, labelled_anime):
     )
     db_session.flush()
     return credits_service.find_person(db_session, "Zvornik Director")
-
-
-@pytest.fixture
-def cover_on_disk():
-    """Write an image for one owner, and take it away again afterwards."""
-    written = []
-
-    def _write(owner_type, system_id):
-        key = cover_key(owner_type, str(system_id))
-        path = os.path.join(COVER_DIR, *key.split("/"))
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "wb") as fh:
-            fh.write(PIXEL)
-        written.append(path)
-        return f"/api/covers/{key}"
-
-    yield _write
-
-    for path in written:
-        try:
-            os.remove(path)
-        except FileNotFoundError:
-            pass
 
 
 @pytest.fixture

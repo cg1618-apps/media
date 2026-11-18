@@ -407,6 +407,22 @@ describe("MediaCard - the status control is the viewer's own", () => {
     expect(Object.keys(JSON.parse(options.body))).toEqual(["watching_status"]);
     expect(fetch.mock.calls.some(([, o]) => o?.method === "PATCH")).toBe(false);
   });
+
+  it("hands its own row back with the new status, so a group page keeps the title", async () => {
+    // A franchise or series page holds its entries in page state, not in the
+    // media-list cache, and replaces the row with whatever onUpdated gets. A
+    // fresh QueryClient makes the cache empty, which is that case: a result
+    // built from the cache alone would carry no name.
+    mockAuthFetch(["self.list"]);
+    const onUpdated = vi.fn();
+    mount(movie, "movie", false, "library", { onUpdated });
+    (await screen.findByTitle(/Plan to Watch →/)).click();
+    await vi.waitFor(() => expect(onUpdated).toHaveBeenCalled());
+    expect(onUpdated.mock.calls[0][0]).toMatchObject({
+      system_id: "m1",
+      movie_name_en: "Test Movie",
+    });
+  });
 });
 
 // A film waits with Watch When Released where the airing types wait with

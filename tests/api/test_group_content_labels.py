@@ -11,7 +11,7 @@ the label did the hiding rather than anything incidental. `narrow` sits in
 `safe`, which shows no label at all, and `nsfw` is the label every fixture
 attaches - the fixture that makes refusal possible.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

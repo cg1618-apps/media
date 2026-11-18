@@ -289,3 +289,28 @@ describe("FranchisePage remark", () => {
     expect(screen.queryByPlaceholderText(/Overview notes/)).toBeNull();
   });
 });
+
+// Game is the last of the ungated media tabs; the gated ones follow it.
+describe("FranchisePage media tab order", () => {
+  it("puts Game after every other ungated type", async () => {
+    franchise = { ...FRANCHISE, franchise_type: "Movie, Cartoon, Game" };
+    const base = fetch.getMockImplementation();
+    fetch.mockImplementation((url, init) => {
+      const u = String(url);
+      if (u.startsWith("/api/movies/"))
+        return jsonRes([{ system_id: "MV001", movie_name_en: "Film" }]);
+      if (u.startsWith("/api/cartoon/"))
+        return jsonRes([{ system_id: "CT001", cartoon_name_en: "Toon" }]);
+      return base(url, init);
+    });
+    renderPage();
+    await screen.findByRole("button", { name: /^Game\s*2$/ });
+    await screen.findByRole("button", { name: /^Cartoons\s*1$/ });
+    const names = screen
+      .getAllByRole("button")
+      .map((b) => b.textContent.trim())
+      .filter((n) => /^(Movies|Cartoons|Game)\s*\d+$/.test(n))
+      .map((n) => n.replace(/\s*\d+$/, ""));
+    expect(names).toEqual(["Movies", "Cartoons", "Game"]);
+  });
+});

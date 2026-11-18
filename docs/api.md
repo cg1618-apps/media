@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-11-17
+Last verified: 2026-11-18
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -207,7 +207,7 @@ read-time through `series.franchise_id`. A series' labels hide its entries,
 not its franchise or its sibling series.
 | `POST`   | `/`            | Admin  | Create a series. Resolves or auto-creates parent franchise. Body: `SeriesCreate`.  |
 | `PUT`    | `/{system_id}` | Admin  | Full update. Resolves hierarchy changes. Body: `SeriesUpdate`.                     |
-| `PATCH`  | `/{system_id}` | Admin  | Partial update. Body: raw JSON dict. The viewer's rating and expectation go through `PUT /api/me/ratings/series/{id}`. |
+| `PATCH`  | `/{system_id}` | Admin  | Partial update. Body: raw JSON dict. A body naming `franchise_id` is resolved as `PUT` resolves it - a UUID string is the id, any other string a franchise name - and a body not naming it leaves the franchise alone. The viewer's rating and expectation go through `PUT /api/me/ratings/series/{id}`. |
 | `DELETE` | `/{system_id}` | Admin  | Delete a series. Linked `anime.series_id` set to `NULL`. Logs to `deleted_record`. |
 
 **`SeriesCreate` / `SeriesUpdate` body (= `SeriesBase`):** `franchise_id`, `series_name_en`, `series_name_cn`, `series_name_roman`, `series_name_jp`, `series_name_alt`, `cover_entry_id`, `type_slots`, `size_group_derived`, `size_group_manual`. No `to_rewatch` field — `series` has no rewatch column or virtual field at all; a series' rewatch marks are read and written through `POST` / `DELETE /api/plan-next/target` with `scope=series` directly (see Plan Next below).
@@ -1195,7 +1195,9 @@ carry URL-string links - `op_ed_changes`), `singleton`, `desc_required`, and for
 graph - a block, never a branch - also under `fields[key]` (a value naming
 another game's block, or none, is a 422 on POST and PATCH); a free-text
 `select` may carry `option_category`, the option category suggesting its
-values (suggestions only - the value stays free text) - `require_any`, `hierarchical`, `group_by` (the `names` field
+values (suggestions only - the value stays free text), and a `text` or
+`names` field may carry `suggest_from`, the key of a section whose rows'
+names (`title`) the page suggests (suggestions only, likewise) - `require_any`, `hierarchical`, `group_by` (the `names` field
 the read view groups by, or `null`), `groupable_by` (the `select` field the
 reader may toggle a one-group-per-value view on, or `null`; on a
 `hierarchical` section only a top-level row may carry it, and a child

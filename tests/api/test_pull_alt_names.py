@@ -3,7 +3,7 @@ Pull resolves a franchise, collection or series given by name in a foreign-key
 cell, and an *_alt column is a comma-separated list: a name matches when it is
 any one fragment of it.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

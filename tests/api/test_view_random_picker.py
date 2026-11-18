@@ -6,7 +6,7 @@ the shared account its own Random Picker and the guest none, and no existing
 key draws that line. Every refusal reads a mode with saved defaults, so there
 is something to refuse, and is mirrored by a holder reading the same row.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

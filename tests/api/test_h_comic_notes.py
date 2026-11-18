@@ -2,7 +2,7 @@
 The KR h-comic highlights section and the `names` field type. The section is
 personal, so its rows are written by a member (user_client), not the admin.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 

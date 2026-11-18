@@ -1,7 +1,7 @@
 """
 A tab that failed to back up must fail the whole Backup, not log Success.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import pytest

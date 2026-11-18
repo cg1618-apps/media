@@ -8,7 +8,7 @@ Completed status. The list route did neither. It now does both, for the
 caller's own row only: finishing the work's catalogue half (airing status,
 serialization status) is a catalogue edit and stays behind manage.catalog.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

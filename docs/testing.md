@@ -1,6 +1,6 @@
 # Testing
 
-Last verified: 2026-11-17
+Last verified: 2026-11-18
 
 ## What this is for
 
@@ -15,16 +15,16 @@ elsewhere.
 
 | Location | Files | Test functions | Needs |
 |---|---|---|---|
-| `tests/unit/` | 122 | 1417 | Python only, no database, no network |
-| `tests/api/` | 229 | 2241 | PostgreSQL database `media_test` |
+| `tests/unit/` | 158 | 1953 | Python only, no database, no network |
+| `tests/api/` | 390 | 4171 | PostgreSQL: the run's own database (see "One database per run") |
 | `tests/services/` | 4 | 32 | Mostly Python only: pure checks on the pipelines (Clean's tab list, the no-personal-columns rule, the User Media List tab); the backfill check reads whatever database the suite points at and skips when it holds no list rows |
-| `frontend/src/**/*.test.{js,jsx}` | 143 | 1199 `it`/`test` blocks | Node + jsdom |
+| `frontend/src/**/*.test.{js,jsx}` | 348 | 3307 `it`/`test` blocks | Node + jsdom |
 
 Counts were taken with `grep -E '^\s*(async )?def test_'` on the Python files
 and `grep -E '^\s*(it|test)\('` on the frontend files, so parametrised cases
 count once. Backend tests use only two markers: `pytest.mark.parametrize`
-(147 sites) and `pytest.mark.anyio` (14 sites, all in
-`tests/api/test_pipeline_runner.py`).
+(469 sites) and `pytest.mark.anyio` (16 sites, in
+`tests/api/test_pipeline_runner.py` and `tests/api/test_hentai_anidb_fill.py`).
 
 Frontend tests are co-located with the source they cover
 (`Nav.test.jsx` next to `Nav.jsx`, `lib/autofill.test.js` next to
@@ -35,8 +35,10 @@ Frontend tests are co-located with the source they cover
 | File | Role |
 |---|---|
 | `pytest.ini` | `testpaths = tests`, `test_*.py` / `Test*` / `test_*` discovery, `addopts = -v --tb=short`. There is no `pyproject.toml`. |
-| `tests/conftest.py` | Runs before any app import. Sets `POSTGRES_DB=media_test`, `POSTGRES_USER=postgres`, a throwaway `JWT_SECRET_KEY`, `ADMIN_PASSWORD=testadmin123`, `APP_ENV=development` and `HLTB_ENABLED=false` via `os.environ.setdefault`. The last keeps the game write hook, which searches HowLongToBeat for any game without a link, off the live site; `tests/unit/test_hltb_client.py` switches it back on with `requests` patched out. `POSTGRES_PASSWORD` is deliberately not defaulted: it comes from your `.env` (pydantic-settings) or the CI job env. |
-| `tests/api/conftest.py` | Engine, session, client and sample-row fixtures for the API tier (see below). |
+| `tests/conftest.py` | Runs before any app import. Assigns `POSTGRES_DB` a fresh `media_test_<epoch>_<hex>` name and creates that database at import (see "One database per run"); drops it in `pytest_unconfigure`. Sets `POSTGRES_USER=postgres`, a throwaway `JWT_SECRET_KEY`, `ADMIN_PASSWORD=testadmin123`, `APP_ENV=development` and `HLTB_ENABLED=false` via `os.environ.setdefault`. The last keeps the game write hook, which searches HowLongToBeat for any game without a link, off the live site; `tests/unit/test_hltb_client.py` switches it back on with `requests` patched out. `POSTGRES_PASSWORD` is deliberately not defaulted: it comes from your `.env` (pydantic-settings) or the CI job env. |
+| `tests/databases.py` | Names, creates and drops every test database - the run's own and every scratch one - and drops leftovers from crashed runs. Imports nothing from `app` at module scope, so the root conftest can use it before the app reads the environment. |
+| `tests/api/conftest.py` | Engine, session, client and sample-row fixtures for the API tier, the migrated-database fixtures, and `cover_on_disk` (see below). |
+| `scripts/pr_tests.py` | Which backend tests a pull request's own CI run executes (see "What CI runs"). Tested by `tests/unit/test_pr_tests.py`. |
 | `frontend/vitest.config.js` | `environment: "jsdom"`, `globals: true` (so `it`/`expect` need no import), `setupFiles: ["./src/test-setup.js"]`, React plugin. |
 | `frontend/src/test-setup.js` | One line: `import "@testing-library/jest-dom"` for DOM matchers. |
 | `ruff.toml` | Backend lint that CI runs before the tests (`E`, `F`, `I`, `B`; `tests/**` may shadow imported fixtures). |
@@ -60,23 +62,21 @@ Representative files: `test_utils.py`, `test_tenrai_utils.py`,
 `test_book_unit_schemas.py` (`BookUnitWrite`/`Response`, `display_key`),
 `test_book_progress.py` (`normalize_arc_progress` rollover,
 `derive_book_catalog`, `derive_book_list`, `unit_display_key`), `test_book_completion.py`
-(`mark_book_completed` with and without arc rows), `test_novel_unit_migration.py`
-(the `nv1u2n3i4t5s` data migration's list-to-rows conversion), `test_formatter_book_unit.py`
+(`mark_book_completed` with and without arc rows), `test_formatter_book_unit.py`
 (`parse_book_unit_from_sheet`, the "Book Unit" sheet tab).
 `test_book_vocabulary.py` covers the `type` vocabulary and the rules that
 branch on it, and `legacy_names.py`'s mapping of an older sheet's values;
 `test_copy_legacy_cover_folders.py` covers the startup copy of the old
-`novel/` cover folders (copied, never moved or overwritten). Their API-tier
-partners are `test_novel_becomes_book_migration.py`, which runs revision
-`b1o2okrename3`'s own downgrade and upgrade inside the test transaction, and
-`test_pull_pre_book_sheet.py`, which Pulls a sheet still carrying the `Novel`
-tab titles, headers and cell values. `test_upcoming_volumes.py` (API tier)
+`novel/` cover folders (copied, never moved or overwritten);
+`test_book_volume_only_types.py` the types counted in volumes only. Their
+API-tier partner is `test_pull_pre_book_sheet.py`, which Pulls a sheet still
+carrying the `Novel` tab titles, headers and cell values. `test_upcoming_volumes.py` (API tier)
 covers a unit's release dates and a manga's next volume's through the API,
 each refusal of a malformed date beside the same write with a good one; a
 unit's cover through the image library, refused to a writer who cannot see
 its labelled book and taken from one who can; the Book Unit and Manga tabs
 round-tripping through Backup and Pull, and each still pulling from a tab
-without the columns; and revision `u1p2coming3`'s own downgrade and upgrade.
+without the columns.
 
 ### API (`tests/api/`)
 
@@ -84,18 +84,16 @@ Full HTTP round trips through FastAPI's `TestClient` against a real
 PostgreSQL database. `tests/api/conftest.py` does the following:
 
 1. `test_engine` (session scope) refuses to run unless the database name
-   contains `test`, then `DROP SCHEMA public CASCADE` / `CREATE SCHEMA public`
-   and `Base.metadata.create_all`. Alembic is not run for *this* schema; it
-   comes from the current models, which is why the drop is needed (stale
-   columns from old runs would otherwise linger). That blind spot is why the
+   contains `test`, then runs `Base.metadata.create_all` on the run's own
+   database, which `tests/conftest.py` created empty - so there is no stale
+   schema to reset and no other run's tables to wipe. Alembic is not run for
+   *this* schema; it comes from the current models. That blind spot is why the
    migration chain went 145 revisions unable to build a database at all, so
-   one file does run it: `test_migrations_build_the_schema.py` upgrades a
-   scratch database from empty and compares the result to the models, object
-   by object and column by column. The RBAC roles that
+   the migration guards do run it (see "Migration tests"). The RBAC roles that
    migration A would normally seed are created once here via
    `ensure_rbac_seed`, followed by `ensure_access_mode_seed`,
-   `ensure_system_labels` and `ensure_shared_accounts`. `drop_all` runs at
-   session end.
+   `ensure_system_labels` and `ensure_shared_accounts`. The whole database is
+   dropped at session end.
 
    **Anything the lifespan seeds must be seeded here too, committed.** This
    has caused a hang twice. `with TestClient(app)` runs the lifespan on its
@@ -147,7 +145,7 @@ the two-stage cursor stepper.
 
 | Fixture | Scope | What you get |
 |---|---|---|
-| `test_engine` | session | Engine on `media_test` with a fresh schema and seeded roles |
+| `test_engine` | session | Engine on the run's own database with a fresh schema and seeded roles |
 | `db_session` | function | SQLAlchemy session inside a rolled-back transaction (savepoint mode) |
 | `_clear_permission_cache` | function, autouse | RBAC cache bumped before and after the test |
 | `_clear_rate_limits` | function, autouse | The login and reset rate limiter (`app/services/rate_limit.py`) emptied before and after the test. It is a process-global dict and every test client calls from the same address, so without it the sixth wrong password in a run would be refused with a 429 |
@@ -166,6 +164,12 @@ the two-stage cursor stepper.
 | `sample_series` | function | `Series` under `sample_franchise` |
 | `sample_anime` | function | TV `Anime` under `sample_franchise`, 12/12 episodes, Completed |
 | `sample_comic` | function | `Comic` under `sample_franchise`, 6/6 issues, Completed |
+| `migrated_head` | session | Name of a database built from empty by the real `alembic upgrade head`, once per run. **Read-only** - every generic migration guard reads it |
+| `migrated_head_copy` | function | A private copy of `migrated_head` (`CREATE DATABASE ... TEMPLATE`, seconds rather than a chain replay), free to downgrade or seed |
+| `created_from_models` | session | Name of a database built by `create_all`, once per run - the other side of every comparison with `migrated_head`. Read-only |
+| `scratch_database` | function | One empty database, for a revision's own test that builds the chain to the revision before it |
+| `run_alembic(database, *args)` | helper | Alembic as a subprocess pointed at one database; a subprocess because `alembic/env.py` reads the URL from `app.database` at import |
+| `cover_on_disk` | function | Writes a cover file where the cover route looks, with the cover root moved under `tmp_path`; returns the gated URL. `COVER_PIXEL` is the bytes it writes |
 | `role_id_for(db, name)` | helper, not a fixture | Looks up a seeded role's `system_id`; needed because `users.role` is a read-only mapping and fixtures must set `role_id` |
 | `make_viewer(db, client, username, permissions, field_groups=None, label_keys=None)` | helper | Logs `client` in as a new account. `permissions` is the ROLE axis; the two keyword arguments are the OBJECT axis. The four modes are fixed, so `grant_bespoke_mode` narrows the way production does: it puts the account at the lowest mode whose derived sets contain the request, as both ceiling and default, and denies the difference per account. A request no mode can satisfy fails the test loudly rather than testing something else. Both default to "everything" (`unrestricted`, no denial), so a test that only cares about capabilities need not mention them |
 
@@ -194,15 +198,7 @@ create inline (most files do) or add here.
 Use the project venv's interpreter, not the system Python.
 
 ```bash
-# One-time: create the test database inside the postgres:17 container
-docker exec cg1618-dev-db createdb -U postgres media_test
-
-# Working alongside another session? Give yourself your own database and
-# select it with POSTGRES_DB - tests/conftest.py uses os.environ.setdefault,
-# so the variable wins. Two suites sharing one database produce spurious
-# "relation role does not exist" and unique-constraint failures that look
-# exactly like real breakage.
-docker exec cg1618-dev-db createdb -U postgres media_test_mine
+# Nothing to create first: every run creates and drops its own database.
 
 # Backend, all tiers
 venv/Scripts/python -m pytest
@@ -228,8 +224,83 @@ npm run lint            # eslint src
 ```
 
 `POSTGRES_PASSWORD` must be set in `.env` for the API tier to connect. The
-`test_engine` guard aborts if the configured database name lacks `test`, so a
-mis-set `POSTGRES_DB` fails fast instead of wiping a real database.
+`test_engine` guard aborts if the configured database name lacks `test`, and
+`tests/databases.py` refuses to create or drop a name it did not mint.
+
+## One database per run
+
+What makes two test runs collide is a shared database **name**, not the shared
+server: a run that resets `media_test` wipes every other run using it, and the
+result is spurious "relation does not exist" and unique-constraint failures
+that look exactly like real breakage. So no test database here has a fixed
+name. This is the platform's rule (`docs/registry.md` in the platform
+repository, "How an app's tests use the shared server").
+
+- **The run's own database.** `tests/conftest.py` assigns `POSTGRES_DB` a
+  fresh `media_test_<epoch>_<hex>` and creates it **while it is being
+  imported** - not in a fixture and not in `pytest_configure`, because
+  `app.main` checks the schema at import (`ensure_schema`) and pytest imports
+  `tests/api/conftest.py`, which imports `app.main`, while it loads the
+  initial conftests, before `pytest_configure` runs. `pytest_unconfigure`
+  drops it `WITH (FORCE)`. A server that does not answer is not an error at
+  that point: the unit tier needs none, and an API test fails on its first
+  connection anyway.
+- **Every scratch database** comes from the same module
+  (`databases.scratch()`), under the same kind of name, and is dropped when
+  its fixture ends.
+- **Leftovers.** At start, a run drops every `media_test_*` database that has
+  no connections **and** is older than two hours. The epoch in the name is
+  what makes that safe: a run that has just created its database and not yet
+  connected to it cannot lose it to a neighbour's cleanup.
+- **Files.** No test writes outside `tmp_path`. `cover_on_disk` moves the
+  cover root under it; the two static-mount tests in
+  `test_cover_images_are_gated.py` `chdir` into it, because `StaticFiles`
+  resolves its relative directory at request time. `app.main` itself still
+  creates the empty `static/covers/<owner>/`, `static/quotes` and
+  `static/library/thumbs` folders at import, with `exist_ok` - idempotent, and
+  the same folders every run.
+- **The host is `127.0.0.1`.** The URL `app/config.py` builds names the IPv4
+  loopback, which is where the dev database publishes; `localhost` resolved
+  to `::1` first on Windows and cost every new connection a 21-second
+  timeout - and the suite opens one per scratch database and per Alembic
+  subprocess.
+
+So any number of runs may go at once, in this app or alongside the others on
+the same server, and there is no lock to take (the platform's `CLAUDE.md`,
+"Test runs are isolated by database"). A new test that names a fixed
+database, writes outside `tmp_path` or creates a cluster-wide object brings
+the collisions back for every app, so it is a defect.
+
+## Migration tests
+
+Two kinds, with different lifetimes (the platform's rule, same page as above).
+
+**Generic guards stay for ever.** They run on every pull request that touches
+`alembic/` or `app/models/`, and in every full run:
+
+| Test | Guards |
+|---|---|
+| `tests/api/test_migrations_build_the_schema.py` | `alembic upgrade head` on an empty database builds exactly what `create_all` builds - every named object, and every column's type, nullability and default. Reads `migrated_head` and `created_from_models` |
+| `tests/api/test_migration_round_trip.py` | **The release comes back.** Downgrades a copy of `migrated_head` to the revision `origin/main` is at - what a rollback of the release does - upgrades again, and compares the schema with the one it started from. One step (`-1`) when the branch holds no revision beyond `main`. A revision declaring `irreversible = True` cannot be stepped through, so the walk stops above it, and the test skips when that is the head. Also checks the marker's spelling, which `deploy/migrations` reads |
+| CI's `One Alembic head` step | Exactly one head, before anything else runs |
+| `tests/unit/test_migration_order.py`, `test_migration_imports.py`, `test_open_migrations.py`, `test_deploy_scripts.py` | The chain's order and imports, the open-pull-request collision check, and the deploy hook |
+
+The round trip reads `origin/main` and fails rather than guessing when it
+cannot (`git fetch origin`). Several revisions from concurrent sessions often
+land in one release, and stepping back only the head would leave the earlier
+ones' `downgrade()` unrun until the day a rollback needs it.
+
+**A revision's own test** - what one revision does to existing data - is
+written in the same branch as the revision, and finds the revision before its
+own through `ScriptDirectory`, never a hard-coded id (reparenting onto a new
+head would otherwise make it test the wrong step without failing). It is
+deleted once the revision is **deployed** - the box at that revision, not
+merely `main` holding it - in a separate test-only pull request swept once per
+release, never by the branch that adds the revision. The box is at `main`'s
+head when the latest `Deploy` run for that commit finished green
+(`gh run list -w deploy.yml -L 1`): a deploy runs the migrations and reports
+success only once the app answers its health check. Nothing has to be read on
+the box itself.
 
 ## Data migrations over JSON columns
 
@@ -251,11 +322,11 @@ value", like SQL NULL: it moves nothing, and a merge onto it starts from `{}`.
 
 The planner, not the Python, picks the evaluation order, so calling a
 revision's data steps on the test session does not prove a guard holds. That
-takes the real command over seeded rows:
-`test_highlights_json_null_migration.py` upgrades a scratch database to the
-revision before, seeds JSON-null, scalar, empty and real orders, ANALYZEs, and
-runs `alembic upgrade` and `downgrade` through `h1i2ghlights3`, the pattern
-`test_admin_not_root_migration.py` set.
+takes the real command over seeded rows: the revision's own test takes
+`scratch_database`, runs `run_alembic(db, "upgrade", <the revision before>)`
+(found through `ScriptDirectory`, never written by hand), seeds JSON-null,
+scalar, empty and real values, ANALYZEs, and runs `alembic upgrade` and
+`downgrade` through the revision itself.
 
 ## The `media` supertable in tests
 
@@ -310,8 +381,7 @@ franchises), `test_hentai_shared_records.py` (credits, shared vocabularies, a
 session seeing one gated type but not the other - `mode_client` with the
 other label in `denials`), `test_hentai_sheets.py`, `test_hentai_tenrai.py`
 (the fetch patched, no network), `test_hentai_anidb_fill.py` (AniDB after MAL,
-the enabled/disabled pair and a ban stopping the run; `requests.get` patched), `test_hentai_label_migration.py` (the
-revision's own SQL run against the test session) and
+the enabled/disabled pair and a ban stopping the run; `requests.get` patched) and
 `tests/unit/test_hentai_domain.py`.
 
 Type-specific behaviour (autofill mapping, completion rules, sheet formatter)
@@ -497,10 +567,10 @@ combination nothing had tested.
 
 There is one job, `test`:
 
-1. Starts a `postgres:17` service with `POSTGRES_DB=media_test` and
-   user/password `postgres`. Six variables reach the job env: those three,
+1. Starts a `postgres:17` service with user/password `postgres`. Five variables reach the job env: those two,
    plus `APP_ENV=development` and throwaway values for `JWT_SECRET_KEY` and
-   `ADMIN_PASSWORD` — the runner has no `.env`, and without them the startup
+   `ADMIN_PASSWORD`. There is no `POSTGRES_DB`: the run creates its own
+   database, on CI exactly as on a laptop — the runner has no `.env`, and without them the startup
    secret check refuses to boot and every API test fails.
 2. Checks out with the whole history and decides whether the pull request
    changes anything but documentation (below). Every later step runs only if
@@ -514,11 +584,35 @@ There is one job, `test`:
    files and needs no database.
 5. `ruff check .`
 6. `shellcheck deploy/migrations deploy/backup/*.sh`
-7. `pytest -q -p no:cacheprovider` (unit + API).
+7. `pytest -q -p no:cacheprovider`: the full suite in a merge-queue run and
+   on a pull request into `main`; on a pull request into `dev`, the selection
+   below.
 8. Node 20, `npm ci` in `frontend/`.
 9. `npm run lint`
 10. `npm run test:run`
 11. `npm run build`
+
+### A pull request into `dev` runs a selected backend suite
+
+Only the merge-queue run tests the tree that lands on `dev`, so that is where
+the full suite runs; a pull request's own run is the fast feedback.
+`scripts/pr_tests.py <base> <head>` prints what it runs:
+
+- `tests/unit` and `tests/services`, always;
+- every file under `tests/api/` the pull request adds or edits;
+- when it touches `alembic/` or `app/models/`: the two generic migration
+  guards, and every API test file that names a revision the pull request
+  adds - that revision's own test;
+- **everything**, when it touches the harness: either conftest,
+  `tests/databases.py`, `pytest.ini`, a requirements file, `ci.yml` or the
+  script itself.
+
+Everything else in the job - lint, shellcheck, the frontend - runs in full
+every time. The cost is that an API failure the selection does not cover
+surfaces when the pull request is queued rather than on the pull request, and
+it still cannot land: the queue run gates the merge. A pull request into any
+other base, and every merge-queue run, gets the full suite. The required check
+is still the one job, `test`, so the ruleset needs nothing different.
 
 ### A documentation-only pull request skips the job
 
@@ -564,12 +658,13 @@ first.
   manager, Sheets) were never written. Integration code is covered indirectly
   by API tests that create entries without external links so the write hooks
   no-op.
-- `responses` is listed in `requirements-dev.txt` but no test imports it; HTTP
-  mocking is done ad hoc with `monkeypatch`.
-- No end-to-end browser tests (no Playwright), no coverage threshold, no
-  migration up/down test. Tests build the schema with `create_all`, so a
-  migration that diverges from the models is not caught here (that is what
-  `app/schema_guard.py` and `tests/unit/test_schema_guard.py` mitigate).
+- HTTP mocking is mixed: five unit files use `responses`
+  (`test_comicvine_search.py`, `test_openlibrary_search.py`,
+  `test_tenrai_lookup.py`, `test_tenrai_search.py`, `test_tmdb_search.py`), the
+  rest patch with `monkeypatch`.
+- No end-to-end browser tests (no Playwright) and no coverage threshold. The
+  API tier builds its schema with `create_all`; a migration that diverges from
+  the models is caught by the migration guards, not by the API tests.
 - `frontend/src/theme-tokens.test.js` is a lint disguised as a test; it runs
   under vitest because there is no custom ESLint rule for it.
 - Only Anime and Comic have `sample_*` row fixtures; other media types are

@@ -2,7 +2,7 @@
 Backup and Pull share one tab registry, and Backup reads link columns in a
 fixed number of queries.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 from app import models

@@ -4,26 +4,20 @@
 Anime's `is_main` already answers 本傳 / 外傳 / ..., so whether an entry is the
 original work or a remake of one is a column of its own, over its own
 vocabulary ANIME_ORIGINAL_OR_REMAKE. It is never empty: a row that says
-nothing is the original, and revision a1n2remake34 set every existing row so.
+nothing is the original.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
-import importlib.util
 import uuid
-from pathlib import Path
 
 import pytest
-from sqlalchemy import text
 
 from app import models
 from app.services.domain.duplicates import find_duplicate_anime
 from app.services.pipelines import pull
 from app.utils import constants as c
 from app.utils.formatter import parse_anime_from_sheet
-
-ROOT = Path(__file__).resolve().parents[2]
-REVISION = ROOT / "alembic" / "versions" / "a1n2remake34_anime_original_or_remake.py"
 
 
 def test_the_vocabulary_is_original_then_remake():
@@ -168,47 +162,3 @@ def test_a_remake_never_collides_with_its_original():
     rows[1].original_or_remake = "Original"
     assert len(find_duplicate_anime(_StubSession(rows))) == 1
 
-
-# ---------------------------------------------------------------------------
-# The revision
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture(scope="module")
-def revision():
-    spec = importlib.util.spec_from_file_location("_anime_original_or_remake", REVISION)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-def _column(conn):
-    return conn.execute(
-        text(
-            "SELECT is_nullable, column_default FROM information_schema.columns "
-            "WHERE table_name = 'anime' AND column_name = 'original_or_remake'"
-        )
-    ).one_or_none()
-
-
-def test_the_revision_makes_every_existing_anime_the_original(
-    db_session, revision, sample_anime
-):
-    conn = db_session.connection()
-    # fk_anime_media is deferred, and PostgreSQL refuses to ALTER a table with
-    # deferred checks still pending; a migration runs with none queued.
-    conn.execute(text("SET CONSTRAINTS ALL IMMEDIATE"))
-    # The shape before the revision: no column at all. create_all built the
-    # current one, so the revision's own downgrade takes it off first.
-    revision.drop_column(conn)
-    assert _column(conn) is None
-
-    revision.add_column(conn)
-
-    nullable, default = _column(conn)
-    assert nullable == "NO"
-    assert "Original" in default
-    assert conn.execute(
-        text("SELECT original_or_remake FROM anime WHERE system_id = :id"),
-        {"id": sample_anime.system_id},
-    ).scalar() == "Original"

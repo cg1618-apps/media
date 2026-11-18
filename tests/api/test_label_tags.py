@@ -10,17 +10,15 @@ A tag write changes who can see the entry, so the visibility tests pair the
 refusal (`narrow`, in `safe`, sees no label) with its mirror (`owner_client`,
 `unrestricted`, sees every label) on the same entry.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
-import importlib.util
 import uuid
-from pathlib import Path
 
 import pytest
 
 from app import models
-from app.services.domain.credits import replace_tags, resolve_option, tag_values
+from app.services.domain.credits import replace_tags, tag_values
 from app.services.domain.label_tags import (
     LABEL_FIELD_TYPES,
     reconcile_label_tags,
@@ -206,89 +204,3 @@ def test_pull_reconciles_after_the_tabs_that_restore_either_side():
     assert "Hentai" not in LABEL_TAG_RECONCILE_TABS
     assert "hentai" not in LABEL_FIELD_TYPES
 
-
-# ---------------------------------------------------------------------------
-# The migration
-# ---------------------------------------------------------------------------
-
-REVISION = (
-    Path(__file__).resolve().parents[2]
-    / "alembic"
-    / "versions"
-    / "t1a2gsync345_label_tags_in_step.py"
-)
-
-
-@pytest.fixture(scope="module")
-def revision():
-    spec = importlib.util.spec_from_file_location("_label_tags_rev", REVISION)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-# Media-type keys renamed after the revision shipped (b1o2okrename3 renames
-# its scope rows too): the frozen copy keeps the name of its day.
-RENAMED_SINCE = {"novel": "book"}
-
-
-def test_the_frozen_copy_matches_the_code(revision):
-    from app.services.domain.label_tags import TAG_FOR_LABEL
-
-    assert dict(revision.TAGS) == TAG_FOR_LABEL
-    assert tuple(RENAMED_SINCE.get(t, t) for t in revision.LABEL_FIELD_TYPES) == LABEL_FIELD_TYPES
-
-
-def test_the_old_tag_is_renamed(db_session, revision):
-    db_session.query(models.SystemOption).filter(
-        models.SystemOption.category == "Label",
-        models.SystemOption.value == "擦邊肉番",
-    ).delete()
-    db_session.add(
-        models.SystemOption(system_id=uuid.uuid4(), category="Label", value="肉番")
-    )
-    db_session.flush()
-
-    revision.rename_old_tag(db_session.connection())
-    db_session.expire_all()
-
-    values = {
-        v for (v,) in db_session.query(models.SystemOption.value).filter(
-            models.SystemOption.category == "Label"
-        )
-    }
-    assert "擦邊肉番" in values
-    assert "肉番" not in values
-
-
-def test_the_backfill_keeps_both_sides(db_session, revision, sample_anime, sample_manga):
-    """The union: a tag brings its label, a label brings its tag."""
-    options = revision.ensure_options(db_session.connection())
-    # sample_anime: the tag alone. sample_manga: the label alone.
-    replace_tags(db_session, sample_anime.system_id, "label", ["擦邊肉番"])
-    write_entry_labels(db_session, sample_manga.system_id, ["ecchi", "nsfw"])
-    db_session.flush()
-
-    revision.backfill(db_session.connection(), options)
-    db_session.expire_all()
-
-    anime_labels = {
-        key
-        for (key,) in db_session.query(models.ContentLabel.key)
-        .join(models.MediaContentLabel)
-        .filter(models.MediaContentLabel.media_id == sample_anime.system_id)
-    }
-    assert anime_labels == {"erotica", "nsfw"}
-    assert set(tag_values(db_session, sample_manga.system_id, "label")) == {
-        "NSFW",
-        "輕微色情",
-    }
-
-
-def test_the_three_tags_are_scoped_to_every_label_field_type(db_session, revision):
-    revision.ensure_options(db_session.connection())
-    for value in ("NSFW", "輕微色情", "擦邊肉番"):
-        option = resolve_option(db_session, "Label", value)
-        db_session.refresh(option)
-        scopes = {RENAMED_SINCE.get(s.scope, s.scope) for s in option.scopes}
-        assert scopes >= set(LABEL_FIELD_TYPES), value

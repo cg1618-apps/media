@@ -175,38 +175,3 @@ def test_the_pass_is_idempotent(db_session, erotica_without_nsfw):
 
     assert again == {"media": 0, "collection": 0, "franchise": 0, "series": 0}
     assert _entry_keys(db_session, erotica_without_nsfw.system_id) == {"erotica", NSFW}
-
-
-# --- The migration's backfill ------------------------------------------------
-
-
-def test_the_revision_backfills_like_the_rule(db_session, erotica_without_nsfw):
-    """Runs the shipped revision's own SQL, which is a frozen copy of
-    add_missing_nsfw for the two tables that existed then; the two must
-    agree, whitespace aside."""
-    import importlib.util
-    from pathlib import Path
-
-    path = (
-        Path(__file__).resolve().parents[2]
-        / "alembic"
-        / "versions"
-        / "n1s2fwrule34_nsfw_rule_backfill.py"
-    )
-    spec = importlib.util.spec_from_file_location("_nsfw_backfill", path)
-    revision = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(revision)
-
-    from app.services.domain import label_rules
-
-    def words(sql):
-        return " ".join(sql.split())
-
-    assert set(revision.ADD_MISSING) == {"media", "franchise"}
-    for owner, sql in revision.ADD_MISSING.items():
-        assert words(sql) == words(label_rules._ADD_MISSING[owner])
-    added = revision.backfill(db_session.connection())
-    db_session.expire_all()
-
-    assert added["media"] >= 1
-    assert _entry_keys(db_session, erotica_without_nsfw.system_id) == {"erotica", NSFW}

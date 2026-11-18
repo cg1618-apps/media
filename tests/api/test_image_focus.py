@@ -7,7 +7,7 @@ focus that was never set passes whether or not the reset ran; the mirror
 case beside each one (a PUT, or re-attaching the same picture, keeps the
 focus) proves it is the image write doing the resetting.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import io

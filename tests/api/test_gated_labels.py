@@ -8,7 +8,7 @@ session seeds it, conftest.py) and with at least one row carrying it, so a
 "does not carry the label" can fail: the pass had a label to stamp and did
 stamp it elsewhere in the same call.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

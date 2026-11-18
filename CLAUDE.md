@@ -1,7 +1,7 @@
 # CLAUDE.md — the media tracker
 
 **The generic rules are not in this file.** Git workflow, branch and pull
-request discipline, concurrent sessions, the machine-wide test lock, the
+request discipline, concurrent sessions, how test runs share the server, the
 credentials rule, worktrees and documentation discipline live in
 `cg1618-apps/platform`'s `CLAUDE.md`, one directory up. Claude Code loads it
 first and this file second, so everything there applies here unless this file
@@ -65,7 +65,7 @@ so it is present-tense like everything else.
 - **Auth**: JWT in an HTTP-only cookie; RBAC via `Depends(get_current_admin)` / `get_viewer` in `app/dependencies.py`.
 - **Migrations**: Alembic (single head; run on container start).
 - **External services**: Tenrai v1 API (MAL metadata), TMDB, OMDb, Comic Vine, Google Sheets (backup/restore). Cover images are local disk under `static/covers/` — there is no object storage.
-- **Deployment**: self-hosted. The app runs on a mini PC at home (`homelab`), in **two compose projects**: `cg1618` (checked out at `~/cg1618` from `cg1618-apps/platform`) runs the shared `postgres:17` and `cloudflared` for every application on the box, and `media` (at `~/media`) runs only the app built from `dockerfile`. They meet on the external docker network `cg1618`, where PostgreSQL answers to the alias `db` and the app to `media-app`; the tunnel serves `media.cg1618.com` with **no inbound port open anywhere**, from an ingress generated out of the platform's `apps.yml`. What runs and how it recovers is `docs/deployment-selfhost.md`; deploying and rolling back is `deploy/README.md`; building the box from scratch is `docs/setup-selfhost.md`. **CI deploys nothing**: `.github/workflows/ci.yml` (name `Tests`) runs ruff + shellcheck + pytest + eslint + vitest + the frontend build on **every pull request and every merge-queue run, and nothing else** — skipping all of it, while still reporting `test` as passed, when the pull request changes only `docs/**` and `*.md` — a push to any branch, `main` included, runs nothing, which is why the PR is the gate — enforced, not conventional: a repository ruleset makes `test` a required check on `main` and `dev`. **`dev` merges through a merge queue** — `gh pr merge <n> --auto` queues a pull request once its own run is green, the queue tests it again on `dev` plus everything queued ahead of it, and it lands only if that passes; a branch is never brought up to date by hand. **`main` has neither a queue nor an up-to-date requirement**: a release is one pull request at a time and `main` moves only when one merges, so its run tested the tree that deploys — and the strict rule would only count the merge commits earlier releases left on `main`, which `dev` never receives. Either way, a green tick cannot refer to a base that has moved. **A merge to `main` deploys itself, through the platform's pipeline**: `.github/workflows/deploy.yml` is one job that calls `cg1618-apps/platform/.github/workflows/deploy-app.yml@main` with `app: media`, which runs `~/cg1618/bin/deploy media --ci` on a self-hosted runner on the box — dumping the database before it pulls, waiting for `/api/health`, and calling `~/cg1618/bin/rollback media` if it does not answer. **Deploying, health-checking and rolling back are not in this repository.** What is, is `deploy/migrations`, the hook the platform calls to ask this app about its own schema — `current`, `added <from> <to>`, `downgrade <target>`, the last of which refuses any revision declaring `irreversible = True`. The contract is the platform's `docs/registry.md`. A merge that adds an Alembic revision waits for the owner's approval in the `production` environment first. `docker-compose.yml` at the root is **development only** (a bare Postgres); production is `docker-compose.prod.yml`, and it sits beside `.env` at the root because Compose loads `.env` from the compose file's own directory. A GCP Cloud Run + Cloud SQL deployment did work until 2026-09-02; its code was removed on 2026-09-08, so reviving GCP means building it again — the record is `docs/deployment-gcp.md`.
+- **Deployment**: self-hosted. The app runs on a mini PC at home (`homelab`), in **two compose projects**: `cg1618` (checked out at `~/cg1618` from `cg1618-apps/platform`) runs the shared `postgres:17` and `cloudflared` for every application on the box, and `media` (at `~/media`) runs only the app built from `dockerfile`. They meet on the external docker network `cg1618`, where PostgreSQL answers to the alias `db` and the app to `media-app`; the tunnel serves `media.cg1618.com` with **no inbound port open anywhere**, from an ingress generated out of the platform's `apps.yml`. What runs and how it recovers is `docs/deployment-selfhost.md`; deploying and rolling back is `deploy/README.md`; building the box from scratch is `docs/setup-selfhost.md`. **CI deploys nothing**: `.github/workflows/ci.yml` (name `Tests`) runs ruff + shellcheck + pytest + eslint + vitest + the frontend build on **every pull request and every merge-queue run, and nothing else** — pytest in full in the merge queue and on a release, and as the selection `scripts/pr_tests.py` prints on a pull request into `dev` — skipping all of it, while still reporting `test` as passed, when the pull request changes only `docs/**` and `*.md` — a push to any branch, `main` included, runs nothing, which is why the PR is the gate — enforced, not conventional: a repository ruleset makes `test` a required check on `main` and `dev`. **`dev` merges through a merge queue** — `gh pr merge <n> --auto` queues a pull request once its own run is green, the queue tests it again on `dev` plus everything queued ahead of it, and it lands only if that passes; a branch is never brought up to date by hand. **`main` has neither a queue nor an up-to-date requirement**: a release is one pull request at a time and `main` moves only when one merges, so its run tested the tree that deploys — and the strict rule would only count the merge commits earlier releases left on `main`, which `dev` never receives. Either way, a green tick cannot refer to a base that has moved. **A merge to `main` deploys itself, through the platform's pipeline**: `.github/workflows/deploy.yml` is one job that calls `cg1618-apps/platform/.github/workflows/deploy-app.yml@main` with `app: media`, which runs `~/cg1618/bin/deploy media --ci` on a self-hosted runner on the box — dumping the database before it pulls, waiting for `/api/health`, and calling `~/cg1618/bin/rollback media` if it does not answer. **Deploying, health-checking and rolling back are not in this repository.** What is, is `deploy/migrations`, the hook the platform calls to ask this app about its own schema — `current`, `added <from> <to>`, `downgrade <target>`, the last of which refuses any revision declaring `irreversible = True`. The contract is the platform's `docs/registry.md`. A merge that adds an Alembic revision waits for the owner's approval in the `production` environment first. `docker-compose.yml` at the root is **development only** (a bare Postgres); production is `docker-compose.prod.yml`, and it sits beside `.env` at the root because Compose loads `.env` from the compose file's own directory. A GCP Cloud Run + Cloud SQL deployment did work until 2026-09-02; its code was removed on 2026-09-08, so reviving GCP means building it again — the record is `docs/deployment-gcp.md`.
 
 ## Development Commands
 
@@ -77,26 +77,33 @@ uvicorn app.main:app --reload --reload-dir app   # (dev.ps1 does this + vite in 
 alembic upgrade head
 alembic revision --autogenerate -m "describe change"
 
-venv/Scripts/python.exe -m pytest -q             # backend (api tests need media_test DB)
+venv/Scripts/python.exe -m pytest -q             # backend (each run creates and drops its own DB)
 venv/Scripts/ruff.exe check .                    # backend lint
 cd frontend && npm run test:run && npm run lint  # frontend tests + ESLint
 ```
 
 **The full backend suite runs on CI, not here** — see the platform's
-`CLAUDE.md`, "CI runs the full test suite; a session does not". Locally it
-takes about half an hour. Three rules follow:
+`CLAUDE.md`, "CI runs the full test suite; a session does not" - in the merge
+queue and on a release; a pull request's own run is a selection (below).
+Three rules follow:
 
 - **Before the PR, run the tests the change touches, and not just `-k` on the
   one you wrote.** Include the test files for every module you edited: a
   scoped run cannot see a test three directories away that your change
   invalidated, and that is exactly what the CI run is there to catch. When CI
   goes red, fix it on the branch before merging.
-- **Never run two pytest processes at once.** Both trees and both suites share
-  one PostgreSQL and one `media_test`, so a concurrent run produces
-  spurious "relation role does not exist" and unique-constraint failures that
-  look like real breakage.
-- **When estimating work, include the CI run.** It takes about 20 minutes per
-  pull request, and a red one costs another. Sizing the diff ("small — about
+- **Each run has its own database, so two `media` runs never collide.**
+  `tests/conftest.py` creates `media_test_<epoch>_<hex>` and drops it at the
+  end; scratch databases follow the same rule (`docs/testing.md`, "One
+  database per run"), so any number of runs may go at once and there is no
+  lock to take (the platform's `CLAUDE.md`, "Test runs are isolated by
+  database"). A test that names a fixed database or writes outside `tmp_path`
+  is a defect, because it brings the collisions back for every app.
+- **When estimating work, include the CI runs.** A pull request into `dev`
+  runs a selected backend suite (`scripts/pr_tests.py`: unit, services, the
+  API files it touches, the migration guards when it touches the schema; the
+  full suite when it touches the test harness), then the merge queue runs the
+  full suite, about 20 minutes, and a red one costs another. Sizing the diff ("small — about
   15 lines") is not sizing the task.
 
 ## Frontend Ports and Rebuilds

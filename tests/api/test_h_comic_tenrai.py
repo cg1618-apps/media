@@ -7,7 +7,7 @@ and ch_total on a finished KR entry alone.
 The Tenrai fetch and the cover download are both patched out; no test here
 reaches the network.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

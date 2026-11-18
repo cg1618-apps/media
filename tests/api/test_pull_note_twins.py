@@ -13,7 +13,7 @@ is not in the sheet, so a row that already has its own sheet copy is never
 claimed, and each local row is claimed at most once. The second guard is what
 keeps two genuinely separate identical rows (two unnamed OPs) apart.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

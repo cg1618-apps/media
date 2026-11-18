@@ -26,7 +26,8 @@ describe("routeTitle", () => {
   it("falls back to the row a record page lights up, segment-aware", () => {
     expect(routeTitle("/anime/12/some-slug")).toBe("Anime");
     expect(routeTitle("/anime-movie/3")).toBe("Anime Movie");
-    expect(routeTitle("/series/4")).toBe("Franchise");
+    expect(routeTitle("/series/4")).toBe("Series");
+    expect(routeTitle("/watch-order/2")).toBe("Franchise");
     expect(routeTitle("/random/anime")).toBe("Random Picker");
   });
 

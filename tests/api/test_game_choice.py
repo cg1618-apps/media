@@ -10,7 +10,7 @@ Reads are gated on seeing the game, the way notes are; every write needs
 manage.catalog, the way relations do. A save points into the graph through its
 `choice_node` field, which the notes API validates against the save's own game.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

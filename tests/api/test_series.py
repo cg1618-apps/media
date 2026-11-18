@@ -3,7 +3,7 @@ API integration tests for /api/series endpoints.
 
 Tests public reads and admin-protected writes, plus the franchise-style
 fields added alongside the Series hub page.
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid
@@ -103,6 +103,29 @@ class TestPatchSeries:
         )
         data = owner_client.get(f"/api/series/{sample_series.system_id}").json()
         assert data["series_name_en"] == "Test Series"
+
+    def test_a_franchise_id_in_the_body_is_kept_not_read_as_a_name(
+        self, owner_client, db_session, sample_series, sample_franchise
+    ):
+        # The Modify page saves a series by PATCH and always sends its
+        # franchise_id, as a JSON string. Read as a name, it matched no
+        # franchise and created one named after the UUID, typed Anime.
+        game = models.Franchise(
+            system_id=uuid.uuid4(), franchise_type="Game", franchise_name_en="Sports"
+        )
+        db_session.add(game)
+        db_session.flush()
+        before = db_session.query(models.Franchise).count()
+
+        for target in (sample_franchise, game):
+            response = owner_client.patch(
+                f"/api/series/{sample_series.system_id}",
+                json={"franchise_id": str(target.system_id), "series_name_jp": "S"},
+            )
+            assert response.status_code == 200
+            assert response.json()["franchise_id"] == str(target.system_id)
+
+        assert db_session.query(models.Franchise).count() == before
 
     def test_guest_cannot_patch(self, client, sample_series):
         response = client.patch(

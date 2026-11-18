@@ -60,7 +60,13 @@ export const NAV_SECTIONS = [
             label: "Franchise",
             icon: "fas fa-layer-group",
             to: "/library/franchise",
-            matches: ["/franchise", "/series", "/watch-order"],
+            matches: ["/franchise", "/watch-order"],
+          },
+          {
+            label: "Series",
+            icon: "fas fa-list-ol",
+            to: "/library/series",
+            matches: ["/series"],
           },
         ],
       },
@@ -109,7 +115,7 @@ export const NAV_SECTIONS = [
         ],
       },
       {
-        heading: "AniManga",
+        heading: "ACG",
         items: [
           {
             label: "Anime",

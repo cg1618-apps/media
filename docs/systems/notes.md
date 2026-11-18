@@ -1,6 +1,6 @@
 # Notes
 
-Last verified: 2026-11-17
+Last verified: 2026-11-18
 
 ## What this is for
 
@@ -76,11 +76,12 @@ A shape names which columns a section uses. Declared as constants at the top of 
 | `quick_edit` | Render an inline editor in the read view, saving on blur without opening the row. For a value that changes while playing rather than while writing. |
 | `placeholder` | Overrides the label in the input. |
 | `option_category` | The `system_option` category whose values the editor suggests, as it is typed in. Only on a `select` declaring no `options` — a free-text one — and checked at import (`_check_option_categories`). Suggestions only: the value stays free text and is validated as before. Served as `NoteFieldOut.option_category`; see [Suggestion categories](#suggestion-categories). |
+| `suggest_from` | The key of another section whose rows' names (their `title`) the editor suggests — 支線任務 Side Quests' two NPC fields name `characters_guide`, so they offer the owner's 角色 Characters. Only on a `text` field or a `names` field stored in `fields`, and the named section must have a `title`-backed field and serve every owner this one does; checked at import (`_check_suggest_from`). Suggestions only: any text is accepted, and the value is a name rather than a row id, so renaming or deleting the character rewrites nothing. Served as `NoteFieldOut.suggest_from`; see [Suggestions from another section](#suggestions-from-another-section). |
 | `shown_when` | `(field key, value)`: the field is drawn, in the form and on the read view, only while that field of the same row holds that value; a blank reads as that field's `default`. Display only — a hidden field keeps what it stores, so turning the steering field back brings the value back. The steering field must be a closed `select` of the same section and the value one of its options, checked at import (`_check_shown_when`). Served as `NoteFieldOut.shown_when`, `{field, value}`. |
 | `view_hidden` | The read view does not draw the field; it only steers others (the 物品 sections' `has_amount`). Served as `NoteFieldOut.view_hidden`. |
 | `view_labels` | `((value, label), ...)`: the read view draws the field only while it holds one of these values (a blank reading as its `default`), as that label, at the right end of the row's line. For a field whose usual value says nothing and whose exception is worth a flag — NG Reset reads "Won't Reset" on a `no` row and nothing on a `yes` one. Only on a closed `select`, naming its options; checked at import (`_check_view_labels`). Served as `NoteFieldOut.view_labels`, `{value: label}`. The form still offers every option. |
 
-Four rules sit on the section rather than on a field: **`require_any`** is groups of keys where at least one must be filled (an entry needs an order number *or* a name, and may have both), and **`hierarchical`** lets rows carry a `parent_id` and render as a tree. A flat section refuses a parent outright. **`group_by`** names one of the section's `names` fields; the read view draws one group per name, and a row naming two appears under both. The card carries a **Group by** toggle for it too (on by default, remembered per section in the reader's browser); turned off, the rows read as one flat list, which is where they are reordered - a row in two groups cannot be moved within one of them without moving in the other. It is display-only, and it is checked when the module is imported: a `group_by` naming anything but a `names` field of the same section fails the import. **`groupable_by`** names one of the section's `select` fields, and every game section with an optional, free-text bucket names it: 玩法系統 Gameplay Systems, 操作 Controls, 職業 Classes, 技能 Skills, the three 物品 sections, the three typed NG 多周目 sections and 模組&工具 Mods & Tools name `type`, 角色 Characters, 地理 Geography and 攻略資源 Guide Resources name `group`, and 敵人 Enemies names `tier`. 存檔 Saves does not: its checkpoint defaults to `regular`, so every row has one and it is a property of the save rather than a bucket. The card then carries a **Group by** toggle named after the field - *Group by type*, *Group by tier* - (on by default, remembered per section in the reader's browser) that draws one group per value, in the order each value first appears, with the rows carrying none in a trailing group. A section also marked **`always_grouped`** has no toggle and no flat view: it is always drawn grouped, whatever the browser remembered, and its rows are moved within their groups. 角色 Characters, 地理 Geography and 攻略資源 Guide Resources, the three grouped by `group`, are always grouped; the type and tier toggles stay toggles. `always_grouped` without a `groupable_by` fails the import (`_check_always_grouped`), and it is published on `NoteSectionOut`. Unlike `group_by`, no group order is stored anywhere: the groups follow the rows' `sort_index`, so moving a group or a row within one saves the whole section's row order through `PATCH /api/notes/reorder`, grouped. It is checked at import the same way, and on a `hierarchical` section the field must also be column-backed (`_check_groupable_by`). A section both `hierarchical` and `groupable_by` — 地理 Geography alone — groups its **top-level rows** and draws each one's subtree beneath it; only a top-level row carries a value, and `_validate_structured` refuses one on a row with a `parent_id` (422 "Only a top-level row carries a group."), checked on the row as it will be, so a PATCH that reparents a grouped row must clear its group in the same request. **Renaming a group.** A group's name is a value stored on each of its rows, so a named group's header carries a rename control (a pencil, "Rename group <name>", for a viewer with a row of that group to edit) that renames the group once rather than row by row: `POST /api/notes/rename-group` rewrites, in one transaction, the `groupable_by` column (on 地理 Geography, the top-level rows only, since nothing reads a child's), Resources' `kind`, or the one name inside each row's `group_by` names list (a row that already has the new name keeps it once). It renames exactly the rows the caller could edit one by one: every row of a catalogue section for a `manage.catalog` holder; in a mixed section those catalogue rows plus the caller's own personal rows, so a member renaming a group shared with the catalogue moves only its own rows into the new name; in a personal section the caller's own rows. On a `group_by` section the name is renamed in the caller's own group order too (`user_highlight_group_order`, the order `PUT /api/me/highlight-group-order/{media_id}` writes), keeping its place. Renaming onto a name another group already has merges the two; the nameless group has no stored name and cannot be renamed; a closed vocabulary (模組&工具's Mod / Tool) refuses a name outside it. **`owner_where`** limits a section to some owners of its types, as `{owner column: allowed values}`; the router refuses a row on any other owner (422, `_require_owner_where` in `app/routers/note.py`, after the owner is known to be visible) and the page renders no card for it. Both are published on `NoteSectionOut`.
+Four rules sit on the section rather than on a field: **`require_any`** is groups of keys where at least one must be filled (an entry needs an order number *or* a name, and may have both), and **`hierarchical`** lets rows carry a `parent_id` and render as a tree. A flat section refuses a parent outright. **`group_by`** names one of the section's `names` fields; the read view draws one group per name, and a row naming two appears under both. The card carries a **Group by** toggle for it too (on by default, remembered per section in the reader's browser); turned off, the rows read as one flat list, which is where they are reordered - a row in two groups cannot be moved within one of them without moving in the other. It is display-only, and it is checked when the module is imported: a `group_by` naming anything but a `names` field of the same section fails the import. **`groupable_by`** names one of the section's `select` fields, and every game section with an optional, free-text bucket names it: 玩法系統 Gameplay Systems, 操作 Controls, 職業 Classes, 技能 Skills, the three 物品 sections, the three typed NG 多周目 sections, 支線任務 Side Quests and 模組&工具 Mods & Tools name `type`, 角色 Characters, 地理 Geography and 攻略資源 Guide Resources name `group`, and 敵人 Enemies names `tier`. 存檔 Saves does not: its checkpoint defaults to `regular`, so every row has one and it is a property of the save rather than a bucket. The card then carries a **Group by** toggle named after the field - *Group by type*, *Group by tier* - (on by default, remembered per section in the reader's browser) that draws one group per value, in the order each value first appears, with the rows carrying none in a trailing group. A section also marked **`always_grouped`** has no toggle and no flat view: it is always drawn grouped, whatever the browser remembered, and its rows are moved within their groups. 角色 Characters, 地理 Geography and 攻略資源 Guide Resources, the three grouped by `group`, are always grouped; the type and tier toggles stay toggles. `always_grouped` without a `groupable_by` fails the import (`_check_always_grouped`), and it is published on `NoteSectionOut`. Unlike `group_by`, no group order is stored anywhere: the groups follow the rows' `sort_index`, so moving a group or a row within one saves the whole section's row order through `PATCH /api/notes/reorder`, grouped. It is checked at import the same way, and on a `hierarchical` section the field must also be column-backed (`_check_groupable_by`). A section both `hierarchical` and `groupable_by` — 地理 Geography and 支線任務 Side Quests — groups its **top-level rows** and draws each one's subtree beneath it; only a top-level row carries a value, and `_validate_structured` refuses one on a row with a `parent_id` (422 "Only a top-level row carries a group."), checked on the row as it will be, so a PATCH that reparents a grouped row must clear its group in the same request. **Renaming a group.** A group's name is a value stored on each of its rows, so a named group's header carries a rename control (a pencil, "Rename group <name>", for a viewer with a row of that group to edit) that renames the group once rather than row by row: `POST /api/notes/rename-group` rewrites, in one transaction, the `groupable_by` column (on 地理 Geography, the top-level rows only, since nothing reads a child's), Resources' `kind`, or the one name inside each row's `group_by` names list (a row that already has the new name keeps it once). It renames exactly the rows the caller could edit one by one: every row of a catalogue section for a `manage.catalog` holder; in a mixed section those catalogue rows plus the caller's own personal rows, so a member renaming a group shared with the catalogue moves only its own rows into the new name; in a personal section the caller's own rows. On a `group_by` section the name is renamed in the caller's own group order too (`user_highlight_group_order`, the order `PUT /api/me/highlight-group-order/{media_id}` writes), keeping its place. Renaming onto a name another group already has merges the two; the nameless group has no stored name and cannot be renamed; a closed vocabulary (模組&工具's Mod / Tool) refuses a name outside it. **`owner_where`** limits a section to some owners of its types, as `{owner column: allowed values}`; the router refuses a row on any other owner (422, `_require_owner_where` in `app/routers/note.py`, after the owner is known to be visible) and the page renders no card for it. Both are published on `NoteSectionOut`.
 
 **Why one JSONB column and not a column per field.** Most of what the structured sections need already has a column — a name is `title`, a description is `content`, a dropdown is `kind` or `status` — so `fields` carries only the leftovers and the nested lists. A column per field would put a dozen mostly-blank columns on a table all twelve owner types share, and those columns are also the Google Sheets Note tab; the nested lists would need JSONB regardless. The cost, stated plainly: the leftover scalars have no database-level type and no column to filter on. The values most worth filtering (a beaten status, a completion status) are each viewer's own and live in `note_mark`, not on the row.
 
@@ -108,8 +109,7 @@ Display-only. A grouped section is still an ordinary registry entry; `group` onl
 | `gear` | 物品 Items & Gear | `fa-sack-xmark` — game and h-game only: weapons, items, collectibles. **Not** keyed `items`: a section owns that key |
 | `compendium` | 圖鑑與名詞 Compendium & Terms | `fa-dragon` — game and h-game only: characters, enemies, game terms, and for game also player terms; for h-game also geography, last |
 | `tools` | 資源&工具 Tools & Resources | `fa-screwdriver-wrench` — game and h-game only: mods and tools, guide resources, then the site-wide Resources section, which is its own card for every other owner. Renders near the end, not with the 攻略 run |
-| `story` | 劇情 Story | `fa-book-open` — game and h-game only. Game: main plot, side stories, character arcs, endings. H-game: the four Story List strands, then endings. What happens |
-| `story_list` | 劇情列表 Story List | `fa-list-ol` — game only, 4 **hierarchical** strands (an h-game's render in 劇情) |
+| `story_list` | 劇情&任務 Story & Quests | `fa-list-ol` — game and h-game alike: the four **hierarchical** story strands, then 支線任務 Side Quests (hierarchical too), then 結局 Endings. Keyed `story_list` though it holds quests and endings too: keys are what code and tests name, the label is what a reader sees |
 | `worldbuilding` | 世界觀 Worldbuilding | `fa-earth-asia` — game only: lore, story terms, geography, timeline, mysteries, other. The world it happens in |
 | `ng_plus` | NG 多周目 | `fa-rotate` — game and h-game only: flow, carried over, reset, before starting, and 下周目目標 NG+ Goals. What starting over keeps and takes away, and what I mean to do next time |
 | `todo` | 待辦 Todo | `fa-list-check` — game and h-game only, 4 personal-scope buckets (a row moves between them in one step, `quick_move`) and then 存檔 Saves, all personal |
@@ -128,23 +128,18 @@ a registry edit: no migration, no data change, no frontend change, and each
 card collapses on its own when empty. A test keeps every card at two sections or more; a card of one
 is a section wearing a second header.
 
-**結局 Endings is in 劇情 Story, not 攻略.** It sat among the guide sections
-while it had nowhere better, and an ending is what the story *does* rather
-than a guide topic — so it is the last of 劇情's four strands, and 圖鑑與名詞 is
-cleanly about the cast, the bestiary, the map and the glossaries. It is declared after
-the four Story List sections rather than beside the other strands: for a game
-that changes nothing, because card order is where a group *first* appears, but
-an h-game's 劇情 is its Story List (below), and this puts 結局 last there too.
-It is the one section a test lets sit outside its group's run.
+**結局 Endings is in 劇情&任務, not 攻略.** An ending is what the story
+*does* rather than a guide topic, so it closes the story card, after the
+strands and the side quests, and 圖鑑與名詞 is cleanly about the cast, the
+bestiary, the map and the glossaries.
 
-**劇情 is what happens; 世界觀 is the world it happens in.** For a game, 劇情
-holds the four strands of the plot — main plot, side stories, character arcs,
-endings.
-世界觀 Worldbuilding holds what the plot stands on: 設定 Lore,
-劇情名詞 Story Terms, 時間線 Timeline, 未解之謎 Mysteries, and 其他 Other,
-the overflow for a stray story observation. It renders after 劇情列表 rather
-than between the two, because 劇情 and 劇情列表 are one story told twice and
-read as a pair.
+**劇情&任務 is what happens; 世界觀 is the world it happens in.** The story
+card holds the story as a numbered, nestable structure, the quests told
+alongside it and how it ends — the same card, in the same order, for a game
+and an h-game. 世界觀 Worldbuilding (game only) holds what the plot stands on:
+設定 Lore, 劇情名詞 Story Terms, 地理 Geography, 時間線 Timeline, 未解之謎
+Mysteries, and 其他 Other, the overflow for a stray story observation. It
+renders straight after 劇情&任務.
 
 **The game's vocabulary is split by where it is looked up.** 遊戲名詞 Game
 Terms (mechanics, currencies, jargon) and 玩家術語 Player Terms (the
@@ -164,12 +159,12 @@ not sourced, and a write-up worth keeping belongs in 攻略資源 Guide Resource
 `group` for named owner types, the same way `labels` and `kinds_by_owner`
 override their defaults, and `group_for(section, owner_type)` resolves it —
 `/api/notes/sections` serves the resolved value, so the page never learns that
-an override exists. **Six sections use it**, and a test pins the list: an
+an override exists. **Four sections use it**, and a test pins the list: an
 override puts the same rows in a different card, so a reader of
 `NOTE_SECTIONS` who sees `group=` and misses the override would be wrong about
-where a section lands. `analysis` and `easter_eggs` are below; the other four
-are h-game's four `story_list_*` strands, which render in 劇情 because an
-h-game has no prose plot.
+where a section lands. `analysis` and `easter_eggs` are below; `geography`
+renders in 圖鑑與名詞 for an h-game, which has no 世界觀, and `resources` joins
+資源&工具 on both game owners.
 
 For a film or a series, 解析/解惑/討論 Analysis/Discussion sits beside 分鏡/演出, 伏筆, 對稱 and 猜測 in
 its own card, because they are one subject. A game has none of the others,
@@ -180,15 +175,13 @@ rendered for either. 彩蛋/致敬 Easter Eggs/References follows it there for `
 the last subsection of a game's 評論 and 解析 the one before it. H-comic and
 hentai have no 解析 at all, and no gated type has 彩蛋.
 
-**Card order is registry position.** `splitBlocks` walks `NOTE_SECTIONS` and emits one card per group in first-appearance order, so where a group's *first* section sits is the only thing deciding where its card lands. Today that reads: Notes → 評論 → 解析 → 攻略 → 劇情 → 劇情列表 → 世界觀 → 待辦 → 音樂 → 名言/梗 → Resources → Questions.
+**Card order is registry position.** `splitBlocks` walks `NOTE_SECTIONS` and emits one card per group in first-appearance order, so where a group's *first* section sits is the only thing deciding where its card lands. Today that reads: Notes → 評論 → 解析 → 攻略 → 劇情&任務 → 世界觀 → 待辦 → 音樂 → 名言/梗 → Resources → Questions.
 
-### 劇情列表 Story List, and nesting
+### 劇情&任務 Story & Quests, and nesting
 
-劇情 above is the story written as **prose**; 劇情列表 is the same story as a
-**structure** — a numbered, nestable list of the things it is made of, so
-"chapter 3, scene 2" is two rows and a parent link rather than a sentence. The
-two are deliberately not merged: a plot note and an outline entry are read at
-different times, and neither reads well as the other.
+The story is kept as a **structure** — a numbered, nestable list of the
+things it is made of, so "chapter 3, scene 2" is two rows and a parent link
+rather than a sentence. There is no prose plot section beside it.
 
 Four strands (`story_list_main`, `_side`, `_character`, `_event`) rather than
 one section with a `kind`, for the same reason the 待辦 buckets are four:
@@ -197,7 +190,7 @@ single section could not order entries *within* a strand. They are built from
 `STORY_LIST_STRANDS` by `_story_list_sections()` because they differ only in
 key and label — four copies of one spec is four places for them to drift.
 
-**They and 地理 Geography (below) are the `hierarchical` sections.** An entry
+**They, 支線任務 Side Quests and 地理 Geography (below) are the `hierarchical` sections.** An entry
 nests under another to any depth via `note.parent_id`; two or three levels is the expected shape, and
 nothing enforces a limit because the limit would be arbitrary and the router
 already refuses a cycle. The rules a schema cannot check live in
@@ -305,14 +298,12 @@ is all the author's.
 | `enemies` | 敵人 Enemies | **structured** | compendium | game, h-game | — | — | — | no | no | no |
 | `game_terms` | 遊戲名詞 Game Terms | **structured** | compendium | game, h-game | — | — | — | no | no | no |
 | `player_terms` | 玩家術語 Player Terms | **structured** | compendium | game | — | — | — | no | no | no |
-| `main_plot` | 主線劇情 Main Plot | **structured** | story | game | — | — | *(on its `chapter` field)* | no | no | no |
-| `side_plot` | 支線劇情 Side Stories | **structured** | story | game | — | — | *(on its `chapter` field)* | no | no | no |
-| `character_arcs` | 角色劇情 Character Arcs | **structured** | story | game | — | — | — | no | no | no |
-| `endings` | 結局 Endings | **structured** | story | game, h-game | — | — | — | no | no | no |
-| `story_list_main` | 主線 Main | **structured** | story_list (**story** for h-game) | game, h-game | — | — | — | no | no | no |
-| `story_list_side` | 支線 Side | **structured** | story_list (**story** for h-game) | game, h-game | — | — | — | no | no | no |
-| `story_list_character` | 角色 Character | **structured** | story_list (**story** for h-game) | game, h-game | — | — | — | no | no | no |
-| `story_list_event` | 事件 Event | **structured** | story_list (**story** for h-game) | game, h-game | — | — | — | no | no | no |
+| `story_list_main` | 主線 Main | **structured** | story_list | game, h-game | — | — | — | no | no | no |
+| `story_list_side` | 支線 Side | **structured** | story_list | game, h-game | — | — | — | no | no | no |
+| `story_list_character` | 角色 Character | **structured** | story_list | game, h-game | — | — | — | no | no | no |
+| `story_list_event` | 事件 Event | **structured** | story_list | game, h-game | — | — | — | no | no | no |
+| `side_quests` | 支線任務 Side Quests | **structured** | story_list | game, h-game | — | — | — | no | no | no |
+| `endings` | 結局 Endings | **structured** | story_list | game, h-game | — | — | — | no | no | no |
 | `lore` | 設定 Lore | text_links | worldbuilding | game | — | — | — | no | no | no |
 | `story_terms` | 劇情名詞 Story Terms | **structured** | worldbuilding | game | — | — | — | no | no | no |
 | `geography` | 地理 Geography | **structured** | worldbuilding (**compendium** for h-game) | game, h-game | — | — | — | no | no | no |
@@ -360,9 +351,7 @@ than everything their owner group would give them.
     我的評價 and 解析.
   - Highlights: only `h_game_highlights`, not game's 神場景.
   - 攻略: no 新手 or 小知識. 圖鑑與名詞: no 玩家術語.
-  - 劇情: no main plot, side stories or character arcs. The four Story List
-    strands render in the 劇情 card, followed by 結局 Endings, and there is no
-    separate 劇情列表 card.
+  - 劇情&任務: the whole card, as a game has it.
   - No 世界觀 and no 名言/梗.
 
 A row already stored in a section its owner no longer has stays in the table
@@ -475,16 +464,15 @@ column a field claims; a field with no arrow lives in `fields`.
 | `guide_resources` | group → `kind` (free-text select, no suggestions), name → `title`, description → `content`, links → `links`; `groupable_by = "group"` |
 | `ng_flow` | name → `title`, description → `content`, **points** *(list: text)*, links → `links` |
 | `ng_carried_over` / `ng_reset` / `ng_before_starting` | type → `kind` (free-text select), name → `title`, description → `content`, **points** *(list: text)*, links → `links`; `groupable_by = "type"` |
-| `main_plot` / `side_plot` | chapter → `locator` *(placeholder "Chapter / Part, e.g. Ch 3")*, links → `links`. No description: each link's title says what it is |
-| `character_arcs` | links → `links` *(required)*: one or more titled links and nothing else |
 | the four `story_list_*` strands | order → `locator`, name → `title`, description → `content`, links → `links`; `hierarchical`, `require_any = (("order", "name"),)` |
+| `side_quests` | type → `kind` (free-text select, suggested from `Side Quest Type`; top-level rows only), name → `title`, region, cautions *(label "注意事項 Cautions", textarea)*, prerequisite, core_npc *(text, suggested from 角色 Characters)*, **other_npcs** *(`names`, suggested from 角色 Characters)*, **rewards** *(list: text)*, remark → `content`, links → `links`, done → `status` *(label "Status", default `to do`; personal, NG-reset)*; `hierarchical`, `groupable_by = "type"`, `require_any = (("name",),)` |
 | `saves` | number → `locator` *(placeholder "This save's slot number")*, name → `title`, checkpoint → `kind` *(`regular` / `main`, default `regular`)*, note → `content`, based on slot *(free text, placeholder "Slot number it was copied from")*, at node *(`choice_node`, key `choice_node`: the block of the game's choice graph the save sits in)*; `require_any = (("number", "name"),)` |
 
 Only a handful of scalar fields in the whole group need `fields` at all —
 `variant`, `alias`, `region`, `developer`, `name_alt`, a class's `role`,
 `unlock` and `key_stats`, the 物品 sections' `has_amount`, `amount_total` and `ng_reset`, a
-save's `based_on` and `choice_node` — plus the stat values and the nested
-lists. Everything else has a column, which is what makes one JSONB column
+save's `based_on` and `choice_node`, a side quest's `cautions`, `prerequisite`,
+`core_npc` and `other_npcs` — plus the stat values and the nested lists. Everything else has a column, which is what makes one JSONB column
 enough.
 
 **Open vocabularies declare no options and render as free text**: a `type`, a
@@ -500,6 +488,7 @@ game with only two possible answers:
 | `HAS_AMOUNT_OPTIONS` (the three 物品 sections' `has_amount`) | yes, no — whether the row is counted at all. Defaults to no, since most rows are one-off things, and a row stored without the key reads as no; both amounts are drawn only while it says yes |
 | `NG_RESET_OPTIONS` (the three 物品 sections' `ng_reset`) | yes, no — whether the NG reset clears a viewer's collect status and amount collected on the row. Defaults to yes, the commoner answer, and a row stored without the key (a sheet row from before the field) reads as yes. The read view flags only the exception: "Won't Reset" at the end of a `no` row's line, nothing on a `yes` one |
 | `ENEMY_STATUSES` (`enemies.beaten`) | to beat, beaten, cheesed, skip — "cheesed" is deliberately not folded into "beaten": it answers "do I still owe this one a fair fight?" |
+| `QUEST_STATUSES` (`side_quests.done`) | to do, in progress, done, missed, skip — "missed" is not "skip": a missable quest that closed before I reached it is not a decision I made |
 | `ENDING_STATUSES` (`endings.completion`) | not yet, reached, skipped — "skipped" is a decision, not an absence, so it is a value rather than a blank |
 | `MOD_STATUSES` (`mods_and_tools.status`) | 常駐, to use, to play, played, won't — 常駐 is the always-on set |
 | `MOD_KINDS` (`mods_and_tools.type`) | Mod, Tool — carried over from the section's old `kinds` dropdown, which every existing row is tagged with |
@@ -524,7 +513,7 @@ A free-text value can be offered suggestions from a `system_option` category
 without being closed to them. A section names one for its `kind`
 (`kind_category`, the OP and ED Song Type) or for its link text
 (`link_text_category`, Song Source); a structured field names one for itself
-(`NoteField.option_category`). Six fields do:
+(`NoteField.option_category`). Seven fields do:
 
 | Category | Field | Seeded values |
 | --- | --- | --- |
@@ -533,9 +522,10 @@ without being closed to them. A section names one for its `kind`
 | `Item Type` | 道具 Items `type` | 重要道具, 任務道具 |
 | `Weapon & Gear Type` | 武器&裝備 Weapons & Gear `type` | none |
 | `Enemy Tier` | 敵人 Enemies `tier` | none |
+| `Side Quest Type` | 支線任務 Side Quests `type` | 大支線, 小支線 |
 | `Geography Group` | 地理 Geography `group` | none |
 
-Seeded by migration `n1o2tesrwk3` with **no scope rows**, so game and h-game
+Seeded by migrations `n1o2tesrwk3` and (`Side Quest Type`) `s1q2uests345` with **no scope rows**, so game and h-game
 both get them (`GET /api/options/{category}?scope=` treats a value with no
 scope rows as offered everywhere). The editor renders such a field as a
 `SuggestInput` over the category's values, which `NotesContext` fetches once
@@ -551,6 +541,22 @@ rows). A category with no value yet still shows in the picker, because the
 constant rather than a row is what lists it. `NOTE_OPTION_CATEGORIES` is the
 wider set — the field-level categories and the section-level ones — unioned
 into `OPTION_CATEGORIES`. See [../options.md](../options.md).
+
+### Suggestions from another section
+
+A field may instead suggest the names of the owner's rows in another section
+(`NoteField.suggest_from`, a section key). 支線任務 Side Quests' `core_npc` and
+`other_npcs` both name `characters_guide`, so a quest's NPCs are offered from
+the game's 角色 Characters rows. Nothing is fetched for it: `NotesContext`
+already holds every row of the owner, and builds `sectionTitles` —
+`{section key: [distinct non-blank titles, in row order]}` — from them, which
+`StructuredSection` reads through a context. A `text` field naming it renders
+as a `SuggestInput` over those names; a `names` field hands them to
+`NamesInput` in place of the cast. Both stay free text: a quest giver nobody
+wrote a character row for is still named, and the value is a name rather than
+a row id, so renaming or deleting the character leaves the quest as it was.
+A viewer's own personal rows of a mixed source section are among the
+suggestions, since they are among the rows the page holds.
 
 ### Scope
 
@@ -695,7 +701,7 @@ Design rules baked into the registry:
 | **Similar sections are deliberately distinct** (`highlights` vs `highlight_episodes` vs `highlight_passages` vs `highlight_moments`; `cinematography` vs `craft`) so they can drift on purpose. | Module docstring of `app/utils/note_sections.py`. |
 | **A game's guide vocabulary is the 攻略 group, not one section.** Twenty sections across five cards (for a game) rather than one with a `kind`, because each is a list kept separately: which build to run is not the same question as where the collectibles are. `guide_resources` holds pointers to somebody else's walkthrough; the site-wide `resources` section (name_links, all owners, standalone) is a separate section games also inherit, and a second card labelled "Resources" would be unreadable — hence distinct keys *and* distinct labels. | The 攻略 run in `NOTE_SECTIONS` and its banner comment. |
 | **The 待辦 buckets are four sections, not one section with a `kind`.** `sort_index` orders rows within one `(owner, section)` pair and `/api/notes/reorder` renumbers the whole section, so a kind-tagged single section could not order items *within* a bucket. Moving an item between buckets is a PATCH of `section`, which appends it to the end of the bucket it lands in. The four are `quick_move`: `/api/notes/sections` serves each one's `move_targets` (the owner's other `quick_move` sections in the same card, in registry order), and every row carries a "Move to…" list of them beside Edit and Delete, so moving one is a single step rather than an edit. | The 待辦 run in `NOTE_SECTIONS` and its banner comment; `NoteSection.quick_move`, `NoteSectionOut.move_targets`. |
-| **劇情 records what happens; 解析 records what it means.** The two are separate cards, and `story_other` exists so a stray story observation lands there rather than drifting into Analysis. The 劇情 plot sections take an *optional* locator, unlike `episode_comments` and `highlight_moments`, which require one — a beat remembered without its chapter is still a beat. | `main_plot` / `side_plot`, and `NOTE_GROUPS`. |
+| **劇情&任務 records what happens; 解析 records what it means.** The two are separate cards, and `story_other` exists so a stray story observation lands there rather than drifting into Analysis. | `NOTE_GROUPS`. |
 | **`episode_comments` was widened, not duplicated.** A manga is cut into chapters and a game into chapters or parts rather than episodes, but a comment on one segment of the work is the same section, so each gets a `labels` override (manga 各話評論 Chapter Comments, game 各章評論 Part Reviews) and a `locator_placeholders` override rather than a section of its own. An h-game does not take it: it is not reviewed part by part. | `NOTE_SECTIONS["episode_comments"]`. |
 | **Music sections stay separate** (`op`, `ed`, `insert_songs`, `ost`, `op_ed_changes`) rather than one section with a dropdown, so "which OPs do I still need?" stays a section, not a filter. Each song list's own status hangs on a `music_status` row keyed by the list's section key, not a fifth list. | Comment above `music_status` in the registry. |
 | `group` and `standalone` are mutually exclusive; a test forbids setting both. | `NoteSection` docstring. |
@@ -935,9 +941,9 @@ TanStack Query - it has never used a query hook - so the group rows do too.
 | `TextLinksSection.jsx` | text_links | locator (only if the section has a `locator_placeholder`), content, links; enforces `desc_required` / `locator_required` client-side. On a section serving `move_targets` (the 待辦 buckets), each row also carries a native "Move to…" `<select>` beside Edit and Delete, shown to whoever may edit the row; picking a target calls `onUpdate(id, {section})`. |
 | `EpisodeTextSection.jsx` | episode_text | locator, kind dropdown when `kinds` non-empty, content, and links when the section `takes_links` — the same `LinkPairsEditor` and `LinkPairPills` as `TextLinksSection`, sent as titled links with URL-less ones dropped; a section without the flag sends no `links` key |
 | `NameLinksSection.jsx` | name_links | title, links, and on a `kind_is_group` section an optional Group (a `datalist` over the groups this owner's rows already use). Once any row has a group the card draws one heading per group, in the order each first appears among the rows, and the ungrouped rows last under "Other"; rows are folded and reordered in that drawn order, so dragging a row above another group's first row moves its group up. With no row grouped the list is plain. |
-| `NameEntriesSection.jsx` | name_entries | title, kind dropdown when `kinds` non-empty, and the ordered `entries` array (each item a line of text or a labelled link, dragged into order in the form by its grip). No section uses it: `side_quests` was the last, and moved into 劇情列表 Story List. The shape, the column, the component and the Sheets parsing all stay — rows written before that change are still in the database and still have to Pull. |
-| `StructuredSection.jsx` | structured | whatever `section.fields` declares — it is the only component here that does not know its own fields. Also owns drag-to-reorder (a grip per row from `components/ui/Sortable.jsx`; each drop is one `PATCH /api/notes/reorder`, applied on screen at once by `NotesContext`, with that section's grips disabled until the save settles), the inline `quick_edit` input, and, for a `hierarchical` section, the tree: an Add button per row that opens a draft carrying that row's id as `parent_id`, children indented behind a rule, and a move — among a row's own siblings, never to another parent — that flattens the whole tree depth-first. A free-text `select` naming an `option_category` renders as a `SuggestInput` over that category's values (`optionValues`, handed in by `NotesContext`) and stays free text. A `names` field renders as `NamesInput.jsx` in the form and as tags in the row. A `choice_node` field renders as `ChoiceNodeSelect` in the form (the owner game's blocks, grouped Start / Part / Ending, plus "Unknown block" for a link the list does not hold) and as a tag reading "At node: {title}" in the row (`ChoiceNodeName`), both from `components/game-choices/ChoiceNodeField.jsx`; the owner's id reaches them through a context the component sets from its `ownerId` prop, rather than through every form and row. A section with `group_by` (and not hierarchical) reads as groups instead of one list (`GroupedRows`, rules in `groupedRows.js`): each group header carries a grip (drag, or ArrowUp / ArrowDown on it), and the rows are not movable there; a **Group by** toggle in the card header switches to the flat list, where they are. A section with `groupable_by` gets a toggle in its card header that switches between that grouped view (one group per `select` value) and the flat list; there both the groups and the rows within a group carry grips — a row moves only within its own group — and every move sends the section's whole row order, grouped. A section both `hierarchical` and `groupable_by` (地理 Geography) groups its top-level rows instead, each drawn with its subtree (`groupRoots`), and its form leaves the group field out for a child draft or a child being edited. **The entry cap** counts top-level rows only - a shown row shows every child - and keeps a row on screen while it or anything under it is being edited or having a child drafted; a row's grip moves it by its place among all its siblings, folded or not, so the last row shown can still be moved down past the fold, and a move that carries a row past the cap unfolds the section so the row does not vanish. A grouped section is capped twice: **per group**, each group with its own toggle, and **by group** - the first three groups show (the nameless one counting last) and the rest fold behind "Show all groups (N)" / "Show fewer groups", the same three as the row cap. A group holding the row being edited or added under stays on screen, and a group's grip moves it by its place among all the groups, folded or not, so the last group shown can be moved down past the fold, which unfolds them. A section of three groups or fewer has no group toggle. Every grouped view folds this way - `group_by`, `groupable_by` and a grouped tree. |
-| `NamesInput.jsx` | — | the `names` input: chosen names as removable tags, a combobox suggesting `nameSuggestions` filtered by what is typed, any other text accepted - on Enter (read through `hooks/useEnterToAdd.js`), a comma, blur, or the `Add "<name>"` row while the text is not a suggestion |
+| `NameEntriesSection.jsx` | name_entries | title, kind dropdown when `kinds` non-empty, and the ordered `entries` array (each item a line of text or a labelled link, dragged into order in the form by its grip). No section uses it. The shape, the column, the component and the Sheets parsing all stay — rows written in it are still in the database and still have to Pull. |
+| `StructuredSection.jsx` | structured | whatever `section.fields` declares — it is the only component here that does not know its own fields. Also owns drag-to-reorder (a grip per row from `components/ui/Sortable.jsx`; each drop is one `PATCH /api/notes/reorder`, applied on screen at once by `NotesContext`, with that section's grips disabled until the save settles), the inline `quick_edit` input, and, for a `hierarchical` section, the tree: an Add button per row that opens a draft carrying that row's id as `parent_id`, children indented behind a rule, and a move — among a row's own siblings, never to another parent — that flattens the whole tree depth-first. A free-text `select` naming an `option_category` renders as a `SuggestInput` over that category's values (`optionValues`, handed in by `NotesContext`) and stays free text; a `text` field naming `suggest_from` does the same over the names of the owner's rows in that section (`sectionTitles`). A `names` field renders as `NamesInput.jsx` in the form and as tags in the row, suggesting `sectionTitles` for its `suggest_from` where it names one and the cast otherwise. A `choice_node` field renders as `ChoiceNodeSelect` in the form (the owner game's blocks, grouped Start / Part / Ending, plus "Unknown block" for a link the list does not hold) and as a tag reading "At node: {title}" in the row (`ChoiceNodeName`), both from `components/game-choices/ChoiceNodeField.jsx`; the owner's id reaches them through a context the component sets from its `ownerId` prop, rather than through every form and row. A section with `group_by` (and not hierarchical) reads as groups instead of one list (`GroupedRows`, rules in `groupedRows.js`): each group header carries a grip (drag, or ArrowUp / ArrowDown on it), and the rows are not movable there; a **Group by** toggle in the card header switches to the flat list, where they are. A section with `groupable_by` gets a toggle in its card header that switches between that grouped view (one group per `select` value) and the flat list; there both the groups and the rows within a group carry grips — a row moves only within its own group — and every move sends the section's whole row order, grouped. A section both `hierarchical` and `groupable_by` (地理 Geography) groups its top-level rows instead, each drawn with its subtree (`groupRoots`), and its form leaves the group field out for a child draft or a child being edited. **The entry cap** counts top-level rows only - a shown row shows every child - and keeps a row on screen while it or anything under it is being edited or having a child drafted; a row's grip moves it by its place among all its siblings, folded or not, so the last row shown can still be moved down past the fold, and a move that carries a row past the cap unfolds the section so the row does not vanish. A grouped section is capped twice: **per group**, each group with its own toggle, and **by group** - the first three groups show (the nameless one counting last) and the rest fold behind "Show all groups (N)" / "Show fewer groups", the same three as the row cap. A group holding the row being edited or added under stays on screen, and a group's grip moves it by its place among all the groups, folded or not, so the last group shown can be moved down past the fold, which unfolds them. A section of three groups or fewer has no group toggle. Every grouped view folds this way - `group_by`, `groupable_by` and a grouped tree. |
+| `NamesInput.jsx` | — | the `names` input: chosen names as removable tags, a combobox suggesting its `suggestions` (the cast, `nameSuggestions`, or a `suggest_from` section's names) filtered by what is typed, any other text accepted - on Enter (read through `hooks/useEnterToAdd.js`), a comma, blur, or the `Add "<name>"` row while the text is not a suggestion |
 | `groupedRows.js` | — | pure: `groupNotes` (one group per name, a row under every name it carries, stored order first then first appearance, a trailing unnamed group only when a row names nobody), `movedGroupOrder`, `groupedIds`, `movedRow(groups, gi, from, to)` (a row taken out and put back at `to` within its own group, as a drop does), `namesOf`; and for a grouped tree, `groupRoots` (the roots grouped by a column, first appearance, ungrouped last), `treeIds` and `movedTreeIds` (every id depth-first in drawn order, with one sibling list's move applied) |
 | `MusicTrackSection.jsx` | music_track | all four song lists: title, Song Type (`kind`, a `SuggestInput` over the `kind_category` values, only where the section has one, starting on `default_kind`), episode (`locator`), link pairs (`LinkPairsEditor`, labels suggested from `link_text_category`), content. Each song's status is not in the form: it is the viewer's own, a select on the row for a viewer holding `self.personal_notes` and the `music_status` feature (`canMark`), a tag for anyone else. The list's own status sits in the card header the same way: a select over `type_statuses` for that viewer, a tag for anyone else, reading the viewer's status on the `music_status` row for this section's key (the provider's `typeStatusNote`) or `type_status_default`. Both write through `PUT /api/notes/{id}/mark` with the key `status`; a list with no `music_status` row has nothing to mark and reads its default as a tag. |
 | `LinkPairs.jsx` (+ `linkPairValues.js`) | — | `LinkPairsEditor` (repeatable optional title + URL, the title a `SuggestInput` when given `textOptions`) and `LinkPairPills` (pills labelled with the link's title, else the host): the one link editor and read view of every section - `TextLinksSection`, `NameLinksSection`, `EpisodeTextSection`, `MusicTrackSection` and every `links` field of `StructuredSection` |

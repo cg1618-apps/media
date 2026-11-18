@@ -1,6 +1,6 @@
 # Design decisions
 
-Last verified: 2026-11-17
+Last verified: 2026-11-18
 
 ## What this is for
 
@@ -5689,3 +5689,81 @@ shown buttons that answered 401.
   dict, so without the check a malformed unit date reached the ISO
   constraint and answered 500; `write_book_units` now answers 422 with the
   validator's message, as `POST` and `PUT` do.
+
+### Testing: a database per run, the release round trip, and a selected pull-request suite (2026-11-18)
+
+- **A database per run, not a lock.** Two runs collided because they shared
+  the NAME `media_test`, not the server, so the fix is a fresh
+  `media_test_<epoch>_<hex>` per run and per scratch use (the platform's rule,
+  `docs/registry.md`). The epoch in the name is a deliberate addition: leftover
+  cleanup drops only databases with no connections that are older than two
+  hours, so a neighbour's cleanup cannot take a database a run created a
+  moment ago and has not connected to yet. "No connections" alone has that
+  window. The database is created while the root conftest is imported, not in
+  `pytest_configure`, because `app.main` checks the schema at import and pytest
+  imports `tests/api/conftest.py` before configure runs; the first version
+  used configure and every API test failed on a missing database.
+- **The chain is built from zero once per run.** Each from-zero build costs
+  over a minute. `migrated_head` is built once and read by every generic guard;
+  a test that downgrades takes a `CREATE DATABASE ... TEMPLATE` copy, seconds
+  rather than another replay. `test_migrations_build_the_schema.py` alone used
+  to build it twice.
+- **The round trip goes to `origin/main`'s revision, not one step.** That is
+  what a rollback of the release undoes, and concurrent sessions put several
+  revisions into one release. Rejected: walking every revision down to base,
+  which the baseline makes meaningless and which costs a replay per step. The
+  walk stops above a revision declaring `irreversible = True`, because that is
+  where the deploy hook stops too.
+- **A pull request into `dev` runs a selected backend suite; the merge queue
+  runs all of it.** Every code pull request ran the full suite twice - once on
+  its own, once in the queue - and only the queue run tests the tree that
+  lands. The selection (`scripts/pr_tests.py`) keeps what the pull request
+  can actually tell you: unit, services, the API files it touches, and the
+  migration guards plus its own revision tests when it touches the schema; it
+  falls back to everything when the harness itself changes. The cost, accepted
+  by the owner, is that an uncovered API failure appears at queue time instead
+  of on the pull request; it still cannot land. Rejected: a second job for the
+  selection, which would change the required check's name and so the
+  ruleset; and path filters at workflow level, which leave a required check
+  unreported.
+- **The built URL names `127.0.0.1`.** On the company machine `localhost`
+  resolved to `::1`, which the dev database does not listen on, and every new
+  connection waited out a 21-second timeout - measured: 21.1 s against
+  0.02 s. A pooled app barely notices; the suite opens a fresh connection per
+  scratch database, per Alembic subprocess and per comparison read, which is
+  where much of its local half hour went. Building the URL with
+  `URL.create` instead of `quote_plus` also fixes a password containing a
+  space, which `quote_plus` turned into a literal `+`.
+
+### 劇情 folds into 劇情&任務 Story & Quests; 支線任務 Side Quests (2026-11-18)
+
+- **The prose 劇情 card goes, and its three sections with it.** `main_plot`,
+  `side_plot` and `character_arcs` covered what the 劇情列表 strands hold as
+  a structure, and the owner chose the structure alone, reversing the earlier
+  "two cards, not one" decision; production held one row across the three.
+  Their rows are **deleted**, not moved,
+  by `s1q2uests345` — the owner moved that one row onto its strand by hand
+  before the release — so the revision declares `irreversible = True`; only
+  the pre-deploy dump brings them back. Pull does not refile an older sheet's
+  rows of those sections: they restore under keys the registry no longer has
+  and render nowhere, the standing hazard `switching-environments.md`'s "one
+  hard rule" describes.
+- **One card, keyed `story_list`, labelled 劇情&任務 Story & Quests**: the four
+  strands, then 支線任務 Side Quests, then 結局 Endings last. The key stays
+  because keys are what code and tests name. With 劇情 gone, an h-game needs no
+  per-owner group for its strands, so game and h-game read the same card.
+- **支線任務 Side Quests is a nestable structured section, not a fifth
+  strand.** A quest carries what a strand entry does not — region, cautions,
+  prerequisite, NPCs, rewards, and each viewer's own done status (personal,
+  NG-reset, default `to do`, like 敵人's beaten) — and it is always named, so
+  `require_any = (("name",),)` rather than the strands' order-or-name. Its
+  type is free text suggested from a new `Side Quest Type` category, and
+  groups the roots, so a step under a chain carries no type of its own.
+  Catalogue rather than `mixed`, like the strands it sits beside.
+- **NPC suggestions come from the page's own rows (`NoteField.suggest_from`).**
+  Nothing in the registry let one section's field suggest another's rows. The
+  page already holds every row of the owner, so the smallest mechanism is a
+  field property naming the source section and a `sectionTitles` map built in
+  `NotesContext` — no endpoint, no query, and it follows edits to 角色
+  Characters at once. The values stay names rather than row ids, the same
+  choice `names` fields made for the cast.

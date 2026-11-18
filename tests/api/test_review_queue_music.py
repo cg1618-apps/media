@@ -11,7 +11,7 @@ The rows are catalogue, but every status on them is a viewer's own note mark
 the queue is per caller: another account's statuses never list an anime, and
 a caller without the feature is listed nothing.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

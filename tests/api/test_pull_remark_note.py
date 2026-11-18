@@ -6,7 +6,7 @@ one more row for its owner, never a replacement for the one already there.
 And a sheet backed up while 個人筆記 was still 備註列表 names its rows
 `remark_list`, which Pull files under `personal_notes`.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

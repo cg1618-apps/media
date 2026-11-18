@@ -217,6 +217,7 @@ def test_serves_the_note_suggestion_categories(client):
         "Collectible Type",
         "Character Group",
         "Enemy Tier",
+        "Side Quest Type",
         "Geography Group",
     ]
     assert body["note_suggestion_categories"] == list(NOTE_SUGGESTION_CATEGORIES)

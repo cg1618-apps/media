@@ -21,36 +21,10 @@ and getting the bytes, which is what says the 404 came from the gate and not
 from an empty set, an absent file or a typo in the URL.
 """
 
-import os
-
 import pytest
 
-from app.services.integrations.image_manager import COVER_DIR, cover_key
-
-PIXEL = b"\xff\xd8\xff\xe0 not really a jpeg, but bytes on disk"
-
-
-@pytest.fixture
-def cover_on_disk():
-    """Write a cover file for one owner, and take it away again afterwards."""
-    written = []
-
-    def _write(owner_type, system_id):
-        key = cover_key(owner_type, str(system_id))
-        path = os.path.join(COVER_DIR, *key.split("/"))
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "wb") as fh:
-            fh.write(PIXEL)
-        written.append(path)
-        return f"/api/covers/{key}"
-
-    yield _write
-
-    for path in written:
-        try:
-            os.remove(path)
-        except FileNotFoundError:
-            pass
+from app.services.integrations.image_manager import cover_key
+from tests.api.conftest import COVER_PIXEL as PIXEL
 
 
 def test_a_hidden_entrys_cover_is_not_served(
@@ -99,28 +73,42 @@ def test_the_owner_type_in_the_url_is_not_trusted(
     assert narrowed.get(url).status_code == 404
 
 
-def test_the_static_mount_no_longer_serves_covers(client, hidden_anime, cover_on_disk):
+@pytest.fixture
+def static_in_tmp(tmp_path, monkeypatch):
+    """Run from tmp_path, so the relative `static/...` the mounts serve is a
+    tree this test owns rather than the developer's real one.
+
+    StaticFiles joins its relative directory with the request path at REQUEST
+    time, so after the chdir the mounts look under tmp_path/static - and a file
+    written there is exactly what a mount of the old `static/` tree would serve.
+    """
+    monkeypatch.chdir(tmp_path)
+    return tmp_path / "static"
+
+
+def test_the_static_mount_no_longer_serves_covers(client, hidden_anime, static_in_tmp):
     """The gate is worth nothing while the old ungated path still answers."""
-    cover_on_disk("anime", hidden_anime.system_id)
     key = cover_key("anime", str(hidden_anime.system_id))
+    path = static_in_tmp / "covers" / key
+    path.parent.mkdir(parents=True)
+    path.write_bytes(PIXEL)
 
     assert client.get(f"/static/covers/{key}").status_code == 404
 
 
-def test_library_and_quote_images_are_still_served_from_static(client):
+def test_library_and_quote_images_are_still_served_from_static(client, static_in_tmp):
     """
     Scope check. Library uploads and quote images keep the unauthenticated
     mount they have always had — this change closes the CONSTRUCTIBLE path,
-    and takes no view on the other two.
+    and takes no view on the other two. Also the mirror of the test above: the
+    same tmp tree IS served on a mounted path, so that 404 is not an artefact
+    of the chdir.
     """
-    os.makedirs("static/library", exist_ok=True)
-    path = "static/library/gate-test-fixture.jpg"
-    with open(path, "wb") as fh:
-        fh.write(PIXEL)
-    try:
-        assert client.get("/static/library/gate-test-fixture.jpg").status_code == 200
-    finally:
-        os.remove(path)
+    library = static_in_tmp / "library"
+    library.mkdir(parents=True)
+    (library / "gate-test-fixture.jpg").write_bytes(PIXEL)
+
+    assert client.get("/static/library/gate-test-fixture.jpg").status_code == 200
 
 
 @pytest.mark.parametrize(

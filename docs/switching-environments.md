@@ -1,6 +1,6 @@
 # Switching between development environments
 
-Last verified: 2026-11-17
+Last verified: 2026-11-18
 
 ## What this is for
 
@@ -148,7 +148,7 @@ below.
 
 | | Revision | Notes |
 |---|---|---|
-| **Home** | `s1t2atistics3` — head, as of 2026-11-14 | Upgraded from `i1m2dbseason34` through the account rework's revisions, the originality rename and `view.statistics`, after a dump (below). The installation owner is `cg1618`; 2,342 `media` rows. Moved off native PostgreSQL 17.6 into the container on 2026-09-08 by dump and restore, all 43 non-empty tables verified row-for-row. Two earlier revisions declare `irreversible = True`, so going back before the notes rework means restoring a dump |
+| **Home** | `u1p2coming3` — head, as of 2026-11-18 | Upgraded from `s1t2atistics3` with no dump taken; `n1l2inkpairs3` and `c1o2micrmk3` in that range declare `irreversible = True`, so this machine cannot go back past them. Before that, upgraded from `i1m2dbseason34` through the account rework's revisions, the originality rename and `view.statistics`, after a dump (below). The installation owner is `cg1618`; 2,342 `media` rows. Moved off native PostgreSQL 17.6 into the container on 2026-09-08 by dump and restore, all 43 non-empty tables verified row-for-row. Two earlier revisions declare `irreversible = True`, so going back before the notes rework means restoring a dump |
 | **Company** | `c1r2e3dited4` — head, as of 2026-10-14 | Upgraded from `h1c2o3m4i5c6` to `g1i2smain34` on 2026-09-30, then on to `h1c2i3dentty`, `i1d2p3ubid45` and `f1i2r3stsee4`; five revisions in the first range and two in the second (`a1n2imeacg3`, `g2c3hbranch4`) declare `irreversible = True`, and the dumps taken before them have since been deleted, so there is no going back on this machine. Volume-copied out of the pre-migration `anime_site_postgres_anime_data` on 2026-09-24, renamed `anime_site_db` → `media`, then upgraded from `s1e2asonalix`. **Pull All ran here on 2026-10-14** and restored every tab, so its rows are now the sheet's plus its own two anime movies: 2,336 `media` rows, 862 `anime`, 2 accounts. Before it, 14 people and 41 characters this machine alone had minted on 2026-10-08 - empty duplicates of rows home also has, holding no credits or castings - were deleted, because their `public_id`s collided with the sheet's (see `open-items.md`). One duplicate person, 山本崇一朗 (#376 beside #418), is still to be merged |
 
 Read it from the machine rather than from memory:
@@ -222,10 +222,13 @@ Read from the machines rather than from memory. A row for
 such file exists there — a dump the page asserts and the disk does not have is
 worse than no row at all, because it reads as a rollback somebody has.
 
-**Scratch test databases are not tracked.** Each worktree gets its own from
-`worktree.ps1` and drops it when the branch merges, and
-`tests/api/conftest.py` refuses any database whose name lacks `test`, because
-its fixture runs `DROP SCHEMA public CASCADE`.
+**Test databases are not tracked.** Every test run creates its own
+`media_test_<epoch>_<hex>` and drops it at the end, and a crashed run's is
+dropped by a later run once it is two hours old with nothing connected
+([testing.md](testing.md#one-database-per-run)). A worktree's own development
+database comes from `worktree.ps1` and is dropped when the branch merges. A
+fixed `media_test` left on a machine from before is unused and can be dropped
+once no tree there is on a branch older than the per-run databases.
 
 ---
 

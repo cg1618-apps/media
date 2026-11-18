@@ -17,7 +17,7 @@ row carrying one is a backup from before the statuses moved, so the status is
 filed under the installation owner's mark for the row it folded onto, and the
 row itself stores none (`_status` reads it back).
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import json

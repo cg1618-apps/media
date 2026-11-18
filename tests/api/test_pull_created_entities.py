@@ -16,7 +16,7 @@ the ambiguity.
 Minting is NOT failure - a genuinely new studio typed into a sheet cell should
 still be created - so the run stays a success and the names are reported.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import json

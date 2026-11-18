@@ -2,7 +2,7 @@
 PATCH /api/studio/{id} and PATCH /api/publisher/{id}: the detail pages'
 inline rating and remark edits, under the rules PUT enforces.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid

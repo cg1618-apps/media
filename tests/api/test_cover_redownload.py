@@ -10,7 +10,7 @@ cover into the entry's file.
 The Tenrai fetch and the HTTP get are both stubbed; nothing reaches the
 network. Covers are written under tmp_path.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 from types import SimpleNamespace

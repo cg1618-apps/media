@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-11-17
+Last verified: 2026-11-18
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -297,9 +297,11 @@ columns.
   `MediaCard`'s poster and `DashboardCard`'s chip row; a row with a url links
   to it, one without is faded, a value with no icon is skipped, and regional
   variants sharing one icon — `Toptoon TW` and `Toptoon KR` — draw it once),
-  `FranchiseCard` and `CollectionCard` (each takes `cover`, a resolved
-  `{ url, focus }`, and draws the viewer's own rating stamp and expectation
-  chip of the tier only for a holder of `self.list`), `CharacterCard` (one card of `lib/characterCards.js` - a
+  `CollectionCard`, `FranchiseCard` and `SeriesCard` (thin wrappers over one
+  `GroupCard` body; each takes `cover`, a resolved `{ url, focus }`, and draws
+  the viewer's own rating stamp and expectation chip of the tier only for a
+  holder of `self.list`; `CollectionCard` adds its member count through
+  `GroupCard`'s `badge` and `children`), `CharacterCard` (one card of `lib/characterCards.js` - a
   character, or one of its identities drawn dashed; the character library,
   the hubs' Characters tab and `/search`'s Characters tab draw it), and `StaffCard`
   (`PersonCard` / `StudioCard` / `PublisherCard` over one shared body — the
@@ -504,6 +506,10 @@ columns.
   and the app has none), `SuggestList` (see "Dropdown lists" below),
   `ReleaseDateInput`, `ScopePicker`, `OptionSubTabBar`,
   `OptionCategorySelect`,
+  `GroupRatingFields` (`kind` = the tier; the viewer's own **My Rating** and
+  **Expectation** selects on the six Add and Modify group tabs, the
+  expectation held under the tier's `EXPECTATION_FIELD`; renders nothing without `self.list`, and only edits the form - the
+  page saves the values through `/api/me/ratings`),
   `ContentLabelPicker` (one owner-agnostic control for both Add and Modify —
   it takes `owner={{kind, mediaType?, id}}`, `kind` being `entry`,
   `collection`, `franchise` or `series`, and reads and writes that owner's
@@ -857,9 +863,8 @@ columns.
   list whose items are each `{type: "text" | "link", value, label}` stored in
   the note's own `entries` column, never in `links` — and offers a kind
   dropdown built from `section.kinds` when the registry declares any. **No
-  section uses it today** — `side_quests` was the last and moved into 劇情列表
-  Story List — but the component stays, because rows written before that are
-  still in the database and a later section may want the shape.
+  section uses it today**, but the component stays, because rows written in
+  that shape are still in the database and a later section may want it.
   `StructuredSection` renders the `structured` shape, and is the one
   component here that does not know its own fields: it builds both the form
   and the read view from `section.fields`, the spec the backend registry
@@ -923,12 +928,13 @@ columns.
   whole tree depth-first (the reorder
   endpoint takes ids naming exactly the section, so a sibling-only payload is
   refused). It serves every `structured` section - thirty-two of them, most
-  of the game guide cards, the 劇情列表 strands, 存檔 Saves and both 亮點
+  of the game guide cards, the 劇情&任務 sections, 存檔 Saves and both 亮點
   Highlights; `docs/systems/notes.md` lists each one's spec. A free-text
   `select` naming an `option_category` renders as a `SuggestInput` over that
   category's values (the provider's `optionValues`) and stays free text. Two registry
   features are rendered here and named nowhere else: a `names` field gets
-  `NamesInput` (several free-text names, suggesting `nameSuggestions`) - and a
+  `NamesInput` (several free-text names, suggesting `nameSuggestions`, or the
+  names of the owner's rows in a `suggest_from` section) - and a
   `choice_node` field gets `ChoiceNodeSelect` in the form and a "{label}: {block
   title}" tag in the row, from `components/game-choices/ChoiceNodeField.jsx`,
   reading the owner's id from a context the component sets from its `ownerId`

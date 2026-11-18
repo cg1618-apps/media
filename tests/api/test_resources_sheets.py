@@ -8,7 +8,7 @@ child row precedes its parent on the tab (the FK is DEFERRABLE INITIALLY
 DEFERRED), and that a row Pull cannot store is skipped and reported rather
 than allowed to roll back the whole page.
 
-Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid
