@@ -224,8 +224,8 @@ def ng_reset(db: Session, user_id: UUID, notes: Iterable[models.Note]) -> int:
     """
     Start a new cycle for one account over one owner's rows: clear every
     value the registry marks `ng_resets` - collected and the amount
-    collected on the rows whose ng_reset is yes, beaten on every enemy - from
-    that account's own marks. Other accounts' marks and every other value are
+    collected on the rows whose ng_reset is yes, beaten on every enemy, done
+    on every side quest - from that account's own marks. Other accounts' marks and every other value are
     left alone. Returns how many marks changed.
     """
     reaching: dict = {}
