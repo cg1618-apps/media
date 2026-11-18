@@ -2,8 +2,12 @@
 //
 // The detail page's left column already holds the cover, the sources and the
 // relations, so the contents do not go there: they sit in a column of their
-// own on the RIGHT, sticky under the nav, and only on xl+ screens. Below xl the
-// page is the same two-column (or one-column) page it was.
+// own on the RIGHT, sticky under the nav, and only on xl+ screens. Below xl
+// the same rows are a ContentsBar instead: a line of chips at the top of the
+// page, pinned under the nav, so a phone can jump between sections too. While
+// the bar is pinned it covers the top of the page as the nav does, so every
+// anchor's offset is the nav's height plus the bar's (nothing on xl+, where
+// the bar is not drawn).
 //
 // Making room: on xl+ the frame is widened by about the contents column
 // (max-w-7xl -> 88rem), so the cover column keeps close to its usual width
@@ -14,25 +18,38 @@
 // section this viewer is not shown is not listed either.
 import { useRef } from "react";
 
+import ContentsBar, { contentsBarHeight } from "./ContentsBar";
 import TableOfContents from "./TableOfContents";
-import { useScrollSpy } from "../../hooks/useScrollSpy";
+import { navOffset, useScrollSpy } from "../../hooks/useScrollSpy";
 import { useTocAnchors } from "../../hooks/useTocAnchors";
+
+// What covers an anchor: the nav, and the contents bar while it is drawn.
+function detailOffset() {
+  return navOffset() + contentsBarHeight();
+}
 
 export default function DetailContents({ children }) {
   const bodyRef = useRef(null);
   const items = useTocAnchors(bodyRef);
   const activeId = useScrollSpy(
     items.map(({ id }) => id),
-    { enabled: items.length > 0 }
+    { offsetFor: detailOffset, enabled: items.length > 0 }
   );
 
   return (
     <div className="max-w-7xl xl:max-w-[88rem] mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full xl:flex xl:gap-8">
+      <ContentsBar
+        items={items}
+        activeId={activeId}
+        offsetFor={detailOffset}
+        sticky
+        className="-mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 mb-6"
+      />
       <div ref={bodyRef} className="min-w-0 xl:flex-1">
         {children}
       </div>
       <aside className="hidden xl:block w-40 shrink-0">
-        <TableOfContents items={items} activeId={activeId} />
+        <TableOfContents items={items} activeId={activeId} offsetFor={detailOffset} />
       </aside>
     </div>
   );

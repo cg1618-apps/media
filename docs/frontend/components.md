@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-11-18
+Last verified: 2026-11-19
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -261,7 +261,7 @@ columns.
   themselves, see [The `personal` flag](#the-personal-flag)),
   `GroupedEntryPage`, `CollapsibleCardGrid`, `CollapsiblePillRow`,
   `AdminTabBar`, `FittedName`, `TierBadge`, and the in-page contents:
-  `TableOfContents` and `DetailContents` (see
+  `TableOfContents`, `ContentsBar` and `DetailContents` (see
   [In-page table of contents](#in-page-table-of-contents)).
 - **`components/hub`** — `HubChrome` (`HubShell`, `GRID_CLS`, `Crumbs` (an
   optional `action` sits at the row's right-hand end),
@@ -1188,7 +1188,25 @@ under sticky division headers and the filter bar.
 - **Placement**: on the right, `xl:` only, `w-40`, sticky under the nav. On
   `xl:` the container widens from `max-w-7xl` to `88rem`, by about the
   column's width, so the cover column keeps close to its usual size. Below
-  `xl` the column is not rendered and the page is unchanged.
+  `xl` the column is not rendered; the contents bar stands in for it.
+- **Below `xl`: the contents bar.** **`ContentsBar`**
+  (`components/layout/ContentsBar.jsx`) takes the same `items`, `activeId`
+  and `offsetFor` as the column and draws them as one line of mono chips at
+  the top of the page (`xl:hidden`), the dashboard filter bar's chip style,
+  `brand` on the current one. The line scrolls sideways inside itself
+  (`overflow-x-auto`) when the chips do not fit, and `keepChipInView` moves
+  that scroll - never the page's - to keep the current chip 16 px inside it.
+  Only level 1 rows become chips: the dashboard's level 2 rows repeat
+  "Active" and "Paused" under every division. While the reader is in a
+  sub-row, its main row is the current chip (`activeMainRow`).
+  - On a **detail page** `DetailContents` draws it `sticky` under the nav
+    (`top-[var(--nav-h)]`, `z-30`). It then covers the top of the page as
+    the nav does, so the page's `offsetFor` is the nav's height plus the
+    bar's (`contentsBarHeight()`, which is 0 on `xl:`, where the bar is
+    `display: none`); the column and the bar share that one offset.
+  - On the **dashboard** it is not pinned: the division headers and the
+    filter bar already pin under the nav, and a third sticky strip would
+    stack on them. It sits above the first division and scrolls away.
 
 The statistics page keeps its own `StatsSidebar` (IntersectionObserver,
 `lg:`-only, left), see [pages.md](pages.md).

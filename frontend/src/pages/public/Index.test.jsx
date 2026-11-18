@@ -154,6 +154,21 @@ it("the contents sidebar drops the links of hidden divisions", async () => {
   expect(toc.getByRole("button", { name: "Schedule" })).toBeInTheDocument();
 });
 
+it("draws the contents as a chip bar below xl, main rows only, dropping hidden divisions", async () => {
+  const user = userEvent.setup();
+  mount();
+  await loaded();
+  const phone = screen.getByRole("navigation", { name: "Sections" });
+  expect(phone.className).toMatch(/xl:hidden/);
+  const chips = within(phone);
+  expect(chips.getByRole("button", { name: "Watching" })).toBeInTheDocument();
+  // Sub-rows stay in the column: "Active" would repeat under every division.
+  expect(chips.queryByRole("button", { name: "Active" })).not.toBeInTheDocument();
+  await user.click(bar().getByRole("button", { name: "Game" }));
+  expect(chips.queryByRole("button", { name: "Watching" })).not.toBeInTheDocument();
+  expect(chips.getByRole("button", { name: "Playing" })).toBeInTheDocument();
+});
+
 it("draws the contents column on the right, after the divisions, as the detail pages do", async () => {
   mount();
   await loaded();

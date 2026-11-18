@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-11-18
+Last verified: 2026-11-19
 
 **What this is for.** This is the map of every page outside the admin
 tabs — what a guest can open, what a member adds (see "The guest scope"
@@ -425,7 +425,9 @@ with `useScrollSpy` - see
 [components.md](components.md#in-page-table-of-contents) - tracks the active
 section with a threshold at the bottom of whatever sticky header covers it —
 the division header for Announcements and Schedule, the filter bar for the
-tracker divisions):
+tracker divisions. Below `xl` the same divisions are a `ContentsBar` of chips
+above the first division, main rows only and not pinned, since the division
+headers and the filter bar already pin under the nav):
 
 | Anchor | Division | What it shows |
 |---|---|---|
@@ -1210,8 +1212,9 @@ Files `pages/detail/Anime.jsx`, `AnimeMovie.jsx`, `Movie.jsx`, `TV.jsx`,
 **Tab title and contents.** The tab reads the entry's displayed title - the
 `<h1>`'s - through `usePageTitle`, and the type's name ("Anime") while it
 loads or when it fails. The page sits in `DetailContents`, which draws a
-sticky **Contents** column on the right on `xl:` screens and nothing below
-`xl`. Its rows are the main-column sections this viewer was actually shown,
+sticky **Contents** column on the right on `xl:` screens and, below `xl`, a
+**Sections** bar of chips at the top of the page, pinned under the nav. Its
+rows are the main-column sections this viewer was actually shown,
 in page order - Watch orders, My tracker (or the type's own tracker block),
 Naming, Information, Genres, Production, Cast and each type's further
 sections - then the note cards: Notes, each group card (攻略 Guides, never
