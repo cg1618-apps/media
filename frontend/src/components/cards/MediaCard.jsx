@@ -602,6 +602,9 @@ export default function MediaCard({
   const { showToast } = useToast();
   const [showVol, setShowVol] = useState(false);
   const [showAiringPrompt, setShowAiringPrompt] = useState(false);
+  // The status writes pass `data` as the entry the result is folded into: a
+  // group page holds its rows in page state rather than the media-list cache,
+  // and replaces the row with what onUpdated gets.
   const statusMutation = useStatusToggle(type);
 
   const config = MEDIA_CONFIG[type];
@@ -627,6 +630,7 @@ export default function MediaCard({
       const updated = await statusMutation.mutateAsync({
         id: data.system_id,
         value: btnConfig.target,
+        entry: data,
       });
       showToast("success", `Status -> ${btnConfig.target}`);
       onUpdated?.(updated);
@@ -641,6 +645,7 @@ export default function MediaCard({
       const updated = await statusMutation.mutateAsync({
         id: data.system_id,
         value: newStatus,
+        entry: data,
       });
       onUpdated?.(updated);
     } catch {
