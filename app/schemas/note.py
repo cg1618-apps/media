@@ -135,6 +135,10 @@ class NoteFieldOut(BaseModel):
     # The system_option category whose values the editor suggests for a
     # free-text select. Suggestions only - the value stays free text.
     option_category: Optional[str] = None
+    # The section whose rows' names (their `title`) the editor suggests for
+    # this free-text field - the owner's rows, which the page already holds.
+    # Suggestions only, like `option_category`.
+    suggest_from: Optional[str] = None
     # Populated for `list` fields alone: the shape of one nested row.
     item_fields: List["NoteFieldOut"] = []
     # The value is the VIEWER's own, not the row's: it is read from and
@@ -315,6 +319,7 @@ def field_out(field: NoteField) -> NoteFieldOut:
         quick_edit=field.quick_edit,
         placeholder=field.placeholder,
         option_category=field.option_category,
+        suggest_from=field.suggest_from,
         item_fields=[field_out(f) for f in field.item_fields],
         personal=field.personal,
         granted=field.granted,

@@ -863,9 +863,8 @@ columns.
   list whose items are each `{type: "text" | "link", value, label}` stored in
   the note's own `entries` column, never in `links` — and offers a kind
   dropdown built from `section.kinds` when the registry declares any. **No
-  section uses it today** — `side_quests` was the last and moved into 劇情列表
-  Story List — but the component stays, because rows written before that are
-  still in the database and a later section may want the shape.
+  section uses it today**, but the component stays, because rows written in
+  that shape are still in the database and a later section may want it.
   `StructuredSection` renders the `structured` shape, and is the one
   component here that does not know its own fields: it builds both the form
   and the read view from `section.fields`, the spec the backend registry
@@ -929,12 +928,13 @@ columns.
   whole tree depth-first (the reorder
   endpoint takes ids naming exactly the section, so a sibling-only payload is
   refused). It serves every `structured` section - thirty-two of them, most
-  of the game guide cards, the 劇情列表 strands, 存檔 Saves and both 亮點
+  of the game guide cards, the 劇情&任務 sections, 存檔 Saves and both 亮點
   Highlights; `docs/systems/notes.md` lists each one's spec. A free-text
   `select` naming an `option_category` renders as a `SuggestInput` over that
   category's values (the provider's `optionValues`) and stays free text. Two registry
   features are rendered here and named nowhere else: a `names` field gets
-  `NamesInput` (several free-text names, suggesting `nameSuggestions`) - and a
+  `NamesInput` (several free-text names, suggesting `nameSuggestions`, or the
+  names of the owner's rows in a `suggest_from` section) - and a
   `choice_node` field gets `ChoiceNodeSelect` in the form and a "{label}: {block
   title}" tag in the row, from `components/game-choices/ChoiceNodeField.jsx`,
   reading the owner's id from a context the component sets from its `ownerId`

@@ -5734,3 +5734,36 @@ shown buttons that answered 401.
   where much of its local half hour went. Building the URL with
   `URL.create` instead of `quote_plus` also fixes a password containing a
   space, which `quote_plus` turned into a literal `+`.
+
+### 劇情 folds into 劇情&任務 Story & Quests; 支線任務 Side Quests (2026-11-18)
+
+- **The prose 劇情 card goes, and its three sections with it.** `main_plot`,
+  `side_plot` and `character_arcs` covered what the 劇情列表 strands hold as
+  a structure, and the owner chose the structure alone, reversing the earlier
+  "two cards, not one" decision; production held one row across the three.
+  Their rows are **deleted**, not moved,
+  by `s1q2uests345` — the owner moved that one row onto its strand by hand
+  before the release — so the revision declares `irreversible = True`; only
+  the pre-deploy dump brings them back. Pull does not refile an older sheet's
+  rows of those sections: they restore under keys the registry no longer has
+  and render nowhere, the standing hazard `switching-environments.md`'s "one
+  hard rule" describes.
+- **One card, keyed `story_list`, labelled 劇情&任務 Story & Quests**: the four
+  strands, then 支線任務 Side Quests, then 結局 Endings last. The key stays
+  because keys are what code and tests name. With 劇情 gone, an h-game needs no
+  per-owner group for its strands, so game and h-game read the same card.
+- **支線任務 Side Quests is a nestable structured section, not a fifth
+  strand.** A quest carries what a strand entry does not — region, cautions,
+  prerequisite, NPCs, rewards, and each viewer's own done status (personal,
+  NG-reset, default `to do`, like 敵人's beaten) — and it is always named, so
+  `require_any = (("name",),)` rather than the strands' order-or-name. Its
+  type is free text suggested from a new `Side Quest Type` category, and
+  groups the roots, so a step under a chain carries no type of its own.
+  Catalogue rather than `mixed`, like the strands it sits beside.
+- **NPC suggestions come from the page's own rows (`NoteField.suggest_from`).**
+  Nothing in the registry let one section's field suggest another's rows. The
+  page already holds every row of the owner, so the smallest mechanism is a
+  field property naming the source section and a `sectionTitles` map built in
+  `NotesContext` — no endpoint, no query, and it follows edits to 角色
+  Characters at once. The values stay names rather than row ids, the same
+  choice `names` fields made for the cast.

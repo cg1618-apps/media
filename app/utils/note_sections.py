@@ -217,6 +217,15 @@ class NoteField:
     # declaring no `options`, where there is nothing closed to suggest over;
     # checked at import.
     option_category: str | None = None
+    # The key of another section of the same owners whose rows' names (their
+    # `title` column) this field suggests - the NPCs of a side quest, offered
+    # from the owner's own 角色 Characters rows. Suggests only, like
+    # `option_category`: any text is accepted, and the value is a name, not a
+    # row id, so renaming or deleting the character rewrites nothing. The page
+    # already holds the owner's rows, so the suggestions cost no request.
+    # Only on a free-text `text` field or a `names` field; checked at import
+    # (`_check_suggest_from`).
+    suggest_from: str | None = None
     # A PERSONAL field on a catalogue row: the row is shared, this value is
     # each viewer's own. It is never stored on the row - a catalogue write
     # drops it - but in the viewer's `note_mark` for the row, and every read
@@ -310,20 +319,15 @@ NOTE_GROUPS: tuple[NoteGroup, ...] = (
     # are what code and tests name, and the label is the only part a reader
     # sees.
     NoteGroup(key="compendium", label="圖鑑與名詞 Compendium & Terms", icon="fa-dragon"),
-    # 劇情 is what HAPPENS; `analysis_group` above is what it MEANS. Keeping
-    # them apart is why `story_other` exists - a stray observation lands there
-    # rather than drifting into Analysis.
-    NoteGroup(key="story", label="劇情 Story", icon="fa-book-open"),
-    # 劇情 above is what happens, written as prose. This is the same story as
-    # a STRUCTURE: a numbered, nestable list of the things it is made of, so
-    # "chapter 3, scene 2" is two rows and a parent link rather than a
-    # sentence. The two are deliberately not merged - a plot note and an
-    # outline entry are read at different times and neither reads well as the
-    # other.
-    NoteGroup(key="story_list", label="劇情列表 Story List", icon="fa-list-ol"),
-    # The world the story happens IN, split out of 劇情 so that card holds only
-    # what happens and to whom. After 劇情列表 rather than between the two,
-    # because 劇情 and 劇情列表 are one story told twice and read as a pair.
+    # The story as a STRUCTURE - a numbered, nestable list of the things it
+    # is made of, so "chapter 3, scene 2" is two rows and a parent link rather
+    # than a sentence - and the quests told alongside it, then how it ends.
+    # The key stays `story_list` though the card now holds quests and endings
+    # too: keys are what code and tests name, and the label is the only part
+    # a reader sees - the reason `compendium` below keeps its key.
+    NoteGroup(key="story_list", label="劇情&任務 Story & Quests", icon="fa-list-ol"),
+    # The world the story happens IN: what the plot stands on rather than
+    # what it does. After 劇情&任務, which is read first.
     NoteGroup(key="worldbuilding", label="世界觀 Worldbuilding", icon="fa-earth-asia"),
     # What happens when the game is started over: how a new cycle runs, what
     # it keeps, what it takes away, and what to finish before starting one.
@@ -420,7 +424,7 @@ class NoteSection:
     # The ordered field spec this section's rows are made of. Empty for every
     # other shape; a test asserts the two go together in both directions.
     fields: tuple[NoteField, ...] = ()
-    # Groups of field keys where at least one must be filled. The Story List
+    # Groups of field keys where at least one must be filled. The story list
     # sections use it for "an entry needs an order number or a name, and may
     # have both". Distinct from `NoteField.required`, which is about one field
     # on its own.
@@ -561,6 +565,12 @@ COLLECT_STATUSES = (
     "inapplicable",
 )
 
+# How far one side quest has got, for one viewer. Closed, like the enemy and
+# collect statuses: a fact about my run, the same in every game. "missed" is
+# not "skip" - a missable quest that closed before I reached it is not a
+# decision I made - and "in progress" is the chain I am partway through.
+QUEST_STATUSES = ("to do", "in progress", "done", "missed", "skip")
+
 # Whether an ending has been seen. "Skipped" is a decision, not an absence,
 # which is why it is a value rather than leaving the field blank.
 ENDING_STATUSES = ("not yet", "reached", "skipped")
@@ -594,6 +604,7 @@ ITEM_TYPE_CATEGORY = "Item Type"
 WEAPON_GEAR_TYPE_CATEGORY = "Weapon & Gear Type"
 ENEMY_TIER_CATEGORY = "Enemy Tier"
 GEOGRAPHY_GROUP_CATEGORY = "Geography Group"
+SIDE_QUEST_TYPE_CATEGORY = "Side Quest Type"
 
 
 def _named_thing_fields(
@@ -738,24 +749,6 @@ def _term_fields(typed: bool = False) -> tuple["NoteField", ...]:
 # drift apart.
 HIGHLIGHT_KINDS = ("神回", "神片段", "神篇章")
 
-def _plot_fields() -> tuple["NoteField", ...]:
-    """
-    主線劇情 and 支線劇情: a chapter and where it can be watched or read.
-
-    No description: what happens is the video or the write-up a link points
-    at, and each link's title says which one it is. The chapter keeps the
-    `locator` column it held as an episode_text section.
-    """
-    return (
-        NoteField(
-            key="chapter",
-            label="Chapter",
-            column="locator",
-            placeholder="Chapter / Part, e.g. Ch 3",
-        ),
-        NoteField(key="links", label="Links", type=FIELD_LINKS, column="links"),
-    )
-
 
 def _ng_plus_fields(typed: bool = True) -> tuple["NoteField", ...]:
     """
@@ -813,10 +806,6 @@ def _story_list_sections() -> tuple["NoteSection", ...]:
             owners=GAME_OWNERS,
             scope=SCOPE_CATALOG,
             group="story_list",
-            # An h-game keeps no prose 劇情, so its Story List IS its story:
-            # the four lists render in the 劇情 card with 結局 Endings, not in
-            # a card of their own.
-            groups_by_owner={"h-game": "story"},
             hierarchical=True,
             require_any=(("order", "name"),),
             fields=(
@@ -1567,8 +1556,8 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
     # --- 圖鑑與名詞 Compendium & Terms ------------------------------------
     # Who you meet, and the words you meet: the game's own and the players'.
     # 結局 Endings is a story OUTCOME rather than a guide topic, so it sits in
-    # 劇情 Story - which leaves this card cleanly about the cast, the bestiary
-    # and the two glossaries.
+    # 劇情&任務 Story & Quests - which leaves this card cleanly about the cast,
+    # the bestiary and the two glossaries.
     NoteSection(
         # NOT `characters`: a `character` table and a /character/:id page
         # already exist, and a bare `characters` note section would read as
@@ -1680,68 +1669,16 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         group="compendium",
         fields=_term_fields(),
     ),
-    # --- 劇情 Story -------------------------------------------------------
-    # What happens, as opposed to what it means - 解析 Analysis, two cards up,
-    # holds the second. Four strands: the main plot, the side stories, the
-    # characters' arcs and how it ends. The world they happen in is 世界觀
-    # Worldbuilding. This card is a wall of spoilers and the site has no
-    # spoiler gate; the collapsible card is all today's UI offers.
-    NoteSection(
-        # Structured rather than episode_text so a beat can carry the video or
-        # the write-up it came from. The chapter stays the `locator` column it
-        # always was, and is still optional - unlike episode_comments and
-        # highlight_moments, a beat remembered without its chapter number is
-        # still a beat, whereas a per-chapter comment about nothing in
-        # particular is not a per-chapter comment.
-        key="main_plot",
-        shape=SHAPE_STRUCTURED,
-        label="主線劇情 Main Plot",
-        owners=("game",),
-        scope=SCOPE_CATALOG,
-        group="story",
-        fields=_plot_fields(),
-    ),
-    NoteSection(
-        key="side_plot",
-        shape=SHAPE_STRUCTURED,
-        label="支線劇情 Side Stories",
-        owners=("game",),
-        scope=SCOPE_CATALOG,
-        group="story",
-        fields=_plot_fields(),
-    ),
-    NoteSection(
-        # One or more titled links per row and nothing else: an arc is the
-        # video or the write-up that tells it, and the title names whose arc
-        # and which part. Structured so the links can be required - a row
-        # with none says nothing.
-        key="character_arcs",
-        shape=SHAPE_STRUCTURED,
-        label="角色劇情 Character Arcs",
-        owners=("game",),
-        scope=SCOPE_CATALOG,
-        group="story",
-        fields=(
-            NoteField(
-                key="links",
-                label="Links",
-                type=FIELD_LINKS,
-                column="links",
-                required=True,
-            ),
-        ),
-    ),
-    # --- 劇情列表 Story List ----------------------------------------------
+    # --- 劇情&任務 Story & Quests -----------------------------------------
     # Four sections rather than one with a kind, for the reason the 待辦
     # buckets below are four: `sort_index` orders rows within one
     # (owner, section) pair, so a kind-tagged single section could not order
     # entries within a strand.
     #
-    # These are the first `hierarchical` sections. An entry nests under
-    # another to any depth - a chapter holding scenes holding beats - which is
-    # what `note.parent_id` was added for. Two or three levels is the expected
-    # shape; nothing enforces a limit, because the limit would be arbitrary
-    # and the router already refuses a cycle.
+    # An entry nests under another to any depth - a chapter holding scenes
+    # holding beats - which is what `note.parent_id` is for. Two or three
+    # levels is the expected shape; nothing enforces a limit, because the
+    # limit would be arbitrary and the router already refuses a cycle.
     #
     # `require_any` is the rule that makes an entry an entry: it needs an
     # order number OR a name. "3.2" with no name is a placeholder somebody
@@ -1750,10 +1687,90 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
     # neither is nothing.
     *_story_list_sections(),
     NoteSection(
-        # Declared after the Story List sections rather than beside the other
-        # strands. For a game that changes nothing - card order is where a
-        # group first appears, and 結局 is still the last of 劇情 - but an
-        # h-game's 劇情 is its Story List, and this puts 結局 after it.
+        # The quests told beside the story. Nestable like the strands above -
+        # a quest chain holds its steps as child rows - but a quest is a
+        # thing to DO rather than a beat to remember, so it carries where it
+        # is, what it needs, who it involves and what it pays, and each
+        # viewer's own done status.
+        #
+        # A strand row is numbered or named; a quest is always named, so the
+        # name is required on its own (`require_any` of one, as 地理
+        # Geography does) rather than paired with a number it does not have.
+        #
+        # The type groups the ROOTS: a chain is one type, and a step carrying
+        # a type of its own is refused (422), as on every nestable section
+        # that is groupable.
+        key="side_quests",
+        shape=SHAPE_STRUCTURED,
+        label="支線任務 Side Quests",
+        owners=GAME_OWNERS,
+        scope=SCOPE_CATALOG,
+        group="story_list",
+        hierarchical=True,
+        groupable_by="type",
+        require_any=(("name",),),
+        fields=(
+            # Free text, like a collectible's type or an enemy's tier: what a
+            # game calls its quests is that game's vocabulary.
+            NoteField(
+                key="type",
+                label="Type",
+                type=FIELD_SELECT,
+                column="kind",
+                option_category=SIDE_QUEST_TYPE_CATEGORY,
+            ),
+            NoteField(key="name", label="Name", column="title"),
+            NoteField(key="region", label="Region"),
+            NoteField(key="cautions", label="注意事項 Cautions", type=FIELD_TEXTAREA),
+            NoteField(key="prerequisite", label="Prerequisite"),
+            # Both NPC fields are names, not character ids, suggested from the
+            # names of the owner's own 角色 Characters rows (`suggest_from`).
+            # A quest giver nobody wrote a character row for is still named.
+            NoteField(
+                key="core_npc",
+                label="Core NPC",
+                suggest_from="characters_guide",
+            ),
+            NoteField(
+                key="other_npcs",
+                label="Other NPCs",
+                type=FIELD_NAMES,
+                suggest_from="characters_guide",
+            ),
+            # One line per reward, like NG 多周目's points: each is its own
+            # item, reorderable on its own.
+            NoteField(
+                key="rewards",
+                label="Rewards",
+                type=FIELD_LIST,
+                item_fields=(NoteField(key="text", label="Text"),),
+            ),
+            NoteField(
+                key="remark",
+                label="Remark",
+                type=FIELD_TEXTAREA,
+                column="content",
+            ),
+            NoteField(key="links", label="Links", type=FIELD_LINKS, column="links"),
+            NoteField(
+                key="done",
+                label="Status",
+                type=FIELD_SELECT,
+                column="status",
+                options=QUEST_STATUSES,
+                # A quest worth a row is one still to do when it is written
+                # down, so that is where a viewer with no mark reads.
+                default="to do",
+                personal=True,
+                # Every quest resets: a new cycle replays them, and the
+                # section has no ng_reset field to say otherwise.
+                ng_resets=True,
+            ),
+        ),
+    ),
+    NoteSection(
+        # Last of the card, after the strands and the quests: how the story
+        # ends is read once the rest of it has been.
         #
         # Entry order carries no meaning here - endings are a set, not a
         # sequence - but the rows still reorder, because "the one I am going
@@ -1763,7 +1780,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="結局 Endings",
         owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
-        group="story",
+        group="story_list",
         fields=(
             NoteField(key="name", label="Name", column="title"),
             NoteField(
@@ -1808,7 +1825,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
     ),
     NoteSection(
         # Where things are: a region holding areas holding rooms, each a row
-        # of its own - the `hierarchical` shape the 劇情列表 lists use. For a
+        # of its own - the `hierarchical` shape the 劇情&任務 lists use. For a
         # game it is part of the world the story happens in, so it sits in
         # 世界觀 above 時間線 Timeline: where, then when. An h-game has no
         # 世界觀, so for it the section is the last of 圖鑑與名詞 Compendium.
@@ -1870,7 +1887,8 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
     ),
     NoteSection(
         # The overflow that keeps a stray story observation out of Analysis.
-        # Here rather than in 劇情, which holds exactly its four strands.
+        # Here rather than in 劇情&任務, whose sections are all lists of
+        # named entries.
         key="story_other",
         shape=SHAPE_TEXT_LINKS,
         label="其他 Other",
@@ -1991,7 +2009,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         group="todo",
         require_any=(("number", "name"),),
         fields=(
-            # Free text, like Story List's No.: a slot is "3" in one game and
+            # Free text, like a story strand's No.: a slot is "3" in one game and
             # "Auto 2" or "Quick" in the next.
             NoteField(
                 key="number",
@@ -2323,6 +2341,33 @@ def _check_option_categories(section: NoteSection) -> None:
             )
 
 
+def _check_suggest_from(section: NoteSection) -> None:
+    """
+    A field's `suggest_from` names a section whose rows are named, held by
+    every owner this section is, so the suggestions exist wherever the field
+    does; and the field itself is free text - a `text` field or a `names`
+    list - since a closed select has nothing to suggest over.
+    """
+    for f in section.fields:
+        if f.suggest_from is None:
+            continue
+        source = _BY_KEY.get(f.suggest_from)
+        if f.type not in (FIELD_TEXT, FIELD_NAMES) or f.column:
+            raise ValueError(
+                f"Section '{section.key}' field '{f.key}' suggests from a "
+                "section but is not a free-text field of its own."
+            )
+        if (
+            source is None
+            or not any(g.column == "title" for g in source.fields)
+            or not set(section.owners) <= set(source.owners)
+        ):
+            raise ValueError(
+                f"Section '{section.key}' field '{f.key}' suggests from "
+                f"'{f.suggest_from}', which holds no named rows for its owners."
+            )
+
+
 def _check_kind_category(section: NoteSection) -> None:
     """Free-text kinds and a closed `kinds` list are two answers to one
     question; a section declares one or the other."""
@@ -2486,6 +2531,7 @@ for _section in NOTE_SECTIONS:
     _check_groupable_by(_section)
     _check_always_grouped(_section)
     _check_option_categories(_section)
+    _check_suggest_from(_section)
     _check_kind_category(_section)
     _check_type_status(_section)
     _check_personal(_section)

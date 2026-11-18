@@ -35,8 +35,8 @@ const SECTIONS = [
     shape: "text",
     label: "Lore",
     kinds: [],
-    group: "story",
-    group_label: "劇情 Story",
+    group: "worldbuilding",
+    group_label: "世界觀 Worldbuilding",
   },
 ];
 
@@ -77,9 +77,9 @@ it("renders the group where the screen asked for it", async () => {
 it("gives the group no card of its own, because the screen supplies one", async () => {
   renderPage();
   await screen.findByText("Doing now");
-  // 劇情 Story renders its own GroupCard; 待辦 Todo does not, or the Progress
-  // slip would have a second header inside it.
-  expect(screen.getByText("劇情 Story")).toBeInTheDocument();
+  // 世界觀 Worldbuilding renders its own GroupCard; 待辦 Todo does not, or the
+  // Progress slip would have a second header inside it.
+  expect(screen.getByText("世界觀 Worldbuilding")).toBeInTheDocument();
   expect(screen.queryByText("待辦 Todo")).toBeNull();
 });
 

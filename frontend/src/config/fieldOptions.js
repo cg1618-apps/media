@@ -449,6 +449,7 @@ export const OPTION_CATEGORIES = [
   "Item Type",
   "Weapon & Gear Type",
   "Enemy Tier",
+  "Side Quest Type",
   "Geography Group",
 ];
 
@@ -467,6 +468,7 @@ export const NOTE_SUGGESTION_CATEGORIES = [
   "Item Type",
   "Weapon & Gear Type",
   "Enemy Tier",
+  "Side Quest Type",
   "Geography Group",
 ];
 

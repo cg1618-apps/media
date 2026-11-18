@@ -26,6 +26,7 @@ def test_the_personal_values_per_section():
         **{k: {"collected", "amount_collected"} for k in COLLECTED_SECTIONS},
         "enemies": {"beaten"},
         "endings": {"completion"},
+        "side_quests": {"done"},
         "stats_and_points": {"my_value"},
         "mods_and_tools": {"status"},
         **{k: {"status"} for k in MUSIC_SECTIONS},
@@ -104,6 +105,7 @@ def test_what_the_ng_reset_clears():
         *((k, "collected") for k in COLLECTED_SECTIONS),
         *((k, "amount_collected") for k in COLLECTED_SECTIONS),
         ("enemies", "beaten"),
+        ("side_quests", "done"),
     }
 
 

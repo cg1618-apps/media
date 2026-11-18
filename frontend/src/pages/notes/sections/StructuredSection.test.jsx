@@ -334,7 +334,7 @@ it("heads a row with its title column, not with the first filled text field", ()
 
 // --- Hierarchical sections -------------------------------------------------
 
-// Mirrors a 劇情列表 Story List strand: an order number or a name, nesting to
+// Mirrors a 劇情&任務 Story & Quests strand: an order number or a name, nesting to
 // any depth.
 const STORY_LIST = {
   key: "story_list_main",
@@ -669,11 +669,11 @@ it("leaves a free-text select without a category a plain input", async () => {
 
 // --- Titled links ------------------------------------------------------------
 
-// 角色劇情 Character Arcs as the API serves it: one required links field.
-const CHARACTER_ARCS = {
+// A section of one required links field and nothing else.
+const LINKS_ONLY = {
   ...CONTROLS,
-  key: "character_arcs",
-  label: "角色劇情 Character Arcs",
+  key: "links_only",
+  label: "Links Only",
   groupable_by: null,
   fields: [
     {
@@ -689,7 +689,7 @@ const CHARACTER_ARCS = {
 
 it("sends a links field as titled pairs", async () => {
   const onCreate = vi.fn();
-  renderSection({ section: CHARACTER_ARCS, onCreate });
+  renderSection({ section: LINKS_ONLY, onCreate });
 
   await userEvent.click(screen.getByRole("button", { name: /add$/i }));
   await userEvent.type(screen.getByLabelText("Link text"), "Perlica");
@@ -705,7 +705,7 @@ it("sends a links field as titled pairs", async () => {
 
 it("refuses a required links field holding only a title", async () => {
   const onCreate = vi.fn();
-  renderSection({ section: CHARACTER_ARCS, onCreate });
+  renderSection({ section: LINKS_ONLY, onCreate });
 
   await userEvent.click(screen.getByRole("button", { name: /add$/i }));
   await userEvent.type(screen.getByLabelText("Link text"), "Perlica");
@@ -715,7 +715,7 @@ it("refuses a required links field holding only a title", async () => {
 
 it("draws each link with its title", () => {
   renderSection({
-    section: CHARACTER_ARCS,
+    section: LINKS_ONLY,
     notes: [
       {
         system_id: "a",

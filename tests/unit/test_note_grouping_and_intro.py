@@ -32,6 +32,8 @@ GROUPABLE = {
     "enemies": "tier",
     # Groups its roots; a child may carry no group (test_geography.py).
     "geography": "group",
+    # Groups its roots too: a quest chain is one type.
+    "side_quests": "type",
     "ng_carried_over": "type",
     "ng_reset": "type",
     "ng_before_starting": "type",
