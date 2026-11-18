@@ -259,7 +259,7 @@ columns.
   viewer's own value - `myRatingColumn`, the three status buttons,
   `planFlagColumn`, `myRatingSort`, `usefulnessSort` - carry `personal: true`
   themselves, see [The `personal` flag](#the-personal-flag)),
-  `GroupedEntryPage`, `CollapsibleCardGrid`, `CollapsiblePillRow`,
+  `GroupedEntryPage`, `CollapsibleCardGrid`,
   `AdminTabBar`, `FittedName`, `TierBadge`, and the in-page contents:
   `TableOfContents`, `ContentsBar` and `DetailContents` (see
   [In-page table of contents](#in-page-table-of-contents)).

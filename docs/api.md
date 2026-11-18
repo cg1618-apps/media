@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-11-18
+Last verified: 2026-11-19
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -1422,8 +1422,7 @@ routes.
     "game": [...], "h-comic": [...], "h-game": [...], "hentai": [...],
     "seasonal": [...], "person": [...], "studio": [...], "publisher": [...],
     "character": [...]
-  },
-  "related_franchises": [...]
+  }
 }
 ```
 
@@ -1486,10 +1485,6 @@ not find its character, and identities are not a bucket of their own.
 its anime with it, so searching a franchise name finds the shows in it even when
 none of their own titles contain the query. A scoped anime search does not
 expand: that is a question about anime names.
-
-**`related_franchises`** are the franchises the anime results belong to — the
-filter pills on the search page. Not the same set as `results.franchise`, which
-holds franchises whose own name matched.
 
 ---
 

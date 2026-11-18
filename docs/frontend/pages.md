@@ -502,9 +502,8 @@ File `pages/public/Search.jsx`. Reads `?q`, `?scope` (default `all`) and
 `?tab`.
 `useApiQuery(["api","search"], "/api/search/", { params: { q, scope, characters: true }, enabled: hasQuery })`
 → effective key `["api","search",{q,scope,characters}]`. The response is
-`results.{collection, seasonal, franchise, series, anime, "anime-movie", movie, "tv-show", cartoon, manga, book, comic, game, "h-comic", "h-game", hentai, person, studio, publisher, character}`
-plus `related_franchises` (the franchises of the matched anime — used as
-filter pills, not name matches). Only `collection`, `franchise`, `series` and
+`results.{collection, seasonal, franchise, series, anime, "anime-movie", movie, "tv-show", cartoon, manga, book, comic, game, "h-comic", "h-game", hentai, person, studio, publisher, character}`.
+Only `collection`, `franchise`, `series` and
 `seasonal` are always present: the server leaves out the bucket of every type
 the viewer cannot see (a media type the role does not hold, a gated type the
 mode hides, an entity kind without its `view.*` key — see
@@ -525,9 +524,7 @@ tabs, with one group labelled "Results" and a count on each tab:
 
 - **Media** — in order, only when the scope allows and the bucket is
   non-empty: **Collections** (`TierCard` → `/collection/{id}`), **Seasonal**
-  (pill buttons → `/seasonal/{id}`), a franchise pill row
-  (`CollapsiblePillRow`, "All Results" + one per related franchise; filters
-  franchises/series/anime by `franchise_id`), **Franchises** (`TierCard`
+  (pill buttons → `/seasonal/{id}`), **Franchises** (`TierCard`
   labelled "{franchise_type} Franchise"), **Series**, **Anime** (sub-grouped
   TV / ONA, Movies, Other by `airing_type`), **Anime Movies**, **Movies**,
   **TV Shows**, **Cartoons**, **Manga**, **Book**, **Comic**, **Game**,
