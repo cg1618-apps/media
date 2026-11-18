@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-11-17
+Last verified: 2026-11-18
 
 ## What this is for
 
@@ -997,9 +997,7 @@ existed only in a retired category and were moved first: `bilibili` into
 from `Fox`), and the studio names `Gonzo`, `Project No.9` and `SANZIGEN`,
 which became `studio` rows. Both FKs into `system_option` are
 `ON DELETE CASCADE`, so the delete skips any option a `media_tag` still points
-at rather than taking entry data with it — the drop list is guarded in
-`tests/unit/test_retire_orphan_option_categories.py`, which fails if a live
-category is ever named in it.
+at rather than taking entry data with it.
 
 `Publisher / Distributor TW` and `Comic Publisher` are on the drop list too:
 their rows are `publisher` credits now. `bilibili` among them is a `publisher`

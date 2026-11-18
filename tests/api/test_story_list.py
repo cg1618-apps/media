@@ -1,38 +1,19 @@
 """
 API integration tests for the 劇情列表 Story List group.
 
-These are the first sections that actually nest, so the parent rules that
-shipped with `note.parent_id` finally have a real caller. The stage that added
-the column tested them against `controls` patched hierarchical; this asserts
-the same rules against a section that declares it.
-
-Also covers the side_quests migration, by running the shipped revision's own
-`reshape()` against the test session - the suite has no Alembic harness.
+Story List sections nest: an entry's `parent_id` names another entry of the
+same strand. These tests assert the parent rules - own section only, no
+cycles, a delete taking the subtree, a reorder naming the whole section -
+against a section that declares itself hierarchical.
 
 Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
-
-import importlib.util
-import uuid
-from pathlib import Path
 
 import pytest
 
 from app import models
 
-ROOT = Path(__file__).resolve().parents[2]
-REVISION = (
-    ROOT / "alembic" / "versions" / "s3t4orylist5_side_quests_to_story_list.py"
-)
 SECTION = "story_list_main"
-
-
-@pytest.fixture(scope="module")
-def revision():
-    spec = importlib.util.spec_from_file_location("_story_list", REVISION)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
 
 
 @pytest.fixture
@@ -184,127 +165,3 @@ def test_a_whole_tree_reorder_leaves_sort_index_ascending_as_drawn(
     }
     assert rows[b["system_id"]] < rows[a["system_id"]] < rows[child["system_id"]]
 
-
-# --- 6-2: side_quests rows arrive here ------------------------------------
-
-
-def _side_quest(db, game, author_id, **columns):
-    row = models.Note(
-        system_id=uuid.uuid4(),
-        media_id=game.system_id,
-        author_id=author_id,
-        section="side_quests",
-        **columns,
-    )
-    db.add(row)
-    db.flush()
-    return row
-
-
-def _reload(db, row):
-    db.expire_all()
-    return db.query(models.Note).filter_by(system_id=row.system_id).one()
-
-
-def test_a_side_quest_becomes_a_side_strand_entry(
-    db_session, revision, game, owner_user
-):
-    row = _side_quest(
-        db_session,
-        game,
-        owner_user.id,
-        title="Ranni's questline",
-        sort_index=3.0,
-        entries=[
-            {"type": "text", "value": "Do not kill Blaidd"},
-            {"type": "link", "value": "https://example.com/ranni", "label": "Steps"},
-        ],
-    )
-    db_session.commit()
-
-    revision.reshape(db_session)
-    db_session.commit()
-
-    row = _reload(db_session, row)
-    assert row.section == "story_list_side"
-    assert row.title == "Ranni's questline"
-    assert row.content == "Do not kill Blaidd"
-    assert row.links == ["https://example.com/ranni"]
-    assert row.entries is None
-    # The order it was already in is the order it keeps; the old shape had
-    # nowhere to put an order NUMBER, so it gets none.
-    assert row.sort_index == 3.0
-    assert row.locator is None
-    assert row.parent_id is None
-
-
-def test_a_nameless_side_quest_is_named_by_its_first_line(
-    db_session, revision, game, owner_user
-):
-    """
-    A Story List entry needs an order number or a name. A row with neither
-    would read fine and then 422 the first time anybody edited it, on a field
-    they had not touched.
-    """
-    row = _side_quest(
-        db_session,
-        game,
-        owner_user.id,
-        entries=[
-            {"type": "text", "value": "Volcano Manor"},
-            {"type": "text", "value": "Three invasions"},
-        ],
-    )
-    db_session.commit()
-
-    revision.reshape(db_session)
-    db_session.commit()
-
-    row = _reload(db_session, row)
-    assert row.title == "Volcano Manor"
-    # ...and the line it became is no longer also in the description.
-    assert row.content == "Three invasions"
-
-
-def test_every_migrated_side_quest_validates_against_the_new_spec(
-    db_session, revision, game, owner_user
-):
-    from app.schemas.note import NoteCreate, validate_note_payload
-
-    rows = [
-        _side_quest(db_session, game, owner_user.id, title="Named", content="Body"),
-        _side_quest(
-            db_session,
-            game,
-            owner_user.id,
-            entries=[{"type": "text", "value": "Nameless"}],
-        ),
-        _side_quest(
-            db_session,
-            game,
-            owner_user.id,
-            title="Links only",
-            entries=[{"type": "link", "value": "https://example.com"}],
-        ),
-    ]
-    db_session.commit()
-
-    revision.reshape(db_session)
-    db_session.commit()
-
-    for row in rows:
-        fresh = _reload(db_session, row)
-        validate_note_payload(
-            NoteCreate(
-                owner_type="game",
-                owner_id=game.system_id,
-                section=fresh.section,
-                locator=fresh.locator,
-                title=fresh.title,
-                content=fresh.content,
-                links=fresh.links,
-                entries=fresh.entries,
-                fields=fresh.fields,
-                parent_id=fresh.parent_id,
-            )
-        )

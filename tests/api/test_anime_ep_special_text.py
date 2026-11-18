@@ -2,28 +2,19 @@
 Anime's `ep_special` is text: specials are numbered `17.5A`, `17.5B`.
 
 The value is a label for where a special sits, shown as written and compared
-by equality only. One rule makes it canonical wherever it arrives - the API,
-a Sheets cell, the revision that converted the old floats: a plain number is
-written without a trailing `.0` (`17.0` -> `17`), and anything else is kept as
-typed, trimmed.
+by equality only. One rule makes it canonical wherever it arrives - the API
+or a Sheets cell: a plain number is written without a trailing `.0`
+(`17.0` -> `17`), and anything else is kept as typed, trimmed.
 
 Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
-import importlib.util
-from pathlib import Path
-
 import pytest
-from sqlalchemy import text
 
 from app import models
 from app.services.pipelines import pull
 from app.utils.ep_special import normalize_ep_special
 from app.utils.formatter import parse_anime_from_sheet
-
-ROOT = Path(__file__).resolve().parents[2]
-REVISION = ROOT / "alembic" / "versions" / "e1p2special3_ep_special_text.py"
-
 
 # ---------------------------------------------------------------------------
 # The rule
@@ -112,87 +103,3 @@ def test_pull_restores_old_and_new_cells(db_session, monkeypatch):
     assert old.ep_special == "17"
     assert new.ep_special == "17.5A"
 
-
-# ---------------------------------------------------------------------------
-# The revision
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture(scope="module")
-def revision():
-    spec = importlib.util.spec_from_file_location("_ep_special_text", REVISION)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-def _anime(db, name):
-    row = models.Anime(anime_name_cn=name)
-    db.add(row)
-    db.flush()
-    return row
-
-
-def _type(conn):
-    return conn.execute(
-        text(
-            "SELECT data_type FROM information_schema.columns "
-            "WHERE table_name = 'anime' AND column_name = 'ep_special'"
-        )
-    ).scalar()
-
-
-def _value(conn, row):
-    return conn.execute(
-        text("SELECT ep_special FROM anime WHERE system_id = :id"), {"id": row.system_id}
-    ).scalar()
-
-
-@pytest.fixture
-def conn(db_session):
-    connection = db_session.connection()
-    # fk_anime_media is deferred, and PostgreSQL refuses to ALTER a table with
-    # deferred checks still pending; a migration runs with none queued.
-    connection.execute(text("SET CONSTRAINTS ALL IMMEDIATE"))
-    return connection
-
-
-def test_the_upgrade_writes_each_float_without_a_trailing_zero(db_session, conn, revision):
-    rows = {name: _anime(db_session, name) for name in ("whole", "half", "zero", "none")}
-    conn.execute(text("SET CONSTRAINTS ALL IMMEDIATE"))
-    # The shape before the revision: create_all built the text column, so the
-    # revision's own downgrade puts the float back first.
-    revision.to_float(conn)
-    assert _type(conn) == "double precision"
-    for name, value in (("whole", 17.0), ("half", 17.5), ("zero", 0.0)):
-        conn.execute(
-            text("UPDATE anime SET ep_special = :v WHERE system_id = :id"),
-            {"v": value, "id": rows[name].system_id},
-        )
-
-    revision.to_text(conn)
-
-    assert _type(conn) == "character varying"
-    assert _value(conn, rows["whole"]) == "17"
-    assert _value(conn, rows["half"]) == "17.5"
-    assert _value(conn, rows["zero"]) == "0"
-    assert _value(conn, rows["none"]) is None
-
-
-def test_the_downgrade_keeps_what_parses_and_nulls_the_rest(db_session, conn, revision):
-    values = {"whole": "17", "half": "17.5", "lettered": "17.5A", "none": None}
-    rows = {}
-    for name, value in values.items():
-        rows[name] = _anime(db_session, name)
-        rows[name].ep_special = value
-    db_session.flush()
-    conn.execute(text("SET CONSTRAINTS ALL IMMEDIATE"))
-
-    revision.to_float(conn)
-
-    assert _type(conn) == "double precision"
-    assert _value(conn, rows["whole"]) == 17.0
-    assert _value(conn, rows["half"]) == 17.5
-    # A lettered special has no float to go back to: it is lost.
-    assert _value(conn, rows["lettered"]) is None
-    assert _value(conn, rows["none"]) is None

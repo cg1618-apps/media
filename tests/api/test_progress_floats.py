@@ -10,15 +10,10 @@ viewer's own list row, a Sheets cell, and the Fill/Replace sanity clamp.
 Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
-import importlib.util
 import uuid
-from pathlib import Path
 
 import pytest
-from alembic.migration import MigrationContext
-from alembic.operations import Operations
 from pydantic import ValidationError
-from sqlalchemy import text
 
 from app import models
 from app.schemas.anime import AnimeCreate, AnimeResponse, AnimeUpdate
@@ -41,9 +36,6 @@ from app.utils.formatter import (
     parse_user_media_list_from_sheet,
 )
 from tests.api.conftest import make_viewer
-
-ROOT = Path(__file__).resolve().parents[2]
-REVISION = ROOT / "alembic" / "versions" / "p1r2ogfloat3_progress_floats.py"
 
 # Every (schema, field) the change covers. Manga's vol_fin / ch_fin and
 # H-Comic's ch_fin were float columns already and int in the schema.
@@ -81,22 +73,6 @@ SHEET_FIELDS = [
     (parse_h_comic_from_sheet, "page_total"),
     (parse_h_comic_from_sheet, "ch_total"),
 ]
-
-COLUMNS = (
-    ("anime", "ep_previous"),
-    ("anime", "ep_total"),
-    ("tv_shows", "ep_total"),
-    ("cartoons", "ep_total"),
-    ("hentai", "ep_total"),
-    ("comic", "issue_total"),
-    ("h_comic", "page_total"),
-    ("h_comic", "ch_total"),
-    ("manga", "vol_total"),
-    ("manga", "ch_total"),
-    ("user_media_list", "ep_fin"),
-    ("user_media_list", "issue_fin"),
-    ("user_media_list", "page_fin"),
-)
 
 
 # ---------------------------------------------------------------------------
@@ -226,88 +202,3 @@ def test_vol_fin_page_stays_a_whole_page():
     raw = {"media_type": "manga", "public_id": "1", "username": "someone", "vol_fin_page": "12.7"}
     assert parse_user_media_list_from_sheet(raw)["vol_fin_page"] == 12
 
-
-# ---------------------------------------------------------------------------
-# The revision
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture(scope="module")
-def revision():
-    spec = importlib.util.spec_from_file_location("_progress_floats", REVISION)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-@pytest.fixture
-def conn(db_session, revision, monkeypatch):
-    connection = db_session.connection()
-    # Deferred FK checks still pending block an ALTER; a migration runs with
-    # none queued.
-    connection.execute(text("SET CONSTRAINTS ALL IMMEDIATE"))
-    monkeypatch.setattr(revision, "op", Operations(MigrationContext.configure(connection)))
-    return connection
-
-
-def _type(conn, table, column):
-    return conn.execute(
-        text(
-            "SELECT data_type FROM information_schema.columns "
-            "WHERE table_name = :t AND column_name = :c"
-        ),
-        {"t": table, "c": column},
-    ).scalar()
-
-
-def _anime(conn, db_session, **values):
-    row = models.Anime(anime_name_cn="遷移", **values)
-    db_session.add(row)
-    db_session.flush()
-    conn.execute(text("SET CONSTRAINTS ALL IMMEDIATE"))
-    return row
-
-
-def _values(conn, row):
-    return conn.execute(
-        text("SELECT ep_previous, ep_total FROM anime WHERE system_id = :id"),
-        {"id": row.system_id},
-    ).one()
-
-
-def test_the_revision_names_every_float_column(revision):
-    assert set(revision.COLUMNS) == set(COLUMNS)
-
-
-def test_the_upgrade_makes_every_column_a_float_and_keeps_its_integers(
-    db_session, conn, revision
-):
-    row = _anime(conn, db_session, ep_previous=12, ep_total=13)
-    # The shape before the revision: create_all built the float columns, so
-    # the revision's own downgrade puts the integers back first.
-    revision.downgrade()
-    for table, column in COLUMNS:
-        assert _type(conn, table, column) == "integer", (table, column)
-
-    revision.upgrade()
-
-    for table, column in COLUMNS:
-        assert _type(conn, table, column) == "double precision", (table, column)
-    assert tuple(_values(conn, row)) == (12.0, 13.0)
-
-
-def test_the_downgrade_floors_a_fraction(db_session, conn, revision):
-    row = _anime(conn, db_session, ep_previous=12.5, ep_total=13.9)
-
-    revision.downgrade()
-
-    # A partial episode is not a finished one: 13.9 reads as 13, not 14.
-    assert tuple(_values(conn, row)) == (12, 13)
-
-
-def test_a_whole_value_survives_the_round_trip(db_session, conn, revision):
-    """Mirror of the floor: a whole number goes down and back unchanged."""
-    row = _anime(conn, db_session, ep_previous=0, ep_total=24)
-    revision.downgrade()
-    revision.upgrade()
-    assert tuple(_values(conn, row)) == (0.0, 24.0)

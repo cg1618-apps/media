@@ -62,23 +62,21 @@ Representative files: `test_utils.py`, `test_tenrai_utils.py`,
 `test_book_unit_schemas.py` (`BookUnitWrite`/`Response`, `display_key`),
 `test_book_progress.py` (`normalize_arc_progress` rollover,
 `derive_book_catalog`, `derive_book_list`, `unit_display_key`), `test_book_completion.py`
-(`mark_book_completed` with and without arc rows), `test_novel_unit_migration.py`
-(the `nv1u2n3i4t5s` data migration's list-to-rows conversion), `test_formatter_book_unit.py`
+(`mark_book_completed` with and without arc rows), `test_formatter_book_unit.py`
 (`parse_book_unit_from_sheet`, the "Book Unit" sheet tab).
 `test_book_vocabulary.py` covers the `type` vocabulary and the rules that
 branch on it, and `legacy_names.py`'s mapping of an older sheet's values;
 `test_copy_legacy_cover_folders.py` covers the startup copy of the old
-`novel/` cover folders (copied, never moved or overwritten). Their API-tier
-partners are `test_novel_becomes_book_migration.py`, which runs revision
-`b1o2okrename3`'s own downgrade and upgrade inside the test transaction, and
-`test_pull_pre_book_sheet.py`, which Pulls a sheet still carrying the `Novel`
-tab titles, headers and cell values. `test_upcoming_volumes.py` (API tier)
+`novel/` cover folders (copied, never moved or overwritten);
+`test_book_volume_only_types.py` the types counted in volumes only. Their
+API-tier partner is `test_pull_pre_book_sheet.py`, which Pulls a sheet still
+carrying the `Novel` tab titles, headers and cell values. `test_upcoming_volumes.py` (API tier)
 covers a unit's release dates and a manga's next volume's through the API,
 each refusal of a malformed date beside the same write with a good one; a
 unit's cover through the image library, refused to a writer who cannot see
 its labelled book and taken from one who can; the Book Unit and Manga tabs
 round-tripping through Backup and Pull, and each still pulling from a tab
-without the columns; and revision `u1p2coming3`'s own downgrade and upgrade.
+without the columns.
 
 ### API (`tests/api/`)
 
@@ -169,7 +167,7 @@ the two-stage cursor stepper.
 | `migrated_head` | session | Name of a database built from empty by the real `alembic upgrade head`, once per run. **Read-only** - every generic migration guard reads it |
 | `migrated_head_copy` | function | A private copy of `migrated_head` (`CREATE DATABASE ... TEMPLATE`, seconds rather than a chain replay), free to downgrade or seed |
 | `created_from_models` | session | Name of a database built by `create_all`, once per run - the other side of every comparison with `migrated_head`. Read-only |
-| `scratch_database` / `scratch_databases` | function | One, or two, empty databases for a revision test that builds its own chain to the revision before it |
+| `scratch_database` | function | One empty database, for a revision's own test that builds the chain to the revision before it |
 | `run_alembic(database, *args)` | helper | Alembic as a subprocess pointed at one database; a subprocess because `alembic/env.py` reads the URL from `app.database` at import |
 | `cover_on_disk` | function | Writes a cover file where the cover route looks, with the cover root moved under `tmp_path`; returns the gated URL. `COVER_PIXEL` is the bytes it writes |
 | `role_id_for(db, name)` | helper, not a fixture | Looks up a seeded role's `system_id`; needed because `users.role` is a read-only mapping and fixtures must set `role_id` |
@@ -298,7 +296,11 @@ own through `ScriptDirectory`, never a hard-coded id (reparenting onto a new
 head would otherwise make it test the wrong step without failing). It is
 deleted once the revision is **deployed** - the box at that revision, not
 merely `main` holding it - in a separate test-only pull request swept once per
-release, never by the branch that adds the revision.
+release, never by the branch that adds the revision. The box is at `main`'s
+head when the latest `Deploy` run for that commit finished green
+(`gh run list -w deploy.yml -L 1`): a deploy runs the migrations and reports
+success only once the app answers its health check. Nothing has to be read on
+the box itself.
 
 ## Data migrations over JSON columns
 
@@ -320,11 +322,11 @@ value", like SQL NULL: it moves nothing, and a merge onto it starts from `{}`.
 
 The planner, not the Python, picks the evaluation order, so calling a
 revision's data steps on the test session does not prove a guard holds. That
-takes the real command over seeded rows:
-`test_highlights_json_null_migration.py` upgrades a scratch database to the
-revision before, seeds JSON-null, scalar, empty and real orders, ANALYZEs, and
-runs `alembic upgrade` and `downgrade` through `h1i2ghlights3`, the pattern
-`test_admin_not_root_migration.py` set.
+takes the real command over seeded rows: the revision's own test takes
+`scratch_database`, runs `run_alembic(db, "upgrade", <the revision before>)`
+(found through `ScriptDirectory`, never written by hand), seeds JSON-null,
+scalar, empty and real values, ANALYZEs, and runs `alembic upgrade` and
+`downgrade` through the revision itself.
 
 ## The `media` supertable in tests
 
@@ -379,8 +381,7 @@ franchises), `test_hentai_shared_records.py` (credits, shared vocabularies, a
 session seeing one gated type but not the other - `mode_client` with the
 other label in `denials`), `test_hentai_sheets.py`, `test_hentai_tenrai.py`
 (the fetch patched, no network), `test_hentai_anidb_fill.py` (AniDB after MAL,
-the enabled/disabled pair and a ban stopping the run; `requests.get` patched), `test_hentai_label_migration.py` (the
-revision's own SQL run against the test session) and
+the enabled/disabled pair and a ban stopping the run; `requests.get` patched) and
 `tests/unit/test_hentai_domain.py`.
 
 Type-specific behaviour (autofill mapping, completion rules, sheet formatter)
