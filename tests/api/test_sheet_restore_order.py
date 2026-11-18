@@ -13,7 +13,7 @@ from app.services.pipelines.tabs import TAB_NAMES
 
 MEDIA_TABS = [
     "Anime", "Anime Movie", "Movies", "TV Shows", "Cartoons",
-    "Manga", "Novel", "Comic", "Game",
+    "Manga", "Book", "Comic", "Game",
 ]
 
 

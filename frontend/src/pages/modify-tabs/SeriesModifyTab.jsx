@@ -37,7 +37,7 @@ export default function SeriesModifyTab({
   allTvShows,
   allCartoons,
   allMangas,
-  allNovels,
+  allBooks,
   allComics,
   editingItem,
 }) {
@@ -169,9 +169,9 @@ export default function SeriesModifyTab({
     ...(allMangas || [])
       .filter((e) => e.series_id === seriesId)
       .map((e) => ({ ...e, _type: "manga" })),
-    ...(allNovels || [])
+    ...(allBooks || [])
       .filter((e) => e.series_id === seriesId)
-      .map((e) => ({ ...e, _type: "novel" })),
+      .map((e) => ({ ...e, _type: "book" })),
     ...(allComics || [])
       .filter((e) => e.series_id === seriesId)
       .map((e) => ({ ...e, _type: "comic" })),
@@ -306,14 +306,6 @@ export default function SeriesModifyTab({
           />
         </Field>
       )}
-      <Field label="Remark">
-        <textarea
-          className={inputCls}
-          rows={3}
-          value={sf.remark}
-          onChange={(e) => us("remark", e.target.value)}
-        />
-      </Field>
     </>
   );
 }

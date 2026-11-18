@@ -27,11 +27,11 @@ class MangaBase(BaseModel):
     serialization_status: Optional[str] = None
     reading_status: str = "Might Read"
 
-    vol_total: Optional[int] = None
-    vol_fin: Optional[int] = 0
+    vol_total: Optional[float] = None
+    vol_fin: Optional[float] = 0
     vol_fin_page: Optional[int] = 0
-    ch_total: Optional[int] = None
-    ch_fin: Optional[int] = 0
+    ch_total: Optional[float] = None
+    ch_fin: Optional[float] = 0
 
     my_rating: Optional[str] = None
     mal_rating: Optional[float] = None
@@ -42,6 +42,8 @@ class MangaBase(BaseModel):
 
     release_date: Optional[str] = None
     end_date: Optional[str] = None
+    next_vol_release_date_jp: Optional[str] = None
+    next_vol_release_date_tw: Optional[str] = None
     anime_studio: Optional[str] = None
 
     mal_id: Optional[int] = None
@@ -49,12 +51,13 @@ class MangaBase(BaseModel):
 
     read_next: Optional[bool] = None
     to_reread: Optional[bool] = None
-    remark: Optional[str] = None
     cover_image_file: Optional[str] = None
     cover_image_focus: ImageFocus = None
     completed_at: Optional[datetime] = None
 
-    _validate_release_dates = release_date_validator("release_date", "end_date")
+    _validate_release_dates = release_date_validator(
+        "release_date", "end_date", "next_vol_release_date_jp", "next_vol_release_date_tw"
+    )
 
 
 class MangaCreate(MangaBase, SourceWriteFields):

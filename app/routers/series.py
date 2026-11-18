@@ -16,12 +16,7 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.dependencies import get_db
 from app.routers._patching import apply_column_patch
-from app.services.domain import (
-    attach_remark,
-    pop_remark,
-    resolve_series_parent_hierarchy,
-    upsert_remark,
-)
+from app.services.domain import resolve_series_parent_hierarchy
 from app.services.domain.content_labels import attach_group_content_labels
 from app.services.domain.group_counts import attach_entry_counts
 from app.services.domain.user_rating import attach_ratings
@@ -98,7 +93,6 @@ def get_series_by_id(
     # from one that was never there.
     if not db_series or not series_visible(db, viewer, db_series.system_id):
         raise HTTPException(status_code=404, detail="Series not found.")
-    attach_remark(db, "series", db_series)
     attach_group_content_labels(db, "series", db_series)
     attach_ratings(db, "series", db_series, viewer.user_id)
     return db_series
@@ -122,7 +116,7 @@ def create_series(
     Creates a new Series.
     Smartly resolves or auto-creates its parent Franchise if missing.
     """
-    payload, remark, has_remark = pop_remark(series_in.model_dump())
+    payload = series_in.model_dump()
     new_series = models.Series(**payload)
     new_series.system_id = uuid.uuid4()
 
@@ -133,13 +127,6 @@ def create_series(
     db.add(new_series)
     db.commit()
     db.refresh(new_series)
-
-    if has_remark:
-        upsert_remark(db, "series", new_series.system_id, remark, viewer.user_id)
-        db.commit()
-        db.refresh(new_series)
-
-    attach_remark(db, "series", new_series)
 
     attach_ratings(db, "series", new_series, viewer.user_id)
 
@@ -163,13 +150,9 @@ def update_series(
     if not db_series or not series_visible(db, viewer, db_series.system_id):
         raise HTTPException(status_code=404, detail="Series not found.")
 
-    update_data, remark, has_remark = pop_remark(series_in.model_dump(exclude_unset=True))
+    update_data = series_in.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_series, key, value)
-    if has_remark:
-        upsert_remark(
-            db, "series", db_series.system_id, remark, viewer.user_id
-        )
 
     db_series.franchise_id = resolve_series_parent_hierarchy(
         db, db_series.franchise_id, db_series.names_dict
@@ -178,7 +161,6 @@ def update_series(
     db.commit()
     db.refresh(db_series)
 
-    attach_remark(db, "series", db_series)
     attach_group_content_labels(db, "series", db_series)
 
     attach_ratings(db, "series", db_series, viewer.user_id)
@@ -203,12 +185,7 @@ def patch_series(
     if not db_series or not series_visible(db, viewer, db_series.system_id):
         raise HTTPException(status_code=404, detail="Series not found.")
 
-    payload, remark, has_remark = pop_remark(payload)
     apply_column_patch(db_series, payload)
-    if has_remark:
-        upsert_remark(
-            db, "series", db_series.system_id, remark, viewer.user_id
-        )
 
     db_series.franchise_id = resolve_series_parent_hierarchy(
         db, db_series.franchise_id, db_series.names_dict
@@ -217,7 +194,6 @@ def patch_series(
     db.commit()
     db.refresh(db_series)
 
-    attach_remark(db, "series", db_series)
     attach_group_content_labels(db, "series", db_series)
 
     attach_ratings(db, "series", db_series, viewer.user_id)

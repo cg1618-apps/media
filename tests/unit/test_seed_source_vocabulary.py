@@ -18,10 +18,15 @@ _spec = importlib.util.spec_from_file_location(
 migration = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(migration)
 
+# The archived revision seeds the media-type keys of its day; `novel` has
+# since become `book` (b1o2okrename3), and its scope rows were renamed with it.
+SCOPE_RENAMES = {"novel": "book"}
+
 
 def test_every_seeded_scope_is_a_media_type():
     for _cat, _val, scopes, _usages in migration.SEED:
         for scope in scopes:
+            scope = SCOPE_RENAMES.get(scope, scope)
             assert scope in MEDIA_TYPE_KEYS, f"{scope} is not a media type"
 
 

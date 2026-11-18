@@ -30,12 +30,12 @@ describe("entityScopes", () => {
     const person = {
       roles: [
         { role: "director", scope: "anime" },
-        { role: "author", scope: "novel" },
+        { role: "author", scope: "book" },
       ],
     };
     expect(personScopes("director")(person)).toEqual(["anime"]);
-    expect(personScopes(ALL_TAB_KEY)(person)).toEqual(["anime", "novel"]);
-    expect(inAnyScope(person, ["novel"], personScopes("director"))).toBe(false);
+    expect(personScopes(ALL_TAB_KEY)(person)).toEqual(["anime", "book"]);
+    expect(inAnyScope(person, ["book"], personScopes("director"))).toBe(false);
   });
 
   it("offers only the scopes some record holds, in MEDIA_TYPES order", () => {

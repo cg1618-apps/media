@@ -46,7 +46,7 @@ const SCOPED_KEYS = new Set([
   "tv-show",
   "cartoon",
   "manga",
-  "novel",
+  "book",
   "comic",
   "game",
   "h-comic",

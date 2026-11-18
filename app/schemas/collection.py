@@ -17,7 +17,6 @@ class CollectionBase(BaseModel):
     collection_name_alt: Optional[str] = None
     cover_franchise_id: Optional[UUID] = None
     no_built_in_orders: Optional[bool] = False
-    remark: Optional[str] = None
 
 
 class CollectionCreate(CollectionBase):

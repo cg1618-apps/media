@@ -61,7 +61,7 @@ describe("ComicModifyTab — the shared body", () => {
       "Production",
       "Read Order",
       "Links & Sources",
-      "Cover & Remark",
+      "Cover",
       "Structured Notes",
     ]);
   });

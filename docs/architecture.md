@@ -1,6 +1,6 @@
 # Architecture
 
-Last verified: 2026-11-14
+Last verified: 2026-11-17
 
 **What this is for.** A map of the backend: how a request travels through the
 `app/` package, where each kind of code lives, and the two generator patterns
@@ -83,7 +83,7 @@ for the catch-all, which is last).
 | `tv_show` | `/api/tv-shows` | factory; adds `GET /api/tv-shows/search-tmdb` and `/tmdb-imdb-id` |
 | `manga` | `/api/manga` | factory; adds `GET /api/manga/search-mal` and `/mal-prefill/{mal_id}` |
 | `note` | `/api/notes` | |
-| `novel` | `/api/novel` | factory; adds `GET /api/novel/search-mal`, `/mal-prefill/{mal_id}` and `/search-openlibrary` |
+| `book` | `/api/book` | factory; adds `GET /api/book/search-mal`, `/mal-prefill/{mal_id}` and `/search-openlibrary` |
 | `comic` | `/api/comic` | factory router nested in a prefix-less router that adds `GET /api/comic/search-comicvine` |
 | `game` | `/api/game` | factory router nested in a prefix-less router that adds `GET /api/game/search-igdb` |
 | `h_comic` | `/api/h-comic` | factory; a gated type |
@@ -151,7 +151,7 @@ that differ only in the hooks they declare.
 | --- | --- | --- | --- |
 | GET | `/api/<route>/` | viewer | list; `list_filters`, `extra_filters`, `search_query`; visibility applied via `apply_entry_visibility`; link fields and plan flags attached |
 | GET | `/api/<route>/{id}` | viewer | 404 for missing **and** for hidden entries (indistinguishable by design) |
-| POST | `/api/<route>/` | admin | resolve parents, pop remark/plan flag, `pre_commit_hook`, commit, `write_hook` |
+| POST | `/api/<route>/` | admin | resolve parents, pop plan flags, `pre_commit_hook`, commit, `write_hook` |
 | PUT | `/api/<route>/{id}` | admin | full update, same hook sequence |
 | PATCH | `/api/<route>/{id}` | admin | column patch through `_patching.apply_column_patch` (whitelisted columns) |
 | POST | `/api/<route>/{id}/complete` | admin | `mark_completed` + `apply_completion_timestamp` |
@@ -239,7 +239,11 @@ At import time:
    gate instead - routers included, catch-all
    added last.
 
-In the lifespan (before the first request):
+In the lifespan (before the first request), after `settings.validate_secrets()`
+and `copy_legacy_cover_folders(COVER_DIR)` (the old `novel/` cover folders
+copied to `book/`, see
+[external-apis.md](external-apis.md#cover-images-local-disk);
+an `OSError` there is logged and does not stop the start):
 
 1. `ensure_rbac_seed(db)` -- idempotent role/permission seed
    (`app/services/rbac/seed.py`).

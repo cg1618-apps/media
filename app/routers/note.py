@@ -286,8 +286,8 @@ def _reject_second_singleton(
     section (music_status) at most one per owner and kind.
 
     Enforced here rather than in the schema layer because it needs a query.
-    The database enforces both as well, but its refusal would surface as a
-    500 at commit rather than as this 422.
+    music_status's unique index enforces it in the database as well, but that
+    refusal would surface as a 500 at commit rather than as this 422.
     """
     section = section_by_key(payload.section or "")
     if not section or not (section.singleton or section.one_per_kind):

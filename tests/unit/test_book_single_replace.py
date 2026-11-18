@@ -1,0 +1,75 @@
+"""
+apply_single_replace_book derives BOTH of a book's external ids.
+
+Replace still re-fetches from MAL only — Open Library is deliberately not wired
+into Replace — but the id *derivation* must not skip openlibrary_id. Otherwise a
+book whose Open Library link was pasted just before a Replace comes out of it
+with no id, and the next Fill has nothing to key off.
+
+apply_single_replace_book touches only the entry (its `db` argument is unused),
+so these are SimpleNamespace fakes in the no-database tier. The MAL autofill is
+patched out — this is about derivation, not the network.
+"""
+
+import types
+
+import pytest
+
+from app.services.domain import post_processing
+
+MAL_LINK = "https://myanimelist.net/manga/23390/"
+OL_LINK = "https://openlibrary.org/works/OL5738148W"
+
+
+def make_book(**kwargs):
+    defaults = dict(
+        system_id="n1",
+        mal_id=None,
+        mal_link=None,
+        openlibrary_id=None,
+        openlibrary_link=OL_LINK,
+    )
+    defaults.update(kwargs)
+    return types.SimpleNamespace(**defaults)
+
+
+@pytest.fixture(autouse=True)
+def no_network(monkeypatch):
+    """Replace calls the MAL autofill; nothing here should reach it."""
+    monkeypatch.setattr(
+        post_processing, "autofill_book_from_mal", lambda *a, **k: None
+    )
+
+
+class TestApplySingleReplaceBook:
+    def test_derives_the_open_library_id(self):
+        book = make_book()
+        post_processing.apply_single_replace_book(None, book)
+        assert book.openlibrary_id == "OL5738148W"
+
+    def test_still_derives_the_mal_id(self):
+        book = make_book(mal_link=MAL_LINK, openlibrary_link=None)
+        post_processing.apply_single_replace_book(None, book)
+        assert book.mal_id == 23390
+
+    def test_derives_both_when_both_links_are_present(self):
+        book = make_book(mal_link=MAL_LINK)
+        post_processing.apply_single_replace_book(None, book)
+        assert book.mal_id == 23390
+        assert book.openlibrary_id == "OL5738148W"
+
+    def test_an_unparseable_link_leaves_an_existing_id_alone(self):
+        book = make_book(openlibrary_id="OL999W", openlibrary_link="not a url")
+        post_processing.apply_single_replace_book(None, book)
+        assert book.openlibrary_id == "OL999W"
+
+    def test_replace_still_refetches_from_mal_only(self, monkeypatch):
+        """Deriving the Open Library id must not start fetching from it."""
+        calls = []
+        monkeypatch.setattr(
+            post_processing,
+            "autofill_book_from_mal",
+            lambda book, force_replace_ratings=True, db=None: calls.append("mal"),
+        )
+        post_processing.apply_single_replace_book(None, make_book())
+        assert calls == ["mal"]

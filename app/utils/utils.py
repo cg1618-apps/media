@@ -5,6 +5,7 @@ Handles pure math, date logic, and regex string parsing.
 Must NOT import from models or schemas to prevent circular imports.
 """
 
+import math
 import re
 from typing import Any, Optional, Tuple
 
@@ -167,9 +168,9 @@ MANGA_FIELDS_TO_FILL = [
     "cover_image_file",
 ]
 
-NOVEL_FIELDS_TO_FILL = [
+BOOK_FIELDS_TO_FILL = [
     "serialization_status",
-    "release_date",
+    "release_date_jp",
     "end_date",
     "mal_rating",
     "mal_rank",
@@ -177,15 +178,15 @@ NOVEL_FIELDS_TO_FILL = [
 ]
 
 # Only what Open Library actually returns for a work. serialization_status,
-# end_date, mal_rating and mal_rank are in NOVEL_FIELDS_TO_FILL but have no
+# end_date, mal_rating and mal_rank are in BOOK_FIELDS_TO_FILL but have no
 # Open Library equivalent, so listing them here would leave every entry
 # permanently "needs filling" and re-request it on every run.
-NOVEL_OPENLIBRARY_FIELDS_TO_FILL = [
-    "release_date",
+BOOK_OPENLIBRARY_FIELDS_TO_FILL = [
+    "release_date_jp",
     "cover_image_file",
 ]
 
-NOVEL_OPENLIBRARY_LINK_FIELDS_TO_FILL = [("credit", "author")]
+BOOK_OPENLIBRARY_LINK_FIELDS_TO_FILL = [("credit", "author")]
 
 # Only the fields Comic Vine actually returns for a volume. imprint,
 # continuity, era, events and end_date are deliberately excluded: Comic Vine
@@ -235,76 +236,57 @@ H_GAME_DLSITE_LINK_FIELDS_TO_FILL = [("credit", "studio")]
 # ==========================================
 
 
-def validate_episode_math(ep_total: Any, ep_fin: Any) -> Tuple[Optional[int], int]:
+def _progress_number(value: Any, blanks: tuple = (None, "")) -> Optional[float]:
+    """A progress count or total as a float, or None when it is not one.
+
+    Progress numbers are floats - 2.5 episodes, 17.5 chapters - so nothing
+    here truncates. A blank, an unparseable value and a non-finite one
+    (nan, inf) are all "no value".
+    """
+    if value in blanks:
+        return None
+    try:
+        number = float(value)
+    except (ValueError, TypeError):
+        return None
+    return number if math.isfinite(number) else None
+
+
+def _clamp_progress(
+    total: Any, fin: Any, blanks: tuple = (None, "")
+) -> Tuple[Optional[float], float]:
+    """Clamps both at 0 and the finished count at the total."""
+    safe_total = _progress_number(total, blanks)
+    safe_fin = _progress_number(fin) or 0
+
+    if safe_total is not None and safe_total < 0:
+        safe_total = 0
+    if safe_fin < 0:
+        safe_fin = 0
+
+    if safe_total is not None and safe_fin > safe_total:
+        safe_fin = safe_total
+
+    return safe_total, safe_fin
+
+
+def validate_episode_math(ep_total: Any, ep_fin: Any) -> Tuple[Optional[float], float]:
     """
     Sanitizes episode inputs and enforces logical bounds.
     Ensures finished episodes do not fall below zero or exceed total episodes.
+    A "?" total is unknown.
     """
-    try:
-        safe_total = int(float(ep_total)) if ep_total not in (None, "", "?") else None
-    except (ValueError, TypeError):
-        safe_total = None
-
-    try:
-        safe_fin = int(float(ep_fin)) if ep_fin not in (None, "") else 0
-    except (ValueError, TypeError):
-        safe_fin = 0
-
-    if safe_total is not None and safe_total < 0:
-        safe_total = 0
-    if safe_fin < 0:
-        safe_fin = 0
-
-    if safe_total is not None and safe_fin > safe_total:
-        safe_fin = safe_total
-
-    return safe_total, safe_fin
+    return _clamp_progress(ep_total, ep_fin, blanks=(None, "", "?"))
 
 
-def validate_vol_math(vol_total: Any, vol_fin: Any) -> Tuple[Optional[int], int]:
+def validate_vol_math(vol_total: Any, vol_fin: Any) -> Tuple[Optional[float], float]:
     """Sanitizes volume inputs and clamps vol_fin <= vol_total."""
-    try:
-        safe_total = int(float(vol_total)) if vol_total not in (None, "") else None
-    except (ValueError, TypeError):
-        safe_total = None
-
-    try:
-        safe_fin = int(float(vol_fin)) if vol_fin not in (None, "") else 0
-    except (ValueError, TypeError):
-        safe_fin = 0
-
-    if safe_total is not None and safe_total < 0:
-        safe_total = 0
-    if safe_fin < 0:
-        safe_fin = 0
-
-    if safe_total is not None and safe_fin > safe_total:
-        safe_fin = safe_total
-
-    return safe_total, safe_fin
+    return _clamp_progress(vol_total, vol_fin)
 
 
-def validate_ch_math(ch_total: Any, ch_fin: Any) -> Tuple[Optional[int], int]:
+def validate_ch_math(ch_total: Any, ch_fin: Any) -> Tuple[Optional[float], float]:
     """Sanitizes chapter inputs and clamps ch_fin <= ch_total."""
-    try:
-        safe_total = int(float(ch_total)) if ch_total not in (None, "") else None
-    except (ValueError, TypeError):
-        safe_total = None
-
-    try:
-        safe_fin = int(float(ch_fin)) if ch_fin not in (None, "") else 0
-    except (ValueError, TypeError):
-        safe_fin = 0
-
-    if safe_total is not None and safe_total < 0:
-        safe_total = 0
-    if safe_fin < 0:
-        safe_fin = 0
-
-    if safe_total is not None and safe_fin > safe_total:
-        safe_fin = safe_total
-
-    return safe_total, safe_fin
+    return _clamp_progress(ch_total, ch_fin)
 
 
 # ==========================================
@@ -325,7 +307,7 @@ def extract_imdb_id(url: str) -> Optional[str]:
     return None
 
 
-def extract_mal_id_manga_novel(url: str) -> Optional[int]:
+def extract_mal_id_manga_book(url: str) -> Optional[int]:
     """
     Extracts the numeric ID from a standard MyAnimeList manga URL.
     Returns None if the URL is invalid or the ID cannot be found.

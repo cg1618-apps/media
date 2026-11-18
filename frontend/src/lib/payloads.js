@@ -87,7 +87,7 @@ const CREDITS_FIELD_MAP = {
       label: "label",
     },
   },
-  novel: {
+  book: {
     credits: {
       author: "author",
       illustrator: "illustrator",
@@ -288,7 +288,6 @@ export function buildAnimeMoviePayload(amf, { franchiseId } = {}) {
     to_rewatch: amf.to_rewatch ?? false,
     cover_image_file: amf.cover_image_file || null,
     cover_image_focus: amf.cover_image_focus || null,
-    remark: amf.remark || null,
   };
 }
 
@@ -312,11 +311,16 @@ export function buildAnimePayload(af, { franchiseId, seriesId } = {}) {
     airing_status: af.airing_status || null,
     watching_status: af.watching_status || "Might Watch",
     is_main: af.is_main || null,
-    ep_previous: af.ep_previous !== "" ? parseInt(af.ep_previous) : null,
-    ep_total: af.ep_total !== "" ? parseInt(af.ep_total) : null,
-    ep_fin: af.ep_fin !== "" ? parseInt(af.ep_fin, 10) : null,
+    // Never null: the column is NOT NULL and a blank means the original.
+    original_or_remake: af.original_or_remake || "Original",
+    // Progress counts are floats: 2.5 episodes is kept, not truncated.
+    ep_previous: af.ep_previous !== "" ? parseFloat(af.ep_previous) : null,
+    ep_total: af.ep_total !== "" ? parseFloat(af.ep_total) : null,
+    ep_fin: af.ep_fin !== "" ? parseFloat(af.ep_fin) : null,
     time_fin: af.time_fin || null,
-    ep_special: af.ep_special !== "" ? parseFloat(af.ep_special) : null,
+    // Text, not a number: specials are numbered 17.5A, 17.5B. The server
+    // writes a plain number in its shortest form (17.0 -> "17").
+    ep_special: String(af.ep_special ?? "").trim() || null,
     runtime_min: int(af.runtime_min),
     my_rating: af.my_rating || null,
     mal_rating: af.mal_rating !== "" ? parseFloat(af.mal_rating) : null,
@@ -339,7 +343,6 @@ export function buildAnimePayload(af, { franchiseId, seriesId } = {}) {
     watch_next: af.watch_next ?? null,
     cover_image_file: af.cover_image_file || null,
     cover_image_focus: af.cover_image_focus || null,
-    remark: af.remark || null,
   };
 }
 
@@ -415,12 +418,11 @@ export function gameFieldsPayload(f) {
     to_replay: f.to_replay ?? false,
     cover_image_file: f.cover_image_file || null,
     cover_image_focus: f.cover_image_focus || null,
-    remark: f.remark || null,
   };
 }
 
 // ---------------------------------------------------------------------------
-// Movie, TV show, cartoon, manga, novel, comic
+// Movie, TV show, cartoon, manga, book, comic
 // ---------------------------------------------------------------------------
 //
 // One body per type, built the same way by Add's create and Modify's save.
@@ -465,7 +467,6 @@ export function movieFieldsPayload(f, { defaultStatus } = {}) {
     to_rewatch: f.to_rewatch ?? false,
     cover_image_file: f.cover_image_file || null,
     cover_image_focus: f.cover_image_focus || null,
-    remark: f.remark || null,
   };
 }
 
@@ -480,8 +481,8 @@ export function tvShowFieldsPayload(f, { defaultStatus } = {}) {
     is_main: f.is_main || null,
     airing_status: f.airing_status || null,
     watching_status: f.watching_status || defaultStatus || "Might Watch",
-    ep_total: int(f.ep_total),
-    ep_fin: int(f.ep_fin),
+    ep_total: float(f.ep_total),
+    ep_fin: float(f.ep_fin),
     runtime_min: int(f.runtime_min),
     time_fin: f.time_fin || null,
     my_rating: f.my_rating || null,
@@ -495,7 +496,6 @@ export function tvShowFieldsPayload(f, { defaultStatus } = {}) {
     to_rewatch: f.to_rewatch ?? false,
     cover_image_file: f.cover_image_file || null,
     cover_image_focus: f.cover_image_focus || null,
-    remark: f.remark || null,
   };
 }
 
@@ -509,8 +509,8 @@ export function cartoonFieldsPayload(f, { defaultStatus } = {}) {
     airing_status: f.airing_status || null,
     watching_status: f.watching_status || defaultStatus || "Might Watch",
     is_main: f.is_main || null,
-    ep_total: int(f.ep_total),
-    ep_fin: int(f.ep_fin),
+    ep_total: float(f.ep_total),
+    ep_fin: float(f.ep_fin),
     time_fin: f.time_fin || null,
     my_rating: f.my_rating || null,
     imdb_rating: f.imdb_rating || null,
@@ -523,7 +523,6 @@ export function cartoonFieldsPayload(f, { defaultStatus } = {}) {
     watch_next: f.watch_next ?? null,
     cover_image_file: f.cover_image_file || null,
     cover_image_focus: f.cover_image_focus || null,
-    remark: f.remark || null,
   };
 }
 
@@ -538,11 +537,11 @@ export function mangaFieldsPayload(f, { defaultStatus } = {}) {
     serialization_status: f.serialization_status || null,
     reading_status: f.reading_status || defaultStatus || "Might Read",
     is_main: f.is_main || null,
-    vol_total: int(f.vol_total),
-    vol_fin: int(f.vol_fin),
+    vol_total: float(f.vol_total),
+    vol_fin: float(f.vol_fin),
     vol_fin_page: int(f.vol_fin_page),
-    ch_total: int(f.ch_total),
-    ch_fin: int(f.ch_fin),
+    ch_total: float(f.ch_total),
+    ch_fin: float(f.ch_fin),
     my_rating: f.my_rating || null,
     mal_rating: float(f.mal_rating),
     // A string column ("#1234" as MAL prints it), sent as typed.
@@ -553,6 +552,8 @@ export function mangaFieldsPayload(f, { defaultStatus } = {}) {
     anilist_popularity_rank: int(f.anilist_popularity_rank),
     release_date: f.release_date || null,
     end_date: f.end_date || null,
+    next_vol_release_date_jp: f.next_vol_release_date_jp || null,
+    next_vol_release_date_tw: f.next_vol_release_date_tw || null,
     anime_studio: f.anime_studio || null,
     mal_id: int(f.mal_id),
     mal_link: f.mal_link || null,
@@ -561,18 +562,18 @@ export function mangaFieldsPayload(f, { defaultStatus } = {}) {
     to_reread: f.to_reread ?? false,
     cover_image_file: f.cover_image_file || null,
     cover_image_focus: f.cover_image_focus || null,
-    remark: f.remark || null,
   };
 }
 
 /**
- * One unit as NovelUnitWrite takes it: the unit's own columns, renumbered by
+ * One unit as BookUnitWrite takes it: the unit's own columns, renumbered by
  * its place in the list. A read row also carries the viewer's own `my_rating`
  * and `remark` and the server's `display_key`; none of them is the unit's, so
  * none is sent - a reader's rating and remark go through
- * PUT /api/me/novel-units/{unit_id}.
+ * PUT /api/me/book-units/{unit_id}. Nor is `cover_image_file`: the image
+ * library writes it when a cover is attached or cleared.
  */
-export function novelUnitPayload(u, i) {
+export function bookUnitPayload(u, i) {
   const payload = {
     unit_kind: u.unit_kind,
     position: i + 1,
@@ -580,23 +581,25 @@ export function novelUnitPayload(u, i) {
     name_cn: u.name_cn ?? null,
     name_en: u.name_en ?? null,
     ch_count: u.ch_count === "" || u.ch_count == null ? null : Number(u.ch_count),
+    release_date_jp: u.release_date_jp || null,
+    release_date_tw: u.release_date_tw || null,
   };
   if (u.system_id) payload.system_id = u.system_id;
   return payload;
 }
 
 /**
- * Novel counts are floats throughout - a half volume is a real position.
- * `units` follows NovelUnitWrite's nested-collection contract: rows the
+ * Book counts are floats throughout - a half volume is a real position.
+ * `units` follows BookUnitWrite's nested-collection contract: rows the
  * payload omits are deleted, so a row with nothing in it is dropped here.
  */
-export function novelFieldsPayload(f, { defaultStatus } = {}) {
+export function bookFieldsPayload(f, { defaultStatus } = {}) {
   return {
-    novel_name_cn: f.novel_name_cn || null,
-    novel_name_en: f.novel_name_en || null,
-    novel_name_roman: f.novel_name_roman || null,
-    novel_name_jp: f.novel_name_jp || null,
-    novel_name_alt: f.novel_name_alt || null,
+    book_name_cn: f.book_name_cn || null,
+    book_name_en: f.book_name_en || null,
+    book_name_roman: f.book_name_roman || null,
+    book_name_jp: f.book_name_jp || null,
+    book_name_alt: f.book_name_alt || null,
     region: f.region || null,
     type: f.type || null,
     version: f.version || null,
@@ -617,7 +620,8 @@ export function novelFieldsPayload(f, { defaultStatus } = {}) {
     anilist_rating: int(f.anilist_rating),
     anilist_rank: int(f.anilist_rank),
     anilist_popularity_rank: int(f.anilist_popularity_rank),
-    release_date: f.release_date || null,
+    release_date_jp: f.release_date_jp || null,
+    release_date_tw: f.release_date_tw || null,
     end_date: f.end_date || null,
     units: (f.units || [])
       .filter(
@@ -625,9 +629,11 @@ export function novelFieldsPayload(f, { defaultStatus } = {}) {
           (u.unit_key && u.unit_key.trim()) ||
           (u.name_cn && u.name_cn.trim()) ||
           (u.name_en && u.name_en.trim()) ||
+          u.release_date_jp ||
+          u.release_date_tw ||
           u.ch_count !== "",
       )
-      .map((u, i) => novelUnitPayload(u, i)),
+      .map((u, i) => bookUnitPayload(u, i)),
     mal_id: int(f.mal_id),
     mal_link: f.mal_link || null,
     openlibrary_link: f.openlibrary_link || null,
@@ -637,7 +643,6 @@ export function novelFieldsPayload(f, { defaultStatus } = {}) {
     to_reread: f.to_reread ?? false,
     cover_image_file: f.cover_image_file || null,
     cover_image_focus: f.cover_image_focus || null,
-    remark: f.remark || null,
   };
 }
 
@@ -650,8 +655,8 @@ export function comicFieldsPayload(f, { defaultStatus } = {}) {
     comic_type: f.comic_type || null,
     release_date: f.release_date || null,
     end_date: f.end_date || null,
-    issue_total: int(f.issue_total),
-    issue_fin: int(f.issue_fin),
+    issue_total: float(f.issue_total),
+    issue_fin: float(f.issue_fin),
     serialization_status: f.serialization_status || null,
     reading_status: f.reading_status || defaultStatus || "Might Read",
     read_order: float(f.read_order),
@@ -665,7 +670,6 @@ export function comicFieldsPayload(f, { defaultStatus } = {}) {
     to_reread: f.to_reread ?? false,
     cover_image_file: f.cover_image_file || null,
     cover_image_focus: f.cover_image_focus || null,
-    remark: f.remark || null,
   };
 }
 
@@ -700,8 +704,8 @@ export function hComicFieldsPayload(f) {
     ...(derived ? {} : { animation_status: f.animation_status || null }),
     series_number: int(f.series_number),
     serialization_status: f.serialization_status || null,
-    page_total: int(f.page_total),
-    ch_total: int(f.ch_total),
+    page_total: float(f.page_total),
+    ch_total: float(f.ch_total),
     ch_behind: int(f.ch_behind),
     release_date: f.release_date || null,
     end_date: f.end_date || null,
@@ -713,14 +717,13 @@ export function hComicFieldsPayload(f) {
     reading_status: f.reading_status || "Might Read",
     my_rating: f.my_rating || null,
     usefulness: f.usefulness || null,
-    page_fin: int(f.page_fin),
-    ch_fin: int(f.ch_fin),
+    page_fin: float(f.page_fin),
+    ch_fin: float(f.ch_fin),
     sources: sourcesPayload(f.sources),
     read_next: f.read_next ?? false,
     to_reread: f.to_reread ?? false,
     cover_image_file: f.cover_image_file || null,
     cover_image_focus: f.cover_image_focus || null,
-    remark: f.remark || null,
   };
 }
 
@@ -839,7 +842,6 @@ export function hGameFieldsPayload(f) {
     to_replay: f.to_replay ?? false,
     cover_image_file: f.cover_image_file || null,
     cover_image_focus: f.cover_image_focus || null,
-    remark: f.remark || null,
   };
 }
 
@@ -870,8 +872,8 @@ export function hentaiFieldsPayload(f) {
     series_number: int(f.series_number),
     airing_status: f.airing_status || null,
     release_date: f.release_date || null,
-    ep_total: int(f.ep_total),
-    ep_fin: int(f.ep_fin),
+    ep_total: float(f.ep_total),
+    ep_fin: float(f.ep_fin),
     time_fin: f.time_fin || null,
     mal_link: f.mal_link || null,
     mal_id: f.mal_link ? int(f.mal_id) : null,
@@ -885,6 +887,5 @@ export function hentaiFieldsPayload(f) {
     to_rewatch: f.to_rewatch ?? false,
     cover_image_file: f.cover_image_file || null,
     cover_image_focus: f.cover_image_focus || null,
-    remark: f.remark || null,
   };
 }

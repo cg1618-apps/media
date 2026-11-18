@@ -69,7 +69,7 @@ def test_acg_is_split_by_what_the_franchise_holds(db_session):
     _anime_movie(db_session, movie)
     manga = _franchise(db_session, "ACG", "Zvornik Manga")
     _manga(db_session, manga)
-    both = _franchise(db_session, "Novel, ACG", "Zvornik Both")
+    both = _franchise(db_session, "Book, ACG", "Zvornik Both")
     _anime(db_session, both)
     _manga(db_session, both)
     empty = _franchise(db_session, "ACG", "Zvornik Empty")
@@ -89,7 +89,7 @@ def test_acg_is_split_by_what_the_franchise_holds(db_session):
         "Zvornik Anime": "Anime",
         "Zvornik Movie": "Anime, Game",
         "Zvornik Manga": "Manga",
-        "Zvornik Both": "Novel, Anime, Manga",
+        "Zvornik Both": "Book, Anime, Manga",
         "Zvornik Empty": "Anime",
         "Zvornik Plain": "Game",
         "Zvornik AM Type": "Anime Movie",

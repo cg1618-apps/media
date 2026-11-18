@@ -269,7 +269,7 @@ BUILT_IN_KINDS = {
     RELEASE_ANIME_SOURCE: {"name": "Release Order (Anime)", "media_types": ["anime"]},
 }
 
-# A franchise holding a single work - one movie, one TV series, one novel - has
+# A franchise holding a single work - one movie, one TV series, one book - has
 # nothing to put in an order. Below this, a release order is just noise.
 MIN_ENTRIES_FOR_RELEASE = 2
 

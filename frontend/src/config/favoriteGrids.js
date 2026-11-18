@@ -18,7 +18,8 @@
 // `key` is the key inside that row's `type_slots`. The franchise keys are the
 // ones already in the database and must not be renamed - so the AniManga
 // grid's key is "ACG", the spelling every stored row and every sheet backup
-// carries, while `franchiseTypes` says which franchises it holds. A key is
+// carries, while `franchiseTypes` says which franchises it holds - and the
+// book grid's key is "Novel", the type's name when the rows were written. A key is
 // only ever read alongside its tier, so "Movie" on a franchise and "Movie" on a movie
 // entry are different slots and do not collide.
 //
@@ -43,12 +44,15 @@ export const FAVORITE_GRIDS = [
     forType: null,
   },
   {
-    id: "novel-franchises",
+    id: "book-franchises",
+    // The stored type_slots key, kept from before Novel became Book; the
+    // franchises it holds are named by franchiseTypes, as AniManga's are.
     key: "Novel",
     tier: "franchise",
-    title: "Favourite novel franchises",
-    short: "Novel",
-    forType: "Novel",
+    franchiseTypes: ["Book"],
+    title: "Favourite book franchises",
+    short: "Book",
+    forType: "Book",
   },
   {
     id: "movie-franchises",

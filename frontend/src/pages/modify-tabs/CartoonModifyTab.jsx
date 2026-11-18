@@ -30,13 +30,9 @@ export default function CartoonModifyTab({
       <CartoonFormBody f={cmf} u={uc} sources={sources} ownerId={editingItem?.system_id} />
 
       <SectionHeader icon="fa-book-open" title="Structured Notes" />
-      {/* `remark` is hidden here: the form's Remark field edits the same
-          singleton note row, and two editors for one row overwrite each
-          other on Save Changes. */}
       <CartoonNotes
         key={editingItem?.system_id}
         cartoon={editingItem ?? {}}
-        hideSections={["remark"]}
       />
     </>
   );

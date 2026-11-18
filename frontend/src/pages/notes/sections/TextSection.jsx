@@ -2,8 +2,9 @@
 // Each item is one `note` row, so editing one is a PATCH of that row rather
 // than a rewrite of the whole section.
 //
-// A singleton section (`remark`) is the same shape with one row at most, so it
-// renders as a single textarea with no "Add" affordance.
+// A singleton section (the registry's `singleton` flag; no `text` section sets
+// it today) is the same shape with one row at most, so it renders as a single
+// textarea with no "Add" affordance.
 import { useEffect, useState } from "react";
 
 import { Button } from "../../../components/ui/primitives";
@@ -25,7 +26,7 @@ import {
 } from "./ui";
 import AutoGrowTextarea from "../../../components/ui/AutoGrowTextarea";
 
-// ─── Singleton (Remark) ──────────────────────────────────────────────────────
+// ─── Singleton ───────────────────────────────────────────────────────────────
 
 function SingletonText({ section, note, canWrite, onCreate, onUpdate, onDelete }) {
   const value = note?.content || "";
@@ -90,7 +91,7 @@ function SingletonText({ section, note, canWrite, onCreate, onUpdate, onDelete }
           disabled={!canWrite}
           onChange={(e) => canWrite && setDraft(e.target.value)}
           rows={10}
-          placeholder="General remarks..."
+          placeholder="Write here..."
           className={textareaCls + " resize-y"}
         />
         {canWrite && <div className="flex justify-end">{saveBtn}</div>}
@@ -124,7 +125,7 @@ function SingletonText({ section, note, canWrite, onCreate, onUpdate, onDelete }
                 value={draft}
                 disabled={!canWrite}
                 onChange={(e) => canWrite && setDraft(e.target.value)}
-                placeholder="General remarks..."
+                placeholder="Write here..."
                 autoFocus
                 className={textareaCls + " flex-1 resize-none"}
               />

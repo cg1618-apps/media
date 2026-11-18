@@ -1,6 +1,6 @@
 // Frontend: form component for a game's copies (one row per copy owned or wanted).
 //
-// Controlled exactly the way NovelUnitsEditor is: no internal state, the
+// Controlled exactly the way BookUnitsEditor is: no internal state, the
 // parent owns `items`, and every add / remove / edit / drag goes out through
 // onChange with `position` renumbered 1..n. The array handed in is never
 // written to — each mutation builds a new one.

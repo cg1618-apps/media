@@ -97,7 +97,6 @@ class HGameBase(BaseModel):
     # Virtual: the router factory sets these from plan_next rows.
     play_next: Optional[bool] = None
     to_replay: Optional[bool] = None
-    remark: Optional[str] = None
 
     _validate_release_dates = release_date_validator("release_date")
 

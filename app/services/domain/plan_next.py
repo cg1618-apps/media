@@ -38,7 +38,7 @@ _DERIVABLE = {
 _SERIES_ONLY = {"comic"}
 
 
-def _measure(entries: list, media_type: str) -> Optional[int]:
+def _measure(entries: list, media_type: str) -> Optional[float]:
     """The number this type's thresholds are read against."""
     kind = SIZE_MEASURE[media_type]
     if kind == "count":
@@ -225,8 +225,8 @@ def pop_plan_flag(media_type: str, data: dict):
     """
     Split watch_next/read_next/to_rewatch/to_reread out of a write payload.
 
-    Shaped like pop_remark in app/services/domain/remark_field.py, and for the
-    same reason: these fields are on the schema but not on the table. Returns
+    These fields are on the schema but not on the table, so they come out of
+    the payload before the entry is built from it. Returns
     (rest, [(kind, value), ...]) - only the fields that were actually present
     are included, so a PATCH that never mentions a flag leaves that plan_next
     row alone, while one that sends false deletes it.

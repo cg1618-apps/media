@@ -14,7 +14,6 @@ import * as api from "./api";
 vi.mock("./api");
 
 const SECTIONS = [
-  { key: "remark", shape: "text", label: "Remark", kinds: [], singleton: true },
   {
     key: "todo_now",
     shape: "text",
@@ -98,13 +97,6 @@ it("fetches once for both places", async () => {
     expect(api.fetchSections).toHaveBeenCalledTimes(1);
     expect(api.fetchNotes).toHaveBeenCalledTimes(1);
   });
-});
-
-it("hides a group and a section independently", async () => {
-  renderPage({ hideSections: ["remark"] });
-  await screen.findByText("Doing now");
-  expect(screen.queryByText("Remark")).toBeNull();
-  expect(screen.getByText("Lore")).toBeInTheDocument();
 });
 
 it("renders nothing for a group this owner does not have", async () => {

@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from app.models import (
     Anime,
     AnimeMovies,
+    Book,
     Cartoon,
     Comic,
     Franchise,
@@ -25,7 +26,6 @@ from app.models import (
     HGame,
     Manga,
     Movies,
-    Novel,
     Series,
     SystemOption,
     TVShows,
@@ -112,15 +112,18 @@ def find_duplicate_series(db: Session) -> list[list[dict]]:
 
 def _anime_duplicate_key(a: Anime) -> tuple:
     return (_ref(a.franchise_id), _ref(a.series_id), a.airing_type,
-            _season(a.season_part), a.is_main, a.ep_special)
+            _season(a.season_part), a.is_main, a.original_or_remake, a.ep_special)
 
 
 def find_duplicate_anime(db: Session) -> list[list[dict]]:
-    """Same franchise, series, airing type, season, main flag, special flag + a shared name."""
+    """Same franchise, series, airing type, season, main flag, original or
+    remake, special flag + a shared name. A remake usually shares its
+    original's name exactly, so the two never collide."""
     return _find(
         db.query(Anime).all(),
         key=_anime_duplicate_key,
-        fields=("franchise_id", "series_id", "airing_type", "season_part", "is_main", "ep_special",
+        fields=("franchise_id", "series_id", "airing_type", "season_part", "is_main",
+                "original_or_remake", "ep_special",
                 "anime_name_en", "anime_name_cn", "anime_name_roman", "anime_name_jp", "anime_name_alt"),
     )
 
@@ -174,13 +177,13 @@ def find_duplicate_manga(db: Session) -> list[list[dict]]:
     )
 
 
-def find_duplicate_novel(db: Session) -> list[list[dict]]:
+def find_duplicate_book(db: Session) -> list[list[dict]]:
     """Same franchise, series, main flag + a shared name."""
     return _find(
-        _with_franchise(db, Novel),
+        _with_franchise(db, Book),
         key=lambda n: (str(n.franchise_id), _ref(n.series_id), n.is_main),
-        fields=("franchise_id", "series_id", "is_main", "novel_name_cn", "novel_name_en",
-                "novel_name_roman", "novel_name_jp", "novel_name_alt"),
+        fields=("franchise_id", "series_id", "is_main", "book_name_cn", "book_name_en",
+                "book_name_roman", "book_name_jp", "book_name_alt"),
     )
 
 
@@ -292,7 +295,7 @@ def find_all_duplicates(db: Session) -> dict:
         "movie": find_duplicate_movie(db),
         "tv_show": find_duplicate_tv_show(db),
         "manga": find_duplicate_manga(db),
-        "novel": find_duplicate_novel(db),
+        "book": find_duplicate_book(db),
         "comic": find_duplicate_comic(db),
         "game": find_duplicate_game(db),
         "h_comic": find_duplicate_h_comic(db),

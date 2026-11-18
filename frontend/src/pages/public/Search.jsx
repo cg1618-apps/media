@@ -33,7 +33,7 @@ export const SCOPE_LABELS = {
   "tv-show": "TV Show",
   cartoon: "Cartoon",
   manga: "Manga",
-  novel: "Novel",
+  book: "Book",
   comic: "Comic",
   game: "Game",
   "h-comic": "H-Comic",
@@ -162,7 +162,7 @@ export default function Search() {
   const [matchedTvShows, setMatchedTvShows] = useState([]);
   const [matchedCartoons, setMatchedCartoons] = useState([]);
   const [matchedMangas, setMatchedMangas] = useState([]);
-  const [matchedNovels, setMatchedNovels] = useState([]);
+  const [matchedBooks, setMatchedBooks] = useState([]);
   const [matchedComics, setMatchedComics] = useState([]);
   const [matchedGames, setMatchedGames] = useState([]);
   const [matchedHComics, setMatchedHComics] = useState([]);
@@ -205,7 +205,7 @@ export default function Search() {
       setMatchedTvShows([]);
       setMatchedCartoons([]);
       setMatchedMangas([]);
-      setMatchedNovels([]);
+      setMatchedBooks([]);
       setMatchedComics([]);
       setMatchedGames([]);
       setMatchedHComics([]);
@@ -232,7 +232,7 @@ export default function Search() {
     setMatchedTvShows(results["tv-show"] ?? []);
     setMatchedCartoons(results.cartoon ?? []);
     setMatchedMangas(results.manga ?? []);
-    setMatchedNovels(results.novel ?? []);
+    setMatchedBooks(results.book ?? []);
     setMatchedComics(results.comic ?? []);
     setMatchedGames(results.game ?? []);
     setMatchedHComics(results["h-comic"] ?? []);
@@ -283,8 +283,8 @@ export default function Search() {
     );
   }, []);
 
-  const handleNovelUpdated = useCallback((updated) => {
-    setMatchedNovels((prev) =>
+  const handleBookUpdated = useCallback((updated) => {
+    setMatchedBooks((prev) =>
       prev.map((n) => (n.system_id === updated.system_id ? updated : n)),
     );
   }, []);
@@ -329,7 +329,7 @@ export default function Search() {
   const showTvShow = scope === "all" || scope === "tv-show";
   const showCartoon = scope === "all" || scope === "cartoon";
   const showManga = scope === "all" || scope === "manga";
-  const showNovel = scope === "all" || scope === "novel";
+  const showBook = scope === "all" || scope === "book";
   const showComic = scope === "all" || scope === "comic";
   const showGame = scope === "all" || scope === "game";
   const showHComic = scope === "all" || scope === "h-comic";
@@ -381,7 +381,7 @@ export default function Search() {
     showTvShow && ["TV shows", matchedTvShows.length],
     showCartoon && ["cartoons", matchedCartoons.length],
     showManga && ["manga", matchedMangas.length],
-    showNovel && ["novel", matchedNovels.length],
+    showBook && ["book", matchedBooks.length],
     showComic && ["comics", matchedComics.length],
     showGame && ["games", matchedGames.length],
     showHComic && ["h-comics", matchedHComics.length],
@@ -789,27 +789,27 @@ export default function Search() {
           </div>
         )}
 
-        {/* Novel */}
-        {onMedia && showNovel && matchedNovels.length > 0 && (
+        {/* Book */}
+        {onMedia && showBook && matchedBooks.length > 0 && (
           <div>
             <div
               className="flex items-baseline justify-between gap-3 mb-6 pb-2 border-b border-border-strong sticky z-20 bg-canvas"
               style={{ top: sectionHeaderTop }}
             >
               <h2 className="font-display text-2xl font-semibold text-text leading-none">
-                Novel
+                Book
               </h2>
               <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
-                {matchedNovels.length} results
+                {matchedBooks.length} results
               </span>
             </div>
             <div className={GRID_CLS}>
-              {matchedNovels.map((n) => (
+              {matchedBooks.map((n) => (
                 <MediaCard
                   key={n.system_id}
-                  type="novel"
+                  type="book"
                   data={n}
-                  onUpdated={handleNovelUpdated}
+                  onUpdated={handleBookUpdated}
                 />
               ))}
             </div>

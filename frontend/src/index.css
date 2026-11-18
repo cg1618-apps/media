@@ -55,7 +55,7 @@
      studio and publisher are deliberately low-saturation (slate, taupe,
      mauve) so the credited entities read as a family apart from titles.
      Nineteen hues cannot all sit far apart, so the close pairs (franchise and
-     comic, series and movie, seasonal and novel) are separated by saturation
+     comic, series and movie, seasonal and book) are separated by saturation
      as well as hue. Every value is desaturated enough to sit on bone paper
      without competing with brand. Lightness is set by contrast, not by eye:
      the chip text is 10px, so every hue must clear WCAG AA 4.5:1 on
@@ -68,7 +68,7 @@
   --color-scope-tv-show: var(--c-scope-tv-show);
   --color-scope-cartoon: var(--c-scope-cartoon);
   --color-scope-manga: var(--c-scope-manga);
-  --color-scope-novel: var(--c-scope-novel);
+  --color-scope-book: var(--c-scope-book);
   --color-scope-comic: var(--c-scope-comic);
   --color-scope-game: var(--c-scope-game);
   --color-scope-h-comic: var(--c-scope-h-comic);
@@ -143,7 +143,7 @@
   --c-scope-tv-show: hsl(25 57% 40%);
   --c-scope-cartoon: hsl(45 60% 33%);
   --c-scope-manga: hsl(150 40% 35%);
-  --c-scope-novel: hsl(185 45% 35%);
+  --c-scope-book: hsl(185 45% 35%);
   --c-scope-comic: hsl(310 35% 48%);
   --c-scope-game: hsl(95 40% 33%);
   --c-scope-h-comic: hsl(70 55% 30%);
@@ -187,7 +187,7 @@
   --c-scope-tv-show: hsl(25 65% 62%);
   --c-scope-cartoon: hsl(45 60% 58%);
   --c-scope-manga: hsl(150 40% 58%);
-  --c-scope-novel: hsl(185 45% 58%);
+  --c-scope-book: hsl(185 45% 58%);
   --c-scope-comic: hsl(310 45% 70%);
   --c-scope-game: hsl(95 45% 58%);
   --c-scope-h-comic: hsl(70 50% 56%);
@@ -230,7 +230,7 @@
     --c-scope-tv-show: hsl(25 65% 62%);
     --c-scope-cartoon: hsl(45 60% 58%);
     --c-scope-manga: hsl(150 40% 58%);
-    --c-scope-novel: hsl(185 45% 58%);
+    --c-scope-book: hsl(185 45% 58%);
     --c-scope-comic: hsl(310 45% 70%);
     --c-scope-game: hsl(95 45% 58%);
     --c-scope-h-comic: hsl(70 50% 56%);

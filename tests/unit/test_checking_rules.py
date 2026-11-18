@@ -89,7 +89,7 @@ class TestHasMissingValues:
     def test_ep_previous_not_checked_when_ep_special_set(self):
         # ep_special set → skip ep_previous check
         anime = make_anime(
-            airing_type="TV", ep_special=1.0, season_part="Season 2", ep_previous=None
+            airing_type="TV", ep_special="1", season_part="Season 2", ep_previous=None
         )
         assert has_missing_values_anime(anime) is False
 

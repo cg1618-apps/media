@@ -401,8 +401,10 @@ function LibraryModal({ onSelect, onClose }) {
     setQInput("");
   }
 
-  // stopPropagation-free backdrop dismiss, matching RemarkModal: only a press
-  // that both starts and ends on the backdrop itself closes the modal.
+  // stopPropagation-free backdrop dismiss: only a press that both starts and
+  // ends on the backdrop itself closes the modal. A text-selection drag that
+  // starts inside the panel and is released past its edge dispatches its click
+  // on the backdrop, so the click alone cannot be trusted.
   const pressedBackdrop = useRef(false);
 
   return (

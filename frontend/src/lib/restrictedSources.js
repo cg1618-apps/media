@@ -55,7 +55,7 @@ const RESTRICTED_SOURCES = Object.freeze({
   movie: only([GIMY]),
   cartoon: only([GIMY]),
   manga: only(["漫畫櫃 (電腦版)", "漫畫櫃 (手機版)", "漫畫人"], ["包子漫畫"]),
-  novel: only(
+  book: only(
     [],
     [
       "bili嗶哩輕小說",

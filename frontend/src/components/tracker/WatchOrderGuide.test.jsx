@@ -6,7 +6,7 @@
 // anything, and an unfiled step may sit before, between or after them.
 import { describe, expect, it } from "vitest";
 
-import { buildBlocks, mediaScope } from "./WatchOrderGuide";
+import { buildBlocks, mediaScope, specialLabel } from "./WatchOrderGuide";
 
 const step = (id, position, section_id = null) => ({
   system_id: id,
@@ -152,5 +152,17 @@ describe("mediaScope", () => {
   it("names a game step's type", () => {
     expect(mediaScope(["game"]).short).toBe("Game only");
     expect(mediaScope(["anime", "game"]).full).toBe("Cross-type · Anime · Game");
+  });
+});
+
+describe("specialLabel", () => {
+  it("shows a lettered special as written", () => {
+    expect(specialLabel({ ep_special: "17.5A" })).toBe("Ep. Special 17.5A");
+  });
+
+  it("keeps episode 0 and drops an absent value", () => {
+    expect(specialLabel({ ep_special: "0" })).toBe("Ep. Special 0");
+    expect(specialLabel({ ep_special: null })).toBeNull();
+    expect(specialLabel({})).toBeNull();
   });
 });

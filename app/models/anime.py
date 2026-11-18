@@ -76,10 +76,20 @@ class Anime(Base, NameFallbackMixin):
     airing_type = Column(String, nullable=True)
     airing_status = Column(String, nullable=True)
     is_main = Column(String, nullable=True)
+    # ANIME_ORIGINAL_OR_REMAKE - Original / Remake. Not is_main's question
+    # (本傳 / 外傳 / ...), so a column of its own. Never NULL: a row that says
+    # nothing is the original. No CHECK constraint, matching is_main; the
+    # write schemas refuse anything else.
+    original_or_remake = Column(
+        String, nullable=False, default="Original", server_default="Original"
+    )
 
-    ep_previous = Column(Integer, nullable=True)
-    ep_total = Column(Integer, nullable=True)
-    ep_special = Column(Float, nullable=True)
+    ep_previous = Column(Float, nullable=True)
+    ep_total = Column(Float, nullable=True)
+    # Where a special sits among the episodes, as a label: 0, 14.5, 17.5A.
+    # Text, canonical per app/utils/ep_special.py; nothing sorts it or does
+    # arithmetic on it.
+    ep_special = Column(String, nullable=True)
     # Minutes per episode.
     runtime_min = Column(Integer, nullable=True)
 

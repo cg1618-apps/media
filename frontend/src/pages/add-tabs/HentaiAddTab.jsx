@@ -12,7 +12,7 @@ import CastEditor from "../../components/forms/CastEditor";
 import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
 import FamilyLineageFields from "../../components/forms/FamilyLineageFields";
 import { Field, SectionHeader, inputCls, selectCls } from "../../components/forms/FormField";
-import CoverRemarkFields from "../../components/forms/CoverRemarkFields";
+import CoverFields from "../../components/forms/CoverFields";
 import EntryFlags from "../../components/forms/EntryFlags";
 import EntryNameFields from "../../components/forms/EntryNameFields";
 import MultiSelect from "../../components/forms/MultiSelect";
@@ -32,6 +32,7 @@ import { HENTAI_SOURCES } from "../../lib/hentaiForm";
 import { getDisplayName, getSourceValues } from "../../utils/media";
 import { getIdleSourceValues } from "../../lib/formatters";
 import { RESTRICTED_FAMILY } from "../../lib/gatedTypes";
+import { FLOAT_PROGRESS_FIELDS } from "../../lib/progressStep";
 
 export { defaultHentai } from "../../config/formFactories";
 
@@ -88,6 +89,7 @@ export function HentaiFormBody({ f, u, sources, ownerId }) {
         className={inputCls}
         type="number"
         min="0"
+        step={FLOAT_PROGRESS_FIELDS.has(key) ? "any" : undefined}
         aria-label={label}
         value={f[key] ?? ""}
         onChange={(e) => u(key, e.target.value)}
@@ -225,7 +227,7 @@ export function HentaiFormBody({ f, u, sources, ownerId }) {
         sources={sources}
       />
 
-      <CoverRemarkFields f={f} u={u} ownerType="hentai" ownerId={ownerId} />
+      <CoverFields f={f} u={u} ownerType="hentai" ownerId={ownerId} />
     </>
   );
 }

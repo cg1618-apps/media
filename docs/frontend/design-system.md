@@ -1,6 +1,6 @@
 # Design system — "the archive"
 
-Last verified: 2026-11-16
+Last verified: 2026-11-17
 
 The UI is styled as a physical media archive: paper, ink, index slips,
 spine labels and a rating stamp. It replaced the generic dashboard look
@@ -128,7 +128,7 @@ counts). `h1` is display by default.
    `hsl(330 50% 44%)` / `hsl(330 60% 72%)`, a rose more saturated than comic's
    orchid; `series` `hsl(8 60% 44%)` / `hsl(8 65% 68%)`, a brick red more
    saturated than movie's; `seasonal` `hsl(168 55% 29%)` / `hsl(168 45% 55%)`,
-   a teal between manga and novel; `person` `hsl(220 18% 40%)` /
+   a teal between manga and book; `person` `hsl(220 18% 40%)` /
    `hsl(220 18% 70%)` slate, `studio` `hsl(30 20% 38%)` / `hsl(30 22% 66%)`
    taupe, `publisher` `hsl(280 14% 42%)` / `hsl(280 16% 70%)` mauve. Nineteen
    hues cannot all sit far apart round the wheel, so the close pairs are told
@@ -176,7 +176,10 @@ counts). `h1` is display by default.
    library's thumbnails (on `/images` and in `ImagePicker`'s library modal),
    whose focus belongs to each owner the file is attached to rather than to
    the file, and an IGDB search result on the game Add tab, which is not
-   stored at all. `src/focus-images.test.js` guards this. Quote and meme
+   stored at all. One owner's image keeps no focus either: a book unit's
+   cover (`UnitCoverThumb`), drawn only as a small thumbnail beside the
+   unit's name, where `book_unit` has no focus column to aim it, and so it
+   too says `data-focus="none"`. `src/focus-images.test.js` guards this. Quote and meme
    images are drawn uncropped, so they carry no focus.
 10. **Entry forms follow the detail page.** Every media type's Add and Modify
     form is one shared body, with its sections in the order the detail page

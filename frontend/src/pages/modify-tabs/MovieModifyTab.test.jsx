@@ -89,7 +89,7 @@ describe("MovieModifyTab", () => {
       "Genres & Labels",
       "Production",
       "Links & Sources",
-      "Cover & Remark",
+      "Cover",
       "Structured Notes",
     ]);
     expect(screen.getByTestId("notes")).toHaveTextContent("movie-1");

@@ -437,7 +437,7 @@ def test_an_entry_patch_without_the_key_leaves_the_focus_alone(
     db_session.commit()
 
     response = owner_client.patch(
-        f"/api/anime/{sample_anime.system_id}", json={"remark": "unrelated"}
+        f"/api/anime/{sample_anime.system_id}", json={"anime_name_cn": "unrelated"}
     )
 
     assert response.status_code == 200, response.text

@@ -30,13 +30,9 @@ export default function MovieModifyTab({
       <MovieFormBody f={mmf} u={umm} sources={sources} ownerId={editingItem?.system_id} />
 
       <SectionHeader icon="fa-book-open" title="Structured Notes" />
-      {/* `remark` is hidden here: the form's Remark field edits the same
-          singleton note row, and two editors for one row overwrite each
-          other on Save Changes. */}
       <MovieNotes
         key={editingItem?.system_id}
         movie={editingItem ?? {}}
-        hideSections={["remark"]}
       />
     </>
   );

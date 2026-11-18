@@ -237,7 +237,7 @@ def test_unknown_media_type_rejected(owner_client, method):
         "tv-show",
         "cartoon",
         "manga",
-        "novel",
+        "book",
         "comic",
         "game",
         "collection",

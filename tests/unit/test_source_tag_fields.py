@@ -23,7 +23,7 @@ def test_exclusive_source_is_offered_on_the_anime_types():
     assert set(field.media_types) == {"anime", "anime-movie"}
 
 
-def test_serialization_platform_is_offered_on_manga_and_novel():
+def test_serialization_platform_is_offered_on_manga_and_book():
     """
     Manga's real `serialization_platform` column was dropped in Task 11, in
     the same migration that backfilled its values into media_tag - so this
@@ -31,7 +31,7 @@ def test_serialization_platform_is_offered_on_manga_and_novel():
     """
     field = TAG_FIELDS["serialization_platform"]
     assert field.category == SERIALIZATION_CATEGORY
-    assert set(field.media_types) == {"manga", "novel"}
+    assert set(field.media_types) == {"manga", "book"}
 
 
 def test_the_two_platform_fields_never_overlap():

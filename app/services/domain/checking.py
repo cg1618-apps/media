@@ -8,12 +8,12 @@ from sqlalchemy.orm import Session
 from app.models import (
     Anime,
     AnimeMovies,
+    Book,
     Cartoon,
     Character,
     Comic,
     Hentai,
     Manga,
-    Novel,
     Person,
     Publisher,
     Studio,
@@ -23,6 +23,9 @@ from app.utils.constants import H_COMIC_REGION_KR
 from app.utils.utils import (
     ANIME_FIELDS_TO_FILL,
     ANIME_MOVIE_FIELDS_TO_FILL,
+    BOOK_FIELDS_TO_FILL,
+    BOOK_OPENLIBRARY_FIELDS_TO_FILL,
+    BOOK_OPENLIBRARY_LINK_FIELDS_TO_FILL,
     CARTOON_MOVIE_FIELDS_TO_FILL,
     CARTOON_TV_FIELDS_TO_FILL,
     CHARACTER_FIELDS_TO_FILL,
@@ -38,9 +41,6 @@ from app.utils.utils import (
     MANGA_FIELDS_TO_FILL,
     MOVIE_FIELDS_TO_FILL,
     MOVIE_LINK_FIELDS_TO_FILL,
-    NOVEL_FIELDS_TO_FILL,
-    NOVEL_OPENLIBRARY_FIELDS_TO_FILL,
-    NOVEL_OPENLIBRARY_LINK_FIELDS_TO_FILL,
     PERSON_FIELDS_TO_FILL,
     STUDIO_FIELDS_TO_FILL,
     TV_SHOW_FIELDS_TO_FILL,
@@ -279,43 +279,43 @@ def has_missing_values_manga(manga: Manga) -> bool:
     return False
 
 
-def has_missing_values_novel(novel: Novel) -> bool:
+def has_missing_values_book(book: Book) -> bool:
     """
     Returns True if any required fill field is blank.
     Special case: vol_total_original and ch_total are only required when serialization_status == "完結".
     Gate: if mal_link is null, returns False (skip entirely — no MAL data source available).
     """
-    if novel.mal_link is None:
+    if book.mal_link is None:
         return False
 
-    for field in NOVEL_FIELDS_TO_FILL:
-        val = getattr(novel, field, None)
+    for field in BOOK_FIELDS_TO_FILL:
+        val = getattr(book, field, None)
         if val is None or str(val).strip() == "":
             return True
 
-    if novel.serialization_status == "完結":
-        if novel.vol_total_original is None and novel.ch_total is None:
+    if book.serialization_status == "完結":
+        if book.vol_total_original is None and book.ch_total is None:
             return True
 
     return False
 
 
-def has_missing_values_novel_openlibrary(db, novel: Novel) -> bool:
+def has_missing_values_book_openlibrary(db, book: Book) -> bool:
     """
     Returns True if anything Open Library can supply is still blank: the
     release date, the cover, or the author credit.
 
-    Narrower than has_missing_values_novel on purpose — see
-    NOVEL_OPENLIBRARY_FIELDS_TO_FILL. There is no mal_link gate here: the
+    Narrower than has_missing_values_book on purpose — see
+    BOOK_OPENLIBRARY_FIELDS_TO_FILL. There is no mal_link gate here: the
     caller decides which source an entry belongs to.
     """
-    for field in NOVEL_OPENLIBRARY_FIELDS_TO_FILL:
-        val = getattr(novel, field, None)
+    for field in BOOK_OPENLIBRARY_FIELDS_TO_FILL:
+        val = getattr(book, field, None)
         if val is None or str(val).strip() == "":
             return True
 
     return _link_missing(
-        db, "novel", novel.system_id, NOVEL_OPENLIBRARY_LINK_FIELDS_TO_FILL
+        db, "book", book.system_id, BOOK_OPENLIBRARY_LINK_FIELDS_TO_FILL
     )
 
 

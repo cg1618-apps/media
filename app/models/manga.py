@@ -46,6 +46,14 @@ class Manga(Base, NameFallbackMixin):
             r"end_date ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
             name="ck_manga_end_date_iso",
         ),
+        CheckConstraint(
+            r"next_vol_release_date_jp ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
+            name="ck_manga_next_vol_release_date_jp_iso",
+        ),
+        CheckConstraint(
+            r"next_vol_release_date_tw ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
+            name="ck_manga_next_vol_release_date_tw_iso",
+        ),
     )
     _name_fields = [
         "manga_name_en",
@@ -73,8 +81,8 @@ class Manga(Base, NameFallbackMixin):
     is_main = Column(String, nullable=True)
     serialization_status = Column(String, nullable=True)
 
-    vol_total = Column(Integer, nullable=True)
-    ch_total = Column(Integer, nullable=True)
+    vol_total = Column(Float, nullable=True)
+    ch_total = Column(Float, nullable=True)
 
     mal_rating = Column(Float, nullable=True)
     mal_rank = Column(String, nullable=True)
@@ -87,6 +95,10 @@ class Manga(Base, NameFallbackMixin):
 
     release_date = Column(String, nullable=True)
     end_date = Column(String, nullable=True)
+    # When the next volume comes out, in Japan and in Taiwan. Entered by hand;
+    # Future Releases lists the manga while either is still ahead.
+    next_vol_release_date_jp = Column(String, nullable=True)
+    next_vol_release_date_tw = Column(String, nullable=True)
     anime_studio = Column(String, nullable=True)
 
     mal_id = Column(Integer, nullable=True)

@@ -28,7 +28,7 @@ function StatisticsWithList() {
     allAnimeMovies,
     allMovies,
     allManga,
-    allNovel,
+    allBook,
     allComic,
     allGame,
     allHComic,
@@ -96,7 +96,7 @@ function StatisticsWithList() {
             allAnimeMovies={allAnimeMovies}
             allMovies={allMovies}
             allManga={allManga}
-            allNovel={allNovel}
+            allBook={allBook}
             allComic={allComic}
             allHComic={allHComic}
             allHGame={allHGame}

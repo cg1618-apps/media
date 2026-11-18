@@ -127,7 +127,7 @@ export function releaseAction(type, entry, { canTrack = true } = {}) {
     case "h-comic":
       // MANGA_SERIALIZATION_STATUSES has no not-yet-released value.
       return serialization(entry, { pending: null });
-    case "novel":
+    case "book":
       return serialization(entry, { pending: "未出" });
     case "game":
     case "h-game":

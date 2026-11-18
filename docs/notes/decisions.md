@@ -5369,3 +5369,323 @@ shown buttons that answered 401.
 - **Cartoon's `length_ep_min` is `runtime_min`**, the name anime and TV
   show use, and cartoon's airing types lose `OVA`: no cartoon used it.
 - **Novel's `read_order` is gone**, values included. Comic keeps its own.
+
+### Comic remarks are wiped (2026-11-17)
+
+- **Revision `c1o2micrmk3` deletes every `備註` and `備註列表` row owned by a
+  Comic**, shared and personal, for every account, at the owner's request.
+  Nothing was kept and no dump was taken for it, so the revision is
+  `irreversible`. H-Comic and the groups a comic sits in are untouched, and
+  comics keep both sections. It ran ahead of the remark-list rework so that
+  rework had no comic rows to carry.
+
+### Pull streams its progress, and never runs beside a Backup (2026-11-17)
+
+- **Pull streams the way Backup does, on the same plumbing.** `/pull`,
+  `/pull/{key}` and `/pull/{tab_name}` start the Pull on a worker thread with
+  its own session and relay a `processing` event per tab, then the pipeline's
+  own result dict unchanged as the last event, with a `: keepalive` every 15
+  seconds. A Pull All outlasts the tunnel's ~100-second idle window the same
+  way a Backup did. The second use is what justified factoring: the advisory
+  lock and the worker thread moved from `backup.py` into
+  `app/services/pipelines/worker.py` (`claim`, `start_worker`, every lock
+  key), and the SSE relay into `_relay` in `data_control.py`
+  (`BACKUP_KEEPALIVE_SECONDS` became `STREAM_KEEPALIVE_SECONDS`).
+- **Pull has its own lock, and Pull and Backup exclude each other.** A
+  second Pull is a 409, and so is a Pull while a Backup runs, and a Backup
+  (manual, Auto after Fill All / Replace All, or the nightly `sheets.sh`)
+  while a Pull runs. Rejected: a Pull that only excludes other Pulls. A Pull
+  reading a sheet that a Backup is rewriting tab by tab restores from half
+  old and half new data, and a Backup during a Pull writes the half-restored
+  database over the very sheet being read, losing what the Pull had not yet
+  reached. Rejected too: one shared lock for both, because the refusal would
+  then say "a backup is running" when it is a Pull. Each run takes its own
+  lock and then reads the other's from `pg_locks` without taking it; two
+  that start together both refuse, which is safe.
+- **The final result stays the pipeline's own dict**, so the page keeps the
+  counts and lists the JSON response carried; the stream adds nothing to it.
+  Pull All's failures, which used to surface as a bare 500, now arrive as an
+  `error` event carrying the message. An unknown tab is still a 400, decided
+  before anything starts.
+- **The frontend helper became `api/sheets.js`** (`runBackup`, `runPull`,
+  `backupToast`, `pullToast`), one stream reader for both; a single-tab Pull
+  that was skipped for want of `admin.authz` toasts as a warning rather than
+  a success.
+
+
+### 備註 is a shared list; 備註列表 is 個人筆記 Personal Notes (2026-11-17)
+
+- **備註 Remark became a list** (`text_links`, like every other list
+  section), still catalogue-scope and on every owner. One block of prose per
+  owner had turned into walls of unrelated points; a list lets each point be
+  its own row with the links it rests on. Revision `p1n2otesrmk3` dropped
+  `ix_note_one_remark_per_owner`.
+- **Each existing remark stayed one row, text unchanged, line breaks kept.**
+  Splitting on line breaks was rejected: a remark's lines are sometimes one
+  point wrapped by hand and sometimes several points, and nothing in the text
+  says which. Instead the revision logs every remark whose trimmed text runs
+  to more than one line - owner type, name, public id, ids and the full text -
+  before it changes anything, and `multiline_remarks(conn)` returns the same
+  list for a report outside a migration run. The owner splits those by hand.
+- **The virtual `remark` attribute went with the singleton.**
+  `attach_remark` / `upsert_remark` / `pop_remark` existed only to map one
+  row onto one string; with several rows there is no string to map, and two
+  editors of one row (the form's textarea and the Notes card) were already a
+  last-write-wins hazard. Entry and group schemas carry no `remark`, a
+  `remark` key sent to their routes is ignored, and the Remark textarea left
+  every Add and Modify form and every detail page: remarks are written in the
+  Notes card. The admin Remarks review returns `remarks`, every text of an
+  entry, one row per entry.
+- **備註列表 Remark List was renamed 個人筆記 Personal Notes** (`remark_list`
+  → `personal_notes`), still personal and still a list. With 備註 a list too,
+  "the list half of 備註" no longer told the two apart; who owns the rows
+  does. Pull files an older sheet's `remark_list` rows under the new key
+  (`_RETIRED_NOTE_SECTIONS`).
+- **The generic `singleton` flag stays**, unused by any section for now: the
+  notes router's and Pull's one-row checks are shared with `one_per_kind`
+  (`music_status`), and the frontend's structured sections honour it.
+- **Downgrade folds instead of refusing.** Putting the singleton index back
+  needs one remark row per owner, so the downgrade keeps the first row (the
+  notes page's order) and gives it every row's text, blank-line separated,
+  with links appended as `title: url` lines; the rest are deleted. Declaring
+  the revision `irreversible` was rejected, since a rollback can carry the
+  text; moving the extra rows to 備註列表 was rejected, since that would turn
+  shared catalogue text into one account's private notes.
+
+### Anime says whether it is the original or a remake (2026-11-17)
+
+- **A new column, `anime.original_or_remake`, over its own vocabulary
+  `ANIME_ORIGINAL_OR_REMAKE` (`Original` / `Remake`).** Anime's `is_main`
+  already answers 本傳 / 外傳 / 前傳 / 後傳 / 總集篇, so folding Remake into
+  it the way game's `is_main` carries Main / Remake / Remaster would have
+  mixed two questions in one column. The name is not `originality`:
+  h-comic's and hentai's `originality` already means 原版 / 同人.
+- **Never empty.** Unlike game's `is_main`, which stays NULL until someone
+  answers it, an anime that says nothing is the original: the column is NOT
+  NULL with a server default of `Original`, so revision `a1n2remake34`
+  filled every existing row as it added the column. A write naming `null`
+  or `""` is a 422 rather than a silent `Original`, and the form's select
+  has no blank. A Sheets cell that is blank or unknown reads as `Original`
+  instead of aborting the tab; a tab without the header keeps the default.
+- **Anime only**, not anime movie or any other type.
+- **It joins the anime duplicate key**, as `is_main` does game's: a remake
+  usually shares its original's name exactly.
+- **Auto-fill does not copy it.** The Add form copies fields from an entry
+  already in the catalogue, and the entry a remake is filled from is usually
+  its original.
+
+### Anime's `ep_special` is text (2026-11-17)
+
+- **`ep_special` is a string**, because specials are numbered `17.5A` and
+  `17.5B`, which a float cannot hold. Revision `e1p2special3` converted each
+  value with PostgreSQL's float-to-text cast, which already writes the
+  shortest form: `17.0` became `"17"`, `17.5` `"17.5"`, NULL stayed NULL.
+- **One rule makes a value canonical wherever it arrives**
+  (`app/utils/ep_special.py`): a plain number is written in its shortest
+  form (`17.50` -> `17.5`, `007` -> `7`), anything else is kept as typed,
+  trimmed, and a blank is NULL. The API applies it on create and full
+  update, and still accepts a JSON number from an older client; a Sheets
+  Pull applies it to a cell, so a Backup taken while the column was a float
+  (`17.0`) restores as `"17"`. Without it, `17` and `17.0` would be two
+  different values to the duplicate key.
+- **Nothing sorts it or computes with it**, so no ordering rule was needed.
+  Every reader was checked: the `ep_previous` eligibility (checking,
+  derivation, sequel relations) tests only for NULL; the duplicate key
+  compares by equality; watch orders pass it through and `specialLabel`
+  prints it; the detail page, Modify and the duplicates review display it.
+  A future sort would have to order by leading number, then suffix - a
+  string sort puts `10` before `9`.
+- **The downgrade is lossy, not impossible**: text that is a plain number
+  goes back to a float, and anything else (`17.5A`) becomes NULL. Until a
+  lettered special is written the round trip is exact, so the revision is
+  not declared `irreversible`.
+- **`PATCH` writes it as sent**, like every column it touches; the Modify
+  page's payload trims it and sends a blank as null.
+
+### Progress numbers are floats (2026-11-17)
+
+- **Every progress count and total is a float**: `ep_fin`, `ep_total`,
+  `ep_previous`, `issue_fin`, `issue_total`, `page_fin`, `page_total`, and
+  manga's and H-Comic's `ch_total` and manga's `vol_total` joined the
+  counters that were float already (`vol_fin`, `ch_fin`, `arc_fin`,
+  `ch_fin_in_arc`, novel's totals). Half an episode watched, or a total of
+  12.5 for a season with a recap half-episode, is a real value, and one
+  numeric type for every counter means one stepping rule. Not
+  `achievements_total` (a game's achievements are whole), and not
+  `vol_fin_page` (a page).
+- **Revision `p1r2ogfloat3`** alters the thirteen columns to double
+  precision; every integer converts exactly. **The downgrade floors**
+  (`floor(col)::integer`): a partial unit is not a finished one, so 2.5
+  episodes reads as 2 rather than rounding up to an episode nobody watched.
+- **Manga's `vol_fin` / `ch_fin` and H-Comic's `ch_fin` were float columns
+  behind `int` schemas**, so the API refused the fraction the column could
+  hold. Every schema now says `Optional[float]`.
+- **The Fill/Replace clamp stopped truncating.** `validate_episode_math`,
+  `validate_vol_math` and `validate_ch_math` parsed with `int(float(...))`,
+  which would have turned a total of 12.5 into 12 on the next Replace. They
+  share one float parser that also treats `nan` / `inf` as no value.
+- **+ and − go to the next integer in their direction**, not ±1: + is
+  `floor(x) + 1`, − is `ceil(x) - 1`. Adding one to 2.5 gives 3.5, a value
+  nobody stepping a counter means; and the dashboard cards' old
+  `Math.round(fin) ± 1` took 2.5 + to 4. The alternative of rounding a
+  fraction away on the first step was rejected because − from 2.5 should be
+  2, not 1.
+- **A tolerance of `1e-9`** lets a value that is an integer but for float
+  noise (2.0000000001, a sum like 0.1 + 0.2) step as that integer, so a step
+  never stalls or skips one.
+- **+ stops at the total without passing it**, a fractional one included
+  (2 + with a total of 2.5 → 2.5), and does nothing at the total. Some
+  cards used to toast "Cannot exceed total" on + at the total; the cap makes
+  that press a no-op instead, as `EpisodeStepper` and the manga and h-comic
+  steppers already behaved. Typing over the total is still refused with the
+  toast.
+- **One helper, `frontend/src/lib/progressStep.js`**, holds the rule, the
+  display formatter and the field list for every stepper, the novel arc
+  cursor included, so the cards and the detail pages cannot step
+  differently again. Display rounds to six decimals (`formatProgress`):
+  enough for any fraction a person types, and short of the noise a float sum
+  carries.
+
+### Novel becomes Book (2026-11-17)
+
+- **The type is renamed throughout, not just in the UI.** What the type
+  holds is broader than novels - short-story collections, guides and
+  setting books sit in it too - so the name was wrong wherever it appeared.
+  A label-only rename was rejected: it would have left the table, the
+  `media_type` key, the route, the permission, the franchise type and the
+  sheet tabs all saying `novel` under a page saying Book, which is exactly
+  the kind of mismatch "Suspect any shape that reads as uniform" warns
+  about. So: tables `book`, `book_unit`, `user_book_unit_rating`; columns
+  `book_id`, `book_name_*`; key and owner type `book`; route `/api/book`;
+  permission `media_type.book`; franchise type `Book`; tabs `Book`, `Book
+  Unit`, `User Book Unit Rating`; covers under `static/covers/book/`.
+  Revision `b1o2okrename3` (after `p1r2ogfloat3`) renames every named
+  object too - keys, indexes, checks, the `public_id` sequence and the
+  delete trigger - so the result is exactly what `create_all` builds, and
+  rewrites every stored spelling. Its downgrade reverses all of it.
+- **The `type` vocabulary becomes Chinese**: `輕小說`, `小說`, `網路小說`,
+  `短篇集`, `指南/設定集`, `其他`. The migration maps the old values one to
+  one (`Light Novel` → `輕小說`, `Novel` → `小說`, `Web` → `網路小說`,
+  `Other` → `其他`); `短篇集` and `指南/設定集` are new, and the owner moves
+  entries into them by hand - which entries belong there is not derivable
+  from anything stored. The downgrade sends both back to `Other`. The unit
+  rules follow the old mapping: `輕小說` and `小說` are volume-only as
+  `Light Novel` and `Novel` were, `網路小說` counts arcs as `Web` did, and
+  the two new types take `其他`'s rules. The JP author-name rule
+  (`name_slot_for`) follows `輕小說` and `網路小說`. *Gravity Falls: Lost
+  Legends*, a graphic novel, belongs under Comic and is moved by hand.
+- **Statistics keeps a section called Novel**, and it counts novels only:
+  books whose type is `輕小說`, `小說`, `網路小說` or `短篇集`
+  (`NOVEL_BOOK_TYPES` / `novelsOnly` in `frontend/src/utils/statsUtils.js`),
+  in both the completions tab and the rating distribution. A guide or an
+  `其他` book is a book, not a novel, and would skew a novel rating
+  distribution.
+- **The release date splits into JP and TW, as anime's did**, but the old
+  value goes to `release_date_jp` **only**; `release_date_tw` starts empty.
+  Anime copied its one date into both because it stood for both. A book's
+  stood for the original's first publication - MAL and Open Library filled
+  it, and both know only the original - so copying it into TW would have
+  invented a Taiwanese edition date. `end_date` stays one column, and
+  `RELEASE_PRIORITY["book"]` is JP then TW.
+- **Pull reads a sheet written before the rename, through a new tab-alias
+  mechanism.** Until now a renamed column was the only rename Pull knew
+  (`RENAMED_COLUMNS`); a renamed *tab* is new, and so are renamed cell
+  values. `app/services/pipelines/legacy_names.py` holds all three:
+  `LEGACY_TAB_NAMES` (`Book` may be titled `Novel`, and so on),
+  `RENAMED_COLUMNS` entries for `novel_name_*`, `novel_id` and
+  `release_date`, and `legacy_cell_values` for the `novel` key, the `Novel`
+  franchise token and `type_covers` key, `novel/` cover paths, the two
+  per-type `system_configs` keys and the fields inside them, and the old
+  type vocabulary. **The current tab title wins whenever it holds a row**:
+  a sheet backed up after the rename may keep the old tab beside the new
+  one, and that one is stale. **The old title is read only when the sheet
+  lists it**, because asking Sheets for a title it lacks creates the tab.
+  Backup writes only the new names, so the next Backup leaves nothing old
+  behind but the stale tabs, which nothing reads.
+- **Old URLs redirect**: `/novel/:publicId/:slug?` to `/book/...` and
+  `/library/novel` to `/library/book`, swapping only the type segment so the
+  id, slug, query and hash survive, with `replace` so the dead URL leaves no
+  history entry. Bookmarks and links pasted into notes keep working.
+- **The cover folders are copied at startup, not moved.** The migration
+  rewrites the stored paths but does not own the cover volume, so the app
+  copies `static/covers/novel/` and `static/covers/thumbs/novel/` into
+  `book/` when it starts (`copy_legacy_cover_folders`), never overwriting,
+  so every boot after the first copies nothing. A move was the first
+  version and was rejected before release: after a rollback the old code
+  would look for covers under `novel/` and find an empty folder. With a
+  copy the old folder is the rollback's copy; deleting it, and the copy
+  step, waits until the release has proved itself (open-items.md).
+- **Kept, on precedent.** The favourite book grid's stored `type_slots` key
+  stays `Novel`, as the ACG split left `ACG`: it is a storage key, not a
+  franchise type, and rewriting it buys nothing; the grid names its
+  franchises through `franchiseTypes: ["Book"]` instead. `deleted_record`
+  tombstones are not rewritten either - they record what was deleted at
+  the time - and DataHistory, the one reader that branches on the label,
+  accepts both `Novel` and `Book`. `type_covers` keys *are* rewritten, as ACG's were, because
+  they are franchise types. **Hentai's `Novel` source material stays**: it
+  names the genre the work adapts, not this app's type. So does genre prose
+  (light novel, web novel, visual novel, graphic novel), MAL and AniList
+  vocabulary, the retired `novel_author` / `novel_illustrator` keys, and
+  every historical revision.
+
+### Upcoming books and manga volumes (2026-11-17)
+
+- **Upcoming is a date, not a status.** A book unit carries its own
+  `release_date_jp` and `release_date_tw`, on every kind, and manga its
+  next volume's `next_vol_release_date_jp` and `next_vol_release_date_tw`.
+  Nothing records that a unit or a volume is out: it is upcoming while one of
+  its dates is still ahead, and a passed date drops it off Future Releases on
+  its own. A per-unit release status was rejected with the owner: it would
+  be a second statement of what the date already says, and the two would
+  disagree the day the date passes and nobody edits the status. The detail
+  pages keep showing a passed date until it is edited.
+- **Manga gets two columns, not the unit table.** What a manga reader waits
+  for is the next volume, one at a time; a table of every future volume
+  would be data nobody enters. Revision `u1p2coming3` adds the four date
+  columns (each with the `ck_<table>_<column>_iso` check every release
+  column has) and the unit's `cover_image_file`, all empty; its downgrade
+  drops them.
+- **"Ahead" for a partial date is the end of the period it names.** `2026`
+  stays upcoming until 31 December, `2026-11` until 30 November, and a date
+  that is today still counts (`isUpcomingReleaseDate`). The alternative,
+  reading a partial date as the first of its period - which is how
+  `releaseScore` *sorts* it - would drop a book announced for "2026-11" on
+  the first of the month, while it is still to come. Today is the viewer's
+  own calendar date, computed in the browser, which is where the page
+  decides.
+- **The filter runs in the browser, over the ordinary list endpoints.** The
+  book list already carries every book's `units` (`selectinload`), so a
+  unit's dates reach Future Releases with no new endpoint and no request per
+  book, and the per-type visibility - `media_type.book`, `media_type.manga`,
+  content labels - is the list endpoint's, exactly as every other tab of the
+  page gets it. A dedicated "upcoming" endpoint was not built: the other
+  tabs filter client-side too, and a second read path would need its own
+  copy of the gates.
+- **A unit's cover belongs to the image library, not to the units write.**
+  `book-unit` is an attachable owner (`ATTACHABLE_OWNERS`, mirror column
+  `book_unit.cover_image_file`), gated through its book
+  (`book_unit_visible`). `BookUnitWrite` has no cover field and
+  `write_book_units` never writes one, so a units save sent from a form
+  loaded before a cover was attached or removed cannot put the old value
+  back. That is why the picker appears only on a saved unit: the attach
+  needs an id. Entries differ - their cover rides in the entry body - but an
+  entry form is loaded and saved as one, where the units editor sits beside
+  an immediate attach on the same page.
+- **`book-unit` is not a `COVER_OWNERS` folder.** Like `quote` and `meme`,
+  a unit only ever holds an uploaded `library/...` image; nothing downloads
+  one, so a `static/covers/book-unit/` folder would always be empty, and
+  the gated cover route, the orphan scan and the cover-layout script would
+  each carry a type that never has a file. No focus column either: the cover
+  is drawn only as a thumbnail beside the unit's name.
+- **The books and manga tabs use the library card.** `MediaCard`'s future
+  variant is built for the watch and play axes - a Watch/Play When Released
+  select and a release bolt - and a book has neither a waiting status nor a
+  release status, so its tab draws the ordinary card with the reading-status
+  button, and the dates that list it underneath. A book is placed by its
+  earliest upcoming date, its own or a unit's, so a book with a volume due
+  next month and another next year appears once, in the nearer year, with
+  both volumes under it.
+- **PATCH checks a unit's dates in the writer.** The PATCH body is a raw
+  dict, so without the check a malformed unit date reached the ISO
+  constraint and answered 500; `write_book_units` now answers 422 with the
+  validator's message, as `POST` and `PUT` do.

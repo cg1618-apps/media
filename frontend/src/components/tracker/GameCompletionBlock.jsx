@@ -8,7 +8,7 @@
 //
 // Kept out of MyTrackerCard deliberately - that component serves nine media
 // types and these columns exist only on games. Same shape as
-// NovelTrackerBlock, which is the precedent for per-type tracker UI.
+// BookTrackerBlock, which is the precedent for per-type tracker UI.
 //
 // The completion axes are columns on the entry, so changing one edits the
 // work: an editor (`isAdmin`) gets a dropdown that writes through the
@@ -61,7 +61,7 @@ export default function GameCompletionBlock({
 }) {
   // A guest has no completion record, for the same reason they have no
   // tracker: every field here is one person's answer. Guarded in the component
-  // rather than at the page, matching MyTrackerCard and NovelTrackerBlock.
+  // rather than at the page, matching MyTrackerCard and BookTrackerBlock.
   const { username } = useAuth();
   if (!username) return null;
   // A personal axis is the viewer's own value: absent without self.list.

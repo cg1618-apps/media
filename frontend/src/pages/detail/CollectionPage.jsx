@@ -6,7 +6,7 @@
 // group holds the one "Franchises" tab instead of a tab per media type, and
 // there are no status filters or roll-up statistics. Clicking a member card
 // lands on the normal Franchise hub.
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { endpoints } from "../../api/endpoints";
 import { buildUrl } from "../../api/client";
@@ -44,10 +44,8 @@ import {
   Slip,
   RatingStamp,
   Chip,
-  Button,
 } from "../../components/ui/primitives";
 import FranchiseCard from "../../components/cards/FranchiseCard";
-import RemarkModal from "../../components/modals/RemarkModal";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import WatchOrderSection from "../../components/tracker/WatchOrderSection";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
@@ -56,7 +54,6 @@ import { usePageTitle } from "../../contexts/PageTitleContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { useViewScope } from "../../hooks/useViewScope";
 import { useMyRatingSaver } from "../../api/mutations/useMyRatingMutations";
-import { useRemarkSaver } from "../../api/mutations/useRemark";
 
 export default function CollectionPage() {
   const { publicId } = useParams();
@@ -69,31 +66,15 @@ export default function CollectionPage() {
   const [members, setMembers] = useState([]);
   const [allEntriesDict, setAllEntriesDict] = useState({});
   const [allEntriesByFranchise, setAllEntriesByFranchise] = useState({});
-  const [remarkDraft, setRemarkDraft] = useState("");
   const [activeTab, setActiveTab] = useState("Franchises");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showRemark, setShowRemark] = useState(false);
-  const [remarkClipped, setRemarkClipped] = useState(false);
   // Everything past the lookup still speaks UUIDs; only the URL segment
   // changed. Resolved from the fetched row so the two can never disagree.
   const system_id = collection?.system_id;
-  const saveCatalogueRemark = useRemarkSaver("collection", system_id, setCollection);
   const saveMyRating = useMyRatingSaver("collection", system_id, setCollection);
-  const remarkRef = useRef(null);
 
   useCanonicalPath("collection", collection);
-
-  // The inline box stays a fixed three rows; "Show all" is only worth offering
-  // when the text actually runs past it.
-  useEffect(() => {
-    const el = remarkRef.current;
-    if (!el) {
-      setRemarkClipped(false);
-      return;
-    }
-    setRemarkClipped(el.scrollHeight > el.clientHeight + 1);
-  }, [remarkDraft, loading]);
 
   useEffect(() => {
     let cancelled = false;
@@ -129,7 +110,7 @@ export default function CollectionPage() {
           fetch("/api/tv-shows/?limit=2000", { credentials: "include" }),
           fetch("/api/cartoon/?limit=2000", { credentials: "include" }),
           fetch("/api/manga/?limit=2000", { credentials: "include" }),
-          fetch("/api/novel/?limit=2000", { credentials: "include" }),
+          fetch("/api/book/?limit=2000", { credentials: "include" }),
           fetch("/api/comic/?limit=2000", { credentials: "include" }),
         ]);
 
@@ -143,7 +124,7 @@ export default function CollectionPage() {
           tvShows,
           cartoons,
           mangas,
-          novels,
+          books,
           comics,
         ] = await Promise.all(responses.map((r) => r.json()));
 
@@ -156,13 +137,12 @@ export default function CollectionPage() {
           ...withMediaType(tvShows, "tv-show"),
           ...withMediaType(cartoons, "cartoon"),
           ...withMediaType(mangas, "manga"),
-          ...withMediaType(novels, "novel"),
+          ...withMediaType(books, "book"),
           ...withMediaType(comics, "comic"),
         ];
 
         if (cancelled) return;
         setCollection(collectionData);
-        setRemarkDraft(collectionData.remark || "");
         setMembers(franchises);
         setAllEntriesDict(
           Object.fromEntries(allEntries.map((e) => [e.system_id, e])),
@@ -194,12 +174,6 @@ export default function CollectionPage() {
       ),
     [members],
   );
-
-  // Shared by the inline box and the full-view modal, which edit one draft.
-  function saveRemark() {
-    if (isAdmin && remarkDraft !== (collection?.remark || ""))
-      saveCatalogueRemark(remarkDraft);
-  }
 
   // The heading's name, which the browser tab shows too.
   const name = collection
@@ -355,36 +329,6 @@ export default function CollectionPage() {
               </div>
             </Slip>
           )}
-
-          {/* The catalogue remark: drawn for a holder of manage.catalog, who
-              edits it, and read-only for everyone else once one exists. */}
-          {(isAdmin || collection.remark) && (
-            <Slip
-              title="Remark"
-              actions={
-                remarkClipped && (
-                  <Button
-                    kind="ghost"
-                    size="sm"
-                    type="button"
-                    onClick={() => setShowRemark(true)}
-                  >
-                    Show all
-                  </Button>
-                )
-              }
-            >
-              <textarea
-                ref={remarkRef}
-                value={remarkDraft}
-                onChange={(e) => setRemarkDraft(e.target.value)}
-                onBlur={() => saveRemark()}
-                readOnly={!isAdmin}
-                rows={3}
-                className="w-full border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none transition border-border bg-surface text-text"
-              />
-            </Slip>
-          )}
         </div>
       </div>
 
@@ -480,25 +424,10 @@ export default function CollectionPage() {
           title="Notes"
           subtitle="Structured notes belonging to the whole collection"
         >
-          {/* The hero remark editor above edits the same singleton note row, so
-              hide the duplicate `remark` section wherever that editor renders. */}
           <CollectionNotes
             collection={collection}
-            hideSections={isAdmin || collection.remark ? ["remark"] : []}
           />
         </Section>
-      )}
-
-      {showRemark && (
-        <RemarkModal
-          value={remarkDraft}
-          canEdit={isAdmin}
-          onChange={setRemarkDraft}
-          onClose={() => {
-            saveRemark();
-            setShowRemark(false);
-          }}
-        />
       )}
     </HubShell>
   );

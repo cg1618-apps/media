@@ -366,7 +366,7 @@ def test_guide_resources_and_resources_share_neither_key_nor_label():
 
 
 def test_no_guide_section_reaches_another_media_type():
-    for owner in ("anime", "novel", "manga", "series", "franchise", "collection"):
+    for owner in ("anime", "book", "manga", "series", "franchise", "collection"):
         keys = {s.key for s in ns.sections_for(owner)}
         for key in GUIDES_ORDER + ["guide_resources"]:
             assert key not in keys, (owner, key)

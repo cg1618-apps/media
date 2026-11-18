@@ -2,7 +2,7 @@
 Read-only endpoint for Tier 1 closed enums.
 
 These are the values business logic branches on - "Not Yet Aired" makes Fill
-skip mal_rating, "完結" gates the novel volume checks - so they live in code and
+skip mal_rating, "完結" gates the book volume checks - so they live in code and
 are never editable rows. The endpoint exists so the frontend stops keeping a
 second copy of each list; see docs/options.md for the canonical documentation.
 
@@ -134,11 +134,13 @@ def _constants() -> dict[str, list[str]]:
         "is_main": list(c.IS_MAIN),
         # Game and h-game's is_main reads its own vocabulary, not IS_MAIN.
         "game_is_main": list(c.GAME_IS_MAIN),
+        # Anime's Original / Remake, a column beside its is_main.
+        "anime_original_or_remake": list(c.ANIME_ORIGINAL_OR_REMAKE),
         "movie_type": list(c.MOVIE_TYPES),
         "tv_region": list(c.TV_REGIONS),
         "manga_region": list(c.MANGA_REGIONS),
-        "novel_region": list(c.NOVEL_REGIONS),
-        "novel_type": list(c.NOVEL_TYPES),
+        "book_region": list(c.BOOK_REGIONS),
+        "book_type": list(c.BOOK_TYPES),
         "comic_type": list(c.COMIC_TYPES),
         "game_type": list(c.GAME_TYPES),
         "completion_level": list(c.COMPLETION_LEVELS),
@@ -154,7 +156,7 @@ def _constants() -> dict[str, list[str]]:
         "game_copy_format": list(c.GAME_COPY_FORMATS),
         "game_acquisition": list(c.GAME_ACQUISITION_KINDS),
         "manga_serialization_status": list(c.MANGA_SERIALIZATION_STATUSES),
-        "novel_serialization_status": list(c.NOVEL_SERIALIZATION_STATUSES),
+        "book_serialization_status": list(c.BOOK_SERIALIZATION_STATUSES),
         "day_of_week": list(c.WEEKDAYS),
         "music_status": list(c.MUSIC_STATUSES),
         # The status of a whole song list (an anime's OPs, EDs, insert songs

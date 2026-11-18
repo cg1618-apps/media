@@ -4,8 +4,8 @@ The rules that make an h-comic an h-comic, on every write path.
 Two invariants, and one place that keeps them:
 
   variant   The columns a region does not use are CLEARED, not merely hidden
-            by the form - the same rule novel's volume-only types follow
-            (derive_novel_catalog). A KR entry has no originality, animation
+            by the form - the same rule book's volume-only types follow
+            (derive_book_catalog). A KR entry has no originality, animation
             status, series number or page total; a JP entry has no chapter
             total or chapters behind, and no account keeps a highlight group
             order for it (its rows in user_highlight_group_order are

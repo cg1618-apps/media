@@ -170,7 +170,8 @@ function CastRow({ row }) {
 }
 
 // The whole cast, every role, in a dialog. Same backdrop rule as
-// RemarkModal: only a press that starts on the backdrop dismisses it.
+// ImagePicker's: only a press that starts on the backdrop dismisses it, so a
+// selection drag released past the panel edge does not.
 function FullCastModal({ cast, onClose, identityToggle }) {
   const pressedBackdrop = useRef(false);
   useEffect(() => {
@@ -226,7 +227,7 @@ function FullCastModal({ cast, onClose, identityToggle }) {
 }
 
 // Renders nothing when the entry has no cast — an empty "Cast" slip would
-// just be a title over a blank box, same rule NovelUnitsCard follows for
+// just be a title over a blank box, same rule BookUnitsCard follows for
 // units. A row's voices are a list: one character may have several seiyuu,
 // each with a remark saying which ("child", "ep 13-"). Types nobody voices
 // simply have none.

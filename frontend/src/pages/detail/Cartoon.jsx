@@ -24,7 +24,6 @@ import {
   Eyebrow,
   ProgressRule,
   RatingStamp,
-  Slip,
 } from "../../components/ui/primitives";
 import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
@@ -36,13 +35,10 @@ import ContentLabelChips from "../../components/info/ContentLabelChips";
 import LazyImage from "../../components/ui/LazyImage";
 import { focusStyle } from "../../lib/covers";
 import { useViewScope } from "../../hooks/useViewScope";
-import { useRemarkSaver } from "../../api/mutations/useRemark";
 
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
-const textareaCls =
-  "block w-full border border-border-strong bg-surface text-text px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand disabled:bg-surface-2 disabled:text-text-faint disabled:cursor-not-allowed";
 const lineageLinkCls =
   "text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition";
 
@@ -61,7 +57,6 @@ export default function Cartoon() {
   // changed. Resolved from the fetched row so the two can never disagree.
   const system_id = cartoonQuery.data?.system_id;
   const { ownData } = useViewScope();
-  const saveRemark = useRemarkSaver("cartoon", system_id, setCartoon);
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const allCartoonsQuery = useMediaList("cartoon", LIST_OPTIONS);
@@ -475,35 +470,10 @@ export default function Cartoon() {
             </TocSection>
           </div>
 
-          {/* Remarks */}
-          <TocSection id="remarks" label="Remarks">
-            {cartoon.remark && (
-              <Slip title="Remarks">
-                <textarea
-                  key={cartoon.system_id}
-                  defaultValue={cartoon.remark || ""}
-                  readOnly={!isAdmin}
-                  onBlur={(e) => {
-                    if (isAdmin && e.target.value !== (cartoon.remark || ""))
-                      saveRemark(e.target.value);
-                  }}
-                  rows={4}
-                  placeholder="Add remarks…"
-                  className={textareaCls}
-                ></textarea>
-              </Slip>
-            )}
-          </TocSection>
-
           {/* Structured Notes */}
-          {/* The dedicated remark textarea above renders whenever a remark
-              exists - editable for a holder of manage.catalog, read-only for
-              everyone else; hide the notes page's `remark` section exactly
-              then, so the one row never has two editors on one screen. */}
           <CartoonNotes
             key={cartoon.system_id}
             cartoon={cartoon}
-            hideSections={cartoon.remark ? ["remark"] : []}
             series={series}
             franchise={franchise}
           />

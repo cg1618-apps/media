@@ -27,7 +27,7 @@ from tests.api.conftest import make_viewer, role_id_for
 HIGHLIGHT_SECTIONS = {
     "highlights": "anime",
     "highlight_episodes": "tv-show",
-    "highlight_passages": "novel",
+    "highlight_passages": "book",
     "highlight_moments": "game",
     "h_comic_highlights": "h-comic",
     "h_game_highlights": "h-game",

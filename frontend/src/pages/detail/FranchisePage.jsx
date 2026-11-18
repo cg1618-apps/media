@@ -1,5 +1,5 @@
 // Frontend: page component file for FranchisePage.
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { releaseScore, releaseYear } from "../../lib/releaseDate";
 import { useParams, Link } from "react-router-dom";
 import { endpoints } from "../../api/endpoints";
@@ -41,10 +41,8 @@ import {
   RatingStamp,
   Chip,
   ProgressRule,
-  Button,
 } from "../../components/ui/primitives";
 import MediaCard from "../../components/cards/MediaCard";
-import RemarkModal from "../../components/modals/RemarkModal";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import WatchOrderSection from "../../components/tracker/WatchOrderSection";
 import HubCharacters from "../../components/hub/HubCharacters";
@@ -63,7 +61,6 @@ import { useViewScope } from "../../hooks/useViewScope";
 import { useMyRatingSaver } from "../../api/mutations/useMyRatingMutations";
 import { entityPath } from "../../lib/entityPath";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
-import { useRemarkSaver } from "../../api/mutations/useRemark";
 
 function GroupRail({ label, count }) {
   return (
@@ -107,10 +104,14 @@ function movieDateScore(m) {
   return releaseScore(m.release_date_tw || m.release_date_usa);
 }
 
+// JP first, matching the stored release priority for books.
+function bookDateScore(n) {
+  return releaseScore(n.release_date_jp || n.release_date_tw);
+}
+
 function tvDateScore(t) {
   return releaseScore(t.release_date);
 }
-
 
 export default function FranchisePage() {
   const { publicId } = useParams();
@@ -133,7 +134,7 @@ export default function FranchisePage() {
   const [tvShowList, setTvShowList] = useState([]);
   const [cartoonList, setCartoonList] = useState([]);
   const [mangaList, setMangaList] = useState([]);
-  const [novelList, setNovelList] = useState([]);
+  const [bookList, setBookList] = useState([]);
   const [comicList, setComicList] = useState([]);
   const [gameList, setGameList] = useState([]);
   const [hComicList, setHComicList] = useState([]);
@@ -147,10 +148,6 @@ export default function FranchisePage() {
   const [expectation, setExpectation] = useState("");
   const [plannedTypes, setPlannedTypes] = useState(new Set());
   const [rewatchMarked, setRewatchMarked] = useState(new Set());
-  const [remark, setRemark] = useState("");
-  const [showRemark, setShowRemark] = useState(false);
-  const [remarkClipped, setRemarkClipped] = useState(false);
-  const remarkRef = useRef(null);
 
   // ── tab ───────────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState(null);
@@ -177,10 +174,10 @@ export default function FranchisePage() {
     region: new Set(),
   });
 
-  // ── Novel tab state ───────────────────────────────────────────────────────
-  const [novelSort, setNovelSort] = useState("title");
-  const [novelGroupBySeries, setNovelGroupBySeries] = useState(false);
-  const [novelFilters, setNovelFilters] = useState({
+  // ── Book tab state ───────────────────────────────────────────────────────
+  const [bookSort, setBookSort] = useState("title");
+  const [bookGroupBySeries, setBookGroupBySeries] = useState(false);
+  const [bookFilters, setBookFilters] = useState({
     serializationStatus: new Set(),
     readingStatus: new Set(),
     region: new Set(),
@@ -225,7 +222,6 @@ export default function FranchisePage() {
   // Everything past the lookup still speaks UUIDs; only the URL segment
   // changed. Resolved from the fetched row so the two can never disagree.
   const system_id = franchise?.system_id;
-  const saveCatalogueRemark = useRemarkSaver("franchise", system_id, setFranchise);
   const saveMyRating = useMyRatingSaver("franchise", system_id, setFranchise);
 
   useCanonicalPath("franchise", franchise);
@@ -319,7 +315,7 @@ export default function FranchisePage() {
             fetch(buildUrl(endpoints.resource("manga").list(), { franchise_id: resolvedId }), {
               credentials: "include",
             }),
-            fetch(buildUrl(endpoints.resource("novel").list(), { franchise_id: resolvedId }), {
+            fetch(buildUrl(endpoints.resource("book").list(), { franchise_id: resolvedId }), {
               credentials: "include",
             }),
             fetch(buildUrl(endpoints.resource("comic").list(), { franchise_id: resolvedId }), {
@@ -355,7 +351,7 @@ export default function FranchisePage() {
         setTvShowList(tv);
         setCartoonList(c);
         setMangaList(mg);
-        setNovelList(nv);
+        setBookList(nv);
         setComicList(cm);
         setGameList(gm);
         setHComicList(hc);
@@ -384,7 +380,6 @@ export default function FranchisePage() {
         );
         setRating(franchiseData.my_rating || "");
         setExpectation(franchiseData.franchise_expectation || "");
-        setRemark(franchiseData.remark || "");
       } catch (e) {
         if (!cancelled) setError(e.message);
       } finally {
@@ -404,8 +399,8 @@ export default function FranchisePage() {
   );
   const hasAnime = useMemo(() => types.includes("Anime"), [types]);
   const hasManga = useMemo(() => types.includes("Manga"), [types]);
-  const hasNovel = useMemo(
-    () => types.includes("Novel") || hasAnime || hasManga,
+  const hasBook = useMemo(
+    () => types.includes("Book") || hasAnime || hasManga,
     [types, hasAnime, hasManga],
   );
   const hasAnimeMovie = useMemo(() => types.includes("Anime Movie"), [types]);
@@ -426,7 +421,7 @@ export default function FranchisePage() {
   const hasHGame = inRestrictedFamily;
 
   // Media types this franchise carries a size bucket for, restricted to
-  // franchise-eligible scopes (comic/anime-movie/manga/novel can never be
+  // franchise-eligible scopes (comic/anime-movie/manga/book can never be
   // planned at franchise level - see scopesFor / ALLOWED_SCOPES["next"]).
   const sizeGroupMediaTypes = useMemo(() => {
     const keys = new Set([
@@ -442,7 +437,7 @@ export default function FranchisePage() {
   // Media types this franchise actually holds entries for, driven by the
   // per-type entry lists rather than franchise_type (which is multi-valued
   // and bundles types together: Anime alone covers anime, anime movies and
-  // novels).
+  // books).
   const franchiseMediaTypes = useMemo(() => {
     const list = [];
     if (animeList.length) list.push("anime");
@@ -451,7 +446,7 @@ export default function FranchisePage() {
     if (tvShowList.length) list.push("tv-show");
     if (cartoonList.length) list.push("cartoon");
     if (mangaList.length) list.push("manga");
-    if (novelList.length) list.push("novel");
+    if (bookList.length) list.push("book");
     if (comicList.length) list.push("comic");
     if (gameList.length) list.push("game");
     if (hComicList.length) list.push("h-comic");
@@ -465,7 +460,7 @@ export default function FranchisePage() {
     tvShowList,
     cartoonList,
     mangaList,
-    novelList,
+    bookList,
     comicList,
     gameList,
     hComicList,
@@ -499,7 +494,7 @@ export default function FranchisePage() {
         offered: hasAnime || hasAnimeMovie,
       },
       { label: "Manga", type: "manga", entries: mangaList, offered: hasManga },
-      { label: "Novel", type: "novel", entries: novelList, offered: hasNovel },
+      { label: "Book", type: "book", entries: bookList, offered: hasBook },
       { label: "Comic", type: "comic", entries: comicList, offered: hasComic },
       { label: "Game", type: "game", entries: gameList, offered: hasGame },
       { label: "H-Comic", type: "h-comic", entries: hComicList, offered: hasHComic },
@@ -513,7 +508,7 @@ export default function FranchisePage() {
     franchise,
     hasAnime,
     hasManga,
-    hasNovel,
+    hasBook,
     hasComic,
     hasGame,
     hasHComic,
@@ -526,7 +521,7 @@ export default function FranchisePage() {
     animeList,
     animeMovieList,
     mangaList,
-    novelList,
+    bookList,
     comicList,
     gameList,
     hComicList,
@@ -597,9 +592,9 @@ export default function FranchisePage() {
       setMangaList((p) => p.map((m) => (m.system_id === u.system_id ? u : m))),
     [],
   );
-  const handleNovelUpdated = useCallback(
+  const handleBookUpdated = useCallback(
     (u) =>
-      setNovelList((p) => p.map((n) => (n.system_id === u.system_id ? u : n))),
+      setBookList((p) => p.map((n) => (n.system_id === u.system_id ? u : n))),
     [],
   );
   const handleGameUpdated = useCallback(
@@ -650,17 +645,6 @@ export default function FranchisePage() {
       cancelled = true;
     };
   }, [franchise?.collection_id]);
-
-  // The inline box stays a fixed three rows; "Show all" is only worth offering
-  // when the text actually runs past it.
-  useEffect(() => {
-    const el = remarkRef.current;
-    if (!el) {
-      setRemarkClipped(false);
-      return;
-    }
-    setRemarkClipped(el.scrollHeight > el.clientHeight + 1);
-  }, [remark, loading]);
 
   async function saveField(field, value) {
     try {
@@ -737,12 +721,6 @@ export default function FranchisePage() {
       "size_group_manual",
       Object.keys(nextManual).length > 0 ? nextManual : null,
     );
-  }
-
-  // Shared by the inline box and the full-view modal, which edit one draft.
-  function saveRemark() {
-    if (isAdmin && remark !== (franchise?.remark || ""))
-      saveCatalogueRemark(remark);
   }
 
   function toggleSetFilter(setFn, group, value) {
@@ -909,20 +887,20 @@ export default function FranchisePage() {
     return result;
   }, [filteredAndSortedManga, seriesList]);
 
-  // ── Novel memos ───────────────────────────────────────────────────────────
-  const filteredAndSortedNovel = useMemo(() => {
-    let result = novelList.filter((n) => {
+  // ── Book memos ───────────────────────────────────────────────────────────
+  const filteredAndSortedBook = useMemo(() => {
+    let result = bookList.filter((n) => {
       if (
-        novelFilters.serializationStatus.size > 0 &&
-        !novelFilters.serializationStatus.has(n.serialization_status || "")
+        bookFilters.serializationStatus.size > 0 &&
+        !bookFilters.serializationStatus.has(n.serialization_status || "")
       )
         return false;
       if (
-        novelFilters.region.size > 0 &&
-        !novelFilters.region.has(n.region || "")
+        bookFilters.region.size > 0 &&
+        !bookFilters.region.has(n.region || "")
       )
         return false;
-      if (novelFilters.readingStatus.size > 0) {
+      if (bookFilters.readingStatus.size > 0) {
         const rs = n.reading_status || "Might Read";
         let group = "Might Read";
         if (rs === "Plan to Read") group = "Planned";
@@ -932,36 +910,34 @@ export default function FranchisePage() {
           group = "Completed";
         else if (["Temp Dropped", "Dropped", "Won't Read"].includes(rs))
           group = "Dropped";
-        if (!novelFilters.readingStatus.has(group)) return false;
+        if (!bookFilters.readingStatus.has(group)) return false;
       }
       return true;
     });
     result.sort((a, b) => {
-      if (novelSort === "my_rating")
+      if (bookSort === "my_rating")
         return getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating);
-      if (novelSort === "mal_rating") {
+      if (bookSort === "mal_rating") {
         const wA = a.mal_rating != null ? parseFloat(a.mal_rating) : -1;
         const wB = b.mal_rating != null ? parseFloat(b.mal_rating) : -1;
         if (wA !== wB) return wB - wA;
       }
-      if (novelSort === "release_date")
-        return (
-          releaseScore(a.release_date) - releaseScore(b.release_date)
-        );
-      if (novelSort === "end_date")
+      if (bookSort === "release_date")
+        return bookDateScore(a) - bookDateScore(b);
+      if (bookSort === "end_date")
         return releaseScore(a.end_date) - releaseScore(b.end_date);
-      return (a.novel_name_cn || a.novel_name_en || "").localeCompare(
-        b.novel_name_cn || b.novel_name_en || "",
+      return (a.book_name_cn || a.book_name_en || "").localeCompare(
+        b.book_name_cn || b.book_name_en || "",
       );
     });
     return result;
-  }, [novelList, novelFilters, novelSort]);
+  }, [bookList, bookFilters, bookSort]);
 
-  const novelSeriesGroups = useMemo(() => {
+  const bookSeriesGroups = useMemo(() => {
     const sm = Object.fromEntries(seriesList.map((s) => [s.system_id, s]));
     const grouped = {};
     const standalone = [];
-    filteredAndSortedNovel.forEach((n) => {
+    filteredAndSortedBook.forEach((n) => {
       if (n.series_id && sm[n.series_id]) {
         (grouped[n.series_id] = grouped[n.series_id] || []).push(n);
       } else standalone.push(n);
@@ -969,12 +945,12 @@ export default function FranchisePage() {
     const result = [];
     seriesList.forEach((s) => {
       if (grouped[s.system_id]?.length > 0)
-        result.push({ type: "series", series: s, novels: grouped[s.system_id] });
+        result.push({ type: "series", series: s, books: grouped[s.system_id] });
     });
     if (standalone.length > 0)
-      result.push({ type: "standalone", novels: standalone });
+      result.push({ type: "standalone", books: standalone });
     return result;
-  }, [filteredAndSortedNovel, seriesList]);
+  }, [filteredAndSortedBook, seriesList]);
 
   // ── Comic memos ───────────────────────────────────────────────────────────
   // Era is user-defined in system_options, so the filter row is built from
@@ -1297,7 +1273,7 @@ export default function FranchisePage() {
     ...withMediaType(tvShowList, "tv-show"),
     ...withMediaType(cartoonList, "cartoon"),
     ...withMediaType(mangaList, "manga"),
-    ...withMediaType(novelList, "novel"),
+    ...withMediaType(bookList, "book"),
     ...withMediaType(comicList, "comic"),
     ...withMediaType(gameList, "game"),
     ...withMediaType(hComicList, "h-comic"),
@@ -1530,37 +1506,6 @@ export default function FranchisePage() {
                   </>
                 )}
               </div>
-            </Slip>
-          )}
-
-          {/* The catalogue remark: drawn for a holder of manage.catalog, who
-              edits it, and read-only for everyone else once one exists. */}
-          {(isAdmin || franchise.remark) && (
-            <Slip
-              title="Remark"
-              actions={
-                remarkClipped && (
-                  <Button
-                    kind="ghost"
-                    size="sm"
-                    type="button"
-                    onClick={() => setShowRemark(true)}
-                  >
-                    Show all
-                  </Button>
-                )
-              }
-            >
-              <textarea
-                ref={remarkRef}
-                value={remark}
-                onChange={(e) => setRemark(e.target.value)}
-                onBlur={() => saveRemark()}
-                readOnly={!isAdmin}
-                rows={3}
-                placeholder="Overview notes, watch order guides or remarks for the whole franchise"
-                className="w-full border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none transition border-border bg-surface text-text"
-              />
             </Slip>
           )}
         </div>
@@ -1925,19 +1870,19 @@ export default function FranchisePage() {
           </Section>
         )}
 
-      {/* ── Novel tab content ────────────────────────────────────────────── */}
-      {activeTab === "Novel" &&
-        novelList.length > 0 && (
+      {/* ── Book tab content ────────────────────────────────────────────── */}
+      {activeTab === "Book" &&
+        bookList.length > 0 && (
           <Section
-            title="Novel"
-            subtitle="Light Novel · Web Novel · Novel"
-            count={filteredAndSortedNovel.length}
+            title="Book"
+            subtitle="輕小說 · 小說 · 網路小說 · 短篇集 · 指南/設定集 · 其他"
+            count={filteredAndSortedBook.length}
           >
 
             <div className="flex flex-wrap gap-2 mb-4 items-center">
               <select
-                value={novelSort}
-                onChange={(e) => setNovelSort(e.target.value)}
+                value={bookSort}
+                onChange={(e) => setBookSort(e.target.value)}
                 className={SELECT_CLS}
               >
                 <option value="title">Sort: title</option>
@@ -1955,9 +1900,9 @@ export default function FranchisePage() {
                 <button
                   key={v}
                   onClick={() =>
-                    toggleSetFilter(setNovelFilters, "serializationStatus", v)
+                    toggleSetFilter(setBookFilters, "serializationStatus", v)
                   }
-                  className={pillCls(novelFilters.serializationStatus.has(v))}
+                  className={pillCls(bookFilters.serializationStatus.has(v))}
                 >
                   {v}
                 </button>
@@ -1970,9 +1915,9 @@ export default function FranchisePage() {
                   <button
                     key={v}
                     onClick={() =>
-                      toggleSetFilter(setNovelFilters, "readingStatus", v)
+                      toggleSetFilter(setBookFilters, "readingStatus", v)
                     }
-                    className={pillCls(novelFilters.readingStatus.has(v))}
+                    className={pillCls(bookFilters.readingStatus.has(v))}
                   >
                     {v}
                   </button>
@@ -1984,8 +1929,8 @@ export default function FranchisePage() {
               {["JP", "CN", "TW", "KR", "Western"].map((v) => (
                 <button
                   key={v}
-                  onClick={() => toggleSetFilter(setNovelFilters, "region", v)}
-                  className={pillCls(novelFilters.region.has(v))}
+                  onClick={() => toggleSetFilter(setBookFilters, "region", v)}
+                  className={pillCls(bookFilters.region.has(v))}
                 >
                   {v}
                 </button>
@@ -1994,18 +1939,18 @@ export default function FranchisePage() {
               <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
               <button
-                onClick={() => setNovelGroupBySeries((v) => !v)}
-                className={pillCls(novelGroupBySeries)}
+                onClick={() => setBookGroupBySeries((v) => !v)}
+                className={pillCls(bookGroupBySeries)}
               >
                 Group by series
               </button>
             </div>
 
-            {filteredAndSortedNovel.length === 0 ? (
+            {filteredAndSortedBook.length === 0 ? (
               <FilterEmpty />
-            ) : novelGroupBySeries ? (
+            ) : bookGroupBySeries ? (
               <div className="space-y-8">
-                {novelSeriesGroups.map((group) => {
+                {bookSeriesGroups.map((group) => {
                   const label =
                     group.type === "series"
                       ? getDisplayName(group.series, "series") ||
@@ -2019,14 +1964,14 @@ export default function FranchisePage() {
                           : "standalone"
                       }
                     >
-                      <GroupRail label={label} count={group.novels.length} />
+                      <GroupRail label={label} count={group.books.length} />
                       <div className={GRID_CLS}>
-                        {group.novels.map((n) => (
+                        {group.books.map((n) => (
                           <MediaCard
                             key={n.system_id}
-                            type="novel"
+                            type="book"
                             data={n}
-                            onUpdated={handleNovelUpdated}
+                            onUpdated={handleBookUpdated}
                           />
                         ))}
                       </div>
@@ -2036,12 +1981,12 @@ export default function FranchisePage() {
               </div>
             ) : (
               <div className={GRID_CLS}>
-                {filteredAndSortedNovel.map((n) => (
+                {filteredAndSortedBook.map((n) => (
                   <MediaCard
                     key={n.system_id}
-                    type="novel"
+                    type="book"
                     data={n}
-                    onUpdated={handleNovelUpdated}
+                    onUpdated={handleBookUpdated}
                   />
                 ))}
               </div>
@@ -2709,11 +2654,8 @@ export default function FranchisePage() {
           title="Notes"
           subtitle="Structured notes belonging to the whole franchise"
         >
-          {/* The hero remark editor above edits the same singleton note row, so
-              hide the duplicate `remark` section wherever that editor renders. */}
           <FranchiseNotes
             franchise={franchise}
-            hideSections={isAdmin || franchise.remark ? ["remark"] : []}
           />
         </Section>
       )}
@@ -2728,18 +2670,6 @@ export default function FranchisePage() {
             Nothing is filed under this franchise yet. Assign entries to it from the Modify page.
           </p>
         </section>
-      )}
-
-      {showRemark && (
-        <RemarkModal
-          value={remark}
-          canEdit={isAdmin}
-          onChange={setRemark}
-          onClose={() => {
-            saveRemark();
-            setShowRemark(false);
-          }}
-        />
       )}
     </HubShell>
   );

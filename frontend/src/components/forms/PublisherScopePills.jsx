@@ -22,7 +22,7 @@ export const PUBLISHER_SCOPES = [
   { key: "anime", label: "Anime" },
   { key: "anime-movie", label: "Anime Movie" },
   { key: "manga", label: "Manga" },
-  { key: "novel", label: "Novel" },
+  { key: "book", label: "Book" },
   { key: "comic", label: "Comic" },
   { key: "game", label: "Game" },
 ];

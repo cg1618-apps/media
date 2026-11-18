@@ -76,6 +76,7 @@ it("has a config for every media type that has a library", () => {
     [
       "anime",
       "anime-movie",
+      "book",
       "cartoon",
       "comic",
       "game",
@@ -84,7 +85,6 @@ it("has a config for every media type that has a library", () => {
       "hentai",
       "manga",
       "movie",
-      "novel",
       "tv-show",
     ]
   );
@@ -128,7 +128,7 @@ it("sorting an anime library by AniList repoints the card's score slot", async (
 });
 
 it("every AniList type offers both AniList sorts, and no other type does", () => {
-  const ANILIST_TYPES = ["anime", "anime-movie", "manga", "novel"];
+  const ANILIST_TYPES = ["anime", "anime-movie", "manga", "book"];
   for (const [type, cfg] of Object.entries(LIBRARY_CONFIGS)) {
     const keys = cfg.sortDefs.map((s) => s.key);
     const expected = ANILIST_TYPES.includes(type);

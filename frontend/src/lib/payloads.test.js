@@ -13,7 +13,7 @@ import {
   hentaiFieldsPayload,
   mangaFieldsPayload,
   movieFieldsPayload,
-  novelFieldsPayload,
+  bookFieldsPayload,
   tvShowFieldsPayload,
 } from "./payloads";
 
@@ -41,20 +41,20 @@ describe("source rows in the payload", () => {
   });
 });
 
-// serialization_platform is a TAG_FIELD on manga AND novel (app/utils/
-// credit_roles.py) and the novel response already exposes it, so the novel
+// serialization_platform is a TAG_FIELD on manga AND book (app/utils/
+// credit_roles.py) and the book response already exposes it, so the book
 // form has to be able to write it too - otherwise the field is readable and
 // unwritable.
-describe("novel serialization_platform", () => {
+describe("book serialization_platform", () => {
   it("is sent to the credits endpoint as a tag", () => {
-    const payload = buildCreditsPayload("novel", {
+    const payload = buildCreditsPayload("book", {
       serialization_platform: "Kakuyomu, Narou",
     });
     expect(payload.tags.serialization_platform).toEqual(["Kakuyomu", "Narou"]);
   });
 
   it("comes back out of a credits response", () => {
-    const form = creditsResponseToForm("novel", {
+    const form = creditsResponseToForm("book", {
       tags: { serialization_platform: ["Kakuyomu"] },
     });
     expect(form.serialization_platform).toBe("Kakuyomu");
@@ -88,7 +88,7 @@ describe("manga genre and label tags", () => {
   });
 
   it("are mapped on every type that carries them, and not on h-comic", () => {
-    for (const type of ["anime-movie", "movie", "tv-show", "cartoon", "manga", "novel", "comic"]) {
+    for (const type of ["anime-movie", "movie", "tv-show", "cartoon", "manga", "book", "comic"]) {
       const { tags } = buildCreditsPayload(type, { genre_main: "", genre_sub: "", label: "" });
       expect(Object.keys(tags)).toEqual(["genre_main", "genre_sub", "label"]);
     }
@@ -108,7 +108,7 @@ describe("the publisher field posts a credit, not a tag", () => {
     // field for the first time in this migration.
     ["anime-movie", "distributor_tw"],
     ["manga", "publisher_tw"],
-    ["novel", "publisher_tw"],
+    ["book", "publisher_tw"],
     ["comic", "publisher"],
   ])("sends %s's %s under the publisher role", (mediaType, field) => {
     const payload = buildCreditsPayload(mediaType, { [field]: "木棉花, 東立" });
@@ -121,7 +121,7 @@ describe("the publisher field posts a credit, not a tag", () => {
     ["anime", "distributor_tw"],
     ["anime-movie", "distributor_tw"],
     ["manga", "publisher_tw"],
-    ["novel", "publisher_tw"],
+    ["book", "publisher_tw"],
     ["comic", "publisher"],
   ])("reads %s's %s back out of the credits half", (mediaType, field) => {
     const form = creditsResponseToForm(mediaType, {
@@ -470,14 +470,14 @@ describe("hentai", () => {
   });
 });
 
-// The person credits of manga, novel and comic are `author` and `illustrator`,
+// The person credits of manga, book and comic are `author` and `illustrator`,
 // scoped by media type (CREDIT_ROLES in app/utils/credit_roles.py). The PUT
 // rejects any other key with a 400, and rejects the WHOLE body, so one retired
 // key costs every credit on the entry - the publisher included.
-describe("manga, novel and comic person credits", () => {
+describe("manga, book and comic person credits", () => {
   it.each([
     ["manga", { author_plot: "A", author_draw: "B" }],
-    ["novel", { author: "A", illustrator: "B" }],
+    ["book", { author: "A", illustrator: "B" }],
     ["comic", { writer: "A", artist: "B" }],
   ])("%s sends author and illustrator", (mediaType, form) => {
     const payload = buildCreditsPayload(mediaType, form);
@@ -486,7 +486,7 @@ describe("manga, novel and comic person credits", () => {
 
   it.each([
     ["manga", "author_plot", "author_draw"],
-    ["novel", "author", "illustrator"],
+    ["book", "author", "illustrator"],
     ["comic", "writer", "artist"],
   ])("%s reads author and illustrator back out", (mediaType, a, i) => {
     const form = creditsResponseToForm(mediaType, {
@@ -634,17 +634,62 @@ describe("anime release dates and runtime", () => {
   });
 });
 
-describe("novel read order", () => {
+describe("anime ep_special", () => {
+  it("is sent as text, so a lettered special survives", () => {
+    expect(buildAnimePayload({ ep_special: "17.5A" }).ep_special).toBe("17.5A");
+    expect(buildAnimePayload({ ep_special: " 17.5 " }).ep_special).toBe("17.5");
+  });
+
+  it("sends a blank as null", () => {
+    expect(buildAnimePayload({ ep_special: "" }).ep_special).toBeNull();
+    expect(buildAnimePayload({}).ep_special).toBeNull();
+  });
+});
+
+describe("anime original or remake", () => {
+  it("sends the chosen value", () => {
+    const body = buildAnimePayload({ original_or_remake: "Remake" });
+    expect(body.original_or_remake).toBe("Remake");
+  });
+
+  it("never sends it empty: a blank is the original", () => {
+    // The column is NOT NULL, so a null would be refused on the way in.
+    expect(buildAnimePayload({}).original_or_remake).toBe("Original");
+    expect(buildAnimePayload({ original_or_remake: "" }).original_or_remake).toBe(
+      "Original",
+    );
+  });
+});
+
+describe("book release dates", () => {
+  it("sends the JP and TW release dates apart, and no plain release_date", () => {
+    const body = bookFieldsPayload({
+      release_date_jp: "2019-04",
+      release_date_tw: "2020-05-01",
+      end_date: "2023",
+    });
+    expect(body.release_date_jp).toBe("2019-04");
+    expect(body.release_date_tw).toBe("2020-05-01");
+    expect(body.end_date).toBe("2023");
+    expect("release_date" in body).toBe(false);
+    expect(bookFieldsPayload({ release_date_jp: "", release_date_tw: "" })).toMatchObject({
+      release_date_jp: null,
+      release_date_tw: null,
+    });
+  });
+});
+
+describe("book read order", () => {
   it("is no longer sent; comic keeps its own", () => {
-    expect("read_order" in novelFieldsPayload({ read_order: "1" })).toBe(false);
+    expect("read_order" in bookFieldsPayload({ read_order: "1" })).toBe(false);
     expect(comicFieldsPayload({ read_order: "2" }).read_order).toBe(2);
   });
 });
 
-describe("manga, novel and comic bodies", () => {
+describe("manga, book and comic bodies", () => {
   it.each([
     ["manga", mangaFieldsPayload],
-    ["novel", novelFieldsPayload],
+    ["book", bookFieldsPayload],
     ["comic", comicFieldsPayload],
   ])("%s leaves the franchise and series to the caller", (_, build) => {
     const body = build({ franchise_id: "f1", series_id: "s1" });
@@ -654,13 +699,22 @@ describe("manga, novel and comic bodies", () => {
 
   it.each([
     ["manga", mangaFieldsPayload],
-    ["novel", novelFieldsPayload],
+    ["book", bookFieldsPayload],
     ["comic", comicFieldsPayload],
   ])("%s falls back to the default status it is given", (_, build) => {
     expect(build({ reading_status: "" }, { defaultStatus: "Reading" }).reading_status).toBe(
       "Reading",
     );
     expect(build({ reading_status: "" }).reading_status).toBe("Might Read");
+  });
+
+  it("manga sends its next volume's dates, a blank one as null", () => {
+    const body = mangaFieldsPayload({
+      next_vol_release_date_jp: "2027-01-05",
+      next_vol_release_date_tw: "",
+    });
+    expect(body.next_vol_release_date_jp).toBe("2027-01-05");
+    expect(body.next_vol_release_date_tw).toBeNull();
   });
 
   // A blank "finished" count is "not recorded", not zero chapters read.
@@ -688,15 +742,15 @@ describe("manga, novel and comic bodies", () => {
     });
   });
 
-  it("novel sends blank finished counts as null", () => {
-    const body = novelFieldsPayload({ vol_fin: "", arc_fin: "", ch_fin: "" });
+  it("book sends blank finished counts as null", () => {
+    const body = bookFieldsPayload({ vol_fin: "", arc_fin: "", ch_fin: "" });
     expect(body.vol_fin).toBeNull();
     expect(body.arc_fin).toBeNull();
     expect(body.ch_fin).toBeNull();
   });
 
-  it("novel keeps a half volume", () => {
-    const body = novelFieldsPayload({ vol_fin: "2.5", arc_fin: "1", ch_fin: "40" });
+  it("book keeps a half volume", () => {
+    const body = bookFieldsPayload({ vol_fin: "2.5", arc_fin: "1", ch_fin: "40" });
     expect(body).toMatchObject({ vol_fin: 2.5, arc_fin: 1, ch_fin: 40 });
   });
 
@@ -711,7 +765,7 @@ describe("manga, novel and comic bodies", () => {
   // mal_rank is a string column ("#1234" as MAL prints it).
   it.each([
     ["manga", mangaFieldsPayload],
-    ["novel", novelFieldsPayload],
+    ["book", bookFieldsPayload],
   ])("%s sends its MAL rank as typed", (_, build) => {
     expect(build({ mal_rank: "#1234" }).mal_rank).toBe("#1234");
     expect(build({ mal_rank: "" }).mal_rank).toBeNull();
@@ -720,7 +774,7 @@ describe("manga, novel and comic bodies", () => {
   // anilist_rating is an int column on both (0-100).
   it.each([
     ["manga", mangaFieldsPayload],
-    ["novel", novelFieldsPayload],
+    ["book", bookFieldsPayload],
   ])("%s sends its AniList fields as whole numbers", (_, build) => {
     expect(
       build({
@@ -735,8 +789,8 @@ describe("manga, novel and comic bodies", () => {
     });
   });
 
-  it("novel drops empty unit rows and numbers the rest", () => {
-    const body = novelFieldsPayload({
+  it("book drops empty unit rows and numbers the rest", () => {
+    const body = bookFieldsPayload({
       units: [
         { unit_kind: "volume", unit_key: "", name_cn: "", name_en: "", remark: "", ch_count: "" },
         { unit_kind: "volume", unit_key: "1", name_cn: "", name_en: "", remark: "", ch_count: "8" },
@@ -749,16 +803,40 @@ describe("manga, novel and comic bodies", () => {
         name_cn: "",
         name_en: "",
         ch_count: 8,
+        release_date_jp: null,
+        release_date_tw: null,
         position: 1,
       },
     ]);
   });
 
-  it("novel sends none of a unit's personal values", () => {
+  it("book keeps a unit row that holds only a release date", () => {
+    const body = bookFieldsPayload({
+      units: [
+        { unit_kind: "volume", unit_key: "", name_cn: "", name_en: "", ch_count: "",
+          release_date_jp: "", release_date_tw: "2027-03" },
+        { unit_kind: "volume", unit_key: "", name_cn: "", name_en: "", ch_count: "",
+          release_date_jp: "", release_date_tw: "" },
+      ],
+    });
+    expect(body.units).toEqual([
+      expect.objectContaining({ position: 1, release_date_jp: null, release_date_tw: "2027-03" }),
+    ]);
+  });
+
+  it("book never sends a unit's cover, which the image library writes", () => {
+    const body = bookFieldsPayload({
+      units: [{ system_id: "u1", unit_kind: "volume", unit_key: "1", ch_count: null,
+        cover_image_file: "library/abc.jpg" }],
+    });
+    expect(body.units[0]).not.toHaveProperty("cover_image_file");
+  });
+
+  it("book sends none of a unit's personal values", () => {
     // A row read back from the server carries the viewer's own rating and
-    // remark; they belong to PUT /api/me/novel-units, not the catalogue
+    // remark; they belong to PUT /api/me/book-units, not the catalogue
     // write, and a remark alone does not keep an otherwise empty row.
-    const body = novelFieldsPayload({
+    const body = bookFieldsPayload({
       units: [
         { system_id: "u1", unit_kind: "arc", unit_key: "a", name_cn: "", name_en: "",
           ch_count: 10, my_rating: "S", remark: "mine", display_key: "a" },
@@ -767,7 +845,7 @@ describe("manga, novel and comic bodies", () => {
     });
     expect(body.units).toEqual([
       { system_id: "u1", unit_kind: "arc", unit_key: "a", name_cn: "", name_en: "",
-        ch_count: 10, position: 1 },
+        ch_count: 10, release_date_jp: null, release_date_tw: null, position: 1 },
     ]);
   });
 
@@ -831,5 +909,26 @@ describe("film release status and anime movie release type", () => {
       release_date_tw: "2025-03",
     });
     expect(body).toMatchObject({ release_date_jp: "2025-01", release_date_tw: "2025-03" });
+  });
+});
+
+describe("progress counts and totals travel as floats", () => {
+  it.each([
+    [(f) => buildAnimePayload({ ep_previous: "", ...f }), ["ep_previous", "ep_total", "ep_fin"]],
+    [tvShowFieldsPayload, ["ep_total", "ep_fin"]],
+    [cartoonFieldsPayload, ["ep_total", "ep_fin"]],
+    [hentaiFieldsPayload, ["ep_total", "ep_fin"]],
+    [mangaFieldsPayload, ["vol_total", "vol_fin", "ch_total", "ch_fin"]],
+    [comicFieldsPayload, ["issue_total", "issue_fin"]],
+    [hComicFieldsPayload, ["page_total", "page_fin", "ch_total", "ch_fin"]],
+  ])("keeps a fraction (%#)", (build, fields) => {
+    const form = Object.fromEntries(fields.map((key) => [key, "2.5"]));
+    const body = build(form);
+    for (const key of fields) expect(body[key]).toBe(2.5);
+  });
+
+  it("keeps a page of a volume whole", () => {
+    // Mirror: vol_fin_page is not a progress count, so it stays an integer.
+    expect(mangaFieldsPayload({ vol_fin_page: "12.7" }).vol_fin_page).toBe(12);
   });
 });

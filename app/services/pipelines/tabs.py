@@ -24,7 +24,7 @@ The chains that must hold, all pinned by tests/api/test_sheet_restore_order.py:
     Character -> Character Identity -> Character Casting
     Users, the three tiers, Character / Person / Studio / Publisher
                      -> User Rating
-    Users, Novel Unit -> User Novel Unit Rating
+    Users, Book Unit -> User Book Unit Rating
     Users, H-Comic, H-Game -> User Highlight Group Order
     Users, Note      -> Note Mark
     Users, Quote, Meme -> User Favorite
@@ -310,15 +310,15 @@ SHEET_TABS: tuple[SheetTab, ...] = (
     SheetTab("TV Shows", models.TVShows, f.parse_tv_show_from_sheet, "tv-show", drop_columns=MEDIA_TYPE_ONLY, extra_columns=DISPLAY_NAME_EXTRA),
     SheetTab("Cartoons", models.Cartoon, f.parse_cartoon_from_sheet, "cartoon", drop_columns=MEDIA_TYPE_ONLY, extra_columns=DISPLAY_NAME_EXTRA),
     SheetTab("Manga", models.Manga, f.parse_manga_from_sheet, "manga", drop_columns=MEDIA_TYPE_ONLY, extra_columns=DISPLAY_NAME_EXTRA),
-    SheetTab("Novel", models.Novel, f.parse_novel_from_sheet, "novel", drop_columns=MEDIA_TYPE_ONLY, extra_columns=DISPLAY_NAME_EXTRA),
-    # After Novel: novel_id is a real FK, so the parent rows must exist first.
-    SheetTab("Novel Unit", models.NovelUnit, f.parse_novel_unit_from_sheet),
-    # A reader's rating of and remark on a unit, per user. After Novel Unit,
+    SheetTab("Book", models.Book, f.parse_book_from_sheet, "book", drop_columns=MEDIA_TYPE_ONLY, extra_columns=DISPLAY_NAME_EXTRA),
+    # After Book: book_id is a real FK, so the parent rows must exist first.
+    SheetTab("Book Unit", models.BookUnit, f.parse_book_unit_from_sheet),
+    # A reader's rating of and remark on a unit, per user. After Book Unit,
     # whose uuid unit_id names and which travels unchanged.
     SheetTab(
-        "User Novel Unit Rating",
-        models.UserNovelUnitRating,
-        f.parse_user_novel_unit_rating_from_sheet,
+        "User Book Unit Rating",
+        models.UserBookUnitRating,
+        f.parse_user_book_unit_rating_from_sheet,
         drop_columns=("user_id",),
         extra_columns=(("username", _row_username),),
     ),

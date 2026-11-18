@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useToast } from "../../hooks/useToast";
 import { endpoints } from "../../api/endpoints";
-import { backupToast, runBackup } from "../../api/backup";
+import { backupToast, pullToast, runBackup, runPull } from "../../api/sheets";
 import { postEventStream } from "../../api/client";
 import FxRatesEditor from "./FxRatesEditor";
 import PendingRegistrations from "./PendingRegistrations";
@@ -951,6 +951,7 @@ export default function Admin() {
   // Pull state
   const [pullTab, setPullTab] = useState("Anime");
   const [pullLoading, setPullLoading] = useState(false);
+  const [pullProgress, setPullProgress] = useState(null);
   const [pushLoading, setPushLoading] = useState(false);
   const [pushProgress, setPushProgress] = useState(null);
 
@@ -1071,18 +1072,19 @@ export default function Admin() {
     abortRef.current?.abort();
   }
 
-  async function executeSync(url, setLoading) {
-    setLoading(true);
+  // Pull All, or the one tab named - streamed like Backup, counting tabs.
+  async function handlePull(tab) {
+    setPullLoading(true);
     try {
-      const res = await fetch(url, { method: "POST", credentials: "include" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Action failed.");
-      showToast("success", "Pipeline execution successful.");
+      const result = await runPull({
+        tab,
+        onProgress: ({ processed, total }) => setPullProgress(`${processed}/${total}`),
+      });
+      showToast(...pullToast(result));
       loadLogs();
-    } catch (e) {
-      showToast("error", `Pipeline Error: ${e.message}`);
     } finally {
-      setLoading(false);
+      setPullLoading(false);
+      setPullProgress(null);
     }
   }
 
@@ -1498,7 +1500,7 @@ export default function Admin() {
                 { label: "TV Show", url: "/api/data-control/fill/tv-show" },
                 { label: "Cartoon", url: "/api/data-control/fill/cartoon" },
                 { label: "Manga", url: "/api/data-control/fill/manga" },
-                { label: "Novel", url: "/api/data-control/fill/novel" },
+                { label: "Book", url: "/api/data-control/fill/book" },
                 // Deliberately absent from Fill All: Comic Vine allows only
                 // ~200 requests/hour, so a bulk comic fill is triggered on
                 // purpose rather than riding along with every full run.
@@ -1564,7 +1566,7 @@ export default function Admin() {
                 { label: "TV Show", url: "/api/data-control/replace/tv-show" },
                 { label: "Cartoon", url: "/api/data-control/replace/cartoon" },
                 { label: "Manga", url: "/api/data-control/replace/manga" },
-                { label: "Novel", url: "/api/data-control/replace/novel" },
+                { label: "Book", url: "/api/data-control/replace/book" },
                 // Replace for games runs IGDB (fill-only - nothing in it
                 // drifts) and then Steam: the Metacritic score and this
                 // collection's own playtime and achievements.
@@ -1599,14 +1601,15 @@ export default function Admin() {
               icon="fa-cloud-download-alt"
             >
               <button
-                onClick={() =>
-                  executeSync("/api/data-control/pull", setPullLoading)
-                }
+                onClick={() => handlePull()}
                 disabled={pullLoading}
                 className="w-full bg-surface hover:border-text border border-border-strong text-text py-2 rounded-lg text-xs font-bold shadow-sm transition disabled:opacity-60"
               >
                 {pullLoading ? (
-                  <i className="fas fa-circle-notch fa-spin"></i>
+                  <>
+                    <i className="fas fa-circle-notch fa-spin"></i>
+                    {pullProgress && <span className="ml-2">{pullProgress}</span>}
+                  </>
                 ) : (
                   "Pull All"
                 )}
@@ -1623,7 +1626,7 @@ export default function Admin() {
                   <option value="TV Shows">TV Show</option>
                   <option value="Cartoons">Cartoon</option>
                   <option value="Manga">Manga</option>
-                  <option value="Novel">Novel</option>
+                  <option value="Book">Book</option>
                   <option value="Comic">Comic</option>
                   <option value="Collection">Collection</option>
                   <option value="Franchise">Franchise</option>
@@ -1639,12 +1642,7 @@ export default function Admin() {
                   <option value="Seasonal">Seasonal</option>
                 </select>
                 <button
-                  onClick={() =>
-                    executeSync(
-                      `/api/data-control/pull/${pullTab}`,
-                      setPullLoading,
-                    )
-                  }
+                  onClick={() => handlePull(pullTab)}
                   disabled={pullLoading}
                   className="bg-surface hover:border-text border border-border-strong text-text px-2.5 rounded-lg text-[10px] font-bold disabled:opacity-60"
                 >

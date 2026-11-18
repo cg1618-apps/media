@@ -2,11 +2,11 @@
 An old backup's personal values, filed under the installation owner.
 
 A backup taken before revision u1r2atings3 carries, on the Collection,
-Franchise, Series, Character, Person, Studio, Publisher and Novel Unit tabs,
-the rating and expectation that were columns on the shared row, and a novel
-unit's remark (and its rating, from before user_novel_unit_rating). They are
+Franchise, Series, Character, Person, Studio, Publisher and Book Unit tabs,
+the rating and expectation that were columns on the shared row, and a book
+unit's remark (and its rating, from before user_book_unit_rating). They are
 opinions, and that revision moved them to the installation owner's
-user_rating / user_novel_unit_rating rows - so Pull of such a sheet does the
+user_rating / user_book_unit_rating rows - so Pull of such a sheet does the
 same rather than drop them.
 
 A backup taken before revision h1i2ghlights3 carries, on the H-Comic and
@@ -39,9 +39,9 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from app.services.domain.book_unit_writer import write_unit_rating
 from app.services.domain.highlight_group_order import write_group_order
 from app.services.domain.note_marks import pop_legacy_note_values, write_mark
-from app.services.domain.novel_unit_writer import write_unit_rating
 from app.services.domain.user_favorite import write_favorite
 from app.services.domain.user_list import installation_owner_id
 from app.services.domain.user_rating import write_rating
@@ -64,7 +64,7 @@ LEGACY_PERSONAL_COLUMNS: dict[str, tuple[str, dict[str, str]]] = {
     "Person": ("person", {"my_rating": "my_rating"}),
     "Studio": ("studio", {"my_rating": "my_rating"}),
     "Publisher": ("publisher", {"my_rating": "my_rating"}),
-    "Novel Unit": ("novel_unit", {"my_rating": "my_rating", "remark": "remark"}),
+    "Book Unit": ("book_unit", {"my_rating": "my_rating", "remark": "remark"}),
     "H-Comic": ("group_order", {"highlight_group_order": "group_order"}),
     "H-Game": ("group_order", {"highlight_group_order": "group_order"}),
     "Quote": ("favorite_quote", {"is_favorite": "is_favorite"}),
@@ -136,7 +136,7 @@ def restore_legacy_personal(
         write_mark(db, owner, owner_id, values)
         return None
     owner_type, _fields = LEGACY_PERSONAL_COLUMNS[tab_name]
-    if owner_type == "novel_unit":
+    if owner_type == "book_unit":
         write_unit_rating(db, owner, owner_id, values)
     elif owner_type in FAVORITE_KIND:
         # A blank cell is "not a favourite", as the column's False was.

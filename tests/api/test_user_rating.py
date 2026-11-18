@@ -1,11 +1,11 @@
 """
-Ratings and expectations belong to an account (user_rating), and a novel
-unit's rating and remark to a reader (user_novel_unit_rating).
+Ratings and expectations belong to an account (user_rating), and a book
+unit's rating and remark to a reader (user_book_unit_rating).
 
 Every read keeps the old field names - my_rating, collection_expectation,
 franchise_expectation, series_expectation, a unit's remark - filled with the
 VIEWER'S own value, null with nobody asking. Every write goes through
-PUT /api/me/ratings/... and /api/me/novel-units/..., behind self.list.
+PUT /api/me/ratings/... and /api/me/book-units/..., behind self.list.
 
 Requires PostgreSQL. See tests/api/conftest.py.
 """
@@ -484,46 +484,46 @@ def test_a_character_merge_moves_ratings_too(
     assert _row(db_session, kana, "character", character.system_id).my_rating == "A"
 
 
-# --- Novel units --------------------------------------------------------------
+# --- Book units --------------------------------------------------------------
 
 
 @pytest.fixture
-def novel_unit(db_session, sample_franchise):
-    novel = models.Novel(
+def book_unit(db_session, sample_franchise):
+    book = models.Book(
         system_id=uuid.uuid4(),
         franchise_id=sample_franchise.system_id,
-        novel_name_en="Ratable Novel",
+        book_name_en="Ratable Book",
     )
-    db_session.add(novel)
+    db_session.add(book)
     db_session.flush()
-    unit = models.NovelUnit(
-        system_id=uuid.uuid4(), novel_id=novel.system_id, unit_kind="volume", position=1
+    unit = models.BookUnit(
+        system_id=uuid.uuid4(), book_id=book.system_id, unit_kind="volume", position=1
     )
     db_session.add(unit)
     db_session.flush()
-    return novel, unit
+    return book, unit
 
 
 def _unit_row(db, user, unit):
     return (
-        db.query(models.UserNovelUnitRating)
+        db.query(models.UserBookUnitRating)
         .filter_by(user_id=user.id, unit_id=unit.system_id)
         .first()
     )
 
 
 def test_two_readers_keep_their_own_unit_rating_and_remark(
-    db_session, client, user_client, kana_client, novel_unit
+    db_session, client, user_client, kana_client, book_unit
 ):
-    novel, unit = novel_unit
-    r = user_client.put(f"/api/me/novel-units/{unit.system_id}",
+    book, unit = book_unit
+    r = user_client.put(f"/api/me/book-units/{unit.system_id}",
                         json={"my_rating": "A", "remark": "mine"})
     assert r.status_code == 200
     assert r.json() == {"unit_id": str(unit.system_id), "my_rating": "A", "remark": "mine"}
-    kana_client.put(f"/api/me/novel-units/{unit.system_id}", json={"remark": "kana's"})
+    kana_client.put(f"/api/me/book-units/{unit.system_id}", json={"remark": "kana's"})
 
     def unit_of(c):
-        return c.get(f"/api/novel/{novel.system_id}").json()["units"][0]
+        return c.get(f"/api/book/{book.system_id}").json()["units"][0]
 
     assert (unit_of(user_client)["my_rating"], unit_of(user_client)["remark"]) == ("A", "mine")
     assert (unit_of(kana_client)["my_rating"], unit_of(kana_client)["remark"]) == (None, "kana's")
@@ -531,10 +531,10 @@ def test_two_readers_keep_their_own_unit_rating_and_remark(
 
 
 def test_a_unit_write_is_partial_and_clearing_both_deletes_the_row(
-    db_session, user_client, plain_user, novel_unit
+    db_session, user_client, plain_user, book_unit
 ):
-    _novel, unit = novel_unit
-    path = f"/api/me/novel-units/{unit.system_id}"
+    _book, unit = book_unit
+    path = f"/api/me/book-units/{unit.system_id}"
     user_client.put(path, json={"my_rating": "A", "remark": "x"})
     assert user_client.put(path, json={"my_rating": None}).json()["remark"] == "x"
     assert _unit_row(db_session, plain_user, unit) is not None
@@ -545,28 +545,28 @@ def test_a_unit_write_is_partial_and_clearing_both_deletes_the_row(
 
 
 def test_a_unit_write_needs_self_list_and_a_known_rating(
-    db_session, client, user_client, plain_user, novel_unit
+    db_session, client, user_client, plain_user, book_unit
 ):
-    _novel, unit = novel_unit
-    path = f"/api/me/novel-units/{unit.system_id}"
+    _book, unit = book_unit
+    path = f"/api/me/book-units/{unit.system_id}"
     user_client.put(path, json={"my_rating": "A"})
     reader = make_guest_reader(db_session, client, username="nounitrating")
 
     assert reader.put(path, json={"my_rating": "F"}).status_code == 401
     assert _unit_row(db_session, plain_user, unit).my_rating == "A"
     assert user_client.put(path, json={"my_rating": "Z"}).status_code == 422
-    assert user_client.put(f"/api/me/novel-units/{uuid.uuid4()}",
+    assert user_client.put(f"/api/me/book-units/{uuid.uuid4()}",
                            json={"my_rating": "A"}).status_code == 404
 
 
-def test_the_novel_write_carries_no_unit_rating_or_remark(
-    db_session, owner_client, novel_unit
+def test_the_book_write_carries_no_unit_rating_or_remark(
+    db_session, owner_client, book_unit
 ):
     """The catalogue write's units payload ignores a rating and a remark -
     they belong to a reader and are written only through /api/me."""
-    novel, unit = novel_unit
+    book, unit = book_unit
     r = owner_client.patch(
-        f"/api/novel/{novel.system_id}",
+        f"/api/book/{book.system_id}",
         json={"units": [{"system_id": str(unit.system_id), "unit_kind": "volume",
                          "position": 1, "my_rating": "S", "remark": "admin note"}]},
     )
@@ -574,5 +574,5 @@ def test_the_novel_write_carries_no_unit_rating_or_remark(
     assert (r.json()["units"][0]["my_rating"], r.json()["units"][0]["remark"]) == (
         None, None
     )
-    assert db_session.query(models.UserNovelUnitRating).count() == 0
-    assert "remark" not in models.NovelUnit.__table__.c
+    assert db_session.query(models.UserBookUnitRating).count() == 0
+    assert "remark" not in models.BookUnit.__table__.c

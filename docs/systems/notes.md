@@ -4,7 +4,7 @@ Last verified: 2026-11-17
 
 ## What this is for
 
-Notes are the structured commentary you attach to anything in the library: a media entry (anime, comic, novel...) or one of the three grouping tiers (collection, franchise, series). Every bullet — an advantage, an episode comment, an OP you still need to find, a link to a resource — is one row in the single `note` table, and a backend registry decides which *sections* exist, which owners they apply to, and what each row may contain. The frontend notes page reads that registry and renders it; it does not know section names itself (with two narrow, documented exceptions). The old per-owner `remark` column is now just one more section, so the same table also feeds the "Remark" field on the Add/Modify forms and detail pages.
+Notes are the structured commentary you attach to anything in the library: a media entry (anime, comic, book...) or one of the three grouping tiers (collection, franchise, series). Every bullet — an advantage, an episode comment, an OP you still need to find, a link to a resource — is one row in the single `note` table, and a backend registry decides which *sections* exist, which owners they apply to, and what each row may contain. The frontend notes page reads that registry and renders it; it does not know section names itself (with two narrow, documented exceptions). The old per-owner `remark` column is now just one more section, so the same table also feeds the "Remark" field on the Add/Modify forms and detail pages.
 
 ## Model
 
@@ -37,7 +37,6 @@ Constraint and indexes (declared in `__table_args__`, so `create_all` test datab
 | --- | --- | --- |
 | `ck_note_one_owner` | CHECK `num_nonnulls(media_id, collection_id, franchise_id, series_id) = 1` | Exactly one owner, enforced by the database rather than by convention. |
 | `ix_note_owner_section` | `(media_id, collection_id, franchise_id, series_id, section)` | The only read path the notes page uses. |
-| `ix_note_one_remark_per_owner` | unique `(media_id, collection_id, franchise_id, series_id)` **NULLS NOT DISTINCT**, **WHERE `section = 'remark'`** | One `remark` per owner, whoever wrote it: `remark` is a catalogue-scope singleton, and `upsert_remark`, `attach_remark` and the singleton check all read one row per owner. `NULLS NOT DISTINCT` is required — three of the four owner columns are always NULL, and Postgres would otherwise treat every row as unique and silently disable the index. Shaped by `alembic/versions/r1e2mcatalog3_remark_catalogue.py` and declared on the model; name and predicate must stay identical. |
 | `ix_note_one_music_status_per_kind` | unique `(media_id, kind)` **WHERE `section = 'music_status'`** | One status per anime per song list. `music_status` is anime-only, so `media_id` is the whole owner. Created by `alembic/versions/m1s2ongstat3_music_status_and_song_rows.py`; name and predicate must stay identical. |
 
 Column declaration order is also the Google Sheets column order, because `format_model_for_sheet` in `app/utils/formatter.py` walks `__table__.columns`.
@@ -267,8 +266,8 @@ is all the author's.
 
 | Key | Label | Shape | Group / standalone | Owners | Kinds (`kind`) | Statuses | Locator placeholder | Locator req. | Singleton | Content req. |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `remark` | 備註 Remark | text | flat | All | — | — | — | no | **yes** | no |
-| `remark_list` | 備註列表 Remark List | text_links | flat | All | — | — | — | no | no | no |
+| `remark` | 備註 Remark | text_links | flat | All | — | — | — | no | no | no |
+| `personal_notes` | 個人筆記 Personal Notes | text_links | flat | All | — | — | — | no | no | no |
 | `introduction` | 介紹 Introduction | text_links | reviews (first) | All but h-comic, hentai | — | — | — | no | no | no |
 | `advantages` | 優點 Advantages | text_links | reviews | All but h-comic, hentai | — | — | — | no | no | no |
 | `disadvantages` | 缺點 Disadvantages | text_links | reviews | All but h-comic, hentai | — | — | — | no | no | no |
@@ -278,17 +277,17 @@ is all the author's.
 | `episode_comments` | 各集評論 Episode Comments (manga: 各話評論 Chapter Comments; game: 各章評論 Part Reviews) | episode_text | reviews | anime, tv-show, cartoon, manga, game | — | — | "Episode, e.g. ep 1" (manga: "Chapter, e.g. ch 1"; game: "Chapter / Part, e.g. Ch 3") | **yes** | no | **every owner it has** |
 | `highlights` | 神回/神片段 Highlights | episode_text | flat | anime | 神回, 神片段, 神篇章 | — | "Episode(s), e.g. ep 6" | **yes** | no | no |
 | `highlight_episodes` | 神回/神片段 (manga: 神回) | episode_text | flat | tv-show, cartoon, manga | tv-show & cartoon: 神回, 神片段, 神篇章; manga: none | — | "Episode(s), e.g. ep 3" (manga: "Chapter(s), e.g. ch 6") | **yes** | no | no |
-| `highlight_passages` | 神片段 | text | flat | novel | — | — | — | no | no | no |
+| `highlight_passages` | 神片段 | text | flat | book | — | — | — | no | no | no |
 | `highlight_moments` | 神場景 Highlights | episode_text | flat | game | — | — | "Chapter / Boss, e.g. Ch 3" | **yes** | no | no |
 | `h_comic_highlights` | 亮點 Highlights | **structured** | flat | h-comic (**KR only**, `owner_where`) | — | — | *(on its `chapter` field)* | no | no | no |
 | `h_game_highlights` | 亮點 Highlights | **structured** | flat | h-game | — | — | *(on its `route_scene` field)* | no | no | no |
 | `analysis` | 解析/解惑/討論 Analysis/Discussion | text_links | analysis_group (**reviews** for game and h-game) | All but h-comic, hentai | — | — | — | no | no | no |
 | `cinematography` | 分鏡/演出/巧思/細節 | text_links | analysis_group | anime, anime-movie, tv-show, cartoon, manga, series | — | — | "Episode(s), e.g. ep 3" | no | no | no |
-| `craft` | 巧思 | text_links | analysis_group | novel | — | — | — | no | no | no |
-| `foreshadowing` | 伏筆/前後呼應 Foreshadowing | text_links | analysis_group | anime, anime-movie, tv-show, cartoon, manga, novel, series, franchise | — | — | "Episode(s), e.g. ep 3" | no | no | no |
+| `craft` | 巧思 | text_links | analysis_group | book | — | — | — | no | no | no |
+| `foreshadowing` | 伏筆/前後呼應 Foreshadowing | text_links | analysis_group | anime, anime-movie, tv-show, cartoon, manga, book, series, franchise | — | — | "Episode(s), e.g. ep 3" | no | no | no |
 | `symmetry` | 對稱 Symmetry | text_links | analysis_group | same as foreshadowing | — | — | "Episode(s), e.g. ep 3" | no | no | no |
 | `speculation` | 猜測 Speculation | text_links | analysis_group | same as foreshadowing | — | — | "Episode(s), e.g. ep 3" | no | no | no |
-| `easter_eggs` | 彩蛋/致敬 Easter Eggs/References | text_links | analysis_group (**reviews** for game) | anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, game, series, franchise | — | — | "Episode(s), e.g. ep 3" (anime-movie, movie: "Scene, e.g. 1:02:30"; manga, novel: "Chapter(s), e.g. ch 6"; comic: "Issue(s), e.g. #3"; game: "Chapter / Part, e.g. Ch 3") | no | no | no |
+| `easter_eggs` | 彩蛋/致敬 Easter Eggs/References | text_links | analysis_group (**reviews** for game) | anime, anime-movie, movie, tv-show, cartoon, manga, book, comic, game, series, franchise | — | — | "Episode(s), e.g. ep 3" (anime-movie, movie: "Scene, e.g. 1:02:30"; manga, book: "Chapter(s), e.g. ch 6"; comic: "Issue(s), e.g. #3"; game: "Chapter / Part, e.g. Ch 3") | no | no | no |
 | `beginner` | 新手 Beginner | text_links | guides | game | — | — | — | no | no | no |
 | `gameplay_systems` | 玩法系統 Gameplay Systems | **structured** | guides | game, h-game | — | — | — | no | no | no |
 | `controls` | 操作 Controls | **structured** | guides | game, h-game | — | — | — | no | no | no |
@@ -337,7 +336,7 @@ is all the author's.
 | `ost` | OST | music_track | music | anime | — | Need, Pending, No Full Version, Done | "Episode(s), e.g. ep 3" | no | no | no |
 | `op_ed_changes` | OP/ED 變動 | episode_text, **takes links** | music | anime, tv-show, cartoon | 變化OP, 變化ED, 無OP, 無ED, 特殊OP, 特殊ED | — | "Episode(s), e.g. ep 3" | **yes** | no | no |
 | `extended_episodes` | 加長 | episode_text | flat | anime, tv-show, cartoon | — | — | "Episode(s), e.g. ep 3" | **yes** | no | no |
-| `adaptation` | 改編 Adaptation | text_links | flat | anime, anime-movie, tv-show, cartoon, novel, series, franchise | — | — | — | no | no | anime, anime-movie, novel |
+| `adaptation` | 改編 Adaptation | text_links | flat | anime, anime-movie, tv-show, cartoon, book, series, franchise | — | — | — | no | no | anime, anime-movie, book |
 | `mods_and_tools` | 模組&工具 Mods & Tools | **structured** | tools | game, h-game | — | — | — | no | no | no |
 | `guide_resources` | 攻略資源 Guide Resources | **structured** | tools | game, h-game | — | — | — | no | no | no |
 | `resources` | Resources | name_links | **standalone** (**tools** for game and h-game) | All | free-text Group (`kind_is_group`) | — | — | no | no | no |
@@ -352,7 +351,7 @@ is all the author's.
 H-comic, hentai and h-game (`H_OWNERS`) take a pared-down set of notes rather
 than everything their owner group would give them.
 
-- **H-comic and hentai** keep 備註, 備註列表, Resources and - h-comic, KR only -
+- **H-comic and hentai** keep 備註, 個人筆記, Resources and - h-comic, KR only -
   亮點 Highlights. Of 評論 they keep only 大眾評價 Public Reviews and 我的評價
   Personal Reviews, which make up their whole 評論 card; they have no 介紹, 優點,
   缺點, 優缺點, 解析, Questions or 名言/梗.
@@ -560,7 +559,7 @@ Every section declares a **`scope`**, and the field has **no default** — a sec
 | Scope | Sections | Meaning |
 | --- | --- | --- |
 | `catalog` | 56 — `remark` among them | One shared set of rows, read by everyone unfiltered |
-| `personal` | 19 — `remark_list`, `advantages`, `disadvantages`, `double_edged`, `personal_reviews`, `episode_comments`, the six highlight sections `highlights`, `highlight_episodes`, `highlight_passages`, `highlight_moments`, `h_comic_highlights`, `h_game_highlights`, 下周目目標 `ng_goals`, `questions`, the four 待辦 buckets `todo_now`, `todo_next`, `todo_later`, `todo_maybe`, and `saves` | One set per user; a viewer sees their own rows and nobody else's |
+| `personal` | 19 — `personal_notes`, `advantages`, `disadvantages`, `double_edged`, `personal_reviews`, `episode_comments`, the six highlight sections `highlights`, `highlight_episodes`, `highlight_passages`, `highlight_moments`, `h_comic_highlights`, `h_game_highlights`, 下周目目標 `ng_goals`, `questions`, the four 待辦 buckets `todo_now`, `todo_next`, `todo_later`, `todo_maybe`, and `saves` | One set per user; a viewer sees their own rows and nobody else's |
 | `None` | `quotes`, `memes` | The two `external` sections, backed by their own tables. Quotes and memes are **universal** — shared, unfiltered, no per-user copies — so scope does not apply |
 
 The distinction lives in the registry rather than in the schema, so reclassifying a section is a registry edit plus a data reassignment, never an `ALTER TABLE`. `/api/notes/sections` serves `scope` on every entry (`NoteSectionOut.scope`), and the notes page decides from it who may write each section.
@@ -576,7 +575,7 @@ A catalogue row may still carry **personal values** — see the next section —
 
 Personal rows are private to their author. There is no way to read another account's, the admin's included: `GET /api/notes` takes no author parameter, and an `author` in the query string is ignored. The six highlight sections are personal like the rest, so every account reads its own highlights and a logged-out visitor none. The full rules live in [../authorization.md](../authorization.md#note-scope).
 
-**`remark` is the catalogue's.** It is one shared row per owner (`ix_note_one_remark_per_owner`), written under `manage.catalog` - through the owner's own endpoints or the notes API - and read by everyone who can see the owner, a logged-out visitor included: `app.services.domain.remark_field.attach_remark` puts it on every read of an entry or a group, unfiltered. A viewer's own short notes on an owner go in 備註列表 `remark_list`, which is personal.
+**`remark` is the catalogue's.** It is a shared list - any number of rows per owner - written under `manage.catalog` through the notes API and read by everyone who can see the owner, a logged-out visitor included. A viewer's own notes on an owner go in 個人筆記 `personal_notes`, which is personal.
 
 ### Personal values on catalogue rows (note marks)
 
@@ -724,7 +723,7 @@ Runs on every POST and on the *merged* row of every PATCH. Raises `ValueError`, 
 
 A `structured` section takes none of this path: check 4 is followed by the nesting rule (a flat section refuses a `parent_id`) and then by `_validate_structured`, which returns. Checks 5 to 9 are per-shape, and a structured section's equivalents live in its spec — see [Structured sections](#structured-sections). A non-structured section given a `fields` payload is refused outright ("Section '…' takes no structured fields.").
 
-Singleton and one-per-kind uniqueness are **not** here — they need a query, so `_reject_second_singleton` in `app/routers/note.py` does them (422 "This owner already has a 'remark' note." / "This owner already has a 'music_status' note for 'op'."). The same goes for `owner_where`: `_require_owner_where` reads the owner row and answers 422 "Section '…' applies only where region is KR." on POST and on the merged row of a PATCH, so a row cannot be moved onto a JP entry either. And for a `choice_node` field: the schema checks only that the value is a uuid, and `_require_choice_nodes` checks that it names a node of the note's own game (`node_of_game` in `app/services/domain/game_choice.py`), answering 422 "At node must be a node of this game's choice graph." It runs on every POST, but on a PATCH only when the PATCH sends `fields` with a value different from the stored one (or moves the note to another owner), so a save whose stored link names a point this machine lacks can still be edited otherwise. The router stores the value canonical - `str(uuid)`, lowercase, no whitespace - and a blank value removes the key from `fields` without being checked.
+Singleton and one-per-kind uniqueness are **not** here — they need a query, so `_reject_second_singleton` in `app/routers/note.py` does them (422 "This owner already has a '<section>' note." / "This owner already has a 'music_status' note for 'op'."). No registry section is a `singleton` at present; the check is generic and `music_status`'s `one_per_kind` shares it. The same goes for `owner_where`: `_require_owner_where` reads the owner row and answers 422 "Section '…' applies only where region is KR." on POST and on the merged row of a PATCH, so a row cannot be moved onto a JP entry either. And for a `choice_node` field: the schema checks only that the value is a uuid, and `_require_choice_nodes` checks that it names a node of the note's own game (`node_of_game` in `app/services/domain/game_choice.py`), answering 422 "At node must be a node of this game's choice graph." It runs on every POST, but on a PATCH only when the PATCH sends `fields` with a value different from the stored one (or moves the note to another owner), so a save whose stored link names a point this machine lacks can still be edited otherwise. The router stores the value canonical - `str(uuid)`, lowercase, no whitespace - and a blank value removes the key from `fields` without being checked.
 
 ### Viewer visibility
 
@@ -763,22 +762,17 @@ The NG reset clears, from the caller's own marks only, every value the registry 
 
 ### NotesTemplate
 
-### 備註 and 備註列表
+### 備註 and 個人筆記
 
-Two sections, deliberately not one. 備註 is **one block of prose** and a
-singleton: a long remark wants to be written as a paragraph. 備註列表 is the
-other half — the short things, one per row, that a single block turns into a
-wall. A list whose first item is three paragraphs reads as badly as a
-paragraph made of bullets, which is why merging them was rejected rather than
-postponed. 備註 is the catalogue's; 備註列表 is `text_links` and
-personal-scope, each viewer's own, and reaches **every owner** like 備註 does: the need came from games, but nothing about a
-short note is game-shaped, and the two are read as a pair wherever 備註
-appears. A test asserts they share an `owners` tuple.
+Two sections of the same shape - `text_links`, a list of rows each with the
+links it rests on - told apart by whose rows they are. 備註 Remark is the
+catalogue's: shared, written under `manage.catalog`. 個人筆記 Personal Notes
+is personal-scope, each viewer's own. Both reach **every owner**, and the two
+are read as a pair wherever 備註 appears; a test asserts they share an
+`owners` tuple.
 
-Only 備註 is hidden by `hideSections` — the dedicated remark editors on the
-Add form, the Modify tabs and the detail pages write that one row and nothing
-else. The Add page's panel for a just-created entry hides nothing: by then the
-form has reset to a blank entry, so its Remark field no longer edits that row.
+Remarks are written only here, in the Notes card: no Add or Modify form and
+no detail page carries a remark field of its own.
 
 ### Music
 
@@ -865,7 +859,7 @@ The notes page is three pieces:
 | Piece | File | What it is |
 | --- | --- | --- |
 | `NotesProvider` / `useNotes` | `NotesContext.jsx` | The data. Fetches the registry and the rows, owns the mutations (`onCreate` / `onUpdate` / `onDelete` / `onReorder` — a reorder is applied locally first through the pure `withSectionOrder`, and while one section's reorder is in flight a second one for that section is dropped and the section is told to disable its grips), dispatches a section on its shape (`renderSection`, which also hands each section the `ownerId`) and counts a card's rows (`blockCount`). The value also carries `notes`, `ownerType`, `ownerId` and `reloadNotes`, for a card outside the notes layout that reads the page's rows: the game's choice graph badges each block with the viewer's saves and reloads the notes after deleting a block. `useOptionalNotes()` returns the value, or null outside a provider, for a component that can sit on a notes page or off it. |
-| `NotesBlocks` | `NotesTemplate.jsx` | The layout: which sections go in which card. Takes `hideSections` and `hideGroups`. |
+| `NotesBlocks` | `NotesTemplate.jsx` | The layout: which sections go in which card. Takes `hideGroups`. |
 | `NotesGroup` | `NotesTemplate.jsx` | **One** group's sections with no card of their own, for a screen that puts a group somewhere else. |
 
 `NotesTemplate` is a provider wrapped around `NotesBlocks`, which is what the
@@ -896,16 +890,15 @@ once when both are used.
 | Behaviour | How |
 | --- | --- |
 | Loads registry + rows in parallel (`fetchSections`, `fetchNotes`), then refetches only rows after a mutation; the registry is static for the session. | `useEffect` / `reloadNotes`. |
-| Dispatches on `section.shape` via the `SHAPES` map — every stored shape but `music_status` has a component, `structured` → `StructuredSection` among them; a shape with none renders null. A section the registry marks `hidden` (`music_status`) never gets this far: the provider drops it from `sections` before layout or `blockCount` sees it, so its rows neither render nor count towards the Music card, and hands each song list its row as `typeStatusNote` instead. `external` shapes dispatch on **section key** via `EXTERNAL_SHAPES` (`quotes` → `QuoteSection`, `memes` → `MemeSection`) — the first of two scoped exceptions to "the frontend never names sections". An external key with no component renders null. | `renderSection`. |
+| Dispatches on `section.shape` via the `SHAPES` map — every stored shape but `music_status` has a component, `structured` → `StructuredSection` among them; a shape with none renders null. A section the registry marks `hidden` (`music_status`) never gets this far: the provider drops it from `sections` before layout or `blockCount` sees it, so its rows neither render nor count towards the Music card, and hands each song list its row as `typeStatusNote` instead. `external` shapes dispatch on **section key** via `EXTERNAL_SHAPES` (`quotes` → `QuoteSection`, `memes` → `MemeSection`) — the first scoped exception to "the frontend never names sections". An external key with no component renders null. | `renderSection`. |
 | `splitBlocks()` splits the registry into `flat` (ungrouped, non-standalone), `groups` (one card per group key, registry order), `standalone`. | `splitBlocks`. |
-| The **Notes card** holds the flat sections and **renders only when ≥1 flat section is visible** (`flat.length > 0`). A comic with `remark` hidden has no flat section, so no empty headed card. | JSX near the bottom. |
+| The **Notes card** holds the flat sections and **renders only when ≥1 flat section is visible** (`flat.length > 0`). A page whose sections are all grouped has no flat section, so no empty headed card. | JSX near the bottom. |
 | Each group renders as its own `GroupCard` *beside* Notes (Music is a peer of Notes, not inside it). Standalone sections (`resources`, `questions`) render lifted out with no wrapper — every shape component already draws its own `SectionCard`. | Same. |
 | **Collapse-when-empty**: `GroupCard` and `SectionCard` start collapsed when `count === 0` (`useCollapsed` in `sections/ui.jsx`); the user can toggle either. The exception is `openWhenEmpty`: a song list with a status of its own (`type_status_section`) opens with no songs, because its status says something on its own, and a group holding such a list - 音樂 Music - opens with it, so a new anime's lists all show their status. Notes card wears the same chrome but `showCount={false}`. External sections report their row count via `onCount`; while any is still `null` the card counts as unknown and stays open. | `blockCount`, `reporterFor`. |
-| **Entry cap**: a section shows its first **three** rows (`VISIBLE_ENTRIES`) and folds the rest behind a mono "Show all (N)" / "Show less" text button under the list; a section of three rows or fewer has no button. It starts folded on every page load and is per section, per page - nothing is stored. It never hides what is being written: the row being edited stays on screen when the section folds (in its own place in the list), and a new row's draft is not in the list at all (see the next row). Every list shape, `QuoteSection` and `MemeSection` included, gets it from `useEntryCap` + `ShowAllToggle` in `sections/ui.jsx`; the singleton `remark` textarea is not a list and has none. `StructuredSection` applies it two ways, below. | `useEntryCap`, `capEntries`, `ShowAllToggle`. |
+| **Entry cap**: a section shows its first **three** rows (`VISIBLE_ENTRIES`) and folds the rest behind a mono "Show all (N)" / "Show less" text button under the list; a section of three rows or fewer has no button. It starts folded on every page load and is per section, per page - nothing is stored. It never hides what is being written: the row being edited stays on screen when the section folds (in its own place in the list), and a new row's draft is not in the list at all (see the next row). Every list shape, `QuoteSection` and `MemeSection` included, gets it from `useEntryCap` + `ShowAllToggle` in `sections/ui.jsx`; a singleton text section's textarea is not a list and has none. `StructuredSection` applies it two ways, below. | `useEntryCap`, `capEntries`, `ShowAllToggle`. |
 | **The personal mark**: every section whose `scope` is `personal` - its rows are each viewer's own - carries a small circled **P** after its title (`PersonalBadge`, passed as `SectionCard`'s `personal`, and drawn in a singleton section's own header too), titled "Personal - only you see your rows here" and named "Personal" to a screen reader. Catalogue sections, and mixed ones whose personal rows already wear a "Mine" chip, carry none. | `PersonalBadge`, `isPersonal`. |
 | **The draft popup**: every Add - a section header's, and a hierarchical row's Add under it - opens the new row's form in a floating panel (`DraftPopup` in `sections/ui.jsx`) rather than at the end of its card, so a long section never puts the form a scroll away from its button. It is a **non-modal** dialog (`role="dialog"`, `aria-modal="false"`): no backdrop, no focus trap, no scroll lock, so the page behind it stays readable, scrollable and selectable - text can be copied from the existing rows into it. It opens docked at the bottom right of the viewport, titled "Add to <section>" (or "Add under <row>"), takes focus on open, drags anywhere by its header, scrolls inside itself past 80% of the viewport's height, and is portalled to `<body>` at `z-40`, under the modals. It closes only through Save, Cancel or its ×, which is Cancel: never on Escape or an outside click, which with the page still in use are what a reader does while copying. Two open at once step 24px apart so neither hides the other. Editing an existing row stays inline, in the row's place. | `DraftPopup`. |
 | **Reordering**: every list section an admin sees with two rows or more carries a grip per row (`components/ui/Sortable.jsx` — drag it, or press ArrowUp / ArrowDown on it). Rows are only ever reordered within their own section; sections and groups of sections have a fixed place. Each move sends the section's whole order through `PATCH /api/notes/reorder`; the provider shows it at once and disables that section's grips until the save settles. The grip moves a row by its place among all the rows, folded or not, so the last row shown can be moved past the fold, which unfolds the section. The row being edited has no grip. The flat shapes share one implementation (`useRowReorder`, `ReorderList`, `ReorderRow`, `ReorderHandle` in `sections/ui.jsx`); `StructuredSection` has its own, because it orders a tree and groups. A locator-led section (`episode_text`) is ordered by hand like the rest, not by its locator: a locator is free text — an episode, a chapter, a boss, a source — and has no order to sort by. | `onReorder`, `reordering`, `sections/ui.jsx`. |
-| `hideSections` — the second scoped exception — lets an embedding page suppress sections it renders itself. Detail pages pass `hideSections={entry.remark ? ["remark"] : []}` (e.g. `frontend/src/pages/detail/Comic.jsx`, `Cartoon.jsx`, `AnimeMovie.jsx`) because they keep a dedicated remark editor writing the *same* singleton row; two editors on one row means the form's stale state would revert or delete what was typed in the notes box. | `visibleSections` memo. |
 | Errors from any card show in one banner above all cards (a group card is a sibling of Notes, so an error must not report inside the wrong one). | `error` state. |
 
 ### Series and franchise notes on an entry
@@ -918,7 +911,7 @@ series-wide 伏筆 beside it.
 | Rule | How |
 | --- | --- |
 | **Where.** The entry detail pages only. Each passes the `series` and `franchise` rows it already resolves for its header (`NotesTemplate` / `NotesProvider` props `series`, `franchise`). The Modify tabs and the Add page's notes panel pass neither and show the entry's own rows alone. | `pages/detail/*.jsx`, `*Notes.jsx` |
-| **Which sections.** Only sections the entry itself has. A group's row in a section the entry's owner type lacks (a franchise's `symmetry` on a game) is not shown on the entry. Singleton sections (`remark`) take none: 備註 is one editable textarea, not a list a group's row can join, and the detail pages hide it anyway. External sections (quotes, memes) are out of scope - they are their own tables and their own components. | `groupNotesFor` in `NotesContext.jsx` |
+| **Which sections.** Only sections the entry itself has. A group's row in a section the entry's owner type lacks (a franchise's `symmetry` on a game) is not shown on the entry. Singleton sections take none: a singleton is one editable textarea, not a list a group's row can join. External sections (quotes, memes) are out of scope - they are their own tables and their own components. | `groupNotesFor` in `NotesContext.jsx` |
 | **Order.** The entry's own rows first, unchanged and editable; then the series' rows; then the franchise's. Each group's rows are their own sub-list, never interleaved with the entry's and never part of its reorder. | `GroupNotes.jsx` |
 | **Labelled.** Each sub-list sits under a dashed rule and a mono "From series" / "From franchise" heading with the group's display name, linked to the group's page (`entityPath`) - there is no separate notes route; Notes is a tab on that page. The sub-list is `role="group"` named "From series: <name>". | `GroupNotes.jsx` |
 | **Read-only.** A group's rows are drawn by the section's own shape component in its read view - `isAdmin={false}`, no mutation handlers, and `bare` (no card, no header, no Add) - so no row gets Edit, Delete, a grip, a quick-edit input or an Add-child button, and the read view is the one the section already has, hierarchical, structured and music ones included. The entry cap applies per sub-list. | `SectionCardProvider` in `sections/ui.jsx` |
@@ -955,11 +948,9 @@ TanStack Query - it has never used a query hook - so the group rows do too.
 
 | Piece | Where |
 | --- | --- |
-| The `remark` column is **dropped** from all eleven owner tables (`alembic/versions/r1e2m3a4r5k6_remark_column_to_note.py`). | migration |
-| Read side: `remark` is a **plain attribute** on each owner model, defaulted to `None` on the class and set per request by `attach_remark(db, owner_type, entries)`, which reads the owners' catalogue `remark` rows - one query per page, the same for every viewer. It is not a SQL expression, so `find_all_remarks` (the review queue) queries `note` directly. | `app/models/__init__.py`, `app/services/domain/remark_field.py` |
-| `remark` stays on every owner's Pydantic Base schema, so the Add form, Modify form and hub `RemarkModal` still send a plain string to the owner's own endpoint. | `app/schemas/*` |
-| Write side: `pop_remark(data)` splits `remark` out of the payload and returns `(rest, value, was_present)`; `upsert_remark(db, owner_type, owner_id, text, author_id)` creates/updates the owner's one row (stamping `author_id` on a row it creates), or **deletes it when the text is empty or whitespace**. Absent ≠ None: a PATCH that never mentions `remark` leaves the row alone; a PUT/PATCH that sends null clears it. Called from the create/update/patch handlers in `app/routers/_factory.py` and from `collection.py`, `franchise.py`, `series.py`, every one behind `manage.catalog`. | `app/services/domain/remark_field.py` |
-| Because the form and the Notes page write the same row, **last write wins** between them; `hideSections` on the detail pages is the mitigation. | see UI |
+| The owner tables have no `remark` column (`alembic/versions/r1e2m3a4r5k6_remark_column_to_note.py` moved it into `note`). An entry's or a group's remarks are its `remark` note rows. | migration |
+| Nothing puts a `remark` on an entry or a group: their schemas declare none, their responses carry none, and a `remark` key in a create, update or patch body is ignored. Every remark is written on the notes page, through the notes API. | `app/schemas/*`, `app/routers/_factory.py`, `collection.py`, `franchise.py`, `series.py` |
+| The review queue (`find_all_remarks`) reads `note` directly and lists each entry once, with every one of its remarks in the notes page's order. | `app/services/domain/remarks.py` |
 
 ## Sheets
 
@@ -969,16 +960,16 @@ The Google Sheets backup has a **"Note" tab** (`SheetTab("Note", models.Note, f.
 | --- | --- |
 | Columns | `note` column declaration order: `system_id, media_id, collection_id, franchise_id, series_id, section, personal, parent_id, locator, kind, status, title, content, links, entries, fields, sort_index, created_at, updated_at`, then `username` (`format_model_for_sheet`, `app/utils/formatter.py`). `author_id` is dropped for `username`, the author's name, because the uuid is minted per database; Pull resolves the name back, and an unknown, blank or absent one files the row under the installation owner. A sheet written before the column existed carries `author_id`, and Pull tries that uuid first. `links`, `entries` and `fields` are serialised as JSON text. `owner_type` / `owner_id` are **not** columns — they are read-only properties, which is what keeps them out of the sheet row. |
 | Restore order | Near the end of `SHEET_TABS`: after every owner tab, Quote and Meme, before Seasonal — owners must exist first. |
-| Parser | `parse_note_from_sheet` (`app/utils/formatter.py`): `owner_id` becomes None rather than failing if unparseable (no name-resolution step exists for it); the pre-rename `episode` header is still accepted as `locator` so old backups Pull. **`entries` and `fields` are each parsed exactly like `links` beside them, and `parent_id` like the owner columns** — without those keys Backup would still write the columns (the formatter walks real columns) and Pull would drop them, losing every item of every `name_entries` row, every structured field, and the nesting of every hierarchical row on a round trip. A `section` naming a key that has left the registry is filed where the migration filed the local rows (`_RETIRED_NOTE_SECTIONS`): `reviews_and_comments` becomes `public_reviews`. |
+| Parser | `parse_note_from_sheet` (`app/utils/formatter.py`): `owner_id` becomes None rather than failing if unparseable (no name-resolution step exists for it); the pre-rename `episode` header is still accepted as `locator` so old backups Pull. **`entries` and `fields` are each parsed exactly like `links` beside them, and `parent_id` like the owner columns** — without those keys Backup would still write the columns (the formatter walks real columns) and Pull would drop them, losing every item of every `name_entries` row, every structured field, and the nesting of every hierarchical row on a round trip. A `section` naming a key that has left the registry, or was renamed, is filed where the migration filed the local rows (`_RETIRED_NOTE_SECTIONS`): `reviews_and_comments` becomes `public_reviews`, and `remark_list` becomes `personal_notes`. |
 | Id-less row matching | Pull (`app/services/pipelines/pull.py`, "Note" branch) matches on `owner_type + owner_id + section + content` — not guarded on content, so a blank-content row matches `IS NULL` instead of duplicating every pull. |
 | Personal rows | A row whose `personal` is true restores as a personal row under its author, by `username`, as a personal section's rows do. A blank cell reads false. A backup taken before the column existed has no `personal` header, and every row it holds restores as catalogue, the column's default. A personal row is never retargeted at a local twin by content (`_match_note_twin` matches catalogue rows only, on both sides): it is never minted per database. |
-| Remark rows | A sheet `remark` row whose `system_id` is unknown locally is retargeted at the owner's existing remark row, whoever wrote it, and updated in place, keeping the local id — otherwise the partial unique index would fail the whole tab at commit. |
+| Remark rows | `remark` is a list, so a sheet `remark` row whose `system_id` is unknown locally is matched like any catalogue row (its twin by owner, section and content) and otherwise inserted beside the owner's other remarks. |
 | Music status rows | The same retargeting per `(owner, kind)`: a sheet `music_status` row folds onto the local row for the same anime and list, keeping the local id. Its revision minted those rows separately on every database, so the two machines' copies differ in id and nothing else. |
 | Personal values in an old backup | A Note tab written before the personal values moved to marks carries them on the row — the status column, or `fields.my_value`. Pull takes them off the row before matching it (the matches compare content, and the local row no longer carries them) and files them under the installation owner's mark for the row it lands on (`pop_legacy_note_values`, through `app/services/domain/legacy_personal.py`). Exact, not a guess: on those sections that column or key only ever held the personal value, and a current backup carries it null. |
 | Note Mark tab | Each account's marks travel on their own tab, after Note: `note_mark`'s columns with `user_id` dropped for `username`, `values` as JSON text. Pull resolves the name (unknown → the row is skipped and reported; no header → the installation owner), matches an existing mark by `(user, note)`, and translates a `note_id` this database does not hold through the Note tab — a `music_status` row by owner and list, any other by its twin — so a mark follows a row each database minted under its own id. A cell holding no value is not restored. |
 | Old-shape music rows | A sheet `ost` row carrying a type is the one-row OST of a backup taken before the OST became a song list (an OST song never has a type); it becomes the anime's `music_status` row for `ost`, keeping its status if it is one of `MUSIC_STATUSES`. Links that arrive as URL strings - any section, from a backup taken before every link was titled - are read as links with no title (`_note_links` in `app/utils/formatter.py`). A `fields` blob on a section that is not `structured` is dropped (`_note_fields`), since every other shape refuses one on the row's next edit. |
 | Old-shape note rows | A sheet backed up before 操作 Controls, 職業 Classes, 地理 Geography and 各集評論 lost their links, 主線劇情 and 支線劇情 their description, 角色劇情 became titled links and 小知識 became structured is reshaped on Pull exactly as revision `n1l2inkpairs3` reshaped the local rows (`_reshape_pulled_note` in `app/utils/formatter.py`), so no pulled row keeps a value in a column its section no longer draws: links become lines of the description; a plot row's description becomes its chapter and the old chapter its first link's title (otherwise the description is appended to the chapter after " — "); an arc's text becomes its first link's title, or moves to 其他 Other prefixed "【角色劇情】 " when it has no link; a trivia row's stray locator becomes its title. Each step is a no-op on a row already in the new shape, so a newer sheet pulls unchanged. |
-| Round-trip | Because owner tables no longer have a `remark` column (and `format_model_for_sheet` walks real columns, so the column_property is not exported), **remark round-trips only via the Note tab**. The `remark` still parsed on Watch Order tabs is those tables' own column, unrelated. |
+| Round-trip | The owner tables have no `remark` column, so **remarks round-trip only via the Note tab**. The `remark` still parsed on Watch Order tabs is those tables' own column, unrelated. |
 
 ## Related
 

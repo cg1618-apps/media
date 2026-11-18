@@ -1,5 +1,5 @@
 // A tripwire, like noLegacySourceFields.test.js: the person credits of manga,
-// novel and comic are `author` and `illustrator`, scoped by media type
+// book and comic are `author` and `illustrator`, scoped by media type
 // (CREDIT_ROLES in app/utils/credit_roles.py). A retired key sent to PUT
 // /api/credits fails the whole body with a 400; one used as a dropdown source
 // finds no people; one used to auto-create a person is refused with a 422.

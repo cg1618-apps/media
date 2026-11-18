@@ -393,7 +393,7 @@ def fetch_tenrai_cast(resource: str, mal_id: int) -> Optional[list]:
     """
     Fetches an entry's cast from Tenrai: `resource` is "anime" (anime, anime
     movie, hentai), whose characters carry voice actors in every language,
-    or "manga" (manga, novel, h-comic), whose do not. A list of
+    or "manga" (manga, book, h-comic), whose do not. A list of
     {character, role, voice_actors?} items.
     """
     if not mal_id:
@@ -501,7 +501,7 @@ def lookup_mal_anime(mal_id: int) -> Optional[Dict[str, Any]]:
 
 
 def lookup_mal_manga(mal_id: int) -> Optional[Dict[str, Any]]:
-    """One MAL manga record (manga and novel), for the Add page's prefill."""
+    """One MAL manga record (manga and book), for the Add page's prefill."""
     return _lookup_tenrai("manga", mal_id)
 
 

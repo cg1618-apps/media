@@ -96,8 +96,8 @@ def test_a_multi_source_media_type_declares_how_they_combine():
     assert len(movie.sources) > 1
     assert movie.combination == "merged"
 
-    novel = next(c for c in EXTERNAL_APIS if c.key == "novel")
-    assert novel.combination == "either-or"
+    book = next(c for c in EXTERNAL_APIS if c.key == "book")
+    assert book.combination == "either-or"
 
 
 # ---------------------------------------------------------------------------

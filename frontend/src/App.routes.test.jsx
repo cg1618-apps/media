@@ -31,6 +31,7 @@ vi.mock("./pages/library/FranchiseLibrary", () => stub("franchise library"));
 vi.mock("./pages/library/CollectionLibrary", () => stub("collection library"));
 vi.mock("./pages/detail/Franchise", () => stub("franchise"));
 vi.mock("./pages/detail/Anime", () => stub("anime"));
+vi.mock("./pages/detail/Book", () => stub("book"));
 vi.mock("./pages/library/StudioLibrary", () => stub("studio library"));
 vi.mock("./pages/library/PublisherLibrary", () => stub("publisher library"));
 vi.mock("./pages/library/PersonLibrary", () => stub("person library"));
@@ -258,4 +259,42 @@ describe("a guest's open routes", () => {
       expect(await screen.findByText(`${page} page`)).toBeInTheDocument();
     });
   }
+});
+
+// Book was Novel. Its old URLs still land on the same page, with the public
+// id, slug and query carried over, and the old path replaced rather than
+// pushed.
+describe("the old /novel routes", () => {
+  it("send a detail link on to /book, keeping the id, slug and query", async () => {
+    asGuest();
+    await visit("/novel/12/a-title?tab=units#notes");
+    expect(await screen.findByText("book page")).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/book/12/a-title");
+    expect(window.location.search).toBe("?tab=units");
+    expect(window.location.hash).toBe("#notes");
+  });
+
+  it("send a detail link without a slug on to /book", async () => {
+    asGuest();
+    await visit("/novel/12");
+    expect(await screen.findByText("book page")).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/book/12");
+  });
+
+  it("send the old library on to /library/book, keeping the query", async () => {
+    asGuest();
+    await visit("/library/novel?sort=title");
+    expect(await screen.findByText("media library page")).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/library/book");
+    expect(window.location.search).toBe("?sort=title");
+  });
+
+  it("replace the old URL in the history instead of pushing the new one", async () => {
+    asGuest();
+    const before = window.history.length;
+    await visit("/novel/12");
+    await screen.findByText("book page");
+    // visit() pushes one entry; the redirect replaces it rather than adding one.
+    expect(window.history.length).toBe(before + 1);
+  });
 });

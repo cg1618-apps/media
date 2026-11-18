@@ -17,7 +17,7 @@ import {
   inputCls,
   selectCls,
 } from "../../components/forms/FormField";
-import CoverRemarkFields from "../../components/forms/CoverRemarkFields";
+import CoverFields from "../../components/forms/CoverFields";
 import EntryFlags from "../../components/forms/EntryFlags";
 import EntryNameFields from "../../components/forms/EntryNameFields";
 import MultiSelect from "../../components/forms/MultiSelect";
@@ -40,6 +40,7 @@ import { showsField } from "../../lib/hComicRegion";
 import { followRegion, restrictedSourcesFor } from "../../lib/restrictedSources";
 import { usePrefillPicks } from "../../contexts/RestrictedPrefillContext";
 import { getDisplayName, getSourceValues } from "../../utils/media";
+import { FLOAT_PROGRESS_FIELDS } from "../../lib/progressStep";
 
 export { defaultHComic } from "../../config/formFactories";
 
@@ -92,7 +93,7 @@ export function HComicRegionField({ f, u }) {
  * Every field below the region and the lineage pickers, shared verbatim by
  * the Modify tab. `ownerId` is passed by the Modify tab only, where the row
  * exists; without it a picked cover waits in `pending_image_id` for the Add
- * page to attach once the entry is saved (CoverRemarkFields).
+ * page to attach once the entry is saved (CoverFields).
  */
 export function HComicFormBody({ f, u, sources, ownerId }) {
   const shows = (field) => showsField(f.region, field);
@@ -112,6 +113,7 @@ export function HComicFormBody({ f, u, sources, ownerId }) {
         className={inputCls}
         type="number"
         min="0"
+        step={FLOAT_PROGRESS_FIELDS.has(key) ? "any" : undefined}
         aria-label={label}
         value={f[key] ?? ""}
         onChange={(e) => u(key, e.target.value)}
@@ -353,7 +355,7 @@ export function HComicFormBody({ f, u, sources, ownerId }) {
         restrictedSources={restrictedSourcesFor("h-comic", f.region, picks)}
       />
 
-      <CoverRemarkFields f={f} u={u} ownerType="h-comic" ownerId={ownerId} />
+      <CoverFields f={f} u={u} ownerType="h-comic" ownerId={ownerId} />
     </>
   );
 }

@@ -36,6 +36,8 @@ export const defaultAnime = () => ({
   airing_status: "Not Yet Aired",
   watching_status: "Might Watch",
   is_main: "本傳",
+  // ANIME_ORIGINAL_OR_REMAKE: never empty, and a new anime is the original.
+  original_or_remake: "Original",
   ep_previous: "",
   ep_total: "",
   ep_fin: "",
@@ -70,7 +72,6 @@ export const defaultAnime = () => ({
   cover_image_file: "",
   cover_image_focus: null,
   pending_image_id: null,
-  remark: "",
 });
 
 export const defaultAnimeMovie = () => ({
@@ -109,7 +110,6 @@ export const defaultAnimeMovie = () => ({
   cover_image_file: "",
   cover_image_focus: null,
   pending_image_id: null,
-  remark: "",
 });
 
 export const defaultMovie = () => ({
@@ -143,7 +143,6 @@ export const defaultMovie = () => ({
   cover_image_file: "",
   cover_image_focus: null,
   pending_image_id: null,
-  remark: "",
 });
 
 export const defaultTvShow = () => ({
@@ -180,7 +179,6 @@ export const defaultTvShow = () => ({
   cover_image_file: "",
   cover_image_focus: null,
   pending_image_id: null,
-  remark: "",
 });
 
 export const defaultCartoon = () => ({
@@ -215,7 +213,6 @@ export const defaultCartoon = () => ({
   cover_image_file: "",
   cover_image_focus: null,
   pending_image_id: null,
-  remark: "",
 });
 
 export const defaultManga = () => ({
@@ -247,6 +244,8 @@ export const defaultManga = () => ({
   author_draw: "",
   release_date: "",
   end_date: "",
+  next_vol_release_date_jp: "",
+  next_vol_release_date_tw: "",
   anime_studio: "",
   serialization_platform: "",
   publisher_tw: "",
@@ -261,15 +260,14 @@ export const defaultManga = () => ({
   cover_image_file: "",
   cover_image_focus: null,
   pending_image_id: null,
-  remark: "",
 });
 
-export const defaultNovel = () => ({
-  novel_name_cn: "",
-  novel_name_en: "",
-  novel_name_roman: "",
-  novel_name_jp: "",
-  novel_name_alt: "",
+export const defaultBook = () => ({
+  book_name_cn: "",
+  book_name_en: "",
+  book_name_roman: "",
+  book_name_jp: "",
+  book_name_alt: "",
   franchise_id: null,
   franchise_text: "",
   series_id: null,
@@ -296,7 +294,8 @@ export const defaultNovel = () => ({
   anilist_popularity_rank: "",
   author: "",
   illustrator: "",
-  release_date: "",
+  release_date_jp: "",
+  release_date_tw: "",
   end_date: "",
   serialization_platform: "",
   publisher_tw: "",
@@ -308,13 +307,12 @@ export const defaultNovel = () => ({
   genre_main: "",
   genre_sub: "",
   label: "",
-  sources: defaultRestrictedSources("novel"),
+  sources: defaultRestrictedSources("book"),
   read_next: false,
   to_reread: false,
   cover_image_file: "",
   cover_image_focus: null,
   pending_image_id: null,
-  remark: "",
 });
 
 export const defaultComic = () => ({
@@ -354,7 +352,6 @@ export const defaultComic = () => ({
   cover_image_file: "",
   cover_image_focus: null,
   pending_image_id: null,
-  remark: "",
 });
 
 export const defaultGame = () => ({
@@ -421,7 +418,6 @@ export const defaultGame = () => ({
   cover_image_file: "",
   cover_image_focus: null,
   pending_image_id: null,
-  remark: "",
 });
 
 // The gated h-comic type. `region` starts unset on purpose: every
@@ -472,7 +468,6 @@ export const defaultHComic = () => ({
   cover_image_file: "",
   cover_image_focus: null,
   pending_image_id: null,
-  remark: "",
 });
 
 // The gated h-game type: Game's form minus the columns h_game does not have
@@ -542,7 +537,6 @@ export const defaultHGame = () => ({
   cover_image_file: "",
   cover_image_focus: null,
   pending_image_id: null,
-  remark: "",
 });
 
 // The gated hentai type. Tracked like a cartoon: ep_total and ep_fin, no
@@ -586,7 +580,6 @@ export const defaultHentai = () => ({
   cover_image_file: "",
   cover_image_focus: null,
   pending_image_id: null,
-  remark: "",
 });
 
 export const defaultCollection = () => ({
@@ -595,7 +588,6 @@ export const defaultCollection = () => ({
   collection_name_roman: "",
   collection_name_jp: "",
   collection_name_alt: "",
-  remark: "",
 });
 
 export const defaultFranchise = () => ({
@@ -607,7 +599,6 @@ export const defaultFranchise = () => ({
   franchise_name_jp: "",
   franchise_name_alt: "",
   franchise_type: "",
-  remark: "",
 });
 
 export const defaultSeries = () => ({
@@ -619,7 +610,6 @@ export const defaultSeries = () => ({
   series_name_jp: "",
   series_name_alt: "",
   cover_entry_id: null,
-  remark: "",
 });
 
 // The three Entity-group forms. An entity is credited ON entries rather than
@@ -715,7 +705,7 @@ export const FORM_FACTORIES = {
   "tv-show": defaultTvShow,
   cartoon: defaultCartoon,
   manga: defaultManga,
-  novel: defaultNovel,
+  book: defaultBook,
   comic: defaultComic,
   game: defaultGame,
   "h-comic": defaultHComic,

@@ -1,22 +1,34 @@
-"""The eight media models expose ISO release columns and constrain them."""
+"""The eight media models and the book unit expose ISO release columns and constrain them."""
 
 import pytest
 from sqlalchemy import String
 
-from app.models import Anime, AnimeMovies, Cartoon, Comic, Manga, Movies, Novel, TVShows
+from app.models import (
+    Anime,
+    AnimeMovies,
+    Book,
+    BookUnit,
+    Cartoon,
+    Comic,
+    Manga,
+    Movies,
+    TVShows,
+)
 from app.utils.release_date import DATE_COLUMNS
 
-ALL_MEDIA_MODELS = [Anime, AnimeMovies, Movies, TVShows, Cartoon, Manga, Novel, Comic]
+ALL_MEDIA_MODELS = [Anime, AnimeMovies, Movies, TVShows, Cartoon, Manga, Book, Comic]
+# Every model whose release columns DATE_COLUMNS lists and this file checks.
+DATED_MODELS = ALL_MEDIA_MODELS + [BookUnit]
 
 
-@pytest.mark.parametrize("model", ALL_MEDIA_MODELS)
+@pytest.mark.parametrize("model", DATED_MODELS)
 def test_every_date_column_in_the_registry_exists_on_its_model(model):
     columns = model.__table__.columns
     for name in DATE_COLUMNS[model.__tablename__]:
         assert name in columns, f"{model.__tablename__} is missing {name}"
 
 
-@pytest.mark.parametrize("model", ALL_MEDIA_MODELS)
+@pytest.mark.parametrize("model", DATED_MODELS)
 def test_every_date_column_is_a_nullable_string(model):
     columns = model.__table__.columns
     for name in DATE_COLUMNS[model.__tablename__]:
@@ -25,7 +37,7 @@ def test_every_date_column_is_a_nullable_string(model):
         assert column.nullable is True
 
 
-@pytest.mark.parametrize("model", ALL_MEDIA_MODELS)
+@pytest.mark.parametrize("model", DATED_MODELS)
 def test_every_date_column_carries_a_check_constraint(model):
     constraint_names = {c.name for c in model.__table__.constraints if c.name}
     for name in DATE_COLUMNS[model.__tablename__]:
@@ -45,7 +57,14 @@ def test_anime_still_stores_release_season():
     assert "release_season" in Anime.__table__.columns
 
 
-@pytest.mark.parametrize("model", [Manga, Novel, Comic])
+def test_book_has_a_jp_and_a_tw_release_date():
+    assert "release_date" not in Book.__table__.columns
+    assert "release_date_jp" in Book.__table__.columns
+    assert "release_date_tw" in Book.__table__.columns
+    assert "end_date" in Book.__table__.columns
+
+
+@pytest.mark.parametrize("model", [Manga, Comic])
 def test_run_types_renamed_year_columns_to_date_columns(model):
     assert "release_year" not in model.__table__.columns
     assert "end_year" not in model.__table__.columns

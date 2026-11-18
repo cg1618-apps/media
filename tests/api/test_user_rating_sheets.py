@@ -1,8 +1,8 @@
 """
-The User Rating and User Novel Unit Rating tabs: Backup then Pull All brings
+The User Rating and User Book Unit Rating tabs: Backup then Pull All brings
 every account's ratings, expectations and unit remarks back to that account,
 and a backup taken before revision u1r2atings3 - whose Collection, Franchise,
-Series, Character, Person, Studio, Publisher and Novel Unit tabs still carry
+Series, Character, Person, Studio, Publisher and Book Unit tabs still carry
 my_rating / *_expectation / remark - restores those values onto the
 installation owner rather than dropping them.
 
@@ -55,15 +55,15 @@ def world(db):
     franchise = models.Franchise(system_id=uuid.uuid4(), franchise_type="Anime",
                                  franchise_name_en="Sheet Franchise")
     person = models.Person(system_id=uuid.uuid4(), name_en="Sheet Person")
-    novel = models.Novel(system_id=uuid.uuid4(), novel_name_en="Sheet Novel")
-    db.add_all([cg, kana, franchise, person, novel])
+    book = models.Book(system_id=uuid.uuid4(), book_name_en="Sheet Book")
+    db.add_all([cg, kana, franchise, person, book])
     db.commit()
-    unit = models.NovelUnit(system_id=uuid.uuid4(), novel_id=novel.system_id,
+    unit = models.BookUnit(system_id=uuid.uuid4(), book_id=book.system_id,
                             unit_kind="volume", position=1)
     db.add(unit)
     db.commit()
     return {"cg": cg, "kana": kana, "franchise": franchise, "person": person,
-            "novel": novel, "unit": unit}
+            "book": book, "unit": unit}
 
 
 def _ratings(db):
@@ -79,7 +79,7 @@ def _ratings(db):
 def _unit_ratings(db):
     return {
         (db.get(models.User, r.user_id).username, r.unit_id): (r.my_rating, r.remark)
-        for r in db.query(models.UserNovelUnitRating).all()
+        for r in db.query(models.UserBookUnitRating).all()
     }
 
 
@@ -92,21 +92,21 @@ def test_both_tabs_round_trip_for_two_users(db, workbook, world):
                           my_rating="C"),
         models.UserRating(user_id=w["kana"].id, person_id=w["person"].system_id,
                           my_rating="A"),
-        models.UserNovelUnitRating(user_id=w["cg"].id, unit_id=w["unit"].system_id,
+        models.UserBookUnitRating(user_id=w["cg"].id, unit_id=w["unit"].system_id,
                                    my_rating="B", remark="cg's note"),
-        models.UserNovelUnitRating(user_id=w["kana"].id, unit_id=w["unit"].system_id,
+        models.UserBookUnitRating(user_id=w["kana"].id, unit_id=w["unit"].system_id,
                                    remark="kana's note"),
     ])
     db.commit()
     before = (_ratings(db), _unit_ratings(db))
 
     backup.execute_backup(db, action_type="Manual")
-    for tab in ("User Rating", "User Novel Unit Rating"):
+    for tab in ("User Rating", "User Book Unit Rating"):
         assert "username" in workbook[tab][0]
         assert "user_id" not in workbook[tab][0]
 
     db.execute(text("DELETE FROM user_rating"))
-    db.execute(text("DELETE FROM user_novel_unit_rating"))
+    db.execute(text("DELETE FROM user_book_unit_rating"))
     db.commit()
 
     result = pull.execute_pull_all(db, action_type="Manual", may_restore_authz=True)
@@ -178,7 +178,7 @@ def test_an_old_backup_restores_its_ratings_onto_the_installation_owner(
     db, workbook, world
 ):
     """
-    A Franchise / Person / Novel Unit tab written before u1r2atings3: the
+    A Franchise / Person / Book Unit tab written before u1r2atings3: the
     values are not columns any more, and must become the owner's rows rather
     than vanish. The second account must get nothing - the old sheet held one
     person's view.
@@ -198,9 +198,9 @@ def test_an_old_backup_restores_its_ratings_onto_the_installation_owner(
     add_column("Franchise", "my_rating", lambda i: "A" if i == fid else "")
     add_column("Franchise", "franchise_expectation", lambda i: "High" if i == fid else "")
     add_column("Person", "my_rating", lambda i: "b" if i == pid else "")
-    add_column("Novel Unit", "remark", lambda i: "old remark" if i == uid else "")
+    add_column("Book Unit", "remark", lambda i: "old remark" if i == uid else "")
     workbook.pop("User Rating", None)
-    workbook.pop("User Novel Unit Rating", None)
+    workbook.pop("User Book Unit Rating", None)
 
     result = pull.execute_pull_all(db, action_type="Manual", may_restore_authz=True)
 
@@ -219,5 +219,5 @@ def test_the_new_tabs_restore_after_their_owners():
     for parent in ("Users", "Collection", "Franchise", "Series", "Character",
                    "Person", "Studio", "Publisher"):
         assert at(parent) < at("User Rating"), parent
-    assert at("Users") < at("User Novel Unit Rating")
-    assert at("Novel Unit") < at("User Novel Unit Rating")
+    assert at("Users") < at("User Book Unit Rating")
+    assert at("Book Unit") < at("User Book Unit Rating")

@@ -34,7 +34,7 @@ class HentaiBase(BaseModel):
     airing_status: Optional[str] = None
     release_date: Optional[str] = None
 
-    ep_total: Optional[int] = None
+    ep_total: Optional[float] = None
 
     mal_id: Optional[int] = None
     mal_link: Optional[str] = None
@@ -45,7 +45,7 @@ class HentaiBase(BaseModel):
     # Personal - split off onto user_media_list by the router.
     watching_status: str = "Might Watch"
     my_rating: Optional[str] = None
-    ep_fin: Optional[int] = 0
+    ep_fin: Optional[float] = 0
     # "Paused at": free text, stored stripped and NULL when blank.
     time_fin: Optional[str] = None
     usefulness: Optional[str] = None
@@ -53,7 +53,6 @@ class HentaiBase(BaseModel):
 
     watch_next: Optional[bool] = None
     to_rewatch: Optional[bool] = None
-    remark: Optional[str] = None
     cover_image_file: Optional[str] = None
     cover_image_focus: ImageFocus = None
 

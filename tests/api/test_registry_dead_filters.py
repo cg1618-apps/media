@@ -1,5 +1,5 @@
 """
-Regression test for app/registry.py: manga, novel and comic list_filters used
+Regression test for app/registry.py: manga, book and comic list_filters used
 to carry "to_reread", a column dropped from those models. _factory.py's list
 endpoint does `columns[field]` against Model.__table__.columns for every
 configured filter, so passing that dead filter raised an unhandled KeyError

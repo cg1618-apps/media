@@ -4,7 +4,8 @@
 // builder: a field missing here is a field the Add form cannot show and the
 // defaults page cannot configure.
 import { describe, expect, it } from "vitest";
-import { FORM_FACTORIES, defaultAnime, defaultGame, defaultHGame } from "./formFactories";
+import { FORM_FACTORIES, defaultAnime, defaultBook, defaultGame, defaultHGame } from "./formFactories";
+import { getFieldMap } from "./formFields";
 
 describe("defaultGame", () => {
   it("starts on Might Play with the play flags off", () => {
@@ -30,5 +31,26 @@ describe("is_main on the game types", () => {
 
   it("leaves the shared vocabulary's default on the other types", () => {
     expect(defaultAnime().is_main).toBe("本傳");
+  });
+});
+
+describe("defaultBook", () => {
+  it("is registered under the book key", () => {
+    expect(FORM_FACTORIES.book).toBe(defaultBook);
+  });
+
+  // Split by edition as anime's is; end_date stays one column.
+  it("carries the JP and TW release dates and no plain release_date", () => {
+    const form = defaultBook();
+    expect(form.release_date_jp).toBe("");
+    expect(form.release_date_tw).toBe("");
+    expect(form.end_date).toBe("");
+    expect("release_date" in form).toBe(false);
+  });
+
+  it("labels both dates as free text on /defaults", () => {
+    const fields = getFieldMap("book");
+    expect(fields.release_date_jp).toMatchObject({ label: "Release Date (JP)", control: "text" });
+    expect(fields.release_date_tw).toMatchObject({ label: "Release Date (TW)", control: "text" });
   });
 });

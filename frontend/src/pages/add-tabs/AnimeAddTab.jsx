@@ -6,7 +6,7 @@
 // boxes on top: EntryAutofillSearch copies fields from an anime already in
 // the catalogue, the MAL search links the new entry to its MAL record.
 import CastEditor from "../../components/forms/CastEditor";
-import CoverRemarkFields from "../../components/forms/CoverRemarkFields";
+import CoverFields from "../../components/forms/CoverFields";
 import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
 import EntryFlags from "../../components/forms/EntryFlags";
 import EntryNameFields from "../../components/forms/EntryNameFields";
@@ -30,6 +30,7 @@ import { broadcastTimeOptions } from "../../config/broadcastTimes";
 import {
   AIRING_STATUSES,
   ANIME_AIRING_TYPES,
+  ANIME_ORIGINAL_OR_REMAKE,
   IS_MAIN,
   MY_RATINGS,
   PART_NUMS,
@@ -39,6 +40,7 @@ import {
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
 import { endpoints } from "../../api/endpoints";
+import { FLOAT_PROGRESS_FIELDS } from "../../lib/progressStep";
 
 export { defaultAnime } from "../../config/formFactories";
 
@@ -75,6 +77,7 @@ export function AnimeFormBody({ f, u, sources, ownerId }) {
         className={inputCls}
         type="number"
         min="0"
+        step={FLOAT_PROGRESS_FIELDS.has(key) ? "any" : undefined}
         aria-label={label}
         value={f[key] ?? ""}
         onChange={(e) => u(key, e.target.value)}
@@ -149,8 +152,24 @@ export function AnimeFormBody({ f, u, sources, ownerId }) {
       {/* Season and Part are form-only: the payload derives season_part
           from them. */}
       <SectionHeader icon="fa-info-circle" title="Information" />
-      <div className={ROW3}>
+      <div className={ROW4}>
         {select("is_main", "Main / Spinoff", IS_MAIN)}
+        {/* ANIME_ORIGINAL_OR_REMAKE has no blank: the column is never
+            empty, and an anime that says nothing is the original. */}
+        <Field label="Original / Remake">
+          <select
+            className={selectCls}
+            aria-label="Original / Remake"
+            value={f.original_or_remake || "Original"}
+            onChange={(e) => u("original_or_remake", e.target.value)}
+          >
+            {ANIME_ORIGINAL_OR_REMAKE.map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
+        </Field>
         {select("season_num", "Season", SEASON_NUMS, (n) => `Season ${n}`)}
         {select("part_num", "Part", PART_NUMS, (n) => `Part ${n}`)}
       </div>
@@ -173,7 +192,17 @@ export function AnimeFormBody({ f, u, sources, ownerId }) {
         />
       </div>
       <div className={ROW2}>
-        {count("ep_special", "EP Special", { step: "0.01" })}
+        {/* Text: specials are numbered 17.5A, 17.5B. */}
+        <Field label="EP Special">
+          <input
+            className={inputCls}
+            type="text"
+            aria-label="EP Special"
+            value={f.ep_special ?? ""}
+            onChange={(e) => u("ep_special", e.target.value)}
+            placeholder="e.g. 17.5A"
+          />
+        </Field>
         {count("runtime_min", "Runtime (min)", { placeholder: "e.g. 24" })}
       </div>
 
@@ -273,7 +302,7 @@ export function AnimeFormBody({ f, u, sources, ownerId }) {
         sources={sources}
       />
 
-      <CoverRemarkFields f={f} u={u} ownerType="anime" ownerId={ownerId} />
+      <CoverFields f={f} u={u} ownerType="anime" ownerId={ownerId} />
     </>
   );
 }

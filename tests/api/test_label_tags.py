@@ -227,11 +227,16 @@ def revision():
     return module
 
 
+# Media-type keys renamed after the revision shipped (b1o2okrename3 renames
+# its scope rows too): the frozen copy keeps the name of its day.
+RENAMED_SINCE = {"novel": "book"}
+
+
 def test_the_frozen_copy_matches_the_code(revision):
     from app.services.domain.label_tags import TAG_FOR_LABEL
 
     assert dict(revision.TAGS) == TAG_FOR_LABEL
-    assert revision.LABEL_FIELD_TYPES == LABEL_FIELD_TYPES
+    assert tuple(RENAMED_SINCE.get(t, t) for t in revision.LABEL_FIELD_TYPES) == LABEL_FIELD_TYPES
 
 
 def test_the_old_tag_is_renamed(db_session, revision):
@@ -285,4 +290,5 @@ def test_the_three_tags_are_scoped_to_every_label_field_type(db_session, revisio
     for value in ("NSFW", "輕微色情", "擦邊肉番"):
         option = resolve_option(db_session, "Label", value)
         db_session.refresh(option)
-        assert {s.scope for s in option.scopes} >= set(LABEL_FIELD_TYPES), value
+        scopes = {RENAMED_SINCE.get(s.scope, s.scope) for s in option.scopes}
+        assert scopes >= set(LABEL_FIELD_TYPES), value

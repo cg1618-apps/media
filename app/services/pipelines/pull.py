@@ -2,8 +2,9 @@
 
 import json
 import logging
+import threading
 import uuid
-from typing import Optional
+from typing import Callable, Optional
 
 from sqlalchemy import Sequence, null, or_, text
 from sqlalchemy import inspect as sa_inspect
@@ -34,6 +35,7 @@ from app.models import (
 )
 from app.services.domain import (
     resolve_anime_movie_parent_hierarchy,
+    resolve_book_parent_hierarchy,
     resolve_cartoon_parent_hierarchy,
     resolve_comic_parent_hierarchy,
     resolve_game_parent_hierarchy,
@@ -42,7 +44,6 @@ from app.services.domain import (
     resolve_hentai_parent_hierarchy,
     resolve_manga_parent_hierarchy,
     resolve_movie_parent_hierarchy,
-    resolve_novel_parent_hierarchy,
     resolve_tv_show_parent_hierarchy,
 )
 from app.services.domain.character_tags import (
@@ -78,6 +79,11 @@ from app.services.domain.user_list import installation_owner_id, no_owner_messag
 from app.services.integrations.sheets import (
     SheetsUnavailableError,
     get_all_raw_rows,
+    sheet_tab_titles,
+)
+from app.services.pipelines.legacy_names import (
+    LEGACY_TAB_NAMES,
+    legacy_cell_values,
 )
 from app.services.pipelines.tabs import (
     AUTHZ_TABS,
@@ -88,6 +94,16 @@ from app.services.pipelines.tabs import (
 )
 from app.services.pipelines.tabs import (
     MEDIA_TYPE_FOR_TAB as _MEDIA_TYPE_FOR_TAB,
+)
+from app.services.pipelines.worker import (
+    BACKUP_LOCK_KEY,
+    PULL_LOCK_KEY,
+    AlreadyRunning,
+    Claim,
+    Emit,
+    Progress,
+    claim,
+    start_worker,
 )
 from app.services.rbac import cache
 from app.services.rbac.gated_types import REQUIRED_LABEL_FOR_TYPE
@@ -192,7 +208,7 @@ TABS_IN_ORDER = TAB_NAMES
 # occupies - which rolls back the whole tab. So for these tabs the sheet's uuid
 # is only a hint; what actually identifies the row across databases is the
 # natural key its UNIQUE constraint already names. Same reasoning, and the same
-# keep-the-local-uuid handling, as the Note remark block further down.
+# keep-the-local-uuid handling, as the Note one-row block further down.
 # ---------------------------------------------------------------------------
 
 # tab -> the columns of that table's natural-key UNIQUE constraint.
@@ -333,7 +349,7 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
         "publisher_id",
     ),  # uq_user_rating_owner
     # The same shape for a reader's unit row; unit_id travels unchanged.
-    "User Novel Unit Rating": ("user_id", "unit_id"),  # uq_user_novel_unit
+    "User Book Unit Rating": ("user_id", "unit_id"),  # uq_user_book_unit
     # One row per account per quote or meme, minted wherever the favourite
     # was made; user_id is resolved from `username`, and quote_id / meme_id
     # are the Quote and Meme tabs' uuids - exactly one set, the other IS NULL.
@@ -467,7 +483,7 @@ def drop_non_columns(model, payload: dict) -> dict:
     and series_id are association proxies onto the entry's media row, and
     dropping them here would silently strip the franchise this very module
     just resolved by name a few hundred lines above. Relationships and
-    read-only column_properties (media_row, remark) are NOT included - only
+    read-only column_properties (media_row) are NOT included - only
     columns and proxies.
     """
     allowed = {c.name for c in model.__table__.columns} | {
@@ -491,6 +507,13 @@ RENAMED_COLUMNS: dict[str, dict[str, tuple[str, ...]]] = {
     # One release date became the JP and the TW one; it stood for both.
     "Anime": {"release_date": ("release_date_jp", "release_date_tw")},
     "Cartoons": {"length_ep_min": ("runtime_min",)},
+    # Novel became Book. Its one release date was the original's, so it
+    # becomes the JP one and the TW one starts empty.
+    "Book": {
+        **{f"novel_name_{s}": (f"book_name_{s}",) for s in ("en", "cn", "roman", "jp", "alt")},
+        "release_date": ("release_date_jp",),
+    },
+    "Book Unit": {"novel_id": ("book_id",)},
 }
 
 RENAMED_HEADERS: dict[str, frozenset[str]] = {
@@ -511,9 +534,33 @@ RENAMED_HEADERS: dict[str, frozenset[str]] = {
 RETIRED_HEADERS: dict[str, frozenset[str]] = {
     # users.list_is_public: everything per user is private to its account.
     "Users": frozenset({"list_is_public"}),
-    # novel.read_order was dropped with its values.
-    "Novel": frozenset({"read_order"}),
+    # book.read_order was dropped with its values.
+    "Book": frozenset({"read_order"}),
 }
+
+
+def read_sheet_tab(tab_name: str) -> list:
+    """
+    A tab's rows, from under its pre-rename title when the sheet predates the
+    rename (LEGACY_TAB_NAMES).
+
+    The current title wins whenever it holds anything: a sheet backed up after
+    the rename may still keep the old tab beside it, and that one is stale.
+    The old title is read only when the sheet has it, because reading a title
+    the sheet lacks would create it.
+    """
+    raw_matrix = get_all_raw_rows(tab_name)
+    legacy_titles = LEGACY_TAB_NAMES.get(tab_name)
+    if (raw_matrix and len(raw_matrix) >= 2) or not legacy_titles:
+        return raw_matrix
+    present = sheet_tab_titles()
+    for legacy in legacy_titles:
+        if legacy in present:
+            legacy_matrix = get_all_raw_rows(legacy)
+            if legacy_matrix and len(legacy_matrix) >= 2:
+                logger.info("Reading '%s' from its pre-rename tab '%s'.", tab_name, legacy)
+                return legacy_matrix
+    return raw_matrix
 
 
 def unexpected_headers(tab_name: str, headers: list) -> list[str]:
@@ -1071,7 +1118,7 @@ def execute_pull_specific(
     logger.info("Starting Pull Pipeline for '%s'...", tab_name)
 
     try:
-        raw_matrix = get_all_raw_rows(tab_name)
+        raw_matrix = read_sheet_tab(tab_name)
     except SheetsUnavailableError as e:
         # A tab we could not read is not a tab with nothing in it. Reporting
         # this as "no data / Success" is how a Google outage used to slip
@@ -1174,7 +1221,9 @@ def execute_pull_specific(
             rows_skipped += 1
             continue
 
-        raw_header_dict = parse_row_to_dict(headers, row)
+        raw_header_dict = legacy_cell_values(
+            tab_name, parse_row_to_dict(headers, row)
+        )
         clean_header_dict = parser(raw_header_dict)
 
         # Keep only the columns the sheet header actually carried. Every parser
@@ -1317,7 +1366,7 @@ def execute_pull_specific(
         # that row's owner is unknown, so it is skipped and reported rather
         # than quietly filed under the admin.
         #
-        # Watch Order Follow, User Rating, User Novel Unit Rating, Note Mark
+        # Watch Order Follow, User Rating, User Book Unit Rating, Note Mark
         # and User Favorite have carried `username` from their first day, so
         # they reach the fallback only for a hand-built sheet; they share the
         # block for the resolution.
@@ -1326,7 +1375,7 @@ def execute_pull_specific(
             "Seasonal",
             "Watch Order Follow",
             "User Rating",
-            "User Novel Unit Rating",
+            "User Book Unit Rating",
             "Note Mark",
             "User Favorite",
         ):
@@ -1538,19 +1587,19 @@ def execute_pull_specific(
             clean_header_dict["franchise_id"], clean_header_dict["series_id"] = (
                 resolve_manga_parent_hierarchy(db, fid, sid, name_fields)
             )
-        # Novel uses resolve_novel_parent_hierarchy (auto-creates franchise with type "Novel", looks up series)
-        elif tab_name == "Novel" and "franchise_id" in clean_header_dict:
+        # Book uses resolve_book_parent_hierarchy (auto-creates franchise with type "Book", looks up series)
+        elif tab_name == "Book" and "franchise_id" in clean_header_dict:
             fid = clean_header_dict.get("franchise_id")
             sid = clean_header_dict.get("series_id")
             name_fields = {
-                "en": clean_header_dict.get("novel_name_en"),
-                "cn": clean_header_dict.get("novel_name_cn"),
-                "roman": clean_header_dict.get("novel_name_roman"),
-                "jp": clean_header_dict.get("novel_name_jp"),
-                "alt": clean_header_dict.get("novel_name_alt"),
+                "en": clean_header_dict.get("book_name_en"),
+                "cn": clean_header_dict.get("book_name_cn"),
+                "roman": clean_header_dict.get("book_name_roman"),
+                "jp": clean_header_dict.get("book_name_jp"),
+                "alt": clean_header_dict.get("book_name_alt"),
             }
             clean_header_dict["franchise_id"], clean_header_dict["series_id"] = (
-                resolve_novel_parent_hierarchy(db, fid, sid, name_fields)
+                resolve_book_parent_hierarchy(db, fid, sid, name_fields)
             )
         # Comic uses resolve_comic_parent_hierarchy (auto-creates franchise with type "Comic", looks up series)
         elif tab_name == "Comic" and "franchise_id" in clean_header_dict:
@@ -2100,18 +2149,14 @@ def execute_pull_specific(
                 clean_header_dict.pop(pk_field, None)
                 pk_value = None
 
-        # A remark note is a singleton per owner - ix_note_one_remark_per_owner
-        # forbids a second row - so a blind INSERT is fatal to the WHOLE tab:
-        # the IntegrityError surfaces at db.commit() below, which rolls back
-        # every row and returns {"status": "error"}. A sheet remark row whose
-        # system_id is missing locally takes exactly that path, and that is the
-        # normal case rather than a rare one: the r1e2m3a4r5k6 migration minted
-        # fresh UUIDs for every migrated remark, and clearing then re-typing a
-        # remark after a backup mints another. So retarget such a row at the
-        # remark row the owner already has and update it in place, keeping the
-        # local system_id (popped from the payload so it is not overwritten).
+        # A section that holds one row per owner (`singleton`) or per owner
+        # and kind (`one_per_kind`) cannot take a blind INSERT of a sheet row
+        # whose system_id is missing locally: a unique index forbids the second
+        # row, and the IntegrityError at db.commit() below rolls back the WHOLE
+        # tab. So such a row is retargeted at the row the owner already has and
+        # updates it in place, keeping the local system_id (popped from the
+        # payload so it is not overwritten).
         #
-        # A one_per_kind section takes the same path per (owner, kind):
         # music_status holds one row per anime per song list
         # (ix_note_one_music_status_per_kind), and its revision minted those
         # rows separately on every database, so the sheet's copy of a list's
@@ -2138,7 +2183,7 @@ def execute_pull_specific(
                 rk_filters = [*rk_owner, Note.section == singleton.key]
                 # A personal-scope singleton would be one row per owner per
                 # author, so the fold must not land one account's row on
-                # another's. `remark` is catalogue: one row per owner.
+                # another's.
                 if singleton.scope == SCOPE_PERSONAL:
                     rk_filters.append(
                         Note.author_id == clean_header_dict.get("author_id")
@@ -2215,7 +2260,7 @@ def execute_pull_specific(
             # back as user_list.DEFAULT_STATUS anyway.
             #
             # The seven tabs are the ones that had a status default to lose,
-            # unchanged. Novel and Comic were never in this branch and are not
+            # unchanged. Book and Comic were never in this branch and are not
             # added here - whether they need a timestamp stamp is a separate
             # question from confining the pipelines.
             if tab_name in (
@@ -2462,11 +2507,17 @@ def execute_pull_specific(
 
 
 def execute_pull_all(
-    db: Session, action_type: str = "Manual", may_restore_authz: bool = False
+    db: Session,
+    action_type: str = "Manual",
+    may_restore_authz: bool = False,
+    on_progress: Optional[Progress] = None,
 ) -> dict:
     """
     Pulls ALL tabs from Google Sheets into the database.
     WARNING: The execution order is STRICT to satisfy Foreign Key constraints.
+
+    `on_progress(tab, n, total)` is called before each tab, the way Backup
+    reports its own.
 
     `may_restore_authz` is passed straight through to every tab; see
     execute_pull_specific. A caller without it restores the whole catalogue and
@@ -2497,7 +2548,9 @@ def execute_pull_all(
     skipped_tabs: list[str] = []
 
     try:
-        for tab in tabs_in_order:
+        for index, tab in enumerate(tabs_in_order, start=1):
+            if on_progress:
+                on_progress(tab, index, len(tabs_in_order))
             res = execute_pull_specific(
                 db,
                 tab,
@@ -2683,3 +2736,86 @@ def execute_pull_all(
         "unresolved_refs": [],
         "skipped_tabs": skipped_tabs,
     }
+
+
+# ---------------------------------------------------------------------------
+# Running a Pull from the admin page
+# ---------------------------------------------------------------------------
+
+# One Pull at a time: a second restore of the same sheet only repeats the
+# first, in a session contending for the same rows. Nor while a Backup runs: it rewrites the sheet
+# tab by tab, and a Pull reading it then restores from a sheet half old and
+# half new. See worker.py, and claim_backup for the other direction.
+
+
+class PullAlreadyRunning(AlreadyRunning):
+    """Another Pull, or a Backup, holds the sheet; this one was refused before reading."""
+
+
+class UnknownTab(ValueError):
+    """The tab named is not one Pull restores."""
+
+
+def claim_pull() -> Claim:
+    return claim(
+        PULL_LOCK_KEY,
+        PullAlreadyRunning,
+        "A pull is already running. Its result will appear in the Data Control log.",
+        excludes=[(
+            BACKUP_LOCK_KEY,
+            "A backup is running. Pull once it has finished.",
+        )],
+    )
+
+
+def start_pull(
+    session_factory: Callable[[], Session],
+    emit: Emit,
+    tab_name: Optional[str] = None,
+    action_type: str = "Manual",
+    may_restore_authz: bool = False,
+) -> threading.Thread:
+    """
+    Claim the Pull, then run Pull All (`tab_name` None) or one tab on a thread
+    of its own, reporting through `emit`: a `processing` event per tab, then
+    the pipeline's own result dict unchanged - `status` `success`, `skipped`
+    or `error` - or `{"status": "error", "message"}` if it raised.
+
+    An unknown tab raises UnknownTab, and a refusal PullAlreadyRunning, HERE,
+    before anything starts. Like start_backup, the thread opens its own session
+    and never waits on its listener: a dropped connection must not stop a
+    restore halfway.
+    """
+    if tab_name is not None and tab_name not in TAB_MODELS:
+        raise UnknownTab(f"Unknown tab: {tab_name}")
+    held = claim_pull()
+
+    def progress(tab: str, done: int, total: int) -> None:
+        emit({"status": "processing", "current_entry": tab,
+              "processed": done, "total": total})
+
+    def run() -> None:
+        db = session_factory()
+        try:
+            if tab_name is None:
+                result = execute_pull_all(
+                    db, action_type, may_restore_authz=may_restore_authz,
+                    on_progress=progress,
+                )
+            else:
+                progress(tab_name, 1, 1)
+                result = execute_pull_specific(
+                    db, tab_name, action_type=action_type, log_action=True,
+                    may_restore_authz=may_restore_authz,
+                )
+            emit(result)
+        except Exception as e:
+            # Pull All has logged and recorded its own failure; one tab's
+            # unexpected crash has not, so it is logged here.
+            logger.exception("Pull failed")
+            db.rollback()
+            emit({"status": "error", "message": str(e)})
+        finally:
+            db.close()
+
+    return start_worker("pull", held, run)

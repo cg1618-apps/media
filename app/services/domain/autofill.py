@@ -9,12 +9,12 @@ from sqlalchemy.orm import Session
 from app.models import (
     Anime,
     AnimeMovies,
+    Book,
     Cartoon,
     Character,
     Comic,
     Manga,
     Movies,
-    Novel,
     Person,
     Studio,
     TVShows,
@@ -73,7 +73,7 @@ from app.utils.imdb_utils import (
     map_imdb_to_tv_show_data,
 )
 from app.utils.name_normalize import names_of, split_names
-from app.utils.openlibrary_utils import map_openlibrary_to_novel_data
+from app.utils.openlibrary_utils import map_openlibrary_to_book_data
 from app.utils.steam_utils import (
     REGIONS,
     map_steam_to_game_data,
@@ -85,9 +85,9 @@ from app.utils.tenrai_utils import (
     map_tenrai_credits,
     map_tenrai_to_anime_data,
     map_tenrai_to_anime_movie_data,
+    map_tenrai_to_book_data,
     map_tenrai_to_character_data,
     map_tenrai_to_manga_data,
-    map_tenrai_to_novel_data,
     map_tenrai_to_person_data,
     map_tenrai_to_studio_data,
 )
@@ -120,7 +120,7 @@ def _write_tenrai_reference_rows(db, media_type: str, entry, j_data) -> None:
 def _write_mal_credits(db, media_type: str, entry, raw_data) -> None:
     """
     MAL's studios (anime, anime movie) or authors and illustrators (manga,
-    novel), credited into each role the entry has no credits for; a credited
+    book), credited into each role the entry has no credits for; a credited
     row MAL names by name is given MAL's id. See credits.fill_mal_credits.
     Skipped without a session, like the reference rows.
     """
@@ -131,7 +131,7 @@ def _write_mal_credits(db, media_type: str, entry, raw_data) -> None:
 
 
 # The three AniList columns, identical on anime, anime_movies, manga and
-# novel - checked against all four models, not inferred from one.
+# book - checked against all four models, not inferred from one.
 _ANILIST_COLUMNS = ("anilist_rating", "anilist_rank", "anilist_popularity_rank")
 
 
@@ -616,18 +616,18 @@ def autofill_manga_from_mal(
         logger.error("MAL Autofill failed for Manga ID %s (MAL %s): %s", manga.system_id, mal_id, e)
 
 
-def autofill_novel_from_mal(
-    novel: Novel, force_replace_ratings: bool = True, db: Session = None
+def autofill_book_from_mal(
+    book: Book, force_replace_ratings: bool = True, db: Session = None
 ) -> None:
     """
-    Enriches a single Novel entry with Tenrai API data. Does not commit — caller is responsible.
-    Fill-only: serialization_status, release_date, end_date.
+    Enriches a single Book entry with Tenrai API data. Does not commit — caller is responsible.
+    Fill-only: serialization_status, release_date_jp, end_date.
     vol_total_original and ch_total are filled only when serialization_status == "完結".
     Ratings always replaced when force_replace_ratings=True.
     With a session, MAL's authors are credited into an empty author or
     illustrator role (_write_mal_credits).
     """
-    mal_id = novel.mal_id
+    mal_id = book.mal_id
     if not mal_id:
         return
 
@@ -636,63 +636,63 @@ def autofill_novel_from_mal(
         if not raw_data:
             return
 
-        j_data = map_tenrai_to_novel_data(raw_data)
+        j_data = map_tenrai_to_book_data(raw_data)
 
-        if novel.serialization_status is None:
-            novel.serialization_status = j_data.get("serialization_status")
-        if novel.release_date is None:
-            novel.release_date = j_data.get("release_date")
-        if novel.end_date is None:
-            novel.end_date = j_data.get("end_date")
-        _write_mal_credits(db, "novel", novel, raw_data)
+        if book.serialization_status is None:
+            book.serialization_status = j_data.get("serialization_status")
+        if book.release_date_jp is None:
+            book.release_date_jp = j_data.get("release_date_jp")
+        if book.end_date is None:
+            book.end_date = j_data.get("end_date")
+        _write_mal_credits(db, "book", book, raw_data)
 
-        if novel.serialization_status == "完結":
-            if novel.vol_total_original is None:
-                novel.vol_total_original = j_data.get("vol_total_original")
-            if novel.ch_total is None:
-                novel.ch_total = j_data.get("ch_total")
+        if book.serialization_status == "完結":
+            if book.vol_total_original is None:
+                book.vol_total_original = j_data.get("vol_total_original")
+            if book.ch_total is None:
+                book.ch_total = j_data.get("ch_total")
 
-        if force_replace_ratings or novel.mal_rating is None:
-            novel.mal_rating = j_data.get("mal_rating") or novel.mal_rating
-        if force_replace_ratings or novel.mal_rank is None:
+        if force_replace_ratings or book.mal_rating is None:
+            book.mal_rating = j_data.get("mal_rating") or book.mal_rating
+        if force_replace_ratings or book.mal_rank is None:
             raw_rank = j_data.get("mal_rank")
-            novel.mal_rank = str(raw_rank) if raw_rank else novel.mal_rank
+            book.mal_rank = str(raw_rank) if raw_rank else book.mal_rank
 
         if (
 
-            cover_needs_download(novel.cover_image_file, "novel", str(novel.system_id))
+            cover_needs_download(book.cover_image_file, "book", str(book.system_id))
 
             and j_data.get("cover_image_url")
 
         ):
             key = download_cover_image(
-                j_data.get("cover_image_url"), "novel", str(novel.system_id)
+                j_data.get("cover_image_url"), "book", str(book.system_id)
             )
             if key:
-                novel.cover_image_file = key
+                book.cover_image_file = key
 
     except Exception as e:
-        logger.error("MAL Autofill failed for Novel ID %s (MAL %s): %s", novel.system_id, mal_id, e)
+        logger.error("MAL Autofill failed for Book ID %s (MAL %s): %s", book.system_id, mal_id, e)
 
 
-def autofill_novel_from_openlibrary(novel: Novel, db: Session) -> None:
+def autofill_book_from_openlibrary(book: Book, db: Session) -> None:
     """
-    Enriches a single Novel entry with Open Library data. Does not commit —
+    Enriches a single Book entry with Open Library data. Does not commit —
     caller is responsible.
 
-    For novels MAL does not have. Fill-only throughout, and deliberately narrow:
+    For books MAL does not have. Fill-only throughout, and deliberately narrow:
     the stored work id names the entry's *anchor* book, so this writes only what
     is true of the whole entry when read off book one — when it starts, who wrote
     it, what it looks like. end_date, volume and chapter totals and serialization
     status belong to the set, and are never touched.
     """
-    work_id = novel.openlibrary_id
+    work_id = book.openlibrary_id
     if not work_id:
         return
 
     try:
-        want_editions = not novel.release_date
-        want_authors = not credit_names(db, novel.system_id, "author")
+        want_editions = not book.release_date_jp
+        want_authors = not credit_names(db, book.system_id, "author")
 
         raw_data = fetch_openlibrary_work(
             work_id, want_editions=want_editions, want_authors=want_authors
@@ -700,33 +700,33 @@ def autofill_novel_from_openlibrary(novel: Novel, db: Session) -> None:
         if not raw_data:
             return
 
-        ol_data = map_openlibrary_to_novel_data(raw_data)
+        ol_data = map_openlibrary_to_book_data(raw_data)
 
-        if want_editions and ol_data.get("release_date"):
-            novel.release_date = ol_data.get("release_date")
+        if want_editions and ol_data.get("release_date_jp"):
+            book.release_date_jp = ol_data.get("release_date_jp")
 
         if want_authors and ol_data.get("author"):
             replace_credits(
-                db, "novel", novel.system_id, "author", split_names(ol_data.get("author"))
+                db, "book", book.system_id, "author", split_names(ol_data.get("author"))
             )
 
         if (
 
-            cover_needs_download(novel.cover_image_file, "novel", str(novel.system_id))
+            cover_needs_download(book.cover_image_file, "book", str(book.system_id))
 
             and ol_data.get("cover_image_url")
 
         ):
             key = download_cover_image(
-                ol_data.get("cover_image_url"), "novel", str(novel.system_id)
+                ol_data.get("cover_image_url"), "book", str(book.system_id)
             )
             if key:
-                novel.cover_image_file = key
+                book.cover_image_file = key
 
     except Exception as e:
         logger.error(
-            "Open Library Autofill failed for Novel ID %s (Work %s): %s",
-            novel.system_id,
+            "Open Library Autofill failed for Book ID %s (Work %s): %s",
+            book.system_id,
             work_id,
             e,
         )

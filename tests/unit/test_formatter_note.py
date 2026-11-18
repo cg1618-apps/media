@@ -188,3 +188,11 @@ def test_a_reviews_and_comments_row_pulls_as_public_reviews():
     assert parsed["section"] == "public_reviews"
     # The mirror: every other section passes through untouched.
     assert parse_note_from_sheet({"section": "advantages"})["section"] == "advantages"
+
+
+def test_a_remark_list_row_pulls_as_personal_notes():
+    # 備註列表 was renamed 個人筆記; an older sheet still names the old key.
+    parsed = parse_note_from_sheet({"section": "remark_list", "content": "mine"})
+    assert parsed["section"] == "personal_notes"
+    # The mirror: the shared remark keeps its key.
+    assert parse_note_from_sheet({"section": "remark"})["section"] == "remark"

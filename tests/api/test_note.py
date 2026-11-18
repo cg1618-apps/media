@@ -6,11 +6,13 @@ registry in app/utils/note_sections.py.
 Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
+import dataclasses
 import uuid
 
 import pytest
 
 from app import models
+from app.utils import note_sections as ns
 
 
 @pytest.fixture
@@ -67,7 +69,7 @@ def test_sections_carry_kinds_and_placeholders(guest_reader):
     ]
     assert by_key["extended_episodes"]["kinds"] == []
     assert by_key["highlights"]["kinds"] == ["神回", "神片段", "神篇章"]
-    assert by_key["remark"]["singleton"] is True
+    assert by_key["remark"]["singleton"] is False
     assert by_key["adaptation"]["desc_required"] is True
 
 
@@ -198,7 +200,34 @@ def test_create_rejects_external_section(owner_client, sample_anime):
     assert r.status_code == 422
 
 
-def test_singleton_section_rejects_a_second_row(super_client, sample_anime):
+@pytest.fixture
+def singleton_remark(monkeypatch):
+    """`remark` as a singleton section, for the generic singleton check.
+
+    No section in the registry is a singleton today, so the check would have
+    nothing to refuse; this makes `remark` one for the test's duration."""
+    section = ns.section_by_key("remark")
+    monkeypatch.setitem(
+        ns._BY_KEY, "remark", dataclasses.replace(section, singleton=True)
+    )
+
+
+def test_a_list_section_takes_a_second_row(super_client, sample_anime):
+    """The mirror of the singleton refusal below: the same two posts to the
+    same list section both land."""
+    body = {
+        "owner_type": "anime",
+        "owner_id": str(sample_anime.system_id),
+        "section": "remark",
+        "content": "重看第三次",
+    }
+    assert super_client.post("/api/notes", json=body).status_code == 201
+    assert super_client.post("/api/notes", json=body).status_code == 201
+
+
+def test_singleton_section_rejects_a_second_row(
+    super_client, sample_anime, singleton_remark
+):
     body = {
         "owner_type": "anime",
         "owner_id": str(sample_anime.system_id),
@@ -288,7 +317,7 @@ def test_update_revalidates_against_registry(super_client, anime_note):
 
 
 def test_update_to_singleton_conflict_does_not_flush_mutation(
-    super_client, db_session, sample_anime, anime_note, super_user,
+    super_client, db_session, sample_anime, anime_note, super_user, singleton_remark,
 ):
     # sample_anime already has a 'remark' note; patching anime_note's section
     # to 'remark' must be rejected, and - because the check must run before
@@ -566,7 +595,7 @@ def test_sections_endpoint_reports_scope(client):
     assert r.status_code == 200
     by_key = {s["key"]: s for s in r.json()}
     assert by_key["remark"]["scope"] == "catalog"
-    assert by_key["remark_list"]["scope"] == "personal"
+    assert by_key["personal_notes"]["scope"] == "personal"
     assert by_key["op"]["scope"] == "catalog"
     assert by_key["quotes"]["scope"] is None
 

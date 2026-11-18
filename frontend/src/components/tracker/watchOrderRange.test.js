@@ -10,7 +10,7 @@ describe("supportsEpisodeRange", () => {
   });
 
   // A comic run is stepped through by issue, not covered whole the way manga
-  // and novels are, so it keeps the from/to pair.
+  // and books are, so it keeps the from/to pair.
   it("allows a range for comic", () => {
     expect(supportsEpisodeRange("comic")).toBe(true);
   });
@@ -19,7 +19,7 @@ describe("supportsEpisodeRange", () => {
     expect(supportsEpisodeRange("movie")).toBe(false);
     expect(supportsEpisodeRange("anime-movie")).toBe(false);
     expect(supportsEpisodeRange("manga")).toBe(false);
-    expect(supportsEpisodeRange("novel")).toBe(false);
+    expect(supportsEpisodeRange("book")).toBe(false);
     // A game is one whole entry: no partial progress to step through.
     expect(supportsEpisodeRange("game")).toBe(false);
   });

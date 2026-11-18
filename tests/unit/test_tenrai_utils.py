@@ -14,8 +14,8 @@ from app.utils.tenrai_utils import (
     map_tenrai_cast,
     map_tenrai_to_anime_data,
     map_tenrai_to_anime_movie_data,
+    map_tenrai_to_book_data,
     map_tenrai_to_manga_data,
-    map_tenrai_to_novel_data,
     parse_mal_duration_minutes,
 )
 
@@ -285,7 +285,7 @@ class TestAnimeReleaseDateIsISO:
         assert map_tenrai_to_anime_data({})["release_date_jp"] is None
 
 
-class TestMangaAndNovelReleaseDatesAreISO:
+class TestMangaAndBookReleaseDatesAreISO:
     def _published(self, string, prop_from, prop_to=None):
         return {
             "published": {
@@ -318,18 +318,18 @@ class TestMangaAndNovelReleaseDatesAreISO:
         assert "end_year" not in mapped
         assert mapped["release_date"] is None
 
-    def test_novel_keeps_full_precision_when_mal_knows_the_day(self):
+    def test_book_keeps_full_precision_when_mal_knows_the_day(self):
         raw = self._published(
             "Jul 22, 1997 to Nov 18, 2011",
             {"day": 22, "month": 7, "year": 1997},
             {"day": 18, "month": 11, "year": 2011},
         )
-        mapped = map_tenrai_to_novel_data(raw)
-        assert mapped["release_date"] == "1997-07-22"
+        mapped = map_tenrai_to_book_data(raw)
+        assert mapped["release_date_jp"] == "1997-07-22"
         assert mapped["end_date"] == "2011-11-18"
 
-    def test_novel_no_longer_returns_year_columns(self):
-        mapped = map_tenrai_to_novel_data({})
+    def test_book_no_longer_returns_year_columns(self):
+        mapped = map_tenrai_to_book_data({})
         assert "release_year" not in mapped
         assert "end_year" not in mapped
         assert mapped["end_date"] is None

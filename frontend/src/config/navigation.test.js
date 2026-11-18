@@ -19,7 +19,7 @@ const MEDIA_TYPE_KEYS = [
   "media_type.anime",
   "media_type.anime-movie",
   "media_type.manga",
-  "media_type.novel",
+  "media_type.book",
   "media_type.game",
   "media_type.tv-show",
   "media_type.movie",

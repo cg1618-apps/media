@@ -40,8 +40,8 @@ class HComicBase(BaseModel):
     animation_status: Optional[str] = None
     series_number: Optional[int] = None
     serialization_status: Optional[str] = None
-    page_total: Optional[int] = None
-    ch_total: Optional[int] = None
+    page_total: Optional[float] = None
+    ch_total: Optional[float] = None
     ch_behind: Optional[int] = None
 
     release_date: Optional[str] = None
@@ -59,14 +59,13 @@ class HComicBase(BaseModel):
     # Personal - split off onto user_media_list by the router.
     reading_status: str = "Might Read"
     my_rating: Optional[str] = None
-    page_fin: Optional[int] = 0
-    ch_fin: Optional[int] = 0
+    page_fin: Optional[float] = 0
+    ch_fin: Optional[float] = 0
     usefulness: Optional[str] = None
     completed_at: Optional[datetime] = None
 
     read_next: Optional[bool] = None
     to_reread: Optional[bool] = None
-    remark: Optional[str] = None
     cover_image_file: Optional[str] = None
     cover_image_focus: ImageFocus = None
 

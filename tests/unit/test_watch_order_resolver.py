@@ -198,7 +198,7 @@ class TestMediaTypeMap:
             "tv-show",
             "cartoon",
             "manga",
-            "novel",
+            "book",
             "comic",
             "game",
             "h-comic",
@@ -315,20 +315,20 @@ class TestResolveItems:
         assert result["status"] == "Completed"
 
     def test_float_total_is_coerced_to_int(self):
-        """novel.ch_total is a Float column; the schema wants an int."""
+        """book.ch_total is a Float column; the schema wants an int."""
         entry_id = uuid.uuid4()
-        novel = SimpleNamespace(
+        book = SimpleNamespace(
             system_id=entry_id,
-            display_name="Some Novel",
+            display_name="Some Book",
             cover_image_file=None,
             cover_image_focus=None,
             franchise_id=uuid.uuid4(),
             reading_status="Might Read",
             ch_total=120.0,
         )
-        db = FakeSession({MEDIA_TYPE_MODELS["novel"]: [novel]})
+        db = FakeSession({MEDIA_TYPE_MODELS["book"]: [book]})
 
-        result = resolve_items(db, [make_item("novel", entry_id)], _viewer(FAKE_ADMIN.id))[0]
+        result = resolve_items(db, [make_item("book", entry_id)], _viewer(FAKE_ADMIN.id))[0]
 
         assert result["total_episodes"] == 120
         assert isinstance(result["total_episodes"], int)
@@ -399,8 +399,8 @@ class TestResolveItems:
 
 class TestEpSpecial:
     """
-    ep_special is the episode number a special sits at (0, 14.5), not a count,
-    and only anime has the column.
+    ep_special is the episode a special sits at ("0", "14.5", "17.5A"), a
+    label rather than a count, and only anime has the column.
     """
 
     def _resolve(self, entry, entry_id, media_type="anime"):
@@ -409,14 +409,14 @@ class TestEpSpecial:
 
     def test_value_is_surfaced(self):
         entry_id = uuid.uuid4()
-        result = self._resolve(make_anime(entry_id, ep_special=14.5), entry_id)
-        assert result["ep_special"] == 14.5
+        result = self._resolve(make_anime(entry_id, ep_special="17.5A"), entry_id)
+        assert result["ep_special"] == "17.5A"
 
     def test_zero_survives(self):
         """A falsiness check would drop episode 0, which is a real value."""
         entry_id = uuid.uuid4()
-        result = self._resolve(make_anime(entry_id, ep_special=0), entry_id)
-        assert result["ep_special"] == 0
+        result = self._resolve(make_anime(entry_id, ep_special="0"), entry_id)
+        assert result["ep_special"] == "0"
         assert result["ep_special"] is not None
 
     def test_absent_value_is_none(self):

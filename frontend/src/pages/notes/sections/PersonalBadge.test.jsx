@@ -42,10 +42,10 @@ it("leaves a catalogue section's title unmarked (the mirror)", () => {
   expect(within(title).queryByRole("img", { name: "Personal" })).toBeNull();
 });
 
-it("marks the singleton remark box too", () => {
+it("marks a singleton box too", () => {
   render(
     <TextSection
-      section={{ key: "remark", shape: "text", label: "備註 Remark", scope: "personal", singleton: true }}
+      section={{ key: "journal", shape: "text", label: "日誌 Journal", scope: "personal", singleton: true }}
       notes={[]}
       canWrite
       onCreate={() => {}}
@@ -53,6 +53,6 @@ it("marks the singleton remark box too", () => {
       onDelete={() => {}}
     />,
   );
-  const title = screen.getByRole("heading", { name: /備註 Remark/ });
+  const title = screen.getByRole("heading", { name: /日誌 Journal/ });
   expect(within(title).getByRole("img", { name: "Personal" })).toBeInTheDocument();
 });

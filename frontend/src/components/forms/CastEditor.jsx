@@ -1,6 +1,6 @@
 // Frontend: form component for an entry's cast (character + seiyuu list +
 // role + position + photo + credited name + remark). Controlled, like
-// NovelUnitsEditor: the parent owns `value` and receives every change
+// BookUnitsEditor: the parent owns `value` and receives every change
 // through `onChange`. CastEditor never calls the API to save a cast list —
 // only to search/create the characters and people its two comboboxes
 // reference, and to read what "Sync from original" writes into the form.
@@ -53,7 +53,7 @@ const CHARACTER_SEARCH_DEBOUNCE_MS = 250;
 
 // ck_casting_voice_scope: a character_casting_voice row only on media_type IN
 // ('anime', 'anime-movie', 'hentai'). Nobody voices anyone in a manga or
-// novel, so the seiyuu column must not offer what the database will reject.
+// book, so the seiyuu column must not offer what the database will reject.
 const SEIYUU_MEDIA_TYPES = new Set(["anime", "anime-movie", "hentai"]);
 
 // No width here: each cell states its own. A shared `w-full` beside a cell's
@@ -252,7 +252,7 @@ export default function CastEditor({
 
   // Existing seiyuu, scoped to this media type exactly like every other
   // person source (PersonRoleIn.scope IS the media type). Not fetched at
-  // all for manga/novel, where the column never renders.
+  // all for manga/book, where the column never renders.
   useEffect(() => {
     if (!showSeiyuu) return;
     let cancelled = false;
@@ -548,7 +548,7 @@ export default function CastEditor({
 
   // A row is dragged by its handle (components/ui/Sortable, the reorder
   // control every list uses) and the rows renumbered, the same shape as
-  // NovelUnitsEditor's move. A row not saved yet has no system_id, so it is
+  // BookUnitsEditor's move. A row not saved yet has no system_id, so it is
   // identified by its index until it has one.
   const rowIds = rows.map((r, i) => r.system_id || `new-${i}`);
   const move = (from, to) =>

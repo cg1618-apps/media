@@ -12,6 +12,12 @@ import { entityPath } from "../../lib/entityPath";
 import PlatformIcons from "../cards/PlatformIcons";
 import LazyImage from "../ui/LazyImage";
 import ProgressInput from "./ProgressInput";
+import {
+  formatProgress,
+  parseProgressTotal,
+  stepDown,
+  stepUp,
+} from "../../lib/progressStep";
 import { focusStyle, thumbUrl } from "../../lib/covers";
 
 const STEPPER_INPUT =
@@ -29,11 +35,11 @@ export default function DashboardCard({
   const isTV = anime._ui_type === "TV Show";
   const isCartoon = anime._ui_type === "Cartoon";
   const isManga = anime._ui_type === "Manga";
-  const isNovel = anime._ui_type === "Novel";
-  const isReading = isManga || isNovel;
+  const isBook = anime._ui_type === "Book";
+  const isReading = isManga || isBook;
 
-  const titleType = isNovel
-    ? "novel"
+  const titleType = isBook
+    ? "book"
     : isManga
       ? "manga"
       : isCartoon
@@ -54,13 +60,9 @@ export default function DashboardCard({
 
   const prevEps = isTV || isCartoon || isReading ? 0 : anime.ep_previous || 0;
   const localFin = isReading ? anime.ch_fin || 0 : anime.ep_fin || 0;
-  const localTotal = isReading
-    ? anime.ch_total != null
-      ? parseInt(anime.ch_total, 10) || "?"
-      : "?"
-    : anime.ep_total !== null && anime.ep_total !== undefined
-      ? parseInt(anime.ep_total, 10) || "?"
-      : "?";
+  // Counts and totals are floats; an unknown or zero total shows as "?".
+  const localTotal =
+    parseProgressTotal(isReading ? anime.ch_total : anime.ep_total) || "?";
   const cumFin = anime.cum_ep_fin ?? localFin;
   const cumTotal = anime.cum_ep_total ?? localTotal;
 
@@ -97,7 +99,7 @@ export default function DashboardCard({
       className="font-mono text-[10px] text-text-faint ml-1"
       title="Cumulative total"
     >
-      ({cumFin}/{cumTotal})
+      ({formatProgress(cumFin)}/{formatProgress(cumTotal)})
     </span>
   ) : null;
 
@@ -112,7 +114,7 @@ export default function DashboardCard({
         type={spineLabel}
         status={statusText}
         rating={anime.my_rating}
-        progress={`${localFin}/${localTotal} ${isReading ? "ch" : "ep"}`}
+        progress={`${formatProgress(localFin)}/${formatProgress(localTotal)} ${isReading ? "ch" : "ep"}`}
         percent={localTotal !== "?" ? `${progressPercent}%` : null}
       />
     );
@@ -195,13 +197,14 @@ export default function DashboardCard({
             <Button
               kind="outline"
               size="sm"
-              onClick={() => handleEpChange(localFin - 1)}
+              onClick={() => handleEpChange(stepDown(localFin))}
               aria-label="One back"
             >
               <i className="fas fa-minus text-[10px]"></i>
             </Button>
             <div className="font-mono text-[13px] flex items-baseline justify-center select-none flex-1 whitespace-nowrap">
               <ProgressInput
+                decimal
                 className={STEPPER_INPUT}
                 value={localFin}
                 onCommit={handleEpChange}
@@ -209,14 +212,14 @@ export default function DashboardCard({
               />
               <span className="text-text-faint mx-1 text-xs">/</span>
               <span className="text-text-faint w-10 text-center">
-                {localTotal}
+                {formatProgress(localTotal)}
               </span>
               {unitSuffix}
             </div>
             <Button
               kind="outline"
               size="sm"
-              onClick={() => handleEpChange(localFin + 1)}
+              onClick={() => handleEpChange(stepUp(localFin, localTotal))}
               aria-label="One forward"
             >
               <i className="fas fa-plus text-[10px]"></i>
@@ -225,10 +228,10 @@ export default function DashboardCard({
         ) : (
           <div className="flex items-center justify-center border border-border h-[36px]">
             <div className="font-mono text-[13px] flex items-baseline justify-center select-none w-full px-1">
-              <span className="text-text w-14 text-center">{localFin}</span>
+              <span className="text-text w-14 text-center">{formatProgress(localFin)}</span>
               <span className="text-text-faint mx-0.5 text-xs">/</span>
               <span className="text-text-faint w-14 text-center">
-                {localTotal}
+                {formatProgress(localTotal)}
               </span>
               {unitSuffix}
             </div>

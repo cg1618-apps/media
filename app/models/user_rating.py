@@ -16,7 +16,7 @@ row per user per owner (uq_user_rating_owner, NULLS NOT DISTINCT because six
 of the seven owner columns are NULL on every row).
 
 A row holding neither value is not stored: app/services/domain/user_rating.py
-deletes it, as user_novel_unit_rating does, so "never rated" and "rated, then
+deletes it, as user_book_unit_rating does, so "never rated" and "rated, then
 cleared" are one state.
 """
 

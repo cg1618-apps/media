@@ -30,6 +30,7 @@ from app.utils.character_roles import normalize_character_role
 # The vocabularies the game completion axes carry. Imported so the sheet
 # parser and the API cannot disagree about what a valid value is.
 from app.utils.constants import (
+    ANIME_ORIGINAL_OR_REMAKE,
     FILM_MEDIA_TYPES,
     GAME_ACHIEVEMENT_FLAGS,
     GAME_COMPLETION_FLAGS,
@@ -39,6 +40,7 @@ from app.utils.constants import (
 # Character and person gender / my_rating, folded the way the revision that
 # closed those vocabularies folded the stored rows.
 from app.utils.entity_vocab import normalize_gender, normalize_my_rating
+from app.utils.ep_special import normalize_ep_special
 from app.utils.note_sections import (
     SHAPE_STRUCTURED,
     as_link_pairs,
@@ -416,8 +418,8 @@ def parse_user_favorite_from_sheet(raw: dict) -> dict:
     }
 
 
-def parse_user_novel_unit_rating_from_sheet(raw: dict) -> dict:
-    """One reader's rating of and remark on one novel unit; user_id as above."""
+def parse_user_book_unit_rating_from_sheet(raw: dict) -> dict:
+    """One reader's rating of and remark on one book unit; user_id as above."""
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "unit_id": _uuid_or_none(raw.get("unit_id")),
@@ -537,15 +539,15 @@ def parse_user_media_list_from_sheet(raw: dict) -> dict:
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
         "my_watch_day": parse_from_sheet(raw.get("my_watch_day"), str),
-        "ep_fin": parse_from_sheet(raw.get("ep_fin"), int),
+        "ep_fin": parse_from_sheet(raw.get("ep_fin"), float),
         "vol_fin": parse_from_sheet(raw.get("vol_fin"), float),
         "vol_fin_page": parse_from_sheet(raw.get("vol_fin_page"), int),
         "ch_fin": parse_from_sheet(raw.get("ch_fin"), float),
         "arc_fin": parse_from_sheet(raw.get("arc_fin"), float),
         "ch_fin_in_arc": parse_from_sheet(raw.get("ch_fin_in_arc"), float),
         "progress_display": parse_from_sheet(raw.get("progress_display"), str),
-        "issue_fin": parse_from_sheet(raw.get("issue_fin"), int),
-        "page_fin": parse_from_sheet(raw.get("page_fin"), int),
+        "issue_fin": parse_from_sheet(raw.get("issue_fin"), float),
+        "page_fin": parse_from_sheet(raw.get("page_fin"), float),
         "usefulness": parse_from_sheet(raw.get("usefulness"), str),
         "time_fin": _text_cell_from_sheet(raw.get("time_fin")),
     }
@@ -801,6 +803,17 @@ def _renamed(raw: dict, column: str, legacy: str) -> Any:
     return raw.get(column) if column in raw else raw.get(legacy)
 
 
+def _original_or_remake_from_sheet(val: Any) -> str:
+    """
+    One anime original_or_remake cell. The column is never NULL, so a blank
+    or unknown cell reads as the original rather than aborting the tab. A tab
+    without the header never reaches here: Pull drops the key, and the
+    column's default fills it on insert.
+    """
+    value = parse_from_sheet(val, str)
+    return value if value in ANIME_ORIGINAL_OR_REMAKE else ANIME_ORIGINAL_OR_REMAKE[0]
+
+
 def parse_anime_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Anime sheet into typed data ready for the Database.
@@ -818,11 +831,14 @@ def parse_anime_from_sheet(raw: dict) -> dict:
         "season_part": parse_from_sheet(raw.get("season_part"), str),
         "airing_type": parse_from_sheet(raw.get("airing_type"), str),
         "airing_status": _airing_status_from_sheet(raw.get("airing_status")),
-        "ep_previous": parse_from_sheet(raw.get("ep_previous"), int),
-        "ep_total": parse_from_sheet(raw.get("ep_total"), int),
-        "ep_special": parse_from_sheet(raw.get("ep_special"), float),
+        "ep_previous": parse_from_sheet(raw.get("ep_previous"), float),
+        "ep_total": parse_from_sheet(raw.get("ep_total"), float),
+        # Text; a cell from a Backup taken while it was a float reads 17.0,
+        # which comes back as "17".
+        "ep_special": normalize_ep_special(parse_from_sheet(raw.get("ep_special"), str)),
         "runtime_min": parse_from_sheet(raw.get("runtime_min"), int),
         "is_main": parse_from_sheet(raw.get("is_main"), str),
+        "original_or_remake": _original_or_remake_from_sheet(raw.get("original_or_remake")),
         "release_season": parse_from_sheet(raw.get("release_season"), str),
         # A tab from before the JP/TW split carries one `release_date`, which
         # stood for both.
@@ -929,7 +945,7 @@ def parse_movie_from_sheet(raw: dict) -> dict:
         # its own key (renamed from source_official alongside the field key -
         # tv-show and cartoon keep the old header instead, since they DO have
         # a legacy column to stay compatible with). Popped out in pull.py
-        # before the setattr loop, exactly like the anime/manga/novel/comic
+        # before the setattr loop, exactly like the anime/manga/book/comic
         # credit columns.
         "original_source": parse_from_sheet(raw.get("original_source"), str),
         "length_min": parse_from_sheet(raw.get("length_min"), int),
@@ -969,7 +985,7 @@ def parse_tv_show_from_sheet(raw: dict) -> dict:
         "airing_type": parse_from_sheet(raw.get("airing_type"), str),
         "airing_status": _airing_status_from_sheet(raw.get("airing_status")),
         "is_main": parse_from_sheet(raw.get("is_main"), str),
-        "ep_total": parse_from_sheet(raw.get("ep_total"), int),
+        "ep_total": parse_from_sheet(raw.get("ep_total"), float),
         "runtime_min": parse_from_sheet(raw.get("runtime_min"), int),
         "imdb_rating": parse_from_sheet(raw.get("imdb_rating"), str),
         "imdb_series_rating": parse_from_sheet(raw.get("imdb_series_rating"), str),
@@ -1005,7 +1021,7 @@ def parse_cartoon_from_sheet(raw: dict) -> dict:
         "airing_type": parse_from_sheet(raw.get("airing_type"), str),
         "airing_status": _airing_status_from_sheet(raw.get("airing_status")),
         "is_main": parse_from_sheet(raw.get("is_main"), str),
-        "ep_total": parse_from_sheet(raw.get("ep_total"), int),
+        "ep_total": parse_from_sheet(raw.get("ep_total"), float),
         "runtime_min": parse_from_sheet(
             _renamed(raw, "runtime_min", "length_ep_min"), int
         ),
@@ -1043,8 +1059,8 @@ def parse_manga_from_sheet(raw: dict) -> dict:
         "region": parse_from_sheet(raw.get("region"), str),
         "is_main": parse_from_sheet(raw.get("is_main"), str),
         "serialization_status": parse_from_sheet(raw.get("serialization_status"), str),
-        "vol_total": parse_from_sheet(raw.get("vol_total"), int),
-        "ch_total": parse_from_sheet(raw.get("ch_total"), int),
+        "vol_total": parse_from_sheet(raw.get("vol_total"), float),
+        "ch_total": parse_from_sheet(raw.get("ch_total"), float),
         "mal_rating": parse_from_sheet(raw.get("mal_rating"), float),
         "mal_rank": parse_from_sheet(raw.get("mal_rank"), str),
         "anilist_rating": parse_from_sheet(raw.get("anilist_rating"), int),
@@ -1056,6 +1072,13 @@ def parse_manga_from_sheet(raw: dict) -> dict:
         "author_draw": parse_from_sheet(raw.get("author_draw"), str),
         "release_date": release_date.normalize(parse_from_sheet(raw.get("release_date"), str)),
         "end_date": release_date.normalize(parse_from_sheet(raw.get("end_date"), str)),
+        # Absent from a tab backed up before the columns existed: None.
+        "next_vol_release_date_jp": release_date.normalize(
+            parse_from_sheet(raw.get("next_vol_release_date_jp"), str)
+        ),
+        "next_vol_release_date_tw": release_date.normalize(
+            parse_from_sheet(raw.get("next_vol_release_date_tw"), str)
+        ),
         "anime_studio": parse_from_sheet(raw.get("anime_studio"), str),
         "publisher_tw": parse_from_sheet(raw.get("publisher_tw"), str),
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
@@ -1072,20 +1095,22 @@ def parse_manga_from_sheet(raw: dict) -> dict:
     return parsed
 
 
-def parse_novel_from_sheet(raw: dict) -> dict:
+def parse_book_from_sheet(raw: dict) -> dict:
     """
-    Parses a raw dictionary from the Novel sheet into typed data ready for the Database.
-    franchise_id and series_id may be a UUID or a raw string name.
+    Parses a raw dictionary from the Book sheet into typed data ready for the Database.
+    franchise_id and series_id may be a UUID or a raw string name. A tab
+    written before Novel became Book names its columns novel_name_* and
+    release_date (pull.RENAMED_COLUMNS).
     """
     parsed = {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "franchise_id": parse_from_sheet(raw.get("franchise_id"), UUID),
         "series_id": parse_from_sheet(raw.get("series_id"), UUID),
-        "novel_name_en": parse_from_sheet(raw.get("novel_name_en"), str),
-        "novel_name_cn": parse_from_sheet(raw.get("novel_name_cn"), str),
-        "novel_name_roman": parse_from_sheet(raw.get("novel_name_roman"), str),
-        "novel_name_jp": parse_from_sheet(raw.get("novel_name_jp"), str),
-        "novel_name_alt": parse_from_sheet(raw.get("novel_name_alt"), str),
+        "book_name_en": parse_from_sheet(_renamed(raw, "book_name_en", "novel_name_en"), str),
+        "book_name_cn": parse_from_sheet(_renamed(raw, "book_name_cn", "novel_name_cn"), str),
+        "book_name_roman": parse_from_sheet(_renamed(raw, "book_name_roman", "novel_name_roman"), str),
+        "book_name_jp": parse_from_sheet(_renamed(raw, "book_name_jp", "novel_name_jp"), str),
+        "book_name_alt": parse_from_sheet(_renamed(raw, "book_name_alt", "novel_name_alt"), str),
         "region": parse_from_sheet(raw.get("region"), str),
         "type": parse_from_sheet(raw.get("type"), str),
         "version": parse_from_sheet(raw.get("version"), str),
@@ -1104,7 +1129,12 @@ def parse_novel_from_sheet(raw: dict) -> dict:
         ),
         "author": parse_from_sheet(raw.get("author"), str),
         "illustrator": parse_from_sheet(raw.get("illustrator"), str),
-        "release_date": release_date.normalize(parse_from_sheet(raw.get("release_date"), str)),
+        # A tab from before Novel became Book carries one `release_date`, the
+        # original's; pull.RENAMED_COLUMNS keeps it as the JP one.
+        "release_date_jp": release_date.normalize(
+            parse_from_sheet(_renamed(raw, "release_date_jp", "release_date"), str)
+        ),
+        "release_date_tw": release_date.normalize(parse_from_sheet(raw.get("release_date_tw"), str)),
         "end_date": release_date.normalize(parse_from_sheet(raw.get("end_date"), str)),
         "publisher_tw": parse_from_sheet(raw.get("publisher_tw"), str),
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
@@ -1123,18 +1153,18 @@ def parse_novel_from_sheet(raw: dict) -> dict:
     return parsed
 
 
-def parse_novel_unit_from_sheet(raw: dict) -> dict:
+def parse_book_unit_from_sheet(raw: dict) -> dict:
     """
-    Parses a raw dictionary from the Novel Unit sheet into typed data ready
+    Parses a raw dictionary from the Book Unit sheet into typed data ready
     for the Database.
 
-    novel_id goes through _uuid_or_none: unlike the entry tabs there is no
+    book_id goes through _uuid_or_none: unlike the entry tabs there is no
     name to resolve a bad cell against, so anything unparseable must become
     NULL rather than reach Postgres as a string.
     """
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
-        "novel_id": _uuid_or_none(raw.get("novel_id")),
+        "book_id": _uuid_or_none(_renamed(raw, "book_id", "novel_id")),
         "unit_kind": parse_from_sheet(raw.get("unit_kind"), str),
         "position": parse_from_sheet(raw.get("position"), float),
         "unit_key": parse_from_sheet(raw.get("unit_key"), str),
@@ -1145,6 +1175,14 @@ def parse_novel_unit_from_sheet(raw: dict) -> dict:
         # (legacy_personal.LEGACY_PERSONAL_COLUMNS).
         "remark": parse_from_sheet(raw.get("remark"), str),
         "ch_count": parse_from_sheet(raw.get("ch_count"), float),
+        # Absent from a tab backed up before the columns existed: None.
+        "release_date_jp": release_date.normalize(
+            parse_from_sheet(raw.get("release_date_jp"), str)
+        ),
+        "release_date_tw": release_date.normalize(
+            parse_from_sheet(raw.get("release_date_tw"), str)
+        ),
+        "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
@@ -1178,7 +1216,7 @@ def parse_comic_from_sheet(raw: dict) -> dict:
         # never used, and left the Comic tab with the migration. A stale sheet
         # still carrying the column is ignored rather than restored - the
         # comic publisher is the `publisher` column above.
-        "issue_total": parse_from_sheet(raw.get("issue_total"), int),
+        "issue_total": parse_from_sheet(raw.get("issue_total"), float),
         "serialization_status": parse_from_sheet(raw.get("serialization_status"), str),
         "read_order": parse_from_sheet(raw.get("read_order"), float),
         "comicvine_id": parse_from_sheet(raw.get("comicvine_id"), int),
@@ -1309,8 +1347,8 @@ def parse_h_comic_from_sheet(raw: dict) -> dict:
         "serialization_status": parse_from_sheet(
             raw.get("serialization_status"), str
         ),
-        "page_total": parse_from_sheet(raw.get("page_total"), int),
-        "ch_total": parse_from_sheet(raw.get("ch_total"), int),
+        "page_total": parse_from_sheet(raw.get("page_total"), float),
+        "ch_total": parse_from_sheet(raw.get("ch_total"), float),
         "ch_behind": parse_from_sheet(raw.get("ch_behind"), int),
         "release_date": release_date.normalize(
             parse_from_sheet(raw.get("release_date"), str)
@@ -1366,7 +1404,7 @@ def parse_hentai_from_sheet(raw: dict) -> dict:
         "release_date": release_date.normalize(
             parse_from_sheet(raw.get("release_date"), str)
         ),
-        "ep_total": parse_from_sheet(raw.get("ep_total"), int),
+        "ep_total": parse_from_sheet(raw.get("ep_total"), float),
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),
         "anidb_id": parse_from_sheet(raw.get("anidb_id"), int),
@@ -2355,12 +2393,14 @@ def _note_fields(raw: dict):
     return fields
 
 
-# Sections that left the registry, and where their rows went. A sheet backed
-# up before the move still names the old key, and Pull files each row where
-# the migration filed the local ones.
+# Sections that left the registry or were renamed, and where their rows went.
+# A sheet backed up before the move still names the old key, and Pull files
+# each row where the migration filed the local ones.
 _RETIRED_NOTE_SECTIONS = {
     # The gated types' one list of reviews became their 大眾評價.
     "reviews_and_comments": "public_reviews",
+    # 備註列表 Remark List was renamed 個人筆記 Personal Notes.
+    "remark_list": "personal_notes",
 }
 
 

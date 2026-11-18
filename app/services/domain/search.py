@@ -163,7 +163,7 @@ SEARCHABLE_TYPES: tuple[SearchableType, ...] = (
     _spec("tv-show", "tv_show", "tv_name_cn"),
     _spec("cartoon", "cartoon", "cartoon_name_cn"),
     _spec("manga", "manga", "manga_name_cn"),
-    _spec("novel", "novel", "novel_name_cn"),
+    _spec("book", "book", "book_name_cn"),
     # Comic sorts on the English title, not the Chinese one every other type
     # sorts by: a comic's display name falls back EN -> CN -> Alt, so sorting on
     # CN would order the list by a name most rows do not show.

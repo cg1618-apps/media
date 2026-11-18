@@ -27,7 +27,6 @@ const ENTRY = {
   issue_total: 12,
   events: "Event A, Event B",
   writer: "A Writer",
-  remark: "Read twice",
 };
 
 const ok = (body) => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
@@ -89,7 +88,7 @@ describe("Comic detail page - tab title and contents", () => {
     mockFetch();
     mount();
     await waitFor(() =>
-      expect(rows()).toEqual(["My tracker", "Naming", "Information", "Events", "Production", "Remarks"]),
+      expect(rows()).toEqual(["My tracker", "Naming", "Information", "Events", "Production"]),
     );
   });
 });

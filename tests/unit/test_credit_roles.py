@@ -36,9 +36,9 @@ EXPECTED_HEADERS = {
     ("manga", "author"): "author_plot",
     ("manga", "illustrator"): "author_draw",
     ("manga", "publisher"): "publisher_tw",
-    ("novel", "author"): "author",
-    ("novel", "illustrator"): "illustrator",
-    ("novel", "publisher"): "publisher_tw",
+    ("book", "author"): "author",
+    ("book", "illustrator"): "illustrator",
+    ("book", "publisher"): "publisher_tw",
     ("comic", "author"): "writer",
     ("comic", "illustrator"): "artist",
     ("comic", "publisher"): "publisher",
@@ -97,8 +97,8 @@ def test_no_retired_key_survives():
     for retired in (
         "manga_author_plot",
         "manga_author_draw",
-        "novel_author",
-        "novel_illustrator",
+        "book_author",
+        "book_illustrator",
         "comic_writer",
         "comic_artist",
     ):
@@ -131,8 +131,8 @@ def test_credit_role_has_no_person_role_field():
 def test_derived_labels():
     assert cr.credit_label("author", "manga") == "原作"
     assert cr.credit_label("illustrator", "manga") == "作畫"
-    assert cr.credit_label("author", "novel") == "Author"
-    assert cr.credit_label("illustrator", "novel") == "Illustrator"
+    assert cr.credit_label("author", "book") == "Author"
+    assert cr.credit_label("illustrator", "book") == "Illustrator"
     assert cr.credit_label("author", "comic") == "Writer"
     assert cr.credit_label("illustrator", "comic") == "Artist"
 
@@ -237,8 +237,8 @@ def test_legal_scopes_match_media_types():
     )
     assert cr.legal_scopes("producer") == ("anime",)
     assert cr.legal_scopes("composer") == ("anime", "game")
-    assert cr.legal_scopes("author") == ("manga", "novel", "comic", "h-comic", "hentai")
-    assert cr.legal_scopes("illustrator") == ("manga", "novel", "comic", "h-comic")
+    assert cr.legal_scopes("author") == ("manga", "book", "comic", "h-comic", "hentai")
+    assert cr.legal_scopes("illustrator") == ("manga", "book", "comic", "h-comic")
     assert cr.legal_scopes("club") == ("h-comic",)
 
 
@@ -246,7 +246,7 @@ def test_publisher_is_offered_on_six_media_types():
     from app.utils.credit_roles import legal_scopes
 
     assert set(legal_scopes("publisher")) == {
-        "anime", "anime-movie", "manga", "novel", "comic", "game",
+        "anime", "anime-movie", "manga", "book", "comic", "game",
     }
 
 
@@ -256,7 +256,7 @@ def test_every_media_type_labels_its_publisher_row_in_chinese():
     assert credit_label("publisher", "anime") == "台灣代理商"
     assert credit_label("publisher", "anime-movie") == "台灣代理商"
     assert credit_label("publisher", "manga") == "台灣出版商"
-    assert credit_label("publisher", "novel") == "台灣出版商"
+    assert credit_label("publisher", "book") == "台灣出版商"
     assert credit_label("publisher", "comic") == "出版商"
     assert credit_label("publisher", "game") == "發行商"
 
@@ -378,7 +378,7 @@ GENRE_AND_LABEL_TYPES = (
     "tv-show",
     "cartoon",
     "manga",
-    "novel",
+    "book",
     "comic",
 )
 GENRE_AND_LABEL_FIELDS = ("genre_main", "genre_sub", "label")
@@ -477,7 +477,7 @@ def test_person_role_fallback_matches_python():
 
     A wrong fallback is invisible in normal use - the API overwrites it in
     place a moment later - so this one sat holding the PRE-COLLAPSE keys
-    (manga_author, novel_author, novel_illustrator, comic_writer,
+    (manga_author, book_author, book_illustrator, comic_writer,
     comic_artist) long after the 2026-09-04 collapse deleted them, and was
     missing seiyuu as well. Its own comment warned that a hand-written copy
     with nothing enforcing the match is the pattern to avoid; nothing was
@@ -524,7 +524,7 @@ def test_each_type_keeps_the_sheet_header_it_has_always_used():
     assert cr.sheet_column_for("anime", "publisher") == "distributor_tw"
     assert cr.sheet_column_for("anime-movie", "publisher") == "distributor_tw"
     assert cr.sheet_column_for("manga", "publisher") == "publisher_tw"
-    assert cr.sheet_column_for("novel", "publisher") == "publisher_tw"
+    assert cr.sheet_column_for("book", "publisher") == "publisher_tw"
     assert cr.sheet_column_for("comic", "publisher") == "publisher"
     assert cr.sheet_column_for("game", "publisher") == "publisher"
 

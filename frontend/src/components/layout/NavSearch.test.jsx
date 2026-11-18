@@ -35,7 +35,7 @@ const EVERY_KEY = [
     "tv-show",
     "cartoon",
     "manga",
-    "novel",
+    "book",
     "comic",
     "game",
     "h-comic",
@@ -139,7 +139,7 @@ describe("mergeBuckets", () => {
       rows("anime", 9),
       rows("movie", 9),
       rows("manga", 9),
-      rows("novel", 9),
+      rows("book", 9),
       rows("comic", 9),
       rows("publisher", 9, [4]),
     ];

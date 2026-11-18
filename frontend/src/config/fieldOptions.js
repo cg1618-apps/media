@@ -7,7 +7,7 @@
 
 import { WEEKDAYS } from "./weekdays";
 
-export { NOVEL_UNIT_KINDS_BY_TYPE } from "../lib/novelUnits";
+export { BOOK_UNIT_KINDS_BY_TYPE } from "../lib/bookUnits";
 
 // The airing types' airing_status: anime, TV show, cartoon and hentai. The
 // two film types carry FILM_RELEASE_STATUSES instead.
@@ -89,6 +89,10 @@ export const GAME_TYPES = ["Base Game", "DLC", "Expansion", "Bundle"];
 // vocabulary, not the shared IS_MAIN below, and a plain label: nothing ties it
 // to the Remake / Remaster relation kinds.
 export const GAME_IS_MAIN = ["Main", "Remake", "Remaster"];
+
+// Anime's original_or_remake (ANIME_ORIGINAL_OR_REMAKE in app/utils/constants.py).
+// A column beside anime's is_main, never empty: a new anime is the original.
+export const ANIME_ORIGINAL_OR_REMAKE = ["Original", "Remake"];
 
 export const COMPLETION_LEVELS = [
   "Main Story",
@@ -193,15 +197,15 @@ export const TV_REGIONS = ["歐美劇", "韓劇", "日劇", "陸劇", "台劇", 
 
 export const MANGA_REGIONS = ["日漫", "韓漫", "國漫", "台漫", "其他"];
 
-export const NOVEL_REGIONS = ["JP", "CN", "TW", "KR", "Western"];
+export const BOOK_REGIONS = ["JP", "CN", "TW", "KR", "Western"];
 
-export const NOVEL_TYPES = ["Light Novel", "Novel", "Web", "Other"];
+export const BOOK_TYPES = ["輕小說", "小說", "網路小說", "短篇集", "指南/設定集", "其他"];
 
 export const COMIC_TYPES = ["Ongoing", "Limited", "One-Shot", "Annual"];
 
 export const MANGA_SERIALIZATION_STATUSES = ["連載中", "停更", "腰斬", "完結"];
 
-export const NOVEL_SERIALIZATION_STATUSES = [
+export const BOOK_SERIALIZATION_STATUSES = [
   "連載中",
   "連載中 (不穩定)",
   "連載中 (有生之年)",
@@ -214,10 +218,10 @@ export const NOVEL_SERIALIZATION_STATUSES = [
 
 // Progress display uses {value, label} pairs — the stored value is a short code.
 // This is the FULL vocabulary, and it is only for the Form Defaults page,
-// which picks the default for novels of every type at once and so cannot be
+// which picks the default for books of every type at once and so cannot be
 // narrowed to one entry. A per-entry <select> must use
-// progressDisplayOptions(novel) from lib/novelUnits.js instead, which offers
-// only what that novel's type and unit rows can actually render.
+// progressDisplayOptions(book) from lib/bookUnits.js instead, which offers
+// only what that book's type and unit rows can actually render.
 export const PROGRESS_DISPLAY_OPTIONS = [
   { value: "", label: "— Default (derived from type) —" },
   { value: "vol_original", label: "VOL JP/KR (Original Volumes)" },
@@ -266,7 +270,7 @@ export const FRANCHISE_TYPES = [
   "Movie",
   "Cartoon",
   "Comic",
-  "Novel",
+  "Book",
   "Game",
   // Only the gated types' franchises. /api/constants omits each for a
   // session that cannot see its type; pickers filter the fallback through
@@ -400,7 +404,7 @@ export const MEDIA_TYPES = [
   "tv-show",
   "cartoon",
   "manga",
-  "novel",
+  "book",
   "comic",
   "game",
   // Gated: omitted by /api/constants for a session that cannot see them, and
@@ -522,11 +526,12 @@ export const CONSTANTS_FALLBACK = {
   character_role: CHARACTER_ROLES,
   is_main: IS_MAIN,
   game_is_main: GAME_IS_MAIN,
+  anime_original_or_remake: ANIME_ORIGINAL_OR_REMAKE,
   movie_type: MOVIE_TYPES,
   tv_region: TV_REGIONS,
   manga_region: MANGA_REGIONS,
-  novel_region: NOVEL_REGIONS,
-  novel_type: NOVEL_TYPES,
+  book_region: BOOK_REGIONS,
+  book_type: BOOK_TYPES,
   comic_type: COMIC_TYPES,
   game_type: GAME_TYPES,
   completion_level: COMPLETION_LEVELS,
@@ -538,7 +543,7 @@ export const CONSTANTS_FALLBACK = {
   game_copy_format: GAME_COPY_FORMATS,
   game_acquisition: GAME_ACQUISITION_KINDS,
   manga_serialization_status: MANGA_SERIALIZATION_STATUSES,
-  novel_serialization_status: NOVEL_SERIALIZATION_STATUSES,
+  book_serialization_status: BOOK_SERIALIZATION_STATUSES,
   h_comic_region: H_COMIC_REGIONS,
   h_comic_originality: H_COMIC_ORIGINALITY,
   h_comic_animation_status: H_COMIC_ANIMATION_STATUSES,

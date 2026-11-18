@@ -10,14 +10,12 @@ import NotesTemplate from "../notes/NotesTemplate";
 
 export default function HGameNotes({
   hGame,
-  hideSections,
   onGroupOrderChange,
 }) {
   return (
     <NotesTemplate
       ownerType="h-game"
       ownerId={hGame.system_id}
-      hideSections={hideSections}
       owner={hGame}
       groupOrder={hGame.highlight_group_order}
       onGroupOrderChange={onGroupOrderChange}

@@ -93,7 +93,7 @@ describe("CartoonAddTab", () => {
       "Information",
       "Genres & Labels",
       "Links & Sources",
-      "Cover & Remark",
+      "Cover",
     ]);
   });
 

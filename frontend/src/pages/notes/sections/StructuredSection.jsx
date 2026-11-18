@@ -572,7 +572,7 @@ function ListView({ field, rows }) {
 
 // The one field a reader edits without opening the row: a stat's own value,
 // which changes while playing rather than while writing the guide. Saves on
-// blur, like the remark box on the detail pages.
+// blur, like the book units' own remark field.
 function QuickEdit({ field, note, canWrite, onUpdate }) {
   const save = (out) =>
     onUpdate(

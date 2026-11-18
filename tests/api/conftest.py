@@ -15,6 +15,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
+import app.main as app_main
 from app import models
 from app.database import SQLALCHEMY_DATABASE_URL, Base
 from app.dependencies import get_db
@@ -22,6 +23,7 @@ from app.main import app
 from app.services import rate_limit
 from app.services.domain.gated_labels import ensure_label, ensure_labels
 from app.services.integrations import image_manager, sheets
+from app.services.pipelines import pull as pull_pipeline
 from app.services.rbac import cache as rbac_cache
 from app.services.rbac.modes import set_mode_ceiling
 from app.services.rbac.permissions import (
@@ -114,6 +116,20 @@ def test_engine():
 
 
 @pytest.fixture(autouse=True)
+def _no_real_cover_moves(monkeypatch):
+    """
+    Stop the lifespan copying the developer's real cover folders.
+
+    Every `with TestClient(app)` runs the lifespan, which copies a renamed owner
+    type's folder under static/covers - the developer's real covers, whose
+    stored keys in the development database the test run does not migrate.
+    The copy itself is tested against tmp_path in
+    tests/unit/test_copy_legacy_cover_folders.py.
+    """
+    monkeypatch.setattr(app_main, "copy_legacy_cover_folders", lambda *a, **k: None)
+
+
+@pytest.fixture(autouse=True)
 def _no_real_cover_downloads(monkeypatch):
     """
     Stop a test from reaching the network for a cover image.
@@ -162,7 +178,7 @@ def _no_real_google_sheets(monkeypatch):
     without it, deleting this fixture would break nothing visible.
     """
 
-    def _blocked(tab_name, *args, **kwargs):
+    def _blocked(tab_name=None, *args, **kwargs):
         raise AssertionError(
             f"A test tried to reach the real Google Sheet (tab {tab_name!r}). "
             "The test database is empty, so a real backup write would blank "
@@ -171,6 +187,11 @@ def _no_real_google_sheets(monkeypatch):
         )
 
     monkeypatch.setattr(sheets, "get_google_sheet_tab", _blocked)
+    monkeypatch.setattr(sheets, "sheet_tab_titles", _blocked)
+    # Pull asks for the sheet's titles only when a renamed tab reads empty
+    # (pull.read_sheet_tab). A stubbed sheet holds no pre-rename tabs unless
+    # the test says so, by patching this itself.
+    monkeypatch.setattr(pull_pipeline, "sheet_tab_titles", lambda: frozenset())
 
 
 @pytest.fixture(autouse=True)
@@ -1174,7 +1195,7 @@ _MEDIA_MODEL_FOR_BASE = {
     "/api/tv-shows": (models.TVShows, "tv_name_en"),
     "/api/cartoon": (models.Cartoon, "cartoon_name_en"),
     "/api/manga": (models.Manga, "manga_name_en"),
-    "/api/novel": (models.Novel, "novel_name_en"),
+    "/api/book": (models.Book, "book_name_en"),
     "/api/comic": (models.Comic, "comic_name_en"),
     "/api/game": (models.Game, "game_name_en"),
 }

@@ -18,7 +18,7 @@ const results = {
       movie_name_en: "A Movie",
       release_date: "2021-05-01",
       watching_status: "Might Watch",
-      remark: "rewatch the ending",
+      remarks: ["rewatch the ending", "skip the prologue"],
     },
   ],
   game: [
@@ -28,11 +28,11 @@ const results = {
       game_name_en: "A Game",
       game_type: "Base Game",
       playing_status: "Active Playing",
-      remark: "replay on hard",
+      remarks: ["replay on hard"],
     },
   ],
   h_comic: [
-    { system_id: "h1", public_id: 9, h_comic_name_en: "Gated", remark: "hidden" },
+    { system_id: "h1", public_id: 9, h_comic_name_en: "Gated", remarks: ["hidden"] },
   ],
 };
 
@@ -57,7 +57,7 @@ beforeEach(() => {
 
 it("draws a tab for every ungated type, game and comic included", () => {
   mount();
-  for (const label of ["Anime", "Movie", "Comic", "Game", "Novel"]) {
+  for (const label of ["Anime", "Movie", "Comic", "Game", "Book"]) {
     expect(screen.getByRole("tab", { name: new RegExp(`^${label}\\s*\\d*$`) })).toBeInTheDocument();
   }
   expect(screen.queryByRole("tab", { name: /H-Comic/ })).not.toBeInTheDocument();
@@ -79,6 +79,17 @@ it("shows the movie's release date and the game's status", () => {
   expect(screen.getByText("2021-05-01")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("tab", { name: /^Game/ }));
   expect(screen.getByText("Active Playing")).toBeInTheDocument();
+});
+
+it("lists every remark of an entry in its one row, and counts the entry once", () => {
+  mount();
+  fireEvent.click(screen.getByRole("tab", { name: /^Movie/ }));
+  const first = screen.getByText("rewatch the ending");
+  const second = screen.getByText("skip the prologue");
+  expect(first.closest("tr")).toBe(second.closest("tr"));
+  expect(screen.getAllByRole("listitem")).toHaveLength(2);
+  // Two remarks on the movie, one on the game: two entries, not three.
+  expect(countRemarks(results, auth)).toBe(2);
 });
 
 it("opens the entry a row names", () => {

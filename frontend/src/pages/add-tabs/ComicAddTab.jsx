@@ -8,7 +8,7 @@ import GenreLabelFields from "../../components/forms/GenreLabelFields";
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import SourcesEditor from "../../components/forms/SourcesEditor";
-import CoverRemarkFields from "../../components/forms/CoverRemarkFields";
+import CoverFields from "../../components/forms/CoverFields";
 import EntryFlags from "../../components/forms/EntryFlags";
 import EntryNameFields from "../../components/forms/EntryNameFields";
 import FamilyLineageFields from "../../components/forms/FamilyLineageFields";
@@ -143,6 +143,7 @@ export function ComicFormBody({ f, u, sources, ownerId }) {
             className={inputCls}
             type="number"
             min="0"
+            step="any"
             value={f.issue_fin ?? ""}
             onChange={(e) => u("issue_fin", e.target.value)}
             placeholder="0"
@@ -153,6 +154,7 @@ export function ComicFormBody({ f, u, sources, ownerId }) {
             className={inputCls}
             type="number"
             min="0"
+            step="any"
             value={f.issue_total ?? ""}
             onChange={(e) => u("issue_total", e.target.value)}
             placeholder="0"
@@ -330,7 +332,7 @@ export function ComicFormBody({ f, u, sources, ownerId }) {
         sources={sources}
       />
 
-      <CoverRemarkFields f={f} u={u} ownerType="comic" ownerId={ownerId} />
+      <CoverFields f={f} u={u} ownerType="comic" ownerId={ownerId} />
     </>
   );
 }

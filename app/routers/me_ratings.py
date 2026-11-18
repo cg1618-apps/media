@@ -1,12 +1,12 @@
 """
 routers/me_ratings.py
 The caller's own rating and expectation of a catalogue row, and its own
-rating and remark of a novel unit.
+rating and remark of a book unit.
 
 The rating of a collection, franchise, series, character, person, studio or
 publisher, and the expectation of the three tiers, are opinions, so each
-account keeps its own (`user_rating`); a novel unit's rating and remark sit
-on `user_novel_unit_rating` the same way. The catalogue endpoints do not
+account keeps its own (`user_rating`); a book unit's rating and remark sit
+on `user_book_unit_rating` the same way. The catalogue endpoints do not
 write them - a catalogue write is `manage.catalog`'s and would make one
 account's opinion everybody's. They are written here, behind `self.list`, the
 permission every other piece of the caller's own data is written under.
@@ -31,7 +31,7 @@ from sqlalchemy.orm import Session
 
 from app import models
 from app.dependencies import get_db
-from app.services.domain.novel_unit_writer import write_unit_rating
+from app.services.domain.book_unit_writer import write_unit_rating
 from app.services.domain.user_rating import (
     EXPECTATION_FIELDS,
     OWNER_COLUMNS,
@@ -208,9 +208,9 @@ def write_my_rating(
 
 
 @router.put(
-    "/novel-units/{unit_id}",
+    "/book-units/{unit_id}",
     response_model=UnitRatingRead,
-    summary="Write My Novel Unit Rating",
+    summary="Write My Book Unit Rating",
 )
 def write_my_unit_rating(
     unit_id: UUID,
@@ -219,13 +219,13 @@ def write_my_unit_rating(
     viewer: Viewer = Depends(require_permission(PERM_SELF_LIST)),
 ):
     """
-    Set or clear the caller's rating of, and remark on, one novel unit. 404
-    for a unit that does not exist or whose novel the caller may not see;
+    Set or clear the caller's rating of, and remark on, one book unit. 404
+    for a unit that does not exist or whose book the caller may not see;
     422 for a rating outside MY_RATINGS.
     """
-    unit = db.get(models.NovelUnit, unit_id)
-    if unit is None or not entry_visible(db, viewer, "novel", unit.novel_id):
-        raise HTTPException(status_code=404, detail="Novel unit not found.")
+    unit = db.get(models.BookUnit, unit_id)
+    if unit is None or not entry_visible(db, viewer, "book", unit.book_id):
+        raise HTTPException(status_code=404, detail="Book unit not found.")
     user_id = _caller_id(viewer)
 
     row = write_unit_rating(

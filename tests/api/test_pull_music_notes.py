@@ -6,7 +6,7 @@ ix_note_one_music_status_per_kind. The migration that introduced it minted the
 rows once per database, so the same row carries a different system_id on every
 machine; a blind INSERT of the sheet's copy would raise IntegrityError at
 commit and roll back the ENTIRE tab. Pull retargets such a row at the one the
-anime already holds for that list, as it does for the `remark` singleton.
+anime already holds for that list.
 
 `ost` is a song list now, so two OST rows are two songs and both survive. A
 backup taken while OST was one row per anime still carries that row - a type

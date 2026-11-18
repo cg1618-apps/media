@@ -27,7 +27,6 @@ const ENTRY = {
   release_date_jp: "2024-07-19",
   release_date_tw: "2024-08-02",
   watching_status: "Completed",
-  remark: "Seen twice",
 };
 
 const CAST_ROW = {
@@ -102,7 +101,7 @@ describe("AnimeMovie detail page - tab title and contents", () => {
     mount();
     await screen.findByText("Protagonist");
     await waitFor(() =>
-      expect(rows()).toEqual(["My tracker", "Naming", "Information", "Production", "Cast", "Remarks"]),
+      expect(rows()).toEqual(["My tracker", "Naming", "Information", "Production", "Cast"]),
     );
   });
 });

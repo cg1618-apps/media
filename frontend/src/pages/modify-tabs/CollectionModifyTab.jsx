@@ -89,15 +89,6 @@ export default function CollectionModifyTab({
           </p>
         )}
       </Field>
-
-      <Field label="Remark">
-        <textarea
-          className={inputCls}
-          rows={3}
-          value={cf.remark}
-          onChange={(e) => uf("remark", e.target.value)}
-        />
-      </Field>
     </div>
   );
 }

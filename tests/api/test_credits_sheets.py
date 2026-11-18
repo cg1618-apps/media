@@ -60,7 +60,7 @@ def test_anime_publisher_keeps_its_historic_distributor_tw_header(db_session):
 
 
 def test_manga_publisher_keeps_the_publisher_tw_header(db_session):
-    """Unlike anime, manga and novel wrote that column under `publisher_tw`,
+    """Unlike anime, manga and book wrote that column under `publisher_tw`,
     and the publisher credit inherited it."""
     headers = sheet_link_headers("manga")
     assert "publisher_tw" in headers
@@ -365,7 +365,7 @@ def test_character_restores_before_every_media_tab():
     """
     names = [t.name for t in SHEET_TABS]
     assert names.index("Character") < names.index("Anime")
-    assert names.index("Character Casting") > names.index("Novel")
+    assert names.index("Character Casting") > names.index("Book")
     assert names.index("Character Casting Voice") == names.index("Character Casting") + 1
 
 

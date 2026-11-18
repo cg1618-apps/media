@@ -43,7 +43,7 @@ from app.services.integrations.tenrai import fetch_tenrai_cast
 from app.services.rbac.shared_visibility import apply_shared_visibility
 from app.utils.name_normalize import normalize_name, split_names
 from app.utils.tenrai_utils import map_tenrai_cast
-from app.utils.utils import extract_mal_id_anime, extract_mal_id_manga_novel
+from app.utils.utils import extract_mal_id_anime, extract_mal_id_manga_book
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +63,7 @@ def _mal_resource(media_type: str, mal_link: str) -> tuple[str, int]:
     if media_type in VOICED_MEDIA_TYPES:
         resource, mal_id = "anime", extract_mal_id_anime(mal_link)
     else:
-        resource, mal_id = "manga", extract_mal_id_manga_novel(mal_link)
+        resource, mal_id = "manga", extract_mal_id_manga_book(mal_link)
     if not mal_id:
         raise MalCastError(f"Not a MyAnimeList {resource} link: {mal_link!r}")
     return resource, mal_id

@@ -286,7 +286,7 @@ def get_person_entries(
     The reverse of GET /api/credits/{media_type}/{entry_id}, and the mirror of
     the studio endpoint - except that a person can hold several roles, so the
     group key is the pair and each group carries the label that credit has on
-    that media type (原作 on a manga, Author on a novel).
+    that media type (原作 on a manga, Author on a book).
 
     A person hidden from this viewer - every connection hidden, see
     shared_visibility.py - answers 404, as the person's own page does. A

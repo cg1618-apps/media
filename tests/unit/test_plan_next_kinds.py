@@ -29,7 +29,7 @@ def test_every_media_type_allows_entry_scope():
         ("comic", {"entry", "series"}),
         ("anime-movie", {"entry"}),
         ("manga", {"entry"}),
-        ("novel", {"entry"}),
+        ("book", {"entry"}),
     ],
 )
 def test_allowed_scopes_match_the_spec(media_type, expected):
@@ -55,7 +55,7 @@ def test_scope_allowed_rejects_unknown_media_type():
         ("comic", ("1_3", "4_10", "11_plus")),
         ("anime-movie", ()),
         ("manga", ()),
-        ("novel", ()),
+        ("book", ()),
     ],
 )
 def test_size_group_keys_match_the_spec(media_type, expected):
@@ -117,7 +117,7 @@ class TestRewatchScopes:
             ("tv-show", {"entry", "series", "franchise"}),
             ("cartoon", {"franchise"}),
             ("manga", {"entry"}),
-            ("novel", {"entry", "series", "franchise"}),
+            ("book", {"entry", "series", "franchise"}),
             ("comic", {"entry", "series"}),
         ],
     )
@@ -130,9 +130,9 @@ class TestRewatchScopes:
         assert not scope_allowed("rewatch", "anime", "entry")
         assert scope_allowed("rewatch", "anime", "franchise")
 
-    def test_novel_differs_between_kinds(self):
-        assert not scope_allowed("next", "novel", "series")
-        assert scope_allowed("rewatch", "novel", "series")
+    def test_book_differs_between_kinds(self):
+        assert not scope_allowed("next", "book", "series")
+        assert scope_allowed("rewatch", "book", "series")
 
     def test_unknown_kind_allows_nothing(self):
         assert not scope_allowed("nope", "movie", "entry")
@@ -158,7 +158,7 @@ class TestEntryRewatchFieldInvariant:
         "movie",
         "tv-show",
         "manga",
-        "novel",
+        "book",
         "comic",
         "game",
         "h-comic",

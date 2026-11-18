@@ -105,7 +105,7 @@ describe("GenreLabelFields", () => {
   });
 
   it("reports a pick under the field's form key", async () => {
-    const onChange = renderFields("novel");
+    const onChange = renderFields("book");
     await openPicker(1);
     await userEvent.click(screen.getByRole("option", { name: "Isekai" }));
     expect(onChange).toHaveBeenLastCalledWith("genre_sub", "Isekai");

@@ -3,11 +3,8 @@
 // Notes hang off an entry's system_id, so there is nothing to attach them to
 // until the entry exists. Once a media submit handler has created one, the Add
 // page renders this under its "Added" banner: the same NotesTemplate the
-// detail pages and the Modify tabs embed, pointed at the new row.
-//
-// Unlike the Modify tabs it hides nothing. The Add form resets to a blank
-// entry after a create, so its Remark field no longer edits this row, and the
-// `remark` section here is the only editor left for it.
+// detail pages and the Modify tabs embed, pointed at the new row, with every
+// section shown - 備註 Remark among them, which no form field edits.
 //
 // `entry` is the row the create returned. It feeds `owner_where` (亮點
 // Highlights is KR h-comics only) and the group order, which is the viewer's

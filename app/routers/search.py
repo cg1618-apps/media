@@ -51,7 +51,7 @@ class SearchBuckets(BaseModel):
     tv_show: Optional[List[schemas.TVShowResponse]] = Field(default=None, alias="tv-show")
     cartoon: Optional[List[schemas.CartoonResponse]] = None
     manga: Optional[List[schemas.MangaResponse]] = None
-    novel: Optional[List[schemas.NovelResponse]] = None
+    book: Optional[List[schemas.BookResponse]] = None
     comic: Optional[List[schemas.ComicResponse]] = None
     game: Optional[List[schemas.GameResponse]] = None
     h_comic: Optional[List[schemas.HComicResponse]] = Field(

@@ -17,13 +17,15 @@ import uuid
 from app import models
 
 
-def _remark(db_session, author, entry, text):
+def _remark(db_session, author, entry, text, sort_index=None):
     db_session.add(
         models.Note(
             author_id=author.id,
             media_id=entry.system_id,
             section="remark",
             content=text,
+            links=[],
+            sort_index=sort_index,
         )
     )
     db_session.flush()
@@ -69,7 +71,7 @@ def test_every_type_reports_its_status_from_the_viewers_list(
     assert m["reading_status"] == "Active Reading"
     (g,) = body["game"]
     assert g["playing_status"] == "Active Playing"
-    assert g["remark"] == f"remark on {game.system_id}"
+    assert g["remarks"] == [f"remark on {game.system_id}"]
     (mv,) = body["movie"]
     # No list row: the type's default, not a crash and not None.
     assert mv["watching_status"] == "Might Watch"
@@ -101,7 +103,7 @@ def test_every_media_type_has_a_key(owner_client, db_session):
     body = _fetch(owner_client, db_session)
     assert set(body) == {
         "anime", "anime_movie", "movie", "tv_show", "cartoon", "manga",
-        "novel", "comic", "game", "h_comic", "hentai", "h_game",
+        "book", "comic", "game", "h_comic", "hentai", "h_game",
     }
 
 
@@ -113,7 +115,7 @@ def test_a_remark_by_another_account_is_listed_and_other_sections_are_not(
     remarked = _entry(db_session, models.Anime, anime_name_en="Written by Another")
     _remark(db_session, plain_user, remarked, "the catalogue remark")
     reviewed = _entry(db_session, models.Anime, anime_name_en="Only Reviewed")
-    for section in ("personal_reviews", "remark_list"):
+    for section in ("personal_reviews", "personal_notes"):
         db_session.add(
             models.Note(
                 author_id=owner_user.id,
@@ -125,6 +127,22 @@ def test_a_remark_by_another_account_is_listed_and_other_sections_are_not(
     db_session.flush()
 
     rows = _fetch(owner_client, db_session)["anime"]
-    assert [(r["public_id"], r["remark"]) for r in rows] == [
-        (remarked.public_id, "the catalogue remark")
+    assert [(r["public_id"], r["remarks"]) for r in rows] == [
+        (remarked.public_id, ["the catalogue remark"])
+    ]
+
+
+def test_an_entry_with_several_remarks_is_one_row_listing_them_in_order(
+    owner_client, db_session, owner_user, plain_user
+):
+    """Several 備註 rows on one entry are one review row, in the notes page's
+    order (sort_index), not one row each and not only the first."""
+    anime = _entry(db_session, models.Anime, anime_name_en="Remarked Twice")
+    _remark(db_session, plain_user, anime, "second", sort_index=2.0)
+    _remark(db_session, owner_user, anime, "first", sort_index=1.0)
+    _remark(db_session, owner_user, anime, "", sort_index=3.0)
+
+    rows = _fetch(owner_client, db_session)["anime"]
+    assert [(r["public_id"], r["remarks"]) for r in rows] == [
+        (anime.public_id, ["first", "second"])
     ]

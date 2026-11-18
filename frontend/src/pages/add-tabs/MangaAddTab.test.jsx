@@ -39,7 +39,7 @@ const SECTIONS = [
   "Production",
   "Cast",
   "Links & Sources",
-  "Cover & Remark",
+  "Cover",
 ];
 
 function Harness({ mode, initial }) {
@@ -157,6 +157,21 @@ describe("Manga form", () => {
     expect(screen.getByTestId("cast-editor").dataset.entryId).toBe("manga-3");
     expect(screen.getByTestId("notes").dataset.ownerId).toBe("manga-3");
   });
+
+  it.each(["add", "modify"])(
+    "%s: edits the next volume's JP and TW release dates, beside each other",
+    async (mode) => {
+      const user = userEvent.setup();
+      renderTab(mode, { next_vol_release_date_jp: "2027-01" });
+      const input = (label) => screen.getByText(label).parentElement.querySelector("input");
+      expect(input("Next Volume (JP)")).toHaveValue("2027-01");
+      expect(input("Next Volume (JP)").closest(".grid")).toBe(
+        input("Next Volume (TW)").closest(".grid"),
+      );
+      await user.type(input("Next Volume (TW)"), "2027-03");
+      expect(state().next_vol_release_date_tw).toBe("2027-03");
+    },
+  );
 
   it.each(["add", "modify"])(
     "%s: offers Manga and untyped franchises, and a pick clears the series",

@@ -20,7 +20,7 @@ from app import models
 # KR's, and each region clears the other's - so it runs once per region.
 CASES = [
     ("manga", "manga_name_en", ("vol_fin", "vol_fin_page", "ch_fin"), {}),
-    ("novel", "novel_name_en", ("vol_fin", "arc_fin", "ch_fin"), {}),
+    ("book", "book_name_en", ("vol_fin", "arc_fin", "ch_fin"), {}),
     ("comic", "comic_name_en", ("issue_fin",), {}),
     ("anime", "anime_name_en", ("ep_fin",), {}),
     ("h-comic", "h_comic_name_en", ("page_fin",), {"region": "JP"}),
@@ -38,7 +38,7 @@ def _read_back(key):
 
 MODELS = {
     "manga": models.Manga,
-    "novel": models.Novel,
+    "book": models.Book,
     "comic": models.Comic,
     "anime": models.Anime,
     "h-comic": models.HComic,

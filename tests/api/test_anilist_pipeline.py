@@ -1,5 +1,5 @@
 """
-AniList rides the existing anime/manga/novel pipelines rather than adding one.
+AniList rides the existing anime/manga/book pipelines rather than adding one.
 
 The eligibility assertion is the important one: anilist_rank is permanently
 null for obscure entries, so if it ever reached ANIME_FIELDS_TO_FILL those
@@ -12,8 +12,8 @@ from app.services.pipelines.specs import PIPELINES
 from app.utils.utils import (
     ANIME_FIELDS_TO_FILL,
     ANIME_MOVIE_FIELDS_TO_FILL,
+    BOOK_FIELDS_TO_FILL,
     MANGA_FIELDS_TO_FILL,
-    NOVEL_FIELDS_TO_FILL,
 )
 
 ANILIST_COLUMNS = {"anilist_rating", "anilist_rank", "anilist_popularity_rank"}
@@ -24,13 +24,13 @@ def test_anilist_columns_are_not_fill_eligibility_fields():
         ANIME_FIELDS_TO_FILL,
         ANIME_MOVIE_FIELDS_TO_FILL,
         MANGA_FIELDS_TO_FILL,
-        NOVEL_FIELDS_TO_FILL,
+        BOOK_FIELDS_TO_FILL,
     ):
         assert ANILIST_COLUMNS.isdisjoint(fields)
 
 
 def test_the_four_anilist_pipelines_prime_the_cache():
-    for key in ("anime", "anime-movie", "manga", "novel"):
+    for key in ("anime", "anime-movie", "manga", "book"):
         assert PIPELINES[key].pre_run is not None, key
 
 
@@ -41,7 +41,7 @@ def test_the_four_anilist_pipelines_reset_the_cache_when_the_run_ends():
     _primed set outlives the run and a single-entry Replace serves a stale
     cached record while making no request at all.
     """
-    for key in ("anime", "anime-movie", "manga", "novel"):
+    for key in ("anime", "anime-movie", "manga", "book"):
         assert PIPELINES[key].post_run is not None, key
 
 
@@ -97,35 +97,35 @@ def test_manga_fill_gives_anilist_the_session(monkeypatch, db_session, sample_ma
     assert seen["type"] == "MANGA"
 
 
-def test_novel_with_no_mal_link_uses_openlibrary_not_anilist(
+def test_book_with_no_mal_link_uses_openlibrary_not_anilist(
     monkeypatch, db_session, sample_franchise
 ):
     """
-    _fill_novel is the single non-uniform routing arm: a mal_link means
+    _fill_book is the single non-uniform routing arm: a mal_link means
     Tenrai (+ AniList), no mal_link means Open Library only. Nothing else
     covered this branch, so a future edit could route an Open Library-only
-    novel into AniList (which has nothing to key on without a mal_id)
+    book into AniList (which has nothing to key on without a mal_id)
     silently.
     """
     from app import models
     from app.services.pipelines import specs as specs_module
 
-    novel = models.Novel(
+    book = models.Book(
         system_id=uuid.uuid4(),
         franchise_id=sample_franchise.system_id,
-        novel_name_en="Test Novel",
+        book_name_en="Test Book",
     )
-    db_session.add(novel)
+    db_session.add(book)
     db_session.flush()
-    assert novel.mal_link is None
+    assert book.mal_link is None
 
     called = []
     monkeypatch.setattr(
-        specs_module, "autofill_novel_from_openlibrary",
+        specs_module, "autofill_book_from_openlibrary",
         lambda e, db: called.append("openlibrary"),
     )
     monkeypatch.setattr(
-        specs_module, "autofill_novel_from_mal",
+        specs_module, "autofill_book_from_mal",
         lambda e, force_replace_ratings=True, db=None: called.append("mal"),
     )
     monkeypatch.setattr(
@@ -133,6 +133,6 @@ def test_novel_with_no_mal_link_uses_openlibrary_not_anilist(
         lambda e, t, db=None: called.append(f"anilist:{t}"),
     )
 
-    PIPELINES["novel"].fill(db_session, novel)
+    PIPELINES["book"].fill(db_session, book)
 
     assert called == ["openlibrary"]

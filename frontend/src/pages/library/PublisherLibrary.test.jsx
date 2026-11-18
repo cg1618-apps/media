@@ -42,7 +42,7 @@ const PUBLISHERS = [
     scopes: ["anime", "manga"],
     country: "Taiwan",
   },
-  // Offered on novels but credited on nothing yet.
+  // Offered on books but credited on nothing yet.
   {
     system_id: "3",
     public_id: "pb3",
@@ -50,7 +50,7 @@ const PUBLISHERS = [
     display_name: "Kadokawa Taiwan",
     credit_count: 0,
     media_types: [],
-    scopes: ["novel"],
+    scopes: ["book"],
     country: null,
   },
 ];
@@ -101,7 +101,7 @@ describe("PublisherLibrary", () => {
       "aria-expanded",
       "true",
     );
-    for (const name of ["Anime", "Anime Movie", "Manga", "Novel", "Comic", "Game", "No entries"]) {
+    for (const name of ["Anime", "Anime Movie", "Manga", "Book", "Comic", "Game", "No entries"]) {
       expect(screen.getByRole("button", { name })).toHaveAttribute("aria-pressed", "true");
     }
     expect(screen.queryByRole("button", { name: "Restricted" })).not.toBeInTheDocument();
@@ -119,7 +119,7 @@ describe("PublisherLibrary", () => {
     expect(screen.getAllByRole("link").map((a) => a.textContent)).toEqual([
       expect.stringContaining("木棉花"),
     ]);
-    await user.click(screen.getByRole("button", { name: "Novel" }));
+    await user.click(screen.getByRole("button", { name: "Book" }));
     expect(screen.getAllByRole("link")).toHaveLength(2);
   });
 

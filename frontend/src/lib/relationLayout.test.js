@@ -363,9 +363,9 @@ describe("layoutGraph", () => {
     });
   });
 
-  // Re:Zero's shape: a web novel adapted into a novel, the novel adapted into
-  // the anime, and BOTH of them carrying their own side stories. The novel's
-  // branches are the hard part - the row below the novel is the anime's, so
+  // Re:Zero's shape: a web novel adapted into a book, the book adapted into
+  // the anime, and BOTH of them carrying their own side stories. The book's
+  // branches are the hard part - the row below the book is the anime's, so
   // there is nowhere to put them without opening a row first.
   describe("a branch of a branch", () => {
     const GRAPH = {
@@ -373,36 +373,36 @@ describe("layoutGraph", () => {
         ...["a1", "a2", "a3", "a4"].map((k) => node(`anime:${k}`)),
         node("anime:cut"),
         node("anime:snow"),
-        node("novel:web"),
-        node("novel:main"),
-        node("novel:bonus"),
-        node("novel:ex"),
-        node("novel:short"),
+        node("book:web"),
+        node("book:main"),
+        node("book:bonus"),
+        node("book:ex"),
+        node("book:short"),
       ],
       edges: [
         edge("anime:a2", "anime:a1"),
         edge("anime:a3", "anime:a2"),
         edge("anime:a4", "anime:a3"),
-        edge("anime:a2", "novel:main", "derivation", "adaptation"),
-        edge("novel:main", "novel:web", "derivation", "adaptation"),
-        edge("novel:bonus", "novel:main", "branch", "side_story"),
-        edge("novel:ex", "novel:main", "branch", "side_story"),
-        edge("novel:short", "novel:main", "branch", "side_story"),
+        edge("anime:a2", "book:main", "derivation", "adaptation"),
+        edge("book:main", "book:web", "derivation", "adaptation"),
+        edge("book:bonus", "book:main", "branch", "side_story"),
+        edge("book:ex", "book:main", "branch", "side_story"),
+        edge("book:short", "book:main", "branch", "side_story"),
         edge("anime:snow", "anime:a2", "branch", "side_story"),
         edge("anime:cut", "anime:a2", "equivalence", "alternative"),
       ],
     };
-    const SIDE = ["novel:bonus", "novel:ex", "novel:short"];
+    const SIDE = ["book:bonus", "book:ex", "book:short"];
 
-    it("opens a row for the novel's side stories rather than skipping past", () => {
-      // The bug this pins: the row below the novel belongs to the anime, so
+    it("opens a row for the book's side stories rather than skipping past", () => {
+      // The bug this pins: the row below the book belongs to the anime, so
       // scanning for the first FREE row dropped these three on the far side
       // of the whole anime spine, with their connectors drawn across it.
       const out = byKey(layoutGraph(GRAPH));
-      const novelY = out["novel:main"].position.y;
+      const bookY = out["book:main"].position.y;
       const spineY = out["anime:a2"].position.y;
       for (const key of SIDE) {
-        expect(out[key].position.y).toBeGreaterThan(novelY);
+        expect(out[key].position.y).toBeGreaterThan(bookY);
         expect(out[key].position.y).toBeLessThan(spineY);
       }
     });
@@ -410,22 +410,22 @@ describe("layoutGraph", () => {
     it("stacks the five rows in the order the relations read", () => {
       const out = byKey(layoutGraph(GRAPH));
       const y = (k) => out[k].position.y;
-      expect(y("novel:web")).toBeLessThan(y("novel:main"));
-      expect(y("novel:main")).toBeLessThan(y("novel:ex"));
-      expect(y("novel:ex")).toBeLessThan(y("anime:a2"));
+      expect(y("book:web")).toBeLessThan(y("book:main"));
+      expect(y("book:main")).toBeLessThan(y("book:ex"));
+      expect(y("book:ex")).toBeLessThan(y("anime:a2"));
       expect(y("anime:a2")).toBeLessThan(y("anime:snow"));
       // The three side stories are one row, not three.
       expect(new Set(SIDE.map(y)).size).toBe(1);
     });
 
     it("keeps the column clear for the connector passing through", () => {
-      // Opening a row stretched the novel -> anime adaptation to span two, so
+      // Opening a row stretched the book -> anime adaptation to span two, so
       // its line now crosses the side-story row. The slot it passes through
       // has to stay empty, which is what pushes the fan one column right.
       const out = layoutGraph(GRAPH);
       const at = byKey(out);
-      const lane = at["novel:ex"].position.y;
-      const column = at["novel:main"].position.x;
+      const lane = at["book:ex"].position.y;
+      const column = at["book:main"].position.x;
       expect(
         out.find((n) => n.position.y === lane && n.position.x === column),
       ).toBeUndefined();
@@ -529,14 +529,14 @@ describe("layoutGraph", () => {
     // than one: snapping each member on its own would round them apart.
     const out = byKey(
       layoutGraph({
-        nodes: [node("anime:a"), node("manga:a"), node("novel:a")],
+        nodes: [node("anime:a"), node("manga:a"), node("book:a")],
         edges: [
           edge("manga:a", "anime:a", "derivation", "adaptation"),
-          edge("novel:a", "manga:a", "derivation", "adaptation"),
+          edge("book:a", "manga:a", "derivation", "adaptation"),
         ],
       }),
     );
-    const ys = ["anime:a", "manga:a", "novel:a"]
+    const ys = ["anime:a", "manga:a", "book:a"]
       .map((k) => out[k].position.y)
       .sort((a, b) => a - b);
     expect(ys[1] - ys[0]).toBe(ys[2] - ys[1]);

@@ -22,7 +22,7 @@ card. It carries no technical detail; the tables behind it are
 | Your season ratings | Seasonal |
 | Your rating and expectation of a collection, franchise or series | the collection, franchise and series pages and their cards |
 | Your rating of a character, person, studio or publisher | their pages and cards |
-| Your rating of, and remark on, each novel volume | a novel's volumes |
+| Your rating of, and remark on, each book volume | a book's volumes |
 | Your game copies: where you bought it, the format, what you paid | a game's copies |
 | Your progress through a game's choices: what you have done, and a note | a game's Choices card |
 | The watch orders you follow | a watch order's follow toggle |
@@ -57,7 +57,7 @@ that type, or a group (collection, franchise, series).
 | Section | On | Yours or shared |
 | --- | --- | --- |
 | 備註 Remark | every type; every group | shared |
-| 備註列表 Remark List | every type; every group | **yours** |
+| 個人筆記 Personal Notes | every type; every group | **yours** |
 | 介紹 Introduction | every type but H-Comic, Hentai; every group | shared |
 | 優點 Advantages | every type but H-Comic, Hentai; every group | **yours** |
 | 缺點 Disadvantages | every type but H-Comic, Hentai; every group | **yours** |
@@ -67,16 +67,16 @@ that type, or a group (collection, franchise, series).
 | 各集評論 Episode Comments (Manga: 各話評論 Chapter Comments; Game: 各章評論 Part Reviews) | Anime, TV Show, Cartoon, Manga, Game | **yours** |
 | 神回/神片段 Highlights | Anime | **yours** |
 | 神回/神片段 (Manga: 神回) | TV Show, Cartoon, Manga | **yours** |
-| 神片段 | Novel | **yours** |
+| 神片段 | Book | **yours** |
 | 神場景 Highlights | Game | **yours** |
 | 亮點 Highlights | H-Comic | **yours** |
 | 亮點 Highlights | H-Game | **yours** |
 | 解析/解惑/討論 Analysis/Discussion | every type but H-Comic, Hentai; every group | shared |
 | 分鏡/演出/巧思/細節 | Anime, Anime Movie, TV Show, Cartoon, Manga; series | shared |
-| 巧思 | Novel | shared |
-| 伏筆/前後呼應 Foreshadowing | Anime, Anime Movie, TV Show, Cartoon, Manga, Novel; series, franchise | shared |
-| 對稱 Symmetry | Anime, Anime Movie, TV Show, Cartoon, Manga, Novel; series, franchise | shared |
-| 猜測 Speculation | Anime, Anime Movie, TV Show, Cartoon, Manga, Novel; series, franchise | shared |
+| 巧思 | Book | shared |
+| 伏筆/前後呼應 Foreshadowing | Anime, Anime Movie, TV Show, Cartoon, Manga, Book; series, franchise | shared |
+| 對稱 Symmetry | Anime, Anime Movie, TV Show, Cartoon, Manga, Book; series, franchise | shared |
+| 猜測 Speculation | Anime, Anime Movie, TV Show, Cartoon, Manga, Book; series, franchise | shared |
 | 彩蛋/致敬 Easter Eggs/References | every type but H-Comic, Hentai, H-Game; series, franchise | shared |
 | 新手 Beginner | Game | shared |
 | 玩法系統 Gameplay Systems | Game, H-Game | shared |
@@ -125,7 +125,7 @@ that type, or a group (collection, franchise, series).
 | OST | Anime | shared |
 | OP/ED 變動 | Anime, TV Show, Cartoon | shared |
 | 加長 | Anime, TV Show, Cartoon | shared |
-| 改編 Adaptation | Anime, Anime Movie, TV Show, Cartoon, Novel; series, franchise | shared |
+| 改編 Adaptation | Anime, Anime Movie, TV Show, Cartoon, Book; series, franchise | shared |
 | 模組&工具 Mods & Tools | Game, H-Game | shared |
 | 攻略資源 Guide Resources | Game, H-Game | shared, **and yours** |
 | Resources | every type; every group | shared, **and yours** |

@@ -3,7 +3,7 @@ A sheet written before the series-type columns moved still restores.
 
 The Anime tab's single `release_date` became `release_date_jp` and
 `release_date_tw`, the Cartoons tab's `length_ep_min` became `runtime_min`,
-and the Novel tab's `read_order` is gone. Backup rewrites every header, but a
+and the Book tab's `read_order` is gone. Backup rewrites every header, but a
 Pull from a sheet backed up before the migration carries the old ones: the
 renamed values must land in their new columns, and neither the renamed nor the
 retired header may be reported as a stale column.
@@ -15,8 +15,8 @@ from app import models
 from app.services.pipelines import pull
 from app.utils.formatter import (
     parse_anime_from_sheet,
+    parse_book_from_sheet,
     parse_cartoon_from_sheet,
-    parse_novel_from_sheet,
     parse_tv_show_from_sheet,
 )
 
@@ -52,8 +52,8 @@ def test_a_tv_show_reads_its_airing_type_and_runtime():
     assert parsed["runtime_min"] == 45
 
 
-def test_a_novel_no_longer_parses_a_read_order():
-    assert "read_order" not in parse_novel_from_sheet({"read_order": "2"})
+def test_a_book_no_longer_parses_a_read_order():
+    assert "read_order" not in parse_book_from_sheet({"read_order": "2"})
 
 
 # ---------------------------------------------------------------------------
@@ -106,10 +106,10 @@ def test_pull_restores_an_old_cartoon_runtime(db_session, monkeypatch):
     assert cartoon.runtime_min == 22
 
 
-def test_pull_does_not_report_a_retired_novel_read_order(db_session, monkeypatch):
+def test_pull_does_not_report_a_retired_book_read_order(db_session, monkeypatch):
     result = _pull(
-        db_session, monkeypatch, "Novel",
-        ["novel_name_cn", "read_order"], [["小說", "2"]],
+        db_session, monkeypatch, "Book",
+        ["book_name_cn", "read_order"], [["小說", "2"]],
     )
 
     assert result["status"] == "success"
@@ -129,7 +129,7 @@ def test_a_tv_show_pulled_without_an_airing_type_is_tv(db_session, monkeypatch):
 def test_unexpected_headers_names_neither_renamed_nor_retired_columns():
     assert pull.unexpected_headers("Anime", ["release_date"]) == []
     assert pull.unexpected_headers("Cartoons", ["length_ep_min"]) == []
-    assert pull.unexpected_headers("Novel", ["read_order"]) == []
+    assert pull.unexpected_headers("Book", ["read_order"]) == []
     # The mirror: an unknown header on the same tab is still reported, so the
     # empty lists above are the exemption at work, not a silent function.
     assert pull.unexpected_headers("Anime", ["no_such_column"]) == ["no_such_column"]

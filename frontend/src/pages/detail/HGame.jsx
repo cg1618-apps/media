@@ -59,12 +59,9 @@ import { GameCopiesSection, yesNo } from "./Game";
 import LazyImage from "../../components/ui/LazyImage";
 import { focusStyle } from "../../lib/covers";
 import { useViewScope } from "../../hooks/useViewScope";
-import { useRemarkSaver } from "../../api/mutations/useRemark";
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
-const textareaCls =
-  "block w-full border border-border-strong bg-surface text-text px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand disabled:bg-surface-2 disabled:text-text-faint disabled:cursor-not-allowed";
 const lineageLinkCls =
   "text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition";
 
@@ -139,7 +136,6 @@ export default function HGame() {
   // the URL segment and the id can never disagree.
   const system_id = itemQuery.data?.system_id;
   const { ownData } = useViewScope();
-  const saveRemark = useRemarkSaver("h-game", system_id, setHGame);
   // The highlight group order is the viewer's own (self.personal_notes).
   const saveGroupOrder = useHighlightGroupOrderSaver("h-game", system_id, setHGame);
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
@@ -607,27 +603,7 @@ export default function HGame() {
               <GameCopiesSection copies={hGame.copies} />
             </TocSection>
 
-            <TocSection id="remarks" label="Remarks">
-              {hGame.remark && (
-                <Slip title="Remarks">
-                  <textarea
-                    key={hGame.system_id}
-                    defaultValue={hGame.remark || ""}
-                    readOnly={!isAdmin}
-                    onBlur={(e) => {
-                      if (isAdmin && e.target.value !== (hGame.remark || ""))
-                        saveRemark(e.target.value);
-                    }}
-                    rows={4}
-                    placeholder="Add remarks…"
-                    className={textareaCls}
-                  ></textarea>
-                </Slip>
-              )}
-            </TocSection>
-
             <NotesBlocks
-              hideSections={hGame.remark ? ["remark"] : []}
               // Rendered in the Progress slip at the top instead.
               hideGroups={["todo"]}
             />

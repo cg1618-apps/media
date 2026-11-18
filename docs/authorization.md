@@ -72,7 +72,7 @@ nothing short-circuits `Viewer.has()`.
 
 | Permission | `guest` | `shared` | `user` | `super` | `admin` |
 |---|---|---|---|---|---|
-| `media_type.anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, `game` (the nine ordinary types) | yes (as seeded) | yes (as seeded) | yes (as seeded) | **locked on** | **locked off** |
+| `media_type.anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `book`, `comic`, `game` (the nine ordinary types) | yes (as seeded) | yes (as seeded) | yes (as seeded) | **locked on** | **locked off** |
 | `media_type.h-comic`, `h-game`, `hentai` (the three gated types) | **locked off** | **locked off** | **locked on** | **locked on** | **locked off** |
 | `view.studio`, `view.publisher`, `view.person`, `view.character` | — (free choice) | — (free choice) | — (free choice) | **locked on** | **locked off** |
 | `view.search` | — (free choice) | — (free choice) | yes | **locked on** | **locked off** |
@@ -314,10 +314,10 @@ The matrix above is the grants; this is what holding one means.
 | keep a plan queue | — | **never** | yes | yes | **never** |
 | write their own highlights and other personal notes, their own highlight group order on an h-comic or h-game, and their own values on catalogue note rows - collected, beaten, completion, my value, the NG reset (`self.personal_notes`) | — | **never** | yes | yes | **never** |
 | rate a season | — | **never** | yes | yes | **never** |
-| rate a collection, franchise, series, character, person, studio or publisher, set a tier's expectation, rate and remark on a novel unit (`self.list`) | — | **never** | yes | yes | **never** |
+| rate a collection, franchise, series, character, person, studio or publisher, set a tier's expectation, rate and remark on a book unit (`self.list`) | — | **never** | yes | yes | **never** |
 | read their own account settings — username and role | — (no account) | through the API; the SPA's `/settings` route asks `self.list`, so it is not drawn | yes | yes | yes, through the API; the SPA's `/settings` route asks `self.list`, so it is not drawn for `admin` |
 | change their own password (`self.password`) — the admin sets its own, and a shared account's, on `/users` | — | **never** | **always** | **always** | **never** |
-| write a personal note — a review or a 備註列表 Remark List row | — | **never** | yes | yes | **never** |
+| write a personal note — a review or a 個人筆記 Personal Notes row | — | **never** | yes | yes | **never** |
 | file a request or report, and read and edit their own (`self.requests`) | — | **always** | **always** | **always** | **never** |
 | handle requests — the inbox: mark done or declined, reopen, delete (`manage.requests`) | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **always** |
 | write the catalogue — entries, groups, people, credits, relations, watch orders, a game's choice graph, quotes, memes, catalogue notes - the 備註 remark among them - form and picker defaults (`manage.catalog`) | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **never** |
@@ -1233,7 +1233,7 @@ type's nav row, routes, tabs and pickers out rather than render them empty.
 | own-list reads and writes (`/api/me/list/{media_id}`) | `routers/me_list.py`, behind `self.list` **and** `entry_visible` in `_media_or_404`. Both are needed: the capability gate alone lets an account holding `self.list` rate an entry it cannot see, or a media type it does not hold, by knowing the uuid. Writes follow reads: 404 with the not-found message, never 403 |
 | own values on catalogue note rows (`PUT /api/notes/{note_id}/mark`, `POST /api/notes/ng-reset`) | `routers/note.py`, behind `self.personal_notes` **and** `require_visible_owner` on the note's owner: 404 "Note not found." / "Owner not found." for a hidden one. Reads overlay only the viewer's own marks (`note_marks.notes_out`) |
 | own highlight group order (`/api/me/highlight-group-order/{media_id}`) | `routers/me_highlights.py`, behind `self.personal_notes` on the router **and** `entry_visible` on the h-comic or h-game: 404 "Entry not found." for a hidden one, any other type, or none. The order is read back on the h-comic and h-game responses as the viewer's own (`highlight_group_order.attach_group_orders`) |
-| own ratings (`/api/me/ratings/{owner_type}/{owner_id}`, `/api/me/novel-units/{unit_id}`) | `routers/me_ratings.py`, behind `self.list` on the router **and** the owner's own read check (`franchise_visible`, `series_visible`, the kind's view key (`view.studio`, `view.publisher`, `view.person`, `view.character`) plus `shared_record_visible` for an entity, `entry_visible` on the unit's novel). Writes follow reads: 404 with the owner's not-found message |
+| own ratings (`/api/me/ratings/{owner_type}/{owner_id}`, `/api/me/book-units/{unit_id}`) | `routers/me_ratings.py`, behind `self.list` on the router **and** the owner's own read check (`franchise_visible`, `series_visible`, the kind's view key (`view.studio`, `view.publisher`, `view.person`, `view.character`) plus `shared_record_visible` for an entity, `entry_visible` on the unit's book). Writes follow reads: 404 with the owner's not-found message |
 | own favourites (`PUT /api/me/favorites/{kind}/{id}`) | `routers/me_favorites.py`, behind the `favourites` **and** `quotes_memes` features on the router **and** the item's own read check (`entry_visible` on a quote's entry, `drop_hidden_rows` on a meme's owner): 404 "Quote not found." / "Meme not found." for a hidden or missing one. Read back as each quote's and meme's `is_favorite` (`user_favorite.attach_favorites`) |
 | account settings (`/api/account/settings`) | `routers/account.py` - a read of the caller's own username and role; no path takes a user id, and there is no write |
 | requests and reports (`/api/requests`) | `routers/requests.py` — filing and the caller's own behind `self.requests`, the inbox behind `manage.requests`. **No object check**: a target must exist, not be visible - see [Accepted residuals](#accepted-residuals) |
@@ -1396,17 +1396,16 @@ request".
 - **No field group names a note section.** Personal sections - the
   highlight sections among them - are filtered by author in
   `app/routers/note.py` - see [Note scope](#note-scope).
-- **`remark` is not gated here at all.** It is a catalogue-scope note,
-  attached to every read of an entry or a group by
-  `app.services.domain.remark_field.attach_remark` and read by everyone who
-  can see the owner. See [business-rules.md](business-rules.md).
+- **`remark` is not gated here at all.** It is a catalogue-scope note
+  section, read through the notes API by everyone who can see the owner. See
+  [business-rules.md](business-rules.md).
 
 ## Ratings and expectations (`user_rating`)
 
 The rating of a collection, franchise, series, character, person, studio or
-publisher, the expectation of the three tiers, and a novel unit's rating and
+publisher, the expectation of the three tiers, and a book unit's rating and
 remark are **each account's own**, not catalogue columns. They live on
-`user_rating` and `user_novel_unit_rating` (see
+`user_rating` and `user_book_unit_rating` (see
 [data-model.md](data-model.md)), and no permission reveals one account's to
 another.
 
@@ -1419,22 +1418,22 @@ another.
   is always present, so every viewer gets one shape.
 - **Written under `self.list`**, through
   `PUT /api/me/ratings/{owner_type}/{owner_id}` and
-  `PUT /api/me/novel-units/{unit_id}` (`routers/me_ratings.py`). The
+  `PUT /api/me/book-units/{unit_id}` (`routers/me_ratings.py`). The
   catalogue create and update schemas for the tiers and entities do not
   carry these fields, so a `manage.catalog` write cannot make one account's
-  opinion everybody's. A novel's `units` payload (`POST` / `PUT` / `PATCH
-  /api/novel`, `manage.catalog`) carries no personal values either:
-  `NovelUnitWrite` has no `my_rating` or `remark`, an item naming one has it
-  ignored, and `write_novel_units` writes only the unit's own columns - so a
+  opinion everybody's. A book's `units` payload (`POST` / `PUT` / `PATCH
+  /api/book`, `manage.catalog`) carries no personal values either:
+  `BookUnitWrite` has no `my_rating` or `remark`, an item naming one has it
+  ignored, and `write_book_units` writes only the unit's own columns - so a
   units save neither files the writer's opinion nor clears anybody's.
 - **The admin keeps none.** It holds no `self.*` key, so `admin` gets 401 on both `/api/me` writes and the SPA draws no
-  group, entity or novel unit rating, expectation or remark editor for it.
+  group, entity or book unit rating, expectation or remark editor for it.
 - **Writes follow reads.** An owner the caller's GET would answer 404 for is
   a 404 on the write too, in the same words, so a hidden row cannot be
   confirmed by rating it.
 - **Attached where the rows leave:** the list and detail reads of
   `routers/collection.py`, `franchise.py` and `series.py`; the response
-  builders of the four entity routers; the media factory's novel reads (unit
+  builders of the four entity routers; the media factory's book reads (unit
   ratings); every search bucket plus `related_franchises`; and Plan Next's
   expectation (`own_expectations`). No list route filters or sorts on these
   fields; the SPA's sorts, filters and statistics run on the response, so
@@ -1486,7 +1485,7 @@ entry response stay open, because the page needs the names.
 
 **Which OPINIONS:** none. A visitor has no account, so every rating and
 expectation of a collection, franchise, series, person, studio, publisher or
-character, and every novel unit's rating and remark, reads **null** (see
+character, and every book unit's rating and remark, reads **null** (see
 [Ratings and expectations](#ratings-and-expectations-user_rating)); every
 highlight, being a personal note, is somebody's own and not the visitor's; and
 every highlight group order reads null.
@@ -1717,11 +1716,11 @@ and the page decides from the scope who may write it. An h-comic's and
 h-game's highlight group order is per account too, in
 `user_highlight_group_order`, written under `self.personal_notes`.
 
-**A remark is the catalogue's.** `remark` is one shared row per owner
-(`ix_note_one_remark_per_owner`), written under `manage.catalog` and read by
-everyone who can see the owner, a logged-out visitor included. A member's
-own short notes on an entry or a group go in 備註列表 `remark_list`, which is
-personal; there is no per-account remark route.
+**A remark is the catalogue's.** `remark` is a shared list - any number of
+rows per owner - written under `manage.catalog` and read by everyone who can
+see the owner, a logged-out visitor included. A member's own notes on an
+entry or a group go in 個人筆記 `personal_notes`, which is personal; there is
+no per-account remark route.
 
 ## Admin routes
 
@@ -2051,7 +2050,7 @@ matters is enforced server-side.
 | `tests/api/test_user_rating.py`, `test_user_rating_migration.py`, `test_user_rating_sheets.py` | two accounts rating one row each read their own, a guest reads null, every write without `self.list` (the admin's included) is 401 against an existing row and changes nothing, the vocabularies on all seven owners, writes following reads, merges moving rows; `u1r2atings3`'s own data steps, run against the test session, filing values under the owner (flag unset with an eligible-looking guest, flag set, admin and guest only) and its downgrade restoring only the owner's; the two Sheets tabs round-tripping and an old sheet's columns landing on the owner |
 | `tests/api/test_guest_has_no_list.py` | a guest reads no status, rating or progress; the personal-column filter matches nothing rather than cross-joining; `installation_owner_id` answers the flag holder over every fallback, and a member over the admin |
 | `tests/api/test_viewer_user_id.py` | `Viewer.user_id`, and that `acting_user_id` does **not** fall back |
-| `tests/api/test_view_permissions.py` | the `view` family: the seven keys in the catalog with labels, `view.personal` in neither the catalog nor any seeded role, offered by the role editor, the seed defaults, `super` holding all seven by lock with the entity keys free below it; every gated read refused to a guest and read by a holder against populated rows, a seeded member reading no entity page, and each key opening exactly its own reads; entity writes still need `manage.catalog` and do not need the read; group, entity and novel-unit ratings, expectations and remarks the viewer's own - null for a guest and for another viewer, the member's own through list, detail and search, and a catalogue manager's own rather than the member's |
+| `tests/api/test_view_permissions.py` | the `view` family: the seven keys in the catalog with labels, `view.personal` in neither the catalog nor any seeded role, offered by the role editor, the seed defaults, `super` holding all seven by lock with the entity keys free below it; every gated read refused to a guest and read by a holder against populated rows, a seeded member reading no entity page, and each key opening exactly its own reads; entity writes still need `manage.catalog` and do not need the read; group, entity and book-unit ratings, expectations and remarks the viewer's own - null for a guest and for another viewer, the member's own through list, detail and search, and a catalogue manager's own rather than the member's |
 | `tests/api/test_view_random_picker.py` | `view.random_picker`: in the catalog with a label; locked on for `super`, `user` and `shared` and off for `guest` and `admin` (the admin's by its fixed set, asserted rather than coded); the seed defaults following the locks; saving `guest` with it or `shared` without it 409; the picker-defaults read 401 for a guest against saved defaults and read by `shared` and `user`; `view.extras` gone from the catalog |
 | `tests/api/test_view_statistics.py` | `view.statistics`: in the catalog with a label; locked on for `super`, `user` and `shared` and off for `guest` and `admin`; the seed defaults following the locks; saving `guest` with it or `shared` without it 409; `/api/statistics/catalogue` 401 for a guest (which reads the same anime through `/api/anime/`, so the refusal is the gate) and for the admin, and read by `shared`, `user` and `super`; `s1t2atistics3` run by its own functions - the three holders granted, guest and admin not, idempotent, the downgrade taking it off everyone |
 | `tests/api/test_view_random_picker_migration.py` | `v1i2ewextras3` run by its own functions: the three holders granted and guest and admin not, every `view.extras` row deleted (one present, so the deletion bites), idempotent, and the downgrade restoring `view.extras` on `user` and `super` only |

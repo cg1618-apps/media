@@ -93,7 +93,7 @@ export const endpoints = {
 
   // The caller's own opinion of a catalogue row (self.list): its rating of a
   // collection, franchise, series, character, person, studio or publisher and
-  // its expectation of a tier; and its rating and remark of one novel unit.
+  // its expectation of a tier; and its rating and remark of one book unit.
   // Both are PUTs with a partial body - only the keys sent change, null clears.
   //
   // And the caller's own order of an h-comic's or h-game's highlight groups
@@ -107,7 +107,7 @@ export const endpoints = {
     // and the type's other spellings; answers every flag the type has.
     planFlags: (mediaId) => `/api/me/plan-flags/${mediaId}`,
     rating: (ownerType, ownerId) => `/api/me/ratings/${ownerType}/${ownerId}`,
-    novelUnit: (unitId) => `/api/me/novel-units/${unitId}`,
+    bookUnit: (unitId) => `/api/me/book-units/${unitId}`,
     highlightGroupOrder: (mediaId) => `/api/me/highlight-group-order/${mediaId}`,
     // The caller's own favourite quote or meme (the `favourites` feature): a
     // PUT of `{is_favorite: bool}`; kind is "quote" or "meme".
@@ -432,12 +432,12 @@ export const endpoints = {
     malPrefill: (id) => `/api/manga/mal-prefill/${encodeURIComponent(id)}`,
   },
 
-  novel: {
+  book: {
     searchMal: (q, limit = 10) =>
-      `/api/novel/search-mal?q=${encodeURIComponent(q)}&limit=${limit}`,
-    malPrefill: (id) => `/api/novel/mal-prefill/${encodeURIComponent(id)}`,
+      `/api/book/search-mal?q=${encodeURIComponent(q)}&limit=${limit}`,
+    malPrefill: (id) => `/api/book/mal-prefill/${encodeURIComponent(id)}`,
     searchOpenLibrary: (q, limit = 10) =>
-      `/api/novel/search-openlibrary?q=${encodeURIComponent(q)}&limit=${limit}`,
+      `/api/book/search-openlibrary?q=${encodeURIComponent(q)}&limit=${limit}`,
   },
 
   // A TMDB result's external_id is a ref ("movie/603"), not the IMDb id the

@@ -48,7 +48,7 @@ STATUS_FIELD: dict[str, str] = {
     "tv-show": "watching_status",
     "cartoon": "watching_status",
     "manga": "reading_status",
-    "novel": "reading_status",
+    "book": "reading_status",
     "comic": "reading_status",
     "game": "playing_status",
     "h-comic": "reading_status",
@@ -65,7 +65,7 @@ DEFAULT_STATUS: dict[str, str] = {
     "tv-show": "Might Watch",
     "cartoon": "Might Watch",
     "manga": "Might Read",
-    "novel": "Might Read",
+    "book": "Might Read",
     "comic": "Might Read",
     "game": "Might Play",
     "h-comic": "Might Read",
@@ -113,7 +113,7 @@ LIST_FIELDS: dict[str, tuple[str, ...]] = {
         "reading_status", "my_rating", "vol_fin", "vol_fin_page", "ch_fin",
         "completed_at",
     ),
-    "novel": (
+    "book": (
         "reading_status", "my_rating", "vol_fin", "arc_fin", "ch_fin",
         "ch_fin_in_arc", "progress_display", "completed_at",
     ),
@@ -253,7 +253,7 @@ def ensure_list_row(db: Session, user_id: UUID, media_id: UUID, media_type: str)
     """
     The user's row for this entry, created at the type's default status if it
     does not exist. Added to the session but not committed - the caller owns
-    the transaction, exactly as upsert_remark does.
+    the transaction.
     """
     row = list_row(db, user_id, media_id)
     if row is not None:
@@ -331,18 +331,18 @@ def attach_list_fields(db: Session, media_type: str, entries, user_id) -> None:
 
 
 def attach_unit_ratings(db: Session, media_type: str, entries, user_id) -> None:
-    """Put the reader's per-unit rating and remark back on a novel's units.
+    """Put the reader's per-unit rating and remark back on a book's units.
 
-    Both live on user_novel_unit_rating, one row per reader, but
-    NovelUnitResponse still declares my_rating and remark and reads them off
+    Both live on user_book_unit_rating, one row per reader, but
+    BookUnitResponse still declares my_rating and remark and reads them off
     the ORM object - so without this every unit serialises them as None. The
     same trick attach_list_fields uses, one level down. A guest (user_id
     None) reads None for both.
 
-    Novel-only, and one query for every unit of every entry passed, not one
+    Book-only, and one query for every unit of every entry passed, not one
     per unit.
     """
-    if media_type != "novel":
+    if media_type != "book":
         return
     if isinstance(entries, Iterable) and not hasattr(entries, "system_id"):
         items = list(entries)
@@ -356,10 +356,10 @@ def attach_unit_ratings(db: Session, media_type: str, entries, user_id) -> None:
     if user_id is not None:
         rows = {
             r.unit_id: r
-            for r in db.query(models.UserNovelUnitRating)
+            for r in db.query(models.UserBookUnitRating)
             .filter(
-                models.UserNovelUnitRating.user_id == user_id,
-                models.UserNovelUnitRating.unit_id.in_([u.system_id for u in units]),
+                models.UserBookUnitRating.user_id == user_id,
+                models.UserBookUnitRating.unit_id.in_([u.system_id for u in units]),
             )
             .all()
         }

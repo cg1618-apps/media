@@ -20,7 +20,7 @@ import HGameAddTab from "./HGameAddTab";
 import HentaiAddTab from "./HentaiAddTab";
 import MangaAddTab from "./MangaAddTab";
 import MovieAddTab from "./MovieAddTab";
-import NovelAddTab from "./NovelAddTab";
+import BookAddTab from "./BookAddTab";
 import TvShowAddTab from "./TvShowAddTab";
 import AnimeModifyTab from "../modify-tabs/AnimeModifyTab";
 import AnimeMovieModifyTab from "../modify-tabs/AnimeMovieModifyTab";
@@ -32,7 +32,7 @@ import HGameModifyTab from "../modify-tabs/HGameModifyTab";
 import HentaiModifyTab from "../modify-tabs/HentaiModifyTab";
 import MangaModifyTab from "../modify-tabs/MangaModifyTab";
 import MovieModifyTab from "../modify-tabs/MovieModifyTab";
-import NovelModifyTab from "../modify-tabs/NovelModifyTab";
+import BookModifyTab from "../modify-tabs/BookModifyTab";
 import TvShowModifyTab from "../modify-tabs/TvShowModifyTab";
 import {
   defaultAnime,
@@ -45,7 +45,7 @@ import {
   defaultHentai,
   defaultManga,
   defaultMovie,
-  defaultNovel,
+  defaultBook,
   defaultTvShow,
 } from "../../config/formFactories";
 
@@ -74,7 +74,7 @@ vi.mock("../detail/MovieNotes", notes);
 vi.mock("../detail/TVShowNotes", notes);
 vi.mock("../detail/CartoonNotes", notes);
 vi.mock("../detail/MangaNotes", notes);
-vi.mock("../detail/NovelNotes", notes);
+vi.mock("../detail/BookNotes", notes);
 vi.mock("../detail/ComicNotes", notes);
 vi.mock("../detail/GameNotes", notes);
 vi.mock("../detail/HGameNotes", notes);
@@ -90,7 +90,7 @@ const TYPES = [
   {
     name: "Anime",
     factory: defaultAnime,
-    sections: ["Titles & Naming", "Scores", "My Tracker", "Information", "Genres & Labels", "Production", "Cast", "Links & Sources", "Cover & Remark"],
+    sections: ["Titles & Naming", "Scores", "My Tracker", "Information", "Genres & Labels", "Production", "Cast", "Links & Sources", "Cover"],
     add: (f) => (
       <AnimeAddTab {...common} af={f} ua={noop} allAnime={[]} applyAnimeEntryAutofill={noop} applyMalPick={noop} seriesItemsForAnime={[]} />
     ),
@@ -101,7 +101,7 @@ const TYPES = [
   {
     name: "Anime Movie",
     factory: defaultAnimeMovie,
-    sections: ["Titles & Naming", "Scores", "My Tracker", "Information", "Genres & Labels", "Production", "Cast", "Links & Sources", "Cover & Remark"],
+    sections: ["Titles & Naming", "Scores", "My Tracker", "Information", "Genres & Labels", "Production", "Cast", "Links & Sources", "Cover"],
     add: (f) => (
       <AnimeMovieAddTab {...common} amf={f} uam={noop} allAnimeMovies={[]} applyAnimeMovieEntryAutofill={noop} applyMalPick={noop} />
     ),
@@ -112,7 +112,7 @@ const TYPES = [
   {
     name: "Movie",
     factory: defaultMovie,
-    sections: ["Titles & Naming", "Scores", "My Tracker", "Information", "Genres & Labels", "Production", "Links & Sources", "Cover & Remark"],
+    sections: ["Titles & Naming", "Scores", "My Tracker", "Information", "Genres & Labels", "Production", "Links & Sources", "Cover"],
     add: (f) => (
       <MovieAddTab {...common} mf={f} umf={noop} allMovies={[]} applyMovieEntryAutofill={noop} applyTmdbPick={noop} seriesItemsForMovie={[]} />
     ),
@@ -123,7 +123,7 @@ const TYPES = [
   {
     name: "TV Show",
     factory: defaultTvShow,
-    sections: ["Titles & Naming", "Scores", "My Tracker", "Information", "Genres & Labels", "Links & Sources", "Cover & Remark"],
+    sections: ["Titles & Naming", "Scores", "My Tracker", "Information", "Genres & Labels", "Links & Sources", "Cover"],
     add: (f) => (
       <TvShowAddTab {...common} tvf={f} utf={noop} allTvShows={[]} applyTvShowEntryAutofill={noop} applyTmdbPick={noop} seriesItemsForTvShow={[]} />
     ),
@@ -134,7 +134,7 @@ const TYPES = [
   {
     name: "Cartoon",
     factory: defaultCartoon,
-    sections: ["Titles & Naming", "Scores", "My Tracker", "Information", "Genres & Labels", "Links & Sources", "Cover & Remark"],
+    sections: ["Titles & Naming", "Scores", "My Tracker", "Information", "Genres & Labels", "Links & Sources", "Cover"],
     add: (f) => (
       <CartoonAddTab {...common} cf={f} uc={noop} allCartoons={[]} applyCartoonEntryAutofill={noop} applyTmdbPick={noop} seriesItemsForCartoon={[]} />
     ),
@@ -145,7 +145,7 @@ const TYPES = [
   {
     name: "Manga",
     factory: defaultManga,
-    sections: ["Titles & Naming", "Scores", "My Tracker", "Information", "Genres & Labels", "Production", "Cast", "Links & Sources", "Cover & Remark"],
+    sections: ["Titles & Naming", "Scores", "My Tracker", "Information", "Genres & Labels", "Production", "Cast", "Links & Sources", "Cover"],
     add: (f) => (
       <MangaAddTab {...common} mgf={f} umg={noop} allMangas={[]} applyMangaEntryAutofill={noop} applyMalPick={noop} seriesItemsForManga={[]} />
     ),
@@ -154,20 +154,20 @@ const TYPES = [
     ),
   },
   {
-    name: "Novel",
-    factory: defaultNovel,
-    sections: ["Titles & Naming", "Scores", "My Tracker", "Information", "Genres & Labels", "Production", "Cast", "Units", "Links & Sources", "Cover & Remark"],
+    name: "Book",
+    factory: defaultBook,
+    sections: ["Titles & Naming", "Scores", "My Tracker", "Information", "Genres & Labels", "Production", "Cast", "Units", "Links & Sources", "Cover"],
     add: (f) => (
-      <NovelAddTab {...common} nvf={f} unv={noop} allNovels={[]} applyNovelEntryAutofill={noop} applyMalPick={noop} applyOpenLibraryPick={noop} seriesItemsForNovel={[]} />
+      <BookAddTab {...common} nvf={f} unv={noop} allBooks={[]} applyBookEntryAutofill={noop} applyMalPick={noop} applyOpenLibraryPick={noop} seriesItemsForBook={[]} />
     ),
     modify: (f) => (
-      <NovelModifyTab {...common} cnvf={f} unv={noop} seriesItemsForNovel={[]} editingItem={{ system_id: "e1" }} />
+      <BookModifyTab {...common} cnvf={f} unv={noop} seriesItemsForBook={[]} editingItem={{ system_id: "e1" }} />
     ),
   },
   {
     name: "Comic",
     factory: defaultComic,
-    sections: ["Titles & Naming", "My Tracker", "Information", "Genres & Labels", "Production", "Read Order", "Links & Sources", "Cover & Remark"],
+    sections: ["Titles & Naming", "My Tracker", "Information", "Genres & Labels", "Production", "Read Order", "Links & Sources", "Cover"],
     add: (f) => (
       <ComicAddTab {...common} cmf={f} ucm={noop} allComics={[]} applyComicEntryAutofill={noop} applyComicVinePick={noop} seriesItemsForComic={[]} />
     ),
@@ -178,7 +178,7 @@ const TYPES = [
   {
     name: "Game",
     factory: defaultGame,
-    sections: ["Titles & Naming", "Scores", "My Tracker", "Information", "Genres & Labels", "Production", "Prices", "Copies", "Links & Sources", "Cover & Remark"],
+    sections: ["Titles & Naming", "Scores", "My Tracker", "Information", "Genres & Labels", "Production", "Prices", "Copies", "Links & Sources", "Cover"],
     add: (f) => (
       <GameAddTab {...common} gmf={f} ugm={noop} allGames={[]} seriesItemsForGame={[]} applyGameEntryAutofill={noop} applyIgdbPick={noop} />
     ),
@@ -189,7 +189,7 @@ const TYPES = [
   {
     name: "H-Game",
     factory: defaultHGame,
-    sections: ["Titles & Naming", "My Tracker", "Information", "Genres", "Presentation", "Production", "Prices", "Copies", "Links & Sources", "Cover & Remark"],
+    sections: ["Titles & Naming", "My Tracker", "Information", "Genres", "Presentation", "Production", "Prices", "Copies", "Links & Sources", "Cover"],
     add: (f) => (
       <HGameAddTab {...common} hgf={f} uhg={noop} allHGames={[]} seriesItemsForHGame={[]} applyIgdbPick={noop} applyHGameEntryAutofill={noop} />
     ),
@@ -200,7 +200,7 @@ const TYPES = [
   {
     name: "H-Comic",
     factory: defaultHComic,
-    sections: ["Titles & Naming", "My Tracker", "Information", "Genres", "Production", "Cast", "Links & Sources", "Cover & Remark"],
+    sections: ["Titles & Naming", "My Tracker", "Information", "Genres", "Production", "Cast", "Links & Sources", "Cover"],
     add: (f) => (
       <HComicAddTab {...common} hcf={f} uhc={noop} allHComics={[]} applyHComicEntryAutofill={noop} seriesItemsForHComic={[]} />
     ),
@@ -211,7 +211,7 @@ const TYPES = [
   {
     name: "Hentai",
     factory: defaultHentai,
-    sections: ["Titles & Naming", "My Tracker", "Information", "Genres", "Production", "Cast", "Links & Sources", "Cover & Remark"],
+    sections: ["Titles & Naming", "My Tracker", "Information", "Genres", "Production", "Cast", "Links & Sources", "Cover"],
     add: (f) => (
       <HentaiAddTab {...common} htf={f} uht={noop} allHentai={[]} applyHentaiEntryAutofill={noop} seriesItemsForHentai={[]} />
     ),

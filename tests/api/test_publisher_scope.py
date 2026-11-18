@@ -96,9 +96,9 @@ def test_update_replaces_the_whole_scope_set(owner_client):
     ).json()
     res = owner_client.put(
         f"/api/publisher/{created['system_id']}",
-        json={"name_en": "Shifty", "scopes": ["novel"]},
+        json={"name_en": "Shifty", "scopes": ["book"]},
     )
-    assert res.json()["scopes"] == ["novel"]
+    assert res.json()["scopes"] == ["book"]
 
 
 def test_merge_unions_the_scopes(owner_client):

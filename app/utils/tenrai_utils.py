@@ -353,8 +353,8 @@ def map_tenrai_to_manga_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def map_tenrai_to_novel_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
-    """Transforms raw Tenrai manga data dict into a flat dict for the Novel model."""
+def map_tenrai_to_book_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Transforms raw Tenrai manga data dict into a flat dict for the Book model."""
     _STATUS_MAP = {
         "Finished": "完結",
         "Publishing": "連載中",
@@ -389,7 +389,7 @@ def map_tenrai_to_novel_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
 
     return {
         "serialization_status": serialization_status,
-        "release_date": release_date,
+        "release_date_jp": release_date,
         "end_date": end_date,
         "mal_rating": raw_data.get("score"),
         "mal_rank": mal_rank,
@@ -551,7 +551,7 @@ def map_tenrai_studios(raw_data: Dict[str, Any]) -> List[Dict[str, Any]]:
 
 def map_tenrai_authors(raw_data: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
-    A manga's or novel's `authors`, as {mal_id, name, name_mal, url, roles}.
+    A manga's or book's `authors`, as {mal_id, name, name_mal, url, roles}.
 
     `name` is western order ("Eiichiro Oda"), the form a new person is
     created under; `name_mal` keeps MAL's "Oda, Eiichiro", which a hand-made
@@ -581,11 +581,11 @@ def map_tenrai_credits(media_type: str, raw_data: Dict[str, Any]) -> Dict[str, l
     """
     {credit role: [MAL studio or author, ...]} for one media type, in MAL's
     order: studios for anime and anime movie, authors split by role for
-    manga and novel. Any other type credits nothing from MAL.
+    manga and book. Any other type credits nothing from MAL.
     """
     if media_type in ("anime", "anime-movie"):
         return {"studio": map_tenrai_studios(raw_data)}
-    if media_type in ("manga", "novel"):
+    if media_type in ("manga", "book"):
         authors = map_tenrai_authors(raw_data)
         return {
             role: [a for a in authors if role in a["roles"]]

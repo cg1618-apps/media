@@ -25,7 +25,7 @@ MEDIA_MODELS = [
     ("movie", models.Movies, "movie_name_en"),
     ("tv-show", models.TVShows, "tv_name_en"),
     ("manga", models.Manga, "manga_name_en"),
-    ("novel", models.Novel, "novel_name_en"),
+    ("book", models.Book, "book_name_en"),
     ("comic", models.Comic, "comic_name_en"),
     ("game", models.Game, "game_name_en"),
     ("h-comic", models.HComic, "h_comic_name_en"),

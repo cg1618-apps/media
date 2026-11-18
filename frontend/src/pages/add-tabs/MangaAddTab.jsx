@@ -6,7 +6,7 @@
 // boxes on top: EntryAutofillSearch copies fields from a manga already in the
 // catalogue, the MAL search links the new entry to its MAL record.
 import CastEditor from "../../components/forms/CastEditor";
-import CoverRemarkFields from "../../components/forms/CoverRemarkFields";
+import CoverFields from "../../components/forms/CoverFields";
 import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
 import EntryFlags from "../../components/forms/EntryFlags";
 import EntryNameFields from "../../components/forms/EntryNameFields";
@@ -35,6 +35,7 @@ import {
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
 import { endpoints } from "../../api/endpoints";
+import { FLOAT_PROGRESS_FIELDS } from "../../lib/progressStep";
 
 export { defaultManga } from "../../config/formFactories";
 
@@ -74,6 +75,7 @@ export function MangaFormBody({ f, u, sources, ownerId }) {
         className={inputCls}
         type="number"
         min="0"
+        step={FLOAT_PROGRESS_FIELDS.has(key) ? "any" : undefined}
         aria-label={label}
         value={f[key] ?? ""}
         onChange={(e) => u(key, e.target.value)}
@@ -153,6 +155,18 @@ export function MangaFormBody({ f, u, sources, ownerId }) {
           label="End Date"
           value={f.end_date}
           onChange={(v) => u("end_date", v)}
+        />
+      </div>
+      <div className={ROW2}>
+        <ReleaseDateInput
+          label="Next Volume (JP)"
+          value={f.next_vol_release_date_jp}
+          onChange={(v) => u("next_vol_release_date_jp", v)}
+        />
+        <ReleaseDateInput
+          label="Next Volume (TW)"
+          value={f.next_vol_release_date_tw}
+          onChange={(v) => u("next_vol_release_date_tw", v)}
         />
       </div>
 
@@ -244,7 +258,7 @@ export function MangaFormBody({ f, u, sources, ownerId }) {
         sources={sources}
       />
 
-      <CoverRemarkFields f={f} u={u} ownerType="manga" ownerId={ownerId} />
+      <CoverFields f={f} u={u} ownerType="manga" ownerId={ownerId} />
     </>
   );
 }

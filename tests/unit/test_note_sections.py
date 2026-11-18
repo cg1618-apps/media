@@ -35,10 +35,12 @@ def test_every_owner_is_a_real_owner_table():
             assert owner in OWNER_TABLES, f"{sec.key} names unknown owner {owner}"
 
 
-def test_only_remark_is_a_singleton():
-    # `ost` was the other one until it became a list of songs like OP and ED.
+def test_no_section_is_a_singleton():
+    # `remark` was the last one until it became a shared list. The flag and
+    # its checks stay: they are generic, and music_status's one_per_kind
+    # shares them.
     singletons = [s.key for s in ns.NOTE_SECTIONS if s.singleton]
-    assert singletons == ["remark"]
+    assert singletons == []
 
 
 def test_only_declared_sections_have_kinds():
@@ -127,7 +129,8 @@ def test_link_title_suggestions_are_confined_to_the_songs():
         ("geography", False),
         ("episode_comments", False),
         ("highlights", False),
-        ("remark", False),
+        ("remark", True),
+        ("guide_notes", False),
         ("music_status", False),
     ),
 )
@@ -322,7 +325,7 @@ def test_easter_eggs_reaches_every_unrestricted_media_type_and_the_tiers():
         "tv-show",
         "cartoon",
         "manga",
-        "novel",
+        "book",
         "comic",
         "game",
         "series",
@@ -343,7 +346,7 @@ def test_easter_eggs_asks_for_the_locator_each_type_has():
     assert ns.locator_for(sec, "anime") == "Episode(s), e.g. ep 3"
     assert ns.locator_for(sec, "tv-show") == "Episode(s), e.g. ep 3"
     assert ns.locator_for(sec, "manga") == "Chapter(s), e.g. ch 6"
-    assert ns.locator_for(sec, "novel") == "Chapter(s), e.g. ch 6"
+    assert ns.locator_for(sec, "book") == "Chapter(s), e.g. ch 6"
     assert ns.locator_for(sec, "comic") == "Issue(s), e.g. #3"
     assert ns.locator_for(sec, "movie") == "Scene, e.g. 1:02:30"
     assert ns.locator_for(sec, "anime-movie") == "Scene, e.g. 1:02:30"
@@ -369,8 +372,8 @@ def test_the_reviews_group_holds_every_evaluative_section():
     ]
 
 
-def test_the_analysis_group_holds_cinematography_and_its_novel_twin():
-    # `craft` is the novel-only counterpart of `cinematography`, so the two
+def test_the_analysis_group_holds_cinematography_and_its_book_twin():
+    # `craft` is the book-only counterpart of `cinematography`, so the two
     # belong to the same card even though they stay separate sections.
     grouped = [s.key for s in ns.NOTE_SECTIONS if s.group == "analysis_group"]
     assert grouped == [
@@ -522,7 +525,7 @@ def test_anime_sections_in_registry_order():
     keys = [s.key for s in ns.sections_for("anime")]
     assert keys == [
         "remark",
-        "remark_list",
+        "personal_notes",
         "introduction",
         "advantages",
         "disadvantages",
@@ -558,7 +561,7 @@ def test_collection_gets_the_narrow_set():
     # `questions` sits after `resources` in NOTE_SECTIONS.
     assert keys == [
         "remark",
-        "remark_list",
+        "personal_notes",
         "introduction",
         "advantages",
         "disadvantages",
@@ -770,10 +773,9 @@ def test_insert_songs_is_anime_only():
 # Sections backed by their own table (quotes, memes) store no note row and so
 # have no scope to declare.
 PERSONAL_KEYS = {
-    # The other half of 備註: the short things, one per row, that a single
-    # block of prose turns into a wall. 備註 itself is the catalogue's; this
-    # is where each viewer keeps their own.
-    "remark_list",
+    # 個人筆記, the personal half of 備註: 備註 is the catalogue's list, and
+    # this is where each viewer keeps their own.
+    "personal_notes",
     "advantages",
     "disadvantages",
     "double_edged",
@@ -917,7 +919,7 @@ def test_the_two_scopes_partition_every_stored_section():
 def test_sections_by_scope_returns_registry_order():
     keys = [s.key for s in ns.sections_by_scope(ns.SCOPE_PERSONAL)]
     assert keys == [
-        "remark_list",
+        "personal_notes",
         "advantages",
         "disadvantages",
         "double_edged",

@@ -2,8 +2,8 @@
 //
 // Notes hang off an entry's system_id, so the Add form cannot hold them before
 // the entry exists. Once it does, this panel is the notes page for that entry:
-// every section the owner type has, remark included - the Add form has
-// already reset to a blank entry, so its Remark field no longer edits this row.
+// every section the owner type has, 備註 Remark included - no form field edits
+// the remark, so this panel is where a new entry's first one is written.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -15,7 +15,7 @@ vi.mock("../notes/api");
 vi.mock("../../hooks/useToast", () => ({ useToast: () => ({ showToast: vi.fn() }) }));
 
 const SECTIONS = [
-  { key: "remark", shape: "text", label: "Remark", kinds: [], singleton: true },
+  { key: "remark", shape: "text_links", label: "Remark", kinds: [] },
   { key: "overview", shape: "text", label: "Overview", kinds: [] },
 ];
 

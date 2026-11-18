@@ -20,7 +20,7 @@ class GameCopyIO(BaseModel):
     One copy row, in both directions.
 
     system_id present means "update this row"; absent means "insert". Rows the
-    payload omits are deleted - the same contract write_novel_units uses.
+    payload omits are deleted - the same contract write_book_units uses.
     """
 
     system_id: Optional[UUID] = None
@@ -103,7 +103,6 @@ class GameBase(BaseModel):
     # an undeclared field is dropped without a word.
     play_next: Optional[bool] = None
     to_replay: Optional[bool] = None
-    remark: Optional[str] = None
     completed_at: Optional[datetime] = None
 
     _validate_release_dates = release_date_validator("release_date")
@@ -124,7 +123,7 @@ class GameWriteChecks(BaseModel):
 
 class GameCreate(GameWriteChecks, GameBase, SourceWriteFields):
     # None means "not supplied", [] means "clear them" - the contract
-    # write_novel_units established for a nested collection.
+    # write_book_units established for a nested collection.
     copies: Optional[List[GameCopyIO]] = None
 
 

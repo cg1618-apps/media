@@ -14,7 +14,7 @@ def test_the_tab_is_registered_after_every_media_tab():
     index = names.index("User Media List")
     for media_tab in (
         "Anime", "Anime Movie", "Movies", "TV Shows", "Cartoons",
-        "Manga", "Novel", "Comic", "Game",
+        "Manga", "Book", "Comic", "Game",
     ):
         assert names.index(media_tab) < index, media_tab
 

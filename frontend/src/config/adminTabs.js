@@ -34,10 +34,10 @@ export const ADMIN_TABS = [
   },
   { key: "manga", group: "entries", icon: "fa-book", label: "Manga" },
   {
-    key: "novel",
+    key: "book",
     group: "entries",
     icon: "fa-book-open",
-    label: "Novel",
+    label: "Book",
   },
   {
     key: "comic",

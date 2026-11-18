@@ -4,7 +4,7 @@ The non-column fields a page of entries carries in a list response.
 The response schemas read from attributes, and a good half of what an entry
 card shows is not a column on the entry's table: the viewer's status, progress
 and rating live on user_media_list, sources and content labels on their own
-tables, the remark in `note`, and the plan flags and game copies are per
+tables, and the plan flags and game copies are per
 viewer. Each has an attach_* helper; this module is the one place that says
 which of them a list of entries gets, so every endpoint that returns cards -
 the media list routes and the cross-type search - hands back the same card.
@@ -18,7 +18,6 @@ from app.services.domain.game_copies import attach_own_copies
 from app.services.domain.h_comic import attach_animation_status
 from app.services.domain.highlight_group_order import attach_group_orders
 from app.services.domain.plan_next import PLAN_FLAG_FIELDS, planned_entry_ids
-from app.services.domain.remark_field import attach_remark
 from app.services.domain.sources import attach_sources
 from app.services.domain.user_list import (
     acting_user_id,
@@ -46,7 +45,5 @@ def attach_entry_list_fields(db: Session, media_type: str, entries: list, viewer
     attach_own_copies(db, media_type, entries, user_id)
     # The h-comics' hentai adaptations; a no-op for every other type.
     attach_animation_status(db, media_type, entries)
-    # The catalogue remark, the same for every viewer.
-    attach_remark(db, media_type, entries)
     # The viewer's own highlight group order; h-comic and h-game only.
     attach_group_orders(db, media_type, entries, plan_user_id)

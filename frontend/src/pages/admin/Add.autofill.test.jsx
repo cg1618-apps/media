@@ -1,6 +1,6 @@
 // Frontend: the "Auto-fill from existing entry" box at the top of the eight
 // non-gated Add tabs that predate EntryAutofillSearch (anime, anime movie,
-// movie, TV show, cartoon, manga, novel, comic). Pins, per tab, what the box
+// movie, TV show, cartoon, manga, book, comic). Pins, per tab, what the box
 // searches (every name column the tab has always searched), the badge beside
 // a result, the title it shows, and what a pick does: Add.jsx's
 // applyEntryAutofill builds the patch from the picked entry, the type and
@@ -88,12 +88,12 @@ const CASES = [
     sentinel: "manga_name_en",
   },
   {
-    label: "Novel",
-    type: "novel",
-    names: ["cn", "en", "roman", "jp", "alt"].map((s) => `novel_name_${s}`),
+    label: "Book",
+    type: "book",
+    names: ["cn", "en", "roman", "jp", "alt"].map((s) => `book_name_${s}`),
     badge: "region",
-    title: ["novel_name_cn", "novel_name_en"],
-    sentinel: "novel_name_en",
+    title: ["book_name_cn", "book_name_en"],
+    sentinel: "book_name_en",
   },
   {
     label: "Comic",

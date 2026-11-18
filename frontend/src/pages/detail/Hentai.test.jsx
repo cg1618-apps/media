@@ -13,7 +13,7 @@ import { AuthProvider } from "../../contexts/AuthContext";
 import { ToastProvider, useToast } from "../../hooks/useToast";
 import Hentai from "./Hentai";
 
-const REMARK = { key: "remark", shape: "text", label: "Remark", owner_where: {} };
+const REMARK = { key: "remark", shape: "text_links", label: "Remark", owner_where: {} };
 
 // A member's view.* keys, so credits and the cast link.
 const MEMBER_KEYS = ["view.studio", "view.publisher", "view.person", "view.character", "view.search", "view.random_picker"];
@@ -224,66 +224,15 @@ describe("Hentai detail page", () => {
   });
 });
 
-// The Remarks box is the catalogue remark: drawn whenever the entry has one,
-// editable for a holder of manage.catalog (an editor) and saved through the
-// entry's own PATCH, read-only for everyone else. The read-only cases carry
-// the same remark the editor edits, so a box that does not save is the
-// permission's doing and not an empty row's.
+// The 備註 Remark is a list section of the Notes card, edited there like any
+// other; the page draws no Remarks box of its own, an editor's view included.
 describe("Hentai detail page remark", () => {
-  const remarked = { ...ENTRY, remark: "Skip the second episode." };
-  const remarkBox = () => screen.queryByPlaceholderText("Add remarks…");
-  const writes = () =>
-    fetch.mock.calls.filter(([, init]) => init?.method === "PATCH" || init?.method === "PUT");
-
-  it("lets an editor edit it, saved through the entry's PATCH", async () => {
-    mockFetch(remarked, [], {
-      admin: true,
-      permissions: [...MEMBER_KEYS, "manage.catalog"],
-      patched: (sent) => ({ ...remarked, ...sent }),
-    });
-    mount(remarked);
-    const box = await screen.findByPlaceholderText("Add remarks…");
-    expect(box).toHaveValue("Skip the second episode.");
-    expect(box).not.toHaveAttribute("readonly");
-
-    await userEvent.clear(box);
-    await userEvent.type(box, "Watch both.");
-    fireEvent.blur(box);
-    await waitFor(() => expect(writes()).toHaveLength(1));
-    const [url, init] = writes()[0];
-    expect(url).toBe("/api/hentai/h1");
-    expect(init.method).toBe("PATCH");
-    expect(JSON.parse(init.body)).toEqual({ remark: "Watch both." });
-    expect(await screen.findByText("Remark saved")).toBeInTheDocument();
-  });
-
-  it("sends an unchanged remark nowhere", async () => {
-    mockFetch(remarked, [], { admin: true, permissions: ["manage.catalog"] });
-    mount(remarked);
-    fireEvent.blur(await screen.findByPlaceholderText("Add remarks…"));
-    expect(writes()).toHaveLength(0);
-  });
-
-  it.each([
-    ["a member", LIST_KEYS],
-    ["a guest", []],
-  ])("shows %s the remark read-only and saves nothing", async (_who, permissions) => {
-    mockFetch(remarked, [], { permissions });
-    mount(remarked);
-    const box = await screen.findByPlaceholderText("Add remarks…");
-    expect(box).toHaveValue("Skip the second episode.");
-    expect(box).toHaveAttribute("readonly");
-    fireEvent.change(box, { target: { value: "Mine now." } });
-    fireEvent.blur(box);
-    expect(writes()).toHaveLength(0);
-  });
-
-  it("draws no box for a non-editor when the entry has no remark", async () => {
-    mockFetch(ENTRY, [], { permissions: LIST_KEYS });
+  it("draws no Remarks box, even for an editor", async () => {
+    mockFetch(ENTRY, [], { admin: true, permissions: [...MEMBER_KEYS, "manage.catalog"] });
     mount(ENTRY);
-    await screen.findByRole("heading", { name: "中文名" });
     await screen.findByRole("heading", { name: "Notes" });
-    expect(remarkBox()).toBeNull();
+    expect(screen.queryByPlaceholderText("Add remarks…")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Remarks" })).toBeNull();
   });
 });
 

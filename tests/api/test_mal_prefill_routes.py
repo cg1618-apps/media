@@ -10,7 +10,7 @@ import re
 import pytest
 
 from app import models
-from app.routers import anime, anime_movie, manga, novel
+from app.routers import anime, anime_movie, book, manga
 from app.services.domain import mal_prefill as prefill_module
 from app.services.integrations.external_search import ExternalSearchError
 
@@ -78,9 +78,9 @@ PATHS = {
     "anime": "/api/anime/mal-prefill",
     "anime-movie": "/api/anime-movie/mal-prefill",
     "manga": "/api/manga/mal-prefill",
-    "novel": "/api/novel/mal-prefill",
+    "book": "/api/book/mal-prefill",
 }
-MODULES = {"anime": anime, "anime-movie": anime_movie, "manga": manga, "novel": novel}
+MODULES = {"anime": anime, "anime-movie": anime_movie, "manga": manga, "book": book}
 ID_ROUTE = re.compile(r"/\{\w+\}$")
 
 
@@ -189,15 +189,15 @@ def test_manga(owner_client, tenrai):
     assert tenrai == [("manga", 21)]
 
 
-def test_novel(owner_client, tenrai):
-    response = owner_client.get(f"{PATHS['novel']}/21")
+def test_book(owner_client, tenrai):
+    response = owner_client.get(f"{PATHS['book']}/21")
     assert response.status_code == 200
     assert response.json() == {
-        "novel_name_en": "Death Note",
-        "novel_name_jp": "デスノート",
-        "novel_name_alt": "DN",
+        "book_name_en": "Death Note",
+        "book_name_jp": "デスノート",
+        "book_name_alt": "DN",
         "serialization_status": "完結",
-        "release_date": "2003-12-01",
+        "release_date_jp": "2003-12-01",
         "end_date": "2006-05-15",
         "vol_total_original": 12.0,
         "ch_total": 108.0,
@@ -212,7 +212,7 @@ def test_totals_only_once_the_serialization_is_finished(owner_client, monkeypatc
     publishing = {**MANGA_RAW, "status": "Publishing"}
     monkeypatch.setattr(prefill_module, "lookup_mal_manga", lambda mal_id: publishing)
     for media_type, totals in (("manga", ("vol_total", "ch_total")),
-                               ("novel", ("vol_total_original", "ch_total"))):
+                               ("book", ("vol_total_original", "ch_total"))):
         body = owner_client.get(f"{PATHS[media_type]}/21").json()
         assert body["serialization_status"] == "連載中"
         for field in totals:

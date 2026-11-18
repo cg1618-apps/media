@@ -12,7 +12,7 @@ import { useStatusToggle } from "../../hooks/useStatusToggle";
 import MarkAiringModal from "../modals/MarkAiringModal";
 import { entityPath } from "../../lib/entityPath";
 import { releaseYear } from "../../lib/releaseDate";
-import { effectiveProgressDisplay } from "../../lib/novelUnits";
+import { effectiveProgressDisplay } from "../../lib/bookUnits";
 import { progressFor } from "../../lib/hComicRegion";
 import {
   getDisplayName,
@@ -23,13 +23,14 @@ import {
   formatLength,
   parseTypes,
   MEDIA_CONFIG,
-  getNovelProgress,
+  getBookProgress,
 } from "../../utils/media";
 import { focusStyle, thumbUrl } from "../../lib/covers";
 import { isFilmType, WAIT_FOR_RELEASE_STATUSES } from "../../config/fieldOptions";
 import { Chip, RatingStamp } from "../ui/primitives";
 import PlatformIcons from "./PlatformIcons";
 import LazyImage from "../ui/LazyImage";
+import { formatProgress, parseProgressTotal } from "../../lib/progressStep";
 
 const SPINE_LABEL = {
   anime: "Anime",
@@ -38,7 +39,7 @@ const SPINE_LABEL = {
   "tv-show": "TV show",
   cartoon: "Cartoon",
   manga: "Manga",
-  novel: "Novel",
+  book: "Book",
   comic: "Comic",
   game: "Game",
   "h-comic": "H-Comic",
@@ -168,7 +169,7 @@ function PosterBadges({ type, variant, data, franchiseDict, scoreField }) {
           {data.region}
         </div>
       )}
-      {(type === "manga" || type === "novel" || type === "h-comic") &&
+      {(type === "manga" || type === "book" || type === "h-comic") &&
         data.region && (
         <div className={`absolute top-1 left-1 ${OVERLAY_CLS}`}>
           {data.region}
@@ -188,10 +189,12 @@ function PosterBadges({ type, variant, data, franchiseDict, scoreField }) {
   );
 }
 
-function yearRange(data) {
-  const start = releaseYear(data.release_date) || "?";
+// `released` is the start of the run: release_date on most types, the JP
+// date (then the TW one) on a book.
+function yearRange(data, released = data.release_date) {
+  const start = releaseYear(released) || "?";
   const end = releaseYear(data.end_date);
-  return end && end !== releaseYear(data.release_date) ? `${start} – ${end}` : start;
+  return end && end !== releaseYear(released) ? `${start} – ${end}` : start;
 }
 
 function LibraryMeta({ type, data, scoreField }) {
@@ -298,7 +301,7 @@ function LibraryMeta({ type, data, scoreField }) {
     );
   }
 
-  if (type === "novel") {
+  if (type === "book") {
     return (
       <div className="mb-1 flex items-end justify-between gap-1">
         <div className="flex flex-col gap-1 min-w-0 flex-1">
@@ -312,7 +315,7 @@ function LibraryMeta({ type, data, scoreField }) {
             </div>
           )}
           <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint truncate">
-            {yearRange(data)}
+            {yearRange(data, data.release_date_jp || data.release_date_tw)}
           </span>
         </div>
         {data[scoreField] && (
@@ -370,7 +373,8 @@ const UNIT_CLS = "text-[9px] text-text-faint uppercase tracking-[0.12em] ml-1";
 function Count({ fin, total, unit }) {
   return (
     <div className={COUNT_CLS}>
-      {fin} <span className="text-text-faint">/</span> {total}
+      {formatProgress(fin)} <span className="text-text-faint">/</span>{" "}
+      {formatProgress(total)}
       <span className={UNIT_CLS}>{unit}</span>
     </div>
   );
@@ -379,19 +383,13 @@ function Count({ fin, total, unit }) {
 function ProgressDisplay({ type, data, showVol, onToggleVol }) {
   if (type === "anime") {
     const localFin = data.ep_fin || 0;
-    const localTotal =
-      data.ep_total != null && data.ep_total !== ""
-        ? parseInt(data.ep_total, 10)
-        : "?";
+    const localTotal = parseProgressTotal(data.ep_total) ?? "?";
     return <Count fin={localFin} total={localTotal} unit="ep" />;
   }
 
   if (type === "tv-show" || type === "cartoon" || type === "hentai") {
     const epFin = data.ep_fin ?? 0;
-    const epTotal =
-      data.ep_total != null && data.ep_total !== ""
-        ? parseInt(data.ep_total, 10)
-        : "?";
+    const epTotal = parseProgressTotal(data.ep_total) ?? "?";
     return <Count fin={epFin} total={epTotal} unit="ep" />;
   }
 
@@ -412,13 +410,13 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
         </button>
         {showVol ? (
           <div className={COUNT_CLS}>
-            {volFin}
+            {formatProgress(volFin)}
             {volFinPage > 0 && (
               <span className="text-[9px] text-text-faint ml-0.5">
                 p{volFinPage}
               </span>
             )}{" "}
-            <span className="text-text-faint">/</span> {volTotal}
+            <span className="text-text-faint">/</span> {formatProgress(volTotal)}
             <span className={UNIT_CLS}>vol</span>
           </div>
         ) : (
@@ -428,7 +426,7 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
     );
   }
 
-  if (type === "novel") {
+  if (type === "book") {
     const pd = effectiveProgressDisplay(data);
     if (pd === "vol_tw") {
       return (
@@ -442,7 +440,7 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
     if (pd === "arc_ch") {
       return (
         <span className="font-mono text-[10px] text-text-muted tabular-nums">
-          {getNovelProgress(data)}
+          {getBookProgress(data)}
         </span>
       );
     }
@@ -571,7 +569,7 @@ const HAS_PROGRESS = new Set([
   "tv-show",
   "cartoon",
   "manga",
-  "novel",
+  "book",
   "comic",
   "game",
   "h-comic",

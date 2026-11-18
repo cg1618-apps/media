@@ -196,7 +196,7 @@ describe("HGameAddTab layout", () => {
       "Prices",
       "Copies",
       "Links & Sources",
-      "Cover & Remark",
+      "Cover",
     ]);
   });
 

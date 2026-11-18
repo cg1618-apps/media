@@ -76,12 +76,12 @@ describe("resolveDefaults", () => {
 
   it("coerces stored values to the form-state type", () => {
     const resolved = resolveDefaults("anime", {
-      anime: { defaults: { ep_total: 12, watch_next: "yes", remark: null } },
+      anime: { defaults: { ep_total: 12, watch_next: "yes", director: null } },
     });
 
     expect(resolved.ep_total).toBe("12");
     expect(resolved.watch_next).toBe(true);
-    expect(resolved.remark).toBe("");
+    expect(resolved.director).toBe("");
   });
 
   it("never assigns a default to a foreign-key field", () => {

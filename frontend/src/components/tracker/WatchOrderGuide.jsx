@@ -28,7 +28,7 @@ export const TYPE_LABELS = {
   "tv-show": "TV Show",
   cartoon: "Cartoon",
   manga: "Manga",
-  novel: "Novel",
+  book: "Book",
   comic: "Comic",
   game: "Game",
   "h-comic": "H-Comic",
@@ -38,7 +38,7 @@ export const TYPE_LABELS = {
 
 // Types a step always covers whole, so an admin is never offered a from/to.
 // A movie is one sitting; a hentai step names the entry, never a range of
-// its episodes; manga and novels are stepped through as a unit here rather than by
+// its episodes; manga and books are stepped through as a unit here rather than by
 // chapter; a game or h-game step names the work, never a range of it, as the
 // backend's watch-order resolver has it. Anything not listed - including a
 // null media_type - keeps the inputs, so an unrecognised type loses no
@@ -47,7 +47,7 @@ const WHOLE_ONLY_TYPES = new Set([
   "movie",
   "anime-movie",
   "manga",
-  "novel",
+  "book",
   "game",
   "h-comic",
   "h-game",
@@ -57,11 +57,11 @@ const WHOLE_ONLY_TYPES = new Set([
 export const supportsEpisodeRange = (mediaType) =>
   !WHOLE_ONLY_TYPES.has(mediaType);
 
-// The unit a step's from/to pair is counted in. Manga and novels store chapter
+// The unit a step's from/to pair is counted in. Manga and books store chapter
 // numbers, a comic run stores issue numbers, and everything else stores
 // episodes. An unlisted or null type falls back to "Ep", matching the label
 // those steps have always carried.
-const RANGE_UNITS = { manga: "Ch", novel: "Ch", comic: "#" };
+const RANGE_UNITS = { manga: "Ch", book: "Ch", comic: "#" };
 
 /** "Ep 1-10", "Ep 5", "Ch 1-40", "# 1-12" — or nothing when the step is the whole entry. */
 export function rangeLabel(item) {
@@ -152,9 +152,9 @@ export function MediaScopeLine({ mediaTypes, className = "", short = false }) {
 }
 
 /**
- * "Ep. Special 0", "Ep. Special 14.5" — the episode number a special sits at,
- * not a count. 0 is a real value, so this tests for null rather than falsiness.
- * Anime is the only type with the column.
+ * "Ep. Special 0", "Ep. Special 17.5A" — the episode a special sits at, a
+ * label shown as written, not a count. It arrives as text; this tests for null
+ * rather than falsiness all the same. Anime is the only type with the column.
  */
 export function specialLabel(item) {
   if (item.ep_special == null) return null;
