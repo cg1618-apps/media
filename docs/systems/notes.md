@@ -522,7 +522,7 @@ without being closed to them. A section names one for its `kind`
 | `Item Type` | 道具 Items `type` | 重要道具, 任務道具 |
 | `Weapon & Gear Type` | 武器&裝備 Weapons & Gear `type` | none |
 | `Enemy Tier` | 敵人 Enemies `tier` | none |
-| `Side Quest Type` | 支線任務 Side Quests `type` | 主要支線, 委託, 懸賞, 角色任務, 活動任務, 隱藏任務, 收集 |
+| `Side Quest Type` | 支線任務 Side Quests `type` | 大支線, 小支線 |
 | `Geography Group` | 地理 Geography `group` | none |
 
 Seeded by migrations `n1o2tesrwk3` and (`Side Quest Type`) `s1q2uests345` with **no scope rows**, so game and h-game

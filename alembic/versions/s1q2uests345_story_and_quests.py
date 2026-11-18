@@ -41,7 +41,7 @@ RETIRED_SECTIONS = ("main_plot", "side_plot", "character_arcs")
 SUGGESTION_SEEDS = (
     (
         "Side Quest Type",
-        ("主要支線", "委託", "懸賞", "角色任務", "活動任務", "隱藏任務", "收集"),
+        ("大支線", "小支線"),
     ),
 )
 

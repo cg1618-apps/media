@@ -759,7 +759,7 @@ twenty-seven in `OPTION_CATEGORIES`:
 | `Item Type` | unscoped (read by game and h-game notes) | suggestions for a 道具 Items row's type (`items`, `note.kind`); `重要道具`, `任務道具` seeded by `n1o2tesrwk3`. Suggestions only |
 | `Weapon & Gear Type` | unscoped (read by game and h-game notes) | suggestions for a 武器&裝備 Weapons & Gear row's type (`weapons_and_gear`, `note.kind`); ships empty. Suggestions only |
 | `Enemy Tier` | unscoped (read by game and h-game notes) | suggestions for a 敵人 Enemies row's tier (`enemies`, `note.kind`); ships empty. Suggestions only |
-| `Side Quest Type` | unscoped (read by game and h-game notes) | suggestions for a 支線任務 Side Quests row's type (`side_quests`, `note.kind`); `主要支線`, `委託`, `懸賞`, `角色任務`, `活動任務`, `隱藏任務`, `收集` seeded by `s1q2uests345`. Suggestions only |
+| `Side Quest Type` | unscoped (read by game and h-game notes) | suggestions for a 支線任務 Side Quests row's type (`side_quests`, `note.kind`); `大支線` and `小支線` seeded by `s1q2uests345`. Suggestions only |
 | `Geography Group` | unscoped (read by game and h-game notes) | suggestions for a 地理 Geography row's group (`geography`, `note.kind`); ships empty. Suggestions only |
 
 **h-comic has Platform values of its own**, scoped to `h-comic` alone and

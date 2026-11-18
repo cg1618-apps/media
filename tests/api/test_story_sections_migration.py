@@ -123,7 +123,7 @@ def test_the_side_quest_types_are_seeded_once(db_session, revision):
         .scalars()
         .all()
     )
-    assert values == ["主要支線", "委託", "懸賞", "角色任務", "活動任務", "隱藏任務", "收集"]
+    assert values == ["大支線", "小支線"]
 
 
 def test_the_revision_declares_itself_irreversible(revision):
