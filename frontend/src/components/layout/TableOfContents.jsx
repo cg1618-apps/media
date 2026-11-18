@@ -1,7 +1,7 @@
 // Frontend: a page's sticky table of contents.
 //
-// The list of in-page anchors that sits beside a long page: the dashboard's on
-// the left, a detail page's on the right (DetailContents). It draws the rows
+// The list of in-page anchors that sits on the right of a long page: the
+// dashboard's, and a detail page's (DetailContents). It draws the rows
 // and scrolls to the one clicked; which row is current comes from the caller's
 // useScrollSpy, so the highlight and the scroll agree on the same offset.
 // Level 2 rows are sub-entries, set smaller in mono.
