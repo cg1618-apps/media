@@ -185,11 +185,25 @@ def patch_series(
     if not db_series or not series_visible(db, viewer, db_series.system_id):
         raise HTTPException(status_code=404, detail="Series not found.")
 
+    # A PATCH body is not validated, so franchise_id arrives as a string, and
+    # the resolver reads a string as a franchise NAME: an id would match no
+    # name and create a franchise called after it. Parse it first, as the
+    # entry routers do (_factory._apply_owned_links), and resolve only when
+    # the body names a franchise, so a PATCH that does not touch it never
+    # creates one.
+    names_franchise = "franchise_id" in payload
+    if isinstance(payload.get("franchise_id"), str):
+        try:
+            payload["franchise_id"] = uuid.UUID(payload["franchise_id"])
+        except ValueError:
+            pass
+
     apply_column_patch(db_series, payload)
 
-    db_series.franchise_id = resolve_series_parent_hierarchy(
-        db, db_series.franchise_id, db_series.names_dict
-    )
+    if names_franchise:
+        db_series.franchise_id = resolve_series_parent_hierarchy(
+            db, db_series.franchise_id, db_series.names_dict
+        )
 
     db.commit()
     db.refresh(db_series)
