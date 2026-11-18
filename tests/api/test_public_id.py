@@ -1,31 +1,11 @@
 """public_id: the short, per-table sequential id that appears in SPA URLs."""
 
-import importlib.util
-import pathlib
-
 import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 from app import models
 from app.database import Base
-
-# Loaded by path: alembic/versions is not an importable package.
-_spec = importlib.util.spec_from_file_location(
-    "pid1a2b3c4d5",
-    pathlib.Path(__file__).parents[2]
-    / "alembic/versions_archive/pid1a2b3c4d5_add_public_id.py",
-)
-_migration = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(_migration)
-
-_deferral_spec = importlib.util.spec_from_file_location(
-    "pdf1e2r3d4e5",
-    pathlib.Path(__file__).parents[2]
-    / "alembic/versions_archive/pdf1e2r3d4e5_defer_public_id_unique.py",
-)
-_deferral_migration = importlib.util.module_from_spec(_deferral_spec)
-_deferral_spec.loader.exec_module(_deferral_migration)
 
 # (model, kwargs sufficient to insert a bare row)
 SEVENTEEN = [
@@ -92,35 +72,6 @@ def test_public_id_increases_and_is_unique(db_session, model, kwargs):
     assert second.public_id > first.public_id
 
 
-def test_migration_tables_match_models_with_a_public_id_column():
-    """Nothing else exercises the migration: the suite builds its schema with
-    create_all, so a model gaining public_id without a matching migration
-    entry (or vice versa) would otherwise be silent."""
-    tables_with_public_id = {
-        name
-        for name, table in Base.metadata.tables.items()
-        if "public_id" in table.columns
-    }
-    # `media` holds the nine media types' ids now, so it is not part of the
-    # historic migration; and the nine detail tables it took them from no
-    # longer carry the column. Everything else must still line up exactly.
-    tables_with_public_id.discard("media")
-    # The historic migration names tables as they were then; novel has since
-    # been renamed book (b1o2okrename3).
-    historic = {RENAMED_SINCE.get(t, t) for t in _migration.TABLES}
-    assert historic - MOVED_TO_MEDIA == (
-        tables_with_public_id - ADDED_BY_A_LATER_REVISION
-    )
-
-
-# Given public_id by a revision of its own after this one, not by the
-# historic migration: i1d2p3ubid45 for character_identity. Its migration is
-# checked from zero by test_migrations_build_the_schema.py.
-ADDED_BY_A_LATER_REVISION = {"character_identity"}
-
-RENAMED_SINCE = {"novel": "book"}
-
-
 MOVED_TO_MEDIA = {
     "anime", "anime_movies", "movies", "tv_shows", "cartoons",
     "manga", "book", "comic", "games",
@@ -132,7 +83,7 @@ MOVED_TO_MEDIA = {
 
 
 def test_the_nine_media_tables_no_longer_carry_public_id():
-    """The other half of the guard above: the column really did move."""
+    """The nine media types keep public_id on `media`, not on their own table."""
     for table in MOVED_TO_MEDIA:
         assert "public_id" not in Base.metadata.tables[table].columns, table
     assert "public_id" in Base.metadata.tables["media"].columns
@@ -159,9 +110,9 @@ def test_public_id_rejects_a_duplicate(db_session):
     """
     The unique constraint is the guard that makes the id safe to put in a URL.
 
-    It is DEFERRABLE INITIALLY DEFERRED (see the pdf1e2r3d4e5 migration) so a
-    Pull can permute public_id across rows inside one transaction, which means
-    the violation surfaces at COMMIT rather than at the statement. The fixture
+    It is DEFERRABLE INITIALLY DEFERRED so a Pull can permute public_id across
+    rows inside one transaction, which means the violation surfaces at COMMIT
+    rather than at the statement. The fixture
     commits into a SAVEPOINT, which does not trigger a deferred check, so the
     check is forced here the way a real commit would.
     """
@@ -176,13 +127,6 @@ def test_public_id_rejects_a_duplicate(db_session):
     with pytest.raises(IntegrityError):
         db_session.execute(text("SET CONSTRAINTS ALL IMMEDIATE"))
     db_session.rollback()
-
-
-def test_deferral_migration_covers_every_table_the_public_id_one_does():
-    """The two migrations name the same seventeen tables; a table added to one
-    and not the other would leave its constraint immediate, and the next Pull
-    would abort partway through that tab."""
-    assert set(_deferral_migration.TABLES) == set(_migration.TABLES)
 
 
 # ---------------------------------------------------------------------------

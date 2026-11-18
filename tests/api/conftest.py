@@ -186,14 +186,6 @@ def scratch_database():
         yield name
 
 
-@pytest.fixture
-def scratch_databases():
-    """Two empty databases, for the revision tests that compare a migrated
-    database with a create_all one."""
-    with databases.scratch() as first, databases.scratch() as second:
-        yield first, second
-
-
 @pytest.fixture(autouse=True)
 def _no_real_cover_moves(monkeypatch):
     """

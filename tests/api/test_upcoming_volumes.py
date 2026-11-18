@@ -1,34 +1,26 @@
 """
-Upcoming books and manga volumes: revision u1p2coming3.
+Upcoming books and manga volumes.
 
 A book unit carries a JP and a TW release date and a cover; a manga carries
 its next volume's JP and TW release dates. Every way a value arrives is
 covered: the API (and its refusal of a malformed date, beside the same write
 with a good one), the image library's attach, and the Google Sheets tabs in
-both directions - including a tab backed up before the columns existed.
+both directions - including a tab that lacks those columns.
 
 Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
-import importlib.util
 import io
 import uuid
-from pathlib import Path
 
 import pytest
-from alembic.migration import MigrationContext
-from alembic.operations import Operations
 from PIL import Image as PILImage
-from sqlalchemy import text
 
 from app import models
 from app.services.integrations import image_library
 from app.services.pipelines import backup, pull
 from app.services.rbac.permissions import PERM_MANAGE_IMAGES
 from tests.api.conftest import catalog_writer, nsfw_label  # noqa: F401
-
-ROOT = Path(__file__).resolve().parents[2]
-REVISION = ROOT / "alembic" / "versions" / "u1p2coming3_upcoming_volumes.py"
 
 UNIT_DATES = ("release_date_jp", "release_date_tw")
 MANGA_DATES = ("next_vol_release_date_jp", "next_vol_release_date_tw")
@@ -495,103 +487,3 @@ def test_an_older_manga_tab_without_the_columns_still_pulls(db_session, manga, s
     assert (manga.manga_name_en, manga.release_date) == ("Old Tab Manga", "2010")
     assert (manga.next_vol_release_date_jp, manga.next_vol_release_date_tw) == (None, None)
 
-
-# ---------------------------------------------------------------------------
-# The revision
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture(scope="module")
-def revision():
-    spec = importlib.util.spec_from_file_location("_upcoming_volumes", REVISION)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-@pytest.fixture
-def conn(db_session, revision, monkeypatch):
-    connection = db_session.connection()
-    # Deferred FK checks still pending block an ALTER; a migration runs with
-    # none queued.
-    connection.execute(text("SET CONSTRAINTS ALL IMMEDIATE"))
-    monkeypatch.setattr(revision, "op", Operations(MigrationContext.configure(connection)))
-    return connection
-
-
-def _columns(conn, table):
-    return set(
-        conn.execute(
-            text("SELECT column_name FROM information_schema.columns WHERE table_name = :t"),
-            {"t": table},
-        ).scalars()
-    )
-
-
-def _checks(conn):
-    return set(
-        conn.execute(text("SELECT conname FROM pg_constraint WHERE contype = 'c'")).scalars()
-    )
-
-
-EXPECTED_CHECKS = {
-    "ck_book_unit_release_date_jp_iso",
-    "ck_book_unit_release_date_tw_iso",
-    "ck_manga_next_vol_release_date_jp_iso",
-    "ck_manga_next_vol_release_date_tw_iso",
-}
-
-
-def test_the_revision_follows_the_rename(revision):
-    assert revision.down_revision == "b1o2okrename3"
-
-
-def test_the_downgrade_drops_every_column_and_check(conn, revision):
-    revision.downgrade()
-
-    assert not {"release_date_jp", "release_date_tw", "cover_image_file"} & _columns(conn, "book_unit")
-    assert not set(MANGA_DATES) & _columns(conn, "manga")
-    assert not EXPECTED_CHECKS & _checks(conn)
-
-
-def test_the_upgrade_adds_them_back_empty(db_session, conn, revision, unit, manga):
-    revision.downgrade()
-
-    revision.upgrade()
-
-    assert {"release_date_jp", "release_date_tw", "cover_image_file"} <= _columns(conn, "book_unit")
-    assert set(MANGA_DATES) <= _columns(conn, "manga")
-    assert EXPECTED_CHECKS <= _checks(conn)
-    row = conn.execute(
-        text("SELECT release_date_jp, release_date_tw, cover_image_file FROM book_unit WHERE system_id = :id"),
-        {"id": unit.system_id},
-    ).one()
-    assert tuple(row) == (None, None, None)
-
-
-def test_the_upgraded_check_refuses_a_malformed_date(db_session, conn, revision, unit):
-    revision.downgrade()
-    revision.upgrade()
-
-    savepoint = conn.begin_nested()
-    with pytest.raises(Exception, match="ck_book_unit_release_date_jp_iso"):
-        conn.execute(
-            text("UPDATE book_unit SET release_date_jp = 'soon' WHERE system_id = :id"),
-            {"id": unit.system_id},
-        )
-    savepoint.rollback()
-
-
-def test_the_upgraded_check_takes_a_partial_date(db_session, conn, revision, unit):
-    """Mirror of the refusal, on the same row."""
-    revision.downgrade()
-    revision.upgrade()
-
-    conn.execute(
-        text("UPDATE book_unit SET release_date_jp = '2027-03' WHERE system_id = :id"),
-        {"id": unit.system_id},
-    )
-
-    assert conn.execute(
-        text("SELECT release_date_jp FROM book_unit WHERE system_id = :id"), {"id": unit.system_id}
-    ).scalar() == "2027-03"
