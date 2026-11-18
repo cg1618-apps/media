@@ -587,10 +587,8 @@ export default function Game() {
                 <InfoCard
                   title="Genres"
                   fields={[
-                    [
-                      { label: "Genre", value: game.game_genre },
-                      { label: "Theme", value: game.game_theme },
-                    ],
+                    { label: "Genre", value: game.game_genre },
+                    { label: "Theme", value: game.game_theme },
                     { label: "標籤 Label", value: game.label },
                   ]}
                 />

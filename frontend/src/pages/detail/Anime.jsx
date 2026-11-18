@@ -431,6 +431,10 @@ export default function Anime() {
                     { label: "Original / Remake", value: anime.original_or_remake },
                     { label: "Season Part", value: anime.season_part },
                     { label: "Special Episodes", value: anime.ep_special },
+                  ],
+                  [
+                    { label: "Airing Type", value: anime.airing_type },
+                    { label: "Airing Status", value: anime.airing_status },
                     { label: "Total Episodes", value: epTotalDisplay },
                     {
                       label: "Runtime (min)",
@@ -438,14 +442,11 @@ export default function Anime() {
                         anime.runtime_min != null ? String(anime.runtime_min) : null,
                     },
                   ],
+                  // The season leads the dates it is derived from. The dates
+                  // are shown verbatim: a year-only date must not be dressed
+                  // up as a month.
                   [
-                    { label: "Airing Type", value: anime.airing_type },
-                    { label: "Airing Status", value: anime.airing_status },
                     { label: "Release Season", value: releaseSeasonYear },
-                  ],
-                  // Shown verbatim: a year-only date must not be dressed up
-                  // as a month.
-                  [
                     { label: "Release Date JP", value: anime.release_date_jp || null },
                     { label: "Release Date TW", value: anime.release_date_tw || null },
                   ],
