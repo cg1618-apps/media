@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-11-18
+Last verified: 2026-11-19
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -2704,7 +2704,7 @@ files none. Rules: [systems/requests.md](systems/requests.md).
   `franchise`, `collection`, `studio`, `publisher`, `person`, `character`,
   `identity`. `label` is the target's current name, or the name copied when the
   request was filed once the target is gone (`missing: true`, `nav_path`
-  null). `nav_path` is the SPA detail path (`/anime/<uuid>`), null for a series.
+  null). `nav_path` is the SPA detail path (`/anime/<uuid>`, `/series/<uuid>`).
 - `author_username` and `handled_by_username` are null once that account is
   deleted — the SPA shows "deleted account".
 - `response` is the handler's remark, returned to the author on `/mine` too.

@@ -306,8 +306,7 @@ function CreditCard({ entry, navPath }) {
     </>
   );
 
-  // Series has no page of its own, so nav_path can legitimately be null;
-  // such an entry is shown but not linked.
+  // An unresolved entry has no nav_path; it is shown but not linked.
   if (!navPath) {
     return <div className="bg-surface border border-border">{card}</div>;
   }

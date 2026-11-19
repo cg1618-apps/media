@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-11-18
+Last verified: 2026-11-19
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -710,7 +710,7 @@ columns.
     `manage.catalog` only. The placement is provisional, pending the owner's
     design; moving it means moving those call sites, not the component.
   - `RequestTarget` — one table cell's "what it is about": a link through the
-    target's `nav_path`, plain text when there is none (a series), the stored
+    target's `nav_path`, plain text when there is none, the stored
     name plus "(deleted)" once the target is gone, the page address when there
     is no target.
 - **`components/plan`** — `PlanKindToggles`, `SizeGroupControls`.

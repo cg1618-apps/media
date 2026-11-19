@@ -1,6 +1,6 @@
 # Quotes and memes
 
-Last verified: 2026-11-17
+Last verified: 2026-11-19
 
 ## What this is for
 
@@ -99,9 +99,10 @@ Defined in `app/utils/media_resolver.py` and mirrored in the frontend pickers.
 | `OWNER_TABLES` = both | all twelve | `meme.owner_type` (derived from its four owner columns) |
 
 The stored key doubles as the frontend `MEDIA_CONFIG` key (hyphenated
-spelling), so no translation table exists. Series has no hub page, so a
-series-owned meme resolves with `owner_nav_path = null`; tiers have no cover
-column, so `owner_is_tier` tells the UI to skip the thumbnail.
+spelling), so no translation table exists. Every owner has a page, so
+`owner_nav_path` is set whenever the owner resolves (`/series/<uuid>` for a
+series); tiers have no cover column, so `owner_is_tier` tells the UI to skip
+the thumbnail.
 
 Quotes are entry-only. A meme owned by a tier therefore cannot link a quote,
 and `MemeForm` hides the quote control for tier owners.
