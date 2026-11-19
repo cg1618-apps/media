@@ -118,7 +118,7 @@ may hard-code these words.
 
 `publisher` is the role that leans hardest on this: one vocabulary, six
 reader-facing words. It reads **台灣代理商** on an anime or anime movie and
-**台灣出版商** on a manga or book — both name a *Taiwanese* licensor — while a
+**台灣出版社** on a manga or book — both name a *Taiwanese* licensor — while a
 comic's publisher is the work's original one (Marvel), so it reads **出版商**
 without the 台灣, and a game's reads **發行商**. All six types have an override,
 so the role's own `"Publisher"` label is never rendered; it survives only for

@@ -1,5 +1,6 @@
 // Frontend: the FilterDefs of the entity libraries - character, person (and
-// its seiyuu view), studio and publisher.
+// its seiyuu view), studio and publisher (which adds a Kind group, see
+// PUBLISHER_KINDS).
 //
 // Every entity library filters one list the API already returned,
 // client-side, with the same FilterDef machinery the media libraries use
@@ -63,6 +64,25 @@ export const STUDIO_RESTRICTED_TYPES = ["hentai", "h-game"];
 // A publisher is credited on the six types its scope pills offer; none is
 // gated.
 export const PUBLISHER_MEDIA_TYPES = PUBLISHER_SCOPES.map((s) => s.key);
+
+// The kinds a publisher library row is grouped into, by the media types it
+// covers. The grouping is the reader's, not the schema's: one `publisher`
+// credit role spans six types, and what a reader means by "which publisher"
+// is which of the backend's credit labels it carries (credit_label in
+// app/utils/credit_roles.py) - 台灣代理商 on anime and anime-movie, 台灣出版社
+// on manga and book, 發行商 on game. So the named kinds follow those labels,
+// with the game one spelt out as 遊戲發行商 to read on its own as a chip; a
+// change to who shares a label there is a change here. Every type no kind
+// names (comic, 出版商, today) falls under OTHER_PUBLISHERS, so a type added
+// to PUBLISHER_SCOPES is still filterable before anyone sorts it into a kind.
+// None of the publisher types is gated, so there is nothing to hide here the
+// way mediaTypeDef hides a gated type.
+export const PUBLISHER_KINDS = [
+  { key: "game", label: "遊戲發行商", mediaTypes: ["game"] },
+  { key: "tw-publisher", label: "台灣出版社", mediaTypes: ["manga", "book"] },
+  { key: "tw-distributor", label: "台灣代理商", mediaTypes: ["anime", "anime-movie"] },
+];
+export const OTHER_PUBLISHERS = { key: "other", label: "其他" };
 
 const MEDIA_TYPE_KEY = "mediaType";
 
@@ -249,17 +269,43 @@ export function studioFilterDefs(auth, { ownData = true } = {}) {
   ];
 }
 
+// What a publisher row is matched on: the types it is credited on OR offered
+// on (`scopes`), so one offered on manga but not yet credited still counts as
+// a manga publisher.
+function publisherTypes(item) {
+  return [...(item.media_types || []), ...(item.scopes || [])];
+}
+
+const KIND_OF_TYPE = Object.fromEntries(
+  PUBLISHER_KINDS.flatMap((kind) => kind.mediaTypes.map((type) => [type, kind.key])),
+);
+
 /**
- * The publisher library's defs: entry type, rating, country. The entry type
- * matches the types a publisher is credited on OR offered on (`scopes`), so
- * one offered on manga but not yet credited is still found under Manga.
+ * The kind group (PUBLISHER_KINDS). A publisher covering several kinds
+ * matches each of them; one covering no type at all matches none.
+ */
+function publisherKindDef() {
+  const kinds = [...PUBLISHER_KINDS, OTHER_PUBLISHERS];
+  const labels = Object.fromEntries(kinds.map((k) => [k.key, k.label]));
+  return {
+    key: "kind",
+    label: "Kind",
+    type: "set",
+    options: kinds.map((k) => k.key),
+    optionLabel: (key) => labels[key] ?? key,
+    match: (item, active) =>
+      publisherTypes(item).some((t) => active.has(KIND_OF_TYPE[t] ?? OTHER_PUBLISHERS.key)),
+  };
+}
+
+/**
+ * The publisher library's defs: kind, entry type, rating, country. Kind and
+ * entry type both match the types a publisher is credited on OR offered on.
  */
 export function publisherFilterDefs(auth, { ownData = true } = {}) {
   return [
-    mediaTypeDef(auth, PUBLISHER_MEDIA_TYPES, [], (item) => [
-      ...(item.media_types || []),
-      ...(item.scopes || []),
-    ]),
+    publisherKindDef(),
+    mediaTypeDef(auth, PUBLISHER_MEDIA_TYPES, [], publisherTypes),
     ...(ownData ? [ratingDef] : []),
     countryDef,
   ];

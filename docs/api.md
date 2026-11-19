@@ -1873,7 +1873,7 @@ studios (a bare list — studio is a single role), and any media type whose
 credit roles include `publisher` — anime, anime-movie, manga, book, comic and
 game — carries `publisher_refs`, a bare list for the
 same reason but with `label` on each ref: one publisher role reads 台灣代理商,
-台灣出版商, 出版商 or 發行商 depending on the type, where a studio is a studio
+台灣出版社, 出版商 or 發行商 depending on the type, where a studio is a studio
 everywhere. Both are built inside
 `attach_link_fields` from one batched fetch, so a list endpoint serves them in
 the same fixed five queries it always used. Both belong to the **Credits**
