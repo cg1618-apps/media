@@ -7,6 +7,8 @@ import { useLibraryState } from "../../hooks/useLibraryState";
 import { useViewScope } from "../../hooks/useViewScope";
 import { libraryConfigFor } from "../../lib/libraryScope";
 import { useStatusToggle } from "../../hooks/useStatusToggle";
+import { statusToggleFields } from "../../lib/status";
+import { MEDIA_CONFIG } from "../../utils/media";
 import { useIncrementalList } from "../../hooks/useIncrementalList";
 import MediaCard from "../cards/MediaCard";
 import FilterPanel, { FilterToggleButton } from "./FilterPanel";
@@ -106,7 +108,17 @@ function LibraryBody({
     async (e, item, nextStatus, field) => {
       e.stopPropagation();
       try {
-        await statusToggle.mutateAsync({ id: item.system_id, value: nextStatus, field });
+        // The status button (no `field`) zeroes the finished counts when it
+        // moves a row off Completed; the plan-flag toggles write one field.
+        const statusField = MEDIA_CONFIG[type].statusField;
+        await statusToggle.mutateAsync(
+          field
+            ? { id: item.system_id, value: nextStatus, field }
+            : {
+                id: item.system_id,
+                fields: statusToggleFields(type, statusField, item[statusField], nextStatus),
+              },
+        );
         // field-specific toasts
         if (
           field === "watch_next" ||
@@ -127,7 +139,7 @@ function LibraryBody({
         showToast("error", "Failed to update");
       }
     },
-    [statusToggle, showToast],
+    [statusToggle, showToast, type],
   );
 
   // Row-click navigation

@@ -1,6 +1,7 @@
 // Frontend: page component file for Book.
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import NeedsWorkBadge from "../../components/needs-work/NeedsWorkBadge";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
@@ -392,11 +393,14 @@ export default function Book() {
             {titleMain}
           </span>
         </nav>
-        <ReportProblemButton
-          targetType="book"
-          targetId={system_id}
-          targetLabel={titleMain}
-        />
+        <div className="flex shrink-0 items-center gap-3">
+          <NeedsWorkBadge ownerType="book" ownerId={system_id} />
+          <ReportProblemButton
+            targetType="book"
+            targetId={system_id}
+            targetLabel={titleMain}
+          />
+        </div>
       </div>
 
       {/* Admin toolbar: a plain instrument strip */}

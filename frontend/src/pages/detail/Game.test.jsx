@@ -245,6 +245,15 @@ describe("Game detail page — Replace", () => {
     expect(genres.getByText("角色扮演, 冒險")).toBeInTheDocument();
     expect(genres.getByText("奇幻")).toBeInTheDocument();
     expect(genres.getByText("神作")).toBeInTheDocument();
+    // Genre, theme and label each take a row of their own: the card body
+    // holds three rows, in that order, one field apiece.
+    const body = (await screen.findByRole("heading", { name: "Genres" }))
+      .nextElementSibling;
+    expect([...body.children].map((row) => row.textContent)).toEqual([
+      "Genre角色扮演, 冒險",
+      "Theme奇幻",
+      "標籤 Label神作",
+    ]);
 
     const production = await card("Production & Release");
     expect(production.getByText("FromSoftware")).toBeInTheDocument();

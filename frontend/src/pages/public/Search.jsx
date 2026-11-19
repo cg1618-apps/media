@@ -14,7 +14,6 @@ import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { canSearchScope } from "../../components/layout/NavSearch";
 import { useApiQuery } from "../../hooks/useApiQuery";
 import CollapsibleCardGrid from "../../components/layout/CollapsibleCardGrid";
-import CollapsiblePillRow from "../../components/layout/CollapsiblePillRow";
 import { Chip, Eyebrow } from "../../components/ui/primitives";
 import { useEntityHref } from "../../lib/entityPath";
 
@@ -65,7 +64,6 @@ const TAB_OF_SUMMARY = {
 const GRID_CLS =
   "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3";
 
-const PILL_ON = "bg-brand text-on-brand border-brand";
 const PILL_OFF = "bg-surface text-text-muted border-border-strong hover:border-text";
 const PILL_CLS = "shrink-0 px-3 py-1 border font-mono text-[11px] uppercase tracking-[0.12em] transition-colors";
 
@@ -154,7 +152,6 @@ export default function Search() {
   const error = searchQuery.error?.message || null;
 
   const [matchedFranchises, setMatchedFranchises] = useState([]);
-  const [filterPillFranchises, setFilterPillFranchises] = useState([]);
   const [matchedSeries, setMatchedSeries] = useState([]);
   const [matchedAnime, setMatchedAnime] = useState([]);
   const [matchedAnimeMovies, setMatchedAnimeMovies] = useState([]);
@@ -174,7 +171,6 @@ export default function Search() {
   const [matchedStudios, setMatchedStudios] = useState([]);
   const [matchedPublishers, setMatchedPublishers] = useState([]);
   const [matchedCharacters, setMatchedCharacters] = useState([]);
-  const [selectedFranchise, setSelectedFranchise] = useState("all");
 
   const stickyBarRef = useRef(null);
   const [stickyBarHeight, setStickyBarHeight] = useState(0);
@@ -191,13 +187,11 @@ export default function Search() {
   // the inline card editors hand back an updated row and expect it to replace
   // the one on screen without a refetch.
   useEffect(() => {
-    setSelectedFranchise("all");
     const results = searchQuery.data?.results;
     if (!hasQuery || !results) {
       setMatchedSeasonal([]);
       setMatchedCollections([]);
       setMatchedFranchises([]);
-      setFilterPillFranchises([]);
       setMatchedAnime([]);
       setMatchedSeries([]);
       setMatchedAnimeMovies([]);
@@ -242,9 +236,6 @@ export default function Search() {
     setMatchedStudios(results.studio ?? []);
     setMatchedPublishers(results.publisher ?? []);
     setMatchedCharacters(results.character ?? []);
-    // Pills are the franchises the anime results belong to, which is not the
-    // same set as the franchises whose own name matched.
-    setFilterPillFranchises(searchQuery.data.related_franchises);
   }, [searchQuery.data, hasQuery]);
 
   const handleAnimeUpdated = useCallback((updated) => {
@@ -338,30 +329,11 @@ export default function Search() {
   const showPerson = scope === "all" || scope === "person";
   const showStudio = scope === "all" || scope === "studio";
   const showPublisher = scope === "all" || scope === "publisher";
-  const showFranchisePills =
-    (scope === "all" ||
-      scope === "anime" ||
-      scope === "series" ||
-      scope === "franchise") &&
-    filterPillFranchises.length > 0;
-
-  const displayFranchises =
-    selectedFranchise === "all"
-      ? matchedFranchises
-      : matchedFranchises.filter((f) => f.system_id === selectedFranchise);
-  const displaySeries =
-    selectedFranchise === "all"
-      ? matchedSeries
-      : matchedSeries.filter((s) => s.franchise_id === selectedFranchise);
-  const displayAnime =
-    selectedFranchise === "all"
-      ? matchedAnime
-      : matchedAnime.filter((a) => a.franchise_id === selectedFranchise);
-  const tvOna = displayAnime.filter(
+  const tvOna = matchedAnime.filter(
     (a) => a.airing_type === "TV" || a.airing_type === "ONA",
   );
-  const movies = displayAnime.filter((a) => a.airing_type === "Movie");
-  const others = displayAnime.filter(
+  const movies = matchedAnime.filter((a) => a.airing_type === "Movie");
+  const others = matchedAnime.filter(
     (a) =>
       a.airing_type !== "TV" &&
       a.airing_type !== "ONA" &&
@@ -373,9 +345,9 @@ export default function Search() {
   const summaryCounts = [
     showCollection && ["collections", matchedCollections.length],
     showSeasonal && ["seasonal", matchedSeasonal.length],
-    showFranchise && ["franchises", displayFranchises.length],
-    showSeries && ["series", displaySeries.length],
-    showAnime && ["anime", displayAnime.length],
+    showFranchise && ["franchises", matchedFranchises.length],
+    showSeries && ["series", matchedSeries.length],
+    showAnime && ["anime", matchedAnime.length],
     showAnimeMovie && ["anime movies", matchedAnimeMovies.length],
     showMovie && ["movies", matchedMovies.length],
     showTvShow && ["TV shows", matchedTvShows.length],
@@ -536,37 +508,12 @@ export default function Search() {
           </div>
         )}
 
-        {/* Franchise filter pills */}
-        {onMedia && showFranchisePills && (
-          <CollapsiblePillRow>
-            <button
-              onClick={() => setSelectedFranchise("all")}
-              className={`${PILL_CLS} ${selectedFranchise === "all" ? PILL_ON : PILL_OFF}`}
-            >
-              All results
-            </button>
-            {filterPillFranchises.map((f) => {
-              const titles = getFranchiseTitles(f);
-              return (
-                <button
-                  key={f.system_id}
-                  onClick={() => setSelectedFranchise(f.system_id)}
-                  title={titles.main}
-                  className={`${PILL_CLS} ${selectedFranchise === f.system_id ? PILL_ON : PILL_OFF}`}
-                >
-                  {titles.main}
-                </button>
-              );
-            })}
-          </CollapsiblePillRow>
-        )}
-
         {/* Franchise cards */}
-        {onMedia && showFranchise && displayFranchises.length > 0 && (
+        {onMedia && showFranchise && matchedFranchises.length > 0 && (
           <div>
             <Eyebrow as="h2" className="mb-3">Franchises</Eyebrow>
             <CollapsibleCardGrid
-              items={displayFranchises}
+              items={matchedFranchises}
               renderItem={(f) => (
                 <TierCard
                   key={f.system_id}
@@ -587,11 +534,11 @@ export default function Search() {
         )}
 
         {/* Series cards */}
-        {onMedia && showSeries && displaySeries.length > 0 && (
+        {onMedia && showSeries && matchedSeries.length > 0 && (
           <div>
             <Eyebrow as="h2" className="mb-3">Series</Eyebrow>
             <CollapsibleCardGrid
-              items={displaySeries}
+              items={matchedSeries}
               renderItem={(s) => (
                 <TierCard
                   key={s.system_id}
@@ -608,7 +555,7 @@ export default function Search() {
         )}
 
         {/* Anime */}
-        {onMedia && showAnime && displayAnime.length > 0 && (
+        {onMedia && showAnime && matchedAnime.length > 0 && (
           <div>
             <div
               className="flex items-baseline justify-between gap-3 mb-6 pb-2 border-b border-border-strong sticky z-20 bg-canvas"
@@ -618,7 +565,7 @@ export default function Search() {
                 Anime
               </h2>
               <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
-                {displayAnime.length} results
+                {matchedAnime.length} results
               </span>
             </div>
 

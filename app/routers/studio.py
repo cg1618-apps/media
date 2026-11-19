@@ -319,6 +319,41 @@ def patch_studio(
     return _to_response(db, studio, admin)
 
 
+@router.post(
+    "/{system_id}/autofill",
+    response_model=schemas.StudioResponse,
+    summary="Autofill Studio from MAL",
+)
+def autofill_studio(
+    system_id: UUID,
+    db: Session = Depends(get_db),
+    admin: Viewer = Depends(require_manage_catalog),
+):
+    """
+    The detail page's Autofill & update: the MAL fill a save runs, without a
+    save. Blank columns only, so a curated studio is a no-op.
+
+    A studio with no MAL link (no mal_id once it is derived) is a 422 - there
+    is nothing to fetch. A failed fetch is not an error: autofill_studio_from_mal
+    logs and swallows it, and the unchanged studio comes back.
+    """
+    studio = db.get(models.Studio, system_id)
+    if studio is None:
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    require_visible_shared(db, admin, models.Studio, system_id, NOT_FOUND)
+
+    apply_extract_mal_id_studio(studio)
+    if studio.mal_id is None:
+        raise HTTPException(
+            status_code=422, detail="This studio has no MAL link to autofill from."
+        )
+    autofill_studio_from_mal(studio)
+
+    db.commit()
+    db.refresh(studio)
+    return _to_response(db, studio, admin)
+
+
 @router.delete("/{system_id}", summary="Delete Studio")
 def delete_studio(
     system_id: UUID,

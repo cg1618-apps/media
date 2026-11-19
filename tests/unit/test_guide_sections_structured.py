@@ -80,6 +80,10 @@ def test_the_cards_read_in_this_order_on_the_page():
     assert order.index("guide_resources") < order.index("resources")
 
 
+def test_the_tools_card_reads_resources_before_tools():
+    assert ns.group_by_key("tools").label == "資源&工具 Resources & Tools"
+
+
 def _card(owner: str, group: str) -> list[str]:
     return [
         s.key for s in ns.sections_for(owner) if ns.group_for(s, owner) == group

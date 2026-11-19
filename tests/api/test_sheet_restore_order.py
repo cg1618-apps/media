@@ -69,3 +69,9 @@ def test_character_identity_sits_between_character_and_its_castings():
     # character_identity.character_id is a real FK, and a cast row's
     # identity_id must find its identity.
     assert _at("Character") < _at("Character Identity") < _at("Character Casting")
+
+
+def test_needs_work_follows_every_owner_it_names():
+    """needs_work's four owner columns are real FKs onto media and the tiers."""
+    for tab in ("Collection", "Franchise", "Series", "Media"):
+        assert _at(tab) < _at("Needs Work"), f"{tab} must precede Needs Work"

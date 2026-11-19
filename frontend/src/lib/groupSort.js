@@ -8,6 +8,7 @@
 // holds no list sorts by title, since the values would all be null.
 import { EXPECTATION_FIELD } from "../api/mutations/useMyRatingMutations";
 import { getRatingWeight, getSortName } from "../utils/media";
+import { compareTitles } from "./naming";
 
 const EXPECTATION_WEIGHT = { Highest: 0, High: 1, Medium: 2, Low: 3 };
 
@@ -17,7 +18,7 @@ export function getExpectationWeight(expectation) {
 }
 
 const byTitle = (a, b, type) =>
-  getSortName(a, type).localeCompare(getSortName(b, type));
+  compareTitles(getSortName(a, type), getSortName(b, type));
 
 const byRating = (a, b) => getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating);
 

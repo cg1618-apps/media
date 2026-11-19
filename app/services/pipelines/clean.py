@@ -220,6 +220,7 @@ _CASCADED = (
     ("content_labels", "MediaContentLabel"),
     ("notes", "Note"),
     ("memes", "Meme"),
+    ("needs_work", "NeedsWork"),
     # Somebody else's status, rating and progress. Counted with the rest but
     # named apart in the UI: it is the only collateral that is not the
     # operator's own.

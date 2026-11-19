@@ -44,6 +44,7 @@ import {
   ProgressRule,
 } from "../../components/ui/primitives";
 import MediaCard from "../../components/cards/MediaCard";
+import NeedsWorkBadge from "../../components/needs-work/NeedsWorkBadge";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import WatchOrderSection from "../../components/tracker/WatchOrderSection";
 import HubCharacters from "../../components/hub/HubCharacters";
@@ -1038,11 +1039,14 @@ export default function SeriesPage() {
         trail={trail}
         current={mainTitle}
         action={
-          <ReportProblemButton
-            targetType="series"
-            targetId={system_id}
-            targetLabel={mainTitle}
-          />
+          <div className="flex shrink-0 items-center gap-3">
+            <NeedsWorkBadge ownerType="series" ownerId={system_id} />
+            <ReportProblemButton
+              targetType="series"
+              targetId={system_id}
+              targetLabel={mainTitle}
+            />
+          </div>
         }
       />
 

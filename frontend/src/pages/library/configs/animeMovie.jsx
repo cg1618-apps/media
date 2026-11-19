@@ -14,6 +14,7 @@ import LazyImage from "../../../components/ui/LazyImage";
 import { BAHAMUT_VALUE } from "../../../lib/formatters";
 import { sourceIconUrl } from "../../../lib/sourceIcons";
 import { getBahaRow, isBaha, WATCHING_STATUS_GROUP } from "../../../utils/media";
+import { compareTitles } from "../../../lib/naming";
 import { FILM_RELEASE_STATUSES } from "../../../config/fieldOptions";
 
 // ---------------------------------------------------------------------------
@@ -95,7 +96,7 @@ const ANIME_MOVIE_LIBRARY_CONFIG = {
     {
       key: "title",
       label: "Title",
-      compare: (a, b) => getSortKey(a).toLowerCase().localeCompare(getSortKey(b).toLowerCase()),
+      compare: (a, b) => compareTitles(getSortKey(a), getSortKey(b)),
     },
     {
       key: "release_date",

@@ -8,6 +8,12 @@
 // partial body, and the page takes its state from the response - and lets a
 // holder of self.list set its own rating, which the page saves through
 // PUT /api/me/ratings (api/mutations/useMyRatingMutations.js).
+//
+// Character, person and studio also offer Autofill & update, labelled as on
+// the media pages: POST /api/{kind}/{system_id}/autofill runs the MAL fill a
+// save runs (blank columns only), and the page takes its state from the
+// response exactly as it does from a PATCH.
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { endpoints } from "../../api/endpoints";
@@ -39,8 +45,15 @@ export function useEntityPatch(ownerType, systemId, onSaved) {
   };
 }
 
-/** The dashed admin strip with Quick edit, placed as on the media pages. */
-export function AdminToolbar({ ownerType, systemId }) {
+/**
+ * The dashed admin strip with Quick edit, placed as on the media pages.
+ *
+ * `onAutofilled` adds Autofill & update, which hands the response to it; a
+ * page passes it only when the entity has something to fetch (a MAL link, and
+ * for a person a seiyuu role). The server still answers 422 with the reason
+ * if it has not, and that reason is the toast.
+ */
+export function AdminToolbar({ ownerType, systemId, onAutofilled }) {
   const navigate = useNavigate();
   return (
     <div className="border border-border-strong border-dashed px-3 py-2 flex flex-wrap gap-3 items-center justify-between mb-8">
@@ -49,8 +62,42 @@ export function AdminToolbar({ ownerType, systemId }) {
         <Button onClick={() => navigate(`/modify?id=${systemId}&type=${ownerType}`)}>
           Quick edit
         </Button>
+        {onAutofilled && (
+          <AutofillButton
+            ownerType={ownerType}
+            systemId={systemId}
+            onAutofilled={onAutofilled}
+          />
+        )}
       </div>
     </div>
+  );
+}
+
+/** Autofill & update: POST .../autofill, then the response is the page's state. */
+function AutofillButton({ ownerType, systemId, onAutofilled }) {
+  const { showToast } = useToast();
+  const [autofilling, setAutofilling] = useState(false);
+
+  async function handleAutofill() {
+    setAutofilling(true);
+    try {
+      const updated = await fetchJson(endpoints[ownerType].autofill(systemId), {
+        method: "POST",
+      });
+      onAutofilled(updated);
+      showToast("success", "Autofill completed");
+    } catch (err) {
+      showToast("error", err.message || "Autofill failed");
+    } finally {
+      setAutofilling(false);
+    }
+  }
+
+  return (
+    <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
+      {autofilling ? "Autofilling…" : "Autofill & update"}
+    </Button>
   );
 }
 

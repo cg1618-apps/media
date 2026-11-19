@@ -16,7 +16,7 @@ import { useState, useEffect, useMemo } from "react";
 import { PersonCard } from "../../components/cards/StaffCard";
 import { cleanString, getRatingWeight } from "../../utils/media";
 import { endpoints } from "../../api/endpoints";
-import { PERSON_NAME_FIELDS } from "../../lib/naming";
+import { compareTitles, entitySortName, PERSON_NAME_FIELDS } from "../../lib/naming";
 import { Eyebrow } from "../../components/ui/primitives";
 import FilterPanel, { FilterToggleButton } from "../../components/layout/FilterPanel";
 import { useAuth } from "../../contexts/AuthContext";
@@ -106,7 +106,7 @@ export default function PersonLibrary({ role } = {}) {
         const diff = getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating);
         if (diff !== 0) return diff;
       }
-      return (a.display_name || "").localeCompare(b.display_name || "");
+      return compareTitles(entitySortName(a), entitySortName(b));
     });
 
     return result;

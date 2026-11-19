@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-11-17
+Last verified: 2026-11-19
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -734,13 +734,20 @@ Fill's fetch loop, and on every entry during Calculate All (`run_post_processing
 covers anime, anime movie, TV show, cartoon, manga). Book, Movie and Comic have
 no post-processing.
 
+**No post-processing decides that an entry is finished.** Completion is one
+person's fact, kept on their `user_media_list` row; it is set only by that
+person — choosing the status, Mark completed, or their progress reaching the
+total ([Reaching the total completes](#reaching-the-total-completes)) — never
+by a pipeline. What a pipeline may record is that the *work* has finished
+airing or serialising, and only when the source it fetched says so.
+
 | Type        | Steps, in order                                                                                                                                                                                                                                                          |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Anime       | validate episode math → `apply_check_baha` → if `check_is_tv_completed` and not already completed, `mark_tv_completed` → if no season, has a date, and `airing_type == "TV"`, `apply_calculate_seasonal_from_month` → if no `season_part`: extract from title, then Season-1 rule |
-| Anime Movie | `apply_check_baha` → completion (movie rule)                                                                                                                                                                                                                             |
-| TV Show     | validate episode math → completion (tv rule) → if no `season_part`: extract from title, then Season-1 rule                                                                                                                                                              |
-| Cartoon     | validate episode math → completion (tv rule) → if no `season_part`: extract from title, then Season-1 rule (TV cartoons only)                                                                                                                                            |
-| Manga       | validate vol math → validate ch math → if `check_is_reading_completed` and not already completed, `mark_reading_completed`                                                                                                                                                |
+| Anime       | validate episode math → `apply_check_baha` → if no season, has a date, and `airing_type == "TV"`, `apply_calculate_seasonal_from_month` → if no `season_part`: extract from title, then Season-1 rule |
+| Anime Movie | `apply_check_baha`                                                                                                                                                                                                                                                       |
+| TV Show     | validate episode math → if no `season_part`: extract from title, then Season-1 rule                                                                                                                                                              |
+| Cartoon     | validate episode math → if no `season_part`: extract from title, then Season-1 rule (TV cartoons only)                                                                                                                                            |
+| Manga       | validate vol math → validate ch math                                                                                                                                                                                                                                      |
 
 ### Single-entry Replace (`apply_single_replace_<type>`)
 
@@ -756,7 +763,7 @@ bulk Replace:
 | Cartoon     | extract IMDb id → autofill → cartoon post-processing                                                                                                 |
 | Manga       | extract MAL id → autofill (ratings forced) → manga post-processing                                                                                    |
 | Book        | extract MAL id → autofill (ratings forced)                                                                                                            |
-| Comic       | nothing — no replace function; the write hook only re-syncs system options                                                                           |
+| Comic       | the Autofill button only: `autofill_comic_from_comicvine` (fill-only), refused when the hourly Comic Vine budget is spent. The save write hook fetches nothing (`save_replace` is a no-op) and only re-syncs system options |
 | Hentai      | extract MAL and AniDB ids → `autofill_hentai_from_mal` (airing status, release date, episode count, cover, and the Official site / Twitter reference rows; all fill-only) → `autofill_hentai_from_anidb` (the same four and the Official site row, only where still blank) → `apply_validate_episode_math` (clamp `ep_total`) → `run_sync_hentai` and `run_sync_gated_labels` as the spec's after steps (the label) |
 
 The `bulk` parameter is accepted by movie/tv/cartoon/manga/book/hentai for

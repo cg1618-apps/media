@@ -14,6 +14,7 @@
 // reference links from.
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import NeedsWorkBadge from "../../components/needs-work/NeedsWorkBadge";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
 
 import { endpoints } from "../../api/endpoints";
@@ -278,11 +279,14 @@ export default function Hentai() {
             {titleMain}
           </span>
         </nav>
-        <ReportProblemButton
-          targetType="hentai"
-          targetId={system_id}
-          targetLabel={titleMain}
-        />
+        <div className="flex shrink-0 items-center gap-3">
+          <NeedsWorkBadge ownerType="hentai" ownerId={system_id} />
+          <ReportProblemButton
+            targetType="hentai"
+            targetId={system_id}
+            targetLabel={titleMain}
+          />
+        </div>
       </div>
 
       {isAdmin && (

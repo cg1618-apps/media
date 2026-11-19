@@ -12,6 +12,7 @@
 import { useState, useEffect, useMemo } from "react";
 
 import { cleanString, getRatingWeight } from "../../utils/media";
+import { compareTitles, entitySortName } from "../../lib/naming";
 import { endpoints } from "../../api/endpoints";
 import { characterCards } from "../../lib/characterCards";
 import CharacterCard from "../../components/cards/CharacterCard";
@@ -89,7 +90,7 @@ export default function CharacterLibrary() {
         const diff = getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating);
         if (diff !== 0) return diff;
       }
-      return (a.display_name || "").localeCompare(b.display_name || "");
+      return compareTitles(entitySortName(a), entitySortName(b));
     });
 
     return result;

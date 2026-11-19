@@ -1,6 +1,6 @@
 # Design system — "the archive"
 
-Last verified: 2026-11-17
+Last verified: 2026-11-19
 
 The UI is styled as a physical media archive: paper, ink, index slips,
 spine labels and a rating stamp. It replaced the generic dashboard look
@@ -16,6 +16,7 @@ badges). This document is the rulebook; the code lives in
 | `canvas` | `#ece9e2` bone | `#17150f` | page background |
 | `surface` | `#f8f6f1` | `#211e18` | slips, tables, panels |
 | `surface-2` / `surface-3` | darker paper | lighter charcoal | inset, hover, stripes |
+| `raised` | `#ffffff` white | `#322d25` | a secondary button lifted off a surface - Modify's **Save** beside the brand **Save & Replace** |
 | `text` / `text-muted` / `text-faint` | ink shades | paper shades | body / secondary / captions |
 | `border` / `border-strong` | | | hairline / emphasised rule |
 | `brand` / `brand-hover` | `#7a4c9e` wisteria | `#c2a0e6` | the one accent |
@@ -279,7 +280,11 @@ column is already the cover, the sources and the relations; it is drawn on
 Rows are display-face text with a 2 px left rule, `brand` on the current
 row - the same `TableOfContents` the dashboard draws, also on its right. It is never
 taller than the space under the nav: a longer list scrolls inside the column
-and follows the current row.
+and follows the current row. Below `xl` the same rows are a `ContentsBar`: one
+line of mono chips at the top of the page, styled as the dashboard's type
+filter chips, `brand` on the current one, scrolling sideways inside itself;
+pinned under the nav on a detail page, unpinned on the dashboard, whose own
+sticky headers already hold that strip.
 
 Cards (`components/cards/*.jsx`): cover with a thin ink spine on the left
 carrying the media type; the rating stamp top-right; title in display

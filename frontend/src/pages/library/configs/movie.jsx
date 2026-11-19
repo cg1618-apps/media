@@ -9,6 +9,7 @@ import {
   watchButtonColumn,
 } from "../../../components/layout/libraryColumns";
 import { WATCHING_STATUS_GROUP } from "../../../utils/media";
+import { compareTitles } from "../../../lib/naming";
 import { FILM_RELEASE_STATUSES } from "../../../config/fieldOptions";
 
 function getTitle(m)   { return m.movie_name_cn || m.movie_name_en || m.movie_name_alt || ""; }
@@ -70,7 +71,7 @@ const MOVIE_LIBRARY_CONFIG = {
     {
       key: "title",
       label: "Title",
-      compare: (a, b) => getSortKey(a).toLowerCase().localeCompare(getSortKey(b).toLowerCase()),
+      compare: (a, b) => compareTitles(getSortKey(a), getSortKey(b)),
     },
     {
       key: "release_date",

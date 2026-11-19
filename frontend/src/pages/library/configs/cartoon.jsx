@@ -9,6 +9,7 @@ import {
   watchButtonColumn,
 } from "../../../components/layout/libraryColumns";
 import { WATCHING_STATUS_GROUP } from "../../../utils/media";
+import { compareTitles } from "../../../lib/naming";
 
 function getTitle(c)   { return c.cartoon_name_cn || c.cartoon_name_en || c.cartoon_name_alt || ""; }
 function getSortKey(c) { return c.cartoon_name_en || c.cartoon_name_alt || c.cartoon_name_cn || ""; }
@@ -74,7 +75,7 @@ const CARTOON_LIBRARY_CONFIG = {
       key: "title",
       label: "Title",
       compare: (a, b) =>
-        getSortKey(a).localeCompare(getSortKey(b), undefined, { numeric: true }),
+        compareTitles(getSortKey(a), getSortKey(b)),
     },
     {
       key: "release_date",

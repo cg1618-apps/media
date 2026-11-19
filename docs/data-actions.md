@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-11-17
+Last verified: 2026-11-19
 
 ## What this is for
 
@@ -32,7 +32,7 @@ All routes need **one** gate, declared on the router: `Depends(require_manage_pi
 
 **One Backup at a time, and never during a Pull.** Every Backup first takes a PostgreSQL session-level advisory lock (`BACKUP_LOCK_KEY`, declared in `worker.py`) on a connection of its own, so the web app and the separate `sheets.sh` process exclude each other. A second Backup — or any Backup while a Pull holds `PULL_LOCK_KEY`, since it would write a half-restored database over the sheet the Pull is reading — raises `BackupAlreadyRunning` before it reads or writes anything and logs no row; the route answers it with **409**, and a Fill All / Replace All that reaches its Auto Backup while another runs ends `Failed` with that message. Two writers on one sheet would each trim what the other wrote and share one per-minute Sheets quota. PostgreSQL drops the lock with its connection, so a process that dies cannot leave it held.
 
-**The manual route streams, and the Backup outlives it.** Production sits behind a Cloudflare Tunnel, which answers 524 to a request that sends nothing for about 100 seconds, and a full Backup (60 tabs at a few seconds each, longer through a Sheets 429 pause) takes longer than that. So `POST /backup` claims the lock, starts the Backup on a thread with its own session, and relays its progress as SSE: one `processing` event per tab (`current_entry` = tab name, `processed` / `total`), then `success` or `error`, with a `: keepalive` comment every 15 seconds (`STREAM_KEEPALIVE_SECONDS`) while a tab is slow. The relay is `_relay` in `data_control.py`, which Pull uses too. The thread never waits on its listener: a reloaded page or a dropped connection stops the events, not the Backup, which finishes and writes its log row anyway — a sheet with some tabs new and some old is a worse restore point than either. The thread carries the request's context, so its log lines keep the starting request's `request_id`.
+**The manual route streams, and the Backup outlives it.** Production sits behind a Cloudflare Tunnel, which answers 524 to a request that sends nothing for about 100 seconds, and a full Backup (61 tabs at a few seconds each, longer through a Sheets 429 pause) takes longer than that. So `POST /backup` claims the lock, starts the Backup on a thread with its own session, and relays its progress as SSE: one `processing` event per tab (`current_entry` = tab name, `processed` / `total`), then `success` or `error`, with a `: keepalive` comment every 15 seconds (`STREAM_KEEPALIVE_SECONDS`) while a tab is slow. The relay is `_relay` in `data_control.py`, which Pull uses too. The thread never waits on its listener: a reloaded page or a dropped connection stops the events, not the Backup, which finishes and writes its log row anyway — a sheet with some tabs new and some old is a worse restore point than either. The thread carries the request's context, so its log lines keep the starting request's `request_id`.
 
 Steps, for each tab in `SHEET_TABS` order (section 2 lists it):
 
@@ -104,6 +104,7 @@ Users, Book Unit -> User Book Unit Rating
 Users, Media, H-Comic, H-Game -> User Highlight Group Order
 Users, Note      -> Note Mark
 Users, Quote, Meme -> User Favorite
+Collection, Franchise, Series, Media -> Needs Work
 ```
 
 `Users` is first because nothing in the sheet points at it, and `Plan Next`,
@@ -204,13 +205,14 @@ reader's half without an owner and says so the same way
 | 51 | `User Favorite` | `UserFavorite` |  |
 | 52 | `Note` | `Note` |  |
 | 53 | `Note Mark` | `NoteMark` |  |
-| 54 | `Resources` | `ResourceNode` |  |
-| 55 | `Media Source` | `MediaSource` |  |
-| 56 | `Media Content Label` | `MediaContentLabel` |  |
-| 57 | `Franchise Content Label` | `FranchiseContentLabel` |  |
-| 58 | `Collection Content Label` | `CollectionContentLabel` |  |
-| 59 | `Series Content Label` | `SeriesContentLabel` |  |
-| 60 | `Seasonal` | `Seasonal` |  |
+| 54 | `Needs Work` | `NeedsWork` |  |
+| 55 | `Resources` | `ResourceNode` |  |
+| 56 | `Media Source` | `MediaSource` |  |
+| 57 | `Media Content Label` | `MediaContentLabel` |  |
+| 58 | `Franchise Content Label` | `FranchiseContentLabel` |  |
+| 59 | `Collection Content Label` | `CollectionContentLabel` |  |
+| 60 | `Series Content Label` | `SeriesContentLabel` |  |
+| 61 | `Seasonal` | `Seasonal` |  |
 
 `Media` sits immediately before the twelve entry tabs: every entry table has a
 composite FK `(system_id, media_type)` up to `media`, and although that FK is
@@ -450,6 +452,19 @@ alone. With no installation owner the row still restores and its personal
 values are skipped: they are counted into the tab's one `no installation
 owner` line (`no_owner_message`), not named row by row. The header names live in that module rather than in
 `pull.py` because no pipeline module may name a personal column.
+
+**`Needs Work`** is the 待補充 Needs Work marks (`needs_work`), every column
+as it stands. Its four owner columns are real foreign keys onto `media` and the
+three tiers, whose uuids are the same in every database, so they travel
+unchanged, and the tab sits after every tab they name. One mark per owner: a
+row whose `system_id` is unknown here is matched by its owner
+(`DERIVED_IDENTITY_KEYS` in `pull.py`, the four owner columns, a NULL part
+comparing as IS NULL), so the same owner marked on both machines is one row,
+updated to the sheet's note, rather than a collision that rolls back the tab.
+Like every tab, Pull inserts and updates and never deletes: a mark cleared on
+one machine is still there on the other after a Pull, and is cleared there by
+hand. Unlike requests, the marks are catalogue bookkeeping written by whoever
+edits the catalogue, on whichever machine, so they travel with it.
 
 **`Resources`** is the Resources page (`resource_node`), every column as it
 stands. It cites nothing outside itself, so its position is free; its one
@@ -808,6 +823,26 @@ Returns a status dict; the route streams it as the last event, `"status": "error
        [no installation owner](#the-installation-owner), so the rest of the
        tab still commits.
 
+   - **Sequences, right after the tab commits.** Rows restore with the
+     sheet's own keys, and PostgreSQL does not advance a sequence when an
+     INSERT supplies the value, so each sequence is moved to `MAX + 1`
+     (`is_called = false`, and 1 for an empty table) - otherwise the next
+     row that lets the sequence choose fails on a key the restore already
+     used, one collision at a time.
+     - `resync_id_sequence`: every **integer primary-key column** of the
+       tab's model is asked about with `pg_get_serial_sequence`, and the
+       sequence it names, if any, is resynced. The set is derived, never
+       listed: a UUID key (`system_id`, which most tables and
+       `system_option` have) and an integer key with no sequence are
+       skipped, and a new table with a serial key is covered the day it gets
+       a tab. Today that is `system_configs`, `person_role`,
+       `publisher_scope`, `system_option_scope`, `system_option_usage` and
+       `system_option_alias`; `tests/api/test_pull_id_sequences.py` fails if
+       any tab's sequence-backed integer key is not resynced.
+     - `resync_public_id_sequence`: the same for the `public_id` sequence of
+       every entity tab, named by the column's declared `Sequence` (a media
+       type's by `PUBLIC_ID_SEQUENCE`); `media` itself owns none.
+
    - **After the tab commits**, two passes, each over the whole table and each
      committed. A restore writes rows straight to the tables, so neither the
      region rule nor the label would otherwise hold for it.
@@ -1024,7 +1059,7 @@ the write hook.
 
 **Comic Vine budget stop**: the limiter allows 200 requests per rolling hour. Before each comic, `has_capacity()` is checked; when it is `False` the loop breaks instead of blocking, and the remaining count is reported in the final message. The run still logs `Success`.
 
-**Studio, Seiyuu and Character are the three non-media types in the registry.** Studio fills from MAL's producer endpoint (logo, `mal_link`, `founded_date`, `name_jp`, `website_url` — all fill-only; see [external-apis.md](external-apis.md#mapping-for-studio--map_tenrai_to_studio_data)). Seiyuu walks the `person` table but fills **only people holding the `seiyuu` role** — a director or author with a MAL link is never filled — from MAL's people endpoint (photo, `mal_link`, `name_en`, `name_jp`, `name_alt` — all fill-only, the names skipped together when they would collide with another person's; see [external-apis.md](external-apis.md#mapping-for-person-seiyuu--map_tenrai_to_person_data)). Character walks the `character` table and fills any character with a `mal_id` from MAL's characters endpoint (portrait, `mal_link`, `name_en`, `name_jp`, `name_alt` — all fill-only, with no name-collision check, since character names are not unique; see [external-apis.md](external-apis.md#mapping-for-character--map_tenrai_to_character_data)). Only the character row is filled: a `character_identity` carries no `mal_link` or `mal_id`, so an identity has nothing to fill from, and there is no separate identity Fill. All three carry `fill_only=True`, so `_register_replace_routes` is skipped for them entirely: there is no bulk or single Replace, because none of those records holds a score or rank that drifts. The same autofills also run on save — inside `POST` / `PUT /api/studio`, inside `POST` / `PUT /api/person` for a person holding the seiyuu role, and inside `POST` / `PUT /api/character` — so an entity entered with a MAL link is filled without visiting this page at all.
+**Studio, Seiyuu and Character are the three non-media types in the registry.** Studio fills from MAL's producer endpoint (logo, `mal_link`, `founded_date`, `name_jp`, `website_url` — all fill-only; see [external-apis.md](external-apis.md#mapping-for-studio--map_tenrai_to_studio_data)). Seiyuu walks the `person` table but fills **only people holding the `seiyuu` role** — a director or author with a MAL link is never filled — from MAL's people endpoint (photo, `mal_link`, `name_en`, `name_jp`, `name_alt` — all fill-only, the names skipped together when they would collide with another person's; see [external-apis.md](external-apis.md#mapping-for-person-seiyuu--map_tenrai_to_person_data)). Character walks the `character` table and fills any character with a `mal_id` from MAL's characters endpoint (portrait, `mal_link`, `name_en`, `name_jp`, `name_alt` — all fill-only, with no name-collision check, since character names are not unique; see [external-apis.md](external-apis.md#mapping-for-character--map_tenrai_to_character_data)). Only the character row is filled: a `character_identity` carries no `mal_link` or `mal_id`, so an identity has nothing to fill from, and there is no separate identity Fill. All three carry `fill_only=True`, so `_register_replace_routes` is skipped for them entirely: there is no bulk or single Replace, because none of those records holds a score or rank that drifts. The same autofills also run on save — inside `POST` / `PUT /api/studio`, inside `POST` / `PUT /api/person` for a person holding the seiyuu role, and inside `POST` / `PUT /api/character` — so an entity entered with a MAL link is filled without visiting this page at all; and each detail page's **Autofill & update** runs them on demand through `POST /api/{studio|person|character}/{system_id}/autofill` ([api.md](api.md)), not through this router.
 
 **Fill All** (`execute_fill_all` → `run_all("Fill", FILL_ALL, ...)`) runs the specs with `in_fill_all=True` in `PIPELINES` order — anime, anime-movie, movie, tv-show, cartoon, manga, book, game, h-comic, hentai, h-game, studio, seiyuu, character — and **excludes comic** (`in_fill_all=False`, because its budget is hourly). Then it runs `execute_backup(db, action_type="Auto")` and logs one master row `Fill` / `Fill All`. Sub-pipelines run with `log_action=False` and write no rows of their own. If any sub-pipeline emitted an `error` event, the master row is `Failed` with the joined messages, Backup is skipped, and the stream ends with an `error` event `"Fill All completed with errors: ..."`.
 
@@ -1051,10 +1086,10 @@ Returns a status dict, never raises. `action_specific` is `"Replace for single {
 
 1. Look up `spec.model.system_id == entry_id`; missing → logs `Failed` (`"{label} not found 404"`) and returns `status_code: 404`.
 2. If the spec has `replace`, run it with `bulk=False` in a worker thread; commit.
-3. Run every `single_after` function: `run_sync_anime` (anime), `run_sync_anime_movie`, `run_sync_cartoon`, `run_sync_manga`, `run_sync_book`, `run_sync_comic`, `run_sync_game`, `run_sync_h_comic` then `run_sync_gated_labels` (h-comic), `run_sync_game` then `run_sync_gated_labels` (h-game), `run_sync_hentai` then `run_sync_gated_labels` (hentai). Movie and TV Show have none. Comic has no `replace` at all, so its single hook only re-syncs system options.
-4. Log `Replace` / `Success` with `rows_updated=1`; return `{"status": "success", "message": "Successfully updated {display_name}."}`. Any exception → rollback, log `Failed`, `status_code: 500`.
+3. Run every `single_after` function: `run_sync_anime` (anime), `run_sync_anime_movie`, `run_sync_cartoon`, `run_sync_manga`, `run_sync_book`, `run_sync_comic`, `run_sync_game`, `run_sync_h_comic` then `run_sync_gated_labels` (h-comic), `run_sync_game` then `run_sync_gated_labels` (h-game), `run_sync_hentai` then `run_sync_gated_labels` (hentai). Movie and TV Show have none. Comic's `replace` is `_replace_comic`: one Comic Vine fetch, fill-only, raising `HourlyBudgetSpent` before any request when the hourly budget is spent.
+4. Log `Replace` / `Success` with `rows_updated=1`; return `{"status": "success", "message": "Successfully updated {display_name}."}`. Any exception → rollback, log `Failed`, `status_code: 500` — or the exception's own `status_code` when it carries one (`HourlyBudgetSpent`: 429).
 
-**Write hooks.** The same `execute_replace_single_*` functions are the registry's `write_hook` (`app/registry.py`) for movie, tv-show, cartoon, manga, book, comic, h-comic and hentai. Game and h-game use `execute_save_replace_game` / `execute_save_replace_h_game` instead: the same `run_replace_single`, with `on_save=True`, which runs the spec's `save_replace` - `apply_single_replace_game` / `apply_single_replace_h_game` with `retry_hltb_misses=False`, so a save does not re-search a HowLongToBeat miss that the Autofill button would retry (`run_replace_single` runs either in the threadpool, off the event loop). So a game saved with an IGDB or Steam link - or an h-game with a DLsite one, or an h-comic with a MAL or E-Hentai one - picks up its sources' data immediately, not just on the next Replace run — each save of a linked game costs up to two IGDB requests and three storefront requests, the same kind of per-save cost movie, TV show and cartoon pay to TMDB/OMDb. The CRUD router factory (`app/routers/_factory.py`, `_run_write_hook`) calls them after every create and update with `action_type="Auto"`, `log_action=False`, and swallows failures (the row is already committed; a 500 here made the SPA retry and create duplicates). Anime instead runs `apply_single_replace_anime(db, anime, force_replace_ratings=False)` synchronously **before** commit (`pre_commit_hook`, `app/services/domain/anime_write.py`); anime movie has no hook.
+**Write hooks.** The same `execute_replace_single_*` functions are the registry's `write_hook` (`app/registry.py`) for movie, tv-show, cartoon, manga, book, h-comic and hentai. Game, h-game and comic use `execute_save_replace_game` / `execute_save_replace_h_game` / `execute_save_replace_comic` instead: the same `run_replace_single`, with `on_save=True`, which runs the spec's `save_replace` - `apply_single_replace_game` / `apply_single_replace_h_game` with `retry_hltb_misses=False`, so a save does not re-search a HowLongToBeat miss that the Autofill button would retry, and for comic a no-op, so a save spends none of Comic Vine's hourly quota and only re-syncs system options (`run_replace_single` runs either in the threadpool, off the event loop). So a game saved with an IGDB or Steam link - or an h-game with a DLsite one, or an h-comic with a MAL or E-Hentai one - picks up its sources' data immediately, not just on the next Replace run — each save of a linked game costs up to two IGDB requests and three storefront requests, the same kind of per-save cost movie, TV show and cartoon pay to TMDB/OMDb. The CRUD router factory (`app/routers/_factory.py`, `_run_write_hook`) calls them after every create and update with `action_type="Auto"`, `log_action=False`, and swallows failures (the row is already committed; a 500 here made the SPA retry and create duplicates). Anime instead runs `apply_single_replace_anime(db, anime, force_replace_ratings=False)` synchronously **before** commit (`pre_commit_hook`, `app/services/domain/anime_write.py`); anime movie has no hook.
 
 The manual route `POST /replace/{key}/{entry_id}` calls the same function with `action_type="Manual"`, `log_action=False` — so a single Replace never writes a `DataControlLog` row, whichever way it is triggered.
 
@@ -1187,7 +1222,7 @@ deleted, split by what the database actually does:
 
 | Group | Rows | On delete |
 |---|---|---|
-| `deleted` | `media_credit`, `media_tag`, `media_source`, `media_content_label`, `note`, `meme`, `user_media_list` | `CASCADE` |
+| `deleted` | `media_credit`, `media_tag`, `media_source`, `media_content_label`, `note`, `meme`, `needs_work`, `user_media_list` | `CASCADE` |
 | `detached` | `quote` | `SET NULL` |
 
 **A quote survives its entry.** `quote.media_id` is nullable by design — "a
@@ -1310,7 +1345,7 @@ All routes require `manage.pipelines`, declared on the router; the access mode i
 | POST | `/replace/all` | — | SSE | Replace All (eleven types; no comic) then Auto Backup |
 | POST | `/fill/{key}` | — | SSE | Fill one type (all fifteen keys, studio, seiyuu and character included) |
 | POST | `/replace/{key}` | — | SSE | bulk Replace one type; **not registered for `comic`** (`replace_select is None`) or `studio` / `seiyuu` / `character` (`fill_only`) — `game` (IGDB, then Steam) and `h-game` (DLsite, IGDB, Steam) are registered |
-| POST | `/replace/{key}/{entry_id}` | path `entry_id` = `system_id` | JSON `{"status": "success", "message"}`; 404 when the entry is missing, 500 on failure | single Replace (the twelve media keys; **not registered for `studio`, `seiyuu` or `character`**) |
+| POST | `/replace/{key}/{entry_id}` | path `entry_id` = `system_id` | JSON `{"status": "success", "message"}`; 404 when the entry is missing, 429 when comic's Comic Vine budget is spent, 500 on failure | single Replace (the twelve media keys; **not registered for `studio`, `seiyuu` or `character`**) |
 | POST | `/backup` | — | SSE (`processing` per tab, then `success` / `error`; keepalive comments); **409** while another Backup or a Pull runs | Backup every tab; finishes even if the client disconnects |
 | POST | `/pull` | — | SSE (`processing` per tab, then Pull All's result `{"status": "success", "details": {tab: processed}, ...}`, or `{"status": "error", "message"}` when any tab was unreadable or failed; keepalive comments); **409** while another Pull or a Backup runs | Pull All; finishes even if the client disconnects |
 | POST | `/pull/manga`, `/pull/book`, `/pull/comic`, `/pull/cartoon` | — | SSE (one `processing`, then the tab's result `{"status", "processed", "rows_added", "rows_updated"}`, `skipped` or `error`); **409** as `/pull` | shortcut to the `Manga`, `Book`, `Comic`, `Cartoons` tabs (registered from `MEDIA_TYPE_FOR_TAB` for those four media types only) |

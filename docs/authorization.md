@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-11-18
+Last verified: 2026-11-19
 
 ## What this is for
 
@@ -320,6 +320,7 @@ The matrix above is the grants; this is what holding one means.
 | write a personal note — a review or a 個人筆記 Personal Notes row | — | **never** | yes | yes | **never** |
 | file a request or report, and read and edit their own (`self.requests`) | — | **always** | **always** | **always** | **never** |
 | handle requests — the inbox: mark done or declined, reopen, delete (`manage.requests`) | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **always** |
+| mark an entry or a group 待補充 Needs Work, and read the Needs Work page, names included (`manage.requests`) | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **always** |
 | write the catalogue — entries, groups, people, credits, relations, watch orders, a game's choice graph, quotes, memes, catalogue notes - the 備註 remark among them - form and picker defaults (`manage.catalog`) | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **never** |
 | write, edit and remove announcements (`manage.announcements`) | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **always** |
 | read the Note pages' inventories — System Options, Alias Conversion, External APIs (`manage.options`); an option itself is written under `manage.catalog` | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **always** |
@@ -434,7 +435,7 @@ handed the catalogue, or vice versa:
 | `admin.authz` | may **change who may do what** — roles, accounts, each account's mode ceiling, default and denials, and the access modes' names and descriptions | `ADMIN_PERMISSION_KEYS` in `app/services/rbac/permissions.py` |
 | `manage.catalog` | may **write the catalogue** — entries, groups, people, credits, relations, watch orders, a game's choice graph, quotes, memes, catalogue notes, form and picker defaults, and **which labels an entry or a group carries** | `MANAGE_PERMISSION_KEYS` in the same module |
 | `manage.pipelines` | may **run a pipeline** — Backup, Pull, Fill, Replace, Calculate | `MANAGE_PERMISSION_KEYS` in the same module |
-| `manage.requests` | may **handle requests** — the request inbox: read every account's requests, set their status, delete them | `MANAGE_PERMISSION_KEYS` in the same module |
+| `manage.requests` | may **handle requests** — the request inbox: read every account's requests, set their status, delete them — and **the 待補充 Needs Work marks**: mark an entry or a group as not complete yet, change or clear the mark, and read the Needs Work page (every route on `/api/needs-work`) | `MANAGE_PERMISSION_KEYS` in the same module |
 | `manage.announcements` | may **write, edit and remove the announcements** (`/api/announcements` writes; the list is public) | `MANAGE_PERMISSION_KEYS` in the same module |
 | `manage.options` | may read **the Note pages** — System Options, Alias Conversion, External APIs: `GET /api/options/record-counts` and `GET /api/constants/external-apis`. Read-only: every `/api/options` write is `manage.catalog`'s, the key of the Add and Modify forms where an option is written | `MANAGE_PERMISSION_KEYS` in the same module |
 | `manage.images` | may use **the image library** — every route on `/api/images` | `MANAGE_PERMISSION_KEYS` in the same module |
@@ -488,6 +489,14 @@ page, `ContentLabels.jsx`) ask for `admin.authz`, and the admin's pages ask
 their `manage.*` key. See [Roles](#roles) for the
 `super` role this makes possible — every catalogue capability, none of the
 authorization one.
+
+The two **Autofill & update** buttons sit on different keys. On a media
+detail page it is the single-entry Replace, `POST
+/api/data-control/replace/{type}/{id}`, under the data-control router's
+`manage.pipelines`; the button is drawn by `isAdmin`. On a studio, person or
+character page it is `POST /api/{kind}/{system_id}/autofill`, gated exactly
+as that entity's `PUT` — `manage.catalog` and the shared-record visibility
+check — because it runs the fill a save already runs.
 
 `self` is the odd family out and deliberately so: every other family answers
 "may you *see* this", and this one answers "may you *write* your own". It is
@@ -1237,6 +1246,7 @@ type's nav row, routes, tabs and pickers out rather than render them empty.
 | own favourites (`PUT /api/me/favorites/{kind}/{id}`) | `routers/me_favorites.py`, behind the `favourites` **and** `quotes_memes` features on the router **and** the item's own read check (`entry_visible` on a quote's entry, `drop_hidden_rows` on a meme's owner): 404 "Quote not found." / "Meme not found." for a hidden or missing one. Read back as each quote's and meme's `is_favorite` (`user_favorite.attach_favorites`) |
 | account settings (`/api/account/settings`) | `routers/account.py` - a read of the caller's own username and role; no path takes a user id, and there is no write |
 | requests and reports (`/api/requests`) | `routers/requests.py` — filing and the caller's own behind `self.requests`, the inbox behind `manage.requests`. **No object check**: a target must exist, not be visible - see [Accepted residuals](#accepted-residuals) |
+| 待補充 Needs Work marks (`/api/needs-work`) | `routers/needs_work.py` — every route behind `manage.requests` on the router. **No object check**, as on the inbox: an owner must exist, not be visible, and the page names every marked owner - see [Accepted residuals](#accepted-residuals) |
 | `data_control` / `system` GETs | behind `require_manage_pipelines` |
 | Pull's six authorization tabs (`Users`, `Content Label`, `Media Content Label`, `Franchise Content Label`, `Collection Content Label`, `Series Content Label`) | `routers/data_control.py` passes `may_restore_authz=viewer.has(PERM_ADMIN_AUTHZ)` into `pull.py`. Without it each returns `status: "skipped"` and is named in `unresolved_refs`, so the rest of the restore still lands and the gap is visible. Stops a `manage.pipelines` holder promoting themselves by typing `admin` into the sheet's Users tab. **Backup is not gated** - it writes local -> sheet and cannot change this database |
 
@@ -1354,6 +1364,13 @@ is a **422**, checked before anything is deleted - see
   sees the name of a hidden entry somebody reported. Both readers already hold
   the id or the inbox, and the link still 404s for a session that may not see
   it.
+- **The Needs Work page names every marked owner whatever the reader's
+  mode**, for the same reason and to the same two readers. Its readers are
+  `manage.requests` holders - `super` and the admin - and the admin account
+  reaches no catalogue object at all, so a page narrowed by mode would be
+  empty for one of the two roles it exists for. A mark is set or cleared on
+  an owner that exists, visible or not; the link still 404s for a session
+  that may not see it.
 - A `content_label` row the code does not name reaches **`unrestricted` and
   no other mode**, so it hides its entries from every narrower session. Only a
   hand edit could leave one: the migration refuses to keep a cited one and
@@ -1434,7 +1451,7 @@ another.
 - **Attached where the rows leave:** the list and detail reads of
   `routers/collection.py`, `franchise.py` and `series.py`; the response
   builders of the four entity routers; the media factory's book reads (unit
-  ratings); every search bucket plus `related_franchises`; and Plan Next's
+  ratings); every search bucket; and Plan Next's
   expectation (`own_expectations`). No list route filters or sorts on these
   fields; the SPA's sorts, filters and statistics run on the response, so
   they work on the viewer's own values.

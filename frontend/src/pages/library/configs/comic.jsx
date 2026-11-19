@@ -7,6 +7,7 @@ import {
 } from "../../../components/layout/libraryColumns";
 import { releaseScore } from "../../../lib/releaseDate";
 import { READING_STATUS_GROUP, parseTypes } from "../../../utils/media";
+import { compareTitles } from "../../../lib/naming";
 
 // EN leads for comics, matching Comic.display_name on the backend and
 // getDisplayName (lib/naming.js). Every other library type leads with CN.
@@ -80,7 +81,7 @@ const COMIC_LIBRARY_CONFIG = {
       key: "title",
       label: "Title",
       compare: (a, b) =>
-        getTitle(a).localeCompare(getTitle(b), undefined, { numeric: true }),
+        compareTitles(getTitle(a), getTitle(b)),
     },
     {
       key: "release_date",

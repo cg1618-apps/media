@@ -1,6 +1,6 @@
 # Notes
 
-Last verified: 2026-11-18
+Last verified: 2026-11-19
 
 ## What this is for
 
@@ -108,10 +108,10 @@ Display-only. A grouped section is still an ordinary registry entry; `group` onl
 | `builds` | 養成&流派 Builds & Growth | `fa-chart-simple` — game and h-game only: stats, classes, skills, builds, team composition |
 | `gear` | 物品 Items & Gear | `fa-sack-xmark` — game and h-game only: weapons, items, collectibles. **Not** keyed `items`: a section owns that key |
 | `compendium` | 圖鑑與名詞 Compendium & Terms | `fa-dragon` — game and h-game only: characters, enemies, game terms, and for game also player terms; for h-game also geography, last |
-| `tools` | 資源&工具 Tools & Resources | `fa-screwdriver-wrench` — game and h-game only: mods and tools, guide resources, then the site-wide Resources section, which is its own card for every other owner. Renders near the end, not with the 攻略 run |
+| `tools` | 資源&工具 Resources & Tools | `fa-screwdriver-wrench` — game and h-game only: mods and tools, guide resources, then the site-wide Resources section, which is its own card for every other owner. Renders near the end, not with the 攻略 run |
 | `story_list` | 劇情&任務 Story & Quests | `fa-list-ol` — game and h-game alike: the four **hierarchical** story strands, then 支線任務 Side Quests (hierarchical too), then 結局 Endings. Keyed `story_list` though it holds quests and endings too: keys are what code and tests name, the label is what a reader sees |
 | `worldbuilding` | 世界觀 Worldbuilding | `fa-earth-asia` — game only: lore, story terms, geography, timeline, mysteries, other. The world it happens in |
-| `ng_plus` | NG 多周目 | `fa-rotate` — game and h-game only: flow, carried over, reset, before starting, and 下周目目標 NG+ Goals. What starting over keeps and takes away, and what I mean to do next time |
+| `ng_plus` | NG 多周目 | `fa-rotate` — game and h-game only: flow, carried over, before starting, and 下周目目標 NG+ Goals. What starting over keeps, what to finish before it, and what I mean to do next time |
 | `todo` | 待辦 Todo | `fa-list-check` — game and h-game only, 4 personal-scope buckets (a row moves between them in one step, `quick_move`) and then 存檔 Saves, all personal |
 | `music` | 音樂 Music | `fa-music` |
 | `quotes_memes` | 名言/梗 Quotes and Memes | `fa-quote-right` — every owner but h-comic, hentai and h-game |
@@ -312,7 +312,6 @@ is all the author's.
 | `story_other` | 其他 Other | text_links | worldbuilding | game | — | — | — | no | no | no |
 | `ng_flow` | 流程 Flow | **structured** | ng_plus | game, h-game | — | — | — | no | no | no |
 | `ng_carried_over` | 繼承內容 Carried Over | **structured** | ng_plus | game, h-game | — | — | — | no | no | no |
-| `ng_reset` | 重置內容 Reset | **structured** | ng_plus | game, h-game | — | — | — | no | no | no |
 | `ng_before_starting` | 新周目前需完成 Before Starting | **structured** | ng_plus | game, h-game | — | — | — | no | no | no |
 | `ng_goals` | 下周目目標 NG+ Goals | text_links | ng_plus | game, h-game | — | — | — | no | no | no |
 | `todo_now` | 現在進行 Doing now | text_links | todo | game, h-game | — | — | — | no | no | no |
@@ -463,7 +462,7 @@ column a field claims; a field with no arrow lives in `fields`.
 | `mods_and_tools` | type → `kind`, name → `title`, developer, description → `content`, status → `status` *(personal, granted by `mod_status`)*; `groupable_by = "type"` |
 | `guide_resources` | group → `kind` (free-text select, no suggestions), name → `title`, description → `content`, links → `links`; `groupable_by = "group"` |
 | `ng_flow` | name → `title`, description → `content`, **points** *(list: text)*, links → `links` |
-| `ng_carried_over` / `ng_reset` / `ng_before_starting` | type → `kind` (free-text select), name → `title`, description → `content`, **points** *(list: text)*, links → `links`; `groupable_by = "type"` |
+| `ng_carried_over` / `ng_before_starting` | type → `kind` (free-text select), name → `title`, description → `content`, **points** *(list: text)*, links → `links`; `groupable_by = "type"` |
 | the four `story_list_*` strands | order → `locator`, name → `title`, description → `content`, links → `links`; `hierarchical`, `require_any = (("order", "name"),)` |
 | `side_quests` | type → `kind` (free-text select, suggested from `Side Quest Type`; top-level rows only), name → `title`, region, cautions *(label "注意事項 Cautions", textarea)*, prerequisite, core_npc *(text, suggested from 角色 Characters)*, **other_npcs** *(`names`, suggested from 角色 Characters)*, **rewards** *(list: text)*, remark → `content`, links → `links`, done → `status` *(label "Status", default `to do`; personal, NG-reset)*; `hierarchical`, `groupable_by = "type"`, `require_any = (("name",),)` |
 | `saves` | number → `locator` *(placeholder "This save's slot number")*, name → `title`, checkpoint → `kind` *(`regular` / `main`, default `regular`)*, note → `content`, based on slot *(free text, placeholder "Slot number it was copied from")*, at node *(`choice_node`, key `choice_node`: the block of the game's choice graph the save sits in)*; `require_any = (("number", "name"),)` |

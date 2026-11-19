@@ -173,3 +173,97 @@ def test_an_entry_table_is_still_resynced(db_session):
 
     nxt = db_session.execute(text("SELECT nextval('anime_public_id_seq')")).scalar_one()
     assert nxt > 90001
+
+
+def test_system_option_alias_sequence_is_resynced_after_a_restore(db_session, sheet):
+    """
+    The tab a hand-written list of tabs left out. A Pull All restored
+    system_option_alias with ids up to 86 and left its sequence at 3, and the
+    next INSERT that let the sequence choose - a migration seeding aliases -
+    died on system_option_alias_pkey.
+    """
+    _rewind(db_session, "system_option_alias_id_seq")
+    option = models.SystemOption(category="Game Platform", value="Switch")
+    db_session.add(option)
+    db_session.flush()
+
+    sheet(
+        ["id", "option_id", "source", "value"],
+        [
+            ["1", str(option.system_id), "igdb", "Nintendo Switch"],
+            ["86", str(option.system_id), "igdb", "Switch"],
+        ],
+    )
+    result = pull.execute_pull_specific(
+        db_session, "System Option Alias", log_action=False
+    )
+    assert result["status"] == "success"
+
+    db_session.add(
+        models.SystemOptionAlias(
+            option_id=option.system_id, source="steam", value="Switch"
+        )
+    )
+    db_session.flush()
+
+    ids = {r.id for r in db_session.query(models.SystemOptionAlias).all()}
+    assert {1, 86} <= ids
+    assert len(ids) == 3, "the sequence handed out an id that already existed"
+
+
+def _sequence_backed_integer_keys(db_session):
+    """
+    Every (tab, table, sequence) whose primary key is an integer the database
+    mints from a sequence - found by asking PostgreSQL about every tab's key
+    columns, independently of how Pull finds them.
+    """
+    from sqlalchemy import Integer
+
+    from app.services.pipelines.tabs import SHEET_TABS
+
+    found = []
+    for tab in SHEET_TABS:
+        table = tab.model.__table__
+        for column in table.primary_key.columns:
+            if not isinstance(column.type, Integer):
+                continue
+            sequence = db_session.execute(
+                text("SELECT pg_get_serial_sequence(:t, :c)"),
+                {"t": f'"{table.name}"', "c": column.name},
+            ).scalar_one()
+            if sequence is not None:
+                found.append((tab.name, table.name, column.name, sequence))
+    return found
+
+
+def test_every_sequence_backed_integer_key_is_resynced(db_session):
+    """
+    A tab added later with an integer key cannot silently miss the resync.
+
+    Each sequence is pushed far ahead of its (empty) table and then resynced;
+    only a resync that actually reached it brings it back to 1. The set is
+    asserted non-empty, and to hold the known tables, so the loop cannot pass
+    by having nothing to check.
+    """
+    keys = _sequence_backed_integer_keys(db_session)
+    tables = {table for _, table, _, _ in keys}
+    assert {
+        "system_configs",
+        "person_role",
+        "publisher_scope",
+        "system_option_scope",
+        "system_option_usage",
+        "system_option_alias",
+    } <= tables
+
+    from app.services.pipelines.tabs import TAB_MODELS
+
+    for tab_name, table, _column, sequence in keys:
+        db_session.execute(text(f'DELETE FROM "{table}"'))
+        db_session.execute(text(f"SELECT setval('{sequence}', 5000, true)"))
+
+        pull.resync_id_sequence(db_session, TAB_MODELS[tab_name])
+
+        nxt = db_session.execute(text(f"SELECT nextval('{sequence}')")).scalar_one()
+        assert nxt == 1, f"{tab_name}: {sequence} was not resynced ({nxt})"
+        _rewind(db_session, sequence)

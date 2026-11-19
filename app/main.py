@@ -56,6 +56,7 @@ from app.routers import (
     media_relation,
     meme,
     movie,
+    needs_work,
     note,
     options,
     person,
@@ -361,6 +362,7 @@ app.include_router(me_favorites.router)
 app.include_router(me_highlights.router)
 app.include_router(content_labels.router)
 app.include_router(requests.router)
+app.include_router(needs_work.router)
 
 
 # ==========================================

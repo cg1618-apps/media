@@ -403,25 +403,6 @@ def _attach(db: Session, viewer, spec: SearchableType, entries: list):
     return gate(viewer, spec.owner_type, entries, spec.response_schema)
 
 
-def _related_franchises(db: Session, entries: list, limit: int) -> list:
-    """The franchise rows the anime results belong to — the filter pills.
-
-    Distinct from the `franchise` bucket, which holds franchises whose own name
-    matched. A pill exists so the anime list can be narrowed, so it is derived
-    from the results rather than from the query.
-    """
-    ids = {entry.franchise_id for entry in entries if entry.franchise_id}
-    if not ids:
-        return []
-    return (
-        db.query(models.Franchise)
-        .filter(models.Franchise.system_id.in_(ids))
-        .order_by(models.Franchise.franchise_name_cn)
-        .limit(limit)
-        .all()
-    )
-
-
 # The permission each entity bucket needs: the same key that opens that
 # kind's pages, so search never lists a person the viewer could not open.
 _ENTITY_BUCKET_PERMISSION = {
@@ -458,7 +439,7 @@ def search(
     """
     Search every type (or the one named by `scope`) for `query`.
 
-    Returns (buckets, related_franchises). Buckets carry a key for every
+    Returns the buckets. They carry a key for every
     searchable type this viewer may see, empty for the ones this scope did not
     ask about. A type the viewer cannot see has NO key - a gated type its mode
     hides, an entity kind whose view.* key it lacks, a media type its role
@@ -476,7 +457,7 @@ def search(
     buckets: dict[str, list] = {spec.key: [] for spec in searchable}
     q_clean = clean_string(query)
     if not q_clean:
-        return buckets, []
+        return buckets
 
     active = (
         searchable
@@ -517,8 +498,6 @@ def search(
             criteria = and_(criteria, models.Seasonal.user_id == searcher_id)
         raw[spec.key] = _run(db, viewer, spec, criteria, q_clean, limit)
 
-    related = _related_franchises(db, raw.get("anime", []), limit)
-    attach_ratings(db, "franchise", related, viewer_user_id(viewer))
     for spec in active:
         buckets[spec.key] = _decorate(db, viewer, spec, raw[spec.key])
-    return buckets, related
+    return buckets

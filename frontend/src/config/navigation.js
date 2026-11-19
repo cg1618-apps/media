@@ -425,6 +425,14 @@ export const NAV_SECTIONS = [
         to: "/request-inbox",
         requires: "manage.requests",
       },
+      // The marks on incomplete entries and groups. The same key as the
+      // inbox, which is what App.jsx's /needs-work route asks.
+      {
+        label: "待補充 Needs Work",
+        icon: "fas fa-person-digging",
+        to: "/needs-work",
+        requires: "manage.requests",
+      },
     ],
   },
   {

@@ -11,7 +11,7 @@ import { useState, useEffect, useMemo } from "react";
 import { PublisherCard } from "../../components/cards/StaffCard";
 import { endpoints } from "../../api/endpoints";
 import { cleanString, getRatingWeight } from "../../utils/media";
-import { STUDIO_NAME_FIELDS } from "../../lib/naming";
+import { compareTitles, entitySortName, STUDIO_NAME_FIELDS } from "../../lib/naming";
 import { Eyebrow } from "../../components/ui/primitives";
 import FilterPanel, { FilterToggleButton } from "../../components/layout/FilterPanel";
 import { useAuth } from "../../contexts/AuthContext";
@@ -82,7 +82,7 @@ export default function PublisherLibrary() {
         const diff = getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating);
         if (diff !== 0) return diff;
       }
-      return (a.display_name || "").localeCompare(b.display_name || "");
+      return compareTitles(entitySortName(a), entitySortName(b));
     });
 
     return result;

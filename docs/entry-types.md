@@ -1,6 +1,6 @@
 # Entry types and grouping tiers
 
-Last verified: 2026-11-18
+Last verified: 2026-11-19
 
 ## What this is for
 
@@ -443,7 +443,7 @@ Sections every owner has (all twelve types plus `series`, `franchise`, `collecti
 | 資源&工具 group — `mods_and_tools`, `guide_resources` (`structured`) | | | | | | | | | x | | x | |
 | 劇情&任務 group — `story_list_main`, `story_list_side`, `story_list_character`, `story_list_event` (`structured`, nestable), `side_quests` (`structured`, nestable), `endings` (`structured`) | | | | | | | | | x | | x | |
 | 世界觀 group — `lore`, `timeline`, `mysteries`, `story_other` (`text_links`), `story_terms`, `geography` (`structured`, nestable; above `timeline`) | | | | | | | | | x | |  | |
-| NG 多周目 group — `ng_flow`, `ng_carried_over`, `ng_reset`, `ng_before_starting` (`structured`) | | | | | | | | | x | | x | |
+| NG 多周目 group — `ng_flow`, `ng_carried_over`, `ng_before_starting` (`structured`) | | | | | | | | | x | | x | |
 | 待辦 group — `todo_now`, `todo_next`, `todo_later`, `todo_maybe` (`text_links`), `saves` (`structured`), all personal scope | | | | | | | | | x | | x | |
 | `cinematography` (`分鏡/演出/巧思/細節`) | x | x | | x | x | x | | | | |  | series |
 | `craft` (`巧思`) | | | | | | | x | | | |  | |

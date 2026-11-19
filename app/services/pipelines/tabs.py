@@ -28,6 +28,7 @@ The chains that must hold, all pinned by tests/api/test_sheet_restore_order.py:
     Users, H-Comic, H-Game -> User Highlight Group Order
     Users, Note      -> Note Mark
     Users, Quote, Meme -> User Favorite
+    Collection, Franchise, Series, Media -> Needs Work
 
 Users is first because nothing points at it and Plan Next, Seasonal and Game
 Copy all carry a NOT NULL user_id.
@@ -447,6 +448,12 @@ SHEET_TABS: tuple[SheetTab, ...] = (
         drop_columns=("user_id",),
         extra_columns=(("username", _row_username),),
     ),
+    # 待補充 Needs Work marks. After every media tab and the three tiers: the
+    # four owner columns are real foreign keys, and the uuids they carry are
+    # the same in every database, so they travel as they are. One mark per
+    # owner, so a row the sheet carries under another uuid is matched by its
+    # owner (DERIVED_IDENTITY_KEYS in pull.py).
+    SheetTab("Needs Work", models.NeedsWork, f.parse_needs_work_from_sheet),
     # The Resources page. Cites nothing outside itself; its only reference is
     # its own parent_id, which is DEFERRABLE, so a child row may precede its
     # parent on the tab and still restore.

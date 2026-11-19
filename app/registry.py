@@ -75,12 +75,12 @@ from app.services.domain.sources import media_sources_writer
 from app.services.pipelines import (
     execute_replace_single_book,
     execute_replace_single_cartoon,
-    execute_replace_single_comic,
     execute_replace_single_h_comic,
     execute_replace_single_hentai,
     execute_replace_single_manga,
     execute_replace_single_movie,
     execute_replace_single_tv_show,
+    execute_save_replace_comic,
     execute_save_replace_game,
     execute_save_replace_h_game,
 )
@@ -369,7 +369,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         mark_completed=mark_comic_catalog,
         mark_completed_list=mark_comic_list,
         progress_counter=issue_counter,
-        write_hook=execute_replace_single_comic,
+        write_hook=execute_save_replace_comic,
         nested_collections={"sources": media_sources_writer("comic")},
     ),
     "game": MediaTypeSpec(
