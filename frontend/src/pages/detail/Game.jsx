@@ -7,6 +7,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { releaseYear } from "../../lib/releaseDate";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import NeedsWorkBadge from "../../components/needs-work/NeedsWorkBadge";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
@@ -348,11 +349,14 @@ export default function Game() {
               {titleMain}
             </span>
           </nav>
-          <ReportProblemButton
-            targetType="game"
-            targetId={system_id}
-            targetLabel={titleMain}
-          />
+          <div className="flex shrink-0 items-center gap-3">
+            <NeedsWorkBadge ownerType="game" ownerId={system_id} />
+            <ReportProblemButton
+              targetType="game"
+              targetId={system_id}
+              targetLabel={titleMain}
+            />
+          </div>
         </div>
 
         {isAdmin && (
@@ -587,10 +591,8 @@ export default function Game() {
                 <InfoCard
                   title="Genres"
                   fields={[
-                    [
-                      { label: "Genre", value: game.game_genre },
-                      { label: "Theme", value: game.game_theme },
-                    ],
+                    { label: "Genre", value: game.game_genre },
+                    { label: "Theme", value: game.game_theme },
                     { label: "標籤 Label", value: game.label },
                   ]}
                 />

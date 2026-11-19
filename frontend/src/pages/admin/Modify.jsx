@@ -34,8 +34,8 @@ import { ensureSourceValues as ensureSourceValuesLib } from "../../lib/ensureSou
 import { genreLabelSourceFields } from "../../lib/genreLabelFields";
 import OptionCategorySelect from "../../components/forms/OptionCategorySelect";
 import OptionValueGroups from "../../components/forms/OptionValueGroups";
-import FranchiseCreateModal from "../../components/modals/FranchiseCreateModal";
-import CreateNewEntityModal from "../../components/modals/CreateNewEntityModal";
+import { useGroupQuickCreate } from "../../hooks/useGroupQuickCreate";
+import { entryGroupNames, SERIES_AUTOFILL_KEYS } from "../../lib/groupQuickCreate";
 import CollectionModifyTab from "../modify-tabs/CollectionModifyTab";
 import FranchiseModifyTab from "../modify-tabs/FranchiseModifyTab";
 import SeriesModifyTab from "../modify-tabs/SeriesModifyTab";
@@ -60,6 +60,8 @@ import MovieModifyTab from "../modify-tabs/MovieModifyTab";
 import AnimeMovieModifyTab from "../modify-tabs/AnimeMovieModifyTab";
 import AnimeModifyTab from "../modify-tabs/AnimeModifyTab";
 import Fav3x3ModifyTab from "../modify-tabs/Fav3x3ModifyTab";
+import NeedsWorkControl from "../../components/needs-work/NeedsWorkControl";
+import { NEEDS_WORK_OWNER_TYPES } from "../../lib/needsWork";
 import QuoteManageTab from "../modify-tabs/QuoteManageTab";
 import MemeManageTab from "../modify-tabs/MemeManageTab";
 import PersonModifyTab from "../modify-tabs/PersonModifyTab";
@@ -348,6 +350,13 @@ export default function Modify() {
   const setAllCollections = (v) => setList("collection", v);
   const setAllFranchises = (v) => setList("franchise", v);
   const setAllSeries = (v) => setList("series", v);
+  // The franchise and series an entry's save creates when the form names
+  // ones that do not exist: one confirmation, names editable.
+  const { createMissingGroups, groupCreateModal } = useGroupQuickCreate({
+    showToast,
+    onFranchiseCreated: (nf) => setAllFranchises((prev) => [...prev, nf]),
+    onSeriesCreated: (ns) => setAllSeries((prev) => [...prev, ns]),
+  });
   const setAllAnimeMovies = (v) => setList("anime-movie", v);
   const setAllMovies = (v) => setList("movie", v);
   const setAllTvShows = (v) => setList("tv-show", v);
@@ -428,8 +437,6 @@ export default function Modify() {
   // not offered here: neither has an editor on this page.
   const [optionsSubTab, setOptionsSubTab] = useState("options");
   const [submitting, setSubmitting] = useState(false);
-  const [createModal, setCreateModal] = useState(null);
-  const [franchiseCreateModal, setFranchiseCreateModal] = useState(null);
 
   const [af, setAf] = useState({});
   const [colf, setColf] = useState({});
@@ -1372,78 +1379,19 @@ export default function Modify() {
 
   async function saveAnime({ replace }) {
     let franchiseId = af.franchise_id;
-    if (!franchiseId && af.franchise_text.trim()) {
-      const result = await new Promise((resolve) => {
-        setFranchiseCreateModal({
-          franchiseType: "Anime",
-          onConfirm: () => {
-            setFranchiseCreateModal(null);
-            resolve({ confirmed: true });
-          },
-          onCancel: () => {
-            setFranchiseCreateModal(null);
-            resolve({ confirmed: false });
-          },
-        });
-      });
-      if (!result.confirmed) return;
-      const res = await fetch("/api/franchise/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          franchise_name_en: af.anime_name_en || null,
-          franchise_name_cn: af.anime_name_cn || null,
-          franchise_name_roman: af.anime_name_roman || null,
-          franchise_name_jp: af.anime_name_jp || null,
-          franchise_name_alt: af.anime_name_alt || null,
-          franchise_type: "Anime",
-        }),
-        credentials: "include",
-      });
-      if (!res.ok) {
-        showToast("error", "Failed to create franchise");
-        return;
-      }
-      const nf = await res.json();
-      franchiseId = nf.system_id;
-      setAllFranchises((prev) => [...prev, nf]);
-    }
     let seriesId = af.series_id;
-    if (!seriesId && af.series_text.trim()) {
-      const confirmed = await new Promise((resolve) => {
-        setCreateModal({
-          entityType: "Series",
-          text: af.series_text,
-          onConfirm: () => {
-            setCreateModal(null);
-            resolve(true);
-          },
-          onCancel: () => {
-            setCreateModal(null);
-            resolve(false);
-          },
-        });
-      });
-      if (!confirmed) return;
-      const res = await fetch("/api/series/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          franchise_id: franchiseId,
-          series_name_en: af.anime_name_en || null,
-          series_name_cn: af.anime_name_cn || null,
-          series_name_alt: af.anime_name_alt || null,
-        }),
-        credentials: "include",
-      });
-      if (!res.ok) {
-        showToast("error", "Failed to create series");
-        return;
-      }
-      const ns = await res.json();
-      seriesId = ns.system_id;
-      setAllSeries((prev) => [...prev, ns]);
-    }
+    const groups = await createMissingGroups({
+      franchiseId,
+      seriesId,
+      franchise: !franchiseId && af.franchise_text.trim()
+        ? { names: entryGroupNames(af, "anime"), type: "Anime" }
+        : null,
+      series: !seriesId && af.series_text.trim()
+        ? { names: entryGroupNames(af, "anime", SERIES_AUTOFILL_KEYS), text: af.series_text }
+        : null,
+    });
+    if (!groups) return;
+    ({ franchiseId, seriesId } = groups);
     const res = await fetch(`/api/anime/${editingItem.system_id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -1587,38 +1535,14 @@ export default function Modify() {
       return;
     }
     let franchiseId = sf.franchise_id;
-    if (!franchiseId && sf.franchise_text.trim()) {
-      const result = await new Promise((resolve) => {
-        setFranchiseCreateModal({
-          franchiseType: "Anime",
-          onConfirm: () => {
-            setFranchiseCreateModal(null);
-            resolve({ confirmed: true });
-          },
-          onCancel: () => {
-            setFranchiseCreateModal(null);
-            resolve({ confirmed: false });
-          },
-        });
-      });
-      if (!result.confirmed) return;
-      const fRes = await fetch("/api/franchise/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          franchise_name_en: sf.franchise_text,
-          franchise_type: "Anime",
-        }),
-        credentials: "include",
-      });
-      if (!fRes.ok) {
-        showToast("error", "Failed to create franchise");
-        return;
-      }
-      const nf = await fRes.json();
-      franchiseId = nf.system_id;
-      setAllFranchises((prev) => [...prev, nf]);
-    }
+    const groups = await createMissingGroups({
+      franchiseId,
+      franchise: !franchiseId && sf.franchise_text.trim()
+        ? { names: { ...entryGroupNames(null, "franchise"), en: sf.franchise_text.trim() }, types: ["Anime"] }
+        : null,
+    });
+    if (!groups) return;
+    franchiseId = groups.franchiseId;
     const res = await fetch(`/api/series/${editingItem.system_id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -1699,42 +1623,14 @@ export default function Modify() {
 
   async function saveAnimeMovie({ replace }) {
     let franchiseId = amf.franchise_id;
-    if (!franchiseId && amf.franchise_text.trim()) {
-      const result = await new Promise((resolve) => {
-        setFranchiseCreateModal({
-          franchiseType: "Anime",
-          onConfirm: () => {
-            setFranchiseCreateModal(null);
-            resolve({ confirmed: true });
-          },
-          onCancel: () => {
-            setFranchiseCreateModal(null);
-            resolve({ confirmed: false });
-          },
-        });
-      });
-      if (!result.confirmed) return;
-      const res = await fetch("/api/franchise/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          franchise_name_en: amf.anime_movie_name_en || null,
-          franchise_name_cn: amf.anime_movie_name_cn || null,
-          franchise_name_roman: amf.anime_movie_name_roman || null,
-          franchise_name_jp: amf.anime_movie_name_jp || null,
-          franchise_name_alt: amf.anime_movie_name_alt || null,
-          franchise_type: "Anime",
-        }),
-        credentials: "include",
-      });
-      if (!res.ok) {
-        showToast("error", "Failed to create franchise");
-        return;
-      }
-      const nf = await res.json();
-      franchiseId = nf.system_id;
-      setAllFranchises((prev) => [...prev, nf]);
-    }
+    const groups = await createMissingGroups({
+      franchiseId,
+      franchise: !franchiseId && amf.franchise_text.trim()
+        ? { names: entryGroupNames(amf, "anime_movie"), type: "Anime" }
+        : null,
+    });
+    if (!groups) return;
+    franchiseId = groups.franchiseId;
     const res = await fetch(`/api/anime-movie/${editingItem.system_id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -1777,76 +1673,19 @@ export default function Modify() {
 
   async function saveMovie({ replace }) {
     let franchiseId = mmf.franchise_id;
-    if (!franchiseId && mmf.franchise_text.trim()) {
-      const result = await new Promise((resolve) => {
-        setFranchiseCreateModal({
-          franchiseType: "Movie",
-          onConfirm: () => {
-            setFranchiseCreateModal(null);
-            resolve({ confirmed: true });
-          },
-          onCancel: () => {
-            setFranchiseCreateModal(null);
-            resolve({ confirmed: false });
-          },
-        });
-      });
-      if (!result.confirmed) return;
-      const res = await fetch("/api/franchise/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          franchise_name_en: mmf.movie_name_en || null,
-          franchise_name_cn: mmf.movie_name_cn || null,
-          franchise_name_alt: mmf.movie_name_alt || null,
-          franchise_type: "Movie",
-        }),
-        credentials: "include",
-      });
-      if (!res.ok) {
-        showToast("error", "Failed to create franchise");
-        return;
-      }
-      const nf = await res.json();
-      franchiseId = nf.system_id;
-      setAllFranchises((prev) => [...prev, nf]);
-    }
     let seriesId = mmf.series_id;
-    if (!seriesId && (mmf.series_text || "").trim()) {
-      const confirmed = await new Promise((resolve) => {
-        setCreateModal({
-          entityType: "Series",
-          text: mmf.series_text,
-          onConfirm: () => {
-            setCreateModal(null);
-            resolve(true);
-          },
-          onCancel: () => {
-            setCreateModal(null);
-            resolve(false);
-          },
-        });
-      });
-      if (!confirmed) return;
-      const sRes = await fetch("/api/series/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          franchise_id: franchiseId,
-          series_name_en: mmf.movie_name_en || null,
-          series_name_cn: mmf.movie_name_cn || null,
-          series_name_alt: mmf.movie_name_alt || null,
-        }),
-        credentials: "include",
-      });
-      if (!sRes.ok) {
-        showToast("error", "Failed to create series");
-        return;
-      }
-      const ns = await sRes.json();
-      seriesId = ns.system_id;
-      setAllSeries((prev) => [...prev, ns]);
-    }
+    const groups = await createMissingGroups({
+      franchiseId,
+      seriesId,
+      franchise: !franchiseId && mmf.franchise_text.trim()
+        ? { names: entryGroupNames(mmf, "movie"), type: "Movie" }
+        : null,
+      series: !seriesId && (mmf.series_text || "").trim()
+        ? { names: entryGroupNames(mmf, "movie", SERIES_AUTOFILL_KEYS), text: mmf.series_text }
+        : null,
+    });
+    if (!groups) return;
+    ({ franchiseId, seriesId } = groups);
     const payload = {
       ...movieFieldsPayload(mmf, {
         defaultStatus: md("movie").watching_status,
@@ -1884,76 +1723,19 @@ export default function Modify() {
 
   async function saveTvShow({ replace }) {
     let franchiseId = tvmf.franchise_id;
-    if (!franchiseId && (tvmf.franchise_text || "").trim()) {
-      const result = await new Promise((resolve) => {
-        setFranchiseCreateModal({
-          franchiseType: "TV",
-          onConfirm: () => {
-            setFranchiseCreateModal(null);
-            resolve({ confirmed: true });
-          },
-          onCancel: () => {
-            setFranchiseCreateModal(null);
-            resolve({ confirmed: false });
-          },
-        });
-      });
-      if (!result.confirmed) return;
-      const res = await fetch("/api/franchise/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          franchise_name_en: tvmf.tv_name_en || null,
-          franchise_name_cn: tvmf.tv_name_cn || null,
-          franchise_name_alt: tvmf.tv_name_alt || null,
-          franchise_type: "TV",
-        }),
-        credentials: "include",
-      });
-      if (!res.ok) {
-        showToast("error", "Failed to create franchise");
-        return;
-      }
-      const nf = await res.json();
-      franchiseId = nf.system_id;
-      setAllFranchises((prev) => [...prev, nf]);
-    }
     let seriesId = tvmf.series_id;
-    if (!seriesId && (tvmf.series_text || "").trim()) {
-      const confirmed = await new Promise((resolve) => {
-        setCreateModal({
-          entityType: "Series",
-          text: tvmf.series_text,
-          onConfirm: () => {
-            setCreateModal(null);
-            resolve(true);
-          },
-          onCancel: () => {
-            setCreateModal(null);
-            resolve(false);
-          },
-        });
-      });
-      if (!confirmed) return;
-      const sRes = await fetch("/api/series/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          franchise_id: franchiseId,
-          series_name_en: tvmf.tv_name_en || null,
-          series_name_cn: tvmf.tv_name_cn || null,
-          series_name_alt: tvmf.tv_name_alt || null,
-        }),
-        credentials: "include",
-      });
-      if (!sRes.ok) {
-        showToast("error", "Failed to create series");
-        return;
-      }
-      const ns = await sRes.json();
-      seriesId = ns.system_id;
-      setAllSeries((prev) => [...prev, ns]);
-    }
+    const groups = await createMissingGroups({
+      franchiseId,
+      seriesId,
+      franchise: !franchiseId && (tvmf.franchise_text || "").trim()
+        ? { names: entryGroupNames(tvmf, "tv"), type: "TV" }
+        : null,
+      series: !seriesId && (tvmf.series_text || "").trim()
+        ? { names: entryGroupNames(tvmf, "tv", SERIES_AUTOFILL_KEYS), text: tvmf.series_text }
+        : null,
+    });
+    if (!groups) return;
+    ({ franchiseId, seriesId } = groups);
     const payload = {
       ...tvShowFieldsPayload(tvmf, {
         defaultStatus: md("tv-show").watching_status,
@@ -1991,76 +1773,19 @@ export default function Modify() {
 
   async function saveCartoon({ replace }) {
     let franchiseId = cmf.franchise_id;
-    if (!franchiseId && (cmf.franchise_text || "").trim()) {
-      const result = await new Promise((resolve) => {
-        setFranchiseCreateModal({
-          franchiseType: "Cartoon",
-          onConfirm: () => {
-            setFranchiseCreateModal(null);
-            resolve({ confirmed: true });
-          },
-          onCancel: () => {
-            setFranchiseCreateModal(null);
-            resolve({ confirmed: false });
-          },
-        });
-      });
-      if (!result.confirmed) return;
-      const res = await fetch("/api/franchise/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          franchise_name_en: cmf.cartoon_name_en || null,
-          franchise_name_cn: cmf.cartoon_name_cn || null,
-          franchise_name_alt: cmf.cartoon_name_alt || null,
-          franchise_type: "Cartoon",
-        }),
-        credentials: "include",
-      });
-      if (!res.ok) {
-        showToast("error", "Failed to create franchise");
-        return;
-      }
-      const nf = await res.json();
-      franchiseId = nf.system_id;
-      setAllFranchises((prev) => [...prev, nf]);
-    }
     let seriesId = cmf.series_id;
-    if (!seriesId && (cmf.series_text || "").trim()) {
-      const confirmed = await new Promise((resolve) => {
-        setCreateModal({
-          entityType: "Series",
-          text: cmf.series_text,
-          onConfirm: () => {
-            setCreateModal(null);
-            resolve(true);
-          },
-          onCancel: () => {
-            setCreateModal(null);
-            resolve(false);
-          },
-        });
-      });
-      if (!confirmed) return;
-      const sRes = await fetch("/api/series/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          franchise_id: franchiseId,
-          series_name_en: cmf.cartoon_name_en || null,
-          series_name_cn: cmf.cartoon_name_cn || null,
-          series_name_alt: cmf.cartoon_name_alt || null,
-        }),
-        credentials: "include",
-      });
-      if (!sRes.ok) {
-        showToast("error", "Failed to create series");
-        return;
-      }
-      const ns = await sRes.json();
-      seriesId = ns.system_id;
-      setAllSeries((prev) => [...prev, ns]);
-    }
+    const groups = await createMissingGroups({
+      franchiseId,
+      seriesId,
+      franchise: !franchiseId && (cmf.franchise_text || "").trim()
+        ? { names: entryGroupNames(cmf, "cartoon"), type: "Cartoon" }
+        : null,
+      series: !seriesId && (cmf.series_text || "").trim()
+        ? { names: entryGroupNames(cmf, "cartoon", SERIES_AUTOFILL_KEYS), text: cmf.series_text }
+        : null,
+    });
+    if (!groups) return;
+    ({ franchiseId, seriesId } = groups);
     const payload = {
       ...cartoonFieldsPayload(cmf, {
         defaultStatus: md("cartoon").watching_status,
@@ -2105,78 +1830,19 @@ export default function Modify() {
 
   async function saveManga({ replace }) {
     let franchiseId = cmgf.franchise_id;
-    if (!franchiseId && (cmgf.franchise_text || "").trim()) {
-      const result = await new Promise((resolve) => {
-        setFranchiseCreateModal({
-          franchiseType: "Manga",
-          onConfirm: () => {
-            setFranchiseCreateModal(null);
-            resolve({ confirmed: true });
-          },
-          onCancel: () => {
-            setFranchiseCreateModal(null);
-            resolve({ confirmed: false });
-          },
-        });
-      });
-      if (!result.confirmed) return;
-      const res = await fetch("/api/franchise/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          franchise_name_en: cmgf.manga_name_en || null,
-          franchise_name_cn: cmgf.manga_name_cn || null,
-          franchise_name_roman: cmgf.manga_name_roman || null,
-          franchise_name_jp: cmgf.manga_name_jp || null,
-          franchise_name_alt: cmgf.manga_name_alt || null,
-          franchise_type: "Manga",
-        }),
-        credentials: "include",
-      });
-      if (!res.ok) {
-        showToast("error", "Failed to create franchise");
-        return;
-      }
-      const nf = await res.json();
-      franchiseId = nf.system_id;
-      setAllFranchises((prev) => [...prev, nf]);
-    }
     let seriesId = cmgf.series_id;
-    if (!seriesId && (cmgf.series_text || "").trim()) {
-      const confirmed = await new Promise((resolve) => {
-        setCreateModal({
-          entityType: "Series",
-          text: cmgf.series_text,
-          onConfirm: () => {
-            setCreateModal(null);
-            resolve(true);
-          },
-          onCancel: () => {
-            setCreateModal(null);
-            resolve(false);
-          },
-        });
-      });
-      if (!confirmed) return;
-      const sRes = await fetch("/api/series/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          franchise_id: franchiseId,
-          series_name_en: cmgf.manga_name_en || null,
-          series_name_cn: cmgf.manga_name_cn || null,
-          series_name_alt: cmgf.manga_name_alt || null,
-        }),
-        credentials: "include",
-      });
-      if (!sRes.ok) {
-        showToast("error", "Failed to create series");
-        return;
-      }
-      const ns = await sRes.json();
-      seriesId = ns.system_id;
-      setAllSeries((prev) => [...prev, ns]);
-    }
+    const groups = await createMissingGroups({
+      franchiseId,
+      seriesId,
+      franchise: !franchiseId && (cmgf.franchise_text || "").trim()
+        ? { names: entryGroupNames(cmgf, "manga"), type: "Manga" }
+        : null,
+      series: !seriesId && (cmgf.series_text || "").trim()
+        ? { names: entryGroupNames(cmgf, "manga", SERIES_AUTOFILL_KEYS), text: cmgf.series_text }
+        : null,
+    });
+    if (!groups) return;
+    ({ franchiseId, seriesId } = groups);
     const payload = {
       ...mangaFieldsPayload(cmgf, {
         defaultStatus: md("manga").reading_status,
@@ -2222,78 +1888,19 @@ export default function Modify() {
 
   async function saveBook() {
     let franchiseId = cnvf.franchise_id;
-    if (!franchiseId && (cnvf.franchise_text || "").trim()) {
-      const result = await new Promise((resolve) => {
-        setFranchiseCreateModal({
-          franchiseType: "Book",
-          onConfirm: () => {
-            setFranchiseCreateModal(null);
-            resolve({ confirmed: true });
-          },
-          onCancel: () => {
-            setFranchiseCreateModal(null);
-            resolve({ confirmed: false });
-          },
-        });
-      });
-      if (!result.confirmed) return;
-      const res = await fetch("/api/franchise/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          franchise_name_en: cnvf.book_name_en || null,
-          franchise_name_cn: cnvf.book_name_cn || null,
-          franchise_name_roman: cnvf.book_name_roman || null,
-          franchise_name_jp: cnvf.book_name_jp || null,
-          franchise_name_alt: cnvf.book_name_alt || null,
-          franchise_type: "Book",
-        }),
-        credentials: "include",
-      });
-      if (!res.ok) {
-        showToast("error", "Failed to create franchise");
-        return;
-      }
-      const nf = await res.json();
-      franchiseId = nf.system_id;
-      setAllFranchises((prev) => [...prev, nf]);
-    }
     let seriesId = cnvf.series_id;
-    if (!seriesId && (cnvf.series_text || "").trim()) {
-      const confirmed = await new Promise((resolve) => {
-        setCreateModal({
-          entityType: "Series",
-          text: cnvf.series_text,
-          onConfirm: () => {
-            setCreateModal(null);
-            resolve(true);
-          },
-          onCancel: () => {
-            setCreateModal(null);
-            resolve(false);
-          },
-        });
-      });
-      if (!confirmed) return;
-      const sRes = await fetch("/api/series/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          franchise_id: franchiseId,
-          series_name_en: cnvf.book_name_en || null,
-          series_name_cn: cnvf.book_name_cn || null,
-          series_name_alt: cnvf.book_name_alt || null,
-        }),
-        credentials: "include",
-      });
-      if (!sRes.ok) {
-        showToast("error", "Failed to create series");
-        return;
-      }
-      const ns = await sRes.json();
-      seriesId = ns.system_id;
-      setAllSeries((prev) => [...prev, ns]);
-    }
+    const groups = await createMissingGroups({
+      franchiseId,
+      seriesId,
+      franchise: !franchiseId && (cnvf.franchise_text || "").trim()
+        ? { names: entryGroupNames(cnvf, "book"), type: "Book" }
+        : null,
+      series: !seriesId && (cnvf.series_text || "").trim()
+        ? { names: entryGroupNames(cnvf, "book", SERIES_AUTOFILL_KEYS), text: cnvf.series_text }
+        : null,
+    });
+    if (!groups) return;
+    ({ franchiseId, seriesId } = groups);
     // Auto-create missing entities for author, illustrator and the publisher
     await ensureSourceValues([
       {
@@ -2347,76 +1954,19 @@ export default function Modify() {
 
   async function saveComic() {
     let franchiseId = ccmf.franchise_id;
-    if (!franchiseId && (ccmf.franchise_text || "").trim()) {
-      const result = await new Promise((resolve) => {
-        setFranchiseCreateModal({
-          franchiseType: "Comic",
-          onConfirm: () => {
-            setFranchiseCreateModal(null);
-            resolve({ confirmed: true });
-          },
-          onCancel: () => {
-            setFranchiseCreateModal(null);
-            resolve({ confirmed: false });
-          },
-        });
-      });
-      if (!result.confirmed) return;
-      const res = await fetch("/api/franchise/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          franchise_name_en: ccmf.comic_name_en || null,
-          franchise_name_cn: ccmf.comic_name_cn || null,
-          franchise_name_alt: ccmf.comic_name_alt || null,
-          franchise_type: "Comic",
-        }),
-        credentials: "include",
-      });
-      if (!res.ok) {
-        showToast("error", "Failed to create franchise");
-        return;
-      }
-      const nf = await res.json();
-      franchiseId = nf.system_id;
-      setAllFranchises((prev) => [...prev, nf]);
-    }
     let seriesId = ccmf.series_id;
-    if (!seriesId && (ccmf.series_text || "").trim()) {
-      const confirmed = await new Promise((resolve) => {
-        setCreateModal({
-          entityType: "Series",
-          text: ccmf.series_text,
-          onConfirm: () => {
-            setCreateModal(null);
-            resolve(true);
-          },
-          onCancel: () => {
-            setCreateModal(null);
-            resolve(false);
-          },
-        });
-      });
-      if (!confirmed) return;
-      const sRes = await fetch("/api/series/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          franchise_id: franchiseId,
-          series_name_en: ccmf.comic_name_en || null,
-          series_name_cn: ccmf.comic_name_cn || null,
-          series_name_alt: ccmf.comic_name_alt || null,
-        }),
-        credentials: "include",
-      });
-      if (!sRes.ok) {
-        showToast("error", "Failed to create series");
-        return;
-      }
-      const ns = await sRes.json();
-      seriesId = ns.system_id;
-      setAllSeries((prev) => [...prev, ns]);
-    }
+    const groups = await createMissingGroups({
+      franchiseId,
+      seriesId,
+      franchise: !franchiseId && (ccmf.franchise_text || "").trim()
+        ? { names: entryGroupNames(ccmf, "comic"), type: "Comic" }
+        : null,
+      series: !seriesId && (ccmf.series_text || "").trim()
+        ? { names: entryGroupNames(ccmf, "comic", SERIES_AUTOFILL_KEYS), text: ccmf.series_text }
+        : null,
+    });
+    if (!groups) return;
+    ({ franchiseId, seriesId } = groups);
 
     // Auto-create missing entities for every comic credit/tag field.
     await ensureSourceValues([
@@ -2486,78 +2036,19 @@ export default function Modify() {
 
   async function saveGame() {
     let franchiseId = cgmf.franchise_id;
-    if (!franchiseId && (cgmf.franchise_text || "").trim()) {
-      const result = await new Promise((resolve) => {
-        setFranchiseCreateModal({
-          franchiseType: "Game",
-          onConfirm: () => {
-            setFranchiseCreateModal(null);
-            resolve({ confirmed: true });
-          },
-          onCancel: () => {
-            setFranchiseCreateModal(null);
-            resolve({ confirmed: false });
-          },
-        });
-      });
-      if (!result.confirmed) return;
-      const res = await fetch("/api/franchise/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          franchise_name_cn: cgmf.game_name_cn || null,
-          franchise_name_en: cgmf.game_name_en || null,
-          franchise_name_roman: cgmf.game_name_roman || null,
-          franchise_name_jp: cgmf.game_name_jp || null,
-          franchise_name_alt: cgmf.game_name_alt || null,
-          franchise_type: "Game",
-        }),
-        credentials: "include",
-      });
-      if (!res.ok) {
-        showToast("error", "Failed to create franchise");
-        return;
-      }
-      const nf = await res.json();
-      franchiseId = nf.system_id;
-      setAllFranchises((prev) => [...prev, nf]);
-    }
     let seriesId = cgmf.series_id;
-    if (!seriesId && (cgmf.series_text || "").trim()) {
-      const confirmed = await new Promise((resolve) => {
-        setCreateModal({
-          entityType: "Series",
-          text: cgmf.series_text,
-          onConfirm: () => {
-            setCreateModal(null);
-            resolve(true);
-          },
-          onCancel: () => {
-            setCreateModal(null);
-            resolve(false);
-          },
-        });
-      });
-      if (!confirmed) return;
-      const sRes = await fetch("/api/series/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          franchise_id: franchiseId,
-          series_name_cn: cgmf.game_name_cn || null,
-          series_name_en: cgmf.game_name_en || null,
-          series_name_alt: cgmf.game_name_alt || null,
-        }),
-        credentials: "include",
-      });
-      if (!sRes.ok) {
-        showToast("error", "Failed to create series");
-        return;
-      }
-      const ns = await sRes.json();
-      seriesId = ns.system_id;
-      setAllSeries((prev) => [...prev, ns]);
-    }
+    const groups = await createMissingGroups({
+      franchiseId,
+      seriesId,
+      franchise: !franchiseId && (cgmf.franchise_text || "").trim()
+        ? { names: entryGroupNames(cgmf, "game"), type: "Game" }
+        : null,
+      series: !seriesId && (cgmf.series_text || "").trim()
+        ? { names: entryGroupNames(cgmf, "game", SERIES_AUTOFILL_KEYS), text: cgmf.series_text }
+        : null,
+    });
+    if (!groups) return;
+    ({ franchiseId, seriesId } = groups);
 
     // Auto-create missing entities for every game credit/tag field. Developer
     // and publisher resolve to entity rows; the four vocabularies do not.
@@ -2636,78 +2127,19 @@ export default function Modify() {
       return;
     }
     let franchiseId = chcf.franchise_id;
-    if (!franchiseId && (chcf.franchise_text || "").trim()) {
-      const result = await new Promise((resolve) => {
-        setFranchiseCreateModal({
-          franchiseType: H_COMIC_FRANCHISE_TYPE,
-          onConfirm: () => {
-            setFranchiseCreateModal(null);
-            resolve({ confirmed: true });
-          },
-          onCancel: () => {
-            setFranchiseCreateModal(null);
-            resolve({ confirmed: false });
-          },
-        });
-      });
-      if (!result.confirmed) return;
-      const res = await fetch("/api/franchise/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          franchise_name_cn: chcf.h_comic_name_cn || null,
-          franchise_name_en: chcf.h_comic_name_en || null,
-          franchise_name_jp: chcf.h_comic_name_jp || null,
-          franchise_name_alt: chcf.h_comic_name_alt || null,
-          franchise_type: H_COMIC_FRANCHISE_TYPE,
-        }),
-        credentials: "include",
-      });
-      if (!res.ok) {
-        showToast("error", "Failed to create franchise");
-        return;
-      }
-      const nf = await res.json();
-      franchiseId = nf.system_id;
-      setAllFranchises((prev) => [...prev, nf]);
-    }
-
     let seriesId = chcf.series_id;
-    if (!seriesId && (chcf.series_text || "").trim()) {
-      const confirmed = await new Promise((resolve) => {
-        setCreateModal({
-          entityType: "Series",
-          text: chcf.series_text,
-          onConfirm: () => {
-            setCreateModal(null);
-            resolve(true);
-          },
-          onCancel: () => {
-            setCreateModal(null);
-            resolve(false);
-          },
-        });
-      });
-      if (!confirmed) return;
-      const sRes = await fetch("/api/series/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          franchise_id: franchiseId,
-          series_name_cn: chcf.h_comic_name_cn || null,
-          series_name_en: chcf.h_comic_name_en || null,
-          series_name_alt: chcf.h_comic_name_alt || null,
-        }),
-        credentials: "include",
-      });
-      if (!sRes.ok) {
-        showToast("error", "Failed to create series");
-        return;
-      }
-      const ns = await sRes.json();
-      seriesId = ns.system_id;
-      setAllSeries((prev) => [...prev, ns]);
-    }
+    const groups = await createMissingGroups({
+      franchiseId,
+      seriesId,
+      franchise: !franchiseId && (chcf.franchise_text || "").trim()
+        ? { names: entryGroupNames(chcf, "h_comic"), type: H_COMIC_FRANCHISE_TYPE }
+        : null,
+      series: !seriesId && (chcf.series_text || "").trim()
+        ? { names: entryGroupNames(chcf, "h_comic", SERIES_AUTOFILL_KEYS), text: chcf.series_text }
+        : null,
+    });
+    if (!groups) return;
+    ({ franchiseId, seriesId } = groups);
 
     // Blank what the region does not use (lib/hComicRegion.js) - including
     // the KR-only author and official source, which only this form clears.
@@ -2751,79 +2183,19 @@ export default function Modify() {
 
   async function saveHGame() {
     let franchiseId = chgf.franchise_id;
-    if (!franchiseId && (chgf.franchise_text || "").trim()) {
-      const result = await new Promise((resolve) => {
-        setFranchiseCreateModal({
-          franchiseType: H_GAME_FRANCHISE_TYPE,
-          onConfirm: () => {
-            setFranchiseCreateModal(null);
-            resolve({ confirmed: true });
-          },
-          onCancel: () => {
-            setFranchiseCreateModal(null);
-            resolve({ confirmed: false });
-          },
-        });
-      });
-      if (!result.confirmed) return;
-      const res = await fetch("/api/franchise/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          franchise_name_cn: chgf.h_game_name_cn || null,
-          franchise_name_en: chgf.h_game_name_en || null,
-          franchise_name_roman: chgf.h_game_name_roman || null,
-          franchise_name_jp: chgf.h_game_name_jp || null,
-          franchise_name_alt: chgf.h_game_name_alt || null,
-          franchise_type: H_GAME_FRANCHISE_TYPE,
-        }),
-        credentials: "include",
-      });
-      if (!res.ok) {
-        showToast("error", "Failed to create franchise");
-        return;
-      }
-      const nf = await res.json();
-      franchiseId = nf.system_id;
-      setAllFranchises((prev) => [...prev, nf]);
-    }
-
     let seriesId = chgf.series_id;
-    if (!seriesId && (chgf.series_text || "").trim()) {
-      const confirmed = await new Promise((resolve) => {
-        setCreateModal({
-          entityType: "Series",
-          text: chgf.series_text,
-          onConfirm: () => {
-            setCreateModal(null);
-            resolve(true);
-          },
-          onCancel: () => {
-            setCreateModal(null);
-            resolve(false);
-          },
-        });
-      });
-      if (!confirmed) return;
-      const sRes = await fetch("/api/series/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          franchise_id: franchiseId,
-          series_name_cn: chgf.h_game_name_cn || null,
-          series_name_en: chgf.h_game_name_en || null,
-          series_name_alt: chgf.h_game_name_alt || null,
-        }),
-        credentials: "include",
-      });
-      if (!sRes.ok) {
-        showToast("error", "Failed to create series");
-        return;
-      }
-      const ns = await sRes.json();
-      seriesId = ns.system_id;
-      setAllSeries((prev) => [...prev, ns]);
-    }
+    const groups = await createMissingGroups({
+      franchiseId,
+      seriesId,
+      franchise: !franchiseId && (chgf.franchise_text || "").trim()
+        ? { names: entryGroupNames(chgf, "h_game"), type: H_GAME_FRANCHISE_TYPE }
+        : null,
+      series: !seriesId && (chgf.series_text || "").trim()
+        ? { names: entryGroupNames(chgf, "h_game", SERIES_AUTOFILL_KEYS), text: chgf.series_text }
+        : null,
+    });
+    if (!groups) return;
+    ({ franchiseId, seriesId } = groups);
 
     await ensureSourceValues(hGameSourceFields(chgf, splitTags));
 
@@ -2861,79 +2233,19 @@ export default function Modify() {
 
   async function saveHentai() {
     let franchiseId = chtf.franchise_id;
-    if (!franchiseId && (chtf.franchise_text || "").trim()) {
-      const result = await new Promise((resolve) => {
-        setFranchiseCreateModal({
-          franchiseType: HENTAI_FRANCHISE_TYPE,
-          onConfirm: () => {
-            setFranchiseCreateModal(null);
-            resolve({ confirmed: true });
-          },
-          onCancel: () => {
-            setFranchiseCreateModal(null);
-            resolve({ confirmed: false });
-          },
-        });
-      });
-      if (!result.confirmed) return;
-      const res = await fetch("/api/franchise/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          franchise_name_cn: chtf.hentai_name_cn || null,
-          franchise_name_en: chtf.hentai_name_en || null,
-          franchise_name_roman: chtf.hentai_name_roman || null,
-          franchise_name_jp: chtf.hentai_name_jp || null,
-          franchise_name_alt: chtf.hentai_name_alt || null,
-          franchise_type: HENTAI_FRANCHISE_TYPE,
-        }),
-        credentials: "include",
-      });
-      if (!res.ok) {
-        showToast("error", "Failed to create franchise");
-        return;
-      }
-      const nf = await res.json();
-      franchiseId = nf.system_id;
-      setAllFranchises((prev) => [...prev, nf]);
-    }
-
     let seriesId = chtf.series_id;
-    if (!seriesId && (chtf.series_text || "").trim()) {
-      const confirmed = await new Promise((resolve) => {
-        setCreateModal({
-          entityType: "Series",
-          text: chtf.series_text,
-          onConfirm: () => {
-            setCreateModal(null);
-            resolve(true);
-          },
-          onCancel: () => {
-            setCreateModal(null);
-            resolve(false);
-          },
-        });
-      });
-      if (!confirmed) return;
-      const sRes = await fetch("/api/series/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          franchise_id: franchiseId,
-          series_name_cn: chtf.hentai_name_cn || null,
-          series_name_en: chtf.hentai_name_en || null,
-          series_name_alt: chtf.hentai_name_alt || null,
-        }),
-        credentials: "include",
-      });
-      if (!sRes.ok) {
-        showToast("error", "Failed to create series");
-        return;
-      }
-      const ns = await sRes.json();
-      seriesId = ns.system_id;
-      setAllSeries((prev) => [...prev, ns]);
-    }
+    const groups = await createMissingGroups({
+      franchiseId,
+      seriesId,
+      franchise: !franchiseId && (chtf.franchise_text || "").trim()
+        ? { names: entryGroupNames(chtf, "hentai"), type: HENTAI_FRANCHISE_TYPE }
+        : null,
+      series: !seriesId && (chtf.series_text || "").trim()
+        ? { names: entryGroupNames(chtf, "hentai", SERIES_AUTOFILL_KEYS), text: chtf.series_text }
+        : null,
+    });
+    if (!groups) return;
+    ({ franchiseId, seriesId } = groups);
 
     await ensureSourceValues(hentaiSourceFields(chtf, splitTags));
 
@@ -3769,6 +3081,16 @@ export default function Modify() {
               {editingType.toUpperCase()}
             </p>
 
+            {/* The mark is its own row, saved on its own: every owner type
+                the editor opens on - twelve media types and three tiers -
+                is a Needs Work owner. Not the options tab's. */}
+            {NEEDS_WORK_OWNER_TYPES.has(editingType) && (
+              <NeedsWorkControl
+                ownerType={editingType}
+                ownerId={editingItem.system_id}
+              />
+            )}
+
             {/* ── ANIME EDITOR ── */}
             {editingType === "anime" && (
               <AnimeModifyTab
@@ -4058,24 +3380,8 @@ export default function Modify() {
         </form>
       )}
 
-      {/* ── FRANCHISE CREATE MODAL ── */}
-      {franchiseCreateModal && (
-        <FranchiseCreateModal
-          onConfirm={franchiseCreateModal.onConfirm}
-          onCancel={franchiseCreateModal.onCancel}
-          franchiseType={franchiseCreateModal.franchiseType}
-        />
-      )}
-
-      {/* ── CREATE NEW PARENT MODAL ── */}
-      {createModal && (
-        <CreateNewEntityModal
-          entityType={createModal.entityType}
-          text={createModal.text}
-          onConfirm={createModal.onConfirm}
-          onCancel={createModal.onCancel}
-        />
-      )}
+      {/* ── FRANCHISE / SERIES CREATE CONFIRMATION ── */}
+      {groupCreateModal}
     </div>
     </RestrictedPrefillProvider>
   );

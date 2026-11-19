@@ -27,6 +27,23 @@ const GAMES = [
 ];
 
 describe("game library config", () => {
+  it("sorts by title on the English name first, as every other library does", () => {
+    const rows = [
+      { system_id: "a", game_name_cn: "漫威爭鋒", game_name_en: "Marvel Rivals" },
+      { system_id: "b", game_name_cn: "黑神話：悟空", game_name_en: "Black Myth: Wukong" },
+      { system_id: "c", game_name_en: "A Monster's Expedition" },
+      { system_id: "d", game_name_cn: "只有中文" },
+    ];
+    const title = GAME_LIBRARY_CONFIG.sortDefs.find((s) => s.key === "title");
+    // An entry with no English name sorts on its next name - here its CN.
+    expect([...rows].sort(title.compare).map((g) => g.system_id)).toEqual([
+      "c",
+      "b",
+      "a",
+      "d",
+    ]);
+  });
+
   it("filters by play-status display group", () => {
     const filter = GAME_LIBRARY_CONFIG.filterDefs.find(
       (f) => f.key === "playingStatus",

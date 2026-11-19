@@ -86,10 +86,6 @@ class SearchResponse(BaseModel):
     query: str
     scope: str
     results: SearchBuckets
-    # Franchises the anime results belong to — the filter pills on the search
-    # page. Not the same as results.franchise, which is franchises whose own
-    # name matched the query.
-    related_franchises: List[schemas.FranchiseResponse] = []
 
 
 @router.get("/", response_model=SearchResponse, summary="Search Across All Types")
@@ -112,7 +108,7 @@ def search_everything(
     before matching, so "re zero" finds "Re:Zero". An empty or all-punctuation
     query returns empty buckets rather than the whole collection.
     """
-    buckets, related = search(
+    buckets = search(
         db, viewer, q or "", scope.value, limit, include_characters=characters
     )
     return SearchResponse(
@@ -121,5 +117,4 @@ def search_everything(
         results=SearchBuckets(
             **{key.replace("-", "_"): rows for key, rows in buckets.items()}
         ),
-        related_franchises=related,
     )

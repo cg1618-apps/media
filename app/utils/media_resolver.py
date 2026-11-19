@@ -37,8 +37,8 @@ class MediaRef:
     key: str        # value stored in the type discriminator column
     label: str      # human label, e.g. "Anime Movie"
     model: type
-    # Frontend detail route prefix, e.g. "/anime-movie". None for Series, which
-    # has no page of its own - such a reference resolves to a name, not a link.
+    # Frontend detail route prefix, e.g. "/anime-movie". Every type and tier
+    # has one; None leaves a reference as a name rather than a link.
     nav_path: Optional[str] = None
     # True for the three grouping tiers, so the UI can badge them apart from
     # media entries and skip the cover lookup they have no column for.
@@ -69,9 +69,9 @@ MEDIA_TABLES: dict[str, MediaRef] = {
 MEDIA_TYPE_KEYS: tuple[str, ...] = tuple(MEDIA_TABLES.keys())
 
 # The three grouping tiers a meme may belong to instead of a single entry.
-# Franchise and Collection have hub pages; Series does not.
+# Each has a page of its own.
 TIER_TABLES: dict[str, MediaRef] = {
-    "series": MediaRef("series", "Series", models.Series, None, is_tier=True),
+    "series": MediaRef("series", "Series", models.Series, "/series", is_tier=True),
     "franchise": MediaRef(
         "franchise", "Franchise", models.Franchise, "/franchise", is_tier=True
     ),

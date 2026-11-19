@@ -45,9 +45,19 @@ def test_a_bare_entry_costs_nothing(db_session):
         "content_labels": 0,
         "notes": 0,
         "memes": 0,
+        "needs_work": 0,
         "list_rows": 0,
     }
     assert counts["detached"] == {"quotes": 0}
+
+
+def test_a_needs_work_mark_is_counted_as_deleted(db_session):
+    """needs_work.media_id is ON DELETE CASCADE: the mark goes with its entry."""
+    _entry, media = _anime(db_session)
+    db_session.add(models.NeedsWork(system_id=uuid.uuid4(), media_id=media.system_id))
+    db_session.flush()
+    counts = clean.blast_radius(db_session, media)
+    assert counts["deleted"]["needs_work"] == 1
 
 
 def test_credits_and_list_rows_are_counted_as_deleted(db_session, owner_user):

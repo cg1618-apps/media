@@ -238,6 +238,10 @@ export const endpoints = {
     update: (id) => `/api/person/${id}`,
     // PATCH: a partial body - the detail page's rating and remark.
     patch: (id) => `/api/person/${id}`,
+    // POST: the MAL fill a save runs, blank columns only - the detail
+    // page's Autofill & update. Answers the person as GET does; 422 when
+    // there is nothing to fetch.
+    autofill: (id) => `/api/person/${id}/autofill`,
     // The credit count the admin confirmed. Required: the API answers 409 if
     // it no longer matches, so a stale confirmation cannot delete history.
     remove: (id, credits) => `/api/person/${id}?credits=${credits}`,
@@ -282,6 +286,10 @@ export const endpoints = {
     update: (id) => `/api/character/${id}`,
     // PATCH: a partial body - the detail page's rating and remark.
     patch: (id) => `/api/character/${id}`,
+    // POST: the MAL fill a save runs, blank columns only - the detail
+    // page's Autofill & update. Answers the character as GET does; 422 when
+    // there is nothing to fetch.
+    autofill: (id) => `/api/character/${id}/autofill`,
     // The casting count the admin confirmed. Required: the API answers 409 if
     // it no longer matches, so a stale confirmation cannot delete history.
     remove: (id, castings) => `/api/character/${id}?castings=${castings}`,
@@ -331,6 +339,10 @@ export const endpoints = {
     update: (id) => `/api/studio/${id}`,
     // PATCH: a partial body - the detail page's rating and remark.
     patch: (id) => `/api/studio/${id}`,
+    // POST: the MAL fill a save runs, blank columns only - the detail
+    // page's Autofill & update. Answers the studio as GET does; 422 when
+    // there is nothing to fetch.
+    autofill: (id) => `/api/studio/${id}/autofill`,
     remove: (id) => `/api/studio/${id}`,
     merge: (id) => `/api/studio/${id}/merge`,
     entries: (id) => `/api/studio/${id}/entries`,
@@ -406,6 +418,14 @@ export const endpoints = {
     summary: () => "/api/requests/summary",
     status: (id) => `/api/requests/${id}/status`,
     remove: (id) => `/api/requests/${id}`,
+  },
+
+  // 待補充 Needs Work: the marks on entries and groups, and the page that
+  // lists them grouped by note. Every route is manage.requests.
+  needsWork: {
+    list: () => "/api/needs-work",
+    notes: () => "/api/needs-work/notes",
+    mark: (ownerType, ownerId) => `/api/needs-work/${ownerType}/${ownerId}`,
   },
 
   // The Add tabs' external pickers. CRUD for each type comes from

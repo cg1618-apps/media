@@ -280,7 +280,11 @@ column is already the cover, the sources and the relations; it is drawn on
 Rows are display-face text with a 2 px left rule, `brand` on the current
 row - the same `TableOfContents` the dashboard draws, also on its right. It is never
 taller than the space under the nav: a longer list scrolls inside the column
-and follows the current row.
+and follows the current row. Below `xl` the same rows are a `ContentsBar`: one
+line of mono chips at the top of the page, styled as the dashboard's type
+filter chips, `brand` on the current one, scrolling sideways inside itself;
+pinned under the nav on a detail page, unpinned on the dashboard, whose own
+sticky headers already hold that strip.
 
 Cards (`components/cards/*.jsx`): cover with a thin ink spine on the left
 carrying the media type; the rating stamp top-right; title in display

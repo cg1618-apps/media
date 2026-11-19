@@ -91,4 +91,16 @@ describe("DetailContents", () => {
     expect(document.getElementById("naming")).toHaveAttribute("data-toc", "Naming");
     expect(document.getElementById("notes-guides")).toHaveAttribute("data-toc", "攻略 Guides");
   });
+
+  it("draws the same rows as a pinned chip bar for screens below xl", async () => {
+    mount();
+    const bar = () => screen.getByRole("navigation", { name: "Sections" });
+    await waitFor(() =>
+      expect(within(bar()).getAllByRole("button").map((b) => b.textContent)).toEqual(
+        ["Naming", "Notes", "攻略 Guides"],
+      ),
+    );
+    expect(bar().className).toMatch(/xl:hidden/);
+    expect(bar().className).toMatch(/sticky top-\[var\(--nav-h\)\]/);
+  });
 });

@@ -55,6 +55,7 @@ vi.mock("./pages/admin/SystemOptions", () => stub("system options"));
 vi.mock("./pages/admin/Aliases", () => stub("aliases"));
 vi.mock("./pages/admin/ExternalApis", () => stub("external apis"));
 vi.mock("./pages/admin/Images", () => stub("images"));
+vi.mock("./pages/admin/NeedsWork", () => stub("needs work"));
 
 import App from "./App";
 
@@ -240,6 +241,31 @@ describe("the admin's own pages", () => {
       expect(await screen.findByText(`${page} page`)).toBeInTheDocument();
     });
   }
+});
+
+// 待補充 Needs Work asks manage.requests, which super and the admin hold and
+// nobody else. The member holds a non-empty set without it, so its redirect
+// is the gate's doing; the admin, who holds no catalogue key, and super are
+// the mirror.
+describe("the Needs Work page", () => {
+  it("sends a member to log in", async () => {
+    asMember();
+    await visit("/needs-work");
+    expect(await screen.findByText("login page")).toBeInTheDocument();
+    expect(screen.queryByText("needs work page")).toBeNull();
+  });
+
+  it("opens for the admin, who holds no manage.catalog", async () => {
+    asAdmin();
+    await visit("/needs-work");
+    expect(await screen.findByText("needs work page")).toBeInTheDocument();
+  });
+
+  it("opens for super", async () => {
+    session([...MEMBER_KEYS, "manage.catalog", "manage.requests"], "cg1618");
+    await visit("/needs-work");
+    expect(await screen.findByText("needs work page")).toBeInTheDocument();
+  });
 });
 
 describe("a guest's open routes", () => {

@@ -340,7 +340,7 @@ NOTE_GROUPS: tuple[NoteGroup, ...] = (
     NoteGroup(key="music", label="音樂 Music", icon="fa-music"),
     # Renders near the end, beside the site-wide Resources card rather than
     # with the 攻略 run, because what it holds is not part of the guide.
-    NoteGroup(key="tools", label="資源&工具 Tools & Resources", icon="fa-screwdriver-wrench"),
+    NoteGroup(key="tools", label="資源&工具 Resources & Tools", icon="fa-screwdriver-wrench"),
     NoteGroup(key="quotes_memes", label="名言/梗 Quotes and Memes", icon="fa-quote-right"),
 )
 
@@ -752,11 +752,11 @@ HIGHLIGHT_KINDS = ("神回", "神片段", "神篇章")
 
 def _ng_plus_fields(typed: bool = True) -> tuple["NoteField", ...]:
     """
-    The four NG 多周目 sections: a named thing, a body, a list of short
+    The three NG 多周目 sections: a named thing, a body, a list of short
     points, and its sources.
 
     流程 Flow is the one without a type - it is the cycle itself, told in
-    order, where the other three are sets of things that fall into kinds
+    order, where the other two are sets of things that fall into kinds
     (equipment, levels, flags). The type is free text for the reason
     `_named_thing_fields` gives. `points` is a list of one-line texts rather
     than a second body: "keeps weapon upgrades", "keeps money" read as a
@@ -1920,16 +1920,6 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         groupable_by="type",
     ),
     NoteSection(
-        key="ng_reset",
-        shape=SHAPE_STRUCTURED,
-        label="重置內容 Reset",
-        owners=GAME_OWNERS,
-        scope=SCOPE_CATALOG,
-        group="ng_plus",
-        fields=_ng_plus_fields(),
-        groupable_by="type",
-    ),
-    NoteSection(
         key="ng_before_starting",
         shape=SHAPE_STRUCTURED,
         label="新周目前需完成 Before Starting",
@@ -2134,7 +2124,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         scope=SCOPE_CATALOG,
         desc_required=("anime", "anime-movie", "book"),
     ),
-    # --- 資源&工具 Tools & Resources ---------------------------------------
+    # --- 資源&工具 Resources & Tools ---------------------------------------
     # Things outside the game itself: somebody else's walkthrough, and the
     # mods and tools you run alongside it. A mod was never a guide - the
     # registry said so where `mods_and_tools` used to sit - and
@@ -2233,7 +2223,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         scope=SCOPE_CATALOG,
         mixed=True,
         # Its own card everywhere but on a game or an h-game, where it is the last
-        # subsection of 資源&工具 Tools & Resources beside 攻略資源 - the two
+        # subsection of 資源&工具 Resources & Tools beside 攻略資源 - the two
         # lists of somebody else's material read as one. A group resolved for
         # the owner wins over `standalone` (schemas.note.section_out).
         standalone=True,

@@ -1,6 +1,6 @@
 # External APIs
 
-Last verified: 2026-11-17
+Last verified: 2026-11-19
 
 ## What this is for
 
@@ -277,11 +277,11 @@ MAL calls a studio a "producer". The record is a different shape from a title's:
 
 Deliberately dropped: `about` (`remark` is the admin's own note, not MAL's blurb), and `favorites` / `count` (no columns).
 
-`autofill_studio_from_mal` is **fill-only for every column**, including `logo_file` — a producer carries nothing that drifts, so there is no force-replace variant and no Replace pipeline. It also swallows and logs every failure, because it runs inside the studio write request: a flaky Tenrai must never turn a save into a 500.
+`autofill_studio_from_mal` is **fill-only for every column**, including `logo_file` — a producer carries nothing that drifts, so there is no force-replace variant and no Replace pipeline. It also swallows and logs every failure, because it runs inside the studio write request: a flaky Tenrai must never turn a save into a 500. It runs on `POST` (create branch only), on `PUT`, on the studio page's **Autofill & update** (`POST /api/studio/{system_id}/autofill`, a 422 without a MAL link) and in the Studio Fill.
 
 ### Mapping for `person` (seiyuu) — `map_tenrai_to_person_data`
 
-MAL's "people" record. Only a person holding the `seiyuu` role is ever filled from it — by the Seiyuu Fill (`PIPELINES["seiyuu"]`) and by `POST` / `PUT /api/person` — so a director or author with a MAL link keeps the link and is never fetched.
+MAL's "people" record. Only a person holding the `seiyuu` role is ever filled from it — by the Seiyuu Fill (`PIPELINES["seiyuu"]`), by `POST` / `PUT /api/person` and by the person page's **Autofill & update** (`POST /api/person/{system_id}/autofill`, a 422 for a non-seiyuu or without a MAL link) — so a director or author with a MAL link keeps the link and is never fetched.
 
 | Tenrai field | Column | Rule |
 |---|---|---|
@@ -309,7 +309,7 @@ MAL's character record, fetched for a character with a `mal_id` by `POST` / `PUT
 
 Deliberately dropped: `about` — the character table has no column for it.
 
-`autofill_character_from_mal(character)` is **fill-only for every column**. Unlike the person autofill there is no name-collision check: character names are not unique (Decision G). On save it runs inside the character write request, after the payload is copied and the row flushed (the portrait is stored under the `system_id`), so it swallows and logs every failure.
+`autofill_character_from_mal(character)` is **fill-only for every column**. Unlike the person autofill there is no name-collision check: character names are not unique (Decision G). On save it runs inside the character write request, after the payload is copied and the row flushed (the portrait is stored under the `system_id`), so it swallows and logs every failure. The character page's **Autofill & update** (`POST /api/character/{system_id}/autofill`, a 422 without a MAL link) runs the same fill without a save.
 
 ### Mapping for a cast — `map_tenrai_cast`
 
@@ -429,7 +429,7 @@ A Comic Vine **volume** is one numbered run, which is what one `comic` row is. T
 | `person_credits` with penciler / penciller / artist | `artist` | `media_credit` role `illustrator` | same |
 | `image` | `cover_image_url` | cover download | fill-only |
 
-`end_date` is deliberately not mapped (it would cost a second request per entry). There is no bulk Replace for comics (`replace=None`, `in_replace_all=False`) and Fill Comic is excluded from Fill All (`in_fill_all=False`) to protect the hourly quota.
+`end_date` is deliberately not mapped (it would cost a second request per entry). There is no bulk Replace for comics (`replace_select=None`, `in_replace_all=False`) and Fill Comic is excluded from Fill All (`in_fill_all=False`) to protect the hourly quota. The single Replace — the comic page's Autofill button — runs the same fill for one entry, and is refused (429) rather than sent when `has_capacity()` is false; a comic save fetches nothing (`save_replace` is a no-op).
 
 ## Open Library
 
@@ -1271,7 +1271,7 @@ From `PIPELINES` in `app/services/pipelines/specs.py` (the runner loop itself is
 | `studio` | `apply_extract_mal_id_studio` | `autofill_studio_from_mal`; `fill_only`, so no Replace routes exist | 1 s | Tenrai |
 | `seiyuu` | `apply_extract_mal_id_person` (every person) | `autofill_person_from_mal`, for a person holding the `seiyuu` role with a `mal_id` and a blank fillable column; `fill_only`, so no Replace routes exist | 1 s | Tenrai |
 | `character` | `apply_extract_mal_id_character` | `autofill_character_from_mal`, for a character with a `mal_id` and a blank fillable column; identities are not walked; `fill_only`, so no Replace routes exist | 1 s | Tenrai |
-| `comic` | `apply_extract_comicvine_id` | `autofill_comic_from_comicvine`; stops when `comicvine_rate_limiter.has_capacity()` is false; not in Fill All; no bulk Replace | `COMICVINE_PAUSE` (1 s) | Comic Vine |
+| `comic` | `apply_extract_comicvine_id` | `autofill_comic_from_comicvine`; stops when `comicvine_rate_limiter.has_capacity()` is false; not in Fill All; no bulk Replace; the single Replace (Autofill button) runs the same fill | `COMICVINE_PAUSE` (1 s) | Comic Vine |
 | `game` | `apply_extract_game_ids` (IGDB then Steam) | `autofill_game_from_igdb` (no budget) then `autofill_game_from_steam` (`budget=steam_store_rate_limiter.has_capacity`), then `autofill_hltb_source` (not repeating a miss), then `autofill_cover_from_steam` and `autofill_cover_from_steam_header` while the cover is still empty; in Fill All; Replace (bulk, single, write hook) runs all five, IGDB fill-only; bulk and single retry a HowLongToBeat miss, the write hook does not | `STEAM_PAUSE` (0.5 s), plus HowLongToBeat's own 1 s spacing | IGDB (+ Twitch for the token), Steam, HowLongToBeat |
 | `h-comic` | `apply_extract_mal_id_manga_book` | `_fill_h_comic`: `autofill_h_comic_from_mal` - manga's record, the columns `h_comic` has - then `autofill_h_comic_from_ehentai` - the cover and illustrator MAL left empty (see [E-Hentai](#e-hentai)); all fill-only; no AniList; in Fill All and Replace All, and Replace (`apply_single_replace_h_comic`) runs the same order and also selects entries linked only to E-Hentai | 1 s | Tenrai, E-Hentai |
 | `hentai` | `apply_extract_hentai_ids` (MAL then AniDB) | `_fill_hentai`: `autofill_hentai_from_mal`, then `autofill_hentai_from_anidb` for what MAL left blank (see [AniDB](#anidb)); stops when `anidb.has_capacity()` is false (an AniDB error answer); in Fill All; Replace (`apply_single_replace_hentai`) runs the same order and also selects entries linked only to AniDB | 1 s, plus AniDB's own 4 s spacing | Tenrai, AniDB (API and image CDN) |

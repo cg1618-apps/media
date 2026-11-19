@@ -228,4 +228,25 @@ describe("Anime detail page — release", () => {
     expect(screen.getByText("2025-01-10")).toBeInTheDocument();
     expect(screen.getByText("23")).toBeInTheDocument();
   });
+
+  // The episode count and runtime sit beside the airing status, and the
+  // season leads the row of dates it is derived from.
+  it("lays the Information card out in these rows", async () => {
+    mockFetch(BASE_ANIME, []);
+    mount();
+
+    const body = (await screen.findByRole("heading", { name: "Information" }))
+      .nextElementSibling;
+    const labels = [...body.children].map((row) =>
+      [...row.querySelectorAll(".font-mono")].map((el) => el.textContent),
+    );
+    expect(labels).toEqual([
+      ["本傳/外傳", "Original / Remake", "Season Part", "Special Episodes"],
+      ["Airing Type", "Airing Status", "Total Episodes", "Runtime (min)"],
+      ["Release Season", "Release Date JP", "Release Date TW"],
+      ["Genre (Main)"],
+      ["Genre (Sub)"],
+      ["標籤 Label"],
+    ]);
+  });
 });

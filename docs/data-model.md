@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-11-17
+Last verified: 2026-11-19
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -29,6 +29,7 @@ Enum values are **not** repeated here: every closed vocabulary lives in
 - [Relations and watch orders](#relations-and-watch-orders): media_relation, watch_order_list, watch_order_section, watch_order_item, watch_order_follow
 - [Planning](#planning): plan_next
 - [Requests and reports](#requests-and-reports): user_request
+- [Needs Work](#needs-work): needs_work
 - [Vocabulary and configuration](#vocabulary-and-configuration): system_option, system_option_scope, system_option_usage, system_option_alias, system_configs, seasonal
 - [Access control](#access-control): role, role_permission, users, content_label, media_content_label, franchise_content_label, collection_content_label, series_content_label, access_mode, user_access_mode_denial
 - [Logs](#logs): data_control_logs, deleted_record
@@ -2162,6 +2163,39 @@ both set or both null. Indexes: `ix_user_request_author_status` on
 **Not on the Sheets backup.** No tab carries it, so neither Backup nor Pull
 touches it: the requests live on the box, inside its own database dumps, and a
 development database has none.
+
+---
+
+## Needs Work
+
+### `needs_work`
+
+One 待補充 Needs Work mark: an entry or a group whose data is not complete
+yet - a sequel not added, names missing, an official name not released. The
+row is the flag: clearing the mark deletes it. Model: `NeedsWork`
+(`app/models/needs_work.py`); the rules are in
+`app/services/domain/needs_work.py` and the routes in
+[api.md](api.md#needs-work--apineeds-work).
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK, indexed |
+| `media_id` | UUID | yes | | FK `media.system_id` ON DELETE CASCADE, **UNIQUE** (`uq_needs_work_media`) - set when the owner is an entry of any of the twelve media types |
+| `collection_id` / `franchise_id` / `series_id` | UUID | yes | | FK to the matching tier table, ON DELETE CASCADE, each **UNIQUE** (`uq_needs_work_collection`, `uq_needs_work_franchise`, `uq_needs_work_series`) - set when the owner is a grouping tier |
+| `note` | Text | yes | | Optional free text, stored trimmed; blank is NULL. The Needs Work page groups the marks by it |
+| `created_at` / `updated_at` | DateTime | yes | now | |
+
+Constraints: `ck_needs_work_one_owner` (`num_nonnulls(media_id,
+collection_id, franchise_id, series_id) = 1`), the owner shape of
+[`note`](#note) and [`meme`](#meme). Each owner column is UNIQUE on its own,
+so an owner holds one mark: the NULLs in the other three columns are
+distinct and never collide. The UNIQUE constraints are also the owner
+lookups' indexes. Every owner column cascades, so deleting the entry or the
+group takes its mark with it. `owner_type` and `owner_id` are derived
+read-only properties, as on `note`.
+
+On the Sheets backup as the `Needs Work` tab, every column as it stands
+([data-actions.md](data-actions.md#22-the-tab-list)).
 
 ---
 

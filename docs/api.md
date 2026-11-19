@@ -88,6 +88,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [My Highlight Group Order — `/api/me`](#my-highlight-group-order--apime)
 - [Account — `/api/account`](#account--apiaccount)
 - [Requests — `/api/requests`](#requests--apirequests)
+- [Needs Work — `/api/needs-work`](#needs-work--apineeds-work)
 - [Authorization](#authorization) — `/api/roles`, `/api/users`, `/api/content-labels`
 
 ---
@@ -1422,8 +1423,7 @@ routes.
     "game": [...], "h-comic": [...], "h-game": [...], "hentai": [...],
     "seasonal": [...], "person": [...], "studio": [...], "publisher": [...],
     "character": [...]
-  },
-  "related_franchises": [...]
+  }
 }
 ```
 
@@ -1486,10 +1486,6 @@ not find its character, and identities are not a bucket of their own.
 its anime with it, so searching a franchise name finds the shows in it even when
 none of their own titles contain the query. A scoped anime search does not
 expand: that is a question about anime names.
-
-**`related_franchises`** are the franchises the anime results belong to — the
-filter pills on the search page. Not the same set as `results.franchise`, which
-holds franchises whose own name matched.
 
 ---
 
@@ -1685,6 +1681,7 @@ derived from `(role, media_type)`, never stored.
 | `POST`   | `/`                | Admin  | Create a person, **or return the existing one** under that name — find-or-create, matching `resolve_person`, because `ensureSourceValues.js` POSTs here whenever a typed name is missing from a role-filtered dropdown. Body: `PersonCreate` (`PersonBase` fields + `roles: [{role, scope}]`), carrying either the four labelled name columns or one unslotted `name` that the endpoint places through `name_slot_for`. The lookup is by `name`, else the first of the labelled names - the first fragment of `name_alt` when that is all the body carries, since `name_alt` is a comma-separated list. A body with no name at all is 422, mirroring `ck_person_has_a_name`. Only on the create branch, `mal_id` is derived from `mal_link` and a seiyuu is enriched from MAL (see below). |
 | `PUT`    | `/{system_id}`     | Admin  | Fully update a person, replacing their `person_role` rows wholesale. Body: `PersonUpdate`. A non-null `photo_fallback_entry_id` must name an entry this person is credited on or voices a character in, and that the editor can see — 422 otherwise; a null keeps a stored choice the editor cannot see, as the role rows are kept. `mal_id` is derived from `mal_link`, and a seiyuu is enriched from MAL after the payload is copied (see below). |
 | `PATCH`  | `/{system_id}`     | Admin  | Partially update a person's own columns — the detail page's inline remark edit. Body: any subset of the `PersonBase` columns as a JSON object; only the keys sent change, and `roles` is not a column (edit it through `PUT`). The viewer's rating is not a column either; it is written through `PUT /api/me/ratings/person/{id}`. The `PUT` rules are checked before anything is written: `gender` is its vocabulary (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, at least one name survives the patch, and `photo_fallback_entry_id` follows the `PUT` rule — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. A `mal_link` in the body re-derives `mal_id`; `PATCH` never calls MAL. Returns the full `PersonResponse`. |
+| `POST`   | `/{system_id}/autofill` | Admin  | The detail page's **Autofill & update**: the MAL fill `PUT` runs, without a save — `mal_id` is derived from `mal_link`, then the empty columns are filled from MAL's people record; a column that holds a value is never overwritten. **422**, with nothing fetched, when the person has no MAL link or holds no `seiyuu` role (only a seiyuu is filled, as on save); the `detail` says which. A failed MAL fetch is logged and swallowed, as on save, so the unchanged person comes back with 200. 404 if absent or hidden. Returns `PersonResponse`. |
 | `DELETE` | `/{system_id}?credits=N` | Admin  | Delete a person. Cascades their `media_credit`, `character_casting_voice` and `person_role` rows — no `deleted_record` entry is logged. The castings they voiced stay, un-voiced by them (Decision H). `credits` is **required**: it is the count the confirmation dialog showed — `media_credit` rows plus voice rows — and a mismatch is a **409**, so the deletion that happens is the one the admin agreed to. |
 | `POST`   | `/{system_id}/merge` | Admin  | Merge `source_id` into this person: repoints every `media_credit` and every `character_casting_voice` row (a voice on a casting the survivor already voices is dropped), unions the `person_role` rows and moves every club membership onto the survivor, then deletes the loser. Every column the survivor leaves blank is then filled from the loser's, and one it holds is never overwritten; the picture (photo or logo) comes with its focus, a downloaded one renamed onto the survivor's own key (`app/services/domain/merge_fill.py`). 409, with nothing changed, if the filled names would equal another record's. Body: `MergeRequest` (`{source_id}`). 400 if merging into self. Returns `credits_moved`, credits and voices together. |
 | `GET`    | `/{system_id}/clubs` | `view.person` | The clubs this person belongs to, as `List[MembershipRef]`, ordered by name. Hidden clubs are omitted; 404 if the person is absent or hidden. |
@@ -1809,6 +1806,7 @@ role/scope filter — studios have no `person_role` concept.
 | `POST`   | `/`                   | Admin  | Create a studio, **or return the existing one** under that name — find-or-create, because the Add/Modify forms POST here through `ensureSourceValues.js` whenever a typed name is not in the suggestion list. Matching is on the normalized name (`find_studio`), looked up by the body's first name - the first fragment of `name_alt` when that is all it carries, since `name_alt` is a comma-separated list; metadata on an existing row is left untouched. Body: `StudioCreate`. Only on the create branch, a payload carrying `mal_id` is enriched from MAL first (see below). |
 | `PUT`    | `/{system_id}`        | Admin  | Fully update a studio. Every credit points at the row by id, so a rename here changes what every credited entry shows — there is no propagation step. Body: `StudioUpdate`. The MAL enrichment runs after the payload is copied, so your values win. |
 | `PATCH`  | `/{system_id}`        | Admin  | Partially update a studio's own columns — the detail page's inline remark edit. Body: any subset of the `StudioBase` columns as a JSON object. Only the keys sent change; the viewer's rating is written through `PUT /api/me/ratings/studio/{id}`. The `PUT` rules are checked before anything is written: `display_name_field` is `en`/`cn`/`jp`/`alt`, and at least one name survives the patch — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. Same checks as person's `PATCH` (`_entity_patch.prepare_patch`). A `mal_link` in the body re-derives `mal_id`; `PATCH` never calls MAL. Returns the full `StudioResponse`. |
+| `POST`   | `/{system_id}/autofill` | Admin  | The detail page's **Autofill & update**: the MAL fill `PUT` runs, without a save — `mal_id` is derived from `mal_link`, then the empty columns are filled from MAL's producer record; a column that holds a value is never overwritten. **422**, with nothing fetched, when the studio has no MAL link. A failed MAL fetch is logged and swallowed, as on save, so the unchanged studio comes back with 200. 404 if absent or hidden. Returns `StudioResponse`. |
 | `DELETE` | `/{system_id}`        | Admin  | Delete a studio. Cascades its `media_credit` rows — no `deleted_record` entry is logged. Merge, not delete, is the fix for a duplicate. |
 | `POST`   | `/{system_id}/merge`  | Admin  | Merge `source_id` into this studio: repoints every `media_credit` (dropping one that would duplicate a credit the survivor already holds), then deletes the loser. Every column the survivor leaves blank is then filled from the loser's, and one it holds is never overwritten; the picture (photo or logo) comes with its focus, a downloaded one renamed onto the survivor's own key (`app/services/domain/merge_fill.py`). 409, with nothing changed, if the filled names would equal another record's. Body: `MergeRequest`. 400 if merging into self. |
 
@@ -2072,6 +2070,7 @@ line for line, plus one deliberate departure — see the `POST` row.
 | `POST`   | `/`                    | Admin  | Create a character. **Always a plain create, never find-or-create** — unlike `POST /api/person`, which safely resolves two spellings of one director onto one row. Character names carry no unique constraint (see `docs/data-model.md`): the "Yuki" of one anime and the "Yuki" of another are different characters, and silently returning the first match on a POST would fuse two unrelated casts under one `system_id`. Disambiguation happens in the cast editor's combobox instead, which lists existing matches together with the entries they already appear in and requires an explicit "Create new character named X" choice before minting a row. Body: `CharacterCreate`. A body with no name at all is 422, mirroring `ck_character_has_a_name`. `mal_id` is derived from `mal_link`, and the character is then filled from MAL (see below). `appearance` and `trait` are written once the row exists (see **Tags** below). A null `display_name_field` becomes `cn` when `name_cn` is filled ([business-rules.md](business-rules.md#10a-entity-display-names-modelsstaffpy-modelscharacterpy-libnamingjs)). |
 | `PUT`    | `/{system_id}`         | Admin  | Fully update a character. Body: `CharacterUpdate`. A non-null `photo_fallback_entry_id` must name an entry this character is cast on and the editor can see — 422 otherwise; a null keeps a stored choice the editor cannot see. `mal_id` is derived from `mal_link`, and the character is filled from MAL after the payload is copied (see below). `appearance` and `trait` each replace their list whole; one left out or `null` is unchanged. A null `display_name_field` becomes `cn` when `name_cn` is filled, as on `POST`. |
 | `PATCH`  | `/{system_id}`         | Admin  | Partially update a character — the detail page's inline remark edit. Body: any subset of the `CharacterBase` columns as a JSON object; only the keys sent change; the viewer's rating is written through `PUT /api/me/ratings/character/{id}`. The `PUT` rules are checked before anything is written: `gender` and `role` are their vocabularies (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, at least one name survives the patch, and `photo_fallback_entry_id` follows the `PUT` rule — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored — except `appearance` and `trait`, which replace their lists as on `PUT` (`null` is unchanged; anything but a list of strings is a 422). A `mal_link` in the body re-derives `mal_id`; `PATCH` never calls MAL. Returns the full `CharacterResponse`. |
+| `POST`   | `/{system_id}/autofill` | Admin  | The detail page's **Autofill & update**: the MAL fill `PUT` runs, without a save — `mal_id` is derived from `mal_link`, the empty columns are filled from MAL's character record (a column that holds a value is never overwritten), and a null `display_name_field` becomes `cn` when `name_cn` is filled. **422**, with nothing fetched, when the character has no MAL link. A failed MAL fetch is logged and swallowed, as on save, so the unchanged character comes back with 200. 404 if absent or hidden. Returns `CharacterResponse`. |
 | `DELETE` | `/{system_id}?castings=N` | Admin | Delete a character. Cascades its `character_casting` rows, and their voices with them, and its `character_tag` rows. `castings` is **required**: the count the confirmation dialog showed, and a mismatch is a **409** — the same guard shape as `DELETE /api/person?credits=N`. |
 | `POST`   | `/{system_id}/merge`   | Admin  | Merge `source_id` into this character: repoints every casting, then deletes the loser. The loser's identities move to the survivor, after its own, with their cast rows. Castings are matched per identity: only where the survivor already holds a casting of the **same identity** on the same entry (a main row meeting a main row) is the loser's casting there dropped, its voices the survivor's casting lacks are appended to the survivor's, so no seiyuu is lost, and the survivor's casting fills its blank role, credited name, remark and photo from it. Every column the survivor leaves blank is then filled from the loser's, and one it holds is never overwritten; the picture (photo or logo) comes with its focus, a downloaded one renamed onto the survivor's own key (`app/services/domain/merge_fill.py`). Each tag list ends as the union of both: the survivor's values in their order, then the loser's it lacked. This — not delete — is the fix for a duplicate, since deleting cascades the castings away. Body: `MergeRequest` (`{source_id}`). 400 if merging into self. |
 | `POST`   | `/{system_id}/sync-from-cast` | `manage.catalog` | The character page's **Sync from cast**: one of this character's cast rows replaces the role, remark and photo (with its focus) of the record it casts - the identity it names, else the character; an identity has no role. A value the row does not hold - no role, a blank remark, no photo of its own - leaves the record's alone. A photo that is a library image is attached as well as written to `photo_file`. Body: `{casting_id}`. Returns the `CharacterResponse`. 404 for a cast row that is not this character's or is on an entry the caller cannot see. |
@@ -2421,7 +2420,7 @@ see [authorization.md](authorization.md) for why that is accepted.
 | `POST` | `/fill/cartoon`     | Fill missing metadata for all cartoons from TMDB/OMDb. Streams SSE progress. |
 | `POST` | `/fill/manga`       | Fill missing metadata for all manga from Tenrai. Streams SSE progress.        |
 | `POST` | `/fill/book`        | Fill missing metadata for all books from Tenrai, or from Open Library for a book with no MAL link. Streams SSE progress. |
-| `POST` | `/fill/comic`       | Runs options extraction for all comics. No external call — comics are manual-entry. Streams SSE progress. |
+| `POST` | `/fill/comic`       | Fill missing volume label, release year, issue total, credits and cover for every comic with a `comicvine_id` and a blank column, from Comic Vine; stops when the hourly budget is spent and reports how many were left. Then options extraction. Not part of Fill All. Streams SSE progress. |
 | `POST` | `/fill/h-comic`     | Fill `serialization_status`, `release_date`, `end_date`, the cover and - on a finished (`完結`) KR entry - `ch_total` from Tenrai's manga record, for every h-comic with a MAL id that is missing one of them; then the cover and the illustrator credit from the E-Hentai gallery in `ehentai_link` where they are still blank, for every h-comic whose link names a gallery (so an entry with only an E-Hentai link is filled too). All fill-only, 1 s between entries; then `run_sync_h_comic` (region clears over the whole table) and `run_sync_gated_labels`. Streams SSE progress. Part of Fill All. |
 | `POST` | `/fill/h-game`      | Game's Fill on the h-game table: IGDB (columns, the `studio` credit, `game_genre` / `game_theme`) and Steam (prices, achievements), then `run_sync_game` and `run_sync_gated_labels`. Streams SSE progress. Part of Fill All. |
 | `POST` | `/fill/hentai`      | Fill `airing_status`, `release_date`, `ep_total` and the cover (plus the Official site / Twitter reference rows) from Tenrai for every hentai with a MAL id that is missing one of the four, then from AniDB for whatever is still blank - also for a hentai with only an AniDB link, while AniDB is enabled - fill-only, 1 s between entries and 4 s between AniDB requests; an AniDB error answer (a ban) stops the run with the rest reported as skipped; then `run_sync_hentai` (system options) and `run_sync_gated_labels`. Streams SSE progress. Part of Fill All. |
@@ -2450,7 +2449,7 @@ see [authorization.md](authorization.md) for why that is accepted.
 | `POST` | `/replace/book/{entry_id}`              | Replace metadata for a single book entry by UUID. Returns JSON.                      |
 | `POST` | `/replace/game`                         | Replace for every game with a `steam_appid`, `steam_link`, `igdb_id` or `igdb_link`: IGDB (fill-only), then Steam (overwrites the Metacritic score and the two progress columns; the list prices are fill-only). Stops cleanly when the Steam storefront budget is spent. Streams SSE progress. Part of Replace All. |
 | `POST` | `/replace/game/{entry_id}`              | The same for one game — the detail page's Autofill button — then `run_sync_game`. Returns JSON. |
-| `POST` | `/replace/comic/{entry_id}`             | Runs the Replace write hook for a single comic entry. Fetches nothing — comics are manual-entry, so there is no external record to reconcile against; it exists only so the write is logged like every other type's. Returns JSON. |
+| `POST` | `/replace/comic/{entry_id}`             | The detail page's Autofill button: one Comic Vine volume fetch for a comic with a `comicvine_id`, fill-only (`autofill_comic_from_comicvine`, as Fill Comic), then `run_sync_comic`. **429** with nothing fetched when the hourly Comic Vine budget is spent, rather than blocking for the hour. A comic save does not call it: the save write hook (`execute_save_replace_comic`) fetches nothing, so editing a comic spends no quota. Returns JSON. |
 | `POST` | `/replace/h-comic`                      | Replace for every h-comic with a `mal_id`, `mal_link` or `ehentai_link`: the same Tenrai then E-Hentai fields as Fill, still fill-only, so it completes what is blank and overwrites nothing. Streams SSE progress. Part of Replace All. |
 | `POST` | `/replace/h-comic/{entry_id}`           | The same for one h-comic — the detail page's Autofill button and the write hook — then `run_sync_h_comic` and `run_sync_gated_labels`. Returns JSON. |
 | `POST` | `/replace/h-game`                       | Game's Replace for every h-game with a `steam_appid`, `steam_link`, `igdb_id` or `igdb_link`: IGDB (fill-only), then Steam. Streams SSE progress. Part of Replace All. |
@@ -2459,9 +2458,9 @@ see [authorization.md](authorization.md) for why that is accepted.
 | `POST` | `/replace/hentai/{entry_id}`            | The write hook for one hentai: the Tenrai fetch and the AniDB fetch, then `run_sync_hentai` and `run_sync_gated_labels`. Returns JSON. |
 | `POST` | `/replace/all`                          | Replace all + auto-backup on completion. Streams SSE progress.                       |
 
-**Single replace error mapping.** A single-entry Replace returns the pipeline's status dict; when `status == "error"` the router raises the HTTP code the dict names in `status_code` (404 for a missing entry) and falls back to **400** otherwise, instead of answering 200 with an error body.
+**Single replace error mapping.** A single-entry Replace returns the pipeline's status dict; when `status == "error"` the router raises the HTTP code the dict names in `status_code` (404 for a missing entry) and falls back to **400** otherwise, instead of answering 200 with an error body. An exception raised during the fetch is a **500** unless it names its own code (`HourlyBudgetSpent`: 429).
 
-**No bulk `/replace/comic`.** Bulk replace exists to re-fetch every entry from an external source (MAL ID for anime/manga/book, IMDb ID for movie/TV/cartoon). Comic has no external source — no `mal_*`/`anilist_*` columns and no MAL/AniList/TMDB/OMDb involvement — so there is nothing for a bulk pass to re-fetch, and no `execute_replace_comic` or `/replace/comic` route exists.
+**No bulk `/replace/comic`.** Comic Vine allows about 200 requests an hour, so a pass over every comic would not finish; Fill Comic is the bulk pass, and it stops when the budget is gone. There is no `execute_replace_comic` and no `/replace/comic` route — only the single-entry route above.
 
 ### Backup & Pull
 
@@ -2704,11 +2703,51 @@ files none. Rules: [systems/requests.md](systems/requests.md).
   `franchise`, `collection`, `studio`, `publisher`, `person`, `character`,
   `identity`. `label` is the target's current name, or the name copied when the
   request was filed once the target is gone (`missing: true`, `nav_path`
-  null). `nav_path` is the SPA detail path (`/anime/<uuid>`), null for a series.
+  null). `nav_path` is the SPA detail path (`/anime/<uuid>`, `/series/<uuid>`).
 - `author_username` and `handled_by_username` are null once that account is
   deleted — the SPA shows "deleted account".
 - `response` is the handler's remark, returned to the author on `/mine` too.
 - `can_edit` is true when the request is the caller's own and still open.
+
+---
+
+## Needs Work — `/api/needs-work`
+
+待補充 Needs Work: an entry of any of the twelve media types, a collection, a
+franchise or a series marked as not complete yet - a sequel not added, names
+missing, an official name not released - with an optional note
+(`app/routers/needs_work.py`, table [`needs_work`](data-model.md#needs_work)).
+One gate on the **router**: `manage.requests` (`require_handle_requests`), the
+inbox's key, which only `super` and the `admin` hold; everyone else gets
+**401** on every route.
+
+| Method | Path | Auth | Body / notes |
+|---|---|---|---|
+| GET | `/api/needs-work` | `manage.requests` | Every mark as `[NeedsWorkGroup]`, one group per note: the noted groups by note (case-insensitive), then the group whose `note` is null. Inside a group, by owner type in `OWNER_TABLES` order, then by name. `[]` when nothing is marked. |
+| GET | `/api/needs-work/notes` | `manage.requests` | `[{note, count}]` - every note a mark carries, most used first, then by note. A mark with no note offers nothing. The suggestions for the note field. |
+| GET | `/api/needs-work/{owner_type}/{owner_id}` | `manage.requests` | `NeedsWorkMark` for one owner: `flagged: false` and nulls when it is not marked. **404** for an unknown `owner_type` or an owner that does not exist. |
+| PUT | `/api/needs-work/{owner_type}/{owner_id}` | `manage.requests` | Body `{note?}` (`NeedsWorkWrite`): marks the owner, or changes the note of its mark - one mark per owner, so it is idempotent. The note is trimmed, and a blank one is stored as null. Returns the `NeedsWorkMark`. **404** as GET; **422** for any other key. |
+| DELETE | `/api/needs-work/{owner_type}/{owner_id}` | `manage.requests` | **204**. Clears the mark; clearing an owner that is not marked changes nothing. **404** as GET. |
+
+`owner_type` is an `OWNER_TABLES` key (`app/utils/media_resolver.py`): the
+twelve hyphenated media types, `collection`, `franchise` or `series`.
+`owner_id` is the owner's `system_id` - a UUID, as on every write. A media id
+filed under the wrong type (an anime's id as `manga`) is **404**.
+
+**`NeedsWorkMark`**: `owner_type`, `owner_id`, `flagged`, `note`,
+`created_at`, `updated_at`.
+
+**`NeedsWorkGroup`**: `note` (null for the unnoted group) and `items`, each a
+**`NeedsWorkItem`**: `owner_type`, `owner_id`, `type_label` ("Anime",
+"Franchise", ...), `is_tier`, `display_name`, `nav_path` - the SPA page,
+`/<owner_type>/<uuid>`, a series included - `note`, `created_at`,
+`updated_at`.
+
+**No object check.** The routes ask that an owner exists, not that the caller
+may see it, and the list names every marked owner whatever the caller's mode,
+as the inbox names its targets - the admin account, which reaches no catalogue
+object, reads the page in full. See
+[authorization.md](authorization.md#accepted-residuals).
 
 ---
 

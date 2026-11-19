@@ -42,7 +42,6 @@ const EMPTY_BUCKETS = {
 const RESULTS = {
   query: "ghibli",
   scope: "all",
-  related_franchises: [],
   results: {
     ...EMPTY_BUCKETS,
     anime: [
@@ -185,6 +184,30 @@ function renderPage(path = "/search?q=ghibli") {
     </QueryClientProvider>,
   );
 }
+
+describe("Search page — no franchise filter", () => {
+  it("draws no franchise filter pills over the anime results", async () => {
+    // Load-bearing: the matched anime belongs to a matched franchise, and the
+    // payload still carries the field the pills used to be built from - so
+    // their absence is the page not drawing them, not nothing to draw.
+    const f1 = {
+      system_id: "f1",
+      public_id: "f1",
+      franchise_name_en: "Ghibli Franchise",
+      franchise_type: "Anime",
+    };
+    searchPayload = {
+      ...RESULTS,
+      related_franchises: [f1],
+      results: { ...RESULTS.results, franchise: [f1] },
+    };
+    renderPage();
+    await screen.findByText("Ghibli Anime");
+    expect(screen.getByText("Ghibli Franchise")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "All results" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ghibli Franchise" })).not.toBeInTheDocument();
+  });
+});
 
 describe("Search page — tabs", () => {
   it("asks the API for the character bucket", async () => {

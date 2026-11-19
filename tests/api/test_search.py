@@ -127,12 +127,16 @@ class TestFranchiseExpansion:
         payload = guest_reader.get("/api/search/?q=Test+Franchise&scope=anime").json()
         assert str(a.system_id) not in ids(payload, "anime")
 
-    def test_related_franchises_covers_the_anime_results(
+    def test_the_response_carries_no_related_franchises(
         self, guest_reader, sample_anime, sample_franchise
     ):
+        """The anime results' franchises fed the search page's filter pills,
+        which are gone. Load-bearing: the matched anime HAS a franchise, so
+        the key's absence is not an anime with nothing to relate to."""
         payload = guest_reader.get("/api/search/?q=Test+Anime&scope=all").json()
-        related = [f["system_id"] for f in payload["related_franchises"]]
-        assert str(sample_franchise.system_id) in related
+        assert str(sample_anime.system_id) in ids(payload, "anime")
+        assert sample_anime.franchise_id == sample_franchise.system_id
+        assert "related_franchises" not in payload
 
 
 class TestSeasonal:

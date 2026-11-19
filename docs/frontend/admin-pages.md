@@ -13,7 +13,7 @@ server side of every action is in [../api.md](../api.md) and
 All admin routes are lazy chunks (loaded on first navigation). Each sits
 inside a `<ProtectedRoute>` naming its own key, and its nav row asks the
 same one. The admin account holds no `manage.catalog`, so of these it
-reaches the pipeline pages, the inbox, `/images`, the Note pages, the
+reaches the pipeline pages, the inbox, Needs Work, `/images`, the Note pages, the
 label reference and the RBAC pages — never the catalogue editors.
 
 | Route | File | Purpose | Key |
@@ -22,6 +22,7 @@ label reference and the RBAC pages — never the catalogue editors.
 | `/data-history` | `pages/admin/DataHistory.jsx` | Data-control logs and deleted-record audit | `manage.pipelines` |
 | `/review-queue` | `pages/admin/ReviewQueue.jsx` | Checks that list something to look at: remarks, duplicates, music, single-entry groups | `manage.pipelines` |
 | `/request-inbox` | `pages/admin/RequestInbox.jsx` | Every account's requests and reports: mark done or declined, reopen, delete | `manage.requests` |
+| `/needs-work` | `pages/admin/NeedsWork.jsx` | 待補充 Needs Work: every entry and group marked as not complete yet, grouped by note; change a note, clear a mark | `manage.requests` |
 | `/add` | `pages/admin/Add.jsx` + `pages/add-tabs/*` | Create entries, groups, options, quotes, memes | `manage.catalog` |
 | `/images` | `pages/admin/Images.jsx` | Image library: upload, filter, detach, delete | `manage.images` |
 | `/modify` | `pages/admin/Modify.jsx` + `pages/modify-tabs/*` | Edit an existing row (deep link `?id=`) | `manage.catalog` |
@@ -206,6 +207,43 @@ Data: `useRequestInbox(status)` from `api/mutations/useRequestMutations.js`
   requests refetch together. Outcomes are toasts.
 
 `GET /api/requests/summary` has no page yet; it is there for the dashboard.
+
+## /needs-work (`NeedsWork.jsx`)
+
+待補充 Needs Work: every entry and group whose data is not complete yet - a
+sequel not added, names missing, an official name not released. The route
+asks `manage.requests`, the inbox's key - super and the admin - and so does
+its **待補充 Needs Work** row in the System tab. Server side:
+[../api.md](../api.md#needs-work--apineeds-work).
+
+- **Data**: `useNeedsWorkList()` (`GET /api/needs-work`, key
+  `["needs-work", "list"]`) and `useNeedsWorkNotes()` (`GET
+  /api/needs-work/notes`) from `api/mutations/useNeedsWork.js`. Every write
+  invalidates the `["needs-work"]` prefix, so the page, the editor control
+  and the detail-page badge refetch together.
+- **One section per note**, in the order the server sends: the noted groups
+  by note, then **No note**. Each section is a table of type (a `Chip`, brand
+  for a tier), name (a link to the owner's page - a series too, at
+  `/series/<uuid>`), and when it was marked.
+- **Edit note** opens `ConfirmModal` with a `SuggestInput` over the notes in
+  use, then `PUT /api/needs-work/{owner_type}/{owner_id}` with `{note}` - a
+  blank note is sent as null and lands the row in No note.
+- **Clear** asks in `ConfirmModal` (danger) before `DELETE
+  /api/needs-work/{owner_type}/{owner_id}`.
+- Empty: "Nothing is marked", pointing at the Modify page.
+
+The page is not narrowed by the viewer's access mode: the admin, who reaches
+no catalogue object, reads every name too
+([../authorization.md](../authorization.md#accepted-residuals)). A row's link
+still answers 404 for a session that may not see the owner.
+
+A mark is set and cleared from its editor on `/modify` (below); this page
+changes its note and clears it. The **badge** (`components/needs-work/NeedsWorkBadge.jsx`) shows it on the
+fifteen owner pages - the twelve media detail pages and the collection,
+franchise and series hubs - beside **Report a problem**: a danger `Chip`
+reading 待補充 and the note, linking here. It is drawn only for a
+`manage.requests` holder, and only while the owner is marked; it asks
+`GET /api/needs-work/{owner_type}/{owner_id}` for nobody else.
 
 ## /add (`Add.jsx`)
 
@@ -544,9 +582,38 @@ from `comicvine_link` (only Fill does), so the pick sets it, the form carries
 it (`defaultComic`; hidden on `/defaults`) in a **Comic Vine ID** input beside
 the link, and both pages send it as typed, with or without a link.
 
-**Franchise / series pickers.** `ComboBox` over the loaded lists; "create new"
-opens `FranchiseCreateModal` / `CreateNewEntityModal`, which POST the group
-and select it. `ComboBox.onSelect` receives `(id, label)`.
+**Franchise / series pickers.** `ComboBox` over the loaded lists;
+`ComboBox.onSelect` receives `(id, label)`. Text typed that matches no
+existing group is kept, and the save creates the group before it writes the
+entry.
+
+**Creating the missing franchise and series.** Every media type's Add save
+and Modify save (and Modify's Series save, for its franchise) goes through
+`useGroupQuickCreate` (`hooks/useGroupQuickCreate.jsx`). When the form names
+a franchise or a series that does not exist, it asks once, in
+`GroupCreateModal` ("Create new franchise and series", or just the one that
+is missing), before anything is written:
+
+- **The names that will be used, editable.** Each new group shows its five
+  name fields (EN, CN, Roman, JP, Alt), filled from the entry's names
+  (`entryGroupNames`, `lib/groupQuickCreate.js`): a franchise from all five
+  of the entry's names, a series from its EN, CN and Alt. A name the entry's
+  type does not carry starts blank. Confirm stays disabled while a group has
+  no name at all; names are trimmed and a blank one is sent as `null`. The
+  series section also quotes the text typed in the series box.
+- **The franchise's types.** The type the media type implies (Anime for anime
+  and anime movie, Manga, Book, TV, Movie, Cartoon, Comic, Game, H-Comic,
+  H-Game, Hentai) is ticked and cannot be unticked; any other franchise type
+  of the same family may be ticked as well (`offeredFranchiseTypes`), since
+  the server refuses a `franchise_type` spanning two families. Gated types
+  the session cannot see are not offered. The ticked types are sent
+  comma-joined in vocabulary order (`"Anime, Manga"`). Modify's Series save
+  has no implied type: it starts on Anime, with the typed franchise text as
+  the EN name, and every mainstream type may be changed.
+- **Confirm** POSTs the franchise (`/api/franchise/`), then the series under
+  it (`/api/series/`), and the entry is saved into both. **Cancel** creates
+  nothing and the entry is not saved; a failed create says which group
+  failed and stops the save.
 
 **Submit.** Validation (at least one name) → `POST` the entry
 (`api/endpoints.js resource(type).create()`) → `PUT /api/credits/<type>/<id>`
@@ -972,6 +1039,14 @@ only land in its own grid. The swap is a draft until **Save Grid**.
   counter), and the label picker clears the previous selection before
   fetching, so a slow or failed fetch can never save one entry's credits or
   labels onto another.
+- **待補充 Needs Work.** Under the editor card's heading, for the twelve
+  media types and the three tiers (`NEEDS_WORK_OWNER_TYPES` in
+  `lib/needsWork.js`) and a `manage.requests` holder only:
+  `components/needs-work/NeedsWorkControl.jsx`, a checkbox and, once
+  ticked, a note field (`SuggestInput` over the notes in use) with **Save
+  note**. It saves on its own - ticking PUTs, unticking DELETEs - and never
+  through the editor's Save: the mark is its own row, not a column of the
+  entry. See [/needs-work](#needs-work-needsworkjsx).
 - **Other entries in this franchise.** Above the editor card, a media entry
   in a franchise gets a ribbon of that franchise's other entries of the same
   type, grouped by series (a "No Series" group last), each a chip that opens

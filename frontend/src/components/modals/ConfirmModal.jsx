@@ -1,7 +1,7 @@
 // Frontend: modal component file for ConfirmModal.
 //
 // A yes/no question in the app's own modal chrome (the shape of
-// CreateNewEntityModal), for the places a destructive action has to be
+// GroupCreateModal), for the places a destructive action has to be
 // confirmed. `danger` styles the confirming button as destructive. Escape
 // cancels, as clicking Cancel does.
 import { useEffect } from "react";

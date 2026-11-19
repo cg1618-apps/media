@@ -188,7 +188,6 @@ export default function GroupedEntryPage({
                               {name}
                             </Link>
                           ) : (
-                            // Series has no page of its own.
                             <span className="font-display text-base font-semibold text-text truncate">
                               {name}
                             </span>

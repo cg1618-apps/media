@@ -332,7 +332,8 @@ async def run_replace_single(
         db.rollback()
         logger.exception("Single replace failed for %s %s", spec.label, entry_id)
         _log(db, "Replace", action_specific, action_type, "Failed", log_action, error_message=str(e))
-        return {"status": "error", "message": str(e), "status_code": 500}
+        # An exception may name its own answer (comicvine.HourlyBudgetSpent: 429).
+        return {"status": "error", "message": str(e), "status_code": getattr(e, "status_code", 500)}
 
 
 # ---------------------------------------------------------------------------
