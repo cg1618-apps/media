@@ -60,6 +60,8 @@ import MovieModifyTab from "../modify-tabs/MovieModifyTab";
 import AnimeMovieModifyTab from "../modify-tabs/AnimeMovieModifyTab";
 import AnimeModifyTab from "../modify-tabs/AnimeModifyTab";
 import Fav3x3ModifyTab from "../modify-tabs/Fav3x3ModifyTab";
+import NeedsWorkControl from "../../components/needs-work/NeedsWorkControl";
+import { NEEDS_WORK_OWNER_TYPES } from "../../lib/needsWork";
 import QuoteManageTab from "../modify-tabs/QuoteManageTab";
 import MemeManageTab from "../modify-tabs/MemeManageTab";
 import PersonModifyTab from "../modify-tabs/PersonModifyTab";
@@ -3737,6 +3739,16 @@ export default function Modify() {
             <p className="text-xs text-brand font-bold">
               {editingType.toUpperCase()}
             </p>
+
+            {/* The mark is its own row, saved on its own: every owner type
+                the editor opens on - twelve media types and three tiers -
+                is a Needs Work owner. Not the options tab's. */}
+            {NEEDS_WORK_OWNER_TYPES.has(editingType) && (
+              <NeedsWorkControl
+                ownerType={editingType}
+                ownerId={editingItem.system_id}
+              />
+            )}
 
             {/* ── ANIME EDITOR ── */}
             {editingType === "anime" && (

@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-11-18
+Last verified: 2026-11-19
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -713,6 +713,15 @@ columns.
     target's `nav_path`, plain text when there is none (a series), the stored
     name plus "(deleted)" once the target is gone, the page address when there
     is no target.
+- **`components/needs-work/`** — 待補充 Needs Work.
+  - `NeedsWorkBadge` (`ownerType`, `ownerId`) — the danger `Chip` reading
+    待補充 and the note, linking to `/needs-work`. Drawn only when
+    `has("manage.requests")` and the owner is marked; for anyone else it
+    sends no request. Placed before `ReportProblemButton` on the fifteen
+    owner pages.
+  - `NeedsWorkControl` (`ownerType`, `ownerId`) — the Modify editor's
+    checkbox and note field. Saves on its own: PUT on tick and on Save
+    note, DELETE on untick. Drawn only when `has("manage.requests")`.
 - **`components/plan`** — `PlanKindToggles`, `SizeGroupControls`.
 - **`components/resources`** — `ResourceTree` (the `/resources` tree: nested
   collapsible groups, items, and for a manage.catalog holder every add, edit,

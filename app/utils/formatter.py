@@ -2282,6 +2282,25 @@ def parse_meme_from_sheet(raw: dict) -> dict:
     }
 
 
+def parse_needs_work_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Needs Work sheet into typed data ready
+    for the Database. The four owner columns are strict, like every plain
+    pointer: a junk cell becomes None, and the one-owner CHECK refuses the
+    row rather than a foreign key receiving garbage.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "media_id": _uuid_or_none(raw.get("media_id")),
+        "collection_id": _uuid_or_none(raw.get("collection_id")),
+        "franchise_id": _uuid_or_none(raw.get("franchise_id")),
+        "series_id": _uuid_or_none(raw.get("series_id")),
+        "note": parse_from_sheet(raw.get("note"), str),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
 def parse_resource_node_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Resources sheet into typed data ready for

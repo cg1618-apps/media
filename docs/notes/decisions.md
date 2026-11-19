@@ -1,6 +1,6 @@
 # Design decisions
 
-Last verified: 2026-11-18
+Last verified: 2026-11-19
 
 ## What this is for
 
@@ -5767,3 +5767,67 @@ shown buttons that answered 401.
   `NotesContext` — no endpoint, no query, and it follows edits to 角色
   Characters at once. The values stay names rather than row ids, the same
   choice `names` fields made for the cast.
+
+### 待補充 Needs Work (2026-11-19, no spec)
+
+Every entry and every group can be marked as not complete yet - sequels not
+added, names missing, an official name not released - with an optional note,
+and a page lists the marks grouped by note for the admin and super.
+
+- **One polymorphic table, `needs_work`, not two columns on fifteen tables.**
+  The owner is the `note` / `meme` shape: four nullable foreign keys
+  (`media_id`, `collection_id`, `franchise_id`, `series_id`), a CHECK that
+  exactly one is set, every one ON DELETE CASCADE - read off those two
+  models, whose four owner FKs all cascade. Two columns on each of twelve
+  entry tables and three tiers would have been thirty columns, fifteen
+  sheet tabs reshaped, and a page that queries fifteen tables to find what
+  is marked; one table answers the page with one query.
+- **The row is the flag.** No boolean column: clearing deletes the row, as on
+  `plan_next` and `user_favorite`, so "never marked" and "cleared" are one
+  state and the table holds only what is marked.
+- **One mark per owner, by a UNIQUE on each owner column.** A UNIQUE column
+  treats NULLs as distinct, so the three NULL columns on every row never
+  collide; `user_favorite` keys its two items the same way. A NULLS NOT
+  DISTINCT constraint over all four columns would have said the same thing
+  less directly.
+- **The note is free text and the grouping key.** Stored trimmed, blank as
+  NULL, so "a" and " a " are one group. A vocabulary (a `system_option`
+  category) was rejected: the notes are ad hoc and short-lived, and the
+  consistency a vocabulary would buy is got instead by suggesting the notes
+  already in use (`GET /api/needs-work/notes`, most used first) wherever a
+  note is typed.
+- **The permission is `manage.requests`.** The owner asked for the admin and
+  super. `manage.catalog` is the obvious name and is wrong here: the admin
+  role holds it locked off, so the admin would be refused. `manage.requests`
+  is held by exactly super and the admin, each locked on, and locked off for
+  every other role; it already means "handle what is wrong or incomplete in
+  the data" through the inbox, whose `incomplete_data` reports are the
+  members' version of the same thing. `manage.pipelines` and the four
+  admin-page keys have the same holders but mean something else. No new
+  permission was added. The key gates reads and writes alike, on the router.
+- **No object check, and no narrowing by mode.** The admin account resolves
+  the empty object set and reads no catalogue, so a page narrowed by mode
+  would be empty for one of the two roles it is for. The page names every
+  mark the way the inbox names every request's target; an owner must exist,
+  not be visible.
+- **Set from the Modify editor, saved on its own.** The editor header is the
+  one place all fifteen owner types are edited, so one call site covers them.
+  The control saves immediately rather than with the editor's Save, because
+  the mark is its own row: folding it into fifteen save paths would tie a
+  one-row write to the entry PATCH and its enrichment. The admin, who opens
+  no editor, changes notes and clears marks from the page.
+- **The badge is a separate read per detail page**, made only for a
+  `manage.requests` holder, rather than a field on every entry and group
+  response - that would have put a permission-dependent field on fifteen
+  response schemas for two roles.
+- **The marks travel on the Sheets backup**, as the `Needs Work` tab. The one
+  documented exclusion, `user_request`, is excluded because members file
+  requests on the box and a Pull would overwrite them with a development
+  machine's; the marks are the catalogue editor's own bookkeeping and move
+  with the catalogue they describe. The tab matches a row by its owner when
+  its uuid is unknown, so one owner marked on both machines is one row.
+- **Series link to `/series/<uuid>`.** `MediaRef.nav_path` is None for a
+  series (`app/utils/media_resolver.py`), written when a series had no page.
+  It has one now, so the Needs Work service builds every owner's path itself
+  rather than inherit the gap; the inbox and memes still link no series,
+  which is the resolver's to fix, not this feature's.

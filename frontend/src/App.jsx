@@ -82,6 +82,7 @@ const PickerDefaults = lazy(() => import("./pages/admin/PickerDefaults"));
 const DataHistory = lazy(() => import("./pages/admin/DataHistory"));
 const ReviewQueue = lazy(() => import("./pages/admin/ReviewQueue"));
 const RequestInbox = lazy(() => import("./pages/admin/RequestInbox"));
+const NeedsWork = lazy(() => import("./pages/admin/NeedsWork"));
 const CleanOrphans = lazy(() => import("./pages/admin/CleanOrphans"));
 const WatchOrders = lazy(() => import("./pages/admin/WatchOrders"));
 const Relations = lazy(() => import("./pages/admin/Relations"));
@@ -359,6 +360,10 @@ export default function App() {
                     System tab. */}
                 <Route element={<ProtectedRoute permission="manage.requests" />}>
                   <Route path="/request-inbox" element={<RequestInbox />} />
+                  {/* 待補充 Needs Work: the marks on incomplete entries and
+                      groups, handled by whoever handles incomplete-data
+                      reports. /api/needs-work asks manage.requests too. */}
+                  <Route path="/needs-work" element={<NeedsWork />} />
                 </Route>
 
                 {/* Catalogue work. manage.catalog is what the SPA's isAdmin

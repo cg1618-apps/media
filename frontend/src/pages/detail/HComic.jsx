@@ -11,6 +11,7 @@
 // 亮點 Highlights notes section.
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import NeedsWorkBadge from "../../components/needs-work/NeedsWorkBadge";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
 
 import { endpoints } from "../../api/endpoints";
@@ -409,11 +410,14 @@ export default function HComic() {
             {titleMain}
           </span>
         </nav>
-        <ReportProblemButton
-          targetType="h-comic"
-          targetId={system_id}
-          targetLabel={titleMain}
-        />
+        <div className="flex shrink-0 items-center gap-3">
+          <NeedsWorkBadge ownerType="h-comic" ownerId={system_id} />
+          <ReportProblemButton
+            targetType="h-comic"
+            targetId={system_id}
+            targetLabel={titleMain}
+          />
+        </div>
       </div>
 
       {isAdmin && (

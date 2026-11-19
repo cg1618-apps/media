@@ -43,6 +43,7 @@ import {
   ProgressRule,
 } from "../../components/ui/primitives";
 import MediaCard from "../../components/cards/MediaCard";
+import NeedsWorkBadge from "../../components/needs-work/NeedsWorkBadge";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import WatchOrderSection from "../../components/tracker/WatchOrderSection";
 import HubCharacters from "../../components/hub/HubCharacters";
@@ -1321,11 +1322,14 @@ export default function FranchisePage() {
         trail={trail}
         current={mainTitle}
         action={
-          <ReportProblemButton
-            targetType="franchise"
-            targetId={system_id}
-            targetLabel={mainTitle}
-          />
+          <div className="flex shrink-0 items-center gap-3">
+            <NeedsWorkBadge ownerType="franchise" ownerId={system_id} />
+            <ReportProblemButton
+              targetType="franchise"
+              targetId={system_id}
+              targetLabel={mainTitle}
+            />
+          </div>
         }
       />
 

@@ -231,6 +231,7 @@ describe("NAV_SECTIONS", () => {
       "/review-queue",
       "/clean-orphans",
       "/request-inbox",
+      "/needs-work",
     ]);
     expect(sectionRequirement(system)).toBe("manage.pipelines");
 
@@ -266,6 +267,24 @@ describe("NAV_SECTIONS", () => {
       (s) => s.key === "system",
     );
     expect(sectionItems(withInbox).map((i) => i.to)).toContain("/request-inbox");
+  });
+
+  it("lists Needs Work under System, gated on manage.requests", () => {
+    // The inbox's key, which App.jsx's /needs-work route asks. The same
+    // pipelines-only viewer makes the row's own gate bite; the mirror holds
+    // both keys.
+    const holdsPipelines = (p) => p === "manage.pipelines";
+    const without = visibleSections(NAV_SECTIONS, holdsPipelines).find(
+      (s) => s.key === "system",
+    );
+    expect(sectionItems(without).map((i) => i.to)).toContain("/system");
+    expect(sectionItems(without).map((i) => i.to)).not.toContain("/needs-work");
+
+    const holdsBoth = (p) => p === "manage.pipelines" || p === "manage.requests";
+    const withRow = visibleSections(NAV_SECTIONS, holdsBoth).find(
+      (s) => s.key === "system",
+    );
+    expect(sectionItems(withRow).map((i) => i.to)).toContain("/needs-work");
   });
 
   it("gates Entry and Note on any of the keys their rows ask", () => {
@@ -784,6 +803,7 @@ describe("the two permission surfaces agree", () => {
     "/defaults": "manage.catalog",
     "/random-defaults": "manage.catalog",
     "/request-inbox": "manage.requests",
+    "/needs-work": "manage.requests",
   };
 
   it("asks the same permission the route gate asks", () => {

@@ -180,6 +180,12 @@ describe("named endpoint groups", () => {
     );
   });
 
+  it("needsWork", () => {
+    expect(endpoints.needsWork.list()).toBe("/api/needs-work");
+    expect(endpoints.needsWork.notes()).toBe("/api/needs-work/notes");
+    expect(endpoints.needsWork.mark("anime", "X")).toBe("/api/needs-work/anime/X");
+  });
+
   it("resources", () => {
     expect(endpoints.resources.list()).toBe("/api/resources");
     expect(endpoints.resources.create()).toBe("/api/resources");

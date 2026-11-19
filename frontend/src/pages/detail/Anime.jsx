@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { releaseYear } from "../../lib/releaseDate";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import NeedsWorkBadge from "../../components/needs-work/NeedsWorkBadge";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import { useAuth } from "../../contexts/AuthContext";
 import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
@@ -208,11 +209,14 @@ export default function Anime() {
             {titleMain}
           </span>
         </nav>
-        <ReportProblemButton
-          targetType="anime"
-          targetId={system_id}
-          targetLabel={titleMain}
-        />
+        <div className="flex shrink-0 items-center gap-3">
+          <NeedsWorkBadge ownerType="anime" ownerId={system_id} />
+          <ReportProblemButton
+            targetType="anime"
+            targetId={system_id}
+            targetLabel={titleMain}
+          />
+        </div>
       </div>
 
       {/* Admin toolbar: a plain instrument strip */}

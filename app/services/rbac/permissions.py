@@ -91,7 +91,9 @@ MANAGE_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
     "requests": (
         "Handle Requests",
         "The request inbox: read every member's requests and reports, mark "
-        "them done or declined with a response, reopen them, and delete them.",
+        "them done or declined with a response, reopen them, and delete them. "
+        "Also the 待補充 Needs Work marks: mark an entry or a group as not "
+        "complete yet, and read the page that lists them.",
     ),
     "announcements": (
         "Manage Announcements",

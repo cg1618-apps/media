@@ -45,6 +45,7 @@ from app.models.media_relation import MediaRelation
 from app.models.media_source import MediaSource  # noqa: F401
 from app.models.meme import Meme
 from app.models.movie import Movies
+from app.models.needs_work import NeedsWork
 from app.models.note import Note
 from app.models.note_mark import NoteMark
 from app.models.plan_next import PlanNext
@@ -141,6 +142,7 @@ __all__ = [
     "Meme",
     "Note",
     "NoteMark",
+    "NeedsWork",
     "ResourceNode",
     "SystemOption",
     "SystemOptionAlias",

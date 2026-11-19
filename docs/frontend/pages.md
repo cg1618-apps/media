@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-11-18
+Last verified: 2026-11-19
 
 **What this is for.** This is the map of every page outside the admin
 tabs — what a guest can open, what a member adds (see "The guest scope"
@@ -155,7 +155,7 @@ about styling.
 | `extras` | Extras | flat | Quotes `/quote` and Memes `/meme` (each `feature: "quotes_memes"`), Resources `/resources` (`requires: "manage.resources"`, so the admin and super only) ┃ Relations `/relations`, Watch Orders `/watch-orders` — these two carry `requires: "manage.catalog"` on the row, inside a tab everyone may open |
 | `entry` | Entry | flat, `requires` any of `manage.catalog` / `manage.images` | Add `/add`, Modify `/modify`, Delete `/delete`, Form Defaults `/defaults`, Picker Defaults `/random-defaults` — each `requires: "manage.catalog"` — and Images `/images` (`requires: "manage.images"`). The admin holds no `manage.catalog`, so Images is the one row it sees |
 | `note` | Note | flat, `requires` any of `manage.options` / `admin.authz` / `manage.catalog` / `manage.pipelines` — whatever its rows ask, so the admin, holding no `manage.catalog`, still sees the whole section | System Options `/options`, Alias Conversion `/aliases`, External APIs `/external-apis` — the three read-only inventories of how the data is described, each `requires: "manage.options"` — Content Labels `/content-labels`, the read-only label reference, which carries `requires: ["admin.authz", "manage.catalog"]` (any of the two, the same either-of its route asks), and Business Logic `/business-logic`, what Calculate All changes step by step, which carries `requires: "manage.pipelines"` on the row, so only the super role and admin see it |
-| `system` | System | flat, `requires: "manage.pipelines"` | Control Center `/system`, Data History, Review Queue, Clean Orphans, and **Inbox** `/request-inbox`, which carries `requires: "manage.requests"` on the row — the key its route asks |
+| `system` | System | flat, `requires: "manage.pipelines"` | Control Center `/system`, Data History, Review Queue, Clean Orphans, **Inbox** `/request-inbox` and **待補充 Needs Work** `/needs-work`, each carrying `requires: "manage.requests"` on the row — the key both routes ask |
 | `admin` | Admin | flat, `requires: "admin.authz"` | Users, Roles, Access Modes |
 
 Each item has `label`, `icon` (Font Awesome class), `to`, optional `matches`
@@ -1145,7 +1145,7 @@ renders the card unlinked.
 Files `pages/detail/FranchisePage.jsx`, `SeriesPage.jsx`, `CollectionPage.jsx`
 (thin wrappers `Franchise.jsx`, `Series.jsx`, `Collection.jsx`). Chrome comes
 from `components/hub/` (`HubShell`, `Crumbs` — whose `action` slot holds the
-hub's **Report a problem** —, `AdminStrip` — the admin-only
+hub's **Report a problem**, beside the **待補充** badge —, `AdminStrip` — the admin-only
 dashed strip with the **Quick edit** link `/modify?id=…` —, `HeroCover` with
 the spine strip and optional progress rule, cropping the borrowed cover at
 its entry's focal point, `Field`, `HubTabs`, `Section`,
@@ -1246,7 +1246,10 @@ whose value it is:
 Top to bottom:
 
 1. **Breadcrumb** `/library/{type}` → title, with **Report a problem** at
-   the row's right-hand end for a `self.requests` holder (see MyRequests).
+   the row's right-hand end for a `self.requests` holder (see MyRequests),
+   and before it the **待補充** badge for a `manage.requests` holder while
+   the entry is marked Needs Work
+   ([admin-pages.md](admin-pages.md#needs-work-needsworkjsx)).
 2. **Admin toolbar** (`isAdmin`): **Quick Edit** → `/modify?id={id}`;
    **Mark Completed** → `POST {apiEndpoint}/{id}/complete` then refetch;
    the **release button** (`components/tracker/MarkReleaseButton.jsx`, rules
