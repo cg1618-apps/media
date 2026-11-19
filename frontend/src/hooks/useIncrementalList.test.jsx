@@ -36,7 +36,7 @@ function List({ items, batch }) {
     <>
       <ul>
         {visible.map((n) => (
-          <li key={n}>{n}</li>
+          <li key={n?.system_id ?? n}>{n?.label ?? n}</li>
         ))}
       </ul>
       {hasMore && <div ref={sentinelRef} data-testid="sentinel" />}
@@ -87,6 +87,37 @@ it("keeps its length when the page rebuilds the same list", () => {
   reachSentinel();
   rerender(<List items={[...items]} batch={10} />);
   expect(screen.getAllByRole("listitem")).toHaveLength(20);
+});
+
+// Library rows are objects, and saving one (a status toggle) hands back a new
+// object for it in an otherwise identical list. That is not a new list: the
+// drawn length stays, or the page shortens and the browser scrolls up.
+const rows = (n) => range(n).map((i) => ({ system_id: `s${i}`, label: `row ${i}` }));
+
+it("keeps its length when one row is replaced by an updated copy", () => {
+  const items = rows(25);
+  const { rerender } = render(<List items={items} batch={10} />);
+  reachSentinel();
+  expect(screen.getAllByRole("listitem")).toHaveLength(20);
+
+  const edited = items.map((row, i) => (i === 3 ? { ...row, label: "row 3 edited" } : row));
+  rerender(<List items={edited} batch={10} />);
+  expect(screen.getAllByRole("listitem")).toHaveLength(20);
+  expect(screen.getByText("row 3 edited")).toBeInTheDocument();
+
+  // Still growing afterwards: the observer follows the edited list.
+  reachSentinel();
+  expect(screen.getAllByRole("listitem")).toHaveLength(25);
+});
+
+it("still starts again from one batch when object rows are reordered", () => {
+  // The mirror: the same rows in a new order is a new list.
+  const items = rows(25);
+  const { rerender } = render(<List items={items} batch={10} />);
+  reachSentinel();
+  rerender(<List items={[...items].reverse()} batch={10} />);
+  expect(screen.getAllByRole("listitem")).toHaveLength(10);
+  expect(screen.getAllByRole("listitem")[0]).toHaveTextContent("row 24");
 });
 
 it("draws everything when there is no IntersectionObserver", () => {

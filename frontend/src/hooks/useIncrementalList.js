@@ -17,22 +17,25 @@ const LOOKAHEAD = "800px";
 // Read per call, not at import, so a test can install a fake observer.
 const hasObserver = () => typeof IntersectionObserver !== "undefined";
 
-// The same items in the same order, whether or not it is the same array. A
-// page may rebuild its list on every render (a context value that is not
-// memoised is enough), and resetting on identity alone would then never let
-// the list grow past one batch.
-function sameItems(a, b) {
-  return a === b || (a.length === b.length && a.every((item, i) => item === b[i]));
+// What identifies an item: a row's system_id, or the item itself. A saved row
+// comes back as a new object with the same id, and a page may rebuild its
+// list on every render (a context value that is not memoised is enough) - so
+// identity alone would reset after every edit, and never let the list grow.
+const keyOf = (item) => item?.system_id ?? item;
+
+// The same items in the same order: what `keys` recorded, against `items`.
+function sameKeys(keys, items) {
+  return keys.length === items.length && keys.every((key, i) => key === keyOf(items[i]));
 }
 
 export function useIncrementalList(items, batch = INCREMENTAL_BATCH) {
-  const [shown, setShown] = useState({ items, count: batch });
+  const [shown, setShown] = useState(() => ({ keys: items.map(keyOf), count: batch }));
   // A new list resets during render rather than in an effect, so the page
   // never draws one frame of the new list at the old length.
-  const changed = !sameItems(shown.items, items);
-  if (changed) setShown({ items, count: batch });
+  const changed = !sameKeys(shown.keys, items);
+  if (changed) setShown({ keys: items.map(keyOf), count: batch });
 
-  const list = changed ? items : shown.items;
+  const list = changed ? null : shown.keys;
   const count = changed ? batch : shown.count;
   const observing = hasObserver();
   const hasMore = observing && count < items.length;
@@ -47,7 +50,7 @@ export function useIncrementalList(items, batch = INCREMENTAL_BATCH) {
     const observer = new IntersectionObserver(
       ([record]) => {
         if (record.isIntersecting) {
-          setShown((s) => (s.items === list ? { items: list, count: s.count + batch } : s));
+          setShown((s) => (s.keys === list ? { keys: s.keys, count: s.count + batch } : s));
         }
       },
       { rootMargin: LOOKAHEAD },
