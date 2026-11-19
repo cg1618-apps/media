@@ -53,6 +53,7 @@ describe("GameModifyTab layout", () => {
       "Production",
       "Prices",
       "Copies",
+      "Cast",
       "Links & Sources",
       "Cover",
       "Structured Notes",

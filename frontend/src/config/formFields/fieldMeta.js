@@ -38,6 +38,7 @@ import {
   MOVIE_TYPES,
   MY_RATINGS,
   GENDERS,
+  PERSON_GENDERS,
   CHARACTER_ROLES,
   BOOK_REGIONS,
   BOOK_SERIALIZATION_STATUSES,
@@ -77,6 +78,13 @@ import { GENRE_LABEL_FIELDS, genreLabelSource } from "../../lib/genreLabelFields
 // displayEntityName() in lib/naming.js.
 const ENTITY_DISPLAY_NAME_OPTIONS = [
   { value: "", label: "Default (English)" },
+  ...STUDIO_NAME_FIELDS.map(({ key, label }) => ({ value: key, label })),
+];
+
+// A person's unset choice depends on the role: a seiyuu falls through
+// cn -> jp -> en -> alt, everyone else en first.
+const PERSON_DISPLAY_NAME_OPTIONS = [
+  { value: "", label: "Default (English; Chinese for a seiyuu)" },
   ...STUDIO_NAME_FIELDS.map(({ key, label }) => ({ value: key, label })),
 ];
 
@@ -1666,14 +1674,14 @@ export const TYPE_FIELD_META = {
     display_name_field: {
       label: "Display Name",
       control: "select",
-      options: ENTITY_DISPLAY_NAME_OPTIONS,
+      options: PERSON_DISPLAY_NAME_OPTIONS,
       group: "Names",
       autofillable: false,
     },
     gender: {
       label: "Gender",
       control: "select",
-      options: GENDERS,
+      options: PERSON_GENDERS,
       group: "Classification",
       autofillable: false,
     },

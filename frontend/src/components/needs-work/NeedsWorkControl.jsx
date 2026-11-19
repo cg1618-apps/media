@@ -1,27 +1,27 @@
-// Frontend: mark an entry or a group as 待補充 Needs Work, from its editor.
+// Frontend: mark a saved entry or group as 待補充 Needs Work.
 //
-// Sits in the Modify page's editor header, the one place every owner type -
-// the twelve media types and the three grouping tiers - is edited, so one
-// call site covers all fifteen. It saves on its own rather than with the
-// editor's Save: the mark is its own row (needs_work), not a column of the
-// entry, so toggling it neither needs nor disturbs the rest of the form.
+// Drawn in the Modify page's editor header and in the detail page's badge
+// popover (NeedsWorkBadge), for all fifteen owner types - the twelve media
+// types and the three grouping tiers. It saves on its own rather than with
+// the editor's Save: the mark is its own row (needs_work), not a column of
+// the entry, so toggling it neither needs nor disturbs the rest of the form.
+// A record not saved yet is marked from the Add form instead
+// (NeedsWorkAddField), which saves the mark after the create.
 //
 // Drawn only for a viewer holding manage.requests, the key every
-// /api/needs-work route asks. The note is free text that also groups the
-// marks on the Needs Work page, so it offers the notes already in use.
+// /api/needs-work route asks. The note field is NeedsWorkNoteInput: the
+// common notes as chips, and those plus the notes in use as suggestions.
 import { useState } from "react";
 
 import {
   useClearNeedsWork,
   useNeedsWorkMark,
-  useNeedsWorkNotes,
   useSetNeedsWork,
 } from "../../api/mutations/useNeedsWork";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
-import SuggestInput from "../forms/SuggestInput";
-import { inputCls } from "../forms/FormField";
 import { Button } from "../ui/primitives";
+import NeedsWorkNoteInput from "./NeedsWorkNoteInput";
 
 export default function NeedsWorkControl({ ownerType, ownerId }) {
   const auth = useAuth();
@@ -29,7 +29,6 @@ export default function NeedsWorkControl({ ownerType, ownerId }) {
   const canMark = Boolean(auth?.has?.("manage.requests"));
   const { data: mark } = useNeedsWorkMark(ownerType, ownerId, { enabled: canMark });
   const flagged = mark?.flagged === true;
-  const { data: notes } = useNeedsWorkNotes({ enabled: canMark && flagged });
   const setMark = useSetNeedsWork();
   const clearMark = useClearNeedsWork();
 
@@ -77,7 +76,6 @@ export default function NeedsWorkControl({ ownerType, ownerId }) {
         <NoteField
           key={`${ownerId}:${mark.note ?? ""}`}
           stored={mark.note}
-          options={(notes ?? []).map((n) => n.note)}
           busy={busy}
           onSave={(note) =>
             run(setMark.mutateAsync({ ownerType, ownerId, note }), "Note saved")
@@ -88,19 +86,12 @@ export default function NeedsWorkControl({ ownerType, ownerId }) {
   );
 }
 
-function NoteField({ stored, options, busy, onSave }) {
+function NoteField({ stored, busy, onSave }) {
   const [note, setNote] = useState(stored ?? "");
   const changed = (note.trim() || null) !== (stored ?? null);
   return (
-    <div className="flex items-center gap-2">
-      <SuggestInput
-        aria-label="Needs Work note"
-        placeholder="Note - marks with the same note are listed together"
-        value={note}
-        onChange={setNote}
-        options={options}
-        className={inputCls}
-      />
+    <div className="flex items-end gap-2">
+      <NeedsWorkNoteInput value={note} onChange={setNote} />
       <Button
         type="button"
         size="sm"

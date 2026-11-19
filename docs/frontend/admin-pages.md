@@ -230,20 +230,31 @@ its **待補充 Needs Work** row in the System tab. Server side:
   blank note is sent as null and lands the row in No note.
 - **Clear** asks in `ConfirmModal` (danger) before `DELETE
   /api/needs-work/{owner_type}/{owner_id}`.
-- Empty: "Nothing is marked", pointing at the Modify page.
+- Empty: "Nothing is marked", pointing at the badge on a record's page and at Add and Modify.
 
 The page is not narrowed by the viewer's access mode: the admin, who reaches
 no catalogue object, reads every name too
 ([../authorization.md](../authorization.md#accepted-residuals)). A row's link
 still answers 404 for a session that may not see the owner.
 
-A mark is set and cleared from its editor on `/modify` (below); this page
-changes its note and clears it. The **badge** (`components/needs-work/NeedsWorkBadge.jsx`) shows it on the
-fifteen owner pages - the twelve media detail pages and the collection,
-franchise and series hubs - beside **Report a problem**: a danger `Chip`
-reading 待補充 and the note, linking here. It is drawn only for a
-`manage.requests` holder, and only while the owner is marked; it asks
+A mark is set in three places: on `/add`, while the record is created
+(below); from its editor on `/modify` (below); and from the **badge** on its
+own page. This page changes its note and clears it. The badge
+(`components/needs-work/NeedsWorkBadge.jsx`) sits on the fifteen owner
+pages - the twelve media detail pages and the collection, franchise and
+series hubs - beside **Report a problem**: a danger `Chip` reading 待補充 and
+the note while the owner is marked, a dashed **+ 待補充** `Chip` while it is
+not. Either opens a popover holding the same `NeedsWorkControl` the editor
+draws, and a link here; a click outside it or Escape closes it. It is drawn
+only for a `manage.requests` holder, once the mark has been read; it asks
 `GET /api/needs-work/{owner_type}/{owner_id}` for nobody else.
+
+**The note field** (`components/needs-work/NeedsWorkNoteInput.jsx`) is the
+same in all three places: the values of the `Needs Work Note` option
+category - common notes, curated on the Options tab - as `QuickPicks`
+chips ("Common notes"; clicking the pressed chip clears), above a
+`SuggestInput` offering those first and then the notes in use. The note
+stays free text.
 
 ## /add (`Add.jsx`)
 
@@ -416,7 +427,8 @@ every type; a type leaves out what it lacks:
 6. **Production** (`fa-pen-nib`) — the studio, publisher and people credits.
 7. **Cast** (`fa-users`).
 8. Type extras — **Prices** and **Copies** (game, h-game), **Read Order**
-   (comic), **Units** (book).
+   (comic), **Units** (book). The game form is the one exception to 7 before
+   8: its **Cast** comes after **Copies**, by the owner's choice.
 9. **Links & Sources** (`fa-external-link-alt`) — each external id beside its
    link, the official or exclusive source, then the Sources editor.
 10. **Cover** (`fa-image`).
@@ -628,17 +640,32 @@ Content labels reset only after a successful submit; a validation
 early-return or a failed POST keeps the selection. Network failures surface
 as an error toast.
 
-**A group's own rating.** The Collection, Franchise and Series tabs draw a
+**The viewer's own rating.** The Collection, Franchise and Series tabs draw a
 **My Rating** select (`MY_RATINGS`) and an **Expectation** select
 (`FRANCHISE_EXPECTATIONS`, the one vocabulary all three tiers share), under
-Other Information (`GroupRatingFields`) - only for a
-viewer who keeps a list (`useViewScope().ownData`, `self.list`). Both are the
-viewer's own, not columns of the group, so the create call never carries
-them: once it has returned the new id, the values chosen are sent as
-`PUT /api/me/ratings/<tier>/<id>` (`useSaveMyRating`), before the group's
-content labels, and nothing is sent when none was chosen. If that PUT fails
-the group is still created, and an error toast says "<Tier> saved, but your
+Other Information; the Person, Character, Studio and Publisher tabs draw
+**My Rating** alone, above Remark - an entity has no expectation. Both come
+from `MyRatingFields`, and only for a viewer who keeps a list
+(`useViewScope().ownData`, `self.list`). They are the viewer's own, not
+columns of the record, so the create call never carries them: once it has
+returned the new id, the values chosen are sent as
+`PUT /api/me/ratings/<owner_type>/<id>` (`useFormRatingSaver`), before
+anything that could hide the new row from the saving session (a group's
+content labels), and nothing is sent when none was chosen. If that PUT fails
+the record is still created, and an error toast says "<Type> saved, but your
 rating did not save."
+
+**待補充 Needs Work.** The twelve media tabs and the three tier tabs
+(`NEEDS_WORK_OWNER_TYPES`) draw `NeedsWorkAddField` under the content labels,
+for a `manage.requests` holder only: a **待補充 Needs Work** checkbox and,
+once ticked, the note field (`NeedsWorkNoteInput`, common notes as chips).
+Like the content labels it is held on the page (`needsWork`, `{flagged,
+note}`), not in a tab's form. Nothing is written while editing: once the
+create has returned the new id, `saveNeedsWork` sends `PUT
+/api/needs-work/<owner_type>/<id>` with the note, and nothing when the box
+is unticked. The field resets either way, so the next record does not
+inherit it. If the PUT fails the record is still created, and an error toast
+says the mark failed and can be set from the record's page.
 
 **Game tab.** `GameAddTab.jsx`. Two boxes, like every media tab:
 `EntryAutofillSearch` over the loaded games (`applyEntryAutofill(setGmf,
@@ -680,9 +707,12 @@ mode and combat vocabularies - picking a platform console picks its family
 too, and a family stays picked while one of its consoles is
 (`lib/gamePlatforms.js`); Genre, Theme and Label; Production (Developer
 is a **studio** row, Publisher a **publisher** row; director and composer are
-people scoped to `game`); the three **Prices** (the MSRP per region); **Copies**; the IGDB and Steam
+people scoped to `game`); the three **Prices** (the MSRP per region); **Copies**; **Cast** (`CastEditor`
+with `mediaType="game"`, seiyuu included - and no `franchiseId` or `malLink`,
+so neither **Import cast from…** nor the MAL import is offered; **Sync from
+original** is); the IGDB and Steam
 ids and links with the sources; cover. Submit needs a CN or EN name, `POST /api/game/` then
-`saveCredits`; **games are never enriched on Add** — the toast is a plain "Game
+`saveCredits` and the cast (`PUT /api/casting/game/<id>`); **games are never enriched on Add** — the toast is a plain "Game
 appended successfully."
 
 **H-Comic tab.** `HComicAddTab.jsx`, offered only to a session that can see
@@ -794,12 +824,11 @@ entry's Ownership is derived from these rows, not typed.
 bar filters a list, and Add has no list; the role × scope matrix inside the
 form already says which types a new person holds. `PersonFields` holds the four name fields with a
 "Display name" select, the **role × scope matrix**, then gender
-(`GenderField` from `components/forms/EntityProfileFields.jsx`: **男** and
-**女** as `QuickPicks` chips beside a closed select of "—" plus every
-`GENDERS` value — one click picks, clicking the pressed chip clears, and the
-select follows either way and is how the other genders are picked; unset
-saves as null). There is no rating field: a rating is the viewer's own, set on
-the person's page. Then a **MAL Link** (`mal_link`; the server reads the MAL id from
+(`GenderField` from `components/forms/EntityProfileFields.jsx` with
+`kind="person"`: **男** and **女** as `QuickPicks` chips beside a closed
+select of "—", 男 and 女 — `PERSON_GENDERS`, a person's whole vocabulary — one
+click picks, clicking the pressed chip clears, and the select follows either
+way; unset saves as null). Then a **MAL Link** (`mal_link`; the server reads the MAL id from
 its `myanimelist.net/people/<id>` path, so there is no id field), the photo
 and the remark. Ticking a type selects its first legal media type, because a
 scopeless role is a 422; the legal types per role come from
@@ -816,7 +845,7 @@ person form without the role × scope matrix: the four name fields, the
 "Display name" select, a **Role** as `QuickPicks` chips — one per
 `CHARACTER_ROLES` value, Main, Core, Important Supporting, Supporting, Other, with no select beside
 them since all four fit at any width; clicking the pressed chip clears it to
-none — the same Gender field (no rating, as on the person form), **Appearance** and **Trait**
+none — the same Gender field, over a character's five `GENDERS` rather than a person's two, **Appearance** and **Trait**
 (`MultiSelect`s suggesting from the `Character Appearance` and `Character
 Trait` option categories — one vocabulary each, for every character, no
 scope; `lib/characterForm.js` turns the comma-joined form strings into the
@@ -933,8 +962,8 @@ sub-tab and the Note Suggestions sub-tab, whose categories are each one group
 Chinese, Japanese, Alternative) with a "Display name" select naming which one
 to show, plus logo key, country, founded/defunct dates
 (`ReleaseDateInput`, so partial precision is allowed), website, MAL id/link
-and remark — no rating, which is the viewer's own and set on the studio's
-page. Submit is blocked client-side until at least one name is filled,
+and remark, with **My Rating** above it for a list keeper (see "The viewer's
+own rating" above). Submit is blocked client-side until at least one name is filled,
 matching `ck_studio_has_a_name` and the schema's 422. `POST /api/studio/` is
 find-or-create: posting a name that already exists returns the existing
 studio rather than splitting its credits, and leaves its metadata untouched.
@@ -1043,8 +1072,8 @@ only land in its own grid. The swap is a draft until **Save Grid**.
   media types and the three tiers (`NEEDS_WORK_OWNER_TYPES` in
   `lib/needsWork.js`) and a `manage.requests` holder only:
   `components/needs-work/NeedsWorkControl.jsx`, a checkbox and, once
-  ticked, a note field (`SuggestInput` over the notes in use) with **Save
-  note**. It saves on its own - ticking PUTs, unticking DELETEs - and never
+  ticked, the note field (`NeedsWorkNoteInput`: the common notes as chips,
+  and suggestions) with **Save note**. It saves on its own - ticking PUTs, unticking DELETEs - and never
   through the editor's Save: the mark is its own row, not a column of the
   entry. See [/needs-work](#needs-work-needsworkjsx).
 - **Other entries in this franchise.** Above the editor card, a media entry
@@ -1135,18 +1164,23 @@ only land in its own grid. The swap is a draft until **Save Grid**.
   order; reordering them is the detail page's.
 - **Franchise / Series tabs** also expose the plan-next / rewatch toggles
   (`PlanKindToggles`) and size-group overrides (`SizeGroupControls`).
-- **A group's own rating.** The Collection, Franchise and Series tabs draw
+- **The viewer's own rating.** The Collection, Franchise and Series tabs draw
   **My Rating** and **Expectation** under Other Information for a viewer who
-  keeps a list, as on `/add`. `collectionToForm`, `franchiseToForm` and
+  keeps a list, as on `/add`; the Person, Character, Studio and Publisher
+  tabs draw **My Rating** alone. `collectionToForm`, `franchiseToForm` and
   `seriesToForm` seed them from the row's `my_rating` and its tier's
-  `*_expectation`. The save `PATCH`es the group
-  without them, then sends `PUT /api/me/ratings/<tier>/<id>` with only the
-  keys that differ from the row it opened (`groupRatingChanges`; a cleared
-  value is `null`) - none, no PUT - and before the label set, which can hide
-  the group from the saving session. The answer is folded into the saved
+  `*_expectation`, and the four entity tabs' `*ToForm` from the record's
+  `my_rating`. The save writes the record
+  without them, then sends `PUT /api/me/ratings/<owner_type>/<id>` with only the
+  keys that differ from the stored row (`myRatingChanges` in
+  `useFormRatingSaver`; a cleared value is `null`; an entity diffs against
+  its PUT's answer, which carries the stored rating) - none, no PUT - and a
+  group's before the label set, which can hide the group from the saving
+  session. The answer is folded into the saved
   row (`applyMyRating`), so the series form, which reloads from that row,
-  keeps the new rating. A failed PUT leaves the group saved and toasts
-  "<Tier> saved, but your rating did not save."
+  keeps the new rating; an entity tab folds it into the form it reloads the
+  same way. A failed PUT leaves the record saved and toasts "<Type> saved,
+  but your rating did not save."
 - **Studio tab (Entity).** `StudioModifyTab.jsx` bypasses the search / open /
   save machinery above, which is shaped around media entries and the grouping
   tiers: it owns its own `useQuery` over `/api/studio/`, its own picker and

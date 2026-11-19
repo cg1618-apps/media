@@ -1,6 +1,7 @@
 """
-The two closed vocabularies a character and a person share: gender and
-my_rating.
+The closed vocabularies of a character and a person: gender and my_rating.
+my_rating is shared; gender is not - a character takes GENDERS, a person
+(seiyuu included) only PERSON_GENDERS, 男 or 女.
 
 Two strictnesses, on purpose:
 
@@ -22,7 +23,7 @@ module: a migration must keep meaning what it meant when it ran.
 
 from typing import Optional
 
-from app.utils.constants import GENDERS, MY_RATINGS
+from app.utils.constants import GENDERS, MY_RATINGS, PERSON_GENDERS
 
 # Free-text spellings the old gender column held that have a plain meaning in
 # the vocabulary. Keys are casefolded.
@@ -36,14 +37,23 @@ def _blank_to_none(value: Optional[str]) -> Optional[str]:
     return value or None
 
 
-def check_gender(value: Optional[str]) -> Optional[str]:
-    """A gender for a write: one of GENDERS or None. Raises ValueError."""
+def _check_in(value: Optional[str], vocabulary: tuple[str, ...]) -> Optional[str]:
     value = _blank_to_none(value)
-    if value is not None and value not in GENDERS:
+    if value is not None and value not in vocabulary:
         raise ValueError(
-            f"'{value}' is not a gender. Expected one of: " + ", ".join(GENDERS)
+            f"'{value}' is not a gender. Expected one of: " + ", ".join(vocabulary)
         )
     return value
+
+
+def check_gender(value: Optional[str]) -> Optional[str]:
+    """A character's gender for a write: one of GENDERS or None. Raises ValueError."""
+    return _check_in(value, GENDERS)
+
+
+def check_person_gender(value: Optional[str]) -> Optional[str]:
+    """A person's gender for a write: one of PERSON_GENDERS or None. Raises ValueError."""
+    return _check_in(value, PERSON_GENDERS)
 
 
 def check_my_rating(value: Optional[str]) -> Optional[str]:
@@ -56,14 +66,23 @@ def check_my_rating(value: Optional[str]) -> Optional[str]:
     return value
 
 
-def normalize_gender(value: Optional[str]) -> Optional[str]:
-    """A stored or restored gender folded onto GENDERS; anything else is None."""
+def _normalize_in(value: Optional[str], vocabulary: tuple[str, ...]) -> Optional[str]:
     value = _blank_to_none(value)
     if value is None:
         return None
-    if value in GENDERS:
+    if value in vocabulary:
         return value
     return _GENDER_SPELLINGS.get(value.casefold())
+
+
+def normalize_gender(value: Optional[str]) -> Optional[str]:
+    """A character's stored or restored gender folded onto GENDERS; anything else is None."""
+    return _normalize_in(value, GENDERS)
+
+
+def normalize_person_gender(value: Optional[str]) -> Optional[str]:
+    """A person's restored gender folded onto PERSON_GENDERS; anything else is None."""
+    return _normalize_in(value, PERSON_GENDERS)
 
 
 def normalize_my_rating(value: Optional[str]) -> Optional[str]:

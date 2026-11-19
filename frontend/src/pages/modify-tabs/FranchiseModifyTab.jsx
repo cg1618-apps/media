@@ -1,5 +1,5 @@
 // Frontend: modify tab page file for FranchiseModifyTab.
-import GroupRatingFields from "../../components/forms/GroupRatingFields";
+import MyRatingFields from "../../components/forms/MyRatingFields";
 import { useEffect, useState } from "react";
 import { getDisplayName, parseTypes } from "../../utils/media";
 import { releaseYear } from "../../lib/releaseDate";
@@ -315,7 +315,7 @@ export default function FranchiseModifyTab({
         {/* The viewer's own rating and expectation (self.list), saved
             through /api/me/ratings after the franchise itself - see
             saveFranchise in Modify.jsx. */}
-        <GroupRatingFields kind="franchise" form={ff} update={uf} />
+        <MyRatingFields kind="franchise" form={ff} update={uf} />
       </div>
       {franchiseTypes.length > 0 && (
         <div className="space-y-3 mt-4">

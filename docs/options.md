@@ -103,7 +103,8 @@ type it serves is seeable.
 | `FRANCHISE_FAMILY_FOR_TYPE` | `H-Comic`, `Hentai` and `H-Game` -> `restricted` (`RESTRICTED_FAMILY`); any other type is `mainstream` (`MAINSTREAM_FAMILY`) | which franchise types may share a franchise, and which franchises an entry may sit in. A franchise type list spanning two families is refused (422) | not served |
 | `FRANCHISE_EXPECTATIONS` | `Highest`, `High`, `Medium`, `Low` | `user_rating.expectation`, the viewer's own expectation of a collection, franchise or series (served as `collection_expectation` / `franchise_expectation` / `series_expectation`). **Enforced** by `PUT /api/me/ratings`: anything else is a 422 | `franchise_expectation` |
 | `MY_RATINGS` | `S`, `A+`, `A`, `B`, `C`, `D`, `E`, `F` | `my_rating` on `user_media_list` (entries), `seasonal`, `user_book_unit_rating` and `user_rating` (collection, franchise, series, person, character, studio, publisher). **Enforced** on every `user_rating` and unit write through `PUT /api/me/ratings` and `PUT /api/me/book-units`: a write naming anything else is a 422 and `""` is NULL (`check_my_rating`, `app/utils/entity_vocab.py`) | `my_rating` |
-| `GENDERS` | `男`, `女`, `中性/無性`, `雙性混和`, `其他` | `gender` on `person` and `character`. NULL means not set and is not a sixth value. **Enforced**: a write naming anything else is a 422 and `""` is NULL. A Sheets Pull folds an old free-text cell instead of refusing it - `male` -> `男`, `female` -> `女` (trimmed, any case), anything else unreadable -> NULL - and folds `my_rating` by trimming and upper-casing, the same rules the revision that closed both vocabularies applied to the stored rows | `gender` |
+| `GENDERS` | `男`, `女`, `中性/無性`, `雙性混和`, `其他` | `gender` on `character` (and `character_identity`). NULL means not set and is not a sixth value. **Enforced**: a write naming anything else is a 422 and `""` is NULL. A Sheets Pull folds an old free-text cell instead of refusing it - `male` -> `男`, `female` -> `女` (trimmed, any case), anything else unreadable -> NULL - and folds `my_rating` by trimming and upper-casing, the same rules the revision that closed both vocabularies applied to the stored rows | `gender` |
+| `PERSON_GENDERS` | `男`, `女` | `gender` on `person`, seiyuu included; a studio or publisher has no gender. NULL means not set. **Enforced** the same way as `GENDERS`, and a Pull restores a character-only value (`中性/無性`, `雙性混和`, `其他`) on a person as NULL | `person_gender` |
 | `IS_MAIN` | `本傳`, `外傳`, `前傳`, `後傳`, `總集篇` | `is_main` on anime, movies, tv_shows, cartoons, manga, book (formerly the `Main / Spinoff` system-option category; comic has no `is_main`; games read `GAME_IS_MAIN`) | `is_main` |
 | `MOVIE_TYPES` | `Reality`, `Animation` | movie type | `movie_type` |
 | `TV_REGIONS` | `歐美劇`, `韓劇`, `日劇`, `陸劇`, `台劇`, `動畫` | `tv_shows.region` (formerly `Region (TV Show)` option category) | `tv_region` |
@@ -463,7 +464,7 @@ it is also the vocabulary of `person_role.role` - one list, not two.
 | `author` | Author | person | manga, book, comic, h-comic, hentai |
 | `illustrator` | Illustrator | person | manga, book, comic, h-comic |
 | `club` | Club | person | h-comic |
-| `seiyuu` | Seiyuu 聲優 | person | anime, anime-movie, hentai |
+| `seiyuu` | Seiyuu 聲優 | person | anime, anime-movie, hentai, game |
 
 `PERSON_ROLES` (derived, served as `/api/constants` `person_role`): `director`,
 `producer`, `composer`, `author`, `illustrator`, `club`, `seiyuu` -
@@ -647,8 +648,8 @@ backs `media_source` `kind='reference'` rows directly, resolved by
 `option_category`, a section's `kind_category` and `link_text_category`)
 rather than listed, so a section that names a new category offers it with no
 second edit. `OPTION_CATEGORIES` = the tag-field categories, the two character
-tag categories (`CHARACTER_OPTION_CATEGORIES`) and these eleven,
-served as `/api/constants` `option_categories` and unioned with the
+tag categories (`CHARACTER_OPTION_CATEGORIES`), these eleven, and
+`Needs Work Note` (`NEEDS_WORK_NOTE_CATEGORY`), served as `/api/constants` `option_categories` and unioned with the
 categories present in the stored options to build the category picker on the
 Add and Modify pages. Without it a declared category holding no values yet
 could not be picked at all, so the first value of a new tag field had nowhere
@@ -726,7 +727,7 @@ described in
 
 **Categories.** The category string is free text on the API
 (`SystemOptionCreate.category: str`), but the ones anything reads are the
-twenty-seven in `OPTION_CATEGORIES`:
+ones in `OPTION_CATEGORIES`:
 
 | Category | Offered in (scopes) | Read by |
 |---|---|---|
@@ -760,6 +761,7 @@ twenty-seven in `OPTION_CATEGORIES`:
 | `Enemy Tier` | unscoped (read by game and h-game notes) | suggestions for a 敵人 Enemies row's tier (`enemies`, `note.kind`); ships empty. Suggestions only |
 | `Side Quest Type` | unscoped (read by game and h-game notes) | suggestions for a 支線任務 Side Quests row's type (`side_quests`, `note.kind`); `大支線` and `小支線` seeded by `s1q2uests345`. Suggestions only |
 | `Geography Group` | unscoped (read by game and h-game notes) | suggestions for a 地理 Geography row's group (`geography`, `note.kind`); ships empty. Suggestions only |
+| `Needs Work Note` | unscoped (read by the 待補充 note field) | the common notes a 待補充 Needs Work mark is given (`NEEDS_WORK_NOTE_CATEGORY`, `app/utils/credit_roles.py`): one-click picks beside the note field on Add, Modify and the detail page badge, and the first of its suggestions, before the notes already in use; ships empty. Suggestions only - the note is free text and a value not in the list is stored as typed |
 
 **h-comic has Platform values of its own**, scoped to `h-comic` alone and
 split by usage (migration `h5c6malsrc7`). The regional storefronts an
@@ -1028,7 +1030,8 @@ comment asks that the two be kept in step. Seven rows: five person roles plus
 
 A rating of a person, studio, publisher or character is the viewer's own
 `user_rating` row, on `MY_RATINGS` and enforced on every write; `gender` is
-enforced against `GENDERS` on `person` and `character`
+enforced against `GENDERS` on `character` and against `PERSON_GENDERS` on
+`person`
 ([above](#apputilsconstantspy)). A `character` / `character_voice` shape was once
 designed but not built (see the old "Deferred" note this replaced in
 [systems/credits-and-tags.md](systems/credits-and-tags.md)); the feature that

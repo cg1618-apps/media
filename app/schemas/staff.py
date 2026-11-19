@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 from app.schemas.image_focus import ImageFocus
 from app.utils.credit_roles import PERSON_ROLES, legal_scopes
-from app.utils.entity_vocab import check_gender
+from app.utils.entity_vocab import check_person_gender
 
 
 class PersonRoleIn(BaseModel):
@@ -88,8 +88,8 @@ class PersonBase(BaseModel):
 
 class PersonWrite(PersonBase):
     """
-    What Create and Update share: gender is a closed
-    vocabulary (app/utils/entity_vocab.py), "" meaning NULL.
+    What Create and Update share: gender is the person vocabulary, 男 or 女
+    (PERSON_GENDERS, app/utils/entity_vocab.py), "" meaning NULL.
 
     Not on PersonBase, which PersonResponse also extends: a response reports
     what is stored and has no business refusing it.
@@ -98,7 +98,7 @@ class PersonWrite(PersonBase):
     @field_validator("gender")
     @classmethod
     def _known_gender(cls, v):
-        return check_gender(v)
+        return check_person_gender(v)
 
 
 def _has_a_name(payload: PersonBase) -> bool:

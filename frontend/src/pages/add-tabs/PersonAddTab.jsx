@@ -9,6 +9,7 @@
 // page's person editor renders the exact same inputs against an existing
 // person's form state instead of duplicating them - the same arrangement
 // StudioAddTab uses for StudioFields.
+import MyRatingFields from "../../components/forms/MyRatingFields";
 import { useQuery } from "@tanstack/react-query";
 
 import { Field, SectionHeader, inputCls, selectCls } from "../../components/forms/FormField";
@@ -21,7 +22,7 @@ import {
 } from "../../components/forms/EntityProfileFields";
 import { endpoints } from "../../api/endpoints";
 import { fetchJson } from "../../api/client";
-import { PERSON_NAME_FIELDS } from "../../lib/naming";
+import { PERSON_NAME_FIELDS, isSeiyuu } from "../../lib/naming";
 
 export { defaultPerson } from "../../config/formFactories";
 
@@ -132,6 +133,8 @@ export function PersonRoleMatrix({ roles, setRoles, legalScopes }) {
 // picked image cannot be attached until the person is saved, so its id is
 // kept as `pending_image_id` for PersonAddTab's caller to attach afterward.
 export function PersonFields({ personForm, upf, roles, setRoles, legalScopes, ownerId }) {
+  // A seiyuu's unset display name falls back CN-first (Person.display_name).
+  const seiyuu = isSeiyuu({ roles });
   const hasAnyName = PERSON_NAME_FIELDS.some(
     ({ field }) => personForm[field]?.trim(),
   );
@@ -155,14 +158,18 @@ export function PersonFields({ personForm, upf, roles, setRoles, legalScopes, ow
       )}
       <Field
         label="Display Name"
-        hint="Which name to show by default. Falls back through English, Chinese, Japanese, Alternative when unset."
+        hint={
+          seiyuu
+            ? "Which name to show by default. A seiyuu falls back through Chinese, Japanese, English, Alternative when unset."
+            : "Which name to show by default. Falls back through English, Chinese, Japanese, Alternative when unset."
+        }
       >
         <select
           className={selectCls}
           value={personForm.display_name_field ?? ""}
           onChange={(e) => upf("display_name_field", e.target.value)}
         >
-          <option value="">Default (English)</option>
+          <option value="">{seiyuu ? "Default (Chinese)" : "Default (English)"}</option>
           {PERSON_NAME_FIELDS.map(({ key, label }) => (
             <option key={key} value={key}>
               {label}
@@ -178,7 +185,7 @@ export function PersonFields({ personForm, upf, roles, setRoles, legalScopes, ow
       />
 
       <SectionHeader icon="fa-id-card" title="Profile" />
-      <GenderField form={personForm} update={upf} />
+      <GenderField kind="person" form={personForm} update={upf} />
       <Field
         label="MAL Link"
         hint="The person's myanimelist.net/people/<id> page; the MAL id is read from it."
@@ -212,6 +219,11 @@ export function PersonFields({ personForm, upf, roles, setRoles, legalScopes, ow
           onChange={(id) => upf("photo_fallback_entry_id", id)}
         />
       )}
+      {/* The viewer's own rating, saved through /api/me/ratings by the
+          page once the person itself has saved. */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <MyRatingFields kind="person" form={personForm} update={upf} />
+      </div>
       <Field label="Remark">
         <textarea
           className={inputCls}

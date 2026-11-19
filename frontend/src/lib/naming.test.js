@@ -62,6 +62,28 @@ describe("displayPersonName", () => {
     expect(displayPersonName({ name_alt: "only" })).toBe("only");
   });
 
+  it("falls back cn -> jp -> en -> alt for a seiyuu, whatever else they hold", () => {
+    const seiyuu = [{ role: "seiyuu", scope: "anime" }];
+    const all = { name_en: "Kana Hanazawa", name_cn: "花澤香菜CN", name_jp: "花澤香菜", name_alt: "HanaKana" };
+    expect(displayPersonName({ ...all, roles: seiyuu })).toBe("花澤香菜CN");
+    expect(displayPersonName({ ...all, name_cn: "", roles: seiyuu })).toBe("花澤香菜");
+    expect(
+      displayPersonName({ ...all, name_cn: null, name_jp: null, roles: seiyuu }),
+    ).toBe("Kana Hanazawa");
+    expect(displayPersonName({ name_alt: "HanaKana", roles: seiyuu })).toBe("HanaKana");
+    expect(
+      displayPersonName({ ...all, roles: [{ role: "director", scope: "anime" }, ...seiyuu] }),
+    ).toBe("花澤香菜CN");
+    // A chosen field still wins.
+    expect(displayPersonName({ ...all, display_name_field: "en", roles: seiyuu })).toBe(
+      "Kana Hanazawa",
+    );
+    // The mirror: the same names on a director read English first.
+    expect(displayPersonName({ ...all, roles: [{ role: "director", scope: "anime" }] })).toBe(
+      "Kana Hanazawa",
+    );
+  });
+
   it("returns an empty string for a nameless person", () => {
     expect(displayPersonName({})).toBe("");
     expect(displayPersonName(null)).toBe("");

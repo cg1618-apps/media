@@ -128,3 +128,35 @@ def test_a_website_in_mal_link_derives_nothing_and_fetches_nothing(
     ).json()
     assert body["mal_id"] is None
     assert tenrai_calls == []
+
+
+# --- Modify's save asks the Fill's question first ------------------------------
+
+COMPLETE_STUDIO = {
+    "name_en": "MAPPA",
+    "name_jp": "マッパ",
+    "founded_date": "2011-06-14",
+    "website_url": "http://www.mappa.co.jp/",
+    "logo_file": "mine.png",
+    "mal_link": "https://myanimelist.net/anime/producer/569/MAPPA",
+}
+
+
+def test_put_does_not_fetch_a_studio_with_nothing_to_fill(owner_client, tenrai_calls):
+    """has_missing_values_studio, the Studio Fill's own check."""
+    created = owner_client.post("/api/studio/", json={"name_en": "MAPPA"}).json()
+    r = owner_client.put(f"/api/studio/{created['system_id']}", json=COMPLETE_STUDIO)
+    assert r.status_code == 200, r.text
+    assert tenrai_calls == []
+
+
+def test_put_still_fills_a_studio_with_one_blank_column(owner_client, tenrai_calls):
+    """The mirror: website_url cleared, so MAL is asked and fills it."""
+    created = owner_client.post("/api/studio/", json={"name_en": "MAPPA"}).json()
+    body = owner_client.put(
+        f"/api/studio/{created['system_id']}",
+        json={**COMPLETE_STUDIO, "website_url": None},
+    ).json()
+    assert tenrai_calls == [569]
+    assert body["website_url"] == "http://www.mappa.co.jp/"
+    assert body["logo_file"] == "mine.png"

@@ -71,23 +71,25 @@ STUDIO_FIELDS_TO_FILL = [
     "logo_file",
 ]
 
-# What the Tenrai people endpoint fills on a seiyuu. Birthday, website and
-# the about blurb are absent on purpose: the owner keeps those by hand.
+# The columns whose blankness makes a seiyuu worth fetching from the Tenrai
+# people endpoint. Birthday, website and the about blurb are absent on
+# purpose: the owner keeps those by hand. name_alt is absent too, though the
+# fill still writes it when it runs: many people have no alternate name on
+# MAL, so a blank one alone is no reason to fetch.
 PERSON_FIELDS_TO_FILL = [
     "mal_link",
     "name_en",
     "name_jp",
-    "name_alt",
     "photo_file",
 ]
 
-# What the Tenrai characters endpoint fills on a character: the same as a
-# seiyuu's. name_cn is absent on purpose - MAL carries no Chinese name.
+# The same for a character and the Tenrai characters endpoint. name_cn is
+# absent on purpose - MAL carries no Chinese name - and name_alt for the
+# seiyuu's reason: a blank nickname list alone is no reason to fetch.
 CHARACTER_FIELDS_TO_FILL = [
     "mal_link",
     "name_en",
     "name_jp",
-    "name_alt",
     "photo_file",
 ]
 

@@ -32,9 +32,9 @@ function filtered(defs, rows, picks) {
 }
 
 describe("characterFilterDefs", () => {
-  it("offers the four cast types, with h-comic and hentai under Restricted", () => {
+  it("offers the five cast types, with h-comic and hentai under Restricted", () => {
     const mediaType = def(characterFilterDefs(SEES_ALL), "mediaType");
-    expect(mediaType.options).toEqual(["anime", "anime-movie", "manga", "book", NO_ENTRIES]);
+    expect(mediaType.options).toEqual(["anime", "anime-movie", "manga", "book", "game", NO_ENTRIES]);
     expect(mediaType.parent).toEqual({
       label: "Restricted",
       children: ["h-comic", "hentai"],
@@ -106,6 +106,15 @@ describe("characterFilterDefs", () => {
     ]);
     expect(def(defs, "gender").options).toEqual([
       "男", "女", "中性/無性", "雙性混和", "其他", GENDER_NOT_SET,
+    ]);
+  });
+
+  it("offers a person only 男 and 女 plus Not set", () => {
+    expect(def(personFilterDefs(SEES_ALL), "gender").options).toEqual([
+      "男", "女", GENDER_NOT_SET,
+    ]);
+    expect(def(personFilterDefs(SEES_ALL, "seiyuu"), "gender").options).toEqual([
+      "男", "女", GENDER_NOT_SET,
     ]);
   });
 });

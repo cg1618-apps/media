@@ -165,9 +165,13 @@ export function castRoleRank(role) {
   return i === -1 ? CHARACTER_ROLES.length : i;
 }
 
-// A character's or a person's gender (GENDERS in app/utils/constants.py,
-// /api/constants key "gender"). Unset is null, not a sixth value.
+// A character's gender (GENDERS in app/utils/constants.py, /api/constants
+// key "gender"). Unset is null, not a sixth value.
 export const GENDERS = ["男", "女", "中性/無性", "雙性混和", "其他"];
+
+// A person's gender, seiyuu included (PERSON_GENDERS, key "person_gender"):
+// 男 or 女, unset null. Studios and publishers have none.
+export const PERSON_GENDERS = ["男", "女"];
 
 // The gender a character starts with when the cast editor mints it for an
 // entry of this media type. A type not listed leaves it unset. Only that
@@ -451,6 +455,8 @@ export const OPTION_CATEGORIES = [
   "Enemy Tier",
   "Side Quest Type",
   "Geography Group",
+  // The 待補充 note's common values (NEEDS_WORK_NOTE_CATEGORY there).
+  "Needs Work Note",
 ];
 
 // The subset of OPTION_CATEGORIES the admin pages group under their "Tags"
@@ -525,6 +531,7 @@ export const CONSTANTS_FALLBACK = {
   franchise_expectation: FRANCHISE_EXPECTATIONS,
   my_rating: MY_RATINGS,
   gender: GENDERS,
+  person_gender: PERSON_GENDERS,
   character_role: CHARACTER_ROLES,
   is_main: IS_MAIN,
   game_is_main: GAME_IS_MAIN,

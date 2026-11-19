@@ -1,6 +1,7 @@
 """
 Character and person gender / my_rating: what a write accepts, and what a
-Sheets Pull restores.
+Sheets Pull restores. A character's gender has five values; a person's
+(seiyuu included) has two, 男 and 女.
 
 The two strictnesses are deliberate (app/utils/entity_vocab.py): a write
 refuses anything outside the vocabulary, a Pull folds what it can and drops
@@ -18,16 +19,15 @@ from app.utils import formatter as f
 from app.utils.entity_vocab import (
     check_gender,
     check_my_rating,
+    check_person_gender,
     normalize_gender,
     normalize_my_rating,
+    normalize_person_gender,
 )
 
-WRITE_SCHEMAS = [
-    schemas.CharacterCreate,
-    schemas.CharacterUpdate,
-    schemas.PersonCreate,
-    schemas.PersonUpdate,
-]
+CHARACTER_WRITE_SCHEMAS = [schemas.CharacterCreate, schemas.CharacterUpdate]
+PERSON_WRITE_SCHEMAS = [schemas.PersonCreate, schemas.PersonUpdate]
+WRITE_SCHEMAS = CHARACTER_WRITE_SCHEMAS + PERSON_WRITE_SCHEMAS
 
 
 # ---------------------------------------------------------------------------
@@ -35,10 +35,25 @@ WRITE_SCHEMAS = [
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("schema", WRITE_SCHEMAS)
+@pytest.mark.parametrize("schema", CHARACTER_WRITE_SCHEMAS)
 @pytest.mark.parametrize("gender", ["男", "女", "中性/無性", "雙性混和", "其他"])
-def test_every_gender_is_accepted(schema, gender):
+def test_every_character_gender_is_accepted(schema, gender):
     assert schema(name_en="A", gender=gender).gender == gender
+
+
+@pytest.mark.parametrize("schema", PERSON_WRITE_SCHEMAS)
+@pytest.mark.parametrize("gender", ["男", "女"])
+def test_every_person_gender_is_accepted(schema, gender):
+    assert schema(name_en="A", gender=gender).gender == gender
+
+
+@pytest.mark.parametrize("schema", PERSON_WRITE_SCHEMAS)
+@pytest.mark.parametrize("gender", ["中性/無性", "雙性混和", "其他"])
+def test_a_character_only_gender_is_refused_for_a_person(schema, gender):
+    # The mirror of test_every_character_gender_is_accepted: the same values
+    # pass the character schemas, so the refusal here is the person rule's.
+    with pytest.raises(ValidationError):
+        schema(name_en="A", gender=gender)
 
 
 @pytest.mark.parametrize("schema", WRITE_SCHEMAS)
@@ -81,7 +96,11 @@ def test_check_helpers_raise_value_error():
         check_gender("Male")
     with pytest.raises(ValueError):
         check_my_rating("a")
+    with pytest.raises(ValueError):
+        check_person_gender("其他")
     assert check_gender(None) is None
+    assert check_person_gender(None) is None
+    assert check_person_gender("男") == "男"
     assert check_my_rating(None) is None
 
 
@@ -106,6 +125,24 @@ def test_check_helpers_raise_value_error():
 )
 def test_normalize_gender(raw, expected):
     assert normalize_gender(raw) == expected
+
+
+@pytest.mark.parametrize(
+    "raw, expected",
+    [
+        ("Male", "男"),
+        ("FEMALE", "女"),
+        (" 男 ", "男"),
+        ("女", "女"),
+        ("其他", None),
+        ("雙性混和", None),
+        ("中性/無性", None),
+        ("", None),
+        (None, None),
+    ],
+)
+def test_normalize_person_gender(raw, expected):
+    assert normalize_person_gender(raw) == expected
 
 
 @pytest.mark.parametrize(
@@ -147,6 +184,12 @@ def test_a_pull_drops_what_it_cannot_fold(parse):
     parsed = parse(_sheet_row(gender="F", my_rating="Great"))
     assert parsed["gender"] is None
     assert parsed["my_rating"] is None
+
+
+def test_a_pull_keeps_a_character_only_gender_on_a_character_only():
+    row = _sheet_row(gender="其他")
+    assert f.parse_character_from_sheet(row)["gender"] == "其他"
+    assert f.parse_person_from_sheet(row)["gender"] is None
 
 
 @pytest.mark.parametrize(

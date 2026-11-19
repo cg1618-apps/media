@@ -225,8 +225,9 @@ it("opens the editor for initialId without a search", async () => {
   ).not.toBeInTheDocument();
 });
 
-// My rating is the viewer's own, set on the character's page through
-// /api/me/ratings: the catalogue form neither offers it nor sends it.
+// My rating is the viewer's own, written through /api/me/ratings: a viewer
+// who keeps no list - this file's - is not offered it (EntityRating.test.jsx
+// has a list keeper's).
 it("saves gender and the photo fallback from their selects, and no rating", async () => {
   vi.stubGlobal("scrollTo", vi.fn());
   const user = userEvent.setup();

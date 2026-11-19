@@ -1152,7 +1152,7 @@ One human credited on a media entry (Tier 3 entity - see
 | `name_jp` | String | yes | | |
 | `name_alt` | String | yes | | The slot for names that are none of the other three: a comma-separated list, each fragment a name of its own when a name is matched. Never chosen automatically. |
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain |
-| `gender` | String | yes | | GENDERS (`男` / `女` / `中性/無性` / `雙性混和` / `其他`), or NULL for not set. On the base table, not a seiyuu extension: a fact about the person, not the role. |
+| `gender` | String | yes | | PERSON_GENDERS (`男` / `女`), or NULL for not set — narrower than a character's GENDERS. On the base table, not a seiyuu extension: a fact about the person, not the role. |
 | `photo_file` | String | yes | | Storage key under `static/covers/`, `staff/<system_id>.jpg`. Filled from MAL's people photo for a seiyuu with a `mal_id` — see [external-apis.md](external-apis.md#mapping-for-person-seiyuu--map_tenrai_to_person_data) |
 | `photo_focus` | String | yes | | `photo_file`'s focal point, `"X% Y%"`; NULL centres it. Reset to NULL when the photo changes — see [image focal points](#image-focal-points) |
 | `photo_fallback_entry_id` | UUID | yes | | A `media.system_id` whose cover stands in when `photo_file` is NULL; must be an entry the person is credited on or voices a character in. No FK, like `franchise.cover_entry_id`: a stale id falls through to the automatic choice ([systems/credits-and-tags.md](systems/credits-and-tags.md#photo-fallback)). |
@@ -1170,7 +1170,8 @@ Relationship: `roles` (cascade delete-orphan).
 Same name shape as `studio`, and for the same reason: a person is known by
 whichever names they are known by, and requiring a specific one would force a
 made-up value. `display_name` picks `display_name_field`'s column, falling back
-en -> cn -> jp -> alt. Which column an automatically created name lands in is
+en -> cn -> jp -> alt - or cn -> jp -> en -> alt for a person holding the
+`seiyuu` role ([business-rules.md](business-rules.md#10a-entity-display-names-modelsstaffpy-modelscharacterpy-libnamingjs)). Which column an automatically created name lands in is
 `name_slot_for`'s decision (`app/utils/name_normalize.py`), shared by
 `resolve_person` and the reshape migration so a name cannot land in one column
 today and another tomorrow. Migration `p7n8a9m10e11` distributed the 554
@@ -1395,7 +1396,7 @@ with one intentional deviation - see the constraints note below.
 | `name_jp` | String | yes | | |
 | `name_alt` | String | yes | | |
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain. NULL becomes `cn` on save and in Calculate All while `name_cn` is filled ([business-rules.md](business-rules.md) §10a) |
-| `gender` | String | yes | | GENDERS, or NULL for not set - the same vocabulary as `person.gender` |
+| `gender` | String | yes | | GENDERS (`男` / `女` / `中性/無性` / `雙性混和` / `其他`), or NULL for not set - wider than `person.gender`, which is `男` / `女` only |
 | `photo_file` | String | yes | | Storage key under `static/covers/`, `character/<system_id>.jpg`; the canonical portrait. A casting may override it with its own `photo_file` for how the character looked in that entry. Filled from MAL's character picture for a character with a `mal_id` — see [external-apis.md](external-apis.md#mapping-for-character--map_tenrai_to_character_data) |
 | `photo_focus` | String | yes | | `photo_file`'s focal point, `"X% Y%"`; NULL centres it. Reset to NULL when the photo changes — see [image focal points](#image-focal-points) |
 | `role` | String | yes | | Optional: one of `CHARACTER_ROLES`, or NULL - what the character is to their story overall. While NULL it is filled from the highest-ranked `character_casting.role` (`CHARACTER_ROLES` order) on each cast save and by Calculate All; a set value is never overwritten |
@@ -1513,7 +1514,7 @@ the casting, because one character may have several seiyuu in one entry.
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
 | `character_id` | UUID | no | | FK `character.system_id` **ON DELETE CASCADE**, indexed |
-| `media_type` | String | no | | Hyphenated key: one of `CASTING_MEDIA_TYPES` (`anime`, `anime-movie`, `manga`, `book`, `h-comic`, `hentai`) |
+| `media_type` | String | no | | Hyphenated key: one of `CASTING_MEDIA_TYPES` (`anime`, `anime-movie`, `manga`, `book`, `h-comic`, `hentai`, `game`) |
 | `identity_id` | UUID | yes | | NULL is the **main identity** (the character itself); otherwise one of *this character's* [`character_identity`](#character_identity) rows, enforced by `fk_casting_identity`. Indexed |
 | `entry_id` | UUID | no | | FK-less - see [Cross-table references](#cross-table-references-without-foreign-keys) |
 | `role` | String | yes | | Optional: one of `CHARACTER_ROLES` (`Main`, `Core`, `Important Supporting`, `Supporting`, `Other`), or NULL for no role recorded - what the character is in this entry. A blank value from the API or a Sheets cell is stored as NULL. Fills a NULL `character.role`; never written from it |
@@ -1588,8 +1589,8 @@ Constraints and indexes:
 - `uq_casting_voice` UNIQUE (`casting_id`, `person_id`) - one person voices a
   casting at most once.
 - `ck_casting_voice_scope` CHECK `media_type IN ('anime', 'anime-movie',
-  'hentai')` - characters reach every type in `CASTING_MEDIA_TYPES`, but a
-  seiyuu may only be attached on the three types with voice acting. Enforced
+  'hentai', 'game')` - characters reach every type in `CASTING_MEDIA_TYPES`,
+  but a seiyuu may only be attached on the four types with voice acting. Enforced
   in the database, not just in `app/services/domain/casting.py`, because the
   Fill pipeline and any future migration write these rows without going
   through the API.

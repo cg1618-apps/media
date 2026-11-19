@@ -11,6 +11,7 @@
 // Modify page's character editor renders the exact same inputs against an
 // existing character's form state instead of duplicating them - the same
 // arrangement StudioFields/PersonFields use.
+import MyRatingFields from "../../components/forms/MyRatingFields";
 import { Field, SectionHeader, inputCls, selectCls } from "../../components/forms/FormField";
 import ImagePicker from "../../components/forms/ImagePicker";
 import MultiSelect from "../../components/forms/MultiSelect";
@@ -141,6 +142,11 @@ export function CharacterFields({ characterForm, ucf, ownerId, sources }) {
           onChange={(id) => ucf("photo_fallback_entry_id", id)}
         />
       )}
+      {/* The viewer's own rating, saved through /api/me/ratings by the
+          page once the character itself has saved. */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <MyRatingFields kind="character" form={characterForm} update={ucf} />
+      </div>
       <Field label="Remark">
         <textarea
           className={inputCls}

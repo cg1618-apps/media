@@ -103,7 +103,7 @@ CREDIT_ROLES: dict[str, CreditRole] = {
     # through the character they voice. credit_roles_for() filters this out for
     # exactly that reason.
     "seiyuu": CreditRole(
-        "seiyuu", "Seiyuu 聲優", "person", ("anime", "anime-movie", "hentai"),
+        "seiyuu", "Seiyuu 聲優", "person", ("anime", "anime-movie", "hentai", "game"),
         credited_via="character_casting",
     ),
 }
@@ -293,6 +293,12 @@ FILTER_ONLY_CATEGORIES: tuple[str, ...] = (
     "Reference Source",
 )
 
+# The common notes a 待補充 Needs Work mark is given ("續集未補", "官方名稱未出"),
+# offered as one-click picks and suggestions beside the note field. Unscoped
+# and suggestions only: the note stays free text, and a value not in the
+# list is stored as typed.
+NEEDS_WORK_NOTE_CATEGORY = "Needs Work Note"
+
 # The categories the admin Add / Modify / Delete pages offer under their
 # "Tags" sub-tab instead of "Options". Both sub-tabs are the same form over
 # the same system_option rows - the split is navigational, nothing in the
@@ -309,10 +315,10 @@ TAG_CATEGORIES: tuple[str, ...] = (
     "Label",
 )
 
-# Four sources, each declared where its readers live: the entry tag fields
-# above, the character tag fields, the filter-only vocabularies, and the
+# Five sources, each declared where its readers live: the entry tag fields
+# above, the character tag fields, the filter-only vocabularies, the
 # categories the note registry draws suggestions from (Song Type, Song Source
-# - see NOTE_OPTION_CATEGORIES). The last are derived from NOTE_SECTIONS
+# - see NOTE_OPTION_CATEGORIES), and the 待補充 note's common values. The last are derived from NOTE_SECTIONS
 # rather than listed here, so a section that names a new category offers it
 # without a second edit.
 OPTION_CATEGORIES: tuple[str, ...] = tuple(
@@ -321,6 +327,7 @@ OPTION_CATEGORIES: tuple[str, ...] = tuple(
         + list(CHARACTER_OPTION_CATEGORIES)
         + list(FILTER_ONLY_CATEGORIES)
         + list(NOTE_OPTION_CATEGORIES)
+        + [NEEDS_WORK_NOTE_CATEGORY]
     )
 )
 

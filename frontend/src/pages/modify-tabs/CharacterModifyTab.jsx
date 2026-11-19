@@ -14,6 +14,12 @@
 // `sources` is Modify.jsx's fetchAllSources() bag, which the Appearance and
 // Trait pickers suggest from; a save can create values in either vocabulary,
 // so it calls `refreshSources` to make them selectable straight away.
+import {
+  applyMyRating,
+  useFormRatingSaver,
+} from "../../api/mutations/useMyRatingMutations";
+import { usePageTitle } from "../../contexts/PageTitleContext";
+import { editorTitle } from "../../lib/pageTitle";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -58,6 +64,8 @@ function characterToForm(c) {
     photo_focus: c.photo_focus || null,
     mal_link: c.mal_link || "",
     remark: c.remark || "",
+    // The viewer's own, not a column: PUT /api/me/ratings on save.
+    my_rating: c.my_rating || "",
     ...firstsToForm(c),
     photo_fallback_entry_id: c.photo_fallback_entry_id || null,
     ...characterTagsToForm(c),
@@ -76,6 +84,11 @@ export default function CharacterModifyTab({
   const [scopes, setScopes] = useState([]);
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState(null);
+  // The record's name as last loaded or saved - the tab title. Not the
+  // form's, so the tab does not change while a name is being typed.
+  const [savedName, setSavedName] = useState(null);
+  usePageTitle(selectedId ? editorTitle(savedName) : null);
+  const saveFormRating = useFormRatingSaver();
   const [characterForm, setCharacterForm] = useState(null);
   // The form as last loaded or saved: what "unsaved edits" is measured
   // against, so Sync from cast never overwrites them unseen.
@@ -125,6 +138,7 @@ export default function CharacterModifyTab({
   }
 
   function showCharacter(character) {
+    setSavedName(character.display_name);
     const form = characterToForm(character);
     setCharacterForm(form);
     setLoadedForm(form);
@@ -181,7 +195,12 @@ export default function CharacterModifyTab({
         },
       );
       await queryClient.invalidateQueries({ queryKey: ["characters-admin"] });
-      showCharacter(updated);
+      // The rating after the character: `updated` carries the stored one,
+      // so only a change is sent.
+      const savedRating = await saveFormRating(
+        "character", selectedId, characterForm, updated, "Character",
+      );
+      showCharacter(savedRating ? applyMyRating(updated, savedRating) : updated);
       // Not awaited: the save already succeeded, and stale suggestions are
       // no reason to report it as failed.
       Promise.resolve(refreshSources?.()).catch(() => {});

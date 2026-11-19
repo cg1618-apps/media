@@ -13,6 +13,18 @@ import { NAV_SECTIONS, activeItem, sectionItems } from "../config/navigation";
 // tab reads the same before and after the bundle runs.
 export const SITE_NAME = "CG1618 Tracker";
 
+/**
+ * The tab title of an open Modify editor: a pencil, then the record's saved
+ * name. The pencil is one character, so a tab cut down to a few characters
+ * still shows the name, and the tab still reads apart from the record's own
+ * page, which shows the bare name. null without a name, so the route's
+ * "Modify Entry" stands in.
+ */
+export function editorTitle(name) {
+  const trimmed = typeof name === "string" ? name.trim() : "";
+  return trimmed ? `✎ ${trimmed}` : null;
+}
+
 // Pages with no nav row of their own. Each is the name the page goes by where
 // it is linked (the account strip's "Requests", "Settings" and "Log in").
 const OFF_NAV_TITLES = {

@@ -178,7 +178,7 @@ const TYPES = [
   {
     name: "Game",
     factory: defaultGame,
-    sections: ["Titles & Naming", "Scores", "My Tracker", "Information", "Genres & Labels", "Production", "Prices", "Copies", "Links & Sources", "Cover"],
+    sections: ["Titles & Naming", "Scores", "My Tracker", "Information", "Genres & Labels", "Production", "Prices", "Copies", "Cast", "Links & Sources", "Cover"],
     add: (f) => (
       <GameAddTab {...common} gmf={f} ugm={noop} allGames={[]} seriesItemsForGame={[]} applyGameEntryAutofill={noop} applyIgdbPick={noop} />
     ),

@@ -39,7 +39,11 @@ from app.utils.constants import (
 
 # Character and person gender / my_rating, folded the way the revision that
 # closed those vocabularies folded the stored rows.
-from app.utils.entity_vocab import normalize_gender, normalize_my_rating
+from app.utils.entity_vocab import (
+    normalize_gender,
+    normalize_my_rating,
+    normalize_person_gender,
+)
 from app.utils.ep_special import normalize_ep_special
 from app.utils.note_sections import (
     SHAPE_STRUCTURED,
@@ -1712,7 +1716,8 @@ def parse_person_from_sheet(raw: dict) -> dict:
         "display_name_field": parse_from_sheet(raw.get("display_name_field"), str),
         # Folded onto the vocabularies, so a backup from before they existed
         # cannot bring "Male" or "a+" back - see app/utils/entity_vocab.py.
-        "gender": normalize_gender(parse_from_sheet(raw.get("gender"), str)),
+        # A person's vocabulary is 男 / 女 only; a character-only value is NULL.
+        "gender": normalize_person_gender(parse_from_sheet(raw.get("gender"), str)),
         # Not a column any more: a backup taken before revision u1r2atings3
         # carries it, and Pull files it under the installation owner
         # (legacy_personal.LEGACY_PERSONAL_COLUMNS).

@@ -20,6 +20,7 @@ from app.dependencies import get_db
 from app.routers._entity_patch import prepare_patch
 from app.routers._patching import apply_column_patch
 from app.services.domain.autofill import autofill_studio_from_mal
+from app.services.domain.checking import has_missing_values_studio
 from app.services.domain.credits import CreditSummary, credit_summaries, find_studio
 from app.services.domain.derivation import apply_extract_mal_id_studio
 from app.services.domain.merge_fill import finish_merge
@@ -275,9 +276,12 @@ def update_studio(
 
     # After the copy, so the payload's own values win and only the columns
     # left blank are filled from MAL. The id is derived first: pasting the
-    # producer URL alone is enough to enrich a studio.
+    # producer URL alone is enough to enrich a studio. MAL is asked only
+    # while one of those columns is blank (has_missing_values_studio, the
+    # Studio Fill's own check), so saving a complete studio makes no request.
     apply_extract_mal_id_studio(studio)
-    autofill_studio_from_mal(studio)
+    if has_missing_values_studio(studio):
+        autofill_studio_from_mal(studio)
 
     db.commit()
     db.refresh(studio)

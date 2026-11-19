@@ -246,6 +246,20 @@ def test_a_character_without_a_mal_id_is_refused(db_session):
     assert PIPELINES["character"].fill_eligible(db_session, character) is False
 
 
+def test_a_character_missing_only_the_alt_name_is_not_eligible(db_session):
+    """name_alt is not checked: a blank one alone is no gap."""
+    character = _character(
+        db_session,
+        name_en="Edward Elric",
+        name_jp="エドワード・エルリック",
+        photo_file="c.jpg",
+        mal_link=EDWARD_LINK,
+        mal_id=11,
+    )
+    assert has_missing_values_character(character) is False
+    assert PIPELINES["character"].fill_eligible(db_session, character) is False
+
+
 def test_a_filled_character_is_no_longer_eligible(db_session):
     """name_cn is left blank: MAL has no Chinese name, so it is no gap."""
     character = _character(
@@ -546,3 +560,47 @@ def test_a_mal_import_leaves_a_saved_credited_name_alone(
 
     db_session.expire_all()
     assert db_session.get(models.CharacterCasting, casting.system_id).credited_name == "Fullmetal"
+
+
+# --- Modify's save asks the Fill's question first ------------------------------
+
+def _complete_character():
+    return {
+        "name_en": "Edward Elric",
+        "name_jp": "エドワード・エルリック",
+        "name_alt": "Fullmetal",
+        "photo_file": "character/mine.jpg",
+        "mal_link": EDWARD_LINK,
+    }
+
+
+def test_put_does_not_fetch_a_character_with_nothing_to_fill(owner_client, character_calls):
+    """has_missing_values_character, the Character Fill's own check."""
+    created = owner_client.post("/api/character/", json={"name_en": "Ed"}).json()
+    r = owner_client.put(
+        f"/api/character/{created['system_id']}", json=_complete_character()
+    )
+    assert r.status_code == 200, r.text
+    assert character_calls == []
+
+
+def test_put_still_fills_a_character_with_one_blank_column(owner_client, character_calls):
+    """The mirror: name_jp cleared, so MAL is asked and fills it."""
+    created = owner_client.post("/api/character/", json={"name_en": "Ed"}).json()
+    body = owner_client.put(
+        f"/api/character/{created['system_id']}",
+        json={**_complete_character(), "name_jp": None},
+    ).json()
+    assert character_calls == [11]
+    assert body["name_jp"] == "エドワード・エルリック"
+    assert body["name_alt"] == "Fullmetal"
+
+
+def test_put_does_not_fetch_a_character_missing_only_the_alt_name(owner_client, character_calls):
+    created = owner_client.post("/api/character/", json={"name_en": "Ed"}).json()
+    r = owner_client.put(
+        f"/api/character/{created['system_id']}",
+        json={**_complete_character(), "name_alt": None},
+    )
+    assert r.status_code == 200, r.text
+    assert character_calls == []

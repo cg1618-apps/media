@@ -141,18 +141,36 @@ class Person(Base, NameFallbackMixin):
         }
 
     @property
+    def is_seiyuu(self) -> bool:
+        """Holds the seiyuu role in any scope, whatever else they hold."""
+        return any(role.role == "seiyuu" for role in self.roles)
+
+    @property
     def display_name(self) -> str:
         """
         The name to show. Like Studio and unlike every media model, whose
         fallback chain is hard-coded per type, a person's choice is DATA:
         display_name_field names the winner. The chain below is only the
-        fallback for when that is NULL or names an empty column.
+        fallback for when that is NULL ("Default") or names an empty column.
+
+        The default depends on the role: a seiyuu is known by their Chinese
+        name, then the Japanese one, so theirs runs CN -> JP -> EN -> Alt;
+        everyone else's runs EN -> CN -> JP -> Alt. A person holding seiyuu
+        and another role takes the seiyuu default.
         """
         chosen = self._DISPLAY_FIELDS.get(self.display_name_field or "")
         if chosen:
             value = getattr(self, chosen)
             if value and value.strip():
                 return value.strip()
+        if self.is_seiyuu:
+            sequence = [
+                ("CN", self.name_cn),
+                ("JP", self.name_jp),
+                ("EN", self.name_en),
+                ("Alt", self.name_alt),
+            ]
+            return self.get_fallback_name(sequence, "CN")
         sequence = [
             ("EN", self.name_en),
             ("CN", self.name_cn),

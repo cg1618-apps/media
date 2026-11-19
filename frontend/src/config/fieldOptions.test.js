@@ -10,6 +10,7 @@ import {
   FRANCHISE_TYPES,
   CHARACTER_ROLES,
   GENDERS,
+  PERSON_GENDERS,
   castRoleRank,
   MEDIA_TYPES,
   NOTE_SUGGESTION_CATEGORIES,
@@ -362,6 +363,11 @@ describe("gender", () => {
   it("is wired into applyConstants under /api/constants' gender key", () => {
     expect(CONSTANTS_FALLBACK.gender).toBe(GENDERS);
     expect(GENDERS).toEqual(["男", "女", "中性/無性", "雙性混和", "其他"]);
+  });
+
+  it("is narrower for a person, under person_gender", () => {
+    expect(CONSTANTS_FALLBACK.person_gender).toBe(PERSON_GENDERS);
+    expect(PERSON_GENDERS).toEqual(["男", "女"]);
   });
 });
 

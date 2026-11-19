@@ -111,11 +111,7 @@ import {
   toStringId,
 } from "../../lib/externalPick";
 import { ADMIN_TABS } from "../../config/adminTabs";
-import {
-  EXPECTATION_FIELD,
-  useSaveMyRating,
-} from "../../api/mutations/useMyRatingMutations";
-import { useViewScope } from "../../hooks/useViewScope";
+import { useFormRatingSaver } from "../../api/mutations/useMyRatingMutations";
 import { PERSON_NAME_FIELDS, STUDIO_NAME_FIELDS } from "../../lib/naming";
 import { CHARACTER_NAME_FIELDS } from "../add-tabs/CharacterAddTab";
 import { OPTION_CATEGORIES } from "../../config/fieldOptions";
@@ -125,26 +121,39 @@ import { withMediaType } from "../../lib/suggestionOrder";
 import { characterTagsPayload, firstsPayload } from "../../lib/characterForm";
 import { enrichEntry } from "../../lib/enrich";
 import useLabelTagSync from "../../hooks/useLabelTagSync";
+import NeedsWorkAddField, {
+  EMPTY_NEEDS_WORK,
+} from "../../components/needs-work/NeedsWorkAddField";
+import { useSetNeedsWork } from "../../api/mutations/useNeedsWork";
+import { NEEDS_WORK_OWNER_TYPES } from "../../lib/needsWork";
 
 export default function Add() {
   const { showToast } = useToast();
-  const { ownData } = useViewScope();
-  const { mutateAsync: putMyRating } = useSaveMyRating();
 
-  // The viewer's own rating and expectation of a group just created, which the create call does not carry: PUT to /api/me/ratings
-  // with the new id, and only the values the form chose. A failure leaves
-  // the group created, and the toast says so.
-  async function saveGroupRating(ownerType, ownerId, form, noun) {
-    const data = {};
-    if (form.my_rating) data.my_rating = form.my_rating;
-    if (form[EXPECTATION_FIELD[ownerType]])
-      data.expectation = form[EXPECTATION_FIELD[ownerType]];
-    if (!ownData || Object.keys(data).length === 0) return;
+  // The new record's 待補充 mark, when the field asked for one. A failure is
+  // reported rather than thrown: the record itself is saved, and the mark can
+  // be set from its page. The field resets either way, so the next record
+  // does not inherit it.
+  async function saveNeedsWork(ownerType, ownerId) {
+    if (!needsWork.flagged) return;
+    setNeedsWork(EMPTY_NEEDS_WORK);
     try {
-      await putMyRating({ ownerType, ownerId, data });
+      await setNeedsWorkMark.mutateAsync({ ownerType, ownerId, note: needsWork.note });
     } catch {
-      showToast("error", `${noun} saved, but your rating did not save.`);
+      showToast(
+        "error",
+        "Saved, but its 待補充 mark failed to save - mark it from its page.",
+      );
     }
+  }
+
+  // The viewer's own rating (and a group's expectation) of a record just
+  // created, which the create call does not carry: PUT to /api/me/ratings
+  // with the new id, and only the values the form chose. A failure leaves
+  // the record created, and the toast says so.
+  const saveFormRating = useFormRatingSaver();
+  async function saveMyRating(ownerType, ownerId, form, noun) {
+    await saveFormRating(ownerType, ownerId, form, null, noun);
   }
   const replaceCasting = useReplaceCasting();
 
@@ -200,6 +209,11 @@ export default function Add() {
   // Content labels are the same eight keys for every media type, so they
   // live on the page rather than in each per-type form object.
   const [contentLabels, setContentLabels] = useState([]);
+  // The 待補充 mark, page-level for the same reason: one field for the twelve
+  // media tabs and the three group tabs. Saved by saveNeedsWork once the
+  // create has answered with the new record's id.
+  const [needsWork, setNeedsWork] = useState(EMPTY_NEEDS_WORK);
+  const setNeedsWorkMark = useSetNeedsWork();
   const [activeTab, setActiveTab] = useState("anime");
   const [submitting, setSubmitting] = useState(false);
   const [lastAdded, setLastAddedName] = useState(null);
@@ -615,6 +629,7 @@ export default function Add() {
       book: nvf,
       "h-comic": hcf,
       hentai: htf,
+      game: gmf,
     }[activeTab];
     const castProblem = castForm && castIdentityProblem(castForm.cast);
     if (castProblem) {
@@ -752,6 +767,7 @@ export default function Add() {
     setLastAdded(created.anime_name_en || created.anime_name_cn || "New Entry");
     setAf(freshForm("anime"));
     setLastCreated({ ownerType: "anime", entry: created });
+    await saveNeedsWork("anime", created.system_id);
     setContentLabels([]);
     setAllAnime((prev) => [...prev, created]);
   }
@@ -790,7 +806,8 @@ export default function Add() {
       );
       // The rating goes before the labels: a label can hide the new
       // collection from this session's mode, and the PUT would be refused.
-      await saveGroupRating("collection", created.system_id, colf, "Collection");
+      await saveMyRating("collection", created.system_id, colf, "Collection");
+      await saveNeedsWork("collection", created.system_id);
       try {
         await saveCollectionLabels(created.system_id, contentLabels);
       } catch {
@@ -845,7 +862,8 @@ export default function Add() {
           "New Franchise",
       );
       // Before the labels, as in submitCollection.
-      await saveGroupRating("franchise", created.system_id, ff, "Franchise");
+      await saveMyRating("franchise", created.system_id, ff, "Franchise");
+      await saveNeedsWork("franchise", created.system_id);
       try {
         await saveFranchiseLabels(
           created.system_id,
@@ -906,7 +924,8 @@ export default function Add() {
         created.series_name_cn || created.series_name_en || "New Series",
       );
       // Before the labels, as in submitCollection.
-      await saveGroupRating("series", created.system_id, sf, "Series");
+      await saveMyRating("series", created.system_id, sf, "Series");
+      await saveNeedsWork("series", created.system_id);
       try {
         await saveSeriesLabels(created.system_id, contentLabels);
       } catch {
@@ -1101,6 +1120,8 @@ export default function Add() {
     });
     if (res.ok) {
       const created = await res.json();
+      // Before anything that could hide the new row from this session.
+      await saveMyRating("person", created.system_id, personForm, "Person");
       await attachPendingImage(
         personForm.pending_image_id,
         "staff",
@@ -1153,6 +1174,8 @@ export default function Add() {
     });
     if (res.ok) {
       const created = await res.json();
+      // Before anything that could hide the new row from this session.
+      await saveMyRating("character", created.system_id, characterForm, "Character");
       await attachPendingImage(
         characterForm.pending_image_id,
         "character",
@@ -1200,6 +1223,8 @@ export default function Add() {
     });
     if (res.ok) {
       const created = await res.json();
+      // Before anything that could hide the new row from this session.
+      await saveMyRating("studio", created.system_id, studioForm, "Studio");
       await attachPendingImage(
         studioForm.pending_image_id,
         "studio",
@@ -1250,6 +1275,8 @@ export default function Add() {
     });
     if (res.ok) {
       const created = await res.json();
+      // Before anything that could hide the new row from this session.
+      await saveMyRating("publisher", created.system_id, publisherForm, "Publisher");
       await attachPendingImage(
         publisherForm.pending_image_id,
         "publisher",
@@ -1353,6 +1380,7 @@ export default function Add() {
     );
     setAmf(freshForm("anime-movie"));
     setLastCreated({ ownerType: "anime-movie", entry: created });
+    await saveNeedsWork("anime-movie", created.system_id);
     setContentLabels([]);
     setAllAnimeMovies((prev) => [...prev, created]);
   }
@@ -1438,6 +1466,7 @@ export default function Add() {
     setLastAdded(created.movie_name_en || created.movie_name_cn || "New Movie");
     setMf(freshForm("movie"));
     setLastCreated({ ownerType: "movie", entry: created });
+    await saveNeedsWork("movie", created.system_id);
     setContentLabels([]);
     setAllMovies((prev) => [...prev, created]);
   }
@@ -1523,6 +1552,7 @@ export default function Add() {
     setLastAdded(created.tv_name_cn || created.tv_name_en || "New TV Show");
     setTvf(freshForm("tv-show"));
     setLastCreated({ ownerType: "tv-show", entry: created });
+    await saveNeedsWork("tv-show", created.system_id);
     setContentLabels([]);
     setAllTvShows((prev) => [...prev, created]);
   }
@@ -1591,6 +1621,7 @@ export default function Add() {
     );
     setCf(freshForm("cartoon"));
     setLastCreated({ ownerType: "cartoon", entry: created });
+    await saveNeedsWork("cartoon", created.system_id);
     setContentLabels([]);
     setAllCartoons((prev) => [...prev, created]);
   }
@@ -1658,6 +1689,7 @@ export default function Add() {
     setLastAdded(created.manga_name_cn || created.manga_name_en || "New Manga");
     setMgf(freshForm("manga"));
     setLastCreated({ ownerType: "manga", entry: created });
+    await saveNeedsWork("manga", created.system_id);
     setContentLabels([]);
     setAllMangas((prev) => [...prev, created]);
   }
@@ -1741,6 +1773,7 @@ export default function Add() {
     setLastAdded(created.book_name_cn || created.book_name_en || "New Book");
     setNvf(freshForm("book"));
     setLastCreated({ ownerType: "book", entry: created });
+    await saveNeedsWork("book", created.system_id);
     setContentLabels([]);
     setAllBooks((prev) => [...prev, created]);
   }
@@ -1839,6 +1872,7 @@ export default function Add() {
     setLastAdded(created.comic_name_en || created.comic_name_cn || "New Comic");
     setCmf(freshForm("comic"));
     setLastCreated({ ownerType: "comic", entry: created });
+    await saveNeedsWork("comic", created.system_id);
     setContentLabels([]);
     setAllComics((prev) => [...prev, created]);
   }
@@ -1937,11 +1971,13 @@ export default function Add() {
       "Entry",
     );
     await saveCredits("game", created.system_id, gmf);
+    await saveCast("game", created.system_id, gmf);
     window.scrollTo(0, 0);
     showToast("success", "Game appended successfully.");
     setLastAdded(created.game_name_cn || created.game_name_en || "New Game");
     setGmf(freshForm("game"));
     setLastCreated({ ownerType: "game", entry: created });
+    await saveNeedsWork("game", created.system_id);
     setContentLabels([]);
     setAllGames((prev) => [...prev, created]);
   }
@@ -2019,6 +2055,7 @@ export default function Add() {
     setLastAdded(getDisplayName(created, "h-comic"));
     setHcf(freshForm("h-comic"));
     setLastCreated({ ownerType: "h-comic", entry: created });
+    await saveNeedsWork("h-comic", created.system_id);
     setContentLabels([]);
     setAllHComics((prev) => [...prev, created]);
   }
@@ -2087,6 +2124,7 @@ export default function Add() {
     setLastAdded(getDisplayName(created, "h-game"));
     setHgf(freshForm("h-game"));
     setLastCreated({ ownerType: "h-game", entry: created });
+    await saveNeedsWork("h-game", created.system_id);
     setContentLabels([]);
     setAllHGames((prev) => [...prev, created]);
   }
@@ -2156,6 +2194,7 @@ export default function Add() {
     setLastAdded(getDisplayName(created, "hentai"));
     setHtf(freshForm("hentai"));
     setLastCreated({ ownerType: "hentai", entry: created });
+    await saveNeedsWork("hentai", created.system_id);
     setContentLabels([]);
     setAllHentai((prev) => [...prev, created]);
   }
@@ -2707,6 +2746,14 @@ export default function Add() {
               }
               scopeNote={GROUP_SCOPE_NOTES[activeTab]}
             />
+          </div>
+        )}
+
+        {/* 待補充 Needs Work - every tab whose record can carry a mark: the
+            twelve media types and the three grouping tiers. */}
+        {NEEDS_WORK_OWNER_TYPES.has(activeTab) && (
+          <div className="mt-6">
+            <NeedsWorkAddField value={needsWork} onChange={setNeedsWork} />
           </div>
         )}
 

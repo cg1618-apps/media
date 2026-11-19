@@ -6,7 +6,8 @@
 // last. manage.requests, the key /api/needs-work asks: super and the admin.
 //
 // Per row: the note can be changed (which moves the row to another group)
-// and the mark cleared. A mark is set on the Modify page, beside the editor.
+// and the mark cleared. A mark is set on the Add form, the Modify editor or
+// the 待補充 badge on the record's own page.
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -91,8 +92,8 @@ export default function NeedsWork() {
         />
       ) : total === 0 ? (
         <p className="text-sm text-text-muted">
-          Nothing is marked. Mark an entry or a group from its editor on the
-          Modify page.
+          Nothing is marked. Mark an entry or a group with the 待補充 badge on
+          its page, or while adding or modifying it.
         </p>
       ) : (
         groups.map((group) => (

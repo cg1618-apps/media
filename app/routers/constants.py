@@ -129,8 +129,10 @@ def _constants() -> dict[str, list[str]]:
         "franchise_type": list(c.FRANCHISE_TYPES),
         "franchise_expectation": list(c.FRANCHISE_EXPECTATIONS),
         "my_rating": list(c.MY_RATINGS),
-        # Character and person gender; NULL (not set) is not in the list.
+        # Character gender, and the narrower person (seiyuu) one; NULL (not
+        # set) is in neither list.
         "gender": list(c.GENDERS),
+        "person_gender": list(c.PERSON_GENDERS),
         "is_main": list(c.IS_MAIN),
         # Game and h-game's is_main reads its own vocabulary, not IS_MAIN.
         "game_is_main": list(c.GAME_IS_MAIN),

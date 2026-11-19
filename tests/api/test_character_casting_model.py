@@ -110,6 +110,29 @@ def test_a_hentai_casting_may_name_a_seiyuu(db_session, character, person):
     db_session.flush()
 
 
+def test_a_game_casting_may_name_a_seiyuu(db_session, character, person):
+    """Games are voiced, so ck_casting_voice_scope admits them beside anime.
+    The mirror is test_a_manga_casting_cannot_name_a_seiyuu."""
+    entry = models.Game(game_name_cn="Voiced Game")
+    db_session.add(entry)
+    db_session.flush()
+    db_session.add(
+        models.CharacterCasting(
+            character_id=character.system_id,
+            media_type="game",
+            entry_id=entry.system_id,
+            voices=[
+                models.CharacterCastingVoice(
+                    media_type="game",
+                    entry_id=entry.system_id,
+                    person_id=person.system_id,
+                )
+            ],
+        )
+    )
+    db_session.flush()
+
+
 def test_a_manga_casting_without_a_seiyuu_is_fine(db_session, manga, character):
     db_session.add(
         models.CharacterCasting(

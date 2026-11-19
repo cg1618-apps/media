@@ -155,11 +155,11 @@ it("loads the selected studio and disables save with hint when every name is cle
   expect(saveButton).toBeDisabled();
 });
 
-// My Rating is the same S..F vocabulary every other rated record uses, so it
-// is a picker rather than a free-text box.
-// My rating is the viewer's own, set on the studio's page through
-// /api/me/ratings: the catalogue form neither offers it nor sends it.
-it("offers no rating, and saves none", async () => {
+// My rating is the viewer's own, written through /api/me/ratings: the
+// catalogue PUT never carries it, and a viewer who keeps no list - this
+// file's, with no AuthContext - is not offered it. A list keeper's field is
+// EntityRating.test.jsx.
+it("offers no rating without a list, and the catalogue PUT carries none", async () => {
   const user = userEvent.setup();
   mount();
   await waitFor(() =>

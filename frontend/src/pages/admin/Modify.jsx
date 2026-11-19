@@ -1,4 +1,6 @@
 // Frontend: page component file for Modify.
+import { usePageTitle } from "../../contexts/PageTitleContext";
+import { editorTitle } from "../../lib/pageTitle";
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useToast } from "../../hooks/useToast";
@@ -111,11 +113,9 @@ import useLabelTagSync from "../../hooks/useLabelTagSync";
 import { hasLabelField } from "../../lib/labelTags";
 import { SuggestItem, SuggestList } from "../../components/forms/SuggestList";
 import {
-  EXPECTATION_FIELD,
   applyMyRating,
-  useSaveMyRating,
+  useFormRatingSaver,
 } from "../../api/mutations/useMyRatingMutations";
-import { useViewScope } from "../../hooks/useViewScope";
 
 // The media types whose editor carries a cast (CASTING_MEDIA_TYPES on the
 // backend holds these and more), in their hyphenated key form.
@@ -126,6 +126,7 @@ const CAST_MEDIA_TYPES = new Set([
   "book",
   "h-comic",
   "hentai",
+  "game",
 ]);
 
 function parseSeasonPart(sp) {
@@ -249,15 +250,6 @@ function seriesToForm(s, allFranchises) {
 // The body of PUT /api/me/ratings for a group form: only the values the form
 // changed from the row it loaded, as null when cleared. Empty when nothing
 // changed, so an untouched rating writes nothing.
-function groupRatingChanges(ownerType, form, loaded) {
-  const data = {};
-  if ((form.my_rating || null) !== (loaded?.my_rating || null))
-    data.my_rating = form.my_rating || null;
-  const field = EXPECTATION_FIELD[ownerType];
-  if ((form[field] || null) !== (loaded?.[field] || null))
-    data.expectation = form[field] || null;
-  return data;
-}
 
 function movieToForm(movie, allFranchises, defaults) {
   const f = allFranchises.find((x) => x.system_id === movie.franchise_id);
@@ -385,8 +377,7 @@ export default function Modify() {
   // request after that - cast, enrichment, the reload - would answer 404.
   const pendingLabels = useRef(null);
   const auth = useAuth();
-  const { ownData } = useViewScope();
-  const { mutateAsync: putMyRating } = useSaveMyRating();
+  const saveFormRating = useFormRatingSaver();
 
   // The viewer's own rating and expectation of a group, which
   // the group's PATCH does not carry: PUT to /api/me/ratings once the group
@@ -394,15 +385,8 @@ export default function Modify() {
   // saved values folded in, or `row` as it was when nothing was sent or the
   // PUT failed - in which case the group still saved, and the toast says so.
   async function saveGroupRating(ownerType, row, form, loaded, noun) {
-    const data = groupRatingChanges(ownerType, form, loaded);
-    if (!ownData || Object.keys(data).length === 0) return row;
-    try {
-      const saved = await putMyRating({ ownerType, ownerId: row.system_id, data });
-      return applyMyRating(row, saved);
-    } catch {
-      showToast("error", `${noun} saved, but your rating did not save.`);
-      return row;
-    }
+    const saved = await saveFormRating(ownerType, row.system_id, form, loaded, noun);
+    return saved ? applyMyRating(row, saved) : row;
   }
   // An entity deep link (?type=character|person|studio|publisher) opens on its tab from the
   // first paint; the tab itself loads the id (entityDeepLink below).
@@ -677,6 +661,7 @@ export default function Modify() {
     else if (castMediaType === "book") setCnvf((p) => ({ ...p, cast: rows }));
     else if (castMediaType === "h-comic") setChcf((p) => ({ ...p, cast: rows }));
     else if (castMediaType === "hentai") setChtf((p) => ({ ...p, cast: rows }));
+    else if (castMediaType === "game") setCgmf((p) => ({ ...p, cast: rows }));
   }, [castMediaType, editingItem, castData]);
 
   // The active tab's own list goes out FIRST, before the twenty-odd source
@@ -1320,6 +1305,7 @@ export default function Modify() {
       book: cnvf,
       "h-comic": chcf,
       hentai: chtf,
+      game: cgmf,
     }[editingType];
     const castProblem = castForm && castIdentityProblem(castForm.cast);
     if (castProblem) {
@@ -2111,6 +2097,7 @@ export default function Modify() {
     }
     const updated = await res.json();
     await saveCredits("game", updated.system_id, cgmf);
+    await saveCast("game", updated.system_id, cgmf);
     setAllGames((prev) =>
       prev.map((g) => (g.system_id === updated.system_id ? updated : g)),
     );
@@ -2345,6 +2332,19 @@ export default function Modify() {
     if (type === "options") return `${item.category}: ${item.value}`;
     return "Unknown";
   }
+
+  // The tabs that draw their own editor (studio, publisher, person,
+  // character, identity) name the tab themselves; fav3x3 and alias edit no
+  // single record.
+  const mainEditorOpen =
+    editorOpen &&
+    Boolean(editingItem) &&
+    !["fav3x3", "studio", "publisher", "person", "character", "identity", "alias"].includes(
+      activeTab,
+    );
+  usePageTitle(
+    mainEditorOpen ? editorTitle(getItemLabel(editingItem, editingType)) : null,
+  );
 
   const searchResults = (() => {
     if (!searchQuery.trim()) return [];
