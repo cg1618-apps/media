@@ -823,6 +823,26 @@ Returns a status dict; the route streams it as the last event, `"status": "error
        [no installation owner](#the-installation-owner), so the rest of the
        tab still commits.
 
+   - **Sequences, right after the tab commits.** Rows restore with the
+     sheet's own keys, and PostgreSQL does not advance a sequence when an
+     INSERT supplies the value, so each sequence is moved to `MAX + 1`
+     (`is_called = false`, and 1 for an empty table) - otherwise the next
+     row that lets the sequence choose fails on a key the restore already
+     used, one collision at a time.
+     - `resync_id_sequence`: every **integer primary-key column** of the
+       tab's model is asked about with `pg_get_serial_sequence`, and the
+       sequence it names, if any, is resynced. The set is derived, never
+       listed: a UUID key (`system_id`, which most tables and
+       `system_option` have) and an integer key with no sequence are
+       skipped, and a new table with a serial key is covered the day it gets
+       a tab. Today that is `system_configs`, `person_role`,
+       `publisher_scope`, `system_option_scope`, `system_option_usage` and
+       `system_option_alias`; `tests/api/test_pull_id_sequences.py` fails if
+       any tab's sequence-backed integer key is not resynced.
+     - `resync_public_id_sequence`: the same for the `public_id` sequence of
+       every entity tab, named by the column's declared `Sequence` (a media
+       type's by `PUBLIC_ID_SEQUENCE`); `media` itself owns none.
+
    - **After the tab commits**, two passes, each over the whole table and each
      committed. A restore writes rows straight to the tables, so neither the
      region rule nor the label would otherwise hold for it.
