@@ -6,7 +6,7 @@ import threading
 import uuid
 from typing import Callable, Optional
 
-from sqlalchemy import Sequence, null, or_, text
+from sqlalchemy import Integer, Sequence, null, or_, text
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.ext.associationproxy import AssociationProxyExtensionType
 from sqlalchemy.orm import Session
@@ -425,6 +425,44 @@ DERIVED_IDENTITY_MINTED_PK: frozenset[str] = frozenset(
     }
 )
 
+
+
+def resync_id_sequence(db: Session, model) -> None:
+    """
+    Move the sequence behind a table's integer primary key past the restored ids.
+
+    Postgres does not advance a sequence when an INSERT supplies the value, so
+    a tab restored with the sheet's own ids leaves the table holding 1..N
+    while its sequence still sits wherever it was - and the next INSERT that
+    lets the sequence choose dies on the primary key, one collision at a time.
+
+    Which tables this applies to is derived, never listed: every integer
+    primary-key column of the model is asked about with pg_get_serial_sequence,
+    which answers for serial and identity columns and returns NULL otherwise.
+    A UUID key (system_id on most tables, system_option's included) and an
+    integer key with no sequence are therefore no-ops, and a new table with a
+    serial key is covered the day it gets a tab.
+    """
+    table = model.__table__
+    for column in table.primary_key.columns:
+        if not isinstance(column.type, Integer):
+            continue
+        sequence = db.execute(
+            text("SELECT pg_get_serial_sequence(:table, :column)"),
+            {"table": f'"{table.name}"', "column": column.name},
+        ).scalar()
+        if sequence is None:
+            continue
+        # COALESCE covers an empty table: max() is NULL there and setval would
+        # fail. is_called=false makes the next nextval return exactly this value.
+        db.execute(
+            text(
+                "SELECT setval(:sequence, "
+                f'COALESCE((SELECT MAX("{column.name}") FROM "{table.name}"), 0) + 1, '
+                "false)"
+            ),
+            {"sequence": sequence},
+        )
 
 
 def resync_public_id_sequence(db: Session, model) -> None:
@@ -2440,33 +2478,14 @@ def execute_pull_specific(
     # included - would otherwise keep the pre-Pull answer.
     cache.bump()
 
-    # Tabs whose rows restore with the sheet's own integer PK. Postgres does
-    # not advance a sequence when a value is supplied explicitly, so after a
-    # restore into a fresh instance the table holds ids 1..N while its
-    # sequence still sits at 1 - and the next INSERT that lets the sequence
-    # pick a value fails on the primary key. Resync every one of them.
-    #
-    # Note there is deliberately NO system_options_id_seq here: that table's
-    # key became a UUID (system_id), so it has no sequence to resync.
-    id_sequences = {
-        "System Configs": ("system_configs_id_seq", "system_configs"),
-        "Person Role": ("person_role_id_seq", "person_role"),
-        "Publisher Scope": ("publisher_scope_id_seq", "publisher_scope"),
-        "System Option Scope": ("system_option_scope_id_seq", "system_option_scope"),
-        "System Option Usage": ("system_option_usage_id_seq", "system_option_usage"),
-    }
-    if tab_name in id_sequences:
-        sequence, table = id_sequences[tab_name]
-        db.execute(
-            text(
-                f"SELECT setval('{sequence}', "
-                f"COALESCE((SELECT MAX(id) FROM {table}), 0) + 1, false)"
-            )
-        )
-        db.commit()
+    # Rows restore with the sheet's own integer primary key, which the
+    # table's sequence knows nothing about. Runs after the commit above so
+    # MAX() reads the rows that landed.
+    resync_id_sequence(db, Model)
+    db.commit()
 
     # The same hazard for public_id, which every entity tab restores from the
-    # sheet. Runs after the commit above so MAX() reads the rows that landed.
+    # sheet.
     resync_public_id_sequence(db, Model)
     db.commit()
 
