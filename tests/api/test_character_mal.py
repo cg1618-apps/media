@@ -546,3 +546,37 @@ def test_a_mal_import_leaves_a_saved_credited_name_alone(
 
     db_session.expire_all()
     assert db_session.get(models.CharacterCasting, casting.system_id).credited_name == "Fullmetal"
+
+
+# --- Modify's save asks the Fill's question first ------------------------------
+
+def _complete_character():
+    return {
+        "name_en": "Edward Elric",
+        "name_jp": "エドワード・エルリック",
+        "name_alt": "Fullmetal",
+        "photo_file": "character/mine.jpg",
+        "mal_link": EDWARD_LINK,
+    }
+
+
+def test_put_does_not_fetch_a_character_with_nothing_to_fill(owner_client, character_calls):
+    """has_missing_values_character, the Character Fill's own check."""
+    created = owner_client.post("/api/character/", json={"name_en": "Ed"}).json()
+    r = owner_client.put(
+        f"/api/character/{created['system_id']}", json=_complete_character()
+    )
+    assert r.status_code == 200, r.text
+    assert character_calls == []
+
+
+def test_put_still_fills_a_character_with_one_blank_column(owner_client, character_calls):
+    """The mirror: name_jp cleared, so MAL is asked and fills it."""
+    created = owner_client.post("/api/character/", json={"name_en": "Ed"}).json()
+    body = owner_client.put(
+        f"/api/character/{created['system_id']}",
+        json={**_complete_character(), "name_jp": None},
+    ).json()
+    assert character_calls == [11]
+    assert body["name_jp"] == "エドワード・エルリック"
+    assert body["name_alt"] == "Fullmetal"

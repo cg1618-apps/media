@@ -40,6 +40,7 @@ from app.services.domain.character_tags import (
     pop_patch_tags,
     write_character_tags,
 )
+from app.services.domain.checking import has_missing_values_character
 from app.services.domain.derivation import apply_extract_mal_id_character
 from app.services.domain.merge_fill import absorb_casting, finish_merge
 from app.services.integrations.tenrai import search_mal_characters
@@ -64,15 +65,24 @@ router = APIRouter(prefix="/api/character", tags=["Character Management"])
 NOT_FOUND = "Character not found."
 
 
-def _derive_and_fill_from_mal(db: Session, character: models.Character) -> None:
+def _derive_and_fill_from_mal(
+    db: Session, character: models.Character, *, only_if_missing: bool = False
+) -> None:
     """
     Derive mal_id from mal_link, then fill the empty columns from MAL's
     character record. Runs after the payload is copied, so the payload's own
     values win and only blank columns are filled. Flushed first: a new
     character's portrait is stored under its system_id.
+
+    `only_if_missing` is the Modify save's: MAL is asked only while a column
+    the fill writes is blank (has_missing_values_character, the Character
+    Fill's own check). The explicit /autofill button and the create leave it
+    off.
     """
     apply_extract_mal_id_character(character)
     if character.mal_id is None:
+        return
+    if only_if_missing and not has_missing_values_character(character):
         return
     db.flush()
     autofill_character_from_mal(character)
@@ -331,7 +341,7 @@ def update_character(
     for key, value in data.items():
         setattr(character, key, value)
     write_character_tags(db, system_id, tags)
-    _derive_and_fill_from_mal(db, character)
+    _derive_and_fill_from_mal(db, character, only_if_missing=True)
     prefer_cn_display_name(character)
 
     db.commit()

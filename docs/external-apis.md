@@ -277,7 +277,7 @@ MAL calls a studio a "producer". The record is a different shape from a title's:
 
 Deliberately dropped: `about` (`remark` is the admin's own note, not MAL's blurb), and `favorites` / `count` (no columns).
 
-`autofill_studio_from_mal` is **fill-only for every column**, including `logo_file` — a producer carries nothing that drifts, so there is no force-replace variant and no Replace pipeline. It also swallows and logs every failure, because it runs inside the studio write request: a flaky Tenrai must never turn a save into a 500. It runs on `POST` (create branch only), on `PUT`, on the studio page's **Autofill & update** (`POST /api/studio/{system_id}/autofill`, a 422 without a MAL link) and in the Studio Fill.
+`autofill_studio_from_mal` is **fill-only for every column**, including `logo_file` — a producer carries nothing that drifts, so there is no force-replace variant and no Replace pipeline. It also swallows and logs every failure, because it runs inside the studio write request: a flaky Tenrai must never turn a save into a 500. On `PUT` it runs only while a column it writes is blank (`has_missing_values_studio`, the Fill's own check), so saving a complete studio costs no request. It runs on `POST` (create branch only), on `PUT`, on the studio page's **Autofill & update** (`POST /api/studio/{system_id}/autofill`, a 422 without a MAL link) and in the Studio Fill.
 
 ### Mapping for `person` (seiyuu) — `map_tenrai_to_person_data`
 
@@ -293,7 +293,7 @@ MAL's "people" record. Only a person holding the `seiyuu` role is ever filled fr
 
 Deliberately dropped: `birthday`, `website_url` and `about` — the person table has no columns for them.
 
-`autofill_person_from_mal(person, db)` is **fill-only for every column**: each name, the link and the photo are written only when empty. The four names are written **together or not at all**: `uq_person_name` is unique over the four name columns (NULLS NOT DISTINCT), so before assigning them the autofill asks, with `IS NOT DISTINCT FROM`, whether another person already holds the filled tuple. If one does, the names are skipped with a warning and the photo and link still land — a query first rather than a caught `IntegrityError`, which would cost the whole save. Like the studio autofill it swallows and logs every failure.
+`autofill_person_from_mal(person, db)` is **fill-only for every column**: each name, the link and the photo are written only when empty. The four names are written **together or not at all**: `uq_person_name` is unique over the four name columns (NULLS NOT DISTINCT), so before assigning them the autofill asks, with `IS NOT DISTINCT FROM`, whether another person already holds the filled tuple. If one does, the names are skipped with a warning and the photo and link still land — a query first rather than a caught `IntegrityError`, which would cost the whole save. Like the studio autofill it swallows and logs every failure, and on `PUT` it runs only while a column it writes is blank (`has_missing_values_person`).
 
 ### Mapping for `character` — `map_tenrai_to_character_data`
 
@@ -309,7 +309,7 @@ MAL's character record, fetched for a character with a `mal_id` by `POST` / `PUT
 
 Deliberately dropped: `about` — the character table has no column for it.
 
-`autofill_character_from_mal(character)` is **fill-only for every column**. Unlike the person autofill there is no name-collision check: character names are not unique (Decision G). On save it runs inside the character write request, after the payload is copied and the row flushed (the portrait is stored under the `system_id`), so it swallows and logs every failure. The character page's **Autofill & update** (`POST /api/character/{system_id}/autofill`, a 422 without a MAL link) runs the same fill without a save.
+`autofill_character_from_mal(character)` is **fill-only for every column**. Unlike the person autofill there is no name-collision check: character names are not unique (Decision G). On save it runs inside the character write request, after the payload is copied and the row flushed (the portrait is stored under the `system_id`), so it swallows and logs every failure. On `PUT` it runs only while a column it writes is blank (`has_missing_values_character`), so saving a complete character costs no request. The character page's **Autofill & update** (`POST /api/character/{system_id}/autofill`, a 422 without a MAL link) runs the same fill without a save.
 
 ### Mapping for a cast — `map_tenrai_cast`
 

@@ -27,6 +27,7 @@ from app.routers._patching import apply_column_patch
 from app.schemas.external_search import ExternalSearchResult
 from app.services.domain.autofill import autofill_person_from_mal
 from app.services.domain.casting import fallback_photo
+from app.services.domain.checking import has_missing_values_person
 from app.services.domain.credit_counts import person_role_counts
 from app.services.domain.credits import find_person
 from app.services.domain.derivation import apply_extract_mal_id_person
@@ -133,16 +134,25 @@ def _to_response(
     )
 
 
-def _derive_and_fill_from_mal(db: Session, person: models.Person) -> None:
+def _derive_and_fill_from_mal(
+    db: Session, person: models.Person, *, only_if_missing: bool = False
+) -> None:
     """
     Derive mal_id from mal_link, and - for a seiyuu only - fill the empty
     columns from MAL's people record. The Seiyuu Fill pipeline applies the
     same seiyuu rule (specs._is_seiyuu_to_fill), so a director's MAL link is
     kept but never fetched. Runs after the payload is copied, so the
     payload's own values win and only blank columns are filled.
+
+    `only_if_missing` is the Modify save's: MAL is asked only while a column
+    the fill writes is blank (has_missing_values_person, the Seiyuu Fill's
+    own check), so saving a complete seiyuu makes no request. The explicit
+    /autofill button and the create leave it off.
     """
     apply_extract_mal_id_person(person)
     if person.mal_id is None:
+        return
+    if only_if_missing and not has_missing_values_person(person):
         return
     db.flush()
     db.refresh(person, ["roles"])
@@ -687,7 +697,9 @@ def update_person(
     _entity_patch.resolve_fallback.
 
     mal_id is derived from mal_link, and a seiyuu with one is then filled
-    from MAL, blank columns only (_derive_and_fill_from_mal).
+    from MAL, blank columns only (_derive_and_fill_from_mal) - and only
+    while one of those columns is blank, so a complete seiyuu makes no MAL
+    request.
     """
     person = db.get(models.Person, system_id)
     if person is None:
@@ -717,7 +729,7 @@ def update_person(
             )
         )
 
-    _derive_and_fill_from_mal(db, person)
+    _derive_and_fill_from_mal(db, person, only_if_missing=True)
 
     db.commit()
     db.refresh(person)
