@@ -261,6 +261,16 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
         "franchise_id",
         "series_id",
     ),  # uq_plan_next_target
+    # One mark per owner (uq_needs_work_media and its three siblings): a
+    # mark made on both machines under two uuids is one row, matched by the
+    # owner. Three of the four columns are NULL on every row, and a NULL part
+    # of the key compares as IS NULL, so the match names exactly one owner.
+    "Needs Work": (
+        "media_id",
+        "collection_id",
+        "franchise_id",
+        "series_id",
+    ),
     # One follow per user per group: the group's row is matched and repointed
     # at the sheet's list, rather than a second row colliding with it.
     "Watch Order Follow": (

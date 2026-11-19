@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-11-17
+Last verified: 2026-11-19
 
 ## What this is for
 
@@ -32,7 +32,7 @@ All routes need **one** gate, declared on the router: `Depends(require_manage_pi
 
 **One Backup at a time, and never during a Pull.** Every Backup first takes a PostgreSQL session-level advisory lock (`BACKUP_LOCK_KEY`, declared in `worker.py`) on a connection of its own, so the web app and the separate `sheets.sh` process exclude each other. A second Backup — or any Backup while a Pull holds `PULL_LOCK_KEY`, since it would write a half-restored database over the sheet the Pull is reading — raises `BackupAlreadyRunning` before it reads or writes anything and logs no row; the route answers it with **409**, and a Fill All / Replace All that reaches its Auto Backup while another runs ends `Failed` with that message. Two writers on one sheet would each trim what the other wrote and share one per-minute Sheets quota. PostgreSQL drops the lock with its connection, so a process that dies cannot leave it held.
 
-**The manual route streams, and the Backup outlives it.** Production sits behind a Cloudflare Tunnel, which answers 524 to a request that sends nothing for about 100 seconds, and a full Backup (60 tabs at a few seconds each, longer through a Sheets 429 pause) takes longer than that. So `POST /backup` claims the lock, starts the Backup on a thread with its own session, and relays its progress as SSE: one `processing` event per tab (`current_entry` = tab name, `processed` / `total`), then `success` or `error`, with a `: keepalive` comment every 15 seconds (`STREAM_KEEPALIVE_SECONDS`) while a tab is slow. The relay is `_relay` in `data_control.py`, which Pull uses too. The thread never waits on its listener: a reloaded page or a dropped connection stops the events, not the Backup, which finishes and writes its log row anyway — a sheet with some tabs new and some old is a worse restore point than either. The thread carries the request's context, so its log lines keep the starting request's `request_id`.
+**The manual route streams, and the Backup outlives it.** Production sits behind a Cloudflare Tunnel, which answers 524 to a request that sends nothing for about 100 seconds, and a full Backup (61 tabs at a few seconds each, longer through a Sheets 429 pause) takes longer than that. So `POST /backup` claims the lock, starts the Backup on a thread with its own session, and relays its progress as SSE: one `processing` event per tab (`current_entry` = tab name, `processed` / `total`), then `success` or `error`, with a `: keepalive` comment every 15 seconds (`STREAM_KEEPALIVE_SECONDS`) while a tab is slow. The relay is `_relay` in `data_control.py`, which Pull uses too. The thread never waits on its listener: a reloaded page or a dropped connection stops the events, not the Backup, which finishes and writes its log row anyway — a sheet with some tabs new and some old is a worse restore point than either. The thread carries the request's context, so its log lines keep the starting request's `request_id`.
 
 Steps, for each tab in `SHEET_TABS` order (section 2 lists it):
 
@@ -104,6 +104,7 @@ Users, Book Unit -> User Book Unit Rating
 Users, Media, H-Comic, H-Game -> User Highlight Group Order
 Users, Note      -> Note Mark
 Users, Quote, Meme -> User Favorite
+Collection, Franchise, Series, Media -> Needs Work
 ```
 
 `Users` is first because nothing in the sheet points at it, and `Plan Next`,
@@ -204,13 +205,14 @@ reader's half without an owner and says so the same way
 | 51 | `User Favorite` | `UserFavorite` |  |
 | 52 | `Note` | `Note` |  |
 | 53 | `Note Mark` | `NoteMark` |  |
-| 54 | `Resources` | `ResourceNode` |  |
-| 55 | `Media Source` | `MediaSource` |  |
-| 56 | `Media Content Label` | `MediaContentLabel` |  |
-| 57 | `Franchise Content Label` | `FranchiseContentLabel` |  |
-| 58 | `Collection Content Label` | `CollectionContentLabel` |  |
-| 59 | `Series Content Label` | `SeriesContentLabel` |  |
-| 60 | `Seasonal` | `Seasonal` |  |
+| 54 | `Needs Work` | `NeedsWork` |  |
+| 55 | `Resources` | `ResourceNode` |  |
+| 56 | `Media Source` | `MediaSource` |  |
+| 57 | `Media Content Label` | `MediaContentLabel` |  |
+| 58 | `Franchise Content Label` | `FranchiseContentLabel` |  |
+| 59 | `Collection Content Label` | `CollectionContentLabel` |  |
+| 60 | `Series Content Label` | `SeriesContentLabel` |  |
+| 61 | `Seasonal` | `Seasonal` |  |
 
 `Media` sits immediately before the twelve entry tabs: every entry table has a
 composite FK `(system_id, media_type)` up to `media`, and although that FK is
@@ -450,6 +452,19 @@ alone. With no installation owner the row still restores and its personal
 values are skipped: they are counted into the tab's one `no installation
 owner` line (`no_owner_message`), not named row by row. The header names live in that module rather than in
 `pull.py` because no pipeline module may name a personal column.
+
+**`Needs Work`** is the 待補充 Needs Work marks (`needs_work`), every column
+as it stands. Its four owner columns are real foreign keys onto `media` and the
+three tiers, whose uuids are the same in every database, so they travel
+unchanged, and the tab sits after every tab they name. One mark per owner: a
+row whose `system_id` is unknown here is matched by its owner
+(`DERIVED_IDENTITY_KEYS` in `pull.py`, the four owner columns, a NULL part
+comparing as IS NULL), so the same owner marked on both machines is one row,
+updated to the sheet's note, rather than a collision that rolls back the tab.
+Like every tab, Pull inserts and updates and never deletes: a mark cleared on
+one machine is still there on the other after a Pull, and is cleared there by
+hand. Unlike requests, the marks are catalogue bookkeeping written by whoever
+edits the catalogue, on whichever machine, so they travel with it.
 
 **`Resources`** is the Resources page (`resource_node`), every column as it
 stands. It cites nothing outside itself, so its position is free; its one
@@ -1187,7 +1202,7 @@ deleted, split by what the database actually does:
 
 | Group | Rows | On delete |
 |---|---|---|
-| `deleted` | `media_credit`, `media_tag`, `media_source`, `media_content_label`, `note`, `meme`, `user_media_list` | `CASCADE` |
+| `deleted` | `media_credit`, `media_tag`, `media_source`, `media_content_label`, `note`, `meme`, `needs_work`, `user_media_list` | `CASCADE` |
 | `detached` | `quote` | `SET NULL` |
 
 **A quote survives its entry.** `quote.media_id` is nullable by design — "a

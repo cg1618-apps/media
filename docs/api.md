@@ -88,6 +88,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [My Highlight Group Order — `/api/me`](#my-highlight-group-order--apime)
 - [Account — `/api/account`](#account--apiaccount)
 - [Requests — `/api/requests`](#requests--apirequests)
+- [Needs Work — `/api/needs-work`](#needs-work--apineeds-work)
 - [Authorization](#authorization) — `/api/roles`, `/api/users`, `/api/content-labels`
 
 ---
@@ -2704,6 +2705,46 @@ files none. Rules: [systems/requests.md](systems/requests.md).
   deleted — the SPA shows "deleted account".
 - `response` is the handler's remark, returned to the author on `/mine` too.
 - `can_edit` is true when the request is the caller's own and still open.
+
+---
+
+## Needs Work — `/api/needs-work`
+
+待補充 Needs Work: an entry of any of the twelve media types, a collection, a
+franchise or a series marked as not complete yet - a sequel not added, names
+missing, an official name not released - with an optional note
+(`app/routers/needs_work.py`, table [`needs_work`](data-model.md#needs_work)).
+One gate on the **router**: `manage.requests` (`require_handle_requests`), the
+inbox's key, which only `super` and the `admin` hold; everyone else gets
+**401** on every route.
+
+| Method | Path | Auth | Body / notes |
+|---|---|---|---|
+| GET | `/api/needs-work` | `manage.requests` | Every mark as `[NeedsWorkGroup]`, one group per note: the noted groups by note (case-insensitive), then the group whose `note` is null. Inside a group, by owner type in `OWNER_TABLES` order, then by name. `[]` when nothing is marked. |
+| GET | `/api/needs-work/notes` | `manage.requests` | `[{note, count}]` - every note a mark carries, most used first, then by note. A mark with no note offers nothing. The suggestions for the note field. |
+| GET | `/api/needs-work/{owner_type}/{owner_id}` | `manage.requests` | `NeedsWorkMark` for one owner: `flagged: false` and nulls when it is not marked. **404** for an unknown `owner_type` or an owner that does not exist. |
+| PUT | `/api/needs-work/{owner_type}/{owner_id}` | `manage.requests` | Body `{note?}` (`NeedsWorkWrite`): marks the owner, or changes the note of its mark - one mark per owner, so it is idempotent. The note is trimmed, and a blank one is stored as null. Returns the `NeedsWorkMark`. **404** as GET; **422** for any other key. |
+| DELETE | `/api/needs-work/{owner_type}/{owner_id}` | `manage.requests` | **204**. Clears the mark; clearing an owner that is not marked changes nothing. **404** as GET. |
+
+`owner_type` is an `OWNER_TABLES` key (`app/utils/media_resolver.py`): the
+twelve hyphenated media types, `collection`, `franchise` or `series`.
+`owner_id` is the owner's `system_id` - a UUID, as on every write. A media id
+filed under the wrong type (an anime's id as `manga`) is **404**.
+
+**`NeedsWorkMark`**: `owner_type`, `owner_id`, `flagged`, `note`,
+`created_at`, `updated_at`.
+
+**`NeedsWorkGroup`**: `note` (null for the unnoted group) and `items`, each a
+**`NeedsWorkItem`**: `owner_type`, `owner_id`, `type_label` ("Anime",
+"Franchise", ...), `is_tier`, `display_name`, `nav_path` - the SPA page,
+`/<owner_type>/<uuid>`, a series included - `note`, `created_at`,
+`updated_at`.
+
+**No object check.** The routes ask that an owner exists, not that the caller
+may see it, and the list names every marked owner whatever the caller's mode,
+as the inbox names its targets - the admin account, which reaches no catalogue
+object, reads the page in full. See
+[authorization.md](authorization.md#accepted-residuals).
 
 ---
 

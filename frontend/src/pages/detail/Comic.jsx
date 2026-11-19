@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { releaseYear } from "../../lib/releaseDate";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import NeedsWorkBadge from "../../components/needs-work/NeedsWorkBadge";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
@@ -207,11 +208,14 @@ export default function Comic() {
             {titleMain}
           </span>
         </nav>
-        <ReportProblemButton
-          targetType="comic"
-          targetId={system_id}
-          targetLabel={titleMain}
-        />
+        <div className="flex shrink-0 items-center gap-3">
+          <NeedsWorkBadge ownerType="comic" ownerId={system_id} />
+          <ReportProblemButton
+            targetType="comic"
+            targetId={system_id}
+            targetLabel={titleMain}
+          />
+        </div>
       </div>
 
       {/* Admin toolbar — no Autofill: comics are manual-entry, with no

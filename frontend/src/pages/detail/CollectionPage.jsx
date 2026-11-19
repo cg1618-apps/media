@@ -46,6 +46,7 @@ import {
   Chip,
 } from "../../components/ui/primitives";
 import FranchiseCard from "../../components/cards/FranchiseCard";
+import NeedsWorkBadge from "../../components/needs-work/NeedsWorkBadge";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import WatchOrderSection from "../../components/tracker/WatchOrderSection";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
@@ -217,11 +218,14 @@ export default function CollectionPage() {
         trail={[{ to: "/library/collection", label: "Collection" }]}
         current={name}
         action={
-          <ReportProblemButton
-            targetType="collection"
-            targetId={collection.system_id}
-            targetLabel={name}
-          />
+          <div className="flex shrink-0 items-center gap-3">
+            <NeedsWorkBadge ownerType="collection" ownerId={collection.system_id} />
+            <ReportProblemButton
+              targetType="collection"
+              targetId={collection.system_id}
+              targetLabel={name}
+            />
+          </div>
         }
       />
 

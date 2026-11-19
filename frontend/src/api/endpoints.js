@@ -408,6 +408,14 @@ export const endpoints = {
     remove: (id) => `/api/requests/${id}`,
   },
 
+  // 待補充 Needs Work: the marks on entries and groups, and the page that
+  // lists them grouped by note. Every route is manage.requests.
+  needsWork: {
+    list: () => "/api/needs-work",
+    notes: () => "/api/needs-work/notes",
+    mark: (ownerType, ownerId) => `/api/needs-work/${ownerType}/${ownerId}`,
+  },
+
   // The Add tabs' external pickers. CRUD for each type comes from
   // resource(type); these groups hold the endpoints that are not CRUD. Every
   // search answers ExternalSearchResult rows (external_id, link, title,
