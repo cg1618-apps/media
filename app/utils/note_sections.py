@@ -2394,8 +2394,8 @@ def personal_values(section: NoteSection) -> tuple[PersonalValue, ...]:
     Every personal value a row of `section` carries, in field order and the
     section-level status last. Empty for a section that is catalogue through
     and through - which is every section but the eleven that split into a
-    catalogue row and personal values (docs/notes/decisions.md, "note
-    marks"), and every personal-scope section (its rows are already one
+    catalogue row and personal values
+    (docs/notes/decisions/2026-11-13-note-marks.md), and every personal-scope section (its rows are already one
     account's).
     """
     found = [

@@ -2086,7 +2086,7 @@ that order and sorts nothing.
   `remark-gfm`: inline links, autolinked bare URLs, lists, tables). Raw HTML is
   dropped, a `javascript:` link renders without an executable href, and every
   link opens in a new tab with `rel="noopener noreferrer"`. Why Markdown:
-  [decisions](../notes/decisions.md), "A Resources item's body is Markdown".
+  [decisions](../notes/decisions/2026-09-28-resources-body-is-markdown.md).
 - **Editing** (`has("manage.resources")`, which every reader of the page
   holds; the server refuses writes from anyone else). **Add group** at the top; **Add item** / **Add subgroup** at
   the foot of every group; every row has a grip on its left, and its hover

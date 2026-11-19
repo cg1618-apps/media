@@ -220,7 +220,8 @@ SEARCHABLE_BY_KEY: dict[str, SearchableType] = {t.key: t for t in SEARCHABLE_TYP
 # Characters are searched only on request (`include_characters`): the search
 # page asks, the nav dropdown does not, so the dropdown's answer stays about
 # titles and the staff who made them. Not a scope either - the page's scope
-# selector is the dropdown's. docs/notes/decisions.md has the reasoning.
+# selector is the dropdown's. The reasoning is
+# docs/notes/decisions/2026-10-18-characters-searched-by-opt-in.md.
 CHARACTER_SEARCH = SearchableType(
     key="character",
     model=models.Character,

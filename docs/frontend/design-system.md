@@ -249,7 +249,7 @@ the same `Reorder <name>` label and the same keys.
   row one place; focus follows the row, so a held key keeps moving it.
 - **The page scrolls under the wheel mid-drag.** That is why it is dnd-kit's
   pointer drag and not native HTML5 drag, which swallows the mouse wheel on
-  Windows - see [decisions](../notes/decisions.md), "Every list reorders by
+  Windows - see [decisions](../notes/decisions/2026-10-02-lists-reorder-by-dnd-kit.md), "Every list reorders by
   dnd-kit drag".
 - **A move that saves immediately freezes the grips until it settles**, and
   shows the new order at once; a list held in a form draft (cast, units,

@@ -266,7 +266,7 @@ def test_restore_refuses_production_without_confirmation():
 def test_restore_requires_the_app_to_be_stopped():
     # app/main.py calls create_all at import, so an app container racing the
     # restore creates every table and makes pg_restore collide. Learned the
-    # hard way and recorded in docs/notes/decisions.md; encoded here so it
+    # hard way and explained in restore.sh itself; encoded here so it
     # cannot be forgotten under pressure at 2 a.m.
     body = RESTORE.read_text(encoding="utf-8")
     assert "create_all" in body, "explain WHY the app must be stopped"

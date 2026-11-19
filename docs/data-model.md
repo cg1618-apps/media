@@ -191,7 +191,7 @@ missing). Model: `Franchise` (`app/models/franchise.py`).
 | `size_group_derived` | JSONB | yes | | Size bucket per media type, e.g. `{"anime": "24ep", "tv-show": "2season"}`. Written by Calculate, rewritten freely. |
 | `size_group_manual` | JSONB | yes | | Same shape, written by the admin, never touched by Calculate. Manual key wins (`app/services/domain/size_group.py`). |
 | `created_at` / `updated_at` | DateTime | yes | now | |
-| `alone_reviewed_media_id` | UUID | yes | | The `media.system_id` of the lone entry that was reviewed and kept on the review queue's single-entry check. The franchise is listed again whenever its one entry is any other id. No FK, like `cover_entry_id`: a stale id matches nothing (see [notes/decisions.md](notes/decisions.md)). |
+| `alone_reviewed_media_id` | UUID | yes | | The `media.system_id` of the lone entry that was reviewed and kept on the review queue's single-entry check. The franchise is listed again whenever its one entry is any other id. No FK, like `cover_entry_id`: a stale id matches nothing (see [notes/decisions/2026-10-04-single-entry-groups-remember-the-reviewed-entry.md](notes/decisions/2026-10-04-single-entry-groups-remember-the-reviewed-entry.md)). |
 
 Relationships: `series`, `collection`, `animes`. Virtual:
 `display_name`, `content_labels` (its own rows in

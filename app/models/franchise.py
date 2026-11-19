@@ -96,7 +96,7 @@ class Franchise(Base, NameFallbackMixin):
     # media.franchise_id that a Pull, which restores this tab before the Media
     # tab, could not satisfy. A stale id simply matches nothing - the franchise
     # is listed again, which is what SET NULL would have done.
-    # See docs/notes/decisions.md.
+    # See docs/notes/decisions/2026-10-04-single-entry-groups-remember-the-reviewed-entry.md.
     alone_reviewed_media_id = Column(UUID(as_uuid=True), nullable=True)
 
     # Relationships
@@ -196,7 +196,7 @@ class Series(Base, NameFallbackMixin):
     # media.series_id that a Pull, which restores this tab before the Media
     # tab, could not satisfy. A stale id simply matches nothing - the series
     # is listed again, which is what SET NULL would have done.
-    # See docs/notes/decisions.md.
+    # See docs/notes/decisions/2026-10-04-single-entry-groups-remember-the-reviewed-entry.md.
     alone_reviewed_media_id = Column(UUID(as_uuid=True), nullable=True)
 
     # Relationships

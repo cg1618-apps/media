@@ -50,7 +50,8 @@ narrowed below its mode with per-account denials.
 
 Related: [authentication.md](authentication.md) (login, cookie),
 [data-model.md](data-model.md) (tables), [api.md](api.md) (routes),
-[notes/decisions.md](notes/decisions.md) (2026-08-29 View authorization).
+[Why it is built this way](#why-it-is-built-this-way), and
+[notes/decisions/](notes/decisions/README.md) for the rest.
 
 ## What each role and mode holds
 
@@ -563,7 +564,7 @@ Migration `s1w2itches345` gives `view.studio`, `view.publisher`,
 entity key they replace, so an established database shows the same pages it
 did; it also reconciles the gated types to their locks and grants any of the
 nine ordinary types missing from `guest`, `user`, `shared` or `super` once
-([notes/decisions.md](notes/decisions.md)). Migration `a1d2minroot45` writes
+([notes/decisions/2026-11-03-per-role-and-per-account-switches.md](notes/decisions/2026-11-03-per-role-and-per-account-switches.md)). Migration `a1d2minroot45` writes
 the admin role's seven grants as rows and deletes any other it holds, drops
 `role.is_root`, and sets every `admin`-role account's ceiling and default to
 NULL. It moves no data: a personal row owned by an `admin`-role account is

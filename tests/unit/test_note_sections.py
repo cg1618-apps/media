@@ -939,7 +939,7 @@ def test_sections_by_scope_returns_registry_order():
 
 # --- mixed sections ----------------------------------------------------------
 # A mixed section holds catalogue rows and each account's own personal rows
-# together. The ten are the list in docs/notes/decisions.md, "mixed
+# together. The ten are the list in docs/systems/notes.md, "Mixed
 # sections", by key.
 
 MIXED = {
