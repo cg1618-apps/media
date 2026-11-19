@@ -2700,7 +2700,7 @@ files none. Rules: [systems/requests.md](systems/requests.md).
   `franchise`, `collection`, `studio`, `publisher`, `person`, `character`,
   `identity`. `label` is the target's current name, or the name copied when the
   request was filed once the target is gone (`missing: true`, `nav_path`
-  null). `nav_path` is the SPA detail path (`/anime/<uuid>`), null for a series.
+  null). `nav_path` is the SPA detail path (`/anime/<uuid>`, `/series/<uuid>`).
 - `author_username` and `handled_by_username` are null once that account is
   deleted — the SPA shows "deleted account".
 - `response` is the handler's remark, returned to the author on `/mine` too.

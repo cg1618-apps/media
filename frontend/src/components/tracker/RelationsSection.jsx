@@ -96,8 +96,8 @@ export default function RelationsSection({ mediaType, entryId, onRows }) {
           );
         }
 
-        // nav_path is null only for Series, which media relations never
-        // point at, but guard anyway rather than emit a dead link.
+        // nav_path is null only for an unresolved entry; guard rather than
+        // emit a dead link.
         const body = (
           <>
             <LazyImage

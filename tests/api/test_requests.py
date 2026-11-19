@@ -353,6 +353,17 @@ def test_an_entity_can_be_a_target(user_client, person):
     assert filed["target"]["label"] == person.display_name
 
 
+def test_a_series_target_links_to_its_page(user_client, sample_series):
+    """A series has a page of its own, so it links like a franchise does."""
+    filed = _file(
+        user_client,
+        kind="incomplete_data",
+        target_type="series",
+        target_id=str(sample_series.system_id),
+    )
+    assert filed["target"]["nav_path"] == f"/series/{sample_series.system_id}"
+
+
 def test_a_target_the_filers_mode_hides_is_accepted(mode_client, plain_user, hidden_anime):
     """Requesting something your mode hides is allowed. The GET proves the
     entry IS hidden from this session, so the 201 is not vacuous. `safe`,

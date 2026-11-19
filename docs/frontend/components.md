@@ -715,7 +715,7 @@ columns.
     `manage.catalog` only. The placement is provisional, pending the owner's
     design; moving it means moving those call sites, not the component.
   - `RequestTarget` — one table cell's "what it is about": a link through the
-    target's `nav_path`, plain text when there is none (a series), the stored
+    target's `nav_path`, plain text when there is none, the stored
     name plus "(deleted)" once the target is gone, the page address when there
     is no target.
 - **`components/needs-work/`** — 待補充 Needs Work.
