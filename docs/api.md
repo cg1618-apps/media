@@ -1547,7 +1547,7 @@ Keys served: `watching_status`, `reading_status`, `airing_status`,
 `h_game_audio_availability`, `h_game_h_presentation`, `h_game_art_style`,
 `h_game_h_art_style`, `h_game_platform`,
 `person_role`, `media_type`, `option_categories`, `tag_categories`,
-`note_suggestion_categories`, `request_kind`, `request_status`. The
+`common_option_categories`, `request_kind`, `request_status`. The
 payload is viewer-scoped on the gated types: a key that serves gated types
 only (`TYPE_ONLY_VOCABULARIES`) is served while at least one of its types is
 seeable - `h_comic_originality` serves h-comic and hentai,
@@ -1572,10 +1572,11 @@ Options form needs the declared names because it otherwise derives its
 category list from the options already stored, and so could not offer a
 category with no values yet — the state every new tag field starts in.
 `tag_categories` is the subset of those categories the Add / Modify / Delete
-pages group under their Tags sub-tab, and `note_suggestion_categories`
-(`NOTE_SUGGESTION_CATEGORIES`) the subset a note field's `option_category`
-names, grouped under their Note Suggestions sub-tab. Both are navigation
-only — every sub-tab writes the same rows. `franchise_type`
+pages group under their Tags sub-tab, and `common_option_categories`
+(`COMMON_OPTION_CATEGORIES`) the suggestion-only subset - every category the
+note registry suggests from, and `Needs Work Note` - grouped under their
+Common Options sub-tab. Both are navigation only — every sub-tab writes the
+same rows. `franchise_type`
 and `anime_airing_type` are served from the `FRANCHISE_TYPES` /
 `ANIME_AIRING_TYPES` tuples rather than the `FranchiseType` / `AnimeAiringType`
 Python `Enum` classes, because the frontend dropdown has diverged from those
@@ -1664,7 +1665,10 @@ value in any of the three is a 422 naming what was expected.
 ## Person — `/api/person`
 
 Tier 3 entity CRUD for people credited on media entries, plus the
-reverse-credit read the public person page uses, and club membership. One
+reverse-credit read the public person page uses, club membership, and an
+author's or illustrator's gallery of works (the `/work-images` routes, in
+`app/routers/person_work_images.py`; "Images" in the Auth column is
+`manage.images`, as under [Images](#images--apiimages)). One
 vocabulary of person roles — director, producer, composer, author,
 illustrator, club, seiyuu — each scoped to the media types it may be credited
 on; the reader-facing label (原作 / Author / Writer) is
@@ -1682,11 +1686,16 @@ derived from `(role, media_type)`, never stored.
 | `PUT`    | `/{system_id}`     | Admin  | Fully update a person, replacing their `person_role` rows wholesale. Body: `PersonUpdate`. A non-null `photo_fallback_entry_id` must name an entry this person is credited on or voices a character in, and that the editor can see — 422 otherwise; a null keeps a stored choice the editor cannot see, as the role rows are kept. `mal_id` is derived from `mal_link`, and a seiyuu is enriched from MAL after the payload is copied (see below). |
 | `PATCH`  | `/{system_id}`     | Admin  | Partially update a person's own columns — the detail page's inline remark edit. Body: any subset of the `PersonBase` columns as a JSON object; only the keys sent change, and `roles` is not a column (edit it through `PUT`). The viewer's rating is not a column either; it is written through `PUT /api/me/ratings/person/{id}`. The `PUT` rules are checked before anything is written: `gender` is `男` or `女` (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, at least one name survives the patch, and `photo_fallback_entry_id` follows the `PUT` rule — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. A `mal_link` in the body re-derives `mal_id`; `PATCH` never calls MAL. Returns the full `PersonResponse`. |
 | `POST`   | `/{system_id}/autofill` | Admin  | The detail page's **Autofill & update**: the MAL fill `PUT` runs, without a save — `mal_id` is derived from `mal_link`, then the empty columns are filled from MAL's people record; a column that holds a value is never overwritten. **422**, with nothing fetched, when the person has no MAL link or holds no `seiyuu` role (only a seiyuu is filled, as on save); the `detail` says which. A failed MAL fetch is logged and swallowed, as on save, so the unchanged person comes back with 200. 404 if absent or hidden. Returns `PersonResponse`. |
-| `DELETE` | `/{system_id}?credits=N` | Admin  | Delete a person. Cascades their `media_credit`, `character_casting_voice` and `person_role` rows — no `deleted_record` entry is logged. The castings they voiced stay, un-voiced by them (Decision H). `credits` is **required**: it is the count the confirmation dialog showed — `media_credit` rows plus voice rows — and a mismatch is a **409**, so the deletion that happens is the one the admin agreed to. |
-| `POST`   | `/{system_id}/merge` | Admin  | Merge `source_id` into this person: repoints every `media_credit` and every `character_casting_voice` row (a voice on a casting the survivor already voices is dropped), unions the `person_role` rows and moves every club membership onto the survivor, then deletes the loser. Every column the survivor leaves blank is then filled from the loser's, and one it holds is never overwritten; the picture (photo or logo) comes with its focus, a downloaded one renamed onto the survivor's own key (`app/services/domain/merge_fill.py`). 409, with nothing changed, if the filled names would equal another record's. Body: `MergeRequest` (`{source_id}`). 400 if merging into self. Returns `credits_moved`, credits and voices together. |
+| `DELETE` | `/{system_id}?credits=N` | Admin  | Delete a person. Cascades their `media_credit`, `character_casting_voice` and `person_role` rows — no `deleted_record` entry is logged. Their gallery of works is emptied too, each picture's image and file deleted unless something else uses it. The castings they voiced stay, un-voiced by them (Decision H). `credits` is **required**: it is the count the confirmation dialog showed — `media_credit` rows plus voice rows — and a mismatch is a **409**, so the deletion that happens is the one the admin agreed to. |
+| `POST`   | `/{system_id}/merge` | Admin  | Merge `source_id` into this person: repoints every `media_credit` and every `character_casting_voice` row (a voice on a casting the survivor already voices is dropped), unions the `person_role` rows, moves every club membership onto the survivor and appends the loser's gallery of works after the survivor's own (a picture the survivor already shows is dropped), then deletes the loser. Every column the survivor leaves blank is then filled from the loser's, and one it holds is never overwritten; the picture (photo or logo) comes with its focus, a downloaded one renamed onto the survivor's own key (`app/services/domain/merge_fill.py`). 409, with nothing changed, if the filled names would equal another record's. Body: `MergeRequest` (`{source_id}`). 400 if merging into self. Returns `credits_moved`, credits and voices together. |
 | `GET`    | `/{system_id}/clubs` | `view.person` | The clubs this person belongs to, as `List[MembershipRef]`, ordered by name. Hidden clubs are omitted; 404 if the person is absent or hidden. |
 | `PUT`    | `/{system_id}/clubs` | Admin  | Replace the clubs this person belongs to. Body: `ClubsReplace` (`{club_ids: [uuid, ...]}`). Each must be a person the writer may see (422 `Unknown club(s)` otherwise), hold the `club` role (422) and not be this person (422). A new membership joins the end of that club's member list; memberships of clubs the writer cannot see are kept. Returns the new `List[MembershipRef]`. |
 | `GET`    | `/{system_id}/members` | `view.person` | A club's members, as `List[MembershipRef]` in the club's order. Hidden members are omitted; `[]` for a person who is not a club; 404 if the club is absent or hidden. |
+| `GET`    | `/{system_id}/work-images` | `view.person` | An author's or illustrator's gallery of works, in display order, as `List[WorkImageOut]` (`{system_id, image_id, storage_key, thumb_key, width, height, caption, position}`; `system_id` is the attachment's id). `[]` unless the viewer can see this person hold `author` or `illustrator` — a role scoped to a gated type the viewer cannot see does not count. 404 if the person is absent or hidden. |
+| `POST`   | `/{system_id}/work-images` | Images | Upload one or more pictures (`multipart/form-data`, field `files`, repeated) and append them in the order sent. **422** when the person holds neither `author` nor `illustrator` in any scope, checked before anything is read. Every file goes through the library's upload path (`images.read_upload` / `save_upload`: the same cap, re-encode and dedup as `POST /api/images`) and all are validated before any is stored, so one bad file (413, 422) stores none. A picture the gallery already holds is not added twice. 201 with the whole gallery. |
+| `PUT`    | `/{system_id}/work-images` | Images | Reorder. Body: `WorkImagesReorder` (`{attachment_ids: [uuid, ...]}`), which must name every picture in the gallery exactly once (422 otherwise). Returns the gallery in its new order. |
+| `PATCH`  | `/{system_id}/work-images/{attachment_id}` | Images | Set one picture's caption. Body: `{caption}`, at most 500 characters, trimmed; blank or null clears it. 404 for an attachment that is not one of this person's pictures. Returns the picture. |
+| `DELETE` | `/{system_id}/work-images/{attachment_id}` | Images | Remove one picture and close the gap in the positions. The `image` row and its file are deleted too, unless another attachment or a cast row still uses the same image. 204; 404 as for `PATCH`. |
 | `PUT`    | `/{system_id}/members` | Admin  | Replace a club's members, in display order. Body: `MembersReplace` (`{member_ids: [uuid, ...]}`). 422 if this person does not hold the `club` role, if an id is not a visible person, or if it names the club itself. Members the writer cannot see keep their rows, after the visible ones. Returns the new list. |
 
 **`MembershipRef`**: `{system_id, public_id, display_name, position}` - the
@@ -1873,7 +1882,7 @@ studios (a bare list — studio is a single role), and any media type whose
 credit roles include `publisher` — anime, anime-movie, manga, book, comic and
 game — carries `publisher_refs`, a bare list for the
 same reason but with `label` on each ref: one publisher role reads 台灣代理商,
-台灣出版商, 出版商 or 發行商 depending on the type, where a studio is a studio
+台灣出版社, 出版商 or 發行商 depending on the type, where a studio is a studio
 everywhere. Both are built inside
 `attach_link_fields` from one batched fetch, so a list endpoint serves them in
 the same fixed five queries it always used. Both belong to the **Credits**
@@ -2731,7 +2740,6 @@ inbox's key, which only `super` and the `admin` hold; everyone else gets
 | Method | Path | Auth | Body / notes |
 |---|---|---|---|
 | GET | `/api/needs-work` | `manage.requests` | Every mark as `[NeedsWorkGroup]`, one group per note: the noted groups by note (case-insensitive), then the group whose `note` is null. Inside a group, by owner type in `OWNER_TABLES` order, then by name. `[]` when nothing is marked. |
-| GET | `/api/needs-work/notes` | `manage.requests` | `[{note, count}]` - every note a mark carries, most used first, then by note. A mark with no note offers nothing. The suggestions for the note field. |
 | GET | `/api/needs-work/{owner_type}/{owner_id}` | `manage.requests` | `NeedsWorkMark` for one owner: `flagged: false` and nulls when it is not marked. **404** for an unknown `owner_type` or an owner that does not exist. |
 | PUT | `/api/needs-work/{owner_type}/{owner_id}` | `manage.requests` | Body `{note?}` (`NeedsWorkWrite`): marks the owner, or changes the note of its mark - one mark per owner, so it is idempotent. The note is trimmed, and a blank one is stored as null. Returns the `NeedsWorkMark`. **404** as GET; **422** for any other key. |
 | DELETE | `/api/needs-work/{owner_type}/{owner_id}` | `manage.requests` | **204**. Clears the mark; clearing an owner that is not marked changes nothing. **404** as GET. |

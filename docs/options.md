@@ -170,7 +170,7 @@ fallback.
 `/api/constants` also serves six keys from other modules:
 `watch_order_importance` ([below](#watch-order-built-ins-appservicesdomainwatch_orderpy)),
 `person_role`, `option_categories`, `tag_categories` and
-`note_suggestion_categories`
+`common_option_categories`
 ([below](#credit-roles-and-tag-fields-apputilscredit_rolespy)) and
 `media_type` ([below](#media-type-and-owner-keys-apputilsmedia_resolverpy)).
 
@@ -495,7 +495,7 @@ imprint is arguably a sub-entity of a publisher and the flat `publisher` table
 cannot express that.
 
 **One role, six reader-facing words.** `credit_label("publisher", media_type)`
-returns 台灣代理商 on anime and anime-movie, 台灣出版商 on manga and book,
+returns 台灣代理商 on anime and anime-movie, 台灣出版社 on manga and book,
 出版商 on comic (a comic's publisher is Marvel - the work's *original*
 publisher, not a TW licensor) and 發行商 on game. All six types have an
 override, so the role's own `"Publisher"` label is never rendered; it survives
@@ -627,16 +627,29 @@ vocabularies every mainstream type shares, but what puts a category here
 is that its values read as tags *on* the work, while `Platform` and the
 Comic vocabularies name an outside party. A new category is therefore not automatically a tag.
 
-`NOTE_SUGGESTION_CATEGORIES` (`app/utils/note_sections.py`, served as
-`/api/constants` `note_suggestion_categories`): `Weapon & Gear Type`, `Item
-Type`, `Collectible Type`, `Character Group`, `Enemy Tier`, `Side Quest Type`,
-`Geography Group` — the categories a note field's
-`option_category` names, which the same three admin pages offer under a third
-sub-tab, **Note Suggestions**, rather than under Options. Navigation only, like
-the Tags split. Derived from the registry, so it holds exactly the seven the
-registry names: an eighth is a registry edit, not an admin action. `Song Type`
-and `Song Source` are named by a section rather than by a field, so they stay
-under Options. See [systems/notes.md](systems/notes.md#suggestion-categories).
+`COMMON_OPTION_CATEGORIES` (`app/utils/credit_roles.py`, served as
+`/api/constants` `common_option_categories`): the **common options**, which
+the same three admin pages offer under a third sub-tab, **Common Options**,
+rather than under Options. A common option is a suggestion-only vocabulary:
+its values are added on the Add page and edited on the Modify page, and
+nothing creates one from what was typed into the field it suggests for - the
+field stores its text as typed whether or not the list holds it. That is what
+separates it from a tag category, whose typed values are created on save. It
+is every category the note registry suggests from (`NOTE_OPTION_CATEGORIES`,
+below) plus `Needs Work Note`, and the sub-tab's picker groups them:
+
+| Group | Categories |
+|---|---|
+| Note Suggestion | `Weapon & Gear Type`, `Item Type`, `Collectible Type`, `Character Group`, `Enemy Tier`, `Side Quest Type`, `Geography Group` - what a game guide note field's `option_category` names (`NOTE_SUGGESTION_CATEGORIES` in `app/utils/note_sections.py`) |
+| Music | `Song Type`, `Song Source` - named by a music section's `kind_category` and `link_text_category` |
+| Needs Work | `Needs Work Note` - the 待補充 note's common values |
+
+The grouping is presentation (`TIER2_GROUPS` in
+`frontend/src/lib/optionsPageGroups.js`, the same groups the /options page
+reads); the set is the server's. Navigation only, like the Tags split.
+Derived from the registry, so a section that names a new category is a
+common option with no second edit. See
+[systems/notes.md](systems/notes.md#suggestion-categories).
 
 `FILTER_ONLY_CATEGORIES`: `Franchise for Filter` and `Reference Source` (Tier
 2 categories with no `TagField` behind them — `Reference Source` instead
@@ -761,7 +774,7 @@ ones in `OPTION_CATEGORIES`:
 | `Enemy Tier` | unscoped (read by game and h-game notes) | suggestions for a 敵人 Enemies row's tier (`enemies`, `note.kind`); ships empty. Suggestions only |
 | `Side Quest Type` | unscoped (read by game and h-game notes) | suggestions for a 支線任務 Side Quests row's type (`side_quests`, `note.kind`); `大支線` and `小支線` seeded by `s1q2uests345`. Suggestions only |
 | `Geography Group` | unscoped (read by game and h-game notes) | suggestions for a 地理 Geography row's group (`geography`, `note.kind`); ships empty. Suggestions only |
-| `Needs Work Note` | unscoped (read by the 待補充 note field) | the common notes a 待補充 Needs Work mark is given (`NEEDS_WORK_NOTE_CATEGORY`, `app/utils/credit_roles.py`): one-click picks beside the note field on Add, Modify and the detail page badge, and the first of its suggestions, before the notes already in use; ships empty. Suggestions only - the note is free text and a value not in the list is stored as typed |
+| `Needs Work Note` | unscoped (read by the 待補充 note field) | the common notes a 待補充 Needs Work mark is given (`NEEDS_WORK_NOTE_CATEGORY`, `app/utils/credit_roles.py`): one-click picks beside the note field on Add, Modify, the detail page badge and the Needs Work page, and the field's only suggestions - the notes other marks carry are not offered; ships empty. A common option: suggestions only - the note is free text and a value not in the list is stored as typed, never added to it |
 
 **h-comic has Platform values of its own**, scoped to `h-comic` alone and
 split by usage (migration `h5c6malsrc7`). The regional storefronts an
@@ -1021,7 +1034,7 @@ comment asks that the two be kept in step. Seven rows: five person roles plus
 | Old option categories | New home | Notes |
 |---|---|---|
 | `Studio` | `studio` | credited via `media_credit` role `studio` |
-| `Publisher / Distributor TW` · `Comic Publisher` | `publisher` | credited via `media_credit` role `publisher`, offered per media type through `publisher_scope`. One role, four labels: 台灣代理商 on anime and anime-movie, 台灣出版商 on manga and book, 出版商 on comic, 發行商 on game |
+| `Publisher / Distributor TW` · `Comic Publisher` | `publisher` | credited via `media_credit` role `publisher`, offered per media type through `publisher_scope`. One role, four labels: 台灣代理商 on anime and anime-movie, 台灣出版社 on manga and book, 出版商 on comic, 發行商 on game |
 | `Director` | `person`, role `director` | scoped by media type on `person_role`: anime, anime-movie, movie |
 | `Producer` | `person`, role `producer` | scoped anime |
 | `Music / Composer` | `person`, role `composer` | scoped anime |

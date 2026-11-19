@@ -534,7 +534,7 @@ A dated log of the choices that shaped the code and, where it matters, the alter
 - **One role, but the words "Publisher / Distributor" are never shown.** That
   string names the concept, not a reader-facing label. The label varies by media
   type through the `_LABEL_OVERRIDES` mechanism that already makes one `author`
-  role read 原作 / Author / Writer: 台灣代理商 for anime, 台灣出版商 for manga and
+  role read 原作 / Author / Writer: 台灣代理商 for anime, 台灣出版社 for manga and
   novel, 出版商 for comic, 發行商 for game. The distinction is real — the first two
   name a *Taiwanese* licensor, while a comic's publisher is Marvel, the work's
   original publisher.
@@ -5831,3 +5831,92 @@ and a page lists the marks grouped by note for the admin and super.
   It has one now, so the Needs Work service builds every owner's path itself
   rather than inherit the gap; the inbox and memes still link no series,
   which is the resolver's to fix, not this feature's.
+
+### Directors without a director credit are deleted (2026-11-19)
+
+- **Revision `d1i2rnocred3` deletes every person who holds a `director`
+  role and has no `director` credit**, at the owner's request ("remove
+  directors without credits"). Only a `media_credit` row with
+  role `director` counts, in any scope: a person with director roles in two
+  scopes and a director credit in one is kept. Credits in other roles do not
+  save a person, and the whole `person` row goes even when they hold other
+  roles too - the owner chose that over stripping just the role.
+- Every foreign key into `person` cascades, so roles, other credits, voices,
+  memberships on both sides and ratings go with the row. The person's
+  `image_attachment` rows (owner_type `staff`, no foreign key) are deleted
+  by the revision; `user_request` rows keep their `target_label`, as for any
+  deleted target. Photo files on disk are not touched - a migration cannot
+  reach them.
+- No dump was taken for it, so the revision is `irreversible`. A Sheets
+  backup taken before it still holds those people, and a Pull from one
+  brings them back; the revision does not run again on what a Pull restores.
+
+### Common Options; the 待補充 note suggests only its common notes (2026-11-19, no spec)
+
+- **"Note Suggestions" became "Common Options", and widened.** The owner's
+  definition: a common option is a suggestion-only vocabulary, added only on
+  the Add page, edited only on the Modify page, and never created from what
+  someone typed. That is a property of the category, not of where it is
+  read, so the sub-tab is named for it. Song Type and Song Source (the music
+  sections' suggestions) and Needs Work Note meet it and moved in from
+  Options; the seven game guide categories stay as its **Note Suggestion**
+  group. `COMMON_OPTION_CATEGORIES` sits in `credit_roles.py` beside
+  `TAG_CATEGORIES`, derived from `NOTE_OPTION_CATEGORIES` plus
+  `NEEDS_WORK_NOTE_CATEGORY`, and replaces `/api/constants`'
+  `note_suggestion_categories` outright: its only reader was the sub-tab.
+- **The grouping is presentation, so it lives in `TIER2_GROUPS`.** The
+  picker already arranges with the /options page's groups, so the three
+  groups (Note Suggestion, Music, Needs Work) were added there and the two
+  pages agree. Needs Work holds one category, which the group-of-one rule
+  would have sent to Other; that rule is about a group the data shrank, so a
+  group *declared* with one member now stands. Rejected: a per-picker
+  threshold prop, which would have made the /options page and the sub-tab
+  disagree about the same group.
+- **The 待補充 note no longer suggests the notes in use.** Suggesting what
+  other marks carry fed every typo back as a suggestion, which made the
+  field a vocabulary that grows from typing - the opposite of a common
+  option. The suggestions and chips are the `Needs Work Note` values only,
+  on the Needs Work page's Edit note as well, which now uses the same
+  `NeedsWorkNoteInput`. With no reader left, `GET /api/needs-work/notes`,
+  `notes_in_use()`, the `NeedsWorkNote` schema and `useNeedsWorkNotes` were
+  deleted rather than kept for later.
+- **No common option is created from typed text.** Checked when the set was
+  drawn: `resolve_option` is reached from tag, character tag, label and
+  source fields only, and `ensureSourceValues` from the entry forms' tag
+  fields; the note sections and the 待補充 note store their text as typed.
+
+### A person's gallery of works (2026-11-19, no spec)
+
+- **Library attachments, not a table of its own.** The pictures are `image`
+  rows with `image_attachment`s on the person (`staff`, role `work`), ordered
+  by the `position` column the library had reserved for the multi-image case
+  and captioned by a new `image_attachment.caption`. A `person_work_image`
+  table with a foreign key to `person` was the obvious alternative, and its
+  cascade on delete was the one thing it bought. Against that it would have
+  been a second record of which images are in use: the manager page's
+  `unused` filter, the 409 on deleting a used image and the forced delete
+  would each have needed teaching about it, and the dedup by checksum would
+  have had to be repeated. The attachment's missing foreign key is paid for
+  where it bites: deleting a person empties the gallery explicitly, and a
+  merge moves it.
+- **Removing a gallery picture deletes its file**, which an ordinary detach
+  of an upload does not. A cover upload is library stock, kept for reuse; a
+  picture of somebody's work uploaded to their gallery has no other purpose.
+  The image survives when the same bytes are some other owner's picture
+  (`image_library.drop_if_unused`), since the library stores identical
+  pictures once.
+- **Writes are `manage.images`**, the key every upload and attach already
+  answers to, rather than `manage.catalog`, which guards the person's own
+  columns. Picking a person's photo already needs both in practice (the
+  Modify page is `manage.catalog`'s, the picker's calls `manage.images`'s),
+  and the gallery sits on the same form.
+- **Only an author or illustrator may gain a picture**, by any scope of
+  either role; the check reads the saved roles. Losing the role later keeps
+  the gallery and keeps it editable rather than deleting someone's uploads
+  as a side effect of a role edit. A viewer who cannot see any such role -
+  an h-comic author, for a session that cannot see h-comic - reads an empty
+  gallery, as the page shows no such role.
+- **It does not travel on the sheet.** No library row does; a gallery has no
+  column on `person` to carry even its keys.
+- **No lightbox.** The app has none, and the tile links to the full picture
+  in a new tab instead of introducing one for this.

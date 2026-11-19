@@ -8,6 +8,7 @@ import {
   COUNTRY_NOT_SET,
   GENDER_NOT_SET,
   NO_ENTRIES,
+  PUBLISHER_KINDS,
   ROLE_NOT_SET,
   TAGS_NOT_SET,
   UNRATED,
@@ -308,6 +309,55 @@ describe("publisherFilterDefs", () => {
     expect(filtered(defs, rows, { mediaType: ["manga"] })).toEqual(["credited", "offered"]);
     // No entries is about credits: an offered-but-uncredited publisher has none.
     expect(filtered(defs, rows, { mediaType: [NO_ENTRIES] })).toEqual(["offered", "neither"]);
+  });
+});
+
+describe("publisherFilterDefs kind group", () => {
+  const kind = () => def(publisherFilterDefs(SEES_ALL), "kind");
+
+  it("offers 遊戲發行商, 台灣出版社, 台灣代理商 and 其他, in that order", () => {
+    const fd = kind();
+    expect(fd.label).toBe("Kind");
+    expect(fd.options.map((k) => fd.optionLabel(k))).toEqual([
+      "遊戲發行商", "台灣出版社", "台灣代理商", "其他",
+    ]);
+  });
+
+  it("names every publisher type in exactly one kind but 其他", () => {
+    const named = PUBLISHER_KINDS.flatMap((k) => k.mediaTypes);
+    expect(new Set(named).size).toBe(named.length);
+    expect(named.sort()).toEqual(["anime", "anime-movie", "book", "game", "manga"]);
+  });
+
+  it("matches a publisher by the types it is credited on OR offered on", () => {
+    const defs = publisherFilterDefs(SEES_ALL);
+    const [game, twPublisher, twDistributor, other] = kind().options;
+    const rows = [
+      { id: "game", media_types: ["game"], scopes: [] },
+      { id: "manga", media_types: [], scopes: ["manga"] },
+      { id: "book", media_types: ["book"], scopes: ["book"] },
+      { id: "anime", media_types: ["anime"], scopes: [] },
+      { id: "movie", media_types: [], scopes: ["anime-movie"] },
+      { id: "comic", media_types: ["comic"], scopes: ["comic"] },
+      { id: "nothing", media_types: [], scopes: [] },
+    ];
+    expect(filtered(defs, rows, { kind: [game] })).toEqual(["game"]);
+    expect(filtered(defs, rows, { kind: [twPublisher] })).toEqual(["manga", "book"]);
+    expect(filtered(defs, rows, { kind: [twDistributor] })).toEqual(["anime", "movie"]);
+    expect(filtered(defs, rows, { kind: [other] })).toEqual(["comic"]);
+    // OR inside the group.
+    expect(filtered(defs, rows, { kind: [game, other] })).toEqual(["game", "comic"]);
+  });
+
+  it("matches a publisher covering several kinds under each of them", () => {
+    const defs = publisherFilterDefs(SEES_ALL);
+    const [game, twPublisher, twDistributor, other] = kind().options;
+    const rows = [{ id: "both", media_types: ["anime"], scopes: ["manga", "comic"] }];
+    expect(filtered(defs, rows, { kind: [twDistributor] })).toEqual(["both"]);
+    expect(filtered(defs, rows, { kind: [twPublisher] })).toEqual(["both"]);
+    expect(filtered(defs, rows, { kind: [other] })).toEqual(["both"]);
+    // The refusal case, on the same row: it holds no game type.
+    expect(filtered(defs, rows, { kind: [game] })).toEqual([]);
   });
 });
 

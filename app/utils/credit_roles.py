@@ -125,15 +125,15 @@ _LABEL_OVERRIDES: dict[tuple[str, str], str] = {
     ("author", "comic"): "Writer",
     ("illustrator", "comic"): "Artist",
     ("illustrator", "h-comic"): "繪師",
-    # One role, six reader-facing words. 台灣代理商 and 台灣出版商 both name a
+    # One role, six reader-facing words. 台灣代理商 and 台灣出版社 both name a
     # TAIWANESE licensor; a comic's publisher is Marvel - the work's original
     # publisher, not a TW party - so it reads 出版商 without the 台灣. 發行商
     # is the word for a games publisher. The role's own label, "Publisher",
     # is never rendered; it survives for admin tooling holding no media type.
     ("publisher", "anime"): "台灣代理商",
     ("publisher", "anime-movie"): "台灣代理商",
-    ("publisher", "manga"): "台灣出版商",
-    ("publisher", "book"): "台灣出版商",
+    ("publisher", "manga"): "台灣出版社",
+    ("publisher", "book"): "台灣出版社",
     ("publisher", "comic"): "出版商",
     ("publisher", "game"): "發行商",
 }
@@ -329,6 +329,19 @@ OPTION_CATEGORIES: tuple[str, ...] = tuple(
         + list(NOTE_OPTION_CATEGORIES)
         + [NEEDS_WORK_NOTE_CATEGORY]
     )
+)
+
+# The common options: the suggestion-only vocabularies, which the admin Add /
+# Modify / Delete pages offer under their "Common Options" sub-tab. A value
+# in one is added on the Add page and edited on the Modify page, and nothing
+# creates one from what was typed into the field it suggests for - a note
+# field stores its text as typed whether or not the list holds it. That is
+# what separates these from a tag category, whose values resolve_option
+# creates on save. Two sources: every category the note registry suggests
+# from (the game guide fields, Song Type, Song Source), and the 待補充 note's
+# common values. Navigation only, like TAG_CATEGORIES.
+COMMON_OPTION_CATEGORIES: tuple[str, ...] = tuple(
+    dict.fromkeys(list(NOTE_OPTION_CATEGORIES) + [NEEDS_WORK_NOTE_CATEGORY])
 )
 
 

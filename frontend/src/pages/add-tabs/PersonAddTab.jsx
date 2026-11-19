@@ -16,6 +16,7 @@ import { Field, SectionHeader, inputCls, selectCls } from "../../components/form
 import { PERSON_SUB_TABS } from "../../components/forms/PersonSubTabBar";
 import ImagePicker from "../../components/forms/ImagePicker";
 import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
+import WorkImagesEditor from "../../components/forms/WorkImagesEditor";
 import {
   GenderField,
   PhotoFallbackField,
@@ -23,6 +24,7 @@ import {
 import { endpoints } from "../../api/endpoints";
 import { fetchJson } from "../../api/client";
 import { PERSON_NAME_FIELDS, isSeiyuu } from "../../lib/naming";
+import { holdsGalleryRole } from "../../lib/workImages";
 
 export { defaultPerson } from "../../config/formFactories";
 
@@ -218,6 +220,17 @@ export function PersonFields({ personForm, upf, roles, setRoles, legalScopes, ow
           value={personForm.photo_fallback_entry_id}
           onChange={(id) => upf("photo_fallback_entry_id", id)}
         />
+      )}
+      {/* An author's or illustrator's gallery of works, shown on their page.
+          Saved as it is edited, like the photo, so only an existing person
+          has one. */}
+      {ownerId && holdsGalleryRole(roles) && (
+        <Field
+          label="Works"
+          hint="Pictures of their work, in the order their page shows them. Each saves at once."
+        >
+          <WorkImagesEditor personId={ownerId} />
+        </Field>
       )}
       {/* The viewer's own rating, saved through /api/me/ratings by the
           page once the person itself has saved. */}

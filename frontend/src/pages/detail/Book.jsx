@@ -696,7 +696,7 @@ export default function Book() {
                     ...(book.publisher_tw || book.publisher_refs?.length
                       ? [
                           {
-                            label: publisherLabel(book, "台灣出版商"),
+                            label: publisherLabel(book, "台灣出版社"),
                             value: publisherValue(book),
                           },
                         ]

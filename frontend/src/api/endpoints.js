@@ -254,6 +254,11 @@ export const endpoints = {
     // members, in display order. PUT bodies: {club_ids} / {member_ids}.
     clubs: (id) => `/api/person/${id}/clubs`,
     members: (id) => `/api/person/${id}/members`,
+    // An author's or illustrator's gallery of works. GET lists it, POST
+    // (multipart, `files`) appends, PUT {attachment_ids} reorders; a single
+    // picture is PATCHed {caption} or DELETEd by its attachment id.
+    workImages: (id) => `/api/person/${id}/work-images`,
+    workImage: (id, attachmentId) => `/api/person/${id}/work-images/${attachmentId}`,
     // The Add tab's MyAnimeList picker (ExternalSearchResult rows).
     searchMal: (q, limit = 10) =>
       `/api/person/search-mal?q=${encodeURIComponent(q)}&limit=${limit}`,
@@ -424,7 +429,6 @@ export const endpoints = {
   // lists them grouped by note. Every route is manage.requests.
   needsWork: {
     list: () => "/api/needs-work",
-    notes: () => "/api/needs-work/notes",
     mark: (ownerType, ownerId) => `/api/needs-work/${ownerType}/${ownerId}`,
   },
 

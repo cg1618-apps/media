@@ -447,7 +447,11 @@ export const OPTION_CATEGORIES = [
   "Character Appearance",
   "Character Trait",
   "Franchise for Filter",
-  // The note sections' field suggestions (NOTE_SUGGESTION_CATEGORIES below).
+  // From here on, the common options (COMMON_OPTION_CATEGORIES below).
+  // The music note sections' suggestions.
+  "Song Type",
+  "Song Source",
+  // The game guide note sections' field suggestions.
   "Character Group",
   "Collectible Type",
   "Item Type",
@@ -464,18 +468,24 @@ export const OPTION_CATEGORIES = [
 // both sub-tabs are the same form over the same system_option rows.
 export const TAG_CATEGORIES = ["Genre Main", "Genre Sub", "Label"];
 
-// The subset of OPTION_CATEGORIES the admin pages group under their "Note
-// Suggestions" sub-tab: the categories a note section's free-text field
-// suggests from (`option_category` on a field of GET /api/notes/sections).
-// Navigation only, like TAG_CATEGORIES.
-export const NOTE_SUGGESTION_CATEGORIES = [
-  "Character Group",
-  "Collectible Type",
-  "Item Type",
+// The subset of OPTION_CATEGORIES the admin pages group under their "Common
+// Options" sub-tab (COMMON_OPTION_CATEGORIES in app/utils/credit_roles.py):
+// the suggestion-only vocabularies - the note sections' field suggestions,
+// the music sections' Song Type and Song Source, and the 待補充 note's common
+// values. A value in one is added on Add and edited on Modify, and is never
+// created from what was typed into the field it suggests for. Navigation
+// only, like TAG_CATEGORIES; the order is the server's.
+export const COMMON_OPTION_CATEGORIES = [
   "Weapon & Gear Type",
+  "Item Type",
+  "Collectible Type",
+  "Character Group",
   "Enemy Tier",
   "Side Quest Type",
   "Geography Group",
+  "Song Type",
+  "Song Source",
+  "Needs Work Note",
 ];
 
 // What a request or report is about, and where it stands (REQUEST_KINDS and
@@ -572,7 +582,7 @@ export const CONSTANTS_FALLBACK = {
   media_type: MEDIA_TYPES,
   option_categories: OPTION_CATEGORIES,
   tag_categories: TAG_CATEGORIES,
-  note_suggestion_categories: NOTE_SUGGESTION_CATEGORIES,
+  common_option_categories: COMMON_OPTION_CATEGORIES,
   request_kind: REQUEST_KINDS,
   request_status: REQUEST_STATUSES,
 };

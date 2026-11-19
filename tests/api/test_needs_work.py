@@ -174,12 +174,10 @@ def test_an_empty_page_is_an_empty_list(owner_client):
     assert owner_client.get(URL).json() == []
 
 
-def test_the_notes_in_use_are_offered_with_their_counts(db, owner_client, marked, sample_series):
-    _mark(db, note="名字缺", series_id=sample_series.system_id)
-    r = owner_client.get(f"{URL}/notes")
-    assert r.status_code == 200
-    # Most used first; a mark with no note offers nothing.
-    assert r.json() == [{"note": "續集未補", "count": 2}, {"note": "名字缺", "count": 1}]
+def test_the_notes_in_use_are_not_served(owner_client, marked):
+    """The note field suggests from the curated "Needs Work Note" category
+    only, so nothing serves the notes the marks happen to carry."""
+    assert owner_client.get(f"{URL}/notes").status_code in (404, 405)
 
 
 def test_the_admin_reads_the_page_and_its_names(admin_client, marked):
@@ -203,7 +201,6 @@ def _every_route(sample_anime):
     path = f"{URL}/anime/{sample_anime.system_id}"
     return [
         ("GET", URL, None),
-        ("GET", f"{URL}/notes", None),
         ("GET", path, None),
         ("PUT", path, {"note": "改掉"}),
         ("DELETE", path, None),

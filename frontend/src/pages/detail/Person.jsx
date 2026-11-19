@@ -14,7 +14,9 @@
 // Character.jsx has (components/info/EntityProfileControls.jsx): PATCH, then
 // the response becomes the page's state. My rating is the viewer's own, set
 // by a holder of self.list through PUT /api/me/ratings. Club membership
-// (ClubMembership) is editable here too, through its own endpoints.
+// (ClubMembership) is editable here too, through its own endpoints. An
+// author's or illustrator's gallery of works (WorkGallery) is shown under it;
+// it is edited in the person form, beside the photo.
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
@@ -24,6 +26,7 @@ import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
 import { releaseYear } from "../../lib/releaseDate";
 import ClubMembership from "../../components/info/ClubMembership";
 import VoicedPartCard from "../../components/info/VoicedPartCard";
+import WorkGallery from "../../components/info/WorkGallery";
 import { PERSON_SUB_TABS } from "../../components/forms/PersonSubTabBar";
 import InfoCard from "../../components/info/InfoCard";
 import MalButton from "../../components/info/MalButton";
@@ -256,6 +259,8 @@ export default function Person() {
           )}
 
           <ClubMembership person={person} />
+
+          <WorkGallery person={person} />
 
           {groups.length === 0 ? (
             <section className="border border-dashed border-border-strong px-4 py-10 text-center">

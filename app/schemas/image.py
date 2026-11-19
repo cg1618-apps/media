@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ImageOut(BaseModel):
@@ -50,6 +50,42 @@ class AttachmentOut(BaseModel):
 class ImageListOut(BaseModel):
     images: List[ImageOut]
     total: int
+
+
+class WorkImageOut(BaseModel):
+    """One picture in a person's gallery of works: the attachment, and what
+    the SPA needs of its image to draw it."""
+
+    # The attachment's id - what PATCH, DELETE and the reorder PUT name.
+    system_id: UUID
+    image_id: UUID
+    storage_key: str
+    thumb_key: Optional[str] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+    caption: Optional[str] = None
+    position: int
+
+
+class WorkImageCaptionIn(BaseModel):
+    """PATCH /api/person/{id}/work-images/{attachment_id}. Blank is NULL."""
+
+    caption: Optional[str] = Field(default=None, max_length=500)
+
+    @field_validator("caption")
+    @classmethod
+    def _blank_is_null(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        value = value.strip()
+        return value or None
+
+
+class WorkImagesReorder(BaseModel):
+    """PUT /api/person/{id}/work-images: every picture's attachment id, in
+    the new display order."""
+
+    attachment_ids: List[UUID]
 
 
 ImageOut.model_rebuild()

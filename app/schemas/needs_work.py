@@ -56,10 +56,3 @@ class NeedsWorkGroup(BaseModel):
 
     note: Optional[str] = None
     items: List[NeedsWorkItem]
-
-
-class NeedsWorkNote(BaseModel):
-    """A note in use, offered as a suggestion, with how many marks carry it."""
-
-    note: str
-    count: int

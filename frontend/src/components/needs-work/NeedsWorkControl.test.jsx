@@ -8,7 +8,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import NeedsWorkControl from "./NeedsWorkControl";
-import { noteSuggestions } from "./NeedsWorkNoteInput";
 
 const auth = { handles: true };
 vi.mock("../../contexts/AuthContext", () => ({
@@ -41,10 +40,17 @@ beforeEach(() => {
         return Promise.resolve({
           ok: true,
           status: 200,
-          json: () => Promise.resolve([{ system_id: "o1", value: "官方名稱未出" }]),
+          json: () =>
+            Promise.resolve([
+              { system_id: "o1", value: "官方名稱未出" },
+              { system_id: "o2", value: "續集未補" },
+            ]),
         });
       }
-      const body = url.endsWith("/notes") ? [{ note: "續集未補", count: 3 }] : stored;
+      // Load-bearing: an in-use note that is not a common one, served where
+      // the retired notes-in-use read lived, so a field that still read it
+      // would offer 名稱缺 and the negative test below would see it.
+      const body = url.endsWith("/notes") ? [{ note: "名稱缺", count: 3 }] : stored;
       return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
     }),
   );
@@ -89,10 +95,10 @@ describe("NeedsWorkControl", () => {
     expect(writes()[0][1].method).toBe("PUT");
     expect(JSON.parse(writes()[0][1].body)).toEqual({ note: null });
 
-    // The notes in use are offered, so a mark joins an existing group.
+    // A curated common note is offered, so a mark joins an existing group.
     const field = await screen.findByLabelText("Needs Work note");
     await user.click(field);
-    await user.click(await screen.findByText("續集未補"));
+    await user.click(await screen.findByRole("option", { name: "續集未補" }));
     await user.click(screen.getByRole("button", { name: "Save note" }));
     await waitFor(() => expect(writes()).toHaveLength(2));
     expect(JSON.parse(writes()[1][1].body)).toEqual({ note: "續集未補" });
@@ -103,7 +109,7 @@ describe("NeedsWorkControl", () => {
     expect(writes()[2][0]).toBe(MARK_URL);
   });
 
-  it("offers the common notes as one-click picks, and first among the suggestions", async () => {
+  it("offers the common notes as one-click picks", async () => {
     const user = userEvent.setup();
     renderControl();
     const box = await screen.findByRole("checkbox", { name: /Needs Work/ });
@@ -117,16 +123,18 @@ describe("NeedsWorkControl", () => {
     await waitFor(() => expect(writes()).toHaveLength(2));
     expect(JSON.parse(writes()[1][1].body)).toEqual({ note: "官方名稱未出" });
   });
-});
 
-describe("noteSuggestions", () => {
-  it("puts the common notes first, then the notes in use, once each", () => {
-    expect(
-      noteSuggestions(["官方名稱未出", "續集未補"], [
-        { note: "續集未補", count: 3 },
-        { note: "名稱缺", count: 1 },
-      ]),
-    ).toEqual(["官方名稱未出", "續集未補", "名稱缺"]);
-    expect(noteSuggestions(undefined, undefined)).toEqual([]);
+  it("suggests the common notes only, never the notes marks already carry", async () => {
+    const user = userEvent.setup();
+    renderControl();
+    const box = await screen.findByRole("checkbox", { name: /Needs Work/ });
+    await waitFor(() => expect(box).toBeEnabled());
+    await user.click(box);
+
+    await user.click(await screen.findByLabelText("Needs Work note"));
+    await screen.findAllByText("官方名稱未出");
+    // Another mark's note is in use, but it is not a common note.
+    expect(screen.queryByText("名稱缺")).toBeNull();
+    expect(global.fetch.mock.calls.some(([url]) => url.endsWith("/notes"))).toBe(false);
   });
 });

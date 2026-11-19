@@ -265,40 +265,64 @@ def upload_image(
     extension and the multipart content type are both client-supplied and are
     used for nothing here.
     """
-    raw = _read_capped(file)
+    normalized = read_upload(file)
+    image = save_upload(db, normalized, file.filename, admin)
+    db.commit()
+    db.refresh(image)
 
+    return _to_out(db, image)
+
+
+def read_upload(upload: UploadFile) -> image_library.NormalizedImage:
+    """
+    One uploaded file, read under the cap and normalized: 413 over the cap,
+    422 when it is not an image. Writes nothing, so a caller taking several
+    files can refuse the whole request before any of them is stored.
+    """
+    raw = _read_capped(upload)
     try:
-        normalized = image_library.normalize_image(raw)
+        return image_library.normalize_image(raw)
     except image_library.ImageValidationError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
+
+def save_upload(
+    db: Session,
+    normalized: image_library.NormalizedImage,
+    filename: Optional[str],
+    uploader: Viewer,
+) -> models.Image:
+    """
+    Store a normalized upload and return its library row, uncommitted.
+
+    The same picture already in the library is that row: the bytes are
+    re-stored anyway, since they may be missing on this machine even though
+    the row is not. Every upload in the application comes through here -
+    POST /api/images and a person's gallery of works.
+    """
     existing = (
         db.query(models.Image)
         .filter(models.Image.checksum == normalized.checksum)
         .first()
     )
     if existing:
-        # Same picture, already here. Re-store anyway: the bytes may be missing
-        # on this machine even though the row is not.
         image_library.store(normalized)
-        return _to_out(db, existing)
+        return existing
 
     storage_key, thumb_key = image_library.store(normalized)
     image = models.Image(
         storage_key=storage_key,
         thumb_key=thumb_key,
         checksum=normalized.checksum,
-        original_filename=file.filename,
+        original_filename=filename,
         byte_size=len(normalized.jpeg),
         width=normalized.width,
         height=normalized.height,
-        uploaded_by=viewer_user_id(admin),
+        uploaded_by=viewer_user_id(uploader),
     )
     db.add(image)
-    db.commit()
-    db.refresh(image)
-
-    return _to_out(db, image)
+    db.flush()
+    return image
 
 
 @router.get("", response_model=ImageListOut, summary="The image library")

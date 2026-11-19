@@ -60,6 +60,7 @@ from app.routers import (
     note,
     options,
     person,
+    person_work_images,
     plan_next,
     publisher,
     quote,
@@ -346,6 +347,7 @@ app.include_router(random_picker_defaults.router)
 app.include_router(data_control.router)
 app.include_router(system.router)
 app.include_router(person.router)
+app.include_router(person_work_images.router)
 app.include_router(character.router)
 app.include_router(character_identity.router)
 app.include_router(publisher.router)
