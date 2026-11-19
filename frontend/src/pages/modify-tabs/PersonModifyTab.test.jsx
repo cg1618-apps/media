@@ -6,6 +6,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
+import { MemoryRouter } from "react-router-dom";
+
+import { PageTitleProvider } from "../../contexts/PageTitleContext";
 import { ToastProvider } from "../../hooks/useToast";
 import PersonModifyTab from "./PersonModifyTab";
 
@@ -361,3 +364,50 @@ it("loads the MAL link and sends the edited one on save", async () => {
     mal_link: "https://myanimelist.net/people/1871",
   });
 });
+
+// The browser tab names the record being edited - its saved name, not the
+// one being typed - and returns to the route's title when the editor closes.
+it("titles the tab with a pencil and the person's saved name", async () => {
+  vi.stubGlobal("scrollTo", vi.fn());
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((url, options = {}) => {
+      const body =
+        options.method === "PUT"
+          ? (() => {
+              const sent = JSON.parse(options.body);
+              return { ...DIRECTORS[0], ...sent, display_name: sent.name_en };
+            })()
+          : respond(String(url));
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
+    }),
+  );
+  const user = userEvent.setup();
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={["/modify"]}>
+        <PageTitleProvider>
+          <ToastProvider>
+            <PersonModifyTab initialId="p1" />
+          </ToastProvider>
+        </PageTitleProvider>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+
+  await waitFor(() => expect(document.title).toBe("✎ Hayao Miyazaki"));
+
+  const name = screen.getByDisplayValue("Hayao Miyazaki");
+  await user.clear(name);
+  await user.type(name, "Miyazaki Hayao");
+  // Typing does not retitle the tab; only a save does.
+  expect(document.title).toBe("✎ Hayao Miyazaki");
+
+  await user.click(screen.getByRole("button", { name: /save changes/i }));
+  await waitFor(() => expect(document.title).toBe("✎ Miyazaki Hayao"));
+
+  await user.click(screen.getByRole("button", { name: /Back/ }));
+  await waitFor(() => expect(document.title).toBe("Modify Entry"));
+});
+

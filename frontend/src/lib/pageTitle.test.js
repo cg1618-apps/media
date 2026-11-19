@@ -1,7 +1,7 @@
 // Frontend: the tab title a route carries before a page names itself.
 import { describe, expect, it } from "vitest";
 
-import { SITE_NAME, routeTitle } from "./pageTitle";
+import { SITE_NAME, editorTitle, routeTitle } from "./pageTitle";
 
 describe("routeTitle", () => {
   it("uses the nav row's label for a page the nav links to", () => {
@@ -37,5 +37,18 @@ describe("routeTitle", () => {
 
   it("falls back to the site's name for a route nothing names", () => {
     expect(routeTitle("/no-such-page")).toBe(SITE_NAME);
+  });
+});
+
+describe("editorTitle", () => {
+  it("puts a pencil before the record's name", () => {
+    expect(editorTitle("花澤香菜")).toBe("✎ 花澤香菜");
+    expect(editorTitle("  MAPPA ")).toBe("✎ MAPPA");
+  });
+
+  it("is null without a name, so the route's title stands in", () => {
+    expect(editorTitle(null)).toBeNull();
+    expect(editorTitle("")).toBeNull();
+    expect(editorTitle("   ")).toBeNull();
   });
 });

@@ -9,6 +9,8 @@
 //
 // `initialId` is a deep link's id (/modify?id=<system_id>&type=person, the
 // detail page's Quick edit): that person's editor opens on mount.
+import { usePageTitle } from "../../contexts/PageTitleContext";
+import { editorTitle } from "../../lib/pageTitle";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -54,6 +56,10 @@ export default function PersonModifyTab({ initialId = null } = {}) {
   // everyone holding the role up front.
   const [scopes, setScopes] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
+  // The record's name as last loaded or saved - the tab title. Not the
+  // form's, so the tab does not change while a name is being typed.
+  const [savedName, setSavedName] = useState(null);
+  usePageTitle(selectedId ? editorTitle(savedName) : null);
   const [personForm, setPersonForm] = useState(null);
   const [roles, setRoles] = useState([]);
   const [submitting, setSubmitting] = useState(false);
@@ -114,6 +120,7 @@ export default function PersonModifyTab({ initialId = null } = {}) {
       .then((fresh) => {
         setSelectedId(fresh.system_id);
         setPersonForm(personToForm(fresh));
+        setSavedName(fresh.display_name);
         // Every (role, scope) they hold, from the same response - the form
         // edits the whole set, because PUT replaces it.
         setRoles(fresh.roles || []);
@@ -167,6 +174,7 @@ export default function PersonModifyTab({ initialId = null } = {}) {
       });
       await queryClient.invalidateQueries({ queryKey: ["people-admin"] });
       setPersonForm(personToForm(updated));
+      setSavedName(updated.display_name);
       // Back to the top: the toast renders at the top of the page and
       // the form is long enough to have scrolled it out of sight.
       window.scrollTo(0, 0);

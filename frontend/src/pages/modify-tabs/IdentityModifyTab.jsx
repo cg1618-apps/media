@@ -7,6 +7,8 @@
 //
 // `initialId` is a deep link's id (/modify?id=<system_id>&type=identity): that
 // identity's editor opens on mount.
+import { usePageTitle } from "../../contexts/PageTitleContext";
+import { editorTitle } from "../../lib/pageTitle";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -112,6 +114,8 @@ export default function IdentityModifyTab({ initialId = null } = {}) {
   const [submitting, setSubmitting] = useState(false);
 
   const selected = identities.find((i) => i.system_id === pickedId) || null;
+  // The listed row is refetched after a save, so this is the saved name.
+  usePageTitle(selected ? editorTitle(selected.display_name) : null);
   // Load the form once per picked identity, when its row is available.
   if (selected && formFor !== selected.system_id) {
     setFormFor(selected.system_id);

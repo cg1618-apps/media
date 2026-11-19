@@ -1,4 +1,6 @@
 // Frontend: page component file for Modify.
+import { usePageTitle } from "../../contexts/PageTitleContext";
+import { editorTitle } from "../../lib/pageTitle";
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useToast } from "../../hooks/useToast";
@@ -2345,6 +2347,19 @@ export default function Modify() {
     if (type === "options") return `${item.category}: ${item.value}`;
     return "Unknown";
   }
+
+  // The tabs that draw their own editor (studio, publisher, person,
+  // character, identity) name the tab themselves; fav3x3 and alias edit no
+  // single record.
+  const mainEditorOpen =
+    editorOpen &&
+    Boolean(editingItem) &&
+    !["fav3x3", "studio", "publisher", "person", "character", "identity", "alias"].includes(
+      activeTab,
+    );
+  usePageTitle(
+    mainEditorOpen ? editorTitle(getItemLabel(editingItem, editingType)) : null,
+  );
 
   const searchResults = (() => {
     if (!searchQuery.trim()) return [];
