@@ -5832,6 +5832,25 @@ and a page lists the marks grouped by note for the admin and super.
   rather than inherit the gap; the inbox and memes still link no series,
   which is the resolver's to fix, not this feature's.
 
+### Directors without a director credit are deleted (2026-11-19)
+
+- **Revision `d1i2rnocred3` deletes every person who holds a `director`
+  role and has no `director` credit**, at the owner's request ("remove
+  directors without credits"). Only a `media_credit` row with
+  role `director` counts, in any scope: a person with director roles in two
+  scopes and a director credit in one is kept. Credits in other roles do not
+  save a person, and the whole `person` row goes even when they hold other
+  roles too - the owner chose that over stripping just the role.
+- Every foreign key into `person` cascades, so roles, other credits, voices,
+  memberships on both sides and ratings go with the row. The person's
+  `image_attachment` rows (owner_type `staff`, no foreign key) are deleted
+  by the revision; `user_request` rows keep their `target_label`, as for any
+  deleted target. Photo files on disk are not touched - a migration cannot
+  reach them.
+- No dump was taken for it, so the revision is `irreversible`. A Sheets
+  backup taken before it still holds those people, and a Pull from one
+  brings them back; the revision does not run again on what a Pull restores.
+
 ### Common Options; the 待補充 note suggests only its common notes (2026-11-19, no spec)
 
 - **"Note Suggestions" became "Common Options", and widened.** The owner's
