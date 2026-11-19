@@ -103,6 +103,16 @@ describe("Modify save, with and without Replace", () => {
     vi.unstubAllGlobals();
   });
 
+  it("Save sits left of Save & Replace, white against its brand fill", async () => {
+    open("anime", "/api/anime", { system_id: "anime-1", anime_name_en: "A" });
+    const replace = await screen.findByRole("button", { name: /save & replace/i });
+    const plain = screen.getByRole("button", { name: /^save$/i });
+    expect(plain.nextElementSibling).toBe(replace);
+    expect(plain.className).toContain("bg-raised");
+    expect(replace.className).toContain("bg-brand");
+    vi.unstubAllGlobals();
+  });
+
   it("Enter in a field still saves with Replace", async () => {
     const { saved, replaced } = open("anime", "/api/anime", {
       system_id: "anime-1",

@@ -4026,7 +4026,7 @@ export default function Modify() {
                 type="button"
                 disabled={submitting}
                 onClick={(e) => handleSave(e, { replace: false })}
-                className="flex items-center gap-2 px-6 py-3 bg-surface border border-border text-text rounded-xl font-black text-sm hover:bg-surface-2 transition disabled:opacity-60"
+                className="flex items-center gap-2 px-6 py-3 bg-raised border border-border-strong text-text rounded-xl font-black text-sm hover:bg-surface-2 transition disabled:opacity-60"
               >
                 <i className="fas fa-save"></i>
                 Save

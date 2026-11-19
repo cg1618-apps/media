@@ -17,6 +17,7 @@
   --color-surface: var(--c-surface);            /* cards, tables, panels */
   --color-surface-2: var(--c-surface-2);        /* inset, hover, stripes */
   --color-surface-3: var(--c-surface-3);        /* pressed / active pills */
+  --color-raised: var(--c-raised);              /* a control lifted off a surface */
   --color-text: var(--c-text);
   --color-text-muted: var(--c-text-muted);
   --color-text-faint: var(--c-text-faint);      /* placeholders, icons */
@@ -126,6 +127,7 @@
   --c-surface: #f8f6f1;
   --c-surface-2: #e6e2d9;
   --c-surface-3: #d9d4c9;
+  --c-raised: #ffffff;
   --c-text: #1c1a17;
   --c-text-muted: #5b5750;
   --c-text-faint: #8f8a80;
@@ -170,6 +172,7 @@
   --c-surface: #211e18;
   --c-surface-2: #2b2720;
   --c-surface-3: #3a352c;
+  --c-raised: #322d25;
   --c-text: #ece8df;
   --c-text-muted: #aaa397;
   --c-text-faint: #736d62;
@@ -212,6 +215,7 @@
     --c-surface: #211e18;
     --c-surface-2: #2b2720;
     --c-surface-3: #3a352c;
+    --c-raised: #322d25;
     --c-text: #ece8df;
     --c-text-muted: #aaa397;
     --c-text-faint: #736d62;
