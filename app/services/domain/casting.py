@@ -14,7 +14,7 @@ than the user-facing message.
 from typing import Iterable, Optional
 from uuid import UUID
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app import models
 from app.utils.character_roles import CHARACTER_ROLES
@@ -104,9 +104,10 @@ def casting_rows(db: Session, media_type: str, entry_id: UUID) -> list[dict]:
     people = (
         {
             p.system_id: p
-            for p in db.query(models.Person).filter(
-                models.Person.system_id.in_(person_ids)
-            )
+            for p in db.query(models.Person)
+            # display_name reads the roles: a seiyuu's default differs.
+            .options(selectinload(models.Person.roles))
+            .filter(models.Person.system_id.in_(person_ids))
         }
         if person_ids
         else {}

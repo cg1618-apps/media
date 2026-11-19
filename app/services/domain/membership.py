@@ -22,7 +22,7 @@ from uuid import UUID
 
 from fastapi import HTTPException
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app import models
 from app.services.rbac.shared_visibility import apply_shared_visibility
@@ -48,7 +48,12 @@ def _visible_people(db: Session, viewer, ids: Iterable[UUID]) -> dict:
     ids = list(set(ids))
     if not ids:
         return {}
-    query = db.query(models.Person).filter(models.Person.system_id.in_(ids))
+    query = (
+        db.query(models.Person)
+        # display_name reads the roles: a seiyuu's default differs.
+        .options(selectinload(models.Person.roles))
+        .filter(models.Person.system_id.in_(ids))
+    )
     query = apply_shared_visibility(query, models.Person, db, viewer)
     return {p.system_id: p for p in query.all()}
 

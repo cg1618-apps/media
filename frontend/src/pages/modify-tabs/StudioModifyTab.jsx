@@ -13,6 +13,8 @@ import {
   applyMyRating,
   useFormRatingSaver,
 } from "../../api/mutations/useMyRatingMutations";
+import { usePageTitle } from "../../contexts/PageTitleContext";
+import { editorTitle } from "../../lib/pageTitle";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { StudioFields } from "../add-tabs/StudioAddTab";
@@ -62,6 +64,10 @@ export default function StudioModifyTab({ initialId = null } = {}) {
   // Which scopes the grid is narrowed to - the media types it is credited on - a studio stores no scope of its own. Empty means any scope.
   const [scopes, setScopes] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
+  // The record's name as last loaded or saved - the tab title. Not the
+  // form's, so the tab does not change while a name is being typed.
+  const [savedName, setSavedName] = useState(null);
+  usePageTitle(selectedId ? editorTitle(savedName) : null);
   const saveFormRating = useFormRatingSaver();
   const [studioForm, setStudioForm] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -100,6 +106,7 @@ export default function StudioModifyTab({ initialId = null } = {}) {
       .then((fresh) => {
         setSelectedId(fresh.system_id);
         setStudioForm(studioToForm(fresh));
+        setSavedName(studioLabel(fresh));
       })
       .catch(() => showToast("error", "Failed to load studio."));
   }
@@ -155,6 +162,7 @@ export default function StudioModifyTab({ initialId = null } = {}) {
       );
       const rated = savedRating ? applyMyRating(updated, savedRating) : updated;
       setStudioForm(studioToForm(rated));
+      setSavedName(studioLabel(rated));
       // Back to the top: the toast renders at the top of the page and
       // the form is long enough to have scrolled it out of sight.
       window.scrollTo(0, 0);
