@@ -307,6 +307,19 @@ function isCatchAllMovieFranchise(franchiseId, allFranchises) {
     .some((n) => CATCH_ALL_MOVIE_FRANCHISE_NAMES.includes(n));
 }
 
+// The types whose save runs the single-entry Replace pipeline afterwards:
+// four through lib/enrich.js, movie and tv-show through the server's PUT
+// write hook. Their editor offers "Save" (the edit alone) beside "Save &
+// Replace", the form's submit button - so Enter in a field still replaces.
+const REPLACE_ON_SAVE = [
+  "anime",
+  "anime-movie",
+  "cartoon",
+  "manga",
+  "movie",
+  "tv-show",
+];
+
 export default function Modify() {
   const { showToast } = useToast();
   const [searchParams] = useSearchParams();
@@ -1294,7 +1307,7 @@ export default function Modify() {
     setSearchOpen(false);
   }
 
-  async function handleSave(e) {
+  async function handleSave(e, { replace = true } = {}) {
     e.preventDefault();
     if (submitting || !editingItem) return;
     // Checked before the entry is saved: an identity row with no identity
@@ -1331,15 +1344,15 @@ export default function Modify() {
     pendingLabels.current = null;
     setSubmitting(true);
     try {
-      if (editingType === "anime") await saveAnime();
+      if (editingType === "anime") await saveAnime({ replace });
       else if (editingType === "collection") await saveCollection();
       else if (editingType === "franchise") await saveFranchise();
       else if (editingType === "series") await saveSeries();
-      else if (editingType === "anime-movie") await saveAnimeMovie();
-      else if (editingType === "movie") await saveMovie();
-      else if (editingType === "tv-show") await saveTvShow();
-      else if (editingType === "cartoon") await saveCartoon();
-      else if (editingType === "manga") await saveManga();
+      else if (editingType === "anime-movie") await saveAnimeMovie({ replace });
+      else if (editingType === "movie") await saveMovie({ replace });
+      else if (editingType === "tv-show") await saveTvShow({ replace });
+      else if (editingType === "cartoon") await saveCartoon({ replace });
+      else if (editingType === "manga") await saveManga({ replace });
       else if (editingType === "book") await saveBook();
       else if (editingType === "comic") await saveComic();
       else if (editingType === "game") await saveGame();
@@ -1364,7 +1377,7 @@ export default function Modify() {
     }
   }
 
-  async function saveAnime() {
+  async function saveAnime({ replace }) {
     let franchiseId = af.franchise_id;
     let seriesId = af.series_id;
     const groups = await createMissingGroups({
@@ -1406,13 +1419,17 @@ export default function Modify() {
       prev.map((a) => (a.system_id === updated.system_id ? updated : a)),
     );
     // Enrich first, then show the enriched row - not the pre-enrichment one.
-    const enriched = await enrichEntry("anime", updated.system_id);
+    // "Save" skips it and shows the row as saved.
+    const enriched = replace
+      ? await enrichEntry("anime", updated.system_id)
+      : null;
     const item = enriched ?? updated;
     setEditingItem(item);
     setAf(animeToForm(item, allFranchises, allSeries, md("anime")));
     loadCreditsIntoForm("anime", item.system_id, setAf);
     window.scrollTo(0, 0);
-    if (enriched) showToast("success", "Update and enrichment successful.");
+    if (!replace) showToast("success", "Update successful.");
+    else if (enriched) showToast("success", "Update and enrichment successful.");
     else showToast("warning", "Updated, but enrichment failed - run Replace later.");
   }
 
@@ -1604,7 +1621,7 @@ export default function Modify() {
     } else showToast("error", "Update failed");
   }
 
-  async function saveAnimeMovie() {
+  async function saveAnimeMovie({ replace }) {
     let franchiseId = amf.franchise_id;
     const groups = await createMissingGroups({
       franchiseId,
@@ -1640,17 +1657,21 @@ export default function Modify() {
       prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
     );
     // Enrich first, then show the enriched row - not the pre-enrichment one.
-    const enriched = await enrichEntry("anime-movie", updated.system_id);
+    // "Save" skips it and shows the row as saved.
+    const enriched = replace
+      ? await enrichEntry("anime-movie", updated.system_id)
+      : null;
     const item = enriched ?? updated;
     setEditingItem(item);
     setAmf(movieToForm(item, allFranchises, md("anime-movie")));
     loadCreditsIntoForm("anime-movie", item.system_id, setAmf);
     window.scrollTo(0, 0);
-    if (enriched) showToast("success", "Update and enrichment successful.");
+    if (!replace) showToast("success", "Update successful.");
+    else if (enriched) showToast("success", "Update and enrichment successful.");
     else showToast("warning", "Updated, but enrichment failed - run Replace later.");
   }
 
-  async function saveMovie() {
+  async function saveMovie({ replace }) {
     let franchiseId = mmf.franchise_id;
     let seriesId = mmf.series_id;
     const groups = await createMissingGroups({
@@ -1672,7 +1693,8 @@ export default function Modify() {
       franchise_id: franchiseId || null,
       series_id: seriesId || null,
     };
-    const res = await fetch(`/api/movies/${editingItem.system_id}`, {
+    // PUT runs the server's Replace after the update; "Save" opts out.
+    const res = await fetch(`/api/movies/${editingItem.system_id}${replace ? "" : "?replace=false"}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -1699,7 +1721,7 @@ export default function Modify() {
     showToast("success", "Movie updated successfully.");
   }
 
-  async function saveTvShow() {
+  async function saveTvShow({ replace }) {
     let franchiseId = tvmf.franchise_id;
     let seriesId = tvmf.series_id;
     const groups = await createMissingGroups({
@@ -1721,7 +1743,8 @@ export default function Modify() {
       franchise_id: franchiseId || null,
       series_id: seriesId || null,
     };
-    const res = await fetch(`/api/tv-shows/${editingItem.system_id}`, {
+    // PUT runs the server's Replace after the update; "Save" opts out.
+    const res = await fetch(`/api/tv-shows/${editingItem.system_id}${replace ? "" : "?replace=false"}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -1748,7 +1771,7 @@ export default function Modify() {
     showToast("success", "TV show updated successfully.");
   }
 
-  async function saveCartoon() {
+  async function saveCartoon({ replace }) {
     let franchiseId = cmf.franchise_id;
     let seriesId = cmf.series_id;
     const groups = await createMissingGroups({
@@ -1791,17 +1814,21 @@ export default function Modify() {
       prev.map((c) => (c.system_id === updated.system_id ? updated : c)),
     );
     // Enrich first, then show the enriched row - not the pre-enrichment one.
-    const enriched = await enrichEntry("cartoon", updated.system_id);
+    // "Save" skips it and shows the row as saved.
+    const enriched = replace
+      ? await enrichEntry("cartoon", updated.system_id)
+      : null;
     const item = enriched ?? updated;
     setEditingItem(item);
     setCmf(cartoonToForm(item, allFranchises, allSeries));
     loadCreditsIntoForm("cartoon", item.system_id, setCmf);
     window.scrollTo(0, 0);
-    if (enriched) showToast("success", "Update and enrichment successful.");
+    if (!replace) showToast("success", "Update successful.");
+    else if (enriched) showToast("success", "Update and enrichment successful.");
     else showToast("warning", "Updated, but enrichment failed - run Replace later.");
   }
 
-  async function saveManga() {
+  async function saveManga({ replace }) {
     let franchiseId = cmgf.franchise_id;
     let seriesId = cmgf.series_id;
     const groups = await createMissingGroups({
@@ -1845,13 +1872,17 @@ export default function Modify() {
       prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
     );
     // Enrich first, then show the enriched row - not the pre-enrichment one.
-    const enriched = await enrichEntry("manga", updated.system_id);
+    // "Save" skips it and shows the row as saved.
+    const enriched = replace
+      ? await enrichEntry("manga", updated.system_id)
+      : null;
     const item = enriched ?? updated;
     setEditingItem(item);
     setCmgf(mangaToForm(item, allFranchises, allSeries));
     loadCreditsIntoForm("manga", item.system_id, setCmgf);
     window.scrollTo(0, 0);
-    if (enriched) showToast("success", "Update and enrichment successful.");
+    if (!replace) showToast("success", "Update successful.");
+    else if (enriched) showToast("success", "Update and enrichment successful.");
     else showToast("warning", "Updated, but enrichment failed - run Replace later.");
   }
 
@@ -3311,7 +3342,18 @@ export default function Modify() {
               </div>
             )}
 
-          <div className="mt-6 flex justify-end">
+          <div className="mt-6 flex justify-end gap-3">
+            {REPLACE_ON_SAVE.includes(editingType) && (
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={(e) => handleSave(e, { replace: false })}
+                className="flex items-center gap-2 px-6 py-3 bg-raised border border-border-strong text-text rounded-xl font-black text-sm hover:bg-surface-2 transition disabled:opacity-60"
+              >
+                <i className="fas fa-save"></i>
+                Save
+              </button>
+            )}
             <button
               type="submit"
               disabled={submitting}
@@ -3320,9 +3362,19 @@ export default function Modify() {
               {submitting ? (
                 <i className="fas fa-spinner fa-spin"></i>
               ) : (
-                <i className="fas fa-save"></i>
+                <i
+                  className={
+                    REPLACE_ON_SAVE.includes(editingType)
+                      ? "fas fa-cloud-arrow-down"
+                      : "fas fa-save"
+                  }
+                ></i>
               )}
-              {submitting ? "Saving..." : "Save Changes"}
+              {submitting
+                ? "Saving..."
+                : REPLACE_ON_SAVE.includes(editingType)
+                  ? "Save & Replace"
+                  : "Save Changes"}
             </button>
           </div>
         </form>

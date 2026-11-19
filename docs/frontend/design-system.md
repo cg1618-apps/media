@@ -16,6 +16,7 @@ badges). This document is the rulebook; the code lives in
 | `canvas` | `#ece9e2` bone | `#17150f` | page background |
 | `surface` | `#f8f6f1` | `#211e18` | slips, tables, panels |
 | `surface-2` / `surface-3` | darker paper | lighter charcoal | inset, hover, stripes |
+| `raised` | `#ffffff` white | `#322d25` | a secondary button lifted off a surface - Modify's **Save** beside the brand **Save & Replace** |
 | `text` / `text-muted` / `text-faint` | ink shades | paper shades | body / secondary / captions |
 | `border` / `border-strong` | | | hairline / emphasised rule |
 | `brand` / `brand-hover` | `#7a4c9e` wisteria | `#c2a0e6` | the one accent |

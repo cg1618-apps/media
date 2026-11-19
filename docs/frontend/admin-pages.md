@@ -1055,11 +1055,18 @@ only land in its own grid. The swap is a draft until **Save Grid**.
   chip badge per type, from the open form, so re-picking the franchise
   updates the ribbon at once. A movie in a catch-all franchise
   (`isCatchAllMovieFranchise`) gets none: its "siblings" are unrelated films.
-- **Save.** `PATCH` the entry → `saveCredits` → cast, for the types that have
-  one → for **anime, anime movie, cartoon and manga**, enrichment via
-  `lib/enrich.js`, after which the page shows the *enriched* row (not the
-  pre-enrichment one) and warns if enrichment failed → **content labels,
-  last**. Other types save without enrichment. A collection, franchise or
+- **Save.** `PATCH` the entry (`PUT` for movie and TV show) → `saveCredits`
+  → cast, for the types that have one → for **anime, anime movie, cartoon
+  and manga**, enrichment via `lib/enrich.js`, after which the page shows the
+  *enriched* row (not the pre-enrichment one) and warns if enrichment failed
+  → **content labels, last**. Movie and TV show are enriched by their `PUT`
+  itself, on the server. Other types save without enrichment.
+- **Save, or Save & Replace.** Those six types (`REPLACE_ON_SAVE`) show two
+  buttons. **Save & Replace** is the form's submit button, so it is also what
+  Enter in a field does: the save above, Replace included. **Save** runs the
+  same save without Replace - no `lib/enrich.js` call, and the `PUT` sent as
+  `?replace=false` - so the edit stands as typed and the toast says "Update
+  successful." Every other type has one **Save Changes** button. A collection, franchise or
   series saves its own label set after its update, through
   `saveCollectionLabels`, `saveFranchiseLabels` or `saveSeriesLabels`; a save
   that adds a label confirms first, naming what that tier hides ("this

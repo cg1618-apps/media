@@ -164,7 +164,7 @@ describe("Modify page - Label tags follow the content labels", () => {
     expect(checkbox("NSFW")).not.toBeChecked();
     expect(checkbox("輕微色情")).not.toBeChecked();
 
-    await user.click(screen.getByRole("button", { name: /save changes/i }));
+    await user.click(screen.getByRole("button", { name: /save changes|save & replace/i }));
 
     const calls = () => fetchMock.mock.calls.map(([u, o]) => [String(u), o?.method || "GET", o]);
     await waitFor(() =>

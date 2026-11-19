@@ -72,7 +72,7 @@ async function saveAndReadBody({ type, listPath, entry, credits }) {
       </MemoryRouter>
     </QueryClientProvider>,
   );
-  const save = await screen.findByRole("button", { name: /save changes/i });
+  const save = await screen.findByRole("button", { name: /save changes|save & replace/i });
   // The credits merge lands after the editor opens; a save before it would
   // not carry them.
   if (credits)
