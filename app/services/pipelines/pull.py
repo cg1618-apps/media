@@ -1119,10 +1119,10 @@ def execute_pull_specific(
     after every tab, because its Franchise tab restores before the entries
     the split decides by.
 
-    `may_restore_authz` says whether the caller holds `admin.authz`. Three tabs
-    carry authorization rather than catalogue data - Users, Content Label and
-    Media Content Label (AUTHZ_TABS) - and Pull writes the sheet INTO this
-    database. Since the sheet is editable by anyone with Google access, a
+    `may_restore_authz` says whether the caller holds `admin.authz`. The tabs
+    in AUTHZ_TABS carry authorization rather than catalogue data - Users,
+    Content Label, and the Media, Collection, Franchise and Series Content
+    Label tabs - and Pull writes the sheet INTO this database. Since the sheet is editable by anyone with Google access, a
     caller without that permission must not be able to restore them: otherwise
     typing `admin` into the Users tab's role column and running Pull is a
     promotion. Those tabs are skipped and reported rather than refused, so the
@@ -2550,8 +2550,8 @@ def execute_pull_all(
 
     `may_restore_authz` is passed straight through to every tab; see
     execute_pull_specific. A caller without it restores the whole catalogue and
-    has the three authorization tabs skipped, each named in unresolved_refs so
-    the audit row is red and the gap is visible rather than silent.
+    has the AUTHZ_TABS skipped, each named in skipped_tabs - reported, but kept
+    out of unresolved_refs so an expected skip does not turn the audit row red.
     """
     logger.info("Starting Full Pull Pipeline (All Tabs)...")
 
