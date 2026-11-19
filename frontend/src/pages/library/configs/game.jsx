@@ -7,6 +7,7 @@ import {
 } from "../../../components/layout/libraryColumns";
 import { PLAYING_STATUS_GROUP } from "../../../config/statusGroups";
 import { releaseScore } from "../../../lib/releaseDate";
+import { getSortName } from "../../../lib/naming";
 
 // CN leads, as everywhere but comic.
 function getTitle(g) {
@@ -107,8 +108,12 @@ const GAME_LIBRARY_CONFIG = {
     {
       key: "title",
       label: "Title",
+      // Sorted on the English name first (getSortName), as every other
+      // library is; the card still shows the CN-first title.
       compare: (a, b) =>
-        getTitle(a).localeCompare(getTitle(b), undefined, { numeric: true }),
+        getSortName(a, "game").localeCompare(getSortName(b, "game"), undefined, {
+          numeric: true,
+        }),
     },
     {
       key: "release_date",
