@@ -1230,7 +1230,11 @@ only land in its own grid. The swap is a draft until **Save Grid**.
   "— Auto (latest with cover) —" or one of the person's entries from
   `GET /api/person/{id}/entries`, listed once each as `name (year) [type]`;
   the pick is `photo_fallback_entry_id` on the `PUT`, and the public pages
-  show that entry's cover when the person has no photo.
+  show that entry's cover when the person has no photo. Below that, while the
+  form's roles hold `author` or `illustrator`, sits **Works**
+  (`WorkImagesEditor`): the person's gallery of works, which saves as it is
+  edited rather than with the form, as the photo does - see
+  [components.md](components.md#entity-components-person-studio-and-character).
 - **Identity tab (Entity).** `IdentityModifyTab.jsx`, self-contained over `GET /api/character-identity/` (query key `["identities-admin"]`): `IdentityPicker`, a search box over every name of the identity and its character plus a grid of every identity showing "identity of <character>", then the `IdentityFields` form with the owning character shown read-only. Save is `PUT /api/character-identity/{id}`. A deep link `type=identity` hands the id to it as `initialId`.
 - **Character tab (Entity).** `CharacterModifyTab.jsx`, self-contained the
   same way over `/api/character/` (query key `["characters-admin"]`) and

@@ -25,6 +25,7 @@ from app.routers._entity_patch import prepare_patch, resolve_fallback
 from app.routers._external_search import SEARCH_LIMIT, SEARCH_QUERY, run_search
 from app.routers._patching import apply_column_patch
 from app.schemas.external_search import ExternalSearchResult
+from app.services.domain import person_work_images
 from app.services.domain.autofill import autofill_person_from_mal
 from app.services.domain.casting import fallback_photo
 from app.services.domain.checking import has_missing_values_person
@@ -41,6 +42,7 @@ from app.services.domain.membership import (
 )
 from app.services.domain.merge_fill import finish_merge
 from app.services.domain.user_rating import ratings_by_owner
+from app.services.integrations import image_library
 from app.services.integrations.tenrai import search_mal_people
 from app.services.rbac.enforcement import (
     filter_visible_pairs,
@@ -863,8 +865,13 @@ def delete_person(
             ),
         )
 
+    # Their gallery of works goes with them: its attachments name the person
+    # without a foreign key, so nothing cascades to them.
+    dropped = person_work_images.remove_all(db, system_id)
     db.delete(person)
     db.commit()
+    for keys in dropped:
+        image_library.delete_file(*keys)
 
     return {"status": "success", "message": "Person deleted successfully."}
 
@@ -939,6 +946,9 @@ def merge_person(
 
     # Club memberships follow the survivor too, in both directions.
     merge_memberships(db, system_id, payload.source_id)
+
+    # And the gallery of works, after the survivor's own pictures.
+    person_work_images.merge(db, system_id, payload.source_id)
 
     finish_merge(db, "staff", keep, drop)
     return {"status": "success", "credits_moved": moved}

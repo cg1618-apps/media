@@ -248,3 +248,34 @@ def drop_if_unused_download(db: Session, image) -> Optional[tuple[str, str]]:
     keys = (image.storage_key, image.thumb_key)
     db.delete(image)
     return keys
+
+
+def drop_if_unused(db: Session, image) -> Optional[tuple[str, str]]:
+    """
+    Delete an image, uploaded or downloaded, once nothing uses it - no
+    attachment and no cast row naming its key - returning the file keys to
+    remove after the commit.
+
+    For a use whose pictures are its own rather than the library's: a
+    person's gallery of works. Removing a picture from the gallery removes
+    the file, unless the same bytes (one row, by checksum) are also some
+    other owner's image.
+    """
+    if image is None:
+        return None
+    db.flush()
+    attached = (
+        db.query(models.ImageAttachment)
+        .filter(models.ImageAttachment.image_id == image.system_id)
+        .first()
+    )
+    cast = (
+        db.query(models.CharacterCasting)
+        .filter(models.CharacterCasting.photo_file == image.storage_key)
+        .first()
+    )
+    if attached is not None or cast is not None:
+        return None
+    keys = (image.storage_key, image.thumb_key)
+    db.delete(image)
+    return keys

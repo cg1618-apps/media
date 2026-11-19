@@ -342,6 +342,15 @@ as well as the column ([authorization.md](authorization.md#per-account-feature-s
 Pull never touch it: the inbox lives on the box and in its own dumps, and a
 Pull would otherwise overwrite it with a development machine's.
 
+**The image library is not on the sheet, and neither is a person's gallery of
+works.** `image` and `image_attachment` have no tab. An owner's single picture
+still travels as a key - `photo_file`, `cover_image_file` and the rest are
+columns on their own tabs - but the file behind it does not, so on the other
+machine it is a reference with no bytes until the image is uploaded or
+downloaded there. A gallery has no column on `person` at all, so nothing of it
+travels: it lives on the machine that took the uploads (the box, in
+production) and in its database dump and the nightly `static/library/` sync ([deployment-selfhost.md](deployment-selfhost.md#backups)).
+
 **`User Media List`** carries every user's list rows. `user_id`, `media_id`
 and `system_id` are dropped for `username`, `media_type` and `public_id` -
 both pairs are exact (`users.username` UNIQUE, `uq_media_type_public_id`), and

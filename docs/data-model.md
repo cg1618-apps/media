@@ -1939,12 +1939,28 @@ string, not a migration. Model: `ImageAttachment`.
 | `image_id` | UUID | no | | FK `image.system_id` ON DELETE CASCADE, indexed |
 | `owner_type` | String | no | | Hyphenated for media types (`anime-movie`, `tv-show`, matching `app/utils/media_resolver.py`), plain for the rest: `staff`, `character`, `character-identity`, `publisher`, `studio`, `quote`, `meme`, and `book-unit` for a book unit's cover |
 | `owner_id` | UUID | no | | **Not a foreign key** - there is no single table to point at, so nothing in the database stops an attachment outliving its owner; the manager page's `unused` filter is what finds those |
-| `role` | String | no | `"cover"` | What the image is for: `cover` for every media/entity owner, `quote`/`quote-image`-shaped roles for quote and meme (see `app/routers/images.py`'s `NON_COVER_ROLE_OWNERS`) |
-| `position` | Integer | no | `0` | Reserved for a future multi-image case; always 0 today |
+| `role` | String | no | `"cover"` | What the image is for: `cover` for every media/entity owner, `quote`/`quote-image`-shaped roles for quote and meme (see `app/routers/images.py`'s `NON_COVER_ROLE_OWNERS`), and `work` for a picture in a person's gallery of works (below) |
+| `position` | Integer | no | `0` | Order within one owner's role. 0 for every single-image role; a `work` gallery numbers its pictures 0, 1, 2 … with no gaps |
+| `caption` | String | yes | | What a gallery picture shows. NULL for every single-image role, and for an uncaptioned picture |
 
 Unique on `(owner_type, owner_id, role, position)` - re-attaching an owner's
 existing role replaces the row rather than creating a second one, so "change
 the cover" never leaves two attachments behind.
+
+**A person's gallery of works** is the one multi-image role: a person holding
+`author` or `illustrator` (in any scope) has attachments with `owner_type`
+`staff`, `role` `work`, ordered by `position`, each with an optional
+`caption` (`app/services/domain/person_work_images.py`). Its rows are kept
+gapless: removing a picture renumbers the rest, and a reorder or a merge
+renumbers in two passes so no row ever lands on a position another still
+holds. Unlike a cover, a gallery picture is the person's own rather than
+library stock: removing it - one at a time, or with the person - deletes the
+`image` row and its file too, unless another attachment or a cast row still
+uses the same image (`image_library.drop_if_unused`). Deleting the person
+empties the gallery explicitly, since `owner_id` is not a foreign key; merging
+two people appends the loser's pictures after the survivor's, dropping any
+the survivor already shows. Losing the role later leaves the gallery in place,
+still editable, and the API stops taking uploads for it.
 
 ### Image focal points
 

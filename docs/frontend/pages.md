@@ -975,6 +975,15 @@ with is a part, not a work: one `VoicedPartCard` per casting voiced
 name, with the entry as a small cover-and-title line at its foot. One entry
 voiced as two identities is two cards.
 
+**Works** (`components/info/WorkGallery.jsx`, under club membership) is an
+author's or illustrator's gallery of works: a slip with a grid of square
+thumbnails, each captioned when it has one and linking to the full picture in
+a new tab (`GET /api/person/{id}/work-images`, in display order). It is drawn
+only when the gallery has something in it, and only for a person whose
+visible roles hold `author` or `illustrator`. It is not edited here: an admin
+adds, captions, reorders and removes pictures in the person form, under the
+photo (**Quick edit**).
+
 **Club membership** (`components/info/ClubMembership.jsx`, under the Profile
 card) is drawn only for a session that can see h-comic. A club - a person holding the `club` role -
 shows its **Members** in the club's order (`GET /api/person/{id}/members`); an

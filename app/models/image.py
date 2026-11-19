@@ -97,7 +97,13 @@ class ImageAttachment(Base):
     owner_type = Column(String, nullable=False, index=True)
     owner_id = Column(UUID(as_uuid=True), nullable=False, index=True)
 
-    # What the image is to its owner: "cover", "portrait", "quote".
+    # What the image is to its owner: "cover", "portrait", "quote", or
+    # "work" for one picture in a person's gallery of works
+    # (app/services/domain/person_work_images.py).
     role = Column(String, nullable=False, default="cover", server_default="cover")
-    # Reserved for the multi-image case; always 0 today.
+    # The order within one owner's role. 0 for every single-image role; a
+    # gallery role numbers its pictures 0, 1, 2 ... with no gaps.
     position = Column(Integer, nullable=False, default=0, server_default="0")
+    # What a gallery picture shows, in the owner's words. NULL for every
+    # single-image role, and for a gallery picture nobody has captioned.
+    caption = Column(String, nullable=True)
