@@ -490,6 +490,14 @@ their `manage.*` key. See [Roles](#roles) for the
 `super` role this makes possible — every catalogue capability, none of the
 authorization one.
 
+The two **Autofill & update** buttons sit on different keys. On a media
+detail page it is the single-entry Replace, `POST
+/api/data-control/replace/{type}/{id}`, under the data-control router's
+`manage.pipelines`; the button is drawn by `isAdmin`. On a studio, person or
+character page it is `POST /api/{kind}/{system_id}/autofill`, gated exactly
+as that entity's `PUT` — `manage.catalog` and the shared-record visibility
+check — because it runs the fill a save already runs.
+
 `self` is the odd family out and deliberately so: every other family answers
 "may you *see* this", and this one answers "may you *write* your own". It is
 also the only family whose keys are constants rather than derived, because each

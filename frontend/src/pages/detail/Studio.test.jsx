@@ -8,6 +8,12 @@ import { ToastProvider } from "../../hooks/useToast";
 
 let auth;
 vi.mock("../../contexts/AuthContext", () => ({ useAuth: () => auth }));
+// Toasts are recorded rather than rendered: ToastProvider draws nothing.
+const toast = vi.hoisted(() => ({ showToast: vi.fn() }));
+vi.mock("../../hooks/useToast", () => ({
+  ToastProvider: ({ children }) => children,
+  useToast: () => toast,
+}));
 
 const STUDIO = {
   system_id: "s1",
@@ -288,5 +294,47 @@ describe("Studio detail page", () => {
       await waitFor(() => expect(patchCalls()).toHaveLength(1));
       expect(JSON.parse(patchCalls()[0][1].body)).toEqual({ remark: "Still pretty water." });
     });
+  });
+});
+
+describe("Studio Autofill & update", () => {
+  const ADMIN = { isAdmin: true, has: (p) => !p.startsWith("self.") };
+
+  function autofillCalls() {
+    return fetch.mock.calls.filter(
+      ([url, init]) => init?.method === "POST" && String(url).endsWith("/autofill"),
+    );
+  }
+
+  it("is not offered to a viewer who cannot edit the catalogue", async () => {
+    renderPage();
+    await screen.findByRole("heading", { name: "KyoAni" });
+    expect(screen.queryByRole("button", { name: /Autofill/ })).not.toBeInTheDocument();
+  });
+
+  it("is not offered for a studio with no MAL link", async () => {
+    auth = ADMIN;
+    mockFetch({ studio: { ...STUDIO, mal_id: null, mal_link: null } });
+    renderPage();
+    await screen.findByRole("button", { name: "Quick edit" });
+    expect(screen.queryByRole("button", { name: /Autofill/ })).not.toBeInTheDocument();
+  });
+
+  it("fills from MAL and shows what came back", async () => {
+    auth = ADMIN;
+    const user = userEvent.setup();
+    renderPage();
+    const button = await screen.findByRole("button", { name: "Autofill & update" });
+    mockFetch({ studio: { ...STUDIO, display_name: "Kyoto Animation Co." } });
+    await user.click(button);
+
+    await waitFor(() => expect(autofillCalls()).toHaveLength(1));
+    expect(autofillCalls()[0][0]).toBe("/api/studio/s1/autofill");
+    expect(
+      await screen.findByRole("heading", { name: "Kyoto Animation Co." }),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(toast.showToast).toHaveBeenCalledWith("success", "Autofill completed"),
+    );
   });
 });

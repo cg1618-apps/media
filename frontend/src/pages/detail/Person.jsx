@@ -149,7 +149,20 @@ export default function Person() {
         />
       </div>
 
-      {isAdmin && <AdminToolbar ownerType="person" systemId={person.system_id} />}
+      {isAdmin && (
+        <AdminToolbar
+          ownerType="person"
+          systemId={person.system_id}
+          // MAL fills a seiyuu only, as on save: a director's link is kept
+          // but never fetched.
+          onAutofilled={
+            (person.mal_link || person.mal_id) &&
+            person.roles?.some((r) => r.role === "seiyuu")
+              ? setPerson
+              : undefined
+          }
+        />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* ========== LEFT COLUMN: the profile ========== */}

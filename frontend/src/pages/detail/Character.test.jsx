@@ -9,6 +9,12 @@ import { ToastProvider } from "../../hooks/useToast";
 // Reassigned per test: a guest by default, an admin where a test says so.
 let auth;
 vi.mock("../../contexts/AuthContext", () => ({ useAuth: () => auth }));
+// Toasts are recorded rather than rendered: ToastProvider draws nothing.
+const toast = vi.hoisted(() => ({ showToast: vi.fn() }));
+vi.mock("../../hooks/useToast", () => ({
+  ToastProvider: ({ children }) => children,
+  useToast: () => toast,
+}));
 // The page is behind its kind's view key, so its viewer holds the entity
 // keys and the cards on it link (useEntityHref).
 const ENTITY_KEYS = ["view.studio", "view.publisher", "view.person", "view.character"];
@@ -481,5 +487,76 @@ describe("the character's firsts", () => {
     renderPage();
     await screen.findByRole("heading", { name: "Yuki Nagato" });
     expect(screen.queryByText("First Appearances")).toBeNull();
+  });
+});
+
+describe("Character Autofill & update", () => {
+  const ADMIN = { isAdmin: true, has: (p) => !p.startsWith("self.") };
+  const LINKED = {
+    ...CHARACTER,
+    mal_id: 251,
+    mal_link: "https://myanimelist.net/character/251",
+  };
+
+  function autofillCalls() {
+    return fetch.mock.calls.filter(
+      ([url, init]) => init?.method === "POST" && String(url).endsWith("/autofill"),
+    );
+  }
+
+  it("is not offered to a viewer who cannot edit the catalogue", async () => {
+    mockFetch({ character: LINKED });
+    renderPage();
+    await screen.findByRole("heading", { name: "Yuki Nagato" });
+    expect(screen.queryByRole("button", { name: /Autofill/ })).not.toBeInTheDocument();
+  });
+
+  it("is not offered for a character with no MAL link", async () => {
+    auth = ADMIN;
+    renderPage();
+    await screen.findByRole("button", { name: "Quick edit" });
+    expect(screen.queryByRole("button", { name: /Autofill/ })).not.toBeInTheDocument();
+  });
+
+  it("fills from MAL and shows what came back", async () => {
+    auth = ADMIN;
+    mockFetch({ character: LINKED });
+    const user = userEvent.setup();
+    renderPage();
+    const button = await screen.findByRole("button", { name: "Autofill & update" });
+    mockFetch({ character: { ...LINKED, display_name: "Nagato Yuki" } });
+    await user.click(button);
+
+    await waitFor(() => expect(autofillCalls()).toHaveLength(1));
+    expect(autofillCalls()[0][0]).toBe("/api/character/c1/autofill");
+    expect(await screen.findByRole("heading", { name: "Nagato Yuki" })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(toast.showToast).toHaveBeenCalledWith("success", "Autofill completed"),
+    );
+  });
+
+  it("toasts the reason when there is nothing to fetch", async () => {
+    auth = ADMIN;
+    mockFetch({ character: LINKED });
+    const user = userEvent.setup();
+    renderPage();
+    const button = await screen.findByRole("button", { name: "Autofill & update" });
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: false,
+        status: 422,
+        statusText: "Unprocessable Entity",
+        json: () => Promise.resolve({ detail: "This character has no MAL link to autofill from." }),
+      }),
+    );
+    await user.click(button);
+
+    await waitFor(() =>
+      expect(toast.showToast).toHaveBeenCalledWith(
+        "error",
+        "This character has no MAL link to autofill from.",
+      ),
+    );
+    expect(screen.getByRole("heading", { name: "Yuki Nagato" })).toBeInTheDocument();
   });
 });

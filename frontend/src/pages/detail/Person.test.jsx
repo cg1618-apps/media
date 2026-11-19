@@ -12,6 +12,12 @@ import { ToastProvider } from "../../hooks/useToast";
 
 let auth;
 vi.mock("../../contexts/AuthContext", () => ({ useAuth: () => auth }));
+// Toasts are recorded rather than rendered: ToastProvider draws nothing.
+const toast = vi.hoisted(() => ({ showToast: vi.fn() }));
+vi.mock("../../hooks/useToast", () => ({
+  ToastProvider: ({ children }) => children,
+  useToast: () => toast,
+}));
 // The page is behind its kind's view key, so its viewer holds the entity
 // keys and the cards on it link (useEntityHref).
 const ENTITY_KEYS = ["view.studio", "view.publisher", "view.person", "view.character"];
@@ -334,5 +340,61 @@ describe("Person detail page", () => {
       await waitFor(() => expect(patchCalls()).toHaveLength(1));
       expect(JSON.parse(patchCalls()[0][1].body)).toEqual({ remark: "Retired, thrice." });
     });
+  });
+});
+
+describe("Person Autofill & update", () => {
+  const ADMIN = { isAdmin: true, has: (p) => !p.startsWith("self.") };
+  const SEIYUU = {
+    ...PERSON,
+    mal_id: 185,
+    mal_link: "https://myanimelist.net/people/185",
+    roles: [{ role: "seiyuu", scope: "anime" }],
+  };
+
+  function autofillCalls() {
+    return fetch.mock.calls.filter(
+      ([url, init]) => init?.method === "POST" && String(url).endsWith("/autofill"),
+    );
+  }
+
+  it("is not offered to a viewer who cannot edit the catalogue", async () => {
+    mockFetch(SEIYUU);
+    renderPage();
+    await screen.findByRole("heading", { name: "Hayao Miyazaki" });
+    expect(screen.queryByRole("button", { name: /Autofill/ })).not.toBeInTheDocument();
+  });
+
+  it("is not offered for a person who is not a seiyuu, MAL link or not", async () => {
+    auth = ADMIN;
+    mockFetch({ ...SEIYUU, roles: [{ role: "director", scope: "anime" }] });
+    renderPage();
+    await screen.findByRole("button", { name: "Quick edit" });
+    expect(screen.queryByRole("button", { name: /Autofill/ })).not.toBeInTheDocument();
+  });
+
+  it("is not offered for a seiyuu with no MAL link", async () => {
+    auth = ADMIN;
+    mockFetch({ ...SEIYUU, mal_id: null, mal_link: null });
+    renderPage();
+    await screen.findByRole("button", { name: "Quick edit" });
+    expect(screen.queryByRole("button", { name: /Autofill/ })).not.toBeInTheDocument();
+  });
+
+  it("fills a seiyuu from MAL and shows what came back", async () => {
+    auth = ADMIN;
+    mockFetch(SEIYUU);
+    const user = userEvent.setup();
+    renderPage();
+    const button = await screen.findByRole("button", { name: "Autofill & update" });
+    mockFetch({ ...SEIYUU, display_name: "Kana Hanazawa" });
+    await user.click(button);
+
+    await waitFor(() => expect(autofillCalls()).toHaveLength(1));
+    expect(autofillCalls()[0][0]).toBe("/api/person/p1/autofill");
+    expect(await screen.findByRole("heading", { name: "Kana Hanazawa" })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(toast.showToast).toHaveBeenCalledWith("success", "Autofill completed"),
+    );
   });
 });

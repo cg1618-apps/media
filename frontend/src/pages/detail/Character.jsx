@@ -142,7 +142,14 @@ export default function Character() {
       </div>
 
       {isAdmin && (
-        <AdminToolbar ownerType="character" systemId={character.system_id} />
+        <AdminToolbar
+          ownerType="character"
+          systemId={character.system_id}
+          // Only a character with a MAL record to fetch from offers it.
+          onAutofilled={
+            character.mal_link || character.mal_id ? setCharacter : undefined
+          }
+        />
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">

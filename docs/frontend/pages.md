@@ -926,7 +926,12 @@ where the profile call failing is the page's 404 while the entries call
 failing is not.
 
 Layout: breadcrumb → (admin) the dashed **Admin** strip with **Quick edit**,
-linking to `/modify?id=<system_id>&type=person` → left column with the photo
+linking to `/modify?id=<system_id>&type=person`, and — for a seiyuu with a
+MAL link — **Autofill & update**, `POST /api/person/{system_id}/autofill`
+(`AdminToolbar`'s `onAutofilled`): it reads **Autofilling…** while it runs,
+fills only the blank columns from MAL, toasts **Autofill completed** and
+takes the page's state from the response; a 422 or any other failure toasts
+the server's `detail` → left column with the photo
 (`display_photo_file`: the photo, else the server-resolved fallback cover,
 else `FALLBACK_SVG`) and rating stamp, (holder of `self.list`) a **My rating** select, and a
 **Naming** card (`NamingCard`, each of the four names that is set) → right column with the
@@ -988,7 +993,9 @@ then **Appearance** and **Trait**, each list as a row of `Chip`s in its stored
 order (`tagChips`) ("—" when empty, like every unset row), and a **MAL** row: the `mal_link` as an external link reading
 `Character #<mal_id>` (`MyAnimeList` when no id was derived), "—" without a
 link. The layout and the admin controls — Quick edit
-to `/modify?id=<system_id>&type=character` and the Remarks textarea,
+to `/modify?id=<system_id>&type=character`, **Autofill & update** for a
+character with a MAL link (`POST /api/character/{system_id}/autofill`, as on
+the person page), and the Remarks textarea,
 PATCHing `/api/character/{system_id}`, and the viewer's own My rating select
 (`self.list`, `PUT /api/me/ratings/character/{system_id}`) — are the person
 page's, as is the Naming card in place of a list of other names. The photo
@@ -1108,7 +1115,9 @@ Layout:
 
 1. **Breadcrumb** `/library/studio` → display name.
 2. **Admin strip** (admin only) — the dashed strip with **Quick edit** to
-   `/modify?id=<system_id>&type=studio`.
+   `/modify?id=<system_id>&type=studio`, and **Autofill & update** for a
+   studio with a MAL link (`POST /api/studio/{system_id}/autofill`, as on the
+   person page: blank columns only, then the response is the page's state).
 3. **Left column** — logo with the rating stamp, (admin) the **My rating**
    select, then the **Naming** card (`NamingCard`, each of the four names that is set —
    English, Chinese, Japanese, Alternative — the displayed one included, as
@@ -1300,13 +1309,12 @@ Top to bottom:
    Date** row (`release_date_jp`, falling back to `release_date_tw`) in
    place of the JP and TW rows, and the release dialog asks for that one
    date. Movie's `original_source` tags are labelled **Exclusive Source**.
-   **Autofill & Update** → `POST /api/data-control/replace/{type}/{id}`
-   with a spinner. On Game and H-Game it runs both sources: IGDB, fill-only
+   **Autofill & update** → `POST /api/data-control/replace/{type}/{id}`,
+   reading **Autofilling…** while it runs. On Game and H-Game it runs both sources: IGDB, fill-only
    (release date, times, credits, tags, cover, the Steam pair when the entry
-   has none), then Steam (SteamDB link, store figures, progress). Comic renders no
-   Autofill button: the single Replace route exists for it, but Comic Vine
-   carries no score or rank that drifts, which is also why comic is not in
-   bulk Replace.
+   has none), then Steam (SteamDB link, store figures, progress). On Comic it
+   is one Comic Vine fetch, fill-only, refused with the server's message when
+   the hourly budget is spent; a comic save fetches nothing.
 3. **Left column**: poster card (my_rating badge, cover, hover progress
    overlay — percent or "{n} ep"), `SourcesCard` (Baha/Netflix/other,
    MAL/AniList/official/Twitter/IMDb links, official source, serialization
@@ -1423,7 +1431,7 @@ status select, which goes through `/api/me/list`.
 | Cartoon | + Airing Type, Runtime Per Ep (min) | — | **Genres** card (`GenresCard`); IMDb block as TV's |
 | Manga | Region, 本傳/外傳, Serialization Status/Platform, Release/End Date, Volume/Chapter Total | 作者 or 原作/作畫, 台灣出版商 (linked), Anime Studio (card shown only when any value) | **Genres** card (`GenresCard`), between Information and Production |
 | Book | Region, Type, Version, 本傳/外傳, Serialization Status, Release Date JP, Release Date TW, End Date, Vol Total (JP/KR)/TW, Arc Total, Chapter Total | Author, Illustrator, 台灣出版商 (linked, conditional) | **Genres** card (`GenresCard`), between Information and Production; **Units** card (`BookUnitsEditor` over the `units` relationship — volume/arc/story/chapter rows with a key, CN/EN name and, on an arc, a chapter count; a `manage.catalog` holder gets the editor with drag-to-reorder/add/remove and a Save → PATCH carrying each unit's own fields only (`bookUnitPayload`), everyone else a plain list keyed by each row's server-computed `display_key`. For a holder of `self.list` each row of that list carries the viewer's own rating select (`MY_RATINGS`, saved on change) and remark field (saved on blur), both through `useSaveMyBookUnit` → `PUT /api/me/book-units/{unit_id}`; an account holding both keys gets the editor and, under it, that list headed **My ratings**. The admin holds no `self.list` and gets no such control. Hidden entirely for a viewer when the book has no units) |
-| Comic | Type, Volume Label, Continuity, Era, Serialization/Reading Status, Release Year, Issue Total, Genre main/sub, 標籤 Label | Writer, Artist, 出版商 (linked, conditional), Imprint | **Events** card (red pills); no Autofill, no `RelationsSection`, no `ScoreBlock` |
+| Comic | Type, Volume Label, Continuity, Era, Serialization/Reading Status, Release Year, Issue Total, Genre main/sub, 標籤 Label | Writer, Artist, 出版商 (linked, conditional), Imprint | **Events** card (red pills); no `RelationsSection`, no `ScoreBlock` |
 | Game | Type, Main / Remake (`is_main`), Base Game (a link to `/game/{base_game_id}`), Platform, Mode, Combat Mode — only what the game *is*; the rest sits in cards of its own, below | **Production & Release**: Developer (`studioValue`), 發行商 (`publisherValue`, labelled by `publisherLabel` rather than a bare literal), Director, Composer, Release Status, Release Date, Current Patch — always shown, with a dash for an empty field | **Genres** card (Genre, Theme and 標籤 Label, a row each — the same `Label` vocabulary anime shows); **Reception** card (Metacritic / Metacritic User, each carrying its own denominator — `96 / 100`, `8.6 / 10` — via the exported `outOf` helper, a missing score showing the card's dash rather than a zero; the public verdict, not mine, which is the stamp on the cover); **Time to Beat** card (`TimeToBeatCard`, after Reception: Main, Main + Extra and Completionist from `hltb_main`, `hltb_main_extra` and `hltb_completionist`, IGDB's time-to-beat in hours, formatted by `hours` in `lib/gameHours.js` - only the recorded figures get a field, and with none recorded the card is left out); **Library** card (Ownership, server-derived; Copies, a count; Steam Progress Sync — whether Steam may write this entry's progress, a fact about the source rather than an answer about a playthrough, so it sits with the copies while playing status and the four completion axes stay editable in the tracker and Completion blocks); **Progress** slip (`GameProgress`: playtime against `hltb_main`, achievements gated on `achievements_total` — nothing renders when neither figure exists, since "0 h / ? h" reads as "played none of it" rather than "never measured"); the **分歧 Choices** card (`ChoiceGraphCard`: a still preview of the game's choice graph and **View all**, see below); **Prices** card (MSRP in USD / JPY / TWD); **Copies** slip (`GameCopiesSection`: one row per `game_copy` — storefront and ownership as chips, then format, acquisition, price with the copy's own currency via `copyPrice`, acquired date, the sale as `sold EUR 7.50` (`copySale`), the copy's hours played as `12.5 h`, and remark — sorted by `position`, and rendered only when the game has copies, so the Library card's count is not their only trace on the page; editing still happens in the Add/Modify tab); a cover-side `ProgressRule` on `hours_played / hltb_main`; `SourcesCard` with `igdbLink` (under "Where to Look Up") and `steamLink` (under "Where to Play", since a Steam store page is a storefront rather than a reference database); no `RelationsSection`, no `ScoreBlock`, no Cast |
 
 **H-Comic** (`pages/detail/HComic.jsx`) is a gated type's page: App.jsx
