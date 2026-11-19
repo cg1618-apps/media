@@ -293,6 +293,36 @@ def test_a_hentai_is_cast_with_its_seiyuu(owner_client, character, person):
     assert [v["person_name"] for v in rows[0]["voices"]] == [person.display_name]
 
 
+def test_a_game_is_cast_with_its_seiyuu(owner_client, character, person):
+    """Games are voiced, so they are cast the way anime is. The mirror is
+    test_a_seiyuu_on_a_manga_casting_is_rejected."""
+    created = owner_client.post("/api/game/", json={"game_name_cn": "Cast Game"})
+    assert created.status_code in (200, 201), created.text
+    entry_id = created.json()["system_id"]
+
+    body = {"cast": [{
+        "character_id": str(character.system_id),
+        "voices": [{"person_id": str(person.system_id)}],
+        "role": "Main",
+    }]}
+    r = owner_client.put(f"/api/casting/game/{entry_id}", json=body)
+    assert r.status_code == 200, r.text
+
+    rows = owner_client.get(f"/api/casting/game/{entry_id}").json()["cast"]
+    assert len(rows) == 1
+    assert rows[0]["character_name"] == character.display_name
+    assert [v["person_name"] for v in rows[0]["voices"]] == [person.display_name]
+
+
+def test_an_h_game_is_still_not_cast(owner_client, character):
+    """Only game gained a cast; h-game did not."""
+    created = owner_client.post("/api/h-game/", json={"h_game_name_cn": "Uncast H-Game"})
+    assert created.status_code in (200, 201), created.text
+    body = {"cast": [{"character_id": str(character.system_id)}]}
+    r = owner_client.put(f"/api/casting/h-game/{created.json()['system_id']}", json=body)
+    assert r.status_code in (400, 404, 422), r.text
+
+
 def _put_role(owner_client, anime, character, role):
     body = {"cast": [{"character_id": str(character.system_id), "role": role}]}
     return owner_client.put(f"/api/casting/anime/{anime.system_id}", json=body)

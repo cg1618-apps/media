@@ -70,7 +70,7 @@ the stored value, tuple of keys for validation.
 | `author` | Author | person | manga, book, comic, h-comic, hentai |
 | `illustrator` | Illustrator | person | manga, book, comic, h-comic |
 | `club` | Club | person | h-comic |
-| `seiyuu` | Seiyuu 聲優 | person | anime, anime-movie, hentai |
+| `seiyuu` | Seiyuu 聲優 | person | anime, anime-movie, hentai, game |
 
 **`club` is the circle an h-comic comes out of.** Studio-like as an idea, an
 author as a schema: a `person` row, so a club and its artists live in one
@@ -320,7 +320,7 @@ All.
 | `DELETE /api/character/{id}?castings=N` | admin | Same count-guard shape as `DELETE /api/person?credits=N`: castings cascade away, and a count that moved underneath the admin is a 409. |
 | `POST /api/character/{id}/merge` `{source_id}` | admin | Repoints every casting from source onto target, deletes the source. Where both are cast on the same entry (which would collide on `uq_character_casting`), the source's casting is dropped, its voices the target's casting lacks are appended to the target's, and the target's casting fills its blank role, credited name, remark and photo from it. Then fills the target's blank columns, as person does. The correct fix for a duplicate, since a delete would cascade the castings away. |
 | `GET /api/casting/{media_type}/{entry_id}` | public (viewer) | The entry's cast, ordered by `position`; each row carries `voices: [{person_id, person_public_id, person_name, remark}]` in voice order, `credited_name` and `remark`. Missing or hidden entry → 404 (`entry_visible`), exactly as `/api/credits` behaves. |
-| `PUT /api/casting/{media_type}/{entry_id}` | admin | Replaces the whole cast in submitted order, each row with its `voices: [{person_id, remark?}]` in order. `media_type` is one of `CASTING_MEDIA_TYPES` (anime, anime-movie, manga, book, h-comic, hentai). `role` is optional - null or blank stores no role. `credited_name` is trimmed, and null or blank stores none. Rejects (422) voices on a non-voiced media type - h-comic included - one person twice in a row's voices, or a non-blank role outside `CHARACTER_ROLES`, before a row ever reaches `ck_casting_voice_scope` or `uq_casting_voice`. |
+| `PUT /api/casting/{media_type}/{entry_id}` | admin | Replaces the whole cast in submitted order, each row with its `voices: [{person_id, remark?}]` in order. `media_type` is one of `CASTING_MEDIA_TYPES` (anime, anime-movie, manga, book, h-comic, hentai, game). `role` is optional - null or blank stores no role. `credited_name` is trimmed, and null or blank stores none. Rejects (422) voices on a non-voiced media type - h-comic included - one person twice in a row's voices, or a non-blank role outside `CHARACTER_ROLES`, before a row ever reaches `ck_casting_voice_scope` or `uq_casting_voice`. |
 
 **Deleting a publisher removes its logo; deleting a studio does not.** This
 asymmetry is deliberate, not an oversight. `delete_publisher` calls

@@ -19,17 +19,18 @@ from sqlalchemy.orm import Session, selectinload
 from app import models
 from app.utils.character_roles import CHARACTER_ROLES
 
-# The AniManga media types character_casting.media_type may hold - a subset of
+# The media types character_casting.media_type may hold - a subset of
 # MEDIA_TABLES. h-comic casts real character rows like manga does (D6); it has
 # no voice acting, so ck_casting_voice_scope already refuses a seiyuu there.
-# hentai is animated, so it is cast the way anime is, seiyuu included.
+# hentai is animated, so it is cast the way anime is, seiyuu included, and so
+# is game, which is voiced. h-game is not cast.
 CASTING_MEDIA_TYPES: tuple[str, ...] = (
-    "anime", "anime-movie", "manga", "book", "h-comic", "hentai",
+    "anime", "anime-movie", "manga", "book", "h-comic", "hentai", "game",
 )
 
 # Media types a seiyuu (person_id) may be attached to - the ones with voice
 # acting. Mirrors ck_casting_voice_scope exactly.
-VOICED_MEDIA_TYPES: tuple[str, ...] = ("anime", "anime-movie", "hentai")
+VOICED_MEDIA_TYPES: tuple[str, ...] = ("anime", "anime-movie", "hentai", "game")
 
 
 class CastingValidationError(ValueError):

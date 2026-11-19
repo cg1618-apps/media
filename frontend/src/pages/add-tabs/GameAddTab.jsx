@@ -9,6 +9,7 @@
 // The field body and the lineage pickers are exported and rendered by
 // GameModifyTab too, so the two pages share one form in the canonical
 // entry-form section order.
+import CastEditor from "../../components/forms/CastEditor";
 import ComboBox from "../../components/forms/ComboBox";
 import CoverFields from "../../components/forms/CoverFields";
 import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
@@ -375,6 +376,18 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources, ownerId }
           </Field>
         </>
       )}
+
+      {/* Cast: character/seiyuu/role rows, saved separately via
+          PUT /api/casting/game/{id} - never part of the entry payload. No
+          franchiseId and no malLink, so neither "Import cast from..." nor
+          the MAL import is offered: a game's cast is entered here. */}
+      <SectionHeader icon="fa-users" title="Cast" />
+      <CastEditor
+        mediaType="game"
+        entryId={ownerId}
+        value={f.cast}
+        onChange={(rows) => u("cast", rows)}
+      />
 
       <SectionHeader icon="fa-external-link-alt" title="Links & Sources" />
       {/* The id, not the link, is what Fill runs on. The public IGDB URL

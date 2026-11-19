@@ -121,3 +121,23 @@ it("refuses to render a notes component outside a provider", () => {
   );
   quiet.mockRestore();
 });
+
+// beforeGroup: something that is not a note (the game page's cast) drawn just
+// before a named group's card - a sibling of the card, never inside it.
+it("draws a beforeGroup node just before that group's card, outside it", async () => {
+  renderPage({ beforeGroup: { worldbuilding: <div data-testid="cast">CAST</div> } });
+  const card = (await screen.findByText("Lore")).closest("section");
+  const cast = screen.getByTestId("cast");
+  expect(card).not.toContainElement(cast);
+  // Immediately before it in document order.
+  expect(cast.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(cast.parentElement).toBe(card.parentElement);
+  expect(cast.nextElementSibling).toBe(card);
+});
+
+it("still draws a beforeGroup node whose group this owner lacks", async () => {
+  renderPage({ beforeGroup: { compendium: <div data-testid="cast">CAST</div> } });
+  expect(await screen.findByText("Lore")).toBeInTheDocument();
+  expect(screen.getByTestId("cast")).toBeInTheDocument();
+});
+

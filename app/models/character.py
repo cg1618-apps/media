@@ -436,7 +436,7 @@ class CharacterCastingVoice(Base):
         # Enforced here rather than by convention because the Fill pipeline and
         # any future migration write these rows without going through the API.
         CheckConstraint(
-            "media_type IN ('anime', 'anime-movie', 'hentai')",
+            "media_type IN ('anime', 'anime-movie', 'hentai', 'game')",
             name="ck_casting_voice_scope",
         ),
         Index("ix_character_casting_voice_entry", "media_type", "entry_id"),

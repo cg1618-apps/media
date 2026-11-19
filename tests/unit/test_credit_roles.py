@@ -418,7 +418,7 @@ def test_a_new_genre_or_label_column_is_headed_by_its_own_key(media_type, key):
 def test_seiyuu_is_a_person_role_scoped_to_the_voiced_types():
     assert "seiyuu" in cr.PERSON_ROLES
     assert cr.CREDIT_ROLES["seiyuu"].target == "person"
-    assert cr.legal_scopes("seiyuu") == ("anime", "anime-movie", "hentai")
+    assert cr.legal_scopes("seiyuu") == ("anime", "anime-movie", "hentai", "game")
 
 
 def test_seiyuu_credits_are_not_stored_in_media_credit():

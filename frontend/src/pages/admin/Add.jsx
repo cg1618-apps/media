@@ -629,6 +629,7 @@ export default function Add() {
       book: nvf,
       "h-comic": hcf,
       hentai: htf,
+      game: gmf,
     }[activeTab];
     const castProblem = castForm && castIdentityProblem(castForm.cast);
     if (castProblem) {
@@ -1970,6 +1971,7 @@ export default function Add() {
       "Entry",
     );
     await saveCredits("game", created.system_id, gmf);
+    await saveCast("game", created.system_id, gmf);
     window.scrollTo(0, 0);
     showToast("success", "Game appended successfully.");
     setLastAdded(created.game_name_cn || created.game_name_en || "New Game");

@@ -32,9 +32,9 @@ function filtered(defs, rows, picks) {
 }
 
 describe("characterFilterDefs", () => {
-  it("offers the four cast types, with h-comic and hentai under Restricted", () => {
+  it("offers the five cast types, with h-comic and hentai under Restricted", () => {
     const mediaType = def(characterFilterDefs(SEES_ALL), "mediaType");
-    expect(mediaType.options).toEqual(["anime", "anime-movie", "manga", "book", NO_ENTRIES]);
+    expect(mediaType.options).toEqual(["anime", "anime-movie", "manga", "book", "game", NO_ENTRIES]);
     expect(mediaType.parent).toEqual({
       label: "Restricted",
       children: ["h-comic", "hentai"],

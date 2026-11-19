@@ -2218,8 +2218,8 @@ photo and a remark — forcing that shape into `/api/credits` would break the
 simpler contract for every other role, and it would pull character casting
 into a role vocabulary (`credit_roles_for`) that only some media types have.
 The castable types are `CASTING_MEDIA_TYPES`: anime, anime-movie, manga, book,
-h-comic and hentai; voices are refused (422) on any but anime, anime-movie and
-hentai (`VOICED_MEDIA_TYPES`).
+h-comic, hentai and game; voices are refused (422) on any but anime,
+anime-movie, hentai and game (`VOICED_MEDIA_TYPES`). H-game is not cast.
 
 | Method | Path                       | Auth   | Description                                                                    |
 | ------ | -------------------------- | ------ | ------------------------------------------------------------------------------- |

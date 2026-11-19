@@ -1514,7 +1514,7 @@ the casting, because one character may have several seiyuu in one entry.
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
 | `character_id` | UUID | no | | FK `character.system_id` **ON DELETE CASCADE**, indexed |
-| `media_type` | String | no | | Hyphenated key: one of `CASTING_MEDIA_TYPES` (`anime`, `anime-movie`, `manga`, `book`, `h-comic`, `hentai`) |
+| `media_type` | String | no | | Hyphenated key: one of `CASTING_MEDIA_TYPES` (`anime`, `anime-movie`, `manga`, `book`, `h-comic`, `hentai`, `game`) |
 | `identity_id` | UUID | yes | | NULL is the **main identity** (the character itself); otherwise one of *this character's* [`character_identity`](#character_identity) rows, enforced by `fk_casting_identity`. Indexed |
 | `entry_id` | UUID | no | | FK-less - see [Cross-table references](#cross-table-references-without-foreign-keys) |
 | `role` | String | yes | | Optional: one of `CHARACTER_ROLES` (`Main`, `Core`, `Important Supporting`, `Supporting`, `Other`), or NULL for no role recorded - what the character is in this entry. A blank value from the API or a Sheets cell is stored as NULL. Fills a NULL `character.role`; never written from it |
@@ -1589,8 +1589,8 @@ Constraints and indexes:
 - `uq_casting_voice` UNIQUE (`casting_id`, `person_id`) - one person voices a
   casting at most once.
 - `ck_casting_voice_scope` CHECK `media_type IN ('anime', 'anime-movie',
-  'hentai')` - characters reach every type in `CASTING_MEDIA_TYPES`, but a
-  seiyuu may only be attached on the three types with voice acting. Enforced
+  'hentai', 'game')` - characters reach every type in `CASTING_MEDIA_TYPES`,
+  but a seiyuu may only be attached on the four types with voice acting. Enforced
   in the database, not just in `app/services/domain/casting.py`, because the
   Fill pipeline and any future migration write these rows without going
   through the API.

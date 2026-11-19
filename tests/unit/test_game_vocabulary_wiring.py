@@ -12,12 +12,23 @@ def test_a_games_developer_is_its_studio():
 
 
 def test_person_roles_on_games_are_director_and_composer_only():
-    person_roles = {
+    """The credits a game's Production section carries. Seiyuu is legal on a
+    game too, but reaches it through the cast (credited_via
+    character_casting), not as a credit - see the test below."""
+    credited = {
         key
         for key, role in cr.CREDIT_ROLES.items()
-        if role.target == "person" and "game" in role.media_types
+        if role.target == "person"
+        and "game" in role.media_types
+        and role.credited_via != "character_casting"
     }
-    assert person_roles == {"director", "composer"}
+    assert credited == {"director", "composer"}
+
+
+def test_a_games_seiyuu_comes_through_its_cast():
+    seiyuu = cr.CREDIT_ROLES["seiyuu"]
+    assert "game" in seiyuu.media_types
+    assert seiyuu.credited_via == "character_casting"
 
 
 def test_game_tag_fields():

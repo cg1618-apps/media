@@ -1730,3 +1730,17 @@ describe("credited name", () => {
     expect(importedRow({ character_id: "c1" }, 0, true).credited_name).toBe("");
   });
 });
+
+it("shows the seiyuu column on game, which is voiced, and offers no import", async () => {
+  render(<CastEditor mediaType="game" value={[row()]} onChange={vi.fn()} />);
+  expect(screen.getByLabelText(/seiyuu/i)).toBeInTheDocument();
+  await waitFor(() =>
+    expect(
+      fetch.mock.calls.some(([url]) => String(url).includes("scope=game")),
+    ).toBe(true),
+  );
+  // No franchiseId and no malLink: neither import is offered on a game.
+  expect(screen.queryByText(/Import cast from/)).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /Import from MAL/ })).not.toBeInTheDocument();
+});
+

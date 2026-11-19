@@ -464,7 +464,7 @@ it is also the vocabulary of `person_role.role` - one list, not two.
 | `author` | Author | person | manga, book, comic, h-comic, hentai |
 | `illustrator` | Illustrator | person | manga, book, comic, h-comic |
 | `club` | Club | person | h-comic |
-| `seiyuu` | Seiyuu 聲優 | person | anime, anime-movie, hentai |
+| `seiyuu` | Seiyuu 聲優 | person | anime, anime-movie, hentai, game |
 
 `PERSON_ROLES` (derived, served as `/api/constants` `person_role`): `director`,
 `producer`, `composer`, `author`, `illustrator`, `club`, `seiyuu` -
