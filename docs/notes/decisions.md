@@ -534,7 +534,7 @@ A dated log of the choices that shaped the code and, where it matters, the alter
 - **One role, but the words "Publisher / Distributor" are never shown.** That
   string names the concept, not a reader-facing label. The label varies by media
   type through the `_LABEL_OVERRIDES` mechanism that already makes one `author`
-  role read 原作 / Author / Writer: 台灣代理商 for anime, 台灣出版商 for manga and
+  role read 原作 / Author / Writer: 台灣代理商 for anime, 台灣出版社 for manga and
   novel, 出版商 for comic, 發行商 for game. The distinction is real — the first two
   name a *Taiwanese* licensor, while a comic's publisher is Marvel, the work's
   original publisher.

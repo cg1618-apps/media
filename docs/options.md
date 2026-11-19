@@ -495,7 +495,7 @@ imprint is arguably a sub-entity of a publisher and the flat `publisher` table
 cannot express that.
 
 **One role, six reader-facing words.** `credit_label("publisher", media_type)`
-returns 台灣代理商 on anime and anime-movie, 台灣出版商 on manga and book,
+returns 台灣代理商 on anime and anime-movie, 台灣出版社 on manga and book,
 出版商 on comic (a comic's publisher is Marvel - the work's *original*
 publisher, not a TW licensor) and 發行商 on game. All six types have an
 override, so the role's own `"Publisher"` label is never rendered; it survives
@@ -1021,7 +1021,7 @@ comment asks that the two be kept in step. Seven rows: five person roles plus
 | Old option categories | New home | Notes |
 |---|---|---|
 | `Studio` | `studio` | credited via `media_credit` role `studio` |
-| `Publisher / Distributor TW` · `Comic Publisher` | `publisher` | credited via `media_credit` role `publisher`, offered per media type through `publisher_scope`. One role, four labels: 台灣代理商 on anime and anime-movie, 台灣出版商 on manga and book, 出版商 on comic, 發行商 on game |
+| `Publisher / Distributor TW` · `Comic Publisher` | `publisher` | credited via `media_credit` role `publisher`, offered per media type through `publisher_scope`. One role, four labels: 台灣代理商 on anime and anime-movie, 台灣出版社 on manga and book, 出版商 on comic, 發行商 on game |
 | `Director` | `person`, role `director` | scoped by media type on `person_role`: anime, anime-movie, movie |
 | `Producer` | `person`, role `producer` | scoped anime |
 | `Music / Composer` | `person`, role `composer` | scoped anime |
