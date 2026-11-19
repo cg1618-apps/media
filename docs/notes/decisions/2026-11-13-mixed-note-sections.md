@@ -34,5 +34,8 @@ on the row, as `note.personal`.
   top level first, so a catalogue edit cannot destroy data that is not the
   catalogue's. It lives in the route, because an ON DELETE rule cannot tell a
   personal child from a catalogue one.
-- **A mixed section has no "only me" switch.** See
-  `2026-11-14-a-mixed-section-has-no-only-me-switch.md`.
+- **A mixed section has no "only me" switch.** A catalogue editor cannot keep
+  personal rows in a mixed section. The owner is the one creating catalogue
+  data, and personal rows exist for the other accounts, whose catalogue is far
+  from complete; a `super` that needs rows of its own is dealt with if it ever
+  happens.
