@@ -11,6 +11,10 @@
 //
 // `initialId` is a deep link's id (/modify?id=<system_id>&type=publisher, the
 // detail page's Quick edit): that publisher's editor opens on mount.
+import {
+  applyMyRating,
+  useFormRatingSaver,
+} from "../../api/mutations/useMyRatingMutations";
 import { usePageTitle } from "../../contexts/PageTitleContext";
 import { editorTitle } from "../../lib/pageTitle";
 import { useEffect, useMemo, useState } from "react";
@@ -45,6 +49,8 @@ function publisherToForm(p) {
     founded_date: p.founded_date || "",
     defunct_date: p.defunct_date || "",
     remark: p.remark || "",
+    // The viewer's own, not a column: PUT /api/me/ratings on save.
+    my_rating: p.my_rating || "",
     // PUT replaces the scope set wholesale, so the form has to hold the
     // current one - omitting it on save would clear every media type the
     // publisher is offered on.
@@ -64,6 +70,7 @@ export default function PublisherModifyTab({ initialId = null } = {}) {
   // form's, so the tab does not change while a name is being typed.
   const [savedName, setSavedName] = useState(null);
   usePageTitle(selectedId ? editorTitle(savedName) : null);
+  const saveFormRating = useFormRatingSaver();
   const [publisherForm, setPublisherForm] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -148,8 +155,14 @@ export default function PublisherModifyTab({ initialId = null } = {}) {
         }),
       });
       await queryClient.invalidateQueries({ queryKey: ["publishers-admin"] });
-      setPublisherForm(publisherToForm(updated));
-      setSavedName(publisherLabel(updated));
+      // The rating after the publisher: `updated` carries the stored one, so
+      // only a change is sent.
+      const savedRating = await saveFormRating(
+        "publisher", selectedId, publisherForm, updated, "Publisher",
+      );
+      const rated = savedRating ? applyMyRating(updated, savedRating) : updated;
+      setPublisherForm(publisherToForm(rated));
+      setSavedName(publisherLabel(rated));
       // Back to the top: the toast renders at the top of the page and the
       // form is long enough to have scrolled it out of sight.
       window.scrollTo(0, 0);

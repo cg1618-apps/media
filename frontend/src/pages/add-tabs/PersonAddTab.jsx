@@ -9,6 +9,7 @@
 // page's person editor renders the exact same inputs against an existing
 // person's form state instead of duplicating them - the same arrangement
 // StudioAddTab uses for StudioFields.
+import MyRatingFields from "../../components/forms/MyRatingFields";
 import { useQuery } from "@tanstack/react-query";
 
 import { Field, SectionHeader, inputCls, selectCls } from "../../components/forms/FormField";
@@ -218,6 +219,11 @@ export function PersonFields({ personForm, upf, roles, setRoles, legalScopes, ow
           onChange={(id) => upf("photo_fallback_entry_id", id)}
         />
       )}
+      {/* The viewer's own rating, saved through /api/me/ratings by the
+          page once the person itself has saved. */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <MyRatingFields kind="person" form={personForm} update={upf} />
+      </div>
       <Field label="Remark">
         <textarea
           className={inputCls}

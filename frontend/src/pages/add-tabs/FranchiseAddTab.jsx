@@ -1,5 +1,5 @@
 // Frontend: add tab page file for FranchiseAddTab.
-import GroupRatingFields from "../../components/forms/GroupRatingFields";
+import MyRatingFields from "../../components/forms/MyRatingFields";
 import { parseTypes } from "../../utils/media";
 import {
   Field,
@@ -114,7 +114,7 @@ export default function FranchiseAddTab({ ff, uf, collectionItems }) {
         {/* The viewer's own rating and expectation (self.list), saved
             through /api/me/ratings once the franchise exists - see
             submitFranchise in Add.jsx. */}
-        <GroupRatingFields kind="franchise" form={ff} update={uf} />
+        <MyRatingFields kind="franchise" form={ff} update={uf} />
       </div>
     </div>
   );
