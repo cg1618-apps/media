@@ -54,6 +54,68 @@ def test_display_name_falls_back_in_order_when_unset(db_session):
     assert p.display_name == "渡部高志"
 
 
+ALL_FOUR = {
+    "name_en": "Kana Hanazawa",
+    "name_cn": "花澤香菜(CN)",
+    "name_jp": "花澤香菜",
+    "name_alt": "HanaKana",
+}
+
+
+def _person_with_role(db_session, role, **names):
+    p = models.Person(**names)
+    db_session.add(p)
+    db_session.flush()
+    db_session.add(models.PersonRole(person_id=p.system_id, role=role, scope="anime"))
+    db_session.flush()
+    db_session.refresh(p)
+    return p
+
+
+@pytest.mark.parametrize(
+    "drop, expected",
+    [
+        ((), "花澤香菜(CN)"),
+        (("name_cn",), "花澤香菜"),
+        (("name_cn", "name_jp"), "Kana Hanazawa"),
+        (("name_cn", "name_jp", "name_en"), "HanaKana"),
+    ],
+)
+def test_a_seiyuu_defaults_to_cn_then_jp_then_en_then_alt(db_session, drop, expected):
+    names = {k: v for k, v in ALL_FOUR.items() if k not in drop}
+    p = _person_with_role(db_session, "seiyuu", **names)
+    assert p.display_name == expected
+
+
+def test_anyone_else_keeps_the_english_first_default(db_session):
+    """The mirror: the same four names on a director read English first, so
+    the seiyuu case above is the role's doing."""
+    p = _person_with_role(db_session, "director", **ALL_FOUR)
+    assert p.display_name == "Kana Hanazawa"
+
+
+def test_a_seiyuu_who_holds_another_role_still_defaults_to_cn(db_session):
+    p = _person_with_role(db_session, "director", **ALL_FOUR)
+    db_session.add(models.PersonRole(person_id=p.system_id, role="seiyuu", scope="anime"))
+    db_session.flush()
+    db_session.refresh(p)
+    assert p.display_name == "花澤香菜(CN)"
+
+
+def test_a_chosen_field_still_wins_for_a_seiyuu(db_session):
+    p = _person_with_role(db_session, "seiyuu", display_name_field="en", **ALL_FOUR)
+    assert p.display_name == "Kana Hanazawa"
+
+
+def test_the_list_reports_a_seiyuu_by_the_cn_first_default(owner_client, db_session):
+    _person_with_role(db_session, "seiyuu", **ALL_FOUR)
+    db_session.commit()
+    rows = owner_client.get("/api/person/?role=seiyuu").json()
+    assert [r["display_name"] for r in rows if r["name_en"] == "Kana Hanazawa"] == [
+        "花澤香菜(CN)"
+    ]
+
+
 def test_a_person_needs_at_least_one_name(db_session):
     db_session.add(models.Person(gender="F"))
     with pytest.raises(IntegrityError):

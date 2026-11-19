@@ -81,6 +81,13 @@ const ENTITY_DISPLAY_NAME_OPTIONS = [
   ...STUDIO_NAME_FIELDS.map(({ key, label }) => ({ value: key, label })),
 ];
 
+// A person's unset choice depends on the role: a seiyuu falls through
+// cn -> jp -> en -> alt, everyone else en first.
+const PERSON_DISPLAY_NAME_OPTIONS = [
+  { value: "", label: "Default (English; Chinese for a seiyuu)" },
+  ...STUDIO_NAME_FIELDS.map(({ key, label }) => ({ value: key, label })),
+];
+
 // What the two film types share in place of airing_status and the airing
 // types' watching list. release_status is also a game key, with its own
 // vocabulary, so it is declared per type rather than in COMMON_FIELD_META.
@@ -1667,7 +1674,7 @@ export const TYPE_FIELD_META = {
     display_name_field: {
       label: "Display Name",
       control: "select",
-      options: ENTITY_DISPLAY_NAME_OPTIONS,
+      options: PERSON_DISPLAY_NAME_OPTIONS,
       group: "Names",
       autofillable: false,
     },
