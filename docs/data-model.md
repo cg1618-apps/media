@@ -1170,7 +1170,8 @@ Relationship: `roles` (cascade delete-orphan).
 Same name shape as `studio`, and for the same reason: a person is known by
 whichever names they are known by, and requiring a specific one would force a
 made-up value. `display_name` picks `display_name_field`'s column, falling back
-en -> cn -> jp -> alt. Which column an automatically created name lands in is
+en -> cn -> jp -> alt - or cn -> jp -> en -> alt for a person holding the
+`seiyuu` role ([business-rules.md](business-rules.md#10a-entity-display-names-modelsstaffpy-modelscharacterpy-libnamingjs)). Which column an automatically created name lands in is
 `name_slot_for`'s decision (`app/utils/name_normalize.py`), shared by
 `resolve_person` and the reshape migration so a name cannot land in one column
 today and another tomorrow. Migration `p7n8a9m10e11` distributed the 554

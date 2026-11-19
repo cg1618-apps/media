@@ -146,25 +146,36 @@ export const STUDIO_NAME_FIELDS = [
 // choice as a studio, so the field list is shared rather than copied.
 export const PERSON_NAME_FIELDS = STUDIO_NAME_FIELDS;
 
+// A seiyuu's default order (Person.display_name on the backend): known by
+// their Chinese name, then the Japanese one.
+const SEIYUU_DEFAULT_ORDER = ["cn", "jp", "en", "alt"].map((key) =>
+  STUDIO_NAME_FIELDS.find((f) => f.key === key),
+);
+
+/** Whether a person holds the seiyuu role in any scope. */
+export function isSeiyuu(person) {
+  return (person?.roles || []).some((r) => r.role === "seiyuu");
+}
+
 /**
  * The name to show for an entity that picks its own display field.
  *
- * Mirrors the `display_name` property both Studio and Person carry on the
+ * Mirrors the `display_name` property Studio and Person carry on the
  * backend: the chosen field wins, and an empty or unset choice falls through
- * en -> cn -> jp -> alt. One function for both, because two copies of a
- * fallback chain drift.
+ * `order` - en -> cn -> jp -> alt, or a seiyuu's cn -> jp -> en -> alt. One
+ * function for both, because two copies of a fallback chain drift.
  *
  * Both responses already carry a server-computed `display_name`; this exists
  * for the places that hold a form's draft rather than a response - a name
  * being typed has no display_name yet.
  */
-function displayEntityName(entity) {
+function displayEntityName(entity, order = STUDIO_NAME_FIELDS) {
   if (!entity) return "";
   const chosen = STUDIO_NAME_FIELDS.find(
     (f) => f.key === entity.display_name_field,
   );
   if (chosen && entity[chosen.field]?.trim()) return entity[chosen.field].trim();
-  for (const { field } of STUDIO_NAME_FIELDS) {
+  for (const { field } of order) {
     if (entity[field]?.trim()) return entity[field].trim();
   }
   return "";
@@ -174,8 +185,9 @@ export function displayStudioName(studio) {
   return displayEntityName(studio);
 }
 
+/** A person's name; a seiyuu (any `roles` row with role seiyuu) defaults CN-first. */
 export function displayPersonName(person) {
-  return displayEntityName(person);
+  return displayEntityName(person, isSeiyuu(person) ? SEIYUU_DEFAULT_ORDER : STUDIO_NAME_FIELDS);
 }
 
 // Titles collate as English, whatever the browser's language. localeCompare

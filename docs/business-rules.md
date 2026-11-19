@@ -917,6 +917,18 @@ non-blank; otherwise it falls back through **EN → CN → JP → Alt**, returni
 prevents. So `display_name_field` is a preference, not a guarantee: pointing it
 at an empty column silently falls back rather than blanking the row.
 
+**A seiyuu's default is CN-first.** A `person` holding the `seiyuu` role in
+any scope - whatever else they hold - falls back through **CN → JP → EN →
+Alt** instead (`Person.is_seiyuu`), since a voice actor is known here by the
+Chinese name, then the Japanese one. Only the unset or empty-choice fallback
+changes: a chosen `display_name_field` still wins, and nothing is stored, so a
+person gaining or losing the role reads the other order at once. The person
+form's Default option says which applies ("Default (Chinese)" for a seiyuu),
+and `displayPersonName` in `lib/naming.js` mirrors the rule for a draft. The
+queries that load many people for display (`credits`, `casting`,
+`casting_entries`, `casting_sync`, `membership`, the person list) preload
+`roles` with `selectinload`, since `display_name` reads them.
+
 **Characters and identities default to CN.** For `character` and
 `character_identity` only, a NULL `display_name_field` (the forms' "Default")
 does not stay NULL while `name_cn` is non-blank: it becomes `cn`. An explicit

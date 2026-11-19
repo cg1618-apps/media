@@ -152,7 +152,10 @@ def cast_originals(
     person_ids = {v["person_id"] for voices in chosen.values() for v in voices}
     people = {
         p.system_id: p
-        for p in db.query(models.Person).filter(models.Person.system_id.in_(person_ids))
+        for p in db.query(models.Person)
+        # display_name reads the roles: a seiyuu's default differs.
+        .options(selectinload(models.Person.roles))
+        .filter(models.Person.system_id.in_(person_ids))
     } if person_ids else {}
 
     out = []

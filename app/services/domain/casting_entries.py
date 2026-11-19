@@ -10,7 +10,7 @@ so the visibility rule and the card shape cannot drift apart between them.
 from typing import Iterable
 from uuid import UUID
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app import models
 from app.services.rbac.enforcement import (
@@ -66,7 +66,10 @@ def casting_entry_groups(
     person_ids = {v.person_id for r in rows for v in r.voices}
     people = {
         p.system_id: p
-        for p in db.query(models.Person).filter(models.Person.system_id.in_(person_ids))
+        for p in db.query(models.Person)
+        # display_name reads the roles: a seiyuu's default differs.
+        .options(selectinload(models.Person.roles))
+        .filter(models.Person.system_id.in_(person_ids))
     } if person_ids else {}
 
     identity_ids = {r.identity_id for r in rows if r.identity_id}

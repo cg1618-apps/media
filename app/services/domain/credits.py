@@ -19,7 +19,7 @@ from uuid import UUID
 
 import sqlalchemy as sa
 from sqlalchemy import text
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app import models
 from app.schemas.link_fields import PersonRef, PublisherRef, StudioRef
@@ -1180,6 +1180,8 @@ def _link_rows_and_lookups(db: Session, media_type: str, entry_ids: list[UUID]):
         {
             p.system_id: p
             for p in db.query(models.Person)
+            # display_name reads the roles: a seiyuu's default differs.
+            .options(selectinload(models.Person.roles))
             .filter(models.Person.system_id.in_(person_ids))
             .all()
         }
