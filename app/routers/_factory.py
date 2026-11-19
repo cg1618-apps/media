@@ -387,6 +387,10 @@ def make_media_router(spec) -> APIRouter:
     async def update(
         entry_id: str,
         data: spec.update_schema,
+        # False saves the edit without the post-commit write hook - the
+        # single-entry Replace - so the external sources cannot rewrite it.
+        # Modify's "Save" sends it; "Save & Replace" leaves it out.
+        replace: bool = Query(True),
         db: Session = Depends(get_db),
         admin: Viewer = Depends(require_manage_catalog),
         viewer: Viewer = Depends(get_viewer),
@@ -420,8 +424,9 @@ def make_media_router(spec) -> APIRouter:
         db.commit()
         db.refresh(entry)
 
-        await _run_write_hook(db, entry)
-        db.refresh(entry)
+        if replace:
+            await _run_write_hook(db, entry)
+            db.refresh(entry)
         return _finish(db, entry, viewer)
 
     @router.patch("/{entry_id}", response_model=spec.response_schema, summary=f"Patch {spec.label}")

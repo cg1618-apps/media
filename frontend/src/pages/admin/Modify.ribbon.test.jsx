@@ -60,7 +60,7 @@ function mount({ type, listPath, entries, franchises = [FRANCHISE] }) {
 
 // The editor card is the box holding the entry's own heading.
 async function editorCard() {
-  const save = await screen.findByRole("button", { name: /save changes/i });
+  const save = await screen.findByRole("button", { name: /save changes|save & replace/i });
   return save
     .closest("form")
     .querySelector(".bg-surface.rounded-2xl.border");
