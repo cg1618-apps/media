@@ -55,6 +55,7 @@ from app.services.rbac.shared_visibility import (
 )
 from app.utils.character_roles import check_character_role
 from app.utils.entity_ref import find_entity
+from app.utils.entity_vocab import check_gender
 
 logger = logging.getLogger(__name__)
 
@@ -410,7 +411,10 @@ def patch_character(
     payload = dict(payload)
     tags = pop_patch_tags(payload)
     data = prepare_patch(
-        character, payload, "character", {"role": check_character_role}
+        character,
+        payload,
+        "character",
+        {"gender": check_gender, "role": check_character_role},
     )
     if "photo_fallback_entry_id" in data:
         data["photo_fallback_entry_id"] = resolve_fallback(

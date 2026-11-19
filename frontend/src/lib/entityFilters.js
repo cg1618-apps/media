@@ -14,7 +14,7 @@
 // non-restricted type and No entries on, the restricted types off. So an
 // entity only ever credited on a gated type is hidden until Restricted is
 // ticked, while one nobody has credited yet (a new seiyuu) is still listed.
-import { CHARACTER_ROLES, GENDERS, MY_RATINGS } from "../config/fieldOptions";
+import { CHARACTER_ROLES, GENDERS, MY_RATINGS, PERSON_GENDERS } from "../config/fieldOptions";
 import { mediaTypeLabel } from "../config/mediaRegistry";
 import { PERSON_SUB_TABS } from "../components/forms/PersonSubTabBar";
 import { PUBLISHER_SCOPES } from "../components/forms/PublisherScopePills";
@@ -114,14 +114,15 @@ const ratingDef = {
   match: (item, active) => active.has(item.my_rating || UNRATED),
 };
 
-// Built per call rather than once: GENDERS is refreshed in place from
-// /api/constants, and a def frozen at import time would keep the bundled copy.
-function genderDef() {
+// Built per call rather than once: GENDERS and PERSON_GENDERS are refreshed in
+// place from /api/constants, and a def frozen at import time would keep the
+// bundled copy. A person's vocabulary is the narrower one, 男 / 女.
+function genderDef(genders = GENDERS) {
   return {
     key: "gender",
     label: "Gender",
     type: "set",
-    options: [...GENDERS, GENDER_NOT_SET],
+    options: [...genders, GENDER_NOT_SET],
     match: (item, active) => active.has(item.gender || GENDER_NOT_SET),
   };
 }
@@ -209,7 +210,7 @@ export function personFilterDefs(auth, role = null, { ownData = true } = {}) {
   const common = [
     mediaTypeDef(auth, PERSON_MEDIA_TYPES, PERSON_RESTRICTED_TYPES),
     ...(ownData ? [ratingDef] : []),
-    genderDef(),
+    genderDef(PERSON_GENDERS),
   ];
   if (role) return common;
   const roleTabs = visibleByType(auth, PERSON_SUB_TABS, (t) => t.gatedType);

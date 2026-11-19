@@ -149,14 +149,44 @@ def test_put_refuses_an_old_free_text_gender(owner_client, record, kind):
     assert r.status_code == 422
 
 
-@pytest.mark.parametrize("kind", KINDS)
-def test_post_accepts_the_vocabularies(owner_client, kind):
+def test_post_accepts_the_character_vocabulary(owner_client):
     r = owner_client.post(
-        f"/api/{kind}/",
-        json={"name_en": f"Zvornik Vocab {kind}", "gender": "中性/無性"},
+        "/api/character/",
+        json={"name_en": "Zvornik Vocab character", "gender": "中性/無性"},
     )
     assert r.status_code == 200, r.text
     assert r.json()["gender"] == "中性/無性"
+
+
+def test_post_accepts_the_person_vocabulary(owner_client):
+    r = owner_client.post(
+        "/api/person/", json={"name_en": "Zvornik Vocab person", "gender": "女"}
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["gender"] == "女"
+
+
+@pytest.mark.parametrize("method", ["post", "put", "patch"])
+def test_a_person_refuses_a_character_only_gender(owner_client, record, method):
+    """A person's gender is 男 / 女 / NULL; 其他 is a character's value only.
+    The character half of test_patch_changes_only_the_keys_sent and
+    test_post_accepts_the_character_vocabulary is the mirror."""
+    if method == "post":
+        r = owner_client.post(
+            "/api/person/", json={"name_en": "Zvornik Other", "gender": "其他"}
+        )
+    else:
+        r = getattr(owner_client, method)(
+            f"/api/person/{record['person'].system_id}",
+            json={"name_en": "A", "gender": "其他"},
+        )
+    assert r.status_code == 422, r.text
+
+
+def test_a_character_patch_takes_a_character_only_gender(owner_client, record):
+    r = _patch(owner_client, "character", record["character"], {"gender": "其他"})
+    assert r.status_code == 200, r.text
+    assert r.json()["gender"] == "其他"
 
 
 # ---------------------------------------------------------------------------

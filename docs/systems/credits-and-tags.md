@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-11-18
+Last verified: 2026-11-19
 
 ## What this is for
 
@@ -27,7 +27,7 @@ Related: [options.md](../options.md) (the Tier 2 `system_option` vocabulary
 
 | Table | Purpose | Key constraints |
 |---|---|---|
-| `person` | One human credited anywhere, and a public entity: four optional names (`name_en`, `name_cn`, `name_jp`, `name_alt`) with `display_name_field` choosing which is shown, plus `gender` (`GENDERS`), `photo_file` (storage key), `photo_fallback_entry_id` (see [Photo fallback](#photo-fallback)), `remark`, timestamps. Same name shape as `studio`. A rating of a person is each viewer's own, on `user_rating` ([data-model.md](../data-model.md#user_rating)), as it is for a studio, publisher or character. `gender` sits on the base table on purpose — it is a fact about the person, not a seiyuu-only attribute. | `uq_person_name (name_en, name_cn, name_jp, name_alt)` **NULLS NOT DISTINCT**; `ck_person_has_a_name` (at least one name) |
+| `person` | One human credited anywhere, and a public entity: four optional names (`name_en`, `name_cn`, `name_jp`, `name_alt`) with `display_name_field` choosing which is shown, plus `gender` (`PERSON_GENDERS`: `男`, `女` or NULL), `photo_file` (storage key), `photo_fallback_entry_id` (see [Photo fallback](#photo-fallback)), `remark`, timestamps. Same name shape as `studio`. A rating of a person is each viewer's own, on `user_rating` ([data-model.md](../data-model.md#user_rating)), as it is for a studio, publisher or character. `gender` sits on the base table on purpose — it is a fact about the person, not a seiyuu-only attribute. | `uq_person_name (name_en, name_cn, name_jp, name_alt)` **NULLS NOT DISTINCT**; `ck_person_has_a_name` (at least one name) |
 | `person_membership` | One artist belonging to one club (a person holding the `club` role): `member_id`, `club_id` (both FK `person`, cascade), `position` (the member's place in the club's list), `created_at`. That the club end holds the `club` role is checked by the API, not the database. | `uq_person_membership (member_id, club_id)`; `ck_person_membership_not_self` |
 | `person_role` | Which dropdowns a person appears in: `person_id` (FK, cascade), `role` (one of `PERSON_ROLES`), `scope` (**NOT NULL**, a hyphenated media-type key, one of `legal_scopes(role)`). Explicit, not derived from credits, so a new director can be offered before their first credit. A person's visibility is the union of their rows; there is no "offered everywhere" state — see [options.md](../options.md) for why this differs from option scope. | `uq_person_role (person_id, role, scope)` (plain — no nullable column left in the key) |
 | `studio` | One **anime** production studio only, and a public entity: four optional names (`name_en`, `name_cn`, `name_jp`, `name_alt`) with `display_name_field` choosing which is shown, plus `logo_file`, `remark`, `founded_date`, `defunct_date`, `country`, `website_url`, `mal_id`, `mal_link`. Publishers and distributors are **not** here — they are their own `publisher` table (next row), not a vocabulary. Studios deliberately carry **no** scope table, unlike publishers. | `uq_studio_name (name_en, name_cn, name_jp, name_alt)` NULLS NOT DISTINCT; `ck_studio_has_a_name` (at least one name); ISO-8601 CHECKs on both dates |
@@ -429,8 +429,9 @@ Four tables, and the shape is deliberate on the points recorded below.
   A set role is never overwritten, so clearing one only lasts until the next
   fill while a casting still names a role. The same sync fills a casting's
   empty role from it - see [A cast row and its original](#a-cast-row-and-its-original). `ck_character_has_a_name` requires at
-  least one name. `gender` is the same closed vocabulary as on `person`
-  ([options.md](../options.md)); a write outside it is a 422. The viewer's
+  least one name. `gender` is the character vocabulary, `GENDERS` — wider
+  than a person's `男` / `女` ([options.md](../options.md)); a write outside it
+  is a 422. The viewer's
   own rating of a character is a `user_rating` row, written through
   `PUT /api/me/ratings/character/{id}`.
 - `character_identity` — one of a character's **other** identities (an alter
@@ -907,7 +908,7 @@ Main / Core / full-cast collapse, and every seiyuu of a row with its remark),
 
 Vocabularies, PATCH and the photo fallback:
 `tests/unit/test_entity_vocab.py` (the write schemas refuse a gender outside
-its vocabulary and carry no rating, `""` is null, and a Pull folds old free
+its vocabulary — a person a character-only one — and carry no rating, `""` is null, and a Pull folds old free
 text),
 `tests/api/test_character_person_patch.py` (PATCH on both,
 the at-least-one-name rule, server columns, non-admins refused, and the

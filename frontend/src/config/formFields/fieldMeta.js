@@ -38,6 +38,7 @@ import {
   MOVIE_TYPES,
   MY_RATINGS,
   GENDERS,
+  PERSON_GENDERS,
   CHARACTER_ROLES,
   BOOK_REGIONS,
   BOOK_SERIALIZATION_STATUSES,
@@ -1673,7 +1674,7 @@ export const TYPE_FIELD_META = {
     gender: {
       label: "Gender",
       control: "select",
-      options: GENDERS,
+      options: PERSON_GENDERS,
       group: "Classification",
       autofillable: false,
     },

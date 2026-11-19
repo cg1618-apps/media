@@ -60,6 +60,7 @@ from app.services.rbac.shared_visibility import (
 )
 from app.utils.credit_roles import PERSON_ROLES, credit_label, legal_scopes
 from app.utils.entity_ref import find_entity
+from app.utils.entity_vocab import check_person_gender
 from app.utils.media_resolver import MEDIA_TABLES
 from app.utils.name_normalize import name_slot_for, names_of
 from app.utils.release_date import primary_release_value
@@ -781,7 +782,7 @@ def patch_person(
     PUT /api/me/ratings/person/{id}.
 
     The same rules as PUT, checked before anything is written: gender is
-    its vocabulary ("" is NULL), display_name_field is en /
+    男 or 女 ("" is NULL), display_name_field is en /
     cn / jp / alt, at least one name survives the patch, and a
     photo_fallback_entry_id names an entry this person is credited or cast
     on. Server columns (system_id, public_id, timestamps) are a 422; keys that
@@ -794,7 +795,7 @@ def patch_person(
         raise HTTPException(status_code=404, detail=NOT_FOUND)
     require_visible_shared(db, admin, models.Person, system_id, NOT_FOUND)
 
-    data = prepare_patch(person, payload, "person")
+    data = prepare_patch(person, payload, "person", {"gender": check_person_gender})
     if "photo_fallback_entry_id" in data:
         data["photo_fallback_entry_id"] = resolve_fallback(
             db, admin, models.Person, person, data["photo_fallback_entry_id"], "person"

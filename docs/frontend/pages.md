@@ -859,7 +859,7 @@ AND across groups:
   and the parent with it once none is left.
 - **My Rating** — `MY_RATINGS` plus Unrated (null); only for a holder of
   `self.list`, as on the studio library.
-- **Gender** — `GENDERS` plus Not set (null).
+- **Gender** — `PERSON_GENDERS` (男, 女) plus Not set (null).
 
 Each `PersonCard` (`components/cards/StaffCard.jsx`, shared with `/search`)
 shows `display_photo_file` — the photo, or the server-resolved fallback

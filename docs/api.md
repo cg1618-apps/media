@@ -1535,7 +1535,7 @@ value means; this endpoint just serves them.
 Keys served: `watching_status`, `reading_status`, `airing_status`,
 `film_release_status`, `anime_movie_release_type`,
 `anime_airing_type`, `cartoon_airing_type`, `tv_show_airing_type`, `franchise_type`,
-`franchise_expectation`, `my_rating`, `gender`, `character_role`, `is_main`, `game_is_main`, `anime_original_or_remake`, `movie_type`, `tv_region`,
+`franchise_expectation`, `my_rating`, `gender`, `person_gender`, `character_role`, `is_main`, `game_is_main`, `anime_original_or_remake`, `movie_type`, `tv_region`,
 `manga_region`, `book_region`, `book_type`, `comic_type`,
 `playing_status`, `game_type`, `completion_level`, `game_completion_flag`,
 `game_achievement_flag`, `game_release_status`, `game_storefront`,
@@ -1680,7 +1680,7 @@ derived from `(role, media_type)`, never stored.
 | `GET`    | `/{system_id}/entries` | `view.person` | The entries this person is credited on, grouped by `(media_type, role)`. 404 if the person is absent or hidden. |
 | `POST`   | `/`                | Admin  | Create a person, **or return the existing one** under that name — find-or-create, matching `resolve_person`, because `ensureSourceValues.js` POSTs here whenever a typed name is missing from a role-filtered dropdown. Body: `PersonCreate` (`PersonBase` fields + `roles: [{role, scope}]`), carrying either the four labelled name columns or one unslotted `name` that the endpoint places through `name_slot_for`. The lookup is by `name`, else the first of the labelled names - the first fragment of `name_alt` when that is all the body carries, since `name_alt` is a comma-separated list. A body with no name at all is 422, mirroring `ck_person_has_a_name`. Only on the create branch, `mal_id` is derived from `mal_link` and a seiyuu is enriched from MAL (see below). |
 | `PUT`    | `/{system_id}`     | Admin  | Fully update a person, replacing their `person_role` rows wholesale. Body: `PersonUpdate`. A non-null `photo_fallback_entry_id` must name an entry this person is credited on or voices a character in, and that the editor can see — 422 otherwise; a null keeps a stored choice the editor cannot see, as the role rows are kept. `mal_id` is derived from `mal_link`, and a seiyuu is enriched from MAL after the payload is copied (see below). |
-| `PATCH`  | `/{system_id}`     | Admin  | Partially update a person's own columns — the detail page's inline remark edit. Body: any subset of the `PersonBase` columns as a JSON object; only the keys sent change, and `roles` is not a column (edit it through `PUT`). The viewer's rating is not a column either; it is written through `PUT /api/me/ratings/person/{id}`. The `PUT` rules are checked before anything is written: `gender` is its vocabulary (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, at least one name survives the patch, and `photo_fallback_entry_id` follows the `PUT` rule — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. A `mal_link` in the body re-derives `mal_id`; `PATCH` never calls MAL. Returns the full `PersonResponse`. |
+| `PATCH`  | `/{system_id}`     | Admin  | Partially update a person's own columns — the detail page's inline remark edit. Body: any subset of the `PersonBase` columns as a JSON object; only the keys sent change, and `roles` is not a column (edit it through `PUT`). The viewer's rating is not a column either; it is written through `PUT /api/me/ratings/person/{id}`. The `PUT` rules are checked before anything is written: `gender` is `男` or `女` (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, at least one name survives the patch, and `photo_fallback_entry_id` follows the `PUT` rule — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. A `mal_link` in the body re-derives `mal_id`; `PATCH` never calls MAL. Returns the full `PersonResponse`. |
 | `POST`   | `/{system_id}/autofill` | Admin  | The detail page's **Autofill & update**: the MAL fill `PUT` runs, without a save — `mal_id` is derived from `mal_link`, then the empty columns are filled from MAL's people record; a column that holds a value is never overwritten. **422**, with nothing fetched, when the person has no MAL link or holds no `seiyuu` role (only a seiyuu is filled, as on save); the `detail` says which. A failed MAL fetch is logged and swallowed, as on save, so the unchanged person comes back with 200. 404 if absent or hidden. Returns `PersonResponse`. |
 | `DELETE` | `/{system_id}?credits=N` | Admin  | Delete a person. Cascades their `media_credit`, `character_casting_voice` and `person_role` rows — no `deleted_record` entry is logged. The castings they voiced stay, un-voiced by them (Decision H). `credits` is **required**: it is the count the confirmation dialog showed — `media_credit` rows plus voice rows — and a mismatch is a **409**, so the deletion that happens is the one the admin agreed to. |
 | `POST`   | `/{system_id}/merge` | Admin  | Merge `source_id` into this person: repoints every `media_credit` and every `character_casting_voice` row (a voice on a casting the survivor already voices is dropped), unions the `person_role` rows and moves every club membership onto the survivor, then deletes the loser. Every column the survivor leaves blank is then filled from the loser's, and one it holds is never overwritten; the picture (photo or logo) comes with its focus, a downloaded one renamed onto the survivor's own key (`app/services/domain/merge_fill.py`). 409, with nothing changed, if the filled names would equal another record's. Body: `MergeRequest` (`{source_id}`). 400 if merging into self. Returns `credits_moved`, credits and voices together. |
@@ -1718,8 +1718,9 @@ may see (`filter_visible_pairs`), none of them stored:
 - `restricted` — `true` when one of `media_types` is a gated type (`h-comic`,
   `hentai`, `h-game`).
 
-`gender` is one of `男`, `女`, `中性/無性`, `雙性混和`, `其他` or null, and
-`my_rating` one of `S`…`F` or null ([options.md](options.md)); a write outside
+`gender` is `男`, `女` or null (`PERSON_GENDERS`, served as `person_gender`
+by `/api/constants` — a seiyuu is a person, and the character-only values
+are a 422 here), and `my_rating` one of `S`…`F` or null ([options.md](options.md)); a write outside
 either is a 422 (the rating's through `PUT /api/me/ratings`). `photo_fallback_entry_id` is reported only while it names a
 linked entry the viewer can see, and is null otherwise. The list resolves all
 of this for every row in one pass, so its query count does not grow with the
@@ -2100,8 +2101,9 @@ fields resolved **for the viewer** from the entries they may see
   and distinct.
 - `restricted` — `true` when one of `media_types` is a gated type.
 
-`gender`, `my_rating` and `photo_fallback_entry_id` follow the same rules as
-on `PersonResponse`, and the list resolves every row in one pass. `role` is
+`my_rating` and `photo_fallback_entry_id` follow the same rules as on
+`PersonResponse`; `gender` is the wider character vocabulary, one of `男`,
+`女`, `中性/無性`, `雙性混和`, `其他` or null (`GENDERS`, served as `gender`), and the list resolves every row in one pass. `role` is
 what the character is overall — `Main`, `Core`, `Important Supporting`, `Supporting`, `Other` or null
 (`CHARACTER_ROLES`, served as `character_role` by `/api/constants`); a write
 outside it is a 422 and `""` is null. While it is null it is filled from the

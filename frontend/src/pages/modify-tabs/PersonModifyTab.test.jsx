@@ -306,12 +306,10 @@ it("opens the editor for initialId without a pick", async () => {
 
 // My rating is the viewer's own, set on the person's page: the catalogue form
 // does not offer it.
-it("offers gender as a closed select, and no rating", async () => {
+it("offers gender as a closed select of 男 and 女, and no rating", async () => {
   mount({ initialId: "p1" });
   const gender = await screen.findByLabelText("Gender");
-  expect([...gender.options].map((o) => o.value)).toEqual([
-    "", "男", "女", "中性/無性", "雙性混和", "其他",
-  ]);
+  expect([...gender.options].map((o) => o.value)).toEqual(["", "男", "女"]);
   expect(screen.queryByLabelText("My Rating")).not.toBeInTheDocument();
 });
 

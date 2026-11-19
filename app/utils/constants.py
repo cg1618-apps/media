@@ -143,10 +143,15 @@ class FranchiseType(str, Enum):
 
 MY_RATINGS: tuple[str, ...] = ("S", "A+", "A", "B", "C", "D", "E", "F")
 
-# A character's or a person's gender. NULL means not set; it is not a sixth
-# value. Enforced by the character and person schemas, and by the Sheets Pull
-# through app/utils/entity_vocab.py.
+# A character's (and a character identity's) gender. NULL means not set; it
+# is not a sixth value. Enforced by the character schemas, and by the Sheets
+# Pull through app/utils/entity_vocab.py.
 GENDERS: tuple[str, ...] = ("男", "女", "中性/無性", "雙性混和", "其他")
+
+# A person's gender - seiyuu included - is narrower: 男, 女 or NULL. The
+# other three values describe characters, not the people credited on an
+# entry. Studios and publishers have no gender at all.
+PERSON_GENDERS: tuple[str, ...] = ("男", "女")
 
 FRANCHISE_EXPECTATIONS: tuple[str, ...] = ("Highest", "High", "Medium", "Low")
 

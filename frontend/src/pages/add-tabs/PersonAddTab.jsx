@@ -178,7 +178,7 @@ export function PersonFields({ personForm, upf, roles, setRoles, legalScopes, ow
       />
 
       <SectionHeader icon="fa-id-card" title="Profile" />
-      <GenderField form={personForm} update={upf} />
+      <GenderField kind="person" form={personForm} update={upf} />
       <Field
         label="MAL Link"
         hint="The person's myanimelist.net/people/<id> page; the MAL id is read from it."
