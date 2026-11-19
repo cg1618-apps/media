@@ -1,6 +1,6 @@
 # Plan Next
 
-Last verified: 2026-11-17
+Last verified: 2026-11-19
 
 ## What this is for
 
@@ -200,5 +200,4 @@ History in one line: migration `b872c435410b` dropped `watch_next`/`read_next` f
 - `app/utils/media_resolver.py`: `MEDIA_TABLES`, `MEDIA_TYPE_KEYS`, `OWNER_TABLES` (the read-time resolver and the source of media type keys).
 - `app/utils/relation_kinds.py`: the registry `plan_next_kinds.py` is modelled on.
 - `app/services/calculation.py`: where `derive_size_groups` runs in the Calculate pipeline.
-- `notes/decisions.md`: the design spec, including the comic threshold data and the rewatch migration decisions.
 - `../data-model.md`, `docs/api.md`, `docs/options.md`, `../frontend/pages.md`: older overviews that may still describe the boolean columns; this file is the current reference.
