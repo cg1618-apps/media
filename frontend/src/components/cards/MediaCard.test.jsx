@@ -499,3 +499,38 @@ describe("MediaCard - the future variant on a film", () => {
     expect(bodies().some((b) => "watching_status" in b)).toBe(false);
   });
 });
+
+// The status toggle's ✓ on a Completed row sets it back to the default status;
+// leaving Completed that way zeroes the row's finished counts too.
+describe("MediaCard - the status toggle off Completed", () => {
+  function listWrites() {
+    return fetch.mock.calls.filter(
+      ([url, opts]) => String(url).includes("/api/me/list") && opts?.method === "PUT",
+    );
+  }
+
+  it("zeroes the finished counts when a Completed manga is toggled", async () => {
+    mockAuthFetch(["self.list"]);
+    mount(
+      { system_id: "m1", manga_name_en: "Done Manga", reading_status: "Completed", ch_fin: 120, vol_fin: 12 },
+      "manga",
+    );
+    await userEvent.setup().click(await screen.findByTitle(/Completed →/));
+    await waitFor(() => expect(listWrites()).toHaveLength(1));
+    const body = JSON.parse(listWrites()[0][1].body);
+    expect(body).toMatchObject({ reading_status: "Might Read", vol_fin: 0, vol_fin_page: 0, ch_fin: 0 });
+  });
+
+  it("sends only the status when the toggled row was not Completed", async () => {
+    mockAuthFetch(["self.list"]);
+    mount(
+      { system_id: "m2", manga_name_en: "Reading Manga", reading_status: "Active Reading", ch_fin: 40 },
+      "manga",
+    );
+    await userEvent.setup().click(await screen.findByTitle(/Active Reading →/));
+    await waitFor(() => expect(listWrites()).toHaveLength(1));
+    const body = JSON.parse(listWrites()[0][1].body);
+    expect(body).not.toHaveProperty("ch_fin");
+    expect(body).not.toHaveProperty("vol_fin");
+  });
+});

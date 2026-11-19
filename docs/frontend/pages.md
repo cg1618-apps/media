@@ -614,6 +614,16 @@ count. Table rows link to `${config.navPath}/${id}`; table cells receive
 hook writes a status to `/api/me/list` and a plan flag to
 `/api/me/plan-flags`.
 
+**The status button off Completed resets progress.** The card's and the
+table's status button (`+`, `…`, `~`, `✓`, `✕`) writes what
+`statusToggleFields` (`lib/status.js`) returns: the new status, and - when it
+moves a row from `Completed` or `Completed (解說)` to anything else - every
+finished count of the type set to `0` (`FINISHED_COUNT_FIELDS`: `ep_fin`;
+manga `vol_fin`, `vol_fin_page`, `ch_fin`; book `vol_fin`, `arc_fin`,
+`ch_fin`, `ch_fin_in_arc`; comic `issue_fin`; h-comic `page_fin`, `ch_fin`).
+Films and games have no count. A status picked from a select, the tracker or
+the Modify form leaves the counts as they are.
+
 **The viewer's own** in tables (`canTrack = has("self.list")`): the
 watch/read/play status button advances the status on click
 (`watchButtonColumn` / `readButtonColumn` / `playButtonColumn`), and the
