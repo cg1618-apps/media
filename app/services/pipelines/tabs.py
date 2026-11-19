@@ -522,7 +522,7 @@ SHEET_TABS: tuple[SheetTab, ...] = (
 
 TAB_BY_NAME: dict[str, SheetTab] = {tab.name: tab for tab in SHEET_TABS}
 # The tabs a Pull may not restore without admin.authz. Derived, so marking
-# a tab above is the only edit a fourth one needs.
+# a tab above is the only edit another one needs.
 AUTHZ_TABS: frozenset[str] = frozenset(
     tab.name for tab in SHEET_TABS if tab.requires_authz
 )

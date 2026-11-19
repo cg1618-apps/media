@@ -243,7 +243,7 @@ async def trigger_backup_all():
 
 def _pull(viewer: Viewer, tab_name: Optional[str] = None) -> StreamingResponse:
     # The router-level gate already established manage.pipelines; this reads
-    # the same viewer to decide whether the three authorization tabs restore
+    # the same viewer to decide whether the authorization tabs restore
     # too. See AUTHZ_TABS in tabs.py for why they are separate.
     return _relay(
         lambda emit: start_pull(
