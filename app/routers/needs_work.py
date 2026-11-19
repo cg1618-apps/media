@@ -51,16 +51,6 @@ def list_needs_work(db: Session = Depends(get_db)):
 
 
 @router.get(
-    "/notes",
-    response_model=List[schemas.NeedsWorkNote],
-    summary="Needs Work notes in use",
-)
-def list_notes(db: Session = Depends(get_db)):
-    """The notes marks carry, most used first, with their counts."""
-    return service.notes_in_use(db)
-
-
-@router.get(
     "/{owner_type}/{owner_id}",
     response_model=schemas.NeedsWorkMark,
     summary="One owner's mark",

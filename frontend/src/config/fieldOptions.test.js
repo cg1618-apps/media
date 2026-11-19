@@ -13,7 +13,7 @@ import {
   PERSON_GENDERS,
   castRoleRank,
   MEDIA_TYPES,
-  NOTE_SUGGESTION_CATEGORIES,
+  COMMON_OPTION_CATEGORIES,
   OPTION_CATEGORIES,
   PERSON_ROLES,
   PROGRESS_DISPLAY_OPTIONS,
@@ -221,14 +221,22 @@ describe("declared option categories", () => {
     expect(OPTION_CATEGORIES).toContain("Combat Mode");
   });
 
-  it("declares the note sections' field suggestion categories, empty ones included", () => {
+  it("declares the common option categories, empty ones included", () => {
     // Geography Group, Weapon & Gear Type and Enemy Tier are seeded with no
     // values, so only this list offers them on Add before a first value
     // exists.
-    expect(CONSTANTS_FALLBACK.note_suggestion_categories).toBe(NOTE_SUGGESTION_CATEGORIES);
-    for (const c of NOTE_SUGGESTION_CATEGORIES) expect(OPTION_CATEGORIES).toContain(c);
-    for (const c of ["Geography Group", "Weapon & Gear Type", "Enemy Tier"]) {
-      expect(NOTE_SUGGESTION_CATEGORIES).toContain(c);
+    expect(CONSTANTS_FALLBACK.common_option_categories).toBe(COMMON_OPTION_CATEGORIES);
+    expect(CONSTANTS_FALLBACK).not.toHaveProperty("note_suggestion_categories");
+    for (const c of COMMON_OPTION_CATEGORIES) expect(OPTION_CATEGORIES).toContain(c);
+    for (const c of [
+      "Geography Group",
+      "Weapon & Gear Type",
+      "Enemy Tier",
+      "Song Type",
+      "Song Source",
+      "Needs Work Note",
+    ]) {
+      expect(COMMON_OPTION_CATEGORIES).toContain(c);
     }
   });
 

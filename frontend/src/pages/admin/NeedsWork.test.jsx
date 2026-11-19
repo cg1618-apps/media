@@ -46,7 +46,13 @@ beforeEach(() => {
       if (opts?.method === "DELETE") return Promise.resolve({ ok: true, status: 204 });
       if (opts?.method === "PUT")
         return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) });
-      const body = url.endsWith("/notes") ? [{ note: "續集未補", count: 2 }] : groups;
+      // /notes is load-bearing: an in-use note that is not a common one,
+      // where the retired notes-in-use read lived.
+      const body = url.startsWith("/api/options/")
+        ? [{ system_id: "o1", value: "官方名稱未出" }]
+        : url.endsWith("/notes")
+          ? [{ note: "名稱缺", count: 2 }]
+          : groups;
       return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
     }),
   );
@@ -105,6 +111,20 @@ describe("the Needs Work page", () => {
     expect(url).toBe("/api/needs-work/series/s1");
     expect(opts.method).toBe("PUT");
     expect(JSON.parse(opts.body)).toEqual({ note: "名字缺" });
+  });
+
+  it("offers the common notes in the note editor, and only those", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    const row = (await screen.findByText("Solo Leveling")).closest("tr");
+    await user.click(within(row).getByRole("button", { name: "Edit note" }));
+
+    const dialog = screen.getByRole("dialog");
+    const picks = await within(dialog).findByRole("group", { name: "Common notes" });
+    await user.click(within(picks).getByRole("button", { name: "官方名稱未出" }));
+    expect(within(dialog).getByLabelText("Note (optional)")).toHaveValue("官方名稱未出");
+    expect(within(dialog).queryByText("名稱缺")).toBeNull();
+    expect(global.fetch.mock.calls.some(([url]) => url.endsWith("/notes"))).toBe(false);
   });
 
   it("clears a mark only once the confirm is pressed", async () => {

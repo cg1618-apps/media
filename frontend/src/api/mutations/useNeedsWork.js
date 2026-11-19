@@ -1,9 +1,10 @@
 // Frontend: the query and mutation hooks for 待補充 Needs Work.
 //
-// Three reads - the page's grouped list, the notes in use (the note field's
-// suggestions) and one owner's mark - all under the one `["needs-work"]`
-// prefix, so every write refetches all three: clearing a mark on the page
-// and the badge on that entry's detail page agree in the same session.
+// Two reads - the page's grouped list and one owner's mark - both under the
+// one `["needs-work"]` prefix, so every write refetches both: clearing a mark
+// on the page and the badge on that entry's detail page agree in the same
+// session. The note field's suggestions are the common notes, read through
+// /api/options below.
 //
 // Every route is manage.requests; a caller without it gets 401, so the
 // components that read here ask `has("manage.requests")` first.
@@ -25,13 +26,6 @@ export const needsWorkMarkQueryKey = (ownerType, ownerId) => [
 /** Every mark, as `[{ note, items: [...] }]`; the unnoted group last. */
 export function useNeedsWorkList({ enabled = true } = {}) {
   return useApiQuery([...NEEDS_WORK_QUERY_KEY, "list"], endpoints.needsWork.list(), {
-    enabled,
-  });
-}
-
-/** The notes in use, most used first, as `[{ note, count }]`. */
-export function useNeedsWorkNotes({ enabled = true } = {}) {
-  return useApiQuery([...NEEDS_WORK_QUERY_KEY, "notes"], endpoints.needsWork.notes(), {
     enabled,
   });
 }

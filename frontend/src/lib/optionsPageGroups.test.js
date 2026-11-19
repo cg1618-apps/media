@@ -36,7 +36,7 @@ const SERVED = [
   "music_status",
   "music_type_status",
   "my_rating",
-  "note_suggestion_categories",
+  "common_option_categories",
   "book_region",
   "book_serialization_status",
   "book_type",
@@ -159,6 +159,7 @@ const CATEGORIES = [
   "Geography Group",
   "Item Type",
   "Label",
+  "Needs Work Note",
   "Platform",
   "Reference Source",
   "Serialization Platform",
@@ -253,6 +254,27 @@ describe("groupTier2Categories", () => {
         title: UNGROUPED_TITLE,
         categories: ["Comic Era", "Franchise for Filter"],
       },
+    ]);
+  });
+
+  it("heads the common options' three groups, Needs Work's one category too", () => {
+    const sections = groupTier2Categories(CATEGORIES);
+    const byTitle = Object.fromEntries(sections.map((s) => [s.title, s.categories]));
+    expect(byTitle["Note Suggestion"]).toEqual([
+      "Character Group",
+      "Collectible Type",
+      "Item Type",
+      "Geography Group",
+    ]);
+    expect(byTitle["Music"]).toEqual(["Song Type", "Song Source"]);
+    // Declared with one member, so the single member is the group rather
+    // than what the data shrank it to.
+    expect(byTitle["Needs Work"]).toEqual(["Needs Work Note"]);
+    expect(sections.map((s) => s.title).slice(-4)).toEqual([
+      "Note Suggestion",
+      "Music",
+      "Needs Work",
+      UNGROUPED_TITLE,
     ]);
   });
 

@@ -1,25 +1,25 @@
 import { describe, it, expect, afterEach } from "vitest";
 
 import {
-  NOTE_SUGGESTION_CATEGORIES,
+  COMMON_OPTION_CATEGORIES,
   TAG_CATEGORIES,
   applyConstants,
 } from "../config/fieldOptions";
 import {
   categoriesForSubTab,
-  isNoteSuggestionCategory,
+  isCommonOptionCategory,
   isTagCategory,
 } from "./optionCategoryGroups";
 import { OPTION_SUB_TABS } from "../components/forms/OptionSubTabBar";
 
-// applyConstants mutates TAG_CATEGORIES and NOTE_SUGGESTION_CATEGORIES in
+// applyConstants mutates TAG_CATEGORIES and COMMON_OPTION_CATEGORIES in
 // place, so restore their real contents after any test that overwrites them.
 const ORIGINAL_TAG_CATEGORIES = [...TAG_CATEGORIES];
-const ORIGINAL_NOTE_SUGGESTION_CATEGORIES = [...NOTE_SUGGESTION_CATEGORIES];
+const ORIGINAL_COMMON_OPTION_CATEGORIES = [...COMMON_OPTION_CATEGORIES];
 afterEach(() => {
   applyConstants({
     tag_categories: ORIGINAL_TAG_CATEGORIES,
-    note_suggestion_categories: ORIGINAL_NOTE_SUGGESTION_CATEGORIES,
+    common_option_categories: ORIGINAL_COMMON_OPTION_CATEGORIES,
   });
 });
 
@@ -30,6 +30,7 @@ const ALL = [
   "Genre Sub",
   "Geography Group",
   "Label",
+  "Needs Work Note",
   "Official Source",
   "Song Type",
 ];
@@ -52,8 +53,8 @@ describe("isTagCategory", () => {
   });
 });
 
-describe("isNoteSuggestionCategory", () => {
-  it("recognises the note sections' field suggestions, before /api/constants answers", () => {
+describe("isCommonOptionCategory", () => {
+  it("recognises every suggestion-only vocabulary, before /api/constants answers", () => {
     for (const c of [
       "Character Group",
       "Collectible Type",
@@ -62,17 +63,21 @@ describe("isNoteSuggestionCategory", () => {
       "Enemy Tier",
       "Side Quest Type",
       "Geography Group",
+      "Song Type",
+      "Song Source",
+      "Needs Work Note",
     ]) {
-      expect(isNoteSuggestionCategory(c)).toBe(true);
+      expect(isCommonOptionCategory(c)).toBe(true);
     }
-    // A section-level note suggestion stays under Options.
-    expect(isNoteSuggestionCategory("Song Type")).toBe(false);
+    // A vocabulary whose values are created from what was typed stays put.
+    expect(isCommonOptionCategory("Comic Era")).toBe(false);
+    expect(isCommonOptionCategory("Label")).toBe(false);
   });
 
   it("follows /api/constants rather than a copy of the list", () => {
-    applyConstants({ note_suggestion_categories: ["Song Type"] });
-    expect(isNoteSuggestionCategory("Song Type")).toBe(true);
-    expect(isNoteSuggestionCategory("Character Group")).toBe(false);
+    applyConstants({ common_option_categories: ["Comic Era"] });
+    expect(isCommonOptionCategory("Comic Era")).toBe(true);
+    expect(isCommonOptionCategory("Character Group")).toBe(false);
   });
 });
 
@@ -80,11 +85,16 @@ describe("categoriesForSubTab", () => {
   it("splits the categories across the three pickers with nothing lost", () => {
     const tags = categoriesForSubTab(ALL, "tags");
     const options = categoriesForSubTab(ALL, "options");
-    const notes = categoriesForSubTab(ALL, "notes");
+    const common = categoriesForSubTab(ALL, "common");
     expect(tags).toEqual(["Genre Main", "Genre Sub", "Label"]);
-    expect(options).toEqual(["Comic Era", "Official Source", "Song Type"]);
-    expect(notes).toEqual(["Character Group", "Geography Group"]);
-    expect([...tags, ...options, ...notes].sort()).toEqual([...ALL].sort());
+    expect(options).toEqual(["Comic Era", "Official Source"]);
+    expect(common).toEqual([
+      "Character Group",
+      "Geography Group",
+      "Needs Work Note",
+      "Song Type",
+    ]);
+    expect([...tags, ...options, ...common].sort()).toEqual([...ALL].sort());
   });
 
   it("offers no categories on a sub-tab that has no category picker", () => {
@@ -94,11 +104,11 @@ describe("categoriesForSubTab", () => {
 });
 
 describe("OPTION_SUB_TABS", () => {
-  it("offers Options, Tags and Note Suggestions", () => {
+  it("offers Options, Tags and Common Options", () => {
     expect(OPTION_SUB_TABS.map((t) => [t.key, t.label])).toEqual([
       ["options", "Options"],
       ["tags", "Tags"],
-      ["notes", "Note Suggestions"],
+      ["common", "Common Options"],
     ]);
   });
 

@@ -733,7 +733,7 @@ export default function Manga() {
                         ]),
                     [
                       {
-                        label: publisherLabel(manga, "台灣出版商"),
+                        label: publisherLabel(manga, "台灣出版社"),
                         value: publisherValue(manga),
                       },
                       { label: "Anime Studio", value: manga.anime_studio },

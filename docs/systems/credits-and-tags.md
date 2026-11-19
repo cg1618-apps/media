@@ -118,7 +118,7 @@ may hard-code these words.
 
 `publisher` is the role that leans hardest on this: one vocabulary, six
 reader-facing words. It reads **台灣代理商** on an anime or anime movie and
-**台灣出版商** on a manga or book — both name a *Taiwanese* licensor — while a
+**台灣出版社** on a manga or book — both name a *Taiwanese* licensor — while a
 comic's publisher is the work's original one (Marvel), so it reads **出版商**
 without the 台灣, and a game's reads **發行商**. All six types have an override,
 so the role's own `"Publisher"` label is never rendered; it survives only for
@@ -357,9 +357,9 @@ The fix it points at is the merge endpoint, never delete.
 
 The "System Options" nav entry has **three** sub-tabs on all three admin pages
 (Add / Modify / Delete), rendered by the shared `OptionSubTabBar`: **Options**,
-**Tags** and **Note Suggestions**. All three are the same form over the same
+**Tags** and **Common Options**. All three are the same form over the same
 rows — vocabulary value plus `ScopePicker`, one endpoint — split only so the
-category list is shorter; `TAG_CATEGORIES` and `NOTE_SUGGESTION_CATEGORIES`
+category list is shorter; `TAG_CATEGORIES` and `COMMON_OPTION_CATEGORIES`
 decide which a category falls under, and Options takes the rest, see
 [../options.md](../options.md). Each page filters its category `<select>`
 through `categoriesForSubTab` (`frontend/src/lib/optionCategoryGroups.js`),

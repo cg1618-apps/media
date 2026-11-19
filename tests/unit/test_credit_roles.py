@@ -255,8 +255,8 @@ def test_every_media_type_labels_its_publisher_row_in_chinese():
 
     assert credit_label("publisher", "anime") == "台灣代理商"
     assert credit_label("publisher", "anime-movie") == "台灣代理商"
-    assert credit_label("publisher", "manga") == "台灣出版商"
-    assert credit_label("publisher", "book") == "台灣出版商"
+    assert credit_label("publisher", "manga") == "台灣出版社"
+    assert credit_label("publisher", "book") == "台灣出版社"
     assert credit_label("publisher", "comic") == "出版商"
     assert credit_label("publisher", "game") == "發行商"
 

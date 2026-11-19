@@ -1547,7 +1547,7 @@ Keys served: `watching_status`, `reading_status`, `airing_status`,
 `h_game_audio_availability`, `h_game_h_presentation`, `h_game_art_style`,
 `h_game_h_art_style`, `h_game_platform`,
 `person_role`, `media_type`, `option_categories`, `tag_categories`,
-`note_suggestion_categories`, `request_kind`, `request_status`. The
+`common_option_categories`, `request_kind`, `request_status`. The
 payload is viewer-scoped on the gated types: a key that serves gated types
 only (`TYPE_ONLY_VOCABULARIES`) is served while at least one of its types is
 seeable - `h_comic_originality` serves h-comic and hentai,
@@ -1572,10 +1572,11 @@ Options form needs the declared names because it otherwise derives its
 category list from the options already stored, and so could not offer a
 category with no values yet — the state every new tag field starts in.
 `tag_categories` is the subset of those categories the Add / Modify / Delete
-pages group under their Tags sub-tab, and `note_suggestion_categories`
-(`NOTE_SUGGESTION_CATEGORIES`) the subset a note field's `option_category`
-names, grouped under their Note Suggestions sub-tab. Both are navigation
-only — every sub-tab writes the same rows. `franchise_type`
+pages group under their Tags sub-tab, and `common_option_categories`
+(`COMMON_OPTION_CATEGORIES`) the suggestion-only subset - every category the
+note registry suggests from, and `Needs Work Note` - grouped under their
+Common Options sub-tab. Both are navigation only — every sub-tab writes the
+same rows. `franchise_type`
 and `anime_airing_type` are served from the `FRANCHISE_TYPES` /
 `ANIME_AIRING_TYPES` tuples rather than the `FranchiseType` / `AnimeAiringType`
 Python `Enum` classes, because the frontend dropdown has diverged from those
@@ -1881,7 +1882,7 @@ studios (a bare list — studio is a single role), and any media type whose
 credit roles include `publisher` — anime, anime-movie, manga, book, comic and
 game — carries `publisher_refs`, a bare list for the
 same reason but with `label` on each ref: one publisher role reads 台灣代理商,
-台灣出版商, 出版商 or 發行商 depending on the type, where a studio is a studio
+台灣出版社, 出版商 or 發行商 depending on the type, where a studio is a studio
 everywhere. Both are built inside
 `attach_link_fields` from one batched fetch, so a list endpoint serves them in
 the same fixed five queries it always used. Both belong to the **Credits**
@@ -2739,7 +2740,6 @@ inbox's key, which only `super` and the `admin` hold; everyone else gets
 | Method | Path | Auth | Body / notes |
 |---|---|---|---|
 | GET | `/api/needs-work` | `manage.requests` | Every mark as `[NeedsWorkGroup]`, one group per note: the noted groups by note (case-insensitive), then the group whose `note` is null. Inside a group, by owner type in `OWNER_TABLES` order, then by name. `[]` when nothing is marked. |
-| GET | `/api/needs-work/notes` | `manage.requests` | `[{note, count}]` - every note a mark carries, most used first, then by note. A mark with no note offers nothing. The suggestions for the note field. |
 | GET | `/api/needs-work/{owner_type}/{owner_id}` | `manage.requests` | `NeedsWorkMark` for one owner: `flagged: false` and nulls when it is not marked. **404** for an unknown `owner_type` or an owner that does not exist. |
 | PUT | `/api/needs-work/{owner_type}/{owner_id}` | `manage.requests` | Body `{note?}` (`NeedsWorkWrite`): marks the owner, or changes the note of its mark - one mark per owner, so it is idempotent. The note is trimmed, and a blank one is stored as null. Returns the `NeedsWorkMark`. **404** as GET; **422** for any other key. |
 | DELETE | `/api/needs-work/{owner_type}/{owner_id}` | `manage.requests` | **204**. Clears the mark; clearing an owner that is not marked changes nothing. **404** as GET. |

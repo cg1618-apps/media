@@ -534,7 +534,7 @@ A dated log of the choices that shaped the code and, where it matters, the alter
 - **One role, but the words "Publisher / Distributor" are never shown.** That
   string names the concept, not a reader-facing label. The label varies by media
   type through the `_LABEL_OVERRIDES` mechanism that already makes one `author`
-  role read 原作 / Author / Writer: 台灣代理商 for anime, 台灣出版商 for manga and
+  role read 原作 / Author / Writer: 台灣代理商 for anime, 台灣出版社 for manga and
   novel, 出版商 for comic, 發行商 for game. The distinction is real — the first two
   name a *Taiwanese* licensor, while a comic's publisher is Marvel, the work's
   original publisher.
@@ -5850,6 +5850,40 @@ and a page lists the marks grouped by note for the admin and super.
 - No dump was taken for it, so the revision is `irreversible`. A Sheets
   backup taken before it still holds those people, and a Pull from one
   brings them back; the revision does not run again on what a Pull restores.
+
+### Common Options; the 待補充 note suggests only its common notes (2026-11-19, no spec)
+
+- **"Note Suggestions" became "Common Options", and widened.** The owner's
+  definition: a common option is a suggestion-only vocabulary, added only on
+  the Add page, edited only on the Modify page, and never created from what
+  someone typed. That is a property of the category, not of where it is
+  read, so the sub-tab is named for it. Song Type and Song Source (the music
+  sections' suggestions) and Needs Work Note meet it and moved in from
+  Options; the seven game guide categories stay as its **Note Suggestion**
+  group. `COMMON_OPTION_CATEGORIES` sits in `credit_roles.py` beside
+  `TAG_CATEGORIES`, derived from `NOTE_OPTION_CATEGORIES` plus
+  `NEEDS_WORK_NOTE_CATEGORY`, and replaces `/api/constants`'
+  `note_suggestion_categories` outright: its only reader was the sub-tab.
+- **The grouping is presentation, so it lives in `TIER2_GROUPS`.** The
+  picker already arranges with the /options page's groups, so the three
+  groups (Note Suggestion, Music, Needs Work) were added there and the two
+  pages agree. Needs Work holds one category, which the group-of-one rule
+  would have sent to Other; that rule is about a group the data shrank, so a
+  group *declared* with one member now stands. Rejected: a per-picker
+  threshold prop, which would have made the /options page and the sub-tab
+  disagree about the same group.
+- **The 待補充 note no longer suggests the notes in use.** Suggesting what
+  other marks carry fed every typo back as a suggestion, which made the
+  field a vocabulary that grows from typing - the opposite of a common
+  option. The suggestions and chips are the `Needs Work Note` values only,
+  on the Needs Work page's Edit note as well, which now uses the same
+  `NeedsWorkNoteInput`. With no reader left, `GET /api/needs-work/notes`,
+  `notes_in_use()`, the `NeedsWorkNote` schema and `useNeedsWorkNotes` were
+  deleted rather than kept for later.
+- **No common option is created from typed text.** Checked when the set was
+  drawn: `resolve_option` is reached from tag, character tag, label and
+  source fields only, and `ensureSourceValues` from the entry forms' tag
+  fields; the note sections and the 待補充 note store their text as typed.
 
 ### A person's gallery of works (2026-11-19, no spec)
 

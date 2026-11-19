@@ -429,7 +429,6 @@ export const endpoints = {
   // lists them grouped by note. Every route is manage.requests.
   needsWork: {
     list: () => "/api/needs-work",
-    notes: () => "/api/needs-work/notes",
     mark: (ownerType, ownerId) => `/api/needs-work/${ownerType}/${ownerId}`,
   },
 

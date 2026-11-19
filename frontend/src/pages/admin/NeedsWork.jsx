@@ -14,13 +14,11 @@ import { Link } from "react-router-dom";
 import {
   useClearNeedsWork,
   useNeedsWorkList,
-  useNeedsWorkNotes,
   useSetNeedsWork,
 } from "../../api/mutations/useNeedsWork";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import ConfirmModal from "../../components/modals/ConfirmModal";
-import SuggestInput from "../../components/forms/SuggestInput";
-import { inputCls } from "../../components/forms/FormField";
+import NeedsWorkNoteInput from "../../components/needs-work/NeedsWorkNoteInput";
 import { Button, Chip, Eyebrow } from "../../components/ui/primitives";
 import { useToast } from "../../hooks/useToast";
 import { formatRequestDate } from "../../lib/requests";
@@ -30,7 +28,6 @@ export const NO_NOTE = "No note";
 export default function NeedsWork() {
   const { showToast } = useToast();
   const { data, isLoading, error } = useNeedsWorkList();
-  const { data: notes } = useNeedsWorkNotes();
   const setMark = useSetNeedsWork();
   const clearMark = useClearNeedsWork();
   // The item whose note is being edited, and the item whose mark is clearing.
@@ -176,13 +173,7 @@ export default function NeedsWork() {
           >
             Note (optional)
           </label>
-          <SuggestInput
-            id="needs-work-note"
-            value={note}
-            onChange={setNote}
-            options={(notes ?? []).map((n) => n.note)}
-            className={inputCls}
-          />
+          <NeedsWorkNoteInput id="needs-work-note" value={note} onChange={setNote} />
           <p className="text-xs text-text-faint mt-2">
             Marks with the same note are listed together.
           </p>

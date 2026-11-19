@@ -80,7 +80,7 @@ export const TIER1_GROUPS = [
       "person_role",
       "option_categories",
       "tag_categories",
-      "note_suggestion_categories",
+      "common_option_categories",
     ],
   },
 ];
@@ -132,22 +132,19 @@ export const TIER2_GROUPS = [
       "Reference Source",
     ],
   },
-  // The suggestions the music note sections draw on: an OP or ED's cut, and
-  // the label of a song link.
-  {
-    title: "Music",
-    categories: ["Song Type", "Song Source"],
-  },
   // A character's two tag lists - one vocabulary each, for every character.
   {
     title: "Character",
     categories: ["Character Appearance", "Character Trait"],
   },
+  // The common options (COMMON_OPTION_CATEGORIES) come last, in the three
+  // groups the Common Options sub-tab's picker reads them in.
+  //
   // What the game guide note sections' free-text fields suggest - a
   // character's group, a collectible's, an item's or a weapon's type, an
   // enemy's tier, a side quest's type, a place's group.
   {
-    title: "Note Suggestions",
+    title: "Note Suggestion",
     categories: [
       "Character Group",
       "Collectible Type",
@@ -157,6 +154,19 @@ export const TIER2_GROUPS = [
       "Side Quest Type",
       "Geography Group",
     ],
+  },
+  // The suggestions the music note sections draw on: an OP or ED's cut, and
+  // the label of a song link.
+  {
+    title: "Music",
+    categories: ["Song Type", "Song Source"],
+  },
+  // The 待補充 note's common values. One category, declared as a group of one
+  // on purpose, so it reads beside the other common options rather than
+  // among the leftovers.
+  {
+    title: "Needs Work",
+    categories: ["Needs Work Note"],
   },
 ];
 
@@ -168,9 +178,11 @@ export const UNGROUPED_TITLE = "Other";
  *
  * Every group that claims at least two of the given names becomes a section
  * holding them in the group's own order, then one `Other` section holds the
- * rest alphabetically. Two is the threshold because a group of one is not a
- * group - it is a heading that says the same thing as the card under it, and
- * it reads better among the leftovers.
+ * rest alphabetically. Two is the threshold because a group the data shrank
+ * to one is not a group - it is a heading that says the same thing as the
+ * card under it, and it reads better among the leftovers. A group DECLARED
+ * with one member is the exception: its one member is the whole group, so
+ * it stands whenever that member is present.
  *
  * Every name comes back exactly once, so a section index and the content it
  * indexes can never disagree about what exists.
@@ -181,7 +193,7 @@ function arrange(names, groups) {
 
   for (const group of groups) {
     const present = group.members.filter((name) => remaining.has(name));
-    if (present.length < 2) continue;
+    if (present.length < Math.min(2, group.members.length)) continue;
     present.forEach((name) => remaining.delete(name));
     sections.push({ title: group.title, members: present });
   }
