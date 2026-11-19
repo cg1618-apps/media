@@ -18,6 +18,7 @@ import ComingNext from "../../components/tracker/ComingNext";
 import FollowedOrders from "../../components/tracker/FollowedOrders";
 import { useWatchOrderFollows } from "../../api/mutations/useWatchOrderFollows";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
+import ContentsBar from "../../components/layout/ContentsBar";
 import TableOfContents from "../../components/layout/TableOfContents";
 import { useScrollSpy } from "../../hooks/useScrollSpy";
 import AnnouncementBoard from "../../components/info/AnnouncementBoard";
@@ -921,6 +922,15 @@ function CatalogueDashboard() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* The same contents as chips, below xl where the column is not drawn.
+          It is not pinned: the division headers and the filter bar already
+          pin under the nav, and a third sticky strip would stack on them. */}
+      <ContentsBar
+        items={tocItems}
+        activeId={activeSection}
+        offsetFor={stickyOffset}
+        className="-mt-4 mb-8"
+      />
       <div className="flex gap-8">
         {/* Main Content */}
         <div className="flex-1 min-w-0 space-y-16">

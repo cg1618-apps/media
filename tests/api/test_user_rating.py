@@ -205,25 +205,6 @@ def test_a_guest_reads_null(db_session, client, user_client, owners):
     assert listed[str(fid)]["my_rating"] is None
 
 
-def test_search_related_franchises_carry_the_viewers_own_rating(
-    db_session, user_client, owners
-):
-    franchise = owners["franchise"]
-    db_session.add(
-        models.Anime(
-            system_id=uuid.uuid4(),
-            franchise_id=franchise.system_id,
-            anime_name_en="Ratable Anime",
-        )
-    )
-    db_session.flush()
-    _put(user_client, "franchise", franchise.system_id, {"my_rating": "B"})
-
-    found = user_client.get("/api/search/", params={"q": "Ratable Anime"}).json()
-    related = {f["system_id"]: f for f in found["related_franchises"]}
-    assert related[str(franchise.system_id)]["my_rating"] == "B"
-
-
 def test_search_entity_buckets_carry_the_viewers_own_rating(
     db_session, user_client, owners
 ):

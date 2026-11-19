@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-11-18
+Last verified: 2026-11-19
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -50,6 +50,7 @@ src/
 | `hooks/useViewScope()` | The member-only reading surfaces as flags - `{ studio, publisher, person, character, search, randomPicker }`, one per `view.*` permission (`person` covers the seiyuu library, `character` covers identities) - plus `ownData` (`self.list`): whether the viewer keeps a list - its status, progress and plan flags, written through `/api/me` - and its own ratings, expectations, remarks on entries and groups, and book unit ratings and remarks, so whether there is one to draw (`has()` from `AuthContext`; all false outside an `AuthProvider`). A component that draws or fetches something a guest may not read asks this rather than spelling the key itself - see [pages.md, "The guest scope"](pages.md#the-guest-scope). |
 | `hooks/usePickerData(mode, typesKey, { shared })` | One random picker mode's entries (`{type, item}` over the types' lists, on the library pages' cache keys), its FilterDefs (every def flagged `personal: true` only with `self.list`, `ownData`; with `shared`, the shared account's media type and release decade only - see [pages.md, "RandomPicker"](pages.md#randompicker--random--randomtype)), its stored default filters resolved against them (`["random-picker-defaults", mode]`; unreadable defaults count as none), and `defaultWeighted` (true unless saved off). Shared by the picker and Picker Defaults. |
 | `hooks/useFormDefaults` | Loads and applies `/api/form-defaults/<type>` to a fresh form (`resolveDefaults`, `coerceToShape`). A stored select value its options do not offer is skipped, so it cannot sit hidden behind a blank select and be posted. Repeater defaults (source rows, game copies) arrive as arrays with any `system_id` stripped — a default row is a template that must insert, never update. The restricted source rows come from the picked prefill instead (`prefillPicks`, `startingSources`), and on h-comic from the region the form starts on. |
+| `hooks/useGroupQuickCreate({ showToast, onFranchiseCreated, onSeriesCreated })` | The Add and Modify saves' franchise and series creation: `createMissingGroups({ franchiseId, seriesId, franchise, series })` shows `GroupCreateModal` (rendered from `groupCreateModal`) when either group is to be created, POSTs the confirmed franchise and then the series under it, and answers their ids - or `null` when cancelled or a create failed. See [admin-pages.md](admin-pages.md), "Creating the missing franchise and series". |
 | `hooks/useGlobalMediaSearch(query)` | Debounced `/api/search/?q=&limit=10`, flattened to entry hits for pickers. |
 | `pages/plan/usePlanData` | The Plan page's lists (franchise, series and the twelve entry types - `h-comic`, `h-game` and `hentai` each fetched only for a session that can see it) plus `["plan-next"]`. |
 
@@ -259,9 +260,9 @@ columns.
   viewer's own value - `myRatingColumn`, the three status buttons,
   `planFlagColumn`, `myRatingSort`, `usefulnessSort` - carry `personal: true`
   themselves, see [The `personal` flag](#the-personal-flag)),
-  `GroupedEntryPage`, `CollapsibleCardGrid`, `CollapsiblePillRow`,
+  `GroupedEntryPage`, `CollapsibleCardGrid`,
   `AdminTabBar`, `FittedName`, `TierBadge`, and the in-page contents:
-  `TableOfContents` and `DetailContents` (see
+  `TableOfContents`, `ContentsBar` and `DetailContents` (see
   [In-page table of contents](#in-page-table-of-contents)).
 - **`components/hub`** — `HubChrome` (`HubShell`, `GRID_CLS`, `Crumbs` (an
   optional `action` sits at the row's right-hand end),
@@ -677,7 +678,11 @@ columns.
 - **`components/modals`** — `AnnouncementModal`,
   `MarkAiringModal`, `ReleaseDetailsModal` (the optional release date /
   broadcast slot / watch day prompt the detail pages' release button opens -
-  see `pages.md`, Detail pages), `CreateNewEntityModal`, `FranchiseCreateModal`,
+  see `pages.md`, Detail pages), `GroupCreateModal` (the confirmation an
+  entry's save shows before it creates the franchise and series it names -
+  editable names, the franchise's types; see
+  [admin-pages.md](admin-pages.md), "Creating the missing franchise and
+  series"),
   `ConfirmModal` (a yes/no question in the same chrome - `title`, body as
   children, `confirmLabel`, `danger` for a destructive confirm, Escape
   cancels; the Resources page's delete prompt, Disable on `/users`, and the
@@ -1131,6 +1136,7 @@ functions `tagsForLabels`, `labelsForTags`, `applyLabelEdit` and
 | `clipboardImage.js` | copy an image to the clipboard (quotes/memes); `copyTextToClipboard(text)` for plain text (a quote line, `OnceLinkModal`'s link) |
 | `newPassword.js` | `newPasswordProblem(password, again)`: the message for what is wrong with a new password typed twice, or `null` - empty, more than `MAX_PASSWORD_BYTES` (72) UTF-8 bytes, or the two differ. The server's only two checks, repeated so `/reset` and Settings → Password can answer before a round trip; there is no minimum length, and the server stays authoritative |
 | `resourceTree.js` | The Resources tree's move arithmetic, pure: `findNode`, `parentIdOf`, `childrenOf`, `countDescendants`, `countByKind`, `flattenGroups`, `canDropInto` (refuses a group into itself or any descendant, and an item as a parent), `moveAmongSiblings` and `moveInto` (each returns the reorder body `{parent_id, ordered_ids}` - the complete new child list - or `null`), and `applyReorder` for the optimistic cache update |
+| `groupQuickCreate.js` | The names and types a franchise or series created from an entry's save is given: `entryGroupNames(form, prefix, keys)` (the entry's `<prefix>_name_<key>`, "" for any key not in `keys`), `SERIES_AUTOFILL_KEYS` (EN, CN, Alt), `hasAnyName`, `franchiseCreateBody` / `seriesCreateBody` (trimmed names, blank as `null`, types comma-joined), `offeredFranchiseTypes(visible, implied)` (the implied type's family only) and `orderTypes` |
 | `gatedTypes.js` | The gated-type question - see [Gated media types](#gated-media-types). `GATED_TYPES`, `canSeeGatedType`, the list filters, and `REQUIRED_LABEL_FOR_TYPE` (mirrors the backend's) with `requiredLabelsForType` / `requiredLabelsForFranchiseType`. `FRANCHISE_FAMILY_FOR_TYPE` mirrors the backend's franchise families - `H-Comic`, `Hentai` and `H-Game` are one family, `RESTRICTED_FAMILY` (`restricted`) - and `inFranchiseFamily(franchiseType, family)` asks whether a comma-joined `franchise_type` names a type of it |
 | `hComicAnimation.js` | An h-comic's animation status, hand-set or derived. `isDerivedAnimationStatus(entry)` (`animation_status_source === "derived"`: a hentai adapts it) and `adaptingHentai(rows)` (the stored, reverse-direction `adaptation` rows of a relation card whose far end is a hentai, as their `other` endpoints) |
 | `hComicRegion.js` | Which h-comic fields a region uses, the bookUnits pattern for a variant-dependent form. `REGION_ONLY_FIELDS` (JP: `h_comic_name_jp`, originality, animation status, series number, page total and `page_fin`; KR: `h_comic_name_kr`, chapter total, `ch_behind`, `ch_fin`, author, official source, `highlight_group_order` - the catalogue and reader columns mirror the server's `REGION_CLEARS` / `LIST_REGION_CLEARS`), `showsField(region, field)` (a region-only field shows on its region and on none while the region is unset), `clearedForRegion(form)` (blanks the other region's fields before a save; names are kept, and the KR-only author and official source - credits the server does not clear - are cleared here), `progressFor(entry)` (pages on JP, chapters on KR) |
@@ -1188,7 +1194,25 @@ under sticky division headers and the filter bar.
 - **Placement**: on the right, `xl:` only, `w-40`, sticky under the nav. On
   `xl:` the container widens from `max-w-7xl` to `88rem`, by about the
   column's width, so the cover column keeps close to its usual size. Below
-  `xl` the column is not rendered and the page is unchanged.
+  `xl` the column is not rendered; the contents bar stands in for it.
+- **Below `xl`: the contents bar.** **`ContentsBar`**
+  (`components/layout/ContentsBar.jsx`) takes the same `items`, `activeId`
+  and `offsetFor` as the column and draws them as one line of mono chips at
+  the top of the page (`xl:hidden`), the dashboard filter bar's chip style,
+  `brand` on the current one. The line scrolls sideways inside itself
+  (`overflow-x-auto`) when the chips do not fit, and `keepChipInView` moves
+  that scroll - never the page's - to keep the current chip 16 px inside it.
+  Only level 1 rows become chips: the dashboard's level 2 rows repeat
+  "Active" and "Paused" under every division. While the reader is in a
+  sub-row, its main row is the current chip (`activeMainRow`).
+  - On a **detail page** `DetailContents` draws it `sticky` under the nav
+    (`top-[var(--nav-h)]`, `z-30`). It then covers the top of the page as
+    the nav does, so the page's `offsetFor` is the nav's height plus the
+    bar's (`contentsBarHeight()`, which is 0 on `xl:`, where the bar is
+    `display: none`); the column and the bar share that one offset.
+  - On the **dashboard** it is not pinned: the division headers and the
+    filter bar already pin under the nav, and a third sticky strip would
+    stack on them. It sits above the first division and scrolls away.
 
 The statistics page keeps its own `StatsSidebar` (IntersectionObserver,
 `lg:`-only, left), see [pages.md](pages.md).

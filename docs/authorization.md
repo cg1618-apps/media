@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-11-18
+Last verified: 2026-11-19
 
 ## What this is for
 
@@ -1434,7 +1434,7 @@ another.
 - **Attached where the rows leave:** the list and detail reads of
   `routers/collection.py`, `franchise.py` and `series.py`; the response
   builders of the four entity routers; the media factory's book reads (unit
-  ratings); every search bucket plus `related_franchises`; and Plan Next's
+  ratings); every search bucket; and Plan Next's
   expectation (`own_expectations`). No list route filters or sorts on these
   fields; the SPA's sorts, filters and statistics run on the response, so
   they work on the viewer's own values.

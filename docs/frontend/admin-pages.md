@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-11-18
+Last verified: 2026-11-19
 
 **What this is for.** Every administrative route behind `ProtectedRoute` in
 `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -544,9 +544,38 @@ from `comicvine_link` (only Fill does), so the pick sets it, the form carries
 it (`defaultComic`; hidden on `/defaults`) in a **Comic Vine ID** input beside
 the link, and both pages send it as typed, with or without a link.
 
-**Franchise / series pickers.** `ComboBox` over the loaded lists; "create new"
-opens `FranchiseCreateModal` / `CreateNewEntityModal`, which POST the group
-and select it. `ComboBox.onSelect` receives `(id, label)`.
+**Franchise / series pickers.** `ComboBox` over the loaded lists;
+`ComboBox.onSelect` receives `(id, label)`. Text typed that matches no
+existing group is kept, and the save creates the group before it writes the
+entry.
+
+**Creating the missing franchise and series.** Every media type's Add save
+and Modify save (and Modify's Series save, for its franchise) goes through
+`useGroupQuickCreate` (`hooks/useGroupQuickCreate.jsx`). When the form names
+a franchise or a series that does not exist, it asks once, in
+`GroupCreateModal` ("Create new franchise and series", or just the one that
+is missing), before anything is written:
+
+- **The names that will be used, editable.** Each new group shows its five
+  name fields (EN, CN, Roman, JP, Alt), filled from the entry's names
+  (`entryGroupNames`, `lib/groupQuickCreate.js`): a franchise from all five
+  of the entry's names, a series from its EN, CN and Alt. A name the entry's
+  type does not carry starts blank. Confirm stays disabled while a group has
+  no name at all; names are trimmed and a blank one is sent as `null`. The
+  series section also quotes the text typed in the series box.
+- **The franchise's types.** The type the media type implies (Anime for anime
+  and anime movie, Manga, Book, TV, Movie, Cartoon, Comic, Game, H-Comic,
+  H-Game, Hentai) is ticked and cannot be unticked; any other franchise type
+  of the same family may be ticked as well (`offeredFranchiseTypes`), since
+  the server refuses a `franchise_type` spanning two families. Gated types
+  the session cannot see are not offered. The ticked types are sent
+  comma-joined in vocabulary order (`"Anime, Manga"`). Modify's Series save
+  has no implied type: it starts on Anime, with the typed franchise text as
+  the EN name, and every mainstream type may be changed.
+- **Confirm** POSTs the franchise (`/api/franchise/`), then the series under
+  it (`/api/series/`), and the entry is saved into both. **Cancel** creates
+  nothing and the entry is not saved; a failed create says which group
+  failed and stops the save.
 
 **Submit.** Validation (at least one name) → `POST` the entry
 (`api/endpoints.js resource(type).create()`) → `PUT /api/credits/<type>/<id>`
