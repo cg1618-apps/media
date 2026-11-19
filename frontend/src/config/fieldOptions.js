@@ -455,6 +455,8 @@ export const OPTION_CATEGORIES = [
   "Enemy Tier",
   "Side Quest Type",
   "Geography Group",
+  // The 待補充 note's common values (NEEDS_WORK_NOTE_CATEGORY there).
+  "Needs Work Note",
 ];
 
 // The subset of OPTION_CATEGORIES the admin pages group under their "Tags"

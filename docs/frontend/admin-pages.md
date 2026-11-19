@@ -230,20 +230,31 @@ its **待補充 Needs Work** row in the System tab. Server side:
   blank note is sent as null and lands the row in No note.
 - **Clear** asks in `ConfirmModal` (danger) before `DELETE
   /api/needs-work/{owner_type}/{owner_id}`.
-- Empty: "Nothing is marked", pointing at the Modify page.
+- Empty: "Nothing is marked", pointing at the badge on a record's page and at Add and Modify.
 
 The page is not narrowed by the viewer's access mode: the admin, who reaches
 no catalogue object, reads every name too
 ([../authorization.md](../authorization.md#accepted-residuals)). A row's link
 still answers 404 for a session that may not see the owner.
 
-A mark is set and cleared from its editor on `/modify` (below); this page
-changes its note and clears it. The **badge** (`components/needs-work/NeedsWorkBadge.jsx`) shows it on the
-fifteen owner pages - the twelve media detail pages and the collection,
-franchise and series hubs - beside **Report a problem**: a danger `Chip`
-reading 待補充 and the note, linking here. It is drawn only for a
-`manage.requests` holder, and only while the owner is marked; it asks
+A mark is set in three places: on `/add`, while the record is created
+(below); from its editor on `/modify` (below); and from the **badge** on its
+own page. This page changes its note and clears it. The badge
+(`components/needs-work/NeedsWorkBadge.jsx`) sits on the fifteen owner
+pages - the twelve media detail pages and the collection, franchise and
+series hubs - beside **Report a problem**: a danger `Chip` reading 待補充 and
+the note while the owner is marked, a dashed **+ 待補充** `Chip` while it is
+not. Either opens a popover holding the same `NeedsWorkControl` the editor
+draws, and a link here; a click outside it or Escape closes it. It is drawn
+only for a `manage.requests` holder, once the mark has been read; it asks
 `GET /api/needs-work/{owner_type}/{owner_id}` for nobody else.
+
+**The note field** (`components/needs-work/NeedsWorkNoteInput.jsx`) is the
+same in all three places: the values of the `Needs Work Note` option
+category - common notes, curated on the Options tab - as `QuickPicks`
+chips ("Common notes"; clicking the pressed chip clears), above a
+`SuggestInput` offering those first and then the notes in use. The note
+stays free text.
 
 ## /add (`Add.jsx`)
 
@@ -639,6 +650,18 @@ them: once it has returned the new id, the values chosen are sent as
 content labels, and nothing is sent when none was chosen. If that PUT fails
 the group is still created, and an error toast says "<Tier> saved, but your
 rating did not save."
+
+**待補充 Needs Work.** The twelve media tabs and the three tier tabs
+(`NEEDS_WORK_OWNER_TYPES`) draw `NeedsWorkAddField` under the content labels,
+for a `manage.requests` holder only: a **待補充 Needs Work** checkbox and,
+once ticked, the note field (`NeedsWorkNoteInput`, common notes as chips).
+Like the content labels it is held on the page (`needsWork`, `{flagged,
+note}`), not in a tab's form. Nothing is written while editing: once the
+create has returned the new id, `saveNeedsWork` sends `PUT
+/api/needs-work/<owner_type>/<id>` with the note, and nothing when the box
+is unticked. The field resets either way, so the next record does not
+inherit it. If the PUT fails the record is still created, and an error toast
+says the mark failed and can be set from the record's page.
 
 **Game tab.** `GameAddTab.jsx`. Two boxes, like every media tab:
 `EntryAutofillSearch` over the loaded games (`applyEntryAutofill(setGmf,
@@ -1043,8 +1066,8 @@ only land in its own grid. The swap is a draft until **Save Grid**.
   media types and the three tiers (`NEEDS_WORK_OWNER_TYPES` in
   `lib/needsWork.js`) and a `manage.requests` holder only:
   `components/needs-work/NeedsWorkControl.jsx`, a checkbox and, once
-  ticked, a note field (`SuggestInput` over the notes in use) with **Save
-  note**. It saves on its own - ticking PUTs, unticking DELETEs - and never
+  ticked, the note field (`NeedsWorkNoteInput`: the common notes as chips,
+  and suggestions) with **Save note**. It saves on its own - ticking PUTs, unticking DELETEs - and never
   through the editor's Save: the mark is its own row, not a column of the
   entry. See [/needs-work](#needs-work-needsworkjsx).
 - **Other entries in this franchise.** Above the editor card, a media entry

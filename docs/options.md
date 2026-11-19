@@ -648,8 +648,8 @@ backs `media_source` `kind='reference'` rows directly, resolved by
 `option_category`, a section's `kind_category` and `link_text_category`)
 rather than listed, so a section that names a new category offers it with no
 second edit. `OPTION_CATEGORIES` = the tag-field categories, the two character
-tag categories (`CHARACTER_OPTION_CATEGORIES`) and these eleven,
-served as `/api/constants` `option_categories` and unioned with the
+tag categories (`CHARACTER_OPTION_CATEGORIES`), these eleven, and
+`Needs Work Note` (`NEEDS_WORK_NOTE_CATEGORY`), served as `/api/constants` `option_categories` and unioned with the
 categories present in the stored options to build the category picker on the
 Add and Modify pages. Without it a declared category holding no values yet
 could not be picked at all, so the first value of a new tag field had nowhere
@@ -727,7 +727,7 @@ described in
 
 **Categories.** The category string is free text on the API
 (`SystemOptionCreate.category: str`), but the ones anything reads are the
-twenty-seven in `OPTION_CATEGORIES`:
+ones in `OPTION_CATEGORIES`:
 
 | Category | Offered in (scopes) | Read by |
 |---|---|---|
@@ -761,6 +761,7 @@ twenty-seven in `OPTION_CATEGORIES`:
 | `Enemy Tier` | unscoped (read by game and h-game notes) | suggestions for a 敵人 Enemies row's tier (`enemies`, `note.kind`); ships empty. Suggestions only |
 | `Side Quest Type` | unscoped (read by game and h-game notes) | suggestions for a 支線任務 Side Quests row's type (`side_quests`, `note.kind`); `大支線` and `小支線` seeded by `s1q2uests345`. Suggestions only |
 | `Geography Group` | unscoped (read by game and h-game notes) | suggestions for a 地理 Geography row's group (`geography`, `note.kind`); ships empty. Suggestions only |
+| `Needs Work Note` | unscoped (read by the 待補充 note field) | the common notes a 待補充 Needs Work mark is given (`NEEDS_WORK_NOTE_CATEGORY`, `app/utils/credit_roles.py`): one-click picks beside the note field on Add, Modify and the detail page badge, and the first of its suggestions, before the notes already in use; ships empty. Suggestions only - the note is free text and a value not in the list is stored as typed |
 
 **h-comic has Platform values of its own**, scoped to `h-comic` alone and
 split by usage (migration `h5c6malsrc7`). The regional storefronts an
