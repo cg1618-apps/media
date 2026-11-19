@@ -363,3 +363,62 @@ def test_the_pipeline_fills_seiyuu_only(owner_client, db_session, tenrai_calls):
     untouched = db_session.get(models.Person, director_id)
     assert untouched.name_jp is None
     assert tenrai_calls == [185]
+
+
+# ---------------------------------------------------------------------------
+# Modify's save asks the Fill's question first
+# ---------------------------------------------------------------------------
+
+COMPLETE_SEIYUU = {
+    "name_en": "Kana Hanazawa",
+    "name_jp": "花澤香菜",
+    "name_alt": "HanaKana",
+    "photo_file": "staff/mine.jpg",
+    "mal_link": KANA_LINK,
+    "roles": [{"role": "seiyuu", "scope": "anime"}],
+}
+
+
+def test_put_does_not_fetch_a_seiyuu_with_nothing_to_fill(owner_client, tenrai_calls):
+    """has_missing_values_person, the Seiyuu Fill's own check: every fillable
+    column is set, so MAL has nothing to add and is not asked."""
+    created = owner_client.post(
+        "/api/person/", json={"name_en": "Kana Hanazawa", "roles": COMPLETE_SEIYUU["roles"]}
+    ).json()
+    r = owner_client.put(f"/api/person/{created['system_id']}", json=COMPLETE_SEIYUU)
+    assert r.status_code == 200, r.text
+    assert tenrai_calls == []
+
+
+def test_put_still_fills_a_seiyuu_with_one_blank_column(owner_client, tenrai_calls):
+    """The mirror: the same seiyuu with name_alt cleared is fetched and filled,
+    so the green above is the check's doing, not a fill that never runs."""
+    created = owner_client.post(
+        "/api/person/", json={"name_en": "Kana Hanazawa", "roles": COMPLETE_SEIYUU["roles"]}
+    ).json()
+    body = owner_client.put(
+        f"/api/person/{created['system_id']}", json={**COMPLETE_SEIYUU, "name_alt": None}
+    ).json()
+    assert tenrai_calls == [185]
+    assert body["name_alt"] == "HanaKana, KanaHana"
+    # Set by the admin, so left alone.
+    assert body["photo_file"] == "staff/mine.jpg"
+
+
+def test_the_autofill_button_still_fetches_a_complete_seiyuu(
+    owner_client, db_session, tenrai_calls
+):
+    """POST /autofill is an explicit request, so it is not gated."""
+    person = _seiyuu(
+        db_session,
+        name_en="Kana Hanazawa",
+        name_jp="花澤香菜",
+        name_alt="HanaKana",
+        photo_file="staff/mine.jpg",
+        mal_link=KANA_LINK,
+        mal_id=185,
+    )
+    db_session.commit()
+    r = owner_client.post(f"/api/person/{person.system_id}/autofill")
+    assert r.status_code == 200, r.text
+    assert tenrai_calls == [185]
