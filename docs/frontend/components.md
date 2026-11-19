@@ -111,6 +111,15 @@ toggled inside a hub does not update the library cache until it goes stale.
     three hubs, person, studio, publisher, character, identity, a watch
     order, a season - calls `usePageTitle` with the name its `<h1>` shows,
     and `null` while it loads or after it fails;
+  - **a Modify editor open on one record** - the main editor (the twelve
+    media types, the three tiers, an option value) and the studio,
+    publisher, person, character and identity tabs' own editors - calls
+    `usePageTitle(editorTitle(name))`: `✎ <name>` (`lib/pageTitle.js`), so
+    the name still shows in a tab cut down to a few characters, and the tab
+    reads apart from the record's own page. The name is the record's saved
+    one - set when it loads and again from a save's response - never the
+    form's, so typing does not retitle the tab. With no editor open the
+    route's "Modify Entry" stands;
   - **the fallback**, while such a page loads, when it fails (not found
     included), and on a sub-route such as `/random/anime`: the label of the
     nav row the path lights up (`activeItem`), so `/anime/12` reads "Anime"
