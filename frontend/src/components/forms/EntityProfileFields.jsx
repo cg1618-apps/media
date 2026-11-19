@@ -12,20 +12,23 @@ import { Field, selectCls } from "./FormField";
 import QuickPicks from "./QuickPicks";
 import { endpoints } from "../../api/endpoints";
 import { fetchJson } from "../../api/client";
-import { GENDERS } from "../../config/fieldOptions";
+import { GENDERS, PERSON_GENDERS } from "../../config/fieldOptions";
 import { releaseYear } from "../../lib/releaseDate";
 
 // The genders offered as one-click chips beside the Gender select - the two
-// almost every record takes. The select still offers every GENDERS value and
-// is how the rest are picked. Filtered against GENDERS, which /api/constants
-// refreshes in place, so a value the server stops serving is not offered.
+// almost every record takes. The select still offers every value of its
+// vocabulary and is how the rest are picked. Filtered against that
+// vocabulary, which /api/constants refreshes in place, so a value the server
+// stops serving is not offered.
 const GENDER_QUICK_PICKS = ["男", "女"];
 
 /**
  * Gender: quick-pick chips beside a select. Stores "" for unset; the savers
- * send null.
+ * send null. `kind` picks the vocabulary: a character's five GENDERS, or a
+ * person's PERSON_GENDERS (男 / 女).
  */
-export function GenderField({ form, update }) {
+export function GenderField({ form, update, kind = "character" }) {
+  const genders = kind === "person" ? PERSON_GENDERS : GENDERS;
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <Field label="Gender">
@@ -33,7 +36,7 @@ export function GenderField({ form, update }) {
           <QuickPicks
             label="Gender quick picks"
             className="shrink-0"
-            options={GENDER_QUICK_PICKS.filter((g) => GENDERS.includes(g))}
+            options={GENDER_QUICK_PICKS.filter((g) => genders.includes(g))}
             value={form.gender ?? ""}
             onChange={(v) => update("gender", v)}
           />
@@ -45,7 +48,7 @@ export function GenderField({ form, update }) {
               onChange={(e) => update("gender", e.target.value)}
             >
               <option value="">—</option>
-              {GENDERS.map((g) => (
+              {genders.map((g) => (
                 <option key={g} value={g}>
                   {g}
                 </option>

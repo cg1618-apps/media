@@ -794,11 +794,11 @@ entry's Ownership is derived from these rows, not typed.
 bar filters a list, and Add has no list; the role × scope matrix inside the
 form already says which types a new person holds. `PersonFields` holds the four name fields with a
 "Display name" select, the **role × scope matrix**, then gender
-(`GenderField` from `components/forms/EntityProfileFields.jsx`: **男** and
-**女** as `QuickPicks` chips beside a closed select of "—" plus every
-`GENDERS` value — one click picks, clicking the pressed chip clears, and the
-select follows either way and is how the other genders are picked; unset
-saves as null). There is no rating field: a rating is the viewer's own, set on
+(`GenderField` from `components/forms/EntityProfileFields.jsx` with
+`kind="person"`: **男** and **女** as `QuickPicks` chips beside a closed
+select of "—", 男 and 女 — `PERSON_GENDERS`, a person's whole vocabulary — one
+click picks, clicking the pressed chip clears, and the select follows either
+way; unset saves as null). There is no rating field: a rating is the viewer's own, set on
 the person's page. Then a **MAL Link** (`mal_link`; the server reads the MAL id from
 its `myanimelist.net/people/<id>` path, so there is no id field), the photo
 and the remark. Ticking a type selects its first legal media type, because a
@@ -816,7 +816,7 @@ person form without the role × scope matrix: the four name fields, the
 "Display name" select, a **Role** as `QuickPicks` chips — one per
 `CHARACTER_ROLES` value, Main, Core, Important Supporting, Supporting, Other, with no select beside
 them since all four fit at any width; clicking the pressed chip clears it to
-none — the same Gender field (no rating, as on the person form), **Appearance** and **Trait**
+none — the same Gender field, over a character's five `GENDERS` rather than a person's two (no rating, as on the person form), **Appearance** and **Trait**
 (`MultiSelect`s suggesting from the `Character Appearance` and `Character
 Trait` option categories — one vocabulary each, for every character, no
 scope; `lib/characterForm.js` turns the comma-joined form strings into the

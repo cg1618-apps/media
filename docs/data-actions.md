@@ -556,7 +556,9 @@ tab)` pairs); its own natural key is `(member_id, club_id)`.
 under the installation owner, above), onto their closed
 vocabularies on the way in rather than refusing the row: `male` / `female`
 (trimmed, any case) become `男` / `女`, a rating is trimmed and upper-cased,
-and anything still outside the vocabulary restores as blank
+and anything still outside the vocabulary restores as blank — on `Person`
+that includes the character-only genders (`中性/無性`, `雙性混和`, `其他`),
+since a person's vocabulary is `男` / `女`
 (`app/utils/entity_vocab.py`, the same rules the revision that closed the
 vocabularies applied to the stored rows), so a backup from before then cannot
 bring the free text back. Both tabs carry `photo_fallback_entry_id`, a plain

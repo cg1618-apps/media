@@ -108,6 +108,15 @@ describe("characterFilterDefs", () => {
       "男", "女", "中性/無性", "雙性混和", "其他", GENDER_NOT_SET,
     ]);
   });
+
+  it("offers a person only 男 and 女 plus Not set", () => {
+    expect(def(personFilterDefs(SEES_ALL), "gender").options).toEqual([
+      "男", "女", GENDER_NOT_SET,
+    ]);
+    expect(def(personFilterDefs(SEES_ALL, "seiyuu"), "gender").options).toEqual([
+      "男", "女", GENDER_NOT_SET,
+    ]);
+  });
 });
 
 describe("characterFilterDefs appearance and trait", () => {

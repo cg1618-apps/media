@@ -20,6 +20,7 @@ def test_serves_my_ratings(client):
 def test_serves_the_gender_vocabulary_without_a_null_value(client):
     body = client.get("/api/constants").json()
     assert body["gender"] == ["男", "女", "中性/無性", "雙性混和", "其他"]
+    assert body["person_gender"] == ["男", "女"]
 
 
 def test_serves_weekdays_monday_first(client):

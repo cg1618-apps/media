@@ -1152,7 +1152,7 @@ One human credited on a media entry (Tier 3 entity - see
 | `name_jp` | String | yes | | |
 | `name_alt` | String | yes | | The slot for names that are none of the other three: a comma-separated list, each fragment a name of its own when a name is matched. Never chosen automatically. |
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain |
-| `gender` | String | yes | | GENDERS (`男` / `女` / `中性/無性` / `雙性混和` / `其他`), or NULL for not set. On the base table, not a seiyuu extension: a fact about the person, not the role. |
+| `gender` | String | yes | | PERSON_GENDERS (`男` / `女`), or NULL for not set — narrower than a character's GENDERS. On the base table, not a seiyuu extension: a fact about the person, not the role. |
 | `photo_file` | String | yes | | Storage key under `static/covers/`, `staff/<system_id>.jpg`. Filled from MAL's people photo for a seiyuu with a `mal_id` — see [external-apis.md](external-apis.md#mapping-for-person-seiyuu--map_tenrai_to_person_data) |
 | `photo_focus` | String | yes | | `photo_file`'s focal point, `"X% Y%"`; NULL centres it. Reset to NULL when the photo changes — see [image focal points](#image-focal-points) |
 | `photo_fallback_entry_id` | UUID | yes | | A `media.system_id` whose cover stands in when `photo_file` is NULL; must be an entry the person is credited on or voices a character in. No FK, like `franchise.cover_entry_id`: a stale id falls through to the automatic choice ([systems/credits-and-tags.md](systems/credits-and-tags.md#photo-fallback)). |
@@ -1395,7 +1395,7 @@ with one intentional deviation - see the constraints note below.
 | `name_jp` | String | yes | | |
 | `name_alt` | String | yes | | |
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain. NULL becomes `cn` on save and in Calculate All while `name_cn` is filled ([business-rules.md](business-rules.md) §10a) |
-| `gender` | String | yes | | GENDERS, or NULL for not set - the same vocabulary as `person.gender` |
+| `gender` | String | yes | | GENDERS (`男` / `女` / `中性/無性` / `雙性混和` / `其他`), or NULL for not set - wider than `person.gender`, which is `男` / `女` only |
 | `photo_file` | String | yes | | Storage key under `static/covers/`, `character/<system_id>.jpg`; the canonical portrait. A casting may override it with its own `photo_file` for how the character looked in that entry. Filled from MAL's character picture for a character with a `mal_id` — see [external-apis.md](external-apis.md#mapping-for-character--map_tenrai_to_character_data) |
 | `photo_focus` | String | yes | | `photo_file`'s focal point, `"X% Y%"`; NULL centres it. Reset to NULL when the photo changes — see [image focal points](#image-focal-points) |
 | `role` | String | yes | | Optional: one of `CHARACTER_ROLES`, or NULL - what the character is to their story overall. While NULL it is filled from the highest-ranked `character_casting.role` (`CHARACTER_ROLES` order) on each cast save and by Calculate All; a set value is never overwritten |
