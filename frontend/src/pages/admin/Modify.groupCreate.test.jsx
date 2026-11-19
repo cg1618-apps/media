@@ -63,7 +63,7 @@ describe("Modify page — quick-creating the franchise", () => {
         </MemoryRouter>
       </QueryClientProvider>,
     );
-    const save = await screen.findByRole("button", { name: /save changes/i });
+    const save = await screen.findByRole("button", { name: /save changes|save & replace/i });
     await user.type(screen.getByPlaceholderText("Search or type new franchise..."), "Heat");
     await user.click(save);
 
