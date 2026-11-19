@@ -10,7 +10,7 @@
 //
 // Drawn only for a viewer holding manage.requests, the key every
 // /api/needs-work route asks. The note field is NeedsWorkNoteInput: the
-// common notes as chips, and those plus the notes in use as suggestions.
+// common notes as chips and as its only suggestions.
 import { useState } from "react";
 
 import {

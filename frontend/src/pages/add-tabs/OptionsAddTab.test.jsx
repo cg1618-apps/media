@@ -10,10 +10,14 @@ const CATEGORIES = [
   "Character Group",
   "Comic Era",
   "Comic Imprint",
+  "Enemy Tier",
   "Game Genre",
   "Game Theme",
   "Genre Main",
   "Label",
+  "Needs Work Note",
+  "Song Source",
+  "Song Type",
 ];
 
 function renderTab(optionsSubTab = "options", props = {}) {
@@ -67,18 +71,28 @@ describe("OptionsAddTab", () => {
     expect(values).toEqual(["Genre Main", "Label"]);
   });
 
-  it("offers only the note suggestion categories on their sub-tab", () => {
-    const { container } = renderTab("notes");
+  it("offers only the common option categories on their sub-tab, grouped", () => {
+    const { container } = renderTab("common");
     const values = [...container.querySelectorAll("option")]
       .map((o) => o.value)
       .filter(Boolean);
-    expect(values).toEqual(["Character Group"]);
+    expect(values).toEqual([
+      "Character Group",
+      "Enemy Tier",
+      "Song Type",
+      "Song Source",
+      "Needs Work Note",
+    ]);
+    const labels = [...container.querySelectorAll("optgroup")].map((g) => g.label);
+    expect(labels).toEqual(["Note Suggestion", "Music", "Needs Work"]);
   });
 
-  it("keeps the note suggestion categories off the Options sub-tab", () => {
+  it("keeps the common option categories off the Options sub-tab", () => {
     const { container } = renderTab("options");
     const values = [...container.querySelectorAll("option")].map((o) => o.value);
     expect(values).not.toContain("Character Group");
+    expect(values).not.toContain("Song Type");
+    expect(values).not.toContain("Needs Work Note");
   });
 
   it("offers usages on Platform, the one category that takes them", () => {

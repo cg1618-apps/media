@@ -163,7 +163,6 @@ from app.schemas.needs_work import (
     NeedsWorkGroup,
     NeedsWorkItem,
     NeedsWorkMark,
-    NeedsWorkNote,
     NeedsWorkWrite,
 )
 from app.schemas.note import (
@@ -533,7 +532,6 @@ __all__ = [
     "NeedsWorkGroup",
     "NeedsWorkItem",
     "NeedsWorkMark",
-    "NeedsWorkNote",
     "NeedsWorkWrite",
     "ResourceNodeCreate",
     "ResourceNodeResponse",

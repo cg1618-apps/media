@@ -2580,10 +2580,9 @@ def as_link_pairs(links: list | None) -> list | None:
     return [{"text": None, "url": l} if isinstance(l, str) else l for l in links]
 
 # The field-level suggestion categories (`NoteField.option_category`), in
-# registry order. Served apart on /api/constants as
-# `note_suggestion_categories`, because the admin pages edit them under a
-# sub-tab of their own. A category with no value yet is still listed: the
-# constant, not a row, is what puts it in a picker.
+# registry order - the "Note Suggestion" group of the common options (see
+# COMMON_OPTION_CATEGORIES in credit_roles.py). A category with no value yet
+# is still listed: the constant, not a row, is what puts it in a picker.
 NOTE_SUGGESTION_CATEGORIES: tuple[str, ...] = tuple(
     dict.fromkeys(
         f.option_category

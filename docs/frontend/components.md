@@ -744,10 +744,12 @@ columns.
     version, `value` being `{flagged, note}` (`EMPTY_NEEDS_WORK` when
     unmarked); writes nothing, the page PUTs it after the create. Drawn only
     when `has("manage.requests")`.
-  - `NeedsWorkNoteInput` (`value`, `onChange`) — the note field the other
-    two share: `QuickPicks` over the `Needs Work Note` option values
-    (`useNeedsWorkCommonNotes`), and a `SuggestInput` offering those first,
-    then the notes in use (`noteSuggestions`).
+  - `NeedsWorkNoteInput` (`value`, `onChange`, `id`) — the note field the
+    other two and the Needs Work page's Edit note share: `QuickPicks` over
+    the `Needs Work Note` option values (`useNeedsWorkCommonNotes`), and a
+    `SuggestInput` offering the same values and nothing else. `id` is for a
+    caller that labels it with its own `<label>`; without one the field is
+    named "Needs Work note".
 - **`components/plan`** — `PlanKindToggles`, `SizeGroupControls`.
 - **`components/resources`** — `ResourceTree` (the `/resources` tree: nested
   collapsible groups, items, and for a manage.catalog holder every add, edit,
