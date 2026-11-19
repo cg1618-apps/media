@@ -204,6 +204,16 @@ def test_offers_the_note_option_categories(client):
     assert "Song Source" in body["option_categories"]
 
 
+def test_offers_the_needs_work_note_category(client):
+    """The 待補充 note field suggests from it; like Song Type it backs no
+    column, so the Options form must offer it before it has a value."""
+    from app.utils.credit_roles import NEEDS_WORK_NOTE_CATEGORY
+
+    body = client.get("/api/constants").json()
+    assert NEEDS_WORK_NOTE_CATEGORY == "Needs Work Note"
+    assert "Needs Work Note" in body["option_categories"]
+
+
 def test_serves_the_note_suggestion_categories(client):
     """The field-level categories the game note sections suggest from, served
     apart so the admin pages can give them a sub-tab of their own - and still

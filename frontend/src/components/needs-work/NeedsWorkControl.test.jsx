@@ -2,12 +2,13 @@
 // viewer holds every other key, so its absence is that key's doing), and for
 // a holder it marks, saves a note and clears through the endpoint the server
 // gates on.
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import NeedsWorkControl from "./NeedsWorkControl";
+import { noteSuggestions } from "./NeedsWorkNoteInput";
 
 const auth = { handles: true };
 vi.mock("../../contexts/AuthContext", () => ({
@@ -35,6 +36,13 @@ beforeEach(() => {
       if (opts?.method === "DELETE") {
         stored = { ...stored, flagged: false, note: null };
         return Promise.resolve({ ok: true, status: 204 });
+      }
+      if (url === "/api/options/Needs%20Work%20Note") {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve([{ system_id: "o1", value: "官方名稱未出" }]),
+        });
       }
       const body = url.endsWith("/notes") ? [{ note: "續集未補", count: 3 }] : stored;
       return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
@@ -93,5 +101,32 @@ describe("NeedsWorkControl", () => {
     await waitFor(() => expect(box).not.toBeChecked());
     expect(writes()[2][1].method).toBe("DELETE");
     expect(writes()[2][0]).toBe(MARK_URL);
+  });
+
+  it("offers the common notes as one-click picks, and first among the suggestions", async () => {
+    const user = userEvent.setup();
+    renderControl();
+    const box = await screen.findByRole("checkbox", { name: /Needs Work/ });
+    await waitFor(() => expect(box).toBeEnabled());
+    await user.click(box);
+
+    const picks = await screen.findByRole("group", { name: "Common notes" });
+    await user.click(within(picks).getByRole("button", { name: "官方名稱未出" }));
+    expect(screen.getByLabelText("Needs Work note")).toHaveValue("官方名稱未出");
+    await user.click(screen.getByRole("button", { name: "Save note" }));
+    await waitFor(() => expect(writes()).toHaveLength(2));
+    expect(JSON.parse(writes()[1][1].body)).toEqual({ note: "官方名稱未出" });
+  });
+});
+
+describe("noteSuggestions", () => {
+  it("puts the common notes first, then the notes in use, once each", () => {
+    expect(
+      noteSuggestions(["官方名稱未出", "續集未補"], [
+        { note: "續集未補", count: 3 },
+        { note: "名稱缺", count: 1 },
+      ]),
+    ).toEqual(["官方名稱未出", "續集未補", "名稱缺"]);
+    expect(noteSuggestions(undefined, undefined)).toEqual([]);
   });
 });

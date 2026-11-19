@@ -12,6 +12,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchJson, jsonBody } from "../client";
 import { endpoints } from "../endpoints";
 import { useApiQuery } from "../../hooks/useApiQuery";
+import { NEEDS_WORK_NOTE_CATEGORY } from "../../lib/needsWork";
 
 export const NEEDS_WORK_QUERY_KEY = ["needs-work"];
 export const needsWorkMarkQueryKey = (ownerType, ownerId) => [
@@ -33,6 +34,19 @@ export function useNeedsWorkNotes({ enabled = true } = {}) {
   return useApiQuery([...NEEDS_WORK_QUERY_KEY, "notes"], endpoints.needsWork.notes(), {
     enabled,
   });
+}
+
+/**
+ * The common notes, the values of the "Needs Work Note" option category in
+ * their sort order, as strings. Read through /api/options like any other
+ * Tier 2 list, so it sits under the options prefix, not ["needs-work"].
+ */
+export function useNeedsWorkCommonNotes({ enabled = true } = {}) {
+  return useApiQuery(
+    ["options", NEEDS_WORK_NOTE_CATEGORY],
+    endpoints.options.byCategory(encodeURIComponent(NEEDS_WORK_NOTE_CATEGORY)),
+    { enabled, queryOptions: { select: (rows) => (rows ?? []).map((row) => row.value) } },
+  );
 }
 
 /** One owner's mark: `{ owner_type, owner_id, flagged, note, ... }`. */

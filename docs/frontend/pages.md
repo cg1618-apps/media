@@ -1266,8 +1266,9 @@ Top to bottom:
 
 1. **Breadcrumb** `/library/{type}` → title, with **Report a problem** at
    the row's right-hand end for a `self.requests` holder (see MyRequests),
-   and before it the **待補充** badge for a `manage.requests` holder while
-   the entry is marked Needs Work
+   and before it the **待補充** badge for a `manage.requests` holder - red
+   with its note while the entry is marked Needs Work, dashed **+ 待補充**
+   while it is not - which opens the mark-and-note control
    ([admin-pages.md](admin-pages.md#needs-work-needsworkjsx)).
 2. **Admin toolbar** (`isAdmin`): **Quick Edit** → `/modify?id={id}`;
    **Mark Completed** → `POST {apiEndpoint}/{id}/complete` then refetch;

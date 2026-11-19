@@ -720,13 +720,24 @@ columns.
     is no target.
 - **`components/needs-work/`** — 待補充 Needs Work.
   - `NeedsWorkBadge` (`ownerType`, `ownerId`) — the danger `Chip` reading
-    待補充 and the note, linking to `/needs-work`. Drawn only when
-    `has("manage.requests")` and the owner is marked; for anyone else it
-    sends no request. Placed before `ReportProblemButton` on the fifteen
-    owner pages.
-  - `NeedsWorkControl` (`ownerType`, `ownerId`) — the Modify editor's
-    checkbox and note field. Saves on its own: PUT on tick and on Save
-    note, DELETE on untick. Drawn only when `has("manage.requests")`.
+    待補充 and the note while the owner is marked, a dashed **+ 待補充**
+    `Chip` while it is not; either opens a popover (`role="dialog"`,
+    closed by an outside click or Escape) holding `NeedsWorkControl` and a
+    link to `/needs-work`. Drawn only when `has("manage.requests")`, once
+    the mark is read; for anyone else it sends no request. Placed before
+    `ReportProblemButton` on the fifteen owner pages.
+  - `NeedsWorkControl` (`ownerType`, `ownerId`) — the checkbox and note
+    field for a saved owner, in the Modify editor and the badge popover.
+    Saves on its own: PUT on tick and on Save note, DELETE on untick. Drawn
+    only when `has("manage.requests")`.
+  - `NeedsWorkAddField` (`value`, `onChange`) — the Add page's controlled
+    version, `value` being `{flagged, note}` (`EMPTY_NEEDS_WORK` when
+    unmarked); writes nothing, the page PUTs it after the create. Drawn only
+    when `has("manage.requests")`.
+  - `NeedsWorkNoteInput` (`value`, `onChange`) — the note field the other
+    two share: `QuickPicks` over the `Needs Work Note` option values
+    (`useNeedsWorkCommonNotes`), and a `SuggestInput` offering those first,
+    then the notes in use (`noteSuggestions`).
 - **`components/plan`** — `PlanKindToggles`, `SizeGroupControls`.
 - **`components/resources`** — `ResourceTree` (the `/resources` tree: nested
   collapsible groups, items, and for a manage.catalog holder every add, edit,
