@@ -25,6 +25,7 @@ import {
   MEDIA_CONFIG,
   getBookProgress,
 } from "../../utils/media";
+import { statusToggleFields } from "../../lib/status";
 import { focusStyle, thumbUrl } from "../../lib/covers";
 import { isFilmType, WAIT_FOR_RELEASE_STATUSES } from "../../config/fieldOptions";
 import { Chip, RatingStamp } from "../ui/primitives";
@@ -629,7 +630,7 @@ export default function MediaCard({
     try {
       const updated = await statusMutation.mutateAsync({
         id: data.system_id,
-        value: btnConfig.target,
+        fields: statusToggleFields(type, statusField, currentStatus, btnConfig.target),
         entry: data,
       });
       showToast("success", `Status -> ${btnConfig.target}`);

@@ -1,6 +1,34 @@
 // Watch/read status button/style config and status-cycle helpers.
 
 import { isFilmType } from "../config/fieldOptions";
+import { COMPLETED_STATUSES } from "../config/statusGroups";
+
+// Each type's finished counts on the list row - LIST_FIELDS in
+// app/services/domain/user_list.py. Films and games keep none.
+export const FINISHED_COUNT_FIELDS = {
+  anime: ["ep_fin"],
+  "tv-show": ["ep_fin"],
+  cartoon: ["ep_fin"],
+  hentai: ["ep_fin"],
+  manga: ["vol_fin", "vol_fin_page", "ch_fin"],
+  book: ["vol_fin", "arc_fin", "ch_fin", "ch_fin_in_arc"],
+  comic: ["issue_fin"],
+  "h-comic": ["page_fin", "ch_fin"],
+};
+
+/**
+ * What the status toggle (the card's and the library table's status button)
+ * writes to the viewer's list row: the new status, and - when it moves a row
+ * off Completed - every finished count set back to 0, so the row does not keep
+ * the progress of a reading it no longer claims to have finished.
+ */
+export function statusToggleFields(type, statusField, current, target) {
+  const fields = { [statusField]: target };
+  if (COMPLETED_STATUSES.includes(current) && !COMPLETED_STATUSES.includes(target)) {
+    for (const field of FINISHED_COUNT_FIELDS[type] || []) fields[field] = 0;
+  }
+  return fields;
+}
 
 // Watching status cycle: same order as base.js. A film cycles through Watch
 // When Released where the airing types cycle through Watch When Airs.
