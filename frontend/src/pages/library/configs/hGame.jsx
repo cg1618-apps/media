@@ -7,7 +7,7 @@ import {
   usefulnessSort,
 } from "../../../components/layout/libraryColumns";
 import { PLAYING_STATUS_GROUP } from "../../../config/statusGroups";
-import { getDisplayName, getSortName } from "../../../lib/naming";
+import { compareTitles, getDisplayName, getSortName } from "../../../lib/naming";
 import { releaseScore } from "../../../lib/releaseDate";
 
 // CN leads, as everywhere but comic; lib/naming.js holds the one chain.
@@ -106,7 +106,7 @@ const H_GAME_LIBRARY_CONFIG = {
     {
       key: "title",
       label: "Title",
-      compare: (a, b) => getSortKey(a).localeCompare(getSortKey(b), undefined, { numeric: true }),
+      compare: (a, b) => compareTitles(getSortKey(a), getSortKey(b)),
     },
     {
       key: "release_date",
