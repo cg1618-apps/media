@@ -290,5 +290,3 @@ owner's favourites.
 
 - `authorization.md` — `drop_hidden_rows`, 404-not-403.
 - `systems/notes.md` — the notes registry that quotes were carved out of.
-- `notes/decisions.md` (2026-08-23 Notes restructure) — "quotes entry-only,
-  memes on all owners".

@@ -21,7 +21,8 @@ hook the platform calls to ask this app about its own schema, and
   comments of `~/cg1618/bin/deploy` and `~/cg1618/bin/rollback`, which are
   where that reasoning is kept.
 - The machine itself: [docs/deployment-selfhost.md](../docs/deployment-selfhost.md).
-- Why this shape: [docs/notes/decisions.md](../docs/notes/decisions.md).
+- Why this shape: [docs/notes/decisions/](../docs/notes/decisions/), from
+  `2026-09-13-production-deployment.md` on.
 
 **`docker-compose.prod.yml` lives at the repository root, not in this
 directory.** Compose takes its project directory from the compose file's own

@@ -1,6 +1,6 @@
 # Production: the self-hosted box
 
-Last verified: 2026-10-28 (the box itself last checked on its cable and serving
+Last verified: 2026-11-19 (the box itself last checked on its cable and serving
 at `media.cg1618.com` on 2026-09-24)
 
 **What this is.** The application runs on an HP ProDesk 600 G4 Desktop Mini at
@@ -16,7 +16,8 @@ through a Cloudflare Tunnel. No inbound port is opened anywhere.
 | [deploy/README.md](../deploy/README.md) | How to deploy and roll back today. Read it every deploy. |
 
 Why the system is shaped this way — the decisions and the alternatives that were
-rejected — is [notes/decisions.md](notes/decisions.md).
+rejected — is in [notes/decisions/](notes/decisions/README.md), chiefly
+[2026-09-13-production-deployment.md](notes/decisions/2026-09-13-production-deployment.md).
 
 
 ## The decision
@@ -393,7 +394,7 @@ dump is wrong.
 
 Why R2 rather than the sheet as the backup of record, why images stay on local
 disk instead of object storage, and the rest of this design's reasoning is
-[notes/decisions.md](notes/decisions.md#off-box-backups-spec-2026-09-14-offbox-backups).
+[notes/decisions/2026-09-14-off-box-backups.md](notes/decisions/2026-09-14-off-box-backups.md).
 Restoring from R2 in an actual disaster is
 [deploy/README.md](../deploy/README.md#disaster-recovery-from-r2).
 
@@ -544,7 +545,7 @@ it is what grows fastest as comics are added.
 280 MB is small enough that a complete off-box copy is trivial — comfortably
 inside Cloudflare R2's free tier even as `static/library/` grows with every
 upload in a way the cover directories do not. See [Backups](#backups) for the
-schedule, and [notes/decisions.md](notes/decisions.md#off-box-backups-spec-2026-09-14-offbox-backups)
+schedule, and [notes/decisions/2026-09-14-off-box-backups.md](notes/decisions/2026-09-14-off-box-backups.md)
 for why R2 and not something else.
 
 The two image directories are not equally recoverable, which is why one syncs
@@ -754,7 +755,7 @@ work — but the gate was left rather than removed blind.
 
 - [setup-selfhost.md](setup-selfhost.md) — how this box was built, step by step.
 - [deploy/README.md](../deploy/README.md) — deploying and rolling back.
-- [notes/decisions.md](notes/decisions.md) — why it is shaped this way, and the
+- [notes/decisions/](notes/decisions/README.md) — why it is shaped this way, and the
   alternatives that were rejected.
 - [deployment-gcp.md](deployment-gcp.md) — the deployment this replaces.
 - [setup-local.md](setup-local.md) — local development, unaffected.
