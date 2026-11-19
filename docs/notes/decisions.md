@@ -5884,3 +5884,39 @@ and a page lists the marks grouped by note for the admin and super.
   drawn: `resolve_option` is reached from tag, character tag, label and
   source fields only, and `ensureSourceValues` from the entry forms' tag
   fields; the note sections and the 待補充 note store their text as typed.
+
+### A person's gallery of works (2026-11-19, no spec)
+
+- **Library attachments, not a table of its own.** The pictures are `image`
+  rows with `image_attachment`s on the person (`staff`, role `work`), ordered
+  by the `position` column the library had reserved for the multi-image case
+  and captioned by a new `image_attachment.caption`. A `person_work_image`
+  table with a foreign key to `person` was the obvious alternative, and its
+  cascade on delete was the one thing it bought. Against that it would have
+  been a second record of which images are in use: the manager page's
+  `unused` filter, the 409 on deleting a used image and the forced delete
+  would each have needed teaching about it, and the dedup by checksum would
+  have had to be repeated. The attachment's missing foreign key is paid for
+  where it bites: deleting a person empties the gallery explicitly, and a
+  merge moves it.
+- **Removing a gallery picture deletes its file**, which an ordinary detach
+  of an upload does not. A cover upload is library stock, kept for reuse; a
+  picture of somebody's work uploaded to their gallery has no other purpose.
+  The image survives when the same bytes are some other owner's picture
+  (`image_library.drop_if_unused`), since the library stores identical
+  pictures once.
+- **Writes are `manage.images`**, the key every upload and attach already
+  answers to, rather than `manage.catalog`, which guards the person's own
+  columns. Picking a person's photo already needs both in practice (the
+  Modify page is `manage.catalog`'s, the picker's calls `manage.images`'s),
+  and the gallery sits on the same form.
+- **Only an author or illustrator may gain a picture**, by any scope of
+  either role; the check reads the saved roles. Losing the role later keeps
+  the gallery and keeps it editable rather than deleting someone's uploads
+  as a side effect of a role edit. A viewer who cannot see any such role -
+  an h-comic author, for a session that cannot see h-comic - reads an empty
+  gallery, as the page shows no such role.
+- **It does not travel on the sheet.** No library row does; a gallery has no
+  column on `person` to carry even its keys.
+- **No lightbox.** The app has none, and the tile links to the full picture
+  in a new tab instead of introducing one for this.

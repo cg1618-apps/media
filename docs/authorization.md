@@ -438,7 +438,7 @@ handed the catalogue, or vice versa:
 | `manage.requests` | may **handle requests** — the request inbox: read every account's requests, set their status, delete them — and **the 待補充 Needs Work marks**: mark an entry or a group as not complete yet, change or clear the mark, and read the Needs Work page (every route on `/api/needs-work`) | `MANAGE_PERMISSION_KEYS` in the same module |
 | `manage.announcements` | may **write, edit and remove the announcements** (`/api/announcements` writes; the list is public) | `MANAGE_PERMISSION_KEYS` in the same module |
 | `manage.options` | may read **the Note pages** — System Options, Alias Conversion, External APIs: `GET /api/options/record-counts` and `GET /api/constants/external-apis`. Read-only: every `/api/options` write is `manage.catalog`'s, the key of the Add and Modify forms where an option is written | `MANAGE_PERMISSION_KEYS` in the same module |
-| `manage.images` | may use **the image library** — every route on `/api/images` | `MANAGE_PERMISSION_KEYS` in the same module |
+| `manage.images` | may use **the image library** — every route on `/api/images` — and **edit a person's gallery of works**: upload, caption, reorder and remove on `/api/person/{id}/work-images` (reading it is `view.person`'s) | `MANAGE_PERMISSION_KEYS` in the same module |
 | `manage.resources` | may **read and edit the site-wide Resources page** — every route on `/api/resources`, reads included | `MANAGE_PERMISSION_KEYS` in the same module |
 
 The last four are `ADMIN_PAGE_PERMISSIONS`: the admin's own pages beyond
