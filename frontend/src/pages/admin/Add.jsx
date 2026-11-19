@@ -111,11 +111,7 @@ import {
   toStringId,
 } from "../../lib/externalPick";
 import { ADMIN_TABS } from "../../config/adminTabs";
-import {
-  EXPECTATION_FIELD,
-  useSaveMyRating,
-} from "../../api/mutations/useMyRatingMutations";
-import { useViewScope } from "../../hooks/useViewScope";
+import { useFormRatingSaver } from "../../api/mutations/useMyRatingMutations";
 import { PERSON_NAME_FIELDS, STUDIO_NAME_FIELDS } from "../../lib/naming";
 import { CHARACTER_NAME_FIELDS } from "../add-tabs/CharacterAddTab";
 import { OPTION_CATEGORIES } from "../../config/fieldOptions";
@@ -133,12 +129,7 @@ import { NEEDS_WORK_OWNER_TYPES } from "../../lib/needsWork";
 
 export default function Add() {
   const { showToast } = useToast();
-  const { ownData } = useViewScope();
-  const { mutateAsync: putMyRating } = useSaveMyRating();
 
-  // The viewer's own rating and expectation of a group just created, which the create call does not carry: PUT to /api/me/ratings
-  // with the new id, and only the values the form chose. A failure leaves
-  // the group created, and the toast says so.
   // The new record's 待補充 mark, when the field asked for one. A failure is
   // reported rather than thrown: the record itself is saved, and the mark can
   // be set from its page. The field resets either way, so the next record
@@ -156,17 +147,13 @@ export default function Add() {
     }
   }
 
-  async function saveGroupRating(ownerType, ownerId, form, noun) {
-    const data = {};
-    if (form.my_rating) data.my_rating = form.my_rating;
-    if (form[EXPECTATION_FIELD[ownerType]])
-      data.expectation = form[EXPECTATION_FIELD[ownerType]];
-    if (!ownData || Object.keys(data).length === 0) return;
-    try {
-      await putMyRating({ ownerType, ownerId, data });
-    } catch {
-      showToast("error", `${noun} saved, but your rating did not save.`);
-    }
+  // The viewer's own rating (and a group's expectation) of a record just
+  // created, which the create call does not carry: PUT to /api/me/ratings
+  // with the new id, and only the values the form chose. A failure leaves
+  // the record created, and the toast says so.
+  const saveFormRating = useFormRatingSaver();
+  async function saveMyRating(ownerType, ownerId, form, noun) {
+    await saveFormRating(ownerType, ownerId, form, null, noun);
   }
   const replaceCasting = useReplaceCasting();
 
@@ -818,7 +805,7 @@ export default function Add() {
       );
       // The rating goes before the labels: a label can hide the new
       // collection from this session's mode, and the PUT would be refused.
-      await saveGroupRating("collection", created.system_id, colf, "Collection");
+      await saveMyRating("collection", created.system_id, colf, "Collection");
       await saveNeedsWork("collection", created.system_id);
       try {
         await saveCollectionLabels(created.system_id, contentLabels);
@@ -874,7 +861,7 @@ export default function Add() {
           "New Franchise",
       );
       // Before the labels, as in submitCollection.
-      await saveGroupRating("franchise", created.system_id, ff, "Franchise");
+      await saveMyRating("franchise", created.system_id, ff, "Franchise");
       await saveNeedsWork("franchise", created.system_id);
       try {
         await saveFranchiseLabels(
@@ -936,7 +923,7 @@ export default function Add() {
         created.series_name_cn || created.series_name_en || "New Series",
       );
       // Before the labels, as in submitCollection.
-      await saveGroupRating("series", created.system_id, sf, "Series");
+      await saveMyRating("series", created.system_id, sf, "Series");
       await saveNeedsWork("series", created.system_id);
       try {
         await saveSeriesLabels(created.system_id, contentLabels);
@@ -1132,6 +1119,8 @@ export default function Add() {
     });
     if (res.ok) {
       const created = await res.json();
+      // Before anything that could hide the new row from this session.
+      await saveMyRating("person", created.system_id, personForm, "Person");
       await attachPendingImage(
         personForm.pending_image_id,
         "staff",
@@ -1184,6 +1173,8 @@ export default function Add() {
     });
     if (res.ok) {
       const created = await res.json();
+      // Before anything that could hide the new row from this session.
+      await saveMyRating("character", created.system_id, characterForm, "Character");
       await attachPendingImage(
         characterForm.pending_image_id,
         "character",
@@ -1231,6 +1222,8 @@ export default function Add() {
     });
     if (res.ok) {
       const created = await res.json();
+      // Before anything that could hide the new row from this session.
+      await saveMyRating("studio", created.system_id, studioForm, "Studio");
       await attachPendingImage(
         studioForm.pending_image_id,
         "studio",
@@ -1281,6 +1274,8 @@ export default function Add() {
     });
     if (res.ok) {
       const created = await res.json();
+      // Before anything that could hide the new row from this session.
+      await saveMyRating("publisher", created.system_id, publisherForm, "Publisher");
       await attachPendingImage(
         publisherForm.pending_image_id,
         "publisher",

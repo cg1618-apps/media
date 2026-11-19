@@ -9,6 +9,10 @@
 //
 // `initialId` is a deep link's id (/modify?id=<system_id>&type=studio, the
 // detail page's Quick edit): that studio's editor opens on mount.
+import {
+  applyMyRating,
+  useFormRatingSaver,
+} from "../../api/mutations/useMyRatingMutations";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { StudioFields } from "../add-tabs/StudioAddTab";
@@ -45,6 +49,8 @@ function studioToForm(s) {
     mal_id: s.mal_id ?? "",
     mal_link: s.mal_link || "",
     remark: s.remark || "",
+    // The viewer's own, not a column: PUT /api/me/ratings on save.
+    my_rating: s.my_rating || "",
   };
 }
 
@@ -56,6 +62,7 @@ export default function StudioModifyTab({ initialId = null } = {}) {
   // Which scopes the grid is narrowed to - the media types it is credited on - a studio stores no scope of its own. Empty means any scope.
   const [scopes, setScopes] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
+  const saveFormRating = useFormRatingSaver();
   const [studioForm, setStudioForm] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -141,7 +148,13 @@ export default function StudioModifyTab({ initialId = null } = {}) {
         }),
       });
       await queryClient.invalidateQueries({ queryKey: ["studios-admin"] });
-      setStudioForm(studioToForm(updated));
+      // The rating after the studio: `updated` carries the stored one, so
+      // only a change is sent.
+      const savedRating = await saveFormRating(
+        "studio", selectedId, studioForm, updated, "Studio",
+      );
+      const rated = savedRating ? applyMyRating(updated, savedRating) : updated;
+      setStudioForm(studioToForm(rated));
       // Back to the top: the toast renders at the top of the page and
       // the form is long enough to have scrolled it out of sight.
       window.scrollTo(0, 0);

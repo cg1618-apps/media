@@ -1,5 +1,5 @@
 // Frontend: modify tab page file for SeriesModifyTab.
-import GroupRatingFields from "../../components/forms/GroupRatingFields";
+import MyRatingFields from "../../components/forms/MyRatingFields";
 import { useEffect, useState } from "react";
 import { getDisplayName } from "../../utils/media";
 import { releaseYear } from "../../lib/releaseDate";
@@ -268,7 +268,7 @@ export default function SeriesModifyTab({
       {/* The viewer's own rating and expectation (self.list), saved through /api/me/ratings
           after the series itself - see saveSeries in Modify.jsx. */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <GroupRatingFields kind="series" form={sf} update={us} />
+          <MyRatingFields kind="series" form={sf} update={us} />
         </div>
       <SectionHeader icon="fa-image" title="Cover Images" />
       <Field

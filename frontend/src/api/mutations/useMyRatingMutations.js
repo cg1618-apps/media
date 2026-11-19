@@ -18,6 +18,7 @@ import { fetchJson, jsonBody } from "../client";
 import { endpoints } from "../endpoints";
 import { mediaItemQueryKey } from "../../hooks/useMediaItem";
 import { useToast } from "../../hooks/useToast";
+import { useViewScope } from "../../hooks/useViewScope";
 
 /** The read field that carries each tier's expectation. */
 export const EXPECTATION_FIELD = {
@@ -38,6 +39,44 @@ export function applyMyRating(row, saved) {
 function invalidateReads(queryClient, ownerType) {
   queryClient.invalidateQueries({ queryKey: ["media-list", ownerType] });
   queryClient.invalidateQueries({ queryKey: ["api", "search"] });
+}
+
+/**
+ * What a form changed of the viewer's own rating (and a tier's expectation),
+ * as the PUT body: only the keys that differ from `loaded`, "" sent as null.
+ * `loaded` null is a new record, so only the values chosen are sent.
+ */
+export function myRatingChanges(ownerType, form, loaded) {
+  const data = {};
+  if ((form.my_rating || null) !== (loaded?.my_rating || null))
+    data.my_rating = form.my_rating || null;
+  const field = EXPECTATION_FIELD[ownerType];
+  if (field && (form[field] || null) !== (loaded?.[field] || null))
+    data.expectation = form[field] || null;
+  return data;
+}
+
+/**
+ * `save(ownerType, ownerId, form, loaded, noun)` for a form's Save: once the
+ * record itself has saved, PUTs what the form changed of the viewer's rating
+ * (myRatingChanges). Answers the saved `{my_rating, expectation}`, or null
+ * when nothing was sent, the viewer keeps no list (self.list), or the PUT
+ * failed - in which case the record still saved, and the toast says so.
+ */
+export function useFormRatingSaver() {
+  const { ownData } = useViewScope();
+  const { mutateAsync } = useSaveMyRating();
+  const { showToast } = useToast();
+  return async function save(ownerType, ownerId, form, loaded, noun) {
+    const data = myRatingChanges(ownerType, form, loaded);
+    if (!ownData || Object.keys(data).length === 0) return null;
+    try {
+      return await mutateAsync({ ownerType, ownerId, data });
+    } catch {
+      showToast("error", `${noun} saved, but your rating did not save.`);
+      return null;
+    }
+  };
 }
 
 /** `{ ownerType, ownerId, data: { my_rating?, expectation? } }` → the saved values. */

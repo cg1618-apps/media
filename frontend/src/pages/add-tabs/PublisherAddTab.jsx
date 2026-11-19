@@ -8,6 +8,7 @@
 // Two fields the studio form has are deliberately absent — MAL ID and MAL
 // Link. MAL has no record of a games publisher or a Taiwanese distributor,
 // so the publisher table carries no MAL columns at all.
+import MyRatingFields from "../../components/forms/MyRatingFields";
 import {
   Field,
   SectionHeader,
@@ -117,6 +118,11 @@ export function PublisherFields({ publisherForm, upf, ownerId }) {
           value={publisherForm.defunct_date}
           onChange={(v) => upf("defunct_date", v)}
         />
+      </div>
+      {/* The viewer's own rating, saved through /api/me/ratings by the
+          page once the publisher itself has saved. */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <MyRatingFields kind="publisher" form={publisherForm} update={upf} />
       </div>
       <Field label="Remark">
         <textarea

@@ -1,5 +1,5 @@
 // Frontend: add tab page file for SeriesAddTab.
-import GroupRatingFields from "../../components/forms/GroupRatingFields";
+import MyRatingFields from "../../components/forms/MyRatingFields";
 import ComboBox from "../../components/forms/ComboBox";
 import {
   CollectionNote,
@@ -95,7 +95,7 @@ export default function SeriesAddTab({
         <>
           <SectionHeader icon="fa-info-circle" title="Other Information" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <GroupRatingFields kind="series" form={sf} update={us} />
+            <MyRatingFields kind="series" form={sf} update={us} />
           </div>
         </>
       )}

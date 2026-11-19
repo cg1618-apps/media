@@ -639,16 +639,19 @@ Content labels reset only after a successful submit; a validation
 early-return or a failed POST keeps the selection. Network failures surface
 as an error toast.
 
-**A group's own rating.** The Collection, Franchise and Series tabs draw a
+**The viewer's own rating.** The Collection, Franchise and Series tabs draw a
 **My Rating** select (`MY_RATINGS`) and an **Expectation** select
 (`FRANCHISE_EXPECTATIONS`, the one vocabulary all three tiers share), under
-Other Information (`GroupRatingFields`) - only for a
-viewer who keeps a list (`useViewScope().ownData`, `self.list`). Both are the
-viewer's own, not columns of the group, so the create call never carries
-them: once it has returned the new id, the values chosen are sent as
-`PUT /api/me/ratings/<tier>/<id>` (`useSaveMyRating`), before the group's
-content labels, and nothing is sent when none was chosen. If that PUT fails
-the group is still created, and an error toast says "<Tier> saved, but your
+Other Information; the Person, Character, Studio and Publisher tabs draw
+**My Rating** alone, above Remark - an entity has no expectation. Both come
+from `MyRatingFields`, and only for a viewer who keeps a list
+(`useViewScope().ownData`, `self.list`). They are the viewer's own, not
+columns of the record, so the create call never carries them: once it has
+returned the new id, the values chosen are sent as
+`PUT /api/me/ratings/<owner_type>/<id>` (`useFormRatingSaver`), before
+anything that could hide the new row from the saving session (a group's
+content labels), and nothing is sent when none was chosen. If that PUT fails
+the record is still created, and an error toast says "<Type> saved, but your
 rating did not save."
 
 **待補充 Needs Work.** The twelve media tabs and the three tier tabs
@@ -821,8 +824,7 @@ form already says which types a new person holds. `PersonFields` holds the four 
 `kind="person"`: **男** and **女** as `QuickPicks` chips beside a closed
 select of "—", 男 and 女 — `PERSON_GENDERS`, a person's whole vocabulary — one
 click picks, clicking the pressed chip clears, and the select follows either
-way; unset saves as null). There is no rating field: a rating is the viewer's own, set on
-the person's page. Then a **MAL Link** (`mal_link`; the server reads the MAL id from
+way; unset saves as null). Then a **MAL Link** (`mal_link`; the server reads the MAL id from
 its `myanimelist.net/people/<id>` path, so there is no id field), the photo
 and the remark. Ticking a type selects its first legal media type, because a
 scopeless role is a 422; the legal types per role come from
@@ -839,7 +841,7 @@ person form without the role × scope matrix: the four name fields, the
 "Display name" select, a **Role** as `QuickPicks` chips — one per
 `CHARACTER_ROLES` value, Main, Core, Important Supporting, Supporting, Other, with no select beside
 them since all four fit at any width; clicking the pressed chip clears it to
-none — the same Gender field, over a character's five `GENDERS` rather than a person's two (no rating, as on the person form), **Appearance** and **Trait**
+none — the same Gender field, over a character's five `GENDERS` rather than a person's two, **Appearance** and **Trait**
 (`MultiSelect`s suggesting from the `Character Appearance` and `Character
 Trait` option categories — one vocabulary each, for every character, no
 scope; `lib/characterForm.js` turns the comma-joined form strings into the
@@ -956,8 +958,8 @@ sub-tab and the Note Suggestions sub-tab, whose categories are each one group
 Chinese, Japanese, Alternative) with a "Display name" select naming which one
 to show, plus logo key, country, founded/defunct dates
 (`ReleaseDateInput`, so partial precision is allowed), website, MAL id/link
-and remark — no rating, which is the viewer's own and set on the studio's
-page. Submit is blocked client-side until at least one name is filled,
+and remark, with **My Rating** above it for a list keeper (see "The viewer's
+own rating" above). Submit is blocked client-side until at least one name is filled,
 matching `ck_studio_has_a_name` and the schema's 422. `POST /api/studio/` is
 find-or-create: posting a name that already exists returns the existing
 studio rather than splitting its credits, and leaves its metadata untouched.
@@ -1158,18 +1160,23 @@ only land in its own grid. The swap is a draft until **Save Grid**.
   order; reordering them is the detail page's.
 - **Franchise / Series tabs** also expose the plan-next / rewatch toggles
   (`PlanKindToggles`) and size-group overrides (`SizeGroupControls`).
-- **A group's own rating.** The Collection, Franchise and Series tabs draw
+- **The viewer's own rating.** The Collection, Franchise and Series tabs draw
   **My Rating** and **Expectation** under Other Information for a viewer who
-  keeps a list, as on `/add`. `collectionToForm`, `franchiseToForm` and
+  keeps a list, as on `/add`; the Person, Character, Studio and Publisher
+  tabs draw **My Rating** alone. `collectionToForm`, `franchiseToForm` and
   `seriesToForm` seed them from the row's `my_rating` and its tier's
-  `*_expectation`. The save `PATCH`es the group
-  without them, then sends `PUT /api/me/ratings/<tier>/<id>` with only the
-  keys that differ from the row it opened (`groupRatingChanges`; a cleared
-  value is `null`) - none, no PUT - and before the label set, which can hide
-  the group from the saving session. The answer is folded into the saved
+  `*_expectation`, and the four entity tabs' `*ToForm` from the record's
+  `my_rating`. The save writes the record
+  without them, then sends `PUT /api/me/ratings/<owner_type>/<id>` with only the
+  keys that differ from the stored row (`myRatingChanges` in
+  `useFormRatingSaver`; a cleared value is `null`; an entity diffs against
+  its PUT's answer, which carries the stored rating) - none, no PUT - and a
+  group's before the label set, which can hide the group from the saving
+  session. The answer is folded into the saved
   row (`applyMyRating`), so the series form, which reloads from that row,
-  keeps the new rating. A failed PUT leaves the group saved and toasts
-  "<Tier> saved, but your rating did not save."
+  keeps the new rating; an entity tab folds it into the form it reloads the
+  same way. A failed PUT leaves the record saved and toasts "<Type> saved,
+  but your rating did not save."
 - **Studio tab (Entity).** `StudioModifyTab.jsx` bypasses the search / open /
   save machinery above, which is shaped around media entries and the grouping
   tiers: it owns its own `useQuery` over `/api/studio/`, its own picker and

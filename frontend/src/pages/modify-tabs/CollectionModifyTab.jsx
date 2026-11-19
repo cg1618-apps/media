@@ -1,5 +1,5 @@
 // Frontend: modify tab page file for CollectionModifyTab.
-import GroupRatingFields from "../../components/forms/GroupRatingFields";
+import MyRatingFields from "../../components/forms/MyRatingFields";
 import { getDisplayName } from "../../utils/media";
 import {
   Field,
@@ -71,7 +71,7 @@ export default function CollectionModifyTab({
       {/* The viewer's own rating and expectation (self.list), saved through /api/me/ratings
           after the collection itself - see saveCollection in Modify.jsx. */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <GroupRatingFields kind="collection" form={cf} update={uf} />
+          <MyRatingFields kind="collection" form={cf} update={uf} />
         </div>
 
       <SectionHeader icon="fa-image" title="Cover" />

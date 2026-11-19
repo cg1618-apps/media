@@ -1,5 +1,5 @@
 // Frontend: add tab page file for CollectionAddTab.
-import GroupRatingFields from "../../components/forms/GroupRatingFields";
+import MyRatingFields from "../../components/forms/MyRatingFields";
 import {
   Field,
   SectionHeader,
@@ -59,7 +59,7 @@ export default function CollectionAddTab({ cf, uf }) {
         <>
           <SectionHeader icon="fa-info-circle" title="Other Information" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <GroupRatingFields kind="collection" form={cf} update={uf} />
+            <MyRatingFields kind="collection" form={cf} update={uf} />
           </div>
         </>
       )}

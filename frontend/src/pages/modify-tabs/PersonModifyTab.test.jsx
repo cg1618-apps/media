@@ -304,8 +304,8 @@ it("opens the editor for initialId without a pick", async () => {
   expect(fetch).toHaveBeenCalledWith("/api/person/p1", expect.anything());
 });
 
-// My rating is the viewer's own, set on the person's page: the catalogue form
-// does not offer it.
+// My rating is the viewer's own: a viewer who keeps no list - this file's -
+// is not offered it (EntityRating.test.jsx has a list keeper's).
 it("offers gender as a closed select of 男 and 女, and no rating", async () => {
   mount({ initialId: "p1" });
   const gender = await screen.findByLabelText("Gender");

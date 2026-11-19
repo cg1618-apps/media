@@ -69,6 +69,10 @@ function mockFetch({ ratingOk = true } = {}) {
       return json({ system_id: "s-new", series_name_en: "Saga" });
     if (u === "/api/anime/" && method === "POST")
       return json({ system_id: "a-new", anime_name_en: "Test Anime" });
+    if (u === "/api/person/" && method === "POST")
+      return json({ system_id: "p-new", display_name: "Kana Hanazawa" });
+    if (u === "/api/studio/" && method === "POST")
+      return json({ system_id: "st-new", display_name: "Sunrise" });
     if (u.startsWith("/api/franchise/") && method === "GET") return json([FRANCHISE]);
     return json([]);
   });
@@ -263,5 +267,46 @@ describe("Add page — a viewer without a list sees and sends no rating", () => 
     const body = JSON.parse(createCall("/api/franchise/")[1].body);
     expect(body.franchise_name_en).toBe("Test Anime");
     expect(body).not.toHaveProperty("franchise_expectation");
+  });
+});
+
+// An entity's rating is the viewer's own too, and an entity has no
+// expectation: the Person and Studio tabs PUT the rating alone once the
+// create has returned the new id.
+describe("Add page — a viewer who keeps a list rates the entity it creates", () => {
+  async function openEntityTab(user, name) {
+    await waitFor(() => expect(screen.queryByText(/loading/i)).not.toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: "Entity" }));
+    await user.click(screen.getByRole("button", { name: new RegExp(`^${name}$`) }));
+  }
+
+  it.each([
+    ["Person", "/api/person/", "/api/me/ratings/person/p-new", "Kana Hanazawa"],
+    ["Studio", "/api/studio/", "/api/me/ratings/studio/st-new", "Sunrise"],
+  ])("the %s tab PUTs the rating alone to the new row", async (name, create, url, typed) => {
+    const user = userEvent.setup();
+    mount();
+    await openEntityTab(user, name);
+    // The first name field - the Person tab leads with a MAL search box.
+    const nameInput = screen
+      .getAllByRole("textbox")
+      .find((el) => !/search/i.test(el.getAttribute("aria-label") || ""));
+    await user.type(nameInput, typed);
+    expect(screen.queryByLabelText("Expectation")).not.toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("My Rating"), "A+");
+    await user.click(screen.getByRole("button", { name: /append entry/i }));
+
+    await waitFor(() => expect(ratingPuts()).toHaveLength(1));
+    expect(ratingPuts()[0]).toEqual({ url, body: { my_rating: "A+" } });
+    expect(JSON.parse(createCall(create)[1].body)).not.toHaveProperty("my_rating");
+  });
+
+  it("the Person tab offers no rating to a viewer who keeps no list", async () => {
+    viewer.keepsList = false;
+    const user = userEvent.setup();
+    mount();
+    await openEntityTab(user, "Person");
+    expect(screen.getAllByRole("textbox").length).toBeGreaterThan(0);
+    expect(screen.queryByLabelText("My Rating")).not.toBeInTheDocument();
   });
 });
