@@ -103,7 +103,7 @@ CREDIT_ROLES: dict[str, CreditRole] = {
     # through the character they voice. credit_roles_for() filters this out for
     # exactly that reason.
     "seiyuu": CreditRole(
-        "seiyuu", "Seiyuu 聲優", "person", ("anime", "anime-movie", "hentai"),
+        "seiyuu", "Seiyuu 聲優", "person", ("anime", "anime-movie", "hentai", "game"),
         credited_via="character_casting",
     ),
 }

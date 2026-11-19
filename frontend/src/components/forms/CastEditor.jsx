@@ -52,9 +52,9 @@ const CREATE_SAME_NAME_IDENTITY = "__create_identity_same_name__";
 const CHARACTER_SEARCH_DEBOUNCE_MS = 250;
 
 // ck_casting_voice_scope: a character_casting_voice row only on media_type IN
-// ('anime', 'anime-movie', 'hentai'). Nobody voices anyone in a manga or
+// ('anime', 'anime-movie', 'hentai', 'game'). Nobody voices anyone in a manga or
 // book, so the seiyuu column must not offer what the database will reject.
-const SEIYUU_MEDIA_TYPES = new Set(["anime", "anime-movie", "hentai"]);
+const SEIYUU_MEDIA_TYPES = new Set(["anime", "anime-movie", "hentai", "game"]);
 
 // No width here: each cell states its own. A shared `w-full` beside a cell's
 // own `w-28` is two width utilities on one element, and Tailwind resolves

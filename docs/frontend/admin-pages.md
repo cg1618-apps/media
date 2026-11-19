@@ -427,7 +427,8 @@ every type; a type leaves out what it lacks:
 6. **Production** (`fa-pen-nib`) — the studio, publisher and people credits.
 7. **Cast** (`fa-users`).
 8. Type extras — **Prices** and **Copies** (game, h-game), **Read Order**
-   (comic), **Units** (book).
+   (comic), **Units** (book). The game form is the one exception to 7 before
+   8: its **Cast** comes after **Copies**, by the owner's choice.
 9. **Links & Sources** (`fa-external-link-alt`) — each external id beside its
    link, the official or exclusive source, then the Sources editor.
 10. **Cover** (`fa-image`).
@@ -703,9 +704,12 @@ mode and combat vocabularies - picking a platform console picks its family
 too, and a family stays picked while one of its consoles is
 (`lib/gamePlatforms.js`); Genre, Theme and Label; Production (Developer
 is a **studio** row, Publisher a **publisher** row; director and composer are
-people scoped to `game`); the three **Prices** (the MSRP per region); **Copies**; the IGDB and Steam
+people scoped to `game`); the three **Prices** (the MSRP per region); **Copies**; **Cast** (`CastEditor`
+with `mediaType="game"`, seiyuu included - and no `franchiseId` or `malLink`,
+so neither **Import cast from…** nor the MAL import is offered; **Sync from
+original** is); the IGDB and Steam
 ids and links with the sources; cover. Submit needs a CN or EN name, `POST /api/game/` then
-`saveCredits`; **games are never enriched on Add** — the toast is a plain "Game
+`saveCredits` and the cast (`PUT /api/casting/game/<id>`); **games are never enriched on Add** — the toast is a plain "Game
 appended successfully."
 
 **H-Comic tab.** `HComicAddTab.jsx`, offered only to a session that can see

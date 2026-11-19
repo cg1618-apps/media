@@ -128,6 +128,7 @@ const CAST_MEDIA_TYPES = new Set([
   "book",
   "h-comic",
   "hentai",
+  "game",
 ]);
 
 function parseSeasonPart(sp) {
@@ -679,6 +680,7 @@ export default function Modify() {
     else if (castMediaType === "book") setCnvf((p) => ({ ...p, cast: rows }));
     else if (castMediaType === "h-comic") setChcf((p) => ({ ...p, cast: rows }));
     else if (castMediaType === "hentai") setChtf((p) => ({ ...p, cast: rows }));
+    else if (castMediaType === "game") setCgmf((p) => ({ ...p, cast: rows }));
   }, [castMediaType, editingItem, castData]);
 
   // The active tab's own list goes out FIRST, before the twenty-odd source
@@ -1322,6 +1324,7 @@ export default function Modify() {
       book: cnvf,
       "h-comic": chcf,
       hentai: chtf,
+      game: cgmf,
     }[editingType];
     const castProblem = castForm && castIdentityProblem(castForm.cast);
     if (castProblem) {
@@ -2113,6 +2116,7 @@ export default function Modify() {
     }
     const updated = await res.json();
     await saveCredits("game", updated.system_id, cgmf);
+    await saveCast("game", updated.system_id, cgmf);
     setAllGames((prev) =>
       prev.map((g) => (g.system_id === updated.system_id ? updated : g)),
     );

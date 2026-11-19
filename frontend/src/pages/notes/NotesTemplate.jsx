@@ -8,7 +8,7 @@
 // NotesContext.jsx, so a screen can render one group somewhere else on the
 // page without a second fetch of the same two endpoints. What is left here is
 // layout: which sections go in which card.
-import { useMemo } from "react";
+import { Fragment, useMemo } from "react";
 
 import { NotesProvider, useNotes } from "./NotesContext";
 import { GroupCard } from "./sections/ui";
@@ -99,10 +99,16 @@ export function NotesGroup({ groupKey }) {
  *
  * `hideGroups` lets a screen that renders a whole group elsewhere with
  * `NotesGroup` keep it out of the run of cards, so it appears exactly once.
+ *
+ * `beforeGroup` maps a group key to something that is not a note - the game
+ * page's cast - drawn just before that group's card, as a sibling of it,
+ * never inside it: the card's count, collapse and section list stay the
+ * registry's. While the notes load, or when the owner has no such group, it
+ * is drawn after the cards instead, so it is never lost.
  * The registry still owns the structure: a caller names a group it renders
  * itself, never something new.
  */
-export function NotesBlocks({ hideGroups = [] }) {
+export function NotesBlocks({ hideGroups = [], beforeGroup = {} }) {
   // Each top-level card is a TocSection, so a detail page's table of contents
   // lists the Notes card, every group card and every standalone section - and
   // never a group's own sections, which sit inside its card.
@@ -150,7 +156,9 @@ export function NotesBlocks({ hideGroups = [] }) {
       )}
       {!loading &&
         groups.map((group) => (
-          <TocSection key={group.key} id={`notes-${group.key}`} label={group.label}>
+          <Fragment key={group.key}>
+          {beforeGroup[group.key]}
+          <TocSection id={`notes-${group.key}`} label={group.label}>
             <GroupCard
               label={group.label}
               count={blockCount(group.sections)}
@@ -161,6 +169,12 @@ export function NotesBlocks({ hideGroups = [] }) {
               {group.sections.map(renderSection)}
             </GroupCard>
           </TocSection>
+          </Fragment>
+        ))}
+      {Object.entries(beforeGroup)
+        .filter(([key]) => loading || !groups.some((g) => g.key === key))
+        .map(([key, node]) => (
+          <Fragment key={`before-${key}`}>{node}</Fragment>
         ))}
       {!loading &&
         standalone.map((section) => (

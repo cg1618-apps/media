@@ -26,6 +26,8 @@ import SourcesCard from "../../components/info/SourcesCard";
 import MyTrackerCard from "../../components/tracker/MyTrackerCard";
 import GameCompletionBlock from "../../components/tracker/GameCompletionBlock";
 import ChoiceGraphCard from "../../components/game-choices/ChoiceGraphCard";
+import CastSection from "../../components/info/CastSection";
+import { useCasting } from "../../hooks/useCasting";
 import { NotesProvider } from "../notes/NotesContext";
 import { NotesBlocks, NotesGroup } from "../notes/NotesTemplate";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
@@ -203,6 +205,8 @@ export default function Game() {
   const [autofilling, setAutofilling] = useState(false);
 
   const gameQuery = useMediaItem("game", publicId);
+  const castingQuery = useCasting("game", gameQuery.data?.system_id);
+  const cast = castingQuery.data?.cast || [];
   useCanonicalPath("game", gameQuery.data);
   // Everything past the lookup still speaks UUIDs; only the URL segment
   // changed. Resolved from the fetched row so the two can never disagree.
@@ -698,6 +702,16 @@ export default function Game() {
             <NotesBlocks
               // Rendered in the Progress slip at the top instead.
               hideGroups={["todo"]}
+              // The cast is not a note, so it sits just above the 圖鑑 card
+              // beside the 角色 notes it is read with - a sibling of the
+              // card, not a section inside it.
+              beforeGroup={{
+                compendium: (
+                  <TocSection id="cast" label="Cast">
+                    <CastSection cast={cast} />
+                  </TocSection>
+                ),
+              }}
             />
           </div>
         </div>

@@ -81,8 +81,11 @@ describe("GameAddTab search boxes", () => {
     );
     await user.click(screen.getByRole("option", { name: /隻狼/ }));
     expect(applyGameEntryAutofill).toHaveBeenCalledWith(SEKIRO);
-    // The existing-entry box searches the loaded list; nothing is fetched.
-    expect(global.fetch).not.toHaveBeenCalled();
+    // The existing-entry box searches the loaded list; it fetches nothing.
+    // The only requests are the Cast editor's own loads (the constants and
+    // the seiyuu list), which every form with a cast makes on mount.
+    const urls = global.fetch.mock.calls.map(([u]) => String(u));
+    expect(urls.filter((u) => !u.startsWith("/api/constants") && !u.startsWith("/api/person/?role=seiyuu"))).toEqual([]);
   });
 
   it("searches the game IGDB endpoint and hands the picked row to applyIgdbPick", async () => {
@@ -144,6 +147,8 @@ describe("GameAddTab layout", () => {
       "Production",
       "Prices",
       "Copies",
+      // Right after Copies, on Add and Modify alike (GameFormBody).
+      "Cast",
       "Links & Sources",
       "Cover",
     ]);
