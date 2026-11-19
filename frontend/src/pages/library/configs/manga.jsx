@@ -11,6 +11,7 @@ import {
 } from "../../../components/layout/libraryColumns";
 import { releaseScore } from "../../../lib/releaseDate";
 import { READING_STATUS_GROUP } from "../../../utils/media";
+import { compareTitles } from "../../../lib/naming";
 
 function getTitle(m)   {
   return m.manga_name_cn || m.manga_name_en || m.manga_name_roman
@@ -75,7 +76,7 @@ const MANGA_LIBRARY_CONFIG = {
       key: "title",
       label: "Title",
       compare: (a, b) =>
-        getSortKey(a).localeCompare(getSortKey(b), undefined, { numeric: true }),
+        compareTitles(getSortKey(a), getSortKey(b)),
     },
     {
       key: "release_date",

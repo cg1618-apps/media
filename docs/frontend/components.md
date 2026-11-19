@@ -1123,7 +1123,7 @@ functions `tagsForLabels`, `labelsForTags`, `applyLabelEdit` and
 
 | File | Purpose |
 |---|---|
-| `naming.js` | `getDisplayName`, `getSortName`, `cleanString`, name-field lists |
+| `naming.js` | `getDisplayName`, `getSortName`, `entitySortName`, `compareTitles` (every library's title comparator, collating as `en`), `cleanString`, name-field lists |
 | `gamePlatforms.js` | `platformFamilies(options)`: `{console: family}` read off the loaded `Game Platform` options' `family`; `withPlatformFamilies(raw, families)`: the tags string with each console's family put in before it - the browser half of `with_platform_families` in `app/utils/game_vocabulary.py`. The Game form's Platform field runs every change through it |
 | `requests.js` | The words the request pages print: `requestKindLabel` / `requestStatusLabel` (a code with no label prints as itself), `DELETED_ACCOUNT` ("deleted account", for a null username) and `formatRequestDate` |
 | `releaseDate.js` | `releaseYear`, `releaseScore` for truncated-ISO dates; `todayIso` (the viewer's local date), `isUpcomingReleaseDate(value, today)` (true while the last day of the period a value names has not passed - a bare year through 31 December, a year-month through its last day, today included; never for a blank or malformed value) and `earliestUpcomingReleaseDate(values, today)`, which Future Releases' Books and Manga tabs use |

@@ -177,3 +177,24 @@ export function displayStudioName(studio) {
 export function displayPersonName(person) {
   return displayEntityName(person);
 }
+
+// Titles collate as English, whatever the browser's language. localeCompare
+// with no locale uses the browser's, and zh-TW's puts Han characters ahead of
+// Latin - so a CN-only title would sort before every English one. With "en",
+// Latin titles come first and a CJK-only one after them; numeric so "Item 2"
+// precedes "Item 10".
+const TITLE_COLLATOR = new Intl.Collator("en", { numeric: true });
+
+/** Comparator for two sort names (getSortName / entitySortName). */
+export function compareTitles(a, b) {
+  return TITLE_COLLATOR.compare(a || "", b || "");
+}
+
+/**
+ * The sort name of a studio, publisher, person or character: English first,
+ * then the name chosen for display.
+ */
+export function entitySortName(item) {
+  if (!item) return "";
+  return item.name_en || item.display_name || "";
+}

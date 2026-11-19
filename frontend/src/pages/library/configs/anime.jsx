@@ -20,6 +20,7 @@ import {
   isBaha,
   WATCHING_STATUS_GROUP,
 } from "../../../utils/media";
+import { compareTitles } from "../../../lib/naming";
 
 // ---------------------------------------------------------------------------
 // Release date sort score: the JP date, then the TW one, first-of-period for
@@ -206,13 +207,13 @@ function titleCompare(a, b, franchiseDict, seriesDict) {
   const anameB = getSortName(b, "anime");
   const fnA = fA ? getSortName(fA, "franchise") : anameA;
   const fnB = fB ? getSortName(fB, "franchise") : anameB;
-  const cmpF = fnA.localeCompare(fnB);
+  const cmpF = compareTitles(fnA, fnB);
   if (cmpF !== 0) return cmpF;
   const snA = seriesDict[a.series_id] ? getSortName(seriesDict[a.series_id], "series") : "";
   const snB = seriesDict[b.series_id] ? getSortName(seriesDict[b.series_id], "series") : "";
-  const cmpS = snA.localeCompare(snB);
+  const cmpS = compareTitles(snA, snB);
   if (cmpS !== 0) return cmpS;
-  return anameA.localeCompare(anameB);
+  return compareTitles(anameA, anameB);
 }
 
 export default ANIME_LIBRARY_CONFIG;

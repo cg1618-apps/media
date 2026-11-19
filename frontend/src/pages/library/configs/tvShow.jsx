@@ -10,6 +10,7 @@ import {
   watchButtonColumn,
 } from "../../../components/layout/libraryColumns";
 import { WATCHING_STATUS_GROUP } from "../../../utils/media";
+import { compareTitles } from "../../../lib/naming";
 
 function getTitle(s)   { return s.tv_name_cn || s.tv_name_en || s.tv_name_alt || ""; }
 function getSortKey(s) { return s.tv_name_en || s.tv_name_alt || s.tv_name_cn || ""; }
@@ -63,7 +64,7 @@ const TV_LIBRARY_CONFIG = {
     {
       key: "title",
       label: "Title",
-      compare: (a, b) => getSortKey(a).toLowerCase().localeCompare(getSortKey(b).toLowerCase()),
+      compare: (a, b) => compareTitles(getSortKey(a), getSortKey(b)),
     },
     {
       key: "release_date",

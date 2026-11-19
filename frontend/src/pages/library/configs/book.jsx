@@ -11,6 +11,7 @@ import {
 } from "../../../components/layout/libraryColumns";
 import { releaseScore } from "../../../lib/releaseDate";
 import { READING_STATUS_GROUP, getBookProgress } from "../../../utils/media";
+import { compareTitles } from "../../../lib/naming";
 
 function getTitle(n)   {
   return n.book_name_cn || n.book_name_en || n.book_name_roman
@@ -89,7 +90,7 @@ const BOOK_LIBRARY_CONFIG = {
       key: "title",
       label: "Title",
       compare: (a, b) =>
-        getSortKey(a).localeCompare(getSortKey(b), undefined, { numeric: true }),
+        compareTitles(getSortKey(a), getSortKey(b)),
     },
     {
       key: "release_date",

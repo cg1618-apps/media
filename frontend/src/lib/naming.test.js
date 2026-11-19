@@ -1,7 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
+  compareTitles,
   displayPersonName,
   displayStudioName,
+  entitySortName,
   getDisplayName,
   getNamingFields,
   getSortName,
@@ -120,5 +122,42 @@ describe("comic names", () => {
   it("still displays and sorts by the English name, as the server does", () => {
     expect(getDisplayName(comic, "comic")).toBe("Batman");
     expect(getSortName(comic, "comic")).toBe("Batman");
+  });
+});
+
+describe("compareTitles", () => {
+  const original = String.prototype.localeCompare;
+  afterEach(() => {
+    String.prototype.localeCompare = original;
+  });
+
+  it("puts Latin titles before CJK ones even when the browser collates zh-TW", () => {
+    // What a zh-TW browser does to localeCompare with no locale: Han first.
+    String.prototype.localeCompare = function (that, locales, options) {
+      return original.call(this, that, locales ?? "zh-TW", options);
+    };
+    expect("黑神話".localeCompare("Alpha")).toBeLessThan(0);
+    expect(["黑神話", "Zeta", "Item 10", "Alpha", "Item 2"].sort(compareTitles)).toEqual([
+      "Alpha",
+      "Item 2",
+      "Item 10",
+      "Zeta",
+      "黑神話",
+    ]);
+  });
+
+  it("treats a missing name as empty", () => {
+    expect(compareTitles(null, "Alpha")).toBeLessThan(0);
+    expect(compareTitles(undefined, "")).toBe(0);
+  });
+});
+
+describe("entitySortName", () => {
+  it("reads the English name first, then the display name", () => {
+    expect(entitySortName({ name_en: "Kana Hanazawa", display_name: "花澤香菜" })).toBe(
+      "Kana Hanazawa",
+    );
+    expect(entitySortName({ name_cn: "花澤香菜", display_name: "花澤香菜" })).toBe("花澤香菜");
+    expect(entitySortName(null)).toBe("");
   });
 });

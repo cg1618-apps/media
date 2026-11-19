@@ -6,6 +6,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useIncrementalList } from "../../hooks/useIncrementalList";
 import { useViewScope } from "../../hooks/useViewScope";
 import { getSortName, getRatingWeight, cleanString } from "../../utils/media";
+import { compareTitles } from "../../lib/naming";
 import { getCollectionCover, withMediaType } from "../../lib/covers";
 import CollectionCard from "../../components/cards/CollectionCard";
 import { Eyebrow } from "../../components/ui/primitives";
@@ -98,9 +99,7 @@ export default function CollectionLibrary() {
         }
         for (const list of Object.values(byCollection)) {
           list.sort((a, b) =>
-            getSortName(a, "franchise").localeCompare(
-              getSortName(b, "franchise"),
-            ),
+            compareTitles(getSortName(a, "franchise"), getSortName(b, "franchise")),
           );
         }
         setFranchisesByCollection(byCollection);
@@ -138,7 +137,8 @@ export default function CollectionLibrary() {
           getExpectationWeight(b.collection_expectation);
         if (diff !== 0) return diff;
       }
-      return getSortName(a, "collection").localeCompare(
+      return compareTitles(
+        getSortName(a, "collection"),
         getSortName(b, "collection"),
       );
     });

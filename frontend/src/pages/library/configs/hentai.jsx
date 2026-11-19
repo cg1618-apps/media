@@ -8,7 +8,7 @@ import {
   watchButtonColumn,
 } from "../../../components/layout/libraryColumns";
 import { releaseScore } from "../../../lib/releaseDate";
-import { getDisplayName, getSortName } from "../../../lib/naming";
+import { compareTitles, getDisplayName, getSortName } from "../../../lib/naming";
 import { WATCHING_STATUS_GROUP } from "../../../utils/media";
 
 // CN leads, as everywhere but comic; lib/naming.js holds the one chain.
@@ -80,7 +80,7 @@ const HENTAI_LIBRARY_CONFIG = {
     {
       key: "title",
       label: "Title",
-      compare: (a, b) => getSortKey(a).localeCompare(getSortKey(b), undefined, { numeric: true }),
+      compare: (a, b) => compareTitles(getSortKey(a), getSortKey(b)),
     },
     {
       key: "release_date",
