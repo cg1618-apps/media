@@ -215,23 +215,32 @@ def test_offers_the_needs_work_note_category(client):
     assert "Needs Work Note" in body["option_categories"]
 
 
-def test_serves_the_note_suggestion_categories(client):
-    """The field-level categories the game note sections suggest from, served
-    apart so the admin pages can give them a sub-tab of their own - and still
-    inside option_categories, so every picker knows them."""
-    from app.utils.note_sections import NOTE_SUGGESTION_CATEGORIES
+def test_serves_the_common_option_categories(client):
+    """The suggestion-only vocabularies - the game note sections' field
+    suggestions, the music sections' Song Type and Song Source, and the
+    待補充 note's common values - served apart so the admin pages can give
+    them a sub-tab of their own, and still inside option_categories, so every
+    picker knows them."""
+    from app.utils.credit_roles import COMMON_OPTION_CATEGORIES
 
     body = client.get("/api/constants").json()
-    assert body["note_suggestion_categories"] == [
-        "Weapon & Gear Type",
-        "Item Type",
-        "Collectible Type",
-        "Character Group",
-        "Enemy Tier",
-        "Side Quest Type",
-        "Geography Group",
-    ]
-    assert body["note_suggestion_categories"] == list(NOTE_SUGGESTION_CATEGORIES)
-    assert set(body["note_suggestion_categories"]) <= set(body["option_categories"])
-    # Song Type and Song Source are section-level, and stay out of it.
-    assert "Song Type" not in body["note_suggestion_categories"]
+    assert sorted(body["common_option_categories"]) == sorted(
+        [
+            "Weapon & Gear Type",
+            "Item Type",
+            "Collectible Type",
+            "Character Group",
+            "Enemy Tier",
+            "Side Quest Type",
+            "Geography Group",
+            "Song Type",
+            "Song Source",
+            "Needs Work Note",
+        ]
+    )
+    assert body["common_option_categories"] == list(COMMON_OPTION_CATEGORIES)
+    assert set(body["common_option_categories"]) <= set(body["option_categories"])
+    # A common option is never a tag: the two sub-tabs split the list.
+    assert not set(body["common_option_categories"]) & set(body["tag_categories"])
+    # The old key is gone with the sub-tab it named.
+    assert "note_suggestion_categories" not in body

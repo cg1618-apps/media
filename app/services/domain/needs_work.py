@@ -15,7 +15,6 @@ request inbox names its targets the same way.
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app import models
@@ -133,17 +132,3 @@ def grouped(db: Session) -> list[dict]:
         {"note": note, "items": sorted(groups[note], key=item_order)}
         for note in notes
     ]
-
-
-def notes_in_use(db: Session) -> list[dict]:
-    """Every note a mark carries, most used first, for the note field's
-    suggestions - picking one files a mark into an existing group."""
-    count = func.count(models.NeedsWork.system_id)
-    rows = (
-        db.query(models.NeedsWork.note, count)
-        .filter(models.NeedsWork.note.isnot(None))
-        .group_by(models.NeedsWork.note)
-        .order_by(count.desc(), models.NeedsWork.note)
-        .all()
-    )
-    return [{"note": note, "count": n} for note, n in rows]

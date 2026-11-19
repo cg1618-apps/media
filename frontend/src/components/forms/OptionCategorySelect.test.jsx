@@ -57,6 +57,25 @@ describe("OptionCategorySelect", () => {
     expect(groupOptions(container, "Other")).toEqual(["Aardvark", "Zebra"]);
   });
 
+  it("groups the Common Options sub-tab's categories, a declared group of one included", () => {
+    const { container } = render(
+      <OptionCategorySelect
+        categories={[
+          "Character Group",
+          "Enemy Tier",
+          "Needs Work Note",
+          "Song Source",
+          "Song Type",
+        ]}
+        value=""
+        onChange={vi.fn()}
+      />,
+    );
+    expect(groupLabels(container)).toEqual(["Note Suggestion", "Music", "Needs Work"]);
+    expect(groupOptions(container, "Music")).toEqual(["Song Type", "Song Source"]);
+    expect(groupOptions(container, "Needs Work")).toEqual(["Needs Work Note"]);
+  });
+
   it("renders one section flat, with no heading over the whole list", () => {
     const { container } = render(
       <OptionCategorySelect

@@ -331,6 +331,19 @@ OPTION_CATEGORIES: tuple[str, ...] = tuple(
     )
 )
 
+# The common options: the suggestion-only vocabularies, which the admin Add /
+# Modify / Delete pages offer under their "Common Options" sub-tab. A value
+# in one is added on the Add page and edited on the Modify page, and nothing
+# creates one from what was typed into the field it suggests for - a note
+# field stores its text as typed whether or not the list holds it. That is
+# what separates these from a tag category, whose values resolve_option
+# creates on save. Two sources: every category the note registry suggests
+# from (the game guide fields, Song Type, Song Source), and the 待補充 note's
+# common values. Navigation only, like TAG_CATEGORIES.
+COMMON_OPTION_CATEGORIES: tuple[str, ...] = tuple(
+    dict.fromkeys(list(NOTE_OPTION_CATEGORIES) + [NEEDS_WORK_NOTE_CATEGORY])
+)
+
 
 # The sheet header each (media_type, role/field key) pair has always been
 # written under, back when the value lived in a plain string column on the

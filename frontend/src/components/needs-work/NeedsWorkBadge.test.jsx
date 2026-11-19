@@ -39,10 +39,9 @@ beforeEach(() => {
   vi.stubGlobal(
     "fetch",
     vi.fn((url) => {
-      // The control's note field reads the common notes and the notes in
-      // use; every other read is the mark.
-      const body =
-        url.startsWith("/api/options/") || url.endsWith("/notes") ? [] : mark;
+      // The control's note field reads the common notes; every other read
+      // is the mark.
+      const body = url.startsWith("/api/options/") ? [] : mark;
       return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
     }),
   );

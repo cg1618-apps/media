@@ -217,16 +217,16 @@ its **待補充 Needs Work** row in the System tab. Server side:
 [../api.md](../api.md#needs-work--apineeds-work).
 
 - **Data**: `useNeedsWorkList()` (`GET /api/needs-work`, key
-  `["needs-work", "list"]`) and `useNeedsWorkNotes()` (`GET
-  /api/needs-work/notes`) from `api/mutations/useNeedsWork.js`. Every write
+  `["needs-work", "list"]`) from `api/mutations/useNeedsWork.js`. Every write
   invalidates the `["needs-work"]` prefix, so the page, the editor control
   and the detail-page badge refetch together.
 - **One section per note**, in the order the server sends: the noted groups
   by note, then **No note**. Each section is a table of type (a `Chip`, brand
   for a tier), name (a link to the owner's page - a series too, at
   `/series/<uuid>`), and when it was marked.
-- **Edit note** opens `ConfirmModal` with a `SuggestInput` over the notes in
-  use, then `PUT /api/needs-work/{owner_type}/{owner_id}` with `{note}` - a
+- **Edit note** opens `ConfirmModal` with the note field
+  (`NeedsWorkNoteInput`, below), then
+  `PUT /api/needs-work/{owner_type}/{owner_id}` with `{note}` - a
   blank note is sent as null and lands the row in No note.
 - **Clear** asks in `ConfirmModal` (danger) before `DELETE
   /api/needs-work/{owner_type}/{owner_id}`.
@@ -250,11 +250,13 @@ only for a `manage.requests` holder, once the mark has been read; it asks
 `GET /api/needs-work/{owner_type}/{owner_id}` for nobody else.
 
 **The note field** (`components/needs-work/NeedsWorkNoteInput.jsx`) is the
-same in all three places: the values of the `Needs Work Note` option
-category - common notes, curated on the Options tab - as `QuickPicks`
-chips ("Common notes"; clicking the pressed chip clears), above a
-`SuggestInput` offering those first and then the notes in use. The note
-stays free text.
+same in all three places and in this page's Edit note: the values of the
+`Needs Work Note` option category - common notes, curated on the System
+Option tab's Common Options sub-tab - as `QuickPicks` chips ("Common
+notes"; clicking the pressed chip clears), above a `SuggestInput` offering
+the same values and nothing else. The notes other marks carry are not
+suggested: a note typed that is not a common note is stored as typed, and
+is never added to the category.
 
 ## /add (`Add.jsx`)
 
@@ -879,12 +881,12 @@ order after a save, once the cast has been refetched; it does not re-sort
 while the admin is editing.
 
 **Options tab.** Three sub-tabs (`OPTION_SUB_TABS` in `OptionSubTabBar`,
-shared with Modify and Delete): **Options**, **Tags** and **Note
-Suggestions**, all creating system options (category + value + scopes). They
+shared with Modify and Delete): **Options**, **Tags** and **Common
+Options**, all creating system options (category + value + scopes). They
 are the same form posting to the same endpoint; only the categories the
 Category picker offers differ (`categoriesForSubTab` in
-`lib/optionCategoryGroups.js`: Tags takes `TAG_CATEGORIES`, Note Suggestions
-takes `NOTE_SUGGESTION_CATEGORIES`, Options takes what neither claims; see
+`lib/optionCategoryGroups.js`: Tags takes `TAG_CATEGORIES`, Common Options
+takes `COMMON_OPTION_CATEGORIES`, Options takes what neither claims; see
 [../options.md](../options.md)). All three pages show the same three, and
 there is no Add-only variant. People and studios are **not** here — each has
 its own Entity tab.
@@ -955,8 +957,11 @@ is the form's. The picker
 arranges its categories with `groupTier2Categories` (`lib/optionsPageGroups.js`,
 see [/options](#options-systemoptionsjsx)) into `<optgroup>`s, with unclaimed
 categories under **Other**; a list that yields a single section — the Tags
-sub-tab and the Note Suggestions sub-tab, whose categories are each one group
-— renders flat rather than under a heading repeating the sub-tab's own name.
+sub-tab, whose categories are one group — renders flat rather than under a
+heading repeating the sub-tab's own name. The Common Options sub-tab's picker
+reads as three groups: **Note Suggestion** (the seven game guide
+categories), **Music** (`Song Type`, `Song Source`) and **Needs Work**
+(`Needs Work Note`).
 
 **Studio tab (Entity).** `StudioAddTab.jsx`. Four name fields (English,
 Chinese, Japanese, Alternative) with a "Display name" select naming which one
@@ -1072,8 +1077,8 @@ only land in its own grid. The swap is a draft until **Save Grid**.
   media types and the three tiers (`NEEDS_WORK_OWNER_TYPES` in
   `lib/needsWork.js`) and a `manage.requests` holder only:
   `components/needs-work/NeedsWorkControl.jsx`, a checkbox and, once
-  ticked, the note field (`NeedsWorkNoteInput`: the common notes as chips,
-  and suggestions) with **Save note**. It saves on its own - ticking PUTs, unticking DELETEs - and never
+  ticked, the note field (`NeedsWorkNoteInput`: the common notes as chips
+  and as its only suggestions) with **Save note**. It saves on its own - ticking PUTs, unticking DELETEs - and never
   through the editor's Save: the mark is its own row, not a column of the
   entry. See [/needs-work](#needs-work-needsworkjsx).
 - **Other entries in this franchise.** Above the editor card, a media entry
@@ -1508,16 +1513,20 @@ work is this" lists together under Entry Type, files the game lists by the
 question they answer (`game_release_status` under Publication Status,
 `playing_status` under My Progress) and keeps only the game_copy vocabularies
 in a **Game** group. Tier 2 (`TIER2_GROUPS`, keyed by `system_option.category`)
-reads as Tags, Game, Comic, Source & Platform, Music, **Character** (the
-`Character Appearance` and `Character Trait` vocabularies) and **Note
-Suggestions** (`Character Group`, `Collectible Type`, `Item Type`, `Geography
-Group`, which the game note sections' free-text fields suggest from). Source &
+reads as Tags, Game, Comic, Source & Platform, **Character** (the
+`Character Appearance` and `Character Trait` vocabularies), then the common
+options: **Note Suggestion** (`Character Group`, `Collectible Type`, `Item
+Type`, `Weapon & Gear Type`, `Enemy Tier`, `Side Quest Type`, `Geography
+Group`, which the game note sections' free-text fields suggest from),
+**Music** (`Song Type`, `Song Source`) and **Needs Work** (`Needs Work
+Note`). Source &
 Platform holds the platform and reference vocabularies, the ones that name an outside party.
 Publishers and distributors are **not** among them — they are entities, edited
 on the Entity → Publisher tab.
 
-A group left with a single member is demoted into Other rather than printed as
-a heading over one card. The left-hand section index lists one level per tier —
+A group the data leaves with a single member is demoted into Other rather
+than printed as a heading over one card; a group declared with one member -
+Needs Work - is the exception, and stands whenever its category is present. The left-hand section index lists one level per tier —
 the group headings, not the enums and categories inside them; listing every
 leaf ran to forty-odd links, taller than the viewport on its own. Individual
 cards and tables keep their ids for saved links, but only the tiers and their
