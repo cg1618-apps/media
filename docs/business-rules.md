@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-11-17
+Last verified: 2026-11-19
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -756,7 +756,7 @@ bulk Replace:
 | Cartoon     | extract IMDb id → autofill → cartoon post-processing                                                                                                 |
 | Manga       | extract MAL id → autofill (ratings forced) → manga post-processing                                                                                    |
 | Book        | extract MAL id → autofill (ratings forced)                                                                                                            |
-| Comic       | nothing — no replace function; the write hook only re-syncs system options                                                                           |
+| Comic       | the Autofill button only: `autofill_comic_from_comicvine` (fill-only), refused when the hourly Comic Vine budget is spent. The save write hook fetches nothing (`save_replace` is a no-op) and only re-syncs system options |
 | Hentai      | extract MAL and AniDB ids → `autofill_hentai_from_mal` (airing status, release date, episode count, cover, and the Official site / Twitter reference rows; all fill-only) → `autofill_hentai_from_anidb` (the same four and the Official site row, only where still blank) → `apply_validate_episode_math` (clamp `ep_total`) → `run_sync_hentai` and `run_sync_gated_labels` as the spec's after steps (the label) |
 
 The `bulk` parameter is accepted by movie/tv/cartoon/manga/book/hentai for

@@ -34,8 +34,8 @@ execute_replace_single_tv_show = _single("tv-show")
 execute_replace_single_cartoon = _single("cartoon")
 execute_replace_single_manga = _single("manga")
 execute_replace_single_book = _single("book")
-# Comics fetch nothing on the write hook: the spec has no `replace`, so this
-# only re-syncs system options and logs the write like every other type.
+# The comic Autofill button: one Comic Vine fetch, fill-only. Its save hook
+# (execute_save_replace_comic below) fetches nothing.
 execute_replace_single_comic = _single("comic")
 execute_replace_single_game = _single("game")
 # Manga's Tenrai fields, then the h-comic sync and the gated label sync.
@@ -50,6 +50,8 @@ execute_replace_single_h_game = _single("h-game")
 # keeps the execute_replace_single_* above.
 execute_save_replace_game = partial(run_replace_single, PIPELINES["game"], on_save=True)
 execute_save_replace_h_game = partial(run_replace_single, PIPELINES["h-game"], on_save=True)
+# Comic's save_replace is a no-op: a save re-syncs options and spends no quota.
+execute_save_replace_comic = partial(run_replace_single, PIPELINES["comic"], on_save=True)
 
 execute_replace_anime = _bulk("anime")
 execute_replace_anime_movie = _bulk("anime-movie")

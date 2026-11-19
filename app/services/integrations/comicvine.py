@@ -91,6 +91,19 @@ class RateLimitExceeded(Exception):
     pass
 
 
+class HourlyBudgetSpent(Exception):
+    """
+    Raised before a one-entry fetch when the hourly cap is used up, so the
+    request is refused at once rather than parked in wait_if_needed for up
+    to an hour. status_code is the HTTP answer run_replace_single gives it.
+    """
+
+    status_code = 429
+
+    def __init__(self):
+        super().__init__("Comic Vine's hourly request limit is used up; try again later.")
+
+
 def _get_api_key() -> Optional[str]:
     api_key = settings.comicvine_api_key
     if not api_key:

@@ -121,7 +121,7 @@ from app.services.integrations.anilist import (
     prime_anilist_cache,
     reset_anilist_cache,
 )
-from app.services.integrations.comicvine import comicvine_rate_limiter
+from app.services.integrations.comicvine import HourlyBudgetSpent, comicvine_rate_limiter
 from app.services.integrations.steam import (
     reset_owned_games_cache,
     steam_store_rate_limiter,
@@ -236,6 +236,17 @@ def _fill_hentai(db, entry) -> None:
     something is still blank after MAL."""
     autofill_hentai_from_mal(entry, db=db)
     autofill_hentai_from_anidb(entry, db=db)
+
+
+def _replace_comic(db, entry, bulk) -> None:
+    """
+    The comic detail page's Autofill & update: the Fill Comic fetch for one
+    entry, blank columns only. Refused up front when the hourly budget is
+    spent - a single click must not block on the limiter for the hour.
+    """
+    if not comicvine_rate_limiter.has_capacity():
+        raise HourlyBudgetSpent()
+    autofill_comic_from_comicvine(entry, db)
 
 
 def _fill_h_comic(db, entry) -> None:
@@ -393,10 +404,13 @@ PIPELINES: dict[str, PipelineSpec] = {
         # ~200 requests/hour: stop when the budget is gone rather than block.
         budget=comicvine_rate_limiter.has_capacity,
         # Fill Comic is run on its own, never inside Fill All (quota), and there
-        # is no bulk Replace: the single-entry hook only re-syncs options.
+        # is no bulk Replace. The single Replace - the Autofill button - fetches
+        # one volume, fill-only; a save fetches nothing (save_replace is a
+        # no-op) and only re-syncs options, so editing a comic spends no quota.
         in_fill_all=False,
         replace_select=None,
-        replace=None,
+        replace=_replace_comic,
+        save_replace=lambda db, e, bulk: None,
         single_after=(run_sync_comic,),
         in_replace_all=False,
     ),

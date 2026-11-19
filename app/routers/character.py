@@ -338,6 +338,44 @@ def update_character(
     return character_response(db, character, admin)
 
 
+@router.post(
+    "/{system_id}/autofill",
+    response_model=schemas.CharacterResponse,
+    summary="Autofill Character from MAL",
+)
+def autofill_character(
+    system_id: UUID,
+    db: Session = Depends(get_db),
+    admin: Viewer = Depends(require_manage_catalog),
+):
+    """
+    The detail page's Autofill & update: the MAL fill a save runs
+    (_derive_and_fill_from_mal), without a save. Blank columns only, and the
+    display name then prefers a filled name_cn as on save.
+
+    A character with no MAL link (no mal_id once it is derived) is a 422 -
+    there is nothing to fetch. A failed fetch is not an error:
+    autofill_character_from_mal logs and swallows it, and the unchanged
+    character comes back.
+    """
+    character = db.get(models.Character, system_id)
+    if character is None:
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    require_visible_shared(db, admin, models.Character, system_id, NOT_FOUND)
+
+    apply_extract_mal_id_character(character)
+    if character.mal_id is None:
+        raise HTTPException(
+            status_code=422, detail="This character has no MAL link to autofill from."
+        )
+    _derive_and_fill_from_mal(db, character)
+    prefer_cn_display_name(character)
+
+    db.commit()
+    db.refresh(character)
+    return character_response(db, character, admin)
+
+
 @router.patch(
     "/{system_id}", response_model=schemas.CharacterResponse, summary="Patch Character"
 )

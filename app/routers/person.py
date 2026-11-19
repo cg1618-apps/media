@@ -723,6 +723,48 @@ def update_person(
     return _to_response(db, person, admin)
 
 
+@router.post(
+    "/{system_id}/autofill",
+    response_model=schemas.PersonResponse,
+    summary="Autofill Person from MAL",
+)
+def autofill_person(
+    system_id: UUID,
+    db: Session = Depends(get_db),
+    admin: Viewer = Depends(require_manage_catalog),
+):
+    """
+    The detail page's Autofill & update: the MAL fill a save runs
+    (_derive_and_fill_from_mal), without a save. Blank columns only.
+
+    Only a seiyuu is fetched, as on save, so two cases are a 422 with
+    nothing fetched: no MAL link (no mal_id once it is derived), and a person
+    holding no seiyuu role. A failed fetch is not an error:
+    autofill_person_from_mal logs and swallows it, and the unchanged person
+    comes back.
+    """
+    person = db.get(models.Person, system_id)
+    if person is None:
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    require_visible_shared(db, admin, models.Person, system_id, NOT_FOUND)
+
+    apply_extract_mal_id_person(person)
+    if person.mal_id is None:
+        raise HTTPException(
+            status_code=422, detail="This person has no MAL link to autofill from."
+        )
+    if not any(role.role == "seiyuu" for role in person.roles):
+        raise HTTPException(
+            status_code=422,
+            detail="Only a seiyuu is autofilled from MAL; this person holds no seiyuu role.",
+        )
+    _derive_and_fill_from_mal(db, person)
+
+    db.commit()
+    db.refresh(person)
+    return _to_response(db, person, admin)
+
+
 @router.patch(
     "/{system_id}", response_model=schemas.PersonResponse, summary="Patch Person"
 )

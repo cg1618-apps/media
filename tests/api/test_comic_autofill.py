@@ -158,3 +158,60 @@ class TestAutofillComicFromComicvine:
         comic = make_comic(db_session)
         autofill_comic_from_comicvine(comic, db_session)
         assert comic.cover_image_file is None
+
+
+# ---------------------------------------------------------------------------
+# The Autofill & update button: the single Replace route, and the save hook
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def anyio_backend():
+    # anyio's pytest plugin would otherwise also parametrize on trio.
+    return "asyncio"
+
+
+def test_the_autofill_button_route_fills_a_comic_from_comicvine(
+    owner_client, db_session, patched
+):
+    comic = make_comic(db_session, comic_name_en="ASM", volume_label="Legacy")
+
+    res = owner_client.post(f"/api/data-control/replace/comic/{comic.system_id}")
+
+    assert res.status_code == 200
+    assert patched["fetch"] == [2127]
+    db_session.expire_all()
+    filled = db_session.get(models.Comic, comic.system_id)
+    assert filled.issue_total == 441
+    # Fill-only, like the Fill Comic pipeline.
+    assert filled.volume_label == "Legacy"
+    assert credit_names(db_session, comic.system_id, "publisher") == ["Marvel"]
+
+
+def test_the_autofill_button_route_refuses_when_the_hourly_budget_is_spent(
+    owner_client, db_session, patched, monkeypatch
+):
+    from app.services.integrations.comicvine import comicvine_rate_limiter
+
+    monkeypatch.setattr(comicvine_rate_limiter, "has_capacity", lambda: False)
+    comic = make_comic(db_session, comic_name_en="ASM")
+
+    res = owner_client.post(f"/api/data-control/replace/comic/{comic.system_id}")
+
+    assert res.status_code == 429
+    assert "hourly" in res.json()["detail"]
+    assert patched["fetch"] == []
+
+
+@pytest.mark.anyio
+async def test_a_comic_save_fetches_nothing(db_session, patched):
+    from app.registry import MEDIA_REGISTRY
+
+    comic = make_comic(db_session, comic_name_en="ASM")
+
+    result = await MEDIA_REGISTRY["comic"].write_hook(
+        db_session, str(comic.system_id), action_type="Manual", log_action=False
+    )
+
+    assert result["status"] == "success"
+    assert patched["fetch"] == []

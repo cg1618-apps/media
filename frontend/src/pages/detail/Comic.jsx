@@ -79,6 +79,7 @@ export default function Comic() {
   const { showToast } = useToast();
 
   const [comic, setComic] = useState(null);
+  const [autofilling, setAutofilling] = useState(false);
 
   const comicQuery = useMediaItem("comic", publicId);
   useCanonicalPath("comic", comicQuery.data);
@@ -129,6 +130,25 @@ export default function Comic() {
     setMediaItem,
     fetchMediaItem,
   });
+
+  async function handleAutofill() {
+    setAutofilling(true);
+    try {
+      const res = await fetch(endpoints.dataControl.replaceSingle("comic", system_id), {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || "Autofill failed");
+      showToast("success", "Autofill completed");
+      await invalidateMedia();
+      await fetchMediaItem();
+    } catch (e) {
+      showToast("error", e.message);
+    } finally {
+      setAutofilling(false);
+    }
+  }
 
   // The heading's title, which the browser tab shows too.
   const titleMain = comic ? getDisplayName(comic, "comic") : null;
@@ -218,8 +238,8 @@ export default function Comic() {
         </div>
       </div>
 
-      {/* Admin toolbar — no Autofill: comics are manual-entry, with no
-          external metadata source to pull from. */}
+      {/* Admin toolbar. Autofill & update is one Comic Vine fetch, blank
+          columns only - a save fetches nothing, to spare the hourly quota. */}
       {isAdmin && (
         <div className="border border-border-strong border-dashed px-3 py-2 flex flex-wrap gap-3 items-center justify-between mb-8">
           <Eyebrow className="text-[11px] tracking-[0.16em] text-text-muted">
@@ -249,6 +269,9 @@ export default function Comic() {
               Mark completed
             </Button>
             <MarkReleaseButton type="comic" entry={comic} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
+            <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
+              {autofilling ? "Autofilling…" : "Autofill & update"}
+            </Button>
           </div>
         </div>
       )}

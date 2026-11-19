@@ -140,7 +140,14 @@ export default function Studio() {
         />
       </div>
 
-      {isAdmin && <AdminToolbar ownerType="studio" systemId={studio.system_id} />}
+      {isAdmin && (
+        <AdminToolbar
+          ownerType="studio"
+          systemId={studio.system_id}
+          // Only a studio with a MAL producer to fetch from offers it.
+          onAutofilled={studio.mal_link || studio.mal_id ? setStudio : undefined}
+        />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* ========== LEFT COLUMN: the profile ========== */}
