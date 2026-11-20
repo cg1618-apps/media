@@ -1882,8 +1882,10 @@ response carries `credit_refs`:
 ```
 
 keyed by credit role, in stored order, with the label that credit has on that
-media type. Anime and anime-movie also carry `studio_refs`, the same idea for
-studios (a bare list — studio is a single role), and any media type whose
+media type. Any media type whose credit roles include `studio` — anime,
+anime-movie, game (its developer), h-game and hentai — also carries
+`studio_refs`, the same idea for studios (a bare list — studio is a single
+role), and any media type whose
 credit roles include `publisher` — anime, anime-movie, manga, book, comic and
 game — carries `publisher_refs`, a bare list for the
 same reason but with `label` on each ref: one publisher role reads 台灣代理商,
@@ -2062,7 +2064,9 @@ endpoint it calls; conflating them shipped a real bug once (`TV.jsx` and
 [data-model.md](data-model.md#virtual-fields-on-media-entries) for the full
 table.
 
-Anime and anime-movie responses also carry `studio_refs`: the same studio
+Anime, anime-movie, game, h-game and hentai responses also carry
+`studio_refs` — every type whose credit roles include `studio`, derived rather
+than hand-listed: the same studio
 credits as the `studio` string beside them, shaped as
 `[{system_id, display_name}]` so the detail pages can link each studio to
 `/studio/{system_id}` — the comma-joined string has no ids to link with. It is
