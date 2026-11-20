@@ -625,7 +625,8 @@ export const defaultStudio = () => ({
   logo_file: "",
   logo_focus: null,
   pending_image_id: null,
-  country: "",
+  // Comma-separated, like every tags field; lib/countries.js posts the list.
+  countries: "",
   website_url: "",
   founded_date: "",
   defunct_date: "",

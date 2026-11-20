@@ -78,10 +78,10 @@ export function StudioFields({ studioForm, usf, ownerId }) {
         </Field>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Country">
+        <Field label="Countries">
           <CountryInput
-            value={studioForm.country ?? ""}
-            onChange={(v) => usf("country", v)}
+            value={studioForm.countries ?? ""}
+            onChange={(v) => usf("countries", v)}
           />
         </Field>
         <Field label="Website">

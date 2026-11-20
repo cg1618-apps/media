@@ -1,5 +1,7 @@
 """The studio router."""
 
+import uuid
+
 from app import models
 
 
@@ -16,16 +18,39 @@ def test_create_and_list(owner_client, guest_reader):
     assert [s["name_en"] for s in guest_reader.get("/api/studio/").json()] == ["MAPPA"]
 
 
-def test_update_changes_the_country_and_ignores_a_rating(owner_client):
+def test_update_changes_the_countries_and_ignores_a_rating(owner_client):
     created = owner_client.post(
         "/api/studio/", json={"name_en": "MAPPA"}
     ).json()
     r = owner_client.put(
         f"/api/studio/{created['system_id']}",
-        json={"name_en": "MAPPA", "country": "Japan", "my_rating": "S"},
+        json={"name_en": "MAPPA", "countries": ["Japan"], "my_rating": "S"},
     )
     # The rating is the writer's own, written through PUT /api/me/ratings.
-    assert (r.json()["country"], r.json()["my_rating"]) == ("Japan", None)
+    assert (r.json()["countries"], r.json()["my_rating"]) == (["Japan"], None)
+
+
+def test_countries_are_trimmed_and_deduplicated_in_order(owner_client):
+    created = owner_client.post(
+        "/api/studio/",
+        json={"name_en": "Studio Trigger", "countries": [" Japan ", "", "China", "japan"]},
+    ).json()
+    assert created["countries"] == ["Japan", "China"]
+
+
+def test_no_countries_is_stored_as_null(owner_client, db_session):
+    """[] and a list of blanks are both "none known" - null, never []."""
+    created = owner_client.post(
+        "/api/studio/", json={"name_en": "Studio 4C", "countries": ["Japan"]}
+    ).json()
+    r = owner_client.put(
+        f"/api/studio/{created['system_id']}",
+        json={"name_en": "Studio 4C", "countries": [" ", ""]},
+    )
+    assert r.json()["countries"] is None
+    db_session.expire_all()
+    studio = db_session.get(models.Studio, uuid.UUID(created["system_id"]))
+    assert studio.countries is None
 
 
 def test_renaming_a_studio_changes_every_entry_that_credits_it(
@@ -77,7 +102,7 @@ def test_writes_require_admin(client):
 
 
 def test_create_rejects_a_studio_with_no_name(owner_client):
-    assert owner_client.post("/api/studio/", json={"country": "Japan"}).status_code == 422
+    assert owner_client.post("/api/studio/", json={"countries": ["Japan"]}).status_code == 422
 
 
 def test_response_carries_the_display_name(owner_client):
@@ -107,8 +132,8 @@ def test_profile_columns_round_trip(owner_client, monkeypatch):
     created = owner_client.post("/api/studio/", json={"name_en": "MAPPA"}).json()
     r = owner_client.put(
         f"/api/studio/{created['system_id']}",
-        json={"name_en": "MAPPA", "country": "Japan", "founded_date": "2011-06",
+        json={"name_en": "MAPPA", "countries": ["Japan"], "founded_date": "2011-06",
               "website_url": "https://mappa.co.jp", "mal_id": 569},
     )
-    assert r.json()["country"] == "Japan"
+    assert r.json()["countries"] == ["Japan"]
     assert r.json()["founded_date"] == "2011-06"

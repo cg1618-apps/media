@@ -81,16 +81,16 @@ def test_a_studio_merge_fills_the_blanks(owner_client, db_session):
     keep = _add(db_session, models.Studio(system_id=uuid.uuid4(), name_en="Kyoto Animation"))
     drop = _add(
         db_session,
-        models.Studio(system_id=uuid.uuid4(), name_jp="京都アニメーション", country="JP"),
+        models.Studio(system_id=uuid.uuid4(), name_jp="京都アニメーション", countries=["JP"]),
     )
     _merge(owner_client, "studio", keep, drop)
 
     db_session.expire_all()
     merged = db_session.get(models.Studio, keep.system_id)
-    assert (merged.name_en, merged.name_jp, merged.country) == (
+    assert (merged.name_en, merged.name_jp, merged.countries) == (
         "Kyoto Animation",
         "京都アニメーション",
-        "JP",
+        ["JP"],
     )
 
 

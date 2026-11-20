@@ -94,7 +94,7 @@ def _to_response(
         remark=studio.remark,
         founded_date=studio.founded_date,
         defunct_date=studio.defunct_date,
-        country=studio.country,
+        countries=studio.countries,
         website_url=studio.website_url,
         mal_id=studio.mal_id,
         mal_link=studio.mal_link,

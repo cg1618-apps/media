@@ -32,10 +32,12 @@ def _patch(client, kind, entity, body):
 
 @pytest.mark.parametrize("kind", KINDS)
 def test_patch_changes_only_the_keys_sent(owner_client, record, kind):
-    r = _patch(owner_client, kind, record[kind], {"country": "Japan", "remark": "Kept"})
+    # A studio names any number of countries; a publisher one.
+    field, value = ("countries", ["Japan"]) if kind == "studio" else ("country", "Japan")
+    r = _patch(owner_client, kind, record[kind], {field: value, "remark": "Kept"})
     assert r.status_code == 200, r.text
     body = r.json()
-    assert body["country"] == "Japan"
+    assert body[field] == value
     assert body["remark"] == "Kept"
     assert body["name_en"] == record[kind].name_en
 

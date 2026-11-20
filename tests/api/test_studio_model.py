@@ -38,13 +38,13 @@ def test_studio_carries_the_profile_columns(db_session):
         display_name_field="alt",
         logo_file="k.png",
         founded_date="1985-11",
-        country="Japan",
+        countries=["Japan", "China"],
         website_url="https://www.kyotoanimation.co.jp/",
         mal_id=2,
     )
     db_session.add(s)
     db_session.commit()
-    assert (s.country, s.founded_date, s.mal_id) == ("Japan", "1985-11", 2)
+    assert (s.countries, s.founded_date, s.mal_id) == (["Japan", "China"], "1985-11", 2)
 
 
 def test_founded_date_must_be_truncated_iso(db_session):

@@ -14,7 +14,7 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 
 from app.database import Base, get_taipei_now
@@ -353,7 +353,10 @@ class Studio(Base, NameFallbackMixin):
     # Truncated ISO-8601, the format owned by app/utils/release_date.py.
     founded_date = Column(String, nullable=True)
     defunct_date = Column(String, nullable=True)
-    country = Column(String, nullable=True)
+    # Every country the studio is from, in the order given; NULL when none is
+    # known, never []. Free text, suggested from the `Country` common option
+    # category (credit_roles.COUNTRY_CATEGORY).
+    countries = Column(JSONB, nullable=True)
     website_url = Column(String, nullable=True)
     mal_id = Column(Integer, nullable=True)
     mal_link = Column(String, nullable=True)

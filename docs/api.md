@@ -1834,7 +1834,7 @@ role/scope filter — studios have no `person_role` concept.
 
 **Response model:** `StudioResponse` — `StudioBase` fields (the four names,
 `display_name_field`, `logo_file`, `logo_focus`, `remark`, `founded_date`,
-`defunct_date`, `country`, `website_url`, `mal_id`, `mal_link`) plus
+`defunct_date`, `countries`, `website_url`, `mal_id`, `mal_link`) plus
 `system_id`, the viewer's own `my_rating`, the resolved `display_name`, and three fields resolved **for the
 viewer** from the entries they may see, none of them stored:
 
@@ -1857,6 +1857,12 @@ not grow with the number of studios; a write answers for the writer.
 outside `en` / `cn` / `jp` / `alt` with a 422, mirroring
 `ck_studio_has_a_name` so the database's IntegrityError never surfaces as a
 500.
+
+`countries` is a list of free-text country names, or `null` when none is
+known. A write trims each name and drops blanks and repeats (case-insensitive,
+the first spelling kept), keeping the order given; a list left empty is
+stored and returned as `null`, never `[]` (`app/utils/countries.py`, which a
+Sheets Pull applies too).
 
 **Writes with a `mal_id` are enriched from MAL.** `autofill_studio_from_mal`
 runs inside the request on create and on update. `mal_id` is derived from `mal_link` first (`apply_extract_mal_id_studio`), so pasting `https://myanimelist.net/anime/producer/56/A-1_Pictures` is enough on its own. The autofill then fills `logo_file` (the

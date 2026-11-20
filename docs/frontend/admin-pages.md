@@ -965,9 +965,10 @@ categories), **Music** (`Song Type`, `Song Source`), **Needs Work**
 
 **Studio tab (Entity).** `StudioAddTab.jsx`. Four name fields (English,
 Chinese, Japanese, Alternative) with a "Display name" select naming which one
-to show, plus logo key, country (`CountryInput`: the `Country` common
-options as one-click chips above a `SuggestInput` offering the same values; a
-country not in the list is stored as typed and never added to it), founded/defunct dates
+to show, plus logo key, countries (`CountryInput`: any number, the
+`Country` common options as one-click toggle chips above a `MultiSelect`
+offering the same values; a country not in the list is kept as typed and
+never added to it), founded/defunct dates
 (`ReleaseDateInput`, so partial precision is allowed), website, MAL id/link
 and remark, with **My Rating** above it for a list keeper (see "The viewer's
 own rating" above). Submit is blocked client-side until at least one name is filled,
@@ -1201,8 +1202,8 @@ only land in its own grid. The swap is a draft until **Save Grid**.
   **scope chips** (`ScopeChips`) over the media types the studios are
   credited on — a studio stores no scope, so its `media_types` stand in — and
   they narrow the grid the way the person tab's do. The editor shows the
-  stored record as it is: an unset `country` opens empty and saves as
-  `null`, so clearing the field is how a country is unset. No value is
+  stored record as it is: a studio with no `countries` opens empty and saves
+  `null`, so removing every country is how they are unset. No value is
   seeded on load, because a seed cannot be told apart from a stored value
   and would be written back on the next save of any field.
 - **Publisher tab (Entity).** `PublisherModifyTab.jsx`, self-contained the

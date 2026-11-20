@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { applyFilterDefs, initialFilters } from "./libraryFilters";
 import {
   COUNTRY_NOT_SET,
+  COUNTRY_OTHERS,
   HAS_RELATIONS,
   NO_RELATIONS,
   GENDER_NOT_SET,
@@ -18,6 +19,7 @@ import {
   defaultEntityFilters,
   personFilterDefs,
   publisherFilterDefs,
+  studioChipCountries,
   studioFilterDefs,
 } from "./entityFilters";
 
@@ -263,31 +265,37 @@ describe("studioFilterDefs", () => {
     expect(def(studioFilterDefs(SEES_NONE), "mediaType").parent).toBeUndefined();
   });
 
-  it("derives the countries on record, with Not set only when a row has none", () => {
-    const country = def(studioFilterDefs(SEES_ALL), "country");
-    expect(country.type).toBe("set-dynamic");
-    expect(
-      country.deriveOptions([{ country: "Japan" }, { country: "China" }, { country: "Japan" }]),
-    ).toEqual(["China", "Japan"]);
-    expect(country.deriveOptions([{ country: "Japan" }, { country: null }])).toEqual([
-      "Japan", COUNTRY_NOT_SET,
-    ]);
+  it("gives a chip only to a country more than five studios name, most-named first", () => {
+    const many = (country, n) => Array.from({ length: n }, () => ({ countries: [country] }));
+    const rows = [...many("Korea", 6), ...many("Japan", 8), ...many("China", 5)];
+    expect(studioChipCountries(rows)).toEqual(["Japan", "Korea"]);
+    // A studio naming a country twice counts once.
+    expect(studioChipCountries([...many("USA", 4), { countries: ["USA", "USA"] }])).toEqual([]);
+    expect(studioChipCountries([...many("USA", 5), { countries: ["USA", "UK"] }])).toEqual(["USA"]);
   });
 
-  it("filters by country and rating, ANDed", () => {
-    const defs = studioFilterDefs(SEES_ALL);
+  it("derives the chips, then Others and Not set only when a row needs them", () => {
+    const japan = Array.from({ length: 6 }, () => ({ countries: ["Japan"] }));
+    const country = (rows) => def(studioFilterDefs(SEES_ALL, { studios: rows }), "country");
+    expect(country(japan).type).toBe("set-dynamic");
+    expect(country(japan).deriveOptions(japan)).toEqual(["Japan"]);
+    const all = [...japan, { countries: ["Poland"] }, { countries: null }];
+    expect(country(all).deriveOptions(all)).toEqual(["Japan", COUNTRY_OTHERS, COUNTRY_NOT_SET]);
+  });
+
+  it("matches a studio under every chip one of its countries falls under", () => {
     const rows = [
-      { id: "jp", country: "Japan", my_rating: "S" },
-      { id: "cn", country: "China", my_rating: null },
-      { id: "unknown", country: null, my_rating: "S" },
+      ...Array.from({ length: 6 }, (_, i) => ({ id: `jp${i}`, countries: ["Japan"] })),
+      { id: "jp-pl", countries: ["Japan", "Poland"], my_rating: "S" },
+      { id: "pl", countries: ["Poland"] },
+      { id: "none", countries: null, my_rating: "S" },
+      { id: "empty", countries: [] },
     ];
-    expect(filtered(defs, rows, { country: ["Japan", COUNTRY_NOT_SET] })).toEqual([
-      "jp", "unknown",
-    ]);
-    expect(filtered(defs, rows, { country: [COUNTRY_NOT_SET], myRating: ["S"] })).toEqual([
-      "unknown",
-    ]);
-    expect(filtered(defs, rows, { myRating: [UNRATED] })).toEqual(["cn"]);
+    const defs = studioFilterDefs(SEES_ALL, { studios: rows });
+    expect(filtered(defs, rows, { country: [COUNTRY_OTHERS] })).toEqual(["jp-pl", "pl"]);
+    expect(filtered(defs, rows, { country: [COUNTRY_NOT_SET] })).toEqual(["none", "empty"]);
+    expect(filtered(defs, rows, { country: ["Japan"] })).toHaveLength(7);
+    expect(filtered(defs, rows, { country: [COUNTRY_NOT_SET], myRating: ["S"] })).toEqual(["none"]);
   });
 
   it("filters by relation off has_relations, Has relation / No relation", () => {
