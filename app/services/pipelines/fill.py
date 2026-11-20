@@ -34,7 +34,8 @@ execute_fill_h_comic = _bind("h-comic")
 execute_fill_hentai = _bind("hentai")
 execute_fill_h_game = _bind("h-game")
 execute_fill_studio = _bind("studio")
-execute_fill_seiyuu = _bind("seiyuu")
+execute_fill_person_mal = _bind("person-mal")
+execute_fill_person_tmdb = _bind("person-tmdb")
 execute_fill_character = _bind("character")
 
 

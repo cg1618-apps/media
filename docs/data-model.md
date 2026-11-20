@@ -1174,13 +1174,15 @@ One human credited on a media entry (Tier 3 entity - see
 | `name_jp` | String | yes | | |
 | `name_alt` | String | yes | | The slot for names that are none of the other three: a comma-separated list, each fragment a name of its own when a name is matched. Never chosen automatically. |
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain |
-| `gender` | String | yes | | PERSON_GENDERS (`男` / `女`), or NULL for not set — narrower than a character's GENDERS. On the base table, not a seiyuu extension: a fact about the person, not the role. |
-| `photo_file` | String | yes | | Storage key under `static/covers/`, `staff/<system_id>.jpg`. Filled from MAL's people photo for a seiyuu with a `mal_id` — see [external-apis.md](external-apis.md#mapping-for-person-seiyuu--map_tenrai_to_person_data) |
+| `gender` | String | yes | | PERSON_GENDERS (`男` / `女`), or NULL for not set — narrower than a character's GENDERS. On the base table, not a seiyuu extension: a fact about the person, not the role. Filled from TMDB only when TMDB says male or female — see [external-apis.md](external-apis.md#mapping-for-person-tmdb--map_tmdb_to_person_data) |
+| `photo_file` | String | yes | | Storage key under `static/covers/`, `staff/<system_id>.jpg`. Filled from MAL's people photo for any person with a `mal_id`, then from TMDB's profile photo for one with an `imdb_id` while it is still empty — see [external-apis.md](external-apis.md#mapping-for-person-mal--map_tenrai_to_person_data) |
 | `photo_focus` | String | yes | | `photo_file`'s focal point and zoom, `"X% Y%"`, optionally zoomed (`"X% Y% 1.5"`) or fitted (`"X% Y% fit"`); NULL centres it. Reset to NULL when the photo changes — see [image focal points](#image-focal-points) |
 | `photo_fallback_entry_id` | UUID | yes | | A `media.system_id` whose cover stands in when `photo_file` is NULL; must be an entry the person is credited on or voices a character in. No FK, like `franchise.cover_entry_id`: a stale id falls through to the automatic choice ([systems/credits-and-tags.md](systems/credits-and-tags.md#photo-fallback)). |
 | `remark` | Text | yes | | A real column here (not a note row) |
-| `mal_id` | Integer | yes | | MAL people id. Derived from `mal_link` by `extract_mal_id_person` on every write and on the Seiyuu Fill, or typed directly. Held by any person; only a person holding the `seiyuu` role is ever filled from it |
+| `mal_id` | Integer | yes | | MAL people id. Derived from `mal_link` by `extract_mal_id_person` on every write and on the Person (MAL) Fill, or typed directly. Any person holding one is filled from MAL, whatever their role |
 | `mal_link` | String | yes | | `myanimelist.net/people/<id>/<slug>` |
+| `imdb_id` | String | yes | | IMDb name id, `nm<digits>`. Derived from `imdb_link` by `extract_imdb_id_person` on every write and on the Person (TMDB) Fill. Any person holding one is filled from TMDB's person record (through `/find`), after MAL |
+| `imdb_link` | String | yes | | `imdb.com/name/nm<digits>/` |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 Constraints: `uq_person_name` UNIQUE (`name_en`, `name_cn`, `name_jp`,

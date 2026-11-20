@@ -21,6 +21,9 @@ MAL_PRODUCER_ID_PATTERN = re.compile(r"myanimelist\.net/anime/producer/(\d+)")
 MAL_PERSON_ID_PATTERN = re.compile(r"myanimelist\.net/people/(\d+)")
 MAL_CHARACTER_ID_PATTERN = re.compile(r"myanimelist\.net/character/(\d+)")
 IMDB_ID_PATTERN = re.compile(r"imdb\.com/title/tt(\d+)")
+# A person is a name page, /name/nm<digits>/, never a /title/ - the two never
+# poach each other.
+IMDB_PERSON_ID_PATTERN = re.compile(r"imdb\.com/name/nm(\d+)")
 SEASON_PART_PATTERN = re.compile(r"(?i)(season\s*\d+|part\s*\d+|cour\s*\d+)")
 SEASON_PATTERN = re.compile(r"season\s*(\d+)", re.IGNORECASE)
 PART_PATTERN = re.compile(r"part\s*(\d+)", re.IGNORECASE)
@@ -71,7 +74,7 @@ STUDIO_FIELDS_TO_FILL = [
     "logo_file",
 ]
 
-# The columns whose blankness makes a seiyuu worth fetching from the Tenrai
+# The columns whose blankness makes a person worth fetching from the Tenrai
 # people endpoint. Birthday, website and the about blurb are absent on
 # purpose: the owner keeps those by hand. name_alt is absent too, though the
 # fill still writes it when it runs: many people have no alternate name on
@@ -83,9 +86,19 @@ PERSON_FIELDS_TO_FILL = [
     "photo_file",
 ]
 
+# The same for TMDB's person record, reached through the person's IMDb id:
+# the three columns it fills. gender counts although TMDB often has none to
+# give (0, unknown) - the fill then leaves it NULL and the person stays
+# eligible, one request per Fill run, which is the price of not guessing.
+PERSON_TMDB_FIELDS_TO_FILL = [
+    "name_en",
+    "photo_file",
+    "gender",
+]
+
 # The same for a character and the Tenrai characters endpoint. name_cn is
 # absent on purpose - MAL carries no Chinese name - and name_alt for the
-# seiyuu's reason: a blank nickname list alone is no reason to fetch.
+# person's reason: a blank nickname list alone is no reason to fetch.
 CHARACTER_FIELDS_TO_FILL = [
     "mal_link",
     "name_en",
@@ -351,6 +364,20 @@ def extract_mal_id_person(url: str) -> Optional[int]:
     if match:
         return int(match.group(1))
 
+    return None
+
+
+def extract_imdb_id_person(url: str) -> Optional[str]:
+    """
+    Extracts the IMDb name id from a person's IMDb URL, e.g.
+    https://www.imdb.com/name/nm2017929/ -> 'nm2017929'.
+    Returns None if the URL is invalid or the ID cannot be found.
+    """
+    if not url:
+        return None
+    match = IMDB_PERSON_ID_PATTERN.search(url)
+    if match:
+        return f"nm{match.group(1)}"
     return None
 
 

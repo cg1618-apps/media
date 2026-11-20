@@ -49,6 +49,7 @@ from app.services.domain import (
     apply_extract_game_ids,
     apply_extract_hentai_ids,
     apply_extract_imdb_id,
+    apply_extract_imdb_id_person,
     apply_extract_mal_id_anime,
     apply_extract_mal_id_character,
     apply_extract_mal_id_manga_book,
@@ -87,6 +88,7 @@ from app.services.domain import (
     autofill_manga_from_mal,
     autofill_movie_from_imdb,
     autofill_person_from_mal,
+    autofill_person_from_tmdb,
     autofill_studio_from_mal,
     autofill_tv_show_from_imdb,
     cartoon_post_processing,
@@ -109,6 +111,7 @@ from app.services.domain import (
     has_missing_values_manga,
     has_missing_values_movie,
     has_missing_values_person,
+    has_missing_values_person_tmdb,
     has_missing_values_studio,
     has_missing_values_tv_show,
     manga_post_processing,
@@ -133,20 +136,6 @@ MAL_PAUSE = 1
 COMICVINE_PAUSE = 1
 IGDB_PAUSE = 0.25
 STEAM_PAUSE = 0.5
-
-
-def _is_seiyuu_to_fill(db, person) -> bool:
-    """
-    A seiyuu - any person_role row with role seiyuu, whatever its scope - with
-    a MAL id and something left to fill. The role is checked last: most
-    people carry no mal_id, so their roles are never loaded. A director or
-    author with a MAL link is never filled, which is the owner's rule.
-    """
-    return (
-        person.mal_id is not None
-        and has_missing_values_person(person)
-        and any(role.role == "seiyuu" for role in person.roles)
-    )
 
 
 def _linked(model, *columns):
@@ -584,15 +573,29 @@ PIPELINES: dict[str, PipelineSpec] = {
         fill_only=True,
         in_replace_all=False,
     ),
-    "seiyuu": PipelineSpec(
-        key="seiyuu", label="Seiyuu", model=Person,
-        # Not a media entry either, and not every person: only a seiyuu is
-        # filled (_is_seiyuu_to_fill). The id is derived for every person, so
-        # a director's pasted people URL still yields a mal_id.
+    "person-mal": PipelineSpec(
+        key="person-mal", label="Person (MAL)", model=Person,
+        # Not a media entry either. Every person with a MAL id is filled,
+        # whatever role they hold: MAL serves seiyuu, directors and authors
+        # from one people endpoint. Before person-tmdb, so MAL's values win.
         extract_id=apply_extract_mal_id_person,
-        fill_eligible=_is_seiyuu_to_fill,
+        fill_eligible=lambda db, e: e.mal_id is not None and has_missing_values_person(e),
         fill=lambda db, e: autofill_person_from_mal(e, db),
         fill_sleep=MAL_PAUSE,
+        fill_only=True,
+        in_replace_all=False,
+    ),
+    "person-tmdb": PipelineSpec(
+        key="person-tmdb", label="Person (TMDB)", model=Person,
+        # TMDB's person record, found through the IMDb name id. It fills only
+        # what person-mal left blank - both are fill-only, and Fill All runs
+        # this one second. No fill_sleep: every TMDB call is throttled by
+        # tmdb_rate_limiter, as the movie, tv-show and cartoon fills are.
+        extract_id=apply_extract_imdb_id_person,
+        fill_eligible=lambda db, e: (
+            e.imdb_id is not None and has_missing_values_person_tmdb(e)
+        ),
+        fill=lambda db, e: autofill_person_from_tmdb(e, db),
         fill_only=True,
         in_replace_all=False,
     ),

@@ -26,12 +26,18 @@ from app.routers._external_search import SEARCH_LIMIT, SEARCH_QUERY, run_search
 from app.routers._patching import apply_column_patch
 from app.schemas.external_search import ExternalSearchResult
 from app.services.domain import person_work_images
-from app.services.domain.autofill import autofill_person_from_mal
+from app.services.domain.autofill import (
+    autofill_person_from_mal,
+    autofill_person_from_tmdb,
+)
 from app.services.domain.casting import fallback_photo
-from app.services.domain.checking import has_missing_values_person
+from app.services.domain.checking import (
+    has_missing_values_person,
+    has_missing_values_person_tmdb,
+)
 from app.services.domain.credit_counts import person_role_counts
 from app.services.domain.credits import find_person
-from app.services.domain.derivation import apply_extract_mal_id_person
+from app.services.domain.derivation import apply_extract_person_ids
 from app.services.domain.entity_photos import EntityMedia, person_media
 from app.services.domain.membership import (
     clubs_of,
@@ -124,6 +130,8 @@ def _to_response(
         remark=person.remark,
         mal_id=person.mal_id,
         mal_link=person.mal_link,
+        imdb_id=person.imdb_id,
+        imdb_link=person.imdb_link,
         roles=[
             schemas.PersonRoleIn(role=r.role, scope=r.scope)
             for r in without_hidden_scopes(person.roles, hidden, "scope")
@@ -136,30 +144,35 @@ def _to_response(
     )
 
 
-def _derive_and_fill_from_mal(
+def _derive_and_fill(
     db: Session, person: models.Person, *, only_if_missing: bool = False
 ) -> None:
     """
-    Derive mal_id from mal_link, and - for a seiyuu only - fill the empty
-    columns from MAL's people record. The Seiyuu Fill pipeline applies the
-    same seiyuu rule (specs._is_seiyuu_to_fill), so a director's MAL link is
-    kept but never fetched. Runs after the payload is copied, so the
-    payload's own values win and only blank columns are filled.
+    Derive mal_id from mal_link and imdb_id from imdb_link, then fill the
+    empty columns: from MAL's people record first, then from TMDB's person
+    record, each when its id is present - whatever role the person holds.
+    The order is Fill All's (person-mal before person-tmdb), and both fills
+    are fill-only, so TMDB writes only what MAL left blank. Runs after the
+    payload is copied, so the payload's own values win.
 
-    `only_if_missing` is the Modify save's: MAL is asked only while a column
-    the fill writes is blank (has_missing_values_person, the Seiyuu Fill's
-    own check), so saving a complete seiyuu makes no request. The explicit
-    /autofill button and the create leave it off.
+    `only_if_missing` is the Modify save's: each source is asked only while a
+    column it writes is blank (has_missing_values_person and
+    has_missing_values_person_tmdb, the two Fills' own checks), so saving a
+    complete person makes no request. The explicit /autofill button and the
+    create leave it off.
     """
-    apply_extract_mal_id_person(person)
-    if person.mal_id is None:
-        return
-    if only_if_missing and not has_missing_values_person(person):
+    apply_extract_person_ids(person)
+    if person.mal_id is None and person.imdb_id is None:
         return
     db.flush()
-    db.refresh(person, ["roles"])
-    if any(role.role == "seiyuu" for role in person.roles):
+    if person.mal_id is not None and (
+        not only_if_missing or has_missing_values_person(person)
+    ):
         autofill_person_from_mal(person, db)
+    if person.imdb_id is not None and (
+        not only_if_missing or has_missing_values_person_tmdb(person)
+    ):
+        autofill_person_from_tmdb(person, db)
 
 
 # ==========================================
@@ -631,9 +644,10 @@ def create_person(
     A photo_fallback_entry_id is a 422: a new person is linked to nothing,
     and an existing one's metadata is not written here.
 
-    A new person's mal_id is derived from its mal_link, and a new seiyuu with
-    one is filled from MAL - only on the create branch, so the routine
-    find-or-create for an existing name spends nothing on MAL.
+    A new person's mal_id and imdb_id are derived from its links, and the
+    new person is filled from MAL, then TMDB, for whichever ids it has - only
+    on the create branch, so the routine find-or-create for an existing name
+    spends nothing on either.
     """
     if payload.photo_fallback_entry_id is not None:
         raise HTTPException(
@@ -673,7 +687,7 @@ def create_person(
         held.add((role_in.role, role_in.scope))
 
     if created:
-        _derive_and_fill_from_mal(db, person)
+        _derive_and_fill(db, person)
 
     db.commit()
     db.refresh(person)
@@ -698,10 +712,10 @@ def update_person(
     name an entry this person is credited or cast on (422 otherwise) - see
     _entity_patch.resolve_fallback.
 
-    mal_id is derived from mal_link, and a seiyuu with one is then filled
-    from MAL, blank columns only (_derive_and_fill_from_mal) - and only
-    while one of those columns is blank, so a complete seiyuu makes no MAL
-    request.
+    mal_id and imdb_id are derived from their links, and the person is then
+    filled from MAL, then TMDB, blank columns only (_derive_and_fill) - each
+    source only while a column it writes is blank, so a complete person
+    makes no request.
     """
     person = db.get(models.Person, system_id)
     if person is None:
@@ -731,7 +745,7 @@ def update_person(
             )
         )
 
-    _derive_and_fill_from_mal(db, person, only_if_missing=True)
+    _derive_and_fill(db, person, only_if_missing=True)
 
     db.commit()
     db.refresh(person)
@@ -741,7 +755,7 @@ def update_person(
 @router.post(
     "/{system_id}/autofill",
     response_model=schemas.PersonResponse,
-    summary="Autofill Person from MAL",
+    summary="Autofill Person from MAL, then TMDB",
 )
 def autofill_person(
     system_id: UUID,
@@ -749,31 +763,25 @@ def autofill_person(
     admin: Viewer = Depends(require_manage_catalog),
 ):
     """
-    The detail page's Autofill & update: the MAL fill a save runs
-    (_derive_and_fill_from_mal), without a save. Blank columns only.
+    The detail page's Autofill & update: the MAL-then-TMDB fill a save runs
+    (_derive_and_fill), without a save. Blank columns only.
 
-    Only a seiyuu is fetched, as on save, so two cases are a 422 with
-    nothing fetched: no MAL link (no mal_id once it is derived), and a person
-    holding no seiyuu role. A failed fetch is not an error:
-    autofill_person_from_mal logs and swallows it, and the unchanged person
-    comes back.
+    A person with neither a MAL link nor an IMDb link (no id once both are
+    derived) is a 422 with nothing fetched. A failed fetch is not an error:
+    each autofill logs and swallows it, and the unchanged person comes back.
     """
     person = db.get(models.Person, system_id)
     if person is None:
         raise HTTPException(status_code=404, detail=NOT_FOUND)
     require_visible_shared(db, admin, models.Person, system_id, NOT_FOUND)
 
-    apply_extract_mal_id_person(person)
-    if person.mal_id is None:
-        raise HTTPException(
-            status_code=422, detail="This person has no MAL link to autofill from."
-        )
-    if not any(role.role == "seiyuu" for role in person.roles):
+    apply_extract_person_ids(person)
+    if person.mal_id is None and person.imdb_id is None:
         raise HTTPException(
             status_code=422,
-            detail="Only a seiyuu is autofilled from MAL; this person holds no seiyuu role.",
+            detail="This person has no MAL or IMDb link to autofill from.",
         )
-    _derive_and_fill_from_mal(db, person)
+    _derive_and_fill(db, person)
 
     db.commit()
     db.refresh(person)
@@ -800,9 +808,9 @@ def patch_person(
     cn / jp / alt, at least one name survives the patch, and a
     photo_fallback_entry_id names an entry this person is credited or cast
     on. Server columns (system_id, public_id, timestamps) are a 422; keys that
-    are not columns are ignored (_patching.apply_column_patch). A mal_link in
-    the patch re-derives mal_id; the MAL fetch itself stays with POST, PUT
-    and the Seiyuu Fill.
+    are not columns are ignored (_patching.apply_column_patch). A mal_link or
+    imdb_link in the patch re-derives its id; the fetches themselves stay with
+    POST, PUT and the two Person Fills.
     """
     person = db.get(models.Person, system_id)
     if person is None:
@@ -815,8 +823,8 @@ def patch_person(
             db, admin, models.Person, person, data["photo_fallback_entry_id"], "person"
         )
     apply_column_patch(person, data)
-    if "mal_link" in data:
-        apply_extract_mal_id_person(person)
+    if "mal_link" in data or "imdb_link" in data:
+        apply_extract_person_ids(person)
 
     db.commit()
     db.refresh(person)

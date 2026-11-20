@@ -29,7 +29,7 @@ import VoicedPartCard from "../../components/info/VoicedPartCard";
 import WorkGallery from "../../components/info/WorkGallery";
 import { PERSON_SUB_TABS } from "../../components/forms/PersonSubTabBar";
 import InfoCard from "../../components/info/InfoCard";
-import MalButton from "../../components/info/MalButton";
+import MalButton, { ImdbButton } from "../../components/info/MalButton";
 import NamingCard from "../../components/info/NamingCard";
 import {
   AdminToolbar,
@@ -156,11 +156,10 @@ export default function Person() {
         <AdminToolbar
           ownerType="person"
           systemId={person.system_id}
-          // MAL fills a seiyuu only, as on save: a director's link is kept
-          // but never fetched.
+          // MAL, then TMDB through the IMDb link, as on save - whatever role
+          // the person holds. With neither link there is nothing to fetch.
           onAutofilled={
-            (person.mal_link || person.mal_id) &&
-            person.roles?.some((r) => r.role === "seiyuu")
+            person.mal_link || person.mal_id || person.imdb_link || person.imdb_id
               ? setPerson
               : undefined
           }
@@ -221,8 +220,10 @@ export default function Person() {
               <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-text-faint">
                 {creditTotal} credited entr{creditTotal === 1 ? "y" : "ies"}
               </p>
-              {/* The way out to MAL, by the name as on the character page. */}
+              {/* The ways out to MAL and IMDb, by the name as on the
+                  character page. */}
               <MalButton href={person.mal_link} />
+              <ImdbButton href={person.imdb_link} />
             </div>
           </div>
 
@@ -243,6 +244,19 @@ export default function Person() {
                     className="text-brand hover:underline break-all"
                   >
                     {person.mal_id ? `Person #${person.mal_id}` : "MyAnimeList"}
+                  </a>
+                ) : null,
+              },
+              {
+                label: "IMDb",
+                value: person.imdb_link ? (
+                  <a
+                    href={person.imdb_link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-brand hover:underline break-all"
+                  >
+                    {person.imdb_id ?? "IMDb"}
                   </a>
                 ) : null,
               },

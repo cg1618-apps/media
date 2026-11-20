@@ -953,10 +953,11 @@ where the profile call failing is the page's 404 while the entries call
 failing is not.
 
 Layout: breadcrumb → (admin) the dashed **Admin** strip with **Quick edit**,
-linking to `/modify?id=<system_id>&type=person`, and — for a seiyuu with a
-MAL link — **Autofill & update**, `POST /api/person/{system_id}/autofill`
-(`AdminToolbar`'s `onAutofilled`): it reads **Autofilling…** while it runs,
-fills only the blank columns from MAL, toasts **Autofill completed** and
+linking to `/modify?id=<system_id>&type=person`, and — for a person with a
+MAL link or an IMDb link, whatever their role — **Autofill & update**,
+`POST /api/person/{system_id}/autofill` (`AdminToolbar`'s `onAutofilled`): it
+reads **Autofilling…** while it runs, fills only the blank columns from MAL
+and then from TMDB, toasts **Autofill completed** and
 takes the page's state from the response; a 422 or any other failure toasts
 the server's `detail` → left column with the photo
 (`display_photo_file`: the photo, else the server-resolved fallback cover,
@@ -964,11 +965,13 @@ else `FALLBACK_SVG`) and rating stamp, (holder of `self.list`) a **My rating** s
 **Naming** card (`NamingCard`, each of the four names that is set) → right column with the
 display name, credited-entry count and, for a person with a `mal_link`, a
 **MyAnimeList** button beside it (`MalButton`, as on the character page; none
-without one), a "Profile" `InfoCard` (gender; the types
-they are offered under, by their `PERSON_SUB_TABS` labels — Director, Music /
-Composer; MAL as an external link reading `Person #<mal_id>`; and for a
+without one), then for a person with an `imdb_link` an **IMDb** button after
+it, drawn the same way (`ImdbButton`, from the same file; none without one), a
+"Profile" `InfoCard` (gender; the types they are offered under, by their
+`PERSON_SUB_TABS` labels — Director, Music / Composer; MAL as an external link
+reading `Person #<mal_id>`; IMDb the same way, reading the `nm…` id; and for a
 non-admin the remark), (admin) a **Remarks** textarea, then one section per
-group.
+group. Both external links are shown to every viewer of the page.
 
 The admin controls are `components/info/EntityProfileControls.jsx`, shared
 with the character, studio and publisher pages. The rating select is the

@@ -62,6 +62,27 @@ def _extract_episode_runtime(episodes: List[Dict[str, Any]]) -> Optional[int]:
 # ==========================================
 
 
+# TMDB's person gender codes onto the person vocabulary (PERSON_GENDERS):
+# 1 female, 2 male. 0 (not specified) and 3 (non-binary) have no value in a
+# vocabulary of 男 / 女 / NULL, so they map to nothing and the column stays NULL.
+TMDB_PERSON_GENDERS = {1: "女", 2: "男"}
+
+
+def map_tmdb_to_person_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Transforms a raw TMDB person record into the flat dict the person
+    autofill writes from: the English name, the profile photo URL, and the
+    gender when TMDB says male or female.
+    """
+    name = raw_data.get("name")
+    gender = raw_data.get("gender")
+    return {
+        "name_en": name.strip() if isinstance(name, str) and name.strip() else None,
+        "photo_url": _build_poster_url(raw_data.get("profile_path")),
+        "gender": TMDB_PERSON_GENDERS.get(gender) if isinstance(gender, int) else None,
+    }
+
+
 def map_tmdb_to_movie_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Parses raw TMDB movie JSON (with credits appended) into the flat dict

@@ -42,6 +42,7 @@ from app.utils.utils import (
     MOVIE_FIELDS_TO_FILL,
     MOVIE_LINK_FIELDS_TO_FILL,
     PERSON_FIELDS_TO_FILL,
+    PERSON_TMDB_FIELDS_TO_FILL,
     STUDIO_FIELDS_TO_FILL,
     TV_SHOW_FIELDS_TO_FILL,
     validate_ch_math,
@@ -502,10 +503,24 @@ def has_missing_values_person(person: Person) -> bool:
     """
     Returns True if any Tenrai-fillable Person column is blank.
 
-    The seiyuu Fill pairs this with the seiyuu-role and mal_id checks: a
-    person with no MAL id has no source to fill from, however empty it is.
+    The Person (MAL) Fill pairs this with a mal_id check: a person with no
+    MAL id has no source to fill from, however empty it is.
     """
     for field in PERSON_FIELDS_TO_FILL:
+        val = getattr(person, field, None)
+        if val is None or str(val).strip() == "":
+            return True
+    return False
+
+
+def has_missing_values_person_tmdb(person: Person) -> bool:
+    """
+    Returns True if any TMDB-fillable Person column is blank.
+
+    The Person (TMDB) Fill pairs this with an imdb_id check, as the MAL one
+    pairs has_missing_values_person with mal_id.
+    """
+    for field in PERSON_TMDB_FIELDS_TO_FILL:
         val = getattr(person, field, None)
         if val is None or str(val).strip() == "":
             return True

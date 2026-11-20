@@ -159,6 +159,44 @@ describe("Person detail page", () => {
     expect(screen.queryByRole("link", { name: "Open on MyAnimeList" })).toBeNull();
   });
 
+  // The IMDb link is drawn exactly as the MAL one: a button beside the name
+  // and a row of the Profile card, for every viewer of the page.
+  const IMDB = "https://www.imdb.com/name/nm0594503/";
+
+  it("links the IMDb name page from the Profile card", async () => {
+    mockFetch({ ...PERSON, imdb_id: "nm0594503", imdb_link: IMDB });
+    renderPage();
+    const link = await screen.findByRole("link", { name: "nm0594503" });
+    expect(link).toHaveAttribute("href", IMDB);
+    expect(link).toHaveAttribute("target", "_blank");
+  });
+
+  it("links IMDb beside the name when the person has an IMDb link", async () => {
+    mockFetch({ ...PERSON, imdb_id: "nm0594503", imdb_link: IMDB });
+    renderPage();
+    const button = await screen.findByRole("link", { name: "Open on IMDb" });
+    expect(button).toHaveAttribute("href", IMDB);
+    expect(button).toHaveAttribute("target", "_blank");
+  });
+
+  it("draws both buttons, MyAnimeList first, for a person with both links", async () => {
+    const mal = "https://myanimelist.net/people/1870/Hayao_Miyazaki";
+    mockFetch({ ...PERSON, mal_id: 1870, mal_link: mal, imdb_id: "nm0594503", imdb_link: IMDB });
+    renderPage();
+    const malButton = await screen.findByRole("link", { name: "Open on MyAnimeList" });
+    const imdbButton = screen.getByRole("link", { name: "Open on IMDb" });
+    expect(malButton.compareDocumentPosition(imdbButton)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+  });
+
+  it("draws no IMDb button or link for a person without an IMDb link", async () => {
+    renderPage();
+    await screen.findByRole("heading", { name: "Hayao Miyazaki" });
+    expect(screen.queryByRole("link", { name: "Open on IMDb" })).toBeNull();
+    expect(screen.queryByRole("link", { name: /^nm/ })).toBeNull();
+  });
+
   it("names the person's types by their labels, not their keys", async () => {
     mockFetch({
       ...PERSON,
@@ -365,15 +403,27 @@ describe("Person Autofill & update", () => {
     expect(screen.queryByRole("button", { name: /Autofill/ })).not.toBeInTheDocument();
   });
 
-  it("is not offered for a person who is not a seiyuu, MAL link or not", async () => {
+  it("is offered for a person who is not a seiyuu but has a MAL link", async () => {
     auth = ADMIN;
     mockFetch({ ...SEIYUU, roles: [{ role: "director", scope: "anime" }] });
     renderPage();
-    await screen.findByRole("button", { name: "Quick edit" });
-    expect(screen.queryByRole("button", { name: /Autofill/ })).not.toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Autofill & update" })).toBeInTheDocument();
   });
 
-  it("is not offered for a seiyuu with no MAL link", async () => {
+  it("is offered for a person with only an IMDb link", async () => {
+    auth = ADMIN;
+    mockFetch({
+      ...SEIYUU,
+      mal_id: null,
+      mal_link: null,
+      imdb_id: "nm2017929",
+      imdb_link: "https://www.imdb.com/name/nm2017929/",
+    });
+    renderPage();
+    expect(await screen.findByRole("button", { name: "Autofill & update" })).toBeInTheDocument();
+  });
+
+  it("is not offered for a person with neither a MAL nor an IMDb link", async () => {
     auth = ADMIN;
     mockFetch({ ...SEIYUU, mal_id: null, mal_link: null });
     renderPage();

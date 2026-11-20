@@ -1691,10 +1691,10 @@ derived from `(role, media_type)`, never stored.
 | `GET`    | `/role-scopes`     | `view.person` | `{role: [legal media types]}`, derived from the same `CreditRole.media_types` that validates writes, so the admin form cannot offer a pair the API rejects. Declared before `/{system_id}` for the same reason `role-counts` is. |
 | `GET`    | `/{system_id}`     | `view.person` | Get one person by UUID. 404 if absent or hidden.                                     |
 | `GET`    | `/{system_id}/entries` | `view.person` | The entries this person is credited on, grouped by `(media_type, role)`. 404 if the person is absent or hidden. |
-| `POST`   | `/`                | Admin  | Create a person, **or return the existing one** under that name — find-or-create, matching `resolve_person`, because `ensureSourceValues.js` POSTs here whenever a typed name is missing from a role-filtered dropdown. Body: `PersonCreate` (`PersonBase` fields + `roles: [{role, scope}]`), carrying either the four labelled name columns or one unslotted `name` that the endpoint places through `name_slot_for`. The lookup is by `name`, else the first of the labelled names - the first fragment of `name_alt` when that is all the body carries, since `name_alt` is a comma-separated list. A body with no name at all is 422, mirroring `ck_person_has_a_name`. Only on the create branch, `mal_id` is derived from `mal_link` and a seiyuu is enriched from MAL (see below). |
-| `PUT`    | `/{system_id}`     | Admin  | Fully update a person, replacing their `person_role` rows wholesale. Body: `PersonUpdate`. A non-null `photo_fallback_entry_id` must name an entry this person is credited on or voices a character in, and that the editor can see — 422 otherwise; a null keeps a stored choice the editor cannot see, as the role rows are kept. `mal_id` is derived from `mal_link`, and a seiyuu is enriched from MAL after the payload is copied (see below). |
-| `PATCH`  | `/{system_id}`     | Admin  | Partially update a person's own columns — the detail page's inline remark edit. Body: any subset of the `PersonBase` columns as a JSON object; only the keys sent change, and `roles` is not a column (edit it through `PUT`). The viewer's rating is not a column either; it is written through `PUT /api/me/ratings/person/{id}`. The `PUT` rules are checked before anything is written: `gender` is `男` or `女` (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, at least one name survives the patch, and `photo_fallback_entry_id` follows the `PUT` rule — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. A `mal_link` in the body re-derives `mal_id`; `PATCH` never calls MAL. Returns the full `PersonResponse`. |
-| `POST`   | `/{system_id}/autofill` | Admin  | The detail page's **Autofill & update**: the MAL fill `PUT` runs, without a save — `mal_id` is derived from `mal_link`, then the empty columns are filled from MAL's people record; a column that holds a value is never overwritten. **422**, with nothing fetched, when the person has no MAL link or holds no `seiyuu` role (only a seiyuu is filled, as on save); the `detail` says which. A failed MAL fetch is logged and swallowed, as on save, so the unchanged person comes back with 200. 404 if absent or hidden. Returns `PersonResponse`. |
+| `POST`   | `/`                | Admin  | Create a person, **or return the existing one** under that name — find-or-create, matching `resolve_person`, because `ensureSourceValues.js` POSTs here whenever a typed name is missing from a role-filtered dropdown. Body: `PersonCreate` (`PersonBase` fields + `roles: [{role, scope}]`), carrying either the four labelled name columns or one unslotted `name` that the endpoint places through `name_slot_for`. The lookup is by `name`, else the first of the labelled names - the first fragment of `name_alt` when that is all the body carries, since `name_alt` is a comma-separated list. A body with no name at all is 422, mirroring `ck_person_has_a_name`. Only on the create branch, `mal_id` and `imdb_id` are derived from their links and the person is enriched from MAL, then TMDB (see below). |
+| `PUT`    | `/{system_id}`     | Admin  | Fully update a person, replacing their `person_role` rows wholesale. Body: `PersonUpdate`. A non-null `photo_fallback_entry_id` must name an entry this person is credited on or voices a character in, and that the editor can see — 422 otherwise; a null keeps a stored choice the editor cannot see, as the role rows are kept. `mal_id` and `imdb_id` are derived from their links, and the person is enriched from MAL, then TMDB, after the payload is copied (see below). |
+| `PATCH`  | `/{system_id}`     | Admin  | Partially update a person's own columns — the detail page's inline remark edit. Body: any subset of the `PersonBase` columns as a JSON object; only the keys sent change, and `roles` is not a column (edit it through `PUT`). The viewer's rating is not a column either; it is written through `PUT /api/me/ratings/person/{id}`. The `PUT` rules are checked before anything is written: `gender` is `男` or `女` (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, at least one name survives the patch, and `photo_fallback_entry_id` follows the `PUT` rule — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. A `mal_link` or `imdb_link` in the body re-derives its id; `PATCH` never calls MAL or TMDB. Returns the full `PersonResponse`. |
+| `POST`   | `/{system_id}/autofill` | Admin  | The detail page's **Autofill & update**: the MAL-then-TMDB fill `PUT` runs, without a save — `mal_id` and `imdb_id` are derived from their links, then the empty columns are filled from MAL's people record and then from TMDB's person record, each when its id is present; a column that holds a value is never overwritten. **422**, with nothing fetched, only when the person has neither a MAL link nor an IMDb link, whatever role they hold. A failed fetch is logged and swallowed, as on save, so the unchanged person comes back with 200. 404 if absent or hidden. Returns `PersonResponse`. |
 | `DELETE` | `/{system_id}?credits=N` | Admin  | Delete a person. Cascades their `media_credit`, `character_casting_voice` and `person_role` rows — no `deleted_record` entry is logged. Their gallery of works is emptied too, each picture's image and file deleted unless something else uses it. The castings they voiced stay, un-voiced by them (Decision H). `credits` is **required**: it is the count the confirmation dialog showed — `media_credit` rows plus voice rows — and a mismatch is a **409**, so the deletion that happens is the one the admin agreed to. |
 | `POST`   | `/{system_id}/merge` | Admin  | Merge `source_id` into this person: repoints every `media_credit` and every `character_casting_voice` row (a voice on a casting the survivor already voices is dropped), unions the `person_role` rows, moves every club membership onto the survivor and appends the loser's gallery of works after the survivor's own (a picture the survivor already shows is dropped), then deletes the loser. Every column the survivor leaves blank is then filled from the loser's, and one it holds is never overwritten; the picture (photo or logo) comes with its focus, a downloaded one renamed onto the survivor's own key (`app/services/domain/merge_fill.py`). 409, with nothing changed, if the filled names would equal another record's. Body: `MergeRequest` (`{source_id}`). 400 if merging into self. Returns `credits_moved`, credits and voices together. |
 | `GET`    | `/{system_id}/clubs` | `view.person` | The clubs this person belongs to, as `List[MembershipRef]`, ordered by name. Hidden clubs are omitted; 404 if the person is absent or hidden. |
@@ -1715,7 +1715,7 @@ not a connection: it never makes a hidden club or artist visible
 **Response model:** `PersonResponse` — the four name columns,
 `display_name_field`, the resolved `display_name`, `gender`, `my_rating` (the
 viewer's own, null without a rating row),
-`photo_file`, `photo_focus`, `photo_fallback_entry_id`, `remark`, `mal_id`, `mal_link`, `system_id`, `roles` (every
+`photo_file`, `photo_focus`, `photo_fallback_entry_id`, `remark`, `mal_id`, `mal_link`, `imdb_id`, `imdb_link`, `system_id`, `roles` (every
 `(role, scope)` the person holds, so the admin form can load the whole set in
 one request) and five fields resolved **for the viewer** from the entries they
 may see (`filter_visible_pairs`), none of them stored:
@@ -1755,23 +1755,29 @@ see, `role-scopes` omits such types, a `?scope=` naming one answers `[]`, and
 `PUT` keeps the role rows the editor cannot see. A role scoped only to such
 types (`club`) is absent from `role-scopes` and `role-counts` altogether.
 
-**A seiyuu with a `mal_id` is enriched from MAL on save.** Every person write
-derives `mal_id` from `mal_link` (`apply_extract_mal_id_person`, pattern
-`myanimelist\.net/people/(\d+)`), so pasting
-`https://myanimelist.net/people/185/Kana_Hanazawa` is enough on its own. When
-the saved person holds the `seiyuu` role (any scope) and has a `mal_id`,
-`POST` (create branch only) and `PUT` then run `autofill_person_from_mal`,
-which fills `photo_file`, `mal_link`, `name_en`, `name_jp` and `name_alt` —
-**only the columns that are empty**. `PUT` asks MAL only while one of those
-five is blank (`has_missing_values_person`, the Seiyuu Fill's own check), so
-saving a complete seiyuu makes no request; **Autofill & update** fetches
-regardless. The names are skipped together, with a
-warning, when the filled names would equal another person's (`uq_person_name`);
-the photo and link still land. A person without the seiyuu role keeps its MAL
-link and is never fetched. A Tenrai failure is logged and swallowed — the save
-still succeeds. The bulk equivalent is `POST /api/data-control/fill/seiyuu`;
-the field mapping is in
-[external-apis.md](external-apis.md#mapping-for-person-seiyuu--map_tenrai_to_person_data).
+**A person with a `mal_id` or an `imdb_id` is enriched on save, MAL first.**
+Every person write derives `mal_id` from `mal_link` (pattern
+`myanimelist\.net/people/(\d+)`) and `imdb_id` from `imdb_link` (pattern
+`imdb\.com/name/nm(\d+)`, stored as `"nm…"`) through
+`apply_extract_person_ids`, so pasting
+`https://myanimelist.net/people/185/Kana_Hanazawa` or
+`https://www.imdb.com/name/nm2017929/` is enough on its own. Whatever role the
+person holds, `POST` (create branch only) and `PUT` then run
+`autofill_person_from_mal` when there is a `mal_id` — filling `photo_file`,
+`mal_link`, `name_en`, `name_jp` and `name_alt` — and **after it**
+`autofill_person_from_tmdb` when there is an `imdb_id` — filling `name_en`,
+`photo_file` and `gender` (`男` / `女` only). Both write **only the columns
+that are empty**, so TMDB fills only what MAL left blank. `PUT` asks each
+source only while one of its columns is blank (`has_missing_values_person`,
+`has_missing_values_person_tmdb` — the two Fills' own checks), so saving a
+complete person makes no request; **Autofill & update** fetches regardless.
+The names are skipped together, with a warning, when the filled names would
+equal another person's (`uq_person_name`); the rest still lands. A failure of
+either source is logged and swallowed — the save still succeeds. The bulk
+equivalents are `POST /api/data-control/fill/person-mal` and
+`/fill/person-tmdb`; the field mappings are in
+[external-apis.md](external-apis.md#mapping-for-person-mal--map_tenrai_to_person_data)
+and [external-apis.md](external-apis.md#mapping-for-person-tmdb--map_tmdb_to_person_data).
 
 ### `GET /api/person/{system_id}/entries`
 
@@ -2476,7 +2482,8 @@ see [authorization.md](authorization.md) for why that is accepted.
 | `POST` | `/fill/h-game`      | Game's Fill on the h-game table: IGDB (columns, the `studio` credit, `game_genre` / `game_theme`) and Steam (prices, achievements), then `run_sync_game` and `run_sync_gated_labels`. Streams SSE progress. Part of Fill All. |
 | `POST` | `/fill/hentai`      | Fill `airing_status`, `release_date`, `ep_total` and the cover (plus the Official site / Twitter reference rows) from Tenrai for every hentai with a MAL id that is missing one of the four, then from AniDB for whatever is still blank - also for a hentai with only an AniDB link, while AniDB is enabled - fill-only, 1 s between entries and 4 s between AniDB requests; an AniDB error answer (a ban) stops the run with the rest reported as skipped; then `run_sync_hentai` (system options) and `run_sync_gated_labels`. Streams SSE progress. Part of Fill All. |
 | `POST` | `/fill/studio`      | Fill missing logo, MAL link, founding date, Japanese name and website for every studio that has a MAL id, from Tenrai's producers endpoint. Fill-only; there is no `/replace/studio`. Streams SSE progress. |
-| `POST` | `/fill/seiyuu`      | Fill missing photo, MAL link, English, Japanese and alternate names for every person holding the `seiyuu` role that has a MAL id, from Tenrai's people endpoint. Nobody without the seiyuu role is filled. Fill-only; there is no `/replace/seiyuu`. Part of Fill All. Streams SSE progress. |
+| `POST` | `/fill/person-mal`  | Fill missing photo, MAL link, English, Japanese and alternate names for every person that has a MAL id, whatever their role, from Tenrai's people endpoint. Fill-only; there is no `/replace/person-mal`. Part of Fill All, before `person-tmdb`. Streams SSE progress. |
+| `POST` | `/fill/person-tmdb` | Fill a missing English name, photo and gender (male or female only) for every person that has an IMDb id, from TMDB's person record found through `/find`. Fill-only, and run after `person-mal` in Fill All, so it fills only what MAL left blank; there is no `/replace/person-tmdb`. Streams SSE progress. |
 | `POST` | `/fill/character`   | Fill missing photo, MAL link, English, Japanese and alternate names for every character that has a MAL id, from Tenrai's characters endpoint. Identities have no MAL link and are not filled. Fill-only; there is no `/replace/character`. Part of Fill All. Streams SSE progress. |
 | `POST` | `/fill/all`         | Fill all + auto-backup on completion. Streams SSE progress.                  |
 
