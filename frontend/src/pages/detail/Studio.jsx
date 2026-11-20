@@ -20,6 +20,7 @@ import { releaseYear } from "../../lib/releaseDate";
 import InfoCard from "../../components/info/InfoCard";
 import MalButton from "../../components/info/MalButton";
 import NamingCard from "../../components/info/NamingCard";
+import RelatedRecords from "../../components/info/RelatedRecords";
 import {
   AdminToolbar,
   RatingSelect,
@@ -254,6 +255,8 @@ export default function Studio() {
               onSave={(v) => patch({ remark: v }, "Remark saved")}
             />
           )}
+
+          <RelatedRecords type="studio" recordId={studio.system_id} isAdmin={isAdmin} />
 
           {groups.length === 0 ? (
             <section className="border border-dashed border-border-strong px-4 py-10 text-center">

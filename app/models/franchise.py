@@ -3,12 +3,14 @@
 import uuid
 
 from sqlalchemy import (
+    CheckConstraint,
     Column,
     DateTime,
     ForeignKey,
     Integer,
     Sequence,
     String,
+    Text,
     UniqueConstraint,
     text,
 )
@@ -96,7 +98,7 @@ class Franchise(Base, NameFallbackMixin):
     # media.franchise_id that a Pull, which restores this tab before the Media
     # tab, could not satisfy. A stale id simply matches nothing - the franchise
     # is listed again, which is what SET NULL would have done.
-    # See docs/notes/decisions.md.
+    # See docs/notes/decisions/2026-10-04-single-entry-groups-remember-the-reviewed-entry.md.
     alone_reviewed_media_id = Column(UUID(as_uuid=True), nullable=True)
 
     # Relationships
@@ -116,6 +118,56 @@ class Franchise(Base, NameFallbackMixin):
         ]
         return self.get_fallback_name(sequence, "CN")
 
+
+
+class FranchiseRelation(Base):
+    """
+    One side of a relation between two franchises - the same design as
+    StudioRelation (app/models/staff.py): a relation is mutual and always the
+    two rows (A, B) and (B, A), each holding the remark its `franchise_id`'s
+    page shows beside the other franchise. FRANCHISE_RELATIONS in
+    app/services/domain/peer_relation.py is the only writer and keeps the pair
+    whole.
+
+    Not the entry-to-entry `media_relation`: that table links entries with a
+    typed kind; this one links whole franchises, with free words per side.
+
+    A relation is NOT a visibility connection: it cannot make a hidden
+    franchise visible, and a visible franchise's related list simply omits
+    the franchises the viewer may not see.
+    """
+
+    __tablename__ = "franchise_relation"
+    __table_args__ = (
+        UniqueConstraint(
+            "franchise_id", "related_franchise_id", name="uq_franchise_relation"
+        ),
+        CheckConstraint(
+            "franchise_id <> related_franchise_id",
+            name="ck_franchise_relation_not_self",
+        ),
+    )
+
+    system_id = Column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+    )
+    franchise_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("franchise.system_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    related_franchise_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("franchise.system_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    remark = Column(Text, nullable=True)
+    created_at = Column(DateTime, nullable=True, default=get_taipei_now)
+    updated_at = Column(
+        DateTime, nullable=True, default=get_taipei_now, onupdate=get_taipei_now
+    )
 
 
 class Series(Base, NameFallbackMixin):
@@ -196,7 +248,7 @@ class Series(Base, NameFallbackMixin):
     # media.series_id that a Pull, which restores this tab before the Media
     # tab, could not satisfy. A stale id simply matches nothing - the series
     # is listed again, which is what SET NULL would have done.
-    # See docs/notes/decisions.md.
+    # See docs/notes/decisions/2026-10-04-single-entry-groups-remember-the-reviewed-entry.md.
     alone_reviewed_media_id = Column(UUID(as_uuid=True), nullable=True)
 
     # Relationships

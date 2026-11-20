@@ -53,6 +53,11 @@ class FranchiseResponse(FranchiseBase):
     # Entries the viewer may see in this franchise. Set by the list endpoint
     # (services.domain.group_counts); None on every other read.
     entry_count: Optional[int] = None
+    # Whether this franchise relates to at least one franchise the viewer may
+    # see (FRANCHISE_RELATIONS.attach_has_relations in
+    # services.domain.peer_relation): the franchise library's Relation filter
+    # reads it, so a relation to a hidden franchise is no relation at all here.
+    has_relations: bool = False
     created_at: datetime
     updated_at: datetime
 

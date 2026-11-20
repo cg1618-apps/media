@@ -6,6 +6,8 @@ import { describe, expect, it } from "vitest";
 import { applyFilterDefs, initialFilters } from "./libraryFilters";
 import {
   COUNTRY_NOT_SET,
+  HAS_RELATIONS,
+  NO_RELATIONS,
   GENDER_NOT_SET,
   NO_ENTRIES,
   PUBLISHER_KINDS,
@@ -286,6 +288,21 @@ describe("studioFilterDefs", () => {
       "unknown",
     ]);
     expect(filtered(defs, rows, { myRating: [UNRATED] })).toEqual(["cn"]);
+  });
+
+  it("filters by relation off has_relations, Has relation / No relation", () => {
+    const defs = studioFilterDefs(SEES_ALL);
+    const relation = def(defs, "relation");
+    expect(relation.options).toEqual([HAS_RELATIONS, NO_RELATIONS]);
+    const rows = [
+      { id: "related", has_relations: true },
+      { id: "alone", has_relations: false },
+      // A row from before the field existed reads as no relation.
+      { id: "older" },
+    ];
+    expect(filtered(defs, rows, { relation: [HAS_RELATIONS] })).toEqual(["related"]);
+    expect(filtered(defs, rows, { relation: [NO_RELATIONS] })).toEqual(["alone", "older"]);
+    expect(filtered(defs, rows, {})).toEqual(["related", "alone", "older"]);
   });
 });
 

@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-11-19
+Last verified: 2026-11-20
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -191,12 +191,34 @@ missing). Model: `Franchise` (`app/models/franchise.py`).
 | `size_group_derived` | JSONB | yes | | Size bucket per media type, e.g. `{"anime": "24ep", "tv-show": "2season"}`. Written by Calculate, rewritten freely. |
 | `size_group_manual` | JSONB | yes | | Same shape, written by the admin, never touched by Calculate. Manual key wins (`app/services/domain/size_group.py`). |
 | `created_at` / `updated_at` | DateTime | yes | now | |
-| `alone_reviewed_media_id` | UUID | yes | | The `media.system_id` of the lone entry that was reviewed and kept on the review queue's single-entry check. The franchise is listed again whenever its one entry is any other id. No FK, like `cover_entry_id`: a stale id matches nothing (see [notes/decisions.md](notes/decisions.md)). |
+| `alone_reviewed_media_id` | UUID | yes | | The `media.system_id` of the lone entry that was reviewed and kept on the review queue's single-entry check. The franchise is listed again whenever its one entry is any other id. No FK, like `cover_entry_id`: a stale id matches nothing (see [notes/decisions/2026-10-04-single-entry-groups-remember-the-reviewed-entry.md](notes/decisions/2026-10-04-single-entry-groups-remember-the-reviewed-entry.md)). |
 
 Relationships: `series`, `collection`, `animes`. Virtual:
 `display_name`, `content_labels` (its own rows in
 [`franchise_content_label`](#franchise_content_label)), and the viewer's own `my_rating` and `franchise_expectation`
 (from [`user_rating`](#user_rating)).
+
+### `franchise_relation`
+
+One side of a relation between two franchises - the [`studio_relation`](#studio_relation)
+design on franchises. Model: `FranchiseRelation` (`app/models/franchise.py`).
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `franchise_id` | UUID | no | | FK `franchise.system_id` ON DELETE CASCADE, indexed - the franchise whose page lists the relation |
+| `related_franchise_id` | UUID | no | | FK `franchise.system_id` ON DELETE CASCADE, indexed - the franchise listed there |
+| `remark` | Text | yes | | What `franchise_id`'s page says beside `related_franchise_id`; null when that side gives none |
+| `created_at` / `updated_at` | DateTime | yes | now | |
+
+Constraints: `uq_franchise_relation` UNIQUE (`franchise_id`,
+`related_franchise_id`) and `ck_franchise_relation_not_self`. A relation is
+the pair (A, B) and (B, A); `FRANCHISE_RELATIONS` in
+`app/services/domain/peer_relation.py` is the only writer and keeps the pair
+whole, with the same rules as studios. Not `media_relation`: that links
+entries with a typed kind, this links whole franchises with free words per
+side. A relation never makes a hidden franchise visible
+([authorization.md](authorization.md)).
 
 ### `series`
 
@@ -921,9 +943,9 @@ read and written through the notes API like any other section.
 | `names_dict` | `{en, cn, roman, jp, alt}` for hierarchy resolution. | anime, anime_movies, series |
 | `cum_ep_fin`, `cum_ep_total` | Pydantic `computed_field` on `AnimeResponse`: `ep_previous + ep_fin` and `ep_previous + ep_total` (None if `ep_total` unknown). | anime |
 | `watch_next` / `read_next` / `play_next` | Boolean over `plan_next` (`kind = next`, `scope = entry`). The row's existence is the flag. | all entries |
-| `to_rewatch` / `to_reread` / `to_replay` | Boolean over `plan_next` (`kind = rewatch`, `scope = entry`). Only types with an entry-level rewatch scope have it: **not** anime, **not** cartoon (they rewatch at franchise scope). Mapping: `PLAN_FLAG_FIELDS` in `app/utils/plan_next_kinds.py`. Note that a virtual flag also has to be **declared on the response schema** - the router factory sets it, but pydantic drops an undeclared field silently, which is why `GameBase` names `play_next` / `to_replay` outright. | anime_movies, movies, tv_shows, manga, book, comic, games, h_comic, h_game |
+| `to_rewatch` / `to_reread` / `to_replay` | Boolean over `plan_next` (`kind = rewatch`, `scope = entry`). Only types with an entry-level rewatch scope have it: **not** anime, **not** cartoon (they rewatch at franchise scope). Mapping: `PLAN_FLAG_FIELDS` in `app/utils/plan_next_kinds.py`. Note that a virtual flag also has to be **declared on the response schema** - the router factory sets it, but pydantic drops an undeclared field silently, which is why `GameBase` names `play_next` / `to_replay` outright. | anime_movies, movies, tv_shows, manga, book, comic, games, h_comic, h_game, hentai |
 | Credit / tag link fields (`studio`, `director`, `producer`, `music`, `genre_main`, `genre_sub`, `label`, `distributor_tw`, `source_official` **or** `original_source`, `author_plot`, ...) | Attached at read time by `services.domain.credits.attach_link_fields` from `media_credit` / `media_tag`; the attribute names are the legacy sheet headers in `LEGACY_SHEET_COLUMN` (`app/utils/credit_roles.py`). | per media type - see `TAG_FIELDS` / `CREDIT_ROLES` |
-| `studio_refs` | Attached by the same `attach_link_fields` pass, from the same studio credit rows as the `studio` string beside it - `{system_id, display_name}` per studio, so a page can link where the comma-joined string cannot. Ungated, like every credit field. | anime, anime_movies, games, h_game |
+| `studio_refs` | Attached by the same `attach_link_fields` pass, from the same studio credit rows as the `studio` string beside it - `{system_id, display_name}` per studio, so a page can link where the comma-joined string cannot. Attached for every media type whose `credit_roles_for()` includes `studio`, derived rather than hand-listed, as `publisher_refs` is. Ungated, like every credit field. | anime, anime_movies, games, h_game, hentai |
 | `publisher_refs` | Attached by the same `attach_link_fields` pass from the entry's `publisher` credit rows - `{system_id, display_name, label}` per publisher, the `studio_refs` idea for the third entity target plus `credit_refs`'s label, because one publisher role reads a different word per media type (`label` carries `credit_label("publisher", media_type)` - 台灣代理商, 台灣出版社, 出版商 or 發行商). Attached only for media types whose `credit_roles_for()` includes `publisher`, derived rather than hand-listed. Ungated, like every credit field. | anime, anime_movies, manga, book, comic, games |
 | `sources` | List of `SourceRef` (`app/schemas/sources.py`), attached at read time from `media_source` by `services.domain.sources.attach_sources`. Bucket-filtered per viewer before the response is built: every viewer gets `main` and `other`, and `restricted` needs the `sources_restricted` field group - see [authorization.md](authorization.md). | all entries |
 | `User.role` | `column_property` over `role.name` via `users.role_id` (read-only). | users |
@@ -1223,6 +1245,31 @@ holds the `club` role is checked by the API
 connection in the shared-record sense: it never makes a hidden club or artist
 visible ([authorization.md](authorization.md)). A person merge moves both ends
 onto the survivor.
+
+### `studio_relation`
+
+One side of a relation between two studios. Model: `StudioRelation`
+(`app/models/staff.py`).
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `studio_id` | UUID | no | | FK `studio.system_id` ON DELETE CASCADE, indexed - the studio whose page lists the relation |
+| `related_studio_id` | UUID | no | | FK `studio.system_id` ON DELETE CASCADE, indexed - the studio listed there |
+| `remark` | Text | yes | | What `studio_id`'s page says beside `related_studio_id`; null when that side gives none |
+| `created_at` / `updated_at` | DateTime | yes | now | |
+
+Constraints: `uq_studio_relation` UNIQUE (`studio_id`, `related_studio_id`)
+and `ck_studio_relation_not_self` (`studio_id <> related_studio_id`).
+
+A relation is mutual and is always the **pair** of rows (A, B) and (B, A), so
+each side keeps its own remark. `STUDIO_RELATIONS` in
+`app/services/domain/peer_relation.py` is the only writer and keeps the pair whole: adding a relation from one side creates
+the other side's row with no remark, and removing it from either side removes
+both. A relation is not a connection in the shared-record sense: it never
+makes a hidden studio visible ([authorization.md](authorization.md)). A studio
+merge moves both sides onto the survivor, dropping a row the survivor already
+holds (its own remark wins) or one that would relate it to itself.
 
 ### `studio`
 

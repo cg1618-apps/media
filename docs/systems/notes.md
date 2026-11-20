@@ -1,6 +1,6 @@
 # Notes
 
-Last verified: 2026-11-19
+Last verified: 2026-11-20
 
 ## What this is for
 
@@ -171,7 +171,7 @@ its own card, because they are one subject. A game has none of the others,
 so that card would hold exactly one section — and an analysis of a game
 is read *with* the opinions rather than apart from them. So for `game` and
 `h-game` it is a subsection of 評論 Reviews, and `analysis_group` is not
-rendered for either. 彩蛋/致敬 Easter Eggs/References follows it there for `game`, so it is
+rendered for either. 彩蛋/致敬/細節 Easter Eggs/References/Details follows it there for `game`, so it is
 the last subsection of a game's 評論 and 解析 the one before it. H-comic and
 hentai have no 解析 at all, and no gated type has 彩蛋.
 
@@ -280,7 +280,7 @@ is all the author's.
 | `foreshadowing` | 伏筆/前後呼應 Foreshadowing | text_links | analysis_group | anime, anime-movie, tv-show, cartoon, manga, book, series, franchise | — | — | "Episode(s), e.g. ep 3" | no | no | no |
 | `symmetry` | 對稱 Symmetry | text_links | analysis_group | same as foreshadowing | — | — | "Episode(s), e.g. ep 3" | no | no | no |
 | `speculation` | 猜測 Speculation | text_links | analysis_group | same as foreshadowing | — | — | "Episode(s), e.g. ep 3" | no | no | no |
-| `easter_eggs` | 彩蛋/致敬 Easter Eggs/References | text_links | analysis_group (**reviews** for game) | anime, anime-movie, movie, tv-show, cartoon, manga, book, comic, game, series, franchise | — | — | "Episode(s), e.g. ep 3" (anime-movie, movie: "Scene, e.g. 1:02:30"; manga, book: "Chapter(s), e.g. ch 6"; comic: "Issue(s), e.g. #3"; game: "Chapter / Part, e.g. Ch 3") | no | no | no |
+| `easter_eggs` | 彩蛋/致敬/細節 Easter Eggs/References/Details | text_links | analysis_group (**reviews** for game) | anime, anime-movie, movie, tv-show, cartoon, manga, book, comic, game, series, franchise | — | — | "Episode(s), e.g. ep 3" (anime-movie, movie: "Scene, e.g. 1:02:30"; manga, book: "Chapter(s), e.g. ch 6"; comic: "Issue(s), e.g. #3"; game: "Chapter / Part, e.g. Ch 3") | no | no | no |
 | `beginner` | 新手 Beginner | text_links | guides | game | — | — | — | no | no | no |
 | `gameplay_systems` | 玩法系統 Gameplay Systems | **structured** | guides | game, h-game | — | — | — | no | no | no |
 | `controls` | 操作 Controls | **structured** | guides | game, h-game | — | — | — | no | no | no |
@@ -538,10 +538,10 @@ into `OPTION_CATEGORIES`. Every one of them is a **common option**: a value
 typed into a note field is stored as typed and never added to the category,
 so the list grows only on the Add page. `COMMON_OPTION_CATEGORIES`
 (`app/utils/credit_roles.py`, `/api/constants` `common_option_categories`)
-is that wider set plus `Needs Work Note`, and the admin Add / Modify / Delete
+is that wider set plus `Needs Work Note` and `Country`, and the admin Add / Modify / Delete
 pages edit it under a **Common Options** sub-tab of System Option rather
 than under Options, its picker grouped as Note Suggestion (the field-level
-seven), Music and Needs Work (navigation only; the rows are ordinary
+seven), Music, Needs Work and Studio (navigation only; the rows are ordinary
 `system_option` rows). A category with no value yet still shows in the
 picker, because the constant rather than a row is what lists it. See
 [../options.md](../options.md).
@@ -833,7 +833,7 @@ song lists it is suggested from the "Song Source" option category
 (`link_text_category`). Every other section's link titles are free text with
 nothing to suggest them - see [Links](#links).
 
-**彩蛋/致敬 Easter Eggs/References** sits last in 解析 on every entry type outside the gated
+**彩蛋/致敬/細節 Easter Eggs/References/Details** sits last in 解析 on every entry type outside the gated
 ones (last in 評論 for a game), and on series and franchise: a hidden reference,
 where it plays and where somebody spotted it. One that recurs across a whole
 series is noted once on the series, and each entry shows it under its own rows. It is `text_links` like the rest of

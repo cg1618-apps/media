@@ -231,8 +231,14 @@ class StudioResponse(StudioBase):
     # credit_count (credits.credit_summaries).
     media_types: List[str] = []
     restricted: bool = False
+    # Whether this studio relates to at least one studio the viewer may see
+    # (services.domain.peer_relation, STUDIO_RELATIONS.related_counts): the studio library's
+    # Relation filter reads it, so a relation to a hidden studio is no
+    # relation at all here.
+    has_relations: bool = False
 
     model_config = ConfigDict(from_attributes=True)
+
 
 
 class MergeRequest(BaseModel):

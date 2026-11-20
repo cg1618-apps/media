@@ -1,6 +1,6 @@
 # Documentation index
 
-Last verified: 2026-11-14
+Last verified: 2026-11-19
 
 These docs describe the CG1618 Media Tracker as it is in the code. Every file
 opens with a short "what this is for", then reference sections. Each file
@@ -76,7 +76,7 @@ right and the doc needs the fix.
 ## History
 
 `notes/` holds material that explains the past rather than the present:
-[decisions.md](notes/decisions.md) (design rationales), [migrations-history.md](notes/migrations-history.md)
+[decisions/](notes/decisions/README.md) (design rationales that still bind, one file per decision), [migrations-history.md](notes/migrations-history.md)
 (what each notable Alembic revision did), [notes/comicvine-link-conflicts.md](notes/comicvine-link-conflicts.md)
 (a one-off data reconciliation), [notes/pytest-lock-contention.md](notes/pytest-lock-contention.md)
 (why an unbounded wait on the shared pytest lock strands it, found during a

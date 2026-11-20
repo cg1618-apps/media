@@ -351,6 +351,15 @@ export const endpoints = {
     remove: (id) => `/api/studio/${id}`,
     merge: (id) => `/api/studio/${id}/merge`,
     entries: (id) => `/api/studio/${id}/entries`,
+    // GET / PUT: the related studios, each with this side's remark.
+    related: (id) => `/api/studio/${id}/related`,
+  },
+
+  // A franchise's CRUD is resource("franchise"); these are the routes it has
+  // beyond that.
+  franchise: {
+    // GET / PUT: the related franchises, each with this side's remark.
+    related: (id) => `/api/franchise/${id}/related`,
   },
 
   // Hand-maintained exchange rates, read by the statistics spend block and

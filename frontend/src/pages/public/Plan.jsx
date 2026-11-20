@@ -40,14 +40,14 @@ export default function Plan() {
           Plan
         </h1>
         <p className="text-text-muted">
-          Watch next, to rewatch and future releases.
+          Do next, to redo and future releases.
         </p>
       </header>
 
-      {/* Watch Next */}
+      {/* Do Next */}
       <PlanWatchNext planRows={planRows} />
 
-      {/* To Rewatch */}
+      {/* To Redo */}
       <PlanToRewatch planRows={planRows} />
 
       {/* Plan to Watch for Future Releases */}

@@ -236,6 +236,7 @@ def test_serves_the_common_option_categories(client):
             "Song Type",
             "Song Source",
             "Needs Work Note",
+            "Country",
         ]
     )
     assert body["common_option_categories"] == list(COMMON_OPTION_CATEGORIES)

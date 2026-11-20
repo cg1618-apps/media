@@ -42,7 +42,7 @@ export default function PlanWatchNext({ planRows }) {
   return (
     <section>
       <h2 className="font-display text-3xl font-semibold text-text leading-none mb-4 pb-3 border-b border-border">
-        Watch next
+        Do next
       </h2>
 
       {/* Tab bar */}

@@ -5,7 +5,7 @@ Revises: n1a2remarkauthor
 Create Date: 2026-09-12 00:00:00.000000
 
 Two halves of one decision (spec:
-docs/notes/decisions.md ("Admin holds no user data")).
+docs/notes/decisions/2026-09-12-installation-owner-is-a-flag.md).
 
 1. `users.is_installation_owner` replaces the literal `'admin'` that
    `installation_owner_id()` used to query for. Whose rows a Sheets restore

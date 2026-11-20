@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-11-19
+Last verified: 2026-11-20
 
 ## What this is for
 
@@ -307,7 +307,7 @@ out. What the three gated types keep is in
 | `foreshadowing` | text_links | 伏筆/前後呼應 Foreshadowing | anime, anime-movie, tv-show, cartoon, manga, book, series, franchise | analysis_group | |
 | `symmetry` | text_links | 對稱 Symmetry | same as foreshadowing | analysis_group | |
 | `speculation` | text_links | 猜測 Speculation | same as foreshadowing | analysis_group | |
-| `easter_eggs` | text_links | 彩蛋/致敬 Easter Eggs/References | every entry type but h-comic, hentai, h-game; series, franchise | analysis_group; **reviews** for game | Right after 解析 in the 評論 card for a game |
+| `easter_eggs` | text_links | 彩蛋/致敬/細節 Easter Eggs/References/Details | every entry type but h-comic, hentai, h-game; series, franchise | analysis_group; **reviews** for game | Right after 解析 in the 評論 card for a game |
 | `beginner` | text_links | 新手 Beginner | game | guides | |
 | `gameplay_systems` | structured | 玩法系統 Gameplay Systems | game, h-game | guides | type (free text), name (CN), alt name, description; groupable by type |
 | `controls` | structured | 操作 Controls | game, h-game | guides | Fields: type (`kind`, free text), control (`title`), description (`content`); no links; groupable by type |
@@ -422,7 +422,7 @@ the page is in [systems/plan-next.md](systems/plan-next.md).
 | `manga` | entry | entry |
 | `book` | entry | entry, series, franchise |
 | `comic` | entry, series | entry, series |
-| `game` | entry, series, franchise | entry, series, franchise |
+| `game` | entry | entry, series, franchise |
 
 `PLAN_FLAG_FIELDS` (the virtual API fields that front `plan_next` at entry
 scope): `watch_next` on anime, anime-movie, movie, tv-show, cartoon;
@@ -636,13 +636,14 @@ nothing creates one from what was typed into the field it suggests for - the
 field stores its text as typed whether or not the list holds it. That is what
 separates it from a tag category, whose typed values are created on save. It
 is every category the note registry suggests from (`NOTE_OPTION_CATEGORIES`,
-below) plus `Needs Work Note`, and the sub-tab's picker groups them:
+below) plus `Needs Work Note` and `Country`, and the sub-tab's picker groups them:
 
 | Group | Categories |
 |---|---|
 | Note Suggestion | `Weapon & Gear Type`, `Item Type`, `Collectible Type`, `Character Group`, `Enemy Tier`, `Side Quest Type`, `Geography Group` - what a game guide note field's `option_category` names (`NOTE_SUGGESTION_CATEGORIES` in `app/utils/note_sections.py`) |
 | Music | `Song Type`, `Song Source` - named by a music section's `kind_category` and `link_text_category` |
 | Needs Work | `Needs Work Note` - the 待補充 note's common values |
+| Studio | `Country` - a studio's common countries |
 
 The grouping is presentation (`TIER2_GROUPS` in
 `frontend/src/lib/optionsPageGroups.js`, the same groups the /options page
@@ -662,7 +663,7 @@ backs `media_source` `kind='reference'` rows directly, resolved by
 rather than listed, so a section that names a new category offers it with no
 second edit. `OPTION_CATEGORIES` = the tag-field categories, the two character
 tag categories (`CHARACTER_OPTION_CATEGORIES`), these eleven, and
-`Needs Work Note` (`NEEDS_WORK_NOTE_CATEGORY`), served as `/api/constants` `option_categories` and unioned with the
+`Needs Work Note` (`NEEDS_WORK_NOTE_CATEGORY`) and `Country` (`COUNTRY_CATEGORY`), served as `/api/constants` `option_categories` and unioned with the
 categories present in the stored options to build the category picker on the
 Add and Modify pages. Without it a declared category holding no values yet
 could not be picked at all, so the first value of a new tag field had nowhere
@@ -775,6 +776,7 @@ ones in `OPTION_CATEGORIES`:
 | `Side Quest Type` | unscoped (read by game and h-game notes) | suggestions for a 支線任務 Side Quests row's type (`side_quests`, `note.kind`); `大支線` and `小支線` seeded by `s1q2uests345`. Suggestions only |
 | `Geography Group` | unscoped (read by game and h-game notes) | suggestions for a 地理 Geography row's group (`geography`, `note.kind`); ships empty. Suggestions only |
 | `Needs Work Note` | unscoped (read by the 待補充 note field) | the common notes a 待補充 Needs Work mark is given (`NEEDS_WORK_NOTE_CATEGORY`, `app/utils/credit_roles.py`): one-click picks beside the note field on Add, Modify, the detail page badge and the Needs Work page, and the field's only suggestions - the notes other marks carry are not offered; ships empty. A common option: suggestions only - the note is free text and a value not in the list is stored as typed, never added to it |
+| `Country` | unscoped (read by the studio Country field) | a studio's common countries (`COUNTRY_CATEGORY`, `app/utils/credit_roles.py`): one-click picks beside the Country field on the studio Add and Modify tabs, and the field's suggestions; seeded by `c1o2untryopt3` with every distinct country a studio already held, most-used first. A common option: suggestions only - a country not in the list is stored as typed, never added to it |
 
 **h-comic has Platform values of its own**, scoped to `h-comic` alone and
 split by usage (migration `h5c6malsrc7`). The regional storefronts an

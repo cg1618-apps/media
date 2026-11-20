@@ -1,6 +1,6 @@
 # Design system — "the archive"
 
-Last verified: 2026-11-19
+Last verified: 2026-11-20
 
 The UI is styled as a physical media archive: paper, ink, index slips,
 spine labels and a rating stamp. It replaced the generic dashboard look
@@ -191,6 +191,12 @@ counts). `h1` is display by default.
     detail page shows it, in the body, so both pages gain it. The section list
     is in [Admin Pages](admin-pages.md#entry-form-layout), and
     `pages/add-tabs/FormLayout.test.jsx` guards it.
+11. **One clear button per search field.** Chrome and Safari draw a native
+    cross on every `<input type="search">`, desktop included. A search field
+    that draws its own "Clear search" button (the entity libraries') adds the
+    `search-own-clear` utility from `index.css`, which hides the native one;
+    a search field without a button of its own (the image pickers') keeps
+    the browser's. `src/search-own-clear.test.js` guards this.
 
 ## Primitives (`components/ui/primitives.jsx`)
 
@@ -249,7 +255,7 @@ the same `Reorder <name>` label and the same keys.
   row one place; focus follows the row, so a held key keeps moving it.
 - **The page scrolls under the wheel mid-drag.** That is why it is dnd-kit's
   pointer drag and not native HTML5 drag, which swallows the mouse wheel on
-  Windows - see [decisions](../notes/decisions.md), "Every list reorders by
+  Windows - see [decisions](../notes/decisions/2026-10-02-lists-reorder-by-dnd-kit.md), "Every list reorders by
   dnd-kit drag".
 - **A move that saves immediately freezes the grips until it settles**, and
   shows the new order at once; a list held in a form draft (cast, units,

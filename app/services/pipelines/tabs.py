@@ -257,6 +257,13 @@ SHEET_TABS: tuple[SheetTab, ...] = (
         f.parse_person_membership_from_sheet,
     ),
     SheetTab("Studio", models.Studio, f.parse_studio_from_sheet),
+    # After Studio: both ends are studios, cited by uuid and translated through
+    # the Studio tab (DERIVED_IDENTITY_PARENTS in pull.py).
+    SheetTab(
+        "Studio Relation",
+        models.StudioRelation,
+        f.parse_studio_relation_from_sheet,
+    ),
     SheetTab("Publisher", models.Publisher, f.parse_publisher_from_sheet),
     # After Publisher (real FK) and before every media tab: zero scope rows
     # means a publisher is offered NOWHERE, so a scope that fails to restore
@@ -285,6 +292,12 @@ SHEET_TABS: tuple[SheetTab, ...] = (
     # Grouping tiers, parent first.
     SheetTab("Collection", models.Collection, f.parse_collection_from_sheet),
     SheetTab("Franchise", models.Franchise, f.parse_franchise_from_sheet),
+    # After Franchise: both ends cite a franchise, whose uuid travels.
+    SheetTab(
+        "Franchise Relation",
+        models.FranchiseRelation,
+        f.parse_franchise_relation_from_sheet,
+    ),
     SheetTab("Series", models.Series, f.parse_series_from_sheet),
     # Per-user, like Watch Order Follow: user_id is dropped for `username`.
     # After the three tiers and the four entities its owner columns name -
@@ -522,7 +535,7 @@ SHEET_TABS: tuple[SheetTab, ...] = (
 
 TAB_BY_NAME: dict[str, SheetTab] = {tab.name: tab for tab in SHEET_TABS}
 # The tabs a Pull may not restore without admin.authz. Derived, so marking
-# a tab above is the only edit a fourth one needs.
+# a tab above is the only edit another one needs.
 AUTHZ_TABS: frozenset[str] = frozenset(
     tab.name for tab in SHEET_TABS if tab.requires_authz
 )

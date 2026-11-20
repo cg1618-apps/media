@@ -1,5 +1,7 @@
 """Reading and replacing an entry's credits and tags in one call."""
 
+import pytest
+
 from app import models
 
 
@@ -155,3 +157,39 @@ def test_genre_main_is_still_refused_on_a_game(owner_client, db_session):
         f"/api/credits/game/{g.system_id}", json={"tags": {"label": ["神作"]}}
     )
     assert accepted.status_code == 200, accepted.text
+
+
+@pytest.mark.parametrize(
+    "media_type, route, name_field",
+    [
+        ("game", "game", "game_name_en"),
+        ("h-game", "h-game", "h_game_name_en"),
+        ("hentai", "hentai", "hentai_name_cn"),
+    ],
+)
+def test_every_type_with_a_studio_role_carries_linkable_studio_refs(
+    owner_client, db_session, media_type, route, name_field
+):
+    """A game's developer links to its studio page the way its 發行商 links
+    to the publisher's: studio_refs is offered to every type whose roles
+    include studio, not to anime and anime-movie alone. The studio exists
+    and is credited, so an empty list means the refs were never built."""
+    body = owner_client.post(f"/api/{route}/", json={name_field: "Zvornik Developer Entry"})
+    assert body.status_code in (200, 201), body.text
+    entry_id = body.json()["system_id"]
+    r = owner_client.put(
+        f"/api/credits/{media_type}/{entry_id}",
+        json={"credits": {"studio": ["Zvornik Dev Studio"]}},
+    )
+    assert r.status_code == 200, r.text
+    studio = db_session.query(models.Studio).filter_by(name_en="Zvornik Dev Studio").one()
+
+    payload = owner_client.get(f"/api/{route}/{entry_id}").json()
+    assert payload["studio"] == "Zvornik Dev Studio"
+    assert payload["studio_refs"] == [
+        {
+            "system_id": str(studio.system_id),
+            "public_id": studio.public_id,
+            "display_name": "Zvornik Dev Studio",
+        }
+    ]

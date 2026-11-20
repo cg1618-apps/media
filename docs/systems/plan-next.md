@@ -1,6 +1,6 @@
 # Plan Next
 
-Last verified: 2026-11-17
+Last verified: 2026-11-20
 
 ## What this is for
 
@@ -70,8 +70,11 @@ Both Sheets parsers (`parse_franchise_from_sheet`, `parse_series_from_sheet` in 
 | anime-movie | entry | entry |
 | manga | entry | entry |
 | book | entry | entry, series, franchise |
+| game | entry | entry, series, franchise |
+| h-game | entry, series, franchise | entry, series, franchise |
+| h-comic, hentai | entry | entry |
 
-The two maps differ on purpose: anime is queued one season at a time but rewatched as a whole franchise; books are reread at any tier but queued one book at a time; comic has no franchise scope at all.
+The two maps differ on purpose: anime is queued one season at a time but rewatched as a whole franchise; books and games are queued one at a time but reread or replayed at any tier; comic has no franchise scope at all. A game's Play Next lives on the entry - the detail page's My tracker and the library's Play Next column - never on its franchise or series.
 
 ### Size thresholds and measures
 
@@ -108,6 +111,7 @@ The entry Pydantic schemas still expose boolean flags so Add/Modify forms, detai
 | manga | `read_next` | `to_reread` |
 | book | `read_next` | `to_reread` |
 | comic | `read_next` | `to_reread` |
+| game, h-game | `play_next` | `to_replay` |
 
 An assertion in `plan_next_kinds.py` enforces that a type has an entry-level rewatch flag if and only if `entry` is in its `rewatch` scopes.
 
@@ -157,8 +161,8 @@ Route `/plan` in `frontend/src/App.jsx`; nav entry under the "Track" section in 
 
 | Section | File | Source of rows |
 | --- | --- | --- |
-| Watch Next | `PlanWatchNext.jsx` | `planRows` where `kind === "next"`, 8 tabs from `PLAN_TABS` |
-| To Rewatch | `PlanToRewatch.jsx` | `planRows` where `kind === "rewatch"`, tabs from `REWATCH_TABS` |
+| Do next | `PlanWatchNext.jsx` | `planRows` where `kind === "next"`, tabs from `PLAN_TABS` |
+| To redo | `PlanToRewatch.jsx` | `planRows` where `kind === "rewatch"`, tabs from `REWATCH_TABS` |
 | Future Releases | `PlanToWatchFuture.jsx` | unreleased entries, not `plan_next` (pre-existing feature) |
 
 `usePlanData.js` fetches every media list plus `GET /api/plan-next/` (own React Query key `["plan-next"]`, kept separate from `["media-list", *]` so the list-cache writers never touch it) and attaches `bucket` and, for group rows, `coverUrl` to each plan row via `withBucket`. Cards render through `PlanNextCard.jsx`.
@@ -191,14 +195,11 @@ The "Plan Next" tab is registered in `SHEET_TABS` in `app/services/pipelines/tab
 | Stale boolean columns | Old backups of entry, franchise and series tabs still carry `watch_next`, `read_next`, `to_rewatch`, `to_reread`, `watch_next_group` headers. The parsers no longer emit those keys, so the header-intersection step in `pull.py` silently drops them; the flags are not restored from those columns. | `app/services/pipelines/pull.py` |
 | Size groups | Franchise and Series parsers read `size_group_derived` and `size_group_manual` through `_safe_json`. | `app/utils/formatter.py` |
 
-Backfill: migration `9b0bcb763e8c` converted the old booleans into rows once. Entry-level `to_rewatch`/`to_reread` became entry-scope `rewatch` rows (cartoon entries deliberately excluded). Group-level `to_rewatch` on franchise and series became one group-scope `rewatch` row per media type the group actually holds, with the types derived from the child entry tables rather than from `franchise_type`, because that column is multi-valued, and bundles types (an `Anime` franchise also holds books).
-
-History in one line: migration `b872c435410b` dropped `watch_next`/`read_next` from the entry tables and `franchise.watch_next_group`; migration `9b0bcb763e8c` dropped the nine `to_rewatch`/`to_reread` booleans (franchise, series, anime_movies, movies, tv_shows, cartoons, manga, novel, comic), leaving `plan_next` as the only place a plan is stored.
+`plan_next` is the only place a plan is stored: no entry, series or franchise table carries a plan column, and `watch_next` / `read_next` / `to_rewatch` / `to_reread` exist only as the virtual API fields described above.
 
 ## Related
 
 - `app/utils/media_resolver.py`: `MEDIA_TABLES`, `MEDIA_TYPE_KEYS`, `OWNER_TABLES` (the read-time resolver and the source of media type keys).
 - `app/utils/relation_kinds.py`: the registry `plan_next_kinds.py` is modelled on.
 - `app/services/calculation.py`: where `derive_size_groups` runs in the Calculate pipeline.
-- `notes/decisions.md`: the design spec, including the comic threshold data and the rewatch migration decisions.
-- `../data-model.md`, `docs/api.md`, `docs/options.md`, `../frontend/pages.md`: older overviews that may still describe the boolean columns; this file is the current reference.
+- `../data-model.md`, `../api.md`, `../options.md`, `../frontend/pages.md`: the table, the endpoints, the plan-scope vocabulary and the Plan page.

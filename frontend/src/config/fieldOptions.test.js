@@ -235,6 +235,7 @@ describe("declared option categories", () => {
       "Song Type",
       "Song Source",
       "Needs Work Note",
+      "Country",
     ]) {
       expect(COMMON_OPTION_CATEGORIES).toContain(c);
     }

@@ -239,6 +239,14 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
     # Mints its own uuid; both ends are people, translated to local uuids by
     # the parent translation below before this match runs.
     "Person Membership": ("member_id", "club_id"),  # uq_person_membership
+    # The same shape: both ends are studios, translated first.
+    "Studio Relation": ("studio_id", "related_studio_id"),  # uq_studio_relation
+    # Mints its own uuid, but both ends cite a franchise, whose uuid is the
+    # same in every database, so only the row's own identity is reconciled.
+    "Franchise Relation": (
+        "franchise_id",
+        "related_franchise_id",
+    ),  # uq_franchise_relation
     # No `role` in the key: a publisher holds exactly one.
     "Publisher Scope": ("publisher_id", "scope"),  # uq_publisher_scope
     # These two mint their own uuid but cite entry ids, which the sheet does
@@ -386,6 +394,7 @@ DERIVED_IDENTITY_PARENTS: dict[str, tuple[tuple[str, str], ...]] = {
     "System Option Alias": (("option_id", "System Options"),),
     "Person Role": (("person_id", "Person"),),
     "Person Membership": (("member_id", "Person"), ("club_id", "Person")),
+    "Studio Relation": (("studio_id", "Studio"), ("related_studio_id", "Studio")),
     "Character Casting Voice": (("person_id", "Person"),),
     "Publisher Scope": (("publisher_id", "Publisher"),),
     "Media Content Label": (("label_id", "Content Label"),),
@@ -1119,10 +1128,10 @@ def execute_pull_specific(
     after every tab, because its Franchise tab restores before the entries
     the split decides by.
 
-    `may_restore_authz` says whether the caller holds `admin.authz`. Three tabs
-    carry authorization rather than catalogue data - Users, Content Label and
-    Media Content Label (AUTHZ_TABS) - and Pull writes the sheet INTO this
-    database. Since the sheet is editable by anyone with Google access, a
+    `may_restore_authz` says whether the caller holds `admin.authz`. The tabs
+    in AUTHZ_TABS carry authorization rather than catalogue data - Users,
+    Content Label, and the Media, Collection, Franchise and Series Content
+    Label tabs - and Pull writes the sheet INTO this database. Since the sheet is editable by anyone with Google access, a
     caller without that permission must not be able to restore them: otherwise
     typing `admin` into the Users tab's role column and running Pull is a
     promotion. Those tabs are skipped and reported rather than refused, so the
@@ -2550,8 +2559,8 @@ def execute_pull_all(
 
     `may_restore_authz` is passed straight through to every tab; see
     execute_pull_specific. A caller without it restores the whole catalogue and
-    has the three authorization tabs skipped, each named in unresolved_refs so
-    the audit row is red and the gap is visible rather than silent.
+    has the AUTHZ_TABS skipped, each named in skipped_tabs - reported, but kept
+    out of unresolved_refs so an expected skip does not turn the audit row red.
     """
     logger.info("Starting Full Pull Pipeline (All Tabs)...")
 

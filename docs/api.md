@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-11-19
+Last verified: 2026-11-20
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -159,6 +159,8 @@ To list a collection's members, use `GET /api/franchise/?collection_id=<uuid>`.
 | -------- | -------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GET`    | `/`            | Public | List all franchises. Optional query params: `collection_id` (UUID — filters to one collection's members), `search_query` (searches across all name fields), `limit`, `offset`. |
 | `GET`    | `/{system_id}` | Public | Get a single franchise by UUID.                                                                                                                                               |
+| `GET`    | `/{system_id}/related` | Public | The related franchises the viewer may see, by display name: `PeerRelationRef[]` - `system_id`, `public_id`, `display_name` and `remark`, the remark this franchise's side gives the relation (null when none). 404 if the franchise is absent or hidden. Takes a public_id or UUID. |
+| `PUT`    | `/{system_id}/related` | Admin  | Replace this side's related franchises. Body `PeerRelationsReplace`: `{"relations": [{"id", "remark"}]}`. The studio route's rules: a new relation also appears on the other franchise with no remark there, one left out is removed from both sides, a blank remark is null, 422 for this franchise itself or one absent or hidden from the writer, and relations to franchises the writer cannot see are kept. Answers as `GET`. |
 | `POST`   | `/`            | Admin  | Create a franchise. Body: `FranchiseCreate`.                                                                                                                                  |
 | `PUT`    | `/{system_id}` | Admin  | Full update of a franchise. Body: `FranchiseUpdate`.                                                                                                                          |
 | `PATCH`  | `/{system_id}` | Admin  | Partial update. Body: raw JSON dict. The viewer's rating and expectation are not columns here; they are written through `PUT /api/me/ratings/franchise/{id}`.                    |
@@ -189,6 +191,11 @@ entries in that franchise the viewer may see, counted over `media` through
 A count that included hidden entries would say they exist, so a guest and an
 admin can read different numbers for one franchise. `GET /{system_id}` leaves
 it `null`. The series list sets the same field per series.
+
+**`has_relations`.** The list and `GET /{system_id}` set it on every franchise:
+`true` when it relates to at least one franchise the viewer may see
+(`FRANCHISE_RELATIONS.attach_has_relations`, two queries for the whole page).
+The franchise library's Relation filter reads it.
 
 ---
 
@@ -1574,7 +1581,7 @@ category with no values yet — the state every new tag field starts in.
 `tag_categories` is the subset of those categories the Add / Modify / Delete
 pages group under their Tags sub-tab, and `common_option_categories`
 (`COMMON_OPTION_CATEGORIES`) the suggestion-only subset - every category the
-note registry suggests from, and `Needs Work Note` - grouped under their
+note registry suggests from, `Needs Work Note` and `Country` - grouped under their
 Common Options sub-tab. Both are navigation only — every sub-tab writes the
 same rows. `franchise_type`
 and `anime_airing_type` are served from the `FRANCHISE_TYPES` /
@@ -1816,12 +1823,14 @@ role/scope filter — studios have no `person_role` concept.
 | `GET`    | `/`                   | `view.studio` | List all studios, sorted by `display_name` case-insensitively.                   |
 | `GET`    | `/{system_id}`        | `view.studio` | Get one studio by UUID. 404 if absent or hidden.                                 |
 | `GET`    | `/{system_id}/entries`| `view.studio` | The entries this studio is credited on, grouped by media type. 404 if the studio is absent or hidden. |
+| `GET`    | `/{system_id}/related`| `view.studio` | The related studios the viewer may see, by display name: `PeerRelationRef[]` — `system_id`, `public_id`, `display_name` and `remark`, the remark this studio's side gives the relation (null when none). 404 if the studio is absent or hidden. Takes a public_id or UUID. |
+| `PUT`    | `/{system_id}/related`| Admin  | Replace this side's related studios. Body `PeerRelationsReplace`: `{"relations": [{"id", "remark"}]}`. A new relation also appears on the other studio, with no remark there; one left out is removed from both sides; a blank remark is stored as null; a repeated id keeps its first remark. 422 for this studio itself or for a studio that is absent or hidden from the writer; relations to studios the writer cannot see are kept. Answers as `GET`. |
 | `POST`   | `/`                   | Admin  | Create a studio, **or return the existing one** under that name — find-or-create, because the Add/Modify forms POST here through `ensureSourceValues.js` whenever a typed name is not in the suggestion list. Matching is on the normalized name (`find_studio`), looked up by the body's first name - the first fragment of `name_alt` when that is all it carries, since `name_alt` is a comma-separated list; metadata on an existing row is left untouched. Body: `StudioCreate`. Only on the create branch, a payload carrying `mal_id` is enriched from MAL first (see below). |
 | `PUT`    | `/{system_id}`        | Admin  | Fully update a studio. Every credit points at the row by id, so a rename here changes what every credited entry shows — there is no propagation step. Body: `StudioUpdate`. The MAL enrichment runs after the payload is copied, so your values win. |
 | `PATCH`  | `/{system_id}`        | Admin  | Partially update a studio's own columns — the detail page's inline remark edit. Body: any subset of the `StudioBase` columns as a JSON object. Only the keys sent change; the viewer's rating is written through `PUT /api/me/ratings/studio/{id}`. The `PUT` rules are checked before anything is written: `display_name_field` is `en`/`cn`/`jp`/`alt`, and at least one name survives the patch — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. Same checks as person's `PATCH` (`_entity_patch.prepare_patch`). A `mal_link` in the body re-derives `mal_id`; `PATCH` never calls MAL. Returns the full `StudioResponse`. |
 | `POST`   | `/{system_id}/autofill` | Admin  | The detail page's **Autofill & update**: the MAL fill `PUT` runs, without a save — `mal_id` is derived from `mal_link`, then the empty columns are filled from MAL's producer record; a column that holds a value is never overwritten. **422**, with nothing fetched, when the studio has no MAL link. A failed MAL fetch is logged and swallowed, as on save, so the unchanged studio comes back with 200. 404 if absent or hidden. Returns `StudioResponse`. |
 | `DELETE` | `/{system_id}`        | Admin  | Delete a studio. Cascades its `media_credit` rows — no `deleted_record` entry is logged. Merge, not delete, is the fix for a duplicate. |
-| `POST`   | `/{system_id}/merge`  | Admin  | Merge `source_id` into this studio: repoints every `media_credit` (dropping one that would duplicate a credit the survivor already holds), then deletes the loser. Every column the survivor leaves blank is then filled from the loser's, and one it holds is never overwritten; the picture (photo or logo) comes with its focus, a downloaded one renamed onto the survivor's own key (`app/services/domain/merge_fill.py`). 409, with nothing changed, if the filled names would equal another record's. Body: `MergeRequest`. 400 if merging into self. |
+| `POST`   | `/{system_id}/merge`  | Admin  | Merge `source_id` into this studio: repoints every `media_credit` (dropping one that would duplicate a credit the survivor already holds) and both sides of every relation (dropping one the survivor already holds, whose remark wins, or one to itself), then deletes the loser. Every column the survivor leaves blank is then filled from the loser's, and one it holds is never overwritten; the picture (photo or logo) comes with its focus, a downloaded one renamed onto the survivor's own key (`app/services/domain/merge_fill.py`). 409, with nothing changed, if the filled names would equal another record's. Body: `MergeRequest`. 400 if merging into self. |
 
 **Response model:** `StudioResponse` — `StudioBase` fields (the four names,
 `display_name_field`, `logo_file`, `logo_focus`, `remark`, `founded_date`,
@@ -1835,6 +1844,9 @@ viewer** from the entries they may see, none of them stored:
   and distinct.
 - `restricted` — `true` when one of `media_types` is a gated type (`h-comic`,
   `hentai`, `h-game`).
+- `has_relations` — `true` when the studio relates to at least one studio
+  the viewer may see (`STUDIO_RELATIONS.related_counts`, two queries for the
+  whole list); the studio library's Relation filter reads it.
 
 All three come from one `credits.credit_summaries` pass over the same visible
 `(media_type, entry_id)` pairs, so a card can never name a type its count
@@ -1877,8 +1889,10 @@ response carries `credit_refs`:
 ```
 
 keyed by credit role, in stored order, with the label that credit has on that
-media type. Anime and anime-movie also carry `studio_refs`, the same idea for
-studios (a bare list — studio is a single role), and any media type whose
+media type. Any media type whose credit roles include `studio` — anime,
+anime-movie, game (its developer), h-game and hentai — also carries
+`studio_refs`, the same idea for studios (a bare list — studio is a single
+role), and any media type whose
 credit roles include `publisher` — anime, anime-movie, manga, book, comic and
 game — carries `publisher_refs`, a bare list for the
 same reason but with `label` on each ref: one publisher role reads 台灣代理商,
@@ -2057,7 +2071,9 @@ endpoint it calls; conflating them shipped a real bug once (`TV.jsx` and
 [data-model.md](data-model.md#virtual-fields-on-media-entries) for the full
 table.
 
-Anime and anime-movie responses also carry `studio_refs`: the same studio
+Anime, anime-movie, game, h-game and hentai responses also carry
+`studio_refs` — every type whose credit roles include `studio`, derived rather
+than hand-listed: the same studio
 credits as the `studio` string beside them, shaped as
 `[{system_id, display_name}]` so the detail pages can link each studio to
 `/studio/{system_id}` — the comma-joined string has no ids to link with. It is

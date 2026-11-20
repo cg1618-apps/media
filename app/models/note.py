@@ -140,15 +140,14 @@ class Note(Base):
     # The name half of a name_links item.
     title = Column(String, nullable=True)
     content = Column(Text, nullable=True)
-    # List of URL strings - or, for the sections note_sections.uses_link_pairs
-    # names (the song lists), of {"text": str|null, "url": str}
-    # pairs. Which one is a property of the section, never of the row. A list
-    # even where a shape holds one link, so multi-link support needs no
-    # migration.
+    # List of titled links, {"text": str|null, "url": str}, on every section
+    # that takes links (note_sections.takes_links); `text` is the optional
+    # title the link's pill reads. A list even where a shape holds one link,
+    # so multi-link support needs no migration.
     links = Column(JSONB, nullable=True)
     # A list of mixed items for the name_entries shape: each is
     # {"type": "text"|"link", "value": str, "label": str|None}, in array order.
-    # Distinct from `links`, which holds URLs (or text-URL pairs) and nothing
+    # Distinct from `links`, which holds titled URLs and nothing
     # else - one column meaning two things is how subtle bugs start.
     entries = Column(JSONB, nullable=True)
     # The `structured` shape's registry-declared fields, as a flat object keyed

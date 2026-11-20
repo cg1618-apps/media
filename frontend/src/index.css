@@ -270,6 +270,18 @@ button:disabled,
 }
 
 /* Typography Tuning */
+/* A search field that draws its own clear button. Chrome and Safari add a
+   native one to every <input type="search"> - on desktop as well as mobile -
+   so such a field would show two crosses doing the same thing. A search field
+   WITHOUT a clear button of its own keeps the browser's. */
+@utility search-own-clear {
+  &::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    appearance: none;
+    display: none;
+  }
+}
+
 @layer base {
   html {
     font-weight: 400;

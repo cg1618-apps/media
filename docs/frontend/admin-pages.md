@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-11-19
+Last verified: 2026-11-20
 
 **What this is for.** Every administrative route behind `ProtectedRoute` in
 `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -959,13 +959,15 @@ see [/options](#options-systemoptionsjsx)) into `<optgroup>`s, with unclaimed
 categories under **Other**; a list that yields a single section — the Tags
 sub-tab, whose categories are one group — renders flat rather than under a
 heading repeating the sub-tab's own name. The Common Options sub-tab's picker
-reads as three groups: **Note Suggestion** (the seven game guide
-categories), **Music** (`Song Type`, `Song Source`) and **Needs Work**
-(`Needs Work Note`).
+reads as four groups: **Note Suggestion** (the seven game guide
+categories), **Music** (`Song Type`, `Song Source`), **Needs Work**
+(`Needs Work Note`) and **Studio** (`Country`).
 
 **Studio tab (Entity).** `StudioAddTab.jsx`. Four name fields (English,
 Chinese, Japanese, Alternative) with a "Display name" select naming which one
-to show, plus logo key, country, founded/defunct dates
+to show, plus logo key, country (`CountryInput`: the `Country` common
+options as one-click chips above a `SuggestInput` offering the same values; a
+country not in the list is stored as typed and never added to it), founded/defunct dates
 (`ReleaseDateInput`, so partial precision is allowed), website, MAL id/link
 and remark, with **My Rating** above it for a list keeper (see "The viewer's
 own rating" above). Submit is blocked client-side until at least one name is filled,
@@ -1364,7 +1366,7 @@ comes back as a 409 rather than a silent over-deletion.
 **Studio tab (Entity).** A picker over `/api/studio/` showing each studio's
 display name, id and credit count, then a warning that says exactly what
 deleting costs: `media_credit.studio_id` is `ON DELETE CASCADE`, so deleting
-destroys this studio's *n* credits on every entry linked to it. The panel
+destroys this studio's *n* credits on every entry linked to it, and its relations to other studios (both sides). The panel
 therefore offers **Merge Into Another Studio** beside Delete — merge
 (`POST /api/studio/{keep}/merge` with the selected studio as `source_id`)
 repoints the credits onto the survivor first, fills the survivor's blank

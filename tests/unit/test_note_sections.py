@@ -299,7 +299,7 @@ def test_only_the_four_todo_buckets_quick_move():
 
 def test_easter_eggs_is_text_links_like_the_rest_of_analysis():
     sec = ns.section_by_key("easter_eggs")
-    assert sec.label == "彩蛋/致敬 Easter Eggs/References"
+    assert sec.label == "彩蛋/致敬/細節 Easter Eggs/References/Details"
     assert sec.shape == ns.SHAPE_TEXT_LINKS
     assert sec.scope == ns.SCOPE_CATALOG
     assert sec.group == "analysis_group"
@@ -939,7 +939,7 @@ def test_sections_by_scope_returns_registry_order():
 
 # --- mixed sections ----------------------------------------------------------
 # A mixed section holds catalogue rows and each account's own personal rows
-# together. The ten are the list in docs/notes/decisions.md, "mixed
+# together. The ten are the list in docs/systems/notes.md, "Mixed
 # sections", by key.
 
 MIXED = {

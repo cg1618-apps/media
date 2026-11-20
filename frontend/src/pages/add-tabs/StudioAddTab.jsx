@@ -12,6 +12,7 @@ import MyRatingFields from "../../components/forms/MyRatingFields";
 import { Field, SectionHeader, inputCls, selectCls } from "../../components/forms/FormField";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import ImagePicker from "../../components/forms/ImagePicker";
+import CountryInput from "../../components/forms/CountryInput";
 import { STUDIO_NAME_FIELDS } from "../../lib/naming";
 
 export { defaultStudio } from "../../config/formFactories";
@@ -78,10 +79,9 @@ export function StudioFields({ studioForm, usf, ownerId }) {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Country">
-          <input
-            className={inputCls}
+          <CountryInput
             value={studioForm.country ?? ""}
-            onChange={(e) => usf("country", e.target.value)}
+            onChange={(v) => usf("country", v)}
           />
         </Field>
         <Field label="Website">

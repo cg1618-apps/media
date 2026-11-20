@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-11-19
+Last verified: 2026-11-20
 
 ## What this is for
 
@@ -50,7 +50,8 @@ narrowed below its mode with per-account denials.
 
 Related: [authentication.md](authentication.md) (login, cookie),
 [data-model.md](data-model.md) (tables), [api.md](api.md) (routes),
-[notes/decisions.md](notes/decisions.md) (2026-08-29 View authorization).
+[Why it is built this way](#why-it-is-built-this-way), and
+[notes/decisions/](notes/decisions/README.md) for the rest.
 
 ## What each role and mode holds
 
@@ -563,7 +564,7 @@ Migration `s1w2itches345` gives `view.studio`, `view.publisher`,
 entity key they replace, so an established database shows the same pages it
 did; it also reconciles the gated types to their locks and grants any of the
 nine ordinary types missing from `guest`, `user`, `shared` or `super` once
-([notes/decisions.md](notes/decisions.md)). Migration `a1d2minroot45` writes
+([notes/decisions/2026-11-03-per-role-and-per-account-switches.md](notes/decisions/2026-11-03-per-role-and-per-account-switches.md)). Migration `a1d2minroot45` writes
 the admin role's seven grants as rows and deletes any other it holds, drops
 `role.is_root`, and sets every `admin`-role account's ceiling and default to
 NULL. It moves no data: a personal row owned by an `admin`-role account is
@@ -1099,6 +1100,18 @@ the viewer cannot see, a visible artist's `/clubs` omits the hidden clubs, and
 either route 404s when the person asked about is hidden. The two replace
 writers keep the rows naming a person the writer cannot see, as the scope
 writers below do.
+
+**A peer relation is not a connection either.** `studio_relation` never makes
+a hidden studio visible, and `franchise_relation` never makes a hidden
+franchise visible; each reads through its own kind's rule (the shared-record
+rule for a studio, the label rule for a franchise). A visible record's
+`/related` omits the related records the viewer cannot see, and 404s when the
+record asked about is hidden; the list's `has_relations` counts only visible
+related records, so a library's Relation filter cannot reveal one; and the
+editor's candidates are the kind's list, filtered the same way. The replace
+writer keeps the rows naming a record the writer cannot see, and refuses one
+it names (422). One class, `PeerRelations` in
+`app/services/domain/peer_relation.py`, holds these rules for both.
 
 So crediting somebody on a visible entry reveals them and removing that credit
 hides them again; nothing is stored. The rule is one SQL condition

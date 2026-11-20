@@ -1286,9 +1286,10 @@ def attach_link_fields(db: Session, media_type: str, entries) -> None:
 
     Every type also gets `credit_refs`: the same PERSON credit rows keyed by
     role, shaped as {system_id, display_name, label} so a detail page can link
-    to the person - the legacy strings beside them carry no ids. Anime and
-    anime-movie additionally get `studio_refs`, the studio half of the same
-    idea; studio is a single role, so those need no role key.
+    to the person - the legacy strings beside them carry no ids. Every type
+    with a studio role (anime, anime-movie, game, h-game, hentai) additionally
+    gets `studio_refs`, the studio half of the same idea; studio is a single
+    role, so those need no role key.
 
     Both are built from the same batched `_link_rows_and_lookups` fetch as the
     rest of this function, so adding them costs no extra query - still five
@@ -1335,7 +1336,10 @@ def attach_link_fields(db: Session, media_type: str, entries) -> None:
             )
         )
 
-    wants_studio_refs = media_type in ("anime", "anime-movie")
+    # Offered to every media type whose roles include studio - a game's
+    # developer, a hentai's studio - the way publisher_refs is below, so a new
+    # type gains it by declaring the role.
+    wants_studio_refs = any(r.key == "studio" for r in credit_roles_for(media_type))
     studio_refs_by_entry: dict[UUID, list[StudioRef]] = {}
     if wants_studio_refs:
         for row in credit_rows:

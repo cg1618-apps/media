@@ -30,7 +30,29 @@ function getFilterCategories(franchise) {
   return cats;
 }
 
-const EMPTY_FILTERS = { franchiseType: new Set() };
+// Read off the list's has_relations, which counts only related franchises the
+// viewer may see - so a relation to a hidden franchise filters as none.
+export const HAS_RELATIONS = "Has relation";
+export const NO_RELATIONS = "No relation";
+
+const EMPTY_FILTERS = { franchiseType: new Set(), relation: new Set() };
+
+const PILL_ON = "bg-brand text-on-brand border-brand";
+const PILL_OFF =
+  "bg-surface border-border-strong text-text-muted hover:border-text hover:text-text";
+
+// One chip in the filter panel. Module-level, not defined inside the page's
+// render: a component created per render remounts on every keystroke.
+function FilterTag({ label, active, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-3 py-1 border text-xs font-medium transition-colors ${active ? PILL_ON : PILL_OFF}`}
+    >
+      {label}
+    </button>
+  );
+}
 
 // Every entry table a franchise can hold, paired with the media type its
 // covers are filed under. getFranchiseCover() requires the full set - an
@@ -272,12 +294,12 @@ export default function FranchiseLibrary() {
     load();
   }, [authLoading, canSeeHComic, canSeeHGame, canSeeHentai]);
 
-  function toggleFilter(value) {
+  function toggleFilter(value, group = "franchiseType") {
     setFilters((prev) => {
-      const next = new Set(prev.franchiseType);
+      const next = new Set(prev[group]);
       if (next.has(value)) next.delete(value);
       else next.add(value);
-      return { franchiseType: next };
+      return { ...prev, [group]: next };
     });
   }
 
@@ -285,7 +307,7 @@ export default function FranchiseLibrary() {
     setFilters(EMPTY_FILTERS);
   }
 
-  const activeFilterCount = filters.franchiseType.size;
+  const activeFilterCount = filters.franchiseType.size + filters.relation.size;
 
   const filteredAndSorted = useMemo(() => {
     const qClean = cleanString(searchQuery);
@@ -305,6 +327,13 @@ export default function FranchiseLibrary() {
       if (filters.franchiseType.size > 0) {
         const cats = getFilterCategories(f);
         if (!cats.some((c) => filters.franchiseType.has(c))) return false;
+      }
+
+      if (
+        filters.relation.size > 0 &&
+        !filters.relation.has(f.has_relations ? HAS_RELATIONS : NO_RELATIONS)
+      ) {
+        return false;
       }
 
       return true;
@@ -339,21 +368,15 @@ export default function FranchiseLibrary() {
     );
   }
 
-  const PILL_ON = "bg-brand text-on-brand border-brand";
-  const PILL_OFF =
-    "bg-surface border-border-strong text-text-muted hover:border-text hover:text-text";
-
-  const FilterTag = ({ value, label }) => {
-    const active = filters.franchiseType.has(value);
-    return (
-      <button
-        onClick={() => toggleFilter(value)}
-        className={`px-3 py-1 border text-xs font-medium transition-colors ${active ? PILL_ON : PILL_OFF}`}
-      >
-        {label}
-      </button>
-    );
-  };
+  // Each chip in the filter panel: `group` is the filters key it toggles in.
+  const tag = (value, label, group = "franchiseType") => (
+    <FilterTag
+      key={value}
+      label={label}
+      active={filters[group].has(value)}
+      onClick={() => toggleFilter(value, group)}
+    />
+  );
 
   return (
     <div className="min-h-screen">
@@ -452,18 +475,23 @@ export default function FranchiseLibrary() {
             <div className="border-t border-border mt-3 pt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
               <Eyebrow className="shrink-0">Type</Eyebrow>
               <div className="flex flex-wrap gap-1.5">
-                <FilterTag value="Anime" label="Anime" />
-                <FilterTag value="Manga" label="Manga" />
-                <FilterTag value="Book" label="Book" />
-                <FilterTag value="Anime Movie" label="Anime movie" />
-                <FilterTag value="Movie" label="Movie" />
-                <FilterTag value="TV" label="TV" />
-                <FilterTag value="Cartoon" label="Cartoon" />
-                <FilterTag value="Comic" label="Comic" />
-                {canSeeHComic && <FilterTag value="H-Comic" label="H-Comic" />}
-                {canSeeHGame && <FilterTag value="H-Game" label="H-Game" />}
-                {canSeeHentai && <FilterTag value="Hentai" label="Hentai" />}
-                <FilterTag value="Other" label="Other" />
+                {tag("Anime", "Anime")}
+                {tag("Manga", "Manga")}
+                {tag("Book", "Book")}
+                {tag("Anime Movie", "Anime movie")}
+                {tag("Movie", "Movie")}
+                {tag("TV", "TV")}
+                {tag("Cartoon", "Cartoon")}
+                {tag("Comic", "Comic")}
+                {canSeeHComic && tag("H-Comic", "H-Comic")}
+                {canSeeHGame && tag("H-Game", "H-Game")}
+                {canSeeHentai && tag("Hentai", "Hentai")}
+                {tag("Other", "Other")}
+              </div>
+              <Eyebrow className="shrink-0">Relation</Eyebrow>
+              <div className="flex flex-wrap gap-1.5">
+                {tag(HAS_RELATIONS, "Has relation", "relation")}
+                {tag(NO_RELATIONS, "No relation", "relation")}
               </div>
               {activeFilterCount > 0 && (
                 <button

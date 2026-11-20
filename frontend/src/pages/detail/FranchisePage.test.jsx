@@ -314,3 +314,28 @@ describe("FranchisePage media tab order", () => {
     expect(names).toEqual(["Movies", "Cartoons", "Game"]);
   });
 });
+
+// The Plan next controls offer only types the franchise holds entries for and
+// may queue at franchise scope. A franchise with no anime offered an Anime
+// toggle anyway, because an empty size-group map fell back to "anime".
+describe("FranchisePage plan next toggles", () => {
+  const EDITOR = { username: "editor", role: "super", is_admin: true, permissions: ["manage.catalog"] };
+
+  it("offers an Anime toggle on a franchise holding anime", async () => {
+    franchise = { ...FRANCHISE, franchise_type: "Anime" };
+    me = EDITOR;
+    renderPage();
+    expect(await screen.findByText("Plan next")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "anime" })).toBeInTheDocument();
+  });
+
+  it("offers no Anime toggle on a franchise without anime", async () => {
+    franchise = { ...FRANCHISE, franchise_type: "Game" };
+    me = EDITOR;
+    renderPage();
+    expect(await screen.findByRole("button", { name: /^Game\s*2$/ })).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: "anime" })).toBeNull();
+    // A game is queued per entry, so nothing here is plannable at all.
+    expect(screen.queryByText("Plan next")).toBeNull();
+  });
+});

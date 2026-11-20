@@ -30,7 +30,7 @@ from app.models.content_label import (
     MediaContentLabel,
     SeriesContentLabel,
 )
-from app.models.franchise import Franchise, Series
+from app.models.franchise import Franchise, FranchiseRelation, Series
 from app.models.game import Game
 from app.models.game_choice import GameChoiceEdge, GameChoiceMark, GameChoiceNode
 from app.models.game_copy import GameCopy
@@ -58,6 +58,7 @@ from app.models.staff import (
     Publisher,
     PublisherScope,
     Studio,
+    StudioRelation,
 )
 from app.models.system import (
     DataControlLog,
@@ -92,6 +93,7 @@ __all__ = [
     "NameFallbackMixin",
     "Collection",
     "Franchise",
+    "FranchiseRelation",
     "Series",
     "Media",
     "UserFavorite",
@@ -132,6 +134,7 @@ __all__ = [
     "PersonRole",
     "PersonMembership",
     "Studio",
+    "StudioRelation",
     "Publisher",
     "PublisherScope",
     "MediaCredit",

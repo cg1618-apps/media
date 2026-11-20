@@ -1560,6 +1560,41 @@ def parse_person_membership_from_sheet(raw: dict) -> dict:
     }
 
 
+def parse_studio_relation_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Studio Relation sheet: one side of a
+    relation, with that side's remark.
+
+    Both ends cite a studio by uuid, and a studio's uuid is minted per
+    database - Pull translates each through the Studio tab by natural key
+    before the row is stored (DERIVED_IDENTITY_PARENTS in pull.py).
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "studio_id": _uuid_or_none(raw.get("studio_id")),
+        "related_studio_id": _uuid_or_none(raw.get("related_studio_id")),
+        "remark": parse_from_sheet(raw.get("remark"), str),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
+def parse_franchise_relation_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Franchise Relation sheet: one side of a
+    relation, with that side's remark. A franchise's uuid travels with the
+    Franchise tab, so both ends are stored as written.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "franchise_id": _uuid_or_none(raw.get("franchise_id")),
+        "related_franchise_id": _uuid_or_none(raw.get("related_franchise_id")),
+        "remark": parse_from_sheet(raw.get("remark"), str),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
 # A storefront value a sheet backed up before its rename still holds.
 _LEGACY_STOREFRONTS = {"Physical": "Physical Store"}
 
