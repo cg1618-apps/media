@@ -162,6 +162,7 @@ const GAME_LIBRARY_CONFIG = {
     },
     myRatingColumn(),
     playButtonColumn(),
+    planFlagColumn("play_next", "Play Next"),
     planFlagColumn("to_replay", "To Replay"),
   ],
 };

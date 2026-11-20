@@ -57,9 +57,8 @@ def test_remake_and_remaster_point_at_an_original():
 
 
 def test_game_plan_scopes_and_flags():
-    assert pnk.ALLOWED_SCOPES["next"]["game"] == frozenset(
-        {"entry", "series", "franchise"}
-    )
+    # A game is queued one game at a time; it is replayed at any tier.
+    assert pnk.ALLOWED_SCOPES["next"]["game"] == frozenset({"entry"})
     assert pnk.ALLOWED_SCOPES["rewatch"]["game"] == frozenset(
         {"entry", "series", "franchise"}
     )

@@ -177,7 +177,7 @@ describe("scopesFor", () => {
     ["rewatch", "manga", ["entry"]],
     ["rewatch", "book", ["entry", "series", "franchise"]],
     ["rewatch", "comic", ["entry", "series"]],
-    ["next", "game", ["entry", "series", "franchise"]],
+    ["next", "game", ["entry"]],
     ["rewatch", "game", ["entry", "series", "franchise"]],
     ["next", "h-comic", ["entry"]],
     ["rewatch", "h-comic", ["entry"]],

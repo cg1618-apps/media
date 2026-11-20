@@ -18,7 +18,7 @@ if (!window.PointerEvent) window.PointerEvent = class extends MouseEvent {};
 const EASTER_EGGS = {
   key: "easter_eggs",
   shape: "text_links",
-  label: "彩蛋/致敬 Easter Eggs/References",
+  label: "彩蛋/致敬/細節 Easter Eggs/References/Details",
   locator_placeholder: "Episode(s), e.g. ep 3",
   locator_required: false,
   desc_required: false,
@@ -44,7 +44,7 @@ const renderSection = (props = {}) =>
   );
 
 const popup = () =>
-  screen.getByRole("dialog", { name: "Add to 彩蛋/致敬 Easter Eggs/References" });
+  screen.getByRole("dialog", { name: "Add to 彩蛋/致敬/細節 Easter Eggs/References/Details" });
 
 it("opens the draft in a non-modal dialog outside the card, focused", async () => {
   const { container } = renderSection();

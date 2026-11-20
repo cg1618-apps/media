@@ -29,7 +29,7 @@ export default function PlanToRewatch({ planRows }) {
   return (
     <section>
       <h2 className="font-display text-3xl font-semibold text-text leading-none mb-4 pb-3 border-b border-border">
-        To rewatch
+        To redo
       </h2>
 
       <div className="flex flex-wrap gap-1.5 mb-6">

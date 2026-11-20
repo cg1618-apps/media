@@ -1202,7 +1202,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         # for the same reason - a game has no 解析 card of its own.
         key="easter_eggs",
         shape=SHAPE_TEXT_LINKS,
-        label="彩蛋/致敬 Easter Eggs/References",
+        label="彩蛋/致敬/細節 Easter Eggs/References/Details",
         owners=_all_but(ENTRY_OWNERS, *H_OWNERS) + _SERIES_AND_UP,
         scope=SCOPE_CATALOG,
         locator_placeholder="Episode(s), e.g. ep 3",

@@ -813,7 +813,7 @@ export default function MediaCard({
           <>
             <LibraryMeta type={type} data={data} scoreField={scoreField} />
             <div
-              className={`relative z-10 mt-auto flex items-center border-t border-border pt-2.5 ${HAS_PROGRESS.has(type) ? "justify-between" : "justify-end"}`}
+              className="relative z-10 mt-auto flex items-center justify-between gap-1 border-t border-border pt-2.5"
             >
               {HAS_PROGRESS.has(type) && (
                 <ProgressDisplay
@@ -823,7 +823,10 @@ export default function MediaCard({
                   onToggleVol={() => setShowVol((v) => !v)}
                 />
               )}
-              {statusBtn}
+              {/* ml-auto, not the row's justify-between alone: a progress
+                display with nothing to show renders null, and the button
+                must stay at the right edge rather than slide into its place. */}
+              <div className="ml-auto shrink-0">{statusBtn}</div>
             </div>
           </>
         )}

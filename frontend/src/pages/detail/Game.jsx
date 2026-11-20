@@ -517,6 +517,11 @@ export default function Game() {
                 canTrack={ownData}
                 onStatusChange={(v) => saveOwn({ playing_status: v }, "Status updated")}
                 onRatingChange={(v) => saveOwn({ my_rating: v || null }, "Rating saved")}
+                watchNext={game.play_next}
+                watchNextLabel="Play Next"
+                onWatchNextChange={(v) =>
+                  saveOwn({ play_next: v }, v ? "Added to Play Next" : "Removed from Play Next")
+                }
                 toRewatch={game.to_replay}
                 rewatchLabel="To Replay"
                 onToRewatchChange={(v) =>

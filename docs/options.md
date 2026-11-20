@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-11-19
+Last verified: 2026-11-20
 
 ## What this is for
 
@@ -307,7 +307,7 @@ out. What the three gated types keep is in
 | `foreshadowing` | text_links | 伏筆/前後呼應 Foreshadowing | anime, anime-movie, tv-show, cartoon, manga, book, series, franchise | analysis_group | |
 | `symmetry` | text_links | 對稱 Symmetry | same as foreshadowing | analysis_group | |
 | `speculation` | text_links | 猜測 Speculation | same as foreshadowing | analysis_group | |
-| `easter_eggs` | text_links | 彩蛋/致敬 Easter Eggs/References | every entry type but h-comic, hentai, h-game; series, franchise | analysis_group; **reviews** for game | Right after 解析 in the 評論 card for a game |
+| `easter_eggs` | text_links | 彩蛋/致敬/細節 Easter Eggs/References/Details | every entry type but h-comic, hentai, h-game; series, franchise | analysis_group; **reviews** for game | Right after 解析 in the 評論 card for a game |
 | `beginner` | text_links | 新手 Beginner | game | guides | |
 | `gameplay_systems` | structured | 玩法系統 Gameplay Systems | game, h-game | guides | type (free text), name (CN), alt name, description; groupable by type |
 | `controls` | structured | 操作 Controls | game, h-game | guides | Fields: type (`kind`, free text), control (`title`), description (`content`); no links; groupable by type |
@@ -422,7 +422,7 @@ the page is in [systems/plan-next.md](systems/plan-next.md).
 | `manga` | entry | entry |
 | `book` | entry | entry, series, franchise |
 | `comic` | entry, series | entry, series |
-| `game` | entry, series, franchise | entry, series, franchise |
+| `game` | entry | entry, series, franchise |
 
 `PLAN_FLAG_FIELDS` (the virtual API fields that front `plan_next` at entry
 scope): `watch_next` on anime, anime-movie, movie, tv-show, cartoon;

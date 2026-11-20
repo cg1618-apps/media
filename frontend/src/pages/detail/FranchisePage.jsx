@@ -54,7 +54,7 @@ import PlanKindToggles, {
   kindLabel,
   applicableTypes,
 } from "../../components/plan/PlanKindToggles";
-import { SIZE_GROUPS, scopesFor } from "../../config/planNextGroups";
+import { SIZE_GROUPS } from "../../config/planNextGroups";
 import { effectiveBucket } from "../../utils/planNext";
 import { usePageTitle } from "../../contexts/PageTitleContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
@@ -421,20 +421,6 @@ export default function FranchisePage() {
   const hasHentai = inRestrictedFamily;
   const hasHGame = inRestrictedFamily;
 
-  // Media types this franchise carries a size bucket for, restricted to
-  // franchise-eligible scopes (comic/anime-movie/manga/book can never be
-  // planned at franchise level - see scopesFor / ALLOWED_SCOPES["next"]).
-  const sizeGroupMediaTypes = useMemo(() => {
-    const keys = new Set([
-      ...Object.keys(franchise?.size_group_derived || {}),
-      ...Object.keys(franchise?.size_group_manual || {}),
-    ]);
-    const filtered = Array.from(keys).filter((mt) =>
-      scopesFor("next", mt).includes("franchise"),
-    );
-    return filtered.length > 0 ? filtered : ["anime"];
-  }, [franchise]);
-
   // Media types this franchise actually holds entries for, driven by the
   // per-type entry lists rather than franchise_type (which is multi-valued
   // and bundles types together: Anime alone covers anime, anime movies and
@@ -467,6 +453,46 @@ export default function FranchisePage() {
     hComicList,
     hGameList,
     hentaiList,
+  ]);
+
+  // The plan-next rows offered are the types the franchise's type offers,
+  // that it holds entries for, and that may be queued at franchise scope
+  // (ALLOWED_SCOPES["next"]) - so a franchise that is not an Anime franchise
+  // never shows an Anime toggle.
+  const franchisePlanNextTypes = useMemo(() => {
+    const offered = {
+      anime: hasAnime,
+      "anime-movie": hasAnime || hasAnimeMovie,
+      movie: hasMovie,
+      "tv-show": hasTV,
+      cartoon: hasCartoon,
+      manga: hasManga,
+      book: hasBook,
+      comic: hasComic,
+      game: hasGame,
+      "h-comic": hasHComic,
+      "h-game": hasHGame,
+      hentai: hasHentai,
+    };
+    return applicableTypes(
+      "next",
+      "franchise",
+      franchiseMediaTypes.filter((t) => offered[t]),
+    );
+  }, [
+    franchiseMediaTypes,
+    hasAnime,
+    hasAnimeMovie,
+    hasMovie,
+    hasTV,
+    hasCartoon,
+    hasManga,
+    hasBook,
+    hasComic,
+    hasGame,
+    hasHComic,
+    hasHGame,
+    hasHentai,
   ]);
 
   const franchiseApplicableRewatchTypes = useMemo(
@@ -1485,16 +1511,18 @@ export default function FranchisePage() {
                 )}
                 {isAdmin && (
                   <>
-                    <Field label="Plan next" className="sm:col-span-2">
-                      <SizeGroupControls
-                        mediaTypes={sizeGroupMediaTypes}
-                        planned={plannedTypes}
-                        derived={franchise.size_group_derived}
-                        manual={franchise.size_group_manual}
-                        onTogglePlan={handleTogglePlan}
-                        onOverride={handleOverride}
-                      />
-                    </Field>
+                    {franchisePlanNextTypes.length > 0 && (
+                      <Field label="Plan next" className="sm:col-span-2">
+                        <SizeGroupControls
+                          mediaTypes={franchisePlanNextTypes}
+                          planned={plannedTypes}
+                          derived={franchise.size_group_derived}
+                          manual={franchise.size_group_manual}
+                          onTogglePlan={handleTogglePlan}
+                          onOverride={handleOverride}
+                        />
+                      </Field>
+                    )}
                     {franchiseApplicableRewatchTypes.length > 0 && (
                       <Field
                         label={kindLabel("rewatch", franchiseApplicableRewatchTypes)}

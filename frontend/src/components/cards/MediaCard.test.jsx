@@ -534,3 +534,23 @@ describe("MediaCard - the status toggle off Completed", () => {
     expect(body).not.toHaveProperty("vol_fin");
   });
 });
+
+// The status button keeps the footer's right edge. A game with no playtime
+// and no HLTB estimate has no progress to show, and under the row's
+// justify-between alone the button slid into the empty left slot.
+describe("MediaCard - the library footer's status button", () => {
+  const game = {
+    system_id: "4d2e6f88-3b5c-4d7e-9f0a-1b2c3d4e5f60",
+    public_id: 13,
+    game_name_en: "Unplayed Game",
+    playing_status: "Might Play",
+  };
+
+  it("stays right-aligned when a game has no playtime to show", async () => {
+    mockAuthFetch(["self.list"]);
+    mount(game, "game");
+    await screen.findByText("Unplayed Game");
+    const button = await screen.findByTitle(/^Might Play →/);
+    expect(button.parentElement).toHaveClass("ml-auto");
+  });
+});

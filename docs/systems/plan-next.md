@@ -1,6 +1,6 @@
 # Plan Next
 
-Last verified: 2026-11-19
+Last verified: 2026-11-20
 
 ## What this is for
 
@@ -70,8 +70,11 @@ Both Sheets parsers (`parse_franchise_from_sheet`, `parse_series_from_sheet` in 
 | anime-movie | entry | entry |
 | manga | entry | entry |
 | book | entry | entry, series, franchise |
+| game | entry | entry, series, franchise |
+| h-game | entry, series, franchise | entry, series, franchise |
+| h-comic, hentai | entry | entry |
 
-The two maps differ on purpose: anime is queued one season at a time but rewatched as a whole franchise; books are reread at any tier but queued one book at a time; comic has no franchise scope at all.
+The two maps differ on purpose: anime is queued one season at a time but rewatched as a whole franchise; books and games are queued one at a time but reread or replayed at any tier; comic has no franchise scope at all. A game's Play Next lives on the entry - the detail page's My tracker and the library's Play Next column - never on its franchise or series.
 
 ### Size thresholds and measures
 
@@ -108,6 +111,7 @@ The entry Pydantic schemas still expose boolean flags so Add/Modify forms, detai
 | manga | `read_next` | `to_reread` |
 | book | `read_next` | `to_reread` |
 | comic | `read_next` | `to_reread` |
+| game, h-game | `play_next` | `to_replay` |
 
 An assertion in `plan_next_kinds.py` enforces that a type has an entry-level rewatch flag if and only if `entry` is in its `rewatch` scopes.
 
@@ -157,8 +161,8 @@ Route `/plan` in `frontend/src/App.jsx`; nav entry under the "Track" section in 
 
 | Section | File | Source of rows |
 | --- | --- | --- |
-| Watch Next | `PlanWatchNext.jsx` | `planRows` where `kind === "next"`, 8 tabs from `PLAN_TABS` |
-| To Rewatch | `PlanToRewatch.jsx` | `planRows` where `kind === "rewatch"`, tabs from `REWATCH_TABS` |
+| Do next | `PlanWatchNext.jsx` | `planRows` where `kind === "next"`, tabs from `PLAN_TABS` |
+| To redo | `PlanToRewatch.jsx` | `planRows` where `kind === "rewatch"`, tabs from `REWATCH_TABS` |
 | Future Releases | `PlanToWatchFuture.jsx` | unreleased entries, not `plan_next` (pre-existing feature) |
 
 `usePlanData.js` fetches every media list plus `GET /api/plan-next/` (own React Query key `["plan-next"]`, kept separate from `["media-list", *]` so the list-cache writers never touch it) and attaches `bucket` and, for group rows, `coverUrl` to each plan row via `withBucket`. Cards render through `PlanNextCard.jsx`.
