@@ -97,7 +97,26 @@ def test_igdb_fills_the_h_game_columns(db_session, patched):
     assert patched["download"] == ["h-game"]
 
 
-def test_igdb_writes_studio_genre_and_theme_only(db_session, patched):
+@pytest.fixture
+def companies(db_session):
+    """IGDB credits existing companies only, never creating one."""
+    db_session.add_all(
+        [models.Studio(name_en="Zvornik Dev"), models.Publisher(name_en="Zvornik Pub")]
+    )
+    db_session.flush()
+
+
+def test_igdb_never_creates_an_h_game_developer(db_session, patched):
+    # Another studio exists, so the skip is a non-match and not an empty table.
+    db_session.add(models.Studio(name_en="Zvornik Other Dev"))
+    db_session.flush()
+    entry = _h_game(db_session)
+    autofill_game_from_igdb(entry, db_session)
+    assert credit_names(db_session, entry.system_id, "studio") == []
+    assert db_session.query(models.Studio).filter_by(name_en="Zvornik Dev").count() == 0
+
+
+def test_igdb_writes_studio_genre_and_theme_only(db_session, patched, companies):
     entry = _h_game(db_session)
     autofill_game_from_igdb(entry, db_session)
     assert credit_names(db_session, entry.system_id, "studio") == ["Zvornik Dev"]
@@ -111,7 +130,7 @@ def test_igdb_writes_studio_genre_and_theme_only(db_session, patched):
     assert entry.platform is None
 
 
-def test_igdb_on_a_game_still_writes_everything(db_session, patched):
+def test_igdb_on_a_game_still_writes_everything(db_session, patched, companies):
     """The mirror: generalising the fill took nothing away from Game."""
     game = models.Game(system_id=uuid.uuid4(), game_name_en="Zvornik Game Fill", igdb_id=1029)
     db_session.add(game)

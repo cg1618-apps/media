@@ -765,7 +765,7 @@ alongside `CollectionLibrary`, `FranchiseLibrary` and `SeriesLibrary`; its route
 before `/library/:type` so the generic library page never claims it.
 
 Raw `fetch` of `/api/studio/` alone — the response already carries
-`display_name`, `credit_count`, `logo_file`, `countries`, `my_rating` and
+`display_name`, `credit_count`, `logo_file`, `display_logo_file`, `countries`, `my_rating` and
 `media_types`, so no per-studio request and no entry lists are needed, and
 every filter runs client-side. Search runs over **all four** name fields
 (`STUDIO_NAME_FIELDS`), not just the displayed one, so typing "Kyoto
@@ -804,7 +804,8 @@ state is off the default, puts the default back. The empty state's **show
 everything** link clears the search and every filter.
 
 Each `StudioCard` (`components/cards/StaffCard.jsx`, shared with `/search`)
-shows the logo with the `my_rating` stamp in its corner (none when unrated),
+shows the logo — `display_logo_file`, the studio's own or else the newest
+visible credited entry's cover, falling back to `logo_file` — with the `my_rating` stamp in its corner (none when unrated),
 the display name and the credit count, and links to `/studio/:system_id`.
 
 ### PublisherLibrary — `/library/publisher`
@@ -842,7 +843,7 @@ publisher names one country: every country on record, sorted, plus Not set
 when a publisher has none.
 
 Each `PublisherCard` (`components/cards/StaffCard.jsx`, beside `StudioCard`)
-shows the logo with the `my_rating` stamp in its corner (none when unrated),
+shows the logo — `display_logo_file`, as on `StudioCard` — with the `my_rating` stamp in its corner (none when unrated),
 the display name and the credit count, and links to `/publisher/:system_id`.
 
 ### PersonLibrary — `/library/person`
@@ -1153,7 +1154,9 @@ Layout:
    `/modify?id=<system_id>&type=studio`, and **Autofill & update** for a
    studio with a MAL link (`POST /api/studio/{system_id}/autofill`, as on the
    person page: blank columns only, then the response is the page's state).
-3. **Left column** — logo with the rating stamp, (admin) the **My rating**
+3. **Left column** — logo with the rating stamp (`display_logo_file` /
+   `display_logo_focus`, the logo or the server-resolved fallback cover, else
+   `logo_file`), (admin) the **My rating**
    select, then the **Naming** card (`NamingCard`, each of the four names that is set —
    English, Chinese, Japanese, Alternative — the displayed one included, as
    on the person and character pages).

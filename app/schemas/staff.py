@@ -233,6 +233,13 @@ class StudioResponse(StudioBase):
     public_id: int
     display_name: str = ""
     credit_count: int = 0
+    # The picture to show, resolved per viewer by credits.credit_summaries:
+    # logo_file, else the cover of the newest visible credited entry that has
+    # one, else None - with the focal point stored beside whichever won.
+    # Read-only; a form edits logo_file. Null where a route does not resolve
+    # it, so a reader falls back to logo_file.
+    display_logo_file: Optional[str] = None
+    display_logo_focus: Optional[str] = None
     # Hyphenated media types of the visible entries this studio is credited
     # on, sorted and distinct; restricted is True when one is a gated type.
     # Same semantics as PersonResponse's, from the same visible pair set as

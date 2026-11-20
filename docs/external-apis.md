@@ -1,6 +1,6 @@
 # External APIs
 
-Last verified: 2026-11-19
+Last verified: 2026-11-20
 
 ## What this is for
 
@@ -555,8 +555,8 @@ link — see [HowLongToBeat](#howlongtobeat).
 | `first_release_date` | `release_date` | `games.release_date` | Unix seconds read as **UTC** (a local-time read would shift a midnight release by a day), then `app.utils.release_date.normalize`; fill-only |
 | `url` | `igdb_link` | `games.igdb_link` | fill-only |
 | `cover.url` | `cover_image_url` | cover download | `t_thumb` swapped for `t_cover_big_2x` in the path, protocol-relative `//` prefixed with `https:`; fill-only, and done **last** so a download failure cannot cost the cheap columns |
-| `involved_companies` where `developer` | `developers` | `media_credit` role `studio` | only when the entry has no studio credit yet — a game's developer **is** its studio |
-| `involved_companies` where `publisher` | `publishers` | `media_credit` role `publisher` | only when the entry has no publisher credit yet |
+| `involved_companies` where `developer` | `developers` | `media_credit` role `studio` | only when the entry has no studio credit yet — a game's developer **is** its studio. Credited **only when a studio of that name already exists**: IGDB never creates one. A name matching no studio, or several, is skipped and logged as a warning |
+| `involved_companies` where `publisher` | `publishers` | `media_credit` role `publisher` | only when the entry has no publisher credit yet, and **only for an existing publisher**, as the developer; a credited publisher is offered on the entry's type (its scope is widened) |
 | `genres.name` / `themes.name` / `game_modes.name` | `genres` / `themes` / `game_modes` | `media_tag` fields `game_genre` / `game_theme` / `game_mode` | raw **English**, translated by the alias layer — see below |
 | `platforms.name` | `platforms` | `media_tag` field `game_platform` | raw **English**; each console's IGDB name is an alias of the console and of its family, so `PlayStation 4` resolves to `PlayStation` and `PS4`, and a family two consoles share (`PlayStation 4`, `PlayStation 5`) is kept once |
 | `parent_game` | `parent_igdb_id` | `games.base_game_id` | a bare IGDB id; resolved against the database by the autofill |
@@ -599,6 +599,13 @@ name names the console and its family - and a value with **no
 `system_option_alias` row is logged and skipped** — never stored raw, never
 invented, never dropped silently. A new IGDB genre is supposed to surface as a
 gap to fill on the Options admin page.
+
+The developer and publisher follow the same rule against their own tables:
+`match_existing_credits` looks each name up with `find_studio` /
+`find_publisher`, which never write, and a name matching **no row, or
+several**, is logged and skipped. IGDB creates no company - a game's companies
+are made from the Studio and Publisher tabs, and the next Fill credits them.
+The same holds on an h-game's developer.
 
 That choice is why `has_missing_values_game` (`app/services/domain/checking.py`)
 reads **columns only** — `GAME_FIELDS_TO_FILL` is `igdb_link`, `release_date`,
@@ -1005,7 +1012,7 @@ and the image CDN (`img.dlsite.jp`) serves the cover without a `Referer`.
 | DLsite field | Written to | Rule |
 |---|---|---|
 | `regist_date` (`"2016-03-17 00:00:00"`, the day the work went on sale) | `release_date` | Truncated to the ISO day. Fill-only. |
-| `maker_name` | the `studio` credit | The circle of a doujin work, the brand of a commercial one. Written through `replace_credits(db, "h-game", ...)` exactly as IGDB's developer is - a studio of that name already on file is credited, otherwise one is created under its English name - and only when the entry has no studio credit yet. Taken whole, never split. |
+| `maker_name` | the `studio` credit | The circle of a doujin work, the brand of a commercial one. Written through `replace_credits(db, "h-game", ...)` - a studio of that name already on file is credited, otherwise one is created under its English name, unlike IGDB's developer, which is credited only when it exists - and only when the entry has no studio credit yet. Taken whole, never split. |
 | `image_main.url` (protocol-relative, `//img.dlsite.jp/...`) | `cover_image_file` | Given an `https:` scheme and downloaded under `h-game/`, only when the entry has no cover. |
 
 ### The h-game order, and why the cover comes DLsite, Steam, IGDB, Steam's header
@@ -1285,7 +1292,7 @@ Things the code does today that a reader might not expect. None is a documentati
 
 - `RetryError` is swallowed by every autofill, so a total outage looks like "nothing to fill" (see [Shared behaviour](#shared-behaviour)).
 - All rate limiters are per-process memory: the OMDb daily count in particular restarts at zero on every restart. The IGDB **token** cache is per-process too, so N workers mean N Twitch token requests — harmless, since Twitch issues one per client-credentials grant regardless.
-- IGDB company enrichment is not built: Fill creates or links `studio` and `publisher` rows **by name only**, so a game company has no logo, country or founding date until someone types one in.
+- IGDB company enrichment is not built: Fill links existing `studio` and `publisher` rows **by name only** and creates none, so a company IGDB names that is not on file is a logged skip until someone adds it from the Studio or Publisher tab.
 - `fetch_tmdb_data`'s retry wraps both TMDB calls, so a flaky details call costs an extra Find call per attempt.
 - `fetch_openlibrary_work`'s `@retry` wraps all three calls (work, editions, authors), so a flaky author call re-runs the work and editions calls too on each attempt — the same shape as the `fetch_tmdb_data` note above.
 - The docstring of `_status_code` in `sheets.py` says gspread `5.12.0` is pinned; `requirements.txt` pins `6.2.1`. The function handles both shapes, so behaviour is unaffected.

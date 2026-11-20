@@ -115,7 +115,7 @@ export default function Studio() {
     );
   }
 
-  const logoUrl = getCoverUrl(studio.logo_file);
+  const logoUrl = getCoverUrl(studio.display_logo_file ?? studio.logo_file);
   const span = lifespan(studio);
   const creditTotal = groups.reduce((sum, g) => sum + g.entries.length, 0);
 
@@ -171,7 +171,7 @@ export default function Studio() {
                 src={logoUrl}
                 alt={`${name} logo`}
                 className="w-full h-full object-cover"
-                style={focusStyle(studio.logo_focus)}
+                style={focusStyle(studio.display_logo_focus ?? studio.logo_focus)}
                 onError={(e) => {
                   e.target.src = FALLBACK_SVG;
                 }}

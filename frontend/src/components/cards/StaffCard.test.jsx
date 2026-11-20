@@ -26,3 +26,43 @@ describe("StaffCard rating stamp", () => {
     expect(screen.queryByLabelText(/^Rating /)).not.toBeInTheDocument();
   });
 });
+
+// The studio and publisher cards draw the server-resolved display logo (the
+// own logo, else a visible credited entry's cover) and fall back to logo_file
+// for a payload that does not carry it.
+describe("StaffCard company logo", () => {
+  const cards = [
+    ["studio", (e) => <StudioCard studio={e} />],
+    ["publisher", (e) => <PublisherCard publisher={e} />],
+  ];
+
+  it.each(cards)("draws a %s's display logo with its focus", (_, card) => {
+    mount(
+      card({
+        public_id: "c1",
+        display_name: "Fallback",
+        logo_file: null,
+        logo_focus: null,
+        display_logo_file: "library/cover.jpg",
+        display_logo_focus: "30% 40%",
+      }),
+    );
+    const img = screen.getByAltText("Logo");
+    expect(img).toHaveAttribute("src", "/static/library/thumbs/cover.jpg");
+    expect(img.style.objectPosition).toBe("30% 40%");
+  });
+
+  it.each(cards)("falls back to a %s's logo_file without display_logo", (_, card) => {
+    mount(
+      card({
+        public_id: "c2",
+        display_name: "Own",
+        logo_file: "library/own.png",
+        logo_focus: "10% 20%",
+      }),
+    );
+    const img = screen.getByAltText("Logo");
+    expect(img).toHaveAttribute("src", "/static/library/thumbs/own.png");
+    expect(img.style.objectPosition).toBe("10% 20%");
+  });
+});

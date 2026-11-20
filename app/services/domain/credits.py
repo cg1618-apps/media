@@ -323,14 +323,20 @@ def resolve_publisher(
         publisher = models.Publisher(name_en=name.strip())
         db.add(publisher)
         db.flush()
+    _ensure_publisher_scope(db, publisher, scope)
+    return publisher
 
+
+def _ensure_publisher_scope(
+    db: Session, publisher: models.Publisher, scope: Optional[str]
+) -> None:
+    """Additive: offer the publisher on this media type if it is not yet."""
     if scope and scope not in {s.scope for s in publisher.scopes}:
         db.add(
             models.PublisherScope(publisher_id=publisher.system_id, scope=scope)
         )
         db.flush()
         db.refresh(publisher)
-    return publisher
 
 
 def resolve_option(
@@ -435,6 +441,75 @@ def replace_credit_targets(
             )
         )
     db.flush()
+
+
+# ---------------------------------------------------------------------------
+# Pick-only credits: a name must already be a row.
+#
+# A game's developer (studio) and publisher are credited by PICKING an
+# existing company, never created by the credit: the Game form and the IGDB
+# fill write only names that match, and a company is made from its own Add
+# tab. Every other role, and every other writer (Pull, the MAL fills, the
+# backfill), stays find-or-create through replace_credits. See
+# docs/notes/decisions/2026-11-20-game-companies-are-picked-not-created.md.
+# ---------------------------------------------------------------------------
+
+PICK_ONLY_CREDITS = frozenset({("game", "studio"), ("game", "publisher")})
+
+_FINDERS = {"studio": find_studio, "publisher": find_publisher}
+
+
+def is_pick_only(media_type: str, role: str) -> bool:
+    """True when this media type's credit for `role` must name an existing row."""
+    return (media_type, role) in PICK_ONLY_CREDITS
+
+
+@dataclass
+class CreditMatch:
+    """What a list of names matched: the rows found, in order, and the rest."""
+
+    found: list = dataclass_field(default_factory=list)
+    unknown: list[str] = dataclass_field(default_factory=list)
+    ambiguous: list[AmbiguousNameError] = dataclass_field(default_factory=list)
+
+
+def match_existing_credits(db: Session, role: str, names: list[str]) -> CreditMatch:
+    """
+    Split `names` into the studios or publishers they name and the names that
+    name none. Never writes. A name matching several rows lands in
+    `ambiguous` rather than raising, so a caller can report every name at once.
+    """
+    finder = _FINDERS[CREDIT_ROLES[role].target]
+    match = CreditMatch()
+    for name in names:
+        if not (name or "").strip():
+            continue
+        try:
+            row = finder(db, name)
+        except AmbiguousNameError as e:
+            match.ambiguous.append(e)
+            continue
+        if row is None:
+            match.unknown.append(name)
+        else:
+            match.found.append(row)
+    return match
+
+
+def credit_existing(
+    db: Session, media_type: str, media_id: UUID, role: str, match: CreditMatch
+) -> None:
+    """
+    Make the entry's credits for one role exactly the rows `match` found.
+
+    A publisher is still offered on the media type it is credited on - the
+    scope widening resolve_publisher does - because widening creates no
+    company, only says where an existing one is used.
+    """
+    if CREDIT_ROLES[role].target == "publisher":
+        for publisher in match.found:
+            _ensure_publisher_scope(db, publisher, media_type)
+    replace_credit_targets(db, media_id, role, match.found)
 
 
 def _credited_entities(db: Session, media_id: UUID, role: str) -> list:
@@ -1401,6 +1476,19 @@ class CreditSummary:
     media_types: list[str] = dataclass_field(default_factory=list)
     # True when one of media_types is a gated type.
     restricted: bool = False
+    # The cover, and the focal point stored beside it, of the newest visible
+    # credited entry that has one - the picture a company without a logo
+    # shows. See display_logo.
+    fallback_file: Optional[str] = None
+    fallback_focus: Optional[str] = None
+
+    def display_logo(
+        self, logo_file: Optional[str], logo_focus: Optional[str]
+    ) -> tuple[Optional[str], Optional[str]]:
+        """(file, focus) to show: the company's own logo, else the fallback."""
+        if logo_file:
+            return logo_file, logo_focus
+        return self.fallback_file, self.fallback_focus
 
 
 def credit_summaries(
@@ -1423,10 +1511,16 @@ def credit_summaries(
     one studio under two roles counts once. The count and the media types come
     from the same visible pairs, so a card can never name a type its count
     leaves out.
+
+    The fallback picture comes from the same visible pairs too, on the person
+    rule (entity_photos.newest_covers): the cover of the newest visible
+    credited entry that has one, ties in credit position order - so a hidden
+    entry's cover is never shown.
     """
     # Imported here rather than at module scope: enforcement imports this
     # module for credit resolution, and a top-level import would close the
-    # cycle.
+    # cycle (entity_photos imports enforcement).
+    from app.services.domain.entity_photos import newest_covers
     from app.services.rbac.enforcement import filter_visible_pairs
     from app.services.rbac.gated_types import gated_types
 
@@ -1438,27 +1532,36 @@ def credit_summaries(
         db.query(fk_column, models.Media.media_type, models.MediaCredit.media_id)
         .join(models.Media, models.MediaCredit.media_id == models.Media.system_id)
         .filter(fk_column.in_(ids))
+        .order_by(models.MediaCredit.position)
         .all()
     )
 
-    by_entity: dict[UUID, set] = {entity_id: set() for entity_id in ids}
+    # A dict as an ordered set: distinct pairs, in credit position order.
+    by_entity: dict[UUID, dict] = {entity_id: {} for entity_id in ids}
     every_pair: set = set()
     for entity_id, media_type, entry_id in rows:
         if not media_type or not entry_id or entity_id not in by_entity:
             continue
-        by_entity[entity_id].add((media_type, entry_id))
+        by_entity[entity_id][(media_type, entry_id)] = None
         every_pair.add((media_type, entry_id))
 
     visible = filter_visible_pairs(db, viewer, every_pair)
     gated = gated_types()
+    shown_by_entity = {
+        entity_id: [pair for pair in pairs if pair in visible]
+        for entity_id, pairs in by_entity.items()
+    }
+    covers = newest_covers(db, shown_by_entity)
     out: dict[UUID, CreditSummary] = {}
-    for entity_id, pairs in by_entity.items():
-        shown = pairs & visible
+    for entity_id, shown in shown_by_entity.items():
         media_types = sorted({media_type for media_type, _ in shown})
+        fallback_file, fallback_focus = covers.get(entity_id, (None, None))
         out[entity_id] = CreditSummary(
             count=len(shown),
             media_types=media_types,
             restricted=bool(set(media_types) & gated),
+            fallback_file=fallback_file,
+            fallback_focus=fallback_focus,
         )
     return out
 

@@ -44,6 +44,10 @@ import {
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
 import { endpoints } from "../../api/endpoints";
+import {
+  GAME_PUBLISHER_SOURCE,
+  GAME_STUDIO_SOURCE,
+} from "../../config/formFields/fieldMeta";
 import { useAuth } from "../../contexts/AuthContext";
 
 export { defaultGame } from "../../config/formFactories";
@@ -82,7 +86,7 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources, ownerId }
 
   // A console brings its family: picking Switch picks Nintendo too.
   const families = platformFamilies(sources?.options);
-  const tagField = (key, source, placeholder) => (
+  const tagField = (key, source, placeholder, props = {}) => (
     <MultiSelect
       options={getSourceValues(sources, source)}
       idleOptions={getIdleSourceValues(sources, source)}
@@ -91,6 +95,7 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources, ownerId }
         u(key, key === "game_platform" ? withPlatformFamilies(v, families) : v)
       }
       placeholder={placeholder}
+      {...props}
     />
   );
   const num = (key, label, hint) => (
@@ -321,15 +326,22 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources, ownerId }
 
       <SectionHeader icon="fa-pen-nib" title="Production" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Developer" hint="A studio row, quick-created if new">
-          {tagField("studio", { kind: "studio" }, "Select or type developer...")}
+        {/* Picked, never created here: a new company is added on its own
+            tab first (lib/gameForm.js). */}
+        <Field label="Developer" hint="An existing studio - add a new one on the Studio tab">
+          {tagField("studio", GAME_STUDIO_SOURCE, "Select developer...", {
+            allowNew: false,
+            newHint: "No such studio - add it on the Studio tab first",
+          })}
         </Field>
-        <Field label="Publisher" hint="A publisher row, quick-created if new">
-          {tagField(
-            "publisher",
-            { kind: "publisher" },
-            "Select or type publisher...",
-          )}
+        <Field
+          label="Publisher"
+          hint="An existing game publisher - add a new one on the Publisher tab"
+        >
+          {tagField("publisher", GAME_PUBLISHER_SOURCE, "Select publisher...", {
+            allowNew: false,
+            newHint: "No such game publisher - add it on the Publisher tab first",
+          })}
         </Field>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -116,7 +116,7 @@ export default function Publisher() {
     );
   }
 
-  const logoUrl = getCoverUrl(publisher.logo_file);
+  const logoUrl = getCoverUrl(publisher.display_logo_file ?? publisher.logo_file);
   const span = lifespan(publisher);
   const creditTotal = groups.reduce((sum, g) => sum + g.entries.length, 0);
 
@@ -165,7 +165,7 @@ export default function Publisher() {
                 src={logoUrl}
                 alt={`${name} logo`}
                 className="w-full h-full object-cover"
-                style={focusStyle(publisher.logo_focus)}
+                style={focusStyle(publisher.display_logo_focus ?? publisher.logo_focus)}
                 onError={(e) => {
                   e.target.src = FALLBACK_SVG;
                 }}
