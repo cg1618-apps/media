@@ -28,6 +28,7 @@ const FRANCHISES = [
     collection_id: "c1",
     franchise_expectation: "Highest",
     my_rating: "10",
+    has_relations: true,
   },
   {
     system_id: "f2",
@@ -186,5 +187,34 @@ describe("FranchiseLibrary expectation sort", () => {
       .getAllByRole("link")
       .map((a) => a.textContent);
     expect(names).toEqual(["Top", "Zeta", "Alpha", "Beta", "Mid"]);
+  });
+});
+
+
+// has_relations counts only related franchises the viewer may see (the API
+// does that); the filter reads it as given.
+describe("FranchiseLibrary Relation filter", () => {
+  async function renderWithFilters() {
+    render(
+      <MemoryRouter>
+        <FranchiseLibrary />
+      </MemoryRouter>,
+    );
+    await screen.findByText("進撃の巨人");
+    await userEvent.click(screen.getByRole("button", { name: /^Filters/ }));
+  }
+
+  it("keeps only the franchises with a relation", async () => {
+    await renderWithFilters();
+    await userEvent.click(screen.getByRole("button", { name: "Has relation" }));
+    expect(screen.getByText("進撃の巨人")).toBeInTheDocument();
+    expect(screen.queryByText("Breaking Bad")).toBeNull();
+  });
+
+  it("keeps only the franchises without one, a missing flag included", async () => {
+    await renderWithFilters();
+    await userEvent.click(screen.getByRole("button", { name: "No relation" }));
+    expect(screen.getByText("Breaking Bad")).toBeInTheDocument();
+    expect(screen.queryByText("進撃の巨人")).toBeNull();
   });
 });

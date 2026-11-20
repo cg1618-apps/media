@@ -241,6 +241,12 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
     "Person Membership": ("member_id", "club_id"),  # uq_person_membership
     # The same shape: both ends are studios, translated first.
     "Studio Relation": ("studio_id", "related_studio_id"),  # uq_studio_relation
+    # Mints its own uuid, but both ends cite a franchise, whose uuid is the
+    # same in every database, so only the row's own identity is reconciled.
+    "Franchise Relation": (
+        "franchise_id",
+        "related_franchise_id",
+    ),  # uq_franchise_relation
     # No `role` in the key: a publisher holds exactly one.
     "Publisher Scope": ("publisher_id", "scope"),  # uq_publisher_scope
     # These two mint their own uuid but cite entry ids, which the sheet does

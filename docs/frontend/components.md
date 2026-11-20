@@ -439,11 +439,14 @@ columns.
 - **`components/info`** — `InfoCard` (+`InfoRow`), `NamingCard`, `GenresCard`, `TimeToBeatCard`, `ScoreBlock`,
   `SourcesCard`, `RatingDistributionBlock`, `AnnouncementBoard`,
   `ClubMembership` (see [Entity components](#entity-components-person-studio-and-character)),
-  `RelatedStudios` (a studio page's related studios: GET/PUT
-  `/api/studio/{id}/related`, each row a link with this side's remark; for
-  an admin an Edit mode of rows with a remark input and a remove button,
-  plus a `ComboBox` over the studio list, fetched when editing starts; draws
-  nothing for a reader when nothing is related).
+  `RelatedRecords` (`type` "studio" or "franchise": a studio's or a
+  franchise's related records through GET/PUT `/api/{type}/{id}/related`,
+  each row a link with this side's remark; for an admin an Edit mode of rows
+  with a remark input and a remove button, plus a `ComboBox` over the kind's
+  list - every franchise, `?limit=2000`, past the list route's default page -
+  fetched when editing starts; draws nothing for a reader when nothing is
+  related. What differs per kind is one `KINDS` entry: title, routes, and the
+  name fields the picker searches).
   `NamingCard` lists the type's name fields (`getNamingFields`) that hold a
   value: a null or blank name gets no row rather than a "—", and with none
   set the card is not rendered at all, on every page that uses it. The
@@ -1304,7 +1307,7 @@ Every detail page is addressed `/<type>/<public_id>/<slug>` - `/anime/47/cowboy-
   no entity link is drawn. Every entity link that can sit on an open page
   builds its path this way: `StudioLinks`, `PersonLinks`, `CastSection`,
   `CharacterCard`, `StaffCard`, `CastingCard`, `ClubMembership`,
-  `RelatedStudios`, `IdentityCard` and `VoicedPartCard`. The
+  `RelatedRecords`, `IdentityCard` and `VoicedPartCard`. The
   guard test `src/lib/noUuidLinks.test.js` walks `src/` and fails the build on
   any inline `` `/type/${...}` `` construction.
 - **`hooks/useCanonicalPath.js`** rewrites the bar to the canonical path once

@@ -405,7 +405,7 @@ class StudioRelation(Base):
     (A, B) and (B, A). Each row's `remark` is what `studio_id`'s page says
     beside `related_studio_id` - "animation subsidiary" on A's page, "parent
     company" on B's - so each side keeps its own words, and either may be
-    empty. app/services/domain/studio_relation.py writes and removes the two
+    empty. STUDIO_RELATIONS in app/services/domain/peer_relation.py writes and removes the two
     rows together; nothing else writes this table.
 
     A relation is NOT a connection in the shared-record sense

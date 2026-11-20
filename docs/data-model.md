@@ -198,6 +198,28 @@ Relationships: `series`, `collection`, `animes`. Virtual:
 [`franchise_content_label`](#franchise_content_label)), and the viewer's own `my_rating` and `franchise_expectation`
 (from [`user_rating`](#user_rating)).
 
+### `franchise_relation`
+
+One side of a relation between two franchises - the [`studio_relation`](#studio_relation)
+design on franchises. Model: `FranchiseRelation` (`app/models/franchise.py`).
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `franchise_id` | UUID | no | | FK `franchise.system_id` ON DELETE CASCADE, indexed - the franchise whose page lists the relation |
+| `related_franchise_id` | UUID | no | | FK `franchise.system_id` ON DELETE CASCADE, indexed - the franchise listed there |
+| `remark` | Text | yes | | What `franchise_id`'s page says beside `related_franchise_id`; null when that side gives none |
+| `created_at` / `updated_at` | DateTime | yes | now | |
+
+Constraints: `uq_franchise_relation` UNIQUE (`franchise_id`,
+`related_franchise_id`) and `ck_franchise_relation_not_self`. A relation is
+the pair (A, B) and (B, A); `FRANCHISE_RELATIONS` in
+`app/services/domain/peer_relation.py` is the only writer and keeps the pair
+whole, with the same rules as studios. Not `media_relation`: that links
+entries with a typed kind, this links whole franchises with free words per
+side. A relation never makes a hidden franchise visible
+([authorization.md](authorization.md)).
+
 ### `series`
 
 Intermediate grouping between a franchise and its entries. Mirrors
@@ -1241,8 +1263,8 @@ Constraints: `uq_studio_relation` UNIQUE (`studio_id`, `related_studio_id`)
 and `ck_studio_relation_not_self` (`studio_id <> related_studio_id`).
 
 A relation is mutual and is always the **pair** of rows (A, B) and (B, A), so
-each side keeps its own remark. `app/services/domain/studio_relation.py` is the
-only writer and keeps the pair whole: adding a relation from one side creates
+each side keeps its own remark. `STUDIO_RELATIONS` in
+`app/services/domain/peer_relation.py` is the only writer and keeps the pair whole: adding a relation from one side creates
 the other side's row with no remark, and removing it from either side removes
 both. A relation is not a connection in the shared-record sense: it never
 makes a hidden studio visible ([authorization.md](authorization.md)). A studio

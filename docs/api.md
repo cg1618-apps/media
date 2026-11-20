@@ -159,6 +159,8 @@ To list a collection's members, use `GET /api/franchise/?collection_id=<uuid>`.
 | -------- | -------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GET`    | `/`            | Public | List all franchises. Optional query params: `collection_id` (UUID — filters to one collection's members), `search_query` (searches across all name fields), `limit`, `offset`. |
 | `GET`    | `/{system_id}` | Public | Get a single franchise by UUID.                                                                                                                                               |
+| `GET`    | `/{system_id}/related` | Public | The related franchises the viewer may see, by display name: `PeerRelationRef[]` - `system_id`, `public_id`, `display_name` and `remark`, the remark this franchise's side gives the relation (null when none). 404 if the franchise is absent or hidden. Takes a public_id or UUID. |
+| `PUT`    | `/{system_id}/related` | Admin  | Replace this side's related franchises. Body `PeerRelationsReplace`: `{"relations": [{"id", "remark"}]}`. The studio route's rules: a new relation also appears on the other franchise with no remark there, one left out is removed from both sides, a blank remark is null, 422 for this franchise itself or one absent or hidden from the writer, and relations to franchises the writer cannot see are kept. Answers as `GET`. |
 | `POST`   | `/`            | Admin  | Create a franchise. Body: `FranchiseCreate`.                                                                                                                                  |
 | `PUT`    | `/{system_id}` | Admin  | Full update of a franchise. Body: `FranchiseUpdate`.                                                                                                                          |
 | `PATCH`  | `/{system_id}` | Admin  | Partial update. Body: raw JSON dict. The viewer's rating and expectation are not columns here; they are written through `PUT /api/me/ratings/franchise/{id}`.                    |
@@ -189,6 +191,11 @@ entries in that franchise the viewer may see, counted over `media` through
 A count that included hidden entries would say they exist, so a guest and an
 admin can read different numbers for one franchise. `GET /{system_id}` leaves
 it `null`. The series list sets the same field per series.
+
+**`has_relations`.** The list and `GET /{system_id}` set it on every franchise:
+`true` when it relates to at least one franchise the viewer may see
+(`FRANCHISE_RELATIONS.attach_has_relations`, two queries for the whole page).
+The franchise library's Relation filter reads it.
 
 ---
 
@@ -1816,8 +1823,8 @@ role/scope filter — studios have no `person_role` concept.
 | `GET`    | `/`                   | `view.studio` | List all studios, sorted by `display_name` case-insensitively.                   |
 | `GET`    | `/{system_id}`        | `view.studio` | Get one studio by UUID. 404 if absent or hidden.                                 |
 | `GET`    | `/{system_id}/entries`| `view.studio` | The entries this studio is credited on, grouped by media type. 404 if the studio is absent or hidden. |
-| `GET`    | `/{system_id}/related`| `view.studio` | The related studios the viewer may see, by display name: `StudioRelationRef[]` — `system_id`, `public_id`, `display_name` and `remark`, the remark this studio's side gives the relation (null when none). 404 if the studio is absent or hidden. Takes a public_id or UUID. |
-| `PUT`    | `/{system_id}/related`| Admin  | Replace this side's related studios. Body `StudioRelationsReplace`: `{"relations": [{"studio_id", "remark"}]}`. A new relation also appears on the other studio, with no remark there; one left out is removed from both sides; a blank remark is stored as null; a repeated id keeps its first remark. 422 for this studio itself or for a studio that is absent or hidden from the writer; relations to studios the writer cannot see are kept. Answers as `GET`. |
+| `GET`    | `/{system_id}/related`| `view.studio` | The related studios the viewer may see, by display name: `PeerRelationRef[]` — `system_id`, `public_id`, `display_name` and `remark`, the remark this studio's side gives the relation (null when none). 404 if the studio is absent or hidden. Takes a public_id or UUID. |
+| `PUT`    | `/{system_id}/related`| Admin  | Replace this side's related studios. Body `PeerRelationsReplace`: `{"relations": [{"id", "remark"}]}`. A new relation also appears on the other studio, with no remark there; one left out is removed from both sides; a blank remark is stored as null; a repeated id keeps its first remark. 422 for this studio itself or for a studio that is absent or hidden from the writer; relations to studios the writer cannot see are kept. Answers as `GET`. |
 | `POST`   | `/`                   | Admin  | Create a studio, **or return the existing one** under that name — find-or-create, because the Add/Modify forms POST here through `ensureSourceValues.js` whenever a typed name is not in the suggestion list. Matching is on the normalized name (`find_studio`), looked up by the body's first name - the first fragment of `name_alt` when that is all it carries, since `name_alt` is a comma-separated list; metadata on an existing row is left untouched. Body: `StudioCreate`. Only on the create branch, a payload carrying `mal_id` is enriched from MAL first (see below). |
 | `PUT`    | `/{system_id}`        | Admin  | Fully update a studio. Every credit points at the row by id, so a rename here changes what every credited entry shows — there is no propagation step. Body: `StudioUpdate`. The MAL enrichment runs after the payload is copied, so your values win. |
 | `PATCH`  | `/{system_id}`        | Admin  | Partially update a studio's own columns — the detail page's inline remark edit. Body: any subset of the `StudioBase` columns as a JSON object. Only the keys sent change; the viewer's rating is written through `PUT /api/me/ratings/studio/{id}`. The `PUT` rules are checked before anything is written: `display_name_field` is `en`/`cn`/`jp`/`alt`, and at least one name survives the patch — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. Same checks as person's `PATCH` (`_entity_patch.prepare_patch`). A `mal_link` in the body re-derives `mal_id`; `PATCH` never calls MAL. Returns the full `StudioResponse`. |
@@ -1838,7 +1845,7 @@ viewer** from the entries they may see, none of them stored:
 - `restricted` — `true` when one of `media_types` is a gated type (`h-comic`,
   `hentai`, `h-game`).
 - `has_relations` — `true` when the studio relates to at least one studio
-  the viewer may see (`studio_relation.related_counts`, two queries for the
+  the viewer may see (`STUDIO_RELATIONS.related_counts`, two queries for the
   whole list); the studio library's Relation filter reads it.
 
 All three come from one `credits.credit_summaries` pass over the same visible

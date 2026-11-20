@@ -715,7 +715,9 @@ type the caller leaves out, and the table's Entries column counts whatever
 Filter panel "Type": Anime, Manga, Book, Anime Movie, Movie, TV, Cartoon,
 Comic, H-Comic, H-Game, Hentai (each drawn only for a session that can see the type), Other
 (Anime and Manga are the franchise's own `Anime` and `Manga` types) — **there is no Game category**, so a Game-only franchise files
-under "Other". Sort
+under "Other". A second group, "Relation" - Has relation / No relation - reads
+`has_relations`, which counts only related franchises the viewer may see; the
+two groups AND. Sort
 `title (default) | my_rating | expectation`, shared by both views, through
 `compareGroups` in `lib/groupSort.js`: each key falls through to the next on a
 tie - expectation, then my rating, then title; my rating, then title. The last
@@ -1156,7 +1158,7 @@ Layout:
    studio is still working, and no invented span when both are empty;
    website and MAL — `Producer #<mal_id>` — as external links; the remark
    for a non-admin), (admin) the **Remarks** textarea, the **Related
-   studios** slip (`RelatedStudios`), then one section per
+   studios** slip (`RelatedRecords type="studio"`), then one section per
    group the entries endpoint returned, each entry linking to
    `{nav_path}/{system_id}`.
 
@@ -1196,7 +1198,8 @@ so the first available tab is re-picked (Collection keeps "Franchises").
 | Loads | `/api/franchise/{id}`; series, anime, anime-movie, movie, tv-show, cartoon, manga, book, comic, **game** lists `?franchise_id=`, **h-comic**, **hentai** and **h-game** only when `franchise_type` names a type of the restricted family (`H-Comic`, `Hentai` or `H-Game`, `inFranchiseFamily`); `/api/plan-next/?scope=franchise`; parent collection lazily | `/api/series/{id}`; anime, movie, tv-show, cartoon, manga, book, comic `?series_id=`, **game** included (no anime-movie — they have no series), **h-comic** in its own effect, only for a session that can see the type, **h-game** and **hentai** likewise, and only once the parent franchise has loaded and its `franchise_type` names a type of the restricted family; `/api/plan-next/?scope=series&kind=rewatch`; parent franchise | `/api/collection/{id}`; `/api/franchise/?collection_id=`; eight entry lists, covers only — game is not among them |
 | Hero badges | `TierBadge` with `franchise_type`, names, my_rating, "{x} Expectation" (these two, here and on the other two hubs, the viewer's own and drawn only for a holder of `self.list`), parent collection link, "Plan Next: {type} ({bucket})", "To Rewatch/Reread: {type}", total entries, completion bar | same shape with `series_expectation`, rewatch chips, parent franchise link | names, my_rating, `collection_expectation`, "{n} Franchise(s)" |
 | Content labels | the franchise's OWN labels as `ContentLabelChips`, with a note that they hide its series and entries; no row when it carries none | the series' own, noting they hide its entries | the collection's own, noting they hide every franchise, series and entry in it |
-| Curation controls | Overall Rating and Expectation selects for a holder of `self.list` (`PUT /api/me/ratings/franchise/{id}`); for an admin, **Plan Next** `SizeGroupControls` (per-type checkbox + derived/manual size-group select → PATCH `size_group_manual`), one row per type the franchise's `franchise_type` offers, that it holds entries for, and that `scopesFor("next", type)` allows at franchise scope - the whole field is absent when none qualifies and rewatch `PlanKindToggles` | Overall Rating and Expectation (`self.list`, `PUT /api/me/ratings/series/{id}`); rewatch `PlanKindToggles scope="series"` for an admin (no size groups at series level) | Overall Rating and Expectation (`self.list`, `PUT /api/me/ratings/collection/{id}`) |
+| Curation controls | Overall Rating and Expectation selects for a holder of `self.list` (`PUT /api/me/ratings/franchise/{id}`); for an admin, **Plan Next** `SizeGroupControls` (per-type checkbox + derived/manual size-group select → PATCH `size_group_manual`), one row per type the franchise's `franchise_type` offers, that it holds entries for, and that `scopesFor("next", type)` allows at franchise scope - the whole field is absent when none qualifies - and rewatch `PlanKindToggles` | Overall Rating and Expectation (`self.list`, `PUT /api/me/ratings/series/{id}`); rewatch `PlanKindToggles scope="series"` for an admin (no size groups at series level) | Overall Rating and Expectation (`self.list`, `PUT /api/me/ratings/collection/{id}`) |
+| Related | **Related franchises** (`RelatedRecords type="franchise"`) under the hero: each related franchise as a link with this franchise's remark; an admin edits the list in place. Drawn for a reader only when something is related | none | none |
 | Tabs | "Media" (counted): Anime, Anime Movies, Manga, Book, Comic, Movies, TV Shows, Cartoons, **Game** ("Base games, DLC & expansions", sorted by `release_date` ascending) - the last ungated tab - then **H-Comic**, **H-Game** and **Hentai** (each by `series_number`, then release date; the H-Comic, H-Game and Hentai tabs each allowed by any type of the restricted family) — shown when `franchise_type` allows *and* the list is non-empty; "Extras": Characters (only with `view.character`), Watch Order, Relations, Notes. Every media tab's "Sort: my rating" option is offered only with `self.list` | Media tabs by non-empty list only; same extras. Its **Game** tab carries its own sort (release_date default, then title / my_rating / hours_played) and a Game Type filter the other tabs have no equivalent of — a series usually mixes a base game with its DLC | "Members" → Franchises (`FranchiseCard`s); extras Watch Order, Relations, Notes |
 
 Plan toggles call `POST /api/plan-next/` `{ media_type, scope, kind, target_id }`

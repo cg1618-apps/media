@@ -178,6 +178,11 @@ from app.schemas.note import (
     NoteSectionOut,
     NoteUpdate,
 )
+from app.schemas.peer_relation import (
+    PeerRelationItem,
+    PeerRelationRef,
+    PeerRelationsReplace,
+)
 from app.schemas.plan_next import (
     PlanNextCreate,
     PlanNextRead,
@@ -236,9 +241,6 @@ from app.schemas.staff import (
     PersonUpdate,
     StudioBase,
     StudioCreate,
-    StudioRelationItem,
-    StudioRelationRef,
-    StudioRelationsReplace,
     StudioResponse,
     StudioUpdate,
 )
@@ -553,9 +555,9 @@ __all__ = [
     "StudioCreate",
     "StudioUpdate",
     "StudioResponse",
-    "StudioRelationRef",
-    "StudioRelationItem",
-    "StudioRelationsReplace",
+    "PeerRelationRef",
+    "PeerRelationItem",
+    "PeerRelationsReplace",
     "PublisherBase",
     "PublisherCreate",
     "PublisherUpdate",
