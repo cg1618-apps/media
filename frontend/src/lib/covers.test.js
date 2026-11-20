@@ -81,34 +81,100 @@ describe("focusStyle", () => {
     expect(focusStyle("30% 15%")).toEqual({ objectPosition: "30% 15%" });
   });
 
-  it("returns undefined for a centred image, so no style is written", () => {
-    expect(focusStyle(null)).toBeUndefined();
-    expect(focusStyle(undefined)).toBeUndefined();
-    expect(focusStyle("")).toBeUndefined();
+  it("scales a zoomed focus about its focal point", () => {
+    expect(focusStyle("30% 15% 2.5")).toEqual({
+      objectPosition: "30% 15%",
+      transform: "scale(2.5)",
+      transformOrigin: "30% 15%",
+    });
+  });
+
+  it("letterboxes a fit focus on the inset surface colour, not a grey", () => {
+    expect(focusStyle("50% 0% fit")).toEqual({
+      objectFit: "contain",
+      objectPosition: "50% 0%",
+      backgroundColor: "var(--color-surface-2)",
+    });
+  });
+
+  it("returns undefined for a centred or malformed focus, so no style is written", () => {
+    for (const v of [null, undefined, "", "left top", "50% 50% 9", "50% 50% fill"]) {
+      expect(focusStyle(v)).toBeUndefined();
+    }
   });
 });
 
 describe("parseFocus / formatFocus", () => {
   it("round-trips a stored focus", () => {
-    expect(parseFocus("30% 15%")).toEqual({ x: 30, y: 15 });
-    expect(formatFocus({ x: 30, y: 15 })).toBe("30% 15%");
-  });
-
-  it("reads null, empty and malformed values as the centre", () => {
-    for (const v of [null, undefined, "", "left top", "30%"]) {
-      expect(parseFocus(v)).toEqual({ x: 50, y: 50 });
+    for (const [stored, parsed] of [
+      ["30% 15%", { x: 30, y: 15, zoom: 1, fit: false }],
+      ["30% 15% 1.5", { x: 30, y: 15, zoom: 1.5, fit: false }],
+      ["0% 100% 2.25", { x: 0, y: 100, zoom: 2.25, fit: false }],
+      ["50% 50% 4", { x: 50, y: 50, zoom: 4, fit: false }],
+      ["50% 50% fit", { x: 50, y: 50, zoom: 1, fit: true }],
+      ["10% 90% fit", { x: 10, y: 90, zoom: 1, fit: true }],
+    ]) {
+      expect(parseFocus(stored)).toEqual(parsed);
+      expect(formatFocus(parsed)).toBe(stored);
     }
   });
 
-  it("stores the centre as null", () => {
+  it("reads null, empty and malformed values as the centre", () => {
+    const centre = { x: 50, y: 50, zoom: 1, fit: false };
+    for (const v of [null, undefined, "", "left top", "30%"]) {
+      expect(parseFocus(v)).toEqual(centre);
+    }
+  });
+
+  it("refuses a zoom the server would refuse, rather than guessing", () => {
+    // 1 is written by leaving the token out; the rest are out of range,
+    // over-precise or not a zoom at all. Same list as the backend's.
+    const centre = { x: 50, y: 50, zoom: 1, fit: false };
+    for (const v of [
+      "30% 15% 1",
+      "30% 15% 1.0",
+      "30% 15% 1.50",
+      "30% 15% 4.5",
+      "30% 15% 5",
+      "30% 15% 0",
+      "30% 15% 0.5",
+      "30% 15% -2",
+      "30% 15% 1.255",
+      "30% 15% fitted",
+      "30% 15% fit 2",
+    ]) {
+      expect(parseFocus(v)).toEqual(centre);
+    }
+  });
+
+  it("stores the centre at zoom 1 as null", () => {
     expect(formatFocus({ x: 50, y: 50 })).toBeNull();
-    expect(formatFocus({ x: 49.6, y: 50.2 })).toBeNull();
+    expect(formatFocus({ x: 49.6, y: 50.2, zoom: 1 })).toBeNull();
+    expect(formatFocus({ x: 50, y: 50, zoom: 1.004 })).toBeNull();
+  });
+
+  it("never stores fit or a zoomed centre as null", () => {
+    expect(formatFocus({ x: 50, y: 50, fit: true })).toBe("50% 50% fit");
+    expect(formatFocus({ x: 50, y: 50, zoom: 2 })).toBe("50% 50% 2");
+  });
+
+  it("writes no zoom token at zoom 1, and ignores zoom when fitting", () => {
+    expect(formatFocus({ x: 30, y: 15, zoom: 1 })).toBe("30% 15%");
+    expect(formatFocus({ x: 30, y: 15, zoom: 3, fit: true })).toBe("30% 15% fit");
+  });
+
+  it("clamps the zoom to 1..4 and two decimals, with no trailing zeros", () => {
+    expect(formatFocus({ x: 30, y: 15, zoom: 9 })).toBe("30% 15% 4");
+    expect(formatFocus({ x: 30, y: 15, zoom: 0.5 })).toBe("30% 15%");
+    expect(formatFocus({ x: 30, y: 15, zoom: 1.256 })).toBe("30% 15% 1.26");
+    expect(formatFocus({ x: 30, y: 15, zoom: 1.5 })).toBe("30% 15% 1.5");
+    expect(formatFocus({ x: 30, y: 15, zoom: 2.0 })).toBe("30% 15% 2");
   });
 
   it("clamps to whole percentages between 0 and 100", () => {
     expect(formatFocus({ x: -12, y: 140 })).toBe("0% 100%");
     expect(formatFocus({ x: 33.4, y: 66.6 })).toBe("33% 67%");
-    expect(parseFocus("150% 0%")).toEqual({ x: 100, y: 0 });
+    expect(parseFocus("150% 0%")).toEqual({ x: 100, y: 0, zoom: 1, fit: false });
   });
 });
 
@@ -143,6 +209,14 @@ describe("a borrowed cover carries the focus of the entry it came from", () => {
     expect(
       getFranchiseCover({ system_id: "f1" }, {}, { f1: [other, focused] }),
     ).toEqual(expected);
+  });
+
+  it("passes a zoomed or fitted focus through untouched", () => {
+    for (const focus of ["40% 10% 2.5", "40% 10% fit"]) {
+      expect(getSeriesCover({}, [{ ...focused, cover_image_focus: focus }]).focus).toBe(
+        focus,
+      );
+    }
   });
 
   it("from a series's entry", () => {

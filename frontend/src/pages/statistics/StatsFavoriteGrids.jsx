@@ -48,7 +48,7 @@ function FavoriteGrid({ grid, rows, covers }) {
                 {...wrapperProps}
                 className="group relative overflow-hidden border border-border hover:border-text transition-colors"
               >
-                <div className="aspect-[3/4] bg-surface-2">
+                <div className="aspect-[3/4] overflow-hidden bg-surface-2">
                   <LazyImage
                     src={thumbUrl(cover.url)}
                     alt={name}

@@ -146,7 +146,7 @@ function RowPickerModal({
                     }`}
                   >
                     <div className="relative rounded-t-xl overflow-hidden bg-surface-2">
-                      <div className="aspect-[3/4]">
+                      <div className="aspect-[3/4] overflow-hidden">
                         <LazyImage
                           src={cover.url}
                           alt={name}
@@ -201,7 +201,7 @@ function SlotCard({ slot, name, cover, onOpen }) {
       className="group flex flex-col w-full text-left focus:outline-none"
     >
       <div className="relative rounded-xl overflow-hidden border border-border shadow-sm bg-surface-2 group-hover:border-brand transition-colors">
-        <div className="aspect-[3/4]">
+        <div className="aspect-[3/4] overflow-hidden">
           <LazyImage
             src={cover.url}
             alt={name || ""}

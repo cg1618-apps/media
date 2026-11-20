@@ -108,12 +108,14 @@ export default function RecentlyAdded() {
                   to={entityPath(entry.media_type, entry)}
                   className="block bg-surface border border-border hover:border-border-strong transition-colors"
                 >
-                  <LazyImage
-                    src={thumbUrl(getCoverUrl(entry.cover_image_file))}
-                    alt=""
-                    className="w-full aspect-[2/3] object-cover"
-                    style={focusStyle(entry.cover_image_focus)}
-                  />
+                  <div className="aspect-[2/3] w-full overflow-hidden">
+                    <LazyImage
+                      src={thumbUrl(getCoverUrl(entry.cover_image_file))}
+                      alt=""
+                      className="h-full w-full object-cover"
+                      style={focusStyle(entry.cover_image_focus)}
+                    />
+                  </div>
                   <p className="p-2 font-display text-sm text-text leading-tight line-clamp-2">
                     {entry.display_name}
                   </p>

@@ -101,7 +101,8 @@ class Person(Base, NameFallbackMixin):
     # Storage key under static/covers/, same convention as the media tables'
     # cover_image_file.
     photo_file = Column(String, nullable=True)
-    # photo_file's focal point, "X% Y%"; NULL centres it. Reset whenever the
+    # photo_file's focal point and zoom (app/schemas/image_focus.py);
+    # NULL centres it. Reset whenever the
     # photo changes - see media.cover_image_focus.
     photo_focus = Column(String, nullable=True)
     # The entry whose cover stands in when photo_file is NULL: a
@@ -346,7 +347,8 @@ class Studio(Base, NameFallbackMixin):
     # One of "en" | "cn" | "jp" | "alt", or NULL for the fallback chain.
     display_name_field = Column(String, nullable=True)
     logo_file = Column(String, nullable=True)
-    # logo_file's focal point, "X% Y%"; NULL centres it. Reset whenever the
+    # logo_file's focal point and zoom (app/schemas/image_focus.py);
+    # NULL centres it. Reset whenever the
     # logo changes - see media.cover_image_focus.
     logo_focus = Column(String, nullable=True)
     remark = Column(Text, nullable=True)
@@ -534,7 +536,8 @@ class Publisher(Base, NameFallbackMixin):
     # One of "en" | "cn" | "jp" | "alt", or NULL for the fallback chain.
     display_name_field = Column(String, nullable=True)
     logo_file = Column(String, nullable=True)
-    # logo_file's focal point, "X% Y%"; NULL centres it. Reset whenever the
+    # logo_file's focal point and zoom (app/schemas/image_focus.py);
+    # NULL centres it. Reset whenever the
     # logo changes - see media.cover_image_focus.
     logo_focus = Column(String, nullable=True)
     remark = Column(Text, nullable=True)

@@ -102,37 +102,101 @@ export function withMediaType(entries, mediaType) {
 //
 // Every owner image (an entry's cover, a person's photo, a studio's logo) is
 // rendered cropped with object-cover, which shows the centre unless told
-// otherwise. Its focus - "X% Y%", stored beside the key it qualifies
-// (cover_image_file -> cover_image_focus, photo_file -> photo_focus, ...) - is
-// the CSS object-position that keeps the subject in frame. null is centred.
+// otherwise. Its focus, stored beside the key it qualifies
+// (cover_image_file -> cover_image_focus, photo_file -> photo_focus, ...), says
+// how to frame it instead (app/schemas/image_focus.py is the same grammar):
+//
+//   "X% Y%"      fill the frame, aimed at X% Y% (the object-position)
+//   "X% Y% Z"    the same, zoomed in by Z (above 1, at most 4, two decimals)
+//   "X% Y% fit"  the whole image, letterboxed, placed at X% Y% between the bars
+//
+// null is centred at zoom 1. focusStyle() is the only place the value turns
+// into CSS, and a zoomed image is scaled, so its frame must clip it
+// (src/focus-images.test.js).
 // ---------------------------------------------------------------------------
 
-/** The inline style that applies a focal point; undefined when centred. */
-export function focusStyle(focus) {
-  return focus ? { objectPosition: focus } : undefined;
-}
+export const MAX_ZOOM = 4;
+export const FIT = "fit";
 
-const CENTRE = Object.freeze({ x: 50, y: 50 });
-const FOCUS_PATTERN = /^\s*(\d{1,3})%\s+(\d{1,3})%\s*$/;
+const CENTRE = Object.freeze({ x: 50, y: 50, zoom: 1, fit: false });
+// A zoom above 1 and at most 4, with no trailing zeros: 1.5, 2.25, 3, 4.
+// "1" is refused rather than read: zoom 1 is written by leaving the token out.
+const ZOOM = String.raw`1\.(?:[1-9]|\d[1-9])|[23](?:\.(?:[1-9]|\d[1-9]))?|4`;
+const FOCUS_PATTERN = new RegExp(
+  String.raw`^\s*(\d{1,3})%\s+(\d{1,3})%(?:\s+(${ZOOM}|${FIT}))?\s*$`,
+);
 
 function clampPercent(n) {
   return Math.min(100, Math.max(0, Math.round(n)));
 }
 
-/** "X% Y%" -> { x, y }; anything else (null, "", malformed) is the centre. */
-export function parseFocus(focus) {
+/** A zoom factor clamped to 1..MAX_ZOOM and rounded to two decimals. */
+export function clampZoom(n) {
+  const z = Math.round(Number(n) * 100) / 100;
+  if (!Number.isFinite(z)) return 1;
+  return Math.min(MAX_ZOOM, Math.max(1, z));
+}
+
+function readFocus(focus) {
   const m = typeof focus === "string" ? FOCUS_PATTERN.exec(focus) : null;
-  if (!m) return CENTRE;
-  return { x: clampPercent(Number(m[1])), y: clampPercent(Number(m[2])) };
+  if (!m) return null;
+  return {
+    x: clampPercent(Number(m[1])),
+    y: clampPercent(Number(m[2])),
+    zoom: m[3] && m[3] !== FIT ? Number(m[3]) : 1,
+    fit: m[3] === FIT,
+  };
 }
 
 /**
- * { x, y } -> "X% Y%", clamped to whole percentages in 0..100. The centre is
- * null rather than "50% 50%": a centred image stores no focus at all.
+ * The inline style that frames an image by its focus; undefined when there is
+ * none (or it is malformed), so the image stays centred and filled.
+ *
+ * Zoom scales the image about the focal point, which keeps that point of the
+ * picture where object-position put it. Fit overrides the object-cover class
+ * with contain and paints the bars in the inset surface colour.
  */
-export function formatFocus({ x, y }) {
+export function focusStyle(focus) {
+  const f = readFocus(focus);
+  if (!f) return undefined;
+  const position = `${f.x}% ${f.y}%`;
+  if (f.fit) {
+    return {
+      objectFit: "contain",
+      objectPosition: position,
+      backgroundColor: "var(--color-surface-2)",
+    };
+  }
+  if (f.zoom > 1) {
+    return {
+      objectPosition: position,
+      transform: `scale(${f.zoom})`,
+      transformOrigin: position,
+    };
+  }
+  return { objectPosition: position };
+}
+
+/**
+ * A stored focus -> { x, y, zoom, fit }; anything else (null, "", malformed)
+ * is the centre at zoom 1.
+ */
+export function parseFocus(focus) {
+  return readFocus(focus) || CENTRE;
+}
+
+/**
+ * { x, y, zoom, fit } -> the stored string, clamped to whole percentages in
+ * 0..100 and a zoom in 1..4 with two decimals. Zoom 1 writes no zoom token,
+ * fit ignores zoom, and the centre at zoom 1 is null rather than "50% 50%": a
+ * centred, filled image stores no focus at all. Fit is never null.
+ */
+export function formatFocus({ x, y, zoom = 1, fit = false }) {
   const cx = clampPercent(x);
   const cy = clampPercent(y);
+  if (fit) return `${cx}% ${cy}% ${FIT}`;
+  const z = clampZoom(zoom);
+  if (z > 1) return `${cx}% ${cy}% ${z}`;
   if (cx === CENTRE.x && cy === CENTRE.y) return null;
   return `${cx}% ${cy}%`;
 }

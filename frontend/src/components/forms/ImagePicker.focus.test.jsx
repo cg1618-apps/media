@@ -48,10 +48,10 @@ afterEach(() => {
 });
 
 const adjustButton = () =>
-  screen.queryByRole("button", { name: "Adjust position" });
+  screen.queryByRole("button", { name: "Adjust position & zoom" });
 
 describe("ImagePicker - focal point", () => {
-  it("offers Adjust position only with an image and an onFocusChange", () => {
+  it("offers Adjust position & zoom only with an image and an onFocusChange", () => {
     const first = renderPicker({ onFocusChange: undefined });
     expect(adjustButton()).not.toBeInTheDocument();
     first.unmount();

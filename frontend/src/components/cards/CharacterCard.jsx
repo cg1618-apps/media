@@ -96,16 +96,18 @@ export default function CharacterCard({ character }) {
         {isIdentity ? (
           <>
             <span className="flex items-center gap-1.5 min-w-0">
-              <LazyImage
-                src={thumbUrl(getCoverUrl(character.character_photo_file))}
-                alt=""
-                className="w-[18px] h-[18px] shrink-0 rounded-full object-cover border border-border-strong"
-                style={focusStyle(character.character_photo_focus)}
-                onError={(e) => {
-                  e.target.src = FALLBACK_SVG;
-                }}
-                data-character-face
-              />
+              <span className="block w-[18px] h-[18px] shrink-0 overflow-hidden rounded-full border border-border-strong">
+                <LazyImage
+                  src={thumbUrl(getCoverUrl(character.character_photo_file))}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  style={focusStyle(character.character_photo_focus)}
+                  onError={(e) => {
+                    e.target.src = FALLBACK_SVG;
+                  }}
+                  data-character-face
+                />
+              </span>
               <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint truncate">
                 {character.character_display_name}
               </span>

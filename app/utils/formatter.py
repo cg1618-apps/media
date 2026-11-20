@@ -170,7 +170,8 @@ def _uuid_or_none(val: Any) -> Any:
 
 def _focus_from_sheet(val: Any) -> Optional[str]:
     """
-    An image focus ("X% Y%") kept when well-formed, None otherwise.
+    An image focus ("X% Y%", optionally zoomed or "fit") kept when
+    well-formed, None otherwise.
 
     Folded rather than refused, like gender and my_rating: a malformed cell -
     a hand edit in the sheet - restores as centred instead of aborting the

@@ -171,12 +171,14 @@ export default function GroupedEntryPage({
                           </span>
                         </div>
                       ) : (
-                        <LazyImage
-                          src={thumbUrl(getCoverUrl(group.cover_image_file))}
-                          alt=""
-                          className="w-9 h-12 object-cover shrink-0 border border-border"
-                          style={focusStyle(group.cover_image_focus)}
-                        />
+                        <div className="w-9 h-12 shrink-0 overflow-hidden border border-border">
+                          <LazyImage
+                            src={thumbUrl(getCoverUrl(group.cover_image_file))}
+                            alt=""
+                            className="h-full w-full object-cover"
+                            style={focusStyle(group.cover_image_focus)}
+                          />
+                        </div>
                       )}
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 min-w-0">

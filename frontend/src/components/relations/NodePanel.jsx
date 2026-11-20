@@ -20,12 +20,14 @@ export default function NodePanel({
   return (
     <div className="absolute left-3 top-3 z-40 w-64 rounded-xl border border-border bg-surface p-3 shadow-xl">
       <div className="flex items-start gap-2">
-        <LazyImage
-          src={thumbUrl(getCoverUrl(node.cover_image_file))}
-          alt=""
-          className="h-16 w-12 shrink-0 rounded-md object-cover"
-          style={focusStyle(node.cover_image_focus)}
-        />
+        <div className="h-16 w-12 shrink-0 overflow-hidden rounded-md">
+          <LazyImage
+            src={thumbUrl(getCoverUrl(node.cover_image_file))}
+            alt=""
+            className="h-full w-full object-cover"
+            style={focusStyle(node.cover_image_focus)}
+          />
+        </div>
         <div className="min-w-0 flex-1">
           <p className="text-xs font-black leading-tight text-text">
             {node.display_name || "Missing entry"}

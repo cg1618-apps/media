@@ -1,9 +1,9 @@
-// Frontend: the focal-point modal.
+// Frontend: the focal-point and zoom modal.
 //
-// The value it hands back is what the API stores and CSS reads as
-// object-position, so these pin the arithmetic (a click at a point of the
-// image gives that point's percentages), the keyboard nudge, and that the
-// centre comes back as null rather than "50% 50%".
+// The value it hands back is what the API stores, so these pin the arithmetic
+// (a click at a point of the image gives that point's percentages), the
+// keyboard nudge, the zoom controls and fit, and that the centre at zoom 1
+// comes back as null rather than "50% 50%".
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -48,6 +48,8 @@ function renderPicker(props = {}) {
 }
 
 const marker = () => screen.getByRole("button", { name: /focal point/i });
+const slider = () => screen.getByRole("slider", { name: "Zoom" });
+const click = (name) => userEvent.click(screen.getByRole("button", { name }));
 const done = () => userEvent.click(screen.getByRole("button", { name: "Done" }));
 
 describe("FocusPicker", () => {
@@ -66,6 +68,88 @@ describe("FocusPicker", () => {
         objectPosition: "30% 20%",
       });
     }
+  });
+
+  it("previews a zoom and a fit truthfully, through focusStyle", () => {
+    const { unmount } = render(
+      <FocusPicker src="/x.jpg" focus="30% 20% 2" onDone={vi.fn()} onCancel={vi.fn()} />,
+    );
+    for (const alt of ["Portrait preview", "Square preview"]) {
+      expect(screen.getByAltText(alt)).toHaveStyle({
+        objectPosition: "30% 20%",
+        transform: "scale(2)",
+      });
+    }
+    expect(slider()).toHaveValue("2");
+    unmount();
+
+    render(
+      <FocusPicker src="/x.jpg" focus="30% 20% fit" onDone={vi.fn()} onCancel={vi.fn()} />,
+    );
+    for (const alt of ["Portrait preview", "Square preview"]) {
+      expect(screen.getByAltText(alt)).toHaveStyle({ objectFit: "contain" });
+    }
+    expect(screen.getByRole("button", { name: "Fit whole image" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(slider()).toHaveValue("1");
+  });
+
+  it("zooms about the point with the slider, and keeps the zoom when the point moves", async () => {
+    const { onDone, frame } = renderPicker();
+
+    fireEvent.change(slider(), { target: { value: "2.35" } });
+    fireEvent.pointerDown(frame, { clientX: 150, clientY: 150, button: 0 });
+    fireEvent.pointerUp(frame);
+    await done();
+
+    expect(onDone).toHaveBeenCalledWith("25% 25% 2.35");
+  });
+
+  it("steps the zoom with the buttons and stops at 4", async () => {
+    const { onDone } = renderPicker({ focus: "40% 40% 3.5" });
+
+    await click("Zoom in");
+    await click("Zoom in");
+    expect(screen.getByRole("button", { name: "Zoom in" })).toBeDisabled();
+    await click("Zoom out");
+    await done();
+
+    expect(onDone).toHaveBeenCalledWith("40% 40% 3.75");
+  });
+
+  it("fits the whole image, and is never null even at the centre", async () => {
+    const { onDone } = renderPicker({ focus: "50% 50% 2" });
+
+    await click("Fit whole image");
+    expect(screen.getByRole("button", { name: "Zoom out" })).toBeDisabled();
+    await done();
+
+    expect(onDone).toHaveBeenCalledWith("50% 50% fit");
+  });
+
+  it("treats fit as the step below zoom 1", async () => {
+    const { onDone } = renderPicker({ focus: "20% 80%" });
+
+    await click("Zoom out");
+    expect(screen.getByRole("button", { name: "Fit whole image" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await click("Zoom in");
+    await done();
+
+    expect(onDone).toHaveBeenCalledWith("20% 80%");
+  });
+
+  it("leaves fit when the slider moves", async () => {
+    const { onDone } = renderPicker({ focus: "20% 80% fit" });
+
+    fireEvent.change(slider(), { target: { value: "1.5" } });
+    await done();
+
+    expect(onDone).toHaveBeenCalledWith("20% 80% 1.5");
   });
 
   it("moves the point to where the image is clicked", async () => {
@@ -100,8 +184,18 @@ describe("FocusPicker", () => {
     expect(onDone).toHaveBeenCalledWith("41% 31%");
   });
 
-  it("hands back null when reset to the centre", async () => {
-    const { onDone } = renderPicker({ focus: "10% 90%" });
+  it("keeps the zoom while nudging", async () => {
+    const { onDone } = renderPicker({ focus: "40% 40% 1.5" });
+
+    marker().focus();
+    await userEvent.keyboard("{ArrowLeft}");
+    await done();
+
+    expect(onDone).toHaveBeenCalledWith("39% 40% 1.5");
+  });
+
+  it("hands back null when reset to the centre, dropping zoom and fit", async () => {
+    const { onDone } = renderPicker({ focus: "10% 90% fit" });
 
     await userEvent.click(screen.getByRole("button", { name: "Reset to centre" }));
     await done();

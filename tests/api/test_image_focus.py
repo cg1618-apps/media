@@ -123,6 +123,23 @@ def test_a_malformed_focus_is_a_422(owner_client, sample_anime):
     assert response.status_code == 422
 
 
+@pytest.mark.parametrize("focus", ["30% 15% 2.25", "50% 50% fit"])
+def test_a_zoomed_or_fitted_focus_round_trips(owner_client, sample_anime, focus):
+    url = f"/api/anime/{sample_anime.system_id}"
+    response = owner_client.put(url, json={"cover_image_focus": focus})
+
+    assert response.status_code == 200, response.text
+    assert owner_client.get(url).json()["cover_image_focus"] == focus
+
+
+@pytest.mark.parametrize("focus", ["30% 15% 1", "30% 15% 4.5", "30% 15% fill"])
+def test_a_malformed_zoom_is_a_422(owner_client, sample_anime, focus):
+    response = owner_client.put(
+        f"/api/anime/{sample_anime.system_id}", json={"cover_image_focus": focus}
+    )
+    assert response.status_code == 422, response.text
+
+
 # ---------------------------------------------------------------------------
 # The reset rule (images.mirror_to_owner_column)
 # ---------------------------------------------------------------------------

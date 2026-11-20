@@ -82,7 +82,8 @@ class Character(Base, NameFallbackMixin):
     # override it with its own photo_file for how the character looks in that
     # entry.
     photo_file = Column(String, nullable=True)
-    # photo_file's focal point, "X% Y%"; NULL centres it. Reset whenever the
+    # photo_file's focal point and zoom (app/schemas/image_focus.py);
+    # NULL centres it. Reset whenever the
     # photo changes - see media.cover_image_focus.
     photo_focus = Column(String, nullable=True)
     # The entry whose picture stands in when photo_file is NULL: a
@@ -379,7 +380,8 @@ class CharacterCasting(Base):
     # Storage key: this character AS SHE APPEARS in this entry. NULL falls back
     # to character.photo_file at read time.
     photo_file = Column(String, nullable=True)
-    # photo_file's focal point, "X% Y%"; NULL centres it. Falls back with the
+    # photo_file's focal point and zoom (app/schemas/image_focus.py);
+    # NULL centres it. Falls back with the
     # photo: a casting with no photo_file shows the character's photo_focus.
     photo_focus = Column(String, nullable=True)
     # The name the character goes by in THIS entry ("AAA" in season 1), when
