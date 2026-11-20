@@ -768,3 +768,158 @@ def test_detaching_a_backfilled_download_deletes_it(
     assert response.status_code == 204
     assert db_session.query(models.Image).count() == 0
     assert not path.exists()
+
+
+# ---------------------------------------------------------------------------
+# Copy an entry's cover into the library
+#
+# POST /api/images/from-entry imports the source entry's stored cover the way
+# an upload is imported: re-encoded, content-addressed under library/, owned
+# by the caller. The copy is independent of the source's file, so nothing
+# done to the source cover later reaches it.
+# ---------------------------------------------------------------------------
+
+def _from_entry(client, media_type, entry_id):
+    return client.post(
+        "/api/images/from-entry",
+        json={"media_type": media_type, "entry_id": str(entry_id)},
+    )
+
+
+def _entry_with_cover(db_session, covers_dir, entry, media_type="anime"):
+    path = _downloaded_file(covers_dir, media_type, entry.system_id, payload=_png())
+    entry.cover_image_file = f"{media_type}/{entry.system_id}.jpg"
+    db_session.flush()
+    return path
+
+
+def test_from_entry_copies_the_cover_into_the_library(
+    owner_client, db_session, sample_anime, covers_dir, owner_user, tmp_path
+):
+    source = _entry_with_cover(db_session, covers_dir, sample_anime)
+    source_bytes = source.read_bytes()
+
+    response = _from_entry(owner_client, "anime", sample_anime.system_id)
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["storage_key"].startswith("library/")
+    assert body["thumb_key"].startswith("library/thumbs/")
+    assert body["missing"] is False
+    assert body["attachments"] == []
+    image = db_session.query(models.Image).one()
+    assert image.uploaded_by == owner_user.id
+    media = db_session.get(models.Media, sample_anime.system_id)
+    assert image.original_filename == f"{media.display_name}.jpg"
+    assert (tmp_path / image.storage_key).exists()
+    # The source is read, never moved or rewritten.
+    assert source.read_bytes() == source_bytes
+    db_session.refresh(sample_anime)
+    assert sample_anime.cover_image_file == f"anime/{sample_anime.system_id}.jpg"
+
+
+def test_copying_the_same_cover_twice_returns_one_row(
+    owner_client, db_session, sample_anime, covers_dir
+):
+    _entry_with_cover(db_session, covers_dir, sample_anime)
+
+    first = _from_entry(owner_client, "anime", sample_anime.system_id).json()
+    second = _from_entry(owner_client, "anime", sample_anime.system_id).json()
+
+    assert first["system_id"] == second["system_id"]
+    assert db_session.query(models.Image).count() == 1
+
+
+def test_from_entry_returns_the_existing_row_of_an_uploaded_cover(
+    owner_client, db_session, sample_anime, covers_dir
+):
+    uploaded = _upload(owner_client).json()
+    sample_anime.cover_image_file = uploaded["storage_key"]
+    db_session.flush()
+
+    response = _from_entry(owner_client, "anime", sample_anime.system_id)
+
+    assert response.status_code == 201
+    assert response.json()["system_id"] == uploaded["system_id"]
+    assert db_session.query(models.Image).count() == 1
+
+
+def test_from_entry_404s_when_the_entry_has_no_cover(
+    owner_client, db_session, sample_anime, covers_dir
+):
+    response = _from_entry(owner_client, "anime", sample_anime.system_id)
+
+    assert response.status_code == 404
+    assert db_session.query(models.Image).count() == 0
+
+
+def test_from_entry_404s_when_the_cover_file_is_not_on_this_machine(
+    owner_client, db_session, sample_anime, covers_dir
+):
+    sample_anime.cover_image_file = f"anime/{sample_anime.system_id}.jpg"
+    db_session.flush()
+
+    response = _from_entry(owner_client, "anime", sample_anime.system_id)
+
+    assert response.status_code == 404
+    assert db_session.query(models.Image).count() == 0
+
+
+def test_from_entry_422s_when_the_cover_file_is_not_an_image(
+    owner_client, db_session, sample_anime, covers_dir
+):
+    _downloaded_file(covers_dir, "anime", sample_anime.system_id, payload=b"not a jpeg")
+    sample_anime.cover_image_file = f"anime/{sample_anime.system_id}.jpg"
+    db_session.flush()
+
+    response = _from_entry(owner_client, "anime", sample_anime.system_id)
+
+    assert response.status_code == 422
+    assert db_session.query(models.Image).count() == 0
+
+
+def test_from_entry_404s_when_the_media_type_does_not_match(
+    owner_client, db_session, sample_anime, covers_dir
+):
+    _entry_with_cover(db_session, covers_dir, sample_anime)
+
+    response = _from_entry(owner_client, "movie", sample_anime.system_id)
+
+    assert response.status_code == 404
+    assert db_session.query(models.Image).count() == 0
+
+
+def test_from_entry_404s_for_an_unknown_entry(owner_client, covers_dir):
+    assert _from_entry(owner_client, "anime", uuid.uuid4()).status_code == 404
+
+
+def test_from_entry_requires_manage_images(client, db_session, sample_anime, covers_dir):
+    _entry_with_cover(db_session, covers_dir, sample_anime)
+
+    assert _from_entry(client, "anime", sample_anime.system_id).status_code == 401
+
+
+# nsfw_label (through hidden_anime) is what gives the gate something to
+# refuse; the mirror test below proves the refusal was the gate's.
+def test_from_entry_404s_for_a_writer_who_cannot_see_the_entry(
+    db_session, client, catalog_writer, hidden_anime, covers_dir  # noqa: F811
+):
+    _entry_with_cover(db_session, covers_dir, hidden_anime)
+    writer = catalog_writer(extra={PERM_MANAGE_IMAGES}, username="blindcopier", label_keys=())
+
+    response = _from_entry(writer, "anime", hidden_anime.system_id)
+
+    assert response.status_code == 404
+    assert db_session.query(models.Image).count() == 0
+
+
+def test_from_entry_succeeds_for_a_writer_who_holds_the_label(
+    db_session, client, catalog_writer, hidden_anime, covers_dir  # noqa: F811
+):
+    _entry_with_cover(db_session, covers_dir, hidden_anime)
+    writer = catalog_writer(extra={PERM_MANAGE_IMAGES}, username="seeingcopier", label_keys=("nsfw",))
+
+    response = _from_entry(writer, "anime", hidden_anime.system_id)
+
+    assert response.status_code == 201
+    assert db_session.query(models.Image).count() == 1

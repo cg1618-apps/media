@@ -36,6 +36,13 @@ class AttachmentIn(BaseModel):
     role: str = "cover"
 
 
+class EntryCoverIn(BaseModel):
+    """The entry whose stored cover POST /api/images/from-entry copies."""
+
+    media_type: str
+    entry_id: UUID
+
+
 class AttachmentOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

@@ -1360,7 +1360,11 @@ is a **422**, checked before anything is deleted - see
   `/static/library/<checksum>.jpg` path is **not constructible**: the key is a
   content hash, so nothing a viewer already knows about an entry yields one.
   An uploaded image is therefore not "secure", only unguessable. Quote images
-  under `/static/quotes/` are the same bargain with legacy filenames.
+  under `/static/quotes/` are the same bargain with legacy filenames. A cover
+  copied into the library from an entry (`POST /api/images/from-entry`) joins
+  this bargain too: the copy is a library image, so it no longer carries the
+  source entry's content-label gate (see
+  [the decision](notes/decisions/2026-11-20-entry-covers-are-copied-into-the-library.md)).
 
   **Covers are no longer in that bargain, because their keys are
   constructible.** `<owner_type>/<system_id>.jpg` is derivable by anyone who

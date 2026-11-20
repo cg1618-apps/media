@@ -151,6 +151,7 @@ export const endpoints = {
   images: {
     list: (params = "") => `/api/images${params ? `?${params}` : ""}`,
     upload: () => "/api/images",
+    fromEntry: () => "/api/images/from-entry",
     attach: (imageId) => `/api/images/${imageId}/attach`,
     detach: (imageId, attachmentId) =>
       `/api/images/${imageId}/attach/${attachmentId}`,
