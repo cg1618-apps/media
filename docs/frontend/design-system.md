@@ -1,6 +1,6 @@
 # Design system — "the archive"
 
-Last verified: 2026-11-19
+Last verified: 2026-11-20
 
 The UI is styled as a physical media archive: paper, ink, index slips,
 spine labels and a rating stamp. It replaced the generic dashboard look
@@ -191,6 +191,12 @@ counts). `h1` is display by default.
     detail page shows it, in the body, so both pages gain it. The section list
     is in [Admin Pages](admin-pages.md#entry-form-layout), and
     `pages/add-tabs/FormLayout.test.jsx` guards it.
+11. **One clear button per search field.** Chrome and Safari draw a native
+    cross on every `<input type="search">`, desktop included. A search field
+    that draws its own "Clear search" button (the entity libraries') adds the
+    `search-own-clear` utility from `index.css`, which hides the native one;
+    a search field without a button of its own (the image pickers') keeps
+    the browser's. `src/search-own-clear.test.js` guards this.
 
 ## Primitives (`components/ui/primitives.jsx`)
 
