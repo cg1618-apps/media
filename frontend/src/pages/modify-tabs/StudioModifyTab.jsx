@@ -24,6 +24,7 @@ import { endpoints } from "../../api/endpoints";
 import { fetchJson, jsonBody } from "../../api/client";
 import { useToast } from "../../hooks/useToast";
 import { STUDIO_NAME_FIELDS, displayStudioName } from "../../lib/naming";
+import { countriesPayload, countriesToForm } from "../../lib/countries";
 
 function cleanString(str) {
   return (str || "").toLowerCase().replace(/[\s\p{P}\p{S}]/gu, "");
@@ -42,9 +43,9 @@ function studioToForm(s) {
     display_name_field: s.display_name_field || "",
     logo_file: s.logo_file || "",
     logo_focus: s.logo_focus || null,
-    // No seed: an unset country is a value the admin can choose, and a seed
-    // here would be written back on the next save of any field.
-    country: s.country || "",
+    // No seed: no country is a value the admin can choose, and a seed here
+    // would be written back on the next save of any field.
+    countries: countriesToForm(s.countries),
     website_url: s.website_url || "",
     founded_date: s.founded_date || "",
     defunct_date: s.defunct_date || "",
@@ -145,7 +146,7 @@ export default function StudioModifyTab({ initialId = null } = {}) {
           display_name_field: studioForm.display_name_field || null,
           logo_file: studioForm.logo_file || null,
           logo_focus: studioForm.logo_focus || null,
-          country: studioForm.country || null,
+          countries: countriesPayload(studioForm.countries),
           website_url: studioForm.website_url || null,
           founded_date: studioForm.founded_date || null,
           defunct_date: studioForm.defunct_date || null,

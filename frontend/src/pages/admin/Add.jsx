@@ -130,6 +130,7 @@ import NeedsWorkAddField, {
 } from "../../components/needs-work/NeedsWorkAddField";
 import { useSetNeedsWork } from "../../api/mutations/useNeedsWork";
 import { NEEDS_WORK_OWNER_TYPES } from "../../lib/needsWork";
+import { countriesPayload } from "../../lib/countries";
 
 export default function Add() {
   const { showToast } = useToast();
@@ -1215,7 +1216,7 @@ export default function Add() {
         display_name_field: studioForm.display_name_field || null,
         logo_file: studioForm.logo_file || null,
         logo_focus: studioForm.logo_focus || null,
-        country: studioForm.country || null,
+        countries: countriesPayload(studioForm.countries),
         website_url: studioForm.website_url || null,
         founded_date: studioForm.founded_date || null,
         defunct_date: studioForm.defunct_date || null,

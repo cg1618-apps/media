@@ -23,18 +23,18 @@ beforeEach(() => {
 
 const STUDIOS = [
   { system_id: "1", public_id: "s1", name_en: "MAPPA", display_name: "MAPPA", credit_count: 12,
-    media_types: ["anime"], country: "Japan", my_rating: "A" },
+    media_types: ["anime"], countries: ["Japan"], my_rating: "A" },
   { system_id: "2", public_id: "s2", name_en: "Kyoto Animation", name_alt: "KyoAni",
     display_name_field: "alt", display_name: "KyoAni", credit_count: 30,
-    media_types: ["anime", "anime-movie"], country: "Japan", my_rating: "S" },
+    media_types: ["anime", "anime-movie"], countries: ["Japan"], my_rating: "S" },
   { system_id: "3", public_id: "s3", name_jp: "京都アニメーション", display_name: "京都アニメーション",
-    credit_count: 1, media_types: ["game"], country: null, my_rating: null },
+    credit_count: 1, media_types: ["game"], countries: null, my_rating: null },
   // Credited on hentai only: hidden until Restricted is ticked.
   { system_id: "4", public_id: "s4", name_en: "Pink Pineapple", display_name: "Pink Pineapple",
-    credit_count: 3, media_types: ["hentai"], restricted: true, country: "Japan", my_rating: null },
+    credit_count: 3, media_types: ["hentai"], restricted: true, countries: ["Japan"], my_rating: null },
   // Credited on nothing yet: listed by default under No entries.
   { system_id: "5", public_id: "s5", name_en: "Fresh Studio", display_name: "Fresh Studio",
-    credit_count: 0, media_types: [], country: "China", my_rating: null },
+    credit_count: 0, media_types: [], countries: ["China"], my_rating: null },
 ];
 
 beforeEach(() => {
@@ -104,18 +104,42 @@ describe("StudioLibrary", () => {
     expect(screen.getAllByRole("link")).toHaveLength(5);
   });
 
-  it("filters by the countries on record, with Not set for none", async () => {
+  it("gives a country held by more than five studios its own chip, most-held first", async () => {
+    // Seven studios name Japan, six Korea, five China: China stays under
+    // Others with the one-off Poland, and the studio naming none is Not set.
+    const studio = (n, countries) => ({
+      system_id: String(n), public_id: `s${n}`, name_en: `Studio ${n}`,
+      display_name: `Studio ${n}`, credit_count: 1, media_types: ["anime"],
+      countries, my_rating: null,
+    });
+    const rows = [
+      ...[1, 2, 3, 4, 5, 6].map((n) => studio(n, ["Japan"])),
+      studio(7, ["Japan", "Korea", "China"]),
+      ...[8, 9, 10, 11, 12].map((n) => studio(n, ["Korea"])),
+      ...[13, 14, 15, 16].map((n) => studio(n, ["China"])),
+      studio(17, ["Poland"]),
+      studio(18, null),
+    ];
+    global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve(rows) }));
     const user = userEvent.setup();
     renderPage();
-    await screen.findByText("KyoAni");
+    await screen.findByText("Studio 18");
     const country = screen.getByText("Country").parentElement;
     expect(
       within(country).getAllByRole("button").map((b) => b.textContent),
-    ).toEqual(["China", "Japan", "Not set"]);
+    ).toEqual(["Japan", "Korea", "Others", "Not set"]);
 
+    await user.click(within(country).getByRole("button", { name: "Others" }));
+    const names = () => screen.getAllByRole("link").map((a) => a.textContent);
+    // Studio 7 is under Japan and Korea too, and still an Other for China.
+    expect(names()).toHaveLength(6);
+    for (const n of [7, 13, 14, 15, 16, 17]) {
+      expect(names()).toContainEqual(expect.stringContaining(`Studio ${n}`));
+    }
+
+    await user.click(within(country).getByRole("button", { name: "Others" }));
     await user.click(within(country).getByRole("button", { name: "Not set" }));
-    const cards = screen.getAllByRole("link").map((a) => a.textContent);
-    expect(cards).toEqual([expect.stringContaining("京都アニメーション")]);
+    expect(names()).toEqual([expect.stringContaining("Studio 18")]);
   });
 
   it("filters by my rating, ANDed with the entry type", async () => {

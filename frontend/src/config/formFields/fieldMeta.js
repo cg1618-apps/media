@@ -1580,7 +1580,8 @@ export const TYPE_FIELD_META = {
       group: "Names",
       autofillable: false,
     },
-    country: { label: "Country", group: "Classification", autofillable: false },
+    // Comma-separated text, as the form holds it ("Japan, China").
+    countries: { label: "Countries", group: "Classification", autofillable: false },
     logo_file: {
       label: "Logo File",
       control: "none",

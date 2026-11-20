@@ -6,6 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 from app.schemas.image_focus import ImageFocus
+from app.utils.countries import clean_countries
 from app.utils.credit_roles import PERSON_ROLES, legal_scopes
 from app.utils.entity_vocab import check_person_gender
 
@@ -186,10 +187,17 @@ class StudioBase(BaseModel):
     remark: Optional[str] = None
     founded_date: Optional[str] = None
     defunct_date: Optional[str] = None
-    country: Optional[str] = None
+    # Every country the studio is from, in the order given. Each is trimmed,
+    # blanks and repeats are dropped, and an empty list is stored as null.
+    countries: Optional[List[str]] = None
     website_url: Optional[str] = None
     mal_id: Optional[int] = None
     mal_link: Optional[str] = None
+
+    @field_validator("countries", mode="before")
+    @classmethod
+    def _clean_countries(cls, v):
+        return clean_countries(v)
 
     @model_validator(mode="after")
     def at_least_one_name(self):

@@ -36,6 +36,7 @@ from app.utils.constants import (
     GAME_COMPLETION_FLAGS,
     WatchStatus,
 )
+from app.utils.countries import clean_countries
 
 # Character and person gender / my_rating, folded the way the revision that
 # closed those vocabularies folded the stored rows.
@@ -1928,7 +1929,9 @@ def parse_studio_from_sheet(raw: dict) -> dict:
         "remark": parse_from_sheet(raw.get("remark"), str),
         "founded_date": parse_from_sheet(raw.get("founded_date"), str),
         "defunct_date": parse_from_sheet(raw.get("defunct_date"), str),
-        "country": parse_from_sheet(raw.get("country"), str),
+        # A JSON list from Backup; a backup taken before a studio could hold
+        # several carries one value under the old header, `country`.
+        "countries": clean_countries(raw.get("countries", raw.get("country"))),
         "website_url": parse_from_sheet(raw.get("website_url"), str),
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),

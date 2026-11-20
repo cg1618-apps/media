@@ -1294,7 +1294,7 @@ every type it applies to is not wrong in the way a distributor list offering
 | `logo_focus` | String | yes | | `logo_file`'s focal point, `"X% Y%"`; NULL centres it. Reset to NULL when the logo changes — see [image focal points](#image-focal-points) |
 | `remark` | Text | yes | | |
 | `founded_date` / `defunct_date` | String | yes | | Truncated ISO-8601, the format owned by `app/utils/release_date.py` |
-| `country` | String | yes | | |
+| `countries` | JSONB | yes | | Every country the studio is from, a list of free-text names in the order given; NULL when none is known, never `[]`. Each name trimmed, blanks and repeats dropped (`app/utils/countries.py`). Suggested from the `Country` common options, never added to them. The Studio sheet tab carries it as a JSON list; a backup from before a studio could name several carries one value under the old `country` header, which Pull reads as a one-name list |
 | `website_url` | String | yes | | |
 | `mal_id` | Integer | yes | | MAL producer id. Derived from `mal_link` by `extract_mal_id_producer` on write and on Fill, or typed directly. Setting it is what makes a studio fillable |
 | `mal_link` | String | yes | | |

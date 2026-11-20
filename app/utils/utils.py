@@ -62,7 +62,7 @@ ANIME_FIELDS_TO_FILL = [
 ]
 
 # What the Tenrai producers endpoint can supply for a studio. my_rating,
-# country and defunct_date are absent on purpose: MAL reports none of them.
+# countries and defunct_date are absent on purpose: MAL reports none of them.
 STUDIO_FIELDS_TO_FILL = [
     "mal_link",
     "founded_date",

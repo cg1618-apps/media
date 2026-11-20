@@ -9,6 +9,11 @@
 //
 // A stored value the vocabulary does not offer simply lights no chip; the
 // caller keeps a select beside the chips wherever such a value can occur.
+//
+// `multiple` makes it a toggle row over a list instead: `value` is an array,
+// a click adds the option at the end or takes it out, and a held value the
+// vocabulary does not offer is kept (a studio's countries, typed beside the
+// chips).
 const CHIP_CLS =
   "px-2.5 py-1 rounded-full border text-xs font-bold transition-colors";
 const ON_CLS = "bg-brand text-on-brand border-brand";
@@ -20,7 +25,22 @@ export function pickValue(value, option) {
   return value === option ? "" : option;
 }
 
-export default function QuickPicks({ options, value, onChange, label, className = "" }) {
+/** A `multiple` row's list after clicking `option`: added at the end, or removed. */
+export function toggleValue(values, option) {
+  const held = values || [];
+  return held.includes(option)
+    ? held.filter((v) => v !== option)
+    : [...held, option];
+}
+
+export default function QuickPicks({
+  options,
+  value,
+  onChange,
+  label,
+  className = "",
+  multiple = false,
+}) {
   return (
     <div
       className={`flex flex-wrap items-center gap-1.5 ${className}`.trim()}
@@ -28,14 +48,16 @@ export default function QuickPicks({ options, value, onChange, label, className 
       aria-label={label}
     >
       {options.map((option) => {
-        const on = value === option;
+        const on = multiple ? (value || []).includes(option) : value === option;
         return (
           <button
             key={option}
             type="button"
             aria-pressed={on}
-            title={on ? "Click again to clear" : undefined}
-            onClick={() => onChange(pickValue(value, option))}
+            title={on ? (multiple ? "Click again to remove" : "Click again to clear") : undefined}
+            onClick={() =>
+              onChange(multiple ? toggleValue(value, option) : pickValue(value, option))
+            }
             className={`${CHIP_CLS} ${on ? ON_CLS : OFF_CLS}`}
           >
             {option}

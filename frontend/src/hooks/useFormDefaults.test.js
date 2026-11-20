@@ -94,13 +94,13 @@ describe("resolveDefaults", () => {
   it("ignores a stored default for a field that cannot take one", () => {
     // A logo default saved before the field became undefaultable. /defaults
     // no longer shows it, so it could not be cleared there - it must stop
-    // applying. Country beside it proves the config was read at all.
+    // applying. Countries beside it proves the config was read at all.
     const resolved = resolveDefaults("studio", {
-      studio: { defaults: { logo_file: "library/old.jpg", country: "Japan" } },
+      studio: { defaults: { logo_file: "library/old.jpg", countries: "Japan" } },
     });
 
     expect(resolved.logo_file).toBe(defaultStudio().logo_file);
-    expect(resolved.country).toBe("Japan");
+    expect(resolved.countries).toBe("Japan");
   });
 
   it("drops a select default its vocabulary no longer offers", () => {
@@ -126,10 +126,10 @@ describe("resolveDefaults", () => {
 
   it("resolves the entity forms, which are not media entries", () => {
     const resolved = resolveDefaults("studio", {
-      studio: { defaults: { country: "Japan", removed_field: "x" } },
+      studio: { defaults: { countries: "Japan, China", removed_field: "x" } },
     });
 
-    expect(resolved.country).toBe("Japan");
+    expect(resolved.countries).toBe("Japan, China");
     expect(resolved).not.toHaveProperty("removed_field");
     expect(Object.keys(resolved)).toEqual(Object.keys(defaultStudio()));
   });

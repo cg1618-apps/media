@@ -29,7 +29,10 @@ export default function StudioLibrary() {
   // rating sort or filter at all, and a rating sort reads as Name.
   const { ownData } = useViewScope();
   const sort = ownData || currentSort !== "my_rating" ? currentSort : "name";
-  const filterDefs = useMemo(() => studioFilterDefs(auth, { ownData }), [auth, ownData]);
+  const filterDefs = useMemo(
+    () => studioFilterDefs(auth, { ownData, studios: allStudios }),
+    [auth, ownData, allStudios],
+  );
   const {
     filters,
     toggleFilter,

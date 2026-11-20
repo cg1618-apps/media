@@ -4,7 +4,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import QuickPicks, { pickValue } from "./QuickPicks";
+import QuickPicks, { pickValue, toggleValue } from "./QuickPicks";
 
 const OPTIONS = ["Main", "Core", "Supporting", "Other"];
 
@@ -55,5 +55,35 @@ describe("QuickPicks", () => {
     const onChange = renderPicks("Main");
     await userEvent.setup().click(screen.getByRole("button", { name: "Main" }));
     expect(onChange).toHaveBeenCalledWith("");
+  });
+});
+
+describe("toggleValue", () => {
+  it("adds an option at the end and removes a held one", () => {
+    expect(toggleValue(["Core"], "Main")).toEqual(["Core", "Main"]);
+    expect(toggleValue(["Core", "Main"], "Core")).toEqual(["Main"]);
+    expect(toggleValue(undefined, "Main")).toEqual(["Main"]);
+  });
+});
+
+describe("QuickPicks multiple", () => {
+  it("presses every held option and toggles one at a time", async () => {
+    const onChange = vi.fn();
+    render(
+      <QuickPicks
+        multiple
+        label="Role"
+        options={OPTIONS}
+        value={["Core", "其他"]}
+        onChange={onChange}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Core" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Main" })).toHaveAttribute("aria-pressed", "false");
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Main" }));
+    expect(onChange).toHaveBeenLastCalledWith(["Core", "其他", "Main"]);
+    await user.click(screen.getByRole("button", { name: "Core" }));
+    expect(onChange).toHaveBeenLastCalledWith(["其他"]);
   });
 });

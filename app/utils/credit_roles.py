@@ -299,7 +299,7 @@ FILTER_ONLY_CATEGORIES: tuple[str, ...] = (
 # list is stored as typed.
 NEEDS_WORK_NOTE_CATEGORY = "Needs Work Note"
 
-# A studio's country is free text; this common option category is what its
+# A studio's countries are free text; this common option category is what its
 # field suggests. A country typed that is not in the list is stored as typed
 # and never added to it, as with the 待補充 note.
 COUNTRY_CATEGORY = "Country"
