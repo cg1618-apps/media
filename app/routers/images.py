@@ -11,6 +11,7 @@ second owner without re-uploading; the picker widget simply makes both calls in
 sequence.
 """
 
+import os
 from typing import Optional
 from uuid import UUID
 
@@ -21,7 +22,13 @@ from sqlalchemy.orm import Session
 from app import models
 from app.config import settings
 from app.dependencies import get_db
-from app.schemas.image import AttachmentIn, AttachmentOut, ImageListOut, ImageOut
+from app.schemas.image import (
+    AttachmentIn,
+    AttachmentOut,
+    EntryCoverIn,
+    ImageListOut,
+    ImageOut,
+)
 from app.services.integrations import image_library, image_manager
 from app.services.rbac.enforcement import book_unit_visible, entry_visible
 from app.services.rbac.resolver import Viewer, require_manage_images, viewer_user_id
@@ -323,6 +330,88 @@ def save_upload(
     db.add(image)
     db.flush()
     return image
+
+
+def _entry_cover_path(cover_key: str) -> str:
+    """
+    Where an entry's `cover_image_file` lives on disk. The column is relative
+    to static/covers/ for a download (`<owner_type>/<id>.jpg`), but may also
+    hold a library key or a backfilled `covers/...` storage key - the same two
+    roots lib/covers.js getCoverUrl tells apart.
+    """
+    if cover_key.startswith(f"{image_library.LIBRARY_SUBDIR}/"):
+        return os.path.join(image_library.STATIC_DIR, *cover_key.split("/"))
+    cover_key = cover_key.removeprefix("covers/")
+    return os.path.join(image_manager.COVER_DIR, *cover_key.split("/"))
+
+
+@router.post(
+    "/from-entry",
+    status_code=201,
+    response_model=ImageOut,
+    summary="Copy an entry's cover into the library",
+)
+def copy_entry_cover(
+    payload: EntryCoverIn,
+    db: Session = Depends(get_db),
+    admin: Viewer = Depends(require_manage_images),
+):
+    """
+    Import an entry's stored cover into the library, as an upload of the same
+    file would be: re-encoded, stored at `library/<checksum>.jpg` with its
+    thumbnail, and deduplicated by checksum. Attaches it to nothing - the
+    picker attaches the returned row like any other library pick.
+
+    A COPY, not a reference: the source's file is keyed on the source entry,
+    so its next download overwrites it and its Remove deletes it. The copy is
+    the caller's own and outlives both. The price is that a library image is
+    not gated by content labels, so a cover copied from a labelled entry is
+    served ungated through its new owner - see
+    docs/notes/decisions/2026-11-20-entry-covers-are-copied-into-the-library.md.
+
+    404 when the entry does not exist, is not the type named, is hidden from
+    the caller (indistinguishable from missing), has no cover, or its cover
+    file is not on this machine; 422 when that file is not an image.
+    """
+    media = db.get(models.Media, payload.entry_id)
+    if (
+        media is None
+        or media.media_type != payload.media_type
+        or not entry_visible(db, admin, media.media_type, media.system_id)
+    ):
+        raise HTTPException(status_code=404, detail="Entry not found.")
+
+    cover_key = media.cover_image_file
+    if not cover_key or cover_key == "N/A":
+        raise HTTPException(status_code=404, detail="That entry has no cover.")
+
+    # Already a library image: it is that row. Re-importing it would re-encode
+    # a JPEG into different bytes and a second row of the same picture.
+    if cover_key.startswith(f"{image_library.LIBRARY_SUBDIR}/"):
+        existing = (
+            db.query(models.Image)
+            .filter(models.Image.storage_key == cover_key)
+            .first()
+        )
+        if existing is not None:
+            return _to_out(db, existing)
+
+    path = _entry_cover_path(cover_key)
+    if not os.path.isfile(path):
+        raise HTTPException(
+            status_code=404, detail="That entry's cover is not on this machine."
+        )
+    with open(path, "rb") as handle:
+        raw = handle.read()
+    try:
+        normalized = image_library.normalize_image(raw)
+    except image_library.ImageValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    image = save_upload(db, normalized, f"{media.display_name}.jpg", admin)
+    db.commit()
+    db.refresh(image)
+    return _to_out(db, image)
 
 
 @router.get("", response_model=ImageListOut, summary="The image library")

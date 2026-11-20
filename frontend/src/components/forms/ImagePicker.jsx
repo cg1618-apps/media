@@ -40,16 +40,27 @@
 // shows when it has none of its own - a cast row's identity or character. It
 // is drawn dimmed in the empty thumbnail and is never handed to onChange:
 // showing it must not turn it into the record's own.
+//
+// The library modal has two tabs. "Library" lists image rows. "From an
+// entry" searches entries by title and offers those with a stored cover; a
+// pick COPIES that cover into the library (POST /api/images/from-entry) and
+// hands the returned image row to the same chooseFromLibrary as a library
+// pick, so attach, the focus reset and an Add form's pending_image_id behave
+// identically. A copy rather than a reference to the entry's key: see
+// docs/notes/decisions/2026-11-20-entry-covers-are-copied-into-the-library.md.
 import { useEffect, useRef, useState } from "react";
 
 import { fetchJson, jsonBody } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
 import { visibleImageOwnerTypeGroups } from "../../config/imageOwnerTypes";
+import { mediaTypeLabel } from "../../config/mediaRegistry";
 import { useAuth } from "../../contexts/AuthContext";
-import { focusStyle, getCoverUrl } from "../../lib/covers";
+import { focusStyle, getCoverUrl, thumbUrl } from "../../lib/covers";
+import { useGlobalMediaSearch } from "../../hooks/useGlobalMediaSearch";
 import {
   useAttachImage,
   useClearOwnerImage,
+  useCopyEntryCover,
   useImages,
   useUploadImage,
 } from "../../hooks/useImages";
@@ -59,6 +70,14 @@ import LazyImage from "../ui/LazyImage";
 
 const PAGE_SIZE = 60;
 const SEARCH_DEBOUNCE_MS = 250;
+
+// The library modal's two tabs: image rows, and a copy of an entry's cover.
+const LIBRARY_TAB = "library";
+const ENTRY_TAB = "entry";
+const SOURCE_TABS = [
+  { key: LIBRARY_TAB, label: "Library" },
+  { key: ENTRY_TAB, label: "From an entry" },
+];
 
 // Attaches an already-uploaded image to a just-created owner row. Used by
 // forms (QuoteForm, MemeForm) whose ImagePicker had no ownerId yet at pick
@@ -356,6 +375,7 @@ function LibraryModal({ onSelect, onClose }) {
   // cover you almost always want something you just uploaded, not one of
   // ~2000 images already in use elsewhere. The filter is a normal chip, so it
   // can be cleared to see everything.
+  const [source, setSource] = useState(LIBRARY_TAB);
   const [unused, setUnused] = useState(true);
   const [missing, setMissing] = useState(false);
   const [ownerType, setOwnerType] = useState("");
@@ -439,6 +459,31 @@ function LibraryModal({ onSelect, onClose }) {
             <i className="fas fa-times"></i>
           </button>
         </div>
+        <div
+          role="tablist"
+          className="flex gap-1 border-b border-border bg-surface-2 px-6 pt-2"
+        >
+          {SOURCE_TABS.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              role="tab"
+              aria-selected={source === tab.key}
+              onClick={() => setSource(tab.key)}
+              className={`-mb-px border-b-2 px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.12em] ${
+                source === tab.key
+                  ? "border-brand bg-surface text-brand"
+                  : "border-transparent text-text-faint hover:text-text-muted"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        {source === ENTRY_TAB ? (
+          <EntryCoverSearch onSelect={onSelect} />
+        ) : (
+        <>
         <div className="flex flex-wrap items-center gap-2 border-b border-border px-6 py-3">
           <button type="button" onClick={toggleUnused} aria-pressed={unused}>
             <Chip tone={unused ? "brand" : "ink"}>Unused</Chip>
@@ -557,7 +602,101 @@ function LibraryModal({ onSelect, onClose }) {
             </div>
           )}
         </div>
+        </>
+        )}
       </div>
     </div>
+  );
+}
+
+// The "From an entry" tab: find an entry by title and take a copy of its
+// cover. The search is /api/search through useGlobalMediaSearch (debounced,
+// two characters minimum, the viewer's own visibility applied server-side);
+// only hits with a stored cover are offered, since there is nothing to copy
+// from the rest. The copy is made on the pick, and the returned image row
+// goes to onSelect like any library image.
+function EntryCoverSearch({ onSelect }) {
+  const [query, setQuery] = useState("");
+  const [error, setError] = useState(null);
+  const { hits, searching } = useGlobalMediaSearch(query);
+  const copy = useCopyEntryCover();
+  const withCover = hits.filter(
+    (hit) => hit.cover_image_file && hit.cover_image_file !== "N/A",
+  );
+  const typed = query.trim().length >= 2;
+
+  async function pick(hit) {
+    setError(null);
+    try {
+      const image = await copy.mutateAsync({
+        mediaType: hit.media_type,
+        entryId: hit.entry_id,
+      });
+      onSelect(image);
+    } catch (err) {
+      setError(err.message || "Copying the cover failed.");
+    }
+  }
+
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-2 border-b border-border px-6 py-3">
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search entries by title…"
+          aria-label="Search entries"
+          autoFocus
+          className="min-w-[10rem] flex-1 rounded border border-border-strong bg-surface px-2 py-1.5 text-sm text-text placeholder:text-text-faint"
+        />
+        {copy.isPending && (
+          <span className="text-sm text-text-muted">Copying…</span>
+        )}
+      </div>
+
+      <div className="max-h-[70vh] overflow-y-auto p-4">
+        {error && <p className="mb-3 text-sm text-danger">{error}</p>}
+        {!typed && (
+          <p className="text-sm text-text-muted">
+            Type an entry&apos;s title to use a copy of its cover.
+          </p>
+        )}
+        {typed && searching && (
+          <p className="text-sm text-text-muted">Loading…</p>
+        )}
+        {typed && !searching && withCover.length === 0 && (
+          <p className="text-sm text-text-muted">
+            No entries with a cover match this search.
+          </p>
+        )}
+        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
+          {withCover.map((hit) => (
+            <button
+              type="button"
+              key={hit.key}
+              onClick={() => pick(hit)}
+              disabled={copy.isPending}
+              className="group flex flex-col overflow-hidden rounded border border-border bg-surface-2 text-left hover:border-brand disabled:opacity-50"
+            >
+              <span className="block aspect-[2/3] w-full overflow-hidden">
+                <LazyImage
+                  src={thumbUrl(getCoverUrl(hit.cover_image_file))}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  style={focusStyle(hit.cover_image_focus)}
+                />
+              </span>
+              <span className="block px-1.5 pt-1 text-xs leading-tight text-text line-clamp-2">
+                {hit.display_name}
+              </span>
+              <span className="block px-1.5 pb-1 font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
+                {mediaTypeLabel(hit.media_type)}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </>
   );
 }

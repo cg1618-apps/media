@@ -634,7 +634,26 @@ columns.
   saved, so attach is silently skipped in that one case — the upload still
   succeeds and hands back a storage key for the form to persist on save; once
   an `ownerId` exists, an attach failure (an unsupported owner type, or the
-  content-label 404) is surfaced rather than swallowed. **Remove** is the
+  content-label 404) is surfaced rather than swallowed. **Choose from
+  library** opens a modal with two tabs. **Library** lists `image` rows
+  (opened filtered to Unused, newest first; chips for Unused and Not on this
+  machine, a Used on select, a debounced filename search, 60 per page).
+  **From an entry** searches entries by title through `useGlobalMediaSearch`
+  (`GET /api/search/`, debounced, two characters minimum) and shows only the
+  hits with a stored cover, each as its cover thumbnail
+  (`thumbUrl(getCoverUrl(...))` in the entry's own focus), title and media
+  type. Picking one copies that cover into the library
+  (`POST /api/images/from-entry`, `useCopyEntryCover`) and hands the returned
+  image row to the same handler as a library pick, so attach, the focus reset
+  and an Add form's `pending_image_id` behave exactly as for any library
+  image, for every owner type including book units, quotes and memes. A
+  failed copy is shown in the modal and changes nothing. The copy is the
+  owner's own library image: re-downloading, removing or deleting the source
+  entry's cover never touches it, and it is served from `/static/library/`
+  like every upload, with no content-label gate, so a cover copied from a
+  labelled entry is shown wherever its new owner is (see
+  [the decision](../notes/decisions/2026-11-20-entry-covers-are-copied-into-the-library.md)).
+  **Remove** is the
   inverse, with the same split: given an `ownerId` it clears the owner's image
   on the server at once (`DELETE /api/images/owners/{type}/{id}/{role}` —
   attachment, mirror column and the file downloaded for the owner) and only

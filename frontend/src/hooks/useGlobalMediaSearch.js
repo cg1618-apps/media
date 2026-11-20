@@ -68,6 +68,10 @@ export function useGlobalMediaSearch(query, { enabled = true } = {}) {
             entry_id: row.system_id,
             key: `${type}:${row.system_id}`,
             display_name: getDisplayName(row, type),
+            // What the image picker's "From an entry" tab draws and filters
+            // on; null when the entry has no cover.
+            cover_image_file: row.cover_image_file ?? null,
+            cover_image_focus: row.cover_image_focus ?? null,
           })),
         ),
       );

@@ -45,6 +45,26 @@ export function useUploadImage() {
   });
 }
 
+// Copies an entry's stored cover into the library as an image of its own
+// (POST /api/images/from-entry) and resolves to that image row, which the
+// caller then attaches like any other library pick. Deduplicated by checksum
+// on the server, so copying the same cover twice returns one row.
+export function useCopyEntryCover() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ mediaType, entryId }) =>
+      fetchJson(endpoints.images.fromEntry(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ media_type: mediaType, entry_id: entryId }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["images"] });
+    },
+  });
+}
+
 export function useAttachImage() {
   const queryClient = useQueryClient();
 
