@@ -107,8 +107,10 @@ export function StudioCard({ studio }) {
       to={entityHref("studio", studio)}
       label="Studio"
       name={studio.display_name || "Unknown Studio"}
-      imageFile={studio.logo_file}
-      imageFocus={studio.logo_focus}
+      // The server falls back to the newest visible credited entry's cover;
+      // a payload without display_logo_* still has logo_file.
+      imageFile={studio.display_logo_file ?? studio.logo_file}
+      imageFocus={studio.display_logo_focus ?? studio.logo_focus}
       imageAlt="Logo"
       creditCount={studio.credit_count}
       rating={studio.my_rating}
@@ -123,8 +125,10 @@ export function PublisherCard({ publisher }) {
       to={entityHref("publisher", publisher)}
       label="Publisher"
       name={publisher.display_name || "Unknown Publisher"}
-      imageFile={publisher.logo_file}
-      imageFocus={publisher.logo_focus}
+      // The server falls back to the newest visible credited entry's cover;
+      // a payload without display_logo_* still has logo_file.
+      imageFile={publisher.display_logo_file ?? publisher.logo_file}
+      imageFocus={publisher.display_logo_focus ?? publisher.logo_focus}
       imageAlt="Logo"
       creditCount={publisher.credit_count}
       rating={publisher.my_rating}

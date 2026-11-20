@@ -38,6 +38,10 @@ viewer - falls through to the automatic steps without complaint.
 A picture travels with its focal point: `display_photo_focus` is the focus
 stored beside whichever key won (the entity's photo_focus, the casting's
 photo_focus, or the entry's cover_image_focus), never another source's.
+
+Studios and publishers borrow the automatic step alone (newest_covers, called
+by credits.credit_summaries): own logo, else the newest visible credited
+entry that has a cover, else None.
 """
 
 from dataclasses import dataclass, field
@@ -288,6 +292,34 @@ def person_media(
         if media_type and entry_id:
             links.setdefault(person_id, []).append(_Link(media_type, entry_id))
     return _resolve(db, viewer, people, links, use_casting_photos=False)
+
+
+def newest_covers(
+    db: Session, pairs_by_entity: dict[UUID, list[tuple[str, UUID]]]
+) -> dict[UUID, _Picture]:
+    """
+    {entity_id: (cover, cover focus)}: the cover of the newest entry in each
+    list that has one, else (None, None).
+
+    The studio and publisher picture fallback (credits.credit_summaries) - the
+    person rule's automatic step, with no casting photos. Each list must hold
+    only VISIBLE pairs, in credit position order, because equal dates keep
+    that order. One cover query and one per media type for the whole page.
+    """
+    links = {
+        entity_id: [_Link(media_type, entry_id) for media_type, entry_id in pairs]
+        for entity_id, pairs in pairs_by_entity.items()
+    }
+    covers, released = _entry_facts(
+        db,
+        {(link.media_type, link.entry_id) for group in links.values() for link in group},
+    )
+    return {
+        entity_id: _first_picture(
+            _newest_first(group, released), covers, use_casting_photos=False
+        )
+        for entity_id, group in links.items()
+    }
 
 
 def linked_entry_pairs(

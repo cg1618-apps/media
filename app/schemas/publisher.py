@@ -85,6 +85,10 @@ class PublisherResponse(PublisherBase):
     public_id: int
     display_name: str = ""
     credit_count: int = 0
+    # The picture to show: logo_file, else a visible credited entry's cover.
+    # Same semantics as StudioResponse's.
+    display_logo_file: Optional[str] = None
+    display_logo_focus: Optional[str] = None
     # Hyphenated media types of the visible entries this publisher is
     # credited on, sorted and distinct; restricted is True when one is a
     # gated type. Same semantics as StudioResponse's.

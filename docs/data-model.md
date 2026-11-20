@@ -1290,7 +1290,7 @@ every type it applies to is not wrong in the way a distributor list offering
 | `name_en` | String | yes | | Indexed |
 | `name_cn` / `name_jp` / `name_alt` | String | yes | | |
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain |
-| `logo_file` | String | yes | | Storage key under `static/covers/`, `studio/<system_id>.jpg`. Filled from MAL's producer logo when `mal_id` is set — see [external-apis.md](external-apis.md#mapping-for-studio--map_tenrai_to_studio_data) |
+| `logo_file` | String | yes | | Storage key under `static/covers/`, `studio/<system_id>.jpg`. Filled from MAL's producer logo when `mal_id` is set — see [external-apis.md](external-apis.md#mapping-for-studio--map_tenrai_to_studio_data). When NULL, readers show a visible credited entry's cover instead (`display_logo_file`, resolved at read time - [systems/credits-and-tags.md](systems/credits-and-tags.md#logo-fallback)) |
 | `logo_focus` | String | yes | | `logo_file`'s focal point, `"X% Y%"`; NULL centres it. Reset to NULL when the logo changes — see [image focal points](#image-focal-points) |
 | `remark` | Text | yes | | |
 | `founded_date` / `defunct_date` | String | yes | | Truncated ISO-8601, the format owned by `app/utils/release_date.py` |
@@ -1348,7 +1348,7 @@ mean something vaguer than it does.
 | `name_en` | String | yes | | Indexed |
 | `name_cn` / `name_jp` / `name_alt` | String | yes | | |
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain |
-| `logo_file` | String | yes | | Storage key under `static/covers/`, `publisher/<system_id>.jpg`. Never autofilled - there is no MAL producer record for a games publisher or a TW distributor |
+| `logo_file` | String | yes | | Storage key under `static/covers/`, `publisher/<system_id>.jpg`. Never autofilled - there is no MAL producer record for a games publisher or a TW distributor. When NULL, readers show a visible credited entry's cover instead (`display_logo_file` - [systems/credits-and-tags.md](systems/credits-and-tags.md#logo-fallback)) |
 | `logo_focus` | String | yes | | `logo_file`'s focal point, `"X% Y%"`; NULL centres it. Reset to NULL when the logo changes — see [image focal points](#image-focal-points) |
 | `remark` | Text | yes | | |
 | `founded_date` / `defunct_date` | String | yes | | Truncated ISO-8601, the format owned by `app/utils/release_date.py` |

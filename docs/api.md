@@ -1463,7 +1463,7 @@ searchable across all four name columns and carry the same
 library endpoints return, `credit_count` included — computed here for the whole
 bucket in one `filter_visible_pairs` call rather than per row, so the number
 matches `/api/person/` and `/api/studio/` without the N+1. Every row also
-carries `media_types` and `restricted`, and a person `display_photo_file` and `display_photo_focus`, from
+carries `media_types` and `restricted`, a person `display_photo_file` and `display_photo_focus`, and a studio or publisher `display_logo_file` and `display_logo_focus`, from
 the same one-pass resolver its own list uses (`entity_photos.person_media` for
 people, `credits.credit_summaries` for studios and publishers). The rows go through
 the same shared-record rule as their lists
@@ -1835,7 +1835,7 @@ role/scope filter — studios have no `person_role` concept.
 **Response model:** `StudioResponse` — `StudioBase` fields (the four names,
 `display_name_field`, `logo_file`, `logo_focus`, `remark`, `founded_date`,
 `defunct_date`, `country`, `website_url`, `mal_id`, `mal_link`) plus
-`system_id`, the viewer's own `my_rating`, the resolved `display_name`, and three fields resolved **for the
+`system_id`, the viewer's own `my_rating`, the resolved `display_name`, and these fields resolved **for the
 viewer** from the entries they may see, none of them stored:
 
 - `credit_count` — how many visible entries the studio is credited on, one
@@ -1844,13 +1844,22 @@ viewer** from the entries they may see, none of them stored:
   and distinct.
 - `restricted` — `true` when one of `media_types` is a gated type (`h-comic`,
   `hentai`, `h-game`).
+- `display_logo_file` — the storage key to show: `logo_file`, else the
+  `cover_image_file` of the newest visible entry the studio is credited on
+  that has a cover ("newest" as for a person's picture: primary release date
+  descending, undated last, equal dates in credit `position` order), else
+  `null`. Read-only — a write edits `logo_file`, never this.
+- `display_logo_focus` — the focal point stored beside whichever source won:
+  `logo_focus` for the studio's own logo, the entry's `cover_image_focus` for
+  a fallback cover; `null` with no picture.
 - `has_relations` — `true` when the studio relates to at least one studio
   the viewer may see (`STUDIO_RELATIONS.related_counts`, two queries for the
   whole list); the studio library's Relation filter reads it.
 
-All three come from one `credits.credit_summaries` pass over the same visible
+`credit_count`, `media_types`, `restricted` and the display logo come from one
+`credits.credit_summaries` pass over the same visible
 `(media_type, entry_id)` pairs, so a card can never name a type its count
-leaves out. The list resolves every row in one pass, so its query count does
+leaves out, nor show the cover of an entry the viewer cannot see. The list resolves every row in one pass, so its query count does
 not grow with the number of studios; a write answers for the writer.
 
 `StudioBase` rejects a payload with no name at all and a `display_name_field`
@@ -1958,8 +1967,10 @@ uses. `app/routers/publisher.py` mirrors `/api/studio` endpoint for endpoint,
 `PublisherBase` fields (the four names, `display_name_field`,
 `logo_file`, `logo_focus`, `remark`, `founded_date`, `defunct_date`, `country`,
 `website_url`, `scopes`) plus `system_id`, the viewer's own `my_rating`, the resolved `display_name`, and
-the three viewer-resolved fields `StudioResponse` carries — `credit_count`,
-`media_types` and `restricted` — from the same `credit_summaries` pass.
+the viewer-resolved fields `StudioResponse` carries — `credit_count`,
+`media_types`, `restricted`, `display_logo_file` and `display_logo_focus` (the
+publisher's own logo, else the newest visible credited entry's cover) — from
+the same `credit_summaries` pass.
 `PublisherBase` rejects a payload with no name at all and a
 `display_name_field` outside `en` / `cn` / `jp` / `alt` with a 422, mirroring
 `ck_publisher_has_a_name`.
