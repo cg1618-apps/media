@@ -296,18 +296,21 @@ function StepRow({ item, index, roomy, showStatus, colourCoded }) {
         {index}
       </span>
 
-      <LazyImage
-        src={thumbUrl(getCoverUrl(item.cover_image_file))}
-        alt=""
-
-        onError={(e) => {
-          e.currentTarget.src = FALLBACK_SVG;
-        }}
-        className={`shrink-0 object-cover bg-surface-2 border border-border ${
+      <div
+        className={`shrink-0 overflow-hidden bg-surface-2 border border-border ${
           roomy ? "w-14 h-20" : "w-10 h-14"
         }`}
-        style={focusStyle(item.cover_image_focus)}
-      />
+      >
+        <LazyImage
+          src={thumbUrl(getCoverUrl(item.cover_image_file))}
+          alt=""
+          onError={(e) => {
+            e.currentTarget.src = FALLBACK_SVG;
+          }}
+          className="h-full w-full object-cover"
+          style={focusStyle(item.cover_image_focus)}
+        />
+      </div>
 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">

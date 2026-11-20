@@ -98,12 +98,14 @@ export default function RelationNode({ data, selected, isConnectable = true }) {
           <i className="fas fa-link-slash text-xs text-danger"></i>
         </div>
       ) : (
-        <LazyImage
-          src={thumbUrl(getCoverUrl(cover_image_file))}
-          alt=""
-          className="h-12 w-9 shrink-0 rounded-md object-cover"
-          style={focusStyle(cover_image_focus)}
-        />
+        <div className="h-12 w-9 shrink-0 overflow-hidden rounded-md">
+          <LazyImage
+            src={thumbUrl(getCoverUrl(cover_image_file))}
+            alt=""
+            className="h-full w-full object-cover"
+            style={focusStyle(cover_image_focus)}
+          />
+        </div>
       )}
 
       <div className="min-w-0 flex-1">

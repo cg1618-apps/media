@@ -647,14 +647,15 @@ columns.
   preview URL. `compact` draws the same three actions on one line - a
   thumbnail and three icon buttons with the same accessible names - for a
   picker that sits among other cells. Given `onFocusChange` (and the current
-  `focus`), it also offers **Adjust position** while it holds an image - an
+  `focus`), it also offers **Adjust position & zoom** while it holds an image - an
   outline button in the full picker, a crosshairs icon button with that
   accessible name in the compact one - which opens `FocusPicker`; and every
   way of changing the picture (upload, choose, remove) calls
   `onFocusChange(null)`, because a focus belongs to the picture it was set on
   and the server resets it on every attach and clear for the same reason - a
   form that kept the old value would stamp it onto the new picture on save.
-  The compact thumbnail is cropped, so it applies the focus; the full
+  The compact thumbnail is cropped, so it applies the focus inside a
+  clipping frame; the full
   picker's preview is uncropped. A compact picker given `fallback`
   (`{file, focus}`) and no `value` draws that picture in the thumbnail at
   half opacity, alt "Fallback image", with no Remove - it is what the record
@@ -662,13 +663,19 @@ columns.
   person, character, publisher and studio forms (all with a focus),
   `QuoteForm` and `MemeForm` (without one: those images are drawn uncropped)
   and, compact and without an owner, each `CastEditor` row. No image field is
-  typed by hand anywhere), `FocusPicker` (the modal behind Adjust position,
-  in `LibraryModal`'s chrome: the whole image, uncropped, with a marker on
-  the focal point; a click or a drag on the image moves it, and the arrow
-  keys nudge it by 1% - 10% with Shift - while the marker has focus. Beside
-  it, live previews of the image cropped to a 2:3 card and a square. **Reset
-  to centre**, **Cancel** and **Done**; Done hands back `"X% Y%"`, or null
-  for the centre, through `formatFocus`; Escape or the backdrop cancels).
+  typed by hand anywhere), `FocusPicker` (the modal behind Adjust position &
+  zoom, in `LibraryModal`'s chrome: the whole image, uncropped, with a marker
+  on the focal point; a click or a drag on the image moves it, and the arrow
+  keys nudge it by 1% - 10% with Shift - while the marker has focus. Under
+  it, a **Zoom** slider (1 to 4 in steps of 0.05), **Zoom out** / **Zoom in**
+  buttons (steps of 0.25) and **Fit whole image**, which zooms fully out to
+  the letterboxed whole picture. Fit is the step below zoom 1: Zoom out at 1
+  fits, and Zoom in or moving the slider leaves fit at zoom 1. Beside it,
+  live previews of the image in a 2:3 card and a square, drawn through
+  `focusStyle` so they show the zoom and the fit as every page will.
+  **Reset to centre** (point, zoom and fit), **Cancel** and **Done**; Done
+  hands back the stored string, or null for the centre at zoom 1, through
+  `formatFocus`; Escape or the backdrop cancels).
 - **`components/ui`** — `primitives.jsx` (see
   [design-system.md](design-system.md#primitives-componentsuiprimitivesjsx)),
   `LazyImage.jsx`, the drop-in `<img>` every image is drawn with (see

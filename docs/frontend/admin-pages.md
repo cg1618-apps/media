@@ -270,9 +270,9 @@ submit handlers and the shared modals.
 
 **Every image has a focal point.** Each entry, person, character, studio and
 publisher form's `ImagePicker` carries the image's focus beside its key
-(`cover_image_focus`, `photo_focus`, `logo_focus`), so **Adjust position**
-opens `FocusPicker` and the chosen `"X% Y%"` is saved with the rest of the
-form, on Add as on `/modify`. Picking, uploading or removing an image clears
+(`cover_image_focus`, `photo_focus`, `logo_focus`), so **Adjust position &
+zoom** opens `FocusPicker` and the chosen point, zoom or fit is saved with
+the rest of the form, on Add as on `/modify`. Picking, uploading or removing an image clears
 it to null in the form, matching the server, which resets the focus whenever
 an owner's picture changes. A cast row's photo has its own `photo_focus` the
 same way.

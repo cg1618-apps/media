@@ -100,15 +100,17 @@ export default function RelationsSection({ mediaType, entryId, onRows }) {
         // emit a dead link.
         const body = (
           <>
-            <LazyImage
-              src={thumbUrl(getCoverUrl(other.cover_image_file))}
-              className="w-10 h-14 object-cover shrink-0 border border-border"
-              style={focusStyle(other.cover_image_focus)}
-              onError={(e) => {
-                e.target.src = FALLBACK_SVG;
-              }}
-              alt=""
-            />
+            <div className="w-10 h-14 shrink-0 overflow-hidden border border-border">
+              <LazyImage
+                src={thumbUrl(getCoverUrl(other.cover_image_file))}
+                className="h-full w-full object-cover"
+                style={focusStyle(other.cover_image_focus)}
+                onError={(e) => {
+                  e.target.src = FALLBACK_SVG;
+                }}
+                alt=""
+              />
+            </div>
             <div className="min-w-0 flex-1">
               {/* The kind is a chip, not a colour: nine hues would be noise. */}
               <Chip className="mb-1">{row.label}</Chip>

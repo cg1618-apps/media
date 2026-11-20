@@ -35,7 +35,12 @@ describe("ImagePicker - compact", () => {
     expect(screen.getByLabelText("Upload")).toHaveAttribute("type", "file");
     expect(screen.getByRole("button", { name: "Choose from library" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Remove image" })).toBeInTheDocument();
-    expect(screen.getByAltText("Current image")).toHaveClass("w-8", "h-8");
+    // The thumbnail fills a w-8 h-8 frame that clips it when it is zoomed.
+    expect(screen.getByAltText("Current image").parentElement).toHaveClass(
+      "w-8",
+      "h-8",
+      "overflow-hidden",
+    );
   });
 
   it("offers no remove when there is no image", () => {
@@ -49,7 +54,7 @@ describe("ImagePicker - compact", () => {
     renderCompact({ value: "", fallback: { file: "characters/ichika.jpg", focus: "10% 20%" } });
 
     const img = screen.getByAltText("Fallback image");
-    expect(img).toHaveClass("opacity-50");
+    expect(img.parentElement).toHaveClass("opacity-50");
     expect(img.getAttribute("src")).toContain("characters/ichika.jpg");
     expect(img).toHaveStyle({ objectPosition: "10% 20%" });
     expect(screen.queryByAltText("Current image")).not.toBeInTheDocument();

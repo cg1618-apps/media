@@ -1,8 +1,10 @@
 # Images carry a focal point, stored beside each image column
 
 Images are drawn with `object-cover` almost everywhere, and the crop keeps the
-centre, so a portrait cover in a square frame loses the face. The focus is a
-CSS `object-position` the SPA applies verbatim (`"X% Y%"`); NULL means centred.
+centre, so a portrait cover in a square frame loses the face. The focus is the
+point to aim at, `"X% Y%"`, which `focusStyle` in `lib/covers.js` applies as
+the CSS `object-position`; NULL means centred. The same value can also carry a
+zoom or `fit` (see 2026-11-20-image-zoom-lives-in-the-focus-value.md).
 
 - **One column per image column, not one per image file.** The focus is stored
   as `<x>_focus` beside each `<x>_file`. Rejected: columns on the `image`
